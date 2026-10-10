@@ -48,7 +48,9 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - Settings keeps its list beside the dock, so its pages share their own left edge, all of them.
 - On a phone the slim bar slides up out of sight as you scroll down and comes back the moment you scroll up or reach
   the top (#83). A transform over the page, so nothing moves; the bottom tabs stay; not while a sheet is open. A
-  page's search stays in the page and scrolls with it.
+  page's search stays in the page and scrolls with it. Every page, Friday's too: what sticks under the bar (its
+  table's header) follows it up into its room (the shell's `bar-tucked`, `--bar-h`), and the bar's empty room never
+  takes a tap.
 - **A page whose subject is one list is `.page.fit`**: the window's height, in the usual frame. The list
   (`.scroll-fill`) is as tall as its rows, up to the height left, and scrolls inside; its tabs and search sit above
   it and never move. Nothing pins, so a search or filter that shortens the list moves nothing else (a pinned header
@@ -90,3 +92,6 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - 2026-10-10: A long list under a header (Friday's Who's coming): one scroller, the page; the list's box, stuck
   under its tabs and the height left, is a window the page's scroll drives through the rows. Replaces sticky tabs
   over rows passing under them.
+- 2026-10-10: The phone bar hides on Friday's page too (it had been held there): the table's header follows it up,
+  its box growing as the space under it shrinks, so the page's length doesn't change; the shell's empty top room
+  lets taps through to the stuck tabs and search.

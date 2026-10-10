@@ -28,17 +28,21 @@ export function listScroll(node: HTMLElement) {
   const box = node.querySelector<HTMLElement>(".list-box");
   if (!view || !page || !stuck || !box) return {};
 
+  let listH = 0;
   let extraNow = -1;
-  /** The spacer: the rows that don't fit the box */
+  /** The spacer: the rows that don't fit the box at its usual height (a phone's hidden bar makes it taller for a
+     while; the page's length doesn't change for that, or hiding the bar would shorten the page under you) */
   const extra = () => {
-    const now = Math.max(0, box.scrollHeight - box.clientHeight);
+    let rows = 0;
+    for (const child of box.children) rows += child.getBoundingClientRect().height;
+    const now = Math.max(0, Math.ceil(rows - listH));
     if (now !== extraNow) node.style.setProperty("--list-extra", `${(extraNow = now)}px`);
   };
 
-  /** The rows scroll by as much as the page has pushed the stuck block down its wrapper */
+  /** The rows scroll by as much as the page has pushed the stuck block down its wrapper (its sticky offset) */
   const sync = () => {
     extra(); // (rows settle after they're dealt in: a scroll is the moment to catch up)
-    box.scrollTop = Math.max(0, stuck.getBoundingClientRect().top - node.getBoundingClientRect().top);
+    box.scrollTop = Math.max(0, stuck.offsetTop);
   };
 
   /** The box: the height left under the tabs */
@@ -49,7 +53,8 @@ export function listScroll(node: HTMLElement) {
     const above = box.getBoundingClientRect().top - stuck.getBoundingClientRect().top;
     const edge = parseFloat(getComputedStyle(stuck).borderBottomWidth) || 0;
     const below = (parseFloat(getComputedStyle(page).paddingBottom) || 0) + edge;
-    node.style.setProperty("--list-h", `${Math.max(0, Math.floor(inner - dockedRow(page) - above - below))}px`);
+    listH = Math.max(0, Math.floor(inner - dockedRow(page) - above - below));
+    node.style.setProperty("--list-h", `${listH}px`);
     sync();
   };
 
@@ -63,6 +68,22 @@ export function listScroll(node: HTMLElement) {
   const changed = new MutationObserver(watch);
   changed.observe(box, { childList: true, subtree: true });
 
+  // While the block glides (a phone's bar hiding or coming back moves where it sticks), keep the rows with it
+  let gliding = 0;
+  let frame = 0;
+  const follow = () => {
+    sync();
+    frame = gliding > 0 ? requestAnimationFrame(follow) : 0;
+  };
+  const glide = (e: TransitionEvent) => {
+    if (e.target !== stuck && e.target !== box) return;
+    gliding = Math.max(0, gliding + (e.type === "transitionrun" ? 1 : -1));
+    if (gliding && !frame) frame = requestAnimationFrame(follow);
+    if (!gliding) sync();
+  };
+  const glides = ["transitionrun", "transitionend", "transitioncancel"] as const;
+  for (const type of glides) node.addEventListener(type, glide);
+
   size();
   watch();
   const resized = new ResizeObserver(size);
@@ -70,6 +91,8 @@ export function listScroll(node: HTMLElement) {
   view.addEventListener("scroll", sync, { passive: true });
   return {
     destroy() {
+      for (const type of glides) node.removeEventListener(type, glide);
+      cancelAnimationFrame(frame);
       view.removeEventListener("scroll", sync);
       resized.disconnect();
       grew.disconnect();

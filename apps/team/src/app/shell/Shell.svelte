@@ -260,8 +260,7 @@
       if (!el.classList?.contains("view")) return;
       lastScroll = el.scrollTop;
       const delta = el.scrollTop - turnedAt;
-      // (Not on a page whose list's tabs stick under it: they'd be left hanging below a gap)
-      if (!phone.current || !showBar || el.scrollTop <= barH || el.querySelector(".hybrid")) tucked = false;
+      if (!phone.current || !showBar || el.scrollTop <= barH) tucked = false;
       else if (document.querySelector("dialog[open]")) {
         // A sheet's open: leave the bar as it is
       } else if (delta > TUCK_AFTER) tucked = true;
@@ -476,7 +475,14 @@
       </Sheet>
     {/if}
 
-    <div class="content" bind:this={content} style:--chrome-h="{chromeH}px">
+    <!-- (bar-tucked and --bar-h: for what sticks under the bar, to follow it up: Friday's table) -->
+    <div
+      class="content"
+      class:bar-tucked={tucked}
+      bind:this={content}
+      style:--chrome-h="{chromeH}px"
+      style:--bar-h="{barH}px"
+    >
       <!-- Phones: pull down from the top to read the club again. Not on a full-screen page (the game clock) -->
       {#if phone.current && !route.focus}<PullToRefresh {content} top={chromeH} />{/if}
       {#key route.id}
@@ -770,6 +776,12 @@
     left: 0;
     right: 0;
     z-index: 6;
+    /* Only its bars take taps, not the room they leave: with a phone's bar hidden (#83), what sticks under it (Friday's
+       table header) sits in that room and must still be tapped */
+    pointer-events: none;
+  }
+  .chrome > * {
+    pointer-events: auto;
   }
   .pinned {
     position: relative;

@@ -852,7 +852,28 @@
      the spacer), the box showing them pass (lib/list-scroll.ts). So a wheel anywhere, or one swipe, scrolls the
      lot, the page scrolls the same however short the list, and the tabs never let go (ADR 0065) */
   .roster.hybrid {
+    position: relative; /* (the stuck block's offsetTop is measured from here) */
     display: block; /* (not the grid and its gap: the spacer follows the stuck block exactly) */
+  }
+  /* A phone's bar hiding as you scroll down (#83): the table sticks higher, into the bar's room, and its box grows
+     by as much (so its bottom stays put) while the spacer gives that much back (so the page's length doesn't change
+     and the table is never pushed off the top). All three glide together, with the bar */
+  .hybrid .stuck,
+  .hybrid .list-box,
+  .hybrid .list-spacer {
+    --grow: min(var(--bar-h, 0px), var(--list-extra, 0px));
+    transition:
+      top var(--t) var(--ease),
+      height var(--t) var(--ease);
+  }
+  :global(.bar-tucked) .hybrid .stuck {
+    top: calc(-1 * var(--bar-h, 0px));
+  }
+  :global(.bar-tucked) .hybrid .list-box {
+    height: calc(var(--list-h, 0px) + var(--grow));
+  }
+  :global(.bar-tucked) .hybrid .list-spacer {
+    height: calc(var(--list-extra, 0px) - var(--grow));
   }
   /* A little room under the box (not the page's usual deep margin), and the box keeps its own rounded glass edge,
      so its bottom always reads as the table's end, never a row cut off over a strip */
