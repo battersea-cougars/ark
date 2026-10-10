@@ -4,10 +4,12 @@
 // TEAM_ROSTER (Bitwarden, loaded into CI) or, locally, db/seed/roster.local.json.
 //   node scripts/seed-roster.mjs --local                              (local D1, from the local file)
 //   node scripts/seed-roster.mjs --remote -c dist/server/wrangler.json (CI, from TEAM_ROSTER)
+// --anonymous (dev and local): everyone but the admins under made-up names (scripts/lib/anonymize.mjs, ADR 0029)
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { anonymizeRoster } from "./lib/anonymize.mjs";
 import { parseRoster, rosterSql } from "./lib/roster.mjs";
 
 const argv = process.argv.slice(2);
@@ -30,7 +32,8 @@ if (!text) {
   process.exit(0);
 }
 
-const players = parseRoster(text);
+const parsed = parseRoster(text);
+const players = argv.includes("--anonymous") ? anonymizeRoster(parsed) : parsed;
 // The SQL holds names, so it goes in a private temp folder that's removed straight after.
 const dir = mkdtempSync(join(tmpdir(), "roster-"));
 const file = join(dir, "roster.sql");

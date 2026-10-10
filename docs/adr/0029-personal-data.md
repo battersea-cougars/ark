@@ -58,6 +58,12 @@ admin does the same for a member who asks by email (their member sheet → Delet
   `apps/team/src/lib/PrivacyNotice.svelte`, at `/privacy` in the app and on the sign-in screen, so anyone can read it
   before signing in. What it holds, who sees it, how long, and how to delete it. The website's `/privacy` covers the
   website only.
+- **Dev's players are made-up people** (bar the admins, who sign in to it): dev is for trying things, so it holds no
+  real member's name, email or phone. `scripts/lib/anonymize.mjs` swaps a real name for an invented one, worked out
+  from the name alone so it's the same every time; the dev and local seeds swap the roster before adding it
+  (`seed-roster.mjs --anonymous`), and `scripts/anonymize-members.mjs` swaps who's already in a database (name, email,
+  phone, bio, photo, web name, bank reference, names in the audit log, enquiries, sign-in codes and sessions). The
+  roster secret stays real; production is never touched. Copying production into dev, anonymized, once it's live: #95.
 
 ## Consequences
 
@@ -91,3 +97,5 @@ admin does the same for a member who asks by email (their member sheet → Delet
   the team app (#30).
 - 2026-10-10: The team app's privacy notice moves into the app (`/privacy`, and the sign-in screen); the website's covers
   the website only.
+- 2026-10-10: Dev and local hold made-up players, bar the admins: an anonymized seed and a script that swaps who's
+  already there.

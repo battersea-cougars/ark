@@ -165,10 +165,10 @@ jobs:
           fi
 
       # The team roster: personal data, so it lives in Secrets Manager (TEAM_ROSTER), never in this public repo
-      # (ADR 0029). Adds players who aren't there yet and changes no one.
+      # (ADR 0029). Adds players who aren't there yet and changes no one. Dev's are made-up people, bar the admins.
       - name: Seed the team roster
         working-directory: apps/web
-        run: node ../../scripts/seed-roster.mjs --remote -c dist/d1/wrangler.json
+        run: node ../../scripts/seed-roster.mjs --remote -c dist/d1/wrangler.json ${{ github.ref != 'refs/heads/release' && '--anonymous' || '' }}
 
   web:
     needs: [changes, database]
