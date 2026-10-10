@@ -857,11 +857,11 @@
   }
   /* A phone's bar hiding as you scroll down (#83): the table sticks higher, into the bar's room, and its box grows
      by as much (so its bottom stays put) while the spacer gives that much back (so the page's length doesn't change
-     and the table is never pushed off the top). All three glide together, with the bar */
+     and the table is never pushed off the top), but never below nothing: a short list keeps the page long enough
+     for the table to reach the top. All three glide together, with the bar */
   .hybrid .stuck,
   .hybrid .list-box,
   .hybrid .list-spacer {
-    --grow: min(var(--bar-h, 0px), var(--list-extra, 0px));
     transition:
       top var(--t) var(--ease),
       height var(--t) var(--ease);
@@ -870,10 +870,10 @@
     top: calc(-1 * var(--bar-h, 0px));
   }
   :global(.bar-tucked) .hybrid .list-box {
-    height: calc(var(--list-h, 0px) + var(--grow));
+    height: calc(var(--list-h, 0px) + var(--bar-h, 0px));
   }
   :global(.bar-tucked) .hybrid .list-spacer {
-    height: calc(var(--list-extra, 0px) - var(--grow));
+    height: max(0px, calc(var(--list-extra, 0px) - var(--bar-h, 0px)));
   }
   /* A little room under the box (not the page's usual deep margin), and the box keeps its own rounded glass edge,
      so its bottom always reads as the table's end, never a row cut off over a strip */

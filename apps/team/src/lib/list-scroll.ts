@@ -29,6 +29,8 @@ export function listScroll(node: HTMLElement) {
   if (!view || !page || !stuck || !box) return {};
 
   let listH = 0;
+  // While the block glides (a phone's bar hiding or coming back moves where it sticks), the rows keep with it
+  let gliding = 0;
   let extraNow = -1;
   /** The spacer: the rows that don't fit the box at its usual height (a phone's hidden bar makes it taller for a
      while; the page's length doesn't change for that, or hiding the bar would shorten the page under you) */
@@ -36,7 +38,20 @@ export function listScroll(node: HTMLElement) {
     let rows = 0;
     for (const child of box.children) rows += child.getBoundingClientRect().height;
     const now = Math.max(0, Math.ceil(rows - listH));
-    if (now !== extraNow) node.style.setProperty("--list-extra", `${(extraNow = now)}px`);
+    if (now === extraNow) return;
+    node.style.setProperty("--list-extra", `${(extraNow = now)}px`);
+    requestAnimationFrame(settle);
+  };
+
+  /** A tab or a search shortened the list while a phone's bar is hidden: the page pulls back to where the table
+     sticks under the bar, short of where it sticks in the bar's room. Scroll it the rest of the way, so the table
+     stays at the top and the bar stays hidden */
+  const settle = () => {
+    if (gliding || !node.closest(".bar-tucked") || stuck.offsetTop > 0) return;
+    const v = view.getBoundingClientRect().top + (parseFloat(getComputedStyle(view).paddingTop) || 0);
+    const at = stuck.getBoundingClientRect().top - v;
+    const want = parseFloat(getComputedStyle(stuck).top) || 0;
+    if (at <= 0 && at > want + 1) view.scrollTop += at - want;
   };
 
   /** The rows scroll by as much as the page has pushed the stuck block down its wrapper (its sticky offset) */
@@ -68,8 +83,6 @@ export function listScroll(node: HTMLElement) {
   const changed = new MutationObserver(watch);
   changed.observe(box, { childList: true, subtree: true });
 
-  // While the block glides (a phone's bar hiding or coming back moves where it sticks), keep the rows with it
-  let gliding = 0;
   let frame = 0;
   const follow = () => {
     sync();

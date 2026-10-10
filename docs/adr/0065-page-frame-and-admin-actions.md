@@ -94,4 +94,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   over rows passing under them.
 - 2026-10-10: The phone bar hides on Friday's page too (it had been held there): the table's header follows it up,
   its box growing as the space under it shrinks, so the page's length doesn't change; the shell's empty top room
-  lets taps through to the stuck tabs and search.
+  lets taps through to the stuck tabs and search. A scroll that comes with a new page length (a tab or a search
+  shortening the list) isn't you scrolling, so it leaves the bar hidden, and the table settles at the top.

@@ -248,10 +248,14 @@
   const TUCK_AFTER = 8;
   // Where the last move of more than TUCK_AFTER ended: a small wobble either way doesn't flick the bar
   let turnedAt = 0;
+  // The page's length at the last scroll: a scroll that comes with a new length is the page changing under you (a
+  // tab or a search shortening a list pulls the scroll back), not you scrolling, so it leaves the bar as it is
+  let lengthAt = 0;
   $effect(() => {
     void route.id;
     tucked = false;
     turnedAt = 0;
+    lengthAt = 0;
   });
   $effect(() => {
     if (!content) return;
@@ -260,7 +264,10 @@
       if (!el.classList?.contains("view")) return;
       lastScroll = el.scrollTop;
       const delta = el.scrollTop - turnedAt;
+      const reflowed = lengthAt !== 0 && el.scrollHeight !== lengthAt;
+      lengthAt = el.scrollHeight;
       if (!phone.current || !showBar || el.scrollTop <= barH) tucked = false;
+      else if (reflowed) turnedAt = el.scrollTop;
       else if (document.querySelector("dialog[open]")) {
         // A sheet's open: leave the bar as it is
       } else if (delta > TUCK_AFTER) tucked = true;
