@@ -3,8 +3,8 @@
 import { all, first, run } from "@cougars/shared/d1";
 import { ACTIONS, type Action } from "../../src/access/actions";
 import { HttpError, bool, int, oneOf, text } from "../api/api.http";
-import { email, giveReference, mailSetup, type AuthEnv } from "../auth/auth";
-import { sendMail } from "@cougars/shared/email";
+import { email, giveReference, type AuthEnv } from "../auth/auth";
+import { tellTheyreIn } from "./members.mail";
 import { londonToday } from "../../src/lib/dates";
 import { QUARTER, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
 
@@ -165,36 +165,22 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
-  const link = `${origin}/?email=${encodeURIComponent(address)}`;
-  const emailed = await sendMail(
-    {
-      to: [address],
-      subject: "You're in: the Battersea Cougars app",
-      text: [
-        `Hi ${name.split(" ")[0]},`,
-        "",
-        "You've been added to the Battersea Cougars app: training, tournaments, the draft and what you owe, all in one place.",
-        "",
-        `Open it here: ${link}`,
-        "",
-        "Sign in with this email address. We'll send you a code to type in; no password to remember.",
-        "",
-        "See you at training.",
-        "Battersea Cougars",
-      ].join("\n"),
-    },
-    await mailSetup(env),
-  ).then(
-    () => true,
-    (e) => (console.error(JSON.stringify({ event: "member.invite_failed", error: String(e) })), false),
-  );
+  const emailed = await tellTheyreIn(env, name, address, origin);
   return { id, emailed };
 }
 
-/** An admin edits a member: position, rating, cougar, status and roles. */
-export async function updateMember(db: D1Database, id: number, o: Record<string, unknown>, by: By) {
+/**
+ * An admin edits a member: position, rating, cougar, status and roles. Says whether it let them in (pending to
+ * active), so the route can tell them.
+ */
+export async function updateMember(
+  db: D1Database,
+  id: number,
+  o: Record<string, unknown>,
+  by: By,
+): Promise<{ letIn: boolean }> {
   const caller = by.actions;
-  const existing = await first<{ id: number }>(db, "SELECT id FROM members WHERE id = ?", [id]);
+  const existing = await first<{ id: number; status: string }>(db, "SELECT id, status FROM members WHERE id = ?", [id]);
   if (!existing) throw new HttpError(404, "No such member.");
   await mayChange(db, caller, id);
   const name = text(o, "name");
@@ -257,6 +243,7 @@ export async function updateMember(db: D1Database, id: number, o: Record<string,
   }
   await run(db, "DELETE FROM member_roles WHERE member_id = ?", [id]);
   for (const roleId of ids) await run(db, "INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)", [id, roleId]);
+  return { letIn: existing.status === "pending" && status === "active" };
 }
 
 function roleFields(o: Record<string, unknown>) {

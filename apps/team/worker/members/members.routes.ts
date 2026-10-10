@@ -2,6 +2,8 @@
 import { id, ok, theMember, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
 import { checkImport, importMembers } from "./members.import";
+import { tellTheyreIn } from "./members.mail";
+import { first } from "@cougars/shared/d1";
 import { eraseMember } from "./members.erase";
 import {
   addMember,
@@ -97,7 +99,19 @@ export const MEMBERS_ROUTES: Route[] = [
     },
     action: "manage:Member",
     changes: ["members"],
-    handle: async (c) => (await updateMember(c.env.DB, id(c), await body(c.request), c), ok()),
+    handle: async (c) => {
+      const { letIn } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      // Let in after asking to join: they hear so, with the way in (ADR 0069)
+      if (letIn) {
+        const m = await first<{ name: string; email: string | null }>(
+          c.env.DB,
+          "SELECT name, email FROM members WHERE id = ?",
+          [id(c)],
+        );
+        if (m?.email) await tellTheyreIn(c.env, m.name, m.email, new URL(c.request.url).origin);
+      }
+      return ok();
+    },
   },
   {
     method: "DELETE",

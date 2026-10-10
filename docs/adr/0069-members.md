@@ -33,6 +33,16 @@ live at once.
 - **The email failing doesn't undo the add.** The reply says `emailed: false` and the admin is told to send the link
   themselves.
 
+**Asking to join**
+
+- **The admins hear at once.** Someone asking to join on the sign-in screen is a `pending` member; everyone who lets
+  members in (`manage:Member`) gets one email naming them, with a link to their sheet
+  (`<origin>/settings/members?member=<id>`, which opens it). Asking again with the same email sends nothing.
+- **They hear once they're in.** An admin moving them from pending to active sends them the same welcome as an added
+  member: the link that fills in their address on the sign-in screen. Both go through Gmail like the codes, so the dev
+  allow list ([0027](0027-email-through-gmail-api.md)) and the breaker ([0055](0055-degrade-instead-of-break.md))
+  apply; an email that doesn't go never undoes the change (`worker/members/members.mail.ts`).
+
 **Importing members**
 
 - Members' **Manage** button (one button, [0065](0065-page-frame-and-admin-actions.md)) has two tools: Add a member
@@ -94,3 +104,5 @@ live at once.
   (was 0082).
 - 2026-10-09: Members' Add button became Manage, with Import members: a CSV (or the roster's JSON), checked first, then
   added all at once with nobody emailed.
+- 2026-10-10: Asking to join emails the admins, with a link to the member's sheet; being let in emails the member
+  (#77).

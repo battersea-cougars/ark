@@ -35,7 +35,11 @@
   }
   let filter = $state<"all" | "F" | "D" | "G">("all");
   let query = $state("");
-  let open = $state<number | null>(null);
+  // ?member=12 (the email an admin gets when someone asks to join, ADR 0069): their sheet opens straight away, and the
+  // address goes back to the plain page so a reload doesn't open it again
+  const asked = Number(new URLSearchParams(location.search).get("member")) || null;
+  if (asked) history.replaceState(history.state, "", location.pathname);
+  let open = $state<number | null>(asked);
 
   const active = $derived(db.members.filter((m) => m.status === "active"));
   const shown = $derived(active.filter((m) => filter === "all" || m.player.position === filter));

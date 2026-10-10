@@ -10,6 +10,7 @@
 import { all, first, run } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import { isProduction, mailPausedUntil, sendMail, type MailConfig } from "@cougars/shared/email";
+import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
 import { londonToday } from "../../src/lib/dates";
 import { HttpError, body, json, oneOf, text } from "../api/api.http";
@@ -447,5 +448,7 @@ async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
   await audit(env.DB, now, id, "access.requested");
+  // The admins hear at once, with a link to their sheet (ADR 0069)
+  await tellAdminsOfRequest(env, { id, name, position }, new URL(request.url).origin);
   return reply;
 }
