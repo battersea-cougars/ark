@@ -21,6 +21,7 @@
   import Sheet from "../lib/Sheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import { listScroll } from "../lib/list-scroll";
+  import { checkForUpdates } from "../lib/live-updates.svelte";
   import { phone } from "../lib/viewport.svelte";
   import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
   import { flip } from "svelte/animate";
@@ -47,6 +48,10 @@
   const next = $derived(
     session ?? { id: 0, going: [] as number[], waitlist: [] as number[], out: undefined as number[] | undefined },
   );
+  // Who's in, out and waiting, live (ADR 0072), until the teams are made (a refresh mid-drag would upset a team maker)
+  $effect(() => {
+    if (!ordered) return checkForUpdates(["sessions"], { steady: true });
+  });
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
   // Quarterly skaters signed up: above those paying as they go, in and waiting (ADR 0030), badged so the order reads

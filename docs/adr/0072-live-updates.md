@@ -1,7 +1,7 @@
 # 0072. Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-09
+- **Date:** 2026-10-08 · updated 2026-10-10
 - **Merges:** 0096
 
 ## Context
@@ -46,6 +46,10 @@ The club may one day pay for hosting, when checking more often costs next to not
   scorekeeper's too: the same person may have it open on two devices), the tournament's home on its day while games
   are on, and the draft room while it's open. Only while the page is in view; the brake still has the last word.
 - **Each page says which**: "Live", or "Updates every 10 seconds".
+- **Sign-ups follow along too, quietly**: Home (its training and tournament cards) and a training's page until its
+  teams are made follow `sessions` (and Home `tournaments`), so someone answering In or Out shows on everyone's cards
+  and lists without a refresh. Everyone sits on these pages, so they don't say "Live", and with no stream they check
+  once a minute (`steady`), not on the admins' live beat: a dropped stream across the whole club can't spend the day.
 - **The Usage page shows Durable Object requests and duration** beside the day's use, and the 80% check
   ([0059](0059-usage-page-and-check.md)) covers them.
 
@@ -69,3 +73,5 @@ The club may one day pay for hosting, when checking more often costs next to not
   seconds and the game page's own pace; push ruled out as not free (was 0072).
 - 2026-10-09: Durable Objects found to be on the free plan; live pages pushed to over SSE from a `LiveHub` that
   stores nothing, with polling kept as the fallback and a 60-second safety net (was 0096).
+- 2026-10-10: Home and a training's page (until its teams are made) follow sign-ups live, quietly, falling back to a
+  check a minute.

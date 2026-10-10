@@ -18,6 +18,10 @@
   import type { Bookable } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
   import { editionState } from "../lib/edition";
+  import { checkForUpdates } from "../lib/live-updates.svelte";
+
+  // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
+  $effect(() => checkForUpdates(["sessions", "tournaments"], { steady: true }));
 
   const perms = $derived(granted());
   const who = $derived(me());

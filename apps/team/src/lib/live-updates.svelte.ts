@@ -39,9 +39,11 @@ function whatChanged(data: string, follow: readonly string[]): string[] {
 
 /**
  * Follow the club's changes while the page is in view: the hub's stream for the parts named, and a check on a beat.
- * Call in an effect (it follows the setting), and return what it returns.
+ * Call in an effect (it follows the setting), and return what it returns. `steady`: a page everyone sits on (Home,
+ * a training's sign-ups) checks once a minute when there's no stream, not on the admins' live beat, so a dropped
+ * stream across the whole club doesn't spend the day's requests.
  */
-export function checkForUpdates(follow: readonly string[] = ["tournaments"]) {
+export function checkForUpdates(follow: readonly string[] = ["tournaments"], { steady = false } = {}) {
   let source: EventSource | null = null;
   let beat: ReturnType<typeof setInterval> | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
@@ -53,7 +55,7 @@ export function checkForUpdates(follow: readonly string[] = ["tournaments"]) {
   };
   const onBeat = () => {
     clearInterval(beat);
-    beat = setInterval(check, source ? SAFETY_MS : liveRefreshSeconds() * 1000);
+    beat = setInterval(check, source || steady ? SAFETY_MS : liveRefreshSeconds() * 1000);
   };
   const opened = (on: boolean) => {
     streams += on ? 1 : -1;
