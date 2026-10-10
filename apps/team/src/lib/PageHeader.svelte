@@ -73,10 +73,14 @@
   // sitting hidden above it under the veil.
   // Docked: the sticky row has reached its place at the top. That's when its band comes in, not before.
   let docked = $state(false);
+  // Docked, the row shares the top band with your badges (top right, the shell's AccountMenu): on a narrower desktop
+  // its right end would run under them, so it keeps clear of them by as much
+  let clear = $state(0);
   $effect(() => {
     const el = row;
     if (!el || phone.current) {
       docked = false;
+      clear = 0;
       return;
     }
     const view = el.closest<HTMLElement>(".view");
@@ -85,10 +89,17 @@
       // Its sticky top, below the view's top padding: the height of whatever is pinned above (the View-as banner)
       const dockAt = (parseFloat(getComputedStyle(el).top) || 0) + (parseFloat(getComputedStyle(view).paddingTop) || 0);
       docked = view.scrollTop > 0 && el.getBoundingClientRect().top - view.getBoundingClientRect().top <= dockAt + 0.5;
+      const badges = document.querySelector(".topbar > :last-child")?.getBoundingClientRect();
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      clear = docked && badges ? Math.max(0, Math.ceil(el.getBoundingClientRect().right - (badges.left - gap))) : 0;
     };
     check();
     view.addEventListener("scroll", check, { passive: true });
-    return () => view.removeEventListener("scroll", check);
+    addEventListener("resize", check);
+    return () => {
+      view.removeEventListener("scroll", check);
+      removeEventListener("resize", check);
+    };
   });
 
   let header = $state<HTMLElement | undefined>();
@@ -136,7 +147,7 @@
 </header>
 <!-- A sibling of the header, not a child: a sticky element can only pin within its parent, and the header scrolls away -->
 {#if hasToolbar}
-  <div class="toolbar page-toolbar" class:docked bind:this={row}>
+  <div class="toolbar page-toolbar" class:docked style:padding-right={clear ? `${clear}px` : undefined} bind:this={row}>
     {#if strip.length}<Pills items={strip} current={pageBar.current} />{/if}
     {#if toolbar}{@render toolbar()}{/if}
     {#if filters && !phone.current}{@render filters()}{/if}
