@@ -11,6 +11,7 @@
   import { answerFor } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
+  import { db } from "../demo/store.svelte";
   import { dateBadge, formatTime, londonToday } from "./dates";
   import { initials } from "./initials";
   import { phone } from "./viewport.svelte";
@@ -144,19 +145,30 @@
     const wasIn = inIt;
     entries.going = entries.going.filter((x) => x !== id);
     entries.waitlist = entries.waitlist.filter((x) => x !== id);
+    entries.quarterly = entries.quarterly?.filter((x) => x !== id);
     entries.out = (entries.out ?? []).filter((x) => x !== id);
     if (!going) {
       entries.out = [...entries.out, id];
       // Someone drops out: the first on the waitlist moves up.
       if (wasIn && entries.waitlist.length && event.capacity && entries.going.length < event.capacity) {
-        entries.going = [...entries.going, entries.waitlist[0]];
+        const up = entries.waitlist[0];
+        entries.going = [...entries.going, up];
         entries.waitlist = entries.waitlist.slice(1);
+        entries.quarterly = entries.quarterly?.filter((x) => x !== up);
       }
       onanswer?.("out");
       return;
     }
     if (full) {
-      entries.waitlist = [...entries.waitlist, id];
+      // A Quarterly Member queues ahead of those paying as they go, behind the others who are (a training: ADR 0030)
+      const quarterly =
+        event.kind === "training" && db.members.find((m) => m.player.id === id)?.plan === "Subscription";
+      if (quarterly) {
+        const ahead = entries.quarterly ?? [];
+        const at = entries.waitlist.filter((x) => ahead.includes(x)).length;
+        entries.waitlist = [...entries.waitlist.slice(0, at), id, ...entries.waitlist.slice(at)];
+        entries.quarterly = [...ahead, id];
+      } else entries.waitlist = [...entries.waitlist, id];
       onanswer?.("waitlist");
     } else {
       entries.going = [...entries.going, id];

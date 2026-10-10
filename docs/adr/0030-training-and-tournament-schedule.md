@@ -1,7 +1,7 @@
 # 0030. The schedule lives in D1: training repeats as a series, tournaments are scheduled one by one and own their rules
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-09
+- **Date:** 2026-10-06 · updated 2026-10-10
 - **Merges:** 0025, 0046, 0048, 0049, 0051, 0052
 
 ## Context
@@ -57,6 +57,17 @@ Each active training series gets its own page and menu link; each active tournam
 section (Games, Standings, and Draft if it drafts). Admins manage them under Settings → Schedule: Training,
 Tournaments (the schedule, a card per tournament), Tournament Series (the series and their defaults) and Venues
 (`manage:Training`, `manage:Tournament`, `manage:Venue`). A new one appears straight away.
+
+### A training's waitlist: Quarterly Members first
+
+- A full session puts whoever says "I'm in" on the waitlist. **Quarterly Members** (a subscription covering the
+  session's day, ADR [0007](0007-dues-and-payments.md)) **queue ahead of everyone paying as they go**; within each, first come first
+  served. When a place comes free the first in that queue moves up (`aheadIn` in `worker/entries/entries.ts`). Someone
+  already in stays in: a Quarterly Member signing up late doesn't take their place.
+- The app gets the waitlist in that order, with who on it is Quarterly (`quarterly`), shown as a Quarterly badge on
+  their row and tag on their card so the order reads. That says who on a waitlist is Quarterly to every member, which
+  is the point of the badge; nobody else's plan is sent.
+- Tournaments and club events keep plain sign-up order.
 
 ### A tournament owns its rules
 
@@ -147,3 +158,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-09: The draft has a day, not a time; sign-up opens on a day; a series has usual hours (ADR 0074).
 - 2026-10-09: `date_confirmed` dropped: a TBC tick beside a set day left it showing TBC. A date is a day or a season;
   the quick form asks the season first, the day optional; season and year are one pick.
+- 2026-10-10: Quarterly Members go ahead of those paying as they go on a training's waitlist, and are badged there
+  (a club rule change).

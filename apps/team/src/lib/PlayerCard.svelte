@@ -13,6 +13,7 @@
     player,
     n,
     you = false,
+    quarterly = false,
     showRating = false,
     onopen,
     lifted = false,
@@ -20,6 +21,8 @@
     player: Player;
     n?: number;
     you?: boolean;
+    /** A Quarterly Member waiting for a place: they go ahead (ADR 0030), tagged so the queue's order reads */
+    quarterly?: boolean;
     showRating?: boolean;
     /** Tapped: given the card, so the zoom can start where it lies. */
     onopen?: (card: HTMLElement) => void;
@@ -39,6 +42,7 @@
       {#if n !== undefined}<span class="no">{n}</span>{/if}
       {#if you}<span class="you-tag">You</span>{/if}
       {#if player.cougar}<span class="cougar-tag">Cougar</span>{/if}
+      {#if quarterly}<span class="plan-tag">Quarterly</span>{/if}
     </span>
     <span class="plate"><strong style:--len={len}>{first}</strong></span>
     <span class="foot">
@@ -228,6 +232,21 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  }
+  /* A Quarterly Member on the waitlist: a quiet tag in the photo's bottom right, printed on the card's dark well */
+  .plan-tag {
+    position: absolute;
+    right: 3cqw;
+    bottom: 3cqw;
+    padding: 1.6cqw 3cqw 1.2cqw;
+    border-radius: 1.2cqw;
+    background: rgb(0 0 0 / 0.55);
+    color: var(--card-stock);
+    font-family: var(--font-display);
+    font-size: 7cqw;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   .photo:has(.cougar-tag) .you-tag {
     top: 15cqw;

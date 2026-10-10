@@ -21,6 +21,9 @@ export type ScheduleIcon = (typeof SCHEDULE_ICONS)[number] & IconName;
 export interface Entries {
   going: number[];
   waitlist: number[];
+  /** Who on a training's waitlist is a Quarterly Member, so goes ahead of those paying as they go (ADR 0030). The
+   * waitlist already comes in that order; this is for the badge. */
+  quarterly?: number[];
   /** Who said they're out. Not answering isn't out: someone in none of the lists hasn't said yet. */
   out?: number[];
 }

@@ -3,6 +3,8 @@
 // members.ts, ...). Who's asking is a row of its own (`viewer`), so what they may not see never leaves the database
 // (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
+import { aheadIn } from "../entries/entries";
+
 /** Who's asking, and what changes what they see. */
 export interface Viewer {
   memberId: number;
@@ -66,14 +68,15 @@ const rows = (columns: string, select: string) =>
 /** Answers to a kind of event, as anyone but whoever runs events sees them: their own "out", walk-in and no-show. */
 const entries = (table: string, key: string, events: string, extra: string) =>
   rows(
-    "eventId memberId signup walkIn attended",
+    "eventId memberId signup walkIn attended ahead",
     `SELECT e.${key} eventId, e.member_id memberId, e.signup,
             ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.walk_in ELSE 0 END" : "0"} walkIn,
-            ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.attended END" : "NULL"} attended
+            ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.attended END" : "NULL"} attended,
+            ${aheadIn(extra === "session" ? "session" : "event")} ahead
      FROM ${table} e, viewer v
      WHERE e.${key} IN (${events})
        AND (e.signup IN ('in', 'waitlist') OR v.sees_register OR e.member_id = v.member_id)
-     ORDER BY e.signed_up_at, e.id`,
+     ORDER BY ahead DESC, e.signed_up_at, e.id`,
   );
 
 const SESSIONS_SHOWN = "SELECT s.id FROM training_sessions s, viewer v WHERE s.held_on >= v.sessions_from";

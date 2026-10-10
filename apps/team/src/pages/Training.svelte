@@ -49,6 +49,8 @@
   );
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
+  // Quarterly Members on the waitlist: ahead of those paying as they go (ADR 0030), and badged so the order reads
+  const ahead = $derived(new Set(session?.quarterly ?? []));
   const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
 
   let registering = $state(false);
@@ -359,11 +361,14 @@
     <Person player={p} showRating={ratings} />
     {#if hasLeft(id)}<span class="badge">Out</span>
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
+    {#if ahead.has(id)}<span class="badge plan" title="Quarterly Member: ahead in the queue"
+        ><Icon name="calendar" size={12} /><span class="plan-word">Quarterly</span></span
+      >{/if}
     {#if p.cougar}<span class="badge red">Cougar</span>{/if}
   </button>
 {/snippet}
 
-<!-- Numbered by sign-up order, whatever the search leaves showing -->
+<!-- Numbered by their place (sign-up order; on the waitlist, Quarterly Members first), whatever the search leaves showing -->
 <!-- A search deals cards in and folds them away, or sifts rows; the rest glide to their places (as on Teammates) -->
 {#snippet players(all: number[], numbered = false)}
   {@const ids = matching(all)}
@@ -378,6 +383,7 @@
             player={byId(id)}
             n={numbered ? i + 1 : undefined}
             you={id === who.id}
+            quarterly={ahead.has(id)}
             showRating={ratings}
             lifted={lifted?.id === id}
             onopen={(el) => (lifted = { id, el, n: numbered ? i + 1 : undefined })}
@@ -999,6 +1005,20 @@
     color: var(--fg);
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+  /* A phone: the Quarterly badge is its icon, so a name keeps its room (the word stays for screen readers) */
+  @media (max-width: 900px) {
+    .plan {
+      padding: 0 var(--s-1);
+    }
+    .plan-word {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
   /* A phone: Cards and List as icons only (their words stay for screen readers) */
   @media (max-width: 900px) {

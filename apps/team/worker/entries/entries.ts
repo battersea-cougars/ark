@@ -1,7 +1,8 @@
 // Who's in (T2): sign-ups for training sessions, tournaments and club events, and the register on the night. One
 // row per person per event (db/schema.sql). The rules live here, not in the app: a full
 // event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
-// waitlist moves up. Admins can put someone in past the limit.
+// waitlist moves up. On a training's waitlist Quarterly Members go first (ADR 0030). Admins can put someone in past
+// the limit.
 import { all, first, run } from "@cougars/shared/d1";
 import { londonToday } from "../../src/lib/dates";
 import { signupOpen, signupOver } from "../../src/lib/signup";
@@ -18,14 +19,30 @@ const TABLES = {
   event: { table: "club_event_entries", key: "event_id" },
 } as const;
 
-/** What the app shows for one event: ids in sign-up order. */
+/** What the app shows for one event: ids in sign-up order (the waitlist in its queue order). */
 export interface Entries {
   going: number[];
   waitlist: number[];
+  /** Who on the waitlist is a Quarterly Member, so goes ahead (a training's only) */
+  quarterly: number[];
   out: number[];
   walkIns: number[];
   noShows: number[];
 }
+
+/** SQL: whether a member is a Quarterly Member on a day (ADR 0007: a subscription covering it) */
+export const quarterlyOn = (member: string, day: string) =>
+  `EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.member_id = ${member} AND sub.starts_on <= ${day}
+    AND (sub.ends_on IS NULL OR sub.ends_on >= ${day}))`;
+
+/**
+ * SQL: 1 for someone on a training's waitlist who goes ahead, being a Quarterly Member on the day (ADR 0030), else 0.
+ * `e` is the attendance row; the session's day is looked up. Other kinds' waitlists are first come, first served.
+ */
+export const aheadIn = (kind: EntryKind) =>
+  kind === "session"
+    ? `(e.signup = 'waitlist' AND ${quarterlyOn("e.member_id", "(SELECT held_on FROM training_sessions WHERE id = e.session_id)")})`
+    : "FALSE"; // (not a bare 0: in an ORDER BY that names column 0)
 
 /** Whether the event exists and takes sign-ups, and its limit (null: no limit). */
 async function capacity(db: D1Database, kind: EntryKind, id: number): Promise<number | null> {
@@ -90,13 +107,15 @@ async function put(
   );
 }
 
-/** A place came free: the first on the waitlist moves up, if there's still room as it does. */
+/** A place came free: the first on the waitlist (a training's Quarterly Members first) moves up, if there's still
+ * room as it does. */
 async function moveUp(db: D1Database, kind: EntryKind, id: number, limit: number | null, now: string) {
   const { table, key } = TABLES[kind];
   await run(
     db,
     `UPDATE ${table} SET signup = 'in', signed_up_at = ?
-     WHERE id = (SELECT id FROM ${table} WHERE ${key} = ? AND signup = 'waitlist' ORDER BY signed_up_at, id LIMIT 1)
+     WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'
+                 ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
        AND ${roomIn(table, key)}`,
     [now, id, limit, id, limit],
   );
@@ -203,36 +222,40 @@ export async function mark(
 export async function listEntries(db: D1Database, kind: EntryKind, ids: number[]): Promise<Map<number, Entries>> {
   const { table, key } = TABLES[kind];
   if (!ids.length) return entriesFrom([], ids);
-  const extra = kind === "session" ? "walk_in walkIn, attended" : "0 walkIn, NULL attended";
-  const rows = await all<{
-    eventId: number;
-    memberId: number;
-    signup: string;
-    walkIn: number;
-    attended: number | null;
-  }>(
+  const extra = kind === "session" ? "e.walk_in walkIn, e.attended" : "0 walkIn, NULL attended";
+  const rows = await all<EntryRow>(
     db,
-    `SELECT ${key} eventId, member_id memberId, signup, ${extra} FROM ${table}
-     WHERE ${key} IN (SELECT value FROM json_each(?)) ORDER BY signed_up_at, id`,
+    `SELECT e.${key} eventId, e.member_id memberId, e.signup, ${extra}, ${aheadIn(kind)} ahead FROM ${table} e
+     WHERE e.${key} IN (SELECT value FROM json_each(?)) ORDER BY ahead DESC, e.signed_up_at, e.id`,
     [JSON.stringify(ids)],
   );
   return entriesFrom(rows, ids);
 }
 
-/** Answers as read, in sign-up order, grouped by event: an event with none has empty lists. */
-export function entriesFrom(
-  rows: { eventId: number; memberId: number; signup: string; walkIn: number; attended: number | null }[],
-  ids: number[],
-): Map<number, Entries> {
+/** One answer as read; `ahead` marks a Quarterly Member on a training's waitlist (aheadIn). */
+interface EntryRow {
+  eventId: number;
+  memberId: number;
+  signup: string;
+  walkIn: number;
+  attended: number | null;
+  ahead?: number;
+}
+
+/** Answers as read, in queue order (aheadIn first, then sign-up order), grouped by event: an event with none has
+ * empty lists. */
+export function entriesFrom(rows: EntryRow[], ids: number[]): Map<number, Entries> {
   const out = new Map<number, Entries>(
-    ids.map((id) => [id, { going: [], waitlist: [], out: [], walkIns: [], noShows: [] }]),
+    ids.map((id) => [id, { going: [], waitlist: [], quarterly: [], out: [], walkIns: [], noShows: [] }]),
   );
   for (const r of rows) {
     const e = out.get(r.eventId);
     if (!e) continue;
     if (r.signup === "in") e.going.push(r.memberId);
-    else if (r.signup === "waitlist") e.waitlist.push(r.memberId);
-    else e.out.push(r.memberId);
+    else if (r.signup === "waitlist") {
+      e.waitlist.push(r.memberId);
+      if (r.ahead) e.quarterly.push(r.memberId);
+    } else e.out.push(r.memberId);
     if (r.walkIn) e.walkIns.push(r.memberId);
     if (r.attended === 0) e.noShows.push(r.memberId);
   }
