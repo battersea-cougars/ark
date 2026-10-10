@@ -55,14 +55,14 @@ export function deal(_node: Element, { out = false } = {}) {
     ? {
         duration: 150,
         easing: (t: number) => t * t,
-        css: (t: number) => `transform: scale(${(0.86 + 0.14 * t).toFixed(4)}); opacity: ${t.toFixed(3)};`,
+        css: (t: number) => `scale: ${(0.86 + 0.14 * t).toFixed(4)}; opacity: ${t.toFixed(3)};`,
       }
     : {
         delay: 120,
         duration: 340,
         easing: easeOut,
         css: (t: number, u: number) =>
-          `transform: translateY(${(10 * u).toFixed(2)}px) rotate(${(-4 * u).toFixed(2)}deg) scale(${(0.88 + 0.12 * t).toFixed(4)}); opacity: ${Math.min(1, t * 1.5).toFixed(3)};`,
+          `translate: 0 ${(10 * u).toFixed(2)}px; rotate: ${(-4 * u).toFixed(2)}deg; scale: ${(0.88 + 0.12 * t).toFixed(4)}; opacity: ${Math.min(1, t * 1.5).toFixed(3)};`,
       };
 }
 export const cardMoveMs = prefersReducedMotion ? 0 : 360;
@@ -72,20 +72,23 @@ export const cardMoveMs = prefersReducedMotion ? 0 : 360;
  * One arriving drops in a little and fades up, one leaving fades and shrinks a touch; the rest glide into place
  * (`animate:flip` with `cardMoveMs`). What a filter hides moves, it never just vanishes.
  */
+// (`scale`, `translate`, `rotate`, never `transform`: Svelte holds an item that's leaving in place with an inline
+// transform while the rest glide; an animated transform would replace it, and the item would jump to its list's
+// corner, a ghost over the first row, as it fades)
 export function sift(_node: Element, { out = false } = {}) {
   if (prefersReducedMotion) return { duration: 0 };
   return out
     ? {
         duration: 150,
         easing: (t: number) => t * t,
-        css: (t: number) => `transform: scale(${(0.97 + 0.03 * t).toFixed(4)}); opacity: ${t.toFixed(3)};`,
+        css: (t: number) => `scale: ${(0.97 + 0.03 * t).toFixed(4)}; opacity: ${t.toFixed(3)};`,
       }
     : {
         delay: 120,
         duration: 300,
         easing: easeOut,
         css: (t: number, u: number) =>
-          `transform: translateY(${(-6 * u).toFixed(2)}px); opacity: ${Math.min(1, t * 1.4).toFixed(3)};`,
+          `translate: 0 ${(-6 * u).toFixed(2)}px; opacity: ${Math.min(1, t * 1.4).toFixed(3)};`,
       };
 }
 
