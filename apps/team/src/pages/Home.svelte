@@ -396,7 +396,7 @@
     <section>
       <h2 class="section-title">Later</h2>
       {#each later as ev (ev.key)}
-        <EventCard event={ev} canSignUp={can(perms, "signup:Event")} compact />
+        <EventCard event={ev} canSignUp={can(perms, "signup:Event")} compact link />
       {/each}
     </section>
   {/if}

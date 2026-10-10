@@ -186,6 +186,7 @@
       <EventCard
         {event}
         compact
+        link
         canSignUp={can(perms, "signup:Event")}
         footer={o?.description || editable ? details : undefined}
       />
