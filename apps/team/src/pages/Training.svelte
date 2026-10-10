@@ -41,7 +41,11 @@
   const usual = $derived(seriesPlace(series));
   const who = $derived(me());
   const ratings = $derived(can(perms, "read:Rating"));
-  const next = $derived(session ?? { id: 0, going: [] as number[], waitlist: [] as number[] });
+  const next = $derived(
+    session ?? { id: 0, going: [] as number[], waitlist: [] as number[], out: undefined as number[] | undefined },
+  );
+  // Who's said they're out, in the order they said it
+  const outs = $derived(next.out ?? []);
   const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
 
   let registering = $state(false);
@@ -69,14 +73,14 @@
     }
   }
 
-  // Trial: players as trading cards, or the plain list. Remembered per device.
+  // The plain list, or players as trading cards. The list unless you've picked cards; remembered per device.
   const VIEW_KEY = "team.training.view";
   let view = $state<"cards" | "list">(readView());
   function readView(): "cards" | "list" {
     try {
-      return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "cards";
+      return localStorage.getItem(VIEW_KEY) === "cards" ? "cards" : "list";
     } catch {
-      return "cards";
+      return "list";
     }
   }
   function setView(v: "cards" | "list") {
@@ -87,6 +91,8 @@
       // Private mode: the choice just isn't remembered.
     }
   }
+  // Who's coming, a tab at a time: in, waiting, out. Once there are teams they're the in list, so just the other two
+  let tab = $state<"in" | "waiting" | "out">("in");
   const teams = $derived(db.teams[next.id] ?? null);
   // Your team first, then the old app's order: Cougars, Black, White, then the rest.
   const ordered = $derived(
@@ -129,6 +135,7 @@
     if (show) return;
     if (prefersReducedMotion) return commit(made);
     // Bring the players into view first, so their cards start from where you can see them
+    if (!teams) tab = "in";
     showIfHidden(teams ? ".teams-head" : ".list-head");
     await tick();
     const ids = made.flatMap((t) => t.players);
@@ -322,21 +329,24 @@
   }
 </script>
 
+<!-- A row turns the player's card over, growing from their initials -->
 {#snippet player(id: number, n?: number)}
   {@const p = byId(id)}
-  <div
+  <button
     class="row"
     class:you={id === who.id && !hasLeft(id)}
     class:gone={hasLeft(id)}
     class:undealt={undealt.has(id)}
     data-player={id}
+    aria-label="{goesBy(p)}: see their card"
+    onclick={(e) => (lifted = { id, el: e.currentTarget.querySelector(".avatar") ?? e.currentTarget, n })}
   >
     {#if n !== undefined}<span class="n num">{n}</span>{/if}
     <Person player={p} showRating={ratings} />
     {#if hasLeft(id)}<span class="badge">Out</span>
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
     {#if p.cougar}<span class="badge red">Cougar</span>{/if}
-  </div>
+  </button>
 {/snippet}
 
 {#snippet players(ids: number[], numbered = false)}
@@ -354,7 +364,7 @@
       {/each}
     </div>
   {:else}
-    <div class="list">
+    <div class="list tight">
       {#each ids as id, i (id)}{@render player(id, numbered ? i + 1 : undefined)}{/each}
     </div>
   {/if}
@@ -416,18 +426,9 @@
   </PageHeader>
 
   {#snippet signUp(warn = false)}
-    <!-- This week's session and your answer, with the numbers. When the teams no longer match who's in, the warning
-         takes the numbers' place: the same slot, the same height, so nothing below moves -->
-    <div class="slot">
-      <div class="stats num" class:covered={warn} aria-hidden={warn}>
-        <div class="stat"><span class="eyebrow">In</span><span class="value">{next.going.length}</span></div>
-        <div class="stat"><span class="eyebrow">Waiting</span><span class="value">{next.waitlist.length}</span></div>
-        <div class="stat">
-          <span class="eyebrow">Spaces</span><span class="value">{spaces ?? "–"}</span>
-        </div>
-      </div>
-      {#if warn}{@render lateWarning()}{/if}
-    </div>
+    <!-- This week's session and your answer; the counts are on the tabs below. When the teams no longer match who's
+         in, the warning comes first -->
+    {#if warn}{@render lateWarning()}{/if}
     <EventCard event={sessionBookable(session!)} canSignUp={can(perms, "signup:Event")} beckon roster={false} />
   {/snippet}
 
@@ -462,11 +463,39 @@
     </div>
   {/snippet}
 
-  {#snippet waitlist()}
-    {#if next.waitlist.length}
-      <h2 class="section-title">Waitlist</h2>
-      {@render players(next.waitlist, true)}
-    {/if}
+  <!-- Who's coming as tabs, so Out is a tap away, not a scroll: In (before the teams), Waiting, Out -->
+  {#snippet roster(withIn: boolean)}
+    {@const shown = !withIn && tab === "in" ? "waiting" : tab}
+    <div class="tablist" role="tablist" aria-label="Who's coming">
+      {#each [...(withIn ? [["in", "In", next.going.length]] : []), ["waiting", "Waiting", next.waitlist.length], ["out", "Out", outs.length]] as [id, label, count] (id)}
+        <button
+          role="tab"
+          aria-selected={shown === id}
+          aria-controls="roster-panel"
+          onclick={() => (tab = id as typeof tab)}>{label} <span class="num">{count}</span></button
+        >
+      {/each}
+      {#if spaces !== null}
+        <span class="spaces num">{spaces} {spaces === 1 ? "space" : "spaces"} left</span>
+      {/if}
+    </div>
+    <div id="roster-panel" role="tabpanel">
+      {#if shown === "in"}
+        {#if next.going.length}
+          <div class="whos-in" class:gathered={gathering}>{@render players(next.going, true)}</div>
+        {:else}
+          <p class="hint">Nobody yet. If you ain't first, you last.</p>
+        {/if}
+      {:else if shown === "waiting"}
+        {#if next.waitlist.length}{@render players(next.waitlist, true)}{:else}<p class="hint">
+            Nobody's waiting.
+          </p>{/if}
+      {:else if outs.length}
+        {@render players(outs)}
+      {:else}
+        <p class="hint">Nobody's said they're out.</p>
+      {/if}
+    </div>
   {/snippet}
 
   {#if !session}
@@ -485,8 +514,8 @@
       <!-- Before the teams: who's in, in order -->
       {@render signUp()}
       <div class="list-head">
-        <h2 class="section-title">Who's in · first come, first served</h2>
-        {#if next.going.length || next.waitlist.length}
+        <h2 class="section-title">Who's coming</h2>
+        {#if next.going.length || next.waitlist.length || outs.length}
           <div class="seg sm" role="group" aria-label="Show players as">
             <button aria-pressed={view === "cards"} onclick={() => setView("cards")}
               ><Icon name="teams" size={16} />Cards</button
@@ -497,13 +526,8 @@
           </div>
         {/if}
       </div>
-      {#if next.going.length}
-        <div class="whos-in rise" class:gathered={gathering}>{@render players(next.going, true)}</div>
-      {:else}
-        <p class="hint">Nobody yet. If you ain't first, you last.</p>
-      {/if}
+      <div class="roster rise">{@render roster(true)}</div>
       <p class="hint">Teams come out after sign-up closes.</p>
-      {@render waitlist()}
     {:else}
       <!-- Once there are teams: anyone missing from them first, then sign-up and your answer, then the teams -->
       {@render signUp(unplaced.length > 0 || left.length > 0)}
@@ -578,7 +602,12 @@
         </div>
       {/if}
 
-      {@render waitlist()}
+      {#if next.waitlist.length || outs.length}
+        <section class="not-playing">
+          <h2 class="section-title">Not playing</h2>
+          <div class="roster">{@render roster(false)}</div>
+        </section>
+      {/if}
     {/if}
   {/if}
 </div>
@@ -738,7 +767,37 @@
     opacity: 0;
   }
   .row {
-    transition: opacity var(--t) var(--ease);
+    transition:
+      opacity var(--t) var(--ease),
+      background-color var(--t-fast) var(--ease-in-out);
+  }
+  /* Who's coming: one line a player, the name and their position side by side, so a full night fits on a screen */
+  .tight .row {
+    min-height: 2.75rem;
+    padding: var(--s-2) var(--s-4);
+  }
+  .tight .row :global(.avatar) {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.625rem;
+  }
+  .tight .row :global(.grow) {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    min-width: 0;
+  }
+  .tight .row :global(.sub) {
+    flex-shrink: 0;
+    font-size: var(--text-xs);
+  }
+  .roster {
+    display: grid;
+    gap: var(--s-3);
+  }
+  .not-playing {
+    display: grid;
+    gap: var(--s-3);
   }
   .teams-head {
     scroll-margin-top: calc(var(--chrome-h, 0px) + var(--s-4));
@@ -899,15 +958,17 @@
   /* Someone's missing from the teams: the first thing on the page, in amber */
   /* The numbers set the slot's height; the warning lies over them, unseen numbers underneath, so the slot is the
      same height either way */
-  .slot {
-    position: relative;
-  }
-  .stats.covered {
-    visibility: hidden;
+  /* What's left this week, at the end of the tabs */
+  .spaces {
+    flex: none;
+    align-self: center;
+    margin-left: auto;
+    padding-left: var(--s-3);
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    white-space: nowrap;
   }
   .late {
-    position: absolute;
-    inset: 0;
     display: flex;
     align-items: center;
     gap: var(--s-4);
@@ -934,7 +995,7 @@
     min-width: 0;
     margin: 0;
   }
-  /* The sentence: two lines at most, so the warning never outgrows the numbers' slot */
+  /* The sentence: two lines at most, so the warning stays a line or two above the session */
   .late-text > span:last-child {
     display: -webkit-box;
     overflow: hidden;
