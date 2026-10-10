@@ -11,6 +11,7 @@ export const ICONS = {
   list: "M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01",
   draft: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM15.5 14v5M13 16.5h5",
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5.5M12 7.5v.01",
   // Live: a dot with rings, like a broadcast (ADR 0072)
   live: "M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14",
   upload: "M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",

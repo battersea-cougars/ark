@@ -37,7 +37,7 @@
     undoGoal,
     updateTournament,
   } from "../app/backend.svelte";
-  import { formatDayDate, formatTime, londonISO, londonToday } from "../lib/dates";
+  import { clock, formatDayDate, londonISO, londonTime, londonToday } from "../lib/dates";
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { leftOf, mmss, ticking } from "../lib/game-clock.svelte";
@@ -146,7 +146,7 @@
         $state.snapshot(tournament),
         game.position,
         londonToday(),
-        formatTime(new Date().toISOString()),
+        londonTime(new Date().toISOString()),
       );
       askingDay = false;
       if (await updateTournament(moved)) await clockGame(tournament.id, game.id, "start");
@@ -303,7 +303,9 @@
       <span class="meter"><span style:transform="scaleX({left / full})"></span></span>
       <span class="cue hint">
         {#if over}Full time
-        {:else if game.status === "next"}Kick-off {kickOff(tournament.startTime, tournament.gameMinutes, game.position)}
+        {:else if game.status === "next"}Kick-off {clock(
+            kickOff(tournament.startTime, tournament.gameMinutes, game.position),
+          )}
         {:else if timeUp && level}Level: next goal wins
         {:else if timeUp}{keeper ? "Time's up: call full time" : "Time's up"}
         {:else}{running ? "Live" : "Paused"}{/if}

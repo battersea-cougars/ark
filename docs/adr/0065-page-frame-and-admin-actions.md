@@ -1,7 +1,7 @@
 # 0065. One page frame; admin actions live on the thing's own page, not under Settings
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-10
 - **Merges:** 0078
 
 ## Context
@@ -46,6 +46,22 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - An editor panel opens in the page's column: the same left edge and width as the content under it
   (`lib/page-column.ts`), the reading width or the whole frame for a `.full` page. Phones are unchanged: full screen.
 - Settings keeps its list beside the dock, so its pages share their own left edge, all of them.
+- On a phone the slim bar slides up out of sight as you scroll down and comes back the moment you scroll up or reach
+  the top (#83). A transform over the page, so nothing moves; the bottom tabs stay; not while a sheet is open. A
+  page's search stays in the page and scrolls with it.
+- **A page whose subject is one list is `.page.fit`**: the window's height, in the usual frame. The list
+  (`.scroll-fill`) is as tall as its rows, up to the height left, and scrolls inside; its tabs and search sit above
+  it and never move. Nothing pins, so a search or filter that shortens the list moves nothing else (a pinned header
+  over a page-scrolling list unpinned whenever a filter shortened the page). Lists are glass (`fg` at 3%, the
+  chrome's blur), not solid panels. Unpaid fees and Quarterly rate so far.
+- **A long list under a header (Friday's Who's coming) has one scroller, the page, and the list's box is a window
+  on the rows.** The page scrolls until the list's tabs and search reach the top, where they stay as the table's own header row (inside its glass edge, transparent), with
+  the box under them exactly the height left; then the page scrolls on, by the height of the rows that don't fit (a
+  spacer), and the box scrolls its rows by the same amount (`lib/list-scroll.ts`). A wheel anywhere on the page, or
+  one swipe, does the lot; the page scrolls the same however short a tab or a search makes the list, so the tabs never
+  let go. Tried and dropped: tabs that pinned only once stuck (restyled, and a filter unpinned them); a bar the rows
+  pass under (it needs a solid or blurred band, which read as a black bar); the list as a second scroller (a wheel
+  had to be over it, and on touch a swipe stays with the box it began in).
 
 ## Consequences
 
@@ -66,3 +82,11 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   (was 0078).
 - 2026-10-09: A main button beside Manage, not only an item in the menu, when the page is waiting for it (Next Kumite
   when nothing's scheduled); the Manage menu keeps only what has no page of its own (was 0087, now in 0074).
+- 2026-10-10: On a phone the bar hides on scrolling down and returns on scrolling up (#83); a page's search stays
+  in the page (pinned under the bar, it read as a black band).
+- 2026-10-10: A page whose subject is one list fits the window and the list scrolls inside (`.page.fit`,
+  `.scroll-fill`); lists are glass. Replaces a pinned list header, which unpinned whenever a filter shortened the
+  page.
+- 2026-10-10: A long list under a header (Friday's Who's coming): one scroller, the page; the list's box, stuck
+  under its tabs and the height left, is a window the page's scroll drives through the rows. Replaces sticky tabs
+  over rows passing under them.

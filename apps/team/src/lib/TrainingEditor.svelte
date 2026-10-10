@@ -12,7 +12,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import StylePicker from "./StylePicker.svelte";
   import PlacePicker from "./PlacePicker.svelte";
-  import { formatDayDate, londonISO, londonToday, pounds } from "./dates";
+  import { clock, formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { feeOn } from "./dues";
   import { collectedFor } from "../demo/dues.svelte";
   import { granted } from "../demo/session.svelte";
@@ -349,7 +349,7 @@
                         <button type="button" class="act" onclick={() => toggleCancel(session.id)}>
                           {r.cancelled ? "Restore" : "Cancel"}
                         </button>
-                        <span class="sub num">{r.startTime}–{r.endTime}</span>
+                        <span class="sub num">{clock(r.startTime)}–{clock(r.endTime)}</span>
                         <span class="sub">{r.cancelled ? "Cancelled" : `${session.going.length} in`}</span>
                       </div>
                     {/each}

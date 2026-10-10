@@ -14,7 +14,14 @@ export const formatDayDate = (iso: string) =>
     .filter((p) => p.type !== "literal")
     .map((p) => p.value)
     .join(" ");
-export const formatTime = (iso: string) => time.format(new Date(iso));
+/** "7:30pm", "7pm": a London time to read. 12-hour for everyone until members can choose (#94). */
+export const formatTime = (iso: string) => clock(time.format(new Date(iso)));
+/** "19:30" (a wall-clock time as stored) to read: "7:30pm" */
+export function clock(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h)) return hhmm;
+  return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
+}
 
 /** { weekday: "Fri", day: "9", month: "Oct" } for date badges. */
 export function dateBadge(iso: string) {
@@ -49,6 +56,6 @@ export function londonISO(date: string, time: string): string {
 
 /** Today's date in London, "YYYY-MM-DD". */
 /** "19:30": the London wall-clock time of an instant, for a time input. */
-export const londonTime = (iso: string) => formatTime(iso);
+export const londonTime = (iso: string) => time.format(new Date(iso));
 export const londonToday = (now = new Date()) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);

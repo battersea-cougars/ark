@@ -241,12 +241,32 @@
   // Where each page was scrolled to, so going back opens it there (#86). Not state: only read as a page opens
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const scrolls = new Map<string, number>();
+  // Phones (#83): the bar slides up out of the way as you scroll down, and back the moment you scroll up or reach
+  // the top. It overlays the page, so nothing moves. Not while a sheet's open (the page under it can scroll)
+  let tucked = $state(false);
+  let barH = $state(0);
+  const TUCK_AFTER = 8;
+  // Where the last move of more than TUCK_AFTER ended: a small wobble either way doesn't flick the bar
+  let turnedAt = 0;
+  $effect(() => {
+    void route.id;
+    tucked = false;
+    turnedAt = 0;
+  });
   $effect(() => {
     if (!content) return;
     const track = (e: Event) => {
       const el = e.target as HTMLElement;
       if (!el.classList?.contains("view")) return;
       lastScroll = el.scrollTop;
+      const delta = el.scrollTop - turnedAt;
+      // (Not on a page whose list's tabs stick under it: they'd be left hanging below a gap)
+      if (!phone.current || !showBar || el.scrollTop <= barH || el.querySelector(".hybrid")) tucked = false;
+      else if (document.querySelector("dialog[open]")) {
+        // A sheet's open: leave the bar as it is
+      } else if (delta > TUCK_AFTER) tucked = true;
+      else if (delta < -TUCK_AFTER) tucked = false;
+      if (Math.abs(delta) > TUCK_AFTER || el.scrollTop <= barH) turnedAt = el.scrollTop;
       scrolls.set(router.path, el.scrollTop);
     };
     content.addEventListener("scroll", track, true);
@@ -363,7 +383,7 @@
   {/if}
 
   <main class="main">
-    <header class="chrome" bind:clientHeight={chromeH}>
+    <header class="chrome" bind:clientHeight={chromeH} style:--pinned-h="{pinnedH}px">
       <!-- Always there: the notch, and the View-as banner (it must never scroll away) -->
       <div class="pinned" class:bare={route.focus} bind:clientHeight={pinnedH}>
         {#if impersonating()}
@@ -383,7 +403,7 @@
       {#if phone.current}
         {#if showBar}
           <!-- Phones: the page's name or its section's pages, then its actions and filters -->
-          <div class="phone-bar" bind:this={bar}>
+          <div class="phone-bar" class:tucked bind:this={bar} bind:clientHeight={barH}>
             {#if backTo}
               <a class="bar-back named" href={backTo.href} onclick={back}
                 ><Icon name="chevronLeft" size={20} /><span>{backTo.label}</span></a
@@ -1020,6 +1040,17 @@
       background: var(--chrome-bg-solid);
       backdrop-filter: var(--blur);
       -webkit-backdrop-filter: var(--blur);
+      transition:
+        translate var(--t) var(--ease),
+        visibility 0s;
+    }
+    /* Scrolled down: up under the pinned band, out of sight (#83). Reduced motion: it just goes */
+    .phone-bar.tucked {
+      translate: 0 calc(-100% - var(--pinned-h, 0px));
+      visibility: hidden;
+      transition:
+        translate var(--t) var(--ease),
+        visibility 0s var(--t);
     }
     .phone-bar:has(.strip) {
       padding-left: 0;

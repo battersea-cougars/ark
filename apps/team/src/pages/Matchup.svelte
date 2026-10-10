@@ -3,6 +3,7 @@
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
+  import { clock } from "../lib/dates";
   import { goesByOf, nameOfTeam } from "../lib/names";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
@@ -133,7 +134,7 @@
                 ? "On now"
                 : played
                   ? "Full time"
-                  : kickOff(tournament.startTime, tournament.gameMinutes, game.position)} · {game.name ||
+                  : clock(kickOff(tournament.startTime, tournament.gameMinutes, game.position))} · {game.name ||
                 `Game ${game.position}`}</span
             >
           </div>

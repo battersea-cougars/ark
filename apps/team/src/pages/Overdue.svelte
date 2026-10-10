@@ -49,7 +49,8 @@
   }
 </script>
 
-<div class="page">
+<!-- One list, the page's subject: it takes the height left and scrolls inside (.page.fit) -->
+<div class="page fit">
   <PageHeader
     title="Unpaid fees"
     eyebrow="Aged receivables"
@@ -77,7 +78,7 @@
     {/each}
   </div>
 
-  <div class="list">
+  <div class="list scroll-fill">
     {#each rows as r (r.memberId)}
       <button
         type="button"

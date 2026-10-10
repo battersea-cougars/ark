@@ -231,7 +231,10 @@
       translate: 0 0;
     }
     /* The search starts small and grows into what's left, so the chips and the actions stay on the one row */
-    .toolbar :global(.search) {
+    .toolbar {
+      --open-width: 14rem;
+    }
+    .toolbar :global(.search:not(.collapsible)) {
       flex: 1 1 9rem;
       width: auto;
       min-width: 0;

@@ -31,7 +31,8 @@
   const day = (d: string) => formatDayDate(`${d}T12:00:00Z`);
 </script>
 
-<div class="page">
+<!-- One list, the page's subject: it takes the height left and scrolls inside (.page.fit) -->
+<div class="page fit">
   <PageHeader title="Quarterly rate">
     {#snippet sub()}
       What Quarterly Members pay each quarter. A new rate applies from its date; charges already made keep theirs.
@@ -56,7 +57,7 @@
     </div>
 
     <h2 class="section-title">History</h2>
-    <div class="list">
+    <div class="list scroll-fill">
       {#each history as f (f.from)}
         <div class="row" class:old={inForce !== undefined && f.from < inForce}>
           <span class="grow"

@@ -68,6 +68,28 @@ export function deal(_node: Element, { out = false } = {}) {
 export const cardMoveMs = prefersReducedMotion ? 0 : 360;
 
 /**
+ * Rows in a list, as a search or filter changes which show (a training's Who's coming): the rows' version of `deal`.
+ * One arriving drops in a little and fades up, one leaving fades and shrinks a touch; the rest glide into place
+ * (`animate:flip` with `cardMoveMs`). What a filter hides moves, it never just vanishes.
+ */
+export function sift(_node: Element, { out = false } = {}) {
+  if (prefersReducedMotion) return { duration: 0 };
+  return out
+    ? {
+        duration: 150,
+        easing: (t: number) => t * t,
+        css: (t: number) => `transform: scale(${(0.97 + 0.03 * t).toFixed(4)}); opacity: ${t.toFixed(3)};`,
+      }
+    : {
+        delay: 120,
+        duration: 300,
+        easing: easeOut,
+        css: (t: number, u: number) =>
+          `transform: translateY(${(-6 * u).toFixed(2)}px); opacity: ${Math.min(1, t * 1.4).toFixed(3)};`,
+      };
+}
+
+/**
  * Switching between your everyday role and your full one changes the whole app at once (nav, Manage, pages): the
  * old view blurs away as the new one sharpens in (the "mode-switch" view transition in app.css). Without View
  * Transitions, or with reduced motion, it just switches.

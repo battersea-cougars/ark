@@ -8,7 +8,7 @@
   import TrainingEditor from "../lib/TrainingEditor.svelte";
   import { nextSession, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import { formatDayDate, londonToday, pounds } from "../lib/dates";
+  import { clock, formatDayDate, londonToday, pounds } from "../lib/dates";
   import { feeOn } from "../lib/dues";
   import { describeRule } from "../lib/recurrence";
 
@@ -28,7 +28,7 @@
         name: s.name,
         next: next ? formatDayDate(sessionBookable(next).startsAt) : "No sessions coming up",
         lines: [
-          `${s.startTime}–${s.endTime} · ${seriesPlace(s)?.name ?? "No venue"}`,
+          `${clock(s.startTime)}–${clock(s.endTime)} · ${seriesPlace(s)?.name ?? "No venue"}`,
           `${pounds(feeOn(s.fees, londonToday())) || "Free"} a session`,
           ...(next ? [`${next.going.length}${s.capacity ? ` / ${s.capacity}` : ""} in`] : []),
         ],

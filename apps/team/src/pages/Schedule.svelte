@@ -2,6 +2,7 @@
   // A tournament's full schedule (ADR 0061): every game in the day's order, the round robin then the playoffs (which
   // show their places, 1st v 2nd, until the table fills them in), each the same card as on the Kumite's home. Admins
   // make the fixtures (again, until a game has a result); goal by goal, with the clock, is live scoring.
+  import { clock } from "../lib/dates";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
@@ -33,7 +34,7 @@
   {#if tournament && games.length}
     <div class="head">
       <p class="hint num">
-        {tournament.gameMinutes}-minute games, {BREAK_MINUTES} minutes between, from {tournament.startTime}
+        {tournament.gameMinutes}-minute games, {BREAK_MINUTES} minutes between, from {clock(tournament.startTime)}
       </p>
       {#if manage && !hasResult}
         <button class="btn ghost sm" onclick={() => makeFixtures(tournament.id)}>Make them again</button>

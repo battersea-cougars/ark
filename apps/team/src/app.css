@@ -153,8 +153,10 @@
   --tab-h: calc(3.25rem + env(safe-area-inset-bottom, 0px));
   --strip-h: 2.875rem;
   --topbar-h: 3.5rem;
-  --scrollbar-size: 8px;
-  --scrollbar: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+  --scrollbar-size: 10px;
+  --scrollbar: color-mix(in srgb, var(--fg) 14%, transparent);
+  --scrollbar-hover: color-mix(in srgb, var(--fg) 26%, transparent);
+  --scrollbar-active: color-mix(in srgb, var(--fg) 42%, transparent);
   --control-h: 2.75rem;
   --control-h-sm: 2.25rem;
 
@@ -271,10 +273,13 @@ h3 {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
-/* ─── Scrollbars (from Gwenda ops) ───
-   Thin, 8px, no track and no arrows; the thumb shows only while the pointer is over the scroller. A scroller
-   that sits against padding (the rail) reserves the 8px with scrollbar-gutter and gives it back with a negative
-   margin, so the bar lives in the padding and the content never shifts. Phones use the system's overlay bars. */
+/* ─── Scrollbars ───
+   The DevExpress kind: a slim rounded thumb on a clear track, no arrows. Always faintly there (so you can see
+   there's more), a little brighter while the pointer is over the scroller, and wider and brighter when you reach
+   for the bar itself. The bar is 10px; the thumb is inset by a clear border, 4px at rest, 8px under the pointer. A
+   scroller that sits against padding (the rail) reserves the bar with scrollbar-gutter and gives it back with a
+   negative margin, so the bar lives in the padding and the content never shifts. Phones use the system's overlay
+   bars. */
 @supports selector(::-webkit-scrollbar) {
   ::-webkit-scrollbar {
     width: var(--scrollbar-size);
@@ -291,25 +296,30 @@ h3 {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
+    min-height: 2.5rem;
+    border: 3px solid transparent;
     border-radius: var(--r-pill);
-    background: transparent padding-box;
+    background: var(--scrollbar) padding-box;
   }
   :hover::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar);
+    background-color: var(--scrollbar-hover);
   }
-  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:hover {
+    border-width: 1px;
+    background-color: var(--scrollbar-hover);
+  }
   ::-webkit-scrollbar-thumb:active {
-    background-color: var(--fg-muted);
+    border-width: 1px;
+    background-color: var(--scrollbar-active);
   }
 }
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
+    scrollbar-color: var(--scrollbar) transparent;
   }
   *:hover {
-    scrollbar-color: var(--scrollbar) transparent;
+    scrollbar-color: var(--scrollbar-hover) transparent;
   }
 }
 
@@ -413,6 +423,27 @@ h3 {
   height: 100%;
   min-height: 0;
   padding-bottom: var(--s-5);
+}
+/* A page whose subject is one list (a training's Who's coming, Overdue, Fees): the window's height, in the usual
+   frame, and the list takes what's left and scrolls inside (.scroll-fill), so its tabs and search sit above it and
+   never move. Nothing pins; a filter that shortens the list moves nothing else. Flex, so the list takes what the
+   rest leaves; the rest keep their size. (.view: past PageHeader's "taller than the window") */
+.view > .page.fit {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: var(--s-5);
+}
+.page.fit > * {
+  flex-shrink: 0;
+}
+/* As tall as its rows, up to what's left, then it scrolls: a short list stays a short box */
+.page.fit .scroll-fill {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 @media (min-width: 901px) {
   /* The title keeps its place; the table runs on to the window's edge */
@@ -600,9 +631,12 @@ h1.poster::after {
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border);
+  /* Glass: a breath of light over the page, the carbon mesh blurred to nothing behind the words */
+  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
   border-radius: var(--r-lg);
-  background: var(--panel-bg);
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
 }
 .row {
   display: flex;
@@ -810,6 +844,18 @@ button.row:hover:not(:disabled) {
   border: 1px solid var(--border-strong);
   background: transparent;
   color: var(--fg-subtle);
+}
+/* Phones: the bar's buttons are icons only, to save room. The words stay for screen readers (a font size of
+   0 hides them from view, not from the accessibility tree); `.keep-label` keeps them on show, for a label that
+   matters in the moment ("Tap again") */
+@media (max-width: 900px) {
+  .bar-actions .btn:has(svg):not(.keep-label) {
+    width: var(--control-h-sm);
+    min-width: 0;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
 }
 
 /* A switch, for one thing that's on or off (on the Cougars team): a button with role="switch" and aria-checked, its

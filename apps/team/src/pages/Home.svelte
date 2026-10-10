@@ -15,8 +15,9 @@
   import { fill, slot } from "../lib/greetings";
   import { latestTournament, nextSession, sessionBookable, tournamentBookable } from "../demo/schedule.svelte";
   import { pick, type Quip, type QuipKind } from "../lib/quips";
+  import type { Bookable } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
-  import { editionState, editionWhen } from "../lib/edition";
+  import { editionState } from "../lib/edition";
 
   const perms = $derived(granted());
   const who = $derived(me());
@@ -284,6 +285,31 @@
       .join(", ");
 </script>
 
+<!-- Under a card's title: the place, opening the map, and Add to calendar once there's a date -->
+{#snippet placeLinks(ev: Bookable)}
+  {#if ev.mapUrl}
+    <a href={ev.mapUrl} target="_blank" rel="noopener noreferrer" aria-label="Directions to {ev.venue || 'the venue'}">
+      <Icon name="pin" size={16} /><span class="label">{ev.venue || "Directions"}</span>
+    </a>
+  {/if}
+  {#if !ev.dateTbc && !ev.season}
+    <button onclick={() => downloadIcs(ev)}>
+      <Icon name="calendar" size={16} /><span class="label">Add to calendar</span>
+    </button>
+  {/if}
+{/snippet}
+
+<!-- Once the teams are out, yours: along the foot of the lead card -->
+{#snippet teamLine()}
+  {#if myTeam && series}
+    <a class="status" href="/training/{series.slug}">
+      <Icon name="teams" size={18} />
+      <span class="grow">You're on <strong>{myTeam.name}</strong> with {teammates(myTeam.players)}</span>
+      <Icon name="chevronRight" size={18} />
+    </a>
+  {/if}
+{/snippet}
+
 <div class="page">
   <header class="hello">
     <!-- Your badge: the last tab on a phone (your profile), the corner on a desktop -->
@@ -305,34 +331,18 @@
       </p>
       <!-- The night you came for: it makes an entrance, the rest of the page just rises -->
       <div class="lead">
-        <EventCard event={booking} canSignUp={can(perms, "signup:Event")} feature beckon {onanswer}>
-          {#snippet footer()}
-            <!-- Once the teams are out, yours. Always: getting there, keeping the date, and how to pay. -->
-            {#if myTeam}
-              <a class="status" href="/training/{series.slug}">
-                <Icon name="teams" size={18} />
-                <span class="grow">You're on <strong>{myTeam.name}</strong> with {teammates(myTeam.players)}</span>
-                <Icon name="chevronRight" size={18} />
-              </a>
-            {/if}
-            <div class="status-row">
-              {#if booking.mapUrl}
-                <a class="status" href={booking.mapUrl} target="_blank" rel="noopener noreferrer">
-                  <Icon name="pin" size={18} />
-                  <span>Directions</span>
-                </a>
-              {/if}
-              <button class="status" onclick={() => booking && downloadIcs(booking)}>
-                <Icon name="calendar" size={18} />
-                <span>Add to calendar</span>
-              </button>
-              <!-- The club's bank details and your reference, on Dues -->
-              <a class="status" href="/me/tab">
-                <Icon name="pound" size={18} />
-                <span>Payment info</span>
-              </a>
-            </div>
-          {/snippet}
+        <EventCard
+          event={booking}
+          canSignUp={can(perms, "signup:Event")}
+          feature
+          beckon
+          glance
+          link
+          place={false}
+          footer={myTeam ? teamLine : undefined}
+          {onanswer}
+        >
+          {#snippet links()}{@render placeLinks(booking)}{/snippet}
         </EventCard>
       </div>
     </section>
@@ -365,23 +375,13 @@
   <!-- The next of each tournament series, teased: when (or the season), signing up, and the way to its page -->
   {#each tournaments as { type, t } (type.id)}
     {#if t}
-      {@const w = editionWhen(t)}
+      {@const ev = tournamentBookable(t)}
       <section>
         <h2 class="section-title">The next {type.shortName}</h2>
-        <EventCard event={tournamentBookable(t)} canSignUp={can(perms, "signup:Event")} feature>
-          {#snippet footer()}
-            <a class="status" href="/tournaments/{type.slug}">
-              <Icon name={type.icon} size={18} />
-              <span class="grow"
-                >{!w.day
-                  ? `${w.season}: the date's being set`
-                  : signupOpen(t, londonToday())
-                    ? "Sign-up's open"
-                    : "All about it"}: the draft, the teams, last time's champions</span
-              >
-              <Icon name="chevronRight" size={18} />
-            </a>
-          {/snippet}
+        <!-- Like the lead card: the whole card opens the tournament's page (the draft, the teams, last time's
+             champions) -->
+        <EventCard event={ev} canSignUp={can(perms, "signup:Event")} feature glance link place={false}>
+          {#snippet links()}{@render placeLinks(ev)}{/snippet}
         </EventCard>
       </section>
     {/if}
@@ -574,18 +574,6 @@
       color var(--t-fast) var(--ease-in-out),
       background-color var(--t-fast) var(--ease-in-out);
   }
-  /* Directions, Add to calendar, Payment info: quiet links on the left, apart by space alone. A narrow phone wraps
-     them onto a second line, with no extra gap between the lines (each link is already tall enough to tap). */
-  .status-row {
-    display: flex;
-    flex-wrap: wrap;
-    column-gap: var(--s-6);
-    padding: 0 var(--s-6);
-  }
-  .status-row > .status {
-    gap: var(--s-2);
-    padding: 0;
-  }
   .status .grow {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -600,9 +588,7 @@
   }
   /* A phone: the card's own padding is smaller, so the footer's is too */
   @media (max-width: 600px) {
-    .status,
-    .status-row {
-      column-gap: var(--s-5);
+    .status {
       padding-inline: var(--s-4);
     }
   }

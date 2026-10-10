@@ -3,6 +3,7 @@
   // they're the page: anyone who signed up after them first (an admin slots them in or remakes them), then the
   // teams, then sign-up. A team maker's changes to the teams are saved as they're made (ADR 0076). Ratings drive the teams but only admins see them (read:Rating), as in the old app.
   import { goesBy, shortName } from "../lib/names";
+  import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";
   import { PLAYERS, TEAM_NAMES, TEAM_ORDER, type Player } from "../demo/data";
@@ -19,9 +20,11 @@
   import TrainingEditor from "../lib/TrainingEditor.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
+  import { listScroll } from "../lib/list-scroll";
   import { phone } from "../lib/viewport.svelte";
-  import { prefersReducedMotion } from "../app/motion";
-  import { formatDayDate } from "../lib/dates";
+  import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
+  import { flip } from "svelte/animate";
+  import { clock, formatDayDate } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
   import { makeTeams, slotIn, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
@@ -93,6 +96,16 @@
   }
   // Who's coming, a tab at a time: in, waiting, out. Once there are teams they're the in list, so just the other two
   let tab = $state<"in" | "waiting" | "out">("in");
+  // Find someone on the night: their name, first or last, on every list (the tabs count who matches)
+  let query = $state("");
+  let infoOpen = $state(false);
+  const matches = (id: number) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    const p = byId(id);
+    return [goesBy(p), p.name].some((n) => n.toLowerCase().includes(q));
+  };
+  const matching = (ids: number[]) => ids.filter(matches);
   const teams = $derived(db.teams[next.id] ?? null);
   // Your team first, then the old app's order: Cougars, Black, White, then the rest.
   const ordered = $derived(
@@ -135,6 +148,7 @@
     if (show) return;
     if (prefersReducedMotion) return commit(made);
     // Bring the players into view first, so their cards start from where you can see them
+    query = "";
     if (!teams) tab = "in";
     showIfHidden(teams ? ".teams-head" : ".list-head");
     await tick();
@@ -349,23 +363,35 @@
   </button>
 {/snippet}
 
-{#snippet players(ids: number[], numbered = false)}
-  {#if view === "cards"}
-    <div class="cards">
-      {#each ids as id, i (id)}
-        <PlayerCard
-          player={byId(id)}
-          n={numbered ? i + 1 : undefined}
-          you={id === who.id}
-          showRating={ratings}
-          lifted={lifted?.id === id}
-          onopen={(el) => (lifted = { id, el, n: numbered ? i + 1 : undefined })}
-        />
+<!-- Numbered by sign-up order, whatever the search leaves showing -->
+<!-- A search deals cards in and folds them away, or sifts rows; the rest glide to their places (as on Teammates) -->
+{#snippet players(all: number[], numbered = false)}
+  {@const ids = matching(all)}
+  {#if !ids.length}
+    <p class="hint">No one matches.</p>
+  {:else if view === "cards"}
+    <div class="cards scroll-fill">
+      {#each ids as id (id)}
+        {@const i = all.indexOf(id)}
+        <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:deal out:deal={{ out: true }}>
+          <PlayerCard
+            player={byId(id)}
+            n={numbered ? i + 1 : undefined}
+            you={id === who.id}
+            showRating={ratings}
+            lifted={lifted?.id === id}
+            onopen={(el) => (lifted = { id, el, n: numbered ? i + 1 : undefined })}
+          />
+        </div>
       {/each}
     </div>
   {:else}
-    <div class="list tight">
-      {#each ids as id, i (id)}{@render player(id, numbered ? i + 1 : undefined)}{/each}
+    <div class="list tight scroll-fill">
+      {#each ids as id (id)}
+        <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:sift out:sift={{ out: true }}>
+          {@render player(id, numbered ? all.indexOf(id) + 1 : undefined)}
+        </div>
+      {/each}
     </div>
   {/if}
 {/snippet}
@@ -397,18 +423,38 @@
   </div>
 {/snippet}
 
+<!-- Every week on Fri · 7:30pm–9:30pm · the place, a tap opening the map -->
+{#snippet usually()}
+  {describeRule(series)} · {clock(series.startTime)}–{clock(series.endTime)}{#if usual}&nbsp;· <a
+      href={usual.mapUrl}
+      target="_blank"
+      rel="noopener noreferrer">{usual.name}</a
+    >{/if}
+{/snippet}
+
 <div class="page">
-  <PageHeader
-    title={series.name}
-    subtitle="{describeRule(series)} · {series.startTime}–{series.endTime}{usual ? ` · ${usual.name}` : ''}"
-  >
+  <!-- When and where it usually is: the line under the title on a desktop; a phone has no room to spare, so it's
+       behind the info button in the bar -->
+  <PageHeader title={series.name} sub={phone.current ? undefined : usually}>
     {#snippet actions()}
+      {#if phone.current}
+        <button
+          class="btn sm ghost icon"
+          aria-haspopup="dialog"
+          aria-label="About {series.shortName}"
+          title="About"
+          onclick={() => (infoOpen = true)}><Icon name="info" size={18} /></button
+        >
+      {/if}
       <!-- Make teams is the one job on show: it's the night's job for whoever makes the teams, not only an admin.
            Everything else is behind one quiet button (ADR 0065): a sheet on a phone, a side drawer on a desktop -->
       <!-- Remaking replaces teams everyone can see, so it takes a second tap; the label swaps in place, the width
            held so nothing in the bar moves -->
       {#if session && canGenerate}
-        <button class="btn sm primary make" onclick={() => (teams ? twice("remake", generate) : generate())}
+        <button
+          class="btn sm primary make"
+          class:keep-label={confirming === "remake"}
+          onclick={() => (teams ? twice("remake", generate) : generate())}
           ><Icon name="teams" size={16} />
           {!teams ? "Make teams" : confirming === "remake" ? "Tap again" : "Remake teams"}</button
         >
@@ -429,7 +475,13 @@
     <!-- This week's session and your answer; the counts are on the tabs below. When the teams no longer match who's
          in, the warning comes first -->
     {#if warn}{@render lateWarning()}{/if}
-    <EventCard event={sessionBookable(session!)} canSignUp={can(perms, "signup:Event")} beckon roster={false} />
+    <EventCard
+      event={sessionBookable(session!)}
+      canSignUp={can(perms, "signup:Event")}
+      beckon
+      roster={false}
+      place={false}
+    />
   {/snippet}
 
   {#snippet lateWarning()}
@@ -463,28 +515,36 @@
     </div>
   {/snippet}
 
+  <!-- Find someone: a magnifier at the end of the row that widens into the field when you tap it (across the row,
+       over the tabs, on a phone) -->
+  {#snippet search()}
+    <div class="finder">
+      <SearchField bind:value={query} placeholder="Search players" label="Search players" collapsible />
+    </div>
+  {/snippet}
+
   <!-- Who's coming as tabs, so Out is a tap away, not a scroll: In (before the teams), Waiting, Out -->
   {#snippet roster(withIn: boolean)}
     {@const shown = !withIn && tab === "in" ? "waiting" : tab}
-    <div class="tablist" role="tablist" aria-label="Who's coming">
-      {#each [...(withIn ? [["in", "In", next.going.length]] : []), ["waiting", "Waiting", next.waitlist.length], ["out", "Out", outs.length]] as [id, label, count] (id)}
-        <button
-          role="tab"
-          aria-selected={shown === id}
-          aria-controls="roster-panel"
-          onclick={() => (tab = id as typeof tab)}>{label} <span class="num">{count}</span></button
-        >
-      {/each}
-      {#if spaces !== null}
-        <span class="spaces num">{spaces} {spaces === 1 ? "space" : "spaces"} left</span>
-      {/if}
+    <div class="roster-bar list-tabs">
+      <div class="tablist" role="tablist" aria-label="Who's coming">
+        {#each [...(withIn ? [["in", "In", matching(next.going).length]] : []), ["waiting", "Waiting", matching(next.waitlist).length], ["out", "Out", matching(outs).length]] as [id, label, count] (id)}
+          <button
+            role="tab"
+            aria-selected={shown === id}
+            aria-controls="roster-panel"
+            onclick={() => (tab = id as typeof tab)}>{label} <span class="num count-{id}">{count}</span></button
+          >
+        {/each}
+      </div>
+      {#if withIn}{@render search()}{/if}
     </div>
-    <div id="roster-panel" role="tabpanel">
+    <div id="roster-panel" class="list-box" role="tabpanel">
       {#if shown === "in"}
         {#if next.going.length}
           <div class="whos-in" class:gathered={gathering}>{@render players(next.going, true)}</div>
         {:else}
-          <p class="hint">Nobody yet. If you ain't first, you last.</p>
+          <p class="hint">Nobody yet. If you ain't first, you last. Teams come out after sign-up closes.</p>
         {/if}
       {:else if shown === "waiting"}
         {#if next.waitlist.length}{@render players(next.waitlist, true)}{:else}<p class="hint">
@@ -505,7 +565,7 @@
   {:else}
     {#if info && (info.place?.name !== usual?.name || info.startTime !== series.startTime)}
       <p class="note">
-        This week: {formatDayDate(sessionBookable(session).startsAt)}, {info.startTime} at {info.place?.name ??
+        This week: {formatDayDate(sessionBookable(session).startsAt)}, {clock(info.startTime)} at {info.place?.name ??
           "somewhere new"}.
       </p>
     {/if}
@@ -514,7 +574,10 @@
       <!-- Before the teams: who's in, in order -->
       {@render signUp()}
       <div class="list-head">
-        <h2 class="section-title">Who's coming</h2>
+        <div class="head-line">
+          <h2 class="section-title">Who's coming</h2>
+          {#if spaces !== null}<span class="spaces num">{spaces} {spaces === 1 ? "space" : "spaces"} left</span>{/if}
+        </div>
         {#if next.going.length || next.waitlist.length || outs.length}
           <div class="seg sm" role="group" aria-label="Show players as">
             <button aria-pressed={view === "cards"} onclick={() => setView("cards")}
@@ -526,8 +589,12 @@
           </div>
         {/if}
       </div>
-      <div class="roster rise">{@render roster(true)}</div>
-      <p class="hint">Teams come out after sign-up closes.</p>
+      <!-- The page scrolls until the tabs reach the top, then on through the rows, the box under the tabs showing
+           them pass (lib/list-scroll.ts) -->
+      <div class="roster rise hybrid" use:listScroll>
+        <div class="stuck">{@render roster(true)}</div>
+        <div class="list-spacer"></div>
+      </div>
     {:else}
       <!-- Once there are teams: anyone missing from them first, then sign-up and your answer, then the teams -->
       {@render signUp(unplaced.length > 0 || left.length > 0)}
@@ -535,6 +602,7 @@
       <!-- The teams' own heading, and for a team maker how to move someone -->
       <div class="teams-head" class:clearing>
         <h2 class="section-title">The teams</h2>
+        {@render search()}
         {#if arranging}
           <p class="hint move-hint">Drag a player to another team to move them. Everyone sees it straight away.</p>
         {/if}
@@ -559,7 +627,7 @@
               </span>
             </header>
             <div class="list">
-              {#each team.players as id (id)}
+              {#each matching(team.players) as id (id)}
                 {#if arranging}
                   {@render arrangeRow(id, team.name)}
                 {:else}
@@ -654,6 +722,12 @@
     {/if}
   </div>
 {/snippet}
+
+{#if phone.current}
+  <Sheet bind:open={infoOpen} title={series.name}>
+    <p class="usually">{@render usually()}</p>
+  </Sheet>
+{/if}
 
 {#if canManage}
   {#if phone.current}
@@ -772,6 +846,68 @@
       background-color var(--t-fast) var(--ease-in-out);
   }
   /* Who's coming: one line a player, the name and their position side by side, so a full night fits on a screen */
+  /* Before the teams, one scroller, the page: it scrolls first (the card goes by) until Who's coming's tabs and
+     search reach the top (under the docked toolbar on a desktop), where they stay, in the open, with the list's box
+     under them exactly the height left (--list-h); then it scrolls on through the rows that don't fit (--list-extra,
+     the spacer), the box showing them pass (lib/list-scroll.ts). So a wheel anywhere, or one swipe, scrolls the
+     lot, the page scrolls the same however short the list, and the tabs never let go (ADR 0065) */
+  .roster.hybrid {
+    display: block; /* (not the grid and its gap: the spacer follows the stuck block exactly) */
+  }
+  /* A little room under the box (not the page's usual deep margin), and the box keeps its own rounded glass edge,
+     so its bottom always reads as the table's end, never a row cut off over a strip */
+  .page:has(> .hybrid) {
+    padding-bottom: var(--s-4);
+  }
+  /* The tabs are the table's own header row: the glass edge wraps them and the rows, a hairline between. Nothing
+     passes behind them (the box clips its rows just under them), so the header stays transparent */
+  .hybrid .stuck {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: grid;
+    border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+    border-radius: var(--r-lg);
+    background: color-mix(in srgb, var(--fg) 3%, transparent);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+  }
+  .hybrid .roster-bar {
+    padding: var(--s-1) var(--s-2) var(--s-1) var(--s-1);
+    border-bottom: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+  }
+  @media (min-width: 901px) {
+    :global(.page:has(> .page-toolbar)) .hybrid .stuck {
+      top: calc(var(--s-4) * 2 + 2.25rem);
+    }
+  }
+  .hybrid .list-box {
+    height: var(--list-h, auto);
+    overflow: hidden;
+    border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
+  }
+  .hybrid .list-box > .hint {
+    margin: 0;
+    padding: var(--s-4);
+  }
+  /* Cards stand in the box with room round them, so the box's edge never clips a card's outline or lift */
+  .hybrid .list-box :global(.cards) {
+    padding: var(--s-3);
+  }
+  .hybrid .list-box :global(.list) {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .hybrid .list-spacer {
+    height: var(--list-extra, 0px);
+  }
+  /* Each row in a slot of its own (so it can move): the hairline goes between slots */
+  .tight > .slot + .slot {
+    border-top: 1px solid var(--border);
+  }
   .tight .row {
     min-height: 2.75rem;
     padding: var(--s-2) var(--s-4);
@@ -790,6 +926,65 @@
   .tight .row :global(.sub) {
     flex-shrink: 0;
     font-size: var(--text-xs);
+  }
+  /* The tabs, and the search at the end of their row */
+  .roster-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+  .roster-bar .tablist {
+    flex: 1;
+    min-width: 0;
+  }
+  /* The search, at the end of the row: it opens leftwards, over the tabs if it must (a phone), so nothing moves */
+  .finder {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    translate: 0 -50%;
+    pointer-events: none;
+    --open-width: 16rem;
+  }
+  .finder > :global(*) {
+    pointer-events: auto;
+  }
+  .roster-bar .tablist {
+    padding-right: 3rem;
+  }
+  @media (max-width: 900px) {
+    /* The tabs fade while the search lies over them, so it reads clean on any phone */
+    .roster-bar .tablist {
+      transition: opacity var(--t) var(--ease);
+    }
+    .roster-bar:has(:global(.search:focus-within), :global(.search.filled)) .tablist {
+      opacity: 0;
+    }
+    .finder {
+      --open-width: 100%;
+      --search-frost: blur(14px) saturate(1.2);
+    }
+  }
+  .usually {
+    margin: 0;
+    color: var(--fg-muted);
+    line-height: 1.5;
+  }
+  .usually a {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  /* A phone: Cards and List as icons only (their words stay for screen readers) */
+  @media (max-width: 900px) {
+    .list-head .seg > button {
+      gap: 0;
+      font-size: 0;
+    }
   }
   .roster {
     display: grid;
@@ -939,6 +1134,7 @@
   }
   /* The teams are out: a line on Who's in that goes to them */
   .teams-head {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -959,11 +1155,21 @@
   /* The numbers set the slot's height; the warning lies over them, unseen numbers underneath, so the slot is the
      same height either way */
   /* What's left this week, at the end of the tabs */
+  /* In and Out counts in their accents, as on Home's card and the buttons: colour in the figure, never a fill */
+  .count-in {
+    color: var(--green-ink);
+  }
+  .count-out {
+    color: var(--red-ink);
+  }
+  .head-line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-3);
+    min-width: 0;
+  }
   .spaces {
     flex: none;
-    align-self: center;
-    margin-left: auto;
-    padding-left: var(--s-3);
     color: var(--fg-muted);
     font-size: var(--text-sm);
     white-space: nowrap;

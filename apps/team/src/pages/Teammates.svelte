@@ -18,6 +18,7 @@
   import AddMemberSheet from "../lib/AddMemberSheet.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import SearchField from "../lib/SearchField.svelte";
+  import { phone } from "../lib/viewport.svelte";
   import { flip } from "svelte/animate";
   import { cardMoveMs, deal, easeOut } from "../app/motion";
 
@@ -75,7 +76,7 @@
       {/if}
     {/snippet}
     {#snippet toolbar()}
-      <SearchField bind:value={query} placeholder="Search teammates" />
+      <SearchField bind:value={query} placeholder="Search teammates" collapsible={!phone.current} />
     {/snippet}
     {#snippet filters()}
       <div class="filters" role="group" aria-label="Position">

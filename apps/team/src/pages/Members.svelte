@@ -103,7 +103,7 @@
       >
     {/snippet}
     {#snippet toolbar()}
-      <SearchField bind:value={query} placeholder="Search members" />
+      <SearchField bind:value={query} placeholder="Search members" collapsible={!phone.current} />
     {/snippet}
     {#snippet filters()}
       <div class="filters" role="group" aria-label="Position">
