@@ -58,15 +58,20 @@ section (Games, Standings, and Draft if it drafts). Admins manage them under Set
 Tournaments (the schedule, a card per tournament), Tournament Series (the series and their defaults) and Venues
 (`manage:Training`, `manage:Tournament`, `manage:Venue`). A new one appears straight away.
 
-### A training's waitlist: Quarterly Members first
+### A training's sign-ups: Quarterly Members first
 
-- A full session puts whoever says "I'm in" on the waitlist. **Quarterly Members** (a subscription covering the
-  session's day, ADR [0007](0007-dues-and-payments.md)) **queue ahead of everyone paying as they go**; within each, first come first
-  served. When a place comes free the first in that queue moves up (`aheadIn` in `worker/entries/entries.ts`). Someone
-  already in stays in: a Quarterly Member signing up late doesn't take their place.
-- The app gets the waitlist in that order, with who on it is Quarterly (`quarterly`), shown as a Quarterly badge on
-  their row and tag on their card so the order reads. That says who on a waitlist is Quarterly to every member, which
-  is the point of the badge; nobody else's plan is sent.
+- **A training's list is one order**: Quarterly Members (a subscription covering the session's day,
+  ADR [0007](0007-dues-and-payments.md)) above everyone paying as they go, first come first served within each. The
+  first places in that order are in; the rest wait (`aheadIn` in `worker/entries/entries.ts`).
+- So a Quarterly Member signing up for a full session **takes the place of the last one in who pays as they go**, who
+  waits at the top of their queue (their sign-up time is kept, so their place in the order holds). Only when every
+  place is a Quarterly Member's does one wait, still above those paying as they go. When a place comes free the
+  first waiting in that order moves up. A walk-in isn't moved.
+- **Keepers aren't in it**: they keep their sign-up place, and a skater never takes a keeper's. Whether keepers pay at
+  all, or need a plan of their own, is open.
+- The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge on their row
+  and tag on their card so the order reads. That tells every member who signed up on the Quarterly plan, which is the
+  point of the badge; nobody else's plan is sent.
 - Tournaments and club events keep plain sign-up order.
 
 ### A tournament owns its rules
@@ -158,5 +163,6 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-09: The draft has a day, not a time; sign-up opens on a day; a series has usual hours (ADR 0074).
 - 2026-10-09: `date_confirmed` dropped: a TBC tick beside a set day left it showing TBC. A date is a day or a season;
   the quick form asks the season first, the day optional; season and year are one pick.
-- 2026-10-10: Quarterly Members go ahead of those paying as they go on a training's waitlist, and are badged there
+- 2026-10-10: A training's sign-ups are one order, Quarterly Members first, then those paying as they go: a
+  Quarterly Member signing up for a full session takes the last pay-as-you-go place; keepers aren't in it; badged
   (a club rule change).

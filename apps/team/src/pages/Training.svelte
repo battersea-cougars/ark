@@ -49,7 +49,7 @@
   );
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
-  // Quarterly Members on the waitlist: ahead of those paying as they go (ADR 0030), and badged so the order reads
+  // Quarterly skaters signed up: above those paying as they go, in and waiting (ADR 0030), badged so the order reads
   const ahead = $derived(new Set(session?.quarterly ?? []));
   const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
 
@@ -358,7 +358,7 @@
     onclick={(e) => (lifted = { id, el: e.currentTarget.querySelector(".avatar") ?? e.currentTarget, n })}
   >
     {#if n !== undefined}<span class="n num">{n}</span>{/if}
-    <Person player={p} showRating={ratings} />
+    <Person player={p} showRating={ratings} short />
     {#if hasLeft(id)}<span class="badge">Out</span>
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
     {#if ahead.has(id)}<span class="badge plan" title="Quarterly Member: ahead in the queue"
@@ -368,7 +368,7 @@
   </button>
 {/snippet}
 
-<!-- Numbered by their place (sign-up order; on the waitlist, Quarterly Members first), whatever the search leaves showing -->
+<!-- Numbered by their place (Quarterly skaters first, then sign-up order), whatever the search leaves showing -->
 <!-- A search deals cards in and folds them away, or sifts rows; the rest glide to their places (as on Teammates) -->
 {#snippet players(all: number[], numbered = false)}
   {@const ids = matching(all)}
@@ -422,7 +422,7 @@
     >
       <Icon name="grip" size={20} />
     </button>
-    <Person player={byId(id)} showRating={ratings} />
+    <Person player={byId(id)} showRating={ratings} short />
     {#if hasLeft(id)}<span class="badge">Out</span>
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
     {#if byId(id).cougar}<span class="badge red">Cougar</span>{/if}
@@ -952,6 +952,12 @@
   }
   .tight .row :global(.sub) {
     flex-shrink: 0;
+    font-size: var(--text-xs);
+  }
+  /* A tight row's badges (Cougar, Quarterly) a size down, so a name keeps its room */
+  .tight .row .badge {
+    height: 1.25rem;
+    padding: 0 var(--s-1);
     font-size: var(--text-xs);
   }
   /* The tabs, and the search at the end of their row */

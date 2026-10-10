@@ -159,20 +159,30 @@
       onanswer?.("out");
       return;
     }
-    if (full) {
-      // A Quarterly Member queues ahead of those paying as they go, behind the others who are (a training: ADR 0030)
-      const quarterly =
-        event.kind === "training" && db.members.find((m) => m.player.id === id)?.plan === "Subscription";
-      if (quarterly) {
-        const ahead = entries.quarterly ?? [];
-        const at = entries.waitlist.filter((x) => ahead.includes(x)).length;
-        entries.waitlist = [...entries.waitlist.slice(0, at), id, ...entries.waitlist.slice(at)];
-        entries.quarterly = [...ahead, id];
-      } else entries.waitlist = [...entries.waitlist, id];
-      onanswer?.("waitlist");
-    } else {
-      entries.going = [...entries.going, id];
+    // A training's list is one order, Quarterly skaters first (ADR 0030): the card places you as the server will
+    const ahead = entries.quarterly ?? [];
+    const skater = (pid: number) => PLAYERS.find((p) => p.id === pid)?.position !== "G";
+    const quarterly =
+      event.kind === "training" && skater(id) && db.members.find((m) => m.player.id === id)?.plan === "Subscription";
+    /** Into a list after the Quarterly skaters already in it */
+    const placed = (list: number[], pid: number) => {
+      const at = list.filter((x) => ahead.includes(x)).length;
+      return [...list.slice(0, at), pid, ...list.slice(at)];
+    };
+    // Full: a Quarterly skater takes the place of the last skater in who pays as they go, who waits, top of their queue
+    const bumped =
+      quarterly && full ? [...entries.going].reverse().find((x) => !ahead.includes(x) && skater(x)) : undefined;
+    if (quarterly) entries.quarterly = [...ahead, id];
+    if (!full || bumped !== undefined) {
+      if (bumped !== undefined) {
+        entries.going = entries.going.filter((x) => x !== bumped);
+        entries.waitlist = placed(entries.waitlist, bumped);
+      }
+      entries.going = quarterly ? placed(entries.going, id) : [...entries.going, id];
       onanswer?.("in");
+    } else {
+      entries.waitlist = quarterly ? placed(entries.waitlist, id) : [...entries.waitlist, id];
+      onanswer?.("waitlist");
     }
   }
 </script>

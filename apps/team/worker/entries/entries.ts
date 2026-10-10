@@ -1,8 +1,8 @@
 // Who's in (T2): sign-ups for training sessions, tournaments and club events, and the register on the night. One
 // row per person per event (db/schema.sql). The rules live here, not in the app: a full
 // event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
-// waitlist moves up. On a training's waitlist Quarterly Members go first (ADR 0030). Admins can put someone in past
-// the limit.
+// waitlist moves up. A training's list is in one order, Quarterly Members first (ADR 0030): one signing up for a full
+// session takes the place of the last one in who pays as they go. Admins can put someone in past the limit.
 import { all, first, run } from "@cougars/shared/d1";
 import { londonToday } from "../../src/lib/dates";
 import { signupOpen, signupOver } from "../../src/lib/signup";
@@ -19,11 +19,11 @@ const TABLES = {
   event: { table: "club_event_entries", key: "event_id" },
 } as const;
 
-/** What the app shows for one event: ids in sign-up order (the waitlist in its queue order). */
+/** What the app shows for one event: ids in sign-up order (a training's, Quarterly Members first). */
 export interface Entries {
   going: number[];
   waitlist: number[];
-  /** Who on the waitlist is a Quarterly Member, so goes ahead (a training's only) */
+  /** Who signed up (in or waiting) is a Quarterly Member, so comes first (a training's only) */
   quarterly: number[];
   out: number[];
   walkIns: number[];
@@ -35,14 +35,41 @@ export const quarterlyOn = (member: string, day: string) =>
   `EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.member_id = ${member} AND sub.starts_on <= ${day}
     AND (sub.ends_on IS NULL OR sub.ends_on >= ${day}))`;
 
+const SESSION_DAY = "(SELECT held_on FROM training_sessions WHERE id = e.session_id)";
+/** Keepers aren't in the Quarterly rule (ADR 0030): they keep their sign-up place, and nobody takes theirs */
+const SKATER = "(SELECT position FROM members WHERE id = e.member_id) <> 'G'";
+
 /**
- * SQL: 1 for someone on a training's waitlist who goes ahead, being a Quarterly Member on the day (ADR 0030), else 0.
- * `e` is the attendance row; the session's day is looked up. Other kinds' waitlists are first come, first served.
+ * SQL: 1 for someone signed up for a training (in or waiting) who comes first, being a Quarterly Member on the day
+ * (ADR 0030), else 0. `e` is the attendance row. Other kinds are first come, first served.
  */
 export const aheadIn = (kind: EntryKind) =>
   kind === "session"
-    ? `(e.signup = 'waitlist' AND ${quarterlyOn("e.member_id", "(SELECT held_on FROM training_sessions WHERE id = e.session_id)")})`
+    ? `(e.signup IN ('in', 'waitlist') AND ${SKATER} AND ${quarterlyOn("e.member_id", SESSION_DAY)})`
     : "FALSE"; // (not a bare 0: in an ORDER BY that names column 0)
+
+/**
+ * A Quarterly skater waiting for a full training takes the place of the last skater in who pays as they go (not a
+ * walk-in, never a keeper), who waits, at the top of their queue (their sign-up time is kept). One statement, so both move or neither.
+ */
+async function bump(db: D1Database, sessionId: number, memberId: number) {
+  await run(
+    db,
+    `WITH bumped AS MATERIALIZED (
+       SELECT e.id FROM attendance e
+       WHERE e.session_id = ? AND e.signup = 'in' AND e.walk_in = 0 AND ${SKATER}
+         AND NOT ${quarterlyOn("e.member_id", SESSION_DAY)}
+       ORDER BY e.signed_up_at DESC, e.id DESC LIMIT 1),
+     waiting AS MATERIALIZED (
+       SELECT e.id FROM attendance e
+       WHERE e.session_id = ? AND e.member_id = ? AND e.signup = 'waitlist' AND ${SKATER}
+         AND ${quarterlyOn("e.member_id", SESSION_DAY)})
+     UPDATE attendance SET signup = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN 'in' ELSE 'waitlist' END
+     WHERE EXISTS (SELECT 1 FROM bumped) AND EXISTS (SELECT 1 FROM waiting)
+       AND attendance.id IN (SELECT id FROM bumped UNION ALL SELECT id FROM waiting)`,
+    [sessionId, sessionId, memberId],
+  );
+}
 
 /** Whether the event exists and takes sign-ups, and its limit (null: no limit). */
 async function capacity(db: D1Database, kind: EntryKind, id: number): Promise<number | null> {
@@ -108,16 +135,17 @@ async function put(
 }
 
 /** A place came free: the first on the waitlist (a training's Quarterly Members first) moves up, if there's still
- * room as it does. */
+ * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. */
 async function moveUp(db: D1Database, kind: EntryKind, id: number, limit: number | null, now: string) {
   const { table, key } = TABLES[kind];
+  const kept = kind === "session";
   await run(
     db,
-    `UPDATE ${table} SET signup = 'in', signed_up_at = ?
+    `UPDATE ${table} SET signup = 'in'${kept ? "" : ", signed_up_at = ?"}
      WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
        AND ${roomIn(table, key)}`,
-    [now, id, limit, id, limit],
+    kept ? [id, limit, id, limit] : [now, id, limit, id, limit],
   );
 }
 
@@ -151,6 +179,7 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
     }
   }
   await put(db, kind, id, memberId, { join: limit }, now);
+  if (kind === "session" && limit !== null) await bump(db, id, memberId);
 }
 
 /** An admin puts someone in (past the limit, if need be) or takes them off altogether. */
@@ -232,7 +261,7 @@ export async function listEntries(db: D1Database, kind: EntryKind, ids: number[]
   return entriesFrom(rows, ids);
 }
 
-/** One answer as read; `ahead` marks a Quarterly Member on a training's waitlist (aheadIn). */
+/** One answer as read; `ahead` marks a Quarterly Member signed up for a training (aheadIn). */
 interface EntryRow {
   eventId: number;
   memberId: number;
@@ -252,10 +281,9 @@ export function entriesFrom(rows: EntryRow[], ids: number[]): Map<number, Entrie
     const e = out.get(r.eventId);
     if (!e) continue;
     if (r.signup === "in") e.going.push(r.memberId);
-    else if (r.signup === "waitlist") {
-      e.waitlist.push(r.memberId);
-      if (r.ahead) e.quarterly.push(r.memberId);
-    } else e.out.push(r.memberId);
+    else if (r.signup === "waitlist") e.waitlist.push(r.memberId);
+    else e.out.push(r.memberId);
+    if (r.ahead) e.quarterly.push(r.memberId);
     if (r.walkIn) e.walkIns.push(r.memberId);
     if (r.attended === 0) e.noShows.push(r.memberId);
   }

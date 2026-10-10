@@ -21,7 +21,7 @@
     player: Player;
     n?: number;
     you?: boolean;
-    /** A Quarterly Member waiting for a place: they go ahead (ADR 0030), tagged so the queue's order reads */
+    /** A Quarterly skater signed up: they come first (ADR 0030), tagged so the list's order reads */
     quarterly?: boolean;
     showRating?: boolean;
     /** Tapped: given the card, so the zoom can start where it lies. */
@@ -233,7 +233,7 @@
     text-transform: uppercase;
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
   }
-  /* A Quarterly Member on the waitlist: a quiet tag in the photo's bottom right, printed on the card's dark well */
+  /* A Quarterly skater signed up: a quiet tag in the photo's bottom right, printed on the card's dark well */
   .plan-tag {
     position: absolute;
     right: 3cqw;
