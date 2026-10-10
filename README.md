@@ -147,11 +147,15 @@ Never the deploy token: this one lives in the Worker.
 - **Issued by:** Cloudflare, each account (Cougars, Cougars Dev) → Manage Account → **Account API Tokens**. Token
   name: `CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION` / `CLOUDFLARE_ANALYTICS_TOKEN__DEV`.
 
-  | Applies to                   | Permission             | Why                                 |
-  | ---------------------------- | ---------------------- | ----------------------------------- |
-  | Entire Cougars (Dev) account | Account Analytics Read | Today's Worker requests and D1 rows |
+  | Applies to                   | Permission                       | Why                                                       |
+  | ---------------------------- | -------------------------------- | --------------------------------------------------------- |
+  | Entire Cougars (Dev) account | Account Analytics Read           | Today's Worker requests and D1 rows                       |
+  | Entire Cougars Dev account   | Workers Observability Read (dev) | CPU time per route, `scripts/cpu-by-route.mjs` (ADR 0059) |
 
-- **Used by:** the team Worker (`apps/team/worker/settings/usage.ts`), with `CLOUDFLARE_ACCOUNT_ID`.
+  Cloudflare lists Workers Observability under its legacy permissions; it still works. Production doesn't need it.
+
+- **Used by:** the team Worker (`apps/team/worker/settings/usage.ts`), with `CLOUDFLARE_ACCOUNT_ID`; on dev, also
+  `scripts/cpu-by-route.mjs`.
 - **Gets there by:** a Worker secret when the team app deploys; locally, `node scripts/env-pull.mjs -- npm run dev
 -w @cougars/team` passes it to the dev server (`vite.config.ts`), never to a file.
 - **Expires:** no, unless you set a TTL.

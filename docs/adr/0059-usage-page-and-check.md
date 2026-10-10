@@ -42,6 +42,9 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
 - Admins hear about a runaway or a scraper with a fifth of the day left, not when the app stops.
 - A slow route shows up as a rising p99 before it fails, and a failure is an email, not a member's report.
 - The check costs 24 Worker requests and two small queries a day; CPU time comes from the same query.
+- On a quiet Worker most requests start it cold, and starting up costs CPU: on 2026-10-10 dev's web Worker showed
+  26 ms typical over 31 requests a day, but 4.4 ms typical (20 ms at p90) once warm. Read dev's figures with that in
+  mind; `scripts/cpu-by-route.mjs` gives CPU time per route from Workers Logs (dev token only) to find a slow one.
 - Tests can't measure Worker CPU (Node and in-memory SQLite aren't workerd), so the guard is this measurement in
   production plus the rules above, not a test.
 - It only runs where the team app is deployed; locally the page works on a dev server started through env-pull.
@@ -54,3 +57,5 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
 - 2026-10-07: CPU time per request (p50, p99, stopped) on the page, an email when a request is stopped, and the rules
   for staying under 10 ms (was 0063).
 - 2026-10-09: The live hub's Durable Object requests and duration added to the page and the 80% check (ADR 0072).
+- 2026-10-10: Cold starts explain high CPU on a quiet Worker; the dev token can read Workers Logs for CPU per route
+  (`scripts/cpu-by-route.mjs`).
