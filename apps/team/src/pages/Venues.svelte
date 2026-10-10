@@ -51,24 +51,32 @@
   </PageHeader>
 
   {#if db.venues.length}
-    <ul class="venues">
-      {#each db.venues as v (v.id)}
-        {@const used = usedBy(v.id)}
-        <li class:hidden={!v.active}>
-          <button class="row" onclick={() => edit(v)}>
-            <Icon name="pin" size={18} />
-            <span class="what">
-              <span class="name"
-                >{v.name}{#if !v.active}<span class="tag">Hidden</span>{/if}</span
-              >
-              <span class="hint small">{v.address || "No address"}{used ? ` · ${used}` : ""}</span>
-            </span>
+    <div class="list">
+      <div class="table-head">
+        <span>Venue</span><span class="wide-only">Address</span><span class="wide-only">Used for</span>
+      </div>
+      <ul class="venues">
+        {#each db.venues as v (v.id)}
+          {@const used = usedBy(v.id)}
+          <!-- The whole row opens it: the name's button stretches over the row; Map sits above it -->
+          <li class="table-row" class:hidden={!v.active}>
+            <button class="open" onclick={() => edit(v)}>
+              <Icon name="pin" size={18} />
+              <span class="what">
+                <span class="name"
+                  >{v.name}{#if !v.active}<span class="tag">Hidden</span>{/if}</span
+                >
+                <span class="hint small phone-only">{v.address || "No address"}{used ? ` · ${used}` : ""}</span>
+              </span>
+            </button>
+            <span class="wide-only muted">{v.address || "No address"}</span>
+            <span class="wide-only muted">{used || "Nothing yet"}</span>
+            <a class="btn ghost sm map" href={mapOf(v)} target="_blank" rel="noopener noreferrer">Map</a>
             <Icon name="chevronRight" size={18} />
-          </button>
-          <a class="btn ghost map" href={mapOf(v)} target="_blank" rel="noopener noreferrer">Map</a>
-        </li>
-      {/each}
-    </ul>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {:else}
     <p class="hint">No venues yet. Add the rink, then pick it for trainings and tournaments.</p>
   {/if}
@@ -113,45 +121,85 @@
 </Sheet>
 
 <style>
+  /* The venue, its address, what picks it, the map, and the chevron's room */
+  .list {
+    --cols: minmax(10rem, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) auto 18px;
+  }
   .venues {
-    display: grid;
-    gap: var(--s-1);
     margin: 0;
     padding: 0;
     list-style: none;
   }
   li {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
+    position: relative;
   }
-  li.hidden {
+  li + li {
+    border-top: 1px solid var(--border);
+  }
+  li:hover {
+    background: color-mix(in srgb, var(--fg) 5%, transparent);
+  }
+  li.hidden > * {
     opacity: 0.6;
   }
-  .row {
+  li > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .open {
     display: flex;
-    flex: 1;
     align-items: center;
     gap: var(--s-3);
     min-width: 0;
-    padding: var(--s-3);
+    padding: 0;
     border: 0;
-    border-radius: var(--r-md);
     background: none;
     color: var(--fg-body);
+    font: inherit;
     text-align: left;
+    cursor: pointer;
   }
-  .row:hover {
-    background: var(--surface-2);
+  .open::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .map {
+    position: relative;
+    z-index: 1;
   }
   .what {
     display: grid;
-    flex: 1;
     min-width: 0;
   }
   .name {
     color: var(--fg);
     font-weight: 600;
+  }
+  .muted {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .phone-only {
+    display: none;
+  }
+  /* A phone: the venue (its address and what picks it under the name), the map, the chevron */
+  @media (max-width: 900px) {
+    .list {
+      --cols: minmax(0, 1fr) auto 18px;
+    }
+    .table-head,
+    .table-row {
+      gap: var(--s-3);
+    }
+    .wide-only {
+      display: none;
+    }
+    .phone-only {
+      display: block;
+    }
   }
   .tag {
     margin-left: var(--s-2);

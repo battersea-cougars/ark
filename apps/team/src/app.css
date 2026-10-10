@@ -66,6 +66,15 @@
   --r-lg: 0.625rem;
   --r-xl: 0.875rem;
   --r-pill: 999px;
+  /* Tables and lists: square, trying it out (2026-10-10); var(--r-lg) to round them again */
+  --r-table: 0;
+
+  --row-hover: color-mix(in srgb, var(--fg) 5%, transparent);
+  --row-pad: var(--s-4);
+  /* A table's lines, less like lines (2026-10-10): soft, edge to edge, so a row's hover fill meets them squarely.
+     Drawn as a background, in the slot above its row */
+  --rule-color: rgb(239 232 225 / 0.045);
+  --rule: linear-gradient(var(--rule-color), var(--rule-color));
 
   /* ─── The Sticker scheme (ADR 0084): carbon and bone, cougar red, sticker yellow for the one main action ───
      Surfaces and ink are one warm ramp (OKLCH hue 70), so the greys and the bone words belong together. */
@@ -134,10 +143,12 @@
   /* ─── Surfaces: panels are solid; --blur is for the chrome ─── */
   --panel-bg: var(--surface-1);
   --panel-bg-strong: var(--surface-1);
-  /* Inputs, search and selects: a solid fill, so a field never melts into the textured page behind it */
-  --field-bg: var(--surface-2);
-  --field-bg-focus: var(--surface-3);
-  --field-edge: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.35);
+  /* Inputs and selects: frosted glass like the tables and the search (2026-10-10), a faint fill over the blurred
+     page, a soft edge, a touch brighter while you type */
+  --field-bg: color-mix(in srgb, var(--fg) 5%, transparent);
+  --field-bg-focus: color-mix(in srgb, var(--fg) 7%, transparent);
+  --field-edge: none;
+  --field-border: color-mix(in srgb, var(--fg) 7%, transparent);
   --chrome-bg: color-mix(in srgb, var(--bg) 74%, transparent); /* bars that content scrolls under */
   --chrome-bg-solid: color-mix(in srgb, var(--bg) 90%, transparent); /* bars over text you'd otherwise read through */
   --blur: blur(18px) saturate(1.3);
@@ -424,7 +435,7 @@ h3 {
   min-height: 0;
   padding-bottom: var(--s-5);
 }
-/* A page whose subject is one list (a training's Who's coming, Overdue, Fees): the window's height, in the usual
+/* A page whose subject is one list (Fees): the window's height, in the usual
    frame, and the list takes what's left and scrolls inside (.scroll-fill), so its tabs and search sit above it and
    never move. Nothing pins; a filter that shortens the list moves nothing else. Flex, so the list takes what the
    rest leaves; the rest keep their size. (.view: past PageHeader's "taller than the window") */
@@ -444,6 +455,155 @@ h3 {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+/* A long list under a page's header (Friday's Who's coming, Unpaid fees), one scroller, the page: it scrolls first
+   (what's above goes by) until the table's header row reaches the top (under the docked toolbar on a desktop),
+   where it stays, with the list's box under it exactly the height left (--list-h); then it scrolls on through the
+   rows that don't fit (--list-extra, the spacer), the box showing them pass (lib/list-scroll.ts). So a wheel
+   anywhere, or one swipe, scrolls the lot, the page scrolls the same however short the list, and the header never
+   lets go (ADR 0065).
+   <div class="hybrid" use:listScroll><div class="stuck">header row, <div class="list-box">list</div></div>
+   <div class="list-spacer"></div></div> */
+.hybrid {
+  position: relative; /* (the stuck block's offsetTop is measured from here) */
+  display: block; /* (not a grid and its gap: the spacer follows the stuck block exactly) */
+}
+/* A phone's bar hiding as you scroll down (#83): the table sticks higher, into the bar's room, and its box grows
+   by as much (so its bottom stays put) while the spacer gives that much back (so the page's length doesn't change
+   and the table is never pushed off the top), but never below nothing: a short list keeps the page long enough
+   for the table to reach the top. All three glide together, with the bar */
+.hybrid .stuck,
+.hybrid .list-box,
+.hybrid .list-spacer {
+  transition:
+    top var(--t) var(--ease),
+    height var(--t) var(--ease);
+}
+.bar-tucked .hybrid .stuck {
+  top: calc(-1 * var(--bar-h, 0px));
+}
+.bar-tucked .hybrid .list-box {
+  height: calc(var(--list-h, 0px) + var(--bar-h, 0px));
+}
+.bar-tucked .hybrid .list-spacer {
+  height: max(0px, calc(var(--list-extra, 0px) - var(--bar-h, 0px)));
+}
+/* A little room under the box (not the page's usual deep margin), and the box keeps its own rounded glass edge,
+   so its bottom always reads as the table's end, never a row cut off over a strip */
+.page:has(> .hybrid) {
+  padding-bottom: var(--s-4);
+}
+/* The header row is the table's own: the glass edge wraps it and the rows, a hairline between (as .list).
+   Nothing passes behind it (the box clips its rows just under it), so it stays transparent */
+.hybrid .stuck {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  border: 0; /* no edge: the glass and its row lines are enough (2026-10-10) */
+  border-radius: var(--r-table);
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+@media (min-width: 901px) {
+  .page:has(> .page-toolbar) .hybrid .stuck {
+    top: calc(var(--s-4) * 2 + 2.25rem);
+  }
+}
+.hybrid .list-box {
+  height: var(--list-h, auto);
+  overflow: hidden;
+  border-radius: 0 0 max(0px, calc(var(--r-table) - 1px)) max(0px, calc(var(--r-table) - 1px));
+}
+.hybrid .list-box > .hint {
+  margin: 0;
+  padding: var(--s-4);
+}
+.hybrid .list-box .list {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.hybrid .list-spacer {
+  height: var(--list-extra, 0px);
+}
+/* A table (Roles, Unpaid fees): a header row of column names, small caps in the muted ink, over rows on the same
+   columns (the page sets --cols), a hairline between rows, a faint fill under the pointer. Rows sit in a `.slot`
+   each, so a search can sift them and the rest glide (animate:flip). On a phone a page drops the columns it can
+   spare. */
+.table-head,
+.table-row {
+  display: grid;
+  grid-template-columns: var(--cols, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--row-pad);
+}
+.table-head {
+  position: relative;
+  min-height: 3rem;
+  padding-block: var(--s-1);
+  background: var(--rule) bottom / 100% 1px no-repeat;
+  color: var(--fg-muted);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.table-head > span {
+  transition: opacity var(--t) var(--ease);
+}
+.table-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: var(--fg-body);
+  font: inherit;
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease-in-out);
+}
+:is(label, button, a).table-row {
+  cursor: pointer;
+}
+:is(label, button:not(:disabled), a).table-row:hover {
+  background: var(--row-hover);
+}
+.table-row:focus-visible {
+  outline-offset: -2px;
+}
+.list > .slot + .slot {
+  /* In the slot, above its row, so a row's hover fill doesn't cover it */
+  padding-top: 1px;
+  background: var(--rule) top / 100% 1px no-repeat;
+}
+/* A table's search: a magnifier at the end of its header row that widens leftwards into the field when you tap it
+   (SearchField collapsible), over the headings, which fade while it's there, so nothing moves (Friday's Who's
+   coming, Roles, Unpaid fees) */
+.table-head > .finder {
+  position: absolute;
+  top: 50%;
+  right: var(--s-2);
+  display: flex;
+  justify-content: flex-end;
+  width: calc(100% - var(--s-2) * 2);
+  translate: 0 -50%;
+  pointer-events: none;
+  --open-width: 16rem;
+}
+.table-head > .finder > * {
+  pointer-events: auto;
+}
+.table-head:has(.search:focus-within, .search.filled) > span {
+  opacity: 0;
+}
+@media (max-width: 900px) {
+  .table-head > .finder {
+    --open-width: 100%;
+    --search-frost: blur(14px) saturate(1.2);
+  }
 }
 @media (min-width: 901px) {
   /* The title keeps its place; the table runs on to the window's edge */
@@ -631,9 +791,9 @@ h1.poster::after {
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
-  /* Glass: a breath of light over the page, the carbon mesh blurred to nothing behind the words */
-  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
-  border-radius: var(--r-lg);
+  /* Glass: a breath of light over the page, the carbon mesh frosted behind the words (as on Roles); no edge, trying it */
+  border: 0;
+  border-radius: var(--r-table);
   background: color-mix(in srgb, var(--fg) 3%, transparent);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
@@ -643,7 +803,7 @@ h1.poster::after {
   align-items: center;
   gap: var(--s-3);
   min-height: 3.5rem;
-  padding: var(--s-3) var(--s-4);
+  padding: var(--s-3) var(--row-pad);
   width: 100%;
   border: 0;
   background: none;
@@ -652,11 +812,15 @@ h1.poster::after {
   transition: background-color var(--t-fast) var(--ease-in-out);
 }
 .row + .row {
-  border-top: 1px solid var(--border);
+  /* (A background image: a hovered row's fill takes its place) */
+  background-image: var(--rule);
+  background-position: top;
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
 }
 a.row:hover,
 button.row:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  background: var(--row-hover);
 }
 .row:focus-visible {
   outline-offset: -2px;
@@ -1066,10 +1230,12 @@ button.row:hover:not(:disabled) {
   width: 100%;
   height: var(--control-h);
   padding: 0 var(--s-4);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-border);
   border-radius: var(--r-md);
   background: var(--field-bg);
   box-shadow: var(--field-edge);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
   color: var(--fg);
   transition:
     border-color var(--t-fast) var(--ease-in-out),
@@ -1213,8 +1379,10 @@ input[type="checkbox"] {
 }
 
 /* Entrance for lists and figures that mount after a tap */
+/* (Let go once it's done, never held: a fade held on keeps the block a see-through layer, and a blurred glass in it
+   (a table) can't see the page behind it, so frosts nothing) */
 .rise {
-  animation: rise var(--t-slow) var(--ease) both;
+  animation: rise var(--t-slow) var(--ease) backwards;
 }
 @keyframes rise {
   from {

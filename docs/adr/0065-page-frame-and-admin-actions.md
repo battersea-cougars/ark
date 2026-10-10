@@ -55,15 +55,23 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   (`.scroll-fill`) is as tall as its rows, up to the height left, and scrolls inside; its tabs and search sit above
   it and never move. Nothing pins, so a search or filter that shortens the list moves nothing else (a pinned header
   over a page-scrolling list unpinned whenever a filter shortened the page). Lists are glass (`fg` at 3%, the
-  chrome's blur), not solid panels. Unpaid fees and Quarterly rate so far.
-- **A long list under a header (Friday's Who's coming) has one scroller, the page, and the list's box is a window
+  chrome's blur, square corners: `--r-table`, no outer edge, soft lines under the header and between rows, edge to
+  edge: `--rule`), not solid panels. Members' grid (`lib/DataGrid.svelte`) follows the same rules, its header a
+  frosted band as rows scroll under it. Text inputs and selects are the same glass (`--field-bg`). Quarterly rate so far.
+- **A long list under a header (Friday's Who's coming, Unpaid fees, Roles, Tournaments) has one scroller, the page, and the list's box is a window
   on the rows.** The page scrolls until the list's tabs and search reach the top, where they stay as the table's own header row (inside its glass edge, transparent), with
   the box under them exactly the height left; then the page scrolls on, by the height of the rows that don't fit (a
   spacer), and the box scrolls its rows by the same amount (`lib/list-scroll.ts`). A wheel anywhere on the page, or
   one swipe, does the lot; the page scrolls the same however short a tab or a search makes the list, so the tabs never
   let go. Tried and dropped: tabs that pinned only once stuck (restyled, and a filter unpinned them); a bar the rows
   pass under (it needs a solid or blurred band, which read as a black bar); the list as a second scroller (a wheel
-  had to be over it, and on touch a swipe stays with the box it began in).
+  had to be over it, and on touch a swipe stays with the box it began in). The styles are `.hybrid` in app.css; a
+  table without tabs has its row of column names as its header.
+- **Tables look like Roles'**: a header row of column names (small caps, muted), rows on the same columns, a
+  hairline between, a faint fill under the pointer (`.table-head`, `.table-row`, columns from `--cols`; a phone drops
+  the columns it can spare). A long one searches the way Friday does: a magnifier at the end of its header row that
+  widens leftwards into the field, over the headings, and rows that sift as you type. Short lists (Quarterly rate,
+  Venues) get the columns but no search.
 
 ## Consequences
 
@@ -96,3 +104,12 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   its box growing as the space under it shrinks, so the page's length doesn't change; the shell's empty top room
   lets taps through to the stuck tabs and search. A scroll that comes with a new page length (a tab or a search
   shortening the list) isn't you scrolling, so it leaves the bar hidden, and the table settles at the top.
+- 2026-10-10: Unpaid fees scrolls like Friday's Who's coming (the totals go by, then the table's header sticks and
+  the page drives its rows), not as a fitted page; Export CSV moves to the page's actions. The `.hybrid` styles
+  moved from the Training page to app.css to be shared.
+- 2026-10-10: Tables share Roles' look (`.table-head`, `.table-row`); Roles, Unpaid fees and Tournaments become stuck
+  tables with Friday's search at the end of the header row; Quarterly rate and Venues get column names.
+- 2026-10-10: Tables and lists try square corners (`--r-table: 0`). Friday's table now frosts like Roles': its
+  fade-in (`.rise`) held on after it ended, which kept it a see-through layer the blur couldn't see past.
+- 2026-10-10: Tables lose their outer edge and their lines go soft (`--rule`, edge to edge, so a hover meets them);
+  Members' grid takes the tables' look; text inputs and selects become frosted glass to match.

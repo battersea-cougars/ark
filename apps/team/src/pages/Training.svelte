@@ -361,10 +361,10 @@
     <Person player={p} showRating={ratings} short />
     {#if hasLeft(id)}<span class="badge">Out</span>
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
+    {#if p.cougar}<span class="badge red">Cougar</span>{/if}
     {#if ahead.has(id)}<span class="badge plan" title="Quarterly Member: ahead in the queue"
         ><Icon name="calendar" size={12} /><span class="plan-word">Quarterly</span></span
       >{/if}
-    {#if p.cougar}<span class="badge red">Cougar</span>{/if}
   </button>
 {/snippet}
 
@@ -852,92 +852,24 @@
       background-color var(--t-fast) var(--ease-in-out);
   }
   /* Who's coming: one line a player, the name and their position side by side, so a full night fits on a screen */
-  /* Before the teams, one scroller, the page: it scrolls first (the card goes by) until Who's coming's tabs and
-     search reach the top (under the docked toolbar on a desktop), where they stay, in the open, with the list's box
-     under them exactly the height left (--list-h); then it scrolls on through the rows that don't fit (--list-extra,
-     the spacer), the box showing them pass (lib/list-scroll.ts). So a wheel anywhere, or one swipe, scrolls the
-     lot, the page scrolls the same however short the list, and the tabs never let go (ADR 0065) */
-  .roster.hybrid {
-    position: relative; /* (the stuck block's offsetTop is measured from here) */
-    display: block; /* (not the grid and its gap: the spacer follows the stuck block exactly) */
-  }
-  /* A phone's bar hiding as you scroll down (#83): the table sticks higher, into the bar's room, and its box grows
-     by as much (so its bottom stays put) while the spacer gives that much back (so the page's length doesn't change
-     and the table is never pushed off the top), but never below nothing: a short list keeps the page long enough
-     for the table to reach the top. All three glide together, with the bar */
-  .hybrid .stuck,
-  .hybrid .list-box,
-  .hybrid .list-spacer {
-    transition:
-      top var(--t) var(--ease),
-      height var(--t) var(--ease);
-  }
-  :global(.bar-tucked) .hybrid .stuck {
-    top: calc(-1 * var(--bar-h, 0px));
-  }
-  :global(.bar-tucked) .hybrid .list-box {
-    height: calc(var(--list-h, 0px) + var(--bar-h, 0px));
-  }
-  :global(.bar-tucked) .hybrid .list-spacer {
-    height: max(0px, calc(var(--list-extra, 0px) - var(--bar-h, 0px)));
-  }
-  /* A little room under the box (not the page's usual deep margin), and the box keeps its own rounded glass edge,
-     so its bottom always reads as the table's end, never a row cut off over a strip */
-  .page:has(> .hybrid) {
-    padding-bottom: var(--s-4);
-  }
-  /* The tabs are the table's own header row: the glass edge wraps them and the rows, a hairline between. Nothing
-     passes behind them (the box clips its rows just under them), so the header stays transparent */
-  .hybrid .stuck {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    display: grid;
-    border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
-    border-radius: var(--r-lg);
-    background: color-mix(in srgb, var(--fg) 3%, transparent);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
-  }
+  /* Before the teams, one scroller, the page (.hybrid in app.css, lib/list-scroll.ts): the tabs and search are the
+     table's header row */
   .hybrid .roster-bar {
     padding: var(--s-1) var(--s-2) var(--s-1) var(--s-1);
-    border-bottom: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
-  }
-  @media (min-width: 901px) {
-    :global(.page:has(> .page-toolbar)) .hybrid .stuck {
-      top: calc(var(--s-4) * 2 + 2.25rem);
-    }
-  }
-  .hybrid .list-box {
-    height: var(--list-h, auto);
-    overflow: hidden;
-    border-radius: 0 0 calc(var(--r-lg) - 1px) calc(var(--r-lg) - 1px);
-  }
-  .hybrid .list-box > .hint {
-    margin: 0;
-    padding: var(--s-4);
+    background: var(--rule) bottom / 100% 1px no-repeat;
   }
   /* Cards stand in the box with room round them, so the box's edge never clips a card's outline or lift */
   .hybrid .list-box :global(.cards) {
     padding: var(--s-3);
   }
-  .hybrid .list-box :global(.list) {
-    border: 0;
-    border-radius: 0;
-    background: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-  .hybrid .list-spacer {
-    height: var(--list-extra, 0px);
-  }
   /* Each row in a slot of its own (so it can move): the hairline goes between slots */
   .tight > .slot + .slot {
-    border-top: 1px solid var(--border);
+    padding-top: 1px;
+    background: var(--rule) top / 100% 1px no-repeat;
   }
   .tight .row {
     min-height: 2.75rem;
-    padding: var(--s-2) var(--s-4);
+    padding: var(--s-2) var(--row-pad);
   }
   .tight .row :global(.avatar) {
     width: 1.75rem;

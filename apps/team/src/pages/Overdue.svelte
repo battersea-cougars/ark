@@ -12,6 +12,10 @@
   import { db } from "../demo/store.svelte";
   import { BUCKETS, BUCKET_HINT, aged } from "../lib/dues";
   import { londonToday, pounds } from "../lib/dates";
+  import { listScroll } from "../lib/list-scroll";
+  import SearchField from "../lib/SearchField.svelte";
+  import { flip } from "svelte/animate";
+  import { cardMoveMs, easeOut, sift } from "../app/motion";
 
   const rows = $derived(
     aged(db.charges, londonToday()).map((r) => ({
@@ -24,6 +28,15 @@
   const grand = $derived(totals.reduce((a, b) => a + b, 0));
   const max = $derived(Math.max(1, ...totals));
   const tone = ["", "amber", "red", "red"];
+  // The search finds someone by name or payment reference; the totals above stay the whole club's
+  let query = $state("");
+  const shown = $derived.by(() => {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return rows.filter((r) => {
+      const text = `${r.player.name} ${r.reference}`.toLowerCase();
+      return words.every((w) => text.includes(w));
+    });
+  });
 
   const perms = $derived(granted());
   const admin = $derived(can(perms, "manage:Member"));
@@ -49,13 +62,18 @@
   }
 </script>
 
-<!-- One list, the page's subject: it takes the height left and scrolls inside (.page.fit) -->
-<div class="page fit">
+<div class="page">
   <PageHeader
     title="Unpaid fees"
     eyebrow="Aged receivables"
     subtitle="Who owes what, and for how long. Settle up before the gong."
-  />
+  >
+    {#snippet actions()}
+      {#if rows.length}
+        <button class="btn sm outline" onclick={exportCsv}><Icon name="download" size={16} />Export CSV</button>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   <div class="total">
     <span class="eyebrow">Total out</span>
@@ -78,30 +96,51 @@
     {/each}
   </div>
 
-  <div class="list scroll-fill">
-    {#each rows as r (r.memberId)}
-      <button
-        type="button"
-        class="row"
-        aria-haspopup="dialog"
-        disabled={!db.members.some((m) => m.player.id === r.memberId)}
-        onclick={() => (open = r.memberId)}
-      >
-        <span class="grow"><span class="title">{r.player.name}</span><span class="sub num">{r.reference}</span></span>
-        <span class="badge {tone[r.oldest]}">{BUCKETS[r.oldest]}</span>
-        <span class="num amt">{pounds(r.total)}</span>
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {:else}
-      <p class="row hint">Nobody owes a penny. Honour is satisfied.</p>
-    {/each}
-  </div>
-
-  {#if rows.length}
-    <div class="actions">
-      <button class="btn outline" onclick={exportCsv}>Export CSV</button>
+  <!-- The page scrolls until the table's header reaches the top, then on through the rows, the box under it
+       showing them pass (lib/list-scroll.ts), as on Friday's Who's coming -->
+  <div class="hybrid" use:listScroll>
+    <div class="stuck">
+      <div class="table-head list-tabs">
+        <span>Member</span>
+        <span class="col-ref">Reference</span>
+        <span>Owed for</span>
+        <span class="amt">Total</span>
+        <!-- Find someone: a magnifier at the end of the row that widens into the field when you tap it -->
+        {#if rows.length}
+          <div class="finder">
+            <SearchField bind:value={query} placeholder="Search members" label="Search members" collapsible />
+          </div>
+        {/if}
+      </div>
+      <div class="list-box">
+        <!-- A search sifts rows; the rest glide to their places (as on Friday) -->
+        <div class="list">
+          {#each shown as r (r.memberId)}
+            <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:sift out:sift={{ out: true }}>
+              <button
+                type="button"
+                class="table-row"
+                aria-haspopup="dialog"
+                disabled={!db.members.some((m) => m.player.id === r.memberId)}
+                onclick={() => (open = r.memberId)}
+              >
+                <span class="name">{r.player.name}</span>
+                <span class="col-ref num">{r.reference}</span>
+                <span><span class="badge {tone[r.oldest]}">{BUCKETS[r.oldest]}</span></span>
+                <span class="num amt">{pounds(r.total)}</span>
+                <Icon name="chevronRight" size={18} />
+              </button>
+            </div>
+          {:else}
+            <p class="hint none">
+              {rows.length ? `Nobody matches “${query.trim()}”.` : "Nobody owes a penny. Honour is satisfied."}
+            </p>
+          {/each}
+        </div>
+      </div>
     </div>
-  {/if}
+    <div class="list-spacer"></div>
+  </div>
 </div>
 
 {#if opened && admin}
@@ -166,9 +205,41 @@
     color: var(--fg);
     font-weight: 600;
   }
-  .actions {
-    display: flex;
-    gap: var(--s-2);
+  /* Who, their payment reference, how long the oldest has been owed, the total, and the chevron's room */
+  .hybrid {
+    --cols: minmax(0, 1fr) 9rem 7rem 5rem 18px;
+  }
+  .table-head > .amt {
+    color: inherit;
+    font-weight: inherit;
+  }
+  .name {
+    overflow: hidden;
+    color: var(--fg);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .col-ref {
+    color: var(--fg-muted);
+    font-size: var(--text-xs);
+  }
+  .none {
+    margin: 0;
+    padding: var(--s-4);
+  }
+  /* A phone: the reference goes (it's on their card) */
+  @media (max-width: 900px) {
+    .hybrid {
+      --cols: minmax(0, 1fr) auto 4.5rem 18px;
+    }
+    .table-head,
+    .table-row {
+      gap: var(--s-3);
+    }
+    .col-ref {
+      display: none;
+    }
   }
   @media (max-width: 420px) {
     .bucket {

@@ -44,16 +44,19 @@
       ]);
       const theme = themeQuartz.withParams({
         browserColorScheme: "dark",
-        backgroundColor: "var(--surface-1)",
+        // The app's tables (app.css, ADR 0065): glass under it (.data-grid), so the grid itself is clear; no edge,
+        // square; soft lines under the header and between rows, edge to edge; the same hover; no banding
+        backgroundColor: "transparent",
         foregroundColor: "var(--fg-body)",
         accentColor: "var(--red-hot)",
-        borderColor: "var(--border)",
-        headerBackgroundColor: "var(--surface-2)",
+        borderColor: "var(--rule-color)",
+        // The header: the top bar's frosted band, so rows scrolling beneath it blur away
+        headerBackgroundColor: "var(--chrome-bg-solid)",
         headerTextColor: "var(--fg-muted)",
         headerFontSize: 11,
         headerFontWeight: 600,
-        oddRowBackgroundColor: "color-mix(in srgb, var(--fg) 3%, var(--surface-1))",
-        rowHoverColor: "color-mix(in srgb, var(--fg) 8%, transparent)",
+        oddRowBackgroundColor: "transparent",
+        rowHoverColor: "var(--row-hover)",
         selectedRowBackgroundColor: "color-mix(in srgb, var(--red) 14%, transparent)",
         fontFamily: "inherit",
         fontSize: 14,
@@ -63,8 +66,8 @@
         // Tight cells, so a table of a dozen columns fits beside the settings list
         cellHorizontalPadding: 8,
         wrapperBorder: false,
-        wrapperBorderRadius: "var(--r-lg)",
-        rowBorder: false,
+        wrapperBorderRadius: "var(--r-table)",
+        rowBorder: true,
         columnBorder: false,
       });
       grid = createGrid<T>(host, {
@@ -104,8 +107,23 @@
 
 <style>
   .data-grid {
+    position: relative;
+    isolation: isolate;
     width: 100%;
     height: 100%;
+  }
+  /* The tables' glass (app.css .list): a breath of light, the page frosted behind it. On a layer of its own behind
+     the grid, as a blur on the grid's own box would change where the grid places its rows and header */
+  .data-grid::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: var(--r-table);
+    background: color-mix(in srgb, var(--fg) 3%, transparent);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    pointer-events: none;
   }
   /* AG Grid turns its cells to subpixel smoothing, which draws light-on-dark text heavier than the rest of the app */
   .data-grid :global(.ag-root-wrapper),
@@ -113,6 +131,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
   .data-grid :global(.ag-header-cell-text) {
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;

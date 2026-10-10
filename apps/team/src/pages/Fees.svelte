@@ -58,14 +58,16 @@
 
     <h2 class="section-title">History</h2>
     <div class="list scroll-fill">
+      <div class="table-head"><span>Rate</span><span>From</span><span></span></div>
       {#each history as f (f.from)}
-        <div class="row" class:old={inForce !== undefined && f.from < inForce}>
-          <span class="grow"
-            ><span class="title">{pounds(f.pence)} a quarter</span><span class="sub">from {day(f.from)}</span></span
+        <div class="table-row" class:old={inForce !== undefined && f.from < inForce}>
+          <span class="rate num">{pounds(f.pence)} a quarter</span>
+          <span class="num">{day(f.from)}</span>
+          <span
+            >{#if f.from > today}<span class="badge">To come</span>{:else if f.from === inForce}<span
+                class="badge green">Now</span
+              >{/if}</span
           >
-          {#if f.from > today}<span class="badge">To come</span>{:else if f.from === inForce}<span class="badge green"
-              >Now</span
-            >{/if}
         </div>
       {/each}
     </div>
@@ -92,7 +94,18 @@
 </div>
 
 <style>
-  .old .title {
+  /* The rate, from when, and whether it's the one now */
+  .list {
+    --cols: minmax(0, 1fr) minmax(0, 1fr) 5rem;
+  }
+  .table-row + .table-row {
+    border-top: 1px solid var(--border);
+  }
+  .rate {
+    color: var(--fg);
+    font-weight: 500;
+  }
+  .old > :not(:last-child) {
     opacity: 0.55;
   }
 </style>
