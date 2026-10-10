@@ -31,6 +31,7 @@ export const ACTIONS = {
   "read:Audit": { name: "See the audit log", description: "Who changed what, and when" },
   "edit:Content": { name: "Edit the website", description: "Edit website content" },
   "manage:Quip": { name: "Edit quips", description: "The quips Home says when you sign up" },
+  "post:Announcement": { name: "Post announcements", description: "A note at the top of everyone's Home" },
   "manage:all": { name: "Everything", description: "Can do everything" },
 } as const satisfies Record<string, { name: string; description: string }>;
 

@@ -138,6 +138,8 @@ export interface Bootstrap {
   tournaments: Tournament[];
   clubEvents: OneOff[];
   quips: Quip[];
+  /** Home's announcements (#85): the two newest still on, less any you dismissed. */
+  announcements: Announcement[];
   /** What's on from today (ADR 0042). */
   agenda: AgendaRow[];
   settings: { liveRefreshSeconds: number };
@@ -149,6 +151,16 @@ export interface Bootstrap {
 
 /** Home's lines, from D1. */
 export const QUIPS: Quip[] = [];
+/** An admin's note at the top of Home (#85), until its last day. */
+export interface Announcement {
+  id: number;
+  title: string;
+  body: string;
+  link: string | null;
+  endsOn: string;
+  createdAt: string;
+}
+export const ANNOUNCEMENTS: Announcement[] = [];
 /** Published teams, by session id. */
 export const TEAMS: Record<number, Team[]> = {};
 
@@ -204,6 +216,7 @@ export function applySlices(b: Slices) {
     for (const s of b.sessions) if (s.teams.length) TEAMS[s.id] = s.teams;
   }
   if (b.quips) fill(QUIPS, b.quips);
+  if (b.announcements) fill(ANNOUNCEMENTS, b.announcements);
   if (b.tournamentTypes) fill(TOURNAMENT_TYPES, b.tournamentTypes);
   if (b.tournaments) fill(TOURNAMENTS, b.tournaments);
   if (b.clubEvents) fill(ONE_OFFS, b.clubEvents);

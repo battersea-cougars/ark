@@ -121,6 +121,19 @@ export const SLICES = {
     shape: (_c: Ctx, p: Parts) => p.subscriptionFees as { pence: number; from: string }[],
   },
   quips: { parts: ["quips"], shape: (_c: Ctx, p: Parts) => p.quips as { id: number; kind: string; text: string }[] },
+  // Home's announcements (#85)
+  announcements: {
+    parts: ["announcements"],
+    shape: (_c: Ctx, p: Parts) =>
+      p.announcements as {
+        id: number;
+        title: string;
+        body: string;
+        link: string | null;
+        endsOn: string;
+        createdAt: string;
+      }[],
+  },
   // How often live pages check for updates (ADR 0072)
   settings: { parts: ["settings"], shape: (_c: Ctx, p: Parts) => settingsFrom(p.settings) },
   // What's on from today (ADR 0042)

@@ -240,6 +240,14 @@ const PARTS = {
     `SELECT amount_pence pence, effective_from "from" FROM subscription_fees ORDER BY effective_from`,
   ),
   quips: rows("id kind text", "SELECT id, kind, text FROM quips ORDER BY id"),
+  // Home's announcements (#85): the two newest still on, less any this member dismissed
+  announcements: rows(
+    "id title body link endsOn createdAt",
+    `SELECT a.id, a.title, a.body, a.link, a.ends_on endsOn, a.created_at createdAt FROM announcements a, viewer v
+     WHERE a.ends_on >= v.today
+       AND NOT EXISTS (SELECT 1 FROM announcement_dismissals d WHERE d.announcement_id = a.id AND d.member_id = v.member_id)
+     ORDER BY a.created_at DESC, a.id DESC LIMIT 2`,
+  ),
   settings: rows("live_refresh_seconds", "SELECT live_refresh_seconds FROM club_settings WHERE id = 1"),
   // What's on from today (ADR 0042). A draft night is for whoever runs the draft and that tournament's captains.
   agenda: rows(

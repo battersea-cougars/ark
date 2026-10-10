@@ -19,11 +19,29 @@
   import { prefersReducedMotion } from "../app/motion";
   import { editionState } from "../lib/edition";
   import { checkForUpdates } from "../lib/live-updates.svelte";
+  import Sheet from "../lib/Sheet.svelte";
+  import DateField from "../lib/DateField.svelte";
+  import { dismissAnnouncement, postAnnouncement, removeAnnouncement } from "../app/backend.svelte";
 
   // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
   $effect(() => checkForUpdates(["sessions", "tournaments"], { steady: true }));
 
   const perms = $derived(granted());
+
+  // Announcements (#85): an admin's note at the top, until its last day or until you dismiss it. Whoever may post
+  // writes one in a sheet over Home (ADR 0065), and can take one down from its card
+  const poster = $derived(can(perms, "post:Announcement"));
+  let announcing = $state(false);
+  const inAWeek = () => new Date(Date.parse(`${londonToday()}T12:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
+  let note = $state({ title: "", body: "", link: "", endsOn: inAWeek() });
+  async function announce(e: SubmitEvent) {
+    e.preventDefault();
+    if (await postAnnouncement(note)) {
+      announcing = false;
+      note = { title: "", body: "", link: "", endsOn: inAWeek() };
+    }
+  }
+
   const who = $derived(me());
   // The soonest session of any training leads Home; the other trainings' next sessions follow, then the next
   // tournament of each type.
@@ -321,7 +339,36 @@
       <p class="kicker">Battersea Cougars</p>
     </div>
     <h1 class="display poster">{hello}</h1>
+    {#if poster}
+      <button class="btn ghost sm announce-btn" onclick={() => (announcing = true)}
+        ><Icon name="plus" size={16} />Announcement</button
+      >
+    {/if}
   </header>
+
+  <!-- Announcements: the club's word, before anything else, until it ends or you're done with it -->
+  {#if db.announcements.length}
+    <section class="notes" aria-label="Announcements">
+      {#each db.announcements as a (a.id)}
+        <article class="note rise">
+          <Icon name="megaphone" size={18} />
+          <div class="grow">
+            <h2 class="note-title">{a.title}</h2>
+            {#if a.body}<p class="note-body">{a.body}</p>{/if}
+            {#if a.link || poster}
+              <div class="note-links">
+                {#if a.link}<a href={a.link} target="_blank" rel="noopener noreferrer">Read more</a>{/if}
+                {#if poster}<button class="link" onclick={() => removeAnnouncement(a.id)}>Take down</button>{/if}
+              </div>
+            {/if}
+          </div>
+          <button class="icon-btn" aria-label="Dismiss: {a.title}" onclick={() => dismissAnnouncement(a.id)}
+            ><Icon name="x" size={16} /></button
+          >
+        </article>
+      {/each}
+    </section>
+  {/if}
 
   {#if series && session && booking}
     <section>
@@ -392,6 +439,36 @@
   {/each}
 
   <!-- Everything after the lead session, in date order: other trainings, then tournaments as they come -->
+  <Sheet bind:open={announcing} title="Post an announcement">
+    <form class="form" onsubmit={announce}>
+      <p class="hint">At the top of everyone's Home until its last day, or until they dismiss it. Two at a time.</p>
+      <label class="field"
+        >Title <input
+          class="input"
+          bind:value={note.title}
+          maxlength="80"
+          placeholder="e.g. No training on the 24th"
+          required
+        /></label
+      >
+      <label class="field"
+        >A line or two <textarea
+          class="input"
+          rows="2"
+          maxlength="280"
+          bind:value={note.body}
+          placeholder="e.g. The hall's booked. Back on the 31st."></textarea></label
+      >
+      <label class="field"
+        >Link (optional) <input class="input" type="url" bind:value={note.link} placeholder="https://" /></label
+      >
+      <div class="field">
+        Last day <DateField id="note-ends" aria-label="Last day" required bind:value={note.endsOn} />
+      </div>
+      <button class="btn primary">Post it</button>
+    </form>
+  </Sheet>
+
   {#if later.length}
     <section>
       <h2 class="section-title">Later</h2>
@@ -442,6 +519,70 @@
   section {
     display: grid;
     gap: var(--s-3);
+  }
+  .hello {
+    position: relative;
+  }
+  .announce-btn {
+    justify-self: start;
+  }
+  /* An announcement: the club's word, on glass like the tables (ADR 0065), its icon in the brand's red */
+  .note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+    padding: var(--s-4);
+    background: var(--glass);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+  }
+  .note > .grow {
+    flex: 1;
+    min-width: 0;
+  }
+  .note > :global(svg) {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    color: var(--red-hot);
+  }
+  .note-title {
+    margin: 0;
+    color: var(--fg);
+    font-size: var(--text-base);
+    font-weight: 600;
+  }
+  .note-body {
+    margin: var(--s-1) 0 0;
+    color: var(--fg-body);
+    line-height: 1.45;
+  }
+  .note-links {
+    display: flex;
+    gap: var(--s-4);
+    margin-top: var(--s-2);
+    font-size: var(--text-sm);
+  }
+  .note-links a {
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .icon-btn {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    margin: calc(var(--s-1) * -1) calc(var(--s-1) * -1) 0 0;
+    border: 0;
+    border-radius: var(--r-md);
+    background: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .icon-btn:hover {
+    background: var(--row-hover);
+    color: var(--fg);
   }
   /* Bigger breaks between blocks than within them */
   .page {

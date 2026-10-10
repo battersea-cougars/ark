@@ -7,6 +7,7 @@ import { ACCESS, SCHEDULE, slices } from "./api.slices";
 import { audit } from "../settings/audit";
 import { handleAuth, localHere, sessionOf } from "../auth/auth";
 import { CLUB_ROUTES } from "./bootstrap.routes";
+import { ANNOUNCEMENTS_ROUTES } from "../announcements/announcements.routes";
 import { DRAFT_ROUTES } from "../tournaments/draft.routes";
 import { chargeAttendance, chargeQuarters } from "../dues/dues";
 import { DUES_ROUTES } from "../dues/dues.routes";
@@ -36,6 +37,7 @@ export type { Slice } from "./api.slices";
 export const ROUTES: Route[] = [
   // The club, read; you
   ...CLUB_ROUTES,
+  ...ANNOUNCEMENTS_ROUTES,
   ...ME_ROUTES,
   // People: members and roles
   ...MEMBERS_ROUTES,

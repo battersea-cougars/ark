@@ -79,7 +79,8 @@ Also: `training_sessions.fee_pence` (its training's fee on its day, kept in line
 
 ## Club
 
-| Table          | Columns                                                                                                                                                                                       |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data_version` | version: one more on every change through the team app, the seed and the roster; the bootstrap's ETag ([ADR 0053](adr/0053-live-reads-are-cached.md))                                         |
-| `quips`        | kind (replies: ask/in/waitlist/out; greetings: morning/afternoon/evening/late/training/nag), text (each kind its own limit, lib/quips.ts); admins edit them, and each kind keeps at least one |
+| Table           | Columns                                                                                                                                                                                         |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data_version`  | version: one more on every change through the team app, the seed and the roster; the bootstrap's ETag ([ADR 0053](adr/0053-live-reads-are-cached.md))                                           |
+| `announcements` | title, body, link (https only), ends_on, created_by: an admin's note at the top of Home until its last day (#85); `announcement_dismissals` (announcement_id, member_id) hides one for a member |
+| `quips`         | kind (replies: ask/in/waitlist/out; greetings: morning/afternoon/evening/late/training/nag), text (each kind its own limit, lib/quips.ts); admins edit them, and each kind keeps at least one   |

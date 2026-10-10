@@ -10,6 +10,7 @@ import {
   MEMBERS,
   ONE_OFFS,
   QUIPS,
+  ANNOUNCEMENTS,
   ROLES,
   SERIES,
   SESSIONS,
@@ -64,6 +65,9 @@ const COPY: Record<keyof Slices, () => void> = {
   },
   quips: () => {
     db.quips = structuredClone(QUIPS);
+  },
+  announcements: () => {
+    db.announcements = structuredClone(ANNOUNCEMENTS);
   },
   agenda: () => {
     db.agenda = structuredClone(AGENDA);
@@ -221,6 +225,15 @@ export const attendanceOf = (memberId: number, year?: string) =>
 /** How often live pages check for updates, for everyone (ADR 0072). */
 export const saveSettings = (settings: { liveRefreshSeconds: number }) =>
   save(() => api("PUT", "/api/settings", settings));
+
+/** Home's announcements (#85): post one, take one down, or dismiss one for yourself. */
+export const postAnnouncement = (a: { title: string; body: string; link: string; endsOn: string }) =>
+  save(() => api<{ id: number }>("POST", "/api/announcements", a), "Posted");
+export const removeAnnouncement = (id: number) => save(() => api("DELETE", `/api/announcements/${id}`), "Taken down");
+export const dismissAnnouncement = (id: number) => {
+  db.announcements = db.announcements.filter((a) => a.id !== id);
+  return save(() => api("POST", `/api/announcements/${id}/dismiss`), "");
+};
 
 /** Home's quips. */
 export const addQuip = (kind: QuipKind, text: string) =>

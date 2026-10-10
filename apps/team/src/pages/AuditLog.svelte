@@ -82,6 +82,10 @@
       }
       case "member.email":
         return `${who} changed ${about}'s sign-in email: ${str(d.from)} → ${str(d.to)}`;
+      case "announcement.posted":
+        return `${who} posted “${str(to?.title)}”, on Home until ${str(to?.endsOn)}`;
+      case "announcement.removed":
+        return `${who} took down “${str(from?.title)}”`;
       case "member.plan":
         return `${who} chose ${to?.quarterly ? "Quarterly" : "pay as you go"} for ${str(to?.quarter)}`;
       case "member.everyday":

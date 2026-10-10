@@ -9,6 +9,7 @@ import {
   MEMBERS,
   ONE_OFFS,
   QUIPS,
+  ANNOUNCEMENTS,
   ROLES,
   SERIES,
   SESSIONS,
@@ -34,6 +35,8 @@ export const db = $state({
   /** The quarterly rate, from each date (ADR 0007). */
   fees: structuredClone(SUBSCRIPTION_FEES),
   quips: structuredClone(QUIPS),
+  /** Home's announcements (#85). */
+  announcements: structuredClone(ANNOUNCEMENTS),
   /** How often live pages check for updates (ADR 0072). */
   settings: structuredClone(SETTINGS),
   /** Published teams, by session id. */

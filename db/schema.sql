@@ -283,6 +283,23 @@ CREATE TABLE session_team_players (
 
 CREATE INDEX session_team_players_member ON session_team_players (member_id);
 
+-- Announcements (#85): an admin's note at the top of Home, until its last day; each member can dismiss it for themselves
+CREATE TABLE announcements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  link TEXT,
+  ends_on TEXT NOT NULL,
+  created_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE announcement_dismissals (
+  announcement_id INTEGER NOT NULL REFERENCES announcements (id) ON DELETE CASCADE,
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  PRIMARY KEY (announcement_id, member_id)
+);
+
 CREATE TABLE quips (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   kind TEXT NOT NULL,
