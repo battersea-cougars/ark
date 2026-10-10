@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-09
+- **Date:** 2026-10-05 · updated 2026-10-10
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
@@ -69,6 +69,12 @@ upload, reminder emails, and an override of one session's fee.
 - **The Cougars are `members.cougar`**: whether someone is on the official team. Admins set it on the member sheet; the
   roster seed sets it when it first adds a player (`"cougar": true`) and never changes it after. The team generator
   puts every Cougar on one team first, then balances the rest by rating.
+- **Keepers play training free: the Keeper plan.** The club needs someone in net every Friday, so a keeper (position
+  G) is never charged for a training night or a quarter, whatever else is on record (a subscription from before they
+  were a keeper stays, and charges nothing). There's no plan for them to choose: the server refuses next quarter's
+  plan for a keeper and an admin making one Quarterly (409). Tournaments they enter are charged as for anyone. It
+  follows the position, so making someone a keeper takes their unpaid training charges off at the next
+  recalculation; a paid one stays, as always. A keeper isn't in the Quarterly-first sign-up order either (ADR 0030).
 - The two are independent: a Cougar may or may not be a Quarterly Member, and the other way round. In the app,
   "Cougar" always means the official team; quarterly membership is shown as "Quarterly".
 
@@ -181,3 +187,4 @@ upload, reminder emails, and an override of one session's fee.
 - 2026-10-09: Adjustments, either way, each with its reason; a payment has the day it came in.
 - 2026-10-09: Home stopped showing your dues every visit (red until paid, then an all-clear); the Dues tab's badge says
   it, and Home only once a charge is over 60 days, below the lead session.
+- 2026-10-10: Keepers play training free (the Keeper plan): no session or quarter charges, no plan to choose.

@@ -398,7 +398,9 @@ export async function setContact(db: D1Database, id: number, o: Record<string, u
 
 /** Make someone a Quarterly Member from today, or end it today (ADR 0007). */
 export async function setQuarterly(db: D1Database, id: number, quarterly: boolean, today: string, now: string) {
-  if (!(await first(db, "SELECT 1 FROM members WHERE id = ?", [id]))) throw new HttpError(404, "No such member.");
+  const m = await first<{ position: string }>(db, "SELECT position FROM members WHERE id = ?", [id]);
+  if (!m) throw new HttpError(404, "No such member.");
+  if (quarterly && m.position === "G") throw new HttpError(409, KEEPERS_FREE);
   const covering = "member_id = ? AND starts_on <= ? AND (ends_on IS NULL OR ends_on >= ?)";
   if (quarterly) {
     await run(
@@ -476,7 +478,12 @@ export const memberJoined = (db: D1Database, id: number) =>
  * A member chooses next quarter's plan (ADR 0007): Quarterly, or pay as you go. Only next quarter, and only before it
  * starts, by today's date here, whatever the app showed. This quarter's plan is fixed; an admin can still change it.
  */
+/** Keepers play training free (the Keeper plan, ADR 0007): nothing to choose, nothing to make Quarterly */
+const KEEPERS_FREE = "Keepers play training free: there's no plan to choose.";
+
 export async function choosePlan(db: D1Database, id: number, o: Record<string, unknown>, today: string, now: string) {
+  const me = await first<{ position: string }>(db, "SELECT position FROM members WHERE id = ?", [id]);
+  if (me?.position === "G") throw new HttpError(409, KEEPERS_FREE);
   if (typeof o.quarter !== "string" || !QUARTER.test(o.quarter))
     throw new HttpError(400, "quarter should be like 2027-Q1.");
   if (typeof o.quarterly !== "boolean") throw new HttpError(400, "quarterly should be true or false.");

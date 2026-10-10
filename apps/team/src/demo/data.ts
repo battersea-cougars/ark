@@ -67,15 +67,28 @@ export interface Role {
 }
 export const ROLES: Role[] = [];
 
+/** A member's plan (ADR 0007): Quarterly, pay as you go, or, for a keeper, free (the Keeper plan). */
+export type Plan = "Subscription" | "Pay as you go" | "Keeper";
+/** Keepers play training free, whatever else is on record; the rest by their quarterly membership. */
+export const planOf = (position: string, quarterly: boolean): Plan =>
+  position === "G" ? "Keeper" : quarterly ? "Subscription" : "Pay as you go";
+/** A plan as people say it */
+export const PLAN_NAMES: Record<Plan, string> = {
+  Subscription: "Quarterly Member",
+  "Pay as you go": "Pay as you go",
+  Keeper: "Keeper · plays free",
+};
+
 export interface MemberRow {
   player: Player;
   status: "pending" | "active" | "inactive";
   /** Highest first: Admin, then the others, Member last. */
   roles: string[];
-  /** A Quarterly Member today, from `subscriptions` (ADR 0007); everyone else pays as they go. */
-  plan: "Subscription" | "Pay as you go";
+  /** A Quarterly Member today, from `subscriptions` (ADR 0007); a keeper plays training free (the Keeper plan);
+   * everyone else pays as they go. */
+  plan: Plan;
   /** Next quarter's: what they chose, or this one running on. Only your own (false for anyone else). */
-  planNext: "Subscription" | "Pay as you go";
+  planNext: Plan;
   /** The role their app opens as (ADR 0024); null: their full role. Only if you see roles. */
   everydayRoleId: number | null;
 }
@@ -173,8 +186,8 @@ export function applySlices(b: Slices) {
         player: players[i],
         status: m.status,
         roles: m.roles,
-        plan: m.quarterly ? ("Subscription" as const) : ("Pay as you go" as const),
-        planNext: m.quarterlyNext ? ("Subscription" as const) : ("Pay as you go" as const),
+        plan: planOf(m.position, m.quarterly),
+        planNext: planOf(m.position, m.quarterlyNext),
         everydayRoleId: m.everydayRoleId ?? null,
       })),
     );

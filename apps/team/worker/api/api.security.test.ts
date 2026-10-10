@@ -12,7 +12,7 @@ import { all } from "@cougars/shared/d1";
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
   { name: "Reg Player", position: "F", rating: 60, email: "reg@example.com" },
-  { name: "Pat Plain", position: "G", rating: 40, email: "pat@example.com" },
+  { name: "Pat Plain", position: "D", rating: 40, email: "pat@example.com" },
 ];
 let w: ReturnType<typeof testWorld>;
 

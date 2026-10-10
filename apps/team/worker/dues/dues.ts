@@ -32,15 +32,19 @@ const unpaid = "NOT EXISTS (SELECT 1 FROM payment_allocations pa WHERE pa.charge
 const notPaidUp =
   "c.amount_pence > COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa WHERE pa.charge_id = c.id), 0)";
 
+/** Keepers play training free (the Keeper plan, ADR 0007): no session or quarter charges */
+export const KEEPER = (member: string) => `(SELECT position FROM members WHERE id = ${member}) = 'G'`;
+
 /**
- * Who should be charged for a session: everyone in who wasn't a no-show (walk-ins too), but Quarterly Members and
- * anyone charged for that quarter.
+ * Who should be charged for a session: everyone in who wasn't a no-show (walk-ins too), but keepers, Quarterly
+ * Members and anyone charged for that quarter.
  */
 const SESSIONS_DUE = `
   SELECT a.member_id, s.id event_id, s.fee_pence amount, s.held_on due_on
   FROM attendance a JOIN training_sessions s ON s.id = a.session_id
   WHERE s.held_on <= ? AND s.cancelled_at IS NULL AND s.fee_pence > 0
-    AND a.signup = 'in' AND COALESCE(a.attended, 1) = 1 AND NOT ${subscribed("a.member_id", "s.held_on")}
+    AND a.signup = 'in' AND COALESCE(a.attended, 1) = 1 AND NOT ${KEEPER("a.member_id")}
+    AND NOT ${subscribed("a.member_id", "s.held_on")}
     AND NOT ${quarterCharged("a.member_id", "s.held_on")}`;
 /** Who should be charged for a tournament: everyone in, Quarterly Members too. */
 const TOURNAMENTS_DUE = `
@@ -136,7 +140,7 @@ async function tidy(db: D1Database): Promise<number> {
 }
 
 /**
- * Charge Quarterly Members the quarterly rate for every quarter, up to this one, that a subscription covers: due on
+ * Charge Quarterly Members (not keepers: they play free) the quarterly rate for every quarter, up to this one, that a subscription covers: due on
  * the quarter's first day, or the day they joined. Only where the rate in force then isn't nothing, so setting the
  * first rate decides how far back it goes. A quarter charged by mistake (the subscription taken back) goes, unpaid.
  */
@@ -144,7 +148,8 @@ export async function chargeQuarters(db: D1Database, today: string, now: string)
   const fees = await subscriptionFees(db);
   const subs = await all<{ member_id: number; starts_on: string; ends_on: string | null }>(
     db,
-    "SELECT member_id, starts_on, ends_on FROM subscriptions WHERE starts_on <= ?",
+    `SELECT sub.member_id, sub.starts_on, sub.ends_on FROM subscriptions sub
+     WHERE sub.starts_on <= ? AND NOT ${KEEPER("sub.member_id")}`,
     [today],
   );
   const due = new Map<string, { memberId: number; quarter: string; dueOn: string; pence: number }>();

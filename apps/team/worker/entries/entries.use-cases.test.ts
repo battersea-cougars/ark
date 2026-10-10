@@ -104,14 +104,6 @@ describe("Friday's sign-ups: Quarterly Members first", () => {
     expect(await seen()).toMatchObject({ going: [id.Quinn, id.Kim], waitlist: [id.Reg] });
   });
 
-  it("a Quarterly keeper keeps their sign-up place, unmarked", async () => {
-    const { dana, id, signUp, seen } = await fullFriday();
-    expect((await dana.call("POST", `/api/members/${id.Kim}/quarterly`, { quarterly: true })).status).toBe(200);
-    await signUp("reg@example.com");
-    await signUp("kim@example.com");
-    expect(await seen()).toMatchObject({ going: [id.Reg, id.Kim], quarterly: [] });
-  });
-
   it("a club event's waitlist stays first come, first served", async () => {
     const { dana, id } = await fullFriday();
     const event = await dana.call("POST", "/api/club-events", {

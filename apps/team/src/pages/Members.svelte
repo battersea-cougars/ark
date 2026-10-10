@@ -62,7 +62,8 @@
     { headerName: "Role", valueGetter: (p) => p.data?.roles[0] ?? "Member" },
     {
       headerName: "Plan",
-      valueGetter: (p) => (p.data?.plan === "Subscription" ? "Quarterly" : "Pay as you go"),
+      valueGetter: (p) =>
+        p.data?.plan === "Subscription" ? "Quarterly" : p.data?.plan === "Keeper" ? "Keeper · free" : "Pay as you go",
     },
     { headerName: "Played", valueGetter: (p) => p.data?.player.played ?? 0, type: "numericColumn" },
     // What each owes (ADR 0007): for whoever sees everyone's dues

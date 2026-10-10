@@ -3,7 +3,7 @@
   // ledger: every charge and payment, with what you owed after each.
   import Ledger from "../lib/Ledger.svelte";
   import Icon from "../app/shell/Icon.svelte";
-  import { referenceFor } from "../demo/data";
+  import { PLAN_NAMES, referenceFor, type Plan } from "../demo/data";
   import { chargesFor, creditOf, owedBy } from "../demo/dues.svelte";
   import { impersonating, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
@@ -36,7 +36,8 @@
     const series = db.series.find((s) => s.active);
     return series ? feeOn(series.fees, nextStarts) : 0;
   });
-  const planName = (p: string | undefined) => (p === "Subscription" ? "Quarterly Member" : "Pay as you go");
+  const planName = (p: Plan | undefined) => PLAN_NAMES[p ?? "Pay as you go"];
+  const keeper = $derived(myRow?.plan === "Keeper");
 </script>
 
 <div class="page">
@@ -76,35 +77,48 @@
         </span>
         <!-- The plan at a glance: its icon and name, as next quarter's tiles show them -->
         <span class="badge plan-badge">
-          <Icon name={myRow?.plan === "Subscription" ? "calendar" : "skate"} size={14} />{planName(myRow?.plan)}
+          <Icon name={myRow?.plan === "Subscription" ? "calendar" : keeper ? "net" : "skate"} size={14} />{planName(
+            myRow?.plan,
+          )}
         </span>
       </div>
-      <div class="row next">
-        <span class="grow">
-          <span class="title">Next quarter · {quarterMonths(next)}</span>
-          <span class="sub">Yours to change until it starts on {formatDayDate(`${nextStarts}T12:00:00Z`)}.</span>
-        </span>
-        <div class="seg block tiles" role="group" aria-label="Next quarter's plan">
-          {#each [["Pay as you go", false], ["Subscription", true]] as const as [plan, quarterly] (plan)}
-            <button
-              type="button"
-              disabled={locked}
-              aria-pressed={myRow?.planNext === plan}
-              onclick={() => myRow?.planNext !== plan && choosePlan(next, quarterly)}
-            >
-              <Icon name={quarterly ? "calendar" : "skate"} size={22} />
-              <span class="name">{quarterly ? "Quarterly" : "Pay as you go"}</span>
-              <span class="sub"
-                >{quarterly
-                  ? `${rate ? `${pounds(rate)} · ` : ""}every training night`
-                  : `${nightly ? `${pounds(nightly)} ` : ""}a night you come`}</span
-              >
-            </button>
-          {/each}
+      {#if keeper}
+        <div class="row">
+          <span class="grow">
+            <span class="title">Keepers play free</span>
+            <span class="sub">No plan to choose: training costs you nothing. Tournaments are paid on their own.</span>
+          </span>
         </div>
-      </div>
+      {:else}
+        <div class="row next">
+          <span class="grow">
+            <span class="title">Next quarter · {quarterMonths(next)}</span>
+            <span class="sub">Yours to change until it starts on {formatDayDate(`${nextStarts}T12:00:00Z`)}.</span>
+          </span>
+          <div class="seg block tiles" role="group" aria-label="Next quarter's plan">
+            {#each [["Pay as you go", false], ["Subscription", true]] as const as [plan, quarterly] (plan)}
+              <button
+                type="button"
+                disabled={locked}
+                aria-pressed={myRow?.planNext === plan}
+                onclick={() => myRow?.planNext !== plan && choosePlan(next, quarterly)}
+              >
+                <Icon name={quarterly ? "calendar" : "skate"} size={22} />
+                <span class="name">{quarterly ? "Quarterly" : "Pay as you go"}</span>
+                <span class="sub"
+                  >{quarterly
+                    ? `${rate ? `${pounds(rate)} · ` : ""}every training night`
+                    : `${nightly ? `${pounds(nightly)} ` : ""}a night you come`}</span
+                >
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
-    <p class="hint">Quarterly covers every training night in the quarter; tournaments are paid on their own.</p>
+    {#if !keeper}
+      <p class="hint">Quarterly covers every training night in the quarter; tournaments are paid on their own.</p>
+    {/if}
   </section>
 
   <h2 class="section-title">Charges and payments</h2>

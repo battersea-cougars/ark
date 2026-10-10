@@ -151,7 +151,8 @@
         // Your own: the app follows it now, as Profile's does
         if (memberId === REAL_ID) session.everyday = member.everydayRoleId;
       }
-      if (d.plan !== saved.plan) {
+      // (A keeper plays free: no plan to set, whatever was picked before the position changed)
+      if (d.plan !== saved.plan && d.position !== "G" && d.plan !== "Keeper") {
         member.plan = d.plan;
         results.push(await setQuarterly(memberId, d.plan === "Subscription"));
       }
@@ -493,7 +494,11 @@
         <span class="avatar big">{initials(goesBy(member.player))}</span>
         <div class="titles">
           <p class="eyebrow">
-            Member · {POSITIONS[draft.position]}{draft.plan === "Subscription" ? " · Quarterly" : ""}
+            Member · {POSITIONS[draft.position]}{draft.position === "G"
+              ? " · plays free"
+              : draft.plan === "Subscription"
+                ? " · Quarterly"
+                : ""}
             {#if draft.cougar}<span class="badge red">Cougar</span>{/if}
           </p>
           <!-- Their name, editable in place -->
@@ -604,18 +609,27 @@
                       />
                     </label>
                   {/if}
-                  <label class="field">
-                    Plan
-                    <Select
-                      id="member-plan"
-                      value={draft.plan}
-                      onchange={(v) => (draft.plan = v as typeof draft.plan)}
-                      options={[
-                        { value: "Pay as you go", label: "Pay as you go" },
-                        { value: "Subscription", label: "Quarterly Member" },
-                      ]}
-                    />
-                  </label>
+                  {#if draft.position === "G"}
+                    <div class="field">
+                      Plan
+                      <p class="hint keeper-plan">
+                        Keeper: plays training free. Tournaments are charged as for anyone.
+                      </p>
+                    </div>
+                  {:else}
+                    <label class="field">
+                      Plan
+                      <Select
+                        id="member-plan"
+                        value={draft.plan === "Keeper" ? "Pay as you go" : draft.plan}
+                        onchange={(v) => (draft.plan = v as typeof draft.plan)}
+                        options={[
+                          { value: "Pay as you go", label: "Pay as you go" },
+                          { value: "Subscription", label: "Quarterly Member" },
+                        ]}
+                      />
+                    </label>
+                  {/if}
                   <label class="field">
                     Position
                     <Select
