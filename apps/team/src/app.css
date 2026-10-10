@@ -145,8 +145,19 @@
   --panel-bg-strong: var(--surface-1);
   /* Inputs and selects: frosted glass like the tables and the search (2026-10-10), a faint fill over the blurred
      page, a soft edge, a touch brighter while you type */
-  --field-bg: color-mix(in srgb, var(--fg) 5%, transparent);
-  --field-bg-focus: color-mix(in srgb, var(--fg) 7%, transparent);
+  --field-bg:
+    linear-gradient(color-mix(in srgb, var(--fg) 5%, transparent), color-mix(in srgb, var(--fg) 5%, transparent)),
+    var(--glass-tint);
+  --field-bg-focus:
+    linear-gradient(color-mix(in srgb, var(--fg) 7%, transparent), color-mix(in srgb, var(--fg) 7%, transparent)),
+    var(--glass-tint);
+  /* The tables' glass: a breath of light over the frosted page. Under it, on a touch phone, a dark tint that mutes
+     the page as frost would: Android reports the blur but often doesn't draw it, so the tint does the frosting
+     there (an iPhone frosts as well, a touch deeper); a desktop has none */
+  --glass-tint: transparent;
+  --glass:
+    linear-gradient(color-mix(in srgb, var(--fg) 3%, transparent), color-mix(in srgb, var(--fg) 3%, transparent)),
+    var(--glass-tint);
   --field-edge: none;
   --field-border: color-mix(in srgb, var(--fg) 7%, transparent);
   --chrome-bg: color-mix(in srgb, var(--bg) 74%, transparent); /* bars that content scrolls under */
@@ -502,7 +513,7 @@ h3 {
   display: grid;
   border: 0; /* no edge: the glass and its row lines are enough (2026-10-10) */
   border-radius: var(--r-table);
-  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  background: var(--glass);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
 }
@@ -794,7 +805,7 @@ h1.poster::after {
   /* Glass: a breath of light over the page, the carbon mesh frosted behind the words (as on Roles); no edge, trying it */
   border: 0;
   border-radius: var(--r-table);
-  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  background: var(--glass);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
 }
@@ -1429,5 +1440,12 @@ input[type="checkbox"] {
     opacity: 0;
     filter: blur(6px);
     transform: scale(1.015);
+  }
+}
+
+/* Touch phones: the glass's frost as a tint as well (see --glass-tint) */
+@media (pointer: coarse) {
+  :root {
+    --glass-tint: color-mix(in srgb, var(--bg) 55%, transparent);
   }
 }

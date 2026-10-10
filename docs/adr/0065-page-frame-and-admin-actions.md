@@ -113,3 +113,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   fade-in (`.rise`) held on after it ended, which kept it a see-through layer the blur couldn't see past.
 - 2026-10-10: Tables lose their outer edge and their lines go soft (`--rule`, edge to edge, so a hover meets them);
   Members' grid takes the tables' look; text inputs and selects become frosted glass to match.
+- 2026-10-10: On a touch phone the glass carries a dark tint under its fill (`--glass-tint`), which mutes the page as
+  frost would: Android reports the blur but often doesn't draw it.

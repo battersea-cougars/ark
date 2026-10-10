@@ -120,7 +120,7 @@
     inset: 0;
     z-index: -1;
     border-radius: var(--r-table);
-    background: color-mix(in srgb, var(--fg) 3%, transparent);
+    background: var(--glass);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
     pointer-events: none;
