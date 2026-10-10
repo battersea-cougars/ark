@@ -31,6 +31,8 @@ export function parseRoster(text) {
     const roles = r.roles ?? [];
     if (!Array.isArray(roles) || roles.some((x) => typeof x !== "string"))
       throw new Error(`${at} (${name}): roles should be a list of role names.`);
+    if (r.everyday != null && typeof r.everyday !== "string")
+      throw new Error(`${at} (${name}): everyday should be the name of the role their app opens as.`);
     if (r.cougar != null && typeof r.cougar !== "boolean")
       throw new Error(`${at} (${name}): cougar should be true or false.`);
     return {
@@ -40,6 +42,8 @@ export function parseRoster(text) {
       email: r.email?.trim().toLowerCase() || null,
       roles,
       cougar: r.cougar === true,
+      // The role their app opens as day to day (ADR 0024), set when they're added; theirs to change after
+      everyday: r.everyday ?? null,
     };
   });
 }
@@ -54,8 +58,9 @@ export function rosterSql(players, now = new Date()) {
   const out = [];
   for (const p of players) {
     out.push(
-      `INSERT INTO members (name, position, rating, cougar, status, joined_on, created_at) ` +
-        `SELECT ${q(p.name)}, ${q(p.position)}, ${p.rating}, ${p.cougar ? 1 : 0}, 'active', ${q(on)}, ${q(at)} ` +
+      `INSERT INTO members (name, position, rating, cougar, status, joined_on, created_at, everyday_role_id) ` +
+        `SELECT ${q(p.name)}, ${q(p.position)}, ${p.rating}, ${p.cougar ? 1 : 0}, 'active', ${q(on)}, ${q(at)}, ` +
+        `(SELECT id FROM roles WHERE name = ${q(p.everyday)}) ` +
         `WHERE NOT EXISTS (SELECT 1 FROM members WHERE ${same(p.name)});`,
     );
     if (p.email)

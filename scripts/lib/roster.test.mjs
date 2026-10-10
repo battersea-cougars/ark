@@ -89,6 +89,24 @@ describe("seeding the roster", () => {
     expect(cougars()).toEqual(["Sam O'Neill"]);
   });
 
+  it("opens an admin's app as their everyday role when it adds them (ADR 0024); after that it's theirs to change", () => {
+    const { raw } = createTestD1();
+    const lead = JSON.stringify([
+      { name: "Pat Example", position: "D", rating: 75, roles: ["Admin"], everyday: "Session lead" },
+    ]);
+    const everyday = () =>
+      raw.prepare("SELECT r.name FROM members m LEFT JOIN roles r ON r.id = m.everyday_role_id").get().name;
+    seed(raw, lead);
+    expect(everyday()).toBe("Session lead");
+    // Pat switches to opening as their full role; the next deploy's seed leaves it
+    raw.exec("UPDATE members SET everyday_role_id = NULL");
+    seed(raw, lead);
+    expect(everyday()).toBeNull();
+    expect(() => parseRoster(JSON.stringify([{ name: "X", position: "F", rating: 1, everyday: 3 }]))).toThrow(
+      /everyday/,
+    );
+  });
+
   it("refuses a roster with mistakes in it, saying which row", () => {
     expect(() => parseRoster("not json")).toThrow("valid JSON");
     expect(() => parseRoster(JSON.stringify([{ name: "A", position: "X", rating: 5 }]))).toThrow("Row 1 (A): position");

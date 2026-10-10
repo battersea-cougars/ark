@@ -12,13 +12,22 @@ git ignores (`db/seed/*.local.*`).
 
 ```json
 [
-  { "name": "Pat Example", "position": "D", "rating": 75, "email": "pat@example.com", "roles": ["Admin"] },
+  {
+    "name": "Pat Example",
+    "position": "D",
+    "rating": 75,
+    "email": "pat@example.com",
+    "roles": ["Admin"],
+    "everyday": "Session lead"
+  },
   { "name": "Sam Example", "position": "F", "rating": 40, "cougar": true }
 ]
 ```
 
 - `position`: `F`, `D` or `G`. `rating`: 0–100, for balancing teams; only `read:Rating` sees it.
-- `email`, `roles` and `cougar` are optional. Everyone gets Member; `roles` adds more (Admin, Contributor, Session lead).
+- `email`, `roles`, `everyday` and `cougar` are optional. Everyone gets Member; `roles` adds more (Admin, Contributor, Session lead).
+- `everyday`: the role their app opens as day to day (ADR 0024), set when the seed adds them; after that it's theirs to
+  change on Profile. Production's admins open as Session lead.
 - `cougar: true`: on the club's official team, the Cougars. Teams are made with the Cougars together on one team.
 
 `scripts/seed-roster.mjs` turns it into SQL that **only adds**: a player already in `members` (same name, any
