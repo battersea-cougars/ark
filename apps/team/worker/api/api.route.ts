@@ -5,6 +5,7 @@ import { type Action } from "../../src/access/actions";
 import type { Slice } from "./api.slices";
 import { type AuthEnv } from "../auth/auth";
 import { HttpError, body, json } from "./api.http";
+import { all, first } from "@cougars/shared/d1";
 import { type WebsiteEnv } from "../website/website";
 
 export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV"> {
@@ -40,11 +41,12 @@ export interface Route {
    */
   changes?: readonly Slice[];
   /**
-   * On the record (ADR 0095): a change says what it does to the club's record, or `false` for none. Every route
-   * that isn't a GET says (security.test.ts). The wrapper reads `subject` before the handler and again after; when the
-   * two differ it writes `event` to the audit log, with who did it, both sides, and `about`.
+   * On the record (ADR 0095): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
+   * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says
+   * (security.test.ts). The wrapper reads `subject` before the handler and again after; when the two differ it writes
+   * `event` to the audit log, with who did it, both sides, and `about`.
    */
-  audit?: Audit | false;
+  audit?: Audit | { none: string };
   handle: (c: Ctx) => Promise<Response>;
 }
 
@@ -62,6 +64,24 @@ export interface Audit {
 export const theMember = (c: Ctx, reply?: Record<string, unknown>) => (reply?.id as number | undefined) ?? id(c);
 
 export const id = (c: Ctx) => Number(c.params[0]);
+
+/**
+ * An audit subject that's one row, read the same way before and after (ADR 0095): `sql` takes one key, the route's id
+ * (its first path number) or, for a new one, the id the reply says was made. Nothing to read (before a create): null.
+ */
+export const rowOf =
+  (sql: string, key: (c: Ctx, reply?: Record<string, unknown>) => number | undefined = defaultKey) =>
+  async (c: Ctx, reply?: Record<string, unknown>) => {
+    const k = key(c, reply);
+    return k === undefined || Number.isNaN(k) ? null : ((await first(c.env.DB, sql, [k])) ?? null);
+  };
+const defaultKey = (c: Ctx, reply?: Record<string, unknown>) =>
+  typeof reply?.id === "number" ? reply.id : c.params[0] ? Number(c.params[0]) : undefined;
+/** The same, for a subject that's a list of rows (a session's register, a team's players): `sql` takes one key. */
+export const rowsOf =
+  (sql: string, key: (c: Ctx) => number = (c) => Number(c.params[0])) =>
+  (c: Ctx) =>
+    all(c.env.DB, sql, [key(c)]);
 export const ok = () => json({ ok: true });
 
 /** The member a request's body names, checked. */

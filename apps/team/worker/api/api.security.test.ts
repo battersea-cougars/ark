@@ -317,11 +317,29 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
     ]);
   });
 
-  it("is declared on every change: what it puts on the record, or that it puts nothing (ADR 0095)", () => {
+  it("is declared on every change: what it puts on the record, or that it puts nothing and why (ADR 0095)", () => {
     const silent = ROUTES.filter((r) => r.method !== "GET" && r.audit === undefined).map(
       (r) => `${r.method} ${r.path}`,
     );
     expect(silent).toEqual([]);
+    // An opt-out says why, so a reviewer reads the reason in the diff
+    const unexplained = ROUTES.filter((r) => r.audit && "none" in r.audit && r.audit.none.trim().length < 10).map(
+      (r) => `${r.method} ${r.path}`,
+    );
+    expect(unexplained).toEqual([]);
+  });
+
+  it("puts every change made with more than being signed in on the record, but for the few that say why (ADR 0095)", () => {
+    // The only opt-outs beyond being signed in: a member's own sign-up (it needs signup:Event, and the sign-ups are
+    // their own record). Anything an admin, a team maker, a scorer or a treasurer does is on it
+    const optedOut = ROUTES.filter((r) => r.action !== "authenticated" && r.audit && "none" in r.audit).map(
+      (r) => `${r.method} ${r.path}`,
+    );
+    expect(optedOut).toEqual([
+      "POST /^\\/api\\/sessions\\/(\\d+)\\/answer$/",
+      "POST /^\\/api\\/tournaments\\/(\\d+)\\/answer$/",
+      "POST /^\\/api\\/club-events\\/(\\d+)\\/answer$/",
+    ]);
   });
 
   it("writes nothing when a change is refused or fails", async () => {

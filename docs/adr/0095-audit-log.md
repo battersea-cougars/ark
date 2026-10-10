@@ -1,7 +1,7 @@
 # 0095. Each change declares what it puts on the audit log, on its route, and the log has a page in plain words
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-09
+- **Date:** 2026-10-09 · updated 2026-10-10
 - **Merges:** 0098
 
 ## Context
@@ -24,8 +24,19 @@ in a table. A decorator around a handler would also see only the request and the
 
 **Writing**
 
-- **Every route that isn't a GET declares `audit`**: what it puts on the record, or `false` for nothing. A test fails
-  on any that doesn't, as it does for `changes`, so the choice is made on purpose for each new route.
+- **Every route that isn't a GET declares `audit`**: what it puts on the record, or `{ none: "why" }` for nothing,
+  saying why. A test fails on any that doesn't, and on an opt-out with no reason, so the choice is made on purpose
+  for each new route and a reviewer reads the reason in the diff.
+- **Every change made with more than being signed in goes on the record** (#80): anything an admin, a team maker, a
+  scorer or a treasurer does (training, tournaments, scores, the register, teams, venues, settings, quips, club
+  events, dues). A member's own changes may stay off it, with their reason: their sign-up (which needs
+  `signup:Event`, and is its own record), profile and everyday role, a captain's pick and their team's look, holding
+  the scoresheet, dismissing an announcement. A test lists the opt-outs beyond being signed in: only the sign-ups.
+- **What happens tap by tap is summarised**: goals and the game clock write one `game.scored` when a game ends, and
+  again for each edit after it's ended (their subject is the result once the game's done, else nothing), not one per
+  goal. The register is per tap: each is a change to who's charged.
+- **One-line subjects**: `rowOf(sql)` reads one row by the route's id (or, for a new one, the id in the reply) and
+  `rowsOf(sql)` a list (a session's register, a team's players), in `worker/api/api.route.ts`.
 - **A declaration is data**: an `event` name, a `subject` (one read of the thing the change is to: a member's
   standing, a role's actions, a sign-in email) and optionally `about` (the member or role, by id, for the page to
   name).
@@ -50,7 +61,8 @@ in a table. A decorator around a handler would also see only the request and the
   so the page needs no other data to say what happened.
 - **Settings → Audit log**, under Security (`AuditLog.svelte`): one line per entry, by day, in plain words ("Dana
   changed Reg: roles Member → Helper, Member", "Pat was refused GET /api/usage: needs \"See the club's free
-  Cloudflare allowance\""). Refusals and capped sign-ins stand out. "Earlier" reads the next page.
+  Cloudflare allowance\""). Refusals and capped sign-ins stand out. "Earlier" reads the next page. Chips filter by
+  area: Members, Money, Training, Kumite, Settings.
 
 ## Consequences
 
@@ -70,3 +82,5 @@ in a table. A decorator around a handler would also see only the request and the
   refused entries, each an explicit `audit()` call in its handler (was 0095).
 - 2026-10-09: Each non-GET route declares its record and the wrapper writes it by comparing before and after; dev mail
   entries become `dev_mail.changed`, and tournament, session and draft resets join (was 0098).
+- 2026-10-10: Every change made with more than being signed in goes on the record; an opt-out names its reason
+  (`{ none }` replaces `false`); goals and the clock are summarised as `game.scored`; the page filters by area (#80).

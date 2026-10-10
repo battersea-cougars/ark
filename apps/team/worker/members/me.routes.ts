@@ -30,7 +30,7 @@ export const ME_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/me$/,
-    audit: false,
+    audit: { none: "a member's own profile (position, phone, bio): theirs to change" },
     action: "authenticated",
     changes: ["members"],
     // Your own phone, position and bio
@@ -52,7 +52,7 @@ export const ME_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/me\/everyday-role$/,
-    audit: false,
+    audit: { none: "the role a member's own app opens as: theirs to choose, within what they may do" },
     action: "authenticated",
     changes: ["everydayRole"],
     // { roleId: number | null }: the role the app opens as (ADR 0024)

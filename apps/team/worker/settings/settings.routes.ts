@@ -1,5 +1,5 @@
 // The club's settings that aren't a feature of their own: venues, live refresh, quips, dev tools (ADR 0027), usage (ADR 0059) and the audit log (ADR 0095).
-import { id, ok, type Route } from "../api/api.route";
+import { id, ok, rowOf, type Route } from "../api/api.route";
 import { AUDIT_PAGE, readAudit } from "./audit";
 import { addDevMail, devMailList, removeDevMail } from "./devtools";
 import { HttpError, body, json } from "../api/api.http";
@@ -12,7 +12,10 @@ export const SETTINGS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/venues$/,
-    audit: false,
+    audit: {
+      event: "venue.added",
+      subject: rowOf("SELECT id, name, address, map_url mapUrl, active FROM venues WHERE id = ?"),
+    },
     action: "manage:Venue",
     changes: ["venues"],
     handle: async (c) => json(await createVenue(c.env.DB, await body(c.request)), 201),
@@ -20,7 +23,10 @@ export const SETTINGS_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/venues\/(\d+)$/,
-    audit: false,
+    audit: {
+      event: "venue.updated",
+      subject: rowOf("SELECT id, name, address, map_url mapUrl, active FROM venues WHERE id = ?"),
+    },
     action: "manage:Venue",
     changes: ["venues"],
     handle: async (c) => (await updateVenue(c.env.DB, id(c), await body(c.request)), ok()),
@@ -54,7 +60,10 @@ export const SETTINGS_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/settings$/,
-    audit: false,
+    audit: {
+      event: "settings.updated",
+      subject: rowOf("SELECT live_refresh_seconds liveRefreshSeconds FROM club_settings WHERE id = ?", () => 1),
+    },
     action: "manage:Settings",
     changes: ["settings"],
     // { liveRefreshSeconds }: how often live pages check for updates (ADR 0072)
@@ -89,7 +98,7 @@ export const SETTINGS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/quips$/,
-    audit: false,
+    audit: { event: "quip.added", subject: rowOf("SELECT id, kind, text FROM quips WHERE id = ?") },
     action: "manage:Quip",
     changes: ["quips"],
     handle: async (c) => json(await createQuip(c.env.DB, await body(c.request)), 201),
@@ -97,7 +106,7 @@ export const SETTINGS_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/quips\/(\d+)$/,
-    audit: false,
+    audit: { event: "quip.updated", subject: rowOf("SELECT id, kind, text FROM quips WHERE id = ?") },
     action: "manage:Quip",
     changes: ["quips"],
     handle: async (c) => (await updateQuip(c.env.DB, id(c), await body(c.request)), ok()),
@@ -105,7 +114,7 @@ export const SETTINGS_ROUTES: Route[] = [
   {
     method: "DELETE",
     path: /^\/api\/quips\/(\d+)$/,
-    audit: false,
+    audit: { event: "quip.removed", subject: rowOf("SELECT id, kind, text FROM quips WHERE id = ?") },
     action: "manage:Quip",
     changes: ["quips"],
     handle: async (c) => (await deleteQuip(c.env.DB, id(c)), ok()),

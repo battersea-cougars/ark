@@ -1,7 +1,8 @@
 <script lang="ts">
-  // Settings → Audit log (ADR 0095): the record of who changed what, and when. Sign-ins, every change to who can do
-  // what (members, roles, sign-in emails, the dev mail list) and every request refused for want of an action, newest
-  // first, in plain words, a page at a time. Read when the page opens; Refresh reads it again.
+  // Settings → Audit log (ADR 0095): the record of who changed what, and when. Sign-ins, every change made with more
+  // than being signed in (members, roles, money, training, the Kumite, the club's settings) and every request refused
+  // for want of an action, newest first, in plain words, a page at a time, filterable by area. Read when the page
+  // opens; Refresh reads it again.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -144,6 +145,66 @@
         return `${who} reset a draft: ${from?.picks ?? 0} picks taken back`;
       case "refused":
         return `${who} was refused ${str(d.method)} ${str(d.path)}: needs "${label(d.action)}"`;
+      case "event.created":
+        return `${who} added ${str(to?.title)} to the calendar`;
+      case "event.updated":
+        return `${who} edited ${str(to?.title ?? from?.title)}`;
+      case "event.cancelled":
+        return to?.cancelledAt ? `${who} cancelled ${str(to?.title)}` : `${who} put ${str(to?.title)} back on`;
+      case "dues.recalculated":
+        return `${who} worked out ${about}'s dues again: ${pounds(Number(to?.pence ?? 0))} over ${Number(to?.charges ?? 0)} charges`;
+      case "signups.changed":
+        return `${who} changed who's in for an event`;
+      case "venue.added":
+        return `${who} added the venue ${str(to?.name)}`;
+      case "venue.updated":
+        return `${who} edited the venue ${str(to?.name ?? from?.name)}`;
+      case "settings.updated":
+        return `${who} set live pages to check every ${Number(to?.liveRefreshSeconds ?? 0)} seconds`;
+      case "quip.added":
+        return `${who} added a quip: “${str(to?.text)}”`;
+      case "quip.updated":
+        return `${who} changed a quip to “${str(to?.text)}”`;
+      case "quip.removed":
+        return `${who} removed the quip “${str(from?.text)}”`;
+      case "training.created":
+        return `${who} set up ${str(to?.name)}`;
+      case "training.updated":
+        return `${who} edited ${str(to?.name ?? from?.name)} (its days, times, places or fees)`;
+      case "sessions.added":
+        return `${who} added sessions, up to ${str(to?.lastOn)}`;
+      case "session.cancelled":
+        return to?.cancelledAt
+          ? `${who} cancelled the session on ${str(to?.heldOn)}`
+          : `${who} put the session on ${str(to?.heldOn)} back on`;
+      case "teams.published":
+        return `${who} published the night's teams`;
+      case "teams.removed":
+        return `${who} took the night's teams down`;
+      case "register.marked":
+        return `${who} marked the register`;
+      case "draft.pick_undone":
+        return `${who} undid the last pick in the draft`;
+      case "draft.opened":
+        return `${who} opened the draft for ${str(to?.name)}`;
+      case "draft.closed":
+        return `${who} closed the draft for ${str(to?.name)}`;
+      case "game.scored":
+        return `${who} recorded a result: ${Number(to?.homeGoals ?? 0)}–${Number(to?.awayGoals ?? 0)}`;
+      case "tournament_series.created":
+        return `${who} set up the tournament series ${str(to?.name)}`;
+      case "tournament_series.updated":
+        return `${who} edited the tournament series ${str(to?.name ?? from?.name)}`;
+      case "tournament.created":
+        return `${who} scheduled ${str(to?.name)}`;
+      case "tournament.updated":
+        return `${who} edited ${str(to?.name ?? from?.name)}`;
+      case "tournament.winners":
+        return `${who} set a tournament's winners`;
+      case "fixtures.made":
+        return `${who} made the fight card: ${Number(to?.games ?? 0)} games`;
+      case "team.players":
+        return `${who} changed a tournament team's players`;
       default:
         return `${who}: ${e.action} ${JSON.stringify(d)}`;
     }
@@ -153,12 +214,37 @@
   const notable = (e: Entry) =>
     ["refused", "sign_in.capped", "tournament.deleted", "session.reset", "draft.reset"].includes(e.action);
   const day = (e: Entry) => e.at.slice(0, 10);
+
+  // Areas, to read one part of the club's record at a time (#80): by the event's name
+  const AREAS = ["Members", "Money", "Training", "Kumite", "Settings"] as const;
+  type Area = (typeof AREAS)[number];
+  function areaOf(action: string): Area | null {
+    if (/^(charge|payment|dues|fees)\.|^member\.(paid|plan|quarterly)$/.test(action)) return "Money";
+    if (/^(sign_in|sign_out|access|member|members|role|refused)\b/.test(action)) return "Members";
+    if (/^(training|session|sessions|teams|register|signups)\./.test(action)) return "Training";
+    if (/^(tournament|tournament_series|draft|game|fixtures|team)\./.test(action)) return "Kumite";
+    if (/^(venue|settings|quip|dev_mail|announcement|event)\./.test(action)) return "Settings";
+    return null;
+  }
+  let area = $state<Area | null>(null);
+  const shown = $derived(area ? entries.filter((e) => areaOf(e.action) === area) : entries);
 </script>
 
 <div class="page">
-  <PageHeader title="Audit log" subtitle="Who changed what, and when. Sign-ins, roles, members, and what was refused.">
+  <PageHeader
+    title="Audit log"
+    subtitle="Who changed what, and when: everything an admin, a team maker, a scorer or a treasurer does."
+  >
     {#snippet actions()}
       <button class="btn sm" onclick={() => load()} disabled={loading}><Icon name="undo" size={16} />Refresh</button>
+    {/snippet}
+    {#snippet toolbar()}
+      <div class="filters" role="group" aria-label="Area">
+        <button class="filter" aria-pressed={area === null} onclick={() => (area = null)}>Everything</button>
+        {#each AREAS as a (a)}
+          <button class="filter" aria-pressed={area === a} onclick={() => (area = a)}>{a}</button>
+        {/each}
+      </div>
     {/snippet}
   </PageHeader>
 
@@ -166,10 +252,17 @@
     <p class="error">{error}</p>
   {:else if !entries.length}
     <p class="hint">{loading ? "Reading the record…" : "Nothing on the record yet."}</p>
+  {:else if !shown.length}
+    <p class="hint">Nothing for {area} so far{more ? ": Earlier reads further back" : ""}.</p>
+    {#if more}
+      <button class="btn ghost older" onclick={() => load(entries[entries.length - 1].id)} disabled={loading}>
+        {loading ? "Reading…" : "Earlier"}
+      </button>
+    {/if}
   {:else}
     <ol class="log">
-      {#each entries as e, i (e.id)}
-        {#if i === 0 || day(e) !== day(entries[i - 1])}
+      {#each shown as e, i (e.id)}
+        {#if i === 0 || day(e) !== day(shown[i - 1])}
           <li class="day"><h2 class="section-title">{formatDayDate(e.at)}</h2></li>
         {/if}
         <li class="entry" class:notable={notable(e)}>

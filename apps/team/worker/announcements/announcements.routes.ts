@@ -27,8 +27,7 @@ export const ANNOUNCEMENTS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/announcements\/(\d+)\/dismiss$/,
-    // A member's own Home: nobody else's business
-    audit: false,
+    audit: { none: "a member's own Home: dismissing an announcement is nobody else's business" },
     action: "authenticated",
     changes: ["announcements"],
     handle: async (c) => (await dismissAnnouncement(c.env.DB, id(c), c.memberId), ok()),

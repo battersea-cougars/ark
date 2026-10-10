@@ -1,8 +1,10 @@
 // Dues (ADR 0007): fees, charges, payments and adjustments, and a member's quarterly plan.
-import { id, ok, type Route } from "../api/api.route";
+import { id, ok, rowOf, type Route } from "../api/api.route";
 import {
   addAdjustment,
   addQuarterCharge,
+  chargeAttendance,
+  chargeQuarters,
   chargeState,
   memberExists,
   payCharge,
@@ -137,12 +139,22 @@ export const DUES_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/members\/(\d+)\/recalculate$/,
-    audit: false,
+    audit: {
+      event: "dues.recalculated",
+      subject: rowOf("SELECT COUNT(*) charges, COALESCE(SUM(amount_pence), 0) pence FROM charges WHERE member_id = ?"),
+      about: (c) => ({ memberId: id(c) }),
+    },
     action: "record:Payment",
     changes: ["charges", "credits", "payments"],
     // Their dues worked out again from who came and the fees as they are now (the wrapper does it, as after any
     // change to charges); everyone's come out the same way
-    handle: async (c) => (await memberExists(c.env.DB, id(c)), ok()),
+    // (Here, not only after it, so what it changed is on the record)
+    handle: async (c) => {
+      await memberExists(c.env.DB, id(c));
+      await chargeAttendance(c.env.DB, c.today, c.now);
+      await chargeQuarters(c.env.DB, c.today, c.now);
+      return ok();
+    },
   },
   {
     method: "POST",

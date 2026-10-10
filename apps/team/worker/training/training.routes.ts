@@ -1,6 +1,6 @@
 // Training (ADR 0030, ADR 0076): series and their sessions, the register, and the night's teams.
 import { can } from "../../src/access/actions";
-import { id, memberIdIn, ok, type Route } from "../api/api.route";
+import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { setSeriesFees } from "../dues/dues";
 import { mark } from "../entries/entries";
 import { HttpError, body, json } from "../api/api.http";
@@ -11,7 +11,16 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/series$/,
-    audit: false,
+    audit: {
+      event: "training.created",
+      subject: rowOf(
+        `SELECT ts.id, ts.name, ts.weekdays, ts.repeat_every repeatEvery, ts.start_time startTime, ts.end_time endTime,
+                ts.venue_id venueId, ts.capacity, ts.goalie_capacity goalieCapacity, ts.active,
+                (SELECT json_group_array(json_object('from', f.effective_from, 'pence', f.amount_pence))
+                   FROM series_fees f WHERE f.series_id = ts.id) fees
+         FROM training_series ts WHERE ts.id = ?`,
+      ),
+    },
     action: "manage:Training",
     changes: ["series", "sessions", "charges", "credits", "payments"],
     handle: async (c) => {
@@ -25,7 +34,16 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/series\/(\d+)$/,
-    audit: false,
+    audit: {
+      event: "training.updated",
+      subject: rowOf(
+        `SELECT ts.id, ts.name, ts.weekdays, ts.repeat_every repeatEvery, ts.start_time startTime, ts.end_time endTime,
+                ts.venue_id venueId, ts.capacity, ts.goalie_capacity goalieCapacity, ts.active,
+                (SELECT json_group_array(json_object('from', f.effective_from, 'pence', f.amount_pence))
+                   FROM series_fees f WHERE f.series_id = ts.id) fees
+         FROM training_series ts WHERE ts.id = ?`,
+      ),
+    },
     action: "manage:Training",
     changes: ["series", "sessions", "charges", "credits", "payments"],
     // Its fees too, for whoever sets fees (ADR 0007)
@@ -39,7 +57,10 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/series\/(\d+)\/more$/,
-    audit: false,
+    audit: {
+      event: "sessions.added",
+      subject: rowOf("SELECT COUNT(*) sessions, MAX(held_on) lastOn FROM training_sessions WHERE series_id = ?"),
+    },
     action: "manage:Training",
     changes: ["sessions"],
     handle: async (c) => (await moreSessions(c.env.DB, id(c), c.today), ok()),
@@ -47,7 +68,10 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/sessions\/(\d+)\/cancelled$/,
-    audit: false,
+    audit: {
+      event: "session.cancelled",
+      subject: rowOf("SELECT id, held_on heldOn, cancelled_at cancelledAt FROM training_sessions WHERE id = ?"),
+    },
     action: "manage:Training",
     changes: ["sessions", "members", "charges", "credits", "payments"],
     handle: async (c) => {
@@ -60,7 +84,13 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/sessions\/(\d+)\/teams$/,
-    audit: false,
+    audit: {
+      event: "teams.published",
+      subject: rowsOf(
+        `SELECT t.name, (SELECT json_group_array(p.member_id) FROM session_team_players p WHERE p.team_id = t.id) players
+         FROM session_teams t WHERE t.session_id = ? ORDER BY t.position`,
+      ),
+    },
     action: "publish:Teams",
     changes: ["sessions"],
     handle: async (c) => (await publishTeams(c.env.DB, id(c), await body(c.request), c.memberId, c.now), ok()),
@@ -68,7 +98,13 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "DELETE",
     path: /^\/api\/sessions\/(\d+)\/teams$/,
-    audit: false,
+    audit: {
+      event: "teams.removed",
+      subject: rowsOf(
+        `SELECT t.name, (SELECT json_group_array(p.member_id) FROM session_team_players p WHERE p.team_id = t.id) players
+         FROM session_teams t WHERE t.session_id = ? ORDER BY t.position`,
+      ),
+    },
     action: "publish:Teams",
     changes: ["sessions"],
     // Take the teams down; the sign-ups stay
@@ -86,7 +122,14 @@ export const TRAINING_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/sessions\/(\d+)\/register$/,
-    audit: false,
+    audit: {
+      // The register makes the night's charges (ADR 0007): who was there, who didn't come, who walked in
+      event: "register.marked",
+      subject: rowsOf(
+        `SELECT member_id memberId, attended, walk_in walkIn FROM attendance
+         WHERE session_id = ? AND signup = 'in' ORDER BY member_id`,
+      ),
+    },
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007)
     changes: ["sessions", "members", "charges", "credits", "payments"],

@@ -1,7 +1,7 @@
 // Sign-ups (ADR 0036): in or out of a session, a tournament or a club event, and an admin putting someone in.
-import { id, memberIdIn, ok, type Route } from "../api/api.route";
+import { id, memberIdIn, ok, rowsOf, type Route } from "../api/api.route";
 import { type Slice } from "../api/api.slices";
-import { answer, setPlayer, type EntryKind } from "./entries";
+import { TABLES, answer, setPlayer, type EntryKind } from "./entries";
 import { HttpError, body } from "../api/api.http";
 
 // The same routes for each kind of event
@@ -14,7 +14,7 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
   {
     method: "POST",
     path: new RegExp(`^/api/${path}/(\\d+)/answer$`),
-    audit: false,
+    audit: { none: "a member's own sign-up: the sign-ups are their own record (signed_up_at)" },
     action: "signup:Event",
     changes: slice === "clubEvents" ? [slice] : [slice, "charges", "credits", "payments"],
     // You, in or out
@@ -28,7 +28,12 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
   {
     method: "POST",
     path: new RegExp(`^/api/${path}/(\\d+)/players$`),
-    audit: false,
+    audit: {
+      event: "signups.changed",
+      subject: rowsOf(
+        `SELECT member_id memberId, signup FROM ${TABLES[kind].table} WHERE ${TABLES[kind].key} = ? ORDER BY member_id`,
+      ),
+    },
     action: "update:Event",
     // A past session's line-up is what a player's "played" counts
     changes:

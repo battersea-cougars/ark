@@ -135,7 +135,7 @@ export async function handleApi(
       now: now.toISOString(),
     };
     // On the record (ADR 0095): what the change is to, before it
-    const record = writes && hit.r.audit ? hit.r.audit : null;
+    const record = writes && hit.r.audit && "event" in hit.r.audit ? hit.r.audit : null;
     const before = record ? await record.subject(ctx) : undefined;
     // A finished tournament's result is on the website's pages (ADR 0100): a change to it, or one that finishes it,
     // wants a rebuild. Read before too, so deleting one or making it private counts.

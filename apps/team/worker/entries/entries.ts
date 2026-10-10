@@ -13,7 +13,7 @@ import { joinDraft, leaveDraft } from "../tournaments/draft";
 export type EntryKind = "session" | "tournament" | "event";
 export type Answer = "in" | "out";
 
-const TABLES = {
+export const TABLES = {
   session: { table: "attendance", key: "session_id" },
   tournament: { table: "tournament_entries", key: "tournament_id" },
   event: { table: "club_event_entries", key: "event_id" },
