@@ -2,7 +2,7 @@
 // club's records still add up (a payment, last Friday's numbers, a goal), but empties everything that says who they
 // were: they become "Former member", with no email, phone, bio or bank reference, and no way back in. Their roles,
 // sessions, sign-in codes and places for what's still to come go. Earlier audit entries stop naming them.
-import { all, first } from "@cougars/shared/d1";
+import { batch, first, statement } from "@cougars/shared/d1";
 import { HttpError, json } from "../api/api.http";
 import { actionsOf } from "./members";
 
@@ -86,64 +86,77 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
 
 /** Everything the app holds about a member, as they'd download it. Their rating is the club's opinion, kept out. */
 export async function memberData(db: D1Database, id: number, today: string): Promise<Response> {
-  const profile = await first(
-    db,
-    `SELECT name, web_name goesBy, email, phone, position, bio, cougar, status, joined_on joinedOn,
+  // Every part in one round trip (ADR 0059)
+  const [profile, ...rows] = (
+    await batch(db, [
+      statement(
+        db,
+        `SELECT name, web_name goesBy, email, phone, position, bio, cougar, status, joined_on joinedOn,
             payment_reference paymentReference FROM members WHERE id = ?`,
-    [id],
-  );
-  const data = {
-    about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
-    downloadedOn: today,
-    profile,
-    roles: (
-      await all<{ name: string }>(
+        [id],
+      ),
+      statement(
         db,
         "SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.member_id = ? ORDER BY r.id",
         [id],
-      )
-    ).map((r) => r.name),
-    training: await all(
-      db,
-      `SELECT s.held_on heldOn, a.signup, a.attended, a.walk_in walkIn, a.signed_up_at signedUpAt
+      ),
+      statement(
+        db,
+        `SELECT s.held_on heldOn, a.signup, a.attended, a.walk_in walkIn, a.signed_up_at signedUpAt
        FROM attendance a JOIN training_sessions s ON s.id = a.session_id WHERE a.member_id = ? ORDER BY s.held_on`,
-      [id],
-    ),
-    tournaments: await all(
-      db,
-      `SELECT t.name, t.held_on heldOn, e.signup, e.attended, e.signed_up_at signedUpAt
+        [id],
+      ),
+      statement(
+        db,
+        `SELECT t.name, t.held_on heldOn, e.signup, e.attended, e.signed_up_at signedUpAt
        FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id WHERE e.member_id = ? ORDER BY t.held_on`,
-      [id],
-    ),
-    events: await all(
-      db,
-      `SELECT ev.title, ev.starts_at startsAt, e.signup, e.signed_up_at signedUpAt
+        [id],
+      ),
+      statement(
+        db,
+        `SELECT ev.title, ev.starts_at startsAt, e.signup, e.signed_up_at signedUpAt
        FROM club_event_entries e JOIN club_events ev ON ev.id = e.event_id WHERE e.member_id = ? ORDER BY ev.starts_at`,
-      [id],
-    ),
-    plans: await all(
-      db,
-      "SELECT starts_on startsOn, ends_on endsOn FROM subscriptions WHERE member_id = ? ORDER BY starts_on",
-      [id],
-    ),
-    charges: await all(
-      db,
-      `SELECT due_on dueOn, amount_pence amountPence, quarter, reason FROM charges WHERE member_id = ? ORDER BY due_on`,
-      [id],
-    ),
-    payments: await all(
-      db,
-      `SELECT received_on receivedOn, amount_pence amountPence, via, reason FROM payments WHERE member_id = ?
+        [id],
+      ),
+      statement(
+        db,
+        "SELECT starts_on startsOn, ends_on endsOn FROM subscriptions WHERE member_id = ? ORDER BY starts_on",
+        [id],
+      ),
+      statement(
+        db,
+        `SELECT due_on dueOn, amount_pence amountPence, quarter, reason FROM charges WHERE member_id = ? ORDER BY due_on`,
+        [id],
+      ),
+      statement(
+        db,
+        `SELECT received_on receivedOn, amount_pence amountPence, via, reason FROM payments WHERE member_id = ?
        ORDER BY received_on`,
-      [id],
-    ),
-    devices: await all(
-      db,
-      `SELECT method, user_agent browser, created_at signedInAt, last_seen_at lastSeenAt, expires_at expiresAt,
+        [id],
+      ),
+      statement(
+        db,
+        `SELECT method, user_agent browser, created_at signedInAt, last_seen_at lastSeenAt, expires_at expiresAt,
               revoked_at signedOutAt FROM auth_sessions WHERE member_id = ? ORDER BY created_at`,
-      [id],
-    ),
-    record: await all(db, "SELECT at, action FROM audit_log WHERE member_id = ? ORDER BY id", [id]),
+        [id],
+      ),
+      statement(db, "SELECT at, action FROM audit_log WHERE member_id = ? ORDER BY id", [id]),
+    ])
+  ).map((r) => r.results);
+  const [roles, training, tournaments, events, plans, charges, payments, devices, record] = rows;
+  const data = {
+    about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
+    downloadedOn: today,
+    profile: profile[0] ?? null,
+    roles: (roles as { name: string }[]).map((r) => r.name),
+    training,
+    tournaments,
+    events,
+    plans,
+    charges,
+    payments,
+    devices,
+    record,
   };
   const res = json(data);
   res.headers.set("content-disposition", `attachment; filename="cougars-my-data-${today}.json"`);

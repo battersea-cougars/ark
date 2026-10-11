@@ -4,7 +4,7 @@
 // also stops any request that computes for more than 10 ms; the page shows each Worker's CPU time against that, and
 // the check emails when a request was stopped (ADR 0059).
 // Read with a read-only token (Account Analytics: Read), CLOUDFLARE_ANALYTICS_TOKEN, never the deploy token.
-import { all, first, run } from "@cougars/shared/d1";
+import { all, first } from "@cougars/shared/d1";
 import { sendMail, type Mail } from "@cougars/shared/email";
 import { mailSetup } from "../auth/auth";
 import type { Env } from "../api/api";
@@ -172,12 +172,19 @@ export async function checkUsage(
      ORDER BY m.email`,
   );
   if (!admins.length) return;
-  // Claim today's warning first: two checks at once still send one email
-  const claim = async (metric: string) =>
-    (await run(env.DB, "INSERT OR IGNORE INTO usage_warnings (day, metric) VALUES (?, ?)", [usage.day, metric])).meta
-      .changes > 0;
+  // Claim today's warnings first, all in one statement: two checks at once still send one email each
+  const claimed = new Set(
+    (
+      await all<{ metric: string }>(
+        env.DB,
+        `INSERT OR IGNORE INTO usage_warnings (day, metric) SELECT ?, value FROM json_each(?) WHERE true
+         RETURNING metric`,
+        [usage.day, JSON.stringify([...over.map((m) => m.id), ...(stopped.length ? ["cpu"] : [])])],
+      )
+    ).map((r) => r.metric),
+  );
   for (const m of over) {
-    if (!(await claim(m.id))) continue;
+    if (!claimed.has(m.id)) continue;
     const pct = Math.floor((m.used / m.limit) * 100);
     await send({
       to: admins.map((a) => a.email),
@@ -188,7 +195,7 @@ export async function checkUsage(
         `See Settings → Usage in the app. A runaway tab or a scraper is the likely cause.`,
     });
   }
-  if (stopped.length && (await claim("cpu"))) {
+  if (claimed.has("cpu")) {
     const total = stopped.reduce((n, w) => n + w.stopped, 0);
     await send({
       to: admins.map((a) => a.email),
