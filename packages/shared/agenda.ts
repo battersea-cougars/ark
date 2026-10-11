@@ -3,7 +3,7 @@
 // a one-off event (syncClubEvent). The website's What's on and the app's calendar read it, so they can't disagree.
 // The rules for each kind of row live here, once: where it is (its own place, else its series'), TBC and seasons,
 // what's public, what's cancelled, who sees it.
-import { all, first, run } from "./d1";
+import { all, batch, first, statement } from "./d1";
 import { placeOf, type OwnPlace, type Venue } from "./places";
 import { seasonLabel, type Season } from "./seasons";
 import { londonDay, londonISO } from "./london";
@@ -252,50 +252,78 @@ async function eventItems(db: D1Database, filter: string, params: unknown[]) {
 
 // ─── Writing ───
 
-/** Replace these sources' rows with what they are now. */
-async function write(db: D1Database, source: Source, ids: number[], items: AgendaItem[]) {
-  for (const id of ids) await run(db, "DELETE FROM agenda WHERE source = ? AND source_id = ?", [source, id]);
-  for (const i of items)
-    await run(
+// The agenda's columns, in order, as each row goes to D1 (a JSON array per row)
+const COLUMNS = [
+  "source",
+  "source_id",
+  "kind",
+  "group_key",
+  "title",
+  "starts_at",
+  "ends_at",
+  "day",
+  "all_day",
+  "date_tbc",
+  "season",
+  "venue",
+  "map_url",
+  "description",
+  "public",
+  "cancelled",
+  "audience",
+] as const;
+
+/**
+ * Replace these sources' rows with what they are now: two statements, to send in one batch, each taking the whole
+ * list (JSON), however many rows (ADR 0059).
+ */
+function writes(db: D1Database, source: Source, ids: number[], items: AgendaItem[]) {
+  const rows = items.map((i) => [
+    i.source,
+    i.sourceId,
+    i.kind,
+    i.group,
+    i.title,
+    i.startsAt,
+    i.endsAt,
+    i.day,
+    i.allDay ? 1 : 0,
+    i.dateTbc ? 1 : 0,
+    i.season,
+    i.venue,
+    i.mapUrl,
+    i.description,
+    i.public ? 1 : 0,
+    i.cancelled ? 1 : 0,
+    i.audience,
+  ]);
+  return [
+    statement(db, "DELETE FROM agenda WHERE source = ? AND source_id IN (SELECT value FROM json_each(?))", [
+      source,
+      JSON.stringify(ids),
+    ]),
+    statement(
       db,
-      `INSERT INTO agenda (source, source_id, kind, group_key, title, starts_at, ends_at, day, all_day, date_tbc, season,
-         venue, map_url, description, public, cancelled, audience)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        i.source,
-        i.sourceId,
-        i.kind,
-        i.group,
-        i.title,
-        i.startsAt,
-        i.endsAt,
-        i.day,
-        i.allDay ? 1 : 0,
-        i.dateTbc ? 1 : 0,
-        i.season,
-        i.venue,
-        i.mapUrl,
-        i.description,
-        i.public ? 1 : 0,
-        i.cancelled ? 1 : 0,
-        i.audience,
-      ],
-    );
+      `INSERT INTO agenda (${COLUMNS.join(", ")})
+       SELECT ${COLUMNS.map((_, n) => `value ->> ${n}`).join(", ")} FROM json_each(?)`,
+      [JSON.stringify(rows)],
+    ),
+  ];
 }
 
 /** A training's sessions, after the series or one of them changed. */
 export async function syncSeries(db: D1Database, seriesId: number) {
   // An empty agenda (a fresh database) is filled whole, which covers this one too
   if (await filledFromScratch(db)) return;
-  // Sessions the series no longer has (a weekday dropped) go too
-  const gone = await all<{ id: number }>(
-    db,
-    `SELECT source_id id FROM agenda WHERE source = 'session'
-       AND source_id NOT IN (SELECT id FROM training_sessions)`,
-  );
-  for (const g of gone) await run(db, "DELETE FROM agenda WHERE source = 'session' AND source_id = ?", [g.id]);
   const { ids, items } = await sessionItems(db, "WHERE s.series_id = ?", [seriesId]);
-  await write(db, "session", ids, items);
+  await batch(db, [
+    // Sessions the series no longer has (a weekday dropped) go too
+    statement(
+      db,
+      `DELETE FROM agenda WHERE source = 'session' AND source_id NOT IN (SELECT id FROM training_sessions)`,
+    ),
+    ...writes(db, "session", ids, items),
+  ]);
 }
 
 /** A tournament's rows: its day, its draft night, its sign-up deadline. */
@@ -303,7 +331,7 @@ export async function syncTournament(db: D1Database, id: number) {
   // An empty agenda (a fresh database) is filled whole, which covers this one too
   if (await filledFromScratch(db)) return;
   const { items } = await tournamentItems(db, "WHERE t.id = ?", [id]);
-  await write(db, "tournament", [id], items);
+  await batch(db, writes(db, "tournament", [id], items));
 }
 
 /** Every tournament in a series: its place is their fallback. */
@@ -311,25 +339,27 @@ export async function syncTournamentsOf(db: D1Database, typeId: number) {
   // An empty agenda (a fresh database) is filled whole, which covers this one too
   if (await filledFromScratch(db)) return;
   const { ids, items } = await tournamentItems(db, "WHERE t.type_id = ?", [typeId]);
-  await write(db, "tournament", ids, items);
+  await batch(db, writes(db, "tournament", ids, items));
 }
 
 export async function syncClubEvent(db: D1Database, id: number) {
   // An empty agenda (a fresh database) is filled whole, which covers this one too
   if (await filledFromScratch(db)) return;
   const { items } = await eventItems(db, "WHERE id = ?", [id]);
-  await write(db, "club_event", [id], items);
+  await batch(db, writes(db, "club_event", [id], items));
 }
 
 /** Everything, from scratch: after a venue changes (it's everyone's place), or on an empty agenda. */
 export async function syncAll(db: D1Database) {
-  await run(db, "DELETE FROM agenda");
-  for (const [source, made] of [
-    ["session", await sessionItems(db, "", [])],
-    ["tournament", await tournamentItems(db, "", [])],
-    ["club_event", await eventItems(db, "", [])],
-  ] as const)
-    await write(db, source, [], made.items);
+  const sessions = await sessionItems(db, "", []);
+  const tournaments = await tournamentItems(db, "", []);
+  const events = await eventItems(db, "", []);
+  await batch(db, [
+    statement(db, "DELETE FROM agenda"),
+    ...writes(db, "session", [], sessions.items),
+    ...writes(db, "tournament", [], tournaments.items),
+    ...writes(db, "club_event", [], events.items),
+  ]);
 }
 
 /** A fresh database (just rebuilt) has an empty agenda: fill it once, from what's there. True if it did. */

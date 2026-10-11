@@ -9,7 +9,7 @@ import { handleAuth, localHere, sessionOf } from "../auth/auth";
 import { CLUB_ROUTES } from "./bootstrap.routes";
 import { ANNOUNCEMENTS_ROUTES } from "../announcements/announcements.routes";
 import { DRAFT_ROUTES } from "../tournaments/draft.routes";
-import { chargeAttendance, chargeQuarters } from "../dues/dues";
+import { recharge } from "../dues/dues";
 import { DUES_ROUTES } from "../dues/dues.routes";
 import { ENTRIES_ROUTES } from "../entries/entries.routes";
 import { EVENTS_ROUTES } from "../calendar/events.routes";
@@ -159,8 +159,7 @@ export async function handleApi(
       await wantRebuild(env.DB, now);
     if (writes && res.ok && hit.r.changes?.includes("charges")) {
       // Who came, a fee or a quarterly membership changed: so may what people owe (ADR 0007)
-      await chargeAttendance(env.DB, ctx.today, ctx.now);
-      await chargeQuarters(env.DB, ctx.today, ctx.now);
+      await recharge(env.DB, ctx.today, ctx.now);
     }
     if (writes && res.ok) {
       // A change: every member's bootstrap is out of date (ADR 0053)

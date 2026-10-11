@@ -5,9 +5,12 @@ import { checkImport, importMembers } from "./members.import";
 import { tellTheyreIn } from "./members.mail";
 import { first } from "@cougars/shared/d1";
 import { eraseMember } from "./members.erase";
+import { markAll, type Mark } from "../entries/entries";
+import { memberExists } from "../dues/dues";
 import {
   addMember,
   attendanceOf,
+  attendanceOn,
   everydayOf,
   memberEmail,
   memberJoined,
@@ -16,6 +19,17 @@ import {
   setMemberEverydayRole,
   updateMember,
 } from "./members";
+
+/** { marks: [{ sessionId, here }] }: a year of Fridays at most. */
+async function marksIn(request: Request): Promise<Mark[]> {
+  const { marks } = await body(request);
+  if (!Array.isArray(marks) || !marks.length || marks.length > 60) throw new HttpError(400, "marks should be a list.");
+  return marks.map((m: { sessionId?: unknown; here?: unknown }) => {
+    if (!Number.isInteger(m?.sessionId) || (m.sessionId as number) <= 0) throw new HttpError(400, "Which session?");
+    if (typeof m.here !== "boolean") throw new HttpError(400, "here should be true or false.");
+    return { sessionId: m.sessionId as number, here: m.here };
+  });
+}
 
 export const MEMBERS_ROUTES: Route[] = [
   {
@@ -40,6 +54,31 @@ export const MEMBERS_ROUTES: Route[] = [
       const year = new URL(c.request.url).searchParams.get("year") ?? c.today.slice(0, 4);
       if (!/^\d{4}$/.test(year)) throw new HttpError(400, "year should be like 2026.");
       return json(await attendanceOf(c.env.DB, id(c), year, c.today));
+    },
+  },
+  {
+    method: "PUT",
+    path: /^\/api\/members\/(\d+)\/attendance$/,
+    audit: {
+      // Their attendance, saved at once (the register for one member, many Fridays): what makes their charges
+      event: "attendance.marked",
+      subject: async (c, reply) =>
+        attendanceOn(
+          c.env.DB,
+          id(c),
+          reply ? (reply.sessionIds as number[]) : (await marksIn(c.request.clone())).map((m) => m.sessionId),
+        ),
+      about: (c) => ({ memberId: id(c) }),
+    },
+    action: "record:Attendance",
+    // Who came is who's charged (ADR 0007)
+    changes: ["sessions", "members", "charges", "credits", "payments"],
+    // { marks: [{ sessionId, here }] }: each Friday ticked or unticked, in one go
+    handle: async (c) => {
+      const marks = await marksIn(c.request);
+      await memberExists(c.env.DB, id(c));
+      await markAll(c.env.DB, id(c), marks, c.memberId, c.now);
+      return json({ sessionIds: marks.map((m) => m.sessionId) });
     },
   },
   {

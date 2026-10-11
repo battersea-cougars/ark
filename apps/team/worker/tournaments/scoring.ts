@@ -4,7 +4,7 @@
 // The holder starts and pauses the clock, logs each goal as it goes in (who scored, who assisted, when in game
 // time), takes back the last one, and calls full time, which makes the score the result. One game at a time. The
 // score is on the game as it changes, so everyone sees it as it happens.
-import { first, run } from "@cougars/shared/d1";
+import { batch, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { fillPlayoffs, listGames, tournamentOf, type Game } from "./fixtures";
 import { HttpError, int, oneOf } from "../api/api.http";
@@ -14,18 +14,31 @@ interface Who {
   actions: ReadonlySet<Action>;
 }
 
-/** The game, if this member holds its scoresheet. */
-async function scorable(db: D1Database, tournamentId: number, gameId: number, who: Who) {
-  const game = await gameOf(db, tournamentId, gameId);
-  if (game.keeperId !== who.memberId)
-    throw new HttpError(403, game.keeperId ? "Someone else is keeping score." : "Press Start scoring first.");
-  return game;
+/** The game, and the day's games around it: one read for the whole tap (ADR 0059). */
+async function gameOf(db: D1Database, tournamentId: number, gameId: number) {
+  const games = await listGames(db, tournamentId);
+  const game = games.find((g) => g.id === gameId);
+  if (!game) throw new HttpError(404, "No such game.");
+  return { game, games };
 }
 
-async function gameOf(db: D1Database, tournamentId: number, gameId: number) {
-  const game = (await listGames(db, tournamentId)).find((g) => g.id === gameId);
-  if (!game) throw new HttpError(404, "No such game.");
-  return game;
+/** This member holds the game's scoresheet. */
+function mustHold(game: Game, who: Who) {
+  if (game.keeperId !== who.memberId)
+    throw new HttpError(403, game.keeperId ? "Someone else is keeping score." : "Press Start scoring first.");
+}
+
+/** A finished game, and this member can put its result right: an admin's job, on the game's page. */
+function mustCorrect(game: Game, who: Who) {
+  if (!can(who.actions, "manage:Tournament")) throw new HttpError(403, "Only an admin can change a result.");
+  if (game.status !== "done") throw new HttpError(409, "That game isn't over yet.");
+}
+
+/** The game, if this member holds its scoresheet. */
+async function scorable(db: D1Database, tournamentId: number, gameId: number, who: Who) {
+  const found = await gameOf(db, tournamentId, gameId);
+  mustHold(found.game, who);
+  return found;
 }
 
 /**
@@ -40,13 +53,13 @@ export async function holdScoresheet(
   who: Who,
 ) {
   const action = oneOf(o, "action", ["claim", "release"] as const);
-  const game = await gameOf(db, tournamentId, gameId);
+  const { game, games } = await gameOf(db, tournamentId, gameId);
   if (action === "claim") {
     if (game.keeperId === who.memberId) return;
     if (game.keeperId) throw new HttpError(409, "Someone else is keeping score.");
     if (game.status === "done") throw new HttpError(409, "That game's over.");
     // The game up next (or on now): the first in the day's order that isn't over
-    const upNext = (await listGames(db, tournamentId)).find((g) => g.status !== "done");
+    const upNext = games.find((g) => g.status !== "done");
     if (upNext?.id !== gameId) throw new HttpError(409, `Game ${upNext?.position ?? ""} is up next: score that one.`);
     // Only if nobody's taken it in the meantime
     const res = await run(
@@ -79,18 +92,18 @@ export async function clockGame(
   now: Date,
 ) {
   const action = oneOf(o, "action", ["start", "pause", "set", "end"] as const);
-  const game = await scorable(db, tournamentId, gameId, who);
+  const { game, games } = await scorable(db, tournamentId, gameId, who);
   const t = await tournamentOf(db, tournamentId);
   if (action === "start") {
     if (game.status === "done") throw new HttpError(409, "That game's over.");
     // The game up next (or on now): the first in the day's order that isn't over
-    const upNext = (await listGames(db, tournamentId)).find((g) => g.status !== "done");
+    const upNext = games.find((g) => g.status !== "done");
     if (upNext?.id !== gameId) throw new HttpError(409, `Game ${upNext?.position ?? ""} is up next: score that one.`);
     if (game.homeTeamId === null || game.awayTeamId === null)
       throw new HttpError(409, "This game's teams aren't known yet.");
     if (game.clockStartedAt) throw new HttpError(409, "The clock's already running.");
     if (game.status === "next") {
-      const other = (await listGames(db, tournamentId)).find((g) => g.status === "live");
+      const other = games.find((g) => g.status === "live");
       if (other) throw new HttpError(409, `Game ${other.position}'s still on. Call full time on it first.`);
       await run(
         db,
@@ -132,18 +145,17 @@ export async function clockGame(
 
 /** Someone on this team: its captain or one of its players. */
 const onTeam = (db: D1Database, teamId: number, memberId: number) =>
-  first(
+  statement(
     db,
     `SELECT 1 FROM tournament_teams t WHERE t.id = ? AND (t.captain_member_id = ? OR EXISTS
        (SELECT 1 FROM tournament_team_players p WHERE p.team_id = t.id AND p.member_id = ?))`,
     [teamId, memberId, memberId],
   );
 
-/** A finished game, if this member can put its result right: an admin's job, on the game's page. */
+/** A finished game, if this member can put its result right (mustCorrect). */
 async function correctable(db: D1Database, tournamentId: number, gameId: number, who: Who) {
-  const game = await gameOf(db, tournamentId, gameId);
-  if (!can(who.actions, "manage:Tournament")) throw new HttpError(403, "Only an admin can change a result.");
-  if (game.status !== "done") throw new HttpError(409, "That game isn't over yet.");
+  const { game } = await gameOf(db, tournamentId, gameId);
+  mustCorrect(game, who);
   return game;
 }
 
@@ -165,15 +177,22 @@ export async function addGoal(
   who: Who,
   now: Date,
 ) {
-  const done = (await gameOf(db, tournamentId, gameId)).status === "done";
-  const game = done ? await correctable(db, tournamentId, gameId, who) : await scorable(db, tournamentId, gameId, who);
+  const { game } = await gameOf(db, tournamentId, gameId);
+  const done = game.status === "done";
+  if (done) mustCorrect(game, who);
+  else mustHold(game, who);
   if (!done && game.status !== "live") throw new HttpError(409, "That game isn't on.");
   const teamId = int(o, "teamId")!;
   if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) throw new HttpError(400, "That team isn't playing.");
   const scorerId = o.scorerId == null ? null : int(o, "scorerId");
   const assistId = o.assistId == null ? null : int(o, "assistId");
-  for (const m of [scorerId, assistId])
-    if (m !== null && !(await onTeam(db, teamId, m))) throw new HttpError(400, "They're not on that team.");
+  // Both asked at once
+  const named = [scorerId, assistId].filter((m) => m !== null);
+  const found = await batch(
+    db,
+    named.map((m) => onTeam(db, teamId, m)),
+  );
+  if (found.some((r) => !r.results.length)) throw new HttpError(400, "They're not on that team.");
   if (scorerId !== null && scorerId === assistId) throw new HttpError(400, "Nobody assists their own goal.");
   const t = await tournamentOf(db, tournamentId);
   const atMs = done
@@ -201,7 +220,7 @@ export async function removeGoal(db: D1Database, tournamentId: number, gameId: n
 
 /** The last goal comes off: logged by mistake. */
 export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who) {
-  const game = await scorable(db, tournamentId, gameId, who);
+  const { game } = await scorable(db, tournamentId, gameId, who);
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   const res = await run(
     db,

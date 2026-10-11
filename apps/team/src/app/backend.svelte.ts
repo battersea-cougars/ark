@@ -245,6 +245,10 @@ export const deleteQuip = (id: number) => save(() => api("DELETE", `/api/quips/$
 export const markHere = (sessionId: number, memberId: number, here: boolean) =>
   save(() => api("POST", `/api/sessions/${sessionId}/register`, { memberId, here }), "");
 
+/** A member's attendance, many Fridays at once: one request, so their charges are worked out once. */
+export const markAttendance = (memberId: number, marks: { sessionId: number; here: boolean }[]) =>
+  save(() => api("PUT", `/api/members/${memberId}/attendance`, { marks }), "");
+
 /** An admin adds someone to the club; the app emails them a link to itself (ADR 0069). */
 export const addMember = async (name: string, email: string, position: string) => {
   const r = await save(

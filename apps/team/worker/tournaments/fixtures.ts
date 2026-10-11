@@ -2,7 +2,7 @@
 // teams that entered), an admin has the app make the fixtures: a round robin, every team playing every other once
 // (lib/fixtures.ts), then the playoff games its settings ask for, by table position. They can be made again until a
 // game has a result. When the last group game has its result, the playoffs get their teams from the table.
-import { all, first, run } from "@cougars/shared/d1";
+import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { roundRobin, scorekeepers, table } from "../../src/lib/fixtures";
 import { HttpError, int } from "../api/api.http";
 import type { Playoff } from "./tournaments";
@@ -44,8 +44,9 @@ export interface Goal {
 export async function listGames(db: D1Database, tournamentId?: number): Promise<Game[]> {
   const where = tournamentId ? "WHERE tournament_id = ?" : "";
   const args = tournamentId ? [tournamentId] : [];
-  const [rows, goals, teams] = await Promise.all([
-    all<Omit<Game, "scoringTeamId" | "goals">>(
+  // All three in one round trip
+  const [rows, goals, teams] = await batch(db, [
+    statement(
       db,
       `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
               away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
@@ -54,21 +55,25 @@ export async function listGames(db: D1Database, tournamentId?: number): Promise<
        FROM tournament_games ${where} ORDER BY tournament_id, position`,
       args,
     ),
-    all<Goal & { gameId: number }>(
+    statement(
       db,
       `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs
        FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games ${where})
        ORDER BY at_ms IS NULL, at_ms, id`,
       args,
     ),
-    all<{ id: number; tournamentId: number }>(
+    statement(
       db,
       `SELECT id, tournament_id tournamentId FROM tournament_teams ${where}
        ORDER BY tournament_id, coalesce(pick, 1000), id`,
       args,
     ),
   ]);
-  return gamesFrom(rows, goals, teams);
+  return gamesFrom(
+    rows.results as Omit<Game, "scoringTeamId" | "goals">[],
+    goals.results as (Goal & { gameId: number })[],
+    teams.results as { id: number; tournamentId: number }[],
+  );
 }
 
 /**
@@ -150,20 +155,24 @@ export async function makeFixtures(db: D1Database, id: number) {
   );
   for (const p of playoffs)
     rows.push([id, "playoff", rounds.length + 1, rows.length + 1, p.name, null, null, p.home, p.away]);
-  await run(
-    db,
-    "DELETE FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)",
-    [id],
-  );
-  await run(db, "DELETE FROM tournament_games WHERE tournament_id = ?", [id]);
-  for (const r of rows)
-    await run(
+  await batch(db, [
+    statement(
+      db,
+      "DELETE FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)",
+      [id],
+    ),
+    statement(db, "DELETE FROM tournament_games WHERE tournament_id = ?", [id]),
+    // Every game in one statement: a JSON list of rows (ADR 0059)
+    statement(
       db,
       `INSERT INTO tournament_games (tournament_id, stage, round, position, name, home_team_id, away_team_id,
          home_seed, away_seed)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      r,
-    );
+       SELECT value ->> 0, value ->> 1, value ->> 2, value ->> 3, value ->> 4, value ->> 5, value ->> 6, value ->> 7,
+         value ->> 8
+       FROM json_each(?) ORDER BY key`,
+      [JSON.stringify(rows)],
+    ),
+  ]);
 }
 
 /**
@@ -175,12 +184,13 @@ export async function scoreGame(db: D1Database, tournamentId: number, gameId: nu
   const homeGoals = int(o, "homeGoals", { max: 99 });
   const awayGoals = int(o, "awayGoals", { max: 99 });
   const t = await tournamentOf(db, tournamentId);
-  const game = (await listGames(db, tournamentId)).find((g) => g.id === gameId);
+  const games = await listGames(db, tournamentId);
+  const game = games.find((g) => g.id === gameId);
   if (!game) throw new HttpError(404, "No such game.");
   if (game.homeTeamId === null || game.awayTeamId === null)
     throw new HttpError(409, "This game's teams aren't known yet.");
   // A played game (put right), or the one up next: the first in the day's order that isn't over
-  const upNext = (await listGames(db, tournamentId)).find((g) => g.status !== "done");
+  const upNext = games.find((g) => g.status !== "done");
   if (game.status !== "done" && upNext?.id !== gameId)
     throw new HttpError(409, `Game ${upNext?.position ?? ""} is up next: score that one.`);
   if (game.stage === "playoff" && homeGoals === awayGoals)
@@ -204,12 +214,17 @@ export async function matchGoals(db: D1Database, gameId: number, teamId: number,
         teamId,
       ])
     )?.n ?? 0;
-  for (let i = have; i < score; i++)
-    await run(db, "INSERT INTO tournament_goals (game_id, team_id, at_ms, created_at) VALUES (?, ?, NULL, ?)", [
-      gameId,
-      teamId,
-      new Date().toISOString(),
-    ]);
+  const at = new Date().toISOString();
+  await batch(
+    db,
+    Array.from({ length: Math.max(0, score - have) }, () =>
+      statement(db, "INSERT INTO tournament_goals (game_id, team_id, at_ms, created_at) VALUES (?, ?, NULL, ?)", [
+        gameId,
+        teamId,
+        at,
+      ]),
+    ),
+  );
   if (have > score)
     await run(
       db,
@@ -224,10 +239,16 @@ export async function fillPlayoffs(db: D1Database, tournamentId: number, t: Tour
   const group = games.filter((g) => g.stage === "group");
   if (group.some((g) => g.status !== "done")) return;
   const rows = table(await teamIdsOf(db, tournamentId), group, { win: t.win, draw: t.draw, loss: t.loss });
-  for (const g of games.filter((g) => g.stage === "playoff" && g.status !== "done"))
-    await run(db, "UPDATE tournament_games SET home_team_id = ?, away_team_id = ? WHERE id = ?", [
-      rows[g.homeSeed! - 1]?.teamId ?? null,
-      rows[g.awaySeed! - 1]?.teamId ?? null,
-      g.id,
-    ]);
+  await batch(
+    db,
+    games
+      .filter((g) => g.stage === "playoff" && g.status !== "done")
+      .map((g) =>
+        statement(db, "UPDATE tournament_games SET home_team_id = ?, away_team_id = ? WHERE id = ?", [
+          rows[g.homeSeed! - 1]?.teamId ?? null,
+          rows[g.awaySeed! - 1]?.teamId ?? null,
+          g.id,
+        ]),
+      ),
+  );
 }

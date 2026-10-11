@@ -3,7 +3,7 @@
 // register, a sign-up, a cancellation) and each hour, when a new day makes another session due: whoever came and isn't
 // charged is, and an unpaid charge for someone who no longer counts goes. A paid one always stays. Quarterly Members
 // are charged the quarterly rate for each quarter a subscription covers; an admin can charge a quarter by hand.
-import { all, first, run, type Param } from "@cougars/shared/d1";
+import { all, batch, changesOf, first, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { QUARTER, feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } from "../../src/lib/dues";
 import { londonToday } from "../../src/lib/dates";
@@ -57,33 +57,37 @@ const SERIES_FEE = `(SELECT f.amount_pence FROM series_fees f WHERE f.series_id 
   AND f.effective_from <= s.held_on ORDER BY f.effective_from DESC LIMIT 1)`;
 
 /**
- * Bring session and tournament charges in line with who came and what each costs, as of today. Returns how many
- * changed. A session costs its training's fee on its day: change a fee from an earlier date and every night it covers
- * is recalculated, paid or not (a night paid then owes the difference, or its overpayment is credit).
+ * Statements that bring session and tournament charges in line with who came and what each costs, as of today. A
+ * session costs its training's fee on its day: change a fee from an earlier date and every night it covers is
+ * recalculated, paid or not (a night paid then owes the difference, or its overpayment is credit).
  */
-export async function chargeAttendance(db: D1Database, today: string, now: string): Promise<number> {
-  let changed = 0;
-  const count = async (sql: string, params: Param[]) => (changed += (await run(db, sql, params)).meta.changes ?? 0);
-  await count(
-    `UPDATE training_sessions AS s SET fee_pence = COALESCE(${SERIES_FEE}, 0)
-     WHERE s.held_on <= ? AND s.fee_pence IS NOT COALESCE(${SERIES_FEE}, 0)`,
-    [today],
-  );
+function attendanceCharges(db: D1Database, today: string, now: string): D1PreparedStatement[] {
+  const statements = [
+    statement(
+      db,
+      `UPDATE training_sessions AS s SET fee_pence = COALESCE(${SERIES_FEE}, 0)
+       WHERE s.held_on <= ? AND s.fee_pence IS NOT COALESCE(${SERIES_FEE}, 0)`,
+      [today],
+    ),
+  ];
   for (const [column, due] of [
     ["session_id", SESSIONS_DUE],
     ["tournament_id", TOURNAMENTS_DUE],
-  ]) {
-    await count(
-      `INSERT INTO charges (member_id, ${column}, amount_pence, due_on, created_at)
-       SELECT member_id, event_id, amount, due_on, ? FROM (${due}) WHERE true ON CONFLICT DO NOTHING`,
-      [now, today],
+  ])
+    statements.push(
+      statement(
+        db,
+        `INSERT INTO charges (member_id, ${column}, amount_pence, due_on, created_at)
+         SELECT member_id, event_id, amount, due_on, ? FROM (${due}) WHERE true ON CONFLICT DO NOTHING`,
+        [now, today],
+      ),
+      statement(
+        db,
+        `DELETE FROM charges AS c WHERE c.${column} IS NOT NULL AND ${notPaidUp}
+           AND (c.member_id, c.${column}) NOT IN (SELECT member_id, event_id FROM (${due}))`,
+        [today],
+      ),
     );
-    await count(
-      `DELETE FROM charges AS c WHERE c.${column} IS NOT NULL AND ${notPaidUp}
-         AND (c.member_id, c.${column}) NOT IN (SELECT member_id, event_id FROM (${due}))`,
-      [today],
-    );
-  }
   // What each costs now: a night their quarter pays for, nothing (so what they'd paid for it is credit)
   for (const [column, fee] of [
     [
@@ -93,118 +97,137 @@ export async function chargeAttendance(db: D1Database, today: string, now: strin
     ],
     ["tournament_id", "SELECT fee_pence FROM tournaments WHERE id = c.tournament_id"],
   ])
-    await count(
-      `UPDATE charges AS c SET amount_pence = COALESCE((${fee}), 0)
-       WHERE c.${column} IS NOT NULL AND c.amount_pence IS NOT COALESCE((${fee}), 0)`,
-      [],
-    );
-  return changed + (await tidy(db));
-}
-
-/**
- * After a charge's amount changed: a charge paid more than it now costs gives the difference back (the newest
- * payment's part first), so it's credit; a charge that now costs nothing goes; then credit pays what's owed.
- */
-async function tidy(db: D1Database): Promise<number> {
-  const over = await all<{ id: number; over: number }>(
-    db,
-    `SELECT c.id, (SELECT SUM(pa.amount_pence) FROM payment_allocations pa WHERE pa.charge_id = c.id) - c.amount_pence
-       over FROM charges c WHERE over > 0`,
-  );
-  for (const c of over) {
-    let left = c.over;
-    const parts = await all<{ payment_id: number; amount_pence: number }>(
-      db,
-      "SELECT payment_id, amount_pence FROM payment_allocations WHERE charge_id = ? ORDER BY payment_id DESC",
-      [c.id],
-    );
-    for (const a of parts) {
-      if (!left) break;
-      const back = Math.min(left, a.amount_pence);
-      await run(
+    statements.push(
+      statement(
         db,
-        "UPDATE payment_allocations SET amount_pence = amount_pence - ? WHERE payment_id = ? AND charge_id = ?",
-        [back, a.payment_id, c.id],
-      );
-      left -= back;
-    }
-  }
-  await run(db, "DELETE FROM payment_allocations WHERE amount_pence <= 0");
-  const gone = (
-    await run(
-      db,
-      "DELETE FROM charges WHERE amount_pence <= 0 AND id NOT IN (SELECT charge_id FROM payment_allocations)",
-    )
-  ).meta.changes;
-  return over.length + (gone ?? 0) + (await settle(db));
+        `UPDATE charges AS c SET amount_pence = COALESCE((${fee}), 0)
+         WHERE c.${column} IS NOT NULL AND c.amount_pence IS NOT COALESCE((${fee}), 0)`,
+      ),
+    );
+  return statements;
+}
+
+/** Session and tournament charges in line with who came (attendanceCharges). Returns how many changed. */
+export async function chargeAttendance(db: D1Database, today: string, now: string): Promise<number> {
+  return settleAfter(db, attendanceCharges(db, today, now));
 }
 
 /**
- * Charge Quarterly Members (not keepers: they play free) the quarterly rate for every quarter, up to this one, that a subscription covers: due on
- * the quarter's first day, or the day they joined. Only where the rate in force then isn't nothing, so setting the
- * first rate decides how far back it goes. A quarter charged by mistake (the subscription taken back) goes, unpaid.
+ * Statements that charge Quarterly Members (not keepers: they play free) the quarterly rate for every quarter, up to
+ * this one, that a subscription covers: due on the quarter's first day, or the day they joined. Only where the rate in
+ * force then isn't nothing, so setting the first rate decides how far back it goes. A quarter charged by mistake (the
+ * subscription taken back) goes, unpaid. The quarters go as one list (JSON), so it's three statements however many
+ * members and quarters there are.
  */
-export async function chargeQuarters(db: D1Database, today: string, now: string): Promise<number> {
-  const fees = await subscriptionFees(db);
-  const subs = await all<{ member_id: number; starts_on: string; ends_on: string | null }>(
-    db,
-    `SELECT sub.member_id, sub.starts_on, sub.ends_on FROM subscriptions sub
-     WHERE sub.starts_on <= ? AND NOT ${KEEPER("sub.member_id")}`,
-    [today],
-  );
-  const due = new Map<string, { memberId: number; quarter: string; dueOn: string; pence: number }>();
-  for (const s of subs) {
+async function quarterCharges(db: D1Database, today: string, now: string): Promise<D1PreparedStatement[]> {
+  const [fees, subs] = (await batch(db, [
+    statement(db, "SELECT amount_pence pence, effective_from 'from' FROM subscription_fees ORDER BY effective_from"),
+    statement(
+      db,
+      `SELECT sub.member_id, sub.starts_on, sub.ends_on FROM subscriptions sub
+       WHERE sub.starts_on <= ? AND NOT ${KEEPER("sub.member_id")}`,
+      [today],
+    ),
+  ])) as [D1Result<DatedFee>, D1Result<{ member_id: number; starts_on: string; ends_on: string | null }>];
+  const due = new Map<string, { member: number; quarter: string; dueOn: string; pence: number }>();
+  for (const s of subs.results) {
     const last = s.ends_on && s.ends_on < today ? s.ends_on : today;
     for (let q = quarterOf(s.starts_on); quarterStart(q) <= last; q = nextQuarter(q)) {
       const dueOn = s.starts_on > quarterStart(q) ? s.starts_on : quarterStart(q);
       const key = `${s.member_id} ${q}`;
-      const pence = feeOn(fees, dueOn);
+      const pence = feeOn(fees.results, dueOn);
       const was = due.get(key);
-      if (pence > 0 && (!was || dueOn < was.dueOn)) due.set(key, { memberId: s.member_id, quarter: q, dueOn, pence });
+      if (pence > 0 && (!was || dueOn < was.dueOn)) due.set(key, { member: s.member_id, quarter: q, dueOn, pence });
     }
   }
-  let changed = 0;
-  for (const d of due.values())
-    changed +=
-      (
-        await run(
-          db,
-          `INSERT INTO charges (member_id, quarter, amount_pence, due_on, created_at) VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT DO NOTHING`,
-          [d.memberId, d.quarter, d.pence, d.dueOn, now],
-        )
-      ).meta.changes ?? 0;
-  const auto = await all<{ id: number; member_id: number; quarter: string }>(
-    db,
-    `SELECT c.id, c.member_id, c.quarter FROM charges c WHERE c.quarter IS NOT NULL AND c.created_by IS NULL AND ${unpaid}`,
+  const list = JSON.stringify([...due.values()]);
+  const listed =
+    "SELECT value ->> 'member' member, value ->> 'quarter' quarter, value ->> 'pence' pence FROM json_each(?)";
+  return [
+    statement(
+      db,
+      `INSERT INTO charges (member_id, quarter, amount_pence, due_on, created_at)
+       SELECT value ->> 'member', value ->> 'quarter', value ->> 'pence', value ->> 'dueOn', ? FROM json_each(?)
+       WHERE true ON CONFLICT DO NOTHING`,
+      [now, list],
+    ),
+    statement(
+      db,
+      `DELETE FROM charges AS c WHERE c.quarter IS NOT NULL AND c.created_by IS NULL AND ${unpaid}
+         AND (c.member_id, c.quarter) NOT IN (SELECT member, quarter FROM (${listed}))`,
+      [list],
+    ),
+    // The rate for each, as it is now: a rate changed from an earlier date recalculates the quarters it covers. One
+    // charged by hand keeps what the admin said.
+    statement(
+      db,
+      `UPDATE charges AS c SET amount_pence = d.pence FROM (${listed}) d
+       WHERE c.member_id = d.member AND c.quarter = d.quarter AND c.created_by IS NULL AND c.amount_pence <> d.pence`,
+      [list],
+    ),
+  ];
+}
+
+/**
+ * Every charge in line, as after anything that changes who owes what: quarters first, since a quarter pays for its
+ * training nights. A few round trips, however many members, quarters and nights (ADR 0059). Returns how many changed.
+ */
+export async function recharge(db: D1Database, today: string, now: string): Promise<number> {
+  return settleAfter(db, [...(await quarterCharges(db, today, now)), ...attendanceCharges(db, today, now)]);
+}
+
+/** Each part of a payment on a charge that's paid more than it now costs, newest payment first. */
+const OVERPAID = `
+  SELECT pa.charge_id chargeId, pa.payment_id paymentId, pa.amount_pence pence, o.over
+  FROM payment_allocations pa
+  JOIN (SELECT c.id, (SELECT SUM(a.amount_pence) FROM payment_allocations a WHERE a.charge_id = c.id) - c.amount_pence
+          over FROM charges c WHERE over > 0) o ON o.id = pa.charge_id
+  ORDER BY pa.charge_id, pa.payment_id DESC`;
+
+/**
+ * Changes to charges, then: a charge paid more than it now costs gives the difference back (the newest payment's part
+ * first), so it's credit; a charge that now costs nothing goes; then credit pays what's owed. Three round trips.
+ * Returns how many rows changed.
+ */
+async function settleAfter(db: D1Database, changes: D1PreparedStatement[]): Promise<number> {
+  const done = await batch<{ chargeId: number; paymentId: number; pence: number; over: number }>(db, [
+    ...changes,
+    statement(db, OVERPAID),
+  ]);
+  const backs: { charge: number; payment: number; back: number }[] = [];
+  const left = new Map<number, number>();
+  for (const a of done.at(-1)!.results) {
+    const over = left.get(a.chargeId) ?? a.over;
+    const back = Math.min(over, a.pence);
+    left.set(a.chargeId, over - back);
+    if (back) backs.push({ charge: a.chargeId, payment: a.paymentId, back });
+  }
+  const [taken, emptied, gone, ...reads] = await batch(db, [
+    statement(
+      db,
+      `UPDATE payment_allocations AS pa SET amount_pence = pa.amount_pence - b.back
+       FROM (SELECT value ->> 'charge' charge, value ->> 'payment' payment, value ->> 'back' back FROM json_each(?)) b
+       WHERE pa.charge_id = b.charge AND pa.payment_id = b.payment`,
+      [JSON.stringify(backs)],
+    ),
+    statement(db, "DELETE FROM payment_allocations WHERE amount_pence <= 0"),
+    statement(
+      db,
+      "DELETE FROM charges WHERE amount_pence <= 0 AND id NOT IN (SELECT charge_id FROM payment_allocations)",
+    ),
+    ...credit(db),
+  ]);
+  return (
+    changesOf(done.slice(0, -1)) +
+    changesOf([taken, emptied, gone]) +
+    (await spend(db, reads as [D1Result<Spare>, D1Result<Owed>]))
   );
-  for (const c of auto)
-    if (!due.has(`${c.member_id} ${c.quarter}`)) {
-      await run(db, "DELETE FROM charges WHERE id = ?", [c.id]);
-      changed++;
-    }
-  // The rate for each, as it is now: a rate changed from an earlier date recalculates the quarters it covers. One
-  // charged by hand keeps what the admin said.
-  for (const d of due.values())
-    changed +=
-      (
-        await run(
-          db,
-          `UPDATE charges SET amount_pence = ? WHERE member_id = ? AND quarter = ? AND created_by IS NULL
-             AND amount_pence <> ?`,
-          [d.pence, d.memberId, d.quarter, d.pence],
-        )
-      ).meta.changes ?? 0;
-  return changed + (await tidy(db));
 }
 
 /** The hourly check (and the day's first open of the app): whatever a new day makes due. */
 export async function chargeDue(env: { DB: D1Database }, now: Date) {
   const today = londonToday(now);
-  // Quarters first: a quarter pays for its training nights
-  const changed =
-    (await chargeQuarters(env.DB, today, now.toISOString())) +
-    (await chargeAttendance(env.DB, today, now.toISOString()));
+  const changed = await recharge(env.DB, today, now.toISOString());
   // Someone's dues changed: every member's bootstrap is out of date (ADR 0053)
   if (changed) await bumpDataVersion(env.DB);
 }
@@ -241,13 +264,15 @@ export async function setSeriesFees(db: D1Database, id: number, given: unknown, 
   const fees = datedFees(given);
   if (JSON.stringify(fees) === JSON.stringify(await seriesFees(db, id))) return;
   if (!can(actions, "manage:Fees")) throw new HttpError(403, "Your role can't set fees.");
-  await run(db, "DELETE FROM series_fees WHERE series_id = ?", [id]);
-  for (const f of fees)
-    await run(db, "INSERT INTO series_fees (series_id, effective_from, amount_pence) VALUES (?, ?, ?)", [
-      id,
-      f.from,
-      f.pence,
-    ]);
+  await batch(db, [
+    statement(db, "DELETE FROM series_fees WHERE series_id = ?", [id]),
+    statement(
+      db,
+      `INSERT INTO series_fees (series_id, effective_from, amount_pence)
+       SELECT ?, value ->> 'from', value ->> 'pence' FROM json_each(?)`,
+      [id, JSON.stringify(fees)],
+    ),
+  ]);
 }
 
 /** The quarterly rate's history, oldest first. */
@@ -322,41 +347,72 @@ const via = (o: Record<string, unknown>) => {
   return o.via;
 };
 
+interface Spare {
+  id: number;
+  member_id: number;
+  spare: number;
+}
+interface Owed {
+  id: number;
+  member_id: number;
+  left: number;
+}
+
+/** Reads for `spend`: each payment's unspent part, oldest first, and what's left to pay on its member's charges. */
+function credit(db: D1Database, memberId?: number): D1PreparedStatement[] {
+  const who = memberId === undefined ? "" : "AND p.member_id = ?";
+  const params = memberId === undefined ? [] : [memberId];
+  const spare = `SELECT p.id, p.member_id, p.amount_pence - COALESCE((SELECT SUM(pa.amount_pence)
+       FROM payment_allocations pa WHERE pa.payment_id = p.id), 0) spare
+     FROM payments p WHERE spare > 0 ${who}`;
+  return [
+    statement(db, `${spare} ORDER BY p.received_on, p.id`, params),
+    statement(
+      db,
+      `SELECT c.id, c.member_id, c.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
+         WHERE pa.charge_id = c.id), 0) "left"
+       FROM charges c WHERE "left" > 0 AND c.member_id IN (SELECT member_id FROM (${spare}))
+       ORDER BY c.due_on, c.id`,
+      params,
+    ),
+  ];
+}
+
 /**
  * Money not yet spent pays what's owed, oldest first (FIFO): each payment's unspent part, oldest payment first, goes
  * to the member's oldest charges not paid in full. A lump sum pays several charges and part of the next; what's left
- * over is credit, and pays the next charge as it comes. Returns how many allocations it made.
+ * over is credit, and pays the next charge as it comes. One round trip, none if there's nothing to pay. Returns how
+ * many allocations it made.
  */
-export async function settle(db: D1Database, memberId?: number): Promise<number> {
-  const who = memberId === undefined ? "" : "AND p.member_id = ?";
-  const spare = await all<{ id: number; member_id: number; spare: number }>(
-    db,
-    `SELECT p.id, p.member_id, p.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
-       WHERE pa.payment_id = p.id), 0) spare
-     FROM payments p WHERE spare > 0 ${who} ORDER BY p.received_on, p.id`,
-    memberId === undefined ? [] : [memberId],
-  );
-  let made = 0;
-  const owed = new Map<number, { id: number; left: number }[]>();
-  for (const p of spare) {
-    if (!owed.has(p.member_id)) owed.set(p.member_id, await owing(db, "c.member_id", p.member_id));
+async function spend(db: D1Database, [spare, owed]: [D1Result<Spare>, D1Result<Owed>]): Promise<number> {
+  const byMember = new Map<number, Owed[]>();
+  for (const c of owed.results) byMember.set(c.member_id, [...(byMember.get(c.member_id) ?? []), c]);
+  const made: { payment: number; charge: number; amount: number }[] = [];
+  for (const p of spare.results) {
     let left = p.spare;
-    for (const c of owed.get(p.member_id)!) {
+    for (const c of byMember.get(p.member_id) ?? []) {
       if (!left) break;
       const amount = Math.min(left, c.left);
       if (!amount) continue;
-      await run(
-        db,
-        `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence) VALUES (?, ?, ?)
-         ON CONFLICT (payment_id, charge_id) DO UPDATE SET amount_pence = amount_pence + excluded.amount_pence`,
-        [p.id, c.id, amount],
-      );
+      made.push({ payment: p.id, charge: c.id, amount });
       c.left -= amount;
       left -= amount;
-      made++;
     }
   }
-  return made;
+  if (made.length)
+    await run(
+      db,
+      `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence)
+       SELECT value ->> 'payment', value ->> 'charge', value ->> 'amount' FROM json_each(?) WHERE true
+       ON CONFLICT (payment_id, charge_id) DO UPDATE SET amount_pence = amount_pence + excluded.amount_pence`,
+      [JSON.stringify(made)],
+    );
+  return made.length;
+}
+
+/** Credit pays what's owed (spend), for one member or everyone. Two round trips. */
+export async function settle(db: D1Database, memberId?: number): Promise<number> {
+  return spend(db, (await batch(db, credit(db, memberId))) as [D1Result<Spare>, D1Result<Owed>]);
 }
 
 /** { pence, via }: money in, by transfer or cash, paying what they owe oldest first; the rest is credit. */
@@ -443,13 +499,12 @@ async function pay(
     `INSERT INTO payments (member_id, amount_pence, received_on, via, recorded_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
     [memberId, total, londonToday(new Date(now)), how, by, now],
   );
-  const payment = Number(res.meta.last_row_id);
-  for (const c of charges)
-    await run(db, "INSERT INTO payment_allocations (payment_id, charge_id, amount_pence) VALUES (?, ?, ?)", [
-      payment,
-      c.id,
-      c.left,
-    ]);
+  await run(
+    db,
+    `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence)
+     SELECT ?, value ->> 'id', value ->> 'left' FROM json_each(?)`,
+    [Number(res.meta.last_row_id), JSON.stringify(charges.map(({ id, left }) => ({ id, left })))],
+  );
 }
 
 /** What's left to pay on each of a member's charges (or one charge), where anything is. */
@@ -477,9 +532,12 @@ export async function payCharge(db: D1Database, id: number, o: Record<string, un
 export async function removePayment(db: D1Database, id: number) {
   const p = await first<{ member_id: number }>(db, "SELECT member_id FROM payments WHERE id = ?", [id]);
   if (!p) throw new HttpError(404, "No such payment.");
-  await run(db, "DELETE FROM payment_allocations WHERE payment_id = ?", [id]);
-  await run(db, "DELETE FROM payments WHERE id = ?", [id]);
-  await settle(db, p.member_id);
+  const [, , ...reads] = await batch(db, [
+    statement(db, "DELETE FROM payment_allocations WHERE payment_id = ?", [id]),
+    statement(db, "DELETE FROM payments WHERE id = ?", [id]),
+    ...credit(db, p.member_id),
+  ]);
+  await spend(db, reads as [D1Result<Spare>, D1Result<Owed>]);
   return p.member_id;
 }
 
@@ -491,9 +549,12 @@ export async function unpayCharge(db: D1Database, id: number) {
   const c = await first<{ member_id: number }>(db, "SELECT member_id FROM charges WHERE id = ?", [id]);
   if (!c) throw new HttpError(404, "No such charge.");
   const taken = "SELECT payment_id FROM payment_allocations WHERE charge_id = ?";
-  await run(db, `DELETE FROM payments WHERE id IN (${taken})`, [id]);
-  await run(db, `DELETE FROM payment_allocations WHERE payment_id NOT IN (SELECT id FROM payments)`);
-  await settle(db, c.member_id);
+  const [, , ...reads] = await batch(db, [
+    statement(db, `DELETE FROM payments WHERE id IN (${taken})`, [id]),
+    statement(db, `DELETE FROM payment_allocations WHERE payment_id NOT IN (SELECT id FROM payments)`),
+    ...credit(db, c.member_id),
+  ]);
+  await spend(db, reads as [D1Result<Spare>, D1Result<Owed>]);
 }
 
 // ─── As the app reads them ───

@@ -1,7 +1,7 @@
 // Teams for a session (T3): made in the app (lib/snake.ts), published here, so everyone sees the same ones.
 // Publishing replaces whatever was there. Someone who drops out or is taken off comes off their team too
 // (entries.ts).
-import { all, first, run } from "@cougars/shared/d1";
+import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 
 export interface TeamJson {
@@ -50,20 +50,24 @@ export async function publishTeams(
   });
   const session = await all(db, "SELECT 1 FROM training_sessions WHERE id = ?", [sessionId]);
   if (!session.length) throw new HttpError(404, "No such session.");
-  await run(db, "DELETE FROM session_teams WHERE session_id = ?", [sessionId]);
-  for (const [i, t] of clean.entries()) {
-    const res = await run(
-      db,
-      "INSERT INTO session_teams (session_id, name, position, published_at, published_by) VALUES (?, ?, ?, ?, ?)",
-      [sessionId, t.name, i, now, by],
-    );
-    const teamId = Number(res.meta.last_row_id);
-    for (const p of t.players)
-      await run(db, "INSERT INTO session_team_players (team_id, member_id) SELECT ?, id FROM members WHERE id = ?", [
-        teamId,
-        p,
-      ]);
-  }
+  // In one batch. The team just added is the newest: ids only go up (AUTOINCREMENT), and a batch runs in order, alone
+  const team = "(SELECT max(id) FROM session_teams WHERE session_id = ?)";
+  await batch(db, [
+    statement(db, "DELETE FROM session_teams WHERE session_id = ?", [sessionId]),
+    ...clean.flatMap((t, i) => [
+      statement(
+        db,
+        "INSERT INTO session_teams (session_id, name, position, published_at, published_by) VALUES (?, ?, ?, ?, ?)",
+        [sessionId, t.name, i, now, by],
+      ),
+      statement(
+        db,
+        `INSERT INTO session_team_players (team_id, member_id)
+         SELECT ${team}, m.id FROM json_each(?) j JOIN members m ON m.id = j.value ORDER BY j.key`,
+        [sessionId, JSON.stringify(t.players)],
+      ),
+    ]),
+  ]);
 }
 
 /** Off any team for this session: they dropped out or were taken off. */
@@ -85,8 +89,10 @@ export async function removeTeams(db: D1Database, sessionId: number) {
 export async function resetSession(db: D1Database, sessionId: number) {
   const session = await all(db, "SELECT 1 FROM training_sessions WHERE id = ?", [sessionId]);
   if (!session.length) throw new HttpError(404, "No such session.");
-  await run(db, "DELETE FROM session_teams WHERE session_id = ?", [sessionId]);
-  await run(db, "DELETE FROM attendance WHERE session_id = ?", [sessionId]);
+  await batch(db, [
+    statement(db, "DELETE FROM session_teams WHERE session_id = ?", [sessionId]),
+    statement(db, "DELETE FROM attendance WHERE session_id = ?", [sessionId]),
+  ]);
 }
 
 /** A session's day and how many said anything: what a reset takes away (the record, ADR 0095). */

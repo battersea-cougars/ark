@@ -36,6 +36,12 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
 - **Code is written to stay well under 10 ms**: aggregate in SQL rather than in JavaScript, page anything that grows
   (`LIMIT`), do heavy work at build time (prerendered pages) or in the browser, and never hash passwords or process
   images in a Worker. Sign-in is a code or link ([0023](0023-sign-in-and-sessions.md)), not a password.
+- **One round trip per job, one statement per kind of change.** Every call to D1 costs the Worker CPU time (about
+  0.4 ms each, measured on dev in 2026-10), and the free plan allows 50 queries a request. So a job never awaits D1
+  once per row: it builds its statements and sends them with `batch` (`packages/shared/d1.ts`), and a write that
+  covers many rows takes them as one JSON list (`json_each`) in one statement, so the count doesn't grow with the
+  club. A list of changes from the app (a member's attendance) is one request, not one per row. Use-case tests hold
+  this with the fake D1's `roundTrips` count (`dues.load.use-cases.test.ts`).
 
 ## Consequences
 
@@ -59,3 +65,5 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
 - 2026-10-09: The live hub's Durable Object requests and duration added to the page and the 80% check (ADR 0072).
 - 2026-10-10: Cold starts explain high CPU on a quiet Worker; the dev token can read Workers Logs for CPU per route
   (`scripts/cpu-by-route.mjs`).
+- 2026-10-11: One round trip per job: a sign-up or a tick on the register went from 44 D1 calls (and one more pair per
+  Quarterly Member's quarter) to about 15, whatever the club's size; a member's attendance saves in one request.

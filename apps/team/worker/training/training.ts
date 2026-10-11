@@ -1,7 +1,7 @@
 // Training (ADR 0030): series and their sessions. Sessions are rows, made 12 weeks ahead from each active series'
 // rule, so each can be cancelled on its own.
 import { syncSeries } from "@cougars/shared/agenda";
-import { all, first, run, type Param } from "@cougars/shared/d1";
+import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
 import { WEEKDAYS, addDays, datesToMake, type Weekday } from "../../src/lib/recurrence";
 import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
@@ -58,27 +58,42 @@ const seriesJson = (s: SeriesRow, fees: { seriesId: number; pence: number; from:
 export const seriesFrom = (rows: SeriesRow[], fees: { seriesId: number; pence: number; from: string }[]) =>
   rows.map((s) => seriesJson(s, fees));
 
+/** New sessions, all in one statement: a JSON list of [seriesId, day] (ADR 0059). */
+const INSERT_SESSIONS = `INSERT OR IGNORE INTO training_sessions (series_id, held_on)
+  SELECT value ->> 0, value ->> 1 FROM json_each(?)`;
+
 /** Make each active series' sessions up to the horizon. Dates already made (even cancelled or moved) are skipped. */
 export async function ensureSessions(db: D1Database, today: string) {
-  const series = await all<SeriesRow>(db, "SELECT * FROM training_series WHERE active = 1");
-  for (const s of series) {
-    const existing = await all<{ heldOn: string; movedFrom: string | null }>(
+  // Every active series and the dates it has, in one round trip
+  const [series, sessions] = await batch(db, [
+    statement(db, "SELECT * FROM training_series WHERE active = 1"),
+    statement(
       db,
-      "SELECT held_on heldOn, moved_from movedFrom FROM training_sessions WHERE series_id = ?",
-      [s.id],
-    );
+      `SELECT series_id seriesId, held_on heldOn, moved_from movedFrom FROM training_sessions
+       WHERE series_id IN (SELECT id FROM training_series WHERE active = 1)`,
+    ),
+  ]);
+  const existing = sessions.results as { seriesId: number; heldOn: string; movedFrom: string | null }[];
+  const made = (series.results as SeriesRow[]).map((s) => {
     const rule = {
       repeatEvery: s.repeat_every,
       weekdays: s.weekdays.split(",") as Weekday[],
       startsOn: s.starts_on,
       endsOn: s.ends_on,
     };
-    const made = datesToMake(rule, existing, today);
-    for (const d of made)
-      await run(db, "INSERT OR IGNORE INTO training_sessions (series_id, held_on) VALUES (?, ?)", [s.id, d]);
-    // Only when there are new ones: this runs on every load of the app
-    if (made.length) await syncSeries(db, s.id);
-  }
+    return {
+      id: s.id,
+      dates: datesToMake(
+        rule,
+        existing.filter((x) => x.seriesId === s.id),
+        today,
+      ),
+    };
+  });
+  const fresh = made.flatMap((s) => s.dates.map((d) => [s.id, d]));
+  if (fresh.length) await run(db, INSERT_SESSIONS, [JSON.stringify(fresh)]);
+  // Only when there are new ones: this runs on every load of the app
+  for (const s of made) if (s.dates.length) await syncSeries(db, s.id);
 }
 
 /**
@@ -102,8 +117,8 @@ export async function moreSessions(db: D1Database, seriesId: number, today: stri
     startsOn: s.starts_on,
     endsOn: s.ends_on,
   };
-  for (const d of datesToMake(rule, existing, today, to))
-    await run(db, "INSERT OR IGNORE INTO training_sessions (series_id, held_on) VALUES (?, ?)", [s.id, d]);
+  const fresh = datesToMake(rule, existing, today, to).map((d) => [s.id, d]);
+  if (fresh.length) await run(db, INSERT_SESSIONS, [JSON.stringify(fresh)]);
   await syncSeries(db, s.id);
 }
 
@@ -226,9 +241,12 @@ export async function updateSeries(db: D1Database, id: number, o: Record<string,
      FROM training_sessions s WHERE s.series_id = ? AND s.held_on >= ?`,
     [id, today],
   );
-  for (const s of future)
-    if (!keep.has(s.held_on) && !s.moved_from && !s.cancelled_at && !s.answered)
-      await run(db, "DELETE FROM training_sessions WHERE id = ?", [s.id]);
+  await batch(
+    db,
+    future
+      .filter((s) => !keep.has(s.held_on) && !s.moved_from && !s.cancelled_at && !s.answered)
+      .map((s) => statement(db, "DELETE FROM training_sessions WHERE id = ?", [s.id])),
+  );
   await ensureSessions(db, today);
   await syncSeries(db, id);
 }

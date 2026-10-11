@@ -183,6 +183,8 @@
         return `${who} took the night's teams down`;
       case "register.marked":
         return `${who} marked the register`;
+      case "attendance.marked":
+        return `${who} recorded ${about}'s attendance`;
       case "draft.pick_undone":
         return `${who} undid the last pick in the draft`;
       case "draft.opened":

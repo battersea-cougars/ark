@@ -1,7 +1,7 @@
 // Who won a tournament's awards (ADR 0044). The awards themselves are the tournament's (copied from its series, ADR
 // 0044, 0049); this is who took each one home: a team (Champions) or a player on one of its teams (Top scorer, Best
 // goalie). An admin sets the whole list at once, on the tournament's page; everyone sees it with the tournament.
-import { all, run } from "@cougars/shared/d1";
+import { all, batch, statement } from "@cougars/shared/d1";
 import { HttpError, int, text } from "../api/api.http";
 
 export interface Winner {
@@ -44,11 +44,14 @@ export async function setWinners(db: D1Database, tournamentId: number, o: Record
     if (memberId !== null && !players.has(memberId)) throw new HttpError(400, "They didn't play in this tournament.");
     return { award, teamId, memberId };
   });
-  await run(db, "DELETE FROM tournament_award_winners WHERE tournament_id = ?", [tournamentId]);
-  for (const [i, w] of winners.entries())
-    await run(
-      db,
-      `INSERT INTO tournament_award_winners (tournament_id, award, team_id, member_id, position) VALUES (?, ?, ?, ?, ?)`,
-      [tournamentId, w.award, w.teamId, w.memberId, i],
-    );
+  await batch(db, [
+    statement(db, "DELETE FROM tournament_award_winners WHERE tournament_id = ?", [tournamentId]),
+    ...winners.map((w, i) =>
+      statement(
+        db,
+        `INSERT INTO tournament_award_winners (tournament_id, award, team_id, member_id, position) VALUES (?, ?, ?, ?, ?)`,
+        [tournamentId, w.award, w.teamId, w.memberId, i],
+      ),
+    ),
+  ]);
 }

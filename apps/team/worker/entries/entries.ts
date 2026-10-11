@@ -3,7 +3,7 @@
 // event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
 // waitlist moves up. A training's list is in one order, Quarterly Members first (ADR 0030): one signing up for a full
 // session takes the place of the last one in who pays as they go. Admins can put someone in past the limit.
-import { all, first, run } from "@cougars/shared/d1";
+import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { londonToday } from "../../src/lib/dates";
 import { signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
@@ -207,45 +207,83 @@ export async function setPlayer(
   if (was.signup === "in") await moveUp(db, kind, id, limit, now);
 }
 
+/** One Friday on the register: here or not. */
+export interface Mark {
+  sessionId: number;
+  here: boolean;
+}
+
 /**
- * The register on the night. A sign-up is expected: unticking marks a no-show, ticking takes it back. Anyone else
- * ticked is a walk-in, in tonight whatever the limit; unticking a walk-in takes them off again.
+ * The register for one member, one Friday or many (their attendance, saved at once): a sign-up is marked here or a
+ * no-show; anyone else here is a walk-in, and a walk-in not here comes off (and off the night's teams, and the first
+ * waiting moves up). Two round trips, however many Fridays: the Fridays as they are, then every change in one batch
+ * of five statements, each taking the whole list (ADR 0059).
  */
-export async function mark(
-  db: D1Database,
-  sessionId: number,
-  memberId: number,
-  here: boolean,
-  by: number,
-  now: string,
-) {
-  const limit = await capacity(db, "session", sessionId);
-  const was = await current(db, "session", sessionId, memberId);
-  if (was?.signup === "in" && !was.walkIn) {
-    await run(
-      db,
-      "UPDATE attendance SET attended = ?, recorded_by = ?, recorded_at = ? WHERE session_id = ? AND member_id = ?",
-      [here ? 1 : 0, by, now, sessionId, memberId],
-    );
-    return;
+export async function markAll(db: D1Database, memberId: number, marks: Mark[], by: number, now: string) {
+  const ids = JSON.stringify(marks.map((m) => m.sessionId));
+  const rows = await all<{ id: number; cancelled: string | null; signup: string | null; walkIn: number | null }>(
+    db,
+    `SELECT s.id, s.cancelled_at cancelled, a.signup, a.walk_in walkIn
+     FROM training_sessions s LEFT JOIN attendance a ON a.session_id = s.id AND a.member_id = ?
+     WHERE s.id IN (SELECT value FROM json_each(?))`,
+    [memberId, ids],
+  );
+  const was = new Map(rows.map((r) => [r.id, r]));
+  const signedUp: Mark[] = [];
+  const walkIns: number[] = [];
+  const off: number[] = [];
+  for (const m of marks) {
+    const r = was.get(m.sessionId);
+    if (!r) throw new HttpError(404, "No such event.");
+    if (r.cancelled) throw new HttpError(409, "That session's cancelled.");
+    if (r.signup === "in" && !r.walkIn) signedUp.push(m);
+    else if (m.here) walkIns.push(m.sessionId);
+    else if (r.walkIn) off.push(m.sessionId);
   }
-  if (here) {
-    await run(
+  const list = (v: unknown[]) => JSON.stringify(v);
+  const offList = "SELECT value FROM json_each(?)";
+  await batch(db, [
+    statement(
+      db,
+      `UPDATE attendance AS a SET attended = m.value ->> 'here', recorded_by = ?, recorded_at = ?
+       FROM json_each(?) m WHERE a.session_id = m.value ->> 'sessionId' AND a.member_id = ?`,
+      [by, now, list(signedUp.map((m) => ({ sessionId: m.sessionId, here: m.here ? 1 : 0 }))), memberId],
+    ),
+    statement(
       db,
       `INSERT INTO attendance (session_id, member_id, signup, signed_up_at, attended, walk_in, recorded_by, recorded_at)
-       VALUES (?, ?, 'in', ?, 1, 1, ?, ?)
+       SELECT value, ?, 'in', ?, 1, 1, ?, ? FROM json_each(?) WHERE true
        ON CONFLICT (session_id, member_id) DO UPDATE SET signup = 'in', signed_up_at = excluded.signed_up_at,
          attended = 1, walk_in = 1, recorded_by = excluded.recorded_by, recorded_at = excluded.recorded_at`,
-      [sessionId, memberId, now, by, now],
-    );
-    return;
-  }
-  if (was?.walkIn) {
-    await run(db, "DELETE FROM attendance WHERE session_id = ? AND member_id = ?", [sessionId, memberId]);
-    await offTeams(db, sessionId, memberId);
-    await moveUp(db, "session", sessionId, limit, now);
-  }
+      [memberId, now, by, now, list(walkIns)],
+    ),
+    statement(db, `DELETE FROM attendance WHERE member_id = ? AND session_id IN (${offList})`, [memberId, list(off)]),
+    statement(
+      db,
+      `DELETE FROM session_team_players WHERE member_id = ?
+       AND team_id IN (SELECT id FROM session_teams WHERE session_id IN (${offList}))`,
+      [memberId, list(off)],
+    ),
+    // A place came free on each of those nights: the first waiting moves up, where there's room
+    statement(
+      db,
+      `UPDATE attendance SET signup = 'in'
+       WHERE id IN (
+         SELECT (SELECT e.id FROM attendance e WHERE e.session_id = s.id AND e.signup = 'waitlist'
+                 ORDER BY ${aheadIn("session")} DESC, e.signed_up_at, e.id LIMIT 1)
+         FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
+         WHERE s.id IN (${offList})
+           AND (COALESCE(s.capacity, ts.capacity) IS NULL
+             OR (SELECT COUNT(*) FROM attendance x WHERE x.session_id = s.id AND x.signup = 'in')
+               < COALESCE(s.capacity, ts.capacity)))`,
+      [list(off)],
+    ),
+  ]);
 }
+
+/** The register on the night: one member, here or not (markAll). */
+export const mark = (db: D1Database, sessionId: number, memberId: number, here: boolean, by: number, now: string) =>
+  markAll(db, memberId, [{ sessionId, here }], by, now);
 
 /** Everyone's answers for the given events, keyed by event id. */
 export async function listEntries(db: D1Database, kind: EntryKind, ids: number[]): Promise<Map<number, Entries>> {

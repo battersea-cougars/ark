@@ -1,6 +1,6 @@
 // Members and roles (ADR 0024). A member's permissions are the union of their roles' actions; actions no longer in
 // the catalog are ignored.
-import { all, first, run } from "@cougars/shared/d1";
+import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { ACTIONS, type Action } from "../../src/access/actions";
 import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
@@ -228,21 +228,25 @@ export async function updateMember(
     );
     if (was?.n && !others?.n) throw new HttpError(409, "That's the last admin. Make someone else an admin first.");
   }
-  await run(db, "UPDATE members SET name = ?, position = ?, rating = ?, cougar = ?, status = ? WHERE id = ?", [
-    name,
-    position,
-    rating,
-    cougar ? 1 : 0,
-    status,
-    id,
-  ]);
+  const statements = [
+    statement(db, "UPDATE members SET name = ?, position = ?, rating = ?, cougar = ?, status = ? WHERE id = ?", [
+      name,
+      position,
+      rating,
+      cougar ? 1 : 0,
+      status,
+      id,
+    ]),
+  ];
   // The name they go by (ADR 0043), when it's sent: an admin can set or clear it as they can on their profile
   if ("webName" in o) {
     const webName = o.webName === null ? "" : text(o, "webName", { optional: true, max: 40 }).trim();
-    await run(db, "UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]);
+    statements.push(statement(db, "UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]));
   }
-  await run(db, "DELETE FROM member_roles WHERE member_id = ?", [id]);
-  for (const roleId of ids) await run(db, "INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)", [id, roleId]);
+  statements.push(statement(db, "DELETE FROM member_roles WHERE member_id = ?", [id]));
+  for (const roleId of ids)
+    statements.push(statement(db, "INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)", [id, roleId]));
+  await batch(db, statements);
   return { letIn: existing.status === "pending" && status === "active" };
 }
 
@@ -265,7 +269,10 @@ export async function createRole(db: D1Database, o: Record<string, unknown>, by:
     f.description,
   ]);
   const id = Number(res.meta.last_row_id);
-  for (const a of f.actions) await run(db, "INSERT INTO role_actions (role_id, action) VALUES (?, ?)", [id, a]);
+  await batch(
+    db,
+    f.actions.map((a) => statement(db, "INSERT INTO role_actions (role_id, action) VALUES (?, ?)", [id, a])),
+  );
   return id;
 }
 
@@ -281,9 +288,11 @@ export async function updateRole(db: D1Database, id: number, o: Record<string, u
     throw new HttpError(403, "A role can't do more than you can.");
   if (await first(db, "SELECT 1 FROM roles WHERE name = ? AND id != ?", [f.name, id]))
     throw new HttpError(409, "That name is taken.");
-  await run(db, "UPDATE roles SET name = ?, description = ? WHERE id = ?", [f.name, f.description, id]);
-  await run(db, "DELETE FROM role_actions WHERE role_id = ?", [id]);
-  for (const a of f.actions) await run(db, "INSERT INTO role_actions (role_id, action) VALUES (?, ?)", [id, a]);
+  await batch(db, [
+    statement(db, "UPDATE roles SET name = ?, description = ? WHERE id = ?", [f.name, f.description, id]),
+    statement(db, "DELETE FROM role_actions WHERE role_id = ?", [id]),
+    ...f.actions.map((a) => statement(db, "INSERT INTO role_actions (role_id, action) VALUES (?, ?)", [id, a])),
+  ]);
 }
 
 /**
@@ -402,6 +411,15 @@ export async function setQuarterly(db: D1Database, id: number, quarterly: boolea
   await run(db, "DELETE FROM subscriptions WHERE member_id = ? AND starts_on = ?", [id, today]);
   await run(db, `UPDATE subscriptions SET ends_on = ? WHERE ${covering}`, [today, id, today, today]);
 }
+
+/** A member on some nights, as the record keeps it: their answer, whether they came, and whether they walked in. */
+export const attendanceOn = (db: D1Database, id: number, sessionIds: number[]) =>
+  all(
+    db,
+    `SELECT session_id sessionId, signup, attended, walk_in walkIn FROM attendance
+     WHERE member_id = ? AND session_id IN (SELECT value FROM json_each(?)) ORDER BY session_id`,
+    [id, JSON.stringify(sessionIds)],
+  );
 
 /**
  * A member's attendance for a year, newest first: every training session held so far that year, with what they said

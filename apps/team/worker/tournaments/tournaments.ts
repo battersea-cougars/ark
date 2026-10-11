@@ -1,6 +1,6 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types (series) and editions, their teams, rules and playoffs.
 import { syncTournament, syncTournamentsOf } from "@cougars/shared/agenda";
-import { all, first, run, type Param } from "@cougars/shared/d1";
+import { batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { isSeason, seasonEnd, seasonYear, type Season } from "@cougars/shared/seasons";
 import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
 import type { Winner } from "./awards";
@@ -384,15 +384,24 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
  */
 async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] | null, now = new Date()) {
   if (!teams) return;
-  for (const m of teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]))
-    if (m !== null && !(await first(db, "SELECT 1 FROM members WHERE id = ?", [m])))
-      throw new HttpError(400, "No such member.");
-  const existing = await all<{ id: number; captain: number | null }>(
-    db,
-    "SELECT id, captain_member_id captain FROM tournament_teams WHERE tournament_id = ? ORDER BY coalesce(pick, 1000), id",
-    [id],
+  // What it's checked against, in one round trip
+  const named = [...new Set(teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]))].filter(
+    (m) => m !== null,
   );
-  const state = (await first<{ s: string }>(db, "SELECT draft_state s FROM tournaments WHERE id = ?", [id]))?.s;
+  const [known, teamRows, draft] = await batch(db, [
+    statement(db, "SELECT count(*) n FROM members WHERE id IN (SELECT value FROM json_each(?))", [
+      JSON.stringify(named),
+    ]),
+    statement(
+      db,
+      "SELECT id, captain_member_id captain FROM tournament_teams WHERE tournament_id = ? ORDER BY coalesce(pick, 1000), id",
+      [id],
+    ),
+    statement(db, "SELECT draft_state s FROM tournaments WHERE id = ?", [id]),
+  ]);
+  if ((known.results[0] as { n: number }).n !== named.length) throw new HttpError(400, "No such member.");
+  const existing = teamRows.results as { id: number; captain: number | null }[];
+  const state = (draft.results[0] as { s: string } | undefined)?.s;
   if (kind === "draft" && (state === "open" || state === "closed")) {
     const same = teams.length === existing.length && teams.every((t, i) => t.captainMemberId === existing[i].captain);
     if (!same) throw new HttpError(409, "The draft has started: the captains and their order are set.");
@@ -401,50 +410,65 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
     existing.find((e) => e.id === t.id) ??
     (kind === "draft" ? existing.find((e) => e.captain !== null && e.captain === t.captainMemberId) : undefined);
   const kept = new Set<number>();
+  // Every change goes in one batch. A team just added is the newest: ids only go up (AUTOINCREMENT), and a batch
+  // runs in order, alone
+  const statements: D1PreparedStatement[] = [];
   for (const [i, t] of teams.entries()) {
     const pick = kind === "draft" ? i + 1 : null;
     const found = match(t);
-    let teamId: number;
+    let teamId: Param;
+    let team: string;
     if (found && !kept.has(found.id)) {
+      kept.add(found.id);
       teamId = found.id;
-      await run(
-        db,
-        `UPDATE tournament_teams SET name = ?, logo = ?, captain_member_id = ?, captain_name = ?, contact = ?, pick = ?
-         WHERE id = ?`,
-        [t.name, t.logo, t.captainMemberId, t.captainName, t.contact, pick, teamId],
+      team = "?";
+      statements.push(
+        statement(
+          db,
+          `UPDATE tournament_teams SET name = ?, logo = ?, captain_member_id = ?, captain_name = ?, contact = ?, pick = ?
+           WHERE id = ?`,
+          [t.name, t.logo, t.captainMemberId, t.captainName, t.contact, pick, teamId],
+        ),
       );
     } else {
-      const res = await run(
-        db,
-        `INSERT INTO tournament_teams (tournament_id, name, logo, captain_member_id, captain_name, contact, pick, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, t.name, t.logo, t.captainMemberId, t.captainName, t.contact, pick, now.toISOString()],
+      teamId = id;
+      team = "(SELECT max(id) FROM tournament_teams WHERE tournament_id = ?)";
+      statements.push(
+        statement(
+          db,
+          `INSERT INTO tournament_teams (tournament_id, name, logo, captain_member_id, captain_name, contact, pick, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, t.name, t.logo, t.captainMemberId, t.captainName, t.contact, pick, now.toISOString()],
+        ),
       );
-      teamId = Number(res.meta.last_row_id);
     }
-    kept.add(teamId);
     // A team that entered: its players are the editor's. A draft's come from its picks.
     if (kind === "teams") {
-      await run(db, "DELETE FROM tournament_team_players WHERE team_id = ?", [teamId]);
+      statements.push(statement(db, `DELETE FROM tournament_team_players WHERE team_id = ${team}`, [teamId]));
       for (const [position, p] of t.players.entries())
-        await run(db, "INSERT INTO tournament_team_players (team_id, member_id, name, position) VALUES (?, ?, ?, ?)", [
-          teamId,
-          p.memberId,
-          p.name,
-          position,
-        ]);
+        statements.push(
+          statement(
+            db,
+            `INSERT INTO tournament_team_players (team_id, member_id, name, position) VALUES (${team}, ?, ?, ?)`,
+            [teamId, p.memberId, p.name, position],
+          ),
+        );
     }
   }
-  for (const e of existing) if (!kept.has(e.id)) await run(db, "DELETE FROM tournament_teams WHERE id = ?", [e.id]);
+  for (const e of existing)
+    if (!kept.has(e.id)) statements.push(statement(db, "DELETE FROM tournament_teams WHERE id = ?", [e.id]));
   // A draft's captains play: they're in, and so never in the pool to pick from
   if (kind === "draft")
     for (const t of teams)
-      await run(
-        db,
-        `INSERT INTO tournament_entries (tournament_id, member_id, signup, signed_up_at) VALUES (?, ?, 'in', ?)
-         ON CONFLICT (tournament_id, member_id) DO UPDATE SET signup = 'in'`,
-        [id, t.captainMemberId, now.toISOString()],
+      statements.push(
+        statement(
+          db,
+          `INSERT INTO tournament_entries (tournament_id, member_id, signup, signed_up_at) VALUES (?, ?, 'in', ?)
+           ON CONFLICT (tournament_id, member_id) DO UPDATE SET signup = 'in'`,
+          [id, t.captainMemberId, now.toISOString()],
+        ),
       );
+  await batch(db, statements);
 }
 
 /** Its series, if it has one: a tournament can stand on its own. */

@@ -3,8 +3,7 @@ import { id, ok, rowOf, type Route } from "../api/api.route";
 import {
   addAdjustment,
   addQuarterCharge,
-  chargeAttendance,
-  chargeQuarters,
+  recharge,
   chargeState,
   memberExists,
   payCharge,
@@ -151,8 +150,7 @@ export const DUES_ROUTES: Route[] = [
     // (Here, not only after it, so what it changed is on the record)
     handle: async (c) => {
       await memberExists(c.env.DB, id(c));
-      await chargeAttendance(c.env.DB, c.today, c.now);
-      await chargeQuarters(c.env.DB, c.today, c.now);
+      await recharge(c.env.DB, c.today, c.now);
       return ok();
     },
   },

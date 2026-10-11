@@ -15,7 +15,7 @@
   import {
     attendanceOf,
     chargeQuarter,
-    markHere,
+    markAttendance,
     recalculateDues,
     recordPayment,
     adjustDues,
@@ -159,9 +159,14 @@
       if (d.email !== saved.email || d.phone !== saved.phone)
         results.push(await saveContact(memberId, d.email, d.phone));
       // Each Friday tapped, through the register's rules (a sign-up becomes a no-show or back, anyone else is
-      // added or taken off)
-      for (const [sessionId, here] of Object.entries(marks))
-        results.push(await markHere(Number(sessionId), memberId, here));
+      // added or taken off), all in one request
+      if (Object.keys(marks).length)
+        results.push(
+          await markAttendance(
+            memberId,
+            Object.entries(marks).map(([sessionId, here]) => ({ sessionId: Number(sessionId), here })),
+          ),
+        );
       // A failed save says so (the shell's note) and reloads the club; the draft stays, to try again
       if (results.includes(null)) return false;
       saved = current();
