@@ -3,6 +3,7 @@ import { id, ok, type Route } from "../api/api.route";
 import { json } from "../api/api.http";
 import { body } from "../api/api.http";
 import { announcementSummary, dismissAnnouncement, postAnnouncement, removeAnnouncement } from "./announcements";
+import { announced } from "../push/push.notices";
 
 export const ANNOUNCEMENTS_ROUTES: Route[] = [
   {
@@ -14,6 +15,7 @@ export const ANNOUNCEMENTS_ROUTES: Route[] = [
     },
     action: "post:Announcement",
     changes: ["announcements"],
+    notify: announced,
     handle: async (c) => json(await postAnnouncement(c.env.DB, await body(c.request), c.memberId, c.today, c.now), 201),
   },
   {

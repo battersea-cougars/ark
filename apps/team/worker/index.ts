@@ -5,6 +5,7 @@ import { chargeDue } from "./dues/dues";
 import { forgetOld } from "./settings/retention";
 import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
+import { storeLinks, type StoreEnv } from "./store/store.links";
 // The live hub (ADR 0072): Cloudflare finds the Durable Object class here
 export { LiveHub } from "./live/live";
 
@@ -40,10 +41,12 @@ function secured(res: Response): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env & { ASSETS: Fetcher }, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env & StoreEnv & { ASSETS: Fetcher }, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/"))
       return secured(await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p)));
+    const links = storeLinks(url.pathname, env);
+    if (links) return secured(links);
     return secured(await env.ASSETS.fetch(request));
   },
   async scheduled(controller: ScheduledController, env: Env) {
@@ -58,7 +61,7 @@ export default {
       await task("retention.forget", () => forgetOld(env.DB, now));
     }
   },
-} satisfies ExportedHandler<Env & { ASSETS: Fetcher }>;
+} satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>;
 
 /** One cron job, run on its own: a failure is logged and the next job still runs. */
 async function task(name: string, job: () => Promise<unknown>) {

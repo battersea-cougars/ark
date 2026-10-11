@@ -24,6 +24,7 @@ import { SCORING_ROUTES } from "../tournaments/scoring.routes";
 import { SETTINGS_ROUTES } from "../settings/settings.routes";
 import { TOURNAMENTS_ROUTES } from "../tournaments/tournaments.routes";
 import { TRAINING_ROUTES } from "../training/training.routes";
+import { notify } from "../push/push";
 import { bumpDataVersion } from "./api.version";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
 
@@ -141,6 +142,9 @@ export async function handleApi(
     // wants a rebuild. Read before too, so deleting one or making it private counts.
     const tournament = writes ? tournamentOfPath(url.pathname) : null;
     const wasOnWebsite = tournament ? await onTheWebsite(env.DB, tournament) : false;
+    // News for members' phones (ADR 0108): what it's compared with, before the change
+    const notice = writes ? hit.r.notify : undefined;
+    const noticeBefore = notice?.before ? await notice.before(ctx) : undefined;
     const res = await hit.r.handle(ctx);
     if (record && res.ok) {
       const reply = (await res
@@ -160,6 +164,19 @@ export async function handleApi(
     if (writes && res.ok && hit.r.changes?.includes("charges")) {
       // Who came, a fee or a quarterly membership changed: so may what people owe (ADR 0007)
       await recharge(env.DB, ctx.today, ctx.now);
+    }
+    if (notice && res.ok) {
+      const reply = (await res
+        .clone()
+        .json()
+        .catch(() => ({}))) as Record<string, unknown>;
+      const told = notice
+        .after(ctx, noticeBefore, reply)
+        .then((notices) => notify(env, notices, now))
+        // News never fails the change it's about
+        .catch((e) => console.error(JSON.stringify({ event: "push.failed", error: String(e) })));
+      if (waitUntil) waitUntil(told);
+      else await told;
     }
     if (writes && res.ok) {
       // A change: every member's bootstrap is out of date (ADR 0053)

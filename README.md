@@ -83,6 +83,14 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`CF_ACCESS_CLIENT_SECRET__PRODUCTION`](#cf_access_client_id__production) | `cougars`     | Cloudflare Access           | Production smoke tests, until launch |
 | [`BACKUP_KEY__PRODUCTION`](#backup_key)                                   | `cougars`     | (random, made once)         | Database backups (production)        |
 | [`BACKUP_KEY`](#backup_key)                                               | `cougars-dev` | (random, made once)         | Database backups (dev)               |
+| [`APP_STORE_CONNECT_KEY`](#store-app)                                     | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)       |
+| [`APP_STORE_CONNECT_KEY_ID`](#store-app)                                  | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)       |
+| [`APP_STORE_CONNECT_ISSUER_ID`](#store-app)                               | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)       |
+| [`APPLE_TEAM_ID`](#store-app)                                             | `cougars-dev` | Apple (`store-setup.mjs`)   | Store app builds, team app (links)   |
+| [`FIREBASE_SERVICE_ACCOUNT`](#store-app)                                  | `cougars-dev` | Google Cloud, Firebase      | Team app (both): notifications       |
+| [`FIREBASE_IOS_CONFIG`](#store-app)                                       | `cougars-dev` | Firebase                    | Store app builds (`store.yml`)       |
+| [`APP_REVIEW_EMAIL__PRODUCTION`](#store-app)                              | `cougars`     | (us)                        | Team app (production): App Review    |
+| [`APP_REVIEW_CODE__PRODUCTION`](#store-app)                               | `cougars`     | (random, made once)         | Team app (production): App Review    |
 
 ### Bitwarden tokens
 
@@ -349,6 +357,38 @@ database, members' names and emails included, kept as an artifact on this public
 - **Expires:** no.
 - **Rotate:** only if it leaks. A new key can't open the old backups: keep the old one (as `BACKUP_KEY_OLD…`) until
   they've aged out, 90 days.
+
+### Store app
+
+The team app in the app stores ([ADR 0108](docs/adr/0108-store-apps.md)): built and sent to TestFlight by
+`store.yml`, notifications sent by the team Worker through Firebase Cloud Messaging, and an account for Apple's App
+Review. One copy each (production reads `cougars-dev` too) but the App Review pair, which is production's alone.
+
+- **`APP_STORE_CONNECT_KEY`, `_KEY_ID`, `_ISSUER_ID`:** an App Store Connect API key, so CI signs and uploads with no
+  certificates to keep. App Store Connect → Users and Access → Integrations → Team Keys → +, name
+  `APP_STORE_CONNECT_KEY`, access **App Manager**. Download the `.p8` (once only) and store it with
+  `node scripts/secret-set.mjs APP_STORE_CONNECT_KEY < AuthKey_XXXX.p8`, then delete the file; the key's ID and the
+  page's Issuer ID go in the other two. **A leaked key could** upload builds and change the app's store listing, not
+  release one past Apple's review. Rotate: make a new key, store it, revoke the old one.
+- **`APPLE_TEAM_ID`:** the Apple Developer team's id. Not secret (every app link carries it), kept here so there's
+  one copy: `scripts/store-setup.mjs` stores it, `store.yml` signs with it, and the team Worker serves it to phones
+  (`/.well-known/apple-app-site-association`).
+- **`FIREBASE_SERVICE_ACCOUNT`:** the JSON key of a Google service account in the Firebase project (the cougars.dev
+  GCP project), role **Firebase Cloud Messaging API Admin** only, named `firebase-service-account` (Google allows no
+  capitals). The Worker signs an hour's token with it to send notifications. **A leaked key could** send our members
+  notifications, nothing else. Rotate: add a new key to the account, store it, redeploy `team`, delete the old key.
+- **`FIREBASE_IOS_CONFIG`:** the iOS app's `GoogleService-Info.plist` from Firebase (Project settings → Your apps).
+  Not much of a secret (its API key is limited to this app), but it stays out of the public repo: `store.yml` writes
+  it into the Xcode project for the build.
+- **`APP_REVIEW_EMAIL__PRODUCTION`, `APP_REVIEW_CODE__PRODUCTION`:** Apple's reviewers sign in to the app, and can't
+  read our email: this one member's email takes this fixed six-digit code instead of an emailed one (ADR 0023, 0108),
+  with every other sign-in limit as ever. The member is a plain Member in production's roster. Made once:
+  `node -e 'process.stdout.write(String(require("crypto").randomInt(1e5, 1e6)))' | node scripts/secret-set.mjs APP_REVIEW_CODE__PRODUCTION`;
+  both go to Apple in App Store Connect's App Review Information. Change the code after each review if you like.
+- **Gets there by:** CI pull from Secrets Manager; `deploy.yml` puts the Worker's (`FIREBASE_SERVICE_ACCOUNT`,
+  `APPLE_TEAM_ID`, the App Review pair) on the team Worker as secrets.
+- **Android, later:** `PLAY_SERVICE_ACCOUNT` (Play Console upload), `PLAY_UPLOAD_KEY` and `FIREBASE_ANDROID_CONFIG`
+  join these (ADR 0108).
 
 ### Settings that aren't secret
 

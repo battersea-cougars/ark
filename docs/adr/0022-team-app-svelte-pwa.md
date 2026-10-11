@@ -72,3 +72,4 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   Vite restarts itself, cached transforms are dropped, after the same stale-stamp 504s from a reload during the restart.
 - 2026-10-10: On phones the More tab became You (your avatar, opening your profile with the lists under it), replacing
   the account badge on Home; the top bar slimmed and the tab bar went opaque, as Android barely blurred it.
+- 2026-10-11: The store app wraps this app as planned, loading the live app rather than a bundled copy ([0108](0108-store-apps.md)).

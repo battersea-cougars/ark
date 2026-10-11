@@ -1,4 +1,5 @@
 // Training (ADR 0030, ADR 0076): series and their sessions, the register, and the night's teams.
+import { movedUp, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { setSeriesFees } from "../dues/dues";
@@ -74,6 +75,7 @@ export const TRAINING_ROUTES: Route[] = [
     },
     action: "manage:Training",
     changes: ["sessions", "members", "charges", "credits", "payments"],
+    notify: sessionOff,
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.cancelled !== "boolean") throw new HttpError(400, "cancelled should be true or false.");
@@ -93,6 +95,7 @@ export const TRAINING_ROUTES: Route[] = [
     },
     action: "publish:Teams",
     changes: ["sessions"],
+    notify: teamsOut,
     handle: async (c) => (await publishTeams(c.env.DB, id(c), await body(c.request), c.memberId, c.now), ok()),
   },
   {
@@ -133,6 +136,8 @@ export const TRAINING_ROUTES: Route[] = [
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007)
     changes: ["sessions", "members", "charges", "credits", "payments"],
+    // A walk-in taken off frees a place
+    notify: movedUp("session"),
     // The register on the night: here or not
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);

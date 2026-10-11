@@ -22,6 +22,7 @@
   import Sheet from "../lib/Sheet.svelte";
   import DateField from "../lib/DateField.svelte";
   import { dismissAnnouncement, postAnnouncement, removeAnnouncement } from "../app/backend.svelte";
+  import { askToNotify, mayAskToNotify } from "../app/native";
 
   // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
   $effect(() => checkForUpdates(["sessions", "tournaments"], { steady: true }));
@@ -40,6 +41,32 @@
       announcing = false;
       note = { title: "", body: "", link: "", endsOn: inAWeek() };
     }
+  }
+
+  // In the store app (ADR 0108): say what notifications are for before the phone asks, once; "Not now" is remembered
+  const NOT_NOW = "cougars.notify.not-now";
+  let askNotify = $state(false);
+  mayAskToNotify()
+    .then((may) => (askNotify = may && !saidNotNow()))
+    .catch(() => {});
+  function saidNotNow() {
+    try {
+      return localStorage.getItem(NOT_NOW) === "1";
+    } catch {
+      return false;
+    }
+  }
+  async function turnOnNotifications() {
+    await askToNotify().catch(() => false);
+    askNotify = false;
+  }
+  function notNow() {
+    try {
+      localStorage.setItem(NOT_NOW, "1");
+    } catch {
+      // A private window: it asks again next time
+    }
+    askNotify = false;
   }
 
   const who = $derived(me());
@@ -370,6 +397,23 @@
     </section>
   {/if}
 
+  <!-- The store app's one ask (ADR 0108): what notifications are for, then the phone's own question -->
+  {#if askNotify}
+    <section class="notes" aria-label="Notifications">
+      <article class="note rise">
+        <Icon name="bell" size={18} />
+        <div class="grow">
+          <h2 class="note-title">Hear it first</h2>
+          <p class="note-body">Teams out, a place coming up, a night off: a notification, as it happens.</p>
+          <div class="note-links">
+            <button class="btn primary sm" onclick={turnOnNotifications}>Turn on notifications</button>
+            <button class="link" onclick={notNow}>Not now</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  {/if}
+
   {#if series && session && booking}
     <section>
       <h2 class="section-title">{answered ? `This ${day}` : `Are you in this ${day}?`}</h2>
@@ -558,6 +602,7 @@
   }
   .note-links {
     display: flex;
+    align-items: center;
     gap: var(--s-4);
     margin-top: var(--s-2);
     font-size: var(--text-sm);

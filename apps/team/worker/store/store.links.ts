@@ -1,0 +1,22 @@
+// The store app's links (ADR 0108): a phone asks the team app's own address which app it trusts with its links, so
+// a link to the team app (an email's) opens the app. Served by the Worker, not a file, so the Apple team's id is a
+// setting (APPLE_TEAM_ID, wrangler.jsonc vars) and nothing's there until the app is set up. Android's assetlinks.json
+// joins it when the Play Store app comes.
+
+export const APP_ID = "com.batterseacougars.team";
+
+export interface StoreEnv {
+  /** The Apple Developer team's id (ten characters, not secret): store-setup.mjs prints it. */
+  APPLE_TEAM_ID?: string;
+}
+
+/** The answer to a phone's question, or null for any other path. */
+export function storeLinks(pathname: string, env: StoreEnv): Response | null {
+  if (pathname !== "/.well-known/apple-app-site-association") return null;
+  if (!env.APPLE_TEAM_ID) return new Response("Not found.", { status: 404 });
+  const app = `${env.APPLE_TEAM_ID}.${APP_ID}`;
+  return Response.json({
+    applinks: { details: [{ appIDs: [app], components: [{ "/": "/*" }] }] },
+    webcredentials: { apps: [app] },
+  });
+}

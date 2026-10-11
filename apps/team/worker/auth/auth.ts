@@ -17,6 +17,7 @@ import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
+import { registerDevice } from "../push/push";
 
 export interface AuthEnv {
   DB: D1Database;
@@ -27,6 +28,12 @@ export interface AuthEnv {
   GMAIL_CLIENT_SECRET?: string;
   GMAIL_REFRESH_TOKEN?: string;
   MAIL_SAFE_TO?: string;
+  /**
+   * App Review's account in the store app (ADR 0108), production only: a reviewer can't read our email, so this one
+   * address takes this fixed six-digit code instead of an emailed one. The nonce, tries and limits still apply.
+   */
+  APP_REVIEW_EMAIL?: string;
+  APP_REVIEW_CODE?: string;
 }
 
 const CHALLENGE_MINUTES = 15;
@@ -221,6 +228,7 @@ export async function handleAuth(
   if (pathname === "/api/auth/start" && m === "POST") return start(request, env, now, waitUntil);
   if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now);
   if (pathname === "/api/auth/sign-out" && m === "POST") return signOut(request, env, now);
+  if (pathname === "/api/auth/device" && m === "PUT") return device(request, env, now);
   if (pathname === "/api/auth/request" && m === "POST") return requestAccess(request, env, now);
   // Your own machine only: anywhere else it isn't there at all (null: the API's 404)
   if (pathname === "/api/auth/dev" && m === "POST" && localHere(env, request)) return devSignIn(request, env, now);
@@ -294,7 +302,11 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
     return res();
   }
 
-  const theCode = code();
+  const review =
+    !!env.APP_REVIEW_EMAIL &&
+    /^\d{6}$/.test(env.APP_REVIEW_CODE ?? "") &&
+    address === env.APP_REVIEW_EMAIL.trim().toLowerCase();
+  const theCode = review ? env.APP_REVIEW_CODE! : code();
   await run(
     env.DB,
     `INSERT INTO login_challenges (member_id, code_hash, nonce_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -302,6 +314,8 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   );
   // On your own machine nothing is emailed, even with Gmail set up: the code comes back to the screen
   if (local) return res(theCode);
+  // App Review has its code already: nothing to email
+  if (review) return res();
   const mail = { to: [address], ...signInEmail(theCode, CHALLENGE_MINUTES) };
   const setup = await mailSetup(env);
   // Outside production, a code that goes to its member also goes to the dev mailbox, just in case (ADR 0027): the same
@@ -407,6 +421,24 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
     : await firstAdmin(env.DB);
   if (memberId == null) throw new HttpError(404, "No active member has that email.");
   return withCookies(json({ ok: true, memberId }), await startSession(request, env, now, memberId, "dev"));
+}
+
+/**
+ * The store app's phone, signed in as this session, wants notifications (ADR 0108): `{ token, platform }`. Here, beside
+ * signing in and out, because a phone belongs to a sign-in: signing out stops its notifications.
+ */
+async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+  const value = cookie(request, cookieName(request, "session"));
+  const row =
+    value &&
+    (await first<{ id: number }>(
+      env.DB,
+      "SELECT id FROM auth_sessions WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?",
+      [await sha256(value), now.toISOString()],
+    ));
+  if (!row) return json({ error: "Sign in first." }, 401);
+  await registerDevice(env.DB, row.id, await body(request), now.toISOString());
+  return json({ ok: true });
 }
 
 async function signOut(request: Request, env: AuthEnv, now: Date): Promise<Response> {

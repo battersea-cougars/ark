@@ -5,6 +5,8 @@
 //   favicon.png            96 px (Google wants a multiple of 48)
 //   apple-touch-icon.png   180 px, square (iOS rounds the corners itself)
 //   icon-192.png, icon-512.png, icon-maskable-512.png   for manifest.webmanifest (Android)
+//   the store app's (ADR 0108): its 1024 px App Store icon (square, no transparency: Apple rounds it) and a plain carbon
+//   launch screen, in apps/team/ios
 import { writeFileSync } from "node:fs";
 import sharp from "sharp";
 
@@ -66,3 +68,18 @@ const files = {
 };
 for (const dir of apps) for (const [name, data] of Object.entries(files)) writeFileSync(new URL(name, dir), data);
 console.log(`Wrote ${Object.keys(files).join(", ")} to apps/web/public and apps/team/public`);
+
+const ios = new URL("../apps/team/ios/App/App/Assets.xcassets/", import.meta.url);
+writeFileSync(
+  new URL("AppIcon.appiconset/AppIcon-512@2x.png", ios),
+  await sharp(await icon(1024, { radius: 0 }))
+    .removeAlpha()
+    .png()
+    .toBuffer(),
+);
+const carbon = await sharp({ create: { width: 2732, height: 2732, channels: 3, background: "#0e0d0b" } })
+  .png()
+  .toBuffer();
+for (const name of ["splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"])
+  writeFileSync(new URL(`Splash.imageset/${name}`, ios), carbon);
+console.log("Wrote the store app's icon and launch screen to apps/team/ios");

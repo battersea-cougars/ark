@@ -27,3 +27,6 @@ airtable.md
 # Database backups (scripts/db-backup.mjs): sealed, but personal data all the same
 backups/
 *.cgbk
+
+# The native shell's server address, written by native/sync.mjs (ADR 0108)
+apps/team/native/server.js

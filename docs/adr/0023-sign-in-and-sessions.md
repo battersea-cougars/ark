@@ -118,3 +118,4 @@ worker.
   headless sessions kept running into the code caps (five an hour, ten a day) and screenshots needed a member's code.
 - 2026-10-10: The code limits count per browser (its nonce), with a ceiling of 30 a day per member, after a review
   showed 20 wrong guesses from anywhere locked a member out for a day (#69).
+- 2026-10-11: App Review's account signs in with a fixed code set by secrets in production only, and the store app's phone registers for notifications at `/api/auth/device`, belonging to its sign-in ([0108](0108-store-apps.md)).

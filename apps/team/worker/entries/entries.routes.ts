@@ -3,6 +3,7 @@ import { id, memberIdIn, ok, rowsOf, type Route } from "../api/api.route";
 import { type Slice } from "../api/api.slices";
 import { TABLES, answer, setPlayer, type EntryKind } from "./entries";
 import { HttpError, body } from "../api/api.http";
+import { movedUp } from "../push/push.notices";
 
 // The same routes for each kind of event
 const KINDS: [string, EntryKind, Slice][] = [
@@ -17,6 +18,8 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     audit: { none: "a member's own sign-up: the sign-ups are their own record (signed_up_at)" },
     action: "signup:Event",
     changes: slice === "clubEvents" ? [slice] : [slice, "charges", "credits", "payments"],
+    // Out of a full event: the first waiting is in, and hears it
+    notify: movedUp(kind),
     // You, in or out
     handle: async (c) => {
       const b = await body(c.request);
@@ -34,6 +37,7 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
         `SELECT member_id memberId, signup FROM ${TABLES[kind].table} WHERE ${TABLES[kind].key} = ? ORDER BY member_id`,
       ),
     },
+    notify: movedUp(kind),
     action: "update:Event",
     // A past session's line-up is what a player's "played" counts
     changes:

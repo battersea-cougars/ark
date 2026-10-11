@@ -1,0 +1,87 @@
+name: Store app
+
+# The team app in the app stores (docs/adr/0108-store-apps.md): a native shell that loads the live team app, built on
+# GitHub's macOS runners (free: this repo is public) and uploaded to TestFlight. The shell rarely changes (the app
+# inside it updates with every deploy of `team`), so it builds only when the shell does, or when run by hand.
+# release      -> production's shell (team.batterseacougars.com), when the shell changes
+# manual run   -> the environment picked: dev's shell (team.cougars-dev.workers.dev) for testers, or production's
+# An `android` job (ubuntu, an AAB to the Play Store's internal track) joins this one when the Play Store app comes;
+# the ADR lists what it needs.
+on:
+  push:
+    branches: [release]
+    paths:
+      - apps/team/ios/**
+      - apps/team/native/**
+      - apps/team/capacitor.config.ts
+      - apps/team/package.json
+      - .github/workflows/store.yml
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which server the app opens
+        type: choice
+        options: [dev, production]
+        default: dev
+
+concurrency:
+  group: store-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    environment:
+      name: ${{ (github.ref == 'refs/heads/release' && inputs.environment != 'dev') && 'production' || 'preview' }}
+      deployment: false
+    env:
+      SITE_ENV: ${{ (github.ref == 'refs/heads/release' && inputs.environment != 'dev') && 'production' || 'dev' }}
+      BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/secrets
+        with:
+          environment: ${{ env.SITE_ENV }}
+          token: ${{ secrets.BWS_ACCESS_TOKEN__PRODUCTION || secrets.BWS_ACCESS_TOKEN__DEV }}
+
+      - name: Point the shell at ${{ env.SITE_ENV }}
+        env:
+          CAP_SERVER_URL: ${{ env.SITE_ENV == 'production' && 'https://team.batterseacougars.com' || 'https://team.cougars-dev.workers.dev' }}
+        run: |
+          printf '%s' "$FIREBASE_IOS_CONFIG" > apps/team/ios/App/App/GoogleService-Info.plist
+          cd apps/team && npm run native:sync -- ios
+
+      # Signing is automatic, with the App Store Connect API key: no certificates or profiles to keep anywhere
+      - name: Archive
+        run: |
+          key="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$APP_STORE_CONNECT_KEY" > "$key"
+          xcodebuild -project apps/team/ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates -authenticationKeyPath "$key" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive
+
+      - name: Upload to TestFlight
+        run: |
+          key="$RUNNER_TEMP/AuthKey.p8"
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates -authenticationKeyPath "$key" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+          rm -f "$key"

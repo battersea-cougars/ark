@@ -13,6 +13,9 @@ try {
   mount(App, { target });
   running.app = true;
   unsplash();
+  // In the store app (ADR 0108): links and notifications open their page; nothing in a browser
+  const [{ startInApp }, { navigate }] = await Promise.all([import("./app/native"), import("./app/router.svelte")]);
+  void startInApp((path) => navigate(path)).catch(() => {});
 } catch (e) {
   if (e instanceof ApiError && e.status === 401) {
     const [{ mount }, { default: SignIn }] = await Promise.all([import("svelte"), import("./pages/SignIn.svelte")]);

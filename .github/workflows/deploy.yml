@@ -326,7 +326,8 @@ jobs:
       - name: Worker secrets
         working-directory: apps/team
         run: |
-          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY; do
+          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY \
+            FIREBASE_SERVICE_ACCOUNT APPLE_TEAM_ID APP_REVIEW_EMAIL APP_REVIEW_CODE; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/cougars_team/wrangler.json
             else

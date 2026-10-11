@@ -6,6 +6,7 @@ import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
 import { parseRoster, rosterSql } from "../../../scripts/lib/roster.mjs";
 import { handleApi, type Env } from "./api/api";
 import { LiveHub } from "./live/live";
+import { pushOutbox, type Sent } from "./push/push";
 
 /** A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. */
 const liveNamespace = (hub: LiveHub) =>
@@ -35,6 +36,9 @@ export function testWorld(roster: object[]) {
   // The club's email, faked: each one the app would have sent, whole, in order (packages/shared/email.ts outbox)
   const mails: Mail[] = [];
   outbox.capture = (m) => void mails.push(m);
+  // Notifications on phones (ADR 0108), faked the same way: each one Firebase would have delivered, one per phone
+  const pushes: Sent[] = [];
+  pushOutbox.capture = (p) => void pushes.push(p);
 
   interface Options {
     now?: Date;
@@ -98,5 +102,5 @@ export function testWorld(roster: object[]) {
     return b;
   }
 
-  return { db, env, live, browser, ask, signedIn, mails };
+  return { db, env, live, browser, ask, signedIn, mails, pushes };
 }

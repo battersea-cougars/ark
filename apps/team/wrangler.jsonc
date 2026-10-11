@@ -6,7 +6,7 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  "assets": { "not_found_handling": "single-page-application", "run_worker_first": ["/api/*"] },
+  "assets": { "not_found_handling": "single-page-application", "run_worker_first": ["/api/*", "/.well-known/*"] },
   "observability": { "enabled": true },
   // The website's database: one club, one D1 (ADR 0022). Same entry as apps/web/wrangler.jsonc, so local dev
   // shares its state.

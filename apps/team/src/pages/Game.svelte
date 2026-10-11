@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { buzz, keepAwake } from "../app/native";
   // One game, full screen (ADR 0061). For everyone, the live scoreboard: the clock, the score, each goal as it went
   // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
   // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
@@ -86,7 +87,7 @@
   $effect(() => {
     if (timeUp && running && keeper && !buzzed) {
       buzzed = true;
-      navigator.vibrate?.([400, 150, 400]);
+      void buzz([400, 150, 400]);
     }
   });
 
@@ -100,15 +101,14 @@
   });
 
   // The screen stays on while the scorekeeper's clock runs
-  let wakeLock: WakeLockSentinel | null = null;
+  let sleep: (() => void) | null = null;
   $effect(() => {
-    if (keeper && running && !wakeLock)
-      navigator.wakeLock
-        ?.request("screen")
-        .then((w) => (wakeLock = w))
+    if (keeper && running && !sleep)
+      keepAwake()
+        .then((s) => (sleep = s))
         .catch(() => {});
   });
-  onDestroy(() => wakeLock?.release());
+  onDestroy(() => sleep?.());
 
   let busy = $state(false);
   async function act(what: () => Promise<unknown>) {

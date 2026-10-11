@@ -7,8 +7,9 @@ import { type AuthEnv } from "../auth/auth";
 import { HttpError, body, json } from "./api.http";
 import { all, first } from "@cougars/shared/d1";
 import { type WebsiteEnv } from "../website/website";
+import type { Notice, PushEnv } from "../push/push";
 
-export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV"> {
+export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<PushEnv, "DB"> {
   /** "1", and only with TEAM_ENV "local" (tests, `TEAM_AUTO_ADMIN=1 npm run dev`): no session means the first admin. */
   TEAM_AUTO_ADMIN?: string;
   /** This deploy's version (wrangler.jsonc version_metadata): part of the bootstrap's ETag. */
@@ -47,7 +48,16 @@ export interface Route {
    * `event` to the audit log, with who did it, both sides, and `about`.
    */
   audit?: Audit | { none: string };
+  /** News for members' phones (ADR 0108): sent once the change is made, after the reply. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  notify?: Notify<any>;
   handle: (c: Ctx) => Promise<Response>;
+}
+
+/** What a change tells members (push/push.notices.ts): `before` is read before the handler, `after` once it's done. */
+export interface Notify<T = undefined> {
+  before?: (c: Ctx) => Promise<T>;
+  after: (c: Ctx, before: T, reply: Record<string, unknown>) => Promise<Notice[]>;
 }
 
 /** What a change puts on the record (ADR 0095). */

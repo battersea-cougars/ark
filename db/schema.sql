@@ -408,6 +408,18 @@ CREATE TABLE auth_sessions (
 
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);
 
+-- A phone with the store app (ADR 0108): its Firebase token, and the sign-in it belongs to. Signing out (or the
+-- session running out) stops its notifications; a session deleted takes its phones with it.
+CREATE TABLE push_devices (
+  token TEXT PRIMARY KEY,
+  session_id INTEGER NOT NULL REFERENCES auth_sessions (id) ON DELETE CASCADE,
+  -- "ios" or "android" (web push, #24, can join later)
+  platform TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX push_devices_session ON push_devices (session_id);
+
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL,

@@ -12,16 +12,17 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 ## Process and platform
 
-| #                                        | Decision                                                                                                      |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [0001](0001-record-decisions.md)         | Record decisions here, one record per topic                                                                   |
-| [0002](0002-secrets-in-bitwarden.md)     | Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only                |
-| [0003](0003-free-tiers-only.md)          | Free tiers only                                                                                               |
-| [0004](0004-astro-workers-sanity-d1.md)  | Astro on Cloudflare Workers, content in Sanity rebuilt daily, data in D1                                      |
-| [0006](0006-one-repo-two-projects.md)    | One repo: the apps in apps/, shared code in packages/; the team generator runs in the browser                 |
-| [0010](0010-environments-and-deploys.md) | Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production |
-| [0022](0022-team-app-svelte-pwa.md)      | The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front    |
-| [0031](0031-use-case-tests.md)           | Tests describe what people do, against a fake world                                                           |
+| #                                        | Decision                                                                                                          |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| [0001](0001-record-decisions.md)         | Record decisions here, one record per topic                                                                       |
+| [0002](0002-secrets-in-bitwarden.md)     | Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only                    |
+| [0003](0003-free-tiers-only.md)          | Free tiers only                                                                                                   |
+| [0004](0004-astro-workers-sanity-d1.md)  | Astro on Cloudflare Workers, content in Sanity rebuilt daily, data in D1                                          |
+| [0006](0006-one-repo-two-projects.md)    | One repo: the apps in apps/, shared code in packages/; the team generator runs in the browser                     |
+| [0010](0010-environments-and-deploys.md) | Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production     |
+| [0022](0022-team-app-svelte-pwa.md)      | The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front        |
+| [0108](0108-store-apps.md)               | The team app in the app stores: a native shell loading the live app, with notifications; iOS first, Android-ready |
+| [0031](0031-use-case-tests.md)           | Tests describe what people do, against a fake world                                                               |
 
 ## Data, privacy and staying free
 

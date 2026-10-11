@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Cougars Fresh Meat</title>
+    <!-- Shown by the store app when it can't reach the club (ADR 0108): no signal, or the server's down -->
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: #0e0d0b;
+        color: #efe8e1;
+        font:
+          17px/1.4 -apple-system,
+          system-ui,
+          sans-serif;
+        text-align: center;
+      }
+      main {
+        padding: 24px;
+        max-width: 22rem;
+      }
+      h1 {
+        font-size: 1.6rem;
+        font-style: italic;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 24px;
+        color: #a6a09a;
+      }
+      button {
+        font: inherit;
+        font-weight: 700;
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 28px;
+        background: #ffd60a;
+        color: #0e0d0b;
+      }
+    </style>
+    <script src="server.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Can't reach the club</h1>
+      <p>No signal, or we're having a moment. Check you're online and try again.</p>
+      <button type="button" onclick="location.replace(window.SERVER_URL)">Try again</button>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Notifications (ADR 0108): Apple's push service, through Firebase -->
+	<key>aps-environment</key>
+	<string>production</string>
+	<!-- Links to the team app (an email's "Open the app") open the app, not Safari -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:team.batterseacougars.com</string>
+		<string>applinks:team.cougars-dev.workers.dev</string>
+	</array>
+</dict>
+</plist>

@@ -32,6 +32,8 @@ keeps no rows; D1 stays the only source of truth ([ADR 0072](0072-live-updates.m
 | YouTube Data API          | 10,000 units a day per Google Cloud project                   | Video reads; an upload costs about 1,600 units                                     |
 | Gmail API                 | Free, about 500 emails a day                                  | Sign-in codes, enquiries, dues reminders                                           |
 | Web Push                  | Free (browser push services)                                  | Team-app notifications ([#24](https://github.com/battersea-cougars/ark/issues/24)) |
+| Firebase Cloud Messaging  | Free, unlimited                                               | The store app's notifications (ADR 0108)                                           |
+| GitHub Actions macOS      | Free on a public repo                                         | The store app's builds, when its shell changes (ADR 0108)                          |
 
 Sanity Free, checked on [sanity.io/pricing](https://www.sanity.io/pricing) on 2026-10-05: 20 seats, 2 datasets
 (public only), 10k documents, 1M API CDN requests and 250k API requests a month, 100 GB of assets, 100 GB of
@@ -40,8 +42,9 @@ bandwidth a month. Photo pages read the API CDN live ([ADR 0016](0016-photos-and
 YouTube uploads from an unverified Google Cloud project are locked to private until the project passes Google's
 API compliance audit (free). The team app applied for it at the start.
 
-Publishing the team app to the app stores would add Apple's developer fee (about $99 a year) and Google's ($25
-once); that needs the club's agreement first ([#26](https://github.com/battersea-cougars/ark/issues/26)).
+Publishing the team app to the app stores adds Apple's developer fee (about $99 a year, on an existing account) and,
+when the Android app comes, Google's ($25 once) ([#26](https://github.com/battersea-cougars/ark/issues/26),
+[0108](0108-store-apps.md)).
 
 ## Consequences
 
@@ -55,3 +58,5 @@ Usage page and count in its 80% check ([ADR 0059](0059-usage-page-and-check.md))
 - 2026-10-09: A Durable Object that stores nothing is fine, since SQLite-backed classes became free; the rule now
   reads "Durable Objects that store rows" (0096).
 - 2026-10-09: The free-tier budget moved here from `docs/roadmap.md`, which was deleted.
+- 2026-10-11: The App Store's yearly fee accepted, on an existing Apple Developer account; Firebase Cloud Messaging
+  and GitHub's macOS runners added, both free (0108).
