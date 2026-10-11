@@ -545,11 +545,10 @@
       in:fly={{ y: 64, duration: flyMs, easing: easeOut, opacity: 0 }}
       out:fly={{ y: 64, duration: fadeMs, opacity: 0 }}
     >
-      <span>A new version's out</span>
-      <button class="btn sm primary" onclick={() => location.reload()}>Reload</button>
-      <button class="btn sm ghost icon" aria-label="Not now" onclick={() => (update.dismissed = true)}
-        ><Icon name="x" size={16} /></button
+      <button class="btn primary update-go" onclick={() => location.reload()}
+        ><Icon name="refresh" size={18} /> Get the new version</button
       >
+      <button class="btn ghost update-later" onclick={() => (update.dismissed = true)}>Later</button>
     </div>
   {/if}
 
@@ -729,13 +728,22 @@
     font-weight: 500;
     translate: -50% 0;
   }
-  /* Room for its buttons: a slimmer pill edge on the right */
+  /* One big button to take the new version and a quiet "Later": the pill is just their tray, never wrapping words */
   .update-note {
-    gap: var(--s-3);
-    padding: var(--s-1) var(--s-1) var(--s-1) var(--s-4);
+    gap: var(--s-1);
+    padding: var(--s-1);
   }
   .update-note .btn {
     border-radius: 999px;
+    white-space: nowrap;
+  }
+  .update-go {
+    gap: var(--s-2);
+    padding: 0 var(--s-5);
+  }
+  .update-later {
+    padding: 0 var(--s-4);
+    color: var(--fg-muted);
   }
   .note-icon {
     display: grid;

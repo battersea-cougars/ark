@@ -22,8 +22,8 @@ could say which code a member was on either.
 - **Shown where people look**: the foot of Profile, "Cougars Fresh Meat 0.1.0 · 17c51af".
 - **Every bootstrap says which build answered** (`x-app-build`, on the 200 and the 304). The app already asks often:
   on opening, on coming back to it, on pull to refresh, and on live pages' beat. No new request.
-- **A different build: offered, never forced.** A note where "Saved" shows, "A new version's out", with Reload and Not
-  now. A forced reload could land mid-form or mid-game on the scoresheet. `dev` never offers.
+- **A different build: offered, never forced.** Where "Saved" shows, one big button, "Get the new version", and a quiet
+  "Later" beside it: no sentence to wrap on a phone. A forced reload could land mid-form or mid-game on the scoresheet. `dev` never offers.
 
 ## Consequences
 
@@ -37,3 +37,5 @@ could say which code a member was on either.
 ## History
 
 - 2026-10-10: Version, build id, and the reload offered when the build that answers isn't the app's own.
+- 2026-10-11: The offer is one big "Get the new version" button and "Later"; the sentence beside two small buttons
+  wrapped to three lines on a phone.
