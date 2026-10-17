@@ -159,7 +159,12 @@ const slot = s.training[0];
     outline: none;
     transition: border-color 0.3s var(--ease-smooth);
   }
+  /* Several lines: a soft filled box, so the text sits inside it rather than far above its line. Fixed height until
+     dragged, so typing never moves what's below. */
   textarea {
+    display: block;
+    padding: 0.8rem 1rem;
+    background: color-mix(in srgb, var(--text) 5%, transparent);
     resize: vertical;
   }
   input:focus,
