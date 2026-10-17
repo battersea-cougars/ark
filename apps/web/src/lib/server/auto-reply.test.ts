@@ -46,5 +46,18 @@ describe("autoReplyMail", () => {
   it("never repeats what the sender wrote, beyond the first name", () => {
     const mail = autoReplyMail({ ...enquiry, message: "Visit spam.example" }, settings, "club@example.com");
     expect(mail.text).not.toContain("spam.example");
+    expect(mail.html).not.toContain("spam.example");
+  });
+
+  it("comes in the club's frame: the session, a map button, the kit, and no images or scripts", () => {
+    const mail = autoReplyMail(enquiry, settings, "club@example.com");
+    expect(mail.html).toContain("Cougars");
+    expect(mail.html).toContain("Hi Jo,");
+    expect(mail.html).toContain("Fridays");
+    expect(mail.html).toContain("19:30–21:30");
+    expect(mail.html).toContain("Battersea Sports Centre");
+    expect(mail.html).toContain(`href="${FALLBACK_FRIDAYS.venue.mapUrl}"`);
+    expect(mail.html).toContain("Helmet, gloves and shin pads are non-negotiable.");
+    expect(mail.html).not.toMatch(/<img|<script/);
   });
 });

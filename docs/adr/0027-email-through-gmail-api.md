@@ -86,3 +86,4 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - 2026-10-09: Outside production, a sign-in code sent to its member is copied to the safe inbox.
 - 2026-10-17: One sending account for every environment, as it had been in practice: production sends from
   cougars.dev as the club's address (a Gmail alias), so a reset of the club account's password can't stop sign-in.
+- 2026-10-17: The auto-reply to someone who asks to try a session comes in the club's frame too, with a map button.
