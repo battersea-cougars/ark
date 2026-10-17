@@ -143,11 +143,21 @@ const { founded } = await getClub();
       0 0 10px var(--red-soft);
     font-variant-numeric: tabular-nums;
   }
+  /* Capitals only, so centre the caps, not the line: a line box keeps room for descenders, which sat the word above
+     the middle of the clock beside it */
   .clock-label {
     font-size: 0.68rem;
     font-weight: 800;
+    line-height: 1;
+    padding-top: 0.14em;
     letter-spacing: 0.16em;
     text-transform: uppercase;
+  }
+  @supports (text-box: trim-both cap alphabetic) {
+    .clock-label {
+      padding-top: 0;
+      text-box: trim-both cap alphabetic;
+    }
   }
   .nav {
     display: flex;

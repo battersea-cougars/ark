@@ -1,7 +1,9 @@
 ---
 // The home page is a Friday night, top to bottom: kit up, face-off, final whistle,
 // and (four times a year) the Kumite, underground. Then the week's news. Each section's
-// data-time / data-title drives the header clock (scripts/motion.ts).
+// data-time / data-title drives the header clock (scripts/motion.ts): the display shows a state, never a name (the
+// time on the Friday-night sections, a tape mode after them, in characters the VT323 font has), and the label is
+// the section's name, so the two never say the same thing.
 import { Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import logo from "../assets/cougars.png";
@@ -239,7 +241,7 @@ const strip: [string, string][] = [
   )}
 
   <!-- The week: what's on -->
-  <section class="section wrap" id="events" data-time="Diary" data-title="What's on">
+  <section class="section wrap" id="events" data-time="FF »" data-title="What's on">
     <div class="section-head" data-reveal>
       <div>
         <p class="kicker">Coming up</p>
@@ -256,7 +258,7 @@ const strip: [string, string][] = [
   </section>
 
   <!-- Videos: mostly Friday night sessions -->
-  <section class="section band" id="videos" data-time="Replay" data-title="Videos">
+  <section class="section band" id="videos" data-time="PLAY >" data-title="Videos">
     <div class="wrap">
       <div class="section-head" data-reveal>
         <div>
@@ -275,7 +277,7 @@ const strip: [string, string][] = [
   </section>
 
   <!-- Photo gallery -->
-  <section class="section wrap" id="photos" data-time="Snaps" data-title="Photos">
+  <section class="section wrap" id="photos" data-time="PAUSE" data-title="Photos">
     <div class="section-head" data-reveal>
       <div>
         <p class="kicker">Photos</p>
