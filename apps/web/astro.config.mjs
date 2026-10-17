@@ -52,6 +52,8 @@ export default defineConfig({
       // Worker secret; unset, nobody counts as verified (no auto-replies).
       TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", default: "1x00000000000000000000AA" }),
       TURNSTILE_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+      // The deploy's smoke test of the form (lib/server/smoke.ts): unset, there's no smoke path at all
+      SMOKE_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       PUBLIC_BUILD_VERSION: envField.string({ context: "client", access: "public", default: "dev" }),
       // Sample content + noindex for dev builds (local, PR previews, scripts/deploy-dev.sh). Never in production.
       DEMO_CONTENT: envField.boolean({ context: "server", access: "public", default: false }),

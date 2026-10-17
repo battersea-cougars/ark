@@ -77,6 +77,11 @@ export async function saveEnquiry(db: D1Database, e: Enquiry, { verified = false
 
 // The auto-reply goes to whatever address was typed in, so it's capped whatever gets past Turnstile
 // (docs/adr/0028-turnstile-and-auto-reply.md): a spammer can make the club email strangers a few times a day at most.
+/** Takes back an enquiry that was never a person's: the deploy's smoke test, once it has run (lib/server/smoke.ts). */
+export async function deleteEnquiry(db: D1Database, id: number): Promise<void> {
+  await db.prepare("DELETE FROM enquiries WHERE id = ?").bind(id).run();
+}
+
 export const AUTO_REPLY_CAPS = { perDay: 20, perAddressDays: 7 };
 
 /** Whether this address may get an auto-reply now: under the daily cap, and none to it in the last week. */

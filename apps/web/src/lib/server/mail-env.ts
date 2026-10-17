@@ -7,6 +7,7 @@ import {
   GMAIL_CLIENT_SECRET,
   GMAIL_REFRESH_TOKEN,
   MAIL_SAFE_TO,
+  SMOKE_TOKEN,
   TURNSTILE_SECRET_KEY,
 } from "astro:env/server";
 import type { MailConfig } from "@cougars/shared/email";
@@ -27,3 +28,6 @@ export const mailConfig = (club: string | null): MailConfig => ({
 
 /** Turnstile's secret for this environment (lib/server/turnstile.ts); unset, nobody counts as verified. */
 export const turnstileSecret = () => TURNSTILE_SECRET_KEY;
+
+/** The deploy smoke test's token (lib/server/smoke.ts); unset, nothing counts as a smoke test. */
+export const smokeToken = () => SMOKE_TOKEN;

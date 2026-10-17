@@ -238,7 +238,7 @@ jobs:
         if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: |
-          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY; do
+          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY SMOKE_TOKEN; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/server/wrangler.json
             else

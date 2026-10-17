@@ -80,6 +80,7 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)             |
 | [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website (production)                 |
 | [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website (dev)                        |
+| [`SMOKE_TOKEN`](#smoke_token)                                             | `cougars-dev` | (random, made once)         | Deploy smoke test of the form (both) |
 | [`TEAM_ROSTER__PRODUCTION`](#team-roster)                                 | `cougars`     | (the admins only)           | Deploys (D1 seed)                    |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                       | `cougars-dev` | GitHub, `Cougars rebuilds`  | Team app (both): rebuilds            |
 | [`CF_ACCESS_CLIENT_ID__PRODUCTION`](#cf_access_client_id__production)     | `cougars`     | Cloudflare Access           | Production smoke tests, until launch |
@@ -290,6 +291,19 @@ enquiries are still saved and emailed to the club, but nobody gets an auto-reply
   deploy. A laptop uses Cloudflare's test site key (always passes) and no secret, so no auto-replies locally.
 - **Expires:** no.
 - **Rotate:** the widget → **Rotate secret key**, update Secrets Manager, deploy.
+
+### `SMOKE_TOKEN`
+
+Lets the deploy's smoke test send a real "Try a session" enquiry (`scripts/ci/smoke-test.mjs`,
+`apps/web/src/lib/server/smoke.ts`, [ADR 0027](docs/adr/0027-email-through-gmail-api.md)): with it in the
+`X-Cougars-Smoke` header, the enquiry is saved, both emails go out **to the sending account only** (in production
+too), and the row is deleted. The deploy fails unless both emails were sent.
+
+- **Made:** once, random, never seen:
+  `node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("base64url"))' | node scripts/secret-set.mjs SMOKE_TOKEN`.
+- **Used by:** the website's Worker (a secret, from `deploy.yml`) and the smoke test step, both environments.
+- **A leaked token could** make the site send emails to the developer account, nothing else. **Rotate:** run the
+  command again, then deploy.
 
 ### Team roster
 

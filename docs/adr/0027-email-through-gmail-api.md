@@ -90,3 +90,5 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - 2026-10-17: Neither address is in the repo: the club's comes from the Studio (Club → Contact email,
   `packages/shared/club-contact.ts`), the developer account's from its token. While the club's isn't known, dev ignores
   its allow list and production sends as the developer account.
+- 2026-10-17: Every website deploy smoke-tests the form for real: an enquiry marked with `SMOKE_TOKEN` is saved, both
+  emails go to the sending account only (in production too), and the row is deleted; the deploy fails unless both sent.

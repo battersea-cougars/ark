@@ -31,6 +31,36 @@ const checks = [
       if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
     },
   ],
+  // A real enquiry, marked with the smoke token: saved, both emails sent (to the sending account only, even in
+  // production), then deleted (apps/web/src/lib/server/smoke.ts). Skipped where the token isn't set.
+  ...(process.env.SMOKE_TOKEN
+    ? [
+        [
+          "join form sends both emails",
+          async () => {
+            const form = new FormData();
+            form.set("name", "Smoke Test");
+            form.set("email", "smoke@example.com");
+            form.set("message", `Deploy smoke test, ${version}`);
+            form.set("source", "/join/");
+            const res = await fetch(new URL("/api/join", base), {
+              method: "POST",
+              headers: {
+                ...access,
+                Accept: "application/json",
+                Origin: new URL(base).origin,
+                "X-Cougars-Smoke": process.env.SMOKE_TOKEN,
+              },
+              body: form,
+            });
+            const body = await res.json().catch(() => ({}));
+            if (res.status !== 200 || !body.smoke) throw new Error(`expected a smoke answer, got ${res.status}`);
+            const { autoReply, club } = body.smoke;
+            if (autoReply !== "sent" || club !== "sent") throw new Error(`auto-reply ${autoReply}, club email ${club}`);
+          },
+        ],
+      ]
+    : []),
 ];
 
 async function get(path) {
