@@ -6,6 +6,9 @@ import { forgetOld } from "./settings/retention";
 import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
 import { storeLinks, type StoreEnv } from "./store/store.links";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("cron");
 // The live hub (ADR 0072): Cloudflare finds the Durable Object class here
 export { LiveHub } from "./live/live";
 
@@ -68,6 +71,6 @@ async function task(name: string, job: () => Promise<unknown>) {
   try {
     await job();
   } catch (e) {
-    console.error(JSON.stringify({ event: "cron.failed", task: name, error: String(e) }));
+    log.error("cron.failed", e, { task: name });
   }
 }

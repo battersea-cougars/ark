@@ -4,6 +4,9 @@
 // quotas (Workers requests, D1 reads, Sanity, YouTube). The join form has its own, tighter limit (pages/api/join.ts).
 import { defineMiddleware } from "astro:middleware";
 import { rateLimit, type CacheLike } from "@cougars/shared/rate-limit";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("middleware");
 
 export const LIVE_LIMIT = { limit: 240, windowSeconds: 60 };
 
@@ -29,7 +32,7 @@ export async function tooMany(cache: CacheLike | null, ip: string, now = Date.no
   if (!cache) return null;
   const { allowed } = await rateLimit(cache, "live", ip, { ...LIVE_LIMIT, now });
   if (allowed) return null;
-  console.warn(JSON.stringify({ event: "rate_limit.live", ip }));
+  log.warn("rate_limit.live", { ip });
   return new Response("Too many requests from here. Wait a minute and try again.", {
     status: 429,
     headers: { "Retry-After": String(LIVE_LIMIT.windowSeconds), "Cache-Control": "no-store" },

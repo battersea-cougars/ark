@@ -19,6 +19,9 @@ import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
 import { registerDevice } from "../push/push";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("auth");
 
 export interface AuthEnv {
   DB: D1Database;
@@ -328,7 +331,7 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   const sending = (async () => {
     await sendMail(mail, setup);
     if (copy) await sendMail(mail, { ...setup, allow: [] });
-  })().catch((e) => console.error(JSON.stringify({ event: "sign_in.email_failed", error: String(e) })));
+  })().catch((e) => log.error("sign_in.email_failed", e));
   if (waitUntil) waitUntil(sending);
   else await sending;
   return res();

@@ -5,6 +5,9 @@
 import { all, run } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 import { sendAll, type Message } from "./fcm";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("push");
 
 /** Something to tell members: who (or everyone with the app), the words, and where tapping it goes in the app. */
 export interface Notice {
@@ -66,7 +69,7 @@ export async function notify(env: PushEnv, notices: Notice[], now: Date) {
   if (!messages.length) return;
   if (!env.FIREBASE_SERVICE_ACCOUNT) {
     for (const m of messages) pushOutbox.capture?.(m);
-    console.log(JSON.stringify({ event: "push.logged", phones: messages.length, title: messages[0].title }));
+    log.info("push.logged", { phones: messages.length, title: messages[0].title });
     return;
   }
   try {
@@ -77,9 +80,9 @@ export async function notify(env: PushEnv, notices: Notice[], now: Date) {
         JSON.stringify(gone),
       ]);
     const failed = outcomes.filter((o) => o === "failed").length;
-    if (failed) console.error(JSON.stringify({ event: "push.failed", failed, of: messages.length }));
+    if (failed) log.error("push.failed", { failed, of: messages.length });
   } catch (e) {
     // A notification never fails the change it's about
-    console.error(JSON.stringify({ event: "push.failed", error: String(e) }));
+    log.error("push.failed", e);
   }
 }

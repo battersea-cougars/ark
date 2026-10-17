@@ -15,6 +15,9 @@ import { toPlayer, type RosterRow } from "../roster";
 import { crestFiles, editionsFrom, type ResultRows } from "../results";
 import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } from "./merge";
 import type { Album, ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("content");
 
 // Sample content for dev builds: `DEMO_CONTENT=true npm run dev`, PR previews and
 // scripts/deploy-dev.sh. Real Sanity content still wins wherever it exists. Never set for
@@ -41,7 +44,7 @@ async function fetchOr<T>(query: string, fallback: T): Promise<T> {
     // than an error page (ADR 0055): degraded, not broken.
     if (!onWorker && !import.meta.env.DEV) throw error;
     if (import.meta.env.DEV) devSanity.problem = String(error);
-    console.error(JSON.stringify({ event: "content.sanity_error", error: String(error) }));
+    log.error("content.sanity_error", error);
     return fallback;
   }
 }

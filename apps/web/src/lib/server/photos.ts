@@ -8,6 +8,9 @@ import { cached, hashKey, type CacheOptions } from "./cache";
 import * as q from "../sanity/queries";
 import { demoAlbums as rawDemoAlbums } from "../sanity/demo";
 import type { Album, AlbumSummary, Photo, SanityImage } from "../sanity/types";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("photos");
 
 export interface PhotosConfig {
   projectId?: string;
@@ -84,7 +87,7 @@ async function live<Raw, T>(
     const data = map(raw);
     return config.demo && isEmpty(data) ? fallback(false) : { data, unavailable: false };
   } catch (error) {
-    console.error(JSON.stringify({ event: "photos.sanity_error", error: String(error) }));
+    log.error("photos.sanity_error", error);
     return fallback(true);
   }
 }

@@ -27,6 +27,9 @@ import { TRAINING_ROUTES } from "../training/training.routes";
 import { notify } from "../push/push";
 import { bumpDataVersion } from "./api.version";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("api");
 
 export type { Audit, Ctx, Env, Route } from "./api.route";
 export type { Slice } from "./api.slices";
@@ -73,7 +76,7 @@ async function health(env: Env): Promise<Response> {
     await env.DB.prepare("SELECT 1").first();
     return json({ ok: true });
   } catch (e) {
-    console.error(JSON.stringify({ event: "health.failed", error: String(e) }));
+    log.error("health.failed", e);
     return json({ ok: false }, 503);
   }
 }
@@ -100,7 +103,7 @@ export async function handleApi(
       return (await handleAuth(request, env, now, waitUntil)) ?? json({ error: "Not found." }, 404);
     } catch (e) {
       if (e instanceof HttpError) return json({ error: e.message }, e.status);
-      console.error(e);
+      log.error("request.failed", e, { method: request.method, path: url.pathname });
       return json({ error: "Something went wrong." }, 500);
     }
   }
@@ -174,7 +177,7 @@ export async function handleApi(
         .after(ctx, noticeBefore, reply)
         .then((notices) => notify(env, notices, now))
         // News never fails the change it's about
-        .catch((e) => console.error(JSON.stringify({ event: "push.failed", error: String(e) })));
+        .catch((e) => log.error("push.failed", e));
       if (waitUntil) waitUntil(told);
       else await told;
     }
@@ -203,7 +206,7 @@ export async function handleApi(
     return res;
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
-    console.error(e);
+    log.error("request.failed", e, { method: request.method, path: url.pathname });
     return json({ error: "Something went wrong." }, 500);
   }
 }

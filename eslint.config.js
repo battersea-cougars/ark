@@ -21,4 +21,10 @@ export default [
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // The apps write to the log through scribe (packages/shared/scribe.ts, ADR 0110), never the console itself
+    files: ["apps/web/src/**", "apps/team/worker/**", "apps/team/src/**", "packages/shared/**"],
+    ignores: ["**/*.test.ts", "packages/shared/testing/**", "packages/shared/scribe.ts"],
+    rules: { "no-console": "error" },
+  },
 ];

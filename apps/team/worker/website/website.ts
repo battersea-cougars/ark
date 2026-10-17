@@ -5,6 +5,9 @@
 // that can only start workflows, which runs deploy.yml for the website from this environment's branch.
 import { first, run } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("website");
 
 export interface WebsiteEnv {
   DB: D1Database;
@@ -60,12 +63,12 @@ export async function rebuildWebsite(env: WebsiteEnv, now: Date): Promise<"nothi
     await dispatch(env, now);
   } catch (e) {
     // Kept wanted: the next check tries again
-    console.error(JSON.stringify({ event: "website.rebuild_failed", error: String(e) }));
+    log.error("website.rebuild_failed", e);
     return "failed";
   }
   // Only the request it sent: a change since then waits for its own quiet five minutes
   await run(env.DB, "DELETE FROM website_rebuild WHERE id = 1 AND wanted_at = ?", [wanted.wantedAt]);
-  console.log(JSON.stringify({ event: "website.rebuild_sent", environment: env.SITE_ENV }));
+  log.info("website.rebuild_sent", { environment: env.SITE_ENV });
   return "sent";
 }
 

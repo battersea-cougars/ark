@@ -13,6 +13,9 @@
 // Gmail is behind a circuit breaker (packages/shared/breaker.ts, ADR 0055): when it's down or has rate-limited the account,
 // sends fail at once for a while instead of each waiting for Google, and the sign-in page can say so up front.
 import { HttpFailure, QuotaError, guard, pausedUntil, retryAfter } from "./breaker";
+import { scribe } from "./scribe";
+
+const log = scribe.logger("mail");
 
 const FROM_NAME = "Battersea Cougars";
 
@@ -181,15 +184,7 @@ export async function sendMail(
     outbox.capture?.(safe);
     // Never a secret in a log (#74): a deploy missing its Gmail secrets would otherwise log live sign-in codes
     const hide = (v: string | undefined) => redact(v, mail.secrets);
-    console.log(
-      JSON.stringify({
-        event: "mail.logged",
-        to: safe.to,
-        subject: hide(safe.subject),
-        text: hide(safe.text),
-        html: hide(safe.html),
-      }),
-    );
+    log.info("mail.logged", { to: safe.to, subject: hide(safe.subject), text: hide(safe.text), html: hide(safe.html) });
     return { status: "logged", to: safe.to };
   }
   const gmail = config.gmail;
@@ -204,7 +199,7 @@ export async function sendMail(
   // isn't known, it's the account's own. Elsewhere the account is its own sender.
   const sender = isProduction(config.siteEnv) && club ? club : account;
   if (safe.to !== mail.to) {
-    console.log(JSON.stringify({ event: "mail.redirected", to: safe.to, originalTo: mail.to }));
+    log.info("mail.redirected", { to: safe.to, originalTo: mail.to });
   }
   const id = await guard("gmail", async () => {
     const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {

@@ -8,6 +8,9 @@ import { all, first } from "@cougars/shared/d1";
 import { sendMail, type Mail } from "@cougars/shared/email";
 import { mailSetup } from "../auth/auth";
 import type { Env } from "../api/api";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("usage");
 
 export interface Metric {
   id: "requests" | "rowsRead" | "rowsWritten" | "liveRequests" | "liveTime";
@@ -143,7 +146,7 @@ export async function readUsage(env: Env, now: Date): Promise<Usage> {
     }));
     return { configured: true, day, resetsAt, metrics, cpu: { limitMs: CPU_LIMIT_MS, workers }, backup };
   } catch (e) {
-    console.warn(JSON.stringify({ event: "usage.unavailable", error: String(e) }));
+    log.warn("usage.unavailable", e);
     return { configured: true, unavailable: true, ...none };
   }
 }

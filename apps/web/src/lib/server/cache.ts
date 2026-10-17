@@ -7,6 +7,9 @@
 // If the source fails, the last good value is served for up to `staleMs`, so a YouTube outage or a spent quota
 // shows yesterday's list rather than nothing. Every live read goes through here (ADR 0053); the sources themselves
 // are behind circuit breakers (packages/shared/breaker.ts, ADR 0055).
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("cache");
 
 interface Entry<T> {
   value: T;
@@ -74,8 +77,7 @@ export async function cached<T>(
       const last = [hit, shared].filter((e): e is Entry<T> => !!e).sort((a, b) => b.at - a.at)[0];
       if (last && now() - last.at < ttlMs + staleMs) {
         // A paused source (circuit breaker) was logged once when it paused
-        if ((error as Error)?.name !== "BreakerOpen")
-          console.warn(JSON.stringify({ event: "cache.stale", key, error: String(error) }));
+        if ((error as Error)?.name !== "BreakerOpen") log.warn("cache.stale", error, { key });
         return last.value;
       }
       throw error;

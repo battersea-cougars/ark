@@ -17,6 +17,9 @@ import { autoReplyMail } from "../../lib/server/auto-reply";
 import { TURNSTILE_FIELD, verifyTurnstile } from "../../lib/server/turnstile";
 import { getSettings } from "../../lib/sanity/content";
 import { sendMail } from "@cougars/shared/email";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("join");
 
 export const prerender = false;
 
@@ -49,7 +52,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
     const id = await saveEnquiry(env.DB, parsed.enquiry, { verified: true });
     try {
       const sent = await emailAfterEnquiry(parsed.enquiry, id, true, { smoke: true });
-      console.log(JSON.stringify({ event: "enquiry.smoke", ...sent }));
+      log.info("enquiry.smoke", { ...sent });
       return Response.json({ ok: true, smoke: sent });
     } finally {
       await deleteEnquiry(env.DB, id);
@@ -59,7 +62,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   // A person, says Turnstile? Only they can get an auto-reply; everyone else's enquiry still counts.
   const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress);
   const id = await saveEnquiry(env.DB, parsed.enquiry, { verified });
-  console.log(JSON.stringify({ event: "enquiry.created", id, source: parsed.enquiry.source, verified }));
+  log.info("enquiry.created", { id, source: parsed.enquiry.source, verified });
   // Emails go out after the answer: the enquiry is already saved, so a failed email never loses it.
   locals.cfContext.waitUntil(emailAfterEnquiry(parsed.enquiry, id, verified));
   return reply(200, { ok: true }, "/join/thanks");
@@ -89,20 +92,20 @@ async function emailAfterEnquiry(
     } catch (error) {
       sent.autoReply = "failed";
       autoReply = "The automatic reply failed to send, so they haven't heard from us yet.";
-      console.error(JSON.stringify({ event: "enquiry.auto_reply_failed", id, error: String(error) }));
+      log.error("enquiry.auto_reply_failed", error, { id });
     }
   }
   if (!club) {
-    console.error(JSON.stringify({ event: "enquiry.no_club_inbox", id }));
+    log.error("enquiry.no_club_inbox", { id });
     return { ...sent, club: "failed" };
   }
   try {
     const r = await sendMail(enquiryMail(enquiry, id, club, autoReply), config);
     sent.club = r.status;
-    console.log(JSON.stringify({ event: "enquiry.emailed", id, status: r.status }));
+    log.info("enquiry.emailed", { id, status: r.status });
   } catch (error) {
     sent.club = "failed";
-    console.error(JSON.stringify({ event: "enquiry.email_failed", id, error: String(error) }));
+    log.error("enquiry.email_failed", error, { id });
   }
   return sent;
 }

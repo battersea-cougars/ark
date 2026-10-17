@@ -2,6 +2,9 @@
 // The widget on /join adds its token to the form as `cf-turnstile-response`; the server checks it once with
 // Cloudflare. A missing or failed check doesn't stop the enquiry (the form must work without JavaScript): it's
 // saved and the club is emailed, but there's no auto-reply.
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("turnstile");
 
 export const TURNSTILE_FIELD = "cf-turnstile-response";
 const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -21,10 +24,10 @@ export async function verifyTurnstile(
       signal: AbortSignal.timeout(5_000),
     });
     const body = (await res.json()) as { success?: boolean; "error-codes"?: string[] };
-    if (!body.success) console.log(JSON.stringify({ event: "turnstile.failed", codes: body["error-codes"] ?? [] }));
+    if (!body.success) log.info("turnstile.failed", { codes: body["error-codes"] ?? [] });
     return body.success === true;
   } catch (error) {
-    console.error(JSON.stringify({ event: "turnstile.error", error: String(error) }));
+    log.error("turnstile.error", error);
     return false;
   }
 }

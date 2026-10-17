@@ -3,6 +3,9 @@
 // hold. Generous: a whole squad on the rink's wifi shares one address, and nobody tapping normally should see them.
 import { rateLimit } from "@cougars/shared/rate-limit";
 import { HttpError } from "./api.http";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("api");
 
 export interface Limit {
   limit: number;
@@ -27,6 +30,6 @@ export async function enforce(bucket: string, key: string, { limit, windowSecond
   if (typeof caches === "undefined") return;
   const { allowed } = await rateLimit(await caches.open("team-rate-limit"), bucket, key, { limit, windowSeconds });
   if (allowed) return;
-  console.warn(JSON.stringify({ event: "rate_limit", bucket, key }));
+  log.warn("rate_limit", { bucket, key });
   throw new HttpError(429, message);
 }

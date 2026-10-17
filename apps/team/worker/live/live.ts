@@ -3,6 +3,9 @@
 // asks for it; the streams live in memory, D1 is the source of truth), so if it restarts the phones just reconnect.
 // An event is only the names of the club's parts that changed (ADR 0057): what a member sees still comes from their
 // own bootstrap. Written in the classic Durable Object shape, with no runtime imports, so the tests hold a real one.
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("live");
 
 /** How often a comment goes down every stream, so a phone that's gone is dropped and the connection stays warm. */
 const HEARTBEAT_MS = 30_000;
@@ -106,6 +109,6 @@ export async function notifyLive(env: LiveEnv, changed: readonly string[]): Prom
       body: JSON.stringify({ changed }),
     });
   } catch (e) {
-    console.warn(JSON.stringify({ event: "live.notify.failed", error: String(e) }));
+    log.warn("live.notify.failed", e);
   }
 }

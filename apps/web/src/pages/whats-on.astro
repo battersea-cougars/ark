@@ -6,6 +6,8 @@ import WhatsOn from "../components/WhatsOn.astro";
 import { getSettings } from "../lib/sanity/content";
 import { cachedWhatsOn, type WhatsOnItem } from "../lib/server/whats-on";
 import { cacheControl } from "../lib/server/sanity-env";
+import { scribe } from "@cougars/shared/scribe";
+const log = scribe.logger("whats_on");
 
 export const prerender = false;
 export const partial = true;
@@ -15,7 +17,7 @@ let unavailable = false;
 try {
   items = await cachedWhatsOn(env.DB);
 } catch (error) {
-  console.error(JSON.stringify({ event: "whats_on.d1_error", error: String(error) }));
+  log.error("whats_on.d1_error", error);
   unavailable = true;
 }
 const day = (await getSettings()).training[0]?.day ?? "Friday";

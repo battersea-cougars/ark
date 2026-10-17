@@ -10,6 +10,8 @@ import Empty from "../../components/Empty.astro";
 import { getEvents, getSettings, upcoming } from "../../lib/sanity/content";
 import { ALL_LIMITS, cachedWhatsOn, type WhatsOnItem } from "../../lib/server/whats-on";
 import { cacheControl } from "../../lib/server/sanity-env";
+import { scribe } from "@cougars/shared/scribe";
+const log = scribe.logger("events");
 
 export const prerender = false;
 
@@ -18,7 +20,7 @@ let unavailable = false;
 try {
   items = await cachedWhatsOn(env.DB, ALL_LIMITS);
 } catch (error) {
-  console.error(JSON.stringify({ event: "events.d1_error", error: String(error) }));
+  log.error("events.d1_error", error);
   unavailable = true;
 }
 Astro.response.headers.set("Cache-Control", cacheControl(unavailable));

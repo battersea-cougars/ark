@@ -10,6 +10,9 @@
 //
 // The open state is kept in this isolate's memory and in the Workers Cache API, so every isolate in a data centre
 // sees it. Like packages/shared/rate-limit.ts, best effort: the Cache API only works on a custom domain.
+import { scribe } from "./scribe";
+
+const log = scribe.logger("breaker");
 
 export class BreakerOpen extends Error {
   override name = "BreakerOpen";
@@ -121,7 +124,7 @@ const tripped = (s: State) => s.cooldownMs > FIRST_COOLDOWN_MS;
 async function open(service: string, s: State, until: number, edge: EdgeCache | null, now: () => number, why: string) {
   s.openUntil = until;
   s.failures = 0;
-  console.warn(JSON.stringify({ event: "breaker.open", service, until: new Date(until).toISOString(), error: why }));
+  log.warn("breaker.open", { service, until: new Date(until).toISOString(), error: why });
   if (!edge) return;
   const maxAge = Math.max(1, Math.ceil((until - now()) / 1000));
   try {

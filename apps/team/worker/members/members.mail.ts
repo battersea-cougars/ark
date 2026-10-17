@@ -5,9 +5,11 @@
 import { all } from "@cougars/shared/d1";
 import { sendMail } from "@cougars/shared/email";
 import { mailSetup, type AuthEnv } from "../auth/auth";
+import { scribe } from "@cougars/shared/scribe";
 
-const sent = (event: string) =>
-  [() => true, (e: unknown) => (console.error(JSON.stringify({ event, error: String(e) })), false)] as const;
+const log = scribe.logger("members");
+
+const sent = (event: string) => [() => true, (e: unknown) => (log.error(event, e), false)] as const;
 
 /** "You're in": a link to the app that fills in their address on the sign-in screen. */
 export async function tellTheyreIn(env: AuthEnv, name: string, address: string, origin: string): Promise<boolean> {

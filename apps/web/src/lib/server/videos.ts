@@ -11,6 +11,9 @@ import { fetchSourceVideos, mergeVideos, sourceKey, videoSource, type VideoSourc
 import { DEMO_VIDEOS } from "../sanity/demo";
 import * as q from "../sanity/queries";
 import type { Club, Video, VideoOverride } from "../sanity/types";
+import { scribe } from "@cougars/shared/scribe";
+
+const log = scribe.logger("videos");
 
 export interface VideosConfig {
   sanity: PhotosConfig;
@@ -46,7 +49,7 @@ export async function liveVideos(
         cacheDeps,
       );
     } catch (error) {
-      console.error(JSON.stringify({ event: "videos.sanity_error", error: String(error) }));
+      log.error("videos.sanity_error", error);
       unavailable = true;
     }
   }
@@ -70,7 +73,7 @@ async function youtubeVideos(
     return await cached(`youtube:${sourceKey(source)}`, options, () => fetchSourceVideos(source, key, { fetch }), deps);
   } catch (error) {
     // Message never contains the key (lib/youtube.ts). The Sanity videos still show.
-    console.warn(JSON.stringify({ event: "videos.youtube_error", source: sourceKey(source), error: String(error) }));
+    log.warn("videos.youtube_error", error, { source: sourceKey(source) });
     return [];
   }
 }
