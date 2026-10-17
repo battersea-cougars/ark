@@ -130,10 +130,12 @@ The form rate limit and the edge cache start working on the domain: Cloudflare's
 `*.workers.dev`. At launch, switch the Google Auth Platform **Branding** URLs to the domain (README.md#gmail).
 
 **Before launch, behind Cloudflare Access**: `batterseacougars.com`, `www.` and `team.` ask for an email and a
-one-time code, and let in only the admins in `TEAM_ROSTER__PRODUCTION`, plus CI's service token for the deploy's smoke
-tests. Zero Trust is on (Free plan); the rest is
-`node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs`, which can be run again (after a
-roster change, say) and stores the service token in Secrets Manager. At launch, the same with `--remove`, then set the
+one-time code, and let in only the emails on the **Admins (production roster)** policy, plus CI's service token for the
+deploy's smoke tests. Who's on that list is managed by hand: Zero Trust → **Access → Policies → Admins (production
+roster) → Edit**, the _Include_ emails. Zero Trust is on (Free plan); the rest is
+`node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs`. Its first run starts the list
+from the admins in `TEAM_ROSTER__PRODUCTION`; running it again (to rotate the service token, say) keeps the list as it
+is, and no deploy touches it. It stores the service token in Secrets Manager. At launch, the same with `--remove`, then set the
 `production` environment's variable `LAUNCHED` to `true` (ADR 0010, ADR 0050). The service token lasts a year.
 
 **Rate limiting** (#57): the zone's one free rate-limiting rule blocks an address that sends more than 150 requests in

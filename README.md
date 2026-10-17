@@ -294,7 +294,7 @@ enquiries are still saved and emailed to the club, but nobody gets an auto-reply
   `node -e "console.log(JSON.stringify(require('./admins.local.json')))" | node scripts/secret-set.mjs TEAM_ROSTER__PRODUCTION`,
   then delete the file. Everyone else is imported in the app (Members → Manage → Import members,
   [ADR 0050](docs/adr/0050-schema-and-seed-until-launch.md)). Dev has no roster in Secrets Manager: its database
-  already holds its people, so its deploys skip the seed. `scripts/access-setup.mjs` reads the admins' emails from it.
+  already holds its people, so its deploys skip the seed. `scripts/access-setup.mjs` starts the Access gate's list from it, once; after that the list is managed in the dashboard.
 - **Used by:** `scripts/seed-roster.mjs`, which adds players who aren't in D1 yet and changes no one. Local adds
   them anonymized from `db/seed/roster.local.json`: made-up names bar the admins (ADR 0029).
 - **Gets there by:** CI pull from Secrets Manager, then the "Seed the team roster" step in `deploy.yml`, after the

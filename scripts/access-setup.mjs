@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Production behind Cloudflare Access until launch (ADR 0010): batterseacougars.com, www. and team. ask for an email
-// and a one-time code, and let in only the admins in the production roster (TEAM_ROSTER, ADR 0029), plus CI's service
+// and a one-time code, and let in only the emails on the Admins policy (managed in the dashboard; a first run starts it
+// from the admins in the production roster, TEAM_ROSTER, ADR 0029), plus CI's service
 // token for the deploy's smoke tests. Safe to run again: it finds what's there by name and puts it right. The service
 // token's ID and secret go straight into Secrets Manager (CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION); nothing is printed.
 //   node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs
@@ -51,11 +52,15 @@ if (remove) {
   process.exit(0);
 }
 
-// Who may pass: the admins' emails, from the roster that seeds production
-const emails = JSON.parse(roster ?? "[]")
-  .filter((p) => p.email && (p.roles ?? []).includes("Admin"))
-  .map((p) => p.email.trim().toLowerCase());
-if (!emails.length) throw new Error("No admins with an email in TEAM_ROSTER__PRODUCTION.");
+// Who may pass is managed by hand in the dashboard (Access → Policies → this policy's Include emails): a run keeps the
+// list as it is. Only a policy made for the first time starts from the admins in the roster that seeds production.
+const existing = await named("/policies", ADMINS);
+const emails = existing
+  ? null
+  : JSON.parse(roster ?? "[]")
+      .filter((p) => p.email && (p.roles ?? []).includes("Admin"))
+      .map((p) => p.email.trim().toLowerCase());
+if (emails && !emails.length) throw new Error("No admins with an email in TEAM_ROSTER__PRODUCTION.");
 
 // Signing in: an email, then a code sent to it
 const otp =
@@ -75,12 +80,14 @@ if (!ci || !process.env.CF_ACCESS_CLIENT_SECRET) {
   console.log(`${CI}: service token ${ci === made ? "made" : "rotated"}; stored in Secrets Manager.`);
 } else console.log(`${CI}: service token there, secret stored.`);
 
-const admins = await upsert("/policies", {
-  name: ADMINS,
-  decision: "allow",
-  include: emails.map((email) => ({ email: { email } })),
-  session_duration: "720h",
-});
+const admins =
+  existing ??
+  (await cf("POST", "/policies", {
+    name: ADMINS,
+    decision: "allow",
+    include: emails.map((email) => ({ email: { email } })),
+    session_duration: "720h",
+  }));
 const robots = await upsert("/policies", {
   name: CI,
   decision: "non_identity",
@@ -100,4 +107,6 @@ await upsert("/apps", {
     { id: admins.id, precedence: 2 },
   ],
 });
-console.log(`${HOSTS.join(", ")}: behind Access. ${emails.length} admins may sign in with an emailed code.`);
+console.log(
+  `${HOSTS.join(", ")}: behind Access. ${existing ? `${ADMINS}: kept as set in the dashboard (${existing.include.length} emails).` : `${emails.length} admins may sign in with an emailed code.`}`,
+);

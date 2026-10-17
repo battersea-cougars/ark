@@ -80,8 +80,8 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   proposes updates weekly, grouped, checked by `pr.yml`. `main` and `release` refuse force-pushes and deletion (a
   repository ruleset).
 - **Production is behind Cloudflare Access until launch**, so it can be deployed and tried for real first: the site,
-  `www.` and the team app ask for an email and a one-time code and let in only production's admins
-  (`scripts/access-setup.mjs`, docs/setup.md). CI gets past it with a service token
+  `www.` and the team app ask for an email and a one-time code and let in only the emails on its Admins policy, which
+  is managed by hand in the Zero Trust dashboard (`scripts/access-setup.mjs` starts it once, docs/setup.md). CI gets past it with a service token
   (`CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION`) for the smoke tests. Until the `production` environment's variable
   `LAUNCHED` is `true`, production's database rebuilds like dev's ([ADR 0050](0050-schema-and-seed-until-launch.md)).
   Launch: `db-launch.mjs`, `access-setup.mjs --remove`, `LAUNCHED=true`.
@@ -140,3 +140,5 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 - 2026-10-10: Production deployed before launch, behind Cloudflare Access (admins and CI's service token only).
 - 2026-10-17: Production never builds with demo content; the `production` environment's `DEMO_CONTENT` variable is
   gone. Getting ready for launch, its placeholder photos and sample players must not ship.
+- 2026-10-17: Who passes the Access gate is managed by hand in the dashboard; `access-setup.mjs` no longer rewrites
+  the list from the roster when it runs again.
