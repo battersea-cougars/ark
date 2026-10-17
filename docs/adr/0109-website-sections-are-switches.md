@@ -5,8 +5,8 @@
 
 ## Context
 
-The website goes to production with Friday sessions only. The official team's page isn't ready (no team photo, a
-roster the club isn't ready to show) and no Kumite is scheduled. Deleting those parts would mean a developer putting
+The website went to production before the official team's page was ready (no team photo, a roster the club isn't
+ready to show), and for a while with no Kumite scheduled. Deleting those parts would mean a developer putting
 them back later; the team manager should be able to bring them back from the Studio
 ([ADR 0014](0014-sanity-public-content.md)).
 
@@ -37,3 +37,5 @@ them back later; the team manager should be able to bring them back from the Stu
 - 2026-10-17: Decided, to launch the website with the team section hidden.
 - 2026-10-17: The Kumite too, and the results with it: launch is Friday sessions only. The club seed no longer
   schedules a Kumite.
+- 2026-10-17: The Kumite is switched back on in production's Studio: only the fake Kumite (the seed's) was meant to
+  go, and it's deleted from the database. The team stays off.
