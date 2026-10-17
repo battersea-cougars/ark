@@ -30,7 +30,7 @@ const { founded } = await getClub();
 
 <header class="header" data-header transition:name="site-header">
   <div class="bar">
-    <a href={home ? "#top" : "/"} class="brand" aria-label="Battersea Cougars, home">
+    <a href="/" class="brand" aria-label="Battersea Cougars, home" data-brand>
       <img src={mark.src} alt="" width="120" height={Math.round((120 * mark.height) / mark.width)} class="brand-mark" />
     </a>
     <!-- Running clock: follows the Friday night down the home page (scripts/motion.ts) -->
@@ -334,6 +334,19 @@ const { founded } = await getClub();
     btn.addEventListener("click", () => set(btn.getAttribute("aria-expanded") !== "true"));
     menu.addEventListener("click", (e) => (e.target as Element).closest("a") && set(false));
     document.addEventListener("keydown", (e) => e.key === "Escape" && set(false), { signal });
+    // The logo is a plain link home. Already home, it glides back to the top instead of loading the page again, and
+    // the address goes back to "/" (no #section left in it).
+    document.querySelector("[data-brand]")?.addEventListener(
+      "click",
+      (e) => {
+        if (location.pathname !== "/") return;
+        e.preventDefault();
+        const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+        scrollTo({ top: 0, behavior: still ? "auto" : "smooth" });
+        if (location.hash) history.replaceState(history.state, "", "/");
+      },
+      { signal },
+    );
   }
   document.addEventListener("astro:page-load", initMenu);
 </script>
