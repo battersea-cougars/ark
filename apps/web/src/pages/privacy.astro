@@ -32,10 +32,18 @@ const email = s.contactEmail;
 
       <h2>Players on this website</h2>
       <p>
-        The <a href="/team/">team page</a> and the <a href="/results/">tournament results</a> show the players' names,
-        and who played, scored and won. Each player goes by the name they chose in the club's team app: their first name
-        and initial unless they picked otherwise. Nobody's full name is shown unless they choose it, and a tournament
-        the club keeps off the website isn't shown.
+        {s.team.onWebsite ? (
+          <>
+            The <a href="/team/">team page</a> and the <a href="/results/">tournament results</a> show
+          </>
+        ) : (
+          <>
+            The <a href="/results/">tournament results</a> show
+          </>
+        )}{" "}
+        the players' names, and who played, scored and won. Each player goes by the name they chose in the club's team
+        app: their first name and initial unless they picked otherwise. Nobody's full name is shown unless they choose
+        it, and a tournament the club keeps off the website isn't shown.
       </p>
 
       <h2>Where it's kept, and for how long</h2>

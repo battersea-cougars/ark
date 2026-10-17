@@ -1,10 +1,16 @@
 ---
+import type { GetStaticPaths } from "astro";
 import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import PlayerCard from "../../components/PlayerCard.astro";
 import Empty from "../../components/Empty.astro";
 import { getPlayers, getSettings } from "../../lib/sanity/content";
 import { imageSrcSet, imageUrl, objectPosition } from "../../lib/sanity/images";
+
+// /team/ only (`page` is undefined), and only while the team is switched on in the Studio: off, the page isn't built
+// at all, so the address is a 404 and out of the sitemap (ADR 0109).
+export const getStaticPaths = (async () =>
+  (await getSettings()).team.onWebsite ? [{ params: { page: undefined } }] : []) satisfies GetStaticPaths;
 
 const s = await getSettings();
 const players = await getPlayers();

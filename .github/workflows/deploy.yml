@@ -186,9 +186,8 @@ jobs:
       SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
       # Production's address; target.mjs attaches it to the worker. Dev stays on workers.dev (a separate account).
       SITE_URL: ${{ github.ref == 'refs/heads/release' && 'https://batterseacougars.com' || '' }}
-      # Dev: sample content where Sanity's dev dataset is empty, and noindex. Production too while the
-      # `production` environment's variable DEMO_CONTENT is `true` (until real content is in Sanity).
-      DEMO_CONTENT: ${{ github.ref == 'refs/heads/release' && (vars.DEMO_CONTENT || 'false') || 'true' }}
+      # Dev: sample content where Sanity's dev dataset is empty, and noindex. Never on production.
+      DEMO_CONTENT: ${{ github.ref == 'refs/heads/release' && 'false' || 'true' }}
       # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, README#turnstile)
       TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}

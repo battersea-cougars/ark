@@ -1,7 +1,7 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-09
+- **Date:** 2026-10-05 · updated 2026-10-17
 - **Merges:** 0005, 0013, 0017, 0075
 
 ## Context
@@ -93,8 +93,8 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   bootstrap's `unfinished` flag (true unless `SITE_ENV` is `production`) shows them on dev and locally to try, and
   production leaves them, and every link to them, out ([#63](https://github.com/battersea-cougars/ark/issues/63)). Each comes
   back for everyone when its backend lands.
-- `DEMO_CONTENT` is never set for production by default; the `production` environment's variable turns it on only
-  until real content is in Sanity.
+- `DEMO_CONTENT` (sample events, videos, players and placeholder photos) is never on for production: what Sanity
+  doesn't have yet, production doesn't show.
 
 ## Consequences
 
@@ -138,3 +138,5 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 - 2026-10-10: Actions pinned by SHA, the Bitwarden CLI checksummed, least-privilege permissions, Dependabot; `main`
   and `release` protected from force-push and deletion (#70, #71).
 - 2026-10-10: Production deployed before launch, behind Cloudflare Access (admins and CI's service token only).
+- 2026-10-17: Production never builds with demo content; the `production` environment's `DEMO_CONTENT` variable is
+  gone. Getting ready for launch, its placeholder photos and sample players must not ship.

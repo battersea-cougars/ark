@@ -58,10 +58,16 @@ describe("club facts singletons", () => {
     expect(mergeClub(FALLBACK_CLUB, { founded: 1996, socials: null }).socials).toEqual(club.socials);
 
     expect(mergeTeam(FALLBACK_TEAM, { intro: "We play.", league: null, photo: null })).toEqual({
+      onWebsite: false,
       intro: "We play.",
       league: null,
       photo: null,
     });
+  });
+
+  it("keep the team off the website until an editor switches it on", () => {
+    expect(mergeTeam(FALLBACK_TEAM, { intro: "We play.", onWebsite: null }).onWebsite).toBe(false);
+    expect(mergeTeam(FALLBACK_TEAM, { intro: "We play.", onWebsite: true }).onWebsite).toBe(true);
   });
 
   it("fall back to the default lists when the Kumite format or awards are empty", () => {

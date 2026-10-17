@@ -6,7 +6,7 @@ export const FRIDAYS = /* groq */ `*[_id == "fridays"][0]{
   training[]{title, day, start, end, description}, venue{name, address, mapUrl}, kitNotes, firstSessionKit, feesText
 }`;
 export const PUB = /* groq */ `*[_id == "pub"][0]{name, about, mapUrl}`;
-export const TEAM = /* groq */ `*[_id == "team"][0]{intro, league, photo}`;
+export const TEAM = /* groq */ `*[_id == "team"][0]{onWebsite, intro, league, photo}`;
 export const KUMITE = /* groq */ `*[_id == "kumite"][0]{intro, tagline, posterStatement, posterReveal, format, awards}`;
 
 // Overrides for channel videos, and videos that aren't on the channel. Merged and sorted in lib/youtube.ts.

@@ -179,35 +179,37 @@ const strip: [string, string][] = [
     </div>
   </section>
 
-  <!-- 21:30 Final whistle: the characters -->
-  <section class="section team" id="team" data-time={slot?.end ?? "21:30"} data-title="Final whistle">
-    <div class="wrap section-head" data-reveal>
-      <div>
-        <p class="stamp">{slot?.end ?? "21:30"}</p>
-        <p class="kicker">Final whistle · The team{s.team.league && ` · ${s.team.league}`}</p>
-        <h2>Some characters</h2>
-        <p class="lede">{s.team.intro}</p>
+  <!-- 21:30 Final whistle: the characters, while the team is on the website (ADR 0109) -->
+  {s.team.onWebsite && (
+    <section class="section team" id="team" data-time={slot?.end ?? "21:30"} data-title="Final whistle">
+      <div class="wrap section-head" data-reveal>
+        <div>
+          <p class="stamp">{slot?.end ?? "21:30"}</p>
+          <p class="kicker">Final whistle · The team{s.team.league && ` · ${s.team.league}`}</p>
+          <h2>Some characters</h2>
+          <p class="lede">{s.team.intro}</p>
+        </div>
+        <a class="more" href="/team/">
+          Full roster
+        </a>
       </div>
-      <a class="more" href="/team/">
-        Full roster
-      </a>
-    </div>
-    {players.length > 0 ? (
-      <ul class="hand">
-        {players.map((p, i) => (
-          <li data-reveal style={`--i:${i};--tilt:${[-4, 2.5, -1.5, 3.5, -3][i % 5]}deg`}>
-            <PlayerCard player={p} />
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <div class="wrap">
-        <Empty>
-          Roster coming soon. <a href="/team/">See the team page</a>.
-        </Empty>
-      </div>
-    )}
-  </section>
+      {players.length > 0 ? (
+        <ul class="hand">
+          {players.map((p, i) => (
+            <li data-reveal style={`--i:${i};--tilt:${[-4, 2.5, -1.5, 3.5, -3][i % 5]}deg`}>
+              <PlayerCard player={p} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div class="wrap">
+          <Empty>
+            Roster coming soon. <a href="/team/">See the team page</a>.
+          </Empty>
+        </div>
+      )}
+    </section>
+  )}
 
   <!-- Off the record: the Kumite, underground -->
   <section class="night kumite" id="kumite" data-time="--:--" data-title="Off the record" data-night>

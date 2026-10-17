@@ -47,6 +47,7 @@ export const FALLBACK_PUB: Pub = {
 };
 
 export const FALLBACK_TEAM: Team = {
+  onWebsite: false,
   intro:
     "The official Battersea Cougars team plays in the BIPHA league. Same club, same Friday rink, " +
     "plus fixtures against other inline hockey clubs.",

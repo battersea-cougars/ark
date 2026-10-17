@@ -59,6 +59,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0043](0043-roster-and-names.md)                 | The roster is a build-time snapshot of the club's members, and members go by their chosen name everywhere |
 | [0100](0100-website-reads-tournament-results.md) | Tournament results are built into the website from D1; the team app rebuilds it when one changes          |
 | [0101](0101-one-icon-for-both-apps.md)           | The website and the team app share one icon: the C of COUGARS, traced from the logo                       |
+| [0109](0109-team-on-the-website-is-a-switch.md)  | The team's place on the website is a switch in the Studio, off until the team manager turns it on         |
 
 ## Team app: how it works
 

@@ -268,6 +268,15 @@ export const team = defineType({
   description: "The official league team. Players are added under “Team → Players”.",
   fields: [
     defineField({
+      name: "onWebsite",
+      title: "Show on the website",
+      type: "boolean",
+      initialValue: false,
+      description:
+        "Off: the website has no Team page, no team section on the homepage and no menu link. Changes show after " +
+        "the next deploy.",
+    }),
+    defineField({
       name: "intro",
       title: "Introduction",
       type: "text",

@@ -44,6 +44,8 @@ export interface Pub {
 }
 
 export interface Team {
+  /** Off: no team page, no team section on the home page, no menu link (ADR 0109). */
+  onWebsite: boolean;
   intro: string;
   league?: string | null;
   photo?: SanityImage | null;
