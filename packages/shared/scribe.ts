@@ -4,7 +4,7 @@
 //   log.info("enquiry.created", { id, source });       → {"level":"info","name":"join","msg":"enquiry.created","id":…}
 //   log.error("enquiry.email_failed", error, { id });  → the error with its stack, and reported (Sentry, ADR 0111)
 //
-// A line is one JSON object, so Workers Logs can filter on any field. The message is a dotted event name; the details go
+// The facade only shapes and cleans a line; an adapter writes it (scribe.console.ts: JSON for Workers Logs). The message is a dotted event name; the details go
 // in fields. Nothing private reaches the log: secrets by key, phone numbers by key, email addresses wherever they are.
 // Every error or fatal line also goes to the reporter, so logging an error is reporting it.
 
@@ -19,7 +19,7 @@ export interface Entry {
   fields: Fields;
 }
 
-/** Where lines go: the console as JSON in a Worker, a list in a test (testing/scribe.ts). */
+/** Writes lines: JSON to the console in the apps (scribe.console.ts), a list in a test (testing/scribe.ts). */
 export interface Adapter {
   write(entry: Entry): void;
 }
@@ -37,18 +37,20 @@ export type Logger = Record<Level, LogFn> & {
 const RANK: Record<Level, number> = { fatal: 60, error: 50, warn: 40, info: 30, debug: 20, trace: 10 };
 const LEVELS = Object.keys(RANK) as Level[];
 
-/** Each line as JSON through the console method of its level: Workers Logs keeps the fields and the level. */
-export const jsonAdapter: Adapter = {
-  write({ level, name, msg, fields }) {
-    const line = JSON.stringify({ level, name, msg, ...fields });
-    if (level === "fatal" || level === "error") console.error(line);
-    else if (level === "warn") console.warn(line);
-    else if (level === "info") console.log(line);
-    else console.debug(line);
+// Unconfigured, a line still goes somewhere, plainly, with one warning to configure an adapter (as decohere does). The
+// facade has no logger of its own: each app's entry configures one (scribe.console.ts, ADR 0110).
+let warned = false;
+const fallback: Adapter = {
+  write(entry) {
+    if (!warned) {
+      warned = true;
+      console.warn("[scribe] No adapter configured; configure one at the app's entry (ADR 0110).");
+    }
+    console.log(entry);
   },
 };
 
-let config: { adapter: Adapter; level: Level; report?: Reporter } = { adapter: jsonAdapter, level: "info" };
+let config: { adapter: Adapter; level: Level; report?: Reporter } = { adapter: fallback, level: "info" };
 
 export const scribe = {
   /** A logger for one part of the code. It reads the configuration on every line, so one made at module level follows
@@ -78,16 +80,8 @@ export const scribe = {
     };
   },
 
-  /** Where lines go, from which level, and who hears about errors. Left out: the JSON console, info, no reporter. */
-  configure({
-    adapter = jsonAdapter,
-    level = "info",
-    report,
-  }: {
-    adapter?: Adapter;
-    level?: Level;
-    report?: Reporter;
-  }) {
+  /** Where lines go, from which level, and who hears about errors. Left out: unconfigured, info, no reporter. */
+  configure({ adapter = fallback, level = "info", report }: { adapter?: Adapter; level?: Level; report?: Reporter }) {
     config = { adapter, level, report };
   },
 

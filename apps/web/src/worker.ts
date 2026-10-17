@@ -3,7 +3,10 @@
 import { handle } from "@astrojs/cloudflare/handler";
 import { expireEnquiries } from "./lib/server/enquiries";
 import { scribe } from "@cougars/shared/scribe";
+import { consoleAdapter } from "@cougars/shared/scribe.console";
 
+// The log: JSON lines for Workers Logs (ADR 0110)
+scribe.configure({ adapter: consoleAdapter });
 const log = scribe.logger("cron");
 
 export default {

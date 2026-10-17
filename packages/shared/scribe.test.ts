@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { scribe, jsonAdapter, type Entry } from "./scribe";
+import { scribe, type Entry } from "./scribe";
+import { consoleAdapter } from "./scribe.console";
 import { captureLogs } from "./testing/scribe";
 
-afterEach(() => scribe.configure({}));
+afterEach(() => scribe.configure({ adapter: consoleAdapter }));
 
 describe("a line in the log", () => {
   it("is one JSON object: the level, who wrote it, what happened, and its fields", () => {
     const lines: string[] = [];
     vi.spyOn(console, "log").mockImplementation((l) => void lines.push(l));
-    scribe.configure({ adapter: jsonAdapter });
+    scribe.configure({ adapter: consoleAdapter });
     scribe.logger("join").info("enquiry.created", { id: 7, source: "/join/" });
     expect(JSON.parse(lines[0])).toEqual({
       level: "info",
@@ -23,7 +24,7 @@ describe("a line in the log", () => {
   it("goes to the console method of its level, so Workers Logs shows errors as errors", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    scribe.configure({ adapter: jsonAdapter });
+    scribe.configure({ adapter: consoleAdapter });
     const log = scribe.logger("cache");
     log.warn("cache.stale");
     log.error("cache.broken");
@@ -79,6 +80,19 @@ describe("a line in the log", () => {
     const logs = captureLogs();
     log.info("late");
     expect(logs.entries).toHaveLength(1);
+  });
+});
+
+describe("the facade without a logger", () => {
+  it("still writes each line, and says once that the app should configure one", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    scribe.configure({});
+    scribe.logger("x").info("one");
+    scribe.logger("x").info("two");
+    expect(log).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledOnce();
+    vi.restoreAllMocks();
   });
 });
 

@@ -7,8 +7,12 @@ import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
 import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
+import { consoleAdapter } from "@cougars/shared/scribe.console";
 
+// The log: JSON lines for Workers Logs (ADR 0110)
+scribe.configure({ adapter: consoleAdapter });
 const log = scribe.logger("cron");
+
 // The live hub (ADR 0072): Cloudflare finds the Durable Object class here
 export { LiveHub } from "./live/live";
 

@@ -1,5 +1,5 @@
 // The log in a test (ADR 0031): every line written from here on is kept as an entry to look at, and nothing is printed.
-// The next test's captureLogs() (or scribe.configure({})) puts the default back.
+// Each test file starts from the apps' console adapter again (testing/setup.ts).
 import { scribe, type Entry, type Level, type Reporter } from "../scribe";
 
 export function captureLogs({ level = "trace", report }: { level?: Level; report?: Reporter } = {}) {
