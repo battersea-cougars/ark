@@ -20,9 +20,14 @@ Running cost is £0: every service is on a free tier (see [ADR 0003](docs/adr/00
 ```sh
 npm ci
 npm run db:rebuild:local   # create the local D1 database (db/schema.sql + the club seed)
-npm run dev                # http://localhost:4500
+npm run db:seed:local      # a made-up club to work with (db/seed/roster.example.json), its admin Ada Admin
+npm run dev                # the website, http://localhost:4500
+npm run team               # the team app, http://localhost:4510 (sign in as admin@example.com: the code shows on screen)
 npm test
 ```
+
+A clean clone needs nothing else: no private files. The website's `apps/web/src/data/*.local.json` are made from the
+local database by every build, and `db/seed/roster.local.json` (your own roster) is optional.
 
 To preview the design with sample events, videos, photos and players: `DEMO_CONTENT=true npm run dev`.
 
@@ -296,7 +301,8 @@ enquiries are still saved and emailed to the club, but nobody gets an auto-reply
   [ADR 0050](docs/adr/0050-schema-and-seed-until-launch.md)). Dev has no roster in Secrets Manager: its database
   already holds its people, so its deploys skip the seed. `scripts/access-setup.mjs` starts the Access gate's list from it, once; after that the list is managed in the dashboard.
 - **Used by:** `scripts/seed-roster.mjs`, which adds players who aren't in D1 yet and changes no one. Local adds
-  them anonymized from `db/seed/roster.local.json`: made-up names bar the admins (ADR 0029).
+  them anonymized from `db/seed/roster.local.json` (made-up names bar the admins, ADR 0029), or, without one, the
+  made-up club in `db/seed/roster.example.json`.
 - **Gets there by:** CI pull from Secrets Manager, then the "Seed the team roster" step in `deploy.yml`, after the
   migrations, on every deploy. A laptop seeds from the local copy (`npm run db:seed:local`).
 - **Expires:** no. Once the app is live, members join and are edited in the app; the roster only covers the

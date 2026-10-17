@@ -1,0 +1,109 @@
+[
+  {
+    "name": "Ada Admin",
+    "position": "D",
+    "rating": 72,
+    "email": "admin@example.com",
+    "roles": ["Admin"],
+    "everyday": "Session lead",
+    "cougar": true
+  },
+  {
+    "name": "Les Lead",
+    "position": "F",
+    "rating": 68,
+    "email": "lead@example.com",
+    "roles": ["Session lead"],
+    "cougar": true
+  },
+  {
+    "name": "Cal Contributor",
+    "position": "F",
+    "rating": 55,
+    "email": "contributor@example.com",
+    "roles": ["Contributor"]
+  },
+  {
+    "name": "Gus Goalie",
+    "position": "G",
+    "rating": 70,
+    "email": "goalie@example.com",
+    "cougar": true
+  },
+  {
+    "name": "Gwen Glove",
+    "position": "G",
+    "rating": 48
+  },
+  {
+    "name": "Fay Forward",
+    "position": "F",
+    "rating": 81,
+    "email": "fay@example.com",
+    "cougar": true
+  },
+  {
+    "name": "Dee Defence",
+    "position": "D",
+    "rating": 77,
+    "cougar": true
+  },
+  {
+    "name": "Sam Skater",
+    "position": "F",
+    "rating": 62,
+    "email": "sam@example.com"
+  },
+  {
+    "name": "Rory Rookie",
+    "position": "F",
+    "rating": 25,
+    "email": "rory@example.com"
+  },
+  {
+    "name": "Nia Newcomer",
+    "position": "D",
+    "rating": 30
+  },
+  {
+    "name": "Bo Backhand",
+    "position": "F",
+    "rating": 58
+  },
+  {
+    "name": "Kit Crossover",
+    "position": "D",
+    "rating": 64,
+    "cougar": true
+  },
+  {
+    "name": "Max Slapshot",
+    "position": "F",
+    "rating": 73
+  },
+  {
+    "name": "Pip Puck",
+    "position": "F",
+    "rating": 44
+  },
+  {
+    "name": "Tam Tape",
+    "position": "D",
+    "rating": 51
+  },
+  {
+    "name": "Ivy Icing",
+    "position": "F",
+    "rating": 39
+  },
+  {
+    "name": "Jude Jersey",
+    "position": "D",
+    "rating": 57
+  },
+  {
+    "name": "Lou Laces",
+    "position": "F",
+    "rating": 66
+  }
+]

@@ -8,7 +8,8 @@ people (roles, Friday Training, the Kumite). Anything personal comes from here, 
 
 The club's starting players. Production's admins live in Secrets Manager as `TEAM_ROSTER__PRODUCTION`
 ([README.md#team-roster](../../README.md#team-roster)); a local roster lives on your machine as
-`db/seed/roster.local.json`, which git ignores (`db/seed/*.local.*`). Dev has none: its database already holds its
+`db/seed/roster.local.json`, which git ignores (`db/seed/*.local.*`). Without one, local seeds the made-up club in
+`db/seed/roster.example.json` (committed: nobody real in it), its admin Ada Admin (admin@example.com). Dev has none: its database already holds its
 people.
 
 ```json

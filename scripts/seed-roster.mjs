@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Seed the team roster into D1 (db/seed/README.md). Adds players who aren't there yet; never changes or removes
 // anyone, so it's safe on every deploy. The roster is personal data and never committed: it comes from
-// TEAM_ROSTER (Bitwarden, loaded into CI) or, locally, db/seed/roster.local.json.
-//   node scripts/seed-roster.mjs --local                              (local D1, from the local file)
+// TEAM_ROSTER (Bitwarden, loaded into CI) or, locally, db/seed/roster.local.json, else the made-up
+// db/seed/roster.example.json (committed: nobody real in it).
+//   node scripts/seed-roster.mjs --local                              (local D1, from the local file or the example)
 //   node scripts/seed-roster.mjs --remote -c dist/server/wrangler.json (CI, from TEAM_ROSTER)
 // --anonymous (dev and local): everyone but the admins under made-up names (scripts/lib/anonymize.mjs, ADR 0029)
 import { spawnSync } from "node:child_process";
@@ -22,18 +23,23 @@ const config = argv.includes("-c")
   ? argv[argv.indexOf("-c") + 1]
   : join(import.meta.dirname, "../apps/web/wrangler.jsonc");
 const localFile = join(import.meta.dirname, "../db/seed/roster.local.json");
+// A clean clone's club: made-up people (an admin among them), so the team app has someone to sign in as with no
+// private file at all. A roster.local.json of your own takes its place.
+const exampleFile = join(import.meta.dirname, "../db/seed/roster.example.json");
+const example = !remote && !process.env.TEAM_ROSTER && !existsSync(localFile);
 
 const text =
-  process.env.TEAM_ROSTER ?? (remote ? null : existsSync(localFile) ? readFileSync(localFile, "utf8") : null);
+  process.env.TEAM_ROSTER ?? (remote ? null : readFileSync(existsSync(localFile) ? localFile : exampleFile, "utf8"));
 if (!text) {
-  console.log(
-    `No roster (${remote ? "TEAM_ROSTER isn't in Secrets Manager" : "no db/seed/roster.local.json"}): skipped.`,
-  );
+  console.log(`No roster (TEAM_ROSTER isn't in Secrets Manager): skipped.`);
   process.exit(0);
 }
 
 const parsed = parseRoster(text);
-const players = argv.includes("--anonymous") ? anonymizeRoster(parsed) : parsed;
+// The example's people are made up already, and their names say what they're for
+const players = argv.includes("--anonymous") && !example ? anonymizeRoster(parsed) : parsed;
+if (example)
+  console.log("No db/seed/roster.local.json: seeding the made-up example club (db/seed/roster.example.json).");
 // The SQL holds names, so it goes in a private temp folder that's removed straight after.
 const dir = mkdtempSync(join(tmpdir(), "roster-"));
 const file = join(dir, "roster.sql");
