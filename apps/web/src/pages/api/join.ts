@@ -12,7 +12,7 @@ import {
 import { rateLimit } from "@cougars/shared/rate-limit";
 import { enquiryMail } from "../../lib/server/enquiry-mail";
 import { clubInbox, mailConfig, smokeToken, turnstileSecret } from "../../lib/server/mail-env";
-import { isSmoke, smokeMailConfig } from "../../lib/server/smoke";
+import { isSmoke, smokeMailConfig, SMOKE_HEADER } from "../../lib/server/smoke";
 import { autoReplyMail } from "../../lib/server/auto-reply";
 import { TURNSTILE_FIELD, verifyTurnstile } from "../../lib/server/turnstile";
 import { getSettings } from "../../lib/sanity/content";
@@ -40,7 +40,11 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   const parsed = parseEnquiry(form);
   if (!parsed.ok) return reply(400, { ok: false, errors: parsed.errors }, "/join?error=invalid");
 
-  // The deploy's smoke test (lib/server/smoke.ts): the whole path, its emails to the sending account only, then gone
+  // The deploy's smoke test (lib/server/smoke.ts): the whole path, its emails to the sending account only, then gone.
+  // A smoke header with the wrong key (an old deploy's, or this one's before it has spread) is refused, never taken as
+  // an ordinary enquiry: the club must never get a smoke test's email.
+  if (request.headers.has(SMOKE_HEADER) && !isSmoke(request, smokeToken()))
+    return Response.json({ ok: false, error: "Not this deploy's smoke key." }, { status: 403 });
   if (isSmoke(request, smokeToken())) {
     const id = await saveEnquiry(env.DB, parsed.enquiry, { verified: true });
     try {

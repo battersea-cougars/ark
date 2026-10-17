@@ -238,7 +238,7 @@ jobs:
         if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: |
-          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY SMOKE_TOKEN; do
+          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/server/wrangler.json
             else
@@ -255,8 +255,25 @@ jobs:
           url=$(echo "$out" | grep -oE 'https://pr-[^ ]+\.workers\.dev' | head -1)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+      # A key for this deploy's smoke test of the form only (apps/web/src/lib/server/smoke.ts): random, made here, never
+      # stored, and spent right after the test. PR previews share dev's Worker, so they skip the form test.
+      - name: Smoke key
+        if: github.event_name != 'pull_request'
+        working-directory: apps/web
+        run: |
+          key=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')
+          echo "::add-mask::$key"
+          printf '%s' "$key" | npx wrangler secret put SMOKE_TOKEN -c dist/server/wrangler.json
+          echo "SMOKE_TOKEN=$key" >> "$GITHUB_ENV"
+
       - name: Smoke test
         run: node scripts/ci/smoke-test.mjs "${{ steps.preview.outputs.url || steps.deploy.outputs.url }}" "$PUBLIC_BUILD_VERSION"
+
+      # Spent, pass or fail: the Worker gets a new random key that nobody ever sees, so this deploy's key opens nothing
+      - name: Spend the smoke key
+        if: always() && github.event_name != 'pull_request'
+        working-directory: apps/web
+        run: openssl rand -base64 32 | tr -d '\n' | npx wrangler secret put SMOKE_TOKEN -c dist/server/wrangler.json
 
       - name: Link the website
         env:

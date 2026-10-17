@@ -1,7 +1,7 @@
 // The deploy's smoke test of the "Try a session" form (scripts/ci/smoke-test.mjs, ADR 0027): a real enquiry, sent with
-// the SMOKE_TOKEN secret in a header, that runs the whole path (saved, both emails sent) and leaves nothing behind.
-// Its emails go only to the sending account, in production too, and its row is deleted at once. Without the right
-// token a request is an ordinary enquiry, so nobody else can make the club send these.
+// SMOKE_TOKEN in a header, that runs the whole path (saved, both emails sent) and leaves nothing behind. Its emails go
+// only to the sending account, in production too, and its row is deleted at once. The key is made by each deploy, used
+// by its smoke test, then overwritten with one nobody sees (deploy.yml): it's never stored, and works for one deploy.
 import type { MailConfig } from "@cougars/shared/email";
 
 export const SMOKE_HEADER = "X-Cougars-Smoke";

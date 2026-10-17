@@ -31,8 +31,8 @@ const checks = [
       if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
     },
   ],
-  // A real enquiry, marked with the smoke token: saved, both emails sent (to the sending account only, even in
-  // production), then deleted (apps/web/src/lib/server/smoke.ts). Skipped where the token isn't set.
+  // A real enquiry, marked with this deploy's smoke key: saved, both emails sent (to the sending account only, even in
+  // production), then deleted (apps/web/src/lib/server/smoke.ts). Skipped where there's no key (PR previews).
   ...(process.env.SMOKE_TOKEN
     ? [
         [
@@ -43,16 +43,22 @@ const checks = [
             form.set("email", "smoke@example.com");
             form.set("message", `Deploy smoke test, ${version}`);
             form.set("source", "/join/");
-            const res = await fetch(new URL("/api/join", base), {
-              method: "POST",
-              headers: {
-                ...access,
-                Accept: "application/json",
-                Origin: new URL(base).origin,
-                "X-Cougars-Smoke": process.env.SMOKE_TOKEN,
-              },
-              body: form,
-            });
+            // The key was put on the Worker moments ago: until it has spread, the site refuses it (403), so try again
+            let res;
+            for (let tries = 0; tries < 7; tries++) {
+              if (tries) await new Promise((done) => setTimeout(done, 5_000));
+              res = await fetch(new URL("/api/join", base), {
+                method: "POST",
+                headers: {
+                  ...access,
+                  Accept: "application/json",
+                  Origin: new URL(base).origin,
+                  "X-Cougars-Smoke": process.env.SMOKE_TOKEN,
+                },
+                body: form,
+              });
+              if (res.status !== 403) break;
+            }
             const body = await res.json().catch(() => ({}));
             if (res.status !== 200 || !body.smoke) throw new Error(`expected a smoke answer, got ${res.status}`);
             const { autoReply, club } = body.smoke;
