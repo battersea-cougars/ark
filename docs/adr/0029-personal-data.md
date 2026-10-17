@@ -1,7 +1,7 @@
 # 0029. Personal data stays out of the repo, the roster is seeded from Secrets Manager, and nothing is kept longer than needed
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-10
+- **Date:** 2026-10-06 · updated 2026-10-17
 - **Merges:** 0033
 
 ## Context
@@ -23,9 +23,10 @@ emailed to the club inbox ([ADR 0027](0027-email-through-gmail-api.md)). The clu
 
 - The club's seed (`db/seed/club.sql`, [ADR 0050](0050-schema-and-seed-until-launch.md)) holds only what isn't about
   people: roles and their actions, Friday Training, the Kumite.
-- **The roster** is one line of JSON stored as `TEAM_ROSTER` (dev) and `TEAM_ROSTER__PRODUCTION` in Bitwarden, the
-  same as a secret ([README.md#team-roster](../../README.md#team-roster)), and on a laptop as
-  `db/seed/roster.local.json`, which git ignores.
+- **The roster** is one line of JSON. In Bitwarden only production's admins are kept, as
+  `TEAM_ROSTER__PRODUCTION`, the same as a secret ([README.md#team-roster](../../README.md#team-roster)); the club's
+  full list isn't kept there (dev's database holds it anonymized). On a laptop it's `db/seed/roster.local.json`,
+  which git ignores.
 - **`scripts/seed-roster.mjs` only adds:** players not yet in `members` (matched by name, any case), an email where
   there's none, roles where they're missing. It never changes or removes anyone, so `deploy.yml` runs it on every
   deploy after the database rebuild, and what admins do in the app always wins. It bumps `data_version` so open apps
@@ -81,7 +82,7 @@ admin does the same for a member who asks by email (their member sheet → Delet
 - Changing the retention period means changing `KEEP_ENQUIRIES_MONTHS`, the privacy page and this record together;
   the same for the team app's (`retention.ts` and the app's notice).
 - The roster seed adds players by name, so someone who deleted their account comes back on the next deploy if they're
-  still in `TEAM_ROSTER`: take them off it (both names) too.
+  still in a roster: take them off `TEAM_ROSTER__PRODUCTION` (and a local copy) too.
 
 ## History
 
@@ -99,3 +100,5 @@ admin does the same for a member who asks by email (their member sheet → Delet
   the website only.
 - 2026-10-10: Dev and local hold made-up players, bar the admins: an anonymized seed and a script that swaps who's
   already there.
+- 2026-10-17: The club's full roster is deleted from Bitwarden (`TEAM_ROSTER`); only production's two admins stay
+  (`TEAM_ROSTER__PRODUCTION`). Dev's database already has everyone, anonymized.

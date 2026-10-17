@@ -6,9 +6,10 @@ people (roles, Friday Training, the Kumite). Anything personal comes from here, 
 
 ## The team roster
 
-The club's starting players. It lives in Secrets Manager as `TEAM_ROSTER` (dev) and `TEAM_ROSTER__PRODUCTION`
-([README.md#team-roster](../../README.md#team-roster)), and on your machine as `db/seed/roster.local.json`, which
-git ignores (`db/seed/*.local.*`).
+The club's starting players. Production's admins live in Secrets Manager as `TEAM_ROSTER__PRODUCTION`
+([README.md#team-roster](../../README.md#team-roster)); a local roster lives on your machine as
+`db/seed/roster.local.json`, which git ignores (`db/seed/*.local.*`). Dev has none: its database already holds its
+people.
 
 ```json
 [
@@ -35,13 +36,13 @@ case) is left alone (its rating, position and Cougar flag included), an email is
 none, and roles are added, never removed. So what admins change in the app always wins, and it's safe to run on every deploy.
 
 - Local: `npm run db:rebuild:local && npm run db:seed:local` (local D1 is shared by the website and the team app).
-- Dev and production: the "Seed the team roster" step in `.github/workflows/deploy.yml`, after the rebuild.
-- Dev and local are seeded **anonymized** (`--anonymous`): everyone but the admins under a made-up name, no email
+- Production: the "Seed the team roster" step in `.github/workflows/deploy.yml`, after the rebuild. Dev runs it too
+  and skips: there's no dev roster.
+- Local (and dev, if it ever gets a roster again) is seeded **anonymized** (`--anonymous`): everyone but the admins under a made-up name, no email
   (`scripts/lib/anonymize.mjs`, ADR 0029). To swap who's already in a database the same way:
   `node scripts/anonymize-members.mjs --local` (or `--remote -c <dev config>`).
 
-Changing the roster: edit the local copy, then put it back in Secrets Manager with the command in
-[README.md#team-roster](../../README.md#team-roster). Production's roster (`TEAM_ROSTER__PRODUCTION`) is only its
+Changing production's admins: the command in [README.md#team-roster](../../README.md#team-roster). Production's roster (`TEAM_ROSTER__PRODUCTION`) is only its
 admins; everyone else comes in through **Members → Manage → Import members** in the team app, which takes a CSV
 (columns `name`, `email`, `position`, `rating`, `cougar`, `roles`) or this same JSON
 ([ADR 0069](../../docs/adr/0069-members.md)). After that, add and edit members in the app.

@@ -76,7 +76,6 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website (production)                 |
 | [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website (dev)                        |
 | [`TEAM_ROSTER__PRODUCTION`](#team-roster)                                 | `cougars`     | (the admins only)           | Deploys (D1 seed)                    |
-| [`TEAM_ROSTER`](#team-roster)                                             | `cougars-dev` | (the club's roster)         | Deploys (D1 seed)                    |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                       | `cougars-dev` | GitHub, `Cougars rebuilds`  | Team app (both): rebuilds            |
 | [`CF_ACCESS_CLIENT_ID__PRODUCTION`](#cf_access_client_id__production)     | `cougars`     | Cloudflare Access           | Production smoke tests, until launch |
 | [`CF_ACCESS_CLIENT_SECRET__PRODUCTION`](#cf_access_client_id__production) | `cougars`     | Cloudflare Access           | Production smoke tests, until launch |
@@ -291,12 +290,13 @@ enquiries are still saved and emailed to the club, but nobody gets an auto-reply
 - **What:** the club's players as one line of JSON: name, position (F/D/G), rating, and optionally an email and
   roles. Not a credential, but personal data (names and skill ratings), so it never goes in this public repo
   ([ADR 0029](docs/adr/0029-personal-data.md)). Format and local use: [db/seed/README.md](db/seed/README.md).
-- **Set:** from the local copy, `db/seed/roster.local.json` (gitignored):
-  `node -e "console.log(JSON.stringify(require('./db/seed/roster.local.json')))" | node scripts/secret-set.mjs TEAM_ROSTER`.
-  `TEAM_ROSTER__PRODUCTION` is the same shape with only production's admins; the members are imported in the app
-  (Members → Manage → Import members, [ADR 0050](docs/adr/0050-schema-and-seed-until-launch.md)).
-- **Used by:** `scripts/seed-roster.mjs`, which adds players who aren't in D1 yet and changes no one. Dev and local
-  add them anonymized: made-up names bar the admins (ADR 0029).
+- **Set:** only `TEAM_ROSTER__PRODUCTION`, production's admins (two), from a local file of that shape:
+  `node -e "console.log(JSON.stringify(require('./admins.local.json')))" | node scripts/secret-set.mjs TEAM_ROSTER__PRODUCTION`,
+  then delete the file. Everyone else is imported in the app (Members → Manage → Import members,
+  [ADR 0050](docs/adr/0050-schema-and-seed-until-launch.md)). Dev has no roster in Secrets Manager: its database
+  already holds its people, so its deploys skip the seed. `scripts/access-setup.mjs` reads the admins' emails from it.
+- **Used by:** `scripts/seed-roster.mjs`, which adds players who aren't in D1 yet and changes no one. Local adds
+  them anonymized from `db/seed/roster.local.json`: made-up names bar the admins (ADR 0029).
 - **Gets there by:** CI pull from Secrets Manager, then the "Seed the team roster" step in `deploy.yml`, after the
   migrations, on every deploy. A laptop seeds from the local copy (`npm run db:seed:local`).
 - **Expires:** no. Once the app is live, members join and are edited in the app; the roster only covers the
