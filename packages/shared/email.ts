@@ -184,6 +184,10 @@ export async function sendMail(
     throw new MailRefused(`Outside production the club's account must never send (it's ${account}).`);
   }
   const safe = safeMail(mail, { siteEnv: config.siteEnv, safeTo: config.safeTo || account, allow: config.allow });
+  // Production sends from the developer account but reads as the club: the club's address is that account's "Send
+  // mail as" alias (ADR 0027), so replies go to the club inbox. Until the alias is verified Gmail keeps the account's
+  // own address. Elsewhere the account is its own sender.
+  const sender = isProduction(config.siteEnv) ? CLUB_ADDRESS : account;
   if (safe.to !== mail.to) {
     console.log(JSON.stringify({ event: "mail.redirected", to: safe.to, originalTo: mail.to }));
   }
@@ -191,7 +195,7 @@ export async function sendMail(
     const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ raw: base64url(mime(safe, account)) }),
+      body: JSON.stringify({ raw: base64url(mime(safe, sender)) }),
       signal: AbortSignal.timeout(15_000),
     });
     const body = (await res.json().catch(() => ({}))) as {

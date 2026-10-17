@@ -135,6 +135,12 @@ describe("sendMail", () => {
     expect(google.sent[0].to).toBe(CLUB_ADDRESS);
   });
 
+  it("in production, the developer account sends as the club's address (its Gmail alias), so replies reach the club", async () => {
+    const google = fakeGoogle();
+    await sendMail({ ...enquiry, replyTo: undefined }, config({ siteEnv: "production" }), { fetch: google.fetch });
+    expect(google.sent[0].raw).toMatch(/^From: Battersea Cougars <batterseahockey@gmail\.com>$/m);
+  });
+
   it("outside production, refuses to send as the club's account", async () => {
     const google = fakeGoogle({ account: CLUB_ADDRESS });
     await expect(sendMail(enquiry, config({ safeTo: "dev@example.com" }), { fetch: google.fetch })).rejects.toThrow(

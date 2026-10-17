@@ -72,8 +72,7 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`YOUTUBE_API_KEY__DEV`](#youtube-api-keys)                               | `cougars-dev` | Google Cloud                | Website (dev)                        |
 | [`GMAIL_CLIENT_ID`](#gmail)                                               | `cougars-dev` | Google Cloud                | Website, team app (both)             |
 | [`GMAIL_CLIENT_SECRET`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both)             |
-| [`GMAIL_REFRESH_TOKEN__PRODUCTION`](#gmail)                               | `cougars`     | Google, club Gmail          | Website, team app (production)       |
-| [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, dev Gmail           | Website, team app (dev)              |
+| [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)             |
 | [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website (production)                 |
 | [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website (dev)                        |
 | [`TEAM_ROSTER__PRODUCTION`](#team-roster)                                 | `cougars`     | (the admins only)           | Deploys (D1 seed)                    |
@@ -241,27 +240,29 @@ inbox, and dev can only ever send from its own test account, never the club's.
        `https://web.cougars-dev.workers.dev` until there's a domain; switch them, and the authorised
        domain, when there is). Save.
     5. **Audience → Publish app**, to **In production**. In _Testing_, Google cancels the tokens after 7 days.
-       It stays unverified (Google warns on the consent screen, which is fine: only the club's two accounts ever
-       sign in).
+       It stays unverified (Google warns on the consent screen, which is fine: only the developer account ever
+       signs in).
     6. **Clients → Create client → Desktop app**, named `cougars-website`. Save both values:
        `node scripts/secret-set.mjs GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET` (shared by both environments).
-  - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs dev`, signed in as the dev Gmail account. It refuses the
-    club's account.
-  - `GMAIL_REFRESH_TOKEN__PRODUCTION`: `node scripts/gmail-auth.mjs production`, signed in as
-    batterseahockey@gmail.com. It refuses any other account.
+  - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs`, signed in as cougars.dev@gmail.com. One token for both
+    environments: production sends from this account too, so resetting the club account's password breaks nothing
+    (ADR 0027). It refuses the club's account.
+  - **The club's address as the sender:** in cougars.dev's Gmail, **Settings → Accounts and Import → Send mail as →
+    Add another email address**: name _Battersea Cougars_, address batterseahockey@gmail.com, **Treat as an alias**
+    ticked. Gmail emails the club account a confirmation link; open it there. Production then sends as
+    batterseahockey@gmail.com, and replies land in the club inbox. Without it, production sends as cougars.dev.
 
   The script opens Google's consent page, catches the answer on `http://localhost:4590` and saves the token straight
   to Secrets Manager; nothing is printed.
 
 - **Used by:** the website's enquiry form (Worker) and the team app's sign-in codes and notices, to send mail. The refresh token can send mail as its account
   and nothing else: it can't read the mailbox.
-- **Gets there by:** CI pull from Secrets Manager (`GMAIL_REFRESH_TOKEN__PRODUCTION` becomes `GMAIL_REFRESH_TOKEN`),
-  then `deploy.yml` pushes all three to the Worker as secrets on every deploy. Locally,
+- **Gets there by:** CI pull from Secrets Manager (both environments read the same three), then `deploy.yml` pushes all three to the Worker as secrets on every deploy. Locally,
   `node scripts/env-pull.mjs -- npm run dev` (dev account). Without them, emails are logged, not sent
   ([ADR 0027](docs/adr/0027-email-through-gmail-api.md)).
 - **Expires:** no, but Google cancels a refresh token when the account's password changes, access is removed in
   [the account's third-party access](https://myaccount.google.com/connections), or it's unused for 6 months.
-- **Rotate:** re-run `gmail-auth.mjs` for that environment, then deploy. Client secret: **Clients → the client →
+- **Rotate:** re-run `gmail-auth.mjs`, then deploy both environments. Client secret: **Clients → the client →
   Add secret**, update Secrets Manager, delete the old one.
 
 ### Turnstile

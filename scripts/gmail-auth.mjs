@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// One-time: let the website send email as a Gmail account, through the Gmail API (not SMTP, not a password).
-//   node scripts/gmail-auth.mjs dev          sign in as the dev Gmail account   -> GMAIL_REFRESH_TOKEN
-//   node scripts/gmail-auth.mjs production   sign in as batterseahockey@gmail.com -> GMAIL_REFRESH_TOKEN__PRODUCTION
+// One-time: let the website and the team app send email as the developer account (cougars.dev@gmail.com), through the
+// Gmail API (not SMTP, not a password). One token for both environments: production sends from the same account, as
+// the club's address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
+//   node scripts/gmail-auth.mjs              sign in as cougars.dev@gmail.com -> GMAIL_REFRESH_TOKEN
 // Needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Bitwarden (README.md#gmail). Opens Google's consent page, catches
 // the answer on http://localhost:4590, swaps it for a refresh token (send-only), and saves that straight to
 // Bitwarden. Nothing is printed or written to disk. Re-run it to replace a token (e.g. after a password change).
@@ -9,22 +10,21 @@ import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { ensureToken, loadSecrets, setSecret } from "./lib/bitwarden.mjs";
 
-// The club's own inbox: only production may hold a token for it, and production may hold nothing else.
+// The club's own inbox: no token is ever made for it.
 const CLUB = "batterseahockey@gmail.com";
 const PORT = 4590;
 const REDIRECT = `http://localhost:${PORT}/`;
 // Send only (can't read mail), plus the account's address so we can check who signed in.
 const SCOPES = ["https://www.googleapis.com/auth/gmail.send", "openid", "email"];
 
-const environment = process.argv[2];
-if (!["dev", "production"].includes(environment) || process.argv.length > 3) {
-  console.error("Usage: gmail-auth.mjs dev|production");
+if (process.argv.length > 2) {
+  console.error("Usage: gmail-auth.mjs");
   process.exit(2);
 }
-const key = environment === "production" ? "GMAIL_REFRESH_TOKEN__PRODUCTION" : "GMAIL_REFRESH_TOKEN";
+const key = "GMAIL_REFRESH_TOKEN";
 
 ensureToken();
-const { GMAIL_CLIENT_ID: clientId, GMAIL_CLIENT_SECRET: clientSecret } = loadSecrets(environment);
+const { GMAIL_CLIENT_ID: clientId, GMAIL_CLIENT_SECRET: clientSecret } = loadSecrets("dev");
 if (!clientId || !clientSecret) {
   throw new Error("GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET aren't in Bitwarden yet (README.md#gmail).");
 }
@@ -42,7 +42,6 @@ consent.search = new URLSearchParams({
   state,
   code_challenge: createHash("sha256").update(verifier).digest("base64url"),
   code_challenge_method: "S256",
-  ...(environment === "production" ? { login_hint: CLUB } : {}),
 }).toString();
 
 const code = await new Promise((resolve, reject) => {
@@ -57,9 +56,7 @@ const code = await new Promise((resolve, reject) => {
     else reject(new Error(`Google said: ${url.searchParams.get("error") ?? "state mismatch"}`));
   });
   server.listen(PORT, () => {
-    console.log(
-      `\nSign in as ${environment === "production" ? CLUB : "the dev Gmail account (not the club's)"}:\n\n${consent}\n`,
-    );
+    console.log(`\nSign in as the developer account, cougars.dev@gmail.com (not the club's):\n\n${consent}\n`);
     console.log('Google warns the app isn\'t verified: choose "Advanced", then "Go to … (unsafe)", then Continue.\n');
   });
 });
@@ -84,11 +81,8 @@ if (!token.scope?.split(" ").includes(SCOPES[0])) {
 
 // Who signed in (the id_token comes straight from Google over TLS, so reading it without verifying is fine here).
 const email = JSON.parse(Buffer.from(token.id_token.split(".")[1], "base64url").toString()).email?.toLowerCase();
-if (environment === "production" && email !== CLUB) {
-  throw new Error(`Signed in as ${email}, not ${CLUB}. Nothing saved.`);
-}
-if (environment === "dev" && email === CLUB) {
-  throw new Error(`That's the club's account: dev must never be able to send as ${CLUB}. Nothing saved.`);
+if (email === CLUB) {
+  throw new Error(`That's the club's account: the apps send from the developer account, never ${CLUB}. Nothing saved.`);
 }
 
 console.log(`${setSecret(key, token.refresh_token)} ${key}: ${email} can now send through the Gmail API.`);
