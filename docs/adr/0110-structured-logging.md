@@ -18,6 +18,11 @@ adapter deciding where lines go. Its packages need Node (Pino), so the Workers c
 - **`packages/shared/scribe.ts`** is ours, in decohere's shape: `scribe.logger("join")` gives a logger with
   `fatal | error | warn | info | debug | trace`; `scribe.configure({ adapter, level, report })` sets where lines go.
   A logger reads the configuration on every line, so one made at module level follows a later `configure()`.
+- **The facade has no logger of its own** (decohere's rule: the consumer picks one). The apps' logger is
+  `packages/shared/scribe.console.ts`, configured at each app's entry (`apps/web/src/worker.ts`,
+  `apps/team/worker/index.ts`) and in tests (`testing/setup.ts`). Unconfigured, a line still goes to the console as is,
+  with one warning. When decohere's facade runs outside Node and is public
+  ([typesmiths/decohere#659](https://github.com/typesmiths/decohere/issues/659)), ours gives way to it.
 - **Its argument rules are decohere's:** `log.error(err)`, `log.info("msg")`, `log.error("msg", err, { fields })`,
   `log.info("msg", { fields })`, and a plain value goes under `data`. Ours adds `log.with({ fields })` for fields
   every line of a job carries.
@@ -45,4 +50,5 @@ adapter deciding where lines go. Its packages need Node (Pino), so the Workers c
 
 ## History
 
-- 2026-10-17: Scribe, in decohere's shape, made for Workers; every `console.*` in the apps moved to it.
+- 2026-10-17: Scribe, in decohere's shape, made for Workers; every `console.*` in the apps moved to it. The same day,
+  the JSON console logger moved out of the facade into `scribe.console.ts`.
