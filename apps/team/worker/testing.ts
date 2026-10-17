@@ -3,6 +3,7 @@
 // back in the reply; tests sign in with it the way a member types it.
 import { outbox, type Mail } from "@cougars/shared/email";
 import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
+import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { parseRoster, rosterSql } from "../../../scripts/lib/roster.mjs";
 import { handleApi, type Env } from "./api/api";
 import { LiveHub } from "./live/live";
@@ -30,6 +31,7 @@ export interface Reply {
 export function testWorld(roster: object[]) {
   const db = createTestD1();
   db.raw.exec(rosterSql(parseRoster(JSON.stringify(roster)), NOW));
+  db.raw.exec(FIRST_KUMITE_SQL);
   // The live hub (ADR 0072) as the Worker reaches it: one object, behind a namespace that always finds it
   const live = new LiveHub();
   const env: Env = { DB: db, TEAM_ENV: "local", LIVE: liveNamespace(live) };

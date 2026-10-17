@@ -52,6 +52,8 @@ export interface Team {
 }
 
 export interface Kumite {
+  /** Off: no Kumite page, no Kumite section on the home page, no menu link (ADR 0109). */
+  onWebsite: boolean;
   intro: string;
   /** Under the poster's title. */
   tagline: string;

@@ -3,9 +3,10 @@
 // same commit as the behaviour. Google needs this page's URL to let the website send email (README.md#gmail).
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
-import { getSettings } from "../lib/sanity/content";
+import { getSections, getSettings } from "../lib/sanity/content";
 
 const s = await getSettings();
+const sections = await getSections();
 const email = s.contactEmail;
 ---
 
@@ -32,14 +33,20 @@ const email = s.contactEmail;
 
       <h2>Players on this website</h2>
       <p>
-        {s.team.onWebsite ? (
+        {sections.team && sections.results ? (
           <>
             The <a href="/team/">team page</a> and the <a href="/results/">tournament results</a> show
           </>
-        ) : (
+        ) : sections.team ? (
+          <>
+            The <a href="/team/">team page</a> shows
+          </>
+        ) : sections.results ? (
           <>
             The <a href="/results/">tournament results</a> show
           </>
+        ) : (
+          <>Once the team page and tournament results are up, they'll show</>
         )}{" "}
         the players' names, and who played, scored and won. Each player goes by the name they chose in the club's team
         app: their first name and initial unless they picked otherwise. Nobody's full name is shown unless they choose

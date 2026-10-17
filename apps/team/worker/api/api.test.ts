@@ -3,6 +3,7 @@
 // migration and the roster seed applied (ADR 0031).
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
+import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { parseRoster, rosterSql } from "../../../../scripts/lib/roster.mjs";
 import { ACTIONS } from "../../src/access/actions";
 import { ROUTES, handleApi, type Env } from "./api";
@@ -21,6 +22,7 @@ let env: Env;
 beforeEach(() => {
   const db = createTestD1();
   db.raw.exec(rosterSql(parseRoster(JSON.stringify(ROSTER)), NOW));
+  db.raw.exec(FIRST_KUMITE_SQL);
   env = { DB: db, TEAM_ENV: "local", TEAM_AUTO_ADMIN: "1" };
 });
 

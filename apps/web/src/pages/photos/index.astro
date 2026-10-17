@@ -21,11 +21,15 @@ Astro.response.headers.set("Cache-Control", cacheControl(unavailable));
 if (unavailable) Astro.response.status = 503;
 ---
 
-<Base title="Photos" card="photos" description={`Photos from Cougars ${day} nights, the Kumite and the rest.`}>
+<Base
+  title="Photos"
+  card="photos"
+  description={`Photos from Cougars ${day} nights${s.kumite.onWebsite ? ", the Kumite" : ""} and the rest.`}
+>
   <PageHeader
     eyebrow="Photos"
     title="The evidence"
-    lede={`Photographic proof that some of us can skate. ${day} nights, Kumite days and the rest; pick a tape.`}
+    lede={`Photographic proof that some of us can skate. ${day} nights${s.kumite.onWebsite ? ", Kumite days" : ""} and the rest; pick a tape.`}
   />
   <div class="wrap page-body">
     {albums.length ? (

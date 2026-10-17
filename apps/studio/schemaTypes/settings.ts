@@ -304,6 +304,15 @@ export const kumite = defineType({
     "the team app by themselves.",
   fields: [
     defineField({
+      name: "onWebsite",
+      title: "Show on the website",
+      type: "boolean",
+      initialValue: false,
+      description:
+        "Off: the website has no Kumite page, no Kumite section on the homepage and no menu link. Changes show " +
+        "after the next deploy.",
+    }),
+    defineField({
       name: "intro",
       title: "Introduction",
       type: "text",

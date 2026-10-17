@@ -19,7 +19,11 @@ if (unavailable) Astro.response.status = 503;
 ---
 
 <Base title="Videos" card="videos" description="Footage from Friday night inline hockey in Battersea.">
-  <PageHeader eyebrow="Footage" title="Videos" lede="Games and highlights from Friday sessions and the Kumite.">
+  <PageHeader
+    eyebrow="Footage"
+    title="Videos"
+    lede={`Games and highlights from Friday sessions${s.kumite.onWebsite ? " and the Kumite" : ""}.`}
+  >
     {s.socials.youtube && (
       <a class="btn" href={s.socials.youtube} rel="noopener" target="_blank">
         YouTube channel ↗

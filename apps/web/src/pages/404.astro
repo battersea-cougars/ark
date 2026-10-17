@@ -1,5 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
+import { getSections } from "../lib/sanity/content";
+
+const sections = await getSections();
 ---
 
 <Base title="Page not found">
@@ -18,9 +21,11 @@ import Base from "../layouts/Base.astro";
         <a class="label link" href="/fridays/">
           Fridays
         </a>
-        <a class="label link" href="/kumite/">
-          Kumite
-        </a>
+        {sections.kumite && (
+          <a class="label link" href="/kumite/">
+            Kumite
+          </a>
+        )}
         <a class="label link" href="/events/">
           Events
         </a>

@@ -1,10 +1,15 @@
 ---
+import type { GetStaticPaths } from "astro";
 // Every tournament the club has played, newest first, as of this build (ADR 0100): the champions and award winners
 // of each, linking to its full result. The team app starts a rebuild when a result changes.
 import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import Empty from "../../components/Empty.astro";
-import { getResults } from "../../lib/sanity/content";
+import { getResults, getSections } from "../../lib/sanity/content";
+
+// /results/ only, and only while there's something to show or a Kumite to point to (ADR 0109)
+export const getStaticPaths = (async () =>
+  (await getSections()).results ? [{ params: { page: undefined } }] : []) satisfies GetStaticPaths;
 
 const results = await getResults();
 ---

@@ -1,9 +1,14 @@
 ---
-import Base from "../layouts/Base.astro";
-import KumitePoster from "../components/KumitePoster.astro";
-import EventList from "../components/EventList.astro";
-import HonoursBoard from "../components/HonoursBoard.astro";
-import { getEvents, getResults, getSettings, upcoming } from "../lib/sanity/content";
+import type { GetStaticPaths } from "astro";
+import Base from "../../layouts/Base.astro";
+import KumitePoster from "../../components/KumitePoster.astro";
+import EventList from "../../components/EventList.astro";
+import HonoursBoard from "../../components/HonoursBoard.astro";
+import { getEvents, getResults, getSections, getSettings, upcoming } from "../../lib/sanity/content";
+
+// /kumite/ only, and only while the Kumite is switched on in the Studio (ADR 0109)
+export const getStaticPaths = (async () =>
+  (await getSections()).kumite ? [{ params: { page: undefined } }] : []) satisfies GetStaticPaths;
 
 const s = await getSettings();
 // Its champions as of this build (ADR 0100)

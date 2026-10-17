@@ -19,6 +19,8 @@ const cover = imageUrl(event.cover, 1600, 900);
 const TYPE = { training: "Training", social: "Social", tournament: "Tournament", kumite: "Special event · Kumite" };
 const body = renderPortableText(event.body);
 const s = await getSettings();
+// Back to the Kumite only while it has a page (ADR 0109)
+const toKumite = event.type === "kumite" && s.kumite.onWebsite;
 const url = new URL(Astro.url.pathname, Astro.site).href;
 const shareImage = imageUrl(event.cover, 1200, 630) ?? new URL(`/og/events/${event.slug}.png`, Astro.site).href;
 ---
@@ -32,8 +34,8 @@ const shareImage = imageUrl(event.cover, 1200, 630) ?? new URL(`/og/events/${eve
 >
   <article class="wrap page-body">
     <header class="head">
-      <a class="label link back" href={event.type === "kumite" ? "/kumite/" : "/events/"} data-reveal>
-        ← {event.type === "kumite" ? "Kumite" : "Events"}
+      <a class="label link back" href={toKumite ? "/kumite/" : "/events/"} data-reveal>
+        ← {toKumite ? "Kumite" : "Events"}
       </a>
       <p class:list={["label", { accent: event.type === "kumite" }]} data-reveal style="--i:1">
         {TYPE[event.type]}

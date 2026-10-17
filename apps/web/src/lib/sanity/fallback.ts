@@ -56,6 +56,7 @@ export const FALLBACK_TEAM: Team = {
 };
 
 export const FALLBACK_KUMITE: Kumite = {
+  onWebsite: false,
   intro:
     "Four times a year we hold the Kumite, our in-house tournament, a special event apart from regular " +
     "Friday hockey. Everyone who signs up is drafted into balanced teams, every team plays every other " +

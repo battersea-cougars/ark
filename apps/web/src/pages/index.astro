@@ -211,30 +211,32 @@ const strip: [string, string][] = [
     </section>
   )}
 
-  <!-- Off the record: the Kumite, underground -->
-  <section class="night kumite" id="kumite" data-time="--:--" data-title="Off the record" data-night>
-    <KumitePoster next={kumite} href="/kumite/" />
-    <div class="wrap section kumite-more">
-      <div data-reveal>
-        <p class="kicker">How it works</p>
-        <ol class="rules">
-          {s.kumite.format.map((line, i) => (
-            <li>
-              <span class="num">{String(i + 1).padStart(2, "0")}</span>
-              {line}
-            </li>
-          ))}
-        </ol>
-        <p class="awards label">Awards: {s.kumite.awards.map((a) => a.name).join(" · ")}</p>
-        <a class="more" href="/kumite/">
-          Enter the Kumite
-        </a>
+  <!-- Off the record: the Kumite, underground, while it's on the website (ADR 0109) -->
+  {s.kumite.onWebsite && (
+    <section class="night kumite" id="kumite" data-time="--:--" data-title="Off the record" data-night>
+      <KumitePoster next={kumite} href="/kumite/" />
+      <div class="wrap section kumite-more">
+        <div data-reveal>
+          <p class="kicker">How it works</p>
+          <ol class="rules">
+            {s.kumite.format.map((line, i) => (
+              <li>
+                <span class="num">{String(i + 1).padStart(2, "0")}</span>
+                {line}
+              </li>
+            ))}
+          </ol>
+          <p class="awards label">Awards: {s.kumite.awards.map((a) => a.name).join(" · ")}</p>
+          <a class="more" href="/kumite/">
+            Enter the Kumite
+          </a>
+        </div>
+        <div data-reveal style="--i:1">
+          <HonoursBoard results={kumiteResults} />
+        </div>
       </div>
-      <div data-reveal style="--i:1">
-        <HonoursBoard results={kumiteResults} />
-      </div>
-    </div>
-  </section>
+    </section>
+  )}
 
   <!-- The week: what's on -->
   <section class="section wrap" id="events" data-time="Diary" data-title="What's on">

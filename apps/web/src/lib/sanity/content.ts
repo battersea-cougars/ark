@@ -134,6 +134,15 @@ const resultRows = () => Object.values(resultsSnapshot)[0] ?? null;
 export const getResults = memo(async () => editionsFrom(resultRows()));
 export const getCrestFiles = memo(async () => crestFiles(resultRows()));
 
+/**
+ * Which parts of the website are on (ADR 0109): the team and the Kumite as switched in the Studio, and the results
+ * while the Kumite is on or there are results to show.
+ */
+export const getSections = memo(async () => {
+  const [{ team, kumite }, results] = await Promise.all([getSettings(), getResults()]);
+  return { team: team.onWebsite, kumite: kumite.onWebsite, results: kumite.onWebsite || results.length > 0 };
+});
+
 /** Events that haven't finished yet, soonest first. */
 export function upcoming(events: ClubEvent[], now = new Date()): ClubEvent[] {
   return events.filter((e) => new Date(e.endsAt ?? e.startsAt) >= now);

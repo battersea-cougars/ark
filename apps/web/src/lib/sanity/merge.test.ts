@@ -65,9 +65,11 @@ describe("club facts singletons", () => {
     });
   });
 
-  it("keep the team off the website until an editor switches it on", () => {
+  it("keep the team and the Kumite off the website until an editor switches them on", () => {
     expect(mergeTeam(FALLBACK_TEAM, { intro: "We play.", onWebsite: null }).onWebsite).toBe(false);
     expect(mergeTeam(FALLBACK_TEAM, { intro: "We play.", onWebsite: true }).onWebsite).toBe(true);
+    expect(mergeKumite(FALLBACK_KUMITE, { intro: "Twice a year.", onWebsite: null }).onWebsite).toBe(false);
+    expect(mergeKumite(FALLBACK_KUMITE, { intro: "Twice a year.", onWebsite: true }).onWebsite).toBe(true);
   });
 
   it("fall back to the default lists when the Kumite format or awards are empty", () => {

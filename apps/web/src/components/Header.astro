@@ -1,7 +1,7 @@
 ---
 // A ready-sized logo (2x), used as is: server-rendered pages (/photos, ADR 0016) can't resize at build time.
 import mark from "../assets/cougars-mark.webp";
-import { getClub, getTeam } from "../lib/sanity/content";
+import { getClub, getSections } from "../lib/sanity/content";
 
 // One-page navigation: every item is a section of the home page, in page order. From any
 // other page the link goes back to that section. Full pages (/fridays/, /team/, ...) are
@@ -9,8 +9,8 @@ import { getClub, getTeam } from "../lib/sanity/content";
 // Friday-night running order, shown in the menu.
 const path = Astro.url.pathname;
 const home = path === "/";
-// The team only while it's switched on in the Studio (ADR 0109)
-const { onWebsite: teamOn } = await getTeam();
+// The team and the Kumite only while they're switched on in the Studio (ADR 0109)
+const sections = await getSections();
 const links = [
   { section: "fridays", label: "Fridays", time: "19:30", page: "/fridays/" },
   { section: "team", label: "The team", time: "21:30", page: "/team/" },
@@ -19,7 +19,7 @@ const links = [
   { section: "videos", label: "Videos", time: "", page: "/videos/" },
   { section: "photos", label: "Photos", time: "", page: "/photos/" },
 ]
-  .filter((l) => l.section !== "team" || teamOn)
+  .filter((l) => (l.section === "team" || l.section === "kumite" ? sections[l.section] : true))
   .map((l) => ({ ...l, href: home ? `#${l.section}` : `/#${l.section}` }));
 // On a full page, mark the section it belongs to.
 const owner = (l: (typeof links)[number]) => l.page !== "" && path.startsWith(l.page);

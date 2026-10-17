@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
 import { syncAll } from "@cougars/shared/agenda";
+import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { clearCache } from "./cache";
 import { cachedWhatsOn, whatsOn } from "./whats-on";
 
@@ -28,6 +29,7 @@ describe("what's on", () => {
     event.run("Committee", "2026-10-11T18:00:00Z", "2026-10-11T19:00:00Z", "", "", 0, null);
     event.run("Kit day", "2026-10-12T09:00:00Z", "2026-10-12T11:00:00Z", "", "", 1, "2026-10-05T09:00:00Z");
     event.run("Last week's", "2026-10-01T18:00:00Z", "2026-10-01T20:00:00Z", "", "", 1, null);
+    db.raw.exec(FIRST_KUMITE_SQL); // a public Kumite, a season so far
   });
 
   it("lists the next few public trainings, tournaments and events, soonest first", async () => {

@@ -108,13 +108,15 @@ const steps = [
       </ol>
     </section>
 
-    <p class="aside muted" data-reveal>
-      Looking for the quarterly tournament? That's the{" "}
-      <a class="link" href="/kumite/">
-        Cougars Kumite
-      </a>
-      , a separate special event.
-    </p>
+    {s.kumite.onWebsite && (
+      <p class="aside muted" data-reveal>
+        Looking for the quarterly tournament? That's the{" "}
+        <a class="link" href="/kumite/">
+          Cougars Kumite
+        </a>
+        , a separate special event.
+      </p>
+    )}
   </div>
 </Base>
 
