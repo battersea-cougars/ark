@@ -2,7 +2,8 @@
 // email: everyone else's still goes to the safe inbox (packages/shared/email.ts). In production none of this exists, and the
 // list is never read: real recipients always get their own email there.
 import { all, run } from "@cougars/shared/d1";
-import { CLUB_ADDRESS, isProduction } from "@cougars/shared/email";
+import { clubContact } from "@cougars/shared/club-contact";
+import { isProduction } from "@cougars/shared/email";
 import { email, type AuthEnv } from "../auth/auth";
 import { HttpError } from "../api/api.http";
 
@@ -22,7 +23,8 @@ export async function devMailList(env: AuthEnv): Promise<string[]> {
 export async function addDevMail(env: AuthEnv, o: Record<string, unknown>, by: number, now: string) {
   here(env);
   const address = email(o);
-  if (address === CLUB_ADDRESS) throw new HttpError(400, "Not the club's own inbox: it never gets email from dev.");
+  if (address === (await clubContact(env.SITE_ENV)))
+    throw new HttpError(400, "Not the club's own inbox: it never gets email from dev.");
   await run(env.DB, "INSERT OR IGNORE INTO dev_mail_recipients (email, added_by, added_at) VALUES (?, ?, ?)", [
     address,
     by,

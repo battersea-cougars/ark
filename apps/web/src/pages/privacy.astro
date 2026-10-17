@@ -8,6 +8,7 @@ import { getSections, getSettings } from "../lib/sanity/content";
 const s = await getSettings();
 const sections = await getSections();
 const email = s.contactEmail;
+// The club's address, or (if the Studio has none) the form, which reaches the same people
 ---
 
 <Base title="Privacy" description="What the Battersea Cougars website does with your details.">
@@ -17,7 +18,7 @@ const email = s.contactEmail;
       <h2>Who we are</h2>
       <p>
         Battersea Cougars Inline Hockey Club, a roller hockey club in South West London. Questions about your details go
-        to <a href={`mailto:${email}`}>{email}</a>.
+        to {email ? <a href={`mailto:${email}`}>{email}</a> : <a href="/join/">the club, through the form</a>}.
       </p>
 
       <h2>What we collect</h2>
@@ -80,7 +81,8 @@ const email = s.contactEmail;
       <h2>Your rights</h2>
       <p>
         You can ask to see, correct or delete the details we hold about you: email{" "}
-        <a href={`mailto:${email}`}>{email}</a>. If you're unhappy with how we've handled them, the
+        {email ? <a href={`mailto:${email}`}>{email}</a> : <a href="/join/">the club, through the form</a>}. If you're
+        unhappy with how we've handled them, the
         <a href="https://ico.org.uk/make-a-complaint/" rel="noopener">
           Information Commissioner's Office
         </a>{" "}

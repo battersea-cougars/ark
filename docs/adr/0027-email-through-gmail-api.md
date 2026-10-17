@@ -7,8 +7,8 @@
 ## Context
 
 The club should hear about each "Try a session" enquiry by email, and the team app emails sign-in codes, invites and
-usage warnings. The club can't spend money and has no Google Workspace: its inbox is the consumer account
-batterseahockey@gmail.com, and until 2026-10-06 there was no domain. The free options (researched 2026-10-06):
+usage warnings. The club can't spend money and has no Google Workspace: its inbox is a consumer Gmail
+account, and until 2026-10-06 there was no domain. The free options (researched 2026-10-06):
 Cloudflare Email Routing only sends to verified addresses; Resend, Brevo and MailChannels need a domain; Cloudflare's
 outbound Email Service needs Workers Paid; SMTP from Workers was unreliable for Gwenda, who moved to the Gmail API.
 
@@ -22,10 +22,10 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 
 - Email is sent with the **Gmail API** over HTTPS (`packages/shared/email.ts`, for the website and the team app), authorised by
   an **OAuth refresh token** with the send-only scope, from the club's Google Cloud project _Battersea Cougars_ (owned
-  by the developer account cougars.dev). Setup and the four secrets: [README.md#gmail](../../README.md#gmail). Gmail
+  by the developer Gmail account). Setup and the four secrets: [README.md#gmail](../../README.md#gmail). Gmail
   sits behind a circuit breaker ([0055](0055-degrade-instead-of-break.md)).
-- **One sending account, two faces.** Every environment sends from the developer account cougars.dev@gmail.com, with
-  one token (`GMAIL_REFRESH_TOKEN`). Production's From is the club's address, batterseahockey@gmail.com, a verified
+- **One sending account, two faces.** Every environment sends from the developer Gmail account, with
+  one token (`GMAIL_REFRESH_TOKEN`). Production's From is the club's address (the Studio's Club → Contact email), a verified
   "Send mail as" alias of that account, so emails read as the club and replies go to its inbox; elsewhere the
   account is its own sender. Nothing holds a token for the club account, so resetting its password breaks nothing.
   `scripts/gmail-auth.mjs` refuses the club account ([0002](0002-secrets-in-bitwarden.md)).
@@ -40,7 +40,7 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   defaults to `dev`, and unset is not production ([0010](0010-environments-and-deploys.md)). In production real
   recipients always get their email.
 - Anywhere else, an email goes to its real recipients only when **every one** of them is allowed. Otherwise the whole
-  email goes to one safe address: `MAIL_SAFE_TO`, or the sending account itself (dev sends to cougars.dev). Either way
+  email goes to one safe address: `MAIL_SAFE_TO`, or the sending account itself (dev sends to the developer account). Either way
   the subject names the environment and the real recipients, and `X-Cougars-Original-To` carries them.
 - Allowed outside production, for the team app's emails only: every active Admin (so they can sign in and get to Dev
   tools), plus the addresses in `dev_mail_recipients`. The website's emails still go to the safe inbox only.
@@ -62,7 +62,7 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - Free, about 500 emails a day, no domain needed, and replies go from an address members know.
 - The app is unverified (Google warns on the consent screen), which is fine for one account. It must stay
   **In production** in Google Auth Platform: in Testing, tokens expire after 7 days.
-- A password change on cougars.dev, removing its access, or 6 months unused cancels the token: emails then fail
+- A password change on the developer account, removing its access, or 6 months unused cancels the token: emails then fail
   (logged, e.g. `enquiry.email_failed`) until `gmail-auth.mjs` is re-run. Enquiries are still saved. Sign-in stops
   everywhere until then ([0023](0023-sign-in-and-sessions.md)). The club account's password can change freely.
 - Production's mail depends on the developer account, so it's kept for sending only and the team account co-owns its
@@ -85,5 +85,8 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   everything a person typed is escaped in it.
 - 2026-10-09: Outside production, a sign-in code sent to its member is copied to the safe inbox.
 - 2026-10-17: One sending account for every environment, as it had been in practice: production sends from
-  cougars.dev as the club's address (a Gmail alias), so a reset of the club account's password can't stop sign-in.
+  the developer account as the club's address (a Gmail alias), so a reset of the club account's password can't stop sign-in.
 - 2026-10-17: The auto-reply to someone who asks to try a session comes in the club's frame too, with a map button.
+- 2026-10-17: Neither address is in the repo: the club's comes from the Studio (Club → Contact email,
+  `packages/shared/club-contact.ts`), the developer account's from its token. While the club's isn't known, dev ignores
+  its allow list and production sends as the developer account.

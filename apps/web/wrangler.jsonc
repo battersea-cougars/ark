@@ -12,7 +12,6 @@
   "vars": {
     // Only scripts/ci/target.mjs sets "production" (on release); anything else never emails a real person.
     "SITE_ENV": "dev",
-    "CONTACT_EMAIL": "batterseahockey@gmail.com",
   },
   "d1_databases": [
     {

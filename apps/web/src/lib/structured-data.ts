@@ -16,7 +16,7 @@ export function clubData(s: SiteSettings, site: URL, logo: string, description: 
     description,
     sport: "Roller hockey",
     foundingDate: String(s.founded),
-    email: s.contactEmail,
+    ...(s.contactEmail && { email: s.contactEmail }),
     sameAs: Object.values(s.socials).filter(Boolean),
     location: venue(s),
   };

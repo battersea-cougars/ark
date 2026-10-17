@@ -13,7 +13,7 @@ export function greetingName(name: string): string {
   return /^\p{L}[\p{L}'’-]{0,23}$/u.test(first) ? first : "there";
 }
 
-export function autoReplyMail(e: Enquiry, s: SiteSettings, club: string): Mail {
+export function autoReplyMail(e: Enquiry, s: SiteSettings, club: string | null): Mail {
   const slot = s.training[0];
   const lines = [
     `Hi ${greetingName(e.name)},`,
@@ -37,12 +37,12 @@ export function autoReplyMail(e: Enquiry, s: SiteSettings, club: string): Mail {
     to: [e.email],
     subject: "Thanks for getting in touch, Battersea Cougars",
     text: lines.join("\n"),
-    html: autoReplyHtml(e, s),
-    replyTo: club,
+    html: autoReplyHtml(e, s, club),
+    ...(club && { replyTo: club }),
   };
 }
 
-function autoReplyHtml(e: Enquiry, s: SiteSettings): string {
+function autoReplyHtml(e: Enquiry, s: SiteSettings, club: string | null): string {
   const { carbon, bone, muted, yellow, display, body } = EMAIL;
   const slot = s.training[0];
   const label = `font-family:${body};font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:${muted};`;
@@ -67,5 +67,6 @@ ${kit.map((line) => `    <p style="${EMAIL_TYPE.text}">${h(line)}</p>`).join("\n
     }
     <p style="${EMAIL_TYPE.text}margin-top:28px;color:${bone};">See you on court,<br>Battersea Cougars</p>`,
     footer: "You're getting this because you asked to try a session on our website. Reply to reach the club.",
+    contact: club,
   });
 }

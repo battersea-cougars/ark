@@ -65,11 +65,13 @@ const socials = [
       </div>
       <div>
         <p class="label">Say hello</p>
-        <p>
-          <a class="link" href={`mailto:${s.contactEmail}`}>
-            {s.contactEmail}
-          </a>
-        </p>
+        {s.contactEmail && (
+          <p>
+            <a class="link" href={`mailto:${s.contactEmail}`}>
+              {s.contactEmail}
+            </a>
+          </p>
+        )}
         <p class="social">
           {socials.map((x) => (
             <a class="link" href={x.href} rel="noopener" target="_blank">

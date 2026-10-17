@@ -1,17 +1,29 @@
 #!/usr/bin/env node
-// One-time: let the website and the team app send email as the developer account (cougars.dev@gmail.com), through the
-// Gmail API (not SMTP, not a password). One token for both environments: production sends from the same account, as
-// the club's address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
-//   node scripts/gmail-auth.mjs              sign in as cougars.dev@gmail.com -> GMAIL_REFRESH_TOKEN
+// One-time: let the website and the team app send email as the developer Gmail account, through the Gmail API (not
+// SMTP, not a password). One token for both environments: production sends from the same account, as the club's
+// address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
+//   node scripts/gmail-auth.mjs              sign in as the developer account -> GMAIL_REFRESH_TOKEN
 // Needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Bitwarden (README.md#gmail). Opens Google's consent page, catches
 // the answer on http://localhost:4590, swaps it for a refresh token (send-only), and saves that straight to
 // Bitwarden. Nothing is printed or written to disk. Re-run it to replace a token (e.g. after a password change).
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { ensureToken, loadSecrets, setSecret } from "./lib/bitwarden.mjs";
+import { SANITY_PROJECTS } from "../packages/shared/sanity.ts";
 
-// The club's own inbox: no token is ever made for it.
-const CLUB = "batterseahockey@gmail.com";
+// The club's own inbox (each Studio's Club → Contact email): no token is ever made for it.
+async function clubInboxes() {
+  const query = encodeURIComponent(`*[_id == "club"][0].contactEmail`);
+  const found = await Promise.all(
+    Object.values(SANITY_PROJECTS).map(({ projectId, dataset }) =>
+      fetch(`https://${projectId}.apicdn.sanity.io/v2025-01-01/data/query/${dataset}?query=${query}`)
+        .then((r) => r.json())
+        .then((b) => (typeof b.result === "string" ? b.result.trim().toLowerCase() : null))
+        .catch(() => null),
+    ),
+  );
+  return new Set(found.filter(Boolean));
+}
 const PORT = 4590;
 const REDIRECT = `http://localhost:${PORT}/`;
 // Send only (can't read mail), plus the account's address so we can check who signed in.
@@ -56,7 +68,7 @@ const code = await new Promise((resolve, reject) => {
     else reject(new Error(`Google said: ${url.searchParams.get("error") ?? "state mismatch"}`));
   });
   server.listen(PORT, () => {
-    console.log(`\nSign in as the developer account, cougars.dev@gmail.com (not the club's):\n\n${consent}\n`);
+    console.log(`\nSign in as the developer Gmail account (not the club's):\n\n${consent}\n`);
     console.log('Google warns the app isn\'t verified: choose "Advanced", then "Go to … (unsafe)", then Continue.\n');
   });
 });
@@ -81,8 +93,10 @@ if (!token.scope?.split(" ").includes(SCOPES[0])) {
 
 // Who signed in (the id_token comes straight from Google over TLS, so reading it without verifying is fine here).
 const email = JSON.parse(Buffer.from(token.id_token.split(".")[1], "base64url").toString()).email?.toLowerCase();
-if (email === CLUB) {
-  throw new Error(`That's the club's account: the apps send from the developer account, never ${CLUB}. Nothing saved.`);
+if ((await clubInboxes()).has(email.toLowerCase())) {
+  throw new Error(
+    `That's the club's account: the apps send from the developer account, never the club's. Nothing saved.`,
+  );
 }
 
 console.log(`${setSecret(key, token.refresh_token)} ${key}: ${email} can now send through the Gmail API.`);

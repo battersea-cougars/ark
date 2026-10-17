@@ -5,7 +5,8 @@ import type { Club, Fridays, Kumite, Pub, Team } from "./types";
 
 export const FALLBACK_CLUB: Club = {
   founded: 1996,
-  contactEmail: "batterseahockey@gmail.com",
+  // Set in the Studio (Club → Contact email), never here: the club's address isn't kept in the repo
+  contactEmail: "",
   socials: {
     instagram: "https://www.instagram.com/batterseacougarshockey/",
     facebook: "https://www.facebook.com/groups/531393120208526",

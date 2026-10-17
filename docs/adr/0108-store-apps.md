@@ -39,7 +39,7 @@ Three things shape it:
     `/.well-known/apple-app-site-association` from `APPLE_TEAM_ID` (`worker/store/store.links.ts`), and a link or a
     tapped notification opens its page.
   - **The game clock** buzzes (haptics) and keeps the screen on; **Add to calendar** goes to the share sheet.
-- **Notifications go through Firebase Cloud Messaging** (free, the cougars.dev GCP project): it reaches iPhones
+- **Notifications go through Firebase Cloud Messaging** (free, the club's Google Cloud project): it reaches iPhones
   (through Apple's push service, its key uploaded to Firebase) and Android phones over plain HTTPS, which a Worker
   can speak (Apple's own service wants HTTP/2). The Worker signs an hour's token with a service account (WebCrypto,
   `worker/push/fcm.ts`) and sends one request per phone. **A phone belongs to a sign-in** (`push_devices.session_id`):

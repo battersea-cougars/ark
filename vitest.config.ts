@@ -9,5 +9,6 @@ export default defineConfig({
       "scripts/**/*.test.mjs",
     ],
     environment: "node",
+    setupFiles: ["packages/shared/testing/setup.ts"],
   },
 });

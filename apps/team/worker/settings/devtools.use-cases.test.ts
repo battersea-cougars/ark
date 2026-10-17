@@ -36,7 +36,7 @@ describe("who gets their own email outside production", () => {
 
   it("never the club's own inbox", async () => {
     const dana = await w.signedIn("dana@example.com");
-    expect((await dana.call("POST", "/api/dev/mail", { email: "batterseahockey@gmail.com" })).status).toBe(400);
+    expect((await dana.call("POST", "/api/dev/mail", { email: "club@example.com" })).status).toBe(400);
   });
 
   it("a member can't see or change it", async () => {

@@ -49,8 +49,8 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
 
 // The auto-reply first (if allowed), then the club's email, which says whether the person has heard back.
 async function emailAfterEnquiry(enquiry: Enquiry, id: number, verified: boolean) {
-  const config = mailConfig();
-  const club = clubInbox();
+  const club = await clubInbox();
+  const config = mailConfig(club);
   let autoReply = "No automatic reply was sent: the form wasn't verified as sent by a person.";
   if (verified && !(await autoReplyAllowed(env.DB, enquiry.email))) {
     autoReply = "No automatic reply was sent: this address already had one this week, or today's limit was reached.";
@@ -63,6 +63,10 @@ async function emailAfterEnquiry(enquiry: Enquiry, id: number, verified: boolean
       autoReply = "The automatic reply failed to send, so they haven't heard from us yet.";
       console.error(JSON.stringify({ event: "enquiry.auto_reply_failed", id, error: String(error) }));
     }
+  }
+  if (!club) {
+    console.error(JSON.stringify({ event: "enquiry.no_club_inbox", id }));
+    return;
   }
   try {
     const r = await sendMail(enquiryMail(enquiry, id, club, autoReply), config);

@@ -103,14 +103,16 @@ const slot = s.training[0];
         <p class="label">Kit</p>
         <p class="muted">{kitText(s)}</p>
       </div>
-      <div>
-        <p class="label">Email</p>
-        <p>
-          <a class="link" href={`mailto:${s.contactEmail}`}>
-            {s.contactEmail}
-          </a>
-        </p>
-      </div>
+      {s.contactEmail && (
+        <div>
+          <p class="label">Email</p>
+          <p>
+            <a class="link" href={`mailto:${s.contactEmail}`}>
+              {s.contactEmail}
+            </a>
+          </p>
+        </div>
+      )}
     </aside>
   </div>
 </Base>

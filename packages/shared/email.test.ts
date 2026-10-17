@@ -1,19 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BreakerOpen, resetBreakers } from "./breaker";
-import {
-  CLUB_ADDRESS,
-  clearTokenCache,
-  mailPausedUntil,
-  MailRefused,
-  mime,
-  safeMail,
-  sendMail,
-  type MailConfig,
-} from "./email";
+import { clearTokenCache, mailPausedUntil, MailRefused, mime, safeMail, sendMail, type MailConfig } from "./email";
 
+// The club's inbox, as Sanity would give it (club-contact.ts)
+const CLUB = "club@example.com";
 const gmail = { clientId: "id", clientSecret: "secret", refreshToken: "refresh" };
 const enquiry = {
-  to: [CLUB_ADDRESS],
+  to: [CLUB],
   subject: "New enquiry: Zoë",
   text: "Hello",
   replyTo: "zoe@example.com",
@@ -23,7 +16,7 @@ const idToken = (email: string) =>
   `x.${btoa(JSON.stringify({ email })).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}.y`;
 
 // The network boundary: Google's token endpoint and the Gmail API. Records every email that would leave.
-function fakeGoogle({ account = "cougars.dev@gmail.com", tokenStatus = 200, sendStatus = 200 } = {}) {
+function fakeGoogle({ account = "sender@example.com", tokenStatus = 200, sendStatus = 200 } = {}) {
   const sent: { to: string; subject: string; raw: string }[] = [];
   let tokenCalls = 0;
   const fetch = vi.fn(async (input: string | URL, init?: RequestInit) => {
@@ -45,7 +38,7 @@ function fakeGoogle({ account = "cougars.dev@gmail.com", tokenStatus = 200, send
   return { fetch: fetch as unknown as typeof globalThis.fetch, mock: fetch, sent, tokenCalls: () => tokenCalls };
 }
 
-const config = (extra: Partial<MailConfig> = {}): MailConfig => ({ siteEnv: "dev", gmail, ...extra });
+const config = (extra: Partial<MailConfig> = {}): MailConfig => ({ siteEnv: "dev", gmail, club: CLUB, ...extra });
 
 describe("safeMail", () => {
   it("leaves production email alone", () => {
@@ -54,16 +47,19 @@ describe("safeMail", () => {
 
   it("sends everything else to the safe address, saying who it was for", () => {
     for (const siteEnv of ["dev", "prod", "Production", "", undefined]) {
-      const safe = safeMail({ ...enquiry, to: [CLUB_ADDRESS, "b@example.com"] }, { siteEnv, safeTo: "Me@Example.com" });
+      const safe = safeMail({ ...enquiry, to: [CLUB, "b@example.com"] }, { siteEnv, safeTo: "Me@Example.com" });
       expect(safe.to).toEqual(["me@example.com"]);
-      expect(safe.subject).toBe(`[${siteEnv || "unset"}, for ${CLUB_ADDRESS}, b@example.com] New enquiry: Zoë`);
-      expect(safe.headers).toEqual({ "X-Cougars-Original-To": `${CLUB_ADDRESS}, b@example.com` });
+      expect(safe.subject).toBe(`[${siteEnv || "unset"}, for ${CLUB}, b@example.com] New enquiry: Zoë`);
+      expect(safe.headers).toEqual({ "X-Cougars-Original-To": `${CLUB}, b@example.com` });
     }
   });
 
   it("lets through recipients on the dev allow list, as themselves; the rest still go to the safe address", () => {
     const allow = ["Dan@Example.com"];
-    const one = safeMail({ ...enquiry, to: ["dan@example.com"] }, { siteEnv: "dev", safeTo: "me@example.com", allow });
+    const one = safeMail(
+      { ...enquiry, to: ["dan@example.com"] },
+      { siteEnv: "dev", safeTo: "me@example.com", allow, club: CLUB },
+    );
     expect(one.to).toEqual(["dan@example.com"]);
     expect(one.subject).toBe("[dev, for dan@example.com] New enquiry: Zoë");
     const other = safeMail({ ...enquiry, to: ["b@example.com"] }, { siteEnv: "dev", safeTo: "me@example.com", allow });
@@ -77,13 +73,21 @@ describe("safeMail", () => {
   });
 
   it("never lets the club's inbox through from the allow list", () => {
-    const safe = safeMail(enquiry, { siteEnv: "dev", safeTo: "me@example.com", allow: [CLUB_ADDRESS] });
+    const safe = safeMail(enquiry, { siteEnv: "dev", safeTo: "me@example.com", allow: [CLUB], club: CLUB });
+    expect(safe.to).toEqual(["me@example.com"]);
+  });
+
+  it("ignores the allow list while the club's inbox isn't known (Sanity unreadable), so it can't slip through", () => {
+    const safe = safeMail(
+      { ...enquiry, to: ["dan@example.com"] },
+      { siteEnv: "dev", safeTo: "me@example.com", allow: ["dan@example.com"], club: null },
+    );
     expect(safe.to).toEqual(["me@example.com"]);
   });
 
   it("refuses without a safe address, or with the club's inbox as it", () => {
     expect(() => safeMail(enquiry, { siteEnv: "dev", safeTo: "" })).toThrow(MailRefused);
-    expect(() => safeMail(enquiry, { siteEnv: "dev", safeTo: CLUB_ADDRESS.toUpperCase() })).toThrow(MailRefused);
+    expect(() => safeMail(enquiry, { siteEnv: "dev", safeTo: CLUB.toUpperCase(), club: CLUB })).toThrow(MailRefused);
   });
 });
 
@@ -108,7 +112,7 @@ describe("sendMail", () => {
   it("doesn't pause Gmail for a refusal of ours", async () => {
     const google = fakeGoogle();
     await expect(
-      sendMail(enquiry, config({ siteEnv: "dev", safeTo: CLUB_ADDRESS }), { fetch: google.fetch }),
+      sendMail(enquiry, config({ siteEnv: "dev", safeTo: CLUB }), { fetch: google.fetch }),
     ).rejects.toBeInstanceOf(MailRefused);
     expect(await mailPausedUntil()).toBeNull();
   });
@@ -116,10 +120,10 @@ describe("sendMail", () => {
   it("on dev, sends from the dev account to itself, never to the club", async () => {
     const google = fakeGoogle();
     const result = await sendMail(enquiry, config(), { fetch: google.fetch });
-    expect(result).toEqual({ status: "sent", id: "msg1", to: ["cougars.dev@gmail.com"] });
+    expect(result).toEqual({ status: "sent", id: "msg1", to: ["sender@example.com"] });
     expect(google.sent).toHaveLength(1);
-    expect(google.sent[0].to).toBe("cougars.dev@gmail.com");
-    expect(google.sent[0].raw).toMatch(/^From: Battersea Cougars <cougars\.dev@gmail\.com>$/m);
+    expect(google.sent[0].to).toBe("sender@example.com");
+    expect(google.sent[0].raw).toMatch(/^From: Battersea Cougars <sender@example\.com>$/m);
     expect(google.sent[0].raw).toMatch(/^Reply-To: zoe@example\.com$/m);
   });
 
@@ -130,19 +134,25 @@ describe("sendMail", () => {
   });
 
   it("in production, sends to the real recipients", async () => {
-    const google = fakeGoogle({ account: CLUB_ADDRESS });
+    const google = fakeGoogle({ account: CLUB });
     await sendMail(enquiry, config({ siteEnv: "production", safeTo: "dev@example.com" }), { fetch: google.fetch });
-    expect(google.sent[0].to).toBe(CLUB_ADDRESS);
+    expect(google.sent[0].to).toBe(CLUB);
   });
 
   it("in production, the developer account sends as the club's address (its Gmail alias), so replies reach the club", async () => {
     const google = fakeGoogle();
     await sendMail({ ...enquiry, replyTo: undefined }, config({ siteEnv: "production" }), { fetch: google.fetch });
-    expect(google.sent[0].raw).toMatch(/^From: Battersea Cougars <batterseahockey@gmail\.com>$/m);
+    expect(google.sent[0].raw).toMatch(/^From: Battersea Cougars <club@example\.com>$/m);
+  });
+
+  it("in production, sends as the account itself while the club's address isn't known", async () => {
+    const google = fakeGoogle();
+    await sendMail(enquiry, config({ siteEnv: "production", club: null }), { fetch: google.fetch });
+    expect(google.sent[0].raw).toMatch(/^From: Battersea Cougars <sender@example\.com>$/m);
   });
 
   it("outside production, refuses to send as the club's account", async () => {
-    const google = fakeGoogle({ account: CLUB_ADDRESS });
+    const google = fakeGoogle({ account: CLUB });
     await expect(sendMail(enquiry, config({ safeTo: "dev@example.com" }), { fetch: google.fetch })).rejects.toThrow(
       MailRefused,
     );

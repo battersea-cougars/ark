@@ -5,15 +5,15 @@
 // Outside production nothing reaches a real person (sendMail always runs safeMail):
 //   - production means SITE_ENV is exactly "production"; anything else, including unset, is not;
 //   - every recipient is replaced by one safe address: MAIL_SAFE_TO, or else the sending account itself (dev sends
-//     from cougars.dev to cougars.dev); the real recipients go in the subject and a header;
-//   - the club's own inbox is refused, as the safe address and as the sending account;
+//     from the developer account to itself); the real recipients go in the subject and a header;
+//   - the club's own inbox (Sanity → Club → Contact email, club-contact.ts) is refused, as the safe address and as the
+//     sending account; while it isn't known, the dev allow list is ignored;
 //   - without Gmail credentials (a laptop, tests) it logs the email instead of sending.
 //
 // Gmail is behind a circuit breaker (packages/shared/breaker.ts, ADR 0055): when it's down or has rate-limited the account,
 // sends fail at once for a while instead of each waiting for Google, and the sign-in page can say so up front.
 import { HttpFailure, QuotaError, guard, pausedUntil, retryAfter } from "./breaker";
 
-export const CLUB_ADDRESS = "batterseahockey@gmail.com";
 const FROM_NAME = "Battersea Cougars";
 
 export interface Mail {
@@ -54,6 +54,11 @@ export interface MailConfig {
   safeTo?: string | null;
   /** Outside production, addresses that get their own email (the team app's Dev tools list). Ignored in production. */
   allow?: readonly string[];
+  /**
+   * The club's inbox (club-contact.ts): production sends as it, a Gmail alias of the sending account; elsewhere it
+   * never gets email. Null when unknown: production then sends as the account itself.
+   */
+  club?: string | null;
 }
 
 export type SendResult = { status: "sent"; id: string; to: string[] } | { status: "logged"; to: string[] };
@@ -72,16 +77,24 @@ export function safeMail(
     siteEnv,
     safeTo,
     allow = [],
-  }: { siteEnv: string | undefined; safeTo: string | null | undefined; allow?: readonly string[] },
+    club = null,
+  }: {
+    siteEnv: string | undefined;
+    safeTo: string | null | undefined;
+    allow?: readonly string[];
+    club?: string | null;
+  },
 ): Mail & { headers?: Record<string, string> } {
   if (isProduction(siteEnv)) return mail;
   const safe = safeTo?.trim().toLowerCase();
+  const inbox = club?.trim().toLowerCase() || null;
   if (!safe) throw new MailRefused(`No safe address outside production (SITE_ENV=${siteEnv ?? "unset"}); not sending.`);
-  if (safe === CLUB_ADDRESS) throw new MailRefused(`The club's inbox can't be the safe address outside production.`);
+  if (safe === inbox) throw new MailRefused(`The club's inbox can't be the safe address outside production.`);
   const shown = mail.to.join(", ");
   // The dev allow list (set in the team app's Dev tools): when every recipient is on it, they get it themselves. Never
-  // the club's inbox; and if anyone isn't on it, the whole email goes to the safe address.
-  const allowed = new Set(allow.map((a) => a.trim().toLowerCase()).filter((a) => a && a !== CLUB_ADDRESS));
+  // the club's inbox, and not at all while the club's inbox isn't known; if anyone isn't on it, the whole email goes to
+  // the safe address.
+  const allowed = new Set(inbox ? allow.map((a) => a.trim().toLowerCase()).filter((a) => a && a !== inbox) : []);
   const to = mail.to.map((a) => a.trim().toLowerCase());
   const through = to.length > 0 && to.every((a) => allowed.has(a));
   return {
@@ -163,6 +176,7 @@ export async function sendMail(
       siteEnv: config.siteEnv,
       safeTo: config.safeTo ?? "nobody@example.invalid",
       allow: config.allow,
+      club: config.club,
     });
     outbox.capture?.(safe);
     // Never a secret in a log (#74): a deploy missing its Gmail secrets would otherwise log live sign-in codes
@@ -180,14 +194,15 @@ export async function sendMail(
   }
   const gmail = config.gmail;
   const { token, account } = await guard("gmail", () => accessToken(gmail, { fetch, now }));
-  if (!isProduction(config.siteEnv) && account === CLUB_ADDRESS) {
+  const club = config.club?.trim().toLowerCase() || null;
+  if (!isProduction(config.siteEnv) && account === club) {
     throw new MailRefused(`Outside production the club's account must never send (it's ${account}).`);
   }
-  const safe = safeMail(mail, { siteEnv: config.siteEnv, safeTo: config.safeTo || account, allow: config.allow });
+  const safe = safeMail(mail, { siteEnv: config.siteEnv, safeTo: config.safeTo || account, allow: config.allow, club });
   // Production sends from the developer account but reads as the club: the club's address is that account's "Send
-  // mail as" alias (ADR 0027), so replies go to the club inbox. Until the alias is verified Gmail keeps the account's
-  // own address. Elsewhere the account is its own sender.
-  const sender = isProduction(config.siteEnv) ? CLUB_ADDRESS : account;
+  // mail as" alias (ADR 0027), so replies go to the club inbox. Until the alias is verified, or while the club's address
+  // isn't known, it's the account's own. Elsewhere the account is its own sender.
+  const sender = isProduction(config.siteEnv) && club ? club : account;
   if (safe.to !== mail.to) {
     console.log(JSON.stringify({ event: "mail.redirected", to: safe.to, originalTo: mail.to }));
   }

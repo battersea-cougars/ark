@@ -2,16 +2,17 @@
   // The team app's privacy notice (#30, ADR 0029): what the app holds about members, who sees it, how long it's kept,
   // and how to get it or delete it. The website's /privacy covers the website only. Shown on the sign-in screen
   // (anyone, before they sign in) and at /privacy in the app. Every line describes something the code does: change it
-  // with the behaviour (worker/settings/retention.ts, members/members.erase.ts, ADR 0106 for backups).
-  const CLUB_EMAIL = "batterseahockey@gmail.com";
+  // with the behaviour (worker/settings/retention.ts, members/members.erase.ts, ADR 0106 for backups). The club's
+  // address isn't kept in the code: the website's privacy page shows it, from the Studio.
+  const CLUB_CONTACT = "https://batterseacougars.com/privacy/";
 </script>
 
 <div class="notice">
   <h2>Who we are</h2>
   <p>
     Battersea Cougars Inline Hockey Club. This app is how members sign up for training and tournaments, and how the club
-    runs them and keeps track of fees. Questions about your details go to
-    <a href="mailto:{CLUB_EMAIL}">{CLUB_EMAIL}</a>.
+    runs them and keeps track of fees. Questions about your details go to the club: its email address is on the
+    <a href={CLUB_CONTACT} target="_blank" rel="noopener">website's privacy page</a>.
   </p>
 
   <h2>What the app holds about you</h2>
@@ -53,8 +54,9 @@
 
   <h2>Your rights</h2>
   <p>
-    You can ask to see, correct or delete what we hold about you: email <a href="mailto:{CLUB_EMAIL}">{CLUB_EMAIL}</a>.
-    If you're unhappy with how we've handled it, the
+    You can ask to see, correct or delete what we hold about you: email the club (its address is on the
+    <a href={CLUB_CONTACT} target="_blank" rel="noopener">website's privacy page</a>). If you're unhappy with how we've
+    handled it, the
     <a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener">Information Commissioner's Office</a>
     takes complaints from anyone in the UK.
   </p>

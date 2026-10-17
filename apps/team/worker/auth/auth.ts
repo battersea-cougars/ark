@@ -10,6 +10,7 @@
 import { all, first, run } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import { isProduction, mailPausedUntil, sendMail, type MailConfig } from "@cougars/shared/email";
+import { clubContact } from "@cougars/shared/club-contact";
 import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
 import { londonToday } from "../../src/lib/dates";
@@ -133,9 +134,12 @@ export const mailConfig = (env: AuthEnv): MailConfig => ({
   safeTo: env.MAIL_SAFE_TO ?? null,
 });
 
-/** How to send: the secrets, and outside production who gets their own email (Dev tools, ADR 0027). */
+/**
+ * How to send: the secrets, the club's inbox (Sanity → Club → Contact email, which production sends as), and outside
+ * production who gets their own email (Dev tools, ADR 0027).
+ */
 export async function mailSetup(env: AuthEnv): Promise<MailConfig> {
-  const config = mailConfig(env);
+  const config = { ...mailConfig(env), club: await clubContact(env.SITE_ENV) };
   if (isProduction(env.SITE_ENV)) return config;
   // The admins always (so they can sign in here and open Dev tools), and whoever Dev tools lists
   const rows = await all<{ email: string }>(

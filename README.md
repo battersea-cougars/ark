@@ -233,7 +233,7 @@ inbox, and dev can only ever send from its own test account, never the club's.
   - `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`: Google Cloud console, signed in as the developer account (the dev
     Gmail account, which owns the club's Google Cloud work). One project for the whole club, website and team app:
     _Battersea Cougars_, ID `battersea-cougars` (permanent, so no "website" or "dev" in it). Add
-    batterseahockey@gmail.com as a second Owner (**IAM → Grant access**), so the club can always reach the project
+    the club's Gmail account as a second Owner (**IAM → Grant access**), so the club can always reach the project
     production email depends on. Each app gets its own client in it, so either can be cut off alone; the YouTube
     keys go here too.
     1. **APIs & Services → Library → Gmail API → Enable**.
@@ -248,13 +248,14 @@ inbox, and dev can only ever send from its own test account, never the club's.
        signs in).
     6. **Clients → Create client → Desktop app**, named `cougars-website`. Save both values:
        `node scripts/secret-set.mjs GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET` (shared by both environments).
-  - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs`, signed in as cougars.dev@gmail.com. One token for both
+  - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs`, signed in as the developer Gmail account. One token for both
     environments: production sends from this account too, so resetting the club account's password breaks nothing
     (ADR 0027). It refuses the club's account.
-  - **The club's address as the sender:** in cougars.dev's Gmail, **Settings → Accounts and Import → Send mail as →
-    Add another email address**: name _Battersea Cougars_, address batterseahockey@gmail.com, **Treat as an alias**
+  - **The club's address as the sender:** in the developer account's Gmail, **Settings → Accounts and Import → Send mail as →
+    Add another email address**: name _Battersea Cougars_, address: the club's Gmail address, **Treat as an alias**
     ticked. Gmail emails the club account a confirmation link; open it there. Production then sends as
-    batterseahockey@gmail.com, and replies land in the club inbox. Without it, production sends as cougars.dev.
+    the club's address, and replies land in the club inbox. Without it, production sends as the developer account.
+    The club's address is the Studio's **Club → Contact email**: change both together.
 
   The script opens Google's consent page, catches the answer on `http://localhost:4590` and saves the token straight
   to Secrets Manager; nothing is printed.
@@ -380,7 +381,7 @@ Review. One copy each (production reads `cougars-dev` too) but the App Review pa
 - **`APPLE_TEAM_ID`:** the Apple Developer team's id. Not secret (every app link carries it), kept here so there's
   one copy: `scripts/store-setup.mjs` stores it, `store.yml` signs with it, and the team Worker serves it to phones
   (`/.well-known/apple-app-site-association`).
-- **`FIREBASE_SERVICE_ACCOUNT`:** the JSON key of a Google service account in the Firebase project (the cougars.dev
+- **`FIREBASE_SERVICE_ACCOUNT`:** the JSON key of a Google service account in the Firebase project (the developer
   GCP project), role **Firebase Cloud Messaging API Admin** only, named `firebase-service-account` (Google allows no
   capitals). The Worker signs an hour's token with it to send notifications. **A leaked key could** send our members
   notifications, nothing else. Rotate: add a new key to the account, store it, redeploy `team`, delete the old key.

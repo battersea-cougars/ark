@@ -23,7 +23,6 @@ const CLUB = {
   name: "Battersea Cougars Inline Hockey Club",
   line: "Roller hockey in South West London, every Friday night",
   site: "batterseacougars.com",
-  email: "batterseahockey@gmail.com",
 };
 
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -48,6 +47,7 @@ export function emailPage({
   panel,
   footer = "",
   links = true,
+  contact = null,
 }: {
   title: string;
   preheader: string;
@@ -55,6 +55,8 @@ export function emailPage({
   footer?: string;
   /** The club's website and inbox as links. Off for the sign-in code: on a phone a link opens a browser, not the app. */
   links?: boolean;
+  /** The club's inbox for the footer (Sanity → Club → Contact email); without it, only the website. */
+  contact?: string | null;
 }): string {
   const { carbon, panel: card, muted, subtle, bone, red, display, body } = EMAIL;
   const link = `color:${muted};text-decoration:underline;`;
@@ -84,7 +86,11 @@ ${panel}
     <div>${CLUB.line}</div>
 ${
   links
-    ? `    <div style="margin-top:12px;"><a href="https://${CLUB.site}" style="${link}">${CLUB.site}</a> &nbsp;·&nbsp; <a href="mailto:${CLUB.email}" style="${link}">${CLUB.email}</a></div>\n`
+    ? `    <div style="margin-top:12px;"><a href="https://${CLUB.site}" style="${link}">${CLUB.site}</a>${
+        contact
+          ? ` &nbsp;·&nbsp; <a href="mailto:${escapeHtml(contact)}" style="${link}">${escapeHtml(contact)}</a>`
+          : ""
+      }</div>\n`
     : ""
 }  </td></tr>
 </table>
