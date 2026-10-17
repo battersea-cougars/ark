@@ -45,6 +45,14 @@ fi
 
 # Local D1 (apps/web/.wrangler): rebuilt from db/schema.sql, keeping its data (ADR 0050).
 (cd "$ROOT" && npm run --silent db:rebuild:local >/dev/null) || echo "Local D1 rebuild failed; run: npm run db:rebuild:local"
+# An empty club (a new container, a deleted database): seed it, so the team app has people and an admin to sign in as.
+# Your own db/seed/roster.local.json if there is one, else the made-up example club. A club with members is left alone.
+members=$(cd "$ROOT/apps/web" && npx --no-install wrangler d1 execute DB --local --json \
+  --command "SELECT count(*) AS n FROM members" 2>/dev/null | node -e 'try { console.log(JSON.parse(require("fs").readFileSync(0))[0].results[0].n) } catch { console.log("?") }')
+if [ "$members" = "0" ]; then
+  echo "Local club is empty: seeding it."
+  (cd "$ROOT" && npm run --silent db:seed:local) || echo "Local seed failed; run: npm run db:seed:local"
+fi
 
 echo "Cougars monorepo ready — web :4500 and the team app :4510 start automatically (.vscode/tasks.json). See README.md"
 # Cougars' own Bitwarden login (a volume, not the host's: that may be another org's account)
