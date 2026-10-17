@@ -39,8 +39,15 @@ describe("autoReplyMail", () => {
     expect(mail).toMatchObject({ to: ["jo@example.com"], replyTo: "club@example.com" });
     expect(mail.text).toMatch(/^Hi Jo,/);
     expect(mail.text).toContain("We play Fridays, 19:30–21:30 at Battersea Sports Centre, London SW11 3AB.");
-    expect(mail.text).toContain(FALLBACK_FRIDAYS.firstSessionKit!);
     expect(mail.text).toContain(FALLBACK_FRIDAYS.kitNotes);
+  });
+
+  it("says nothing about lending kit unless the Studio has a line for first-timers", () => {
+    expect(autoReplyMail(enquiry, settings, "club@example.com").text).not.toMatch(/lend|borrow/i);
+    const lending = { ...settings, firstSessionKit: "First session? Borrow a stick." };
+    const mail = autoReplyMail(enquiry, lending, "club@example.com");
+    expect(mail.text).toContain("First session? Borrow a stick.");
+    expect(mail.html).toContain("First session? Borrow a stick.");
   });
 
   it("never repeats what the sender wrote, beyond the first name", () => {

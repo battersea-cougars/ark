@@ -34,7 +34,8 @@ export const FALLBACK_FRIDAYS: Fridays = {
     mapUrl: "https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6",
   },
   kitNotes: "Helmet, gloves and shin pads are non-negotiable. Knee and elbow pads strongly recommended.",
-  firstSessionKit: "First session? The club can lend you some kit, and players often have spares to lend or give away.",
+  // The club doesn't promise to lend kit (2026-10-17): nothing about lending kit unless the Studio says so
+  firstSessionKit: null,
   feesText: null,
 };
 
