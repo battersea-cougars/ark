@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { getSettings, kitText } from "../../lib/sanity/content";
-import { EXPERIENCE } from "../../lib/server/enquiries";
+import { EXPERIENCE } from "../../lib/enquiry-form";
 import { TURNSTILE_SITE_KEY } from "astro:env/client";
 
 const s = await getSettings();
@@ -134,6 +134,7 @@ const slot = s.training[0];
     gap: 2rem;
   }
   .field {
+    position: relative;
     display: grid;
     gap: 0.5rem;
     border: 0;
@@ -211,12 +212,14 @@ const slot = s.training[0];
     outline: 1px solid var(--text);
     outline-offset: 3px;
   }
+  /* In the gap under its field, so an error appearing moves nothing */
   .err {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    left: 0;
     color: var(--red);
     font-size: 0.8rem;
-  }
-  .err:empty {
-    display: none;
+    line-height: 1.3;
   }
   .about {
     margin: 0 0 0.5rem;
@@ -257,6 +260,8 @@ const slot = s.training[0];
 </style>
 
 <script>
+  import { parseEnquiry } from "../../lib/enquiry-form";
+
   // Turnstile, rendered by hand so it also appears after a client-side page change (ClientRouter).
   type Turnstile = { render: (el: HTMLElement, o: object) => string; reset: (id: string) => void };
   const w = window as unknown as { turnstile?: Turnstile };
@@ -302,12 +307,44 @@ const slot = s.training[0];
     if (!message.value) message.value = `About ${about}: `;
   }
 
+  // Each field checked with the server's own rules (lib/enquiry-form.ts): when you leave it, and again as you fix it
+  const fieldError = (name: string) => {
+    const result = parseEnquiry(new FormData(form));
+    return result.ok ? "" : (result.errors[name] ?? "");
+  };
+  const show = (name: string, msg: string) => {
+    const err = form.querySelector(`.err[data-for="${name}"]`);
+    if (err) err.textContent = msg;
+    const input = form.querySelector(`[name="${name}"]`);
+    if (msg) input?.setAttribute("aria-invalid", "true");
+    else input?.removeAttribute("aria-invalid");
+  };
+  const checked = ["name", "email", "phone"];
+  form.addEventListener("focusout", (e) => {
+    const name = (e.target as HTMLInputElement).name;
+    // Leaving an empty field you never typed in isn't a mistake yet
+    if (checked.includes(name) && (e.target as HTMLInputElement).value) show(name, fieldError(name));
+  });
+  form.addEventListener("input", (e) => {
+    const input = e.target as HTMLInputElement;
+    if (checked.includes(input.name) && input.hasAttribute("aria-invalid")) show(input.name, fieldError(input.name));
+  });
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    // Wrong before it's sent: say where, and send nothing
+    const local = parseEnquiry(new FormData(form));
+    if (!local.ok) {
+      for (const name of checked) show(name, local.errors[name] ?? "");
+      showAlert(messages.invalid);
+      form.querySelector<HTMLElement>("[aria-invalid]")?.focus();
+      return;
+    }
     const button = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
     button.disabled = true;
     form.querySelectorAll(".err").forEach((el) => (el.textContent = ""));
     form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    alert.hidden = true;
     try {
       const res = await fetch(form.action, {
         method: "POST",
