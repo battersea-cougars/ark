@@ -11,7 +11,8 @@
     <!-- The two faces, fetched before the stylesheet asks for them, so the first paint is in the right type -->
     <link rel="preload" href="/src/assets/fonts/InterTight-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/src/assets/fonts/Anton.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- With its cookies: behind Cloudflare Access (ADR 0010) a manifest fetched without them is sent to the login page -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
