@@ -81,8 +81,11 @@ const [latest, ...earlier] = videos.slice(0, 3);
 </style>
 
 <script>
-  // Swap in the live reel. Nothing happens if it fails (offline, blocked) or nothing changed. VideoCard's Play
-  // button uses a document-wide click handler, so swapped-in cards play too.
+  // The cards' Play, here too: a home page built with no videos renders no VideoCard, so without this its script
+  // wouldn't be on the page when live cards are swapped in (scripts/video-play.ts)
+  import "../scripts/video-play";
+
+  // Swap in the live reel. Nothing happens if it fails (offline, blocked) or nothing changed.
   async function refresh() {
     const reel = document.querySelector<HTMLElement>("[data-video-reel]");
     if (!reel) return;
