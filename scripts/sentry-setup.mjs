@@ -60,12 +60,13 @@ for (const want of PROJECTS) {
   console.log(`  ${setSecret(want.dsnSecret, key.dsn.public)} ${want.dsnSecret} in Secrets Manager.`);
 
   if (!uptime) continue;
-  // Down alerts: Sentry checks the health route every minute and opens an issue (so the alert above) when it fails
+  // Down alerts: Sentry checks the health route every 10 minutes (about 290 requests a day for both, ADR 0003) and opens
+  // an issue (so the alert above) when it fails
   const monitors = await sentry("GET", `/organizations/${ORG}/uptime/?project=${want.slug}`).catch(() => []);
   const monitor = {
     name: `${want.slug} is up`,
     url: want.health,
-    intervalSeconds: 60,
+    intervalSeconds: 600,
     timeoutMs: 10_000,
     method: "GET",
     headers: [],

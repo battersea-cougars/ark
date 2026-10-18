@@ -1,7 +1,7 @@
 # 0111. Errors and down alerts go to Sentry, with nothing about a person in them
 
 - **Status:** Accepted
-- **Date:** 2026-10-18
+- **Date:** 2026-10-18 · updated 2026-10-18
 
 ## Context
 
@@ -42,7 +42,7 @@ smaller (5k errors a month, one user) but plain about it.
   No tracing, no session replay.
 - **Readable stacks:** both builds write hidden source maps; the deploy uploads them for the build's release
   (`sentry-cli`, `SENTRY_AUTH_TOKEN`) and deletes every `.map` before the files go live. A PR preview only deletes them.
-- **Down alerts:** Sentry uptime monitors, every minute, on the website's `/health` and the team app's `/api/health`
+- **Down alerts:** Sentry uptime monitors, every 10 minutes, on the website's `/health` and the team app's `/api/health`
   (`sentry-setup.mjs --uptime`), once both answer past the Access gate (#105). A failure opens an issue in production,
   so the same alert emails.
 
@@ -58,3 +58,5 @@ smaller (5k errors a month, one user) but plain about it.
 ## History
 
 - 2026-10-18: Sentry for errors and down alerts, EU region, one alert for production; Better Stack tried and dropped.
+- 2026-10-18: Uptime checks every 10 minutes, not every minute: a down site is known soon enough, and it's about 290
+  requests a day instead of 2,900 (#16).
