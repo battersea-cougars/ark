@@ -1,5 +1,6 @@
 // The team app's Worker (ADR 0022): the JSON API under /api, and the built app for everything else (the assets
 // binding falls back to index.html, so the app's own router takes any path).
+import * as Sentry from "@sentry/cloudflare";
 import { handleApi, type Env } from "./api/api";
 import { chargeDue } from "./dues/dues";
 import { forgetOld } from "./settings/retention";
@@ -8,9 +9,10 @@ import { rebuildWebsite } from "./website/website";
 import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
 import { consoleAdapter } from "@cougars/shared/scribe.console";
+import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
 
-// The log: JSON lines for Workers Logs (ADR 0110)
-scribe.configure({ adapter: consoleAdapter });
+// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0111)
+scribe.configure({ adapter: consoleAdapter, report: sentryReporter(Sentry) });
 const log = scribe.logger("cron");
 
 // The live hub (ADR 0072): Cloudflare finds the Durable Object class here
@@ -47,7 +49,8 @@ function secured(res: Response): Response {
   return out;
 }
 
-export default {
+// Sentry around the whole Worker: an error nothing caught is reported too. No SENTRY_DSN (your machine, tests): off.
+export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
   async fetch(request: Request, env: Env & StoreEnv & { ASSETS: Fetcher }, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/"))
@@ -68,7 +71,7 @@ export default {
       await task("retention.forget", () => forgetOld(env.DB, now));
     }
   },
-} satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>;
+} satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>);
 
 /** One cron job, run on its own: a failure is logged and the next job still runs. */
 async function task(name: string, job: () => Promise<unknown>) {

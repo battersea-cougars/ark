@@ -32,6 +32,8 @@
     "@capacitor/share": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.2",
     "@cougars/shared": "*",
+    "@sentry/cloudflare": "^11.8.0",
+    "@sentry/svelte": "^11.8.0",
     "ag-grid-community": "^36.2.0"
   }
 }

@@ -7,6 +7,9 @@ import { hydrate } from "./demo/data";
 // after it's in place. Nothing above may import the store. Nobody signed in: the sign-in screen, which reloads the
 // page once they are.
 const target = document.getElementById("app")!;
+// Errors to Sentry (ADR 0111), started beside the club's data rather than before it: a built copy only
+const dsn = import.meta.env.VITE_SENTRY_DSN;
+if (dsn) void import("./app/errors").then(({ startErrorReports }) => startErrorReports(dsn)).catch(() => {});
 try {
   hydrate(await getBootstrap());
   const [{ mount }, { default: App }] = await Promise.all([import("svelte"), import("./App.svelte"), firstPage()]);

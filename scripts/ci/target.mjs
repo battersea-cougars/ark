@@ -66,6 +66,8 @@ if (dbOnly) {
 const config = JSON.parse(readFileSync(GENERATED, "utf8"));
 config.name = target.worker;
 config.vars = { ...config.vars, SITE_ENV: environment };
+// The release Sentry files this Worker's errors under (ADR 0111): the deploy's build version, as the browser code has it
+if (process.env.PUBLIC_BUILD_VERSION) config.vars.BUILD_VERSION = process.env.PUBLIC_BUILD_VERSION;
 // The team app's Usage page reads this account's analytics (worker/settings/usage.ts); the id isn't secret
 if (team && process.env.CLOUDFLARE_ACCOUNT_ID) config.vars.CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 if (environment === "production") {

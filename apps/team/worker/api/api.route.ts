@@ -17,6 +17,10 @@ export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<
   /** Read-only (Account Analytics: Read), for the Usage page and the hourly check (ADR 0059). */
   CLOUDFLARE_ANALYTICS_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
+  /** Where errors go (ADR 0111); a Worker secret from the deploy. Unset (your machine, tests): nowhere but the log. */
+  SENTRY_DSN?: string;
+  /** The release Sentry files errors under: the deploy's build version (scripts/ci/target.mjs). */
+  BUILD_VERSION?: string;
   /** The live hub (ADR 0072), wrangler.jsonc durable_objects; a server without one falls back to checking. */
   LIVE?: DurableObjectNamespace;
 }

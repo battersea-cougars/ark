@@ -28,6 +28,7 @@ import { notify } from "../push/push";
 import { bumpDataVersion } from "./api.version";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
 import { scribe } from "@cougars/shared/scribe";
+import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
 
 const log = scribe.logger("api");
 
@@ -98,6 +99,8 @@ export async function handleApi(
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     throw e;
   }
+  // The app's own errors on their way to Sentry (ADR 0111), signed in or not: an error at sign-in counts too
+  if (url.pathname === "/api/errors") return sentryTunnel(request, env.SENTRY_DSN);
   if (url.pathname.startsWith("/api/auth/")) {
     try {
       return (await handleAuth(request, env, now, waitUntil)) ?? json({ error: "Not found." }, 404);

@@ -55,6 +55,9 @@ export default defineConfig(({ command }) => ({
   },
   // The notifications plugin's web build wants the Firebase web SDK; the app never uses it (src/app/no-web-push.ts)
   resolve: { alias: { "firebase/messaging": fileURLToPath(new URL("src/app/no-web-push.ts", import.meta.url)) } },
+  // Source maps for Sentry (ADR 0111): written but never linked from the files; the deploy uploads them, then deletes
+  // them before the files go live
+  build: { sourcemap: "hidden" },
   server: { port: PORT, strictPort: true, host: true },
   preview: { port: PORT, strictPort: true, host: true },
 }));

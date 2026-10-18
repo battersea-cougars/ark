@@ -43,6 +43,30 @@ const carbon = carbonImage.src;
 <html lang="en-GB">
   <head>
     <meta charset="utf-8" />
+    <!-- Errors in our scripts reach Sentry (ADR 0111, pages/api/client-error.ts): first in the page, so it hears everything.
+         Each distinct error once per page, a few at most; the server keeps only those from our own /_astro/ scripts.
+         Code that catches its own error calls window.reportError?.(e) as usual: the browser hands it here too. -->
+    <script is:inline>
+      (() => {
+        const seen = new Set();
+        const send = (e) => {
+          const err = e instanceof Error ? e : new Error(String(e));
+          const key = err.message + err.stack;
+          if (seen.has(key) || seen.size >= 5) return;
+          seen.add(key);
+          const body = JSON.stringify({
+            name: err.name,
+            message: String(err.message),
+            stack: String(err.stack || ""),
+            page: location.pathname,
+          });
+          if (!navigator.sendBeacon?.("/api/client-error", new Blob([body], { type: "application/json" })))
+            fetch("/api/client-error", { method: "POST", body, keepalive: true }).catch(() => {});
+        };
+        addEventListener("error", (e) => send(e.error ?? e.message));
+        addEventListener("unhandledrejection", (e) => send(e.reason));
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />

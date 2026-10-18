@@ -54,6 +54,8 @@ export default defineConfig({
       TURNSTILE_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // The deploy's smoke test of the form (lib/server/smoke.ts): unset, there's no smoke path at all
       SMOKE_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
+      // Where the Worker's errors go (ADR 0111, src/worker.ts reads it): a Worker secret; unset, only the log
+      SENTRY_DSN: envField.string({ context: "server", access: "secret", optional: true }),
       PUBLIC_BUILD_VERSION: envField.string({ context: "client", access: "public", default: "dev" }),
       // Sample content + noindex for dev builds (local, PR previews, scripts/deploy-dev.sh). Never in production.
       DEMO_CONTENT: envField.boolean({ context: "server", access: "public", default: false }),
@@ -105,6 +107,9 @@ export default defineConfig({
   devToolbar: { enabled: false },
   vite: {
     envDir: "../..",
+    // Source maps for Sentry (ADR 0111): written but never linked from the scripts; the deploy uploads them, then
+    // deletes them before the files go live
+    build: { sourcemap: "hidden" },
     // The dev server keeps its own dependency cache: `astro build` and `astro check` rewrite
     // the default one, which breaks a dev server that is already running (500s on /_image).
     cacheDir: process.argv.includes("dev") ? "node_modules/.vite-dev" : "node_modules/.vite",

@@ -61,40 +61,43 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 - **Every secret has an entry below.** Adding one: create the token with its secret name, add it to Secrets
   Manager with `npm run secret:set NAME` (hidden prompt; it picks the project from the name), add it here.
 
-| Secret                                                                    | Project       | Issued by                   | Used by                              |
-| ------------------------------------------------------------------------- | ------------- | --------------------------- | ------------------------------------ |
-| [`BWS_ACCESS_TOKEN__PRODUCTION`](#bitwarden-tokens)                       | (GitHub)      | Bitwarden, `cougars-ci`     | Production deploys                   |
-| [`BWS_ACCESS_TOKEN__DEV`](#bitwarden-tokens)                              | (GitHub)      | Bitwarden, `cougars-ci-dev` | PR previews                          |
-| [`COUGARS_LOCAL_BW_TOKEN`](#bitwarden-tokens)                             | (your vault)  | Bitwarden, `cougars-local`  | Your machine                         |
-| [`CLOUDFLARE_API_TOKEN__PRODUCTION`](#cloudflare_api_token__production)   | `cougars`     | Cloudflare, Cougars         | Production deploys                   |
-| [`CLOUDFLARE_ACCOUNT_ID__PRODUCTION`](#cloudflare_account_id__production) | `cougars`     | Cloudflare, Cougars         | Production deploys                   |
-| [`CLOUDFLARE_API_TOKEN__DEV`](#cloudflare_api_token__dev)                 | `cougars-dev` | Cloudflare, Cougars Dev     | PR previews, `deploy-dev.sh`         |
-| [`CLOUDFLARE_ACCOUNT_ID__DEV`](#cloudflare_account_id__dev)               | `cougars-dev` | Cloudflare, Cougars Dev     | PR previews, `deploy-dev.sh`         |
-| [`CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`](#cloudflare_analytics_token)   | `cougars`     | Cloudflare, Cougars         | Team app Usage page                  |
-| [`CLOUDFLARE_ANALYTICS_TOKEN__DEV`](#cloudflare_analytics_token)          | `cougars-dev` | Cloudflare, Cougars Dev     | Team app Usage page (dev)            |
-| [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)     | `cougars`     | Sanity                      | Studio deploys                       |
-| [`YOUTUBE_API_KEY__PRODUCTION`](#youtube-api-keys)                        | `cougars`     | Google Cloud                | Website (production)                 |
-| [`YOUTUBE_API_KEY__DEV`](#youtube-api-keys)                               | `cougars-dev` | Google Cloud                | Website (dev)                        |
-| [`GMAIL_CLIENT_ID`](#gmail)                                               | `cougars-dev` | Google Cloud                | Website, team app (both)             |
-| [`GMAIL_CLIENT_SECRET`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both)             |
-| [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)             |
-| [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website (production)                 |
-| [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website (dev)                        |
-| [`SMOKE_TOKEN`](#smoke_token)                                             | (none)        | Made by each deploy         | Deploy smoke test of the form (both) |
-| [`TEAM_ROSTER__PRODUCTION`](#team-roster)                                 | `cougars`     | (the admins only)           | Deploys (D1 seed)                    |
-| [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                       | `cougars-dev` | GitHub, `Cougars rebuilds`  | Team app (both): rebuilds            |
-| [`CF_ACCESS_CLIENT_ID__PRODUCTION`](#cf_access_client_id__production)     | `cougars`     | Cloudflare Access           | Production smoke tests, until launch |
-| [`CF_ACCESS_CLIENT_SECRET__PRODUCTION`](#cf_access_client_id__production) | `cougars`     | Cloudflare Access           | Production smoke tests, until launch |
-| [`BACKUP_KEY__PRODUCTION`](#backup_key)                                   | `cougars`     | (random, made once)         | Database backups (production)        |
-| [`BACKUP_KEY`](#backup_key)                                               | `cougars-dev` | (random, made once)         | Database backups (dev)               |
-| [`APP_STORE_CONNECT_KEY`](#store-app)                                     | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)       |
-| [`APP_STORE_CONNECT_KEY_ID`](#store-app)                                  | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)       |
-| [`APP_STORE_CONNECT_ISSUER_ID`](#store-app)                               | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)       |
-| [`APPLE_TEAM_ID`](#store-app)                                             | `cougars-dev` | Apple (`store-setup.mjs`)   | Store app builds, team app (links)   |
-| [`FIREBASE_SERVICE_ACCOUNT`](#store-app)                                  | `cougars-dev` | Google Cloud, Firebase      | Team app (both): notifications       |
-| [`FIREBASE_IOS_CONFIG`](#store-app)                                       | `cougars-dev` | Firebase                    | Store app builds (`store.yml`)       |
-| [`APP_REVIEW_EMAIL__PRODUCTION`](#store-app)                              | `cougars`     | (us)                        | Team app (production): App Review    |
-| [`APP_REVIEW_CODE__PRODUCTION`](#store-app)                               | `cougars`     | (random, made once)         | Team app (production): App Review    |
+| Secret                                                                    | Project       | Issued by                   | Used by                                   |
+| ------------------------------------------------------------------------- | ------------- | --------------------------- | ----------------------------------------- |
+| [`BWS_ACCESS_TOKEN__PRODUCTION`](#bitwarden-tokens)                       | (GitHub)      | Bitwarden, `cougars-ci`     | Production deploys                        |
+| [`BWS_ACCESS_TOKEN__DEV`](#bitwarden-tokens)                              | (GitHub)      | Bitwarden, `cougars-ci-dev` | PR previews                               |
+| [`COUGARS_LOCAL_BW_TOKEN`](#bitwarden-tokens)                             | (your vault)  | Bitwarden, `cougars-local`  | Your machine                              |
+| [`CLOUDFLARE_API_TOKEN__PRODUCTION`](#cloudflare_api_token__production)   | `cougars`     | Cloudflare, Cougars         | Production deploys                        |
+| [`CLOUDFLARE_ACCOUNT_ID__PRODUCTION`](#cloudflare_account_id__production) | `cougars`     | Cloudflare, Cougars         | Production deploys                        |
+| [`CLOUDFLARE_API_TOKEN__DEV`](#cloudflare_api_token__dev)                 | `cougars-dev` | Cloudflare, Cougars Dev     | PR previews, `deploy-dev.sh`              |
+| [`CLOUDFLARE_ACCOUNT_ID__DEV`](#cloudflare_account_id__dev)               | `cougars-dev` | Cloudflare, Cougars Dev     | PR previews, `deploy-dev.sh`              |
+| [`CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`](#cloudflare_analytics_token)   | `cougars`     | Cloudflare, Cougars         | Team app Usage page                       |
+| [`CLOUDFLARE_ANALYTICS_TOKEN__DEV`](#cloudflare_analytics_token)          | `cougars-dev` | Cloudflare, Cougars Dev     | Team app Usage page (dev)                 |
+| [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)     | `cougars`     | Sanity                      | Studio deploys                            |
+| [`YOUTUBE_API_KEY__PRODUCTION`](#youtube-api-keys)                        | `cougars`     | Google Cloud                | Website (production)                      |
+| [`YOUTUBE_API_KEY__DEV`](#youtube-api-keys)                               | `cougars-dev` | Google Cloud                | Website (dev)                             |
+| [`GMAIL_CLIENT_ID`](#gmail)                                               | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
+| [`GMAIL_CLIENT_SECRET`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
+| [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)                  |
+| [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website (production)                      |
+| [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website (dev)                             |
+| [`SMOKE_TOKEN`](#smoke_token)                                             | (none)        | Made by each deploy         | Deploy smoke test of the form (both)      |
+| [`TEAM_ROSTER__PRODUCTION`](#team-roster)                                 | `cougars`     | (the admins only)           | Deploys (D1 seed)                         |
+| [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                       | `cougars-dev` | GitHub, `Cougars rebuilds`  | Team app (both): rebuilds                 |
+| [`CF_ACCESS_CLIENT_ID__PRODUCTION`](#cf_access_client_id__production)     | `cougars`     | Cloudflare Access           | Production smoke tests, until launch      |
+| [`CF_ACCESS_CLIENT_SECRET__PRODUCTION`](#cf_access_client_id__production) | `cougars`     | Cloudflare Access           | Production smoke tests, until launch      |
+| [`BACKUP_KEY__PRODUCTION`](#backup_key)                                   | `cougars`     | (random, made once)         | Database backups (production)             |
+| [`BACKUP_KEY`](#backup_key)                                               | `cougars-dev` | (random, made once)         | Database backups (dev)                    |
+| [`APP_STORE_CONNECT_KEY`](#store-app)                                     | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)            |
+| [`APP_STORE_CONNECT_KEY_ID`](#store-app)                                  | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)            |
+| [`APP_STORE_CONNECT_ISSUER_ID`](#store-app)                               | `cougars-dev` | Apple, App Store Connect    | Store app builds (`store.yml`)            |
+| [`APPLE_TEAM_ID`](#store-app)                                             | `cougars-dev` | Apple (`store-setup.mjs`)   | Store app builds, team app (links)        |
+| [`FIREBASE_SERVICE_ACCOUNT`](#store-app)                                  | `cougars-dev` | Google Cloud, Firebase      | Team app (both): notifications            |
+| [`FIREBASE_IOS_CONFIG`](#store-app)                                       | `cougars-dev` | Firebase                    | Store app builds (`store.yml`)            |
+| [`APP_REVIEW_EMAIL__PRODUCTION`](#store-app)                              | `cougars`     | (us)                        | Team app (production): App Review         |
+| [`APP_REVIEW_CODE__PRODUCTION`](#store-app)                               | `cougars`     | (random, made once)         | Team app (production): App Review         |
+| [`SENTRY_AUTH_TOKEN`](#sentry)                                            | `cougars-dev` | Sentry, developer account   | Deploys (source maps), `sentry-setup.mjs` |
+| [`SENTRY_DSN_WEB`](#sentry)                                               | `cougars-dev` | Sentry (`sentry-setup.mjs`) | Website Worker (both)                     |
+| [`SENTRY_DSN_TEAM`](#sentry)                                              | `cougars-dev` | Sentry (`sentry-setup.mjs`) | Team Worker and app (both)                |
 
 ### Bitwarden tokens
 
@@ -412,6 +415,24 @@ Review. One copy each (production reads `cougars-dev` too) but the App Review pa
   `APPLE_TEAM_ID`, the App Review pair) on the team Worker as secrets.
 - **Android, later:** `PLAY_SERVICE_ACCOUNT` (Play Console upload), `PLAY_UPLOAD_KEY` and `FIREBASE_ANDROID_CONFIG`
   join these (ADR 0108).
+
+### Sentry
+
+Errors from both apps, server and browser, and the down alerts ([ADR 0111](docs/adr/0111-errors-and-uptime.md)). One
+organisation, `battersea-cougars`, in Sentry's **EU region** (`de.sentry.io`), on the free Developer plan (one user:
+the developer Gmail account, which forwards the alerts). Projects `web` and `team`; each event says its environment.
+The only alert is an email on a new issue in **production**; dev's errors are kept but tell nobody.
+
+- **`SENTRY_AUTH_TOKEN`:** a personal token of the developer account (User settings → Personal Tokens), named
+  `SENTRY_AUTH_TOKEN`, with Project Admin, Team Read & Write, Release Admin, Issue & Event Read, Organization Read and
+  Alerts Read & Write. Used by `scripts/sentry-setup.mjs` (projects, the alert, the uptime monitors) and by the deploy
+  to upload source maps. Set: `npm run secret:set SENTRY_AUTH_TOKEN`. **Expires:** no; rotate by making a new one,
+  setting it, and revoking the old.
+- **`SENTRY_DSN_WEB`, `SENTRY_DSN_TEAM`:** where each app sends its errors. Not really secret (the team app's is in
+  its browser code), but kept out of this public repo. Made by `sentry-setup.mjs`, which stores them.
+- **Gets there by:** CI pull from Secrets Manager; `deploy.yml` puts each as its Worker's `SENTRY_DSN` and builds the
+  team app with `VITE_SENTRY_DSN`. Unset (your machine): no reports, only the log.
+- **Setup or check:** `node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs` (add `--uptime` for the monitors).
 
 ### Settings that aren't secret
 

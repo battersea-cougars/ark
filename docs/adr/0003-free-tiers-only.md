@@ -1,7 +1,7 @@
 # 0003. Free tiers only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-09
+- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-18
 
 ## Context
 
@@ -34,6 +34,7 @@ keeps no rows; D1 stays the only source of truth ([ADR 0072](0072-live-updates.m
 | Web Push                  | Free (browser push services)                                  | Team-app notifications ([#24](https://github.com/battersea-cougars/ark/issues/24)) |
 | Firebase Cloud Messaging  | Free, unlimited                                               | The store app's notifications (ADR 0108)                                           |
 | GitHub Actions macOS      | Free on a public repo                                         | The store app's builds, when its shell changes (ADR 0108)                          |
+| Sentry                    | Developer plan: 5k errors a month, 1 user                     | The apps' errors and down alerts (ADR 0111): a handful a month once settled        |
 
 Sanity Free, checked on [sanity.io/pricing](https://www.sanity.io/pricing) on 2026-10-05: 20 seats, 2 datasets
 (public only), 10k documents, 1M API CDN requests and 250k API requests a month, 100 GB of assets, 100 GB of
@@ -60,3 +61,5 @@ Usage page and count in its 80% check ([ADR 0059](0059-usage-page-and-check.md))
 - 2026-10-09: The free-tier budget moved here from `docs/roadmap.md`, which was deleted.
 - 2026-10-11: The App Store's yearly fee accepted, on an existing Apple Developer account; Firebase Cloud Messaging
   and GitHub's macOS runners added, both free (0108).
+- 2026-10-18: Sentry's free Developer plan added for errors and down alerts (0111); Better Stack was tried and
+  dropped, its alert routing unclear without paid on-call.
