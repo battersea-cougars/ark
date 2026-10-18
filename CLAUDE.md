@@ -20,7 +20,7 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
 - **Secrets live only in Bitwarden Secrets Manager** ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md)).
   Never print secret values, never write them to files (`.env`, `.dev.vars`), never commit them. `.env` is for
   local non-secret overrides only. GitHub holds only the Bitwarden tokens (`BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`). Use
-  `node scripts/env-pull.mjs --status` to see what exists (names only).
+  `npm run secrets` to see what exists (names only).
 - **Every secret is documented in [README.md#secrets](README.md#secrets)**, and a provider token is named
   exactly like its secret. Adding or renaming a secret means updating that section in the same change.
 - **Never deploy to production by hand.** Production deploys only from the `release` branch via

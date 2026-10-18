@@ -37,7 +37,7 @@ The site builds and runs **without Sanity**: until a Sanity project is configure
 With secrets (run `bw-unlock` first, see [Bitwarden tokens](#bitwarden-tokens)):
 
 ```sh
-node scripts/env-pull.mjs --status          # list secret names (never values)
+npm run secrets                             # list secret names (never values)
 node scripts/env-pull.mjs -- npm run dev    # run with dev secrets injected
 ```
 
@@ -59,7 +59,7 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
   needs a secret.
 - **A token is named exactly like its secret** at the provider that issued it.
 - **Every secret has an entry below.** Adding one: create the token with its secret name, add it to Secrets
-  Manager with `node scripts/secret-set.mjs NAME` (hidden prompt; it picks the project from the name), add it here.
+  Manager with `npm run secret:set NAME` (hidden prompt; it picks the project from the name), add it here.
 
 | Secret                                                                    | Project       | Issued by                   | Used by                              |
 | ------------------------------------------------------------------------- | ------------- | --------------------------- | ------------------------------------ |
@@ -109,7 +109,7 @@ like the secret that holds it:
 
 Project access is set in Secrets Manager → **Machine accounts → _account_ → Projects**. CI is read-only: it never
 changes a secret. `cougars-local` can write, so you add secrets from the shell
-(`node scripts/secret-set.mjs NAME`).
+(`npm run secret:set NAME`).
 People (org members) get access to the projects they maintain; the free plan allows 2.
 
 - **Gets there by:** `deploy.yml` passes its environment's token to `bws` as `BWS_ACCESS_TOKEN` and runs
@@ -248,7 +248,7 @@ inbox, and dev can only ever send from its own test account, never the club's.
        It stays unverified (Google warns on the consent screen, which is fine: only the developer account ever
        signs in).
     6. **Clients → Create client → Desktop app**, named `cougars-website`. Save both values:
-       `node scripts/secret-set.mjs GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET` (shared by both environments).
+       `npm run secret:set GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET` (shared by both environments).
   - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs`, signed in as the developer Gmail account. One token for both
     environments: production sends from this account too, so resetting the club account's password breaks nothing
     (ADR 0027). It refuses the club's account.
@@ -285,7 +285,7 @@ enquiries are still saved and emailed to the club, but nobody gets an auto-reply
   dashboard) → **Add widget**: name `cougars-website`, hostname the site's (Cougars Dev: `cougars-dev.workers.dev`, which covers `web.` and its PR previews;
   Cougars: `batterseacougars.com`), widget mode **Managed**, pre-clearance **No** → **Create**. It shows a **site
   key** (public: it goes in `deploy.yml` as `TURNSTILE_SITE_KEY` for that environment) and a **secret key**:
-  `node scripts/secret-set.mjs TURNSTILE_SECRET_KEY` (dev) or `TURNSTILE_SECRET_KEY__PRODUCTION`.
+  `npm run secret:set TURNSTILE_SECRET_KEY` (dev) or `TURNSTILE_SECRET_KEY__PRODUCTION`.
 - **Used by:** the website's `/api/join` (Worker), to check each form's token with Cloudflare.
 - **Gets there by:** CI pull from Secrets Manager, then `deploy.yml` pushes it to the Worker as a secret on every
   deploy. A laptop uses Cloudflare's test site key (always passes) and no secret, so no auto-replies locally.

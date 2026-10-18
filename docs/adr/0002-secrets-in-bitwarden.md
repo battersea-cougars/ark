@@ -48,7 +48,7 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 ## Consequences
 
 - No secret files to leak. Running something that needs secrets locally is `node scripts/env-pull.mjs -- <command>`,
-  which defaults to dev. `node scripts/env-pull.mjs --status` lists what exists, names only.
+  which defaults to dev. `npm run secrets` lists what exists, names only.
 - Adding a secret is three steps, every time: create the token with the SM name, add it to SM, add its entry to the
   README.
 - Any CI job with the production token can read every app's production secrets, not just its own. Acceptable for a

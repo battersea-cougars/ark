@@ -84,7 +84,7 @@ devcontainer keeps its own Bitwarden login (volume `cougars-bitwarden-cli`), sep
 bw config server https://vault.bitwarden.eu   # once
 bw login                                      # once, as the account in the Cougars org
 bw-unlock                                     # each container start
-node scripts/env-pull.mjs --status            # lists secret names (dev)
+npm run secrets                               # lists secret names (dev)
 ```
 
 ## 4. GitHub
