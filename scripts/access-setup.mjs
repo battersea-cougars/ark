@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Production behind Cloudflare Access until launch (ADR 0010): batterseacougars.com, www. and team. ask for an email
 // and a one-time code, and let in only the emails on the Admins policy (managed in the dashboard; a first run starts it
-// from the admins in the production roster, TEAM_ROSTER, ADR 0029), plus CI's service
-// token for the deploy's smoke tests. Safe to run again: it finds what's there by name and puts it right. The service
-// token's ID and secret go straight into Secrets Manager (CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION); nothing is printed.
+// from the admins in the production roster, TEAM_ROSTER, ADR 0029), plus CI's service token for the deploy's smoke
+// tests. The two health checks the down alerts read (ADR 0111) are open. Safe to run again: it finds what's there by
+// name and puts it right. The service token's ID and secret go straight into Secrets Manager
+// (CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION); nothing is printed.
 //   node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs
 // At launch: node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs --remove
 // Needs CLOUDFLARE_API_TOKEN__PRODUCTION with Access: Identity Providers, Apps, Policies and Service Tokens Write.
@@ -14,6 +15,9 @@ const HOSTS = [ZONE, `www.${ZONE}`, `team.${ZONE}`];
 const APP = "Cougars before launch";
 const ADMINS = "Admins (production roster)";
 const CI = "CI smoke tests";
+// The down alerts' health checks (ADR 0111) go round the gate: these two paths only, which say nothing but "ok"
+const HEALTH = "Health checks";
+const HEALTH_PATHS = [`${ZONE}/health`, `team.${ZONE}/api/health`];
 const remove = process.argv.includes("--remove");
 
 const { CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account, TEAM_ROSTER: roster } = process.env;
@@ -40,6 +44,8 @@ if (remove) {
   // Launch: the gate goes; the policies and the token go with it
   for (const [path, name] of [
     ["/apps", APP],
+    ["/apps", HEALTH],
+    ["/policies", HEALTH],
     ["/policies", ADMINS],
     ["/policies", CI],
     ["/service_tokens", CI],
@@ -107,6 +113,17 @@ await upsert("/apps", {
     { id: admins.id, precedence: 2 },
   ],
 });
+// A more specific path wins over the gate's whole hosts, so the monitors reach the health routes
+const everyone = await upsert("/policies", { name: HEALTH, decision: "bypass", include: [{ everyone: {} }] });
+await upsert("/apps", {
+  name: HEALTH,
+  type: "self_hosted",
+  domain: HEALTH_PATHS[0],
+  self_hosted_domains: HEALTH_PATHS,
+  app_launcher_visible: false,
+  policies: [{ id: everyone.id, precedence: 1 }],
+});
+console.log(`${HEALTH_PATHS.join(", ")}: open to the down alerts' checks.`);
 console.log(
   `${HOSTS.join(", ")}: behind Access. ${existing ? `${ADMINS}: kept as set in the dashboard (${existing.include.length} emails).` : `${emails.length} admins may sign in with an emailed code.`}`,
 );
