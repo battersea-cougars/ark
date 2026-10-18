@@ -20,7 +20,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0004](0004-astro-workers-sanity-d1.md)  | Astro on Cloudflare Workers, content in Sanity rebuilt daily, data in D1                                          |
 | [0006](0006-one-repo-two-projects.md)    | One repo: the apps in apps/, shared code in packages/; the team generator runs in the browser                     |
 | [0010](0010-environments-and-deploys.md) | Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production     |
-| [0112](0112-self-hosted-studio.md)       | The Studio is self-hosted on its own Worker, at admin.batterseacougars.com                                        |
+| [0112](0112-self-hosted-studio.md)       | The Studio is self-hosted on its own Worker, at studio.batterseacougars.com                                       |
 | [0022](0022-team-app-svelte-pwa.md)      | The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front        |
 | [0108](0108-store-apps.md)               | The team app in the app stores: a native shell loading the live app, with notifications; iOS first, Android-ready |
 | [0031](0031-use-case-tests.md)           | Tests describe what people do, against a fake world                                                               |

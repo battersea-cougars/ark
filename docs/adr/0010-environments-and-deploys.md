@@ -17,18 +17,18 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 
 ## Decision
 
-|                     | Production                                         | Dev                                                                  |
-| ------------------- | -------------------------------------------------- | -------------------------------------------------------------------- |
-| Cloudflare account  | **Cougars**                                        | **Cougars Dev** (free)                                               |
-| Website worker / D1 | `web` / `cougars`, at batterseacougars.com         | `web` / `cougars-dev`, at `web.cougars-dev.workers.dev`              |
-| Team app worker     | `team`, at team.batterseacougars.com               | `team`, on dev's D1, at `team.cougars-dev.workers.dev`               |
-| Studio worker       | `studio`, at admin.batterseacougars.com (ADR 0112) | `studio`, at `studio.cougars-dev.workers.dev`                        |
-| Deploys from        | `release`, the daily rebuild, by `deploy.yml` only | `main`, PRs (preview versions), `scripts/deploy-dev.sh`              |
-| Secret names        | `NAME__PRODUCTION`                                 | `NAME__DEV`                                                          |
-| Bitwarden project   | `cougars`                                          | `cougars-dev` (also holds shared plain `NAME`s)                      |
-| GitHub environment  | `production` (`release` only): `cougars-ci`        | `preview` (`main` and PRs): `cougars-ci-dev`, reads dev only         |
-| Sanity project      | **Cougars** (`ah165efl`), the live Studio          | **Cougars Dev** (`zmg6rbe3`): dev site, PRs, machines, local Studios |
-| Content             | Sanity                                             | Sanity, sample content where it's empty; always `noindex`            |
+|                     | Production                                          | Dev                                                                  |
+| ------------------- | --------------------------------------------------- | -------------------------------------------------------------------- |
+| Cloudflare account  | **Cougars**                                         | **Cougars Dev** (free)                                               |
+| Website worker / D1 | `web` / `cougars`, at batterseacougars.com          | `web` / `cougars-dev`, at `web.cougars-dev.workers.dev`              |
+| Team app worker     | `team`, at team.batterseacougars.com                | `team`, on dev's D1, at `team.cougars-dev.workers.dev`               |
+| Studio worker       | `studio`, at studio.batterseacougars.com (ADR 0112) | `studio`, at `studio.cougars-dev.workers.dev`                        |
+| Deploys from        | `release`, the daily rebuild, by `deploy.yml` only  | `main`, PRs (preview versions), `scripts/deploy-dev.sh`              |
+| Secret names        | `NAME__PRODUCTION`                                  | `NAME__DEV`                                                          |
+| Bitwarden project   | `cougars`                                           | `cougars-dev` (also holds shared plain `NAME`s)                      |
+| GitHub environment  | `production` (`release` only): `cougars-ci`         | `preview` (`main` and PRs): `cougars-ci-dev`, reads dev only         |
+| Sanity project      | **Cougars** (`ah165efl`), the live Studio           | **Cougars Dev** (`zmg6rbe3`): dev site, PRs, machines, local Studios |
+| Content             | Sanity                                              | Sanity, sample content where it's empty; always `noindex`            |
 
 **Deploys** (`.github/workflows/deploy.yml`, which runs the checks, rebuilds D1 from the schema and smoke-tests):
 
@@ -143,5 +143,5 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   gone. Getting ready for launch, its placeholder photos and sample players must not ship.
 - 2026-10-17: Who passes the Access gate is managed by hand in the dashboard; `access-setup.mjs` no longer rewrites
   the list from the roster when it runs again.
-- 2026-10-18: The Studio moves off `battersea-cougars.sanity.studio` to its own Worker, `studio`: admin.batterseacougars.com
+- 2026-10-18: The Studio moves off `battersea-cougars.sanity.studio` to its own Worker, `studio`: studio.batterseacougars.com
   from `release`, and now a dev Studio from `main` too (ADR 0112).

@@ -6,7 +6,7 @@ const { projectId, dataset } = sanityProject(process.env.SANITY_STUDIO_SITE_ENV)
 
 export default defineCliConfig({
   api: { projectId, dataset },
-  // Self-hosted on our own Worker (wrangler.jsonc, ADR 0112): admin.batterseacougars.com, and dev's workers.dev.
+  // Self-hosted on our own Worker (wrangler.jsonc, ADR 0112): studio.batterseacougars.com, and dev's workers.dev.
   // autoUpdates: the Studio loads Sanity's latest compatible code from its CDN, wherever it's hosted.
   deployment: { autoUpdates: true },
 });

@@ -1,4 +1,4 @@
-# 0112. The Studio is self-hosted on its own Worker, at admin.batterseacougars.com
+# 0112. The Studio is self-hosted on its own Worker, at studio.batterseacougars.com
 
 - **Status:** Accepted
 - **Date:** 2026-10-18
@@ -14,7 +14,7 @@ and static assets are free and unlimited (ADR 0003).
 
 - **A third Worker, `studio`**, static assets only (`apps/studio/wrangler.jsonc`), every unknown path answered with
   `index.html` (the Studio routes in the browser). No code of ours runs on it.
-- **Production** deploys from `release` to **admin.batterseacougars.com** (a Workers custom domain), with no workers.dev
+- **Production** deploys from `release` to **studio.batterseacougars.com** (a Workers custom domain), with no workers.dev
   address. **Dev** deploys from `main` to `studio.cougars-dev.workers.dev`, editing Cougars Dev.
 - **Sanity's own sign-in guards it**, not Cloudflare Access: editors sign in with their Sanity account as before, and
   Access would put a second sign-in in front of people who aren't on the admins list.

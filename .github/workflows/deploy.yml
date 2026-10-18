@@ -421,7 +421,7 @@ jobs:
           scripts/ci/link-deployment.sh "team (${{ env.SITE_ENV }})" "${{ steps.deploy.outputs.url }}" \
             ${{ env.SITE_ENV == 'production' && 'production' || '' }}
 
-  # The Studio, self-hosted on its own Worker (ADR 0112): admin.batterseacougars.com from `release`, dev's workers.dev
+  # The Studio, self-hosted on its own Worker (ADR 0112): studio.batterseacougars.com from `release`, dev's workers.dev
   # from `main`. Static files only; Sanity's sign-in guards it, not Cloudflare Access.
   studio:
     needs: changes
@@ -458,7 +458,7 @@ jobs:
         run: |
           if [ "$SITE_ENV" = production ]; then
             npx wrangler deploy --env production
-            echo "url=https://admin.batterseacougars.com" >> "$GITHUB_OUTPUT"
+            echo "url=https://studio.batterseacougars.com" >> "$GITHUB_OUTPUT"
           else
             out=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
             echo "url=$(echo "$out" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)" >> "$GITHUB_OUTPUT"

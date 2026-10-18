@@ -7,12 +7,12 @@
   "compatibility_date": "2026-10-01",
   "assets": { "directory": "./dist", "not_found_handling": "single-page-application" },
   "env": {
-    // From `release` only (deploy.yml): its own address, admin.batterseacougars.com, and no workers.dev one
+    // From `release` only (deploy.yml): its own address, studio.batterseacougars.com, and no workers.dev one
     "production": {
       "name": "studio",
       "workers_dev": false,
       "preview_urls": false,
-      "routes": [{ "pattern": "admin.batterseacougars.com", "custom_domain": true }],
+      "routes": [{ "pattern": "studio.batterseacougars.com", "custom_domain": true }],
     },
   },
 }

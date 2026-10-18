@@ -196,7 +196,7 @@ The Cougars Dev account's id. Not secret.
 ### `SANITY_DEPLOY_TOKEN__PRODUCTION`
 
 Lets CI deploy the Studio's schema to Sanity on every push to `release`. The Studio itself is self-hosted at
-https://admin.batterseacougars.com ([ADR 0112](docs/adr/0112-self-hosted-studio.md)), deployed by Cloudflare's token.
+https://studio.batterseacougars.com ([ADR 0112](docs/adr/0112-self-hosted-studio.md)), deployed by Cloudflare's token.
 
 - **Issued by:** Sanity → manage → project **Cougars** → API → Tokens, role **Deploy Studio**. Token name:
   `SANITY_DEPLOY_TOKEN__PRODUCTION`.
