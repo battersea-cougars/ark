@@ -22,20 +22,21 @@ Nothing goes live until you press **Publish** (bottom right), so it's safe to ex
 
 The sidebar follows a Friday night, with the things that rarely change at the bottom:
 
-| Item         | What it holds                                                                    |
-| ------------ | -------------------------------------------------------------------------------- |
-| **Fridays**  | Session days and times, where we play, what to bring, kit for first-timers, fees |
-| **Pub**      | Where everyone goes afterwards                                                   |
-| **Events**   | Socials, tournaments, clinics and Kumite dates                                   |
-| **Kumite**   | _About the Kumite_ (intro, rules, awards) and _Results_ (past winners)           |
-| **Team**     | _About the team_ (intro, league, team photo) and _Players_ (the trading cards)   |
-| **Videos**   | Friday session footage                                                           |
-| **Photos**   | Photo albums                                                                     |
-| **Club**     | Year founded, contact email, social media links, homepage background photo       |
-| **Sponsors** | Logos in the footer                                                              |
+| Item               | What it holds                                                                    |
+| ------------------ | -------------------------------------------------------------------------------- |
+| **Fridays**        | Session days and times, where we play, what to bring, kit for first-timers, fees |
+| **Pub**            | Where everyone goes afterwards                                                   |
+| **Kumite**         | _About the Kumite_ (intro, rules, awards)                                        |
+| **About the team** | Intro, league, team photo, and whether the team is on the website                |
+| **Photos**         | Photo albums                                                                     |
+| **Club**           | Year founded, contact email, social media links, homepage background photo       |
+| **Sponsors**       | Logos in the footer                                                              |
 
 Fridays, Pub, Club, _About the Kumite_ and _About the team_ are single pages: you edit them, you can't add or
 delete them. Every box has a line of help text under its name.
+
+**Not in the Studio:** events, the players and Kumite results are the club's own data, kept in the **team app**;
+the website reads them from there. Videos come from the club's **YouTube** playlists.
 
 **You edit the facts, not the wording.** The website's jokes, headings and page text are part of the design and
 live in the code. If a sentence on the site is wrong, tell the developer.
@@ -52,16 +53,9 @@ live in the code. If a sentence on the site is wrong, tell the developer.
 
 ## Announce an event
 
-1. **Events → +**. Fill in the title, type (_Cougars Kumite_, _Tournament_, _Social_…), start and end times, and
-   a short summary.
-2. Optional: add a sign-up button. Put the text in _Button text_, and a link (e.g. a Google Form) in
-   _Button link_.
-3. **Publish**. It appears on the homepage until it's over, and then moves to _Past events_ automatically.
-
-Kumite dates are events with the type _Cougars Kumite_: they also appear on the Kumite poster with a countdown.
-
-When someone shares an event's link (WhatsApp, Facebook), the preview shows its cover photo. Without one, the
-site draws a picture with the event's title, date and place, so you don't need to make one.
+Events are in the **team app**, not here: an admin adds a social, a tournament or a clinic on the app's calendar and
+switches on **Show on the website**. It's on the website's What's on within a few minutes, and leaves it when it's over. Kumite
+dates are the Kumite's own, set in the app; the website's Kumite poster counts down to the next one.
 
 ## Kumite results
 
@@ -70,11 +64,8 @@ award winners within a minute of the last game (award winners once an admin conf
 
 ## Update the team
 
-**Team → Players → +** adds a player. Only the name is required; the nickname goes big on the front of their
-trading card, and _Known for_, _Weakness_ and _Quote_ go on the back. Lower _Order_ numbers show first, and
-the first five appear on the homepage.
-
-**Team → About the team** has the introduction, the league and the team photo.
+The players are the team app's members: the website's roster follows the app. **About the team** has the
+introduction, the league, the team photo, and **Show on the website**, which puts the team on the site or takes it off.
 
 ## Videos
 
@@ -85,13 +76,7 @@ the first five appear on the homepage.
      playlist.
    - The playlists are set once in **Club → YouTube playlists**: each one's link from YouTube's **Share** button,
      and the label the website shows (leave it empty for Website).
-2. Use the Studio only to change how a video shows. **Videos → +**, paste the video's link from YouTube's
-   **Share** button, then:
-   - **Hide from the website** keeps it off the site (it stays on YouTube).
-   - **Show first** puts it at the top.
-   - **Title**, **Date** or **Description** replace YouTube's. Leave them empty to keep YouTube's.
-   - **Publish**. Changes show within a minute or so.
-3. A video that isn't on the club channel or in its playlists only appears if you add its link here.
+2. To take a video off the website, make it private on YouTube (an unlisted one: take it out of the playlist).
 
 You don't upload video files to the website. YouTube hosts them for free.
 

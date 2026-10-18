@@ -3,9 +3,9 @@ import { structureTool } from "sanity/structure";
 import { visionTool } from "@sanity/vision";
 import { sanityProject } from "@cougars/shared/sanity";
 import { schemaTypes } from "./schemaTypes";
-import { structure, SINGLETONS } from "./structure";
+import { NOT_EDITED_HERE, structure, SINGLETONS } from "./structure";
 
-// One project per environment (docs/adr/0010-environments-and-deploys.md). The hosted Studio is built with
+// One project per environment (docs/adr/0010-environments-and-deploys.md). The live Studio is built with
 // SANITY_STUDIO_SITE_ENV=production (deploy.yml); a local Studio is always the dev project.
 const live = process.env.SANITY_STUDIO_SITE_ENV === "production";
 const { projectId, dataset } = sanityProject(live ? "production" : "dev");
@@ -22,8 +22,9 @@ export default defineConfig({
     currentUser?.roles.some((r) => r.name === "administrator") ? tools : tools.filter((t) => t.name !== "vision"),
   schema: {
     types: schemaTypes,
-    // Hide singletons from the global "New document" menu.
-    templates: (templates) => templates.filter(({ schemaType }) => !SINGLETONS.has(schemaType)),
+    // The global "New document" menu: no singletons, and nothing that isn't edited here (structure.ts)
+    templates: (templates) =>
+      templates.filter(({ schemaType }) => !SINGLETONS.has(schemaType) && !NOT_EDITED_HERE.has(schemaType)),
   },
   document: {
     // Singletons can only be edited and published, never duplicated or deleted.

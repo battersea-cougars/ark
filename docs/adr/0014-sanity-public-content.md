@@ -1,7 +1,7 @@
 # 0014. Sanity holds the site's editable content; only club facts are editable
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-09
+- **Date:** 2026-10-05 · updated 2026-10-18
 - **Builds on:** [0004](0004-astro-workers-sanity-d1.md)
 
 ## Context
@@ -50,3 +50,5 @@ any fact, one in Sanity and one in D1, would drift.
 - 2026-10-06: Events left Sanity for D1; the website reads the club's agenda live (was 0025, now 0030 and 0042).
 - 2026-10-07: The roster and the Kumite's awards come from the team app's data, not Sanity (0043, 0044).
 - 2026-10-09: Kumite results left Sanity: `kumiteResult` retired, the website reads results from D1 (0100).
+- 2026-10-18: Events, Players and Videos are off the Studio's sidebar and its "New document" menu: the first two are
+  the team app's data, and videos come from the YouTube playlists. The types stay so the website's queries still read.

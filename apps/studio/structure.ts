@@ -4,6 +4,11 @@ import type { StructureBuilder, StructureResolver } from "sanity/structure";
 // them by it).
 export const SINGLETONS = new Set(["club", "fridays", "pub", "team", "kumite"]);
 
+// Not edited here, so not shown: events and players are the club's data, kept in the team app (ADR 0042, ADR 0043),
+// and videos come from the club's YouTube playlists (Club → YouTube playlists, ADR 0016). The types stay in the schema
+// so the website's queries still read (and find none), but they're off the sidebar and the "New document" menu.
+export const NOT_EDITED_HERE = new Set(["event", "player", "video"]);
+
 const singleton = (S: StructureBuilder, type: string, title: string) =>
   S.listItem().title(title).id(type).child(S.document().schemaType(type).documentId(type).title(title));
 
@@ -14,7 +19,6 @@ export const structure: StructureResolver = (S) =>
     .items([
       singleton(S, "fridays", "Fridays"),
       singleton(S, "pub", "Pub"),
-      S.documentTypeListItem("event").title("Events"),
       S.listItem()
         .title("Kumite")
         .id("kumite-folder")
@@ -23,15 +27,7 @@ export const structure: StructureResolver = (S) =>
             .title("Kumite")
             .items([singleton(S, "kumite", "About the Kumite")]),
         ),
-      S.listItem()
-        .title("Team")
-        .id("team-folder")
-        .child(
-          S.list()
-            .title("Team")
-            .items([singleton(S, "team", "About the team"), S.documentTypeListItem("player").title("Players")]),
-        ),
-      S.documentTypeListItem("video").title("Videos"),
+      singleton(S, "team", "About the team"),
       S.documentTypeListItem("album").title("Photos"),
       S.divider(),
       singleton(S, "club", "Club"),
