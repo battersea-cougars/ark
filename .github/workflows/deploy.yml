@@ -421,38 +421,62 @@ jobs:
           scripts/ci/link-deployment.sh "team (${{ env.SITE_ENV }})" "${{ steps.deploy.outputs.url }}" \
             ${{ env.SITE_ENV == 'production' && 'production' || '' }}
 
-  # The Studio (https://battersea-cougars.sanity.studio) ships with production: from `release` only
-  # (docs/adr/0010-environments-and-deploys.md). Cougars Dev's Studio runs locally (port 4520), not hosted.
+  # The Studio, self-hosted on its own Worker (ADR 0112): admin.batterseacougars.com from `release`, dev's workers.dev
+  # from `main`. Static files only; Sanity's sign-in guards it, not Cloudflare Access.
   studio:
     needs: changes
     permissions:
       contents: read
       deployments: write
-    if: needs.changes.outputs.studio == 'true' && github.ref == 'refs/heads/release'
+    if: >-
+      needs.changes.outputs.studio == 'true' && github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release')
     runs-on: ubuntu-latest
     environment:
-      name: production
+      name: ${{ github.ref == 'refs/heads/release' && 'production' || 'preview' }}
       deployment: false
     env:
+      SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/secrets
         with:
-          environment: production
-          token: ${{ secrets.BWS_ACCESS_TOKEN__PRODUCTION }}
+          environment: ${{ env.SITE_ENV }}
+          token: ${{ secrets.BWS_ACCESS_TOKEN__PRODUCTION || secrets.BWS_ACCESS_TOKEN__DEV }}
 
-      # SANITY_DEPLOY_TOKEN, not SANITY_STUDIO_*: the Studio build bundles SANITY_STUDIO_* variables into the
-      # public JavaScript.
-      - name: Deploy Studio
-        run: npm run deploy -w @cougars/studio -- --yes
+      # Which Sanity project the Studio edits (packages/shared/sanity.ts, ADR 0010): the live one only from `release`
+      - name: Build
+        run: npm run build -w @cougars/studio
         env:
-          # The live project (packages/shared/sanity.ts, ADR 0010)
+          SANITY_STUDIO_SITE_ENV: ${{ env.SITE_ENV }}
+
+      - name: Deploy
+        id: deploy
+        working-directory: apps/studio
+        run: |
+          if [ "$SITE_ENV" = production ]; then
+            npx wrangler deploy --env production
+            echo "url=https://admin.batterseacougars.com" >> "$GITHUB_OUTPUT"
+          else
+            out=$(npx wrangler deploy 2>&1 | tee /dev/stderr)
+            echo "url=$(echo "$out" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The schema to Sanity, so its own tools (the API's schema, Canvas) know the fields. SANITY_DEPLOY_TOKEN, not
+      # SANITY_STUDIO_*: the Studio build bundles SANITY_STUDIO_* variables into the public JavaScript.
+      - name: Deploy the schema
+        if: env.SITE_ENV == 'production'
+        working-directory: apps/studio
+        run: npx sanity schemas deploy
+        env:
           SANITY_STUDIO_SITE_ENV: production
           SANITY_AUTH_TOKEN: ${{ env.SANITY_DEPLOY_TOKEN }}
 
       - name: Link the Studio
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/ci/link-deployment.sh "studio (production)" https://battersea-cougars.sanity.studio production
+        run: >-
+          scripts/ci/link-deployment.sh "studio (${{ env.SITE_ENV }})" "${{ steps.deploy.outputs.url }}"
+          ${{ env.SITE_ENV == 'production' && 'production' || '' }}

@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  // The Studio, self-hosted (ADR 0112): `sanity build` (dist/) served as static assets, no code of ours running. Every
+  // path is the Studio's own (it routes in the browser), so an unknown one gets index.html. Static assets are free and
+  // unlimited (ADR 0003). Dev: studio.<dev subdomain>.workers.dev, from `main`.
+  "name": "studio",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" },
+  "env": {
+    // From `release` only (deploy.yml): its own address, admin.batterseacougars.com, and no workers.dev one
+    "production": {
+      "name": "studio",
+      "workers_dev": false,
+      "preview_urls": false,
+      "routes": [{ "pattern": "admin.batterseacougars.com", "custom_domain": true }],
+    },
+  },
+}

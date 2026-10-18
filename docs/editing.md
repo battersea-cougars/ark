@@ -2,12 +2,12 @@
 
 A guide for the team manager. No coding needed.
 
-You edit everything at **https://battersea-cougars.sanity.studio**. Log in with the account you were
+You edit everything at **https://admin.batterseacougars.com**. Log in with the account you were
 invited with.
 
 ## Live or practice?
 
-The Studio at **https://battersea-cougars.sanity.studio** is the real website: its title says **Cougars website
+The Studio at **https://admin.batterseacougars.com** is the real website: its title says **Cougars website
 (Live)**. Changes appear on the website **the next morning**, when it rebuilds by itself. Photos are the
 exception: they're on the site a few minutes after you press Publish. If something can't wait until tomorrow,
 ask the developer to rebuild the site now.

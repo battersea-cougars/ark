@@ -195,12 +195,13 @@ The Cougars Dev account's id. Not secret.
 
 ### `SANITY_DEPLOY_TOKEN__PRODUCTION`
 
-Lets CI deploy the Studio to https://battersea-cougars.sanity.studio on every push to `release`.
+Lets CI deploy the Studio's schema to Sanity on every push to `release`. The Studio itself is self-hosted at
+https://admin.batterseacougars.com ([ADR 0112](docs/adr/0112-self-hosted-studio.md)), deployed by Cloudflare's token.
 
 - **Issued by:** Sanity → manage → project **Cougars** → API → Tokens, role **Deploy Studio**. Token name:
   `SANITY_DEPLOY_TOKEN__PRODUCTION`.
-- **Used by:** the `studio` job in `deploy.yml` (`sanity deploy`, which reads it as `SANITY_AUTH_TOKEN`).
-  Production only: `main` and PRs never deploy the Studio.
+- **Used by:** the `studio` job in `deploy.yml` (`sanity schemas deploy`, which reads it as `SANITY_AUTH_TOKEN`).
+  Production only.
 - **Gets there by:** CI pull from Secrets Manager (`cougars`); the job maps `SANITY_DEPLOY_TOKEN` to
   `SANITY_AUTH_TOKEN`. Never name it `SANITY_STUDIO_*`: the Studio build puts those variables in its public
   JavaScript.

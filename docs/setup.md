@@ -46,9 +46,11 @@ To set up a project from scratch (or check one):
 2. **API → CORS origins**:
    - Cougars Dev: `http://localhost:4520` to `http://localhost:4523`, with credentials (local Studios, including
      worktrees).
-   - Cougars: nothing to add; the hosted Studio adds its own origin when it's deployed.
+   - Cougars Dev also: `https://studio.cougars-dev.workers.dev`, with credentials (the dev Studio, ADR 0112).
+   - Cougars: `https://admin.batterseacougars.com`, with credentials (the live Studio, self-hosted, ADR 0112). The
+     deploy token can't manage CORS, so these are added here by hand, once.
 3. **Cougars → API → Tokens**: a **Deploy Studio** token named `SANITY_DEPLOY_TOKEN__PRODUCTION`, into Secrets
-   Manager (`cougars`). CI deploys the Studio with it on every push to `release`.
+   Manager (`cougars`). CI deploys the Studio's schema with it on every push to `release`.
 4. Seed the club facts (Club, Fridays, Pub, Team, Kumite) from the website's defaults, dev first. The scripts use
    your own login:
    ```sh
