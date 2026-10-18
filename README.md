@@ -43,6 +43,8 @@ node scripts/env-pull.mjs -- npm run dev    # run with dev secrets injected
 
 ## Secrets
 
+Each secret, below. Which service and account each comes from, service by service: [docs/accounts.md](docs/accounts.md).
+
 Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/0010-environments-and-deploys.md)):
 
 - Every secret lives in **Bitwarden Secrets Manager** and nowhere else. GitHub holds only the Bitwarden tokens
@@ -58,6 +60,8 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
   app shares these two projects ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md)); _Used by_ says which app
   needs a secret.
 - **A token is named exactly like its secret** at the provider that issued it.
+- **Never in this public repo:** a value, or anyone's email address or phone number; name accounts by role ("the
+  club account", "the developer account"). What's safe to write: [docs/accounts.md](docs/accounts.md#writing-about-accounts-in-this-repo).
 - **Every secret has an entry below.** Adding one: create the token with its secret name, add it to Secrets
   Manager with `npm run secret:set NAME` (hidden prompt; it picks the project from the name), add it here.
 
@@ -450,6 +454,7 @@ The only alert is an email on a new issue in **production**; dev's errors are ke
 
 ## Docs
 
+- [docs/accounts.md](docs/accounts.md): every outside service, who owns it, and which secrets come from it
 - [docs/setup.md](docs/setup.md): one-time account setup (Cloudflare, Sanity, Bitwarden, GitHub)
 - [docs/testing.md](docs/testing.md): how we test (use cases first, the fake world)
 - [docs/editing.md](docs/editing.md): guide for club editors (no coding)
