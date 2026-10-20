@@ -69,8 +69,14 @@ const { founded } = await getClub();
 <div class="menu" id="menu" data-menu hidden>
   <p class="menu-head label">Friday night running order</p>
   <ol>
+    <li style="--i:0">
+      <a href="/" aria-current={home ? "page" : undefined}>
+        <span class="menu-time"></span>
+        Home
+      </a>
+    </li>
     {links.map((l, i) => (
-      <li style={`--i:${i}`}>
+      <li style={`--i:${i + 1}`}>
         <a href={l.href} aria-current={current(l)}>
           <span class="menu-time">{l.time}</span>
           {l.label}
@@ -78,7 +84,7 @@ const { founded } = await getClub();
       </li>
     ))}
   </ol>
-  <a class="btn btn--primary menu-join" href="/join/" aria-current={joinCurrent} style={`--i:${links.length}`}>
+  <a class="btn btn--primary menu-join" href="/join/" aria-current={joinCurrent} style={`--i:${links.length + 1}`}>
     Try a session
   </a>
 </div>

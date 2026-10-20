@@ -42,9 +42,11 @@ const socials = [
     )}
     <div class="cols">
       <p class="brand">
-        Battersea
-        <br />
-        Cougars
+        <a href="/">
+          Battersea
+          <br />
+          Cougars
+        </a>
       </p>
       <div>
         <p class="label">Rink</p>
@@ -146,6 +148,13 @@ const socials = [
     line-height: 0.95;
     text-transform: uppercase;
     color: var(--text);
+  }
+  .brand a {
+    color: inherit;
+    transition: color 0.2s;
+  }
+  .brand a:hover {
+    color: var(--red-hot);
   }
   .social {
     display: flex;
