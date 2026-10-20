@@ -8,7 +8,7 @@ export const FALLBACK_CLUB: Club = {
   // Set in the Studio (Club → Contact email), never here: the club's address isn't kept in the repo
   contactEmail: "",
   socials: {
-    instagram: "https://www.instagram.com/batterseacougars/",
+    instagram: "https://www.instagram.com/batterseacougarshockey/",
     facebook: "https://www.facebook.com/groups/531393120208526",
     youtube: null,
   },

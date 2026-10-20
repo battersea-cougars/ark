@@ -28,7 +28,7 @@ export const FAKE_POSTS: Post[] = CAPTIONS.map((caption, i) => {
     image: `https://picsum.photos/seed/cougars-ig-${i + 1}/1080/1080`,
     caption,
     alt: first ?? "A photo from the club's Instagram",
-    href: "https://www.instagram.com/batterseacougars/",
+    href: "https://www.instagram.com/batterseacougarshockey/",
     takenAt: day(i),
     ...(kind === "album" ? { count: 4 } : {}),
   };
