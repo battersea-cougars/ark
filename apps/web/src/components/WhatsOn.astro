@@ -45,7 +45,7 @@ const about = (i: WhatsOnItem) => (i.dateTbc ? i.title : `${i.title}, ${formatDa
             {i.cancelled ? (
               <span class="where label">Cancelled</span>
             ) : i.venue ? (
-              <a class="where venue label" href={i.mapUrl} target="_blank" rel="noopener">
+              <a class="where venue label" href={i.mapUrl ?? undefined} target="_blank" rel="noopener">
                 {i.venue}
                 <span class="visually-hidden">: map, opens in a new tab</span>
               </a>

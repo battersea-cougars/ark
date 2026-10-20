@@ -109,7 +109,11 @@ export default defineConfig({
     envDir: "../..",
     // Source maps for Sentry (ADR 0111): written but never linked from the scripts; the deploy uploads them, then
     // deletes them before the files go live
-    build: { sourcemap: "hidden" },
+    build: {
+      sourcemap: "hidden",
+      // No inline scripts, however small, so the content security policy allows our own files only (ADR 0036)
+      assetsInlineLimit: (file) => (file.endsWith(".js") ? false : undefined),
+    },
     // The dev server keeps its own dependency cache: `astro build` and `astro check` rewrite
     // the default one, which breaks a dev server that is already running (500s on /_image).
     cacheDir: process.argv.includes("dev") ? "node_modules/.vite-dev" : "node_modules/.vite",

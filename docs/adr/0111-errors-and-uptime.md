@@ -32,10 +32,13 @@ smaller (5k errors a month, one user) but plain about it.
   app's CSP allows only its own origin, ad blockers leave that address alone, and the tunnel passes on only envelopes
   for our project, only from our pages. Old code after a deploy (it reloads itself) isn't reported.
 - **The website in the browser** loads no SDK (it would add about 25 KB to every page for three small scripts). A
-  catcher of a few lines, first in `<head>` (`layouts/Base.astro`), posts each distinct uncaught error once, by
+  catcher of a few lines, the first script in `<head>` (`src/scripts/head.js`, a file so the content security policy
+  needs no inline exception, [0036](0036-api-security.md)), posts each distinct uncaught error once, by
   `sendBeacon`, to `/api/client-error`. The Worker keeps only reports with a frame from our own `/_astro/` scripts
   (not an extension, another site's script, or a cross-origin "Script error."), ten per visitor per ten minutes, and
-  sends each as a Sentry event under the deploy's release (`lib/server/client-errors.ts`).
+  sends each as a Sentry event under the deploy's release (`lib/server/client-errors.ts`). What the content security
+  policy refuses arrives at `/api/csp-report` and goes to Sentry as a warning, one issue per kind of refusal
+  (`lib/server/csp-reports.ts`).
 - **Nothing about a person:** Sentry 11's `dataCollection` is all off (`DATA_COLLECTION`): no request bodies (the join
   form), cookies, headers, query strings (the team app's `?email=`), SQL values or stack variables, no user. Every event
   is cleaned by `beforeSend` the same way as a log line: secrets and phones by key, email addresses masked anywhere.
@@ -60,3 +63,4 @@ smaller (5k errors a month, one user) but plain about it.
 - 2026-10-18: Sentry for errors and down alerts, EU region, one alert for production; Better Stack tried and dropped.
 - 2026-10-18: Uptime checks every 10 minutes, not every minute: a down site is known soon enough, and it's about 290
   requests a day instead of 2,900 (#16).
+- 2026-10-20: The browser catcher moved into `src/scripts/head.js`; policy refusals are reported too (#78).

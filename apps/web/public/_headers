@@ -2,7 +2,9 @@
 # routes (middleware.ts, SITE_HEADERS) send the same set; a test keeps them the same.
 # Decision: docs/adr/0036-api-security.md.
 /*
-  Content-Security-Policy: frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.sanity.io https://i.ytimg.com https://picsum.photos https://fastly.picsum.photos; font-src 'self'; connect-src 'self' https://cloudflareinsights.com; frame-src https://www.youtube-nocookie.com https://challenges.cloudflare.com; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests; report-uri /api/csp-report; report-to csp
+  Reporting-Endpoints: csp="/api/csp-report"
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

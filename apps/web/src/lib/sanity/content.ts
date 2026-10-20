@@ -16,6 +16,7 @@ import { crestFiles, editionsFrom, type ResultRows } from "../results";
 import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } from "./merge";
 import type { Album, ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
 import { scribe } from "@cougars/shared/scribe";
+import { checkLinks } from "../links";
 
 const log = scribe.logger("content");
 
@@ -38,7 +39,8 @@ async function fetchOr<T>(query: string, fallback: T): Promise<T> {
       }),
     );
     if (import.meta.env.DEV) devSanity.problem = "";
-    return result ?? fallback;
+    // Every link an editor typed is checked here, once, for every page (lib/links.ts)
+    return result === null ? fallback : checkLinks(result);
   } catch (error) {
     // A build fails loudly. A server route (ADR 0016), and a page in `astro dev`, render with the fallback rather
     // than an error page (ADR 0055): degraded, not broken.

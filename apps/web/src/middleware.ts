@@ -11,11 +11,39 @@ const log = scribe.logger("middleware");
 export const LIVE_LIMIT = { limit: 240, windowSeconds: 60 };
 
 /**
- * On every live response (ADR 0036): never shown in another site's frame, no sniffing a type, and only the origin
- * to other sites. Prerendered pages get the same from public/_headers; middleware.test.ts keeps the two the same.
+ * What a page may load (ADR 0036): our own files, Sanity's images, YouTube's thumbnails and player, Turnstile, and
+ * Cloudflare's analytics beacon. No inline scripts (Base.astro loads scripts/head.js), so a script slipped into
+ * content can't run. Inline styles are allowed: pages set `style="--i:…"` throughout. A violation is reported to
+ * /api/csp-report. A new outside resource means widening this on purpose.
+ */
+export const CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
+  "style-src 'self' 'unsafe-inline'",
+  // picsum: demo content's placeholder photos (dev and previews only, lib/sanity/demo.ts); an image can't run anything
+  "img-src 'self' data: https://cdn.sanity.io https://i.ytimg.com https://picsum.photos https://fastly.picsum.photos",
+  "font-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com",
+  "frame-src https://www.youtube-nocookie.com https://challenges.cloudflare.com",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests",
+  "report-uri /api/csp-report",
+  "report-to csp",
+].join("; ");
+
+/**
+ * On every live response (ADR 0036): the policy above, HTTPS only for a year on every subdomain, never shown in
+ * another site's frame, no sniffing a type, and only the origin to other sites. Prerendered pages get the same from
+ * public/_headers; middleware.test.ts keeps the two the same.
  */
 export const SITE_HEADERS: Record<string, string> = {
-  "content-security-policy": "frame-ancestors 'none'",
+  "content-security-policy": CSP,
+  "reporting-endpoints": 'csp="/api/csp-report"',
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",
@@ -40,8 +68,9 @@ export async function tooMany(cache: CacheLike | null, ip: string, now = Date.no
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  // At build time there's no visitor, and outside a Worker (astro dev) no Cache API
-  if (context.isPrerendered || typeof caches === "undefined") return next();
+  // At build time there's no visitor, and outside a Worker no Cache API. Not in astro dev: Vite's own inline scripts
+  // would break under the policy
+  if (context.isPrerendered || import.meta.env.DEV || typeof caches === "undefined") return next();
   const ip = context.request.headers.get("cf-connecting-ip") ?? "unknown";
   return (await tooMany(await caches.open("live-rate-limit"), ip)) ?? secured(await next());
 });

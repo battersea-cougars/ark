@@ -9,6 +9,7 @@ import * as q from "../sanity/queries";
 import { demoAlbums as rawDemoAlbums } from "../sanity/demo";
 import type { Album, AlbumSummary, Photo, SanityImage } from "../sanity/types";
 import { scribe } from "@cougars/shared/scribe";
+import { checkLinks } from "../links";
 
 const log = scribe.logger("photos");
 
@@ -66,7 +67,7 @@ async function querySanity<T>(config: PhotosConfig, query: string, params: Recor
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw sanityError(res.status, res);
-  return ((await res.json()) as { result: T }).result;
+  return checkLinks(((await res.json()) as { result: T }).result);
 }
 
 /** Fetch and map, falling back to demo content or an empty value. Never throws. */

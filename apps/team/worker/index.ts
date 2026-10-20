@@ -22,7 +22,7 @@ export { LiveHub } from "./live/live";
 // Worker (wrangler.jsonc: run_worker_first is /api/* only), so public/_headers carries the same set for them; a test
 // keeps the two the same (security.test.ts, ADR 0036). The policy: the app runs only its own scripts, styles, fonts
 // and files, talks only to its own origin, shows its own images and the ones it makes (team logos as data URLs,
-// previews as blob URLs), and is never shown inside another site's frame.
+// previews as blob URLs), and is never shown inside another site's frame. HTTPS only, for a year, as on the website.
 export const SECURITY_HEADERS: Record<string, string> = {
   "content-security-policy": [
     "default-src 'self'",
@@ -38,6 +38,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
     "form-action 'self'",
     "frame-ancestors 'none'",
   ].join("; "),
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "same-origin",

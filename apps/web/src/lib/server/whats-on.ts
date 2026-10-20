@@ -3,6 +3,7 @@
 // next page load. Only what's marked public; cancelled ones stay listed, marked, so nobody turns up to nothing.
 import { readAgenda } from "@cougars/shared/agenda";
 import { londonDay } from "../dates";
+import { safeHref } from "../links";
 import { cached, type CacheDeps, type CacheOptions } from "./cache";
 
 export interface WhatsOnItem {
@@ -15,7 +16,7 @@ export interface WhatsOnItem {
   /** Where (ADR 0030): the place's name, "" for nowhere yet. */
   venue: string;
   /** Opens the map: the venue's link, the one pasted for it, or a search for its name. */
-  mapUrl: string;
+  mapUrl: string | null;
   description: string;
   cancelled: boolean;
   /** A tournament whose date isn't fixed: its date only decides where it sorts. */
@@ -55,7 +56,7 @@ export async function whatsOn(db: D1Database, now = new Date(), limits = LIMITS)
       startsAt: r.startsAt,
       endsAt: r.endsAt,
       venue: r.venue,
-      mapUrl: r.mapUrl,
+      mapUrl: safeHref(r.mapUrl),
       description: r.description,
       cancelled: r.cancelled,
       dateTbc: r.dateTbc,

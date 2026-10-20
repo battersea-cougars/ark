@@ -2,6 +2,7 @@ import { toHTML, escapeHTML, type PortableTextComponents } from "@portabletext/t
 import type { PortableTextBlock } from "@portabletext/types";
 import { imageSrcSet, imageUrl } from "./sanity/images";
 import { youtubeId, embedUrl } from "./youtube";
+import { safeHref } from "./links";
 
 const components: Partial<PortableTextComponents> = {
   types: {
@@ -19,10 +20,12 @@ const components: Partial<PortableTextComponents> = {
     },
   },
   marks: {
+    // Only safe links (lib/links.ts); any other is left as its words
     link: ({ children, value }) => {
-      const href = escapeHTML(value?.href ?? "#");
-      const external = /^https?:/.test(href);
-      return `<a href="${href}"${external ? ' rel="noopener" target="_blank"' : ""}>${children}</a>`;
+      const safe = safeHref(value?.href);
+      if (!safe) return children;
+      const external = /^https?:/i.test(safe);
+      return `<a href="${escapeHTML(safe)}"${external ? ' rel="noopener" target="_blank"' : ""}>${children}</a>`;
     },
   },
 };

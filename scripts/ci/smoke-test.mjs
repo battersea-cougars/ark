@@ -18,6 +18,18 @@ const checks = [
   ],
   ["join page", () => get("/join/")],
   ["videos page", () => get("/videos/")],
+  [
+    // From both layers (ADR 0036): the asset layer's _headers for a built page, the middleware for a live one
+    "security policy on built and live pages",
+    async () => {
+      for (const path of ["/", "/videos/"]) {
+        const res = await get(path);
+        if (!res.headers.get("content-security-policy")?.includes("script-src 'self'"))
+          throw new Error(`${path} has no content security policy`);
+        if (!res.headers.get("strict-transport-security")) throw new Error(`${path} has no HSTS`);
+      }
+    },
+  ],
   ["sitemap", () => get("/sitemap-index.xml")],
   [
     "join API validates",

@@ -1,7 +1,7 @@
 # 0036. Every API response sends only what that caller may see, decided on the server, and every page is hardened
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-09
+- **Date:** 2026-10-06 · updated 2026-10-20
 - **Merges:** 0092, 0099
 
 ## Context
@@ -81,9 +81,30 @@ of future sessions is idempotent).
   fonts and files; talks only to its own origin; its own images plus `data:` (team logos) and `blob:` (upload
   previews); no objects, no other base, forms only to itself, `frame-ancestors 'none'`. A new outside resource means
   widening the policy on purpose, in both places.
-- **The website** sends `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `nosniff` and
-  `Referrer-Policy: strict-origin-when-cross-origin` (it links out and is public, so the origin may travel). A full
-  policy for the website (YouTube, Sanity's CDN, Turnstile) is left for when it's worth the upkeep.
+- **The website** sends `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (it
+  links out and is public, so the origin may travel) and a **content security policy** (`CSP` in
+  `src/middleware.ts`):
+  - Scripts only from its own files, Turnstile and Cloudflare's analytics beacon. **No inline scripts at all**:
+    Astro's small component scripts aren't inlined (`assetsInlineLimit` in `astro.config.mjs`), and the two that
+    must run first (the error catcher, the back/forward check) are one blocking file, `src/scripts/head.js`. So the
+    policy needs no hashes or nonces, is the same string in both layers, and works with `<ClientRouter />` (which
+    Astro's own CSP feature doesn't support).
+  - Images from itself, Sanity's CDN, YouTube's thumbnails and, for demo content on dev and previews, picsum; frames
+    only YouTube's player (`youtube-nocookie.com`) and Turnstile; inline styles allowed (`style="--i:…"` throughout).
+  - No objects, no other base, forms only to itself, `frame-ancestors 'none'`, `upgrade-insecure-requests`.
+  - A refusal is reported to `/api/csp-report` (both `report-uri` and the Reporting API's `report-to`), which keeps
+    only reports about our own pages, leaves out what browser extensions cause, and sends each kind to Sentry as one
+    issue ([0111](0111-errors-and-uptime.md)). It was enforced from the start, not report-only first: before launch
+    nobody visits to report, so instead a headless browser walked every page (and the demo content's) under the real
+    policy, pressing Play and opening a photo, and found nothing refused.
+- **HSTS:** both apps send `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Every host under the
+  domain is HTTPS through Cloudflare. Not `preload`: the browsers' built-in list is slow to leave, and can come later.
+- **Links typed by someone else** (the Studio, the team app's venues) are checked before they reach a page
+  (`src/lib/links.ts`): only `http:`, `https:`, `mailto:`, `tel:` or a link within the site. Every link field in
+  Sanity's answers is checked where they arrive (`content.ts`, `server/photos.ts`); a bad one is dropped as if empty,
+  and in an event's write-up a bad link shows as its words. The Studio already refuses other schemes on its link
+  fields; this holds when it doesn't (an API write, a schema change).
+- **The deploy's smoke test** checks a built page and a live page each carry the policy and HSTS.
 
 **Tests prove it**:
 
@@ -108,8 +129,9 @@ of future sessions is idempotent).
 - Dues are gated on the server (`read:Dues`, `record:Payment`) from the start ([0007](0007-dues-and-payments.md)).
 - Every page and file from either app is unframeable and unsniffable, and the team app's page can't run a script or
   reach a host that isn't its own, which limits what any injected content could do.
-- Adding a CDN, an embed or an analytics script to the team app takes a deliberate change to the policy in
-  `worker/index.ts` and `public/_headers`; the test fails until both agree.
+- Adding a CDN, an embed or an analytics script to either app takes a deliberate change to its policy, in the code
+  (`worker/index.ts`, the website's `middleware.ts`) and `public/_headers`; the test fails until both agree. On the
+  website an inline `<script>` won't run: put it in a file.
 
 ## History
 
@@ -124,3 +146,6 @@ of future sessions is idempotent).
 - 2026-10-09: The bootstrap's filtering moved into its SQL (`club.ts`, [0057](0057-team-app-loading-and-changes.md)):
   someone else's private fields, outs, no-shows, walk-ins and contacts are no longer read and then dropped in code.
   The draft's hiding (ADR 0060) and which roles you see stay in code.
+- 2026-10-20: The website gets a full content security policy, enforced, with no inline scripts; both apps send
+  HSTS; links from the Studio are checked before they reach a page
+  ([#78](https://github.com/battersea-cougars/ark/issues/78)).
