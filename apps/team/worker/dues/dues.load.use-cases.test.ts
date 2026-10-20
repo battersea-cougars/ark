@@ -72,7 +72,7 @@ describe("a tap costs a few round trips, however big the club's dues get", () =>
     expect(twenty).toBe(one);
     // Signing in, the answer, charges, and the club back: none of it grows with the club
     expect(one).toBeLessThanOrEqual(20);
-  });
+  }, 30_000); // counts round trips, not time: seven quarters of charges take a while to set up on a busy machine
 
   it("an admin records five Fridays of someone's attendance in one save: one request, each Friday charged", async () => {
     const { dana } = await clubWithQuarterly(1);

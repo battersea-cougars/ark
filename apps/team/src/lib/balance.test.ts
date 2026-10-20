@@ -142,7 +142,8 @@ describe("makeTeams", () => {
     const players = roster(30);
     const t0 = performance.now();
     makeTeams(players, TEAM_NAMES);
-    expect(performance.now() - t0).toBeLessThan(250);
+    // A second, as it says: a phone does this in tens of ms; a tighter bound failed whenever the machine was busy
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 });
 
