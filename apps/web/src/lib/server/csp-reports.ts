@@ -1,7 +1,7 @@
 // A visitor's browser refused something the content security policy doesn't allow (middleware.ts CSP, ADR 0036), and
-// posted a report to /api/csp-report. Browsers send one of two shapes: the older `report-uri` one (Firefox,
-// Safari) and the Reporting API's list (Chrome). This reads either into the few facts worth keeping, only for our own
-// pages, and leaves out what browser extensions cause: they aren't ours to fix.
+// posted a report to /api/csp-report. The policy asks for `report-uri`'s shape, which every browser sends; the
+// Reporting API's list is read too, for a browser that sends that instead. Either becomes the few facts worth keeping,
+// only for our own pages, leaving out what browser extensions cause: they aren't ours to fix.
 import { mask } from "@cougars/shared/scribe";
 
 export interface CspViolation {

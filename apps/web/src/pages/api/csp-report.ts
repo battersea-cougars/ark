@@ -29,11 +29,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   }
   for (const v of cspViolations(report, site)) {
     log.warn("browser.csp_violation", { ...v });
-    Sentry.withScope((scope) => {
-      scope.setTags({ source: "csp", directive: v.directive, page: v.page });
-      scope.setContext("violation", { ...v });
-      scope.setFingerprint(["csp", v.directive, v.blocked]);
-      Sentry.captureMessage(`CSP refused ${v.blocked} (${v.directive})`, "warning");
+    // A plain event, like a browser error's: captureMessage adds a stack of our own code, and Sentry names the issue
+    // after it
+    Sentry.captureEvent({
+      message: `CSP refused ${v.blocked} (${v.directive})`,
+      level: "warning",
+      tags: { source: "csp", directive: v.directive, page: v.page },
+      contexts: { violation: { ...v } },
+      fingerprint: ["csp", v.directive, v.blocked],
     });
   }
   return done;

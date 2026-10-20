@@ -31,8 +31,9 @@ export const CSP = [
   "form-action 'self'",
   "frame-ancestors 'none'",
   "upgrade-insecure-requests",
+  // report-uri, not report-to: every browser sends it at once. With report-to, Chrome ignores it, and on dev never
+  // delivered the report (ADR 0036)
   "report-uri /api/csp-report",
-  "report-to csp",
 ].join("; ");
 
 /**
@@ -42,7 +43,6 @@ export const CSP = [
  */
 export const SITE_HEADERS: Record<string, string> = {
   "content-security-policy": CSP,
-  "reporting-endpoints": 'csp="/api/csp-report"',
   "strict-transport-security": "max-age=31536000; includeSubDomains",
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",

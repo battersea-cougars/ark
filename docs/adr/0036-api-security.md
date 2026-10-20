@@ -92,7 +92,8 @@ of future sessions is idempotent).
   - Images from itself, Sanity's CDN, YouTube's thumbnails and, for demo content on dev and previews, picsum; frames
     only YouTube's player (`youtube-nocookie.com`) and Turnstile; inline styles allowed (`style="--i:…"` throughout).
   - No objects, no other base, forms only to itself, `frame-ancestors 'none'`, `upgrade-insecure-requests`.
-  - A refusal is reported to `/api/csp-report` (both `report-uri` and the Reporting API's `report-to`), which keeps
+  - A refusal is reported to `/api/csp-report` by `report-uri`, which every browser sends at once. Not the Reporting
+    API's `report-to`: with it, Chrome ignores `report-uri`, and on dev it queued the report and never delivered it. The route keeps
     only reports about our own pages, leaves out what browser extensions cause, and sends each kind to Sentry as one
     issue ([0111](0111-errors-and-uptime.md)). It was enforced from the start, not report-only first: before launch
     nobody visits to report, so instead a headless browser walked every page (and the demo content's) under the real
