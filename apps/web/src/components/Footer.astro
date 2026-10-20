@@ -61,7 +61,15 @@ const socials = [
       </div>
       <div>
         <p class="label">Afterwards</p>
-        <p>{s.pub.name}</p>
+        <p>
+          {s.pub.mapUrl ? (
+            <a class="link" href={s.pub.mapUrl} rel="noopener" target="_blank">
+              {s.pub.name}
+            </a>
+          ) : (
+            s.pub.name
+          )}
+        </p>
       </div>
       <div>
         <p class="label">Say hello</p>
