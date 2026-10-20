@@ -1,20 +1,21 @@
 <script lang="ts">
-  // Your profile. You change your phone, position and bio (the back of your player card), and how your name shows
-  // on the website's roster; your name and email are an admin's to change, since sign-in and the roster go by them.
-  // On a phone it's the last tab (You), one page for everything that isn't a tab: you first (your card, which opens
-  // your account, then your details), then your dues and the club's pages, then every Settings page you can open.
-  // The gear in the bar is the way into Settings, as beside a desktop's badge; in your everyday role it switches you
-  // up on the way (lib/SettingsButton).
+  // You (ADR 0022): only your own things. Your card (name, position, roles), the switch between your everyday role and
+  // your full one, your details (phone, position, bio, the name you go by: name and email are an admin's to change,
+  // since sign-in and the roster go by them), notifications, your dues, your data, and sign out. The phone's last tab
+  // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone and beside the
+  // avatar on a desktop (lib/SettingsButton), never listed here.
   import Icon from "../app/shell/Icon.svelte";
   import { goesBy, shortName } from "../lib/names";
   import { POSITIONS, POSITION_ICONS, emailFor, phoneFor, type Position } from "../demo/data";
   import { fullRole, impersonating, me, realGranted, session, setElevated, shownRoles } from "../demo/session.svelte";
+  import { owedBy } from "../demo/dues.svelte";
+  import { pounds } from "../lib/dates";
+  import { api } from "../app/api";
   import { db } from "../demo/store.svelte";
   import Choice from "../lib/Choice.svelte";
   import { initials } from "../lib/initials";
   import { saveEverydayRole, saveProfile } from "../app/backend.svelte";
-  import AccountMenu from "../app/shell/AccountMenu.svelte";
-  import MoreLinks from "../lib/MoreLinks.svelte";
+  import RoleSwitch from "../lib/RoleSwitch.svelte";
   import YourData from "../lib/YourData.svelte";
   import NotificationPrefs from "../lib/NotificationPrefs.svelte";
   import { phone } from "../lib/viewport.svelte";
@@ -52,8 +53,8 @@
   const BIO_MAX = 160;
 
   // Your everyday role (ADR 0024): anyone with more than Member can open the app as a lesser role, so ratings and admin
-  // screens stay hidden while they show someone the app; Settings (the gear) switches them up, and their card's or
-  // badge's menu switches them back.
+  // screens stay hidden while they show someone the app. The switch under your card (and at the top of Settings) goes
+  // between the two; the gear switches you up on the way into Settings.
   // The choices are roles that can do less than you can.
   const full = fullRole();
   const mine = realGranted();
@@ -69,6 +70,12 @@
     setElevated(false);
     saveEverydayRole(id);
   }
+  const owed = $derived(owedBy(who.id));
+  // Off this device only; the app reloads to the sign-in screen
+  async function signOut() {
+    await api("POST", "/api/auth/sign-out").catch(() => {});
+    location.replace("/");
+  }
   function save(e: SubmitEvent) {
     e.preventDefault();
     saveProfile({ ...form, phone: form.phone.trim(), bio: form.bio.trim(), webName });
@@ -76,25 +83,20 @@
 </script>
 
 <div class="page">
-  {#if phone.current}
-    <PageHeader title="Profile">
-      {#snippet actions()}
-        <SettingsButton />
-      {/snippet}
-    </PageHeader>
-    <AccountMenu card />
-  {:else}
-    <header class="head">
-      <span class="avatar big">{initials(goesBy(who))}</span>
-      <div>
-        <h1>{goesBy(who)}</h1>
-        {#if goesBy(who) !== who.name}<p class="hint">{who.name}</p>{/if}
-        <p class="roles">
-          {#each shownRoles(who.id) as r (r)}<span class="badge" class:red={r === "Admin"}>{r}</span>{/each}
-        </p>
-      </div>
-    </header>
-  {/if}
+  <!-- A phone's gear: top right in this page's bar (a desktop's sits beside your avatar, Shell) -->
+  {#snippet gear()}<SettingsButton />{/snippet}
+  <PageHeader title="You" actions={phone.current ? gear : undefined} />
+  <!-- Your card: who you are, plain words, not a button -->
+  <header class="card">
+    <span class="avatar big" aria-hidden="true">{initials(goesBy(who))}</span>
+    <div class="who">
+      <p class="name">{goesBy(who)}</p>
+      <p class="hint">{POSITIONS[who.position]} · {shownRoles(who.id).join(" · ")}</p>
+    </div>
+  </header>
+  {#if !locked}<RoleSwitch />{/if}
+
+  <h2 class="section-title">Your details</h2>
   <form class="form" onsubmit={save}>
     <fieldset disabled={locked}>
       <label class="field">
@@ -145,9 +147,23 @@
     {#if locked}<p class="hint">Read-only while you're viewing as {shortName(who)}.</p>{/if}
   </form>
 
+  <NotificationPrefs disabled={locked} />
+
+  <div class="list">
+    <a class="row" href="/me/tab">
+      <span class="glyph"><Icon name="pound" /></span>
+      <span class="grow">
+        <span class="title">Your dues</span>
+        <span class="sub">{owed > 0 ? `You owe ${pounds(owed)}` : "All paid up"} · pay, and what you've paid</span>
+      </span>
+      <Icon name="chevronRight" size={18} />
+    </a>
+  </div>
+
   {#if full !== "Member" && !locked}
-    <section class="everyday">
-      <h2 class="section-title">Everyday role</h2>
+    <!-- Which of your roles the app opens as; the switch under your card goes between it and your full role -->
+    <section class="block" aria-labelledby="everyday-role-title">
+      <h2 class="section-title" id="everyday-role-title">Everyday role</h2>
       <label class="field">
         The app opens as
         <Choice
@@ -157,41 +173,38 @@
           onchange={setEveryday}
         />
       </label>
-      <p class="hint">
-        Handy when you show someone the app: ratings and {full} screens stay hidden. Settings (the gear, top right) switches
-        you up until you switch back on your {phone.current ? "card" : "badge"} or close the app.
-      </p>
+      <p class="hint">Handy when you show someone the app: ratings and {full} screens stay hidden.</p>
     </section>
   {/if}
 
-  <NotificationPrefs disabled={locked} />
-  <YourData disabled={locked} />
-
-  <!-- Then everything else: your dues, the club's pages, and Settings (the gear's way in, listed) -->
-  {#if phone.current}<div class="links"><MoreLinks except="profile" /></div>{/if}
+  <YourData disabled={locked}>
+    <button class="row" type="button" disabled={locked} onclick={signOut}>
+      <span class="glyph"><Icon name="signOut" /></span>
+      <span class="grow"><span class="title">Sign out</span><span class="sub">Of this device</span></span>
+    </button>
+  </YourData>
 
   <!-- Which build you're on (ADR 0104): the version for people, the build for finding the exact code -->
   <p class="version hint num">Cougars Fresh Meat {APP_VERSION} · {APP_BUILD}</p>
 </div>
 
 <style>
-  /* The lists, after your details */
-  .links {
-    display: grid;
-    gap: var(--s-3);
-    margin-top: var(--s-4);
-  }
-  /* Your name on the website: four choices, one of them your full name, so they wrap on a phone */
-  .seg.wrap > button {
-    flex: 1 1 auto;
-  }
-  .head {
+  /* Your name in the display face, as the member editor and the back of your card show it */
+  .card {
     display: flex;
     align-items: center;
     gap: var(--s-4);
   }
-  /* Your name in the display face, as the member editor and the back of your card show it */
-  h1 {
+  .who {
+    display: grid;
+    gap: var(--s-1);
+    min-width: 0;
+  }
+  .who p {
+    margin: 0;
+  }
+  .name {
+    color: var(--fg);
     font-family: var(--font-display);
     font-size: clamp(1.6rem, 3vw, 2.1rem);
     font-style: italic;
@@ -200,17 +213,34 @@
     line-height: 1.05;
     text-transform: uppercase;
   }
-  .roles {
-    display: flex;
-    gap: var(--s-1);
-    margin-top: var(--s-2);
+  /* One line: switching role swaps the words, and nothing under them may move */
+  .who .hint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .everyday {
+  .section-title {
+    margin: var(--s-4) 0 calc(-1 * var(--s-2));
+  }
+  .block {
     display: grid;
     gap: var(--s-3);
   }
-  .everyday .section-title {
-    margin: var(--s-4) 0 0;
+  .block .section-title {
+    margin-bottom: 0;
+  }
+  .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+  /* Your name on the website: four choices, one of them your full name, so they wrap on a phone */
+  .seg.wrap > button {
+    flex: 1 1 auto;
   }
   .version {
     margin: var(--s-6) 0 0;

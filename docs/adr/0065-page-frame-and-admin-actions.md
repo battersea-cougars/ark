@@ -138,3 +138,11 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   tournament) from one sheet, in Settings' own editors, closing on the calendar once saved; it shows in your everyday
   role and switches you up on the way. It answered "I'm the admin, on my phone: where do I create an event?", which
   had been an unlabelled + for one-offs only.
+- 2026-10-20: You + one gear, superseding the gear lines above. The gear, top right on a phone's You page and beside
+  a desktop's avatar, opens one Settings page on both, listing every admin area grouped Club (Members, Unpaid fees,
+  Announcements, Quips, Upload), Schedule, Money and Security, with the everyday-role switch at its top; a desktop
+  keeps the list beside the dock on a settings page, its title back to Settings. The desktop rail is member pages
+  only (Home, trainings, Calendar, tournament types, Teammates): Dues, Announcements and Upload leave it, and More is
+  gone. A page every member can read but only some set up names what lists it in Settings (`manage`: Announcements,
+  by `post:Announcement`). On a phone, Back from a settings page goes to Settings, and Back from Settings to where you
+  came from. "We show the gear icon and also a bunch of links and a profile button".

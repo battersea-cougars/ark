@@ -139,7 +139,7 @@ describe("tabHref", () => {
     expect(tabHref(routes, "training", member, { training: "/training/sunday" })).toBe("/training/friday");
   });
 
-  it("the You tab always opens your profile, with everything else listed under it", () => {
+  it("the You tab always opens your You page, not the settings page you last left", () => {
     const routes = buildRoutes(one);
     expect(tabHref(routes, "more", admin, { more: "/settings/venues" })).toBe("/me");
     expect(tabRoutes(routes, "more", member)[0].path).toBe("/me");
@@ -201,24 +201,40 @@ describe("the members table", () => {
 describe("Back on a phone (backFor)", () => {
   const routes = buildRoutes(one);
   const at = (path: string) => routeFor(routes, path)!;
-  const back = (path: string, from: string | null) => {
-    const b = backFor(routes, at(path), from);
+  const back = (path: string, from: string | null, granted?: Set<Action>) => {
+    const b = backFor(routes, at(path), from, granted);
     return b && { to: b.to.path, history: b.history };
   };
 
-  it("goes back to where you came from: Home → Unpaid fees → Back is Home", () => {
-    expect(back("/settings/overdue", "/")).toEqual({ to: "/", history: true });
+  it("goes back to where you came from: Home → Dues → Back is Home", () => {
     expect(back("/me/tab", "/")).toEqual({ to: "/", history: true });
+    expect(back("/more/teammates", "/calendar")).toEqual({ to: "/calendar", history: true });
+  });
+
+  it("a settings page always goes back to Settings: Home → Unpaid fees → Back is Settings, in its place", () => {
+    expect(back("/settings/overdue", "/")).toEqual({ to: "/settings", history: false });
+    expect(back("/settings/overdue", "/settings/members")).toEqual({ to: "/settings", history: false });
+    expect(back("/settings/overdue", null)).toEqual({ to: "/settings", history: false });
   });
 
   it("through Settings: You → Settings → Training → Back is Settings, then You", () => {
     expect(back("/settings/training", "/settings")).toEqual({ to: "/settings", history: true });
     expect(back("/settings", "/me")).toEqual({ to: "/me", history: true });
+    expect(back("/settings", "/")).toEqual({ to: "/", history: true });
   });
 
-  it("opened from outside or after a reload: a settings page to Settings, the rest of the You tab to You", () => {
-    expect(back("/settings/overdue", null)).toEqual({ to: "/settings", history: false });
+  it("Settings never goes back to a settings page, round in a circle: to You instead", () => {
+    expect(back("/settings", "/settings/overdue")).toEqual({ to: "/me", history: false });
     expect(back("/settings", null)).toEqual({ to: "/me", history: false });
+  });
+
+  it("Announcements is a setting for whoever posts them; anyone else goes back the way they came", () => {
+    expect(back("/more/announcements", "/", admin)).toEqual({ to: "/settings", history: false });
+    expect(back("/more/announcements", "/", member)).toEqual({ to: "/", history: true });
+    expect(back("/more/announcements", null, member)).toEqual({ to: "/me", history: false });
+  });
+
+  it("opened from outside or after a reload: the rest of the You tab to You", () => {
     expect(back("/me/tab", null)).toEqual({ to: "/me", history: false });
     expect(back("/more/teammates", null)).toEqual({ to: "/me", history: false });
   });

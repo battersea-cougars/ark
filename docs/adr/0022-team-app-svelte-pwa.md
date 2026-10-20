@@ -90,3 +90,7 @@ with a throwaway hash, and the new server kept that transform, so every load 504
 - 2026-10-20: You first on the You page, then the lists and Settings; the Settings gear is back in its bar (the
   Admin switch goes), opening a phone Settings page and switching you up on the way. Back goes to where you came from
   on every page that isn't a tab's own: from Home, Unpaid fees went back to Profile.
+- 2026-10-20: The You page holds only your own things: your card (name, position, roles, plain words), the
+  everyday-role switch, your details, notifications, your dues, your account (your data, privacy, delete, sign out).
+  No Settings lists, club links or account sheet; the desktop's badge and its menu became your avatar, opening the
+  You page (ADR 0065 for Settings). Supersedes the earlier You page lines from today.

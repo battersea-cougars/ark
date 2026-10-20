@@ -1,6 +1,7 @@
 <script lang="ts">
   // The Settings gear: the one way in, the same top-right place on a phone (the You page's bar) and a desktop (beside
-  // your badge). In your everyday role it switches you up to your full role on the way (app/settings-entry).
+  // your avatar). In your everyday role it switches you up to your full role on the way (app/settings-entry), and the
+  // switch at the top of Settings shows it.
   import Icon from "../app/shell/Icon.svelte";
   import { canReachSettings, enterSettings } from "../app/settings-entry.svelte";
 
@@ -25,7 +26,7 @@
 {/if}
 
 <style>
-  /* Beside a desktop's badge: the badge's own glass tile */
+  /* Beside a desktop's avatar: the same glass tile */
   .tile {
     display: inline-grid;
     place-items: center;

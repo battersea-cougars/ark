@@ -1,12 +1,15 @@
 <script lang="ts">
-  // Your data (#30, ADR 0029), at the foot of your profile: download everything the app holds about you, or delete
-  // your account. Deleting asks first, in a sheet that says what goes and what the club keeps; then you're signed out
+  // Your data (#30, ADR 0029), rows near the foot of your You page: download everything the app holds about you, the
+  // privacy notice, or delete your account. Deleting asks first, in a sheet that says what goes and what the club keeps; then you're signed out
   // everywhere and the app goes back to its sign-in screen.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import Sheet from "./Sheet.svelte";
 
-  let { disabled = false }: { disabled?: boolean } = $props();
+  import type { Snippet } from "svelte";
+
+  /** `children`: rows after these (Sign out). */
+  let { disabled = false, children }: { disabled?: boolean; children?: Snippet } = $props();
 
   let asking = $state(false);
   let busy = $state(false);
@@ -33,19 +36,27 @@
   }
 </script>
 
-<section class="data">
-  <h2 class="section-title">Your data</h2>
-  <p class="hint">
-    Everything the app holds about you, as a file: your details, sign-ups, payments and the devices you've signed in on.
-    What the club keeps, who sees it and for how long: <a href="/privacy">Privacy</a>.
-  </p>
-  <div class="actions">
-    <button class="btn outline sm" type="button" {disabled} onclick={download}
-      ><Icon name="download" size={16} />Download my data</button
-    >
-    <button class="btn ghost sm danger" type="button" {disabled} onclick={() => (asking = true)}
-      >Delete my account</button
-    >
+<section class="data" aria-labelledby="your-data">
+  <h2 class="section-title" id="your-data">Your account</h2>
+  <div class="list">
+    <button class="row" type="button" {disabled} onclick={download}>
+      <span class="glyph"><Icon name="download" /></span>
+      <span class="grow"
+        ><span class="title">Download my data</span><span class="sub">Details, sign-ups, payments, devices</span></span
+      >
+    </button>
+    <a class="row" href="/privacy">
+      <span class="glyph"><Icon name="shield" /></span>
+      <span class="grow"
+        ><span class="title">Privacy</span><span class="sub">What the club keeps, and for how long</span></span
+      >
+      <Icon name="chevronRight" size={18} />
+    </a>
+    <button class="row danger" type="button" {disabled} onclick={() => (asking = true)}>
+      <span class="glyph"><Icon name="userMinus" /></span>
+      <span class="grow"><span class="title">Delete my account</span></span>
+    </button>
+    {@render children?.()}
   </div>
 </section>
 
@@ -72,20 +83,19 @@
     display: grid;
     gap: var(--s-3);
   }
-  .data .section-title {
-    margin: var(--s-6) 0 0;
-  }
-  .data p {
-    margin: 0;
-  }
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
+  .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   /* Delete in red words; asked, the one red fill is the tap that does it */
-  .danger {
+  .danger .title,
+  .danger .glyph {
     color: var(--red-hot);
+  }
+  .row:disabled {
+    cursor: default;
+    opacity: 0.55;
   }
   .ask {
     display: grid;

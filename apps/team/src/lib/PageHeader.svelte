@@ -73,7 +73,7 @@
   // sitting hidden above it under the veil.
   // Docked: the sticky row has reached its place at the top. That's when its band comes in, not before.
   let docked = $state(false);
-  // Docked, the row shares the top band with your badges (top right, the shell's AccountMenu): on a narrower desktop
+  // Docked, the row shares the top band with the gear and your avatar (top right, the shell): on a narrower desktop
   // its right end would run under them, so it keeps clear of them by as much
   let clear = $state(0);
   $effect(() => {

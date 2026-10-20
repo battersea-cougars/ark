@@ -1,7 +1,7 @@
 # 0024. Permissions are actions; roles are data built from actions; admins can view as a member or run as less
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-09
+- **Date:** 2026-10-06 · updated 2026-10-20
 - **Merges:** 0029 (view as a member), 0037
 
 ## Context
@@ -63,7 +63,7 @@ taps to start and stop.
 
 **Everyday role**
 
-- A member whose role is more than Member can choose an **everyday role** on their Profile, for example Contributor.
+- A member whose role is more than Member can choose an **everyday role** on their You page, for example Contributor.
   It's stored on the member (`members.everyday_role_id`, set through `/api/me/everyday-role`), so it applies on every
   device. The choices are roles that can do less than they can; the API refuses anything else, so it can never be a
   way up.
@@ -71,10 +71,10 @@ taps to start and stop.
   `manage:Member`): the same rule, a role that can do less than that member can, and only for a member the admin may
   change at all. It's on the record (`member.everyday`).
 - The app **opens in the everyday role**: the pages, buttons and data it shows are that role's and Member's.
-- **Opening Settings moves them up.** The Settings gear (top right: beside the desktop's badge, in a phone's You bar)
+- **Opening Settings moves them up.** The Settings gear (top right: beside the desktop's avatar, in a phone's You bar)
   shows for anyone whose full role can set something up, and opening it, or any settings page, switches to the full
-  role on the way. The account menu (the badge, or your card on a phone) has the switch both ways ("Switch to Admin",
-  "Back to Session lead"). Going back from a page the everyday role can't see goes Home.
+  role on the way. One switch goes both ways, "Using the app as Session lead / Admin", under your card on the You
+  page and at the top of Settings. Going back from a page the everyday role can't see goes Home.
 - Being switched up lasts for the tab (session storage): the app always reopens in the everyday role.
 - View as a member is a settings page, so reaching it switches up like any other.
 - Every place that decides what to show uses the app's granted actions (`granted()`), never the real roles, and role
@@ -105,3 +105,7 @@ taps to start and stop.
 - 2026-10-09: An admin can set another member's everyday role on their card.
 - 2026-10-20: The switch beside the badge is gone: the Settings gear switches you up on the way in, the account menu
   switches both ways; View as a member moved from the account menu to Settings → Security.
+- 2026-10-20: One two-way switch, "Using the app as" your everyday role or your full one (a Pick), under your card on
+  the You page and at the top of Settings, replaces the account menu's; the gear (and New event) still switch you up
+  on the way, and the switch shows it. In your everyday role Settings keeps every row your account can open, the ones
+  that role can't open quieter, and opening one switches you up.

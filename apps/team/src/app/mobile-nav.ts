@@ -1,6 +1,7 @@
 // Phone tabs, derived from the route tree. Each tab remembers the last page used in it.
 import { can, type Action } from "../access/actions";
 import { routeFor, type Route, type TabId } from "./nav-routes";
+import { isSetting } from "./settings-list";
 
 /** The routes a member can see in a tab, in tree order. Full-screen and hidden pages are reached from a page. */
 export const tabRoutes = (routes: Route[], tab: TabId, granted: ReadonlySet<Action>): Route[] =>
@@ -34,21 +35,40 @@ export function tabHref(
 
 /**
  * Where a phone's Back goes (#86), or null for a tab's own pages (Home, Friday, Calendar, the Kumite's pages, You),
- * which have the tabs instead. Every other page (a team, a matchup, Dues, Unpaid fees, a settings page) goes back
- * to the page it was opened from in the app, by the browser's history: Home → Unpaid fees → Back is Home. Opened
- * from outside or after a reload, to the page it belongs under: a settings page to Settings, the rest of the You tab
- * to You, a hidden page to the one it's `under`, else its tab's first page.
+ * which have the tabs instead. `history`: by the browser's history (the page it was opened from); otherwise the shell
+ * goes there in this page's place, so Back never adds a page to go forward to.
+ *
+ * - A settings page goes back to Settings, wherever it was opened from (Home → Unpaid fees → Back is Settings, then
+ *   Back from Settings is Home). `granted`: what you can do, so a page that's only listed in Settings for some
+ *   (Announcements, which anyone reads) goes back the ordinary way for everyone else.
+ * - Settings goes back to wherever you came from, but never to a settings page (that would go round in a circle):
+ *   then, and opened from outside, to You.
+ * - Every other page goes back to the page it was opened from in the app; opened from outside or after a reload, to
+ *   the page it belongs under: the rest of the You tab to You, a hidden page to the one it's `under`, else its tab's
+ *   first page.
  */
-export function backFor(routes: Route[], route: Route, from: string | null): { to: Route; history: boolean } | null {
+export function backFor(
+  routes: Route[],
+  route: Route,
+  from: string | null,
+  granted?: ReadonlySet<Action>,
+): { to: Route; history: boolean } | null {
   if (route.focus) return null;
   const ownTabPage = !route.hidden && (route.tab !== "more" || route.id === "profile");
   if (ownTabPage) return null;
-  const came = from ? routeFor(routes, from) : undefined;
-  if (came && came.id !== route.id) return { to: came, history: true };
   const byId = (id?: string) => (id ? routes.find((r) => r.id === id) : undefined);
+  const came = from ? routeFor(routes, from) : undefined;
+  const settings = byId("settings");
+  if (isSetting(route, granted) && settings) return { to: settings, history: came?.id === "settings" };
+  if (route.id === "settings") {
+    const circle = !came || came.id === route.id || isSetting(came);
+    if (!circle) return { to: came, history: true };
+    const you = byId("profile");
+    return you ? { to: you, history: false } : null;
+  }
+  if (came && came.id !== route.id) return { to: came, history: true };
   const parent =
     byId(route.under) ??
-    (route.group === "Settings" ? byId("settings") : undefined) ??
     (route.tab === "more" ? byId("profile") : undefined) ??
     routes.find((r) => r.tab === route.tab && !r.hidden);
   return parent && parent.id !== route.id ? { to: parent, history: false } : null;

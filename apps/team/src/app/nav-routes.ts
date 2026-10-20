@@ -7,8 +7,12 @@ import type { IconName } from "./shell/icons";
 
 export type TabId = "home" | "training" | "calendar" | "tournaments" | "more";
 
-/** Groups under More (phone) and in the rail (desktop). */
+/** You: your own pages (the You page). Club: member pages in the desktop rail. Settings: listed under the gear. */
 export type Group = "Club" | "You" | "Settings";
+
+/** Settings' groups, in the order the Settings page lists them. */
+export const SECTIONS = ["Club", "Schedule", "Money", "Security"] as const;
+export type Section = (typeof SECTIONS)[number];
 
 export interface Route {
   id: string;
@@ -22,11 +26,14 @@ export interface Route {
   params?: Record<string, number>;
   /** Label in the strip of sub-pages, when shorter than the name. */
   short?: string;
-  /** Subtitle on the More page and the phone's You page: short, so it fits one line on a phone. */
+  /** Subtitle in Settings' list: short, so it fits one line on a phone. */
   hint?: string;
   group?: Group;
   /** Sub-heading inside Settings. */
-  section?: "Schedule" | "Money" | "Club" | "Security";
+  section?: Section;
+  /** What lists it in Settings, when that's more than opening it takes: anyone reads Announcements, whoever posts
+   * them finds it in Settings. */
+  manage?: Requirement;
   /** The folding rail section it sits in: a tournament type ("type:1"). */
   fold?: string;
   /** Reached from a page, not from any menu (the register). */
@@ -94,21 +101,32 @@ const DEV_TOOLS_ROUTE: Route = {
   hint: "Dev only: who gets real email",
 };
 
-// Profile first: it's the phone's last tab (your avatar), with everything else listed on it, above your details
+// You first: the phone's last tab (your avatar) and a desktop's avatar, top right, open it: only your own things.
+// Everything an admin sets up is in Settings (the gear), grouped Club / Schedule / Money / Security (ADR 0065)
 const STATIC_TAIL: Route[] = [
   {
     id: "profile",
     path: "/me",
-    name: "Profile",
+    name: "You",
     tab: "more",
     page: "profile",
     action: "authenticated",
     icon: "user",
     group: "You",
-    hint: "Your details, position and photo",
+    hint: "Your details, notifications and dues",
   },
-  { id: "more", path: "/more", name: "More", tab: "more", page: "more", action: "authenticated", icon: "more" },
-  // Where the Settings gear goes: a phone's list of them, a desktop's first one (lib/SettingsButton)
+  // Old links: your You page
+  {
+    id: "more",
+    path: "/more",
+    name: "You",
+    tab: "more",
+    page: "profile",
+    action: "authenticated",
+    icon: "user",
+    hidden: true,
+  },
+  // Where the gear goes (lib/SettingsButton): every admin area, grouped, phone and desktop
   {
     id: "settings",
     path: "/settings",
@@ -119,7 +137,7 @@ const STATIC_TAIL: Route[] = [
     icon: "settings",
     hidden: true,
   },
-  // The app's privacy notice (#30): from Profile → Your data, and on the sign-in screen
+  // The app's privacy notice (#30): from You → Privacy, and on the sign-in screen
   {
     id: "privacy",
     path: "/privacy",
@@ -141,30 +159,7 @@ const STATIC_TAIL: Route[] = [
     group: "Club",
     hint: "Everyone who plays",
   },
-  // Every announcement the club has made (#85), newest first, with whether you got each: from Home, and here
-  {
-    id: "announcements",
-    path: "/more/announcements",
-    name: "Announcements",
-    tab: "more",
-    page: "announcements",
-    action: "authenticated",
-    icon: "megaphone",
-    group: "Club",
-    hint: "Everything the club's said, and what you've got",
-  },
-  {
-    id: "upload",
-    unfinished: true,
-    path: "/more/upload",
-    name: "Upload",
-    tab: "more",
-    page: "upload",
-    action: "upload:Photo",
-    icon: "upload",
-    group: "Club",
-    hint: "Photos to the site, videos to YouTube",
-  },
+  // Your dues: a row on your You page
   {
     id: "tab",
     path: "/me/tab",
@@ -175,6 +170,71 @@ const STATIC_TAIL: Route[] = [
     icon: "pound",
     group: "You",
     hint: "Pay what you owe, and what you've paid",
+  },
+  {
+    id: "members",
+    path: "/settings/members",
+    name: "Members",
+    tab: "more",
+    page: "members",
+    action: "manage:Member",
+    icon: "teams",
+    group: "Settings",
+    section: "Club",
+    hint: "Everyone in a table: dues, contacts",
+  },
+  {
+    id: "overdue",
+    path: "/settings/overdue",
+    name: "Unpaid fees",
+    tab: "more",
+    page: "overdue",
+    action: "read:Dues",
+    icon: "pound",
+    group: "Settings",
+    section: "Club",
+    hint: "Who owes what, and for how long",
+  },
+  // Every announcement the club has made (#85), newest first, with whether you got each. Anyone can read it (from
+  // Home's Past announcements); it's listed in Settings for whoever posts them
+  {
+    id: "announcements",
+    path: "/more/announcements",
+    name: "Announcements",
+    tab: "more",
+    page: "announcements",
+    action: "authenticated",
+    manage: "post:Announcement",
+    icon: "megaphone",
+    group: "Settings",
+    section: "Club",
+    hint: "Everything the club's said, and who got it",
+  },
+  {
+    id: "quips",
+    path: "/settings/quips",
+    name: "Quips",
+    tab: "more",
+    page: "quips",
+    action: "manage:Quip",
+    icon: "chat",
+    group: "Settings",
+    section: "Club",
+    hint: "What Home says when people sign up",
+  },
+  // Contributors' (not every member's), so in Settings, not the rail
+  {
+    id: "upload",
+    unfinished: true,
+    path: "/more/upload",
+    name: "Upload",
+    tab: "more",
+    page: "upload",
+    action: "upload:Photo",
+    icon: "upload",
+    group: "Settings",
+    section: "Club",
+    hint: "Photos to the site, videos to YouTube",
   },
   {
     id: "training-settings",
@@ -225,18 +285,6 @@ const STATIC_TAIL: Route[] = [
     hint: "Addresses and map links",
   },
   {
-    id: "overdue",
-    path: "/settings/overdue",
-    name: "Unpaid fees",
-    tab: "more",
-    page: "overdue",
-    action: "read:Dues",
-    icon: "pound",
-    group: "Settings",
-    section: "Money",
-    hint: "Who owes what, and for how long",
-  },
-  {
     id: "fees",
     path: "/settings/fees",
     name: "Quarterly rate",
@@ -247,30 +295,6 @@ const STATIC_TAIL: Route[] = [
     group: "Settings",
     section: "Money",
     hint: "The fee for a whole quarter",
-  },
-  {
-    id: "members",
-    path: "/settings/members",
-    name: "Members",
-    tab: "more",
-    page: "members",
-    action: "manage:Member",
-    icon: "teams",
-    group: "Settings",
-    section: "Club",
-    hint: "Everyone in a table: dues, contacts",
-  },
-  {
-    id: "quips",
-    path: "/settings/quips",
-    name: "Quips",
-    tab: "more",
-    page: "quips",
-    action: "manage:Quip",
-    icon: "chat",
-    group: "Settings",
-    section: "Club",
-    hint: "What Home says when people sign up",
   },
   {
     id: "roles",
@@ -297,18 +321,6 @@ const STATIC_TAIL: Route[] = [
     hint: "Who changed what, and when",
   },
   {
-    id: "view-as",
-    path: "/settings/view-as",
-    name: "View as a member",
-    tab: "more",
-    page: "view-as",
-    action: "impersonate:Member",
-    icon: "eye",
-    group: "Settings",
-    section: "Security",
-    hint: "The app as they see it, read-only",
-  },
-  {
     id: "usage",
     path: "/settings/usage",
     name: "Usage",
@@ -319,6 +331,18 @@ const STATIC_TAIL: Route[] = [
     group: "Settings",
     section: "Security",
     hint: "Today's use of the free plan",
+  },
+  {
+    id: "view-as",
+    path: "/settings/view-as",
+    name: "View as a member",
+    tab: "more",
+    page: "view-as",
+    action: "impersonate:Member",
+    icon: "eye",
+    group: "Settings",
+    section: "Security",
+    hint: "The app as they see it, read-only",
   },
 ];
 
@@ -524,7 +548,7 @@ export const buildFolds = (config: NavConfig): Fold[] =>
 
 /**
  * Phone tabs. With one training or one tournament type, the tab takes its short name ("Friday", "Kumite"). The last
- * is you: your avatar, opening your profile, with the club's pages and Settings listed under it.
+ * is you: your avatar, opening your You page (your own things; Settings is the gear).
  */
 export function buildTabs(config: NavConfig): { id: TabId; label: string; icon: IconName }[] {
   const series = config.series.filter((s) => s.active);

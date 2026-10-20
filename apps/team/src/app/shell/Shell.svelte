@@ -1,6 +1,6 @@
 <script lang="ts">
-  // The shell. Desktop: the page has the whole screen; a dock of the main sections floats mid-left, the brand
-  // mark top-left, your badge top-right, the wordmark in the bottom-left corner. A section's
+  // The shell. Desktop: the page has the whole screen; a dock of the member pages floats mid-left (app/rail), the
+  // brand mark top-left, the Settings gear and your avatar (your You page) top-right, the wordmark bottom-left. A section's
   // pages (The Kumite, Fight card, Draft) sit in the page header's toolbar row, which pins as the page scrolls
   // (PageHeader). Phones: five tabs at the bottom, and a slim bar along the top with the page's name (or its
   // section's strip of pages), its actions, and its filters: inline when they fit, otherwise a Filters button that
@@ -8,23 +8,19 @@
   import { goesBy, shortName } from "../../lib/names";
   import { initials } from "../../lib/initials";
   import { type Snippet } from "svelte";
-  import { can } from "../../access/actions";
   import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
   import { backFor, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
+  import { railItems, railOn } from "../rail";
   import type { Route, TabId } from "../nav-routes";
   import { folds, routes, stayIfAllowed, tabs } from "../routes.svelte";
   import { navigate, router } from "../router.svelte";
   import { fly } from "svelte/transition";
   import { easeOut, eject, fadeMs, flyMs, prefersReducedMotion, zoom } from "../motion";
-  import type { IconName } from "./icons";
-  import AccountMenu from "./AccountMenu.svelte";
   import SettingsButton from "../../lib/SettingsButton.svelte";
-  import { canReachSettings } from "../settings-entry.svelte";
+  import { openSetting, settingsNow } from "../settings-entry.svelte";
   import PullToRefresh from "./PullToRefresh.svelte";
   import Icon from "./Icon.svelte";
   import logo from "../../assets/cougars-mark.webp";
-  import { owedBy } from "../../demo/dues.svelte";
-  import { pounds } from "../../lib/dates";
   import Sheet from "../../lib/Sheet.svelte";
   import { phone } from "../../lib/viewport.svelte";
   import { pageBar } from "./page-bar.svelte";
@@ -37,94 +33,21 @@
   const all = $derived(routes());
   const tabList = $derived(tabs());
   const strip = $derived(route.focus ? [] : stripRoutes(all, route, perms));
-  const allowed = (r: Route) => !r.focus && !r.hidden && can(perms, r.action);
 
-  // The dock: only the main sections. Home, a tile per training, Calendar, a tile per tournament type, the club
-  // pages, then More for members with nothing to set up. Settings is the gear beside your badge (lib/SettingsButton), the
-  // same as a phone's, not a tile too. Everything else is reached from a page.
-  interface DockItem {
-    id: string;
-    name: string;
-    icon: IconName;
-    href: string;
-    on: boolean;
-    /** A small count on the tile: what you owe. */
-    badge?: string;
-  }
-  const dock = $derived.by((): DockItem[] => {
-    const items: DockItem[] = [];
-    const home = all.find((r) => r.id === "home");
-    if (home) items.push({ id: home.id, name: home.name, icon: home.icon, href: home.path, on: route.id === home.id });
-    for (const r of all.filter((r) => r.tab === "training" && allowed(r))) {
-      items.push({
-        id: r.id,
-        name: r.name,
-        icon: r.icon,
-        href: r.path,
-        on: route.params?.seriesId === r.params?.seriesId && route.tab === "training",
-      });
-    }
-    const cal = all.find((r) => r.tab === "calendar" && allowed(r));
-    if (cal) items.push({ id: cal.id, name: cal.name, icon: cal.icon, href: cal.path, on: route.tab === "calendar" });
-    for (const f of folds()) {
-      const first = all.find((r) => r.fold === f.id && allowed(r));
-      if (first) items.push({ id: f.id, name: f.name, icon: f.icon, href: first.path, on: route.fold === f.id });
-    }
-    for (const r of all.filter((r) => r.group === "Club" && allowed(r))) {
-      // Its own pages too: a member's (/more/teammates/12) is Teammates
-      const on = route.id === r.id || route.path.startsWith(r.path + "/");
-      items.push({ id: r.id, name: r.name, icon: r.icon, href: r.path, on });
-    }
-    // Dues: always there, with what you owe on it until it's paid
-    const dues = all.find((r) => r.id === "tab");
-    if (dues) {
-      const owed = owedBy(me().id);
-      items.push({
-        id: dues.id,
-        name: owed > 0 ? `Dues · you owe ${pounds(owed)}` : "Dues",
-        icon: dues.icon,
-        href: dues.path,
-        on: route.id === dues.id,
-        badge: owed > 0 ? pounds(owed) : undefined,
-      });
-    }
-    const more = all.find((r) => r.id === "more");
-    if (more && !canReachSettings()) {
-      items.push({
-        id: more.id,
-        name: "More",
-        icon: "more",
-        href: more.path,
-        // Only its own page: Teammates and Upload (More's tab on a phone) have tiles of their own
-        on: route.id === "more",
-      });
-    }
-    return items;
-  });
+  // The dock: member pages only (app/rail). Settings is the gear, top right; your own things (Dues) are on your You
+  // page, the avatar beside it.
+  const dock = $derived(railItems(all, folds(), perms).map((item) => ({ ...item, on: railOn(item, route) })));
 
   // Desktop settings: every settings page in a list beside the dock while you're in one, so moving between them is
-  // one click, not Back to the list. Grouped as the list is (More); a narrower desktop gets a link back to it.
+  // one click; its title goes back to the Settings page. Rows your everyday role can't open are quieter (Settings)
   const inSettings = $derived(route.group === "Settings" && !route.focus);
-  const settingsNav = $derived(
-    (["Schedule", "Money", "Club", "Security"] as const)
-      .map((section) => ({
-        section,
-        routes: all.filter((r) => r.group === "Settings" && r.section === section && allowed(r)),
-      }))
-      .filter((s) => s.routes.length),
-  );
-  // The phone's Settings is the More list; a desktop lists them beside the page instead. Widened onto More, open the
-  // first settings page in its place, as the dock's Settings does (members with nothing to set up keep More)
+  const settingsNav = $derived(settingsNow());
+  // Old links to More: your You page
   $effect(() => {
-    const first = settingsNav[0]?.routes[0];
-    if (!phone.current && route.id === "more" && first) navigate(first.path, { replace: true });
-  });
-  // A phone's More is your profile now (the avatar tab, with the lists above your details)
-  $effect(() => {
-    if (phone.current && route.id === "more") navigate("/me", { replace: true });
+    if (route.id === "more") navigate("/me", { replace: true });
   });
   // Each row's place in the list, so they arrive one after another
-  const settingsOrder = $derived(new Map(settingsNav.flatMap((s) => s.routes).map((r, i) => [r.id, i])));
+  const settingsOrder = $derived(new Map(settingsNav.flatMap((s) => s.rows).map((row, i) => [row.route.id, i])));
 
   // The save note: "Saving…" once a save has taken a moment (a quick one doesn't flash), then its outcome
   let slow = $state(false);
@@ -165,16 +88,18 @@
   // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
   // app or after a reload, back to the page it belongs under (mobile-nav.ts backFor)
   const backTo = $derived.by(() => {
-    const b = backFor(all, route, router.from);
+    const b = backFor(all, route, router.from, perms);
     if (!b) return null;
     // Your profile is the You tab's page: back to it says You, as its bar does
     const label = b.to.id === "profile" ? youLabel : (b.to.short ?? b.to.name);
     return { href: b.to.path, label, history: b.history };
   });
+  // By the browser's history, or in this page's place: Back never leaves a page to go forward to
   function back(e: MouseEvent) {
-    if (!backTo?.history || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (!backTo || e.metaKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    history.back();
+    if (backTo.history) history.back();
+    else navigate(backTo.href, { replace: true });
   }
 
   // Phone bar: the filters sit in the bar when they fit beside the name and the actions. A hidden copy gives
@@ -339,11 +264,9 @@
   const ghost = $derived(
     route.id === "home"
       ? ""
-      : route.id === "more"
-        ? (dock.find((d) => d.id === "more")?.name ?? route.name)
-        : route.fold
-          ? (tabList.find((t) => t.id === route.tab)?.label ?? route.name)
-          : (route.short ?? route.name),
+      : route.fold
+        ? (tabList.find((t) => t.id === route.tab)?.label ?? route.name)
+        : (route.short ?? route.name),
   );
 </script>
 
@@ -359,7 +282,6 @@
         aria-label={item.name}
       >
         <Icon name={item.icon} size={20} />
-        {#if item.badge}<span class="dock-badge num" aria-hidden="true">{item.badge}</span>{/if}
         <span class="dock-label" aria-hidden="true">{item.name}</span>
       </a>
     {/each}
@@ -368,21 +290,24 @@
   {#if inSettings && !phone.current}
     <!-- Desktop: every settings page, beside the dock -->
     <nav class="settings-nav" aria-label="Settings" in:eject out:eject={{ out: true }}>
-      <p class="settings-home"><Icon name="settings" size={16} />Settings</p>
+      <a class="settings-home" href="/settings"><Icon name="settings" size={16} />Settings</a>
       {#each settingsNav as s (s.section)}
         <p
           class="settings-section"
-          in:eject|global={{ delay: 60 + (settingsOrder.get(s.routes[0].id) ?? 0) * 28, x: 14 }}
+          in:eject|global={{ delay: 60 + (settingsOrder.get(s.rows[0].route.id) ?? 0) * 28, x: 14 }}
         >
           {s.section}
         </p>
-        {#each s.routes as r (r.id)}
+        {#each s.rows as row (row.route.id)}
+          {@const r = row.route}
           <a
             in:eject|global={{ delay: 80 + (settingsOrder.get(r.id) ?? 0) * 28, x: 14 }}
             class="settings-link"
             class:on={r.id === route.id}
+            class:quiet={!row.open}
             href={r.path}
             aria-current={r.id === route.id ? "page" : undefined}
+            onclick={() => openSetting(row)}
           >
             <Icon name={r.icon} size={16} />{r.name}
           </a>
@@ -446,15 +371,25 @@
           </div>
         {/if}
       {:else if !route.focus}
-        <!-- Desktop: the mark and your badge in the top corners -->
+        <!-- Desktop: the mark, then the gear and your avatar, in the top corners -->
         <div class="topbar" style:top="{pinnedH}px">
           <a class="brand" href="/" aria-label="Home">
             <img src={logo} alt="" width="36" height="36" />
           </a>
-          <!-- Settings and you, top right: the gear (the way in, the same as a phone's) and your badge -->
+          <!-- Settings and you, top right: the gear (the way in, as a phone's) and your avatar, opening your You page -->
           <div class="you-corner">
-            <SettingsButton tile on={inSettings} />
-            <AccountMenu />
+            <SettingsButton tile on={inSettings || route.id === "settings"} />
+            <a
+              class="you-tile"
+              class:on={route.tab === "more" && route.group === "You"}
+              class:as={impersonating()}
+              href="/me"
+              aria-label="You: {goesBy(me())}"
+              aria-current={route.id === "profile" ? "page" : undefined}
+              title="You"
+            >
+              <span class="avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
+            </a>
           </div>
         </div>
       {/if}
@@ -530,7 +465,7 @@
         >
           <span class="tab-icon">
             {#if tab.id === "more"}
-              <!-- You: your initials, as your badge shows them -->
+              <!-- You: your initials, as a desktop's avatar shows them -->
               <span class="avatar tab-avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
             {:else}
               <Icon name={tab.icon} size={22} />
@@ -673,19 +608,6 @@
   }
   .dock-item:focus-visible {
     outline-offset: 3px;
-  }
-  .dock-badge {
-    position: absolute;
-    top: -0.45rem;
-    right: -0.55rem;
-    padding: 0.1rem 0.35rem;
-    border-radius: var(--r-pill);
-    background: var(--red);
-    color: var(--on-red);
-    font-size: 0.65rem;
-    font-weight: 700;
-    line-height: 1.3;
-    box-shadow: 0 0 0 2px var(--bg);
   }
   .dock-label {
     position: absolute;
@@ -1057,6 +979,45 @@
   }
   .settings-link.on :global(svg) {
     color: var(--red-hot);
+  }
+  /* Your everyday role can't open it: quieter; a click switches you up */
+  .settings-link.quiet:not(.on) {
+    color: var(--fg-subtle);
+  }
+  .settings-home:hover {
+    color: var(--red-ink);
+  }
+  /* Your avatar, top right: the gear's glass tile; your You page opens from it, no menu */
+  .you-tile {
+    display: inline-grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--surface-1) 45%, transparent);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    transition: background-color var(--t-fast) var(--ease-in-out);
+  }
+  .you-tile:hover {
+    background: color-mix(in srgb, var(--surface-3) 90%, transparent);
+  }
+  .you-tile .avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    background: var(--red-wash-strong);
+    color: var(--fg);
+    font-size: 0.65rem;
+  }
+  /* On your You page: lit, as the gear is in Settings */
+  .you-tile.on .avatar {
+    box-shadow: 0 0 0 2px var(--red-hot);
+  }
+  /* Viewing as a member: their initials, in the banner's amber */
+  .you-tile.as .avatar {
+    background: var(--caution-wash);
+    color: var(--caution);
   }
 
   @media (max-width: 900px) {
