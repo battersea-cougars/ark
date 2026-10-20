@@ -114,4 +114,6 @@ export const reminderNotice = (l: Letter) => ({
   title: "What you owe",
   body: `${money(l.charges.reduce((s, c) => s + c.left, 0))} to settle. Your reference: ${l.reference}`,
   path: "/me/tab",
+  // Its notification topic (lib/notification-topics.ts, team/push-topics): Notice.topic there; ignored until it merges
+  topic: "dues",
 });
