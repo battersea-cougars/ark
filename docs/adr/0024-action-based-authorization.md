@@ -50,8 +50,9 @@ taps to start and stop.
 **View as a member** (`impersonate:Member`, "View the app as a member (read-only)")
 
 - Admins have it through `manage:all`; it can be given to other roles.
-- The account menu offers **View as a member…**. Picking someone makes the app show what they see, with their
-  actions: their Home, their team, their tab, only the pages their roles allow.
+- It's a page in **Settings → Security** (View as a member), where an admin looks for their tools. Picking someone
+  makes the app show what they see, with their actions: their Home, their team, their tab, only the pages their
+  roles allow.
 - **Read-only.** While viewing as someone you can't change anything as them: the app disables the controls (In/Out,
   sign-up, profile, sign out).
 - An amber banner across the top says who you're viewing as, with **Back to <you>** always available, whatever the
@@ -70,11 +71,12 @@ taps to start and stop.
   `manage:Member`): the same rule, a role that can do less than that member can, and only for a member the admin may
   change at all. It's on the record (`member.everyday`).
 - The app **opens in the everyday role**: the pages, buttons and data it shows are that role's and Member's.
-- A **switch beside the account badge**, labelled with their full role ("Admin"), moves them up. It's lit while
-  they're in their full role and moves them back when tapped again; the account menu has the same switch. Going back
-  from a page the everyday role can't see goes Home.
+- **Opening Settings moves them up.** The Settings gear (top right: beside the desktop's badge, in a phone's You bar)
+  shows for anyone whose full role can set something up, and opening it, or any settings page, switches to the full
+  role on the way. The account menu (the badge, or your card on a phone) has the switch both ways ("Switch to Admin",
+  "Back to Session lead"). Going back from a page the everyday role can't see goes Home.
 - Being switched up lasts for the tab (session storage): the app always reopens in the everyday role.
-- View as a member isn't offered in the everyday role; switch up first.
+- View as a member is a settings page, so reaching it switches up like any other.
 - Every place that decides what to show uses the app's granted actions (`granted()`), never the real roles, and role
   badges for yourself use `shownRoles()`.
 
@@ -101,3 +103,5 @@ taps to start and stop.
 - 2026-10-07: Members with more than Member can run the app day to day as a lesser everyday role and switch up for
   the tab (was 0037).
 - 2026-10-09: An admin can set another member's everyday role on their card.
+- 2026-10-20: The switch beside the badge is gone: the Settings gear switches you up on the way in, the account menu
+  switches both ways; View as a member moved from the account menu to Settings → Security.

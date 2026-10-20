@@ -48,6 +48,8 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - An editor panel opens in the page's column: the same left edge and width as the content under it
   (`lib/page-column.ts`), the reading width or the whole frame for a `.full` page. Phones are unchanged: full screen.
 - Settings keeps its list beside the dock, so its pages share their own left edge, all of them.
+- **One way into Settings: the gear, top right**, beside a desktop's badge and in a phone's You bar (its own icon: a
+  chunky cog with a puck). The dock has no Settings tile; members with nothing to set up keep More there.
 - On a phone the slim bar slides up out of sight as you scroll down and comes back the moment you scroll up or reach
   the top (#83). A transform over the page, so nothing moves; the bottom tabs stay; not while a sheet is open. A
   page's search stays in the page and scrolls with it. Every page, Friday's too: what sticks under the bar (its
@@ -122,3 +124,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - 2026-10-20: On a phone a training's usual day, hours and place sit at the foot of its page, not behind an info
   button in the bar (a desktop keeps them under the title).
 - 2026-10-20: Next Kumite sits in the series page's "No Kumite yet", not the header, when nothing's on (ADR 0074).
+- 2026-10-20: Settings is reached by one gear, top right on a desktop (beside the badge) and on a phone's You page,
+  instead of the dock's tile and the phone's sheet; it shows in your everyday role too and switches you up.

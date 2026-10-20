@@ -40,6 +40,8 @@ const LOADERS: Record<string, () => Promise<{ default: Page }>> = {
   fees: () => import("../pages/Fees.svelte"),
   overdue: () => import("../pages/Overdue.svelte"),
   quips: () => import("../pages/Quips.svelte"),
+  settings: () => import("../pages/Settings.svelte"),
+  "view-as": () => import("../pages/ViewAs.svelte"),
 };
 
 // The pages loaded so far. Raw: a component is swapped whole, never changed inside.

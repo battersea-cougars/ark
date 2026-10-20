@@ -8,6 +8,7 @@
   import Shell from "./app/shell/Shell.svelte";
   import NotAllowed from "./pages/NotAllowed.svelte";
   import { loadedPage, loadPage, preloadPages } from "./app/pages.svelte";
+  import { enterSettings } from "./app/settings-entry.svelte";
 
   const all = $derived(routes());
   const route = $derived(routeFor(all, router.path) ?? routeFor(all, "/")!);
@@ -18,6 +19,10 @@
   const Page: Component<any> | undefined = $derived(allowed ? loadedPage(route.page) : NotAllowed);
   $effect(() => {
     if (allowed) void loadPage(route.page);
+  });
+  // A settings page opened in your everyday role (a link, a reload): your full role, as the gear does (ADR 0024)
+  $effect(() => {
+    if (route.group === "Settings") enterSettings(route);
   });
   // Then the pages you can open, in the background
   $effect(() => {

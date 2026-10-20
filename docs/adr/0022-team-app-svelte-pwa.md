@@ -29,11 +29,15 @@ with a throwaway hash, and the new server kept that transform, so every load 504
 - It binds the same D1 database as the website (`DB`); the schema stays in `db/`.
 - **Mobile first.** The shell follows Gwenda ops: one route tree, five bottom tabs at ≤900px with safe-area insets, a
   collapsible rail on desktop. The last tab is You (your avatar): it always opens your profile, one page for everything
-  that isn't a tab. Your account (View as, Sign out) is on your card at the top; under it Dues, the club's pages and,
-  for whoever can set things up, every Settings page grouped as the desktop's list (Schedule, Money, Club, Security),
-  one tap each; then your details. In your everyday role the bar's switch (Admin) brings your full role and its
-  Settings back, as the button beside the desktop's badge does. Phones keep chrome slim: a 40px top bar, an opaque
-  tab bar, no page subtitles.
+  that isn't a tab. You first: your card (which opens your account: Profile, Dues, your everyday role, Sign out), your
+  details, your everyday role and your data; then Dues and the club's pages; then, for whoever can set things up,
+  every Settings page grouped as the desktop's list. The Settings gear sits in its bar, top right, as beside the
+  desktop's badge ([0065](0065-page-frame-and-admin-actions.md)); it opens Settings (a phone's list of them) and in
+  your everyday role switches you up on the way ([0024](0024-action-based-authorization.md)). Its bar is titled You.
+  Every page that isn't a tab's own has Back, named for the page it was opened from (Home → Unpaid fees → ‹ Home);
+  opened from outside, to the page it belongs under (a settings page to Settings, the rest to You). Teammates is also
+  a row on Home, so a member reaches the squad in one tap. Phones keep chrome slim: a 40px top bar, an opaque tab bar,
+  no page subtitles.
 - **A PWA**: manifest, icons and a service worker that caches the app shell. Screens that must work offline (the game
   clock) keep their data in IndexedDB and sync when there's signal.
 - A store app, if we want one, wraps the same build with Capacitor (#26).
@@ -81,3 +85,8 @@ with a throwaway hash, and the new server kept that transform, so every load 504
 - 2026-10-20: On phones Settings are listed on the You page, above your details, not behind a gear and a sheet, and
   the switch to your full role sits in its bar: an admin in their everyday role had to tap their card, switch up, then
   the gear to reach Settings.
+- 2026-10-20: The You page's bar says You and its hints fit one line; Teammates got a row on Home, as a member had to
+  go You → Club → Teammates to see the squad.
+- 2026-10-20: You first on the You page, then the lists and Settings; the Settings gear is back in its bar (the
+  Admin switch goes), opening a phone Settings page and switching you up on the way. Back goes to where you came from
+  on every page that isn't a tab's own: from Home, Unpaid fees went back to Profile.

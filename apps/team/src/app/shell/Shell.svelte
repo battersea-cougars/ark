@@ -10,14 +10,16 @@
   import { type Snippet } from "svelte";
   import { can } from "../../access/actions";
   import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
-  import { stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
-  import { routeFor, type Route, type TabId } from "../nav-routes";
+  import { backFor, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
+  import type { Route, TabId } from "../nav-routes";
   import { folds, routes, stayIfAllowed, tabs } from "../routes.svelte";
   import { navigate, router } from "../router.svelte";
   import { fly } from "svelte/transition";
   import { easeOut, eject, fadeMs, flyMs, prefersReducedMotion, zoom } from "../motion";
   import type { IconName } from "./icons";
   import AccountMenu from "./AccountMenu.svelte";
+  import SettingsButton from "../../lib/SettingsButton.svelte";
+  import { canReachSettings } from "../settings-entry.svelte";
   import PullToRefresh from "./PullToRefresh.svelte";
   import Icon from "./Icon.svelte";
   import logo from "../../assets/cougars-mark.webp";
@@ -38,7 +40,8 @@
   const allowed = (r: Route) => !r.focus && !r.hidden && can(perms, r.action);
 
   // The dock: only the main sections. Home, a tile per training, Calendar, a tile per tournament type, the club
-  // pages, then Settings (or More, for members with nothing to set up). Everything else is reached from a page.
+  // pages, then More for members with nothing to set up. Settings is the gear beside your badge (lib/SettingsButton), the
+  // same as a phone's, not a tile too. Everything else is reached from a page.
   interface DockItem {
     id: string;
     name: string;
@@ -86,17 +89,14 @@
       });
     }
     const more = all.find((r) => r.id === "more");
-    if (more) {
-      const settings = all.some((r) => r.group === "Settings" && allowed(r));
-      // Settings opens on its first page, with every settings page listed beside it
-      const firstSetting = all.find((r) => r.group === "Settings" && allowed(r));
+    if (more && !canReachSettings()) {
       items.push({
         id: more.id,
-        name: settings ? "Settings" : "More",
-        icon: settings ? "settings" : "more",
-        href: firstSetting?.path ?? more.path,
-        // Only its own pages: Teammates and Upload (More's tab on a phone) have tiles of their own
-        on: route.group === "Settings" || route.id === "more",
+        name: "More",
+        icon: "more",
+        href: more.path,
+        // Only its own page: Teammates and Upload (More's tab on a phone) have tiles of their own
+        on: route.id === "more",
       });
     }
     return items;
@@ -158,15 +158,18 @@
     pageBar.strip = strip.map((r) => ({ id: r.id, path: r.path, label: r.short ?? r.name }));
     pageBar.current = route.under ?? route.id;
   });
+  // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
+  const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
   const showBar = $derived(!route.focus && route.id !== "home");
 
-  // A page reached from another (a team, a matchup, a past Kumite, a member): Back, named for where you were, along
-  // the trail (#86). Opened from outside the app or after a reload, back to the page it belongs under.
+  // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
+  // app or after a reload, back to the page it belongs under (mobile-nav.ts backFor)
   const backTo = $derived.by(() => {
-    if (!route.hidden || route.focus) return null;
-    const from = router.from ? routeFor(all, router.from) : undefined;
-    const to = from ?? all.find((r) => r.id === route.under) ?? all.find((r) => r.tab === route.tab && !r.hidden);
-    return to ? { href: to.path, label: to.short ?? to.name, history: !!from } : null;
+    const b = backFor(all, route, router.from);
+    if (!b) return null;
+    // Your profile is the You tab's page: back to it says You, as its bar does
+    const label = b.to.id === "profile" ? youLabel : (b.to.short ?? b.to.name);
+    return { href: b.to.path, label, history: b.history };
   });
   function back(e: MouseEvent) {
     if (!backTo?.history || e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -418,12 +421,11 @@
             {:else if strip.length}
               {@render stripNav()}
             {:else}
-              <!-- Pages opened from your profile lead back to it -->
-              {#if route.tab === "more" && route.id !== "profile"}
-                <a class="bar-back" href="/me" aria-label="Back to Profile"><Icon name="chevronLeft" size={22} /></a>
-              {/if}
-              <!-- The short name where there is one (Friday), as the tabs and the dock call it: the bar is narrow -->
-              <p class="bar-title" bind:this={lead}>{route.short ?? route.name}</p>
+              <!-- The short name where there is one (Friday), as the tabs and the dock call it: the bar is narrow. Your
+                   profile is the You tab's page, so it's called You -->
+              <p class="bar-title" bind:this={lead}>
+                {route.id === "profile" ? youLabel : (route.short ?? route.name)}
+              </p>
             {/if}
             {#if pageBar.filters}
               <div class="measure" aria-hidden="true" inert>
@@ -449,7 +451,11 @@
           <a class="brand" href="/" aria-label="Home">
             <img src={logo} alt="" width="36" height="36" />
           </a>
-          <AccountMenu />
+          <!-- Settings and you, top right: the gear (the way in, the same as a phone's) and your badge -->
+          <div class="you-corner">
+            <SettingsButton tile on={inSettings} />
+            <AccountMenu />
+          </div>
         </div>
       {/if}
     </header>
@@ -944,6 +950,11 @@
       height: 4.5rem;
       padding: 0 var(--s-5);
       pointer-events: none;
+    }
+    .you-corner {
+      display: flex;
+      align-items: center;
+      gap: var(--s-2);
     }
     .topbar > :global(*) {
       pointer-events: auto;

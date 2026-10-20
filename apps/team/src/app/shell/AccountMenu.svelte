@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { goesBy, matchesName, shortName } from "../../lib/names";
+  import { goesBy, shortName } from "../../lib/names";
   /**
-   * Who's signed in, top right (the Gwenda ops account badge). Opens your account: profile, your tab, sign out,
-   * and for admins "View as", which shows the app exactly as a member sees it (ADR 0024). Escape or a click
+   * Who's signed in, top right (the Gwenda ops account badge). Opens your account: profile, your tab, your everyday
+   * role and back, and sign out; while you view as a member, the way back (View as itself is in Settings → Security,
+   * ADR 0024). Escape or a click
    * outside closes it. No drop-down: on a desktop it's a side drawer from the right, on a phone a sheet from the
    * bottom, both moved to the end of the page so they sit
    * above the tabs wherever the badge is placed. `card` draws the trigger as a big row with your email and roles,
@@ -12,8 +13,6 @@
   import { fade, fly } from "svelte/transition";
   import { easeOut, fadeMs, prefersReducedMotion, switchView } from "../motion";
   import { phone } from "../../lib/viewport.svelte";
-  import { can } from "../../access/actions";
-  import { db } from "../../demo/store.svelte";
   import { emailFor } from "../../demo/data";
   import {
     elevated,
@@ -22,7 +21,6 @@
     hasEveryday,
     impersonating,
     me,
-    realGranted,
     realMember,
     setElevated,
     shownRoles,
@@ -35,8 +33,6 @@
   import Icon from "./Icon.svelte";
 
   let open = $state(false);
-  let picking = $state(false);
-  let search = $state("");
   let root = $state<HTMLDivElement | undefined>();
   let trigger = $state<HTMLButtonElement | undefined>();
   let menu = $state<HTMLDivElement | undefined>();
@@ -59,8 +55,6 @@
   }
 
   const shown = $derived(me());
-  // View as is an admin's tool: not offered while you're in your everyday role
-  const canViewAs = $derived(can(realGranted(), "impersonate:Member") && (!hasEveryday() || elevated()));
   const roles = $derived(shownRoles(shown.id));
 
   // Your full role and your everyday one (ADR 0024). Back to everyday on a page it can't see: Home.
@@ -71,16 +65,9 @@
       if (!up) stayIfAllowed();
     });
   }
-  const members = $derived(
-    db.members
-      .filter((m) => m.status === "active" && m.player.id !== realMember().id)
-      .filter((m) => matchesName(m.player, search)),
-  );
 
   async function toggle() {
     open = !open;
-    picking = false;
-    search = "";
     if (open) {
       await tick();
       menu?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
@@ -88,7 +75,6 @@
   }
   function close(focusTrigger = false) {
     open = false;
-    picking = false;
     if (focusTrigger) trigger?.focus();
   }
   function go(path: string) {
@@ -106,11 +92,6 @@
     await api("POST", "/api/auth/sign-out").catch(() => {});
     location.replace("/");
   }
-  async function startPicking() {
-    picking = true;
-    await tick();
-    menu?.querySelector<HTMLInputElement>("input")?.focus();
-  }
 </script>
 
 <svelte:window
@@ -120,19 +101,6 @@
 />
 
 <div class="account" class:wide={card} bind:this={root}>
-  <!-- In your everyday role, a switch up to your full one; lit while you're in it (ADR 0024) -->
-  {#if hasEveryday() && !card}
-    <button
-      type="button"
-      class="mode"
-      class:on={elevated()}
-      aria-pressed={elevated()}
-      title={elevated() ? `Back to ${everydayName()}` : `Switch to ${fullRole()}`}
-      onclick={toggleMode}
-    >
-      <Icon name="key" size={15} />{fullRole()}
-    </button>
-  {/if}
   <button
     type="button"
     class="trigger"
@@ -161,67 +129,40 @@
     <div class="layer" bind:this={layer} use:portal>
       <!-- A tap outside the drawer closes it -->
       <div class="scrim" aria-hidden="true" onclick={() => close(true)} transition:fade={{ duration: fadeMs }}></div>
-      <div class="menu" class:picking role="menu" aria-label="Account" bind:this={menu} transition:slide>
+      <div class="menu" role="menu" aria-label="Account" bind:this={menu} transition:slide>
         <button class="btn ghost icon close-x menu-close" aria-label="Close" onclick={() => close(true)}>
           <Icon name="x" size={18} />
         </button>
-        {#if picking}
-          <div class="pick-head">
-            <button class="btn ghost icon close-x" aria-label="Back" onclick={() => (picking = false)}>
-              <Icon name="chevronLeft" size={18} />
-            </button>
-            <span class="title">View as a member</span>
-          </div>
-          <input class="input" placeholder="Search members" bind:value={search} />
-          <div class="items">
-            {#each members as m (m.player.id)}
-              <button class="item" role="menuitem" onclick={() => become(m.player.id)}>
-                <span class="avatar sm">{initials(goesBy(m.player))}</span>
-                <span class="grow">{goesBy(m.player)}</span>
-                <span class="hint">{m.roles.join(", ")}</span>
-              </button>
-            {/each}
-          </div>
-          <p class="hint small">Read-only: you see what they see, and can't change anything as them.</p>
-        {:else}
-          <div class="who">
-            <span class="avatar big" aria-hidden="true">{initials(goesBy(shown))}</span>
-            <span class="who-text">
-              <span class="title">{goesBy(shown)}</span>
-              <span class="hint">{emailFor(shown)}</span>
-              <span class="roles"
-                >{#each roles as r (r)}<span class="badge" class:red={r === "Admin"}>{r}</span>{/each}</span
-              >
-            </span>
-          </div>
+        <div class="who">
+          <span class="avatar big" aria-hidden="true">{initials(goesBy(shown))}</span>
+          <span class="who-text">
+            <span class="title">{goesBy(shown)}</span>
+            <span class="hint">{emailFor(shown)}</span>
+            <span class="roles"
+              >{#each roles as r (r)}<span class="badge" class:red={r === "Admin"}>{r}</span>{/each}</span
+            >
+          </span>
+        </div>
+        <div class="sep" role="separator"></div>
+        <button class="item" role="menuitem" onclick={() => go("/me")}><Icon name="user" size={16} /> Profile</button>
+        <button class="item" role="menuitem" onclick={() => go("/me/tab")}><Icon name="pound" size={16} /> Dues</button>
+        {#if hasEveryday()}
           <div class="sep" role="separator"></div>
-          <button class="item" role="menuitem" onclick={() => go("/me")}><Icon name="user" size={16} /> Profile</button>
-          <button class="item" role="menuitem" onclick={() => go("/me/tab")}
-            ><Icon name="pound" size={16} /> Dues</button
-          >
-          {#if hasEveryday()}
-            <div class="sep" role="separator"></div>
-            <button class="item" role="menuitem" onclick={() => (toggleMode(), close())}>
-              <Icon name="key" size={16} />
-              {elevated() ? `Back to ${everydayName()}` : `Switch to ${fullRole()}`}
-            </button>
-          {/if}
-          {#if impersonating()}
-            <div class="sep" role="separator"></div>
-            <button class="item accent" role="menuitem" onclick={() => become(null)}>
-              <Icon name="undo" size={16} /> Back to {shortName(realMember())}
-            </button>
-          {:else if canViewAs}
-            <div class="sep" role="separator"></div>
-            <button class="item" role="menuitem" onclick={startPicking}>
-              <Icon name="eye" size={16} /> View as a member…
-            </button>
-          {/if}
-          <div class="sep" role="separator"></div>
-          <button class="item" role="menuitem" disabled={impersonating()} onclick={signOut}
-            ><Icon name="signOut" size={16} /> Sign out</button
-          >
+          <button class="item" role="menuitem" onclick={() => (toggleMode(), close())}>
+            <Icon name="key" size={16} />
+            {elevated() ? `Back to ${everydayName()}` : `Switch to ${fullRole()}`}
+          </button>
         {/if}
+        {#if impersonating()}
+          <div class="sep" role="separator"></div>
+          <button class="item accent" role="menuitem" onclick={() => become(null)}>
+            <Icon name="undo" size={16} /> Back to {shortName(realMember())}
+          </button>
+        {/if}
+        <div class="sep" role="separator"></div>
+        <button class="item" role="menuitem" disabled={impersonating()} onclick={signOut}
+          ><Icon name="signOut" size={16} /> Sign out</button
+        >
       </div>
     </div>
   {/if}
@@ -236,33 +177,6 @@
     flex-shrink: 0;
   }
   /* The switch to your full role: the badge's glass tile, lit red while you're in it */
-  .mode {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-2);
-    height: 2.25rem;
-    padding: 0 var(--s-3);
-    border: 1px solid var(--border);
-    border-radius: var(--r-md);
-    background: color-mix(in srgb, var(--surface-1) 45%, transparent);
-    backdrop-filter: blur(14px) saturate(1.4);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    transition:
-      background-color var(--t-fast) var(--ease-in-out),
-      color var(--t-fast) var(--ease-in-out);
-  }
-  .mode:hover {
-    background: color-mix(in srgb, var(--surface-3) 90%, transparent);
-    color: var(--fg);
-  }
-  .mode.on {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--red) 24%, transparent);
-    color: var(--red-ink);
-  }
   /* The same glass tile as the dock, so the two pieces of chrome match */
   .trigger {
     display: inline-flex;
@@ -428,42 +342,6 @@
   .item.accent {
     color: var(--caution);
   }
-  .item .grow {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .items {
-    display: grid;
-    align-content: start;
-    max-height: 18rem;
-    overflow-y: auto;
-  }
-  /* Choosing who to view as: the list takes all the height the drawer has, the note stays at the bottom */
-  .menu.picking {
-    display: flex;
-    flex-direction: column;
-  }
-  .menu.picking .items {
-    flex: 1;
-    min-height: 0;
-    max-height: none;
-  }
-  .pick-head {
-    display: flex;
-    align-items: center;
-    gap: var(--s-1);
-    padding-right: 2.75rem;
-  }
-  .menu .input {
-    height: var(--control-h-sm);
-    margin: var(--s-1) 0;
-  }
-  .small {
-    padding: var(--s-1) var(--s-2);
-  }
 
   .scrim {
     position: fixed;
@@ -491,10 +369,6 @@
       padding: var(--s-3) var(--s-3) max(var(--s-4), env(safe-area-inset-bottom));
       border-bottom: 0;
       border-radius: var(--r-xl) var(--r-xl) 0 0;
-    }
-    /* On a phone the sheet rises most of the way for the list */
-    .menu.picking {
-      height: 85dvh;
     }
     .item {
       min-height: 3rem;

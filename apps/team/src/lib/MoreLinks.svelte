@@ -1,7 +1,7 @@
 <script lang="ts">
   // Everything that isn't a tab: you, the club, then Settings for admins, grouped Schedule / Money / Club / Security.
-  // On More (desktop, for members with nothing to set up) and at the top of your profile on a phone (the You tab), so an
-  // admin's Settings are one tap away. `except`: the page it's on, which needn't link to itself; `parts`: which groups.
+  // On More (desktop, for members with nothing to set up), under your details on a phone's You page, and alone (just
+  // Settings) on a phone's Settings, where the gear goes. `except`: the page it's on, which needn't link to itself; `parts`: which groups.
   import { can } from "../access/actions";
   import Icon from "../app/shell/Icon.svelte";
   import type { Group, Route } from "../app/nav-routes";
@@ -57,6 +57,12 @@
 {/if}
 
 <style>
+  /* One line each, so the list stays a list on a phone: the hints are written short, and a long one trails off */
+  .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .settings {
     display: grid;
     gap: var(--s-5);

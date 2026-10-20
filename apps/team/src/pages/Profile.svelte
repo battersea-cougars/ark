@@ -1,25 +1,14 @@
 <script lang="ts">
   // Your profile. You change your phone, position and bio (the back of your player card), and how your name shows
   // on the website's roster; your name and email are an admin's to change, since sign-in and the roster go by them.
-  // On a phone it's the last tab (You), one page for everything that isn't a tab: your card on top opens your account
-  // (View as, Sign out), then your dues, the club's pages and, for an admin, every Settings page, one tap each; your
-  // details follow. In your everyday role the bar's switch brings your full role (and its Settings) back, as the
-  // desktop's button beside your badge does.
+  // On a phone it's the last tab (You), one page for everything that isn't a tab: you first (your card, which opens
+  // your account, then your details), then your dues and the club's pages, then every Settings page you can open.
+  // The gear in the bar is the way into Settings, as beside a desktop's badge; in your everyday role it switches you
+  // up on the way (lib/SettingsButton).
   import Icon from "../app/shell/Icon.svelte";
   import { goesBy, shortName } from "../lib/names";
   import { POSITIONS, POSITION_ICONS, emailFor, phoneFor, type Position } from "../demo/data";
-  import {
-    fullRole,
-    elevated,
-    everydayName,
-    hasEveryday,
-    impersonating,
-    me,
-    realGranted,
-    session,
-    setElevated,
-    shownRoles,
-  } from "../demo/session.svelte";
+  import { fullRole, impersonating, me, realGranted, session, setElevated, shownRoles } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Choice from "../lib/Choice.svelte";
   import { initials } from "../lib/initials";
@@ -30,17 +19,7 @@
   import { phone } from "../lib/viewport.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { APP_BUILD, APP_VERSION } from "../app/build";
-  import { stayIfAllowed } from "../app/routes.svelte";
-  import { switchView } from "../app/motion";
-
-  // Your full role and your everyday one (ADR 0024), as the account menu switches them
-  function toggleMode() {
-    const up = !elevated();
-    switchView(() => {
-      setElevated(up);
-      if (!up) stayIfAllowed();
-    });
-  }
+  import SettingsButton from "../lib/SettingsButton.svelte";
 
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
@@ -72,7 +51,8 @@
   const BIO_MAX = 160;
 
   // Your everyday role (ADR 0024): anyone with more than Member can open the app as a lesser role, so ratings and admin
-  // screens stay hidden while they show someone the app; the switch beside their badge brings their full role back.
+  // screens stay hidden while they show someone the app; Settings (the gear) switches them up, and their card's or
+  // badge's menu switches them back.
   // The choices are roles that can do less than you can.
   const full = fullRole();
   const mine = realGranted();
@@ -98,21 +78,10 @@
   {#if phone.current}
     <PageHeader title="Profile">
       {#snippet actions()}
-        {#if hasEveryday()}
-          <button
-            type="button"
-            class="btn sm ghost mode keep-label"
-            class:on={elevated()}
-            aria-pressed={elevated()}
-            title={elevated() ? `Back to ${everydayName()}` : `Switch to ${fullRole()}`}
-            onclick={toggleMode}><Icon name="key" size={16} />{fullRole()}</button
-          >
-        {/if}
+        <SettingsButton />
       {/snippet}
     </PageHeader>
     <AccountMenu card />
-    <MoreLinks except="profile" />
-    <h2 class="section-title details">Your details</h2>
   {:else}
     <header class="head">
       <span class="avatar big">{initials(goesBy(who))}</span>
@@ -188,29 +157,27 @@
         />
       </label>
       <p class="hint">
-        Handy when you show someone the app: ratings and {full} screens stay hidden. {phone.current
-          ? `The ${full} switch at the top`
-          : `The ${full} button beside your badge`} switches you up until you switch back or close the app.
+        Handy when you show someone the app: ratings and {full} screens stay hidden. Settings (the gear, top right) switches
+        you up until you switch back on your {phone.current ? "card" : "badge"} or close the app.
       </p>
     </section>
   {/if}
 
   <YourData disabled={locked} />
 
+  <!-- Then everything else: your dues, the club's pages, and Settings (the gear's way in, listed) -->
+  {#if phone.current}<div class="links"><MoreLinks except="profile" /></div>{/if}
+
   <!-- Which build you're on (ADR 0104): the version for people, the build for finding the exact code -->
   <p class="version hint num">Cougars Fresh Meat {APP_VERSION} · {APP_BUILD}</p>
 </div>
 
 <style>
-  /* The phone bar's switch to your full role: lit while you're in it, as the desktop's beside your badge */
-  .mode.on,
-  .mode.on:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--red) 24%, transparent);
-    color: var(--red-ink);
-  }
-  /* Your details, after the lists */
-  .section-title.details {
-    margin-top: var(--s-6);
+  /* The lists, after your details */
+  .links {
+    display: grid;
+    gap: var(--s-3);
+    margin-top: var(--s-4);
   }
   /* Your name on the website: four choices, one of them your full name, so they wrap on a phone */
   .seg.wrap > button {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Action } from "../access/actions";
-import { stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
+import { backFor, stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
 import { buildRoutes, buildTabs, routeFor, type NavConfig } from "./nav-routes";
 
 const member = new Set<Action>(["read:Event", "signup:Event"]);
@@ -195,5 +195,36 @@ describe("the members table", () => {
     });
     expect(tabRoutes(routes, "more", admin).map((r) => r.id)).toContain("members");
     expect(tabRoutes(routes, "more", member).map((r) => r.id)).not.toContain("members");
+  });
+});
+
+describe("Back on a phone (backFor)", () => {
+  const routes = buildRoutes(one);
+  const at = (path: string) => routeFor(routes, path)!;
+  const back = (path: string, from: string | null) => {
+    const b = backFor(routes, at(path), from);
+    return b && { to: b.to.path, history: b.history };
+  };
+
+  it("goes back to where you came from: Home → Unpaid fees → Back is Home", () => {
+    expect(back("/settings/overdue", "/")).toEqual({ to: "/", history: true });
+    expect(back("/me/tab", "/")).toEqual({ to: "/", history: true });
+  });
+
+  it("through Settings: You → Settings → Training → Back is Settings, then You", () => {
+    expect(back("/settings/training", "/settings")).toEqual({ to: "/settings", history: true });
+    expect(back("/settings", "/me")).toEqual({ to: "/me", history: true });
+  });
+
+  it("opened from outside or after a reload: a settings page to Settings, the rest of the You tab to You", () => {
+    expect(back("/settings/overdue", null)).toEqual({ to: "/settings", history: false });
+    expect(back("/settings", null)).toEqual({ to: "/me", history: false });
+    expect(back("/me/tab", null)).toEqual({ to: "/me", history: false });
+    expect(back("/more/teammates", null)).toEqual({ to: "/me", history: false });
+  });
+
+  it("a tab's own pages have the tabs, not Back", () => {
+    for (const path of ["/", "/me", "/calendar", "/training/friday", "/tournaments/kumite/standings"])
+      expect(back(path, "/settings/overdue")).toBeNull();
   });
 });

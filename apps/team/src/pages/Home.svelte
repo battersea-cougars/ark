@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { shortName, shortNameOf } from "../lib/names";
+  import { goesBy, shortName, shortNameOf } from "../lib/names";
+  import { initials } from "../lib/initials";
   import { can } from "../access/actions";
   import { PLAYERS, referenceFor } from "../demo/data";
   import { owedBy } from "../demo/dues.svelte";
@@ -286,6 +287,15 @@
       });
     return rows.sort((a, b) => Number(b.hot) - Number(a.hot));
   });
+  // The squad, one tap from Home (Teammates: everyone's card, by position, searchable); on a phone it's otherwise
+  // under You. A few faces, the count and the Cougars among them.
+  const squad = $derived(
+    db.members
+      .filter((m) => m.status === "active")
+      .map((m) => m.player)
+      .sort((a, b) => goesBy(a).localeCompare(goesBy(b))),
+  );
+  const cougars = $derived(squad.filter((p) => p.cougar).length);
   // Picked once per visit, from the time of day, a training night, or how often you've looked today. The count
   // is this device's only: a bit of fun, not a record.
   const VISITS_KEY = "team.home.visits";
@@ -486,6 +496,25 @@
     </section>
   {/if}
 
+  <!-- The squad: the way to everyone's card, not buried under You -->
+  {#if squad.length > 1}
+    <section aria-labelledby="squad">
+      <h2 class="section-title" id="squad">Teammates</h2>
+      <div class="list">
+        <a class="row" href="/more/teammates">
+          <span class="faces" aria-hidden="true">
+            {#each squad.slice(0, 4) as p (p.id)}<span class="avatar">{initials(goesBy(p))}</span>{/each}
+          </span>
+          <span class="grow">
+            <span class="title">Everyone who plays</span>
+            <span class="sub">{squad.length} players{cougars ? ` · ${cougars} Cougars` : ""}</span>
+          </span>
+          <Icon name="chevronRight" size={18} />
+        </a>
+      </div>
+    </section>
+  {/if}
+
   <!-- The next of each tournament series, teased: when (or the season), signing up, and the way to its page -->
   {#each tournaments as { type, t } (type.id)}
     {#if t}
@@ -543,6 +572,21 @@
 </div>
 
 <style>
+  /* A few of the squad's faces, overlapping, in the row to Teammates */
+  .faces {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .faces .avatar {
+    width: 2rem;
+    height: 2rem;
+    box-shadow: 0 0 0 2px var(--bg);
+    background: var(--surface-3);
+    font-size: 0.68rem;
+  }
+  .faces .avatar + .avatar {
+    margin-left: -0.35rem;
+  }
   .hello {
     display: grid;
     gap: var(--s-3);

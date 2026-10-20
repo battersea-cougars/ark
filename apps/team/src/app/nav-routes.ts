@@ -22,7 +22,7 @@ export interface Route {
   params?: Record<string, number>;
   /** Label in the strip of sub-pages, when shorter than the name. */
   short?: string;
-  /** Subtitle on the More page. */
+  /** Subtitle on the More page and the phone's You page: short, so it fits one line on a phone. */
   hint?: string;
   group?: Group;
   /** Sub-heading inside Settings. */
@@ -91,7 +91,7 @@ const DEV_TOOLS_ROUTE: Route = {
   icon: "settings",
   group: "Settings",
   section: "Security",
-  hint: "Not in production: who gets their own email here",
+  hint: "Dev only: who gets real email",
 };
 
 // Profile first: it's the phone's last tab (your avatar), with everything else listed on it, above your details
@@ -108,6 +108,17 @@ const STATIC_TAIL: Route[] = [
     hint: "Your details, position and photo",
   },
   { id: "more", path: "/more", name: "More", tab: "more", page: "more", action: "authenticated", icon: "more" },
+  // Where the Settings gear goes: a phone's list of them, a desktop's first one (lib/SettingsButton)
+  {
+    id: "settings",
+    path: "/settings",
+    name: "Settings",
+    tab: "more",
+    page: "settings",
+    action: "authenticated",
+    icon: "settings",
+    hidden: true,
+  },
   // The app's privacy notice (#30): from Profile → Your data, and on the sign-in screen
   {
     id: "privacy",
@@ -152,7 +163,7 @@ const STATIC_TAIL: Route[] = [
     action: "upload:Photo",
     icon: "upload",
     group: "Club",
-    hint: "Photos to the website; videos on YouTube",
+    hint: "Photos to the site, videos to YouTube",
   },
   {
     id: "tab",
@@ -175,7 +186,7 @@ const STATIC_TAIL: Route[] = [
     icon: "stick",
     group: "Settings",
     section: "Schedule",
-    hint: "Repeating sessions: when, where, how many",
+    hint: "When, where and how many",
   },
   {
     id: "tournament-settings",
@@ -187,7 +198,7 @@ const STATIC_TAIL: Route[] = [
     icon: "trophy",
     group: "Settings",
     section: "Schedule",
-    hint: "Every tournament: when, sign-up, teams, the draft",
+    hint: "Dates, sign-up, teams, the draft",
   },
   {
     id: "tournament-series",
@@ -199,7 +210,7 @@ const STATIC_TAIL: Route[] = [
     icon: "medal",
     group: "Settings",
     section: "Schedule",
-    hint: "Defaults a new tournament can start from: rules, fee, awards",
+    hint: "Rules, fee and awards to start from",
   },
   {
     id: "venues",
@@ -211,7 +222,7 @@ const STATIC_TAIL: Route[] = [
     icon: "pin",
     group: "Settings",
     section: "Schedule",
-    hint: "Places the club goes: address and map link, picked once",
+    hint: "Addresses and map links",
   },
   {
     id: "overdue",
@@ -235,7 +246,7 @@ const STATIC_TAIL: Route[] = [
     icon: "pound",
     group: "Settings",
     section: "Money",
-    hint: "The quarterly fee (session fees are on each training)",
+    hint: "The fee for a whole quarter",
   },
   {
     id: "members",
@@ -247,7 +258,7 @@ const STATIC_TAIL: Route[] = [
     icon: "teams",
     group: "Settings",
     section: "Club",
-    hint: "Everyone as a table: sort, search, who owes, how to reach them",
+    hint: "Everyone in a table: dues, contacts",
   },
   {
     id: "quips",
@@ -286,6 +297,18 @@ const STATIC_TAIL: Route[] = [
     hint: "Who changed what, and when",
   },
   {
+    id: "view-as",
+    path: "/settings/view-as",
+    name: "View as a member",
+    tab: "more",
+    page: "view-as",
+    action: "impersonate:Member",
+    icon: "eye",
+    group: "Settings",
+    section: "Security",
+    hint: "The app as they see it, read-only",
+  },
+  {
     id: "usage",
     path: "/settings/usage",
     name: "Usage",
@@ -295,7 +318,7 @@ const STATIC_TAIL: Route[] = [
     icon: "clock",
     group: "Settings",
     section: "Security",
-    hint: "Today's use of the free Cloudflare plan",
+    hint: "Today's use of the free plan",
   },
 ];
 
