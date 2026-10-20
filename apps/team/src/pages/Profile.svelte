@@ -162,7 +162,7 @@
 
   {#if full !== "Member" && !locked}
     <!-- Which of your roles the app opens as; the switch under your card goes between it and your full role -->
-    <section class="block" aria-labelledby="everyday-role-title">
+    <section class="everyday" aria-labelledby="everyday-role-title">
       <h2 class="section-title" id="everyday-role-title">Everyday role</h2>
       <label class="field">
         The app opens as
@@ -222,11 +222,11 @@
   .section-title {
     margin: var(--s-4) 0 calc(-1 * var(--s-2));
   }
-  .block {
+  .everyday {
     display: grid;
     gap: var(--s-3);
   }
-  .block .section-title {
+  .everyday .section-title {
     margin-bottom: 0;
   }
   .sub {
