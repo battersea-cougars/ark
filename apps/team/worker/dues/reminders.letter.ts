@@ -6,6 +6,7 @@ import type { Mail } from "@cougars/shared/email";
 import { formatDayDate } from "../../src/lib/dates";
 import { quarterMonths } from "../../src/lib/dues";
 import type { Bank } from "../settings/settings";
+import type { Notice } from "../push/push";
 
 export interface Owed {
   /** The training's or tournament's name, or an adjustment's reason; null for a quarter. */
@@ -110,10 +111,9 @@ ${details.map(([k, v]) => `<tr><td style="${cell}padding-right:20px;">${k}</td><
 }
 
 /** The line on their phone (ADR 0108): tapping it opens their Dues. */
-export const reminderNotice = (l: Letter) => ({
+export const reminderNotice = (l: Letter): Omit<Notice, "to"> => ({
+  topic: "dues",
   title: "What you owe",
   body: `${money(l.charges.reduce((s, c) => s + c.left, 0))} to settle. Your reference: ${l.reference}`,
   path: "/me/tab",
-  // Its notification topic (lib/notification-topics.ts, team/push-topics): Notice.topic there; ignored until it merges
-  topic: "dues",
 });
