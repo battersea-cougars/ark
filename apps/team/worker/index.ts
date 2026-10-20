@@ -58,6 +58,9 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
       return secured(await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p)));
     const links = storeLinks(url.pathname, env);
     if (links) return secured(links);
+    // The Vite dev server has no ASSETS binding: a /.well-known path it doesn't serve (Chrome DevTools asks for one) ends
+    // here, so say not found instead of failing
+    if (!env.ASSETS) return secured(new Response("Not found", { status: 404 }));
     return secured(await env.ASSETS.fetch(request));
   },
   async scheduled(controller: ScheduledController, env: Env) {
