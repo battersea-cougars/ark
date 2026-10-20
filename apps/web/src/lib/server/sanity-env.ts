@@ -8,11 +8,18 @@ import { DEMO_CONTENT, SANITY_API_TOKEN, SANITY_DATASET, SANITY_PROJECT_ID, YOUT
 import { CACHE_CONTROL, UNAVAILABLE_CACHE_CONTROL, type SanityConfig } from "./sanity-live";
 import type { VideosConfig } from "./videos";
 
+/**
+ * True inside the Worker (server routes such as /videos, which still render the footer's settings), false while prerendering in Node at build time.
+ */
+export const onWorker = globalThis.navigator?.userAgent === "Cloudflare-Workers";
+
 export const sanityConfig = (): SanityConfig => ({
   projectId: SANITY_PROJECT_ID,
   dataset: SANITY_DATASET,
   token: SANITY_API_TOKEN,
   demo: DEMO_CONTENT,
+  // Which of ours asked, in Sanity's request log (ADR 0116)
+  tag: import.meta.env.DEV ? "web.dev" : onWorker ? "web.worker" : "web.build",
 });
 
 /** A live page's Cache-Control: cached, except when its source is unreachable (ADR 0053). */

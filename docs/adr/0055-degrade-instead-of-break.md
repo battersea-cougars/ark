@@ -1,7 +1,7 @@
 # 0055. Degrade instead of break: circuit breakers, rate limits, the app's own brake and fallback content
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-20
 - **Merges:** 0056, 0058
 
 ## Context
@@ -30,6 +30,7 @@ free rate-limiting rule blocks before the Worker, but only on a custom domain (#
   | Service | Answer                                   | Paused until                 |
   | ------- | ---------------------------------------- | ---------------------------- |
   | Sanity  | 402 (plan quota spent)                   | an hour, then try again      |
+  | Sanity  | 90% of the month's CDN requests (ours)   | the 1st, 00:00 UTC (0116)    |
   | Sanity  | 429                                      | Retry-After, else a minute   |
   | YouTube | 403 `quotaExceeded`/`dailyLimitExceeded` | midnight Pacific (its reset) |
   | YouTube | 429 or a rate-limit reason               | Retry-After, else a minute   |
@@ -100,3 +101,5 @@ loudly, so a broken deploy never replaces the live site; live server routes alre
   10 seconds on draft day, and fallback content in `astro dev` (was 0058).
 - 2026-10-08: The Draft page's fixed 10 seconds became the admins' live-update setting (ADR 0072).
 - 2026-10-09: Live pages pushed to over SSE; reconnecting goes through the brake (ADR 0072).
+- 2026-10-20: The website's Sanity reads pause until the 1st at 90% of the month's CDN requests, by our own count, so
+  builds keep the rest; a server route falls back to the club facts it last read (ADR 0116).

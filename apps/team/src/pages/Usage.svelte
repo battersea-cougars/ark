@@ -2,7 +2,8 @@
   // The club's free Cloudflare allowance today (ADR 0059): one account runs the website, this app and their
   // database, and its daily limits reset at midnight UTC. If one runs out, this app stops until then; the hourly
   // check emails the admins at 80%. Each Worker's CPU time per request is shown against the free plan's 10 ms, past
-  // which Cloudflare stops the request (ADR 0059). Read when the page opens, and again on Refresh.
+  // which Cloudflare stops the request (ADR 0059). Below them, this month's Sanity requests as we count them, since
+  // Sanity has no usage API (ADR 0116). Read when the page opens, and again on Refresh.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -32,7 +33,22 @@
     metrics: Metric[];
     cpu?: { limitMs: number; workers: WorkerCpu[] };
     backup: { takenAt: string; why: string; bytes: number } | null;
+    sanity: SanityUsage;
   }
+  interface SanityQuota extends Metric {
+    projected: number;
+  }
+  interface SanityUsage {
+    project: string;
+    name: string;
+    month: string;
+    resetsAt: string;
+    quotas: SanityQuota[];
+  }
+  const SANITY_ABOUT: Record<string, string> = {
+    api: "Straight to Sanity, uncached. Our reads all go through its CDN, so this should stay near nothing.",
+    cdn: "The website's reads: a few per build, and its live pages, at most once a minute each.",
+  };
 
   const ABOUT: Record<string, string> = {
     requests: "Every time this app talks to the server. The website's pages are free and don't count.",
@@ -91,6 +107,14 @@
           minute: "2-digit",
           timeZone: "Europe/London",
         }).format(new Date(usage.backup.takenAt))
+      : "",
+  );
+  // When Sanity's quotas reset: midnight UTC on the 1st
+  const sanityResets = $derived(
+    usage?.sanity
+      ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(
+          new Date(usage.sanity.resetsAt),
+        )
       : "",
   );
   const stale = $derived(!usage?.backup || Date.now() - Date.parse(usage.backup.takenAt) > STALE_MS);
@@ -181,8 +205,50 @@
     {/if}
     <p class="hint">
       Resets at {resets} (midnight UTC). If anything reaches its limit, this app stops working until then; the admins get
-      an email at 80%. Sanity's allowance is on sanity.io/manage.
+      an email at 80%.
     </p>
+  {/if}
+
+  {#if usage?.sanity}
+    <!-- Sanity's monthly quotas (ADR 0116): our own count, as Sanity has no usage API -->
+    <section class="live">
+      <h2 class="section">Sanity this month</h2>
+      <p class="hint small">
+        The website's content is in Sanity ({usage.sanity.name}), on its free plan. Sanity doesn't share its count, so
+        the website and this app count their own requests. The Studio's aren't counted (nor by Sanity), and neither are
+        builds or dev servers on a laptop.
+      </p>
+      <div class="meters">
+        {#each usage.sanity.quotas as q (q.id)}
+          <section class="meter">
+            <div class="top">
+              <h2>{q.label}</h2>
+              <span class="pct num {level(q)}">{pct(q)}%</span>
+            </div>
+            <div
+              class="bar"
+              role="meter"
+              aria-label="Sanity {q.label}"
+              aria-valuemin={0}
+              aria-valuemax={q.limit}
+              aria-valuenow={q.used}
+            >
+              <span class="fill {level(q)}" style:width="{pct(q)}%"></span>
+            </div>
+            <p class="num">{n(q.used)} <span class="hint">of {n(q.limit)}</span></p>
+            <p class="small" class:hint={q.projected <= q.limit} class:high={q.projected > q.limit}>
+              On pace for {n(q.projected)} by {sanityResets}{q.projected > q.limit ? ": more than the allowance" : ""}
+            </p>
+            <p class="hint small">{SANITY_ABOUT[q.id]}</p>
+          </section>
+        {/each}
+      </div>
+      <p class="hint small">
+        Resets on {sanityResets} (midnight UTC). If one runs out, Sanity refuses until then: the website's builds fail and
+        its live pages fall back. The admins get an email at 50% and 80%, and when the pace would run out; at 90% of the CDN's,
+        the website's live pages stop reading Sanity so the builds keep the rest. Sanity's own figures are on sanity.io/manage.
+      </p>
+    </section>
   {/if}
 
   {#if usage}

@@ -1,7 +1,7 @@
 # 0059. Admins see the free Cloudflare allowance and CPU time, and are emailed at 80% or a stopped request
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-20
 - **Merges:** 0063
 
 ## Context
@@ -23,7 +23,8 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
   today's Worker requests, D1 rows read and rows written, the live hub's Durable Object requests and duration (GB-s),
   and when they reset in London time. It also shows each Worker's CPU time per request today: typical (p50) and the
   slowest 1 in 100 (p99), against 10 ms, and how many requests were stopped for going over. The live-update pace
-  setting sits beside it ([0072](0072-live-updates.md)).
+  setting sits beside it ([0072](0072-live-updates.md)). Below, this month's Sanity requests as we count them, with
+  their own monthly emails ([0116](0116-sanity-requests-counted.md)).
 - **An hourly check** (the team Worker's cron trigger, `7 * * * *`, free) emails the admins once a day per metric when
   one passes 80%, and once a day (metric `cpu`) when any request was stopped, with the count per Worker. It goes
   through the usual mail rules (outside production, only to the safe address). `usage_warnings` remembers what was
@@ -54,7 +55,7 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
 - Tests can't measure Worker CPU (Node and in-memory SQLite aren't workerd), so the guard is this measurement in
   production plus the rules above, not a test.
 - It only runs where the team app is deployed; locally the page works on a dev server started through env-pull.
-  Sanity's usage isn't readable through its API, so the page points to sanity.io/manage.
+  Sanity's usage isn't readable through its API, so the page shows our own count (ADR 0116).
 
 ## History
 
@@ -67,3 +68,5 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
   (`scripts/cpu-by-route.mjs`).
 - 2026-10-11: One round trip per job: a sign-up or a tick on the register went from 44 D1 calls (and one more pair per
   Quarterly Member's quarter) to about 15, whatever the club's size; a member's attendance saves in one request.
+- 2026-10-20: Sanity's month on the page and in the hourly check, from our own count (ADR 0116); the page's reads are
+  one round trip.

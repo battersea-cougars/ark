@@ -517,11 +517,23 @@ CREATE TABLE dev_mail_recipients (
   added_at TEXT NOT NULL
 );
 
--- The usage check's warnings (apps/team/worker/usage.ts, ADR 0059): one email per metric per day (UTC)
+-- The usage check's warnings (apps/team/worker/settings/usage.ts, ADR 0059): one email per metric per day (UTC); for
+-- Sanity's monthly quotas (ADR 0116), per month (`day` is then 2026-10)
 CREATE TABLE usage_warnings (
   day TEXT NOT NULL,
   metric TEXT NOT NULL,
   PRIMARY KEY (day, metric)
+);
+
+-- Our own count of requests to Sanity (packages/shared/sanity-requests.ts, ADR 0116): Sanity has no usage API. One row
+-- per UTC day, project (production's or dev's) and quota (`api` or its `cdn`), added to after each request that read
+-- Sanity, and by each build. The team app's Usage page and hourly check read this month's.
+CREATE TABLE sanity_requests (
+  day TEXT NOT NULL,
+  project TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('api', 'cdn')),
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, project, kind)
 );
 
 -- Backups of this database (scripts/db-backup.mjs, ADR 0106): when, why (nightly, before a deploy changes the schema)

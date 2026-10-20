@@ -8,6 +8,8 @@ export const FRIDAYS = /* groq */ `*[_id == "fridays"][0]{
 export const PUB = /* groq */ `*[_id == "pub"][0]{name, about, mapUrl}`;
 export const TEAM = /* groq */ `*[_id == "team"][0]{onWebsite, intro, league, photo}`;
 export const KUMITE = /* groq */ `*[_id == "kumite"][0]{onWebsite, intro, tagline, posterStatement, posterReveal, format, awards}`;
+// All five in one request, not five (ADR 0116)
+export const FACTS = /* groq */ `{"club": ${CLUB}, "fridays": ${FRIDAYS}, "pub": ${PUB}, "team": ${TEAM}, "kumite": ${KUMITE}}`;
 
 // Overrides for channel videos, and videos that aren't on the channel. Merged and sorted in lib/youtube.ts.
 export const VIDEOS = /* groq */ `*[_type == "video" && defined(youtubeUrl)]{

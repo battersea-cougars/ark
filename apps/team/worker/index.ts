@@ -8,6 +8,7 @@ import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
 import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
+import { flushSanityRequests, hasPendingSanityRequests } from "@cougars/shared/sanity-requests";
 import { consoleAdapter } from "@cougars/shared/scribe.console";
 import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
 
@@ -54,8 +55,13 @@ function secured(res: Response): Response {
 export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
   async fetch(request: Request, env: Env & StoreEnv & { ASSETS: Fetcher }, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/"))
-      return secured(await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p)));
+    if (url.pathname.startsWith("/api/")) {
+      const res = await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p));
+      // The club's address is read from Sanity (shared/club-contact.ts): counted into D1 after the request (ADR 0116).
+      // One read while sending an email after the reply is counted with the next request's.
+      if (hasPendingSanityRequests()) ctx.waitUntil(task("sanity.count", () => flushSanityRequests(env.DB)));
+      return secured(res);
+    }
     const links = storeLinks(url.pathname, env);
     if (links) return secured(links);
     // The Vite dev server has no ASSETS binding: a /.well-known path it doesn't serve (Chrome DevTools asks for one) ends
@@ -73,6 +79,7 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
       await task("dues.charge", () => chargeDue(env, now));
       await task("usage.check", () => checkUsage(env, now));
       await task("retention.forget", () => forgetOld(env.DB, now));
+      await task("sanity.count", () => flushSanityRequests(env.DB, now));
     }
   },
 } satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>);

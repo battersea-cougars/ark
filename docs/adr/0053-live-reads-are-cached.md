@@ -1,7 +1,7 @@
 # 0053. Live reads are cached the same way everywhere, and Sanity is read through its API CDN
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-20
 - **Merges:** 0041, 0054
 
 ## Context
@@ -25,9 +25,9 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 
 ## Decision
 
-- **Every Sanity read uses `apicdn.sanity.io`**: the build, `astro dev`, the dev Worker and production
-  (`lib/sanity/client.ts` `useCdn: true`, `lib/server/photos.ts`). Sanity Studio and scripts that write still use
-  the API; they're few calls.
+- **Every Sanity read uses `apicdn.sanity.io`**: the build, `astro dev`, the dev Worker and production, all through
+  one reader (`lib/server/sanity-live.ts` `sanityQuery`, plain fetch), which counts them ([0116](0116-sanity-requests-counted.md)).
+  Sanity Studio and scripts that write still use the API; they're few calls.
 - **Local, the dev site and production cache the same way.** There is no switch to turn caching off.
 - **Every live read on the website goes through `lib/server/cache.ts`**: in memory, then the Workers Cache API, with
   the last good copy kept for a failure:
@@ -41,7 +41,7 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 
 - Live pages send the same `Cache-Control` everywhere (`no-store` only when their source is unreachable).
 - Build-time content in `lib/sanity/content.ts` is read once per build, every five minutes on a Worker, and every
-  minute in `astro dev`.
+  minute in `astro dev`. The five club-fact singletons are one query.
 - **The team app's bootstrap has an ETag**: the club's data version (`data_version`, one more on every change through
   the API, the club seed and the roster seed), the member, the day and the deploy. It's sent `private, no-cache`, so
   the browser asks again with `If-None-Match` by itself and gets an empty 304 after one row read when nothing has
@@ -69,3 +69,5 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   (was 0053).
 - 2026-10-07: Live reads cached everywhere on the server through `cache.ts`, `CACHE_READS` removed, and the team app's
   bootstrap given an ETag, after uncached reads also spent YouTube's daily quota (was 0054).
+- 2026-10-20: The build's content read through the same plain-fetch reader as the live reads (no `@sanity/client`), the
+  club facts in one query instead of five, and every read counted (ADR 0116).

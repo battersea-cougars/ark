@@ -15,6 +15,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readResultRows } from "./lib/results-sql.mjs";
 import { ROSTER_SQL } from "./lib/roster-sql.mjs";
+import { remoteD1 } from "./lib/d1-api.mjs";
 
 const SNAPSHOTS = {
   roster: { sql: ROSTER_SQL, shape: (rows) => rows, say: (r) => `${r.length} Cougars` },
@@ -47,27 +48,7 @@ const SNAPSHOTS = {
     say: (k) => `${k.awards.length} Kumite awards, next ${k.next ? k.next.season || k.next.startsAt : "not set"}`,
   },
 };
-const DATABASES = { production: "cougars", dev: "cougars-dev" };
 const web = new URL("../apps/web/", import.meta.url);
-
-async function remoteQuery(environment) {
-  const name = DATABASES[environment];
-  if (!name) throw new Error(`CLUB_SNAPSHOT_ENV should be ${Object.keys(DATABASES).join(" or ")}`);
-  const { CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account } = process.env;
-  if (!token || !account) throw new Error("needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID");
-  const api = async (path, init) => {
-    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/d1/database${path}`, {
-      ...init,
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    });
-    const body = await res.json();
-    if (!body.success) throw new Error(`D1 API: ${JSON.stringify(body.errors)}`);
-    return body.result;
-  };
-  const db = (await api(`?name=${encodeURIComponent(name)}`)).find((d) => d.name === name);
-  if (!db) throw new Error(`no D1 database ${name}`);
-  return async (sql) => (await api(`/${db.uuid}/query`, { method: "POST", body: JSON.stringify({ sql }) }))[0].results;
-}
 
 // A worktree's site under the show switch reads main's local D1 (COUGARS_LOCAL_STATE, ADR 0115)
 const persist = process.env.COUGARS_LOCAL_STATE ? ["--persist-to", process.env.COUGARS_LOCAL_STATE] : [];
@@ -83,7 +64,7 @@ const localQuery = async (sql) =>
 const environment = process.env.CLUB_SNAPSHOT_ENV;
 let query = localQuery;
 try {
-  if (environment) query = await remoteQuery(environment);
+  if (environment) query = await remoteD1(environment);
 } catch (error) {
   query = () => Promise.reject(error);
 }

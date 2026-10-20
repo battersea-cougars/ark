@@ -40,6 +40,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0053](0053-live-reads-are-cached.md)        | Live reads are cached the same way everywhere, and Sanity is read through its API CDN                                  |
 | [0055](0055-degrade-instead-of-break.md)     | Degrade instead of break: circuit breakers, rate limits, the app's own brake and fallback content                      |
 | [0059](0059-usage-page-and-check.md)         | Admins see the free Cloudflare allowance and CPU time, and are emailed at 80% or a stopped request                     |
+| [0116](0116-sanity-requests-counted.md)      | We count our own Sanity requests, show and warn on them, and keep the last tenth of the CDN's for builds               |
 | [0111](0111-errors-and-uptime.md)            | Errors and down alerts go to Sentry, with nothing about a person in them                                               |
 
 ## Security, sign-in and email

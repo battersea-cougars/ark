@@ -179,3 +179,105 @@ describe("the hourly check", () => {
     expect(await run()).toEqual([]);
   });
 });
+
+// Sanity has no usage API, so the website and this app count their own requests to it (ADR 0116), a row per day,
+// project and quota in sanity_requests. Admins see this month's against Sanity's free plan, and are emailed at 50%,
+// 80% and when the month's pace would run out before the 1st.
+describe("an admin checks the club's Sanity requests this month", () => {
+  /** What the website and this app counted: [day, project, kind, count]. */
+  const counted = (...rows: [string, string, "api" | "cdn", number][]) =>
+    w.db.raw.exec(
+      `DELETE FROM sanity_requests; INSERT INTO sanity_requests (day, project, kind, count) VALUES ` +
+        rows.map(([d, p, k, n]) => `('${d}', '${p}', '${k}', ${n})`).join(", "),
+    );
+  const DEV = "zmg6rbe3";
+  const PRODUCTION = "ah165efl";
+  // 5 days and 11 hours into October's 31
+  const pace = (used: number) => Math.round((used * 31) / (5 + 11 / 24));
+
+  it("sees this environment's month so far, through the API and its CDN, against the free plan, and where it's heading", async () => {
+    delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
+    counted(
+      ["2026-10-01", DEV, "api", 15_000],
+      ["2026-10-06", DEV, "api", 5_000],
+      ["2026-10-02", DEV, "cdn", 100_000],
+      // Last month, and the other project: not this one's month
+      ["2026-09-30", DEV, "api", 240_000],
+      ["2026-10-03", PRODUCTION, "api", 1_000],
+    );
+    const res = await usageAs("dana@example.com");
+    expect(res.body.sanity).toEqual({
+      project: DEV,
+      name: "Cougars Dev",
+      month: "2026-10",
+      resetsAt: "2026-11-01T00:00:00.000Z",
+      quotas: [
+        { id: "api", label: "API requests", used: 20_000, limit: 250_000, projected: pace(20_000) },
+        { id: "cdn", label: "API CDN requests", used: 100_000, limit: 1_000_000, projected: pace(100_000) },
+      ],
+    });
+  });
+
+  it("on production, sees production's project", async () => {
+    Object.assign(w.env, { SITE_ENV: "production" });
+    counted(["2026-10-03", PRODUCTION, "cdn", 1_000]);
+    const { sanity } = (await usageAs("dana@example.com")).body;
+    expect(sanity).toMatchObject({ project: PRODUCTION, name: "Cougars" });
+    expect(sanity.quotas.map((q: Json) => q.used)).toEqual([0, 1_000]);
+  });
+
+  describe("the hourly check", () => {
+    const run = async (now = NOW) => {
+      const sent: Mail[] = [];
+      await checkUsage(w.env, now, { send: async (m) => void sent.push(m) });
+      return sent;
+    };
+    beforeEach(() => delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN);
+
+    it("emails the admins once a month when a Sanity quota passes 50%, and again at 80%", async () => {
+      counted(["2026-10-02", DEV, "cdn", 520_000]);
+      const first = await run();
+      expect(first.map((m) => m.subject)).toEqual([
+        "Cougars app: Sanity API CDN requests at 52% of this month's free allowance (Cougars Dev)",
+      ]);
+      expect(first[0].to).toEqual(["dana@example.com"]);
+      expect(first[0].text).toContain("520,000 of 1,000,000");
+      expect(await run(new Date(NOW.getTime() + 3_600_000))).toEqual([]);
+      counted(["2026-10-02", DEV, "cdn", 810_000]);
+      expect((await run(new Date(NOW.getTime() + 7_200_000))).map((m) => m.subject)).toEqual([
+        "Cougars app: Sanity API CDN requests at 81% of this month's free allowance (Cougars Dev)",
+      ]);
+    });
+
+    it("past 80% at once, sends the one email, not 50% as well", async () => {
+      counted(["2026-10-02", DEV, "api", 210_000]);
+      expect((await run()).map((m) => m.subject)).toEqual([
+        "Cougars app: Sanity API requests at 84% of this month's free allowance (Cougars Dev)",
+      ]);
+    });
+
+    it("emails the admins once when this month's pace would run out before the 1st", async () => {
+      // 60,000 in 5½ days: about 11,000 a day, all 250,000 gone around the 23rd
+      counted(["2026-10-03", DEV, "api", 60_000]);
+      const sent = await run();
+      expect(sent.map((m) => m.subject)).toEqual([
+        "Cougars app: Sanity API requests on pace to run out before 1 November (Cougars Dev)",
+      ]);
+      expect(sent[0].text).toContain("around 23 October");
+      expect(await run(new Date(NOW.getTime() + 3_600_000))).toEqual([]);
+    });
+
+    it("doesn't judge the pace in a month's first three days", async () => {
+      // 30,000 by the first evening would be over a million by the 31st, but a first day says little
+      counted(["2026-10-01", DEV, "api", 30_000]);
+      expect(await run(new Date("2026-10-01T20:00:00Z"))).toEqual([]);
+      expect(await run(new Date("2026-10-03T23:00:00Z"))).toEqual([]);
+      expect(await run(new Date("2026-10-04T01:00:00Z"))).toHaveLength(1);
+    });
+
+    it("stays quiet when the month is on course", async () => {
+      counted(["2026-10-03", DEV, "api", 30_000], ["2026-10-03", DEV, "cdn", 150_000]);
+      expect(await run()).toEqual([]);
+    });
+  });
+});

@@ -2,21 +2,18 @@
 // rebuilds daily and on each release (ADR 0004). Until a Sanity project is configured, pages
 // render from the fallback club facts (fallback.ts) and empty lists. The merge
 // rules are in merge.ts.
-import { DEMO_CONTENT } from "astro:env/server";
-import { onWorker, sanity } from "./client";
+import { DEMO_CONTENT, SANITY_PROJECT_ID } from "astro:env/server";
 import * as q from "./queries";
 import { FALLBACK_CLUB, FALLBACK_FRIDAYS, FALLBACK_KUMITE, FALLBACK_PUB, FALLBACK_TEAM } from "./fallback";
 import { liveVideos } from "../server/videos";
-import { videosConfig } from "../server/sanity-env";
+import { onWorker, sanityConfig, videosConfig } from "../server/sanity-env";
 import { DEMO_EVENTS, DEMO_PLAYERS } from "./demo";
-import { sanityError } from "../server/sanity-live";
-import { guard } from "@cougars/shared/breaker";
+import { sanityQuery } from "../server/sanity-live";
 import { toPlayer, type RosterRow } from "../roster";
 import { crestFiles, editionsFrom, type ResultRows } from "../results";
 import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } from "./merge";
 import type { ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
 import { scribe } from "@cougars/shared/scribe";
-import { checkLinks } from "../links";
 
 const log = scribe.logger("content");
 
@@ -28,26 +25,25 @@ export const demo = DEMO_CONTENT;
 /** In `astro dev`: why Sanity couldn't be read on the last try, or "". The layout shows it in a banner. */
 export const devSanity = { problem: "" };
 
+/** The last answer to each query, for a Worker or `astro dev` to fall back on when Sanity can't be read. */
+const lastGood = new Map<string, unknown>();
+
 async function fetchOr<T>(query: string, fallback: T): Promise<T> {
-  const client = sanity();
-  if (!client) return fallback;
+  if (!SANITY_PROJECT_ID) return fallback;
   try {
-    // Behind the same circuit breaker as the live reads (ADR 0055): a spent quota stops every Sanity call
-    const result = await guard("sanity", () =>
-      client.fetch<T | null>(query).catch((e: { statusCode?: number }) => {
-        throw e?.statusCode ? sanityError(e.statusCode) : e;
-      }),
-    );
+    // Through the same reader, circuit breaker and count as the live reads (ADR 0055, ADR 0116). Every link an editor
+    // typed is checked there, once, for every page (lib/links.ts)
+    const result = await sanityQuery<T | null>(sanityConfig(), query);
     if (import.meta.env.DEV) devSanity.problem = "";
-    // Every link an editor typed is checked here, once, for every page (lib/links.ts)
-    return result === null ? fallback : checkLinks(result);
+    if (onWorker || import.meta.env.DEV) lastGood.set(query, result);
+    return result === null ? fallback : result;
   } catch (error) {
-    // A build fails loudly. A server route (ADR 0016), and a page in `astro dev`, render with the fallback rather
-    // than an error page (ADR 0055): degraded, not broken.
+    // A build fails loudly. A server route (ADR 0016), and a page in `astro dev`, render with the last good copy or
+    // the fallback rather than an error page (ADR 0055): degraded, not broken.
     if (!onWorker && !import.meta.env.DEV) throw error;
     if (import.meta.env.DEV) devSanity.problem = String(error);
     log.error("content.sanity_error", error);
-    return fallback;
+    return ((lastGood.get(query) as T | null | undefined) ?? fallback) as T;
   }
 }
 
@@ -67,11 +63,24 @@ const memo = <T>(fn: () => Promise<T>) => {
   };
 };
 
-// Club facts, one Sanity singleton each, merged field by field with their fallbacks.
-export const getClub = memo(async () => mergeClub(FALLBACK_CLUB, await fetchOr(q.CLUB, null)));
-export const getFridays = memo(async () => mergeFridays(FALLBACK_FRIDAYS, await fetchOr(q.FRIDAYS, null)));
-export const getPub = memo(async () => mergePub(FALLBACK_PUB, await fetchOr(q.PUB, null)));
-export const getTeam = memo(async () => mergeTeam(FALLBACK_TEAM, await fetchOr(q.TEAM, null)));
+// Club facts, one Sanity singleton each, read together in one request (ADR 0116) and merged field by field with their
+// fallbacks.
+type Facts = Partial<Record<"club" | "fridays" | "pub" | "team" | "kumite", unknown>>;
+const getFacts = memo(() => fetchOr<Facts | null>(q.FACTS, null));
+/** Made from the facts, again only when they're read again. */
+const fromFacts = <T>(make: (facts: Facts | null) => T) => {
+  let source: Promise<Facts | null> | undefined;
+  let made: Promise<T> | undefined;
+  return () => {
+    const facts = getFacts();
+    if (facts !== source) [source, made] = [facts, facts.then(make)];
+    return made!;
+  };
+};
+export const getClub = fromFacts((f) => mergeClub(FALLBACK_CLUB, f?.club ?? null));
+export const getFridays = fromFacts((f) => mergeFridays(FALLBACK_FRIDAYS, f?.fridays ?? null));
+export const getPub = fromFacts((f) => mergePub(FALLBACK_PUB, f?.pub ?? null));
+export const getTeam = fromFacts((f) => mergeTeam(FALLBACK_TEAM, f?.team ?? null));
 // The Kumite's awards come from the team app (ADR 0044), through the build's club snapshot; Sanity's list (names
 // only) until the snapshot has them.
 /** The next Kumite as the team app has it (ADR 0042): when, where, or that it's TBC or only a season so far. */
@@ -85,8 +94,8 @@ const kumiteSnapshot = import.meta.glob<{ awards: Award[]; next?: NextKumite | n
   "../../data/kumite.local.json",
   { eager: true, import: "default" },
 );
-export const getKumite = memo(async () => {
-  const k = mergeKumite(FALLBACK_KUMITE, await fetchOr(q.KUMITE, null));
+export const getKumite = fromFacts((f) => {
+  const k = mergeKumite(FALLBACK_KUMITE, f?.kumite ?? null);
   const snapshot = Object.values(kumiteSnapshot)[0];
   const fromApp = snapshot?.awards;
   return {
@@ -97,8 +106,7 @@ export const getKumite = memo(async () => {
 });
 
 /** Every club fact in one object. */
-export const getSettings = memo(async (): Promise<SiteSettings> => {
-  // All at once: in `astro dev` each is a fresh read, so one after another adds up
+export const getSettings = async (): Promise<SiteSettings> => {
   const [club, fridays, pub, team, kumite] = await Promise.all([
     getClub(),
     getFridays(),
@@ -107,7 +115,7 @@ export const getSettings = memo(async (): Promise<SiteSettings> => {
     getKumite(),
   ]);
   return { ...club, ...fridays, pub, team, kumite };
-});
+};
 
 // The club's videos as of this build: only the homepage's no-JavaScript fallback uses these. /videos and the
 // homepage reel read them live (lib/server/videos.ts, docs/adr/0016-photos-and-videos-read-live.md).

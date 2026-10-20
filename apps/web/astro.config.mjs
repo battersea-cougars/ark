@@ -3,6 +3,7 @@ import { defineConfig, envField, fontProviders } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import sitemap from "@astrojs/sitemap";
 import { sanityProject } from "@cougars/shared/sanity";
+import { sanityBuildCount } from "./src/lib/sanity/count.integration";
 
 // The Sanity project for this build: production on `release`, otherwise dev (docs/adr/0010-environments-and-deploys.md).
 // SITE_ENV is set by deploy.yml; a laptop and scripts/deploy-dev.sh are dev.
@@ -24,9 +25,11 @@ export default defineConfig({
   // Old Wix addresses. /gallery/<album> is a server route (pages/gallery/[slug].ts): a config redirect to a
   // server-rendered page would point at a prerendered file that doesn't exist.
   redirects: { "/gallery": "/photos" },
-  // Not in the sitemap: the thanks page (noindex) and the pieces the home page fetches (the reel, What's on)
+  // Not in the sitemap: the thanks page (noindex) and the pieces the home page fetches (the reel, What's on). The
+  // build's Sanity requests are counted into the environment's D1 (ADR 0116).
   integrations: [
     sitemap({ filter: (page) => !/\/(join\/thanks|videos\/reel|whats-on)(\/|$)/.test(new URL(page).pathname) }),
+    sanityBuildCount(),
   ],
   adapter: cloudflare({
     // Resize local assets at build time with sharp; Sanity's CDN resizes CMS
