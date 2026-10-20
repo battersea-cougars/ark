@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TEAM_NAMES, type Player, type Position } from "../demo/data";
-import { balance, compare, makeTeams, slotIn, teamCount, type Team } from "./balance";
+import { balance, compare, lineUp, makeTeams, slotIn, strength, teamCount, type Team } from "./balance";
 
 // Made-up rosters. Ratings spread out; every third player a defender, every tenth a keeper; every fourth a Cougar.
 function roster(n: number, tweak: (p: Player, i: number) => Player = (p) => p): Player[] {
@@ -183,5 +183,53 @@ describe("slotIn", () => {
       { name: "White", players: [4] },
     ];
     expect(slotIn(teams, [by(3)], by)[1].players).toEqual([4, 3]);
+  });
+});
+
+describe("lineUp: how a team reads, top to bottom", () => {
+  const p = (id: number, position: Position, rating: number, name = `Player ${id}`): Player => ({
+    id,
+    name,
+    position,
+    rating,
+    cougar: false,
+  });
+  const all = [
+    p(1, "G", 90, "Zed"),
+    p(2, "F", 40, "Bea"),
+    p(3, "D", 70, "Cal"),
+    p(4, "F", 80, "Ada"),
+    p(5, "D", 50, "Abe"),
+    p(6, "G", 60, "Al"),
+  ];
+  const by = (id: number) => all.find((x) => x.id === id)!;
+
+  it("the team maker sees forwards, then defence, then the keepers last, best first in each", () => {
+    expect(lineUp([1, 2, 3, 4, 5, 6], by, true)).toEqual([4, 2, 3, 5, 1, 6]);
+  });
+
+  it("a member sees the same positions in the same order, by name, so the order gives no ratings away", () => {
+    expect(lineUp([1, 2, 3, 4, 5, 6], by, false)).toEqual([4, 2, 5, 3, 6, 1]);
+  });
+
+  it("a player dragged onto a team takes their place in its order, not the bottom", () => {
+    expect(lineUp([4, 3, 1, 2], by, true)).toEqual([4, 2, 3, 1]);
+  });
+});
+
+describe("strength: a team's head", () => {
+  const players: Player[] = [
+    { id: 1, name: "A", position: "F", rating: 60, cougar: false },
+    { id: 2, name: "B", position: "D", rating: 75, cougar: false },
+    { id: 3, name: "C", position: "G", rating: 50, cougar: false },
+  ];
+  const by = (id: number) => players.find((x) => x.id === id)!;
+
+  it("counts the players and averages their rating, as the teams are balanced by", () => {
+    expect(strength([1, 2, 3], by)).toEqual({ players: 3, total: 185, average: 62 });
+  });
+
+  it("an empty team has no average", () => {
+    expect(strength([], by)).toEqual({ players: 0, total: 0, average: null });
   });
 });

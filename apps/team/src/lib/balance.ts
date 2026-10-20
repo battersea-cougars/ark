@@ -3,6 +3,7 @@
 // the old app's solver_lp.py (in git history): 3 to 7 a side, the Cougar players together on one team called "Cougars", a
 // keeper and a defender on every team where there are enough, and ratings balanced.
 import type { Player, Position } from "../demo/data";
+import { goesBy } from "./names";
 
 export interface Team {
   name: string;
@@ -212,6 +213,39 @@ export function slotIn(teams: Team[], late: Player[], byId: (id: number) => Play
     best.players.push(p.id);
   }
   return out;
+}
+
+/** The order a team is shown in: forwards, then defence, keepers last. */
+const LINE: Record<Position, number> = { F: 0, D: 1, G: 2 };
+
+/**
+ * How a team reads, top to bottom: by position (keepers last), then, for the team maker who sees ratings, best first;
+ * for everyone else by name, so the order gives no ratings away. Worked out each time it's shown, so a player moved
+ * onto a team takes their place in it and every saved team reads the same way (ADR 0076).
+ */
+export function lineUp(ids: number[], byId: (id: number) => Player | undefined, byRating: boolean): number[] {
+  const known = ids.flatMap((id) => {
+    const p = byId(id);
+    return p ? [p] : [];
+  });
+  return known
+    .sort(
+      (a, b) =>
+        LINE[a.position] - LINE[b.position] ||
+        (byRating ? b.rating - a.rating : 0) ||
+        goesBy(a).localeCompare(goesBy(b)) ||
+        a.id - b.id,
+    )
+    .map((p) => p.id);
+}
+
+/** A team's head for the team maker: how many, and their average rating (what the teams are balanced on), rounded. */
+export function strength(
+  ids: number[],
+  byId: (id: number) => Player | undefined,
+): { players: number; total: number; average: number | null } {
+  const total = ids.reduce((s, id) => s + (byId(id)?.rating ?? 0), 0);
+  return { players: ids.length, total, average: ids.length ? Math.round(total / ids.length) : null };
 }
 
 /** A random deal: the Cougars on team 0 up to a full team, everyone else round the teams in a shuffled order. */

@@ -43,6 +43,24 @@ without taking players off a team behind the team maker's back.
   finger as well as a mouse. Enter or Space on the focused grip moves the player to the next team, for keyboards and
   screen readers. **A click or tap on the grip does nothing**: with every move saved, a tap that sent someone to
   another team made them seem to vanish.
+- **Each team's head says how many and how strong**: its player count, and for whoever sees ratings (the team maker)
+  its average rating, the figure the teams are balanced on ([0102](0102-balanced-teams-by-swap-search.md)): an average, not a total,
+  since teams can differ by one. While a player's dragged, the team under them counts them in and the one they're
+  leaving counts them out, so the effect of a move shows before it's made. `strength` in lib/balance.ts.
+- **Positions are badges** at the end of every team row, one column so they scan: F, D or K on a phone, the word
+  (Forward, Defence, Keeper) with its icon on a desktop. Neutral badges, no colour: the letters say it. A team maker's
+  row ends with the player's rating; nobody else's does, and **ratings show only where teams are made** (the team rows
+  and heads), not on the In, Waiting and Out lists or cards.
+- **A team reads forwards, then defence, keepers last** (`lineUp` in lib/balance.ts): best first within a position for
+  the team maker, by name for everyone else, so the order gives no ratings away. It's worked out each time a team is
+  shown, not saved, so a moved player takes their place in the order rather than the bottom, and there's no order
+  within a team to keep: who's where on a team doesn't matter on the night.
+- **Rows are one line** (44px; the grip a full-height thumb target, no initials on a phone), so a team of seven fits a
+  phone. A drag near the top or bottom of the screen scrolls the page. The team you'd land on lights (a tint and a
+  ring), and the dragged row says where letting go puts them ("› Black").
+- **Moving without dragging**: a tap on a team maker's row (anywhere but the grip) opens a sheet, Move Reno, with a
+  button per team and each one's numbers, theirs marked, and their card a tap away. A tap that asks isn't a move, so
+  the rule that a tap never sends anyone away still holds.
 - **When the teams stop matching who's in, the page says so**: someone signed up after them (slot them in by rule,
   `slotIn` in lib/balance.ts, or remake), or someone said they're out since (keep the teams as they are without them, or
   remake). Saying out doesn't take a member off a published team: they stay on it, marked Out, until a team maker
@@ -68,3 +86,7 @@ without taking players off a team behind the team maker's back.
   been an icon in the phone bar, the same icon as the Cards view beside the list, which now has its own), and
   Remove the teams left Manage to sit beside it as Clear teams, asked in a sheet rather than by a second tap.
 - 2026-10-20: The team maker lets people in from the waiting list, over the limit.
+- 2026-10-20: Team heads show the count and average rating, live while dragging; positions became badges (F / D / K)
+  instead of "Forward · 60" under the name; teams read forwards, defence, keepers last; rows went to one line; a drag
+  scrolls at the screen's edges; a tap on a row opens Move to a team, the way without dragging. Ratings left the In,
+  Waiting and Out lists: the team maker sees them only on the teams.

@@ -6,7 +6,7 @@
   import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";
-  import { PLAYERS, TEAM_NAMES, TEAM_ORDER, type Player } from "../demo/data";
+  import { PLAYERS, POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Player } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -27,7 +27,7 @@
   import { flip } from "svelte/animate";
   import { clock, formatDayDate } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
-  import { makeTeams, slotIn, type Team } from "../lib/balance";
+  import { lineUp, makeTeams, slotIn, strength, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
   import { onDestroy, tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
@@ -230,6 +230,11 @@
     show?.skip();
     if (pending) commit(pending);
   });
+  // Where a card grows from: the row's initials, or the row itself where they're hidden (a phone's one-line rows)
+  const zoomFrom = (row: HTMLElement) => {
+    const avatar = row.querySelector<HTMLElement>(".avatar");
+    return avatar?.offsetParent ? avatar : row;
+  };
   function portal(node: HTMLElement) {
     document.body.append(node);
     return { destroy: () => node.remove() };
@@ -260,10 +265,12 @@
   };
 
   // Dragging a player by their grip: pointer events, so it works with a finger as well as a mouse. The row follows
-  // the pointer; the team under it lights up; letting go there moves them.
+  // the pointer; the team under it lights up and its head counts them in; letting go there moves them. Near the top
+  // or bottom of the screen the page scrolls, so a team out of sight can still be reached.
   let drag = $state<{ id: number; from: string; x: number; y: number; dx: number; dy: number; w: number } | null>(null);
   let over = $state<string | null>(null);
   let dragged = $state(false);
+  let edgeScroll = 0;
   function grab(e: PointerEvent, id: number, from: string) {
     if (e.button !== 0) return;
     const row = (e.currentTarget as HTMLElement).closest(".row") as HTMLElement;
@@ -277,13 +284,66 @@
     if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 4) dragged = true;
     drag.x = e.clientX;
     drag.y = e.clientY;
-    const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-team]");
+    findOver();
+    if (dragged && !edgeScroll) edgeScroll = requestAnimationFrame(scrollAtEdge);
+  }
+  function findOver() {
+    if (!drag) return;
+    const el = document.elementFromPoint(drag.x, drag.y)?.closest<HTMLElement>("[data-team]");
     over = el?.dataset.team ?? null;
+  }
+  /** Within a band at the top (under the bar) or the bottom (over the team maker's bar and the tabs), the page
+     scrolls, faster the nearer the edge; the team under the finger is found again as the page moves under it */
+  function scrollAtEdge() {
+    edgeScroll = 0;
+    if (!drag || !dragged) return;
+    const view = document.querySelector<HTMLElement>(".view");
+    if (!view) return;
+    const v = view.getBoundingClientRect();
+    const top = v.top + (parseFloat(getComputedStyle(view).paddingTop) || 0);
+    const dock = document.querySelector(".maker-dock")?.getBoundingClientRect().top;
+    const tabs = document.querySelector("nav.tabs")?.getBoundingClientRect().top;
+    const bottom = Math.min(v.bottom, dock ?? Infinity, tabs ?? Infinity);
+    const band = 72;
+    const speed = (into: number) => Math.ceil(14 * Math.min(1, Math.max(0, into) / band) ** 2);
+    const step =
+      drag.y < top + band ? -speed(top + band - drag.y) : drag.y > bottom - band ? speed(drag.y - (bottom - band)) : 0;
+    if (step) {
+      view.scrollTop += step;
+      findOver();
+    }
+    edgeScroll = requestAnimationFrame(scrollAtEdge);
+  }
+  function endDrag() {
+    cancelAnimationFrame(edgeScroll);
+    edgeScroll = 0;
+    drag = null;
+    over = null;
   }
   function drop() {
     if (drag && dragged && over) move(drag.id, drag.from, over);
-    drag = null;
-    over = null;
+    endDrag();
+  }
+  // A team's players as its head counts them: while a player's dragged over it, with them; from the team they're
+  // leaving, without them
+  const heading = (team: Team) => {
+    if (!drag || !dragged || !over || over === drag.from) return team.players;
+    if (team.name === over) return [...team.players, drag.id];
+    if (team.name === drag.from) return team.players.filter((x) => x !== drag!.id);
+    return team.players;
+  };
+  // The way without dragging: a tap on a team maker's row asks which team (a sheet), with each team's numbers
+  // (who stays set while the sheet slides away, so it doesn't empty as it goes)
+  let moving = $state<{ id: number; from: string } | null>(null);
+  let moveOpen = $state(false);
+  function askMove(id: number, from: string) {
+    moving = { id, from };
+    moveOpen = true;
+  }
+  function moveTo(name: string) {
+    if (!moving) return;
+    moveOpen = false;
+    move(moving.id, moving.from, name);
   }
   // Enter or Space on the grip: on to the next team, for keyboards and screen readers. A click or a tap does
   // nothing (detail is 0 only for a keyboard's click): a finger resting on the grip mustn't send someone away.
@@ -304,7 +364,6 @@
     const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
     return list.charAt(0).toUpperCase() + list.slice(1);
   };
-  const rating = (ids: number[]) => ids.reduce((s, id) => s + byId(id).rating, 0);
 
   // Manage: an admin's tools for this session, in one place (a sheet on a phone, a side drawer on a desktop). The
   // ones that can't be undone take a second tap, which lapses after a few seconds.
@@ -367,7 +426,7 @@
 </script>
 
 <!-- A row turns the player's card over, growing from their initials -->
-{#snippet player(id: number, n?: number)}
+{#snippet player(id: number, n?: number, queue = true)}
   {@const p = byId(id)}
   <button
     class="row"
@@ -376,17 +435,33 @@
     class:undealt={undealt.has(id)}
     data-player={id}
     aria-label="{goesBy(p)}: see their card"
-    onclick={(e) => (lifted = { id, el: e.currentTarget.querySelector(".avatar") ?? e.currentTarget, n })}
+    onclick={(e) => (lifted = { id, el: zoomFrom(e.currentTarget), n })}
   >
     {#if n !== undefined}<span class="n num">{n}</span>{/if}
-    <Person player={p} showRating={ratings} short />
+    <Person player={p} bare />
     {#if hasLeft(id)}<span class="badge">Out</span>
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
     {#if p.cougar}<span class="badge red">Cougar</span>{/if}
-    {#if ahead.has(id)}<span class="badge plan" title="Quarterly Member: ahead in the queue"
-        ><Icon name="calendar" size={12} /><span class="plan-word">Quarterly</span></span
-      >{/if}
+    {#if queue && ahead.has(id)}{@render quarterlyBadge()}{/if}
+    {@render positionBadge(p)}
   </button>
+{/snippet}
+
+<!-- Where they play, at the end of every row so the column scans: the position's icon and letter on a phone (F, D,
+     K), its word on a desktop; the word is always there for screen readers. A badge, no colour: the words say it -->
+{#snippet positionBadge(p: Player)}
+  <span class="badge pos" title={POSITIONS[p.position]}
+    ><Icon name={POSITION_ICONS[p.position]} size={12} /><span class="pos-letter" aria-hidden="true"
+      >{POSITIONS[p.position][0]}</span
+    ><span class="pos-word">{POSITIONS[p.position]}</span></span
+  >
+{/snippet}
+
+<!-- A Quarterly Member: ahead in the queue (ADR 0030), said in a word at every width -->
+{#snippet quarterlyBadge()}
+  <span class="badge plan" title="Quarterly Member: ahead in the queue"
+    >Quarterly<span class="sr-only"> Member, ahead in the queue</span></span
+  >
 {/snippet}
 
 <!-- Numbered by their place (Quarterly skaters first, then sign-up order), whatever the search leaves showing -->
@@ -406,7 +481,6 @@
             n={numbered ? i + 1 : undefined}
             you={id === who.id}
             quarterly={ahead.has(id)}
-            showRating={ratings}
             lifted={lifted?.id === id}
             onopen={(el) => (lifted = { id, el, n: numbered ? i + 1 : undefined })}
           />
@@ -438,10 +512,13 @@
   >
 {/snippet}
 
-<!-- A team maker's row: a grip to drag them to a team (from "" when they're not on one yet) -->
+<!-- A team maker's row: a grip to drag them to a team (from "" when they're not on one yet), and the rest of the row
+     a tap that asks where to move them (the way without dragging). One line, so a team of seven fits a phone -->
 {#snippet arrangeRow(id: number, from: string)}
+  {@const p = byId(id)}
   <div
     class="row arrange"
+    class:you={id === who.id && !hasLeft(id)}
     class:lifting={drag?.id === id && dragged}
     class:gone={hasLeft(id)}
     class:undealt={undealt.has(id)}
@@ -449,20 +526,29 @@
   >
     <button
       class="grip"
-      aria-label="Move {goesBy(byId(id))}: drag to a team, or press Enter for the next team"
+      aria-label="Move {goesBy(p)}: drag to a team, or press Enter for the next team"
       onpointerdown={(e) => grab(e, id, from)}
       onpointermove={follow}
       onpointerup={drop}
-      onpointercancel={() => ((drag = null), (over = null))}
+      onpointercancel={endDrag}
       onclick={(e) => nudge(e, id, from)}
     >
       <Icon name="grip" size={20} />
     </button>
-    <Person player={byId(id)} showRating={ratings} short />
-    {#if hasLeft(id)}<span class="badge">Out</span>
-    {:else if id === who.id}<span class="you-stamp">You</span>{/if}
-    {#if byId(id).cougar}<span class="badge red">Cougar</span>{/if}
+    <button class="pick" aria-label="{goesBy(p)}: move to another team" onclick={() => askMove(id, from)}>
+      {@render rowBody(p)}
+    </button>
   </div>
+{/snippet}
+
+<!-- What a team maker's row says: who, their marks, where they play, and their rating -->
+{#snippet rowBody(p: Player)}
+  <Person player={p} bare />
+  {#if hasLeft(p.id)}<span class="badge">Out</span>
+  {:else if p.id === who.id}<span class="you-stamp">You</span>{/if}
+  {#if p.cougar}<span class="badge red">Cougar</span>{/if}
+  {@render positionBadge(p)}
+  {#if ratings}<span class="rating num" title="Rating">{p.rating}</span>{/if}
 {/snippet}
 
 <!-- Every week on Fri · 7:30pm–9:30pm · the place, a tap opening the map -->
@@ -472,6 +558,19 @@
       target="_blank"
       rel="noopener noreferrer">{usual.name}</a
     >{/if}
+{/snippet}
+
+<!-- A phone's session card, under its title: where (a tap opens the map) and how often -->
+{#snippet usualLinks()}
+  {#if info?.place?.mapUrl || info?.place?.name}
+    <a
+      href={info.place.mapUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Directions to {info.place.name || 'the venue'}"><Icon name="pin" size={16} />{info.place.name}</a
+    >
+  {/if}
+  <span class="often"><Icon name="calendar" size={16} />{describeRule(series)}</span>
 {/snippet}
 
 <!-- Make teams, Remake teams: remaking replaces teams everyone can see, so it takes a second tap; the label swaps in
@@ -488,8 +587,9 @@
 {/snippet}
 
 <div class="page" class:has-dock={maker && phone.current}>
-  <!-- When and where it usually is: the line under the title on a desktop; a phone has no room to spare up there, so
-       it's at the foot of the page -->
+  <!-- When and where it usually is: the line under the title on a desktop. A phone has no room to spare up there, and
+       no foot (the list's header sticks and the rows scroll under it to the end), so its session card says where,
+       with the map, and how often it's on -->
   <PageHeader title={series.name} sub={phone.current ? undefined : usually}>
     {#snippet actions()}
       <!-- Make teams is the one job on show: it's the night's job for whoever makes the teams, not only an admin.
@@ -523,6 +623,7 @@
       beckon
       roster={false}
       place={false}
+      links={phone.current ? usualLinks : undefined}
     />
   {/snippet}
 
@@ -648,13 +749,16 @@
         <h2 class="section-title">The teams</h2>
         {@render search()}
         {#if arranging}
-          <p class="hint move-hint">Drag a player to another team to move them. Everyone sees it straight away.</p>
+          <p class="hint move-hint">
+            Drag a player by the grip to another team, or tap them to pick one. Everyone sees it straight away.
+          </p>
         {/if}
       </div>
 
       <div class="teams-grid" class:clearing>
         {#each ordered as team, t (team.name)}
           {@const mine = team.players.includes(who.id)}
+          {@const head = strength(heading(team), byId)}
           <section
             style:--t={t}
             class="team rise"
@@ -665,17 +769,25 @@
             <header>
               <h2 class="display">{team.name}</h2>
               {#if mine}<span class="badge green">Your team</span>{/if}
-              <span class="hint num count">
-                {team.players.length}
-                {team.players.length === 1 ? "player" : "players"}{ratings ? ` · rating ${rating(team.players)}` : ""}
+              <!-- How many and how strong, for a team maker as they drag (the team they're over counts the player
+                   in already); figures in fixed-width digits so the line never moves -->
+              <span
+                class="count num"
+                class:preview={!!drag && dragged && (over === team.name || drag.from === team.name)}
+              >
+                <span><strong>{head.players}</strong> {head.players === 1 ? "player" : "players"}</span>
+                {#if ratings}<span title="Average rating (total {head.total})"
+                    ><strong>{head.average ?? "–"}</strong> avg</span
+                  >{/if}
               </span>
             </header>
-            <div class="list">
-              {#each matching(team.players) as id (id)}
+            <div class="list tight">
+              {#each lineUp(matching(team.players), byId, ratings) as id (id)}
                 {#if arranging}
                   {@render arrangeRow(id, team.name)}
                 {:else}
-                  {@render player(id)}
+                  <!-- On a team the queue's behind them: no Quarterly badge -->
+                  {@render player(id, undefined, false)}
                 {/if}
               {/each}
             </div>
@@ -690,7 +802,7 @@
           <h2 class="section-title">Not on a team</h2>
           {#if arranging}
             <p class="hint">Signed up after the teams were made. Drag them onto a team, or slot them all in.</p>
-            <div class="list">
+            <div class="list tight">
               {#each unplaced as id (id)}{@render arrangeRow(id, "")}{/each}
             </div>
           {:else}
@@ -703,14 +815,18 @@
       {#if drag && dragged}
         <!-- The row being dragged, following the pointer -->
         <div
-          class="row ghost-row"
+          class="row ghost-row tight"
           style:left="{drag.x - drag.dx}px"
           style:top="{drag.y - drag.dy}px"
           style:width="{drag.w}px"
           aria-hidden="true"
         >
-          <Icon name="grip" size={20} />
-          <Person player={byId(drag.id)} showRating={ratings} />
+          <span class="grip"><Icon name="grip" size={20} /></span>
+          {@render rowBody(byId(drag.id))}
+          <!-- Where letting go puts them -->
+          <span class="to" class:on={!!over && over !== drag.from}
+            ><Icon name="chevronRight" size={14} />{over && over !== drag.from ? over : ""}</span
+          >
         </div>
       {/if}
 
@@ -721,22 +837,6 @@
         </section>
       {/if}
     {/if}
-  {/if}
-
-  {#if phone.current}
-    <!-- A phone: when and where it usually is, at the foot of the page, on the page itself (a desktop has it under
-         the title) -->
-    <footer class="about" aria-label="About {series.name}">
-      <span class="eyebrow">Usually</span>
-      <p class="usually">
-        {describeRule(series)} · {clock(series.startTime)}–{clock(series.endTime)}
-      </p>
-      {#if usual}
-        <a class="where" href={usual.mapUrl} target="_blank" rel="noopener noreferrer"
-          ><Icon name="pin" size={16} />{usual.name}</a
-        >
-      {/if}
-    </footer>
   {/if}
 </div>
 
@@ -808,6 +908,52 @@
   </Sheet>
 {/if}
 
+{#if arranging && teams}
+  <!-- Move a player without dragging: their teams with each one's numbers, theirs marked; their card a tap away -->
+  <Sheet
+    bind:open={moveOpen}
+    title={moving ? `Move ${goesBy(byId(moving.id))}` : "Move"}
+    sub={moving
+      ? `${POSITIONS[byId(moving.id).position]}${ratings ? ` · rating ${byId(moving.id).rating}` : ""}`
+      : undefined}
+  >
+    {#if moving}
+      {@const m = moving}
+      <div class="tools">
+        {#each ordered ?? [] as team (team.name)}
+          {@const head = strength(team.players, byId)}
+          {@const theirs = team.name === m.from}
+          <button class="tool" disabled={theirs} onclick={() => moveTo(team.name)}>
+            <Icon name="teams" size={22} />
+            <span class="tool-text"
+              ><strong>{theirs ? `On ${team.name}` : `To ${team.name}`}</strong><span class="num"
+                >{head.players}
+                {head.players === 1 ? "player" : "players"}{ratings && head.average !== null
+                  ? ` · avg ${head.average}`
+                  : ""}</span
+              ></span
+            >
+            {#if !theirs}<Icon name="chevronRight" size={18} />{/if}
+          </button>
+        {/each}
+        <button
+          class="tool"
+          onclick={() => {
+            const row = document.querySelector<HTMLElement>(`[data-player="${m.id}"]`);
+            const el = row && zoomFrom(row);
+            moveOpen = false;
+            if (el) lifted = { id: m.id, el };
+          }}
+        >
+          <Icon name="cards" size={22} />
+          <span class="tool-text"><strong>See their card</strong><span>Who they are, and their bio.</span></span>
+          <Icon name="chevronRight" size={18} />
+        </button>
+      </div>
+    {/if}
+  </Sheet>
+{/if}
+
 {#if settingsOpen}
   <EditorPanel
     eyebrow="Training · {describeRule(series)}"
@@ -846,7 +992,7 @@
     source={lifted.el}
     n={lifted.n}
     you={id === who.id}
-    showRating={ratings}
+    showRating={ratings && onTeam.has(id)}
     bio={byId(id).bio}
     removeLabel={can(perms, "update:Event") ? `Remove from ${series.shortName}` : undefined}
     onremove={() => removeFromSession(id)}
@@ -979,12 +1125,14 @@
     min-height: 2.75rem;
     padding: var(--s-2) var(--row-pad);
   }
-  .tight .row :global(.avatar) {
+  .tight .row :global(.avatar),
+  .ghost-row :global(.avatar) {
     width: 1.75rem;
     height: 1.75rem;
     font-size: 0.625rem;
   }
-  .tight .row :global(.grow) {
+  .tight .row :global(.grow),
+  .ghost-row :global(.grow) {
     display: flex;
     align-items: baseline;
     gap: var(--s-2);
@@ -995,7 +1143,8 @@
     font-size: var(--text-xs);
   }
   /* A tight row's badges (Cougar, Quarterly) a size down, so a name keeps its room */
-  .tight .row .badge {
+  .tight .row .badge,
+  .ghost-row .badge {
     height: 1.25rem;
     padding: 0 var(--s-1);
     font-size: var(--text-xs);
@@ -1042,50 +1191,67 @@
       --search-frost: blur(14px) saturate(1.2);
     }
   }
-  .usually {
-    margin: 0;
-    color: var(--fg-muted);
-    line-height: 1.5;
-  }
-  /* The foot of a phone's page: quiet words on the page, no box */
-  .about {
-    display: grid;
-    justify-items: start;
-    gap: var(--s-1);
-    margin-top: var(--s-4);
-    padding: 0 var(--s-1);
-  }
-  .about .where {
+  /* A phone's session card: how often it's on, quiet beside the place's map link (EventCard's .links) */
+  .often {
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
-    min-height: 2.75rem;
-    color: var(--fg);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    min-height: 2rem;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
   }
-  .about .where :global(svg) {
+  .often :global(svg) {
+    flex: none;
+  }
+  /* Where they play: the last thing on the row, one width, so the column lines up and scans; the icon and letter on a
+     phone, the word on a desktop */
+  .badge.pos {
+    flex: none;
+    justify-content: center;
+    min-width: 1.75rem;
+  }
+  .badge.pos :global(svg) {
+    display: none;
     flex: none;
     color: var(--fg-subtle);
   }
-  .usually a {
-    color: var(--fg);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+  .pos-word {
+    display: none;
   }
-  /* A phone: the Quarterly badge is its icon, so a name keeps its room (the word stays for screen readers) */
+  @media (min-width: 901px) {
+    .badge.pos {
+      justify-content: flex-start;
+      min-width: 5.25rem;
+    }
+    .badge.pos :global(svg) {
+      display: block;
+    }
+    .pos-letter {
+      display: none;
+    }
+    .pos-word {
+      display: inline;
+    }
+  }
+  /* A phone's one-line rows: no initials, so the name keeps its room beside its badges (the number, or the grip,
+     starts the row) */
   @media (max-width: 900px) {
-    .plan {
-      padding: 0 var(--s-1);
+    .tight .row :global(.avatar),
+    .ghost-row :global(.avatar) {
+      display: none;
     }
-    .plan-word {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip-path: inset(50%);
-      white-space: nowrap;
-    }
+  }
+  /* Quarterly: a word at every width, so it reads at a glance; tinted like a badge, no colour */
+  .badge.plan {
+    flex: none;
+  }
+  /* The team maker's figure, after the position: fixed width, so a two- or three-digit rating never nudges the row */
+  .rating {
+    flex: none;
+    width: 1.75rem;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    text-align: right;
   }
   /* A phone: Cards and List as icons only (their words stay for screen readers) */
   @media (max-width: 900px) {
@@ -1138,6 +1304,10 @@
     font: inherit;
     text-align: left;
   }
+  /* Move: the team they're on, said but not offered */
+  .tool:disabled {
+    background: none;
+  }
   .tool:active {
     background: var(--surface-3);
   }
@@ -1162,13 +1332,39 @@
   .tool-text span {
     font-size: var(--text-sm);
   }
-  /* Moving players: a grip to drag by, the team you're over lit, the row following the pointer */
+  /* Moving players: a grip to drag by, the full height of the row and a thumb wide; the rest of the row a tap that
+     asks where to; the team you're over lit, the row following the pointer */
+  .tight .row.arrange {
+    gap: 0;
+    padding: 0 var(--row-pad) 0 0;
+  }
+  .pick {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: var(--s-3);
+    min-width: 0;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .arrange:has(.pick:hover) {
+    background: var(--row-hover);
+  }
+  .pick :global(.grow) {
+    flex: 1;
+  }
   .grip {
     display: grid;
+    flex: none;
     place-items: center;
-    width: 2.25rem;
+    width: 2.75rem;
     height: 2.75rem;
-    margin: calc(-1 * var(--s-2)) 0 calc(-1 * var(--s-2)) calc(-1 * var(--s-2));
     padding: 0;
     border: 0;
     border-radius: var(--r-sm);
@@ -1191,18 +1387,50 @@
   .lifting {
     opacity: 0.35;
   }
+  /* While someone's dragged, the team they'd land on lights: its rows a tint, its edge a ring (the one place a line
+     helps: it's where to let go), its head's figures counting them in */
+  .team .list {
+    transition:
+      box-shadow var(--t-fast) var(--ease-in-out),
+      background-color var(--t-fast) var(--ease-in-out);
+  }
   .team.over .list {
-    outline: 2px solid var(--green);
-    outline-offset: 2px;
+    background-color: color-mix(in srgb, var(--green) 9%, var(--glass, transparent));
+    box-shadow: inset 0 0 0 2px var(--green);
+  }
+  .count.preview strong {
+    color: var(--green-ink);
   }
   .ghost-row {
     position: fixed;
     z-index: 100;
+    min-height: 2.75rem;
+    padding: 0 var(--row-pad) 0 0;
     border-radius: var(--r-md);
     background: var(--surface-3);
     box-shadow: var(--shadow-pop);
     cursor: grabbing;
     pointer-events: none;
+  }
+  .ghost-row .grip {
+    color: var(--fg);
+  }
+  /* Where letting go puts them, on the dragged row itself (its room kept, so the row doesn't change as it moves) */
+  .to {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: var(--s-1);
+    width: 5.5rem;
+    overflow: hidden;
+    color: var(--green-ink);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    visibility: hidden;
+  }
+  .to.on {
+    visibility: visible;
   }
   /* Not on a team: under the teams, its heading as theirs, the rows at a team's width */
   .unplaced {
@@ -1231,8 +1459,20 @@
   h2.display {
     font-size: 1.6rem;
   }
+  /* How many and how strong: the figures stand out, the words quiet */
   .count {
+    display: inline-flex;
+    gap: var(--s-3);
     margin-left: auto;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+  }
+  .count strong {
+    color: var(--fg);
+    font-size: var(--text-md);
+    font-weight: 700;
+    transition: color var(--t-fast) var(--ease-in-out);
   }
   .mine .list {
     border-color: var(--green-border);

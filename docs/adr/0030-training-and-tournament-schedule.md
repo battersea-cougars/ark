@@ -72,8 +72,8 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   more are in than the limit, nobody moves up when someone drops out, and the page says how many over it is.
 - **Keepers aren't in it**: they keep their sign-up place, and a skater never takes a keeper's. Whether keepers pay at
   all, or need a plan of their own, is open.
-- The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge on their row
-  and tag on their card so the order reads. That tells every member who signed up on the Quarterly plan, which is the
+- The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge (the word,
+  at every width) on their row in the sign-up lists and a tag on their card, so the order reads. That tells every member who signed up on the Quarterly plan, which is the
   point of the badge; nobody else's plan is sent.
 - Tournaments and club events keep plain sign-up order.
 
@@ -170,3 +170,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   Quarterly Member signing up for a full session takes the last pay-as-you-go place; keepers aren't in it; badged
   (a club rule change).
 - 2026-10-20: The team maker can let someone waiting in over the limit; the limit still holds for sign-up.
+- 2026-10-20: The Quarterly badge says "Quarterly" on a phone too (it had been a small calendar icon there, which
+  nobody read); it's off the team rows, where the queue is behind them.

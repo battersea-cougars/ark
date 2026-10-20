@@ -127,7 +127,10 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - 2026-10-20: Make teams stays once the teams are out, as Remake teams with Clear teams beside it, and on a phone sits
   in a bar above the tabs rather than the page's bar (ADR 0076).
 - 2026-10-20: On a phone a training's usual day, hours and place sit at the foot of its page, not behind an info
-  button in the bar (a desktop keeps them under the title).
+  button in the bar (a desktop keeps them under the title). Revised the same day: a page whose list has a sticky
+  header can't have a foot (the rows scroll to the end under the header, over the team maker's bar), so on a phone
+  the session card carries them instead: the place with its map link and how often it's on, under its title, beside
+  this week's hours.
 - 2026-10-20: Next Kumite sits in the series page's "No Kumite yet", not the header, when nothing's on (ADR 0074).
 - 2026-10-20: Settings is reached by one gear, top right on a desktop (beside the badge) and on a phone's You page,
   instead of the dock's tile and the phone's sheet; it shows in your everyday role too and switches you up.

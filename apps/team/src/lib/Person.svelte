@@ -6,13 +6,13 @@
     player,
     showRating = false,
     meta,
-    short = false,
+    bare = false,
   }: {
     player: Player;
     showRating?: boolean;
     meta?: string;
-    /** The position as its letter (F, D, K), the word kept for screen readers: a tight list (Friday's) */
-    short?: boolean;
+    /** Just the name, on one line: the row shows the position itself, as a badge (Friday's tight lists) */
+    bare?: boolean;
   } = $props();
   const initials = $derived(
     goesBy(player)
@@ -26,16 +26,5 @@
 <span class="avatar">{initials}</span>
 <span class="grow">
   <span class="title">{goesBy(player)}</span>
-  <span class="sub"
-    >{#if meta}{meta}{:else if short}<abbr title={position}
-        ><span aria-hidden="true">{position[0]}</span><span class="sr-only">{position}</span></abbr
-      >{:else}{position}{/if}{showRating ? ` · ${player.rating}` : ""}</span
-  >
+  {#if !bare}<span class="sub">{meta || position}{showRating ? ` · ${player.rating}` : ""}</span>{/if}
 </span>
-
-<style>
-  /* The letter reads as plain text, not a dotted abbreviation */
-  abbr {
-    text-decoration: none;
-  }
-</style>
