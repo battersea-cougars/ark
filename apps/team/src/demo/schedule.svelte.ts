@@ -1,7 +1,7 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
 import { signupOpen } from "../lib/signup";
-import { editionState, latestOf, previousOf } from "../lib/edition";
+import { currentOf, editionState, latestOf, previousOf } from "../lib/edition";
 import { formatDayDate, formatTime, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
@@ -100,24 +100,25 @@ export function nextSession(series: TrainingSeries, today = londonToday()): Trai
   return future.find((s) => !s.cancelledAt) ?? future[0];
 }
 
-/** The tournament to show for a type: the live one, else the next, else the most recent. */
-/** A series' latest (lib/edition.ts latestOf): what its pages open on, and what the app's Home teases. */
+/** A series' latest (lib/edition.ts latestOf): what the app's Home teases. */
 export const latestTournament = (typeId: number, today = londonToday()) =>
   latestOf(
     db.tournaments.filter((t) => t.typeId === typeId),
     today,
   );
 
-/** What a series' pages show: its latest (History has the rest, each on a page of its own). */
-export const currentTournament = (typeId: number, today = londonToday()) => latestTournament(typeId, today);
+/** What a series' pages show: the one on or coming up, else none (lib/edition.ts currentOf). */
+export const currentTournament = (typeId: number, today = londonToday()) =>
+  currentOf(
+    db.tournaments.filter((t) => t.typeId === typeId),
+    today,
+  );
 
-/** Its past ones, played, other than the one its pages show: newest first (History). */
-export const pastTournaments = (typeId: number) => {
-  const now = latestTournament(typeId);
-  return db.tournaments
-    .filter((t) => t.typeId === typeId && t.id !== now?.id && editionState(t) === "done")
+/** Its past ones, played: newest first (History, or the front page when nothing's on). */
+export const pastTournaments = (typeId: number) =>
+  db.tournaments
+    .filter((t) => t.typeId === typeId && editionState(t) === "done")
     .sort((a, b) => b.heldOn.localeCompare(a.heldOn));
-};
 
 /** The last one played before this (lib/edition.ts previousOf). */
 export const previousTournament = (t: Tournament) =>

@@ -19,6 +19,7 @@ const config = (): NavConfig => ({
     // Every edition's games and teams, so a past one's links work too
     games: db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
     past: pastTournaments(t.id).map((x) => x.id),
+    idle: !currentTournament(t.id),
     teams: db.tournaments
       .filter((x) => x.typeId === t.id)
       .flatMap((x) => x.teams)

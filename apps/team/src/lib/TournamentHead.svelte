@@ -2,7 +2,8 @@
   // The top of every tournament page: the type as the eyebrow, the page, and the edition it's showing, big: its day
   // (or Date to be confirmed), its season, its hours and place, and where it stands, worked out from what's happened
   // (lib/edition.ts). Past ones are on History, each with a page of its own.
-  // On the front page (The Kumite), an admin's Manage menu (ADR 0065): its settings and the awards, open over the page; and Next Kumite once there's nothing coming up (ADR 0074).
+  // On the front page (The Kumite), an admin's Manage menu (ADR 0065): its settings and the awards, open over the page.
+  // With nothing on, Next Kumite is the front page's own button, not here (ADR 0074).
   import type { Tournament, TournamentType } from "../demo/model";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
@@ -44,10 +45,6 @@
     return days < 0 ? "" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
   });
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
-  // Nothing coming up (the last one's been played, or there's never been one): the next one is the admin's job of the
-  // moment, so it's a button on the page, not only in the menu
-  const nextDue = $derived(!tournament || stage === "done");
-  const scheduleNext = () => editTournament("new", { typeId: type.id });
   interface Tool {
     icon: IconName;
     label: string;
@@ -58,7 +55,7 @@
   // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
   // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
   // sheet on a phone (where it's mostly done, at the rink), a side drawer on a desktop. The next one isn't here: it's
-  // the page's own button once this one's done (ADR 0074)
+  // the front page's own button once nothing's on (ADR 0074)
   const tools = $derived.by(() => {
     if (!tournament) return [] as Tool[];
     const t = tournament;
@@ -120,24 +117,17 @@
       </span>
     {/snippet}
     {#snippet actions()}
-      {#if admin}
+      {#if admin && tools.length}
         <!-- One quiet button on the series' front page (ADR 0065): what an admin does to the series, kept out of the
              way of everyone else's view -->
         <div class="manage">
-          {#if nextDue}
-            <button class="btn sm primary" onclick={scheduleNext}
-              ><Icon name="plus" size={16} /> Next {type.shortName}</button
-            >
-          {/if}
-          {#if tools.length}
-            <button
-              class="btn sm ghost icon"
-              aria-haspopup="dialog"
-              aria-label="Manage the {type.shortName}"
-              title="Manage"
-              onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
-            >
-          {/if}
+          <button
+            class="btn sm ghost icon"
+            aria-haspopup="dialog"
+            aria-label="Manage the {type.shortName}"
+            title="Manage"
+            onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
+          >
         </div>
       {/if}
     {/snippet}

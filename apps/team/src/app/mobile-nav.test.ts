@@ -160,6 +160,30 @@ describe("a series' history", () => {
   });
 });
 
+describe("a series with nothing on or coming up", () => {
+  const idle: NavConfig = {
+    ...one,
+    types: [{ ...kumite, idle: true, past: [7, 5], games: [70], teams: [{ id: 71, mine: false }], captains: [8] }],
+    me: 8,
+  };
+
+  it("is just its front page, so there's no strip of pages: no fight card, board, teams, draft or History", () => {
+    const routes = buildRoutes(idle);
+    expect(tabRoutes(routes, "tournaments", admin).map((r) => r.name)).toEqual(["The Kumite"]);
+    expect(stripRoutes(routes, routeFor(routes, "/tournaments/kumite")!, admin)).toEqual([]);
+  });
+
+  it("still opens each past one, its games and its teams, from the front page", () => {
+    const routes = buildRoutes(idle);
+    expect(routeFor(routes, "/tournaments/kumite/history/5")).toMatchObject({ page: "edition", under: "games:1" });
+    expect(routeFor(routes, "/tournaments/kumite/games/70")).toMatchObject({ page: "matchup", under: "games:1" });
+    expect(routeFor(routes, "/tournaments/kumite/teams/71")).toMatchObject({
+      page: "tournament-team",
+      under: "games:1",
+    });
+  });
+});
+
 describe("the members table", () => {
   it("an admin finds every member as a table under Settings → Club; a member doesn't see it", () => {
     const routes = buildRoutes(one);

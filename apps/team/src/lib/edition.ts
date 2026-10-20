@@ -62,6 +62,15 @@ export function latestOf(editions: Tournament[], today: string): Tournament | un
   );
 }
 
+/**
+ * The one on or coming up, which a series' running pages show (its fight card, board, teams, draft): its latest, unless
+ * that's been played. Then there's nothing on, and every one played is history, on the series' front page.
+ */
+export function currentOf(editions: Tournament[], today: string): Tournament | undefined {
+  const latest = latestOf(editions, today);
+  return latest && editionState(latest) !== "done" ? latest : undefined;
+}
+
 /** The last one played, other than this: "last time", on the next one's page. */
 export const previousOf = (editions: Tournament[], t: Tournament) =>
   editions

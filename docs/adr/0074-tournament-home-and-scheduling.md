@@ -1,7 +1,7 @@
 # 0074. A tournament's home follows the day in three acts, and the next one is scheduled from it in a few questions
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-09
+- **Date:** 2026-10-08 · updated 2026-10-20
 - **Merges:** 0086, 0087, 0088, 0089, 0091
 
 ## Context
@@ -27,16 +27,21 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   once it's confirmed or the games have been played; the season always.
 - **The header carries the when** on every tournament page (`TournamentHead.svelte`): the day big (or _Date to be
   confirmed_), the season, the hours and place, and the state.
-- **A series opens on its next one** (`latestOf`): the one under way, else the next one not done (a tentative date or
-  just a season is enough), else the last one played. The series' other pages show the same one; there's no
-  switcher.
-- **Past ones are History**, a tab once one's been played: each with how it ended (the day, the champions, the
-  final's score), each opening its own page (`/tournaments/:slug/history/:id`: the champions, the final, every fight,
-  the board, the awards). Its teams' and games' pages work from there too. Once the next one is set, the last one
-  is only in History; the series page has no Last time.
+- **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date
+  or just a season is enough). The series' other pages show the same one; there's no switcher. Once the last game's
+  played it's history: nothing's on.
+- **With nothing on, the series is one page.** No Fight card, The board, Teams, Draft or History (they're for one
+  that's running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down
+  the side like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard."
+  An admin's **Next Kumite** is on it. Under it, every past one, newest first.
+- **Past ones are History**, a tab while the next one's on or coming up (the front page when nothing's on): each
+  with how it ended (the day, the champions, the final's score), each opening its own page
+  (`/tournaments/:slug/history/:id`: the champions, the final, every fight, the board, the awards), back to the list.
+  Its teams' and games' pages work from there too; a past game's matchup goes back to its own page, not today's fight
+  card.
 - The app's **Home teases each series' next one** in a feature card (date or season, sign-up, the way to its page).
 
-### Three acts (`Games.svelte`)
+### The acts (`Games.svelte`)
 
 - **Before:** the sign-up line, the draft, the teams, the first fight once the card's out. Nothing else: no lede, no
   "not final" hint. The sign-up line says where sign-up stands ("Sign-up opens Fri 16 Oct" before it opens). The
@@ -45,7 +50,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   captains as discs (initials in their team's colour, the name on hover and for a screen reader, a ring on yours),
   or says "Captains to be named."
 - **During:** your turn to keep score, the fight on now and the next, the latest results.
-- **After:** the champions (crest, name, how they won it), the final, every fight, the awards.
+- **After:** the champions (crest, name, how they won it), the final, every fight, the awards: on its own page in
+  History, with the front page back to nothing on.
 - **Fewer cards:** the champions, sign-up, keep-score duty and teams sit on the page, set apart by space, type and a
   rule, not each in its own dark panel.
 
@@ -62,7 +68,8 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   sign-up, captains and draft day, rules, awards) and Confirm the awards. The draft is run on its own tab and the
   fight card made on its own, so neither is in the menu.
 - **When nothing's coming up** (the last one's been played, or there's never been one), an admin sees **Next
-  Kumite** as the main button beside Manage. This is the one admin button on the page outside Manage.
+  Kumite** as the main button on the page, in the big "No Kumite yet". This is the one admin button on the page
+  outside Manage.
 
 ### Scheduling the next one in a few questions
 
@@ -131,3 +138,6 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 - 2026-10-09: An admin deletes a tournament, the cascade doing the work (was 0088).
 - 2026-10-09: Sign-up opens on a day, asked as a new second question (was 0089).
 - 2026-10-09: A series has usual hours, shown in the first question; the Kumite at Friday training's (was 0091).
+- 2026-10-20: With nothing on, the series is one page: no Fight card, board, Teams, Draft or History; a big "No Kumite
+  yet" in the motif with an admin's Next Kumite, and every past one under it. The last one played no longer holds the
+  front page (`currentOf`); its after act is its own page in History.

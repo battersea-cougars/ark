@@ -1,9 +1,9 @@
 <script lang="ts">
-  // One past tournament, in full (ADR 0074), reached from History (or Last time on the series' page): its day in the
-  // header, the champions, the final, every fight, the board, the awards. Back goes to History.
+  // One past tournament, in full (ADR 0074), reached from History (or from the series' front page when nothing's on):
+  // its day in the header, the champions, the final, every fight, the board, the awards. Back goes where the list is.
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
-  import { typeById } from "../demo/schedule.svelte";
+  import { currentTournament, typeById } from "../demo/schedule.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import Awards from "../lib/Awards.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
@@ -17,6 +17,8 @@
 
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(db.tournaments.find((t) => t.id === tournamentId));
+  // The list of them all: History while the next one's on or coming up, else the front page
+  const back = $derived(`/tournaments/${type.slug}${currentTournament(typeId) ? "/history" : ""}`);
   const games = $derived([...(tournament?.games ?? [])].sort((a, b) => a.position - b.position));
   const final = $derived(
     games
@@ -27,7 +29,7 @@
 
 <div class="page">
   <TournamentHead {type} {tournament} title="History" />
-  <a class="back" href="/tournaments/{type.slug}/history"><Icon name="chevronLeft" size={16} />All {type.shortName}s</a>
+  <a class="back" href={back}><Icon name="chevronLeft" size={16} />All {type.shortName}s</a>
 
   {#if !tournament}
     <EmptyState icon="alert" title="Not found">There's no such {type.shortName}. Try the list of them all.</EmptyState>

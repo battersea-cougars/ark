@@ -1,14 +1,15 @@
 <script lang="ts">
-  // A tournament series' landing page, for the edition the header shows (the latest, or one picked from the past). The
-  // date is the header's; the page follows the day in three acts, from what's happened (lib/edition.ts):
+  // A tournament series' front page, for the one on or coming up (lib/edition.ts currentOf). The date is the header's;
+  // the page follows the day, from what's happened:
   //   Before: saying you're in, the draft and its captains, the teams, the first game.
   //   During: your turn to keep score, the game on now and the next, the latest results.
-  //   After: the champions, the final, every result, and the awards.
+  // Once the last game's played it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
+  // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
   import { shortNameOf, nameOfTeam } from "../lib/names";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { currentTournament, pastTournaments, typeById } from "../demo/schedule.svelte";
   import SignUpLine from "../lib/SignUpLine.svelte";
   import { editionState } from "../lib/edition";
   import Kanji from "../lib/Kanji.svelte";
@@ -19,8 +20,8 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamHref, teamTone } from "../lib/team-tones";
   import DraftStatus from "../lib/DraftStatus.svelte";
-  import ChampionCard from "../lib/ChampionCard.svelte";
-  import Awards from "../lib/Awards.svelte";
+  import PastEditions from "../lib/PastEditions.svelte";
+  import { editTournament } from "../lib/TournamentEditorPanel.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
@@ -32,6 +33,8 @@
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(currentTournament(typeId));
+  const past = $derived(tournament ? [] : pastTournaments(typeId));
+  const kumite = $derived(!!kanjiFor(type, "onTheMat"));
   const firstName = (id: number | null) => shortNameOf(PLAYERS.find((p) => p.id === id));
   const teams = $derived(tournament?.teams ?? []);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
@@ -81,45 +84,50 @@
   const schedule = $derived(`/tournaments/${type.slug}/schedule`);
   const board = $derived(`/tournaments/${type.slug}/standings`);
 
-  // Which act, by the games (lib/edition.ts): after (every game played), during (one being scored or in), before
-  const mode = $derived.by(() => {
-    const state = tournament ? editionState(tournament) : "planned";
-    return state === "done" ? "after" : state === "live" ? "during" : "before";
-  });
+  // Which act, by the games (lib/edition.ts): during (one being scored or in), else before
+  const mode = $derived(tournament && editionState(tournament) === "live" ? "during" : "before");
   // The latest results, newest first; the final, last of the playoffs
   const results = $derived(games.filter((g) => g.status === "done").sort((a, b) => b.position - a.position));
-  const final = $derived(
-    games
-      .filter((g) => g.stage === "playoff")
-      .reduce<(typeof games)[number] | undefined>((a, b) => (!a || b.position > a.position ? b : a), undefined),
-  );
 </script>
 
 <div class="page">
-  <TournamentHead {type} {tournament} title="The {type.shortName}" manage />
+  <TournamentHead
+    {type}
+    {tournament}
+    title="The {type.shortName}"
+    manage
+    note={tournament ? undefined : "Between bouts."}
+  />
 
-  {#if tournament && mode === "after"}
-    <!-- After: who won, how, every result, the awards -->
-    <ChampionCard {type} {tournament} />
-    {#if final && final.status === "done"}
-      <section class="part">
-        <h2 class="section-title">The final<Kanji text={kanjiFor(type, "final")} /></h2>
-        <div class="list"><FixtureRow big {tournament} game={final} /></div>
-      </section>
-    {/if}
-    <section class="part">
-      <div class="part-head">
-        <h2 class="section-title">Every fight<Kanji text={kanjiFor(type, "fights")} /></h2>
-        <a class="btn ghost sm" href={board}>The board<Icon name="chevronRight" size={16} /></a>
-      </div>
-      <div class="list">
-        {#each [...games].sort((a, b) => a.position - b.position) as g (g.id)}
-          <FixtureRow {tournament} game={g} />
-        {/each}
+  {#if !tournament}
+    <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
+         stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, 0074) -->
+    <section class="no-bout">
+      {#if kumite}
+        <span class="poster" aria-hidden="true"
+          ><span class="big-kanji" lang="ja">{kanjiFor(type, "onTheMat")}</span><span class="seal"
+            ><Kanji text={kanjiFor(type, "fist")} seal /></span
+          ></span
+        >
+      {/if}
+      <div class="words">
+        <span class="eyebrow"><Icon name={kumite ? "gong" : type.icon} size={18} />Nothing on the card</span>
+        <h2 class="display big">No {type.shortName} yet</h2>
+        <p>{kumite ? "The gong's quiet. Train hard." : "Nothing on yet. Watch this space."}</p>
+        {#if manage}
+          <button class="btn primary" onclick={() => editTournament("new", { typeId: type.id })}
+            ><Icon name="plus" size={18} />Next {type.shortName}</button
+          >
+        {/if}
       </div>
     </section>
-    <Awards {tournament} />
-  {:else if tournament && mode === "during"}
+    {#if past.length}
+      <section class="part">
+        <h2 class="section-title">Past {type.shortName}s<Kanji text={kanjiFor(type, "martial")} /></h2>
+        <PastEditions {type} {past} />
+      </section>
+    {/if}
+  {:else if mode === "during"}
     <!-- During: your team's turn to keep score (once you hold it, your game's card wears the whistle instead), what's
          on and next, what's just happened -->
     {#if duty && !holding}
@@ -172,7 +180,7 @@
         </div>
       </section>
     {/if}
-  {:else if tournament}
+  {:else}
     <!-- Before: saying you're in, the draft, the teams, the first game. Once the next one's set (even with its date
          to come) the last one's in History, not here -->
     <SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />
@@ -222,6 +230,73 @@
 </div>
 
 <style>
+  /* Nothing on: the page's one big moment. The kanji down the side, quiet; the words beside them */
+  .no-bout {
+    display: flex;
+    align-items: center;
+    gap: clamp(var(--s-4), 5vw, var(--s-10));
+    padding-block: clamp(var(--s-6), 6vw, var(--s-10));
+  }
+  .poster {
+    position: relative;
+    flex: none;
+  }
+  .big-kanji {
+    display: block;
+    color: var(--surface-3);
+    font-family: var(--font-kanji);
+    font-size: clamp(4.5rem, 16vw, 9.5rem);
+    font-weight: 900;
+    line-height: 1;
+    writing-mode: vertical-rl;
+  }
+  /* The hanko, stamped across the foot of the kanji */
+  .seal {
+    position: absolute;
+    right: -0.9rem;
+    bottom: -0.5rem;
+  }
+  .words {
+    display: grid;
+    justify-items: start;
+    gap: var(--s-3);
+    min-width: 0;
+  }
+  .words .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+  .big {
+    margin: 0;
+    color: var(--fg);
+    font-size: clamp(2.6rem, 9vw, 5rem);
+    line-height: 0.95;
+  }
+  .words p {
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-md);
+  }
+  .words .btn {
+    gap: var(--s-2);
+    margin-top: var(--s-2);
+  }
+  /* A phone: the kanji across the top, big, the words under them */
+  @media (max-width: 600px) {
+    .no-bout {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .big-kanji {
+      font-size: 6.5rem;
+      writing-mode: horizontal-tb;
+    }
+    .seal {
+      right: -1.25rem;
+      bottom: -0.75rem;
+    }
+  }
   .updates {
     display: flex;
     align-items: center;

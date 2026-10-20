@@ -2,7 +2,7 @@
 // what's happened, not the dates.
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
-import { latestOf, previousOf } from "./edition";
+import { currentOf, latestOf, previousOf } from "./edition";
 
 const TODAY = "2026-10-08";
 const played = (position: number) => ({
@@ -67,5 +67,24 @@ describe("the edition a series opens on", () => {
   it("a fixed day that came and went unplayed isn't next", () => {
     const all = [edition(1, "2026-06-01", { games: [played(1)] as never }), edition(2, "2026-09-01")];
     expect(latestOf(all, TODAY)?.id).toBe(1);
+  });
+});
+
+describe("the one on or coming up (a series' running pages: fight card, board, teams, draft)", () => {
+  it("the next one, or the one under way", () => {
+    const all = [edition(1, "2026-06-01", { games: [played(1)] as never }), edition(2, "2027-01-15")];
+    expect(currentOf(all, TODAY)?.id).toBe(2);
+  });
+
+  it("none once the last one's been played: it's history, and so is every one before it", () => {
+    const all = [
+      edition(1, "2026-06-01", { games: [played(1)] as never }),
+      edition(2, "2026-09-01", { games: [played(1)] as never }),
+    ];
+    expect(currentOf(all, TODAY)).toBeUndefined();
+  });
+
+  it("none when there's never been one", () => {
+    expect(currentOf([], TODAY)).toBeUndefined();
   });
 });

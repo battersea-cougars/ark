@@ -65,8 +65,10 @@ export interface NavConfig {
     games?: number[];
     /** Its tournaments' teams, the past ones' too, each with a page of its own; `mine`: you're on it. */
     teams?: { id: number; mine: boolean }[];
-    /** Its past tournaments (played, not the one its pages show), newest first: History, and a page each. */
+    /** Its past tournaments (played), newest first: History, and a page each. */
     past?: number[];
+    /** Nothing on or coming up: just its front page (the past ones on it), none of the pages for a running one. */
+    idle?: boolean;
   }[];
   /** Who's signed in (or being viewed as). */
   me?: number;
@@ -339,6 +341,9 @@ export function buildRoutes(config: NavConfig): Route[] {
     },
     ...types.flatMap((t): Route[] => {
       const base = { tab: "tournaments" as const, params: { typeId: t.id }, fold: `type:${t.id}` };
+      // With nothing on or coming up, its front page is the only one: a past one's pages sit under it
+      const home = `games:${t.id}`;
+      const running = !t.idle;
       return [
         {
           ...base,
@@ -350,35 +355,39 @@ export function buildRoutes(config: NavConfig): Route[] {
           action: "read:Event",
           icon: "trophy",
         },
-        {
-          ...base,
-          id: `schedule:${t.id}`,
-          path: `/tournaments/${t.slug}/schedule`,
-          name: "Fight card",
-          page: "schedule",
-          action: "read:Event",
-          // The Kumite's gong starts every fight (lib/motif.ts)
-          icon: t.slug === "kumite" ? "gong" : "calendar",
-        },
-        {
-          ...base,
-          id: `standings:${t.id}`,
-          path: `/tournaments/${t.slug}/standings`,
-          name: "The board",
-          page: "standings",
-          action: "read:Event",
-          icon: "list",
-        },
-        {
-          ...base,
-          id: `teams:${t.id}`,
-          path: `/tournaments/${t.slug}/teams`,
-          name: "Teams",
-          page: "tournament-teams",
-          // Everyone's: a draft's teams once it closes (ADR 0060); where an admin edits a team (ADR 0060)
-          action: "read:Event",
-          icon: "teams",
-        },
+        ...(running
+          ? ([
+              {
+                ...base,
+                id: `schedule:${t.id}`,
+                path: `/tournaments/${t.slug}/schedule`,
+                name: "Fight card",
+                page: "schedule",
+                action: "read:Event",
+                // The Kumite's gong starts every fight (lib/motif.ts)
+                icon: t.slug === "kumite" ? "gong" : "calendar",
+              },
+              {
+                ...base,
+                id: `standings:${t.id}`,
+                path: `/tournaments/${t.slug}/standings`,
+                name: "The board",
+                page: "standings",
+                action: "read:Event",
+                icon: "list",
+              },
+              {
+                ...base,
+                id: `teams:${t.id}`,
+                path: `/tournaments/${t.slug}/teams`,
+                name: "Teams",
+                page: "tournament-teams",
+                // Everyone's: a draft's teams once it closes (ADR 0060); where an admin edits a team (ADR 0060)
+                action: "read:Event",
+                icon: "teams",
+              },
+            ] as Route[])
+          : []),
         // Each team's page, reached from wherever the team's shown; yours is lit as My team
         ...(t.teams ?? []).map((team): Route => ({
           ...base,
@@ -390,10 +399,10 @@ export function buildRoutes(config: NavConfig): Route[] {
           action: "read:Event",
           icon: "teams",
           hidden: true,
-          under: team.mine ? `my-team:${t.id}` : `teams:${t.id}`,
+          under: !running ? home : team.mine ? `my-team:${t.id}` : `teams:${t.id}`,
         })),
         // Your team: whoever's on one, captains included; where the captain makes it theirs
-        ...(t.onTeam
+        ...(running && t.onTeam
           ? [
               {
                 ...base,
@@ -406,7 +415,7 @@ export function buildRoutes(config: NavConfig): Route[] {
               },
             ]
           : []),
-        ...(t.kind === "draft"
+        ...(running && t.kind === "draft"
           ? [
               {
                 ...base,
@@ -421,18 +430,22 @@ export function buildRoutes(config: NavConfig): Route[] {
             ]
           : []),
         // History: every past one with its result, and each one's page (the champions, every fight, the board, the
-        // awards), back to the list (ADR 0074)
+        // awards), back to the list (ADR 0074). With nothing on, the list is the front page
         ...(t.past?.length
           ? [
-              {
-                ...base,
-                id: `history:${t.id}`,
-                path: `/tournaments/${t.slug}/history`,
-                name: "History",
-                page: "history",
-                action: "read:Event" as const,
-                icon: "medal" as const,
-              },
+              ...(running
+                ? [
+                    {
+                      ...base,
+                      id: `history:${t.id}`,
+                      path: `/tournaments/${t.slug}/history`,
+                      name: "History",
+                      page: "history",
+                      action: "read:Event" as const,
+                      icon: "medal" as const,
+                    },
+                  ]
+                : []),
               ...t.past.map((tournamentId): Route => ({
                 ...base,
                 id: `edition:${t.id}:${tournamentId}`,
@@ -443,7 +456,7 @@ export function buildRoutes(config: NavConfig): Route[] {
                 action: "read:Event",
                 icon: "medal",
                 hidden: true,
-                under: `history:${t.id}`,
+                under: running ? `history:${t.id}` : home,
               })),
             ]
           : []),
@@ -459,7 +472,7 @@ export function buildRoutes(config: NavConfig): Route[] {
           action: "read:Event",
           icon: "swords",
           hidden: true,
-          under: `schedule:${t.id}`,
+          under: running ? `schedule:${t.id}` : home,
         })),
         // Each game's clock, full screen: its live score for anyone, its scoresheet for whoever keeps time and score
         // (ADR 0061)

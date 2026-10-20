@@ -25,6 +25,8 @@
     db.tournaments.find((t) => t.games?.some((g) => g.id === gameId)) ?? currentTournament(typeId),
   );
   const game = $derived(tournament?.games?.find((g) => g.id === gameId));
+  // Back to its fight card: the one on now's, else the past one's own page (its every fight)
+  const onNow = $derived(!!tournament && tournament.id === currentTournament(typeId)?.id);
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
@@ -103,7 +105,9 @@
   {#if !tournament || !game}
     <p class="note">There's no such game.</p>
   {:else}
-    <a class="back" href="/tournaments/{type.slug}/schedule"><Icon name="chevronLeft" size={16} />Fight card</a>
+    <a class="back" href="/tournaments/{type.slug}/{onNow ? 'schedule' : `history/${tournament.id}`}"
+      ><Icon name="chevronLeft" size={16} />{onNow ? "Fight card" : tournament.name}</a
+    >
 
     <!-- The two teams, face to face: the score once it's played, else the kick-off -->
     <section class="face">
