@@ -134,24 +134,21 @@ const { founded } = await getClub();
     padding-left: 1.25rem;
     border-left: 1px solid var(--rule-strong);
     white-space: nowrap;
+    transition: opacity 0.3s var(--ease-out);
   }
-  /* VCR clock display: red LED digits behind a dark window */
+  .clock.off {
+    opacity: 0;
+  }
+  /* The rink clock: the time or a scoreboard word in red poster capitals */
   .clock-time {
     min-width: 5ch;
-    padding: 0.15em 0.4em 0.05em;
-    border: 1px solid #000;
-    border-radius: 2px;
-    background: #070707;
-    box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.8);
     color: var(--red-hot);
-    font-family: var(--osd);
-    font-size: 1.45rem;
+    font-family: var(--display);
+    font-size: 1.3rem;
     line-height: 1;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     text-align: center;
-    text-shadow:
-      0 0 4px var(--red-soft),
-      0 0 10px var(--red-soft);
+    text-transform: uppercase;
     font-variant-numeric: tabular-nums;
   }
   /* Capitals only, so centre the caps, not the line: a line box keeps room for descenders, which sat the word above

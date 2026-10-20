@@ -22,7 +22,8 @@
 
   --sans: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --display: var(--font-display), Impact, sans-serif; /* woodtype poster capitals */
-  --osd: var(--font-osd), ui-monospace, monospace; /* The rink scoreboard: header clock, countdown, 404 penalty clock */
+  --osd:
+    var(--font-osd), ui-monospace, monospace; /* VT323: the Kumite poster's on-screen cut-in and its easter egg only */
 
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
@@ -266,6 +267,14 @@ html.is-scrollbar-dragging * {
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
+/* Digits and capitals only: trim the line box to the caps so equal padding centres them (Anton keeps room for
+   descenders, which sat the time low) */
+@supports (text-box: trim-both cap alphabetic) {
+  .stamp {
+    padding: 0.39em 0.5em; /* the same 1.68rem tall as before: Anton's caps are 0.83em */
+    text-box: trim-both cap alphabetic;
+  }
+}
 
 /* Sticker, slapped on slightly crooked */
 .sticker {
@@ -374,6 +383,26 @@ html.is-scrollbar-dragging * {
   border-color: rgb(0 0 0 / 0.35);
   background: linear-gradient(to right, #f3efe6 0.35rem, transparent 0.35rem), var(--label);
   rotate: 0.8deg;
+}
+/* Hover: a glint sweeps across the tape, like the rink lights on fresh ice */
+.btn {
+  position: relative;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 0.6) 48%, transparent 66%);
+    translate: -110% 0;
+    pointer-events: none;
+  }
+  .btn:hover::before,
+  .btn:focus-visible::before {
+    translate: 110% 0;
+    transition: translate 0.55s var(--ease-out);
+  }
 }
 /* Claw marks: three tapered slashes ripped through the right end of the label */
 .btn--primary::after {
@@ -561,22 +590,41 @@ html.is-navigating main {
   }
 }
 
-@keyframes page-out {
+/* Between pages, a body check: the page takes a hit, blurs off, and the next one slams in */
+@keyframes page-hit {
+  25% {
+    translate: -12px 4px;
+    rotate: -0.4deg;
+  }
   to {
     opacity: 0;
+    translate: 40px 0;
+    scale: 0.96;
+    filter: blur(6px);
   }
 }
-@keyframes page-in {
+@keyframes page-slam {
   from {
     opacity: 0;
+    scale: 1.08;
+    filter: brightness(2);
+  }
+  60% {
+    opacity: 1;
+    scale: 0.99;
+    filter: brightness(1.1);
+  }
+  to {
+    scale: 1;
+    filter: none;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
   ::view-transition-old(root) {
-    animation: page-out 0.22s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+    animation: page-hit 0.3s cubic-bezier(0.5, 0, 0.9, 0.5) both;
   }
   ::view-transition-new(root) {
-    animation: page-in 0.22s cubic-bezier(0.45, 0.05, 0.55, 0.95) both;
+    animation: page-slam 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.12s both;
   }
 }
 /* The Kumite poster on the home page and the Kumite page's header are nearly the same picture, so a crossfade looks like

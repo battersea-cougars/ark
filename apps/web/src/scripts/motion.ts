@@ -18,7 +18,7 @@ function onPage() {
 
 /**
  * Home page: underline the nav link for the section in view, run the header clock
- * (each section carries data-time / data-title) and turn the header dark for
+ * (each section carries data-title, and the Friday-night ones data-time) and turn the header dark for
  * sections marked data-night (the Kumite).
  */
 function sectionSpy(signal: AbortSignal) {
@@ -54,8 +54,13 @@ function sectionSpy(signal: AbortSignal) {
       if (active) a.removeAttribute("aria-current");
       else a.setAttribute("aria-current", "page");
     }
-    if (clockTime) clockTime.textContent = active?.dataset.time ?? initial.time;
-    if (clockLabel) clockLabel.textContent = active?.dataset.title ?? initial.label;
+    // Past the Friday night (a section with no time) the clock fades out, still showing its last time
+    const time = active ? active.dataset.time : initial.time;
+    clockTime?.parentElement?.classList.toggle("off", !time);
+    if (time) {
+      if (clockTime) clockTime.textContent = time;
+      if (clockLabel) clockLabel.textContent = active?.dataset.title ?? initial.label;
+    }
     header?.classList.toggle("night", active?.hasAttribute("data-night") ?? false);
   };
   update();

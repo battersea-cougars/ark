@@ -27,16 +27,15 @@ const CREAM = "#f3efe6";
 
 // The build runs in apps/web (npm workspaces); the files are those the site already ships, as TTF for satori.
 const asset = (path: string) => readFile(resolve(process.cwd(), "src/assets", path));
-let loaded: Promise<{ anton: Buffer; vt323: Buffer; mark: string }> | undefined;
+let loaded: Promise<{ anton: Buffer; mark: string }> | undefined;
 const load = () =>
   (loaded ??= Promise.all([
     asset("fonts/Anton.ttf"),
-    asset("fonts/VT323.ttf"),
     // The head only: the red label carries the name, so the logo's own wordmark would say it twice.
     asset("cougars.png").then((png) =>
       sharp(png).extract({ left: 0, top: 0, width: 1355, height: 610 }).resize({ height: 420 }).png().toBuffer(),
     ),
-  ]).then(([anton, vt323, mark]) => ({ anton, vt323, mark: `data:image/png;base64,${mark.toString("base64")}` })));
+  ]).then(([anton, mark]) => ({ anton, mark: `data:image/png;base64,${mark.toString("base64")}` })));
 
 type Node = { type: string; props: Record<string, unknown> };
 const el = (type: string, style: Record<string, unknown>, ...children: (Node | string)[]): Node => ({
@@ -51,9 +50,10 @@ const titleSize = (title: string) =>
   title.length <= 10 ? 150 : title.length <= 18 ? 118 : title.length <= 32 ? 92 : 72;
 
 export async function renderCard(card: Card): Promise<Buffer> {
-  const { anton, vt323, mark } = await load();
+  const { anton, mark } = await load();
   const ink = card.night ? "#ffd60a" : BONE;
-  const osd = (text: string) => div({ fontFamily: "VT323", fontSize: 44, color: BONE, letterSpacing: 2 }, text);
+  const scoreboard = (text: string) =>
+    div({ fontFamily: "Anton", fontSize: 34, color: card.night ? ink : RED, letterSpacing: 4 }, text);
 
   const tree = div(
     {
@@ -68,12 +68,8 @@ export async function renderCard(card: Card): Promise<Buffer> {
     },
     // The cougar, half off the frame on the right.
     el("img", { position: "absolute", right: -150, top: 230, height: 420, opacity: card.night ? 0.3 : 0.5 }, ""),
-    // The scoreboard line: a red light, then the day and time or the section
-    div(
-      { alignItems: "center", gap: 18, minHeight: 44 },
-      div({ width: 16, height: 16, borderRadius: 8, backgroundColor: RED }),
-      ...(card.osd ? [osd(card.osd.toUpperCase())] : []),
-    ),
+    // The scoreboard line: the day and time, or the section, in the poster capitals
+    div({ alignItems: "center", minHeight: 48 }, ...(card.osd ? [scoreboard(card.osd.toUpperCase())] : [])),
     div(
       { flexDirection: "column", gap: 28, maxWidth: 820 },
       div(
@@ -100,7 +96,7 @@ export async function renderCard(card: Card): Promise<Buffer> {
       ),
     ),
     div(
-      { fontFamily: "VT323", fontSize: 34, color: "rgba(236,232,225,0.7)", letterSpacing: 2 },
+      { fontFamily: "Anton", fontSize: 28, color: "rgba(236,232,225,0.7)", letterSpacing: 3 },
       (card.footer ?? "").toUpperCase(),
     ),
   );
@@ -110,10 +106,7 @@ export async function renderCard(card: Card): Promise<Buffer> {
   const svg = await satori(tree as Parameters<typeof satori>[0], {
     width: OG_WIDTH,
     height: OG_HEIGHT,
-    fonts: [
-      { name: "Anton", data: anton, weight: 400, style: "normal" },
-      { name: "VT323", data: vt323, weight: 400, style: "normal" },
-    ],
+    fonts: [{ name: "Anton", data: anton, weight: 400, style: "normal" }],
   });
   return sharp(Buffer.from(svg)).png({ compressionLevel: 9, palette: true, quality: 90 }).toBuffer();
 }

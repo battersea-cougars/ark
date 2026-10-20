@@ -11,14 +11,14 @@ as soon as a time, venue or event changes, and the team manager shouldn't have t
 
 ## Decision
 
-- Every page's `og:image` is a 1200×630 card drawn at build time like the rink's scoreboard: a red light and a
+- Every page's `og:image` is a 1200×630 card drawn at build time like the rink's scoreboard: a red
   scoreboard line (the session time or event date), the page title in Anton, the red label and the cougar's head
   (`lib/og.ts`, served from the prerendered `pages/og/[...card].png.ts`).
 - Cards use only facts the site already shows: the session day and time, the venue and the founding year from
   the Studio, and the event title, date and place. A page picks its card with `<Base card="…">`; the default is the
   home card.
 - A page with its own photo (an event's or album's cover) shares that photo instead.
-- `satori` lays the card out with the site's fonts (TTF copies of Anton and VT323, which satori needs instead of
+- `satori` lays the card out with the site's fonts (a TTF copy of Anton, which satori needs instead of
   WOFF2) and `sharp`, already used for images, makes the PNG. Both run only in the build (Node, ADR 0004's
   `prerenderEnvironment: "node"`); neither is in the Worker.
 
@@ -35,3 +35,4 @@ as soon as a time, venue or event changes, and the team manager shouldn't have t
 
 - 2026-10-06: Share pictures are drawn at build time.
 - 2026-10-20: The VHS frame (PLAY ▶, SP, scan lines) became a scoreboard line ([ADR 0114](0114-website-look.md)).
+- 2026-10-20: The scoreboard line is in Anton, red, without the light; VT323 and its TTF copy dropped.

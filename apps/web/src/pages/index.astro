@@ -1,9 +1,8 @@
 ---
 // The home page is a Friday night, top to bottom: kit up, face-off, final whistle,
 // and (four times a year) the Kumite, underground. Then the week's news. Each section's
-// data-time / data-title drives the header clock (scripts/motion.ts): the display shows a state, never a name (the
-// time on the Friday-night sections, a scoreboard word after them, in characters the VT323 font has), and the label is
-// the section's name, so the two never say the same thing.
+// data-time / data-title drives the header clock (scripts/motion.ts): the time on the Friday-night sections and the
+// section's name beside it. The sections after the night have no time, and the clock fades out there.
 import { Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import logo from "../assets/cougars.png";
@@ -85,7 +84,6 @@ const strip: [string, string][] = [
           data-start={slot.start}
           data-end={slot.end}
         >
-          <span class="hero-light" aria-hidden="true" />
           <span data-countdown-text>
             {day}s {slot.start}
           </span>
@@ -242,7 +240,7 @@ const strip: [string, string][] = [
   )}
 
   <!-- The week: what's on -->
-  <section class="section wrap" id="events" data-time="NEXT" data-title="What's on">
+  <section class="section wrap" id="events" data-title="What's on">
     <div class="section-head" data-reveal>
       <div>
         <p class="kicker">Coming up</p>
@@ -259,7 +257,7 @@ const strip: [string, string][] = [
   </section>
 
   <!-- Videos: mostly Friday night sessions -->
-  <section class="section band" id="videos" data-time="REPLAY" data-title="Videos">
+  <section class="section band" id="videos" data-title="Videos">
     <div class="wrap">
       <div class="section-head" data-reveal>
         <div>
@@ -278,7 +276,7 @@ const strip: [string, string][] = [
   </section>
 
   <!-- Photo gallery -->
-  <section class="section wrap" id="photos" data-time="SNAP" data-title="Gallery">
+  <section class="section wrap" id="photos" data-title="Gallery">
     <div class="section-head" data-reveal>
       <div>
         <p class="kicker">Gallery</p>
@@ -340,13 +338,11 @@ const strip: [string, string][] = [
   /* The scoreboard: the next face-off counting down (scripts/countdown.ts). Wide enough for its longest line
      ("Playing now · till 21:30"), so the ticking never moves anything. */
   .hero-when {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
+    display: inline-block;
     min-width: 30ch;
-    font-family: var(--osd);
-    font-size: 1.45rem;
-    letter-spacing: 0.06em;
+    font-family: var(--display);
+    font-size: 1.15rem;
+    letter-spacing: 0.08em;
     line-height: 1;
     text-transform: uppercase;
     color: var(--text-2);
@@ -354,13 +350,6 @@ const strip: [string, string][] = [
   }
   .hero-when:hover {
     color: var(--text);
-  }
-  .hero-light {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--red-hot);
-    box-shadow: 0 0 8px var(--red-hot);
   }
   @media (prefers-reduced-motion: no-preference) {
     .hero :global(.hero-logo) {
