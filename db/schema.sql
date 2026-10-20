@@ -22,6 +22,16 @@ CREATE INDEX enquiries_auto_replied_at ON enquiries (auto_replied_at);
 
 CREATE INDEX enquiries_email ON enquiries (email);
 
+-- Tokens the website renews by itself (apps/web/src/lib/server/instagram-token.ts, ADR 0113): Instagram's, for the
+-- club's posts. Sealed in the Worker (AES-GCM, with a key only it has, the row's name bound in), so this table never
+-- holds one anyone can read or move.
+CREATE TABLE sealed_tokens (
+  name        TEXT PRIMARY KEY,   -- instagram
+  sealed      TEXT NOT NULL,      -- base64: 12-byte IV, then the ciphertext
+  expires_at  TEXT NOT NULL,
+  renewed_at  TEXT NOT NULL
+);
+
 CREATE TABLE members (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,

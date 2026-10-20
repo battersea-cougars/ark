@@ -8,8 +8,8 @@ invited with.
 ## Live or practice?
 
 The Studio at **https://studio.batterseacougars.com** is the real website: its title says **Cougars website
-(Live)**. Changes appear on the website **the next morning**, when it rebuilds by itself. Photos are the
-exception: they're on the site a few minutes after you press Publish. If something can't wait until tomorrow,
+(Live)**. Changes appear on the website **the next morning**, when it rebuilds by itself. Photos come from Instagram, so
+they're not in the Studio at all. If something can't wait until tomorrow,
 ask the developer to rebuild the site now.
 
 There's also a separate practice copy, **Cougars dev site (Practice copy, not live)**, for trying things out. It
@@ -28,7 +28,6 @@ The sidebar follows a Friday night, with the things that rarely change at the bo
 | **Pub**            | Where everyone goes afterwards                                                   |
 | **Kumite**         | _About the Kumite_ (intro, rules, awards)                                        |
 | **About the team** | Intro, league, team photo, and whether the team is on the website                |
-| **Photos**         | Photo albums                                                                     |
 | **Club**           | Year founded, contact email, social media links, homepage background photo       |
 | **Sponsors**       | Logos in the footer                                                              |
 
@@ -82,24 +81,20 @@ You don't upload video files to the website. YouTube hosts them for free.
 
 ## Photos
 
-Photos don't wait for the website to rebuild: an album is on the site **a few minutes after you press
-Publish**.
+The website's photos are the club's **Instagram**. Post on Instagram as usual and the photos are on the website
+**within ten minutes**: the newest 48 on the Photos page, the newest 12 on the home page. Nothing to do in the Studio.
 
-1. **Photos → +**. Give the album a title (e.g. "Summer social 2026") and the date, then press **Generate** next
-   to _Web address_.
-2. Drag a batch of photos from your computer or phone onto the **Photos** box. Phone photos are fine as they
-   are: the website resizes them. Batches of 20 to 50 upload comfortably; add more by dragging again.
-3. Click each photo and give it a **caption** (shown under it) or a **description** (read out to people who
-   can't see it). One of the two is required, and a short caption is enough. You can also drag the circle to
-   mark the important part of the picture, so crops keep it in view.
-4. Optional: choose a **Cover photo**, the picture shown for the album on the Photos page. Leave it empty to
-   use the first photo. To reorder photos, drag them in the grid.
-5. **Publish**. To add photos later, open the album, drag them in and **Publish** again.
+- The **caption** you write on Instagram shows under the photo, and its first sentence is read out to people who
+  can't see the picture, so a short description first helps ("Cougars celebrating a goal. What a night!").
+- A **video** shows its cover; pressing it offers "Watch it on Instagram". A post with several photos shows the
+  first, with a link to the rest.
+- To take a photo off the website, delete or archive the post on Instagram.
 
 ## Describe every photo
 
-Every photo needs a short description in _Describe the photo_, e.g. "Cougars celebrating a goal" (in a photo
-album, a caption is enough). The Studio won't publish a photo without one. It's read aloud to blind visitors and shown if the photo can't load.
+Every photo in the Studio (an event's cover, the team photo, the homepage background) needs a short description in
+_Describe the photo_, e.g. "Cougars celebrating a goal". The Studio won't publish a photo without one. It's read
+aloud to blind visitors and shown if the photo can't load.
 
 ## Change club details
 

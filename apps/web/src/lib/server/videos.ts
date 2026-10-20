@@ -6,7 +6,7 @@
 //     if YouTube fails, the last good list is shown for up to a day.
 // Never throws. Without an API key, or before the club has a channel, it's the Sanity videos only.
 import { cached, type CacheDeps, type CacheOptions } from "./cache";
-import { sanityQuery, type Live, type PhotosConfig } from "./photos";
+import { sanityQuery, type Live, type SanityConfig } from "./sanity-live";
 import { fetchSourceVideos, mergeVideos, sourceKey, videoSource, type VideoSource } from "../youtube";
 import { DEMO_VIDEOS } from "../sanity/demo";
 import * as q from "../sanity/queries";
@@ -16,7 +16,7 @@ import { scribe } from "@cougars/shared/scribe";
 const log = scribe.logger("videos");
 
 export interface VideosConfig {
-  sanity: PhotosConfig;
+  sanity: SanityConfig;
   /** YouTube Data API key: a Worker secret (or the build's environment). */
   youtubeKey?: string;
   demo?: boolean;

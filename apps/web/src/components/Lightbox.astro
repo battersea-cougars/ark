@@ -1,12 +1,14 @@
 ---
 // Full-screen photo viewer for any `[data-gallery]` on the page: links inside it
 // (`a[data-photo]`) open here instead of navigating. Without JS the links just open
-// the full-size image. Arrow keys and the buttons step through that gallery.
+// the full-size image. Arrow keys and the buttons step through that gallery. A photo from
+// Instagram (`data-post`, `data-post-label`) links to its post under the caption.
 ---
 
 <dialog class="lightbox" aria-label="Photo viewer" data-lightbox>
   <img alt="" />
   <p class="caption"></p>
+  <a class="post label link" target="_blank" rel="noopener" data-post hidden></a>
   <button type="button" class="close" aria-label="Close" data-close>
     ×
   </button>
@@ -42,6 +44,9 @@
   img {
     max-height: 84dvh;
     width: auto;
+  }
+  .post {
+    color: #fff;
   }
   .caption {
     margin: 0;
@@ -95,6 +100,10 @@
     img.src = link.href;
     img.alt = link.querySelector("img")?.alt ?? "";
     d.querySelector(".caption")!.textContent = link.dataset.caption ?? "";
+    const post = d.querySelector<HTMLAnchorElement>("[data-post]")!;
+    post.hidden = !link.dataset.post;
+    post.href = link.dataset.post ?? "";
+    post.textContent = link.dataset.postLabel ?? "On Instagram";
   };
 
   document.addEventListener("click", (e) => {

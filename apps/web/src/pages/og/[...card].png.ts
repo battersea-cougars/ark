@@ -1,5 +1,5 @@
 // Share pictures (lib/og.ts): one per section and one per event, drawn at build time. Base.astro points each page's
-// og:image here; a page with its own photo (an event or album cover) uses that instead.
+// og:image here; a page with its own photo (an event cover) uses that instead.
 import type { APIRoute, GetStaticPaths } from "astro";
 import { renderCard, type Card } from "../../lib/og";
 import { getEventPages, getSections, getSettings } from "../../lib/sanity/content";

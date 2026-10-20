@@ -1,21 +1,23 @@
 ---
-// Every album, newest first: a cover each, linking to the album's own page. Rendered on the Worker from
-// Sanity at request time (ADR 0016), so a published album is here within minutes, with no rebuild.
+// The club's photos: its newest Instagram posts (ADR 0113), so admins post there and the site follows within ten
+// minutes. Rendered on the Worker at request time. Each opens in the lightbox, with a link to the post; a video plays
+// on Instagram. Without JavaScript a tile opens the picture itself.
 import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import Empty from "../../components/Empty.astro";
+import Lightbox from "../../components/Lightbox.astro";
 import { getSettings } from "../../lib/sanity/content";
-import { imageSrcSet, imageUrl } from "../../lib/sanity/images";
-import { formatDate } from "../../lib/dates";
-import { listAlbums } from "../../lib/server/photos";
-import { cacheControl, photosConfig } from "../../lib/server/sanity-env";
+import { latestPosts } from "../../lib/server/instagram";
+import { instagramConfig } from "../../lib/server/instagram-env";
+import { cacheControl } from "../../lib/server/sanity-env";
+import { postLabel, postMark } from "../../lib/posts";
 
 export const prerender = false;
 
-const { data: albums, unavailable } = await listAlbums(photosConfig());
+const { data: posts, unavailable } = await latestPosts(instagramConfig());
 const s = await getSettings();
 const day = s.training[0]?.day ?? "Friday";
-const plural = (n: number) => `${n} photo${n === 1 ? "" : "s"}`;
+const instagram = s.socials.instagram;
 
 Astro.response.headers.set("Cache-Control", cacheControl(unavailable));
 if (unavailable) Astro.response.status = 503;
@@ -24,76 +26,76 @@ if (unavailable) Astro.response.status = 503;
 <Base
   title="Photos"
   card="photos"
-  description={`Photos from Cougars ${day} nights${s.kumite.onWebsite ? ", the Kumite" : ""} and the rest.`}
+  description={`Photos from Cougars ${day} nights${s.kumite.onWebsite ? ", the Kumite" : ""} and the rest, from the club's Instagram.`}
 >
   <PageHeader
     eyebrow="Photos"
     title="The evidence"
-    lede={`Photographic proof that some of us can skate. ${day} nights${s.kumite.onWebsite ? ", Kumite days" : ""} and the rest; pick a tape.`}
+    lede={`Photographic proof that some of us can skate. ${day} nights${s.kumite.onWebsite ? ", Kumite days" : ""} and the rest, straight from the club's Instagram.`}
   />
   <div class="wrap page-body">
-    {albums.length ? (
-      <ul class="albums">
-        {albums.map((a, i) => (
-          <li data-reveal style={`--i:${i % 3}`}>
-            <a href={`/photos/${a.slug}/`}>
-              <span class="cover">
-                {a.cover && (
-                  <img
-                    src={imageUrl(a.cover, 600, 450)}
-                    srcset={imageSrcSet(a.cover, [400, 600, 900], 4 / 3)}
-                    sizes="(max-width: 40rem) 100vw, (max-width: 64rem) 50vw, 24rem"
-                    alt={a.cover.alt ?? ""}
-                    width="600"
-                    height="450"
-                    loading={i < 3 ? "eager" : "lazy"}
-                  />
+    {posts.length ? (
+      <>
+        <ul class="grid" data-gallery>
+          {posts.map((p, i) => (
+            <li data-reveal style={`--i:${i % 3}`}>
+              <a
+                href={p.image}
+                data-photo
+                data-caption={p.caption ?? ""}
+                data-post={p.href}
+                data-post-label={postLabel(p)}
+              >
+                <img src={p.image} alt={p.alt} width="540" height="540" loading={i < 6 ? "eager" : "lazy"} />
+                {postMark(p) && (
+                  <span class="mark label" aria-label={p.kind === "video" ? "Video" : `${p.count} photos`}>
+                    {postMark(p)}
+                  </span>
                 )}
-              </span>
-              <div class="meta">
-                <h2>{a.title}</h2>
-                <p class="label">
-                  {a.date && formatDate(a.date)} · {plural(a.photoCount)}
-                </p>
-              </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+        {instagram && (
+          <p class="more">
+            <a class="btn" href={instagram} rel="noopener" target="_blank">
+              More on Instagram
             </a>
-          </li>
-        ))}
-      </ul>
+          </p>
+        )}
+      </>
     ) : (
       <Empty>
         {unavailable
-          ? "The photos won't load right now. Try again in a minute, or see more on "
-          : "No photos yet. See more on "}
-        <a href={s.socials.instagram ?? "#"} rel="noopener" target="_blank">
+          ? "The photos won't load right now. Try again in a minute, or see them on "
+          : "No photos yet. See "}
+        <a href={instagram ?? "#"} rel="noopener" target="_blank">
           Instagram
         </a>
         .
       </Empty>
     )}
   </div>
+  <Lightbox />
 </Base>
 
 <style>
-  .albums {
+  .grid {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
-    gap: 2.5rem 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(46%, 15rem), 1fr));
+    gap: 0.5rem;
   }
-  .albums a {
-    display: grid;
-    gap: 0.75rem;
-  }
-  .cover {
+  .grid a {
+    position: relative;
     display: block;
     overflow: hidden;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1;
     background: var(--rule);
   }
-  .cover img {
+  .grid img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -102,24 +104,20 @@ if (unavailable) Astro.response.status = 503;
       transform 0.6s var(--ease-out),
       filter 0.4s;
   }
-  .albums a:hover img {
+  .grid a:hover img {
     transform: scale(1.05);
     filter: none;
   }
-  .meta {
-    display: grid;
-    gap: 0.35rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--rule);
+  .mark {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.2rem 0.45rem;
+    background: rgb(0 0 0 / 0.6);
+    color: #fff;
   }
-  .meta h2 {
-    font-size: clamp(1.6rem, 2.8vw, 2.2rem);
-    line-height: 1.05;
-  }
-  .meta .label {
-    margin: 0;
-  }
-  .albums a:hover h2 {
-    color: var(--red-hot);
+  .more {
+    margin: 2.5rem 0 0;
+    text-align: center;
   }
 </style>

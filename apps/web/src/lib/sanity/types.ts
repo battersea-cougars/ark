@@ -120,27 +120,6 @@ export interface ClubEvent {
   ctaUrl?: string | null;
 }
 
-/** One photo in an album. `aspect` is width / height, when Sanity knows it. */
-export type Photo = SanityImage & { caption?: string | null; aspect?: number | null };
-
-export interface Album {
-  title: string;
-  slug: string;
-  date: string;
-  /** The editor's cover photo, or the album's first photo. */
-  cover?: Photo | null;
-  photos: Photo[];
-}
-
-/** An album on the /photos list: its cover and how many photos it has. */
-export interface AlbumSummary {
-  title: string;
-  slug: string;
-  date: string;
-  cover?: Photo | null;
-  photoCount: number;
-}
-
 export interface Sponsor {
   name: string;
   url?: string | null;

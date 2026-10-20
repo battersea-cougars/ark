@@ -79,6 +79,8 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)     | `cougars`     | Sanity                      | Studio deploys                            |
 | [`YOUTUBE_API_KEY__PRODUCTION`](#youtube-api-keys)                        | `cougars`     | Google Cloud                | Website (production)                      |
 | [`YOUTUBE_API_KEY__DEV`](#youtube-api-keys)                               | `cougars-dev` | Google Cloud                | Website (dev)                             |
+| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram)                               | `cougars`     | Meta, club's Instagram      | Website (production)                      |
+| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram)                           | `cougars`     | Made by us                  | Website (production)                      |
 | [`GMAIL_CLIENT_ID`](#gmail)                                               | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
 | [`GMAIL_CLIENT_SECRET`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
 | [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)                  |
@@ -232,6 +234,41 @@ touching production. Without a key the site still works and shows only the video
   (dev key).
 - **Expires:** no.
 - **Rotate:** Credentials → the key → **Regenerate key**, update Secrets Manager, run a deploy.
+
+### Instagram
+
+The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
+[ADR 0113](docs/adr/0113-photos-from-instagram.md)). Production only: without them, dev, previews and a laptop show a
+sample feed, and production shows "No photos yet".
+
+**`INSTAGRAM_TOKEN__PRODUCTION`**, the first token. The Worker renews it weekly by itself and keeps the renewed one in
+D1, sealed (the one exception to Bitwarden-only, [ADR 0002](docs/adr/0002-secrets-in-bitwarden.md)).
+
+- **Issued by**, once:
+  1. As the club account in the Instagram app: **Settings → Account type and tools → Switch to professional
+     account** (Creator or Business; free, posts unchanged).
+  2. As the developer account at developers.facebook.com: **My Apps → Create app** ("Battersea Cougars website",
+     use case **Manage messaging & content on Instagram**), then **Instagram → API setup with Instagram login**.
+  3. **App roles → Roles → Add people → Instagram Tester**: the club's Instagram account; accept it in Instagram
+     (**Settings → Website permissions → Apps and websites → Tester invites**).
+  4. Back in **API setup with Instagram login → Generate access tokens → Add account**, sign in as the club's
+     Instagram, and copy the token (permission `instagram_business_basic` only: read its own posts).
+  5. `npm run secret:set INSTAGRAM_TOKEN__PRODUCTION`, then run a production deploy.
+- **Used by:** the website Worker (`/photos/`, the home strip, `/api/photos/<id>`); the cron renews it.
+- **Gets there by:** CI pull, then `deploy.yml` pushes it to the Worker as a secret.
+- **Expires:** 60 days, but renewed weekly by the Worker, so never in practice. If renewal fails, Sentry alerts with
+  the days left.
+- **Rotate / revoke:** the Meta app → **API setup with Instagram login** → remove the account, then make a new token
+  as above.
+
+**`INSTAGRAM_TOKEN_KEY__PRODUCTION`**, the key the renewed token is sealed with in D1 (AES-GCM).
+
+- **Issued by:** us: `openssl rand -base64 32 | npm run secret:set INSTAGRAM_TOKEN_KEY__PRODUCTION` (32 random bytes,
+  base64). Its own key, never `BACKUP_KEY`.
+- **Used by / gets there by:** the website Worker, pushed as a secret by `deploy.yml`.
+- **Rotate:** set a new value and deploy. The sealed token then won't open: the Worker falls back to the Bitwarden
+  token (an error says so) and seals a fresh one at the next weekly renewal. If the Bitwarden one has expired by then,
+  make a new token.
 
 ### Gmail
 

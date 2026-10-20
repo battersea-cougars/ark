@@ -28,7 +28,6 @@ export const structure: StructureResolver = (S) =>
             .items([singleton(S, "kumite", "About the Kumite")]),
         ),
       singleton(S, "team", "About the team"),
-      S.documentTypeListItem("album").title("Photos"),
       S.divider(),
       singleton(S, "club", "Club"),
       S.documentTypeListItem("sponsor").title("Sponsors"),

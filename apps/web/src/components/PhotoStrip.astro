@@ -1,37 +1,32 @@
 ---
-// The home page's latest photos. The page is prerendered, so it first shows the photos from its last build
-// (all a visitor without JavaScript gets), then swaps in the live ones from /api/photos/latest (ADR 0016).
-// The Lightbox listens with a delegated handler, so swapped-in photos open in it too.
+// The home page's latest photos: the club's newest Instagram posts (ADR 0113). The page is prerendered, and its build
+// can't read Instagram, so it holds twelve empty tiles in place and its script fills them from /api/photos/latest;
+// nothing moves when they arrive. Without JavaScript, or with no posts, the tiles give way to a line pointing at
+// Instagram. The Lightbox listens with a delegated handler, so the filled-in photos open in it.
 import Empty from "./Empty.astro";
-import { imageSrcSet, imageUrl } from "../lib/sanity/images";
-import type { Photo } from "../lib/sanity/types";
 
 interface Props {
-  photos: Photo[];
-  /** Where the empty state points meanwhile. */
   instagram?: string | null;
 }
-const { photos, instagram } = Astro.props;
+const { instagram } = Astro.props;
 ---
 
 <div class="strip" data-photo-strip>
-  {photos.length ? (
-    <ul class="gallery" data-gallery data-reveal>
-      {photos.map((p) => (
-        <li>
-          <a href={imageUrl(p, 2000)} data-photo data-caption={p.caption ?? ""}>
-            <img
-              src={imageUrl(p, 600)}
-              srcset={imageSrcSet(p, [400, 600, 900])}
-              sizes="(max-width: 40rem) 50vw, 18rem"
-              alt={p.alt ?? ""}
-              loading="lazy"
-            />
-          </a>
-        </li>
-      ))}
-    </ul>
-  ) : (
+  <ul class="gallery" data-gallery aria-busy="true">
+    {Array.from({ length: 12 }, () => (
+      <li class="placeholder" aria-hidden="true" />
+    ))}
+  </ul>
+  <noscript>
+    <Empty>
+      See the photos on{" "}
+      <a href={instagram ?? "/photos/"} rel="noopener" target="_blank">
+        Instagram
+      </a>
+      .
+    </Empty>
+  </noscript>
+  <template data-empty>
     <Empty>
       No photos yet. Meanwhile, there's{" "}
       <a href={instagram ?? "/photos/"} rel="noopener" target="_blank">
@@ -39,11 +34,11 @@ const { photos, instagram } = Astro.props;
       </a>
       .
     </Empty>
-  )}
+  </template>
 </div>
 
 <style>
-  /* :global because the script rebuilds the list, and its elements don't carry Astro's scope attribute */
+  /* :global because the script fills the list, and its elements don't carry Astro's scope attribute */
   .strip :global(.gallery) {
     list-style: none;
     margin: 0;
@@ -52,11 +47,16 @@ const { photos, instagram } = Astro.props;
     grid-template-columns: repeat(auto-fill, minmax(min(46%, 11rem), 1fr));
     gap: 0.5rem;
   }
+  .strip :global(.gallery li) {
+    aspect-ratio: 1;
+    background: var(--rule);
+  }
   .strip :global(.gallery li:first-child) {
     grid-column: span 2;
     grid-row: span 2;
   }
   .strip :global(.gallery a) {
+    position: relative;
     display: block;
     height: 100%;
     overflow: hidden;
@@ -64,7 +64,6 @@ const { photos, instagram } = Astro.props;
   .strip :global(.gallery img) {
     width: 100%;
     height: 100%;
-    aspect-ratio: 1;
     object-fit: cover;
     filter: saturate(0.9);
     transition:
@@ -75,48 +74,56 @@ const { photos, instagram } = Astro.props;
     transform: scale(1.05);
     filter: none;
   }
+  .strip :global(.mark) {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.2rem 0.45rem;
+    background: rgb(0 0 0 / 0.6);
+    color: #fff;
+  }
 </style>
 
 <script>
   import type { StripPhoto } from "../pages/api/photos/latest";
+  import { postLabel, postMark } from "../lib/posts";
 
   function item(p: StripPhoto): HTMLLIElement {
     const li = document.createElement("li");
-    const a = Object.assign(document.createElement("a"), { href: p.full });
-    a.dataset.photo = "";
-    a.dataset.caption = p.caption;
-    const img = Object.assign(document.createElement("img"), { src: p.src, srcset: p.srcset, alt: p.alt });
-    img.sizes = "(max-width: 40rem) 50vw, 18rem";
-    img.loading = "lazy";
+    const a = Object.assign(document.createElement("a"), { href: p.image });
+    Object.assign(a.dataset, { photo: "", caption: p.caption ?? "", post: p.href, postLabel: postLabel(p) });
+    const img = Object.assign(document.createElement("img"), { src: p.image, alt: p.alt, loading: "lazy" });
     a.appendChild(img);
+    const mark = postMark(p);
+    if (mark) {
+      const span = Object.assign(document.createElement("span"), { className: "mark label", textContent: mark });
+      span.setAttribute("aria-label", p.kind === "video" ? "Video" : `${p.count} photos`);
+      a.appendChild(span);
+    }
     li.appendChild(a);
     return li;
   }
 
-  async function refresh() {
+  async function fill() {
     const strip = document.querySelector<HTMLElement>("[data-photo-strip]");
-    if (!strip) return;
-    let photos: StripPhoto[];
+    const list = strip?.querySelector<HTMLUListElement>("ul[data-gallery]");
+    if (!strip || !list) return;
+    let photos: StripPhoto[] = [];
     try {
       const res = await fetch("/api/photos/latest", { headers: { Accept: "application/json" } });
-      if (!res.ok) return;
-      ({ photos } = (await res.json()) as { photos: StripPhoto[] });
+      if (res.ok) ({ photos } = (await res.json()) as { photos: StripPhoto[] });
     } catch {
-      return; // offline or blocked: the build-time photos stay
+      // offline or blocked: the empty state below
     }
-    if (!photos.length || !strip.isConnected) return;
-    const shown = [...strip.querySelectorAll<HTMLAnchorElement>("a[data-photo]")].map((a) => a.href);
-    if (shown.join() === photos.map((p) => new URL(p.full, location.href).href).join()) return;
-
-    let list = strip.querySelector<HTMLUListElement>("ul[data-gallery]");
-    if (!list) {
-      // There were no photos at build time: the empty state makes way for a list
-      list = Object.assign(document.createElement("ul"), { className: "gallery" });
-      list.dataset.gallery = "";
-      strip.replaceChildren(list);
+    if (!strip.isConnected) return;
+    if (!photos.length) {
+      const empty = strip.querySelector<HTMLTemplateElement>("template[data-empty]");
+      if (empty) strip.replaceChildren(empty.content.cloneNode(true));
+      return;
     }
     list.replaceChildren(...photos.map(item));
+    list.removeAttribute("aria-busy");
   }
 
-  document.addEventListener("astro:page-load", refresh);
+  document.addEventListener("astro:page-load", fill);
 </script>

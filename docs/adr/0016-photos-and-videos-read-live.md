@@ -1,7 +1,7 @@
 # 0016. Photos and videos are read live on the Worker; videos are uploaded on YouTube, into labelled playlists
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-09
+- **Date:** 2026-10-05 · updated 2026-10-20
 - **Merges:** 0015, 0019, 0039, 0040
 
 ## Context
@@ -22,11 +22,12 @@ to Private), and about 1,600 quota units per upload. The YouTube app and Studio 
 
 ## Decision
 
-**Photos.** `/photos` (album covers) and `/photos/<album>` (masonry and lightbox) are server routes
-(`prerender = false`); `/api/photos/latest` returns the newest photos as JSON. They query Sanity's API CDN (published
-perspective) with plain `fetch` in `apps/web/src/lib/server/photos.ts`; the GROQ stays in `queries.ts`, the types in
-`types.ts`. No token is needed (Sanity Free has public datasets only); `SANITY_API_TOKEN` is sent if the Worker has
-it, so a private dataset would only need that secret. Album publishes don't trigger a rebuild.
+**Photos** are the club's Instagram, read live the same way: [ADR 0113](0113-photos-from-instagram.md).
+
+**Sanity on the Worker.** Live reads query Sanity's API CDN (published perspective) with plain `fetch` in
+`apps/web/src/lib/server/sanity-live.ts`; the GROQ stays in `queries.ts`, the types in `types.ts`. No token is needed
+(Sanity Free has public datasets only); `SANITY_API_TOKEN` is sent if the Worker has it, so a private dataset would
+only need that secret.
 
 **Videos.** `/videos` renders on the Worker from YouTube and Sanity (`lib/server/videos.ts`).
 
@@ -47,16 +48,15 @@ They upload signed in with their own Google account, as the club channel, Unlist
 can upload is YouTube's channel permissions (Editor or above), managed by the club account. The app holds no YouTube
 credential that can write.
 
-**On the home page**, which stays prerendered: the photo strip shows the photos from the last build (enough without
-JavaScript), then swaps in `/api/photos/latest`; the video reel (`components/VideoReel.astro`) swaps in a live copy
+**On the home page**, which stays prerendered: the photo strip fills itself from `/api/photos/latest` (ADR 0113); the
+video reel (`components/VideoReel.astro`) swaps in a live copy
 from `/videos/reel/`.
 
 **Caching and failure.** Reads go through `lib/server/cache.ts` ([ADR 0053](0053-live-reads-are-cached.md)):
 YouTube playlists fresh for 10 minutes, last good copy kept a day (the playlists are one cache entry, so one failed
-call shows the last good list for all); Sanity videos fresh a minute, kept an hour; Sanity photos fresh a minute, kept
-a day. Pages send `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=600`. If a source can't be
+call shows the last good list for all); Sanity videos fresh a minute, kept an hour. Pages send `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=600`. If a source can't be
 reached and there's no good copy, the page shows a friendly "won't load right now" state (503, not cached), never an
-error page ([ADR 0055](0055-degrade-instead-of-break.md)). An unknown album gets the site's 404.
+error page ([ADR 0055](0055-degrade-instead-of-break.md)).
 
 Pages on the Worker can't use build-time image resizing (`imageService: "compile"`), so the shared layout's logo and
 background are ready-sized files in `src/assets/`.
@@ -87,3 +87,5 @@ background are ready-sized files in `src/assets/`.
 - 2026-10-07: No in-app upload: contributors upload on YouTube and the app only links there (was 0039).
 - 2026-10-07: Several labelled playlists replace the single club playlist (was 0040).
 - 2026-10-07: Caching moved to the shared rules for every live read ([ADR 0053](0053-live-reads-are-cached.md)).
+- 2026-10-20: Photos are the club's Instagram now ([ADR 0113](0113-photos-from-instagram.md)); Studio albums and
+  their pages are gone, and the Sanity reading moved to `lib/server/sanity-live.ts`.

@@ -1,8 +1,10 @@
 // The website's Worker: Astro answers requests, and a daily cron (wrangler.jsonc triggers) deletes enquiries the
-// privacy page says we no longer keep (ADR 0029). Runs whether or not anything deploys.
+// privacy page says we no longer keep (ADR 0029) and renews the Instagram token once a week (ADR 0113). Runs whether
+// or not anything deploys. Each task fails on its own: one breaking never stops the other.
 import * as Sentry from "@sentry/cloudflare";
 import { handle } from "@astrojs/cloudflare/handler";
 import { expireEnquiries } from "./lib/server/enquiries";
+import { renewInstagramToken } from "./lib/server/instagram-token";
 import { scribe } from "@cougars/shared/scribe";
 import { consoleAdapter } from "@cougars/shared/scribe.console";
 import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
@@ -18,13 +20,28 @@ export default Sentry.withSentry(
   {
     fetch: handle,
     async scheduled(controller, env) {
-      try {
-        const deleted = await expireEnquiries(env.DB, new Date(controller.scheduledTime));
-        log.info("enquiries.expired", { deleted });
-      } catch (e) {
-        log.error("cron.failed", e, { task: "expire-enquiries" });
-        throw e;
+      const now = controller.scheduledTime;
+      const tasks = {
+        "expire-enquiries": async () =>
+          log.info("enquiries.expired", { deleted: await expireEnquiries(env.DB, new Date(now)) }),
+        // INSTAGRAM_TOKEN and INSTAGRAM_TOKEN_KEY are Worker secrets (deploy.yml), so not in Env's types
+        "renew-instagram-token": async () =>
+          log.info("instagram.renewal", {
+            result: await renewInstagramToken(env as Env & { INSTAGRAM_TOKEN?: string; INSTAGRAM_TOKEN_KEY?: string }, {
+              now,
+            }),
+          }),
+      };
+      const failed: unknown[] = [];
+      for (const [task, run] of Object.entries(tasks)) {
+        try {
+          await run();
+        } catch (e) {
+          log.error("cron.failed", e, { task });
+          failed.push(e);
+        }
       }
+      if (failed.length) throw failed[0];
     },
   } satisfies ExportedHandler<Env>,
 );

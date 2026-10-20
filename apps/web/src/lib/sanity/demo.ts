@@ -1,8 +1,8 @@
 // Sample content for previewing the design before Sanity has real content.
 // Used when DEMO_CONTENT=true: locally, and in dev and PR builds (deploy.yml).
-// Photos are random placeholders from picsum.photos (not hockey); videos are
-// public inline hockey clips on YouTube, dated as recent Friday sessions.
-import type { Album, ClubEvent, Player, SanityImage, Video } from "./types";
+// Videos are public inline hockey clips on YouTube, dated as recent Friday sessions. The sample photos are the
+// Instagram feed's (lib/server/instagram.fake.ts).
+import type { ClubEvent, Player, Video } from "./types";
 
 const inDays = (d: number, time: string) => {
   const t = new Date();
@@ -41,8 +41,6 @@ export const DEMO_EVENTS: ClubEvent[] = [
   },
 ];
 
-const pic = (seed: string, alt = ""): SanityImage => ({ demoUrl: `https://picsum.photos/seed/cougars-${seed}`, alt });
-
 // The last few Fridays, each with a session video. Placeholder clips: public inline hockey
 // videos on YouTube, not Cougars footage.
 const fridaysAgo = (n: number) => {
@@ -64,21 +62,6 @@ export const DEMO_VIDEOS: Video[] = SESSION_CLIPS.map((id, n) => {
     description: "Placeholder clip, not Cougars footage.",
   };
 });
-
-const album = (slug: string, title: string, days: number, count: number): Album => ({
-  title,
-  slug,
-  date: inDays(days, "21:00"),
-  cover: pic(`${slug}-0`),
-  photos: Array.from({ length: count }, (_, i) => ({ ...pic(`${slug}-${i}`), caption: `Sample photo ${i + 1}` })),
-});
-// A function, not a constant: the Worker serves these at request time (/photos, ADR 0016), and a Worker's
-// clock reads 1970 while modules load, so dates must be worked out per request.
-export const demoAlbums = (): Album[] => [
-  album("demo-friday", "Friday night, last week (sample)", -4, 9),
-  album("demo-kumite", "Kumite: Autumn (sample)", -50, 12),
-  album("demo-social", "Summer social (sample)", -90, 6),
-];
 
 // Made-up characters to preview the squad cards. Not real members.
 const player = (n: number, nickname: string, rest: Omit<Player, "_id" | "name" | "nickname" | "number">): Player => ({

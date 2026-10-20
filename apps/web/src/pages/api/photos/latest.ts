@@ -1,34 +1,28 @@
 import type { APIRoute } from "astro";
-import { imageSrcSet, imageUrl } from "../../../lib/sanity/images";
-import { latestPhotos } from "../../../lib/server/photos";
-import { cacheControl, photosConfig } from "../../../lib/server/sanity-env";
+import { latestPosts, type Post } from "../../../lib/server/instagram";
+import { instagramConfig } from "../../../lib/server/instagram-env";
+import { cacheControl } from "../../../lib/server/sanity-env";
 
 export const prerender = false;
 
-/** A photo as the home page strip draws it: image URLs are built here, so the browser needs no Sanity code. */
-export interface StripPhoto {
-  src: string;
-  srcset: string;
-  full: string;
-  alt: string;
-  caption: string;
-}
+/** A post as the home page strip draws it. */
+export type StripPhoto = Pick<Post, "id" | "kind" | "image" | "alt" | "caption" | "href" | "count">;
 
-// The home page is prerendered with the photos from its last build; its script swaps in these, so a newly
-// published album shows on the home page too (ADR 0016).
+// The home page is prerendered without photos (its build can't read Instagram); its script fills the strip from
+// here, the club's newest twelve posts (ADR 0113).
 export const GET: APIRoute = async () => {
-  const { data, unavailable } = await latestPhotos(photosConfig());
-  const photos: StripPhoto[] = data.flatMap((p) => {
-    const src = imageUrl(p, 600);
-    const full = imageUrl(p, 2000);
-    if (!src || !full) return [];
-    return [{ src, full, srcset: imageSrcSet(p, [400, 600, 900]), alt: p.alt ?? "", caption: p.caption ?? "" }];
-  });
+  const { data, unavailable } = await latestPosts(instagramConfig(), {}, 12);
+  const photos: StripPhoto[] = data.map(({ id, kind, image, alt, caption, href, count }) => ({
+    id,
+    kind,
+    image,
+    alt,
+    caption,
+    href,
+    count,
+  }));
   return Response.json(
     { photos, unavailable },
-    {
-      status: unavailable ? 503 : 200,
-      headers: { "Cache-Control": cacheControl(unavailable) },
-    },
+    { status: unavailable ? 503 : 200, headers: { "Cache-Control": cacheControl(unavailable) } },
   );
 };

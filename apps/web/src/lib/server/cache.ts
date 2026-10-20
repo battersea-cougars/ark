@@ -30,7 +30,7 @@ export interface CacheDeps {
   edge?: Pick<Cache, "match" | "put"> | null;
 }
 
-// Bounded, so made-up addresses (an album slug, a player id) can't grow it forever; the oldest goes first.
+// Bounded, so made-up addresses (a player id, a picture id) can't grow it forever; the oldest goes first.
 const MAX_ENTRIES = 500;
 const memory = new Map<string, Entry<unknown>>();
 function remember(key: string, entry: Entry<unknown>) {

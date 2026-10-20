@@ -1,7 +1,7 @@
 # 0002. Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-09
+- **Date:** 2026-10-05 · updated 2026-10-20
 - **Merges:** 0012
 
 ## Context
@@ -44,6 +44,10 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 7. **Every secret is documented in the README** ([README.md#secrets](../../README.md#secrets)): why it exists, where
    it was issued, its permissions, who uses it (the _Used by_ column records which app, since project names don't),
    how it gets there, and how to rotate it. A secret that isn't in the README shouldn't exist.
+8. **One exception: a token that renews itself.** Instagram's lasts 60 days and must be swapped for a fresh one by
+   something that runs by itself, which can't write to Bitwarden. Its first value is in Bitwarden; the renewed one is
+   kept in D1, sealed in the Worker with a key that is itself a Bitwarden secret
+   ([ADR 0113](0113-photos-from-instagram.md)). Only a read-only token for public content may be kept this way.
 
 ## Consequences
 
@@ -63,3 +67,4 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   `BWS_ACCESS_TOKEN` (0002).
 - 2026-10-05: Two projects and three machine accounts shared by every app, instead of Ark's per-app pairs, to fit
   the free plan; GitHub holds one token per environment (0012).
+- 2026-10-20: One exception: Instagram's self-renewing token is kept in D1, sealed with a Bitwarden key ([ADR 0113](0113-photos-from-instagram.md)).

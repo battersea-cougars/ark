@@ -8,13 +8,13 @@ import * as q from "./queries";
 import { FALLBACK_CLUB, FALLBACK_FRIDAYS, FALLBACK_KUMITE, FALLBACK_PUB, FALLBACK_TEAM } from "./fallback";
 import { liveVideos } from "../server/videos";
 import { videosConfig } from "../server/sanity-env";
-import { demoAlbums, DEMO_EVENTS, DEMO_PLAYERS } from "./demo";
-import { sanityError, toAlbum } from "../server/photos";
+import { DEMO_EVENTS, DEMO_PLAYERS } from "./demo";
+import { sanityError } from "../server/sanity-live";
 import { guard } from "@cougars/shared/breaker";
 import { toPlayer, type RosterRow } from "../roster";
 import { crestFiles, editionsFrom, type ResultRows } from "../results";
 import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } from "./merge";
-import type { Album, ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
+import type { ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
 import { scribe } from "@cougars/shared/scribe";
 import { checkLinks } from "../links";
 
@@ -114,10 +114,6 @@ export const getSettings = memo(async (): Promise<SiteSettings> => {
 export const getVideos = memo(async () => (await liveVideos(videosConfig())).data);
 export const getEvents = memo(() => fetchList<ClubEvent>(q.EVENTS, DEMO_EVENTS));
 export const getEventPages = memo(() => fetchList<ClubEvent>(q.EVENT_PAGES, DEMO_EVENTS));
-// Build-time albums: only the home page's no-JavaScript photo strip uses these. /photos reads live (ADR 0016).
-export const getAlbums = memo(async () =>
-  (await fetchList<Album>(q.ALBUMS, demoAlbums())).flatMap((a) => toAlbum(a) ?? []),
-);
 // The roster: the active Cougars as of this build (lib/roster.ts, scripts/club-snapshot.mjs). Without a snapshot
 // (a fresh checkout, a database that couldn't be read), Sanity's players or the samples.
 const snapshot = import.meta.glob<RosterRow[] | null>("../../data/roster.local.json", {

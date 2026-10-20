@@ -27,6 +27,7 @@ Accounts are named here by role, never by address:
 | [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner           | The Gmail API app, YouTube API keys, Firebase (later)                    | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_SERVICE_ACCOUNT` (later)                                                                       |
 | [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                       | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                                                    |
 | [YouTube](#youtube)           | The club account owns the channel; managers upload                                               | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                                               |
+| [Instagram](#instagram)       | The club account owns @batterseacougars (Professional); the developer account owns the Meta app  | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN__PRODUCTION` (and our `INSTAGRAM_TOKEN_KEY__PRODUCTION`)                                                                                                |
 | [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                     | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_DSN_WEB`, `SENTRY_DSN_TEAM`                                                                                                                 |
 | [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                              | The store app (iOS)                                                      | `APP_STORE_CONNECT_KEY`, `_KEY_ID`, `_ISSUER_ID`, `APPLE_TEAM_ID`, `FIREBASE_IOS_CONFIG`, `APP_REVIEW_*__PRODUCTION` (when the store app ships)                          |
 
@@ -105,6 +106,15 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
   as **Editor** in YouTube Studio → Settings → Permissions.
 - **What the website shows** is set in the Studio (Club → YouTube channel and playlists) and read with the Google Cloud
   keys. The channel's picture, banner and watermark are in [`brand/youtube/`](../brand/README.md).
+
+## Instagram
+
+- **The account** @batterseacougars belongs to the club account, switched to a Professional account (free) so its
+  posts can be read through Instagram's API. Admins post there; the website shows the newest
+  ([ADR 0113](adr/0113-photos-from-instagram.md)).
+- **The Meta developer app** "Battersea Cougars website", owned by the developer account, with the club's Instagram
+  as its tester. It issues the read-only token `INSTAGRAM_TOKEN__PRODUCTION` (README#instagram). The website renews
+  it weekly and keeps the renewed one in D1, sealed with `INSTAGRAM_TOKEN_KEY__PRODUCTION`, which we make.
 
 ## Sentry
 

@@ -245,15 +245,16 @@ jobs:
           echo "url=${SITE_URL:-$url}" >> "$GITHUB_OUTPUT"
 
       # Secrets the Worker reads at request time, from this environment's Secrets Manager project (README#secrets).
-      # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; emails
-      # logged, not sent; no auto-replies).
+      # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample
+      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies).
       - name: Worker secrets
         if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: |
           # Where its errors go (ADR 0111): the web project's DSN, as the Worker's SENTRY_DSN
           SENTRY_DSN="${SENTRY_DSN_WEB:-}"
-          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY SENTRY_DSN; do
+          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY SENTRY_DSN \
+            INSTAGRAM_TOKEN INSTAGRAM_TOKEN_KEY; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/server/wrangler.json
             else
