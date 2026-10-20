@@ -1,7 +1,7 @@
 # 0030. The schedule lives in D1: training repeats as a series, tournaments are scheduled one by one and own their rules
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-10
+- **Date:** 2026-10-06 · updated 2026-10-20
 - **Merges:** 0025, 0046, 0048, 0049, 0051, 0052
 
 ## Context
@@ -67,6 +67,9 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   waits at the top of their queue (their sign-up time is kept, so their place in the order holds). Only when every
   place is a Quarterly Member's does one wait, still above those paying as they go. When a place comes free the
   first waiting in that order moves up. A walk-in isn't moved.
+- **The limit is what members see and what sign-up keeps to, not a wall**: the team maker can let someone waiting in
+  over it ([0076](0076-training-teams.md)). They keep their sign-up time, so they take their place in the order; while
+  more are in than the limit, nobody moves up when someone drops out, and the page says how many over it is.
 - **Keepers aren't in it**: they keep their sign-up place, and a skater never takes a keeper's. Whether keepers pay at
   all, or need a plan of their own, is open.
 - The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge on their row
@@ -166,3 +169,4 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-10: A training's sign-ups are one order, Quarterly Members first, then those paying as they go: a
   Quarterly Member signing up for a full session takes the last pay-as-you-go place; keepers aren't in it; badged
   (a club rule change).
+- 2026-10-20: The team maker can let someone waiting in over the limit; the limit still holds for sign-up.

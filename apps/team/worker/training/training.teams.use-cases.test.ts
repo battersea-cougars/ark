@@ -8,6 +8,8 @@ const ROSTER = [
   { name: "Tess Teams", position: "F", rating: 60, email: "tess@example.com", roles: ["Session lead"] },
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
   { name: "Mo Member", position: "D", rating: 55, email: "mo@example.com" },
+  { name: "Reg Player", position: "F", rating: 50, email: "reg@example.com" },
+  { name: "Wes Waiting", position: "F", rating: 45, email: "wes@example.com" },
 ];
 
 let w: ReturnType<typeof testWorld>;
@@ -158,5 +160,92 @@ describe("the team maker makes the teams, then clears them, with everyone watchi
     const mo = await w.signedIn("mo@example.com");
     expect((await mo.call("DELETE", `/api/sessions/${session.id}/teams`)).status).toBe(403);
     expect((await fridayOf(mo, session.id)).teams.length).toBe(2);
+  });
+});
+
+// Spaces are what members see and what sign-up keeps to (ADR 0030), but on the night the team maker can let someone
+// waiting in anyway, over the limit (ADR 0076). The one let in hears it on their phone, as when a place comes up.
+describe("the team maker lets someone in from the waiting list", () => {
+  /** Next Friday, room for two: Mo and Reg are in, Wes is waiting, and Wes has the app on his phone. */
+  async function fullFriday() {
+    const dana = await w.signedIn("dana@example.com");
+    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    const series = boot.series[0];
+    expect((await dana.call("PUT", `/api/series/${series.id}`, { ...series, capacity: 2 })).status).toBe(200);
+    const id = (name: string) => boot.members.find((m: { name: string }) => m.name === name).id as number;
+    const session = (await dana.call("GET", "/api/bootstrap")).body.sessions.find(
+      (s: { heldOn: string }) => s.heldOn >= "2026-10-06",
+    );
+    const wes = await w.signedIn("wes@example.com");
+    expect((await wes.call("PUT", "/api/auth/device", { token: "wes-phone", platform: "ios" })).status).toBe(200);
+    for (const email of ["mo@example.com", "reg@example.com", "wes@example.com"])
+      expect(
+        (await (await w.signedIn(email)).call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" })).status,
+      ).toBe(200);
+    const seen = async () =>
+      (await (await w.signedIn("mo@example.com")).call("GET", "/api/bootstrap")).body.sessions.find(
+        (s: { id: number }) => s.id === session.id,
+      );
+    const letIn = async (email: string, memberId: number) =>
+      (await (await w.signedIn(email)).call("POST", `/api/sessions/${session.id}/let-in`, { memberId })).status;
+    return { session, seen, letIn, mo: id("Mo Member"), reg: id("Reg Player"), wes: id("Wes Waiting") };
+  }
+
+  it("lets Wes in over the limit: he's in, in his sign-up place, nobody's waiting, and his phone hears it", async () => {
+    const f = await fullFriday();
+    expect((await f.seen()).waitlist).toEqual([f.wes]);
+    w.pushes.length = 0;
+
+    expect(await f.letIn("tess@example.com", f.wes)).toBe(200);
+
+    const after = await f.seen();
+    expect(after.going).toEqual([f.mo, f.reg, f.wes]);
+    expect(after.waitlist).toEqual([]);
+    expect(w.pushes).toEqual([
+      expect.objectContaining({ token: "wes-phone", title: "You're in", path: "/training/friday" }),
+    ]);
+    const record = w.db.raw.prepare("SELECT action FROM audit_log WHERE action = 'signups.changed'").all();
+    expect(record).toHaveLength(1);
+  });
+
+  it("the limit still holds for everyone else: someone new waits, and one dropping out doesn't let them in", async () => {
+    const f = await fullFriday();
+    expect(await f.letIn("tess@example.com", f.wes)).toBe(200);
+    const dana = await w.signedIn("dana@example.com");
+    const dee = (await dana.call("GET", "/api/bootstrap")).body.members.find(
+      (m: { name: string }) => m.name === "Dana Admin",
+    ).id;
+    expect((await dana.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
+    expect((await f.seen()).waitlist).toEqual([dee]);
+
+    // Three in for two places: Mo going out leaves two, still no room, so Dana waits on
+    const mo = await w.signedIn("mo@example.com");
+    expect((await mo.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "out" })).status).toBe(200);
+    let after = await f.seen();
+    expect(after.going).toEqual([f.reg, f.wes]);
+    expect(after.waitlist).toEqual([dee]);
+
+    // Reg going out leaves one: now there's a place, and Dana moves up
+    const reg = await w.signedIn("reg@example.com");
+    expect((await reg.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "out" })).status).toBe(200);
+    after = await f.seen();
+    expect(after.going).toEqual([f.wes, dee]);
+    expect(after.waitlist).toEqual([]);
+  });
+
+  it("only someone waiting can be let in", async () => {
+    const f = await fullFriday();
+    expect(await f.letIn("tess@example.com", f.mo)).toBe(409);
+    const dana = (await (await w.signedIn("dana@example.com")).call("GET", "/api/bootstrap")).body.members.find(
+      (m: { name: string }) => m.name === "Dana Admin",
+    ).id;
+    expect(await f.letIn("tess@example.com", dana)).toBe(409);
+  });
+
+  it("a member can't let anyone in", async () => {
+    const f = await fullFriday();
+    expect(await f.letIn("mo@example.com", f.wes)).toBe(403);
+    expect(await f.letIn("wes@example.com", f.wes)).toBe(403);
+    expect((await f.seen()).waitlist).toEqual([f.wes]);
   });
 });

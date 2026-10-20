@@ -3,7 +3,7 @@ import { movedUp, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { setSeriesFees } from "../dues/dues";
-import { mark } from "../entries/entries";
+import { letIn, mark } from "../entries/entries";
 import { HttpError, body, json } from "../api/api.http";
 import { createSeries, moreSessions, setSessionCancelled, updateSeries } from "./training";
 import { publishTeams, removeTeams, resetSession, sessionSignups } from "./training.teams";
@@ -112,6 +112,24 @@ export const TRAINING_ROUTES: Route[] = [
     changes: ["sessions"],
     // Take the teams down; the sign-ups stay
     handle: async (c) => (await removeTeams(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/sessions\/(\d+)\/let-in$/,
+    audit: {
+      event: "signups.changed",
+      subject: rowsOf("SELECT member_id memberId, signup FROM attendance WHERE session_id = ? ORDER BY member_id"),
+    },
+    // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
+    action: "publish:Teams",
+    changes: ["sessions", "charges", "credits", "payments"],
+    notify: movedUp("session", "You've been let in"),
+    // Someone waiting, in over the limit
+    handle: async (c) => {
+      const { memberId } = await memberIdIn(c);
+      await letIn(c.env.DB, id(c), memberId);
+      return ok();
+    },
   },
   {
     method: "POST",

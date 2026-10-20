@@ -207,6 +207,22 @@ export async function setPlayer(
   if (was.signup === "in") await moveUp(db, kind, id, limit, now);
 }
 
+/**
+ * The team maker lets someone waiting for a training in, over its limit if need be (ADR 0076): the limit is what
+ * members see and what sign-up keeps to, not a wall. They keep their sign-up time, so they take their place in the
+ * one order. One statement: refused unless they're waiting and the session's on.
+ */
+export async function letIn(db: D1Database, sessionId: number, memberId: number) {
+  const res = await run(
+    db,
+    `UPDATE attendance SET signup = 'in'
+     WHERE session_id = ? AND member_id = ? AND signup = 'waitlist'
+       AND EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND cancelled_at IS NULL)`,
+    [sessionId, memberId, sessionId],
+  );
+  if (!res.meta.changes) throw new HttpError(409, "They're not on the waiting list.");
+}
+
 /** One Friday on the register: here or not. */
 export interface Mark {
   sessionId: number;

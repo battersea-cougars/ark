@@ -181,6 +181,9 @@ export const answerFor = (key: string, answer: "in" | "out") =>
 /** An admin puts someone in a session, or takes them off. */
 export const setPlayer = (sessionId: number, memberId: number, inIt: boolean) =>
   save(() => api("POST", `/api/sessions/${sessionId}/players`, { memberId, in: inIt }), inIt ? "Added" : "Taken off");
+/** The team maker lets someone waiting in, over the limit if need be (ADR 0076). */
+export const letIn = (sessionId: number, memberId: number, name: string) =>
+  save(() => api("POST", `/api/sessions/${sessionId}/let-in`, { memberId }), `${name} is in`);
 /** An admin puts someone in a tournament (sign-up shut or not), or takes them off. */
 export const setTournamentPlayer = (tournamentId: number, memberId: number, inIt: boolean) =>
   save(

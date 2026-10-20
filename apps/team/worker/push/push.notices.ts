@@ -36,8 +36,8 @@ const answers = (kind: EntryKind) => (c: Ctx) =>
     [id(c)],
   );
 
-/** A place came up: whoever was waiting and is in now hears it. */
-export const movedUp = (kind: EntryKind): Notify<{ memberId: number; signup: string }[]> => ({
+/** A place came up (or the team maker let them in): whoever was waiting and is in now hears it. */
+export const movedUp = (kind: EntryKind, why = "A place came up"): Notify<{ memberId: number; signup: string }[]> => ({
   before: answers(kind),
   after: async (c, before) => {
     const waiting = new Set(before.filter((a) => a.signup === "waitlist").map((a) => a.memberId));
@@ -48,7 +48,7 @@ export const movedUp = (kind: EntryKind): Notify<{ memberId: number; signup: str
       {
         to: up.map((a) => a.memberId),
         title: "You're in",
-        body: `A place came up: you're in for ${event.name}.`,
+        body: `${why}: you're in for ${event.name}.`,
         path: event.path,
       },
     ];

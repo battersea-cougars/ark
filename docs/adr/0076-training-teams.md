@@ -33,6 +33,12 @@ without taking players off a team behind the team maker's back.
   back to Who's in, on no team; who's in stays. It's `DELETE /api/sessions/{id}/teams`, under `publish:Teams` like
   every change to the teams, on the record as `teams.removed`, and members' pages hear it live
   ([0072](0072-live-updates.md)). It isn't in Manage too: one place for it.
+- **The team maker can let someone waiting in, over the limit** ([0030](0030-training-and-tournament-schedule.md)):
+  Let in beside each name on the Waiting list (theirs only; members see the list as it was).
+  `POST /api/sessions/{id}/let-in` under `publish:Teams`, since who plays is decided with the teams and Session lead
+  holds it (`update:Event`, which puts anyone in, is an admin's); only someone waiting, on a session that's on. On
+  the record as `signups.changed`, and the one let in hears it on their phone as when a place comes up ("You've been
+  let in: you're in for Fri 23 Oct."), through the same notice (`movedUp`). Everyone's page shows it live.
 - **Team makers move players by dragging** a row's grip onto another team, with pointer events so it works with a
   finger as well as a mouse. Enter or Space on the focused grip moves the player to the next team, for keyboards and
   screen readers. **A click or tap on the grip does nothing**: with every move saved, a tap that sent someone to
@@ -61,3 +67,4 @@ without taking players off a team behind the team maker's back.
 - 2026-10-20: Make teams became a worded call to action for the team maker (a bar above the tabs on a phone; it had
   been an icon in the phone bar, the same icon as the Cards view beside the list, which now has its own), and
   Remove the teams left Manage to sit beside it as Clear teams, asked in a sheet rather than by a second tap.
+- 2026-10-20: The team maker lets people in from the waiting list, over the limit.

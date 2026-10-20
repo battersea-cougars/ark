@@ -15,7 +15,7 @@
   import PlayerCard from "../lib/PlayerCard.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import RegisterDrawer from "../lib/RegisterDrawer.svelte";
-  import { publishTeams, removeTeams, resetSession, saving, setPlayer } from "../app/backend.svelte";
+  import { letIn, publishTeams, removeTeams, resetSession, saving, setPlayer } from "../app/backend.svelte";
   import EditorPanel from "../lib/EditorPanel.svelte";
   import TrainingEditor from "../lib/TrainingEditor.svelte";
   import Sheet from "../lib/Sheet.svelte";
@@ -79,6 +79,15 @@
     }
   }
 
+  // The team maker lets someone waiting in, over the limit (ADR 0076): in at once here, in their place once it's saved
+  function admit(id: number) {
+    const s = session;
+    if (!s || !s.waitlist.includes(id)) return;
+    s.waitlist = s.waitlist.filter((x) => x !== id);
+    s.going = [...s.going, id];
+    void letIn(s.id, id, shortName(byId(id)));
+  }
+
   // The plain list, or players as trading cards. The list unless you've picked cards; remembered per device.
   const VIEW_KEY = "team.training.view";
   let view = $state<"cards" | "list">(readView());
@@ -130,7 +139,8 @@
   // The teams without them: where keeping, slotting in and moving start from
   const withoutLeavers = () =>
     (teams ?? []).map((t) => ({ name: t.name, players: t.players.filter((id) => next.going.includes(id)) }));
-  const spaces = $derived(info?.capacity ? Math.max(0, info.capacity - next.going.length) : null);
+  // Places left; below nothing once the team maker has let someone in over the limit ("1 over")
+  const spaces = $derived(info?.capacity ? info.capacity - next.going.length : null);
 
   // Every change to the teams is saved as it's made, and everyone sees it (ADR 0076): no draft to publish, so
   // nothing waits on a button scrolled out of sight
@@ -382,7 +392,8 @@
 
 <!-- Numbered by their place (Quarterly skaters first, then sign-up order), whatever the search leaves showing -->
 <!-- A search deals cards in and folds them away, or sifts rows; the rest glide to their places (as on Teammates) -->
-{#snippet players(all: number[], numbered = false)}
+<!-- `letting`: the waiting list, for the team maker: each with Let in beside them -->
+{#snippet players(all: number[], numbered = false, letting = false)}
   {@const ids = matching(all)}
   {#if !ids.length}
     <p class="hint">No one matches.</p>
@@ -400,6 +411,7 @@
             lifted={lifted?.id === id}
             onopen={(el) => (lifted = { id, el, n: numbered ? i + 1 : undefined })}
           />
+          {#if letting}{@render letInButton(id, true)}{/if}
         </div>
       {/each}
     </div>
@@ -407,11 +419,24 @@
     <div class="list tight scroll-fill">
       {#each ids as id (id)}
         <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:sift out:sift={{ out: true }}>
-          {@render player(id, numbered ? all.indexOf(id) + 1 : undefined)}
+          {#if letting}
+            <div class="letting">
+              {@render player(id, numbered ? all.indexOf(id) + 1 : undefined)}
+              {@render letInButton(id)}
+            </div>
+          {:else}
+            {@render player(id, numbered ? all.indexOf(id) + 1 : undefined)}
+          {/if}
         </div>
       {/each}
     </div>
   {/if}
+{/snippet}
+
+{#snippet letInButton(id: number, block = false)}
+  <button class="btn sm outline let-in" class:block aria-label="Let {goesBy(byId(id))} in" onclick={() => admit(id)}
+    >Let in</button
+  >
 {/snippet}
 
 <!-- A team maker's row: a grip to drag them to a team (from "" when they're not on one yet) -->
@@ -574,7 +599,7 @@
           <p class="hint">Nobody yet. If you ain't first, you last. Teams come out after sign-up closes.</p>
         {/if}
       {:else if shown === "waiting"}
-        {#if next.waitlist.length}{@render players(next.waitlist, true)}{:else}<p class="hint">
+        {#if next.waitlist.length}{@render players(next.waitlist, true, arranging)}{:else}<p class="hint">
             Nobody's waiting.
           </p>{/if}
       {:else if outs.length}
@@ -603,7 +628,9 @@
       <div class="list-head">
         <div class="head-line">
           <h2 class="section-title">Who's coming</h2>
-          {#if spaces !== null}<span class="spaces num">{spaces} {spaces === 1 ? "space" : "spaces"} left</span>{/if}
+          {#if spaces !== null}<span class="spaces num"
+              >{spaces < 0 ? `${-spaces} over` : `${spaces} ${spaces === 1 ? "space" : "spaces"} left`}</span
+            >{/if}
         </div>
         {#if next.going.length || next.waitlist.length || outs.length}
           <div class="seg sm" role="group" aria-label="Show players as">
@@ -1059,6 +1086,19 @@
   }
   .list-head {
     scroll-margin-top: calc(var(--chrome-h, 0px) + var(--s-4));
+  }
+  /* Waiting, for the team maker: the row, then Let in at its end (in the row's padding, so the row is no taller) */
+  .letting {
+    display: flex;
+    align-items: center;
+    padding-right: var(--row-pad, var(--s-3));
+  }
+  .letting > .row {
+    flex: 1;
+    min-width: 0;
+  }
+  .cards .let-in {
+    margin-top: var(--s-2);
   }
   .tools {
     display: grid;
