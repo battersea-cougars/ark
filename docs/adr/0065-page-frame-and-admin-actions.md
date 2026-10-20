@@ -1,7 +1,7 @@
 # 0065. One page frame; admin actions live on the thing's own page, not under Settings
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-10
+- **Date:** 2026-10-07 · updated 2026-10-20
 - **Merges:** 0078
 
 ## Context
@@ -28,7 +28,8 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   making the fixtures) is done there, not from the menu.
 - **One main button may sit beside Manage** when it's the job the page is waiting for: Next Kumite on a series page
   when nothing's coming up ([0074](0074-tournament-home-and-scheduling.md)), Make teams on a training for whoever makes
-  the teams ([0076](0076-training-teams.md)). Once that job is done it goes, and the rest stays in Manage.
+  the teams ([0076](0076-training-teams.md)). Once that job is done it goes, and the rest stays in Manage. (Make
+  teams stays as Remake teams, with Clear teams beside it, since the team maker's night is making and remaking them.)
 - **Settings is for setting up, not for running.** It keeps the full list (every tournament, every series, the members
   table) and configuration nothing else owns (roles, fees, venues), and its editors are the same components the pages
   open, so there's one editor per thing.
@@ -115,3 +116,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   Members' grid takes the tables' look; text inputs and selects become frosted glass to match.
 - 2026-10-10: On a touch phone the glass carries a dark tint under its fill (`--glass-tint`), which mutes the page as
   frost would: Android reports the blur but often doesn't draw it.
+- 2026-10-20: Make teams stays once the teams are out, as Remake teams with Clear teams beside it, and on a phone sits
+  in a bar above the tabs rather than the page's bar (ADR 0076).

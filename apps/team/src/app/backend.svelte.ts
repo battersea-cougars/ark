@@ -192,7 +192,7 @@ export const publishTeams = (sessionId: number, teams: Team[], done = "Teams sav
   save(() => api("POST", `/api/sessions/${sessionId}/teams`, { teams }), done);
 /** Take a session's teams down; the sign-ups stay. */
 export const removeTeams = (sessionId: number) =>
-  save(() => api("DELETE", `/api/sessions/${sessionId}/teams`), "Teams taken down");
+  save(() => api("DELETE", `/api/sessions/${sessionId}/teams`), "Teams cleared");
 /** Start a session again: no sign-ups, no teams. */
 export const resetSession = (sessionId: number) =>
   save(() => api("POST", `/api/sessions/${sessionId}/reset`), "Session reset");

@@ -24,39 +24,7 @@ beforeEach(() => {
 });
 
 /** A phone with a live page open: the events its stream brings, in order. */
-async function listening(email: string) {
-  const b = await w.signedIn(email);
-  const res = await b.open("GET", "/api/live", { now: DRAFT_DAY });
-  expect(res.status).toBe(200);
-  expect(res.headers.get("content-type")).toBe("text/event-stream");
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffered = "";
-  /** The next event (not a comment), as {event, data}. */
-  async function next(): Promise<{ event: string; data: Json }> {
-    for (;;) {
-      const at = buffered.indexOf("\n\n");
-      if (at >= 0) {
-        const block = buffered.slice(0, at);
-        buffered = buffered.slice(at + 2);
-        const lines = block.split("\n").filter((l) => !l.startsWith(":"));
-        if (!lines.length) continue;
-        const field = (name: string) =>
-          lines
-            .find((l) => l.startsWith(`${name}:`))
-            ?.slice(name.length + 1)
-            .trim();
-        const data = field("data");
-        if (data === undefined) continue;
-        return { event: field("event") ?? "message", data: JSON.parse(data) };
-      }
-      const { value, done } = await reader.read();
-      if (done) throw new Error("the stream ended");
-      buffered += decoder.decode(value, { stream: true });
-    }
-  }
-  return { ...b, next, close: () => reader.cancel() };
-}
+const listening = (email: string) => w.listening(email, DRAFT_DAY);
 
 /** A draft night, open, with Cara on the clock. */
 async function draftNight() {

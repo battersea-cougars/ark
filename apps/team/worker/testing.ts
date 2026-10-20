@@ -104,5 +104,41 @@ export function testWorld(roster: object[]) {
     return b;
   }
 
-  return { db, env, live, browser, ask, signedIn, mails, pushes };
+  /** A phone with a live page open (ADR 0072): the events its stream brings, in order. */
+  async function listening(email: string, now = NOW) {
+    const b = await signedIn(email);
+    const res = await b.open("GET", "/api/live", { now });
+    if (res.status !== 200 || res.headers.get("content-type") !== "text/event-stream")
+      throw new Error(`No stream for ${email}: ${res.status}`);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    /** The next event (not a comment), as {event, data}. */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function next(): Promise<{ event: string; data: any }> {
+      for (;;) {
+        const at = buffered.indexOf("\n\n");
+        if (at >= 0) {
+          const block = buffered.slice(0, at);
+          buffered = buffered.slice(at + 2);
+          const lines = block.split("\n").filter((l) => !l.startsWith(":"));
+          if (!lines.length) continue;
+          const field = (name: string) =>
+            lines
+              .find((l) => l.startsWith(`${name}:`))
+              ?.slice(name.length + 1)
+              .trim();
+          const data = field("data");
+          if (data === undefined) continue;
+          return { event: field("event") ?? "message", data: JSON.parse(data) };
+        }
+        const { value, done } = await reader.read();
+        if (done) throw new Error("the stream ended");
+        buffered += decoder.decode(value, { stream: true });
+      }
+    }
+    return { ...b, next, close: () => reader.cancel() };
+  }
+
+  return { db, env, live, browser, ask, signedIn, listening, mails, pushes };
 }

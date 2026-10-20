@@ -1,7 +1,7 @@
 # 0084. The Sticker colour scheme: one yellow main button, red for the brand, tokens for everything
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-09
+- **Date:** 2026-10-08 · updated 2026-10-20
 - **Merges:** 0083
 
 ## Context
@@ -30,7 +30,9 @@ The **Sticker** scheme, one system the whole app follows:
   words (13.8:1), for the main button only: one per group, nothing else. It doesn't mark state, links or anything
   else, so it always means "tap here". Every main-button look uses it: `.btn.primary`, the one in a bar and the Draft's
   Pick when pointed at. No floating buttons: a page's add (+ Event, + Rate) sits in its bar on a phone as on a
-  desktop, so the poster title stays the one loud thing and nothing covers the page. The calls to action that were red fills (Watch a live game,
+  desktop, so the poster title stays the one loud thing and nothing covers the page. One exception, for one person:
+  the team maker's Make teams on a training is a solid bar above the tabs on a phone, the page keeping room for it so
+  it covers nothing ([0076](0076-training-teams.md)). The calls to action that were red fills (Watch a live game,
   Go to the draft on your turn, End turn) are main buttons.
 - **A disabled main or outline button gives up its colours**: a faint edge and `--fg-subtle` words, so it never seems
   live (`.btn:disabled` alone sat above the kinds at the same weight).
@@ -63,3 +65,5 @@ The **Sticker** scheme, one system the whole app follows:
 - 2026-10-09: Pick (red-lit tiles with icons) and Tabs (italic capitals, the red slash) replaced the segmented control.
 - 2026-10-10: The floating action button went: Calendar's + Event and Fees' + Rate moved into the phone bar, as on a
   desktop; a yellow button always over the page shouted on every scroll and covered cards.
+- 2026-10-20: The team maker's Make teams docks above the tabs on a phone, in a bar with room kept for it, not over
+  the page: the night's job for one person, where the thumb is.

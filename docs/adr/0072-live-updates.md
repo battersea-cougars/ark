@@ -1,7 +1,7 @@
 # 0072. Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-10
+- **Date:** 2026-10-08 · updated 2026-10-20
 - **Merges:** 0096
 
 ## Context
@@ -46,8 +46,8 @@ The club may one day pay for hosting, when checking more often costs next to not
   scorekeeper's too: the same person may have it open on two devices), the tournament's home on its day while games
   are on, and the draft room while it's open. Only while the page is in view; the brake still has the last word.
 - **Each page says which**: "Live", or "Updates every 10 seconds".
-- **Sign-ups follow along too, quietly**: Home (its training and tournament cards) and a training's page until its
-  teams are made follow `sessions` (and Home `tournaments`), so someone answering In or Out shows on everyone's cards
+- **Sign-ups follow along too, quietly**: Home (its training and tournament cards) and a training's page follow
+  `sessions` (once the teams are out, everyone's but a team maker's, whose own moves a refresh mid-drag would upset) (and Home `tournaments`), so someone answering In or Out shows on everyone's cards
   and lists without a refresh. Everyone sits on these pages, so they don't say "Live", and with no stream they check
   once a minute (`steady`), not on the admins' live beat: a dropped stream across the whole club can't spend the day.
 - **The Usage page shows Durable Object requests and duration** beside the day's use, and the 80% check
@@ -75,3 +75,5 @@ The club may one day pay for hosting, when checking more often costs next to not
   stores nothing, with polling kept as the fallback and a 60-second safety net (was 0096).
 - 2026-10-10: Home and a training's page (until its teams are made) follow sign-ups live, quietly, falling back to a
   check a minute.
+- 2026-10-20: A training's page keeps following once the teams are out (but not for a team maker), so teams made,
+  moved or cleared reach everyone on it without a refresh.

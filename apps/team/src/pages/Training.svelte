@@ -48,10 +48,6 @@
   const next = $derived(
     session ?? { id: 0, going: [] as number[], waitlist: [] as number[], out: undefined as number[] | undefined },
   );
-  // Who's in, out and waiting, live (ADR 0072), until the teams are made (a refresh mid-drag would upset a team maker)
-  $effect(() => {
-    if (!ordered) return checkForUpdates(["sessions"], { steady: true });
-  });
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
   // Quarterly skaters signed up: above those paying as they go, in and waiting (ADR 0030), badged so the order reads
@@ -231,6 +227,13 @@
   }
   // A team maker moves a player between teams, or onto one from Not on a team (from ""); it's saved there and then
   const arranging = $derived(can(perms, "generate:Teams") && can(perms, "publish:Teams"));
+  // Who's in, out and waiting, and the teams, live (ADR 0072): made, moved or cleared, everyone on the page sees it
+  // without a refresh. Not for a team maker once the teams are out (a refresh mid-drag would upset them): what they
+  // see is what they've just saved. A boolean, so a change to the teams doesn't reopen the stream.
+  const following = $derived(!ordered || !arranging);
+  $effect(() => {
+    if (following) return checkForUpdates(["sessions"], { steady: true });
+  });
   function move(id: number, fromName: string, toName: string) {
     if (fromName === toName) return;
     const list = withoutLeavers();
@@ -297,14 +300,15 @@
   // Manage: an admin's tools for this session, in one place (a sheet on a phone, a side drawer on a desktop). The
   // ones that can't be undone take a second tap, which lapses after a few seconds.
   let manageOpen = $state(false);
-  let confirming = $state<"teams" | "remake" | "reset" | null>(null);
+  let confirming = $state<"remake" | "reset" | null>(null);
   let lapse: ReturnType<typeof setTimeout> | undefined;
-  // Making teams from who's in, once someone's in: the one button always on show for a team maker
-  const canGenerate = $derived(arranging && next.going.length > 0);
+  // Make teams: the team maker's call to action, always there for them (greyed until someone's in), so nothing
+  // moves when the first person signs up. On a phone it sits in a bar above the tabs, where the thumb is; on a
+  // desktop at the right of the toolbar. Once the teams are out it's Remake teams, with Clear teams beside it.
+  const maker = $derived(!!session && arranging);
+  const canGenerate = $derived(maker && next.going.length > 0);
   const canManage = $derived(
-    can(perms, "manage:Training") ||
-      (!!session &&
-        (can(perms, "update:Event") || can(perms, "record:Attendance") || (!!teams && can(perms, "publish:Teams")))),
+    can(perms, "manage:Training") || (!!session && (can(perms, "update:Event") || can(perms, "record:Attendance"))),
   );
   // The training's own settings (days, times, place, fee), opened over this page (ADR 0065)
   let settingsOpen = $state(false);
@@ -313,7 +317,7 @@
     manageOpen = false;
     run();
   }
-  function twice(which: "teams" | "remake" | "reset", run: () => void) {
+  function twice(which: "remake" | "reset", run: () => void) {
     clearTimeout(lapse);
     if (confirming !== which) {
       confirming = which;
@@ -332,7 +336,10 @@
     await new Promise((r) => setTimeout(r, 420 + 70 * (teams?.length ?? 0)));
     clearing = false;
   }
+  // Clear teams: it throws the team maker's work away, so it asks first, in a sheet
+  let clearAsk = $state(false);
   async function takeDown() {
+    clearAsk = false;
     await clearTeams();
     delete db.teams[next.id];
     void removeTeams(next.id);
@@ -443,7 +450,20 @@
     >{/if}
 {/snippet}
 
-<div class="page">
+<!-- Make teams, Remake teams: remaking replaces teams everyone can see, so it takes a second tap; the label swaps in
+     place, the width held so nothing moves -->
+{#snippet makeButton(size: string)}
+  <button
+    class="btn primary make {size}"
+    class:keep-label={confirming === "remake"}
+    disabled={!canGenerate || !!deck}
+    onclick={() => (teams ? twice("remake", generate) : generate())}
+    ><Icon name="teams" size={size === "sm" ? 16 : 18} />
+    {!teams ? "Make teams" : confirming === "remake" ? "Tap again to remake" : "Remake teams"}</button
+  >
+{/snippet}
+
+<div class="page" class:has-dock={maker && phone.current}>
   <!-- When and where it usually is: the line under the title on a desktop; a phone has no room to spare, so it's
        behind the info button in the bar -->
   <PageHeader title={series.name} sub={phone.current ? undefined : usually}>
@@ -458,17 +478,13 @@
         >
       {/if}
       <!-- Make teams is the one job on show: it's the night's job for whoever makes the teams, not only an admin.
-           Everything else is behind one quiet button (ADR 0065): a sheet on a phone, a side drawer on a desktop -->
-      <!-- Remaking replaces teams everyone can see, so it takes a second tap; the label swaps in place, the width
-           held so nothing in the bar moves -->
-      {#if session && canGenerate}
-        <button
-          class="btn sm primary make"
-          class:keep-label={confirming === "remake"}
-          onclick={() => (teams ? twice("remake", generate) : generate())}
-          ><Icon name="teams" size={16} />
-          {!teams ? "Make teams" : confirming === "remake" ? "Tap again" : "Remake teams"}</button
-        >
+           Everything else is behind one quiet button (ADR 0065): a sheet on a phone, a side drawer on a desktop.
+           On a phone, Make teams is in the bar at the bottom (makerDock), not up here -->
+      {#if maker && !phone.current}
+        {#if teams}
+          <button class="btn sm ghost" onclick={() => (clearAsk = true)}>Clear teams</button>
+        {/if}
+        {@render makeButton("sm")}
       {/if}
       {#if canManage}
         <button
@@ -592,7 +608,7 @@
         {#if next.going.length || next.waitlist.length || outs.length}
           <div class="seg sm" role="group" aria-label="Show players as">
             <button aria-pressed={view === "cards"} onclick={() => setView("cards")}
-              ><Icon name="teams" size={16} />Cards</button
+              ><Icon name="cards" size={16} />Cards</button
             >
             <button aria-pressed={view === "list"} onclick={() => setView("list")}
               ><Icon name="list" size={16} />List</button
@@ -711,16 +727,6 @@
         <Icon name="chevronRight" size={18} />
       </button>
     {/if}
-    {#if session && teams && can(perms, "publish:Teams")}
-      <button class="tool" class:armed={confirming === "teams"} onclick={() => twice("teams", takeDown)}>
-        <Icon name="x" size={22} />
-        <span class="tool-text"
-          ><strong>{confirming === "teams" ? "Tap again to take them down" : "Remove the teams"}</strong><span
-            >Back to before they were made. Who's in stays.</span
-          ></span
-        >
-      </button>
-    {/if}
     {#if session && can(perms, "update:Event")}
       <button class="tool" class:armed={confirming === "reset"} onclick={() => twice("reset", reset)}>
         <Icon name="undo" size={22} />
@@ -750,6 +756,29 @@
       sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}>{@render manageTools()}</Drawer
     >
   {/if}
+{/if}
+
+{#if maker && phone.current}
+  <!-- The team maker's bar, above the tabs where the thumb is. The page keeps room for it at the bottom
+       (.has-dock), so it covers nothing, and it's there from the start, so nothing moves when the teams come out -->
+  <div class="maker-dock" role="region" aria-label="Teams">
+    {#if teams}
+      <button class="btn outline clear" onclick={() => (clearAsk = true)}>Clear</button>
+    {/if}
+    {@render makeButton("")}
+  </div>
+{/if}
+
+{#if maker && teams}
+  <Sheet bind:open={clearAsk} title="Clear the teams?">
+    <p class="ask">
+      Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.
+    </p>
+    {#snippet footer()}
+      <button class="btn ghost" type="button" onclick={() => (clearAsk = false)}>Keep them</button>
+      <button class="btn clear-yes" type="button" onclick={takeDown}>Clear teams</button>
+    {/snippet}
+  </Sheet>
 {/if}
 
 {#if settingsOpen}
@@ -812,6 +841,53 @@
   }
   .make {
     min-width: 9.5rem;
+  }
+  /* The team maker's bar on a phone: solid like the tabs it sits on, the main button filling what's left */
+  .maker-dock {
+    position: fixed;
+    right: 0;
+    bottom: var(--tab-h);
+    left: 0;
+    z-index: 4;
+    display: flex;
+    gap: var(--s-2);
+    height: var(--dock-h);
+    padding: var(--s-2) var(--gutter);
+    background: var(--bg);
+  }
+  .maker-dock .make {
+    flex: 1;
+  }
+  .maker-dock .clear {
+    min-width: 6rem;
+  }
+  .page,
+  .maker-dock {
+    --dock-h: 3.75rem;
+  }
+  /* The save note ("Teams cleared") shows over the bar, not under it (app/shell/Shell.svelte) */
+  :global(:root:has(.maker-dock)) {
+    --above-tabs: 3.75rem;
+  }
+  /* Room at the bottom for the bar, so the last rows scroll clear of it (lib/list-scroll.ts sizes the list by it) */
+  .page.has-dock {
+    padding-bottom: calc(var(--s-10) + var(--dock-h));
+  }
+  .page.has-dock:has(> .hybrid) {
+    padding-bottom: calc(var(--s-4) + var(--dock-h));
+  }
+  .ask {
+    margin: 0;
+    color: var(--fg-muted);
+    line-height: 1.5;
+  }
+  /* The armed "are you sure": the one red fill (ADR 0084) */
+  .clear-yes {
+    background: var(--red);
+    color: var(--on-red);
+  }
+  .clear-yes:hover:not(:disabled) {
+    background: var(--red-hot);
   }
   /* The make-teams show (lib/shuffle.ts): cards over everything, each placed by its centre on the window's */
   .deck-layer {
@@ -1134,6 +1210,11 @@
   .move-hint {
     flex-basis: 100%;
     margin: 0;
+  }
+  /* The search at the end of the title's line, not the middle of the block (the hint under it ran beneath it) */
+  .teams-head .finder {
+    top: 0;
+    translate: none;
   }
   /* Someone's missing from the teams: the first thing on the page, in amber */
   /* The numbers set the slot's height; the warning lies over them, unseen numbers underneath, so the slot is the

@@ -180,7 +180,7 @@
       case "teams.published":
         return `${who} published the night's teams`;
       case "teams.removed":
-        return `${who} took the night's teams down`;
+        return `${who} cleared the night's teams`;
       case "register.marked":
         return `${who} marked the register`;
       case "attendance.marked":

@@ -778,9 +778,10 @@
       rotate: 360deg;
     }
   }
+  /* Over the tabs, and over a page's own bar above them (Friday's Make teams sets --above-tabs) */
   @media (max-width: 900px) {
     .save-note {
-      bottom: calc(var(--tab-h) + var(--s-3));
+      bottom: calc(var(--tab-h) + var(--above-tabs, 0px) + var(--s-3));
     }
   }
 

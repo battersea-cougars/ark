@@ -1,7 +1,7 @@
 # 0076. Training teams: a Session lead role, made by dragging, saved as you change them
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-09
+- **Date:** 2026-10-08 · updated 2026-10-20
 - **Merges:** 0079
 
 ## Context
@@ -23,8 +23,16 @@ without taking players off a team behind the team maker's back.
 - **No drafts, no Publish.** Every change a team maker makes is saved straight away, and everyone sees it: making the
   teams, remaking them, moving a player, slotting in late sign-ups, and keeping the teams without whoever's out. Each
   save says what happened in the app's save note ("Reno to Cougars"), which shows wherever you've scrolled.
-- **Remaking teams that are already out takes a second tap** in Manage, like Remove the teams, because it replaces
-  what everyone can see. Making the first ones doesn't.
+- **Make teams is the team maker's call to action, in words**, always there for them on the training's page (greyed
+  until someone's in, so nothing moves when the first person signs up): on a phone a bar of its own above the tabs,
+  where the thumb is, the page keeping room for it at the bottom so it covers no row; on a desktop the main button at
+  the right of the toolbar. Members never see it.
+- **Once the teams are out it's Remake teams, with Clear teams beside it** (Clear on a phone). Remaking takes a second
+  tap ("Tap again to remake"), because it replaces what everyone can see; making the first ones doesn't. Clearing
+  throws the team maker's work away, so it asks in a sheet (Keep them / Clear teams, the red one) before everyone's
+  back to Who's in, on no team; who's in stays. It's `DELETE /api/sessions/{id}/teams`, under `publish:Teams` like
+  every change to the teams, on the record as `teams.removed`, and members' pages hear it live
+  ([0072](0072-live-updates.md)). It isn't in Manage too: one place for it.
 - **Team makers move players by dragging** a row's grip onto another team, with pointer events so it works with a
   finger as well as a mouse. Enter or Space on the focused grip moves the player to the next team, for keyboards and
   screen readers. **A click or tap on the grip does nothing**: with every move saved, a tap that sent someone to
@@ -50,3 +58,6 @@ without taking players off a team behind the team maker's back.
 - 2026-10-08: Drafts and Publish went: the banner was out of sight of the moves, so a move looked done but wasn't.
   Every change saves at once, a tap on the grip no longer moves anyone, and the warning moved over the counts (was 0079).
 - 2026-10-09: Door (the register) and Team maker became one role, Session lead; anyone who had either has it.
+- 2026-10-20: Make teams became a worded call to action for the team maker (a bar above the tabs on a phone; it had
+  been an icon in the phone bar, the same icon as the Cards view beside the list, which now has its own), and
+  Remove the teams left Manage to sit beside it as Clear teams, asked in a sheet rather than by a second tap.

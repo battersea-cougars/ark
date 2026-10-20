@@ -108,3 +108,55 @@ describe("starting a session again", () => {
     expect((await mo.call("POST", `/api/sessions/${session.id}/reset`)).status).toBe(403);
   });
 });
+
+// The team maker's two jobs on Friday's page (ADR 0076): Make teams, and Clear teams when they want to start again.
+// Members on the page see either at once, without a refresh: the change reaches their open stream (ADR 0072)
+describe("the team maker makes the teams, then clears them, with everyone watching", () => {
+  const fridayOf = async (b: Awaited<ReturnType<typeof w.signedIn>>, id: number) =>
+    (await b.call("GET", "/api/bootstrap")).body.sessions.find((s: { id: number }) => s.id === id);
+
+  it("a member watching the page hears the teams come out", async () => {
+    const tess = await w.signedIn("tess@example.com");
+    const { session, teams } = await teamsFor(tess);
+    const moPhone = await w.listening("mo@example.com");
+    expect((await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams })).status).toBe(200);
+    expect((await moPhone.next()).data.changed).toContain("sessions");
+    expect((await fridayOf(moPhone, session.id)).teams.map((t: { name: string }) => t.name)).toEqual([
+      "Black",
+      "White",
+    ]);
+    await moPhone.close();
+  });
+
+  it("the team maker clears the teams: everyone's back to unassigned, it's on the record, and phones hear it", async () => {
+    const tess = await w.signedIn("tess@example.com");
+    const { session, teams } = await teamsFor(tess);
+    await tess.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams });
+    const moPhone = await w.listening("mo@example.com");
+
+    expect((await tess.call("DELETE", `/api/sessions/${session.id}/teams`)).status).toBe(200);
+    expect((await moPhone.next()).data.changed).toContain("sessions");
+    const after = await fridayOf(moPhone, session.id);
+    expect(after.teams).toEqual([]);
+    expect(after.going.length).toBe(1);
+
+    const tessId = (await tess.call("GET", "/api/bootstrap")).body.members.find(
+      (m: { name: string }) => m.name === "Tess Teams",
+    ).id;
+    const record = w.db.raw
+      .prepare("SELECT member_id memberId FROM audit_log WHERE action = 'teams.removed'")
+      .all() as { memberId: number }[];
+    expect(record).toEqual([{ memberId: tessId }]);
+    await moPhone.close();
+  });
+
+  it("a member can't clear them, and the teams stay", async () => {
+    const tess = await w.signedIn("tess@example.com");
+    const { session, teams } = await teamsFor(tess);
+    await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams });
+    const mo = await w.signedIn("mo@example.com");
+    expect((await mo.call("DELETE", `/api/sessions/${session.id}/teams`)).status).toBe(403);
+    expect((await fridayOf(mo, session.id)).teams.length).toBe(2);
+  });
+});
