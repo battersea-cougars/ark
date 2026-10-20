@@ -46,7 +46,7 @@ const { founded } = await getClub();
     <nav class="nav" aria-label="Main">
       <ul>
         <li>
-          <a class="link" href="/" aria-current={home ? "page" : undefined}>
+          <a class="link" href="/" aria-current={home ? "page" : undefined} data-home-link>
             Home
           </a>
         </li>
@@ -75,7 +75,7 @@ const { founded } = await getClub();
   <p class="menu-head label">Friday night running order</p>
   <ol>
     <li style="--i:0">
-      <a href="/" aria-current={home ? "page" : undefined}>
+      <a href="/" aria-current={home ? "page" : undefined} data-home-link>
         <span class="menu-time"></span>
         Home
       </a>

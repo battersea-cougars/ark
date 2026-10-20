@@ -26,6 +26,8 @@ function sectionSpy(signal: AbortSignal) {
   const clockTime = document.querySelector<HTMLElement>("[data-clock-time]");
   const clockLabel = document.querySelector<HTMLElement>("[data-clock-label]");
   const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-section-link][href^="#"]')];
+  // Home is lit only at the top of the home page: once a section is, that section alone is
+  const homeLinks = [...document.querySelectorAll<HTMLAnchorElement>("[data-home-link]")];
   const sections = [...document.querySelectorAll<HTMLElement>("main section[data-title]")];
   // A whole page can be underground (the Kumite page)
   header?.classList.toggle("night", document.querySelector("main [data-night-page]") !== null);
@@ -47,6 +49,10 @@ function sectionSpy(signal: AbortSignal) {
     for (const a of links) {
       if (active && a.hash.slice(1) === active.id) a.setAttribute("aria-current", "location");
       else a.removeAttribute("aria-current");
+    }
+    for (const a of homeLinks) {
+      if (active) a.removeAttribute("aria-current");
+      else a.setAttribute("aria-current", "page");
     }
     if (clockTime) clockTime.textContent = active?.dataset.time ?? initial.time;
     if (clockLabel) clockLabel.textContent = active?.dataset.title ?? initial.label;
