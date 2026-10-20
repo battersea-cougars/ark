@@ -110,7 +110,6 @@
   let tab = $state<"in" | "waiting" | "out">("in");
   // Find someone on the night: their name, first or last, on every list (the tabs count who matches)
   let query = $state("");
-  let infoOpen = $state(false);
   const matches = (id: number) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -489,19 +488,10 @@
 {/snippet}
 
 <div class="page" class:has-dock={maker && phone.current}>
-  <!-- When and where it usually is: the line under the title on a desktop; a phone has no room to spare, so it's
-       behind the info button in the bar -->
+  <!-- When and where it usually is: the line under the title on a desktop; a phone has no room to spare up there, so
+       it's at the foot of the page -->
   <PageHeader title={series.name} sub={phone.current ? undefined : usually}>
     {#snippet actions()}
-      {#if phone.current}
-        <button
-          class="btn sm ghost icon"
-          aria-haspopup="dialog"
-          aria-label="About {series.shortName}"
-          title="About"
-          onclick={() => (infoOpen = true)}><Icon name="info" size={18} /></button
-        >
-      {/if}
       <!-- Make teams is the one job on show: it's the night's job for whoever makes the teams, not only an admin.
            Everything else is behind one quiet button (ADR 0065): a sheet on a phone, a side drawer on a desktop.
            On a phone, Make teams is in the bar at the bottom (makerDock), not up here -->
@@ -732,6 +722,22 @@
       {/if}
     {/if}
   {/if}
+
+  {#if phone.current}
+    <!-- A phone: when and where it usually is, at the foot of the page, on the page itself (a desktop has it under
+         the title) -->
+    <footer class="about" aria-label="About {series.name}">
+      <span class="eyebrow">Usually</span>
+      <p class="usually">
+        {describeRule(series)} · {clock(series.startTime)}–{clock(series.endTime)}
+      </p>
+      {#if usual}
+        <a class="where" href={usual.mapUrl} target="_blank" rel="noopener noreferrer"
+          ><Icon name="pin" size={16} />{usual.name}</a
+        >
+      {/if}
+    </footer>
+  {/if}
 </div>
 
 {#snippet manageTools()}
@@ -766,12 +772,6 @@
     {/if}
   </div>
 {/snippet}
-
-{#if phone.current}
-  <Sheet bind:open={infoOpen} title={series.name}>
-    <p class="usually">{@render usually()}</p>
-  </Sheet>
-{/if}
 
 {#if canManage}
   {#if phone.current}
@@ -1046,6 +1046,27 @@
     margin: 0;
     color: var(--fg-muted);
     line-height: 1.5;
+  }
+  /* The foot of a phone's page: quiet words on the page, no box */
+  .about {
+    display: grid;
+    justify-items: start;
+    gap: var(--s-1);
+    margin-top: var(--s-4);
+    padding: 0 var(--s-1);
+  }
+  .about .where {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 2.75rem;
+    color: var(--fg);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .about .where :global(svg) {
+    flex: none;
+    color: var(--fg-subtle);
   }
   .usually a {
     color: var(--fg);

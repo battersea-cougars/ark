@@ -118,3 +118,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   frost would: Android reports the blur but often doesn't draw it.
 - 2026-10-20: Make teams stays once the teams are out, as Remake teams with Clear teams beside it, and on a phone sits
   in a bar above the tabs rather than the page's bar (ADR 0076).
+- 2026-10-20: On a phone a training's usual day, hours and place sit at the foot of its page, not behind an info
+  button in the bar (a desktop keeps them under the title).
