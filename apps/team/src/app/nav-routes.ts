@@ -94,7 +94,7 @@ const DEV_TOOLS_ROUTE: Route = {
   hint: "Not in production: who gets their own email here",
 };
 
-// Profile first: it's the phone's last tab (your avatar), with everything else listed under your details
+// Profile first: it's the phone's last tab (your avatar), with everything else listed on it, above your details
 const STATIC_TAIL: Route[] = [
   {
     id: "profile",

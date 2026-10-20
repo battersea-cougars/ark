@@ -28,9 +28,12 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   dev from `main`, and to production only at launch ([ADR 0010](0010-environments-and-deploys.md)).
 - It binds the same D1 database as the website (`DB`); the schema stays in `db/`.
 - **Mobile first.** The shell follows Gwenda ops: one route tree, five bottom tabs at ≤900px with safe-area insets, a
-  collapsible rail on desktop. The last tab is You (your avatar): it always opens your profile, with your account
-  (Switch to your full role, View as, Sign out) on your card at the top and the club's pages and Settings listed
-  under your details. Phones keep chrome slim: a 40px top bar, an opaque tab bar, no page subtitles.
+  collapsible rail on desktop. The last tab is You (your avatar): it always opens your profile, one page for everything
+  that isn't a tab. Your account (View as, Sign out) is on your card at the top; under it Dues, the club's pages and,
+  for whoever can set things up, every Settings page grouped as the desktop's list (Schedule, Money, Club, Security),
+  one tap each; then your details. In your everyday role the bar's switch (Admin) brings your full role and its
+  Settings back, as the button beside the desktop's badge does. Phones keep chrome slim: a 40px top bar, an opaque
+  tab bar, no page subtitles.
 - **A PWA**: manifest, icons and a service worker that caches the app shell. Screens that must work offline (the game
   clock) keep their data in IndexedDB and sync when there's signal.
 - A store app, if we want one, wraps the same build with Capacitor (#26).
@@ -75,3 +78,6 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   the account badge on Home; the top bar slimmed and the tab bar went opaque, as Android barely blurred it.
 - 2026-10-11: The store app wraps this app as planned, loading the live app rather than a bundled copy ([0108](0108-store-apps.md)).
 - 2026-10-20: The show switch runs the dev server on a private port and holds 4510 ([0115](0115-worktrees-and-the-show-switch.md)); `npm run team` goes through it.
+- 2026-10-20: On phones Settings are listed on the You page, above your details, not behind a gear and a sheet, and
+  the switch to your full role sits in its bar: an admin in their everyday role had to tap their card, switch up, then
+  the gear to reach Settings.

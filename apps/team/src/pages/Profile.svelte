@@ -1,14 +1,18 @@
 <script lang="ts">
   // Your profile. You change your phone, position and bio (the back of your player card), and how your name shows
   // on the website's roster; your name and email are an admin's to change, since sign-in and the roster go by them.
-  // On a phone it's the last tab (You): your card on top opens your account (Switch to your full role, View as, Sign
-  // out), the club's pages are listed under your details, and an admin's Settings open from the gear in the bar.
+  // On a phone it's the last tab (You), one page for everything that isn't a tab: your card on top opens your account
+  // (View as, Sign out), then your dues, the club's pages and, for an admin, every Settings page, one tap each; your
+  // details follow. In your everyday role the bar's switch brings your full role (and its Settings) back, as the
+  // desktop's button beside your badge does.
   import Icon from "../app/shell/Icon.svelte";
   import { goesBy, shortName } from "../lib/names";
   import { POSITIONS, POSITION_ICONS, emailFor, phoneFor, type Position } from "../demo/data";
   import {
     fullRole,
-    granted,
+    elevated,
+    everydayName,
+    hasEveryday,
     impersonating,
     me,
     realGranted,
@@ -26,13 +30,17 @@
   import { phone } from "../lib/viewport.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { APP_BUILD, APP_VERSION } from "../app/build";
-  import Sheet from "../lib/Sheet.svelte";
-  import { routes } from "../app/routes.svelte";
-  import { can } from "../access/actions";
+  import { stayIfAllowed } from "../app/routes.svelte";
+  import { switchView } from "../app/motion";
 
-  // An admin's Settings, behind one gear in the phone bar: a sheet of every settings page
-  const hasSettings = $derived(routes().some((r) => r.group === "Settings" && can(granted(), r.action)));
-  let settingsOpen = $state(false);
+  // Your full role and your everyday one (ADR 0024), as the account menu switches them
+  function toggleMode() {
+    const up = !elevated();
+    switchView(() => {
+      setElevated(up);
+      if (!up) stayIfAllowed();
+    });
+  }
 
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
@@ -90,18 +98,21 @@
   {#if phone.current}
     <PageHeader title="Profile">
       {#snippet actions()}
-        {#if hasSettings}
+        {#if hasEveryday()}
           <button
-            class="btn sm ghost icon"
-            aria-haspopup="dialog"
-            aria-label="Settings"
-            title="Settings"
-            onclick={() => (settingsOpen = true)}><Icon name="settings" size={18} /></button
+            type="button"
+            class="btn sm ghost mode keep-label"
+            class:on={elevated()}
+            aria-pressed={elevated()}
+            title={elevated() ? `Back to ${everydayName()}` : `Switch to ${fullRole()}`}
+            onclick={toggleMode}><Icon name="key" size={16} />{fullRole()}</button
           >
         {/if}
       {/snippet}
     </PageHeader>
     <AccountMenu card />
+    <MoreLinks except="profile" />
+    <h2 class="section-title details">Your details</h2>
   {:else}
     <header class="head">
       <span class="avatar big">{initials(goesBy(who))}</span>
@@ -178,7 +189,7 @@
       </label>
       <p class="hint">
         Handy when you show someone the app: ratings and {full} screens stay hidden. {phone.current
-          ? "Your card at the top"
+          ? `The ${full} switch at the top`
           : `The ${full} button beside your badge`} switches you up until you switch back or close the app.
       </p>
     </section>
@@ -186,20 +197,21 @@
 
   <YourData disabled={locked} />
 
-  {#if phone.current}
-    <MoreLinks except="profile" parts={["You", "Club"]} />
-    {#if hasSettings}
-      <Sheet bind:open={settingsOpen} title="Settings">
-        <MoreLinks parts={["Settings"]} />
-      </Sheet>
-    {/if}
-  {/if}
-
   <!-- Which build you're on (ADR 0104): the version for people, the build for finding the exact code -->
   <p class="version hint num">Cougars Fresh Meat {APP_VERSION} · {APP_BUILD}</p>
 </div>
 
 <style>
+  /* The phone bar's switch to your full role: lit while you're in it, as the desktop's beside your badge */
+  .mode.on,
+  .mode.on:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--red) 24%, transparent);
+    color: var(--red-ink);
+  }
+  /* Your details, after the lists */
+  .section-title.details {
+    margin-top: var(--s-6);
+  }
   /* Your name on the website: four choices, one of them your full name, so they wrap on a phone */
   .seg.wrap > button {
     flex: 1 1 auto;

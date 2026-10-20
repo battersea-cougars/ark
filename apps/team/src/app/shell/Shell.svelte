@@ -119,7 +119,7 @@
     const first = settingsNav[0]?.routes[0];
     if (!phone.current && route.id === "more" && first) navigate(first.path, { replace: true });
   });
-  // A phone's More is your profile now (the avatar tab, with the lists under your details)
+  // A phone's More is your profile now (the avatar tab, with the lists above your details)
   $effect(() => {
     if (phone.current && route.id === "more") navigate("/me", { replace: true });
   });

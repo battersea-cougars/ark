@@ -1,7 +1,7 @@
 <script lang="ts">
   // Everything that isn't a tab: you, the club, then Settings for admins, grouped Schedule / Money / Club / Security.
-  // On More (desktop, for members with nothing to set up) and under your profile on a phone, whose Settings open from
-  // the gear in its bar instead. `except`: the page it's on, which needn't link to itself; `parts`: which groups.
+  // On More (desktop, for members with nothing to set up) and at the top of your profile on a phone (the You tab), so an
+  // admin's Settings are one tap away. `except`: the page it's on, which needn't link to itself; `parts`: which groups.
   import { can } from "../access/actions";
   import Icon from "../app/shell/Icon.svelte";
   import type { Group, Route } from "../app/nav-routes";
@@ -47,7 +47,7 @@
 
 {#if settings.length}
   <div class="settings">
-    <!-- Alone (the phone's Settings sheet), the sheet's own title says it -->
+    <!-- Alone, whatever holds it says Settings -->
     {#if parts.length > 1}<h2 class="settings-title"><Icon name="settings" size={16} /> Settings</h2>{/if}
     {#each settings as s (s.section)}
       <h3 class="section-title">{s.section}</h3>
