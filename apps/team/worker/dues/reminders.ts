@@ -131,7 +131,8 @@ async function claim(
 export async function previewReminders(db: D1Database, now: Date, memberId: number | null) {
   const { people, bank } = await owers(db, now);
   const who = memberId ?? people[0]?.memberId ?? null;
-  const letter = bank && who !== null ? (await letters(db, [who], bank, now)).get(who) : undefined;
+  // Shown even for someone with no email address, so the admin sees what it would say
+  const letter = bank && who !== null ? (await letters(db, [who], bank, now, true)).get(who) : undefined;
   return {
     ready: bank !== null,
     bank,
@@ -206,7 +207,7 @@ interface Queued {
 }
 
 /** Each member's letter, read in one statement: their unpaid charges, reference and name. */
-async function letters(db: D1Database, memberIds: number[], bank: Bank, now: Date) {
+async function letters(db: D1Database, memberIds: number[], bank: Bank, now: Date, preview = false) {
   const rows = await all<Omit<Queued, "id" | "memberId"> & { memberId: number }>(
     db,
     `SELECT m.id memberId, m.name, m.web_name webName, m.email, m.status, m.payment_reference reference,
@@ -215,15 +216,15 @@ async function letters(db: D1Database, memberIds: number[], bank: Bank, now: Dat
      FROM members m WHERE m.id IN (SELECT value FROM json_each(?))`,
     [JSON.stringify(memberIds)],
   );
-  return lettersFrom(rows, bank, now);
+  return lettersFrom(rows, bank, now, preview);
 }
 
-function lettersFrom(rows: Omit<Queued, "id">[], bank: Bank, now: Date) {
+function lettersFrom(rows: Omit<Queued, "id">[], bank: Bank, now: Date, preview = false) {
   const today = londonToday(now);
   const out = new Map<number, Message & { pence: number }>();
   for (const r of rows) {
     const charges = (JSON.parse(r.charges) as Owed[]).sort((a, b) => a.dueOn.localeCompare(b.dueOn));
-    if (!charges.length || !r.email || r.status !== "active") continue;
+    if (!charges.length || (!r.email && !preview) || r.status !== "active") continue;
     const letter: Letter = {
       firstName: (r.webName?.trim() || r.name).split(/\s+/)[0],
       reference: r.reference ?? "COUGARS",
@@ -233,7 +234,7 @@ function lettersFrom(rows: Omit<Queued, "id">[], bank: Bank, now: Date) {
     };
     out.set(r.memberId, {
       memberId: r.memberId,
-      mail: reminderMail(r.email, letter),
+      mail: reminderMail(r.email ?? "", letter),
       notice: reminderNotice(letter),
       pence: charges.reduce((s, c) => s + c.left, 0),
     });

@@ -117,6 +117,17 @@ describe("an admin emails members what they owe", () => {
     expect(mailedFor()).toEqual(["mo@example.com"]);
   });
 
+  it("someone with no email address is listed, and their email can be read, but nothing goes", async () => {
+    await bank();
+    await owes("Reg Player", 1200, "2026-09-20");
+    w.db.raw.exec("UPDATE members SET email = NULL WHERE name = 'Reg Player'");
+    const p = (await preview()).body;
+    expect(p.people).toEqual([expect.objectContaining({ name: "Reg Player", email: false })]);
+    expect(p.letter.text).toContain("Hi Reg,");
+    expect((await send()).body).toMatchObject({ queued: 0, noEmail: 1 });
+    expect(w.mails).toEqual([]);
+  });
+
   it("someone who owes nothing gets nothing, even when asked for by name", async () => {
     await bank();
     expect((await send([await idOf("Alt Player")])).body).toMatchObject({ queued: 0 });

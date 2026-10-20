@@ -203,7 +203,12 @@
 {/if}
 
 <!-- A list that grows with the club: a side drawer (full screen on a phone) -->
-<Drawer bind:open={reminding} title="Email what they owe" sub="Who gets one, and what it says, before anything goes">
+<Drawer
+  bind:open={reminding}
+  wide
+  title="Email what they owe"
+  sub="Who gets one, and what it says, before anything goes"
+>
   {#if reminding}
     <RemindReview
       onsent={() => (reminding = false)}
