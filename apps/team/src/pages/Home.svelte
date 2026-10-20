@@ -11,7 +11,6 @@
   import { BUCKETS, aged } from "../lib/dues";
   import { signupOpen } from "../lib/signup";
   import { draftTurn } from "../lib/draft";
-  import { downloadIcs } from "../lib/ics";
   import { fill, slot } from "../lib/greetings";
   import { latestTournament, nextSession, sessionBookable, tournamentBookable } from "../demo/schedule.svelte";
   import { pick, type Quip, type QuipKind } from "../lib/quips";
@@ -334,17 +333,12 @@
       .join(", ");
 </script>
 
-<!-- Under a card's title: the place, opening the map, and Add to calendar once there's a date -->
+<!-- Under a card's title: the place, opening the map. Add to calendar (lib/ics.ts) is off for now -->
 {#snippet placeLinks(ev: Bookable)}
   {#if ev.mapUrl}
     <a href={ev.mapUrl} target="_blank" rel="noopener noreferrer" aria-label="Directions to {ev.venue || 'the venue'}">
       <Icon name="pin" size={16} /><span class="label">{ev.venue || "Directions"}</span>
     </a>
-  {/if}
-  {#if !ev.dateTbc && !ev.season}
-    <button onclick={() => downloadIcs(ev)}>
-      <Icon name="calendar" size={16} /><span class="label">Add to calendar</span>
-    </button>
   {/if}
 {/snippet}
 

@@ -1,5 +1,6 @@
 // A calendar file for one session or tournament, so a member can put it in their phone's or laptop's calendar
-// (Add to calendar on Home's card). Times are written in UTC, which every calendar converts to the reader's zone.
+// (Add to calendar on Home's card, off for now: nothing calls it). Times are written in UTC, which every calendar
+// converts to the reader's zone.
 import { saveCalendar } from "../app/native";
 import type { Bookable } from "../demo/model";
 

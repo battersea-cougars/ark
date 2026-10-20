@@ -53,7 +53,7 @@
     link?: boolean;
     /** Where it is; off where the page's header already says (a training's page). */
     place?: boolean;
-    /** Quiet links under the title (Home: the place, opening the map, and Add to calendar). */
+    /** Quiet links under the title (Home: the place, opening the map). */
     links?: Snippet;
   } = $props();
 
@@ -637,7 +637,7 @@
   .glance .answer {
     width: min(100%, 22rem);
   }
-  /* Under the title: the place and Add to calendar, quiet links apart by space alone */
+  /* Under the title: the place, quiet links apart by space alone */
   .links {
     display: flex;
     flex-wrap: wrap;
