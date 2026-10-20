@@ -143,6 +143,7 @@ Deploys the `cougars` worker and migrates the `cougars` D1 database on the **Cou
   | Entire Cougars account | D1 Write                                                         | Create and migrate the `cougars` database               |
   | Entire Cougars account | Turnstile Write                                                  | Make the Turnstile widget (`turnstile-setup.mjs`)       |
   | All zones in Cougars   | Zone WAF Write                                                   | The domain's rate-limiting rule (`ratelimit-setup.mjs`) |
+  | All zones in Cougars   | Single Redirect Write                                            | www to the bare domain (`redirect-setup.mjs`)           |
   | Entire Cougars account | Access: Identity Providers, Apps, Policies, Service Tokens Write | The gate before launch (`access-setup.mjs`)             |
   | All zones in Cougars   | Zone Read                                                        | Find the batterseacougars.com zone                      |
   | All zones in Cougars   | DNS Write                                                        | The deploy creates the domain's DNS records             |

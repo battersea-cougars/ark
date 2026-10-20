@@ -148,9 +148,14 @@ the rink's Wi-Fi (one address) opening the app at once. It's written by
 Write** on the production token; change the number there and run it again. Seen under Security → WAF → Rate limiting
 rules.
 
+**www**: `www.batterseacougars.com` answers too (the deploy attaches both names), so a rule redirects it to the bare
+domain (301, path and query kept), and search engines see one copy of each page. It's written by
+`node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`, which needs **Single
+Redirect Write** on the production token. Seen under Rules → Redirect Rules.
+
 **Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics),
 with automatic setup, so Cloudflare adds its script to the site's pages and there's nothing in the code. It also reaches
 `team.batterseacougars.com`, whose CSP refuses it (harmless console errors): excluding it needs a paid rule, so it's
 tracked in #92. It counts page views without cookies (the privacy page says so). Its API refuses the
-account tokens we use, so it's set up by hand. When the website gets a real CSP (#78), allow
-`https://static.cloudflareinsights.com` (script) and `https://cloudflareinsights.com` (connect).
+account tokens we use, so it's set up by hand. The website's content security policy allows
+its script (`static.cloudflareinsights.com`) and its beacon (`cloudflareinsights.com`) (ADR 0036).
