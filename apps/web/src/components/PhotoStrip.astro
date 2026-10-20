@@ -44,8 +44,22 @@ const { instagram } = Astro.props;
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(46%, 11rem), 1fr));
+    /* Columns the twelve fill evenly with the big first tile (4 cells + 11 = 15): five, three, or two without the last */
+    grid-template-columns: repeat(5, 1fr);
     gap: 0.5rem;
+  }
+  @media (max-width: 56rem) {
+    .strip :global(.gallery) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  @media (max-width: 36rem) {
+    .strip :global(.gallery) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .strip :global(.gallery li:nth-child(12)) {
+      display: none;
+    }
   }
   .strip :global(.gallery li) {
     aspect-ratio: 1;

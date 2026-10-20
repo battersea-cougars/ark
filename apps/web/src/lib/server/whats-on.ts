@@ -23,6 +23,37 @@ export interface WhatsOnItem {
   dateTbc: boolean;
   /** A tournament that's just a season so far: "Summer 2027", shown instead of a date (ADR 0030). */
   season: string | null;
+  /** The weekly sessions folded into this one row (weeklyRows): the weeks among them that are called off. */
+  weekly?: { skipped: string[] };
+}
+
+/**
+ * The weekly trainings as one row ("Every Friday"), so the list isn't the same session four times: at the next one
+ * that's on, naming any week called off. A session somewhere else stays its own row, so nobody goes to the wrong
+ * rink; so does a lone session, or a run that's all called off. Everything else is untouched, in order.
+ */
+export function weeklyRows(items: WhatsOnItem[]): WhatsOnItem[] {
+  const series = (i: WhatsOnItem) => (i.kind === "training" ? `${i.title}|${i.venue}` : null);
+  const groups = new Map<string, WhatsOnItem[]>();
+  for (const i of items) {
+    const key = series(i);
+    if (key) groups.set(key, [...(groups.get(key) ?? []), i]);
+  }
+  const out: WhatsOnItem[] = [];
+  const done = new Set<string>();
+  for (const i of items) {
+    const key = series(i);
+    const group = key ? groups.get(key)! : [];
+    const next = group.find((g) => !g.cancelled);
+    if (!key || group.length < 2 || !next) {
+      out.push(i);
+      continue;
+    }
+    if (done.has(key)) continue;
+    done.add(key);
+    out.push({ ...next, weekly: { skipped: group.filter((g) => g.cancelled).map((g) => g.startsAt) } });
+  }
+  return out;
 }
 
 export const LIMITS = { trainings: 3, tournaments: 3, events: 4 };

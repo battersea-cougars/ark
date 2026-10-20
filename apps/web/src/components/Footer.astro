@@ -1,32 +1,37 @@
 ---
 import { getSettings, getSponsors } from "../lib/sanity/content";
 import { imageUrl } from "../lib/sanity/images";
+import Icon, { type IconName } from "./Icon.astro";
 
 const s = await getSettings();
 const sponsors = await getSponsors();
 const slot = s.training[0];
 const day = slot?.day ?? "Friday";
 const socials = [
-  { href: s.socials.instagram, label: "Instagram" },
-  { href: s.socials.facebook, label: "Facebook" },
-  { href: s.socials.youtube, label: "YouTube" },
-].filter((x): x is { href: string; label: string } => Boolean(x.href));
+  { href: s.socials.instagram, label: "Instagram", icon: "instagram" },
+  { href: s.socials.facebook, label: "Facebook", icon: "facebook" },
+  { href: s.socials.youtube, label: "YouTube", icon: "youtube" },
+].filter((x): x is { href: string; label: string; icon: IconName } => Boolean(x.href));
+// No "Fancy it? Try a session" on the Try a session page and its thanks page: they're already there
+const call = !Astro.url.pathname.startsWith("/join/");
 ---
 
 <footer class="footer">
   <!-- Last call: the invitation, one red button -->
-  <div class="call">
-    <div class="wrap call-inner">
-      <p class="call-line">Fancy it?</p>
-      <p class="call-sub">
-        Come down on a {day}.{s.firstSessionKit && " First session, there's spare kit to borrow."} Splits optional.
-        After that, you're one of us.
-      </p>
-      <a class="btn btn--primary call-btn" href="/join/">
-        Try a session
-      </a>
+  {call && (
+    <div class="call">
+      <div class="wrap call-inner">
+        <p class="call-line">Fancy it?</p>
+        <p class="call-sub">
+          Come down on a {day}.{s.firstSessionKit && " First session, there's spare kit to borrow."} Splits optional.
+          After that, you're one of us.
+        </p>
+        <a class="btn btn--primary call-btn" href="/join/">
+          Try a session
+        </a>
+      </div>
     </div>
-  </div>
+  )}
 
   <div class="wrap base">
     {sponsors.length > 0 && (
@@ -56,7 +61,8 @@ const socials = [
           </p>
         )}
         <p>
-          <a class="link" href={s.venue.mapUrl} rel="noopener" target="_blank">
+          <a class="link with-icon" href={s.venue.mapUrl} rel="noopener" target="_blank">
+            <Icon name="pin" />
             {s.venue.name}
           </a>
         </p>
@@ -65,7 +71,8 @@ const socials = [
         <p class="label">Afterwards</p>
         <p>
           {s.pub.mapUrl ? (
-            <a class="link" href={s.pub.mapUrl} rel="noopener" target="_blank">
+            <a class="link with-icon" href={s.pub.mapUrl} rel="noopener" target="_blank">
+              <Icon name="pin" />
               {s.pub.name}
             </a>
           ) : (
@@ -77,14 +84,16 @@ const socials = [
         <p class="label">Say hello</p>
         {s.contactEmail && (
           <p>
-            <a class="link" href={`mailto:${s.contactEmail}`}>
+            <a class="link with-icon email" href={`mailto:${s.contactEmail}`}>
+              <Icon name="mail" />
               {s.contactEmail}
             </a>
           </p>
         )}
         <p class="social">
           {socials.map((x) => (
-            <a class="link" href={x.href} rel="noopener" target="_blank">
+            <a class="link with-icon" href={x.href} rel="noopener" target="_blank">
+              <Icon name={x.icon} />
               {x.label}
             </a>
           ))}
@@ -92,7 +101,7 @@ const socials = [
       </div>
     </div>
     <p class="legal label">
-      © {new Date().getFullYear()} Battersea Cougars Inline Hockey Club · Est. {s.founded} · South West London ·
+      © {new Date().getFullYear()} Battersea Cougars Inline Hockey Club · Est. {s.founded} · South West London ·{" "}
       <a class="link" href="/privacy/">
         Privacy
       </a>
@@ -156,9 +165,19 @@ const socials = [
   .brand a:hover {
     color: var(--red-hot);
   }
+  .with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  /* A long address breaks rather than pushing the page wider than a phone */
+  .email {
+    overflow-wrap: anywhere;
+  }
   .social {
     display: flex;
-    gap: 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
   }
   .legal {
     margin: 3rem 0 0;
@@ -185,6 +204,12 @@ const socials = [
     }
     .cols {
       grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 30rem) {
+    .cols {
+      grid-template-columns: 1fr;
+      gap: 1.75rem;
     }
   }
 </style>

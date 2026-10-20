@@ -28,6 +28,9 @@ export const formatShortDay = (iso: string) =>
     .map((p) => p.value)
     .join(" ");
 export const formatTime = (iso: string) => time.format(new Date(iso));
+const weekday = fmt({ weekday: "short" });
+/** "Fri": a weekly thing's day ("Every Fri"). */
+export const formatWeekday = (iso: string) => weekday.format(new Date(iso));
 
 /** { day: "14", month: "Nov" } for calendar-style date badges. */
 export function dateBadge(iso: string) {

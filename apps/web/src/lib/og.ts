@@ -1,6 +1,6 @@
 // Open Graph cards: the 1200×630 picture a link shows when it's shared (WhatsApp, Facebook, iMessage). Drawn at
-// build time as a paused VHS frame: on-screen-display text, the page title in poster capitals, the red tape label
-// and the cougar. satori turns the layout into an SVG (text as shapes, so the site's own fonts), sharp makes a PNG.
+// build time like the rink's scoreboard: a scoreboard line, the page title in poster capitals, the red label and the
+// cougar. satori turns the layout into an SVG (text as shapes, so the site's own fonts), sharp makes a PNG.
 // Build only (prerendered /og/* routes): it reads files from disk and never runs on the Worker.
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -13,7 +13,7 @@ export const OG_HEIGHT = 630;
 export interface Card {
   /** Poster title, in capitals: the page or event name. */
   title: string;
-  /** Top-left on-screen display, after PLAY: a day, a date, a section. */
+  /** The scoreboard line, top left: a day and time, a date, a section. */
   osd?: string;
   /** The bottom line: where and when. */
   footer?: string;
@@ -46,9 +46,6 @@ const el = (type: string, style: Record<string, unknown>, ...children: (Node | s
 const div = (style: Record<string, unknown>, ...children: (Node | string)[]) =>
   el("div", { display: "flex", ...style }, ...children);
 
-const PLAY_SVG = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="28"><path d="M0 0L24 14L0 28Z" fill="${BONE}"/></svg>`)}`;
-const playIcon: Node = { type: "img", props: { src: PLAY_SVG, width: 24, height: 28, style: {} } };
-
 // Long titles step down so they fit in three lines beside the cougar.
 const titleSize = (title: string) =>
   title.length <= 10 ? 150 : title.length <= 18 ? 118 : title.length <= 32 ? 92 : 72;
@@ -67,18 +64,15 @@ export async function renderCard(card: Card): Promise<Buffer> {
       justifyContent: "space-between",
       padding: "48px 64px 44px",
       backgroundColor: card.night ? "#060606" : "#0d0d0f",
-      // Faint scan lines, like a paused tape.
-      backgroundImage:
-        "repeating-linear-gradient(0deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 2px, transparent 2px, transparent 6px)",
       overflow: "hidden",
     },
     // The cougar, half off the frame on the right.
     el("img", { position: "absolute", right: -150, top: 230, height: 420, opacity: card.night ? 0.3 : 0.5 }, ""),
-    // PLAY ▶ … SP: the VCR's on-screen display.
+    // The scoreboard line: a red light, then the day and time or the section
     div(
-      { justifyContent: "space-between", alignItems: "center" },
-      div({ alignItems: "center", gap: 18 }, osd("PLAY"), playIcon, ...(card.osd ? [osd(card.osd.toUpperCase())] : [])),
-      div({ fontFamily: "VT323", fontSize: 36, color: BONE, border: `2px solid ${BONE}`, padding: "0 10px" }, "SP"),
+      { alignItems: "center", gap: 18, minHeight: 44 },
+      div({ width: 16, height: 16, borderRadius: 8, backgroundColor: RED }),
+      ...(card.osd ? [osd(card.osd.toUpperCase())] : []),
     ),
     div(
       { flexDirection: "column", gap: 28, maxWidth: 820 },
@@ -93,7 +87,7 @@ export async function renderCard(card: Card): Promise<Buffer> {
         },
         card.title,
       ),
-      // The tape's spine label: logo red, cream edge, slanted like the wordmark.
+      // The club's label: logo red, cream edge, slanted like the wordmark.
       div(
         {
           alignSelf: "flex-start",

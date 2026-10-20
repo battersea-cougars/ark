@@ -17,13 +17,12 @@
   --red-hot: #ff2a35; /* red text on dark */
   --red-soft: rgb(229 19 31 / 0.5);
   --yellow: #ffd60a; /* sticker yellow, Kumite only */
-  --vcr-blue: #1420c8; /* 404 no-signal screen */
   --shadow: rgb(0 0 0 / 0.55);
   --grain: rgb(255 255 255 / 0.025);
 
   --sans: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   --display: var(--font-display), Impact, sans-serif; /* woodtype poster capitals */
-  --osd: var(--font-osd), ui-monospace, monospace; /* VCR on-screen display: 404 screen, header clock */
+  --osd: var(--font-osd), ui-monospace, monospace; /* The rink scoreboard: header clock, countdown, 404 penalty clock */
 
   --ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
@@ -321,8 +320,8 @@ html.is-scrollbar-dragging * {
 }
 
 /*
- * VHS spine label: a cream sticker stuck on slightly crooked, slanted like the COUGARS
- * wordmark. Straightens when you hover, flattens when pressed. The primary label is
+ * A strip of stick tape: cream, stuck on slightly crooked, slanted like the COUGARS
+ * wordmark. Straightens when you hover, flattens when pressed. The primary is
  * logo red with white capitals, a cream edge and claw marks.
  */
 .btn {
@@ -375,45 +374,6 @@ html.is-scrollbar-dragging * {
   border-color: rgb(0 0 0 / 0.35);
   background: linear-gradient(to right, #f3efe6 0.35rem, transparent 0.35rem), var(--label);
   rotate: 0.8deg;
-}
-/* Ordinary labels carry the tape-speed box printed on every VHS spine */
-.btn:not(.btn--primary)::after {
-  content: "SP";
-  padding: 0.2em 0.3em 0.1em;
-  border: 1px solid currentColor;
-  font-family: var(--sans);
-  font-size: 0.55rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  opacity: 0.7;
-}
-/* Hover: one pass of bad VHS tracking, the label text splits red/cyan and settles */
-@media (prefers-reduced-motion: no-preference) {
-  .btn:hover,
-  .btn:focus-visible {
-    animation: vhs-tracking 0.4s steps(1, end);
-  }
-}
-@keyframes vhs-tracking {
-  0% {
-    text-shadow:
-      -3px 0 rgb(229 19 31 / 0.75),
-      3px 0 rgb(0 200 230 / 0.75);
-  }
-  25% {
-    text-shadow:
-      2px 0 rgb(229 19 31 / 0.75),
-      -2px 0 rgb(0 200 230 / 0.75);
-  }
-  50% {
-    text-shadow:
-      -1px 0 rgb(229 19 31 / 0.6),
-      1px 0 rgb(0 200 230 / 0.6);
-  }
-  75%,
-  100% {
-    text-shadow: none;
-  }
 }
 /* Claw marks: three tapered slashes ripped through the right end of the label */
 .btn--primary::after {

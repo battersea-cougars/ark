@@ -1,22 +1,21 @@
 ---
+// Not found: two minutes in the penalty box. The scoreboard counts the penalty down once (not with reduced motion);
+// served, it says so and the way home gets a nudge. Nothing happens by itself: no redirect.
 import Base from "../layouts/Base.astro";
 import { getSections } from "../lib/sanity/content";
 
 const sections = await getSections();
 ---
 
-<Base title="Page not found">
-  <section class="nosignal crt">
-    <p class="osd">
-      <span>Stop ■</span>
-      <span>404</span>
-    </p>
-    <div class="body">
-      <h1>No signal</h1>
-      <p>This tape has been eaten. The page moved, or the link is wrong.</p>
+<Base title="Page not found" noindex>
+  <section class="box">
+    <div class="copy">
+      <p class="kicker">404 · Penalty</p>
+      <h1>Two minutes for getting lost.</h1>
+      <p class="lede">This page doesn't exist, or it's been sent off. Serve your time, then get back out there.</p>
       <p class="links">
-        <a class="btn" href="/">
-          Rewind to home
+        <a class="btn btn--primary" href="/" data-penalty-home>
+          Back to home
         </a>
         <a class="label link" href="/fridays/">
           Fridays
@@ -27,47 +26,39 @@ const sections = await getSections();
           </a>
         )}
         <a class="label link" href="/events/">
-          Events
+          What's on
         </a>
       </p>
+    </div>
+    <div class="board" aria-hidden="true">
+      <p class="board-label">Penalty</p>
+      <p class="board-clock" data-penalty-clock>
+        2:00
+      </p>
+      <p class="board-label">Getting lost</p>
     </div>
   </section>
 </Base>
 
 <style>
-  /* The blue screen a VCR shows when there is nothing on the tape */
-  .nosignal {
-    position: relative;
+  .box {
     display: grid;
-    align-content: center;
+    grid-template-columns: 1.3fr 1fr;
+    align-items: center;
+    gap: 3rem;
     min-height: 100svh;
-    padding: calc(var(--header-h) + 2rem) var(--gutter) 4rem;
-    background: var(--vcr-blue);
-    color: #fff;
-    font-family: var(--osd);
-    font-size: clamp(1.3rem, 2.2vw, 1.8rem);
-    letter-spacing: 0.06em;
-    line-height: 1.2;
-    text-transform: uppercase;
-  }
-  .nosignal > * {
-    position: relative;
-    z-index: 2;
-  }
-  /* Beats `.nosignal > *` above, which Astro's scoping makes the more specific of the two */
-  .nosignal > .osd {
-    position: absolute;
-    inset: calc(var(--header-h) + 1rem) var(--gutter) auto;
-    display: flex;
-    justify-content: space-between;
-    margin: 0;
+    padding: calc(var(--header-h) + 2.5rem) var(--gutter) 4rem;
+    max-width: 78rem;
+    margin-inline: auto;
   }
   h1 {
-    font-family: var(--osd);
-    font-size: clamp(4rem, 14vw, 11rem);
-    letter-spacing: 0.04em;
-    line-height: 0.9;
-    margin-bottom: 1.5rem;
+    margin: 0.75rem 0 1.25rem;
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    line-height: 0.92;
+    text-transform: uppercase;
+  }
+  .lede {
+    max-width: 32rem;
   }
   .links {
     display: flex;
@@ -76,7 +67,72 @@ const sections = await getSections();
     gap: 1rem 2rem;
     margin-top: 2.5rem;
   }
-  .links .label {
-    color: #fff;
+  /* The rink's scoreboard: red digits behind dark glass */
+  .board {
+    display: grid;
+    justify-items: center;
+    gap: 0.5rem;
+    padding: 2rem 2.5rem;
+    border: 1px solid var(--rule-strong);
+    background: rgb(0 0 0 / 0.55);
+    box-shadow: inset 0 0 40px rgb(0 0 0 / 0.6);
+    font-family: var(--osd);
+    text-transform: uppercase;
+  }
+  .board p {
+    margin: 0;
+  }
+  .board-label {
+    font-size: 1.4rem;
+    letter-spacing: 0.15em;
+    color: var(--text-2);
+  }
+  .board-clock {
+    min-width: 6ch;
+    text-align: center;
+    font-size: clamp(5rem, 12vw, 9rem);
+    line-height: 1;
+    color: var(--red-hot);
+    text-shadow: 0 0 18px rgb(244 64 74 / 0.55);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Served: the way home asks to be pressed */
+  @media (prefers-reduced-motion: no-preference) {
+    :global([data-penalty-home].served) {
+      animation: nudge 0.6s var(--ease-out) 2;
+    }
+  }
+  @keyframes nudge {
+    50% {
+      translate: 0 -5px;
+    }
+  }
+  @media (max-width: 52rem) {
+    .box {
+      grid-template-columns: 1fr;
+      align-content: center;
+    }
+    .board {
+      justify-self: start;
+      padding: 1.25rem 1.75rem;
+    }
   }
 </style>
+
+<script>
+  // Two minutes, once. Fixed width (6ch, room for "SERVED"), so the clock changing never moves anything.
+  function start() {
+    const clock = document.querySelector<HTMLElement>("[data-penalty-clock]");
+    if (!clock || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const ends = Date.now() + 120_000;
+    const tick = () => {
+      if (!clock.isConnected) return;
+      const left = Math.max(0, Math.ceil((ends - Date.now()) / 1000));
+      clock.textContent = left ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "Served";
+      if (left) setTimeout(tick, 250);
+      else document.querySelector("[data-penalty-home]")?.classList.add("served");
+    };
+    tick();
+  }
+  document.addEventListener("astro:page-load", start);
+</script>

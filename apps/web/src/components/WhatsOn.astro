@@ -3,8 +3,8 @@
 // keeps (ADR 0042). The home page is prerendered, so it holds a placeholder that its script fills from /whats-on/,
 // which renders this same component live. No data-reveal in here: swapped-in elements would never be revealed.
 import Empty from "./Empty.astro";
-import { formatDayDate, formatShortDay, formatTime } from "../lib/dates";
-import type { WhatsOnItem } from "../lib/server/whats-on";
+import { formatDayDate, formatShortDay, formatTime, formatWeekday } from "../lib/dates";
+import { weeklyRows, type WhatsOnItem } from "../lib/server/whats-on";
 
 interface Props {
   /** Null: not loaded yet (the prerendered page). */
@@ -21,6 +21,10 @@ const times = (i: WhatsOnItem) => {
   return `${formatTime(i.startsAt)}–${sameDay ? "" : `${formatShortDay(i.endsAt)} `}${formatTime(i.endsAt)}`;
 };
 const about = (i: WhatsOnItem) => (i.dateTbc ? i.title : `${i.title}, ${formatDayDate(i.startsAt)}`);
+// The weekly sessions are one row ("Every Fri", next date beneath), naming any week that's called off
+const rows = items && weeklyRows(items);
+const skipped = (i: WhatsOnItem) =>
+  i.weekly?.skipped.length ? `No session ${i.weekly.skipped.map(formatShortDay).join(", ")}` : "";
 // The venue opens in a map (its own link, or a search for it: ADR 0030). It sits above the row's own link.
 ---
 
@@ -29,18 +33,33 @@ const about = (i: WhatsOnItem) => (i.dateTbc ? i.title : `${i.title}, ${formatDa
     <p class="loading label" aria-live="polite">
       Checking the calendar… <a href="/events/">All events</a>
     </p>
-  ) : items.length ? (
+  ) : rows?.length ? (
     <ul class="whats-on">
-      {items.map((i) => (
-        <li class:list={[i.kind, { cancelled: i.cancelled }]}>
+      {rows.map((i) => (
+        <li
+          class:list={[i.kind, { cancelled: i.cancelled, weekly: i.weekly }]}
+          data-starts={i.startsAt}
+          data-ends={i.endsAt ?? undefined}
+        >
           <div class="row">
             <span class="when">
-              <span class="day">{i.season ?? (i.dateTbc ? "Date TBC" : formatShortDay(i.startsAt))}</span>
-              {!i.dateTbc && <span class="label">{times(i)}</span>}
+              {i.weekly ? (
+                <>
+                  <span class="day">Every {formatWeekday(i.startsAt)}</span>
+                  <span class="label">
+                    Next {formatShortDay(i.startsAt)} · {times(i)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span class="day">{i.season ?? (i.dateTbc ? "Date TBC" : formatShortDay(i.startsAt))}</span>
+                  {!i.dateTbc && <span class="label">{times(i)}</span>}
+                </>
+              )}
             </span>
             <span class="what">
               <span class="title">{i.title}</span>
-              {i.description && <span class="about">{i.description}</span>}
+              {(skipped(i) || i.description) && <span class="about">{skipped(i) || i.description}</span>}
             </span>
             {i.cancelled ? (
               <span class="where label">Cancelled</span>

@@ -3,7 +3,7 @@ import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
 import { syncAll } from "@cougars/shared/agenda";
 import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { clearCache } from "./cache";
-import { cachedWhatsOn, whatsOn } from "./whats-on";
+import { cachedWhatsOn, weeklyRows, whatsOn, type WhatsOnItem } from "./whats-on";
 
 // Tuesday 6 October 2026, late morning in London
 const NOW = new Date("2026-10-06T11:00:00Z");
@@ -77,5 +77,68 @@ describe("what's on", () => {
     t += 61_000;
     await cachedWhatsOn(db, undefined, deps);
     expect(prepare.mock.calls.length).toBe(reads * 2);
+  });
+});
+
+describe("the weekly trainings in what's on", () => {
+  const training = (startsAt: string, extra: Partial<WhatsOnItem> = {}): WhatsOnItem => ({
+    key: `training:${startsAt}`,
+    kind: "training",
+    title: "Friday Training",
+    startsAt,
+    endsAt: null,
+    venue: "Battersea Sports Centre",
+    mapUrl: null,
+    description: "",
+    cancelled: false,
+    dateTbc: false,
+    season: null,
+    ...extra,
+  });
+  const social = {
+    ...training("2026-10-10T18:00:00Z"),
+    key: "event:1",
+    kind: "event" as const,
+    title: "Summer social",
+  };
+
+  it("are one row, at the next one, naming any week that's called off", () => {
+    const rows = weeklyRows([
+      training("2026-10-09T18:30:00Z"),
+      social,
+      training("2026-10-16T18:30:00Z", { cancelled: true }),
+      training("2026-10-23T18:30:00Z"),
+    ]);
+    expect(rows.map((r) => [r.title, r.startsAt, r.weekly])).toEqual([
+      ["Friday Training", "2026-10-09T18:30:00Z", { skipped: ["2026-10-16T18:30:00Z"] }],
+      ["Summer social", "2026-10-10T18:00:00Z", undefined],
+    ]);
+  });
+
+  it("start from the first that's on when the next is called off", () => {
+    const rows = weeklyRows([training("2026-10-09T18:30:00Z", { cancelled: true }), training("2026-10-16T18:30:00Z")]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ startsAt: "2026-10-16T18:30:00Z", weekly: { skipped: ["2026-10-09T18:30:00Z"] } });
+  });
+
+  it("keep a session somewhere else as its own row, so nobody goes to the wrong rink", () => {
+    const rows = weeklyRows([
+      training("2026-10-09T18:30:00Z"),
+      training("2026-10-16T18:30:00Z", { venue: "Other rink" }),
+      training("2026-10-23T18:30:00Z"),
+    ]);
+    expect(rows.map((r) => [r.venue, Boolean(r.weekly)])).toEqual([
+      ["Battersea Sports Centre", true],
+      ["Other rink", false],
+    ]);
+  });
+
+  it("stay as they are when there's only one, or every one is called off", () => {
+    expect(weeklyRows([training("2026-10-09T18:30:00Z")])[0].weekly).toBeUndefined();
+    const off = [
+      training("2026-10-09T18:30:00Z", { cancelled: true }),
+      training("2026-10-16T18:30:00Z", { cancelled: true }),
+    ];
+    expect(weeklyRows(off)).toEqual(off);
   });
 });

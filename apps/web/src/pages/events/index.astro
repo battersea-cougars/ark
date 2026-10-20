@@ -55,6 +55,9 @@ const day = s.training[0]?.day ?? "Friday";
     ) : (
       <WhatsOn items={items} day={day} />
     )}
+    {!unavailable && items.length > 0 && items.every((i) => i.kind === "training") && (
+      <p class="nothing-else muted">Nothing special booked yet. {day}s are always on.</p>
+    )}
     {past.length > 0 && (
       <section class="past">
         <p class="kicker" data-reveal>
@@ -67,6 +70,9 @@ const day = s.training[0]?.day ?? "Friday";
 </Base>
 
 <style>
+  .nothing-else {
+    margin: 1.5rem 0 0;
+  }
   .past {
     margin-top: clamp(4rem, 9vw, 6rem);
     opacity: 0.7;

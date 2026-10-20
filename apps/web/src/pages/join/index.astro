@@ -162,13 +162,18 @@ const slot = s.training[0];
     outline: none;
     transition: border-color 0.3s var(--ease-smooth);
   }
-  /* Several lines: a soft filled box, so the text sits inside it rather than far above its line. Fixed height until
+  /* Several lines, underlined like the other fields; a faint fill only while you're typing in it. Fixed height until
      dragged, so typing never moves what's below. */
   textarea {
     display: block;
-    padding: 0.8rem 1rem;
-    background: color-mix(in srgb, var(--text) 5%, transparent);
+    padding-inline: 0.5rem;
     resize: vertical;
+    transition:
+      border-color 0.3s var(--ease-smooth),
+      background 0.3s var(--ease-smooth);
+  }
+  textarea:focus {
+    background: color-mix(in srgb, var(--text) 4%, transparent);
   }
   input:focus,
   textarea:focus {
