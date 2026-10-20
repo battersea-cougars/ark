@@ -8,6 +8,7 @@ import {
   applySlices,
   hydrate,
   MEMBERS,
+  NOTIFICATIONS,
   ONE_OFFS,
   QUIPS,
   ANNOUNCEMENTS,
@@ -27,6 +28,7 @@ import {
 } from "../demo/data";
 import type { Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
+import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
 import { api, bootstrapIfChanged, brake, getBootstrap } from "./api";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
@@ -83,6 +85,9 @@ const COPY: Record<keyof Slices, () => void> = {
   },
   subscriptionFees: () => {
     db.fees = structuredClone(SUBSCRIPTION_FEES);
+  },
+  notifications: () => {
+    db.notifications = structuredClone(NOTIFICATIONS);
   },
   // Only when it's changed: live pages' checks follow it, and would otherwise start again after every refresh
   settings: () => {
@@ -199,6 +204,9 @@ export const removeTeams = (sessionId: number) =>
 /** Start a session again: no sign-ups, no teams. */
 export const resetSession = (sessionId: number) =>
   save(() => api("POST", `/api/sessions/${sessionId}/reset`), "Session reset");
+/** One kind of notification on or off, for you (ADR 0108). Quiet: the switch is its own answer. */
+export const chooseNotification = (topic: Topic, on: boolean) =>
+  save(() => api("PUT", "/api/me/notifications", { [topic]: on }), "");
 /** Your own phone, position and bio. */
 export const saveProfile = (p: { position: Position; phone: string; bio: string; webName: string }) =>
   save(() => api("PUT", "/api/me", p));

@@ -1,10 +1,12 @@
 // A member's right to go, and to see what's held about them (#30, ADR 0029). Erasing keeps the member's row, so the
 // club's records still add up (a payment, last Friday's numbers, a goal), but empties everything that says who they
 // were: they become "Former member", with no email, phone, bio or bank reference, and no way back in. Their roles,
-// sessions, sign-in codes and places for what's still to come go. Earlier audit entries stop naming them.
+// sessions, sign-in codes, notification choices and places for what's still to come go. Earlier audit entries stop
+// naming them.
 import { batch, first, statement } from "@cougars/shared/d1";
 import { HttpError, json } from "../api/api.http";
 import { actionsOf } from "./members";
+import { prefsFrom } from "../push/push.prefs";
 
 export const FORMER_MEMBER = "Former member";
 
@@ -39,6 +41,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     q("DELETE FROM member_roles WHERE member_id = ?", id),
     q("DELETE FROM auth_sessions WHERE member_id = ?", id),
     q("DELETE FROM login_challenges WHERE member_id = ?", id),
+    q("DELETE FROM notification_prefs WHERE member_id = ?", id),
     // Places for what's still to come are given up; what's been played stays, about nobody
     q(
       "DELETE FROM attendance WHERE member_id = ? AND session_id IN (SELECT id FROM training_sessions WHERE held_on >= ?)",
@@ -141,9 +144,10 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
         [id],
       ),
       statement(db, "SELECT at, action FROM audit_log WHERE member_id = ? ORDER BY id", [id]),
+      statement(db, "SELECT topic, enabled FROM notification_prefs WHERE member_id = ? ORDER BY topic", [id]),
     ])
   ).map((r) => r.results);
-  const [roles, training, tournaments, events, plans, charges, payments, devices, record] = rows;
+  const [roles, training, tournaments, events, plans, charges, payments, devices, record, notifications] = rows;
   const data = {
     about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
     downloadedOn: today,
@@ -157,6 +161,8 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
     payments,
     devices,
     record,
+    // What your phone tells you: every kind of notification, on unless you turned it off
+    notifications: prefsFrom(notifications as { topic: string; enabled: number }[]),
   };
   const res = json(data);
   res.headers.set("content-disposition", `attachment; filename="cougars-my-data-${today}.json"`);

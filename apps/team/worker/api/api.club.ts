@@ -249,6 +249,11 @@ const PARTS = {
      ORDER BY a.created_at DESC, a.id DESC LIMIT 2`,
   ),
   settings: rows("live_refresh_seconds", "SELECT live_refresh_seconds FROM club_settings WHERE id = 1"),
+  // What this member chooses to hear on their phone (ADR 0108): the topics they've switched
+  notifications: rows(
+    "topic enabled",
+    "SELECT p.topic, p.enabled FROM notification_prefs p, viewer v WHERE p.member_id = v.member_id",
+  ),
   // What's on from today (ADR 0042). A draft night is for whoever runs the draft and that tournament's captains.
   agenda: rows(
     `source source_id kind group_key title starts_at ends_at day all_day date_tbc season venue map_url description

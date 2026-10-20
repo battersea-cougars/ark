@@ -25,6 +25,7 @@ import { SETTINGS_ROUTES } from "../settings/settings.routes";
 import { TOURNAMENTS_ROUTES } from "../tournaments/tournaments.routes";
 import { TRAINING_ROUTES } from "../training/training.routes";
 import { notify } from "../push/push";
+import { PUSH_ROUTES } from "../push/push.routes";
 import { bumpDataVersion } from "./api.version";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
 import { scribe } from "@cougars/shared/scribe";
@@ -40,10 +41,11 @@ export type { Slice } from "./api.slices";
  * they share: who's asking, the action check, the record, the parts a change sends back, and the live hub.
  */
 export const ROUTES: Route[] = [
-  // The club, read; you
+  // The club, read; you (and what your phone tells you)
   ...CLUB_ROUTES,
   ...ANNOUNCEMENTS_ROUTES,
   ...ME_ROUTES,
+  ...PUSH_ROUTES,
   // People: members and roles
   ...MEMBERS_ROUTES,
   ...ROLES_ROUTES,

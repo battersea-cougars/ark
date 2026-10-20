@@ -14,6 +14,7 @@ import { tournamentTypesFrom, tournamentsFrom } from "../tournaments/tournaments
 import { venuesFrom } from "../settings/venues";
 import { settingsFrom } from "../settings/settings";
 import { teamsFrom } from "../training/training.teams";
+import { prefsFrom } from "../push/push.prefs";
 
 // ─── The club, in parts ───
 // The bootstrap is all of them; a change's reply is the ones it touched. Each is what this member may see (ADR 0036).
@@ -136,6 +137,8 @@ export const SLICES = {
   },
   // How often live pages check for updates (ADR 0072)
   settings: { parts: ["settings"], shape: (_c: Ctx, p: Parts) => settingsFrom(p.settings) },
+  // Your own notifications, a choice per topic (ADR 0108)
+  notifications: { parts: ["notifications"], shape: (_c: Ctx, p: Parts) => prefsFrom(p.notifications) },
   // What's on from today (ADR 0042)
   agenda: { parts: ["agenda"], shape: (_c: Ctx, p: Parts) => (p.agenda as AgendaRow[]).map(agendaItem) },
 } satisfies Record<string, { parts: Part[]; shape: (c: Ctx, p: Parts) => unknown }>;

@@ -1,6 +1,7 @@
 // The club's data as the app holds it: filled from D1 by /api/bootstrap before the app mounts (app/backend.ts);
 // after a change, only the parts it touched come back and are put in place (applySlices). The shapes match the D1 tables (docs/team-app-data-model.md).
 import type { Action } from "../access/actions";
+import { allOn, type NotificationPrefs } from "../lib/notification-topics";
 import type { IconName } from "../app/shell/icons";
 import type { AgendaRow, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession, Venue } from "./model";
 import type { Quip } from "../lib/quips";
@@ -57,6 +58,8 @@ export const AGENDA: AgendaRow[] = [];
 /** The club's settings for the app (ADR 0072): how often live pages check for updates. */
 export const SETTINGS = { liveRefreshSeconds: 10 };
 export const ONE_OFFS: OneOff[] = [];
+/** What your phone tells you: a choice per topic, on until you turn it off (ADR 0108). */
+export const NOTIFICATIONS: NotificationPrefs = allOn();
 
 export interface Role {
   id: number;
@@ -147,6 +150,8 @@ export interface Bootstrap {
   credits: { memberId: number; pence: number }[];
   payments: Payment[];
   subscriptionFees: DatedFee[];
+  /** Your own notifications, a choice per topic (ADR 0108). */
+  notifications: NotificationPrefs;
 }
 
 /** Home's lines, from D1. */
@@ -226,6 +231,7 @@ export function applySlices(b: Slices) {
   if (b.credits) fill(CREDITS, b.credits);
   if (b.payments) fill(PAYMENTS, b.payments);
   if (b.subscriptionFees) fill(SUBSCRIPTION_FEES, b.subscriptionFees);
+  if (b.notifications) Object.assign(NOTIFICATIONS, b.notifications);
 }
 
 /** The old app's names: the Cougar players' team is "Cougars", the rest are colours. */

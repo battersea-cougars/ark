@@ -7,6 +7,7 @@ import {
   CREDITS,
   PAYMENTS,
   MEMBERS,
+  NOTIFICATIONS,
   ONE_OFFS,
   QUIPS,
   ANNOUNCEMENTS,
@@ -46,4 +47,6 @@ export const db = $state({
   /** Money paid in and not yet spent, by member: it pays their next charge. */
   credits: structuredClone(CREDITS),
   payments: structuredClone(PAYMENTS),
+  /** What your phone tells you, a choice per topic (ADR 0108). */
+  notifications: structuredClone(NOTIFICATIONS),
 });

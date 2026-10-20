@@ -3,7 +3,8 @@
 import { all, first } from "@cougars/shared/d1";
 import { formatDayDate } from "../../src/lib/dates";
 import { id, type Ctx, type Notify } from "../api/api.route";
-import { TABLES, type EntryKind } from "../entries/entries";
+import { TABLES, aheadIn, type EntryKind } from "../entries/entries";
+import type { Notice } from "./push";
 import { announcementSummary } from "../announcements/announcements";
 
 /** An event as a notification names it, and where it is in the app. */
@@ -27,31 +28,51 @@ async function eventOf(db: D1Database, kind: EntryKind, eventId: number) {
   return e && { name: e.title, path: "/calendar" };
 }
 
-/** Who's in and who's waiting for an event: the route's first path number. */
+/** Who's in and who's waiting for an event (the route's first path number), in its one order (aheadIn). */
 const answers = (kind: EntryKind) => (c: Ctx) =>
   all<{ memberId: number; signup: string }>(
     c.env.DB,
-    `SELECT member_id memberId, signup FROM ${TABLES[kind].table} WHERE ${TABLES[kind].key} = ?
-       AND signup IN ('in', 'waitlist')`,
+    `SELECT e.member_id memberId, e.signup FROM ${TABLES[kind].table} e WHERE e.${TABLES[kind].key} = ?
+       AND e.signup IN ('in', 'waitlist') ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id`,
     [id(c)],
   );
 
-/** A place came up (or the team maker let them in): whoever was waiting and is in now hears it. */
-export const movedUp = (kind: EntryKind, why = "A place came up"): Notify<{ memberId: number; signup: string }[]> => ({
+/**
+ * Places changed hands (topic `places`): whoever was waiting and is in now hears a place came up (or that the team
+ * maker let them in). Whoever was in and is waiting now had their place taken by a Quarterly Member signing up for a
+ * full training, the only thing that does that (ADR 0030, entries.ts bump): they hear it, and where they are in line,
+ * before they turn up (#97).
+ */
+export const places = (kind: EntryKind, why = "A place came up"): Notify<{ memberId: number; signup: string }[]> => ({
   before: answers(kind),
   after: async (c, before) => {
-    const waiting = new Set(before.filter((a) => a.signup === "waitlist").map((a) => a.memberId));
-    const up = (await answers(kind)(c)).filter((a) => a.signup === "in" && waiting.has(a.memberId));
-    const event = up.length ? await eventOf(c.env.DB, kind, id(c)) : null;
+    const was = new Map(before.map((a) => [a.memberId, a.signup]));
+    const now = await answers(kind)(c);
+    const up = now.filter((a) => a.signup === "in" && was.get(a.memberId) === "waitlist").map((a) => a.memberId);
+    const waiting = now.filter((a) => a.signup === "waitlist").map((a) => a.memberId);
+    const down = waiting.filter((m) => was.get(m) === "in");
+    const event = up.length || down.length ? await eventOf(c.env.DB, kind, id(c)) : null;
     if (!event) return [];
-    return [
-      {
-        to: up.map((a) => a.memberId),
+    const notices: Notice[] = [];
+    if (up.length)
+      notices.push({
+        to: up,
+        topic: "places",
         title: "You're in",
         body: `${why}: you're in for ${event.name}.`,
         path: event.path,
-      },
-    ];
+      });
+    for (const m of down) {
+      const place = waiting[0] === m ? "first in line" : `number ${waiting.indexOf(m) + 1} in line`;
+      notices.push({
+        to: [m],
+        topic: "places",
+        title: "On the waitlist",
+        body: `You're on the waitlist for ${event.name}, ${place}: a Quarterly Member took the last place.`,
+        path: event.path,
+      });
+    }
+    return notices;
   },
 });
 
@@ -68,6 +89,7 @@ export const teamsOut: Notify = {
     );
     return teams.map((t) => ({
       to: JSON.parse(t.players) as number[],
+      topic: "teams" as const,
       title: "Teams are out",
       body: `${event.name}: you're on ${t.name}.`,
       path: event.path,
@@ -89,7 +111,15 @@ export const sessionOff: Notify<{ cancelled: string | null; who: number[] }> = {
     if (before.cancelled || !before.who.length || !(await cancelledAt(c))?.cancelled) return [];
     const event = await eventOf(c.env.DB, "session", id(c));
     return event
-      ? [{ to: before.who, title: `${event.name} is off`, body: "No training that night.", path: event.path }]
+      ? [
+          {
+            to: before.who,
+            topic: "sessionOff",
+            title: `${event.name} is off`,
+            body: "No training that night.",
+            path: event.path,
+          },
+        ]
       : [];
   },
 };
@@ -98,6 +128,6 @@ export const sessionOff: Notify<{ cancelled: string | null; who: number[] }> = {
 export const announced: Notify = {
   after: async (c, _before, reply) => {
     const a = (await announcementSummary(c.env.DB, reply.id as number)) as { title: string; body: string } | null;
-    return a ? [{ to: "everyone", title: a.title, body: a.body.slice(0, 180), path: "/" }] : [];
+    return a ? [{ to: "everyone", topic: "announcements", title: a.title, body: a.body.slice(0, 180), path: "/" }] : [];
   },
 };

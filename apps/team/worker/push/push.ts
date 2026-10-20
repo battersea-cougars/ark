@@ -7,12 +7,17 @@ import { batch, run, statement } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 import { sendAll, type Message, type Outcome } from "./fcm";
 import { scribe } from "@cougars/shared/scribe";
+import type { Topic } from "../../src/lib/notification-topics";
 
 const log = scribe.logger("push");
 
-/** Something to tell members: who (or everyone with the app), the words, and where tapping it goes in the app. */
+/**
+ * Something to tell members: who (or everyone with the app), what it's about (a member can turn a topic off), the
+ * words, and where tapping it goes in the app.
+ */
 export interface Notice {
   to: number[] | "everyone";
+  topic: Topic;
   title: string;
   body: string;
   path: string;
@@ -102,8 +107,8 @@ const dropUnwanted = (env: PushEnv, now: Date) =>
 type Claimed = Sent & { id: number; tries: number };
 
 /**
- * Tell them: a row in the outbox for every phone signed in as one of them, written in one statement with the first
- * batch claimed in the same round trip, and that batch sent now (after the reply). A club-wide send bigger than a
+ * Tell them: a row in the outbox for every phone signed in as one of them who hasn't turned that topic off, written in
+ * one statement with the first batch claimed in the same round trip, and that batch sent now (after the reply). A club-wide send bigger than a
  * batch is finished by the cron (drainPush).
  */
 export async function notify(env: PushEnv, notices: Notice[], now: Date) {
@@ -119,6 +124,8 @@ export async function notify(env: PushEnv, notices: Notice[], now: Date) {
        JOIN auth_sessions s ON s.id = d.session_id JOIN members m ON m.id = s.member_id
        WHERE s.revoked_at IS NULL AND s.expires_at > ? AND m.status = 'active'
          AND (n.value ->> '$.to' = 'everyone' OR s.member_id IN (SELECT value FROM json_each(n.value, '$.to')))
+         AND NOT EXISTS (SELECT 1 FROM notification_prefs p
+           WHERE p.member_id = s.member_id AND p.topic = n.value ->> '$.topic' AND p.enabled = 0)
        ORDER BY n.key, s.member_id, d.token`,
       [now.toISOString(), now.toISOString(), JSON.stringify(wanted), now.toISOString()],
     ),

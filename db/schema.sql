@@ -430,6 +430,16 @@ CREATE TABLE push_devices (
 
 CREATE INDEX push_devices_session ON push_devices (session_id);
 
+-- What each member chooses to hear (ADR 0108, #24): a row only for a topic they've switched, so no row means on.
+-- The topics are one list in the app (src/lib/notification-topics.ts); push.ts skips a member with that topic off.
+CREATE TABLE notification_prefs (
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  topic TEXT NOT NULL,
+  -- 1 on, 0 off ("on" itself is an SQL keyword)
+  enabled INTEGER NOT NULL,
+  PRIMARY KEY (member_id, topic)
+) WITHOUT ROWID;
+
 -- Notifications on their way (ADR 0108): one row per notice per phone, so a club-wide send can go out a batch at a
 -- time within the free plan's 50 fetches an invocation (worker/push/push.ts). A row is claimed before it's sent, so
 -- two drains at once never send it twice; a claim older than ten minutes was a drain that died, and is taken again.

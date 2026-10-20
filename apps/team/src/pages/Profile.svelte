@@ -16,6 +16,7 @@
   import AccountMenu from "../app/shell/AccountMenu.svelte";
   import MoreLinks from "../lib/MoreLinks.svelte";
   import YourData from "../lib/YourData.svelte";
+  import NotificationPrefs from "../lib/NotificationPrefs.svelte";
   import { phone } from "../lib/viewport.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { APP_BUILD, APP_VERSION } from "../app/build";
@@ -163,6 +164,7 @@
     </section>
   {/if}
 
+  <NotificationPrefs disabled={locked} />
   <YourData disabled={locked} />
 
   <!-- Then everything else: your dues, the club's pages, and Settings (the gear's way in, listed) -->

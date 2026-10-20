@@ -159,6 +159,124 @@ describe("what the club tells them", () => {
   });
 });
 
+// What each member hears is theirs to choose (#24): a switch per topic on the You page, every one on until they turn
+// it off. The choice is the member's, whichever phone they're signed in on.
+describe("what a member chooses to hear", () => {
+  const prefs = async (b: Browser) => (await b.call("GET", "/api/me/notifications")).body;
+
+  it("hears everything until they say otherwise", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    const all = { teams: true, places: true, sessionOff: true, announcements: true, dues: true };
+    expect(await prefs(reg)).toEqual(all);
+    expect((await boot(reg)).notifications).toEqual(all);
+  });
+
+  it("turns the night's teams off: doesn't hear teams are out, still hears announcements", async () => {
+    const reg = await phone("reg@example.com");
+    await phone("alt@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    const session = await friday(dana);
+    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    await w
+      .signedIn("alt@example.com")
+      .then((alt) => alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" }));
+    const r = await reg.call("PUT", "/api/me/notifications", { teams: false });
+    expect(r.status).toBe(200);
+    expect(r.body.changed.notifications).toMatchObject({ teams: false, announcements: true });
+
+    const [regId, altId] = [await memberId(dana, "Reg Player"), await memberId(dana, "Alt Player")];
+    await dana.call("POST", `/api/sessions/${session.id}/teams`, {
+      teams: [{ name: "Black", players: [regId, altId] }],
+    });
+    expect(sentTo()).toEqual(["token-alt@example.com"]);
+
+    w.pushes.length = 0;
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+    expect(sentTo().sort()).toEqual(["token-alt@example.com", "token-reg@example.com"]);
+
+    // On again, and they hear the teams the next time
+    await reg.call("PUT", "/api/me/notifications", { teams: true });
+    w.pushes.length = 0;
+    await dana.call("POST", `/api/sessions/${session.id}/teams`, { teams: [{ name: "White", players: [regId] }] });
+    expect(sentTo()).toEqual(["token-reg@example.com"]);
+  });
+
+  it("is checked: only the topics there are, each on or off", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    const put = (b: unknown) => reg.call("PUT", "/api/me/notifications", b);
+    expect((await put({})).status).toBe(400);
+    expect((await put({ teams: "no" })).status).toBe(400);
+    expect((await put({ gossip: false })).status).toBe(400);
+    // The draft's notifications aren't sent yet, so there's nothing to turn off
+    expect((await put({ draft: false })).status).toBe(400);
+    expect(await prefs(reg)).toMatchObject({ teams: true });
+  });
+
+  it("is only ever your own: nobody changes someone else's", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    const regId = await memberId(dana, "Reg Player");
+    // Not even an admin: there's no route to anyone else's, and a member's id in the body is refused
+    expect((await dana.call("PUT", `/api/members/${regId}/notifications`, { teams: false })).status).toBe(404);
+    expect((await dana.call("PUT", "/api/me/notifications", { memberId: regId, teams: false })).status).toBe(400);
+    expect(await prefs(reg)).toMatchObject({ teams: true });
+    // Dana's own choice is hers alone
+    await dana.call("PUT", "/api/me/notifications", { announcements: false });
+    expect(await prefs(reg)).toMatchObject({ announcements: true });
+    expect(await prefs(dana)).toMatchObject({ announcements: false });
+  });
+
+  it("goes when they delete their account", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    await reg.call("PUT", "/api/me/notifications", { teams: false });
+    expect((await reg.call("DELETE", "/api/me")).status).toBe(200);
+    expect(w.db.raw.prepare("SELECT count(*) n FROM notification_prefs").get()).toEqual({ n: 0 });
+  });
+});
+
+// #97: a training's list is one order, Quarterly Members first (ADR 0030). One signing up for a full Friday takes the
+// place of the last one in paying as they go, who should know before they turn up.
+describe("a place taken by a Quarterly Member", () => {
+  async function fullFriday() {
+    const dana = await w.signedIn("dana@example.com");
+    const series = (await boot(dana)).series[0];
+    await dana.call("PUT", `/api/series/${series.id}`, { ...series, capacity: 1 });
+    const altId = await memberId(dana, "Alt Player");
+    expect((await dana.call("POST", `/api/members/${altId}/quarterly`, { quarterly: true })).status).toBe(200);
+    const session = await friday(dana);
+    const reg = await phone("reg@example.com");
+    const alt = await phone("alt@example.com");
+    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    expect(sentTo()).toEqual([]);
+    return { reg, alt, session };
+  }
+
+  it("the one paying as they go, bumped to the waitlist, hears it; and hears when they're back in", async () => {
+    const { alt, session } = await fullFriday();
+
+    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    expect(w.pushes).toEqual([
+      expect.objectContaining({
+        token: "token-reg@example.com",
+        title: "On the waitlist",
+        body: "You're on the waitlist for Fri 9 Oct, first in line: a Quarterly Member took the last place.",
+        path: "/training/friday",
+      }),
+    ]);
+
+    w.pushes.length = 0;
+    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "out" });
+    expect(w.pushes).toEqual([expect.objectContaining({ token: "token-reg@example.com", title: "You're in" })]);
+  });
+
+  it("isn't heard by one who turned places off", async () => {
+    const { reg, alt, session } = await fullFriday();
+    await reg.call("PUT", "/api/me/notifications", { places: false });
+    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    expect(sentTo()).toEqual([]);
+  });
+});
+
 describe("through Firebase", () => {
   it("sends each phone its notification, and forgets a phone Firebase says is gone", async () => {
     const fcm = await w.firebase();
@@ -317,6 +435,22 @@ describe("a club-wide send, within the free plan", () => {
     const drainWithLast = await tripsFor(() => w.cron(minutes(10)));
     expect(drainWithMore).toBe(drainWithLast);
     expect(drainWithMore).toBeLessThanOrEqual(2);
+  });
+
+  it("costs the same round trips whether nobody or most of the club turned a topic off", async () => {
+    const tripsFor = async (job: () => Promise<unknown>) => {
+      const before = w.db.roundTrips;
+      await job();
+      return w.db.roundTrips - before;
+    };
+    const { dana } = await clubWithPhones(SEND_AT_ONCE);
+    const everyone = await tripsFor(() => dana.call("POST", "/api/announcements", ANNOUNCEMENT));
+    for (let i = 1; i <= SEND_AT_ONCE - 10; i++)
+      await (await w.signedIn(`m${i}@example.com`)).call("PUT", "/api/me/notifications", { announcements: false });
+    const before = w.pushes.length;
+    const fewer = await tripsFor(() => dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, title: "Again" }));
+    expect(fewer).toBe(everyone);
+    expect(w.pushes.length - before).toBe(10);
   });
 
   it("without Firebase (your machine), every phone's notification is caught at once and nothing is left waiting", async () => {

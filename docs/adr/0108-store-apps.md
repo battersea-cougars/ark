@@ -30,11 +30,20 @@ Three things shape it:
   `limitsNavigationsToAppBoundDomains` keeps the shell to the team app's own domains.
 - **What the app does that a browser can't** (`src/app/native.ts`, which asks "is this the app", never "is this an
   iPhone", and falls back to the browser's way everywhere else):
-  - **Notifications**: the night's teams are out (which team you're on), a place came up off the waitlist, a session
+  - **Notifications**: the night's teams are out (which team you're on), a place came up off the waitlist, a
+    Quarterly Member took your place and you're waiting ([0030](0030-training-and-tournament-schedule.md), #97), a session
     you're in is off, an announcement. A route says what's news with `notify` (`worker/push/push.notices.ts`), read
     before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
     (`waitUntil`), and a notification that can't be sent never fails the change. Home asks once, saying what
     they're for, before the phone's own question; "Not now" is remembered.
+  - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
+    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`; `draft` joins it
+    when the draft's notifications are sent, so there's never a switch for nothing). Every topic is on until a member
+    turns it off: `notification_prefs` holds only what they switched, and the statement that fills the outbox skips
+    them, so choosing costs no round trip. The choice is the member's, not a phone's: one copy, whichever phone they
+    sign in on (and Web Push, if it comes). The You page shows a switch per topic to everyone, in a browser too, with a
+    line saying notifications come through the club's app; it's in the bootstrap (`notifications`), and
+    `PUT /api/me/notifications` (`worker/push/push.routes.ts`) changes only your own.
   - **Links to the team app open the app** (an email's "Open the app"): the Worker answers
     `/.well-known/apple-app-site-association` from `APPLE_TEAM_ID` (`worker/store/store.links.ts`), and a link or a
     tapped notification opens its page.
@@ -88,3 +97,6 @@ Three things shape it:
   opening the app, App Review's sign-in, TestFlight builds from Actions; iOS first, Android ready (#26).
 - 2026-10-20: Sending within the free plan: a push outbox sent 40 phones at a time, the rest by the cron, claimed
   before sending, retried with backoff (Workers Free's 50 subrequests an invocation).
+- 2026-10-20: Topics: each notification says what it's about, and a member turns any topic off on the You page
+  (`notification_prefs`, absent is on, read inside the outbox statement) (#24); a pay-as-you-go player a Quarterly
+  Member bumps to the waitlist hears it, topic `places` (#97).
