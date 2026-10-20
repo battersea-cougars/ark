@@ -6,6 +6,7 @@
 //   node scripts/dev-sign-in.mjs                          the first admin
 //   node scripts/dev-sign-in.mjs reg@example.com          any active member
 //   node scripts/dev-sign-in.mjs --url http://localhost:4510 --out .auth/team.json
+//   node scripts/dev-sign-in.mjs --port 43273             a checkout's own team app (npm run app -- --private)
 //
 // Then, in Playwright: browser.newContext({ storageState: ".auth/team.json" }). Every run is a new session of its
 // own, so it never touches the one in your browser.
@@ -17,7 +18,8 @@ const flag = (name, fallback) => {
   const i = args.indexOf(name);
   return i >= 0 ? args.splice(i, 2)[1] : fallback;
 };
-const url = new URL(flag("--url", "http://localhost:4510"));
+const port = flag("--port");
+const url = new URL(flag("--url", `http://localhost:${port ?? 4510}`));
 const out = flag("--out", ".auth/team.json");
 const email = args[0];
 
@@ -27,7 +29,7 @@ const res = await fetch(new URL("/api/auth/dev", url), {
   headers: { "content-type": "application/json", origin: url.origin },
   body: JSON.stringify(email ? { email } : {}),
 }).catch((e) => {
-  console.error(`Couldn't reach ${url.origin}: is the team app's dev server running (npm run team)? ${e.message}`);
+  console.error(`Couldn't reach ${url.origin}: is the team app running (npm run app status)? ${e.message}`);
   process.exit(1);
 });
 if (!res.ok) {

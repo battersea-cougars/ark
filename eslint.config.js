@@ -5,7 +5,9 @@ import svelte from "eslint-plugin-svelte";
 import globals from "globals";
 
 export default [
-  { ignores: ["**/dist/", "**/.astro/", "**/.wrangler/", "**/.sanity/", "**/worker-configuration.d.ts"] },
+  {
+    ignores: [".worktrees/", "**/dist/", "**/.astro/", "**/.wrangler/", "**/.sanity/", "**/worker-configuration.d.ts"],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,

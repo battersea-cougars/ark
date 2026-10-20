@@ -41,22 +41,17 @@
       }
     }
   },
-  // Cougars owns 4500-4529 so it can run alongside ark (4321/3333/5174/8788) on the host.
-  "forwardPorts": [4500, 4501, 4502, 4503, 4510, 4520, 4521, 4522, 4523],
+  // Cougars owns 4500-4529 so it can run alongside ark (4321/3333/5174/8788) on the host. The three ports are the
+  // show switch's (ADR 0115): whichever checkout `npm run app` last showed. Apps' own private ports aren't forwarded.
+  "forwardPorts": [4500, 4510, 4520],
   "portsAttributes": {
-    "4500": { "label": "Website (astro dev)" },
-    "4501": { "label": "Website: cms worktree" },
-    "4502": { "label": "Website: youtube worktree" },
-    "4503": { "label": "Website: gallery worktree" },
-    "4510": { "label": "Team app (vite)" },
-    "4520": { "label": "Sanity Studio" },
-    "4521": { "label": "Studio: cms worktree" },
-    "4522": { "label": "Studio: youtube worktree" },
-    "4523": { "label": "Studio: gallery worktree" }
+    "4500": { "label": "Website (shown checkout)" },
+    "4510": { "label": "Team app (shown checkout)" },
+    "4520": { "label": "Sanity Studio (shown checkout)" }
   },
   "otherPortsAttributes": { "onAutoForward": "ignore" },
   "postStartCommand": "bash /src/.devcontainer/post-start.sh",
-  // Dev servers (.vscode/tasks.json) start on folder open; wait until npm install
+  // The apps (.vscode/tasks.json) start on folder open; wait until npm install
   // and local DB migrations in post-start.sh have finished.
   "waitFor": "postStartCommand",
   "remoteUser": "node",

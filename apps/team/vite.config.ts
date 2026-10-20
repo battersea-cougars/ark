@@ -10,9 +10,11 @@ const PORT = 4510;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
 const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
 
-// Port 4510 is the team app's (README, Ports). strictPort: never drift onto another project's port.
+// Port 4510 is the team app's (README, Ports). strictPort: never drift onto another project's port. Under the show
+// switch (`npm run team`, ADR 0115) it runs on a private port given as --port, and 4510 forwards to it.
 // The Worker (worker/, the API) runs inside Vite on the same port. Local D1 is the website's
-// (apps/web/.wrangler), so `npm run db:rebuild:local` and the roster seed serve both.
+// (apps/web/.wrangler), so `npm run db:rebuild:local` and the roster seed serve both; a worktree's apps use main's
+// (COUGARS_LOCAL_STATE, set by the switch) unless it asked for its own.
 export default defineConfig(({ command }) => ({
   // Which build this is (ADR 0104, src/app/build.ts), in the app and its Worker alike: the release's version, and the
   // commit as the build id (CI's PUBLIC_BUILD_VERSION ends "+<commit>"; a build on your machine asks git). The dev
@@ -26,7 +28,7 @@ export default defineConfig(({ command }) => ({
     waitForDepsCache(),
     svelte(),
     cloudflare({
-      persistState: { path: "../../apps/web/.wrangler/state" },
+      persistState: { path: process.env.COUGARS_LOCAL_STATE || "../../apps/web/.wrangler/state" },
       // `vite` on your machine is "local": nothing is emailed, so sign-in shows the code on screen. With
       // TEAM_AUTO_ADMIN=1 in the shell (screenshots, quick looks) nobody needs to sign in: you're the first admin.
       // A build never carries either.
@@ -62,16 +64,17 @@ export default defineConfig(({ command }) => ({
   preview: { port: PORT, strictPort: true, host: true },
 }));
 
-// One dev server per checkout, and starting one takes over 4510 (scripts/lib/dev-server.mjs): it stops the running
-// one before Vite rebuilds node_modules/.vite, so two never share the cache. Vite's own restart after a config edit is
-// the same process, so it's let through, and tools that only read this config (svelte-check) aren't the `vite`
-// command, so they're left alone.
+// One dev server per checkout. The show switch runs it and never starts a second in the same checkout (ADR 0115); a
+// `vite` started by hand takes over 4510 (scripts/lib/dev-server.mjs): it stops the running one before Vite rebuilds
+// node_modules/.vite, so two never share the cache. Vite's own restart after a config edit is the same process, so
+// it's let through, and tools that only read this config (svelte-check) aren't the `vite` command, so they're left
+// alone.
 function oneDevServer(port: number): Plugin {
   return {
     name: "cougars:one-dev-server",
     apply: "serve",
     async config() {
-      if (!/[\\/]vite(\.js)?$/.test(process.argv[1] ?? "")) return;
+      if (!/[\\/]vite(\.js)?$/.test(process.argv[1] ?? "") || process.env.COUGARS_APP_SUPERVISOR) return;
       await takeOverPort(port, fileURLToPath(new URL("node_modules/.cache/dev-server.pid", import.meta.url)));
     },
   };

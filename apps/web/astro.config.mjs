@@ -33,6 +33,8 @@ export default defineConfig({
     // images. Avoids the paid Cloudflare Images binding.
     imageService: "compile",
     prerenderEnvironment: "node",
+    // Local D1 (apps/web/.wrangler/state), or main's when a worktree's site runs under the show switch (ADR 0115)
+    ...(process.env.COUGARS_LOCAL_STATE && { persistState: { path: process.env.COUGARS_LOCAL_STATE } }),
   }),
   env: {
     schema: {
@@ -111,6 +113,7 @@ export default defineConfig({
   image: {
     remotePatterns: [{ protocol: "https", hostname: "cdn.sanity.io", pathname: "/images/**" }],
   },
+  // 4500 is the website's; under the show switch (`npm run dev`, ADR 0115) it runs on a private port given as --port
   server: { port: 4500, host: true },
   devToolbar: { enabled: false },
   vite: {

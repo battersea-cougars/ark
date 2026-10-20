@@ -13,9 +13,10 @@
     "packages/shared"
   ],
   "scripts": {
-    "dev": "npm run dev -w @cougars/web",
+    "app": "node scripts/app.mjs",
+    "dev": "node scripts/app.mjs dev web",
     "build": "npm run build -w @cougars/web",
-    "studio": "npm run dev -w @cougars/studio",
+    "studio": "node scripts/app.mjs dev studio",
     "test": "vitest run",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
@@ -25,7 +26,9 @@
     "env:pull": "node scripts/env-pull.mjs",
     "secret:set": "node scripts/secret-set.mjs",
     "secrets": "node scripts/env-pull.mjs --status",
-    "team": "npm run dev -w @cougars/team"
+    "team": "node scripts/app.mjs dev team",
+    "worktree": "node scripts/worktree.mjs",
+    "merge:check": "node scripts/merge-check.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

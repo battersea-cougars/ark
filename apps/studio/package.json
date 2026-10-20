@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "sanity dev --port 4520 --host 0.0.0.0",
+    "dev": "node ../../scripts/app.mjs dev studio",
     "build": "sanity build",
     "deploy": "sanity deploy",
     "seed": "sanity exec seed.ts --with-user-token",

@@ -1,12 +1,13 @@
 {
-  // Dev servers start automatically when the devcontainer opens (runOn: folderOpen).
-  // Each gets its own terminal: Terminal → Run Task… to restart one, or kill the terminal to stop it.
+  // The apps start automatically when the devcontainer opens (runOn: folderOpen), under the show switch (ADR 0115):
+  // each terminal follows its app's log. Terminal → Run Task… restarts one; killing the terminal only stops following
+  // (npm run app stop [web|team|studio] stops it; http://localhost:4500/__app lists every checkout's apps).
   "version": "2.0.0",
   "tasks": [
     {
       "label": "dev: web (:4500)",
       "type": "shell",
-      "command": "npm run dev -w @cougars/web",
+      "command": "npm run dev",
       "isBackground": true,
       "runOptions": { "runOn": "folderOpen" },
       "presentation": { "panel": "dedicated", "reveal": "silent", "showReuseMessage": false },
@@ -15,7 +16,7 @@
     {
       "label": "dev: team (:4510)",
       "type": "shell",
-      "command": "npm run dev -w @cougars/team",
+      "command": "npm run team",
       "isBackground": true,
       "runOptions": { "runOn": "folderOpen" },
       "presentation": { "panel": "dedicated", "reveal": "silent", "showReuseMessage": false },
@@ -25,7 +26,7 @@
       "label": "dev: studio (:4520)",
       "detail": "Sanity Studio for the Cougars Dev project (docs/adr/0010-environments-and-deploys.md). Not started automatically.",
       "type": "shell",
-      "command": "npm run dev -w @cougars/studio",
+      "command": "npm run studio",
       "isBackground": true,
       "presentation": { "panel": "dedicated", "showReuseMessage": false },
       "problemMatcher": []

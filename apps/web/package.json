@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "node ../../scripts/club-snapshot.mjs",
-    "dev": "astro dev stop && astro dev",
+    "dev": "node ../../scripts/app.mjs dev web",
     "prebuild": "node ../../scripts/club-snapshot.mjs",
     "build": "astro build",
     "preview": "astro preview",

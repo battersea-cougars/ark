@@ -6,7 +6,7 @@
 //   kumite.local.json   the Kumite's awards, and the next one's date and place (the club's agenda, ADR 0042)
 //   results.local.json  every public tournament's results, as rows (lib/results-sql.mjs, ADR 0100)
 //
-//   node scripts/club-snapshot.mjs                   local D1 (apps/web/.wrangler)
+//   node scripts/club-snapshot.mjs                   local D1 (apps/web/.wrangler, or COUGARS_LOCAL_STATE's)
 //   CLUB_SNAPSHOT_ENV=dev|production node ...       that environment's D1, over the API (CI: CLOUDFLARE_API_TOKEN
 //                                                    and CLOUDFLARE_ACCOUNT_ID for its account)
 // Never fails a build: whatever can't be read is written as null, and the site falls back (Sanity, samples). An empty
@@ -69,9 +69,11 @@ async function remoteQuery(environment) {
   return async (sql) => (await api(`/${db.uuid}/query`, { method: "POST", body: JSON.stringify({ sql }) }))[0].results;
 }
 
+// A worktree's site under the show switch reads main's local D1 (COUGARS_LOCAL_STATE, ADR 0115)
+const persist = process.env.COUGARS_LOCAL_STATE ? ["--persist-to", process.env.COUGARS_LOCAL_STATE] : [];
 const localQuery = async (sql) =>
   JSON.parse(
-    execFileSync("npx", ["wrangler", "d1", "execute", "DB", "--local", "--json", "--command", sql], {
+    execFileSync("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--json", "--command", sql], {
       cwd: web,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],

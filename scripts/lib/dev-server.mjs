@@ -1,11 +1,14 @@
-// Starting a dev server takes over its port (ADR 0022): whoever ran it last owns it. `npm run dev` in your own
-// terminal stops the one already serving (started by you, another terminal, or an agent) and starts fresh, so you
-// never hunt for a process. Only another of our dev servers is stopped; anything else on the port is an error.
+// A dev server started by hand (`npx vite` in apps/team) takes over its port (ADR 0022): it stops another of our dev
+// servers serving there, so you never hunt for a process. Anything else on the port is an error, and the show switch
+// (scripts/app-supervisor.mjs, ADR 0115) says how to show this checkout instead. The switch itself takes 4500, 4510
+// and 4520 over the same way when it starts (stopDevServerOn).
 import { readFileSync, readdirSync, readlinkSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import net from "node:net";
 
-const OURS = /\b(vite|astro)\b/;
+const OURS = /\b(vite|astro|sanity)\b/;
+/** The show switch's own command line. */
+const SWITCH = /scripts\/app-supervisor\.mjs/;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -16,18 +19,28 @@ export async function takeOverPort(port, pidFile) {
   const mine = `${port}:${process.pid}`;
   if (process.env.COUGARS_DEV_SERVER === mine) return;
   const owner = readPid(pidFile) ?? listener(port);
-  if (owner && alive(owner) && OURS.test(commandLine(owner))) {
-    process.kill(owner, "SIGTERM");
-    if (!(await until(() => !alive(owner), 5000))) process.kill(owner, "SIGKILL");
-    console.log(`Stopped the dev server that was on ${port} (process ${owner}); starting a fresh one.`);
-  }
-  if (!(await until(async () => !(await inUse(port)), 5000))) {
-    throw new Error(`Port ${port} is in use by something that isn't one of our dev servers. Stop it, then retry.`);
-  }
+  if (owner && alive(owner) && SWITCH.test(commandLine(owner)))
+    throw new Error(`Port ${port} is the show switch (ADR 0115): npm run app shows this checkout there.`);
+  await stopDevServerOn(port, owner);
   mkdirSync(dirname(pidFile), { recursive: true });
   writeFileSync(pidFile, String(process.pid));
   process.env.COUGARS_DEV_SERVER = mine;
   process.once("exit", () => readPid(pidFile) === process.pid && rmSync(pidFile, { force: true }));
+}
+
+/**
+ * Stops our dev server listening on `port` (or `owner`, when known), then waits for the port to be free. Throws when
+ * something else holds it.
+ */
+export async function stopDevServerOn(port, owner = listener(port)) {
+  if (owner && alive(owner) && OURS.test(commandLine(owner)) && !SWITCH.test(commandLine(owner))) {
+    process.kill(owner, "SIGTERM");
+    if (!(await until(() => !alive(owner), 5000))) process.kill(owner, "SIGKILL");
+    console.log(`Stopped the dev server that was on ${port} (process ${owner}).`);
+  }
+  if (!(await until(async () => !(await inUse(port)), 5000))) {
+    throw new Error(`Port ${port} is in use by something that isn't one of our dev servers. Stop it, then retry.`);
+  }
 }
 
 function readPid(file) {
