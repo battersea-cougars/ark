@@ -1,3 +1,8 @@
 {
-  "window.title": "Cougars${separator}${dirty}${activeEditorShort}"
+  "window.title": "Cougars${separator}${dirty}${activeEditorShort}",
+  // Agents' worktrees (ADR 0115) change files all the time: VS Code, its search and the Vitest extension leave them
+  // alone, so the extension doesn't restart its test server on every change in another checkout
+  "files.watcherExclude": { "**/.worktrees/**": true },
+  "search.exclude": { "**/.worktrees/**": true },
+  "vitest.configSearchPatternExclude": "{**/node_modules/**,**/.worktrees/**,**/.*/**,*.d.ts}"
 }
