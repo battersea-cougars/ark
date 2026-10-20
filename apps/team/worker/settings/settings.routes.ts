@@ -5,7 +5,7 @@ import { addDevMail, devMailList, removeDevMail } from "./devtools";
 import { HttpError, body, json } from "../api/api.http";
 import { createQuip, deleteQuip, updateQuip } from "./quips";
 import { createVenue, updateVenue } from "./venues";
-import { saveSettings } from "./settings";
+import { saveBank, saveSettings } from "./settings";
 import { readUsage } from "./usage";
 
 export const SETTINGS_ROUTES: Route[] = [
@@ -68,6 +68,21 @@ export const SETTINGS_ROUTES: Route[] = [
     changes: ["settings"],
     // { liveRefreshSeconds }: how often live pages check for updates (ADR 0072)
     handle: async (c) => (await saveSettings(c.env.DB, await body(c.request)), ok()),
+  },
+  {
+    method: "PUT",
+    path: /^\/api\/settings\/bank$/,
+    audit: {
+      event: "settings.bank",
+      subject: rowOf(
+        "SELECT bank_name name, bank_sort_code sortCode, bank_account account FROM club_settings WHERE id = ?",
+        () => 1,
+      ),
+    },
+    action: "manage:Fees",
+    changes: ["settings"],
+    // { name, sortCode, account }: where members pay (ADR 0007), on their Dues page and in reminders
+    handle: async (c) => (await saveBank(c.env.DB, await body(c.request)), ok()),
   },
   // Dev tools (ADR 0027): who gets their own email outside production. Not there at all in production.
   {

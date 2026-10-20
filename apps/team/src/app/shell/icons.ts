@@ -52,6 +52,7 @@ export const ICONS = {
   shield: "M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6z",
   net: "M3 20V8l3-3h12l3 3v12M3 20h18M3 8h18M8 8v12M13 8v12M18 8v12M3 14h18",
   bank: "M3 9.5 12 4l9 5.5M4 9.5h16M6 9.5v8M10 9.5v8M14 9.5v8M18 9.5v8M3 20h18",
+  mail: "M3.5 6h17v12h-17zM4 6.5l8 6 8-6",
   minus: "M5 12h14",
   // Schedule icons, picked per training and tournament
   stick:

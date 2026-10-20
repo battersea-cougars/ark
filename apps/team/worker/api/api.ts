@@ -11,6 +11,7 @@ import { ANNOUNCEMENTS_ROUTES } from "../announcements/announcements.routes";
 import { DRAFT_ROUTES } from "../tournaments/draft.routes";
 import { recharge } from "../dues/dues";
 import { DUES_ROUTES } from "../dues/dues.routes";
+import { REMINDERS_ROUTES } from "../dues/reminders.routes";
 import { ENTRIES_ROUTES } from "../entries/entries.routes";
 import { EVENTS_ROUTES } from "../calendar/events.routes";
 import { HttpError, json, sameOrigin } from "./api.http";
@@ -53,6 +54,7 @@ export const ROUTES: Route[] = [
   ...TRAINING_ROUTES,
   ...ENTRIES_ROUTES,
   ...DUES_ROUTES,
+  ...REMINDERS_ROUTES,
   // The Kumite and other tournaments: editions, the draft, scoring games
   ...TOURNAMENTS_ROUTES,
   ...DRAFT_ROUTES,
@@ -142,6 +144,7 @@ export async function handleApi(
       actions,
       today: londonToday(now),
       now: now.toISOString(),
+      waitUntil,
     };
     // On the record (ADR 0095): what the change is to, before it
     const record = writes && hit.r.audit && "event" in hit.r.audit ? hit.r.audit : null;

@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-10
+- **Date:** 2026-10-05 · updated 2026-10-20
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
@@ -20,8 +20,9 @@ quarterly rate; **the Cougars** are the club's official team, who play together 
 training teams are made (as the old app did).
 
 Built in #46: fees, charges, payments, a member's Dues, Unpaid fees and the charges on the member sheet all read and
-write D1 (`apps/team/worker/dues/dues.ts`, with the sums in `apps/team/src/lib/dues.ts`). Not built yet: the bank-statement
-upload, reminder emails, and an override of one session's fee.
+write D1 (`apps/team/worker/dues/dues.ts`, with the sums in `apps/team/src/lib/dues.ts`). Reminders by email were built
+in #79 (`apps/team/worker/dues/reminders.ts`). Not built yet: the bank-statement upload, and an override of one
+session's fee.
 
 ## Decision
 
@@ -120,6 +121,36 @@ upload, reminder emails, and an override of one session's fee.
 - A **bank-statement upload** (later) creates payments by reference and allocates them oldest first, which the admin
   can then re-point. Matching is by the whole reference, never by the name in it.
 
+**Reminders**
+
+- **The club's bank details are a club setting** (`club_settings`: the account's name, sort code and number), filled
+  in by whoever sets fees (`manage:Fees`) from Unpaid fees → Manage → Bank details, and on the record
+  (`settings.bank`). Every member sees them on their Dues page beside their reference; until they're in, it says to
+  ask the treasurer, never sample numbers. Nothing is emailed without them.
+- **Whoever records payments (`record:Payment`) emails members what they owe**, from Unpaid fees → Manage → Email
+  what they owe (everyone who owes), or from a member's card (Dues tab → Email what they owe). First they see who
+  gets one (what each owes, how late, when they were last reminded, who's held back) and what one says; then they
+  send. It's on the record (`dues.reminded`).
+- **The email** is the member's own: each unpaid charge (the day, what for, what's left on it), the total, their
+  reference and the bank details. Plain text first, the same in the club's frame; firmer the longer it's been (Minor,
+  Major, Misconduct, Ejected). With it, a notification on their phone if they have the store app
+  ([0108](0108-store-apps.md)): the dues code tells a member through one call (`worker/tell/tell.ts`), which sends the
+  email under the mail rules ([0027](0027-email-through-gmail-api.md)) and the notification through `notify`, so a
+  new channel (web push, #24) doesn't touch the dues code.
+- **The hourly Cron Trigger reminds members as their oldest unpaid charge ages**, between 10:00 and 20:00 in London.
+  The rules live in one place (`REMINDERS` in `reminders.ts`):
+  - **Minor**: from 14 days, every 4 weeks.
+  - **Major** (31 days): every 2 weeks.
+  - **Misconduct** (61 days): every week.
+  - **Ejected** (over 90 days): nothing automatic. That's an admin's call; their own send still works.
+- **At most one reminder a week to anyone**, an admin's send included: someone reminded by hand isn't reminded again
+  by the cron that week, and the other way round. A member with no email, or not active, gets none.
+- **Claimed, then sent a few at a time.** A reminder is claimed first, as a queued row in `dues_reminders`, in one
+  statement that checks the week, so two runs at once send one. Each run then sends at most 15 (a Worker run makes
+  at most 50 requests, and each email is one). The rest go on the next five-minute run, so a send to the whole club
+  is done within minutes. A send that fails is released and tried again; someone who has paid by the time it goes
+  gets nothing. Admins see when someone was last reminded.
+
 **What people see**
 
 - A member's **Dues**: what they owe, each session and tournament they were charged for and whether it's paid, and the
@@ -133,8 +164,8 @@ upload, reminder emails, and an override of one session's fee.
   are on the record ([0095](0095-audit-log.md)).
 - **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member and
   bucketed by each charge's age: **Minor** (0–30 days), **Major** (31–60), **Misconduct** (61–90), **Ejected**
-  (over 90). Column totals, a drill-down to each member's charges, and CSV export. A reminder email is planned, not
-  built.
+  (over 90). Column totals, a drill-down to each member's charges, and CSV export. Its Manage button holds the
+  reminders and the bank details.
 
 ## Consequences
 
@@ -188,3 +219,8 @@ upload, reminder emails, and an override of one session's fee.
 - 2026-10-09: Home stopped showing your dues every visit (red until paid, then an all-clear); the Dues tab's badge says
   it, and Home only once a charge is over 60 days, below the lead session.
 - 2026-10-10: Keepers play training free (the Keeper plan): no session or quarter charges, no plan to choose.
+- 2026-10-20: Reminders by email (#79): an admin emails what each member owes from Unpaid fees or a member's card,
+  after a preview, and the hourly cron reminds members as their oldest charge ages (Minor from 14 days every 4 weeks,
+  Major every 2, Misconduct weekly, none once Ejected), at most one a week each, an admin's included. Claimed before
+  they're sent, 15 a run. The bank details became a club setting (they were sample numbers on the Dues page). Each
+  reminder notifies the member's phone too.

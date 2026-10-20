@@ -117,6 +117,11 @@ export const SLICES = {
         reason: string | null;
       }[],
   },
+  // When each was last reminded of what they owe (ADR 0007): who sees everyone's dues; anyone else, nothing
+  reminders: {
+    parts: ["reminders"],
+    shape: (_c: Ctx, p: Parts) => p.reminders as { memberId: number; at: string }[],
+  },
   subscriptionFees: {
     parts: ["subscriptionFees"],
     shape: (_c: Ctx, p: Parts) => p.subscriptionFees as { pence: number; from: string }[],
@@ -135,7 +140,7 @@ export const SLICES = {
         createdAt: string;
       }[],
   },
-  // How often live pages check for updates (ADR 0072)
+  // How often live pages check for updates (ADR 0072), and the club's bank details (ADR 0007)
   settings: { parts: ["settings"], shape: (_c: Ctx, p: Parts) => settingsFrom(p.settings) },
   // Your own notifications, a choice per topic (ADR 0108)
   notifications: { parts: ["notifications"], shape: (_c: Ctx, p: Parts) => prefsFrom(p.notifications) },

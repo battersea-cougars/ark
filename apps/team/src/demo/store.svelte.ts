@@ -6,6 +6,7 @@ import {
   CHARGES,
   CREDITS,
   PAYMENTS,
+  REMINDERS,
   MEMBERS,
   NOTIFICATIONS,
   ONE_OFFS,
@@ -38,7 +39,7 @@ export const db = $state({
   quips: structuredClone(QUIPS),
   /** Home's announcements (#85). */
   announcements: structuredClone(ANNOUNCEMENTS),
-  /** How often live pages check for updates (ADR 0072). */
+  /** How often live pages check for updates (ADR 0072), and the club's bank details (ADR 0007). */
   settings: structuredClone(SETTINGS),
   /** Published teams, by session id. */
   teams: structuredClone(TEAMS) as Record<number, Team[]>,
@@ -49,4 +50,6 @@ export const db = $state({
   payments: structuredClone(PAYMENTS),
   /** What your phone tells you, a choice per topic (ADR 0108). */
   notifications: structuredClone(NOTIFICATIONS),
+  /** When each member was last reminded of what they owe (ADR 0007). */
+  reminders: structuredClone(REMINDERS),
 });

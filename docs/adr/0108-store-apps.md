@@ -35,7 +35,9 @@ Three things shape it:
     you're in is off, an announcement. A route says what's news with `notify` (`worker/push/push.notices.ts`), read
     before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
     (`waitUntil`), and a notification that can't be sent never fails the change. Home asks once, saying what
-    they're for, before the phone's own question; "Not now" is remembered.
+    they're for, before the phone's own question; "Not now" is remembered. A reminder of what you owe
+    ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
+    `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
     (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`; `draft` joins it
     when the draft's notifications are sent, so there's never a switch for nothing). Every topic is on until a member
@@ -100,3 +102,5 @@ Three things shape it:
 - 2026-10-20: Topics: each notification says what it's about, and a member turns any topic off on the You page
   (`notification_prefs`, absent is on, read inside the outbox statement) (#24); a pay-as-you-go player a Quarterly
   Member bumps to the waitlist hears it, topic `places` (#97).
+- 2026-10-20: A dues reminder is news too: `tell` (worker/tell/tell.ts) emails a member and notifies their phone in
+  one call, so a feature never talks to Gmail or Firebase itself (#79).

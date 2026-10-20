@@ -38,6 +38,8 @@
   });
   const planName = (p: Plan | undefined) => PLAN_NAMES[p ?? "Pay as you go"];
   const keeper = $derived(myRow?.plan === "Keeper");
+  // Where to pay (ADR 0007)
+  const bank = $derived(db.settings.bank);
 </script>
 
 <div class="page">
@@ -54,17 +56,22 @@
 
   <div class="panel feature pad pay">
     <h2>Pay by bank transfer</h2>
+    <!-- The club's account (Unpaid fees → Manage → Bank details, ADR 0007); never made up while it isn't there -->
     <dl class="num">
       <dt>Name</dt>
-      <dd>Battersea Cougars</dd>
+      <dd>{bank?.name ?? "—"}</dd>
       <dt>Sort code</dt>
-      <dd>00-00-00</dd>
+      <dd>{bank?.sortCode ?? "—"}</dd>
       <dt>Account</dt>
-      <dd>00000000</dd>
+      <dd>{bank?.account ?? "—"}</dd>
       <dt>Reference</dt>
       <dd class="ref">{referenceFor(who.id)}</dd>
     </dl>
-    <p class="hint">Always use your reference, so your payment is matched to you. Sample bank details.</p>
+    <p class="hint">
+      {bank
+        ? "Always use your reference, so your payment is matched to you."
+        : "The club's bank details aren't in the app yet: ask the treasurer. Always use your reference."}
+    </p>
   </div>
 
   <section class="plan">

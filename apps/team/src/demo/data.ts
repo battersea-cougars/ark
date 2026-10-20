@@ -55,8 +55,17 @@ export const TOURNAMENT_TYPES: TournamentType[] = [];
 export const TOURNAMENTS: Tournament[] = [];
 /** The club's agenda, from today (ADR 0042). */
 export const AGENDA: AgendaRow[] = [];
-/** The club's settings for the app (ADR 0072): how often live pages check for updates. */
-export const SETTINGS = { liveRefreshSeconds: 10 };
+/** Where members pay by transfer (ADR 0007). */
+export interface Bank {
+  name: string;
+  sortCode: string;
+  account: string;
+}
+/**
+ * The club's settings for the app: how often live pages check for updates (ADR 0072), and the club's bank details
+ * (ADR 0007), null until whoever sets fees fills them in.
+ */
+export const SETTINGS: { liveRefreshSeconds: number; bank: Bank | null } = { liveRefreshSeconds: 10, bank: null };
 export const ONE_OFFS: OneOff[] = [];
 /** What your phone tells you: a choice per topic, on until you turn it off (ADR 0108). */
 export const NOTIFICATIONS: NotificationPrefs = allOn();
@@ -101,6 +110,8 @@ export const MEMBERS: MemberRow[] = [];
 export const SUBSCRIPTION_FEES: DatedFee[] = [];
 /** Charges: your own, or everyone's if you see Unpaid fees (ADR 0007). */
 export const CHARGES: Charge[] = [];
+/** When each member was last reminded of what they owe (ADR 0007): for who sees everyone's dues. */
+export const REMINDERS: { memberId: number; at: string }[] = [];
 /** Each payment: your own, or everyone's if you see Unpaid fees; for the dues ledger (ADR 0007). */
 export const PAYMENTS: Payment[] = [];
 /** Money paid in and not yet spent on a charge, by member: it pays their next one (ADR 0007). */
@@ -145,8 +156,9 @@ export interface Bootstrap {
   announcements: Announcement[];
   /** What's on from today (ADR 0042). */
   agenda: AgendaRow[];
-  settings: { liveRefreshSeconds: number };
+  settings: { liveRefreshSeconds: number; bank: Bank | null };
   charges: Charge[];
+  reminders: { memberId: number; at: string }[];
   credits: { memberId: number; pence: number }[];
   payments: Payment[];
   subscriptionFees: DatedFee[];
@@ -228,6 +240,7 @@ export function applySlices(b: Slices) {
   if (b.agenda) fill(AGENDA, b.agenda);
   if (b.settings) Object.assign(SETTINGS, b.settings);
   if (b.charges) fill(CHARGES, b.charges);
+  if (b.reminders) fill(REMINDERS, b.reminders);
   if (b.credits) fill(CREDITS, b.credits);
   if (b.payments) fill(PAYMENTS, b.payments);
   if (b.subscriptionFees) fill(SUBSCRIPTION_FEES, b.subscriptionFees);

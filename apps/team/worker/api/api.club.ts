@@ -248,11 +248,20 @@ const PARTS = {
        AND NOT EXISTS (SELECT 1 FROM announcement_dismissals d WHERE d.announcement_id = a.id AND d.member_id = v.member_id)
      ORDER BY a.created_at DESC, a.id DESC LIMIT 2`,
   ),
-  settings: rows("live_refresh_seconds", "SELECT live_refresh_seconds FROM club_settings WHERE id = 1"),
+  settings: rows(
+    "live_refresh_seconds bank_name bank_sort_code bank_account",
+    "SELECT live_refresh_seconds, bank_name, bank_sort_code, bank_account FROM club_settings WHERE id = 1",
+  ),
   // What this member chooses to hear on their phone (ADR 0108): the topics they've switched
   notifications: rows(
     "topic enabled",
     "SELECT p.topic, p.enabled FROM notification_prefs p, viewer v WHERE p.member_id = v.member_id",
+  ),
+  // When each member was last reminded of what they owe (ADR 0007), for who sees everyone's dues
+  reminders: rows(
+    "memberId at",
+    `SELECT r.member_id memberId, MAX(COALESCE(r.sent_at, r.claimed_at)) at FROM dues_reminders r, viewer v
+     WHERE v.sees_dues GROUP BY r.member_id`,
   ),
   // What's on from today (ADR 0042). A draft night is for whoever runs the draft and that tournament's captains.
   agenda: rows(

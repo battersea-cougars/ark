@@ -119,6 +119,15 @@
         return `${who} charged ${about} ${pence(to?.pence)} for ${str(to?.what)}`;
       case "charge.removed":
         return `${who} took back ${about}'s charge for ${str(from?.what)}`;
+      // Reminders of what they owe: who was emailed ({ memberIds }); one is about them
+      case "dues.reminded": {
+        const ids = (to?.memberIds as number[] | undefined) ?? [];
+        return ids.length === 1
+          ? `${who} emailed ${about} what they owe`
+          : `${who} emailed ${ids.length} member${ids.length === 1 ? "" : "s"} what they owe`;
+      }
+      case "settings.bank":
+        return `${who} changed the club's bank details`;
       case "fees.quarterly":
         return `${who} changed the quarterly rate: ${rates(d.from)} → ${rates(d.to)}`;
       case "role.created":

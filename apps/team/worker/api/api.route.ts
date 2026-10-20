@@ -33,6 +33,8 @@ export interface Ctx {
   actions: Set<Action>;
   today: string;
   now: string;
+  /** Work that goes on after the reply (an email); without it (tests), it's done before. */
+  waitUntil?: (p: Promise<unknown>) => void;
 }
 
 export interface Route {

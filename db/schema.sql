@@ -543,8 +543,32 @@ CREATE TABLE tournament_award_winners (
 -- How often live pages (a game being scored, a tournament's home, the draft room) check for updates, in seconds.
 CREATE TABLE club_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
-  live_refresh_seconds INTEGER NOT NULL DEFAULT 10 CHECK (live_refresh_seconds BETWEEN 5 AND 120)
+  live_refresh_seconds INTEGER NOT NULL DEFAULT 10 CHECK (live_refresh_seconds BETWEEN 5 AND 120),
+  -- Where members pay (ADR 0007): the account's name, sort code (6 digits) and number (8 digits), set by whoever sets
+  -- fees. Shown on every member's Dues page and in reminders; none yet means no reminder goes out.
+  bank_name TEXT,
+  bank_sort_code TEXT,
+  bank_account TEXT
 );
+
+-- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by) or the
+-- hourly cron (stage), at most one per member a week. A row is claimed (queued) before it's sent, so two runs send one
+-- email; a send that fails is deleted, so it's tried again. Admins see when someone was last reminded.
+CREATE TABLE dues_reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  -- minor, major or misconduct (the cron, by the age of their oldest charge), or by_hand
+  stage TEXT NOT NULL CHECK (stage IN ('minor', 'major', 'misconduct', 'by_hand')),
+  sent_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  claimed_at TEXT NOT NULL,
+  -- queued until it's gone, then sent, with what they owed when it went
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent')),
+  sent_at TEXT,
+  pence INTEGER
+);
+
+CREATE INDEX dues_reminders_member ON dues_reminders (member_id, claimed_at);
+CREATE INDEX dues_reminders_queued ON dues_reminders (status) WHERE status = 'queued';
 
 -- Dev tools (apps/team/worker/devtools.ts, ADR 0027): outside production, who gets their own email instead of the
 -- safe inbox. Never read in production.

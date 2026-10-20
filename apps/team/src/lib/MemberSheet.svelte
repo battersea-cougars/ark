@@ -33,6 +33,7 @@
   import { can } from "../access/actions";
   import Ledger from "./Ledger.svelte";
   import Sheet from "./Sheet.svelte";
+  import RemindReview from "./RemindReview.svelte";
   import MoneyField from "./MoneyField.svelte";
   import DateField from "./DateField.svelte";
   import { feeOn, leftOn } from "./dues";
@@ -303,6 +304,8 @@
     payOn = londonToday();
     paying = true;
   }
+  // Email them what they owe (ADR 0007), after seeing it
+  let reminding = $state(false);
   // An adjustment (ADR 0007): add to or take off what they owe, saying why
   let adjusting = $state(false);
   let adjustWay = $state<"more" | "less">("less");
@@ -803,6 +806,15 @@
                           <Icon name="plus" size={16} />Charge a quarter
                         </button>
                         <button
+                          class="btn sm"
+                          aria-haspopup="dialog"
+                          disabled={owed <= 0}
+                          title="See it first, then send: at most one a week"
+                          onclick={() => (reminding = true)}
+                        >
+                          <Icon name="mail" size={16} />Email what they owe
+                        </button>
+                        <button
                           class="btn sm ghost"
                           title="Work their dues out again from who came and the fees as they are now"
                           onclick={() => recalculateDues(memberId)}
@@ -878,6 +890,10 @@
                     </p>
                     <button class="btn primary">Adjust</button>
                   </form>
+                </Sheet>
+                <!-- Their reminder (ADR 0007), seen before it goes -->
+                <Sheet bind:open={reminding} title="Email {shortName(member.player)} what they owe">
+                  {#if reminding}<RemindReview {memberId} onsent={() => (reminding = false)} />{/if}
                 </Sheet>
                 <Sheet bind:open={paying} title="Payment from {shortName(member.player)}">
                   <form class="form" onsubmit={addPayment}>

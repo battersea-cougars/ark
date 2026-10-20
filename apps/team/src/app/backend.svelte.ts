@@ -24,6 +24,7 @@ import {
   CHARGES,
   CREDITS,
   PAYMENTS,
+  REMINDERS,
   SUBSCRIPTION_FEES,
 } from "../demo/data";
 import type { Position, Slices } from "../demo/data";
@@ -83,6 +84,9 @@ const COPY: Record<keyof Slices, () => void> = {
   payments: () => {
     db.payments = structuredClone(PAYMENTS);
   },
+  reminders: () => {
+    db.reminders = structuredClone(REMINDERS);
+  },
   subscriptionFees: () => {
     db.fees = structuredClone(SUBSCRIPTION_FEES);
   },
@@ -91,7 +95,7 @@ const COPY: Record<keyof Slices, () => void> = {
   },
   // Only when it's changed: live pages' checks follow it, and would otherwise start again after every refresh
   settings: () => {
-    if (db.settings.liveRefreshSeconds !== SETTINGS.liveRefreshSeconds) db.settings = structuredClone(SETTINGS);
+    if (JSON.stringify(db.settings) !== JSON.stringify(SETTINGS)) db.settings = structuredClone(SETTINGS);
   },
 };
 const copyAll = () => Object.values(COPY).forEach((copy) => copy());
@@ -395,6 +399,38 @@ export const removeCharge = (chargeId: number) => save(() => api("DELETE", `/api
 /** The quarterly rate from a date. */
 export const setSubscriptionFee = (pence: number, from: string) =>
   save(() => api("POST", "/api/subscription-fees", { pence, from }), "Rate set");
+/** The club's bank details (ADR 0007): where members pay, on their Dues page and in reminders. */
+export const saveBank = (bank: { name: string; sortCode: string; account: string }) =>
+  save(() => api("PUT", "/api/settings/bank", bank), "Bank details saved");
+
+/** Who'd be reminded of what they owe, and what one says (ADR 0007): a read, not a change. */
+export interface ReminderPreview {
+  ready: boolean;
+  people: {
+    memberId: number;
+    name: string;
+    email: boolean;
+    pence: number;
+    charges: number;
+    stage: 0 | 1 | 2 | 3;
+    lastAt: string | null;
+    held: boolean;
+  }[];
+  letter: { memberId: number; subject: string; text: string } | null;
+}
+export const previewReminders = (memberId?: number) =>
+  api<ReminderPreview>("GET", `/api/dues/reminders${memberId ? `?member=${memberId}` : ""}`);
+/** Email them what they owe: everyone who owes, or these. Anyone reminded this week is held back. */
+export const sendReminders = (memberIds?: number[]) =>
+  save(
+    () =>
+      api<{ queued: number; held: number; noEmail: number }>(
+        "POST",
+        "/api/dues/reminders",
+        memberIds ? { memberIds } : {},
+      ),
+    "",
+  );
 
 export const createSeries = (s: TrainingSeries) =>
   save(() => api<{ id: number; slug: string }>("POST", "/api/series", seriesBody(s)), "Training added");

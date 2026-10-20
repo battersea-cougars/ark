@@ -1,7 +1,8 @@
 <script lang="ts">
   // Unpaid fees, the aged-receivables report (ADR 0007): every unpaid charge, added up per member and by how
   // long it's been owed. Marking a charge paid on a member's profile takes it off here. A tap on someone opens their
-  // card over the page, as on Teammates: admins get the member sheet on its Dues tab.
+  // card over the page, as on Teammates: admins get the member sheet on its Dues tab. Manage (ADR 0065) holds the jobs:
+  // emailing members what they owe, after a preview, and the club's bank details those emails give.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import MemberSheet from "../lib/MemberSheet.svelte";
@@ -16,6 +17,11 @@
   import SearchField from "../lib/SearchField.svelte";
   import { flip } from "svelte/animate";
   import { cardMoveMs, easeOut, sift } from "../app/motion";
+  import Sheet from "../lib/Sheet.svelte";
+  import Drawer from "../lib/Drawer.svelte";
+  import BankSheet from "../lib/BankSheet.svelte";
+  import RemindReview from "../lib/RemindReview.svelte";
+  import { phone } from "../lib/viewport.svelte";
 
   const rows = $derived(
     aged(db.charges, londonToday()).map((r) => ({
@@ -40,6 +46,17 @@
 
   const perms = $derived(granted());
   const admin = $derived(can(perms, "manage:Member"));
+  // Manage (ADR 0065): whoever records payments emails reminders; whoever sets fees keeps the bank details
+  const reminds = $derived(can(perms, "record:Payment"));
+  const setsFees = $derived(can(perms, "manage:Fees"));
+  let manageOpen = $state(false);
+  let reminding = $state(false);
+  let banking = $state(false);
+  // A tool opens its own drawer or sheet: the menu gets out of the way first
+  function go(run: () => void) {
+    manageOpen = false;
+    run();
+  }
   // Whose card is open; someone who's left the club has no card, so their row doesn't open
   let open = $state<number | null>(null);
   const opened = $derived(db.members.find((m) => m.player.id === open));
@@ -71,6 +88,15 @@
     {#snippet actions()}
       {#if rows.length}
         <button class="btn sm outline" onclick={exportCsv}><Icon name="download" size={16} />Export CSV</button>
+      {/if}
+      {#if reminds || setsFees}
+        <button
+          class="btn sm ghost icon"
+          aria-haspopup="dialog"
+          aria-label="Manage unpaid fees"
+          title="Manage"
+          onclick={() => (manageOpen = true)}><Icon name="settings" size={18} /></button
+        >
       {/if}
     {/snippet}
   </PageHeader>
@@ -143,6 +169,50 @@
   </div>
 </div>
 
+{#snippet manageTools()}
+  <div class="tools">
+    {#if reminds}
+      <button class="tool" onclick={() => go(() => (reminding = true))}>
+        <Icon name="mail" size={22} />
+        <span class="tool-text"
+          ><strong>Email what they owe</strong><span>Everyone who owes, with their reference. See it first.</span></span
+        >
+        <Icon name="chevronRight" size={18} />
+      </button>
+    {/if}
+    {#if setsFees}
+      <button class="tool" onclick={() => go(() => (banking = true))}>
+        <Icon name="bank" size={22} />
+        <span class="tool-text"
+          ><strong>Bank details</strong><span
+            >{db.settings.bank
+              ? `${db.settings.bank.sortCode} · ${db.settings.bank.account}`
+              : "Not filled in yet: reminders need them."}</span
+          ></span
+        >
+        <Icon name="chevronRight" size={18} />
+      </button>
+    {/if}
+  </div>
+{/snippet}
+
+{#if phone.current}
+  <Sheet bind:open={manageOpen} title="Manage unpaid fees">{@render manageTools()}</Sheet>
+{:else}
+  <Drawer bind:open={manageOpen} title="Manage unpaid fees">{@render manageTools()}</Drawer>
+{/if}
+
+<!-- A list that grows with the club: a side drawer (full screen on a phone) -->
+<Drawer bind:open={reminding} title="Email what they owe" sub="Who gets one, and what it says, before anything goes">
+  {#if reminding}
+    <RemindReview
+      onsent={() => (reminding = false)}
+      onbank={setsFees ? () => ((reminding = false), (banking = true)) : undefined}
+    />
+  {/if}
+</Drawer>
+<BankSheet bind:open={banking} />
+
 {#if opened && admin}
   {#key opened.player.id}
     <MemberSheet memberId={opened.player.id} tab="dues" onclose={() => (open = null)} />
@@ -157,6 +227,41 @@
 {/if}
 
 <style>
+  /* Manage's tools, as on Members and Training */
+  .tools {
+    display: grid;
+    gap: var(--s-2);
+  }
+  .tool {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    min-height: 4.25rem;
+    padding: var(--s-3) var(--s-4);
+    border: 0;
+    border-radius: var(--r-lg);
+    background: var(--surface-2);
+    color: var(--fg-muted);
+    font: inherit;
+    text-align: left;
+  }
+  .tool:active {
+    background: var(--surface-3);
+  }
+  .tool-text {
+    display: grid;
+    flex: 1;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+  .tool-text strong {
+    color: var(--fg);
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+  .tool-text span {
+    font-size: var(--text-sm);
+  }
   .total {
     display: grid;
     gap: var(--s-1);
