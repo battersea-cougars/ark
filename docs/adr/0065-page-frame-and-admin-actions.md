@@ -82,6 +82,11 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - The tournament pages open the tournament editor in place (`TournamentEditorPanel`), on the tab the action needs;
   Settings → Tournaments uses the same panel. A new date in a series opens on its quick questions
   (`TournamentQuickCreate`, [0074](0074-tournament-home-and-scheduling.md)).
+- The Calendar is where an admin puts any date on: its **New event** button (in words on a phone too) opens one
+  sheet asking what kind (a one-off, a training, a series' next date, a tournament), only the kinds their full role
+  can create (`lib/new-event.ts`), each in the editor Settings uses (`TrainingEditorPanel`, `TournamentEditorPanel`),
+  over the Calendar; with one kind there's no question. In their everyday role it still shows and switches them up as
+  they pick, as the gear does.
 - Admin flows still in Settings (training dates, fees) should move the same way as they're touched.
 - Nothing moves sideways or up and down when you go between pages, and a panel reads as the card grown.
 - On a very wide window a reading page sits left of centre with room on its right. That's the cost of one edge.
@@ -126,3 +131,7 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - 2026-10-20: Next Kumite sits in the series page's "No Kumite yet", not the header, when nothing's on (ADR 0074).
 - 2026-10-20: Settings is reached by one gear, top right on a desktop (beside the badge) and on a phone's You page,
   instead of the dock's tile and the phone's sheet; it shows in your everyday role too and switches you up.
+- 2026-10-20: The Calendar's New event puts on any kind of date (one-off, training, a series' next date, a
+  tournament) from one sheet, in Settings' own editors, closing on the calendar once saved; it shows in your everyday
+  role and switches you up on the way. It answered "I'm the admin, on my phone: where do I create an event?", which
+  had been an unlabelled + for one-offs only.

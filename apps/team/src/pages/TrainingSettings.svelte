@@ -1,11 +1,9 @@
 <script lang="ts">
   // Settings → Training: every training as a card, as Gwenda ops shows its series. A card opens that training's
   // editor in a modal panel; "New training" opens a blank one. New trainings appear in the menu and calendar at once.
-  import { saving } from "../app/backend.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import ScheduleCards, { type ScheduleCard } from "../lib/ScheduleCards.svelte";
-  import EditorPanel from "../lib/EditorPanel.svelte";
-  import TrainingEditor from "../lib/TrainingEditor.svelte";
+  import TrainingEditorPanel from "../lib/TrainingEditorPanel.svelte";
   import { nextSession, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
   import { clock, formatDayDate, londonToday, pounds } from "../lib/dates";
@@ -38,7 +36,6 @@
 
   // The training open in the panel, or a new one
   let open = $state<number | "new" | null>(null);
-  const editing = $derived(typeof open === "number" ? db.series.find((s) => s.id === open) : undefined);
 </script>
 
 <div class="page">
@@ -54,20 +51,5 @@
 </div>
 
 {#if open !== null}
-  {#key open}
-    <EditorPanel
-      eyebrow={editing ? `Training · ${describeRule(editing)}` : "Training"}
-      title={editing?.name ?? "New training"}
-      icon={editing?.icon}
-      tone={editing?.tone}
-      onclose={() => (open = null)}
-    >
-      <TrainingEditor seriesId={editing?.id} oncreated={(id) => (open = id)} />
-      {#snippet footer()}
-        <button class="btn primary" type="submit" form="training-form" disabled={saving.busy > 0}
-          >{editing ? "Save" : "Add training"}</button
-        >
-      {/snippet}
-    </EditorPanel>
-  {/key}
+  <TrainingEditorPanel {open} onclose={() => (open = null)} oncreated={(id) => (open = id)} />
 {/if}

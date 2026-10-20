@@ -1,7 +1,8 @@
 <script lang="ts">
   // Everything on: training sessions, tournaments and one-offs, in date order. Each training and tournament type
-  // has its own icon and colour, and the chips at the top filter to one kind. Trainings and tournaments are set
-  // up under Settings; one-off events are added here.
+  // has its own icon and colour, and the chips at the top filter to one kind. An admin's New event puts any of them
+  // on (lib/new-event.ts): a one-off in its sheet here, a training or a tournament in the same editor Settings opens
+  // (ADR 0065), over this page.
   import TimeSelect from "../lib/TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -12,12 +13,18 @@
   import Icon from "../app/shell/Icon.svelte";
   import type { Tone } from "../demo/model";
   import { calendar } from "../demo/schedule.svelte";
-  import { granted } from "../demo/session.svelte";
+  import { granted, impersonating, realGranted } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import EventCard from "../lib/EventCard.svelte";
   import { londonISO, londonTime, londonToday } from "../lib/dates";
   import type { Bookable, OneOff } from "../demo/model";
   import PlacePicker from "../lib/PlacePicker.svelte";
+  import Drawer from "../lib/Drawer.svelte";
+  import TrainingEditorPanel from "../lib/TrainingEditorPanel.svelte";
+  import TournamentEditorPanel, { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import { newEventKinds, type NewEventKind } from "../lib/new-event";
+  import { phone } from "../lib/viewport.svelte";
+  import { switchUpFor } from "../app/settings-entry.svelte";
 
   const perms = $derived(granted());
 
@@ -64,6 +71,26 @@
     }
     return out;
   });
+
+  // ─── New event: what kind ───
+  // Your full role's kinds, so the button shows in your everyday role too and switches you up as you pick one (as
+  // the Settings gear does); while viewing as someone, theirs
+  const kinds = $derived(newEventKinds(impersonating() ? perms : realGranted(), db.tournamentTypes));
+  let choosing = $state(false);
+  // A new training's editor, open over the calendar
+  let newTraining = $state(false);
+  function newEvent() {
+    // One kind isn't a menu (ADR 0103): straight to it
+    if (kinds.length === 1) pick(kinds[0]);
+    else choosing = true;
+  }
+  function pick(kind: NewEventKind) {
+    choosing = false;
+    switchUpFor(kind.action);
+    if (kind.id === "one-off") startAdding();
+    else if (kind.id === "training") newTraining = true;
+    else editTournament("new", { typeId: kind.typeId });
+  }
 
   // ─── Add or edit a one-off ───
   const blank = () => ({
@@ -144,10 +171,11 @@
     onclear={() => setFilter("all")}
   >
     {#snippet actions()}
-      <!-- + Event: in the toolbar row on desktop, the bar on a phone (no floating buttons: ADR 0084) -->
-      {#if can(perms, "create:Event")}
-        <button class="btn sm primary" aria-haspopup="dialog" onclick={startAdding}>
-          <Icon name="plus" size={16} />Event
+      <!-- New event: in the toolbar row on desktop, the bar on a phone, in words there too (no floating buttons:
+           ADR 0084) -->
+      {#if kinds.length}
+        <button class="btn sm primary keep-label" aria-haspopup="dialog" onclick={newEvent}>
+          <Icon name="plus" size={16} />New event
         </button>
       {/if}
     {/snippet}
@@ -198,10 +226,7 @@
   <Sheet bind:open={adding} title={editing ? "Edit event" : "Add an event"}>
     <form class="form" onsubmit={save}>
       {#if !editing}
-        <p class="hint">
-          A one-off: a social, a kit day. Trainings and tournaments are set up under Settings, so they repeat and keep
-          their own pages.
-        </p>
+        <p class="hint">A one-off: a social, a kit day. One date, on the calendar and, if you like, the website.</p>
       {/if}
       <label class="field"
         >Title <input class="input" bind:value={draft.title} placeholder="e.g. Summer social" required /></label
@@ -231,6 +256,31 @@
     </form>
   </Sheet>
 </div>
+
+{#snippet kindList()}
+  <div class="tools">
+    {#each kinds as kind (kind.label)}
+      <button class="tool" style:--tone={kind.tone ? `var(--tone-${kind.tone})` : undefined} onclick={() => pick(kind)}>
+        <Icon name={kind.icon} size={22} />
+        <span class="tool-text"><strong>{kind.label}</strong><span>{kind.sub}</span></span>
+        <Icon name="chevronRight" size={18} />
+      </button>
+    {/each}
+  </div>
+{/snippet}
+{#if kinds.length > 1}
+  <!-- What kind: up from the bottom on a phone, a side drawer on a desktop (ADR 0103, a menu of jobs) -->
+  {#if phone.current}
+    <Sheet bind:open={choosing} title="New event">{@render kindList()}</Sheet>
+  {:else}
+    <Drawer bind:open={choosing} title="New event" sub="What's going on?">{@render kindList()}</Drawer>
+  {/if}
+{/if}
+{#if newTraining && can(perms, "manage:Training")}
+  <!-- Added: it closes on the calendar, which now has its sessions -->
+  <TrainingEditorPanel open="new" onclose={() => (newTraining = false)} oncreated={() => (newTraining = false)} />
+{/if}
+{#if can(perms, "manage:Tournament")}<TournamentEditorPanel closeOnCreate />{/if}
 
 <style>
   /* A one-off's footer: its description, then (for whoever can change it) where it shows and Edit */
@@ -263,5 +313,45 @@
   }
   textarea.input {
     resize: vertical;
+  }
+  /* New event's kinds, as the Manage menus' rows: an icon in its colour, what it is, a line on what it makes */
+  .tools {
+    display: grid;
+    gap: var(--s-2);
+  }
+  .tool {
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    min-height: 4.25rem;
+    padding: var(--s-3) var(--s-4);
+    border: 0;
+    border-radius: var(--r-lg);
+    background: var(--surface-2);
+    color: var(--fg-muted);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tool > :global(svg:first-child) {
+    flex-shrink: 0;
+    color: var(--tone, var(--fg-muted));
+  }
+  .tool:active {
+    background: var(--surface-3);
+  }
+  .tool-text {
+    display: grid;
+    flex: 1;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+  .tool-text strong {
+    color: var(--fg);
+    font-size: var(--text-md);
+    font-weight: 600;
+  }
+  .tool-text span {
+    font-size: var(--text-sm);
   }
 </style>

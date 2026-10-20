@@ -1,7 +1,7 @@
 // The way into Settings: one gear, top right, on a phone's You page and beside a desktop's badge (ADR 0022, ADR 0065).
 // It shows for anyone whose account can set something up in any of their roles, their everyday one too: opening
 // Settings switches them up to their full role on the way (ADR 0024), so nobody has to find that switch first.
-import { can } from "../access/actions";
+import { can, type Action, type Requirement } from "../access/actions";
 import { elevated, granted, hasEveryday, impersonating, realGranted, setElevated } from "../demo/session.svelte";
 import type { Route } from "./nav-routes";
 import { routes } from "./routes.svelte";
@@ -19,5 +19,13 @@ export const canReachSettings = (): boolean => !impersonating() && settingsFor(r
 export function enterSettings(route?: Route) {
   if (!hasEveryday() || elevated()) return;
   const needed = route ? [route] : settingsFor(realGranted());
-  if (needed.some((r) => !can(granted(), r.action) && can(realGranted(), r.action))) setElevated(true);
+  if (needed.some((r) => needsFullRole(r.action))) setElevated(true);
+}
+
+/** Your everyday role can't do this, your full one can. */
+const needsFullRole = (action: Requirement) => !can(granted(), action) && can(realGranted(), action);
+
+/** Before a job your everyday role can't do (the Calendar's New event): up to your full role, as the gear does. */
+export function switchUpFor(action: Action) {
+  if (hasEveryday() && !elevated() && needsFullRole(action)) setElevated(true);
 }

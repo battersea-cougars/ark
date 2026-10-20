@@ -26,6 +26,10 @@
   import { typeById, whenOf } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
 
+  /** From the Calendar's New event: a new one, once scheduled, closes on the calendar, which now shows it. Elsewhere
+   * the panel goes on to the new one's editor. */
+  let { closeOnCreate = false }: { closeOnCreate?: boolean } = $props();
+
   const date = $derived(
     typeof tournamentPanel.open === "number" ? db.tournaments.find((t) => t.id === tournamentPanel.open) : undefined,
   );
@@ -68,7 +72,7 @@
           typeId={tournamentPanel.typeId}
           startTab={tournamentPanel.tab}
           bind:start={answers}
-          oncreated={(id) => (tournamentPanel.open = id)}
+          oncreated={(id) => (tournamentPanel.open = closeOnCreate ? null : id)}
         />
       {/if}
       {#snippet footer()}
