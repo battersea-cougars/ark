@@ -37,7 +37,12 @@ switch (command) {
     const dir = join(main, ".worktrees", folderOf(branch));
     // Its apps go first, if the show supervisor runs any
     await ask(showPaths(main).sock, { cmd: "stop", dir }).catch(() => undefined);
-    run(main, "git", "worktree", "remove", dir);
+    try {
+      run(main, "git", "worktree", "remove", dir);
+    } catch {
+      console.error(`Kept ${dir}: it has changes or untracked files (git status there). Its apps are stopped.`);
+      process.exit(1);
+    }
     try {
       run(main, "git", "branch", "-d", branch);
     } catch {

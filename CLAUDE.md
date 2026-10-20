@@ -7,6 +7,21 @@ changing how something works. Changing a decision means updating its topic's rec
 History line, never a quiet edit; a new topic (a service, a rule, a pattern, a trade-off) gets a new ADR
 ([ADR 0001](docs/adr/0001-record-decisions.md)).
 
+## One task, one worktree
+
+- The main checkout (`/src`) stays on `main`; don't edit there, it's only for merging. Start each task in its own
+  worktree: `npm run worktree -- add <area>/<topic>` (e.g. `web/gallery`), ready at once ([ADR 0115](docs/adr/0115-worktrees-and-the-show-switch.md)).
+  Leave other sessions' files and worktrees alone; never `git stash` or `git add -A`.
+- **To show the user: `npm run app`** in your worktree: 4500/4510 switch to it at once (4520 too with `studio`).
+  **For your own checks: `npm run app -- --private`**, which prints your apps' own ports
+  (`node scripts/dev-sign-in.mjs --port <team port>` to sign in). `npm run app status` lists what runs; the user sees
+  and restarts apps at http://localhost:4500/__app. Apps share main's local D1; a branch that changes
+  `db/schema.sql` uses `--own-db`.
+- Never start a server with `&`, `nohup` or `setsid`, and never stop anything on 4500/4510/4520 except through
+  `npm run app`. Stop only your own processes, by PID.
+- Finishing: rebase on main, then the coordinator runs `npm run merge:check -- <area>/<topic>` in the main checkout,
+  `git merge --ff-only`, and `npm run worktree -- remove <area>/<topic>`. Don't push unless asked.
+
 ## Hard rules
 
 - **Code is for people to read** ([ADR 0105](docs/adr/0105-code-grouped-by-feature.md)): group it by feature, not by
@@ -56,8 +71,8 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
 
 - A library the browser imports goes in apps/team `package.json` **dependencies** (not devDependencies). Vite
   pre-bundles exactly that list at startup; `scripts/team-app-deps.test.mjs` enforces it ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)).
-- One dev server on 4510 (and one on 4500). Starting one stops the running one first, whoever started it: to restart,
-  just run it again. Never `--force`.
+- One dev server per checkout, run by the show switch: `npm run team` (or `npm run dev`, `npm run studio`) shows this
+  checkout and starts that app afresh; to restart, just run it again, or `npm run app restart team`. Never `--force`.
 
 ## Tests
 
@@ -73,4 +88,5 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
 
 ## Ports
 
-4500 web, 4510 team app, 4520 studio. Don't use framework default ports.
+4500 web, 4510 team app, 4520 studio: the show switch's, showing one checkout (ADR 0115). Apps run on private
+ports the OS picks; never bind the three yourself. Don't use framework default ports.

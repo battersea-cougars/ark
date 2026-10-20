@@ -44,8 +44,8 @@ To set up a project from scratch (or check one):
 1. `npx sanity login` with your own account, then create the project at <https://www.sanity.io/manage> (Free
    plan) with one public dataset, `production`, and put its ID in `packages/shared/sanity.ts`.
 2. **API → CORS origins**:
-   - Cougars Dev: `http://localhost:4520` to `http://localhost:4523`, with credentials (local Studios, including
-     worktrees).
+   - Cougars Dev: `http://localhost:4520`, with credentials (the local Studio of whichever checkout is shown, ADR
+     0115). The old worktree origins 4521-4523 aren't needed any more.
    - Cougars Dev also: `https://studio.cougars-dev.workers.dev`, with credentials (the dev Studio, ADR 0112).
    - Cougars: `https://studio.batterseacougars.com`, with credentials (the live Studio, self-hosted, ADR 0112). The
      deploy token can't manage CORS, so these are added here by hand, once.

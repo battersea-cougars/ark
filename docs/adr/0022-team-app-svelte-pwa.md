@@ -1,7 +1,7 @@
 # 0022. The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-09
+- **Date:** 2026-10-06 · updated 2026-10-20
 - **Merges:** 0047
 
 ## Context
@@ -42,10 +42,11 @@ with a throwaway hash, and the new server kept that transform, so every load 504
     a library configures dev with no config edit. Svelte's entry points come from the Svelte plugin.
   - A browser library goes in `dependencies`, never `devDependencies`. `scripts/team-app-deps.test.mjs` fails
     `npm test` if the app imports a package that isn't there.
-- **One dev server per checkout, on 4510, and starting one takes over.** `npm run team` (or `npm run dev` in apps/team)
-  stops whatever dev server is on 4510, whoever started it (another terminal, an agent), before it touches the cache,
-  then serves (`scripts/lib/dev-server.mjs`, a pid file in `node_modules/.cache`). Vite's own restart is the same
-  process and is let through. The website does the same on 4500 with Astro's own `astro dev stop` first.
+- **One dev server per checkout, run by the show switch** ([ADR 0115](0115-worktrees-and-the-show-switch.md)).
+  `npm run team` shows this checkout on 4510 and starts its team app afresh on a private port; the switch never runs
+  two in one checkout, so two never share the cache. A `vite` started by hand still takes over 4510 from another dev
+  server (`scripts/lib/dev-server.mjs`, a pid file in `node_modules/.cache`) and refuses when the switch holds it.
+  Vite's own restart is the same process and is let through.
 - **After Vite restarts itself, every cached transform is dropped**, and requests wait until the dependency optimizer
   has read its cache (`waitForDepsCache` in `vite.config.ts`), so a reload during the restart can't keep a dead stamp.
 
@@ -59,7 +60,7 @@ with a throwaway hash, and the new server kept that transform, so every load 504
 - In dev, hot reload is unchanged; editing code never rebundles libraries. Installing a new library while the server
   runs still makes Vite rebundle once and reload the open page itself; that's expected, not the stale-cache failure.
   Cold start crawls all of `src`, a second or so more.
-- To restart a dev server, run it again in your own terminal: it replaces the running one. Never `--force`.
+- To restart a dev server, run it again (`npm run team`): it replaces the running one. Never `--force`.
 - After an in-process restart the first page load re-transforms the app's modules, a second or so.
 
 ## History
@@ -73,3 +74,4 @@ with a throwaway hash, and the new server kept that transform, so every load 504
 - 2026-10-10: On phones the More tab became You (your avatar, opening your profile with the lists under it), replacing
   the account badge on Home; the top bar slimmed and the tab bar went opaque, as Android barely blurred it.
 - 2026-10-11: The store app wraps this app as planned, loading the live app rather than a bundled copy ([0108](0108-store-apps.md)).
+- 2026-10-20: The show switch runs the dev server on a private port and holds 4510 ([0115](0115-worktrees-and-the-show-switch.md)); `npm run team` goes through it.

@@ -21,7 +21,7 @@ Running cost is £0: every service is on a free tier (see [ADR 0003](docs/adr/00
 npm ci
 npm run db:rebuild:local   # create the local D1 database (db/schema.sql + the club seed)
 npm run db:seed:local      # a made-up club to work with (db/seed/roster.example.json), its admin Ada Admin
-npm run dev                # the website, http://localhost:4500
+npm run dev                # the website, http://localhost:4500 (through the show switch, see Worktrees)
 npm run team               # the team app, http://localhost:4510 (sign in as admin@example.com: the code shows on screen)
 npm test
 ```
@@ -38,7 +38,7 @@ With secrets (run `bw-unlock` first, see [Bitwarden tokens](#bitwarden-tokens)):
 
 ```sh
 npm run secrets                             # list secret names (never values)
-node scripts/env-pull.mjs -- npm run dev    # run with dev secrets injected
+npm run app restart                         # the apps pick up dev secrets once Bitwarden is unlocked
 ```
 
 ## Secrets
@@ -504,30 +504,46 @@ The only alert is an email on a new issue in **production**; dev's errors are ke
 
 ## Ports (devcontainer)
 
-Cougars owns ports **4500-4529** so it doesn't clash with other projects on the host:
-4500 web, 4510 team app, 4520 Sanity Studio. Worktrees use 4501-4509 (web) and 4521-4529 (Studio).
+Cougars owns ports **4500-4529** so it doesn't clash with other projects on the host: 4500 the website, 4510 the
+team app, 4520 the Sanity Studio. They belong to the show switch (below), never to an app: each shows the checkout
+last shown, and every app runs on a private port that's free when it starts (not forwarded).
 
-## Worktrees (parallel streams)
+## Worktrees (parallel work)
 
-Parallel work streams each get a git worktree under `.worktrees/`, with their own
-dependencies, local D1 database and ports, so each can be previewed while `main` runs on 4500:
+The main checkout stays on `main` and is for merging. Each task is a branch in its own worktree, so several agents
+work at once ([ADR 0115](docs/adr/0115-worktrees-and-the-show-switch.md)). A new one is ready at once: main's
+`node_modules` is hard-linked when the lockfile matches.
 
 ```sh
-bash scripts/worktree.sh add cms       # branch cms, installs and migrates
-bash scripts/worktree.sh dev cms       # http://localhost:4501 (dev secrets if Bitwarden is unlocked)
-bash scripts/worktree.sh studio cms    # http://localhost:4521
-bash scripts/worktree.sh stop cms      # stop its website (Astro runs it in the background)
-bash scripts/worktree.sh remove cms    # when the stream has landed on main
+npm run worktree -- add web/gallery     # branch web/gallery off main, in .worktrees/web-gallery
+npm run worktree -- remove web/gallery  # its apps stopped, the worktree removed if clean, the branch if merged
+npm run merge:check -- web/gallery      # in the main checkout: the branch's checks, then "Safe to merge" or not
 ```
 
-| Stream    | Website | Studio |
-| --------- | ------- | ------ |
-| `cms`     | 4501    | 4521   |
-| `youtube` | 4502    | 4522   |
-| `gallery` | 4503    | 4523   |
+**Showing a checkout.** One supervisor holds 4500, 4510 and 4520 and forwards each (hot reload included) to the
+apps of the checkout shown:
 
-A Studio on a new port needs that origin added once under the Sanity project's API → CORS origins
-(e.g. `http://localhost:4521`, with credentials).
+```sh
+npm run app                  # show this checkout: its website on 4500, team app on 4510 (Studio: add studio)
+npm run app main             # show the main checkout
+npm run app -- --private     # run this checkout's apps without showing them: prints their own ports
+npm run app -- --own-db      # this checkout's own copy of local D1 (a branch that changes db/schema.sql)
+npm run app status           # what's shown, every app, its port and state
+npm run app restart [web|team|studio]
+npm run app stop [web|team|studio]
+npm run app logs web --follow
+npm run app down             # the supervisor and every app
+npm run dev                  # show this checkout and start its website afresh, following its log (also team, studio)
+```
+
+**In a browser: http://localhost:4500/__app** (or 4510/__app) lists every checkout with Show, Restart and Stop and
+each app's log. While a shown app starts, its port says so and opens it when it answers; the Studio starts when 4520
+is opened. A branch's app nobody has looked at for 3 hours stops (main's never). Ctrl-C in `npm run dev` only stops
+following the log. Logs live in `.worktrees/.show/`.
+
+Every checkout's apps use **main's local D1** (your data and sign-in), unless started with `--own-db`. They get the
+dev secrets when Bitwarden is unlocked (`bw-unlock`, then `npm run app restart`). To sign in headless against a
+private port: `node scripts/dev-sign-in.mjs --port <team app port>`.
 
 Opening the devcontainer installs dependencies, migrates the local D1 database and starts **web** and the **team app**
 automatically (VS Code tasks in `.vscode/tasks.json`, each in its own terminal). Start the Studio with
