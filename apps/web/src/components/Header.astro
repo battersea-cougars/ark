@@ -45,6 +45,11 @@ const { founded } = await getClub();
 
     <nav class="nav" aria-label="Main">
       <ul>
+        <li>
+          <a class="link" href="/" aria-current={home ? "page" : undefined}>
+            Home
+          </a>
+        </li>
         {links.map((l) => (
           <li>
             <a class="link" href={l.href} aria-current={current(l)} data-section-link={l.section}>
