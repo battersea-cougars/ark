@@ -187,9 +187,14 @@ function entryPath(key: string) {
 /** You say in or out. */
 export const answerFor = (key: string, answer: "in" | "out") =>
   save(() => api("POST", `${entryPath(key)}/answer`, { answer }), "");
-/** An admin puts someone in a session, or takes them off. */
-export const setPlayer = (sessionId: number, memberId: number, inIt: boolean) =>
-  save(() => api("POST", `/api/sessions/${sessionId}/players`, { memberId, in: inIt }), inIt ? "Added" : "Taken off");
+/** Where someone is on a session now, as the server says after a change (ADR 0030). */
+type Placed = { signup: "in" | "waitlist" | "out" | null };
+/** An admin puts someone in a session (in if there's room, else waiting: ADR 0030), or takes them off. */
+export const setPlayer = async (sessionId: number, memberId: number, inIt: boolean) => {
+  const r = await save(() => api<Placed>("POST", `/api/sessions/${sessionId}/players`, { memberId, in: inIt }), "");
+  if (r) say(!inIt ? "Taken off" : r.signup === "waitlist" ? "Full: on the waiting list" : "Added", false);
+  return r;
+};
 /** The team maker lets someone waiting in, over the limit if need be (ADR 0076). */
 export const letIn = (sessionId: number, memberId: number, name: string) =>
   save(() => api("POST", `/api/sessions/${sessionId}/let-in`, { memberId }), `${name} is in`);
@@ -273,9 +278,13 @@ export const addQuip = (kind: QuipKind, text: string) =>
 export const saveQuip = (q: Quip) => save(() => api("PUT", `/api/quips/${q.id}`, { text: q.text }));
 export const deleteQuip = (id: number) => save(() => api("DELETE", `/api/quips/${id}`), "Removed");
 
-/** The register: here or not. */
-export const markHere = (sessionId: number, memberId: number, here: boolean) =>
-  save(() => api("POST", `/api/sessions/${sessionId}/register`, { memberId, here }), "");
+/** The register: here or not. Someone added to a full night waits for the team maker's Let in (ADR 0030), and the
+ * note says so, naming them. */
+export const markHere = async (sessionId: number, memberId: number, here: boolean, name = "") => {
+  const r = await save(() => api<Placed>("POST", `/api/sessions/${sessionId}/register`, { memberId, here }), "");
+  if (here && r?.signup === "waitlist") say(`Full: ${name ? `${name}'s` : "they're"} on the waiting list`, false);
+  return r;
+};
 
 /** A member's attendance, many Fridays at once: one request, so their charges are worked out once. */
 export const markAttendance = (memberId: number, marks: { sessionId: number; here: boolean }[]) =>

@@ -36,7 +36,8 @@ without taking players off a team behind the team maker's back.
 - **The team maker can let someone waiting in, over the limit** ([0030](0030-training-and-tournament-schedule.md)):
   Let in beside each name on the Waiting list (theirs only; members see the list as it was).
   `POST /api/sessions/{id}/let-in` under `publish:Teams`, since who plays is decided with the teams and Session lead
-  holds it (`update:Event`, which puts anyone in, is an admin's); only someone waiting, on a session that's on. On
+  holds it (`update:Event`, an admin's, puts someone in only where there's room, else on the waiting list); the
+  register's Add player has Let in beside anyone it put on the waiting list, for whoever holds `publish:Teams`; only someone waiting, on a session that's on. On
   the record as `signups.changed`, and the one let in hears it on their phone as when a place comes up ("You've been
   let in: you're in for Fri 23 Oct."), through the same notice (`movedUp`). Everyone's page shows it live.
 - **Team makers move players by dragging** a row's grip onto another team, with pointer events so it works with a
@@ -90,3 +91,5 @@ without taking players off a team behind the team maker's back.
   instead of "Forward · 60" under the name; teams read forwards, defence, keepers last; rows went to one line; a drag
   scrolls at the screen's edges; a tap on a row opens Move to a team, the way without dragging. Ratings left the In,
   Waiting and Out lists: the team maker sees them only on the teams.
+- 2026-10-20: Let in is the only way over the limit: an admin putting someone in, and the register's Add player, wait
+  on a full night (ADR 0030); the register has Let in beside them.

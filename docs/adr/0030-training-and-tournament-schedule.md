@@ -70,6 +70,13 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - **The limit is what members see and what sign-up keeps to, not a wall**: the team maker can let someone waiting in
   over it ([0076](0076-training-teams.md)). They keep their sign-up time, so they take their place in the order; while
   more are in than the limit, nobody moves up when someone drops out, and the page says how many over it is.
+- **Adding someone keeps to the places too**: the register's Add player (before the night or on it, as a walk-in)
+  and an admin putting someone in (`update:Event`) put them in if there's room, else on the waiting list, as if they'd
+  signed up (a Quarterly Member taking the last pay-as-you-go place; someone already waiting keeps their place in the
+  queue). Only the team maker's Let in puts anyone over the limit. The reply says where they went (`signup`), and the
+  register says so ("Full: Walt's on the waiting list", Waiting on their row) with Let in beside them for whoever
+  can. A night that's over is a record: someone ticked as there is in, whatever the places. Places are one limit for
+  skaters and keepers together, as sign-up counts them; `goalie_capacity` is stored and edited but not enforced.
 - **Keepers aren't in it**: they keep their sign-up place, and a skater never takes a keeper's. Whether keepers pay at
   all, or need a plan of their own, is open.
 - The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge (the word,
@@ -172,3 +179,6 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-20: The team maker can let someone waiting in over the limit; the limit still holds for sign-up.
 - 2026-10-20: The Quarterly badge says "Quarterly" on a phone too (it had been a small calendar icon there, which
   nobody read); it's off the team rows, where the queue is behind them.
+- 2026-10-20: Adding a player (the register's Add player, an admin putting someone in) keeps to the places: full
+  means the waiting list, and only the team maker lets anyone in over the limit. Adding had put them in whatever the
+  places, so a Friday could fill past its limit with nobody waiting.

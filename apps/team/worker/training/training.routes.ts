@@ -156,12 +156,12 @@ export const TRAINING_ROUTES: Route[] = [
     changes: ["sessions", "members", "charges", "credits", "payments"],
     // A walk-in taken off frees a place
     notify: places("session"),
-    // The register on the night: here or not
+    // The register on the night (or before it): here or not. Someone added to a full night waits for the team
+    // maker's Let in (ADR 0030); the reply says where they went: { signup: "in" | "waitlist" | null }
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.here !== "boolean") throw new HttpError(400, "here should be true or false.");
-      await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now);
-      return ok();
+      return json({ signup: await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now) });
     },
   },
 ];

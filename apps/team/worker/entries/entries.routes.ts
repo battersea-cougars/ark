@@ -2,7 +2,7 @@
 import { id, memberIdIn, ok, rowsOf, type Route } from "../api/api.route";
 import { type Slice } from "../api/api.slices";
 import { TABLES, answer, setPlayer, type EntryKind } from "./entries";
-import { HttpError, body } from "../api/api.http";
+import { HttpError, body, json } from "../api/api.http";
 import { places } from "../push/push.notices";
 
 // The same routes for each kind of event
@@ -47,12 +47,12 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
         : slice === "tournaments"
           ? [slice, "charges", "credits", "payments"]
           : [slice],
-    // An admin puts someone in, or takes them off
+    // An admin puts someone in (a training's places kept: in, or waiting), or takes them off; the reply says where
+    // they are now: { signup: "in" | "waitlist" | null }
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.in !== "boolean") throw new HttpError(400, "in should be true or false.");
-      await setPlayer(c.env.DB, kind, id(c), memberId, b.in, c.now);
-      return ok();
+      return json({ signup: await setPlayer(c.env.DB, kind, id(c), memberId, b.in, c.now) });
     },
   },
 ]);

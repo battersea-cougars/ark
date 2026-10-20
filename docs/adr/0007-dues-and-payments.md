@@ -82,7 +82,10 @@ session's fee.
 **Charges**
 
 - **Attendance comes from the register**: on the night one screen lists who signed up, marks no-shows and adds
-  walk-ins. Someone signed up counts as there unless marked a no-show.
+  walk-ins. Someone signed up counts as there unless marked a no-show. A walk-in keeps to the places like a sign-up
+  ([0030](0030-training-and-tournament-schedule.md)): on a full night they wait, and someone waiting is never
+  charged until they're in (a place comes up or the team maker lets them in). A night that's over is a record of who
+  came: a walk-in ticked there is in and charged.
 - **There is no closing the register: charges follow it** (#11). From a session's day, everyone in who isn't a no-show
   (walk-ins included) is charged; ticking someone in charges them at once, unticking takes an unpaid charge off.
   Anything that changes who came (a tick, a sign-up, an admin adding someone, a cancellation) works the charges out
@@ -224,3 +227,5 @@ session's fee.
   Major every 2, Misconduct weekly, none once Ejected), at most one a week each, an admin's included. Claimed before
   they're sent, 15 a run. The bank details became a club setting (they were sample numbers on the Dues page). Each
   reminder notifies the member's phone too.
+- 2026-10-20: A walk-in on a full night (or one added before it) waits for the team maker's Let in instead of being
+  in whatever the places, so isn't charged until they're in; a night that's over still records who came.
