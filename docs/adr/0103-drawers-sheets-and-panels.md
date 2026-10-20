@@ -1,7 +1,7 @@
 # 0103. A side drawer for working beside the page, a sheet for a short job, a panel for a whole editor
 
-- **Status:** Proposed
-- **Date:** 2026-10-09
+- **Status:** Accepted
+- **Date:** 2026-10-09 (accepted 2026-10-20)
 
 ## Context
 
@@ -24,15 +24,23 @@ leaves the page in view, which is only worth it if you need the page while you u
 
 ## Decision
 
-**Pick by what's inside:**
+**On a phone, one overlay: the bottom sheet.** Whatever opens over the page comes up from the bottom the same way,
+with the same handle, header, close button and footer, and goes back down the same way: the close button, a tap on
+the dimmed page, Escape, Android's back, or pulling the handle down. A short job is sized to what's in it; something
+that grows (a list, the register, an editor) is the same sheet but tall, near the top of the screen, a fixed height,
+scrolling inside under a header and footer that stay put. `lib/Drawer` and `lib/EditorPanel` are drawn as `lib/Sheet`
+(`tall`) on a phone, decided as they open, so callers choose by what's inside and never by the screen. Switching from
+a sheet to a full-width drawer between two jobs on the same phone read as two different apps (2026-10-20).
+
+**On a desktop, pick by what's inside:**
 
 | What it holds                                                                                       | Use                                       | Phone                                | Desktop                                  |
 | --------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------ | ---------------------------------------- |
-| A list that grows: ticking, searching or picking people or things (register, squad, awards, import) | **Side drawer**                           | full width                           | right, 26rem, the page visible beside it |
-| Something read beside the page (the draft's rules, the pick log)                                    | **Side drawer**                           | full width                           | right                                    |
+| A list that grows: ticking, searching or picking people or things (register, squad, awards, import) | **Side drawer**                           | tall bottom sheet                    | right, 26rem, the page visible beside it |
+| Something read beside the page (the draft's rules, the pick log)                                    | **Side drawer**                           | tall bottom sheet                    | right                                    |
 | A short form that never grows (about five fields at most) or a one-tap choice                       | **Sheet**                                 | bottom sheet                         | centred                                  |
 | A menu of jobs (Manage, Scoring's tools, the account menu)                                          | **Sheet on a phone, drawer on a desktop** | bottom sheet                         | right drawer                             |
-| A thing's whole editor: tabs, many fields, Save and Discard                                         | **Editor panel**                          | full screen                          | the page's column                        |
+| A thing's whole editor: tabs, many fields, Save and Discard                                         | **Editor panel**                          | tall bottom sheet                    | the page's column                        |
 | A value inside a form (a time, a role, a date)                                                      | **Pop-over** (Select, DateField)          | admin forms only; members get Choice | —                                        |
 
 **Menus of jobs**
@@ -55,6 +63,9 @@ leaves the page in view, which is only worth it if you need the page while you u
 - Every overlay renders outside the page: a native `<dialog>` (Sheet) or moved to `<body>` (`lib/portal.ts`).
   Inside the page, the page's own stacking context put the desktop dock and corners above a drawer's scrim.
 - Escape closes the top layer only: a pop-over's Escape (`defaultPrevented`) leaves the drawer or panel open.
+- On a phone every layer is a native modal `<dialog>`, so a sheet opened from another stacks on top of it, traps
+  focus, and Escape or Android's back closes the top one first. Overlays don't touch the history: iOS's back swipe
+  still goes back a page, as before.
 
 **Buttons**
 
@@ -68,6 +79,9 @@ leaves the page in view, which is only worth it if you need the page while you u
     (Take back last goal, Full time now, Hand over) is done in the menu, so it becomes a sheet on a phone, opened from
     Scoring in the top bar instead of a banner over the clock. (Done 2026-10-09.)
   - A Manage menu that has a single job opens that job directly.
+  - On a phone, drawers and editor panels are tall bottom sheets (done 2026-10-20); Fees' rate is a sheet (done
+    2026-10-20). The callers that pick a sheet on a phone and a drawer on a desktop themselves (Choice, the Manage
+    menus) can now just use a drawer.
   - The forms that put their submit button in the body (Calendar, Venues, Fees and the member's Dues sheets) move it
     to the footer.
 - On a desktop a sheet hides the page and a drawer doesn't, so a phone/desktop switch changes more than the shape.
@@ -75,9 +89,14 @@ leaves the page in view, which is only worth it if you need the page while you u
 - Two copies are left to fold into the primitives:
   - the account menu's own drawer (24rem, z 60)
   - MemberSheet's copy of EditorPanel
-- A drawer isn't a native dialog, so it doesn't trap focus. Making it one would also put it in the top layer.
+- On a desktop a drawer isn't a native dialog, so it doesn't trap focus there. Making it one would also put it in the
+  top layer. On a phone it's a sheet, so it does.
+- A page's column width (`.page:not(.full) > *`) leaves out a `<dialog>`: a sheet declared in the page sizes itself.
 
 ## History
 
 - 2026-10-09: Written from a survey of every overlay in the team app. Drawers move to `<body>` (the desktop dock showed
   through the Kumite's Manage drawer), and Escape in a pop-over no longer closes the drawer under it.
+- 2026-10-20: Accepted, with one overlay on a phone: every sheet, drawer and editor panel is a bottom sheet there
+  (short ones sized to their content, growing ones tall), with a handle you pull down to close it and the same motion
+  out as in. The desktop split stays. Fees' rate is a sheet. Closes #82.

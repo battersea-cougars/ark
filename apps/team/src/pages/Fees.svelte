@@ -1,6 +1,6 @@
 <script lang="ts">
   import PageHeader from "../lib/PageHeader.svelte";
-  import Drawer from "../lib/Drawer.svelte";
+  import Sheet from "../lib/Sheet.svelte";
   import DateField from "../lib/DateField.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { db } from "../demo/store.svelte";
@@ -75,8 +75,8 @@
     <p class="hint">No rate set yet, so Quarterly Members aren't charged.</p>
   {/if}
 
-  <Drawer bind:open={adding} title="New quarterly rate">
-    <form class="form" onsubmit={add}>
+  <Sheet bind:open={adding} title="New quarterly rate">
+    <form id="fee-rate-form" class="form" onsubmit={add}>
       <div class="two">
         <label class="field">
           Amount (£)
@@ -88,9 +88,9 @@
         Quarterly Members are charged this for each quarter from that date, on the quarter's first day (or the day they
         join).
       </p>
-      <button class="btn primary">Set rate</button>
     </form>
-  </Drawer>
+    {#snippet footer()}<button class="btn primary" type="submit" form="fee-rate-form">Set rate</button>{/snippet}
+  </Sheet>
 </div>
 
 <style>

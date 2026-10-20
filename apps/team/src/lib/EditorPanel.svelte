@@ -3,12 +3,15 @@
   // as Gwenda ops opens its sessions. It fills the space the page has, beside the dock and under the top bar (on a
   // phone, the whole screen): a header with what it is and a close button top right, then a body that scrolls on
   // its own. It zooms in as it opens and out as it closes. Player cards flip instead (PlayerCardZoom, MemberSheet).
+  // On a phone it's the one overlay every job uses there (ADR 0103): lib/Sheet, tall, decided as it opens.
   import { onMount, type Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { pageColumnStyle } from "./page-column";
   import type { IconName } from "../app/shell/icons";
   import { EASE_IN, EASE_OUT, prefersReducedMotion } from "../app/motion";
   import { portal } from "./portal";
+  import Sheet from "./Sheet.svelte";
+  import { phone } from "./viewport.svelte";
 
   // Opens in the page's own column (desktop), the same width as the cards under it
   // …measured again when the window changes size, so it keeps to the page as the page reflows
@@ -44,12 +47,16 @@
 
   let panel = $state<HTMLElement | undefined>();
   let closing = false;
+  // Mounted as it opens: a phone then gets the sheet, kept while it's open
+  const asSheet = phone.current;
+  let shown = $state(true);
   const ZOOM_IN = [
     { transform: "scale(0.94)", filter: "blur(8px)", opacity: 0 },
     { transform: "none", filter: "blur(0)", opacity: 1 },
   ];
 
   onMount(() => {
+    if (asSheet) return;
     panel?.focus({ preventScroll: true });
     if (!prefersReducedMotion) panel?.animate(ZOOM_IN, { duration: 380, easing: EASE_OUT });
   });
@@ -57,12 +64,16 @@
   export function close() {
     if (closing) return;
     closing = true;
+    // The sheet goes down the way every sheet does, then says it's closed
+    if (asSheet) return void (shown = false);
     if (prefersReducedMotion || !panel) return onclose();
     panel.animate([...ZOOM_IN].reverse(), { duration: 220, easing: EASE_IN, fill: "forwards" }).onfinish = () =>
       onclose();
   }
 
   function onkeydown(e: KeyboardEvent) {
+    // The sheet is a native dialog: its Escape closes the top layer only
+    if (asSheet) return;
     // A menu's own Escape (Select) closes just the menu
     if (e.key === "Escape" && !e.defaultPrevented) close();
   }
@@ -70,33 +81,48 @@
 
 <svelte:window {onkeydown} onresize={remeasure} />
 
-<div class="editor-layer" use:portal>
-  <button class="scrim" aria-label="Close" tabindex="-1" onclick={close}></button>
-  <div
-    class="panel"
-    style={colStyle}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="editor-title"
-    tabindex="-1"
-    bind:this={panel}
-    style:--tone={tone ? `var(--tone-${tone})` : undefined}
+{#if asSheet}
+  <Sheet
+    bind:open={shown}
+    {title}
+    sub={eyebrow}
+    head={actions}
+    {footer}
+    tall
+    onclose={() => {
+      closing = true;
+      onclose();
+    }}>{@render children()}</Sheet
   >
-    <header class="panel-head">
-      {#if icon}<span class="chip"><Icon name={icon} size={22} /></span>{/if}
-      <div class="titles">
-        <p class="eyebrow">{eyebrow}</p>
-        <h1 id="editor-title">{title}</h1>
-      </div>
-      <div class="head-actions">
-        {@render actions?.()}
-        <button class="btn ghost icon close-x" aria-label="Close" onclick={close}><Icon name="x" size={18} /></button>
-      </div>
-    </header>
-    <div class="body">{@render children()}</div>
-    {#if footer}<footer class="panel-foot">{@render footer()}</footer>{/if}
+{:else}
+  <div class="editor-layer" use:portal>
+    <button class="scrim" aria-label="Close" tabindex="-1" onclick={close}></button>
+    <div
+      class="panel"
+      style={colStyle}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editor-title"
+      tabindex="-1"
+      bind:this={panel}
+      style:--tone={tone ? `var(--tone-${tone})` : undefined}
+    >
+      <header class="panel-head">
+        {#if icon}<span class="chip"><Icon name={icon} size={22} /></span>{/if}
+        <div class="titles">
+          <p class="eyebrow">{eyebrow}</p>
+          <h1 id="editor-title">{title}</h1>
+        </div>
+        <div class="head-actions">
+          {@render actions?.()}
+          <button class="btn ghost icon close-x" aria-label="Close" onclick={close}><Icon name="x" size={18} /></button>
+        </div>
+      </header>
+      <div class="body">{@render children()}</div>
+      {#if footer}<footer class="panel-foot">{@render footer()}</footer>{/if}
+    </div>
   </div>
-</div>
+{/if}
 
 <style>
   /* The space the page has: beside the dock, under the top bar. A phone gives it the whole screen. */

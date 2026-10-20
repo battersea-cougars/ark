@@ -621,8 +621,9 @@ h3 {
   .view > .page.fill {
     padding-right: 0;
   }
-  .page:not(.full) > :not(.tone),
-  .page:not(.full) > .tone > * {
+  /* (not a sheet declared in the page: lib/Sheet sizes its own dialog) */
+  .page:not(.full) > :not(.tone, dialog),
+  .page:not(.full) > .tone > :not(dialog) {
     width: 100%;
     max-width: 52rem;
   }

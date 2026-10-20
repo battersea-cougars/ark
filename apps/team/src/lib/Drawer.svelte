@@ -1,11 +1,15 @@
 <script lang="ts">
   // A side drawer for a quick job on top of the page (the register): it slides in from the right and leaves the
-  // page visible beside it on desktop. Phones get it full width. Escape, the close button or the scrim close it.
+  // page visible beside it on desktop. Escape, the close button or the scrim close it. On a phone it's the one
+  // overlay every job uses there (ADR 0103): lib/Sheet, tall, as it opens; kept that way while it's open.
   import type { Snippet } from "svelte";
   import { fade, fly } from "svelte/transition";
   import { easeOut, fadeMs } from "../app/motion";
   import Icon from "../app/shell/Icon.svelte";
   import { portal } from "./portal";
+  import Sheet from "./Sheet.svelte";
+  import { drawnAsSheet } from "./sheet";
+  import { phone } from "./viewport.svelte";
 
   let {
     open = $bindable(false),
@@ -30,7 +34,13 @@
     wide?: boolean;
   } = $props();
 
+  // What it was when it last opened: kept while it's open (lib/sheet.ts)
+  let wasSheet = phone.current;
+  const asSheet = $derived.by(() => (wasSheet = drawnAsSheet(open, wasSheet, phone.current)));
+
   function onkeydown(e: KeyboardEvent) {
+    // The sheet is a native dialog: its Escape closes the top layer only
+    if (asSheet) return;
     // A pop-over's own Escape (DateField, Select) closes just the pop-over
     if (open && e.key === "Escape" && !e.defaultPrevented) open = false;
   }
@@ -38,35 +48,39 @@
 
 <svelte:window {onkeydown} />
 
-<!-- In <body>, so the scrim covers the dock and the desktop corners too (lib/portal.ts) -->
-<div class="layer" use:portal>
-  {#if open}
-    <button class="scrim" aria-label="Close" onclick={() => (open = false)} transition:fade={{ duration: fadeMs }}
-    ></button>
-    <div
-      class="drawer"
-      class:wide
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      transition:fly={{ x: 420, duration: 320, easing: easeOut, opacity: 1 }}
-    >
-      <header>
-        <div class="titles">
-          <h2>{title}</h2>
-          {#if sub}<p class="hint">{sub}</p>{/if}
-        </div>
-        {@render head?.()}
-        <button class="btn ghost icon close-x" aria-label="Close" onclick={() => (open = false)}>
-          <Icon name="x" size={18} />
-        </button>
-      </header>
-      {#if top}<div class="top">{@render top()}</div>{/if}
-      <div class="body">{@render children()}</div>
-      {#if footer}<footer>{@render footer()}</footer>{/if}
-    </div>
-  {/if}
-</div>
+{#if asSheet}
+  <Sheet bind:open {title} {sub} {head} {top} {footer} tall lazy>{@render children()}</Sheet>
+{:else}
+  <!-- In <body>, so the scrim covers the dock and the desktop corners too (lib/portal.ts) -->
+  <div class="layer" use:portal>
+    {#if open}
+      <button class="scrim" aria-label="Close" onclick={() => (open = false)} transition:fade={{ duration: fadeMs }}
+      ></button>
+      <div
+        class="drawer"
+        class:wide
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        transition:fly={{ x: 420, duration: 320, easing: easeOut, opacity: 1 }}
+      >
+        <header>
+          <div class="titles">
+            <h2>{title}</h2>
+            {#if sub}<p class="hint">{sub}</p>{/if}
+          </div>
+          {@render head?.()}
+          <button class="btn ghost icon close-x" aria-label="Close" onclick={() => (open = false)}>
+            <Icon name="x" size={18} />
+          </button>
+        </header>
+        {#if top}<div class="top">{@render top()}</div>{/if}
+        <div class="body">{@render children()}</div>
+        {#if footer}<footer>{@render footer()}</footer>{/if}
+      </div>
+    {/if}
+  </div>
+{/if}
 
 <style>
   .layer {
@@ -134,6 +148,7 @@
   .drawer.wide {
     width: min(36rem, 100vw);
   }
+  /* Opened on a desktop, then narrowed past the phone breakpoint: full width until it closes */
   @media (max-width: 900px) {
     .drawer,
     .drawer.wide {

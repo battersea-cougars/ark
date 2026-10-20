@@ -70,15 +70,15 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 ## Team app: how it works
 
-| #                                            | Decision                                                                                                           |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [0057](0057-team-app-loading-and-changes.md) | Team app pages load when opened, the club is read in one statement, and a change replies with the parts it touched |
-| [0072](0072-live-updates.md)                 | Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback               |
-| [0065](0065-page-frame-and-admin-actions.md) | One page frame; admin actions live on the thing's own page, not under Settings                                     |
-| [0084](0084-sticker-colour-scheme.md)        | The Sticker colour scheme: one yellow main button, red for the brand, tokens for everything                        |
-| [0103](0103-drawers-sheets-and-panels.md)    | A side drawer for working beside the page, a sheet for a short job, a panel for a whole editor (proposed)          |
-| [0104](0104-app-versions-and-updates.md)     | A version and a build id; when a newer build answers, the app offers a reload, never forces one                    |
-| [0105](0105-code-grouped-by-feature.md)      | Code is grouped by feature; entry points read like a table of contents; files are `{domain}.{kind}.ts`             |
+| #                                            | Decision                                                                                                             |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [0057](0057-team-app-loading-and-changes.md) | Team app pages load when opened, the club is read in one statement, and a change replies with the parts it touched   |
+| [0072](0072-live-updates.md)                 | Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback                 |
+| [0065](0065-page-frame-and-admin-actions.md) | One page frame; admin actions live on the thing's own page, not under Settings                                       |
+| [0084](0084-sticker-colour-scheme.md)        | The Sticker colour scheme: one yellow main button, red for the brand, tokens for everything                          |
+| [0103](0103-drawers-sheets-and-panels.md)    | A side drawer for working beside the page, a sheet for a short job, a panel for a whole editor; one sheet on a phone |
+| [0104](0104-app-versions-and-updates.md)     | A version and a build id; when a newer build answers, the app offers a reload, never forces one                      |
+| [0105](0105-code-grouped-by-feature.md)      | Code is grouped by feature; entry points read like a table of contents; files are `{domain}.{kind}.ts`               |
 
 ## Team app: the club
 
