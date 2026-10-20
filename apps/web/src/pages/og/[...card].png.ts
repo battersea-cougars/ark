@@ -23,7 +23,7 @@ export const getStaticPaths = (async () => {
     }),
     events: { title: "Events", osd: "What's on", footer: since },
     videos: { title: "Videos", osd: "Footage", footer: since },
-    photos: { title: "Photos", osd: "The evidence", footer: since },
+    photos: { title: "Gallery", osd: "The evidence", footer: since },
     ...(on.team && { team: { title: "The team", osd: s.team.league ?? undefined, footer: since } }),
   };
   for (const e of await getEventPages()) {

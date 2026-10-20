@@ -17,7 +17,7 @@ const links = [
   { section: "kumite", label: "Kumite", time: "--:--", page: "/kumite/" },
   { section: "events", label: "What's on", time: "", page: "/events/" },
   { section: "videos", label: "Videos", time: "", page: "/videos/" },
-  { section: "photos", label: "Photos", time: "", page: "/photos/" },
+  { section: "photos", label: "Gallery", time: "", page: "/photos/" },
 ]
   .filter((l) => (l.section === "team" || l.section === "kumite" ? sections[l.section] : true))
   .map((l) => ({ ...l, href: home ? `#${l.section}` : `/#${l.section}` }));
