@@ -3,7 +3,9 @@
 // Driven through the real handlers in the fake world (ADR 0031); with no Firebase, each notification is caught in the
 // fake world's push outbox, one per phone, the way FCM would deliver it.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { testWorld } from "../testing";
+import { captureLogs } from "@cougars/shared/testing/scribe";
+import { minutes, testWorld } from "../testing";
+import { PUSH_TRIES, SEND_AT_ONCE } from "./push";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -36,6 +38,7 @@ async function phone(email: string, token = `token-${email}`) {
   return b;
 }
 const sentTo = () => w.pushes.map((p) => p.token);
+const ANNOUNCEMENT = { title: "Pub after", body: "The Fox.", link: "", endsOn: "2026-10-24" };
 
 describe("a member's phone", () => {
   it("registers for notifications after sign-in, and signing out forgets it", async () => {
@@ -154,104 +157,178 @@ describe("what the club tells them", () => {
     expect(sentTo().sort()).toEqual(["token-alt@example.com", "token-dana@example.com", "token-reg@example.com"]);
     expect(w.pushes[0]).toMatchObject({ title: "No training on the 24th", body: "The hall's booked.", path: "/" });
   });
-
-  it("costs the request one round trip to read the phones, however many there are", async () => {
-    await phone("reg@example.com");
-    await phone("alt@example.com");
-    const dana = await w.signedIn("dana@example.com");
-    const before = w.db.roundTrips;
-    await dana.call("POST", "/api/announcements", {
-      title: "Pub after",
-      body: "The Fox.",
-      link: "",
-      endsOn: "2026-10-24",
-    });
-    const withPhones = w.db.roundTrips - before;
-
-    w = testWorld(ROSTER);
-    const alone = await w.signedIn("dana@example.com");
-    const start = w.db.roundTrips;
-    await alone.call("POST", "/api/announcements", {
-      title: "Pub after",
-      body: "The Fox.",
-      link: "",
-      endsOn: "2026-10-24",
-    });
-    expect(withPhones).toBe(w.db.roundTrips - start);
-  });
 });
 
 describe("through Firebase", () => {
   it("sends each phone its notification, and forgets a phone Firebase says is gone", async () => {
-    const { privateKey } = (await crypto.subtle.generateKey(
-      { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-      true,
-      ["sign", "verify"],
-    )) as CryptoKeyPair;
-    const pkcs8 = btoa(
-      String.fromCharCode(...new Uint8Array((await crypto.subtle.exportKey("pkcs8", privateKey)) as ArrayBuffer)),
-    );
-    w.env.FIREBASE_SERVICE_ACCOUNT = JSON.stringify({
-      project_id: "cougars-test",
-      client_email: "push@cougars-test.iam.gserviceaccount.com",
-      private_key: `-----BEGIN PRIVATE KEY-----\n${pkcs8}\n-----END PRIVATE KEY-----\n`,
-    });
-    const sent: { url: string; body: Record<string, unknown> }[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init: RequestInit) => {
-        if (url === "https://oauth2.googleapis.com/token")
-          return Response.json({ access_token: "access", expires_in: 3600 });
-        const body = JSON.parse(String(init.body));
-        sent.push({ url, body });
-        if (body.message.token === "token-alt@example.com")
-          return Response.json(
-            { error: { status: "NOT_FOUND", details: [{ errorCode: "UNREGISTERED" }] } },
-            { status: 404 },
-          );
-        return Response.json({ name: "projects/cougars-test/messages/1" });
-      }),
-    );
+    const fcm = await w.firebase();
+    fcm.answers.set("token-alt@example.com", "gone");
     await phone("reg@example.com");
     await phone("alt@example.com");
     const dana = await w.signedIn("dana@example.com");
 
-    await dana.call("POST", "/api/announcements", {
-      title: "Pub after",
-      body: "The Fox.",
-      link: "",
-      endsOn: "2026-10-24",
-    });
-    expect(sent.map((s) => s.url)).toEqual([
-      "https://fcm.googleapis.com/v1/projects/cougars-test/messages:send",
-      "https://fcm.googleapis.com/v1/projects/cougars-test/messages:send",
-    ]);
-    expect(sent[0].body.message).toMatchObject({
-      notification: { title: "Pub after", body: "The Fox." },
-      data: { path: "/" },
-    });
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+    expect(fcm.asked.map((a) => a.token).sort()).toEqual(["token-alt@example.com", "token-reg@example.com"]);
+    expect(fcm.asked[0]).toMatchObject({ title: "Pub after", body: "The Fox.", path: "/" });
 
-    sent.length = 0;
-    await dana.call("POST", "/api/announcements", {
-      title: "Again",
-      body: "Still the Fox.",
-      link: "",
-      endsOn: "2026-10-24",
-    });
-    expect(sent.map((s) => (s.body.message as { token: string }).token)).toEqual(["token-reg@example.com"]);
+    fcm.asked.length = 0;
+    await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, title: "Again" });
+    expect(fcm.asked.map((a) => a.token)).toEqual(["token-reg@example.com"]);
   });
 
   it("a notification that can't be sent never fails the change", async () => {
     w.env.FIREBASE_SERVICE_ACCOUNT = "not json";
     await phone("reg@example.com");
     const dana = await w.signedIn("dana@example.com");
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const r = await dana.call("POST", "/api/announcements", {
-      title: "Pub",
-      body: "The Fox.",
-      link: "",
-      endsOn: "2026-10-24",
-    });
+    captureLogs();
+    const r = await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
     expect(r.status).toBe(201);
+  });
+});
+
+// Workers Free allows 50 subrequests (fetches) an invocation, and FCM takes one request per phone: a club-wide send
+// goes out SEND_AT_ONCE at a time, the first right after the change, the rest from the push outbox on the cron.
+describe("a club-wide send, within the free plan", () => {
+  const club = (size: number) => [
+    ...ROSTER,
+    ...Array.from({ length: size }, (_, i) => ({
+      name: `Member ${i + 1}`,
+      position: "F",
+      rating: 50,
+      email: `m${i + 1}@example.com`,
+    })),
+  ];
+  /** A club of `phones` members, each with the app on a phone; Dana's is one of them. */
+  async function clubWithPhones(phones: number) {
+    w = testWorld(club(phones - ROSTER.length));
+    const fcm = await w.firebase();
+    const dana = await phone("dana@example.com");
+    await phone("reg@example.com");
+    await phone("alt@example.com");
+    for (let i = 1; i <= phones - ROSTER.length; i++) await phone(`m${i}@example.com`);
+    fcm.invocations.length = 0;
+    return { dana, fcm };
+  }
+  const tokens = (fcm: { asked: { token: string }[] }) => fcm.asked.map((a) => a.token);
+  const waiting = () =>
+    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+
+  it("an announcement to 120 phones reaches each exactly once, never more than SEND_AT_ONCE in one invocation", async () => {
+    const { dana, fcm } = await clubWithPhones(120);
+
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+    expect(fcm.asked).toHaveLength(SEND_AT_ONCE);
+
+    // The five-minute cron sends the rest, a batch each run
+    for (let run = 1; run <= 3; run++) await w.cron(minutes(5 * run));
+    expect(fcm.asked).toHaveLength(120);
+    expect(new Set(tokens(fcm)).size).toBe(120);
+    expect(w.pushes.every((p) => p.title === "Pub after")).toBe(true);
+    // Nothing left: the next runs send nothing
+    await w.cron(minutes(20));
+    await w.cron(minutes(60));
+    expect(fcm.asked).toHaveLength(120);
+    expect(waiting()).toBe(0);
+    // One access token and SEND_AT_ONCE sends at most, well under the 50
+    expect(Math.max(...fcm.invocations)).toBeLessThanOrEqual(SEND_AT_ONCE + 1);
+    expect(SEND_AT_ONCE + 1).toBeLessThan(50);
+  });
+
+  it("two drains at once never send a phone twice", async () => {
+    const { dana, fcm } = await clubWithPhones(120);
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+
+    await Promise.all([w.cron(minutes(5)), w.cron(minutes(5))]);
+    expect(fcm.asked).toHaveLength(3 * SEND_AT_ONCE);
+    expect(new Set(tokens(fcm)).size).toBe(3 * SEND_AT_ONCE);
+  });
+
+  it("a phone Firebase says is gone is forgotten, with what was still waiting for it", async () => {
+    const fcm = await w.firebase();
+    await phone("reg@example.com");
+    await phone("alt@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    // Firebase is down for the first announcement: it waits to be tried again
+    fcm.down = true;
+    await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, title: "First" });
+    fcm.down = false;
+    // Alt's phone is gone by the second
+    fcm.answers.set("token-alt@example.com", "gone");
+    await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, title: "Second" }, { now: minutes(1) });
+    fcm.asked.length = 0;
+
+    await w.cron(minutes(10));
+    expect(fcm.asked).toEqual([expect.objectContaining({ token: "token-reg@example.com", title: "First" })]);
+    expect(w.db.raw.prepare("SELECT count(*) n FROM push_devices WHERE token = 'token-alt@example.com'").get()).toEqual(
+      { n: 0 },
+    );
+    expect(waiting()).toBe(0);
+  });
+
+  it("a phone signed out before its turn isn't sent what was waiting", async () => {
+    const fcm = await w.firebase();
+    const reg = await phone("reg@example.com");
+    await phone("alt@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    fcm.down = true;
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+    fcm.down = false;
+    await reg.call("POST", "/api/auth/sign-out");
+    fcm.asked.length = 0;
+
+    await w.cron(minutes(10));
+    expect(tokens(fcm)).toEqual(["token-alt@example.com"]);
+    expect(waiting()).toBe(0);
+  });
+
+  it("a send that fails is tried again later, less often each time, then given up and logged", async () => {
+    const logs = captureLogs();
+    const fcm = await w.firebase();
+    fcm.answers.set("token-reg@example.com", "failed");
+    await phone("reg@example.com");
+    await phone("alt@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+    const triesAtReg = () => tokens(fcm).filter((t) => t === "token-reg@example.com").length;
+    expect(triesAtReg()).toBe(1);
+
+    // Every five minutes for two hours: tried again after 5, 10 and 20 minutes, then given up
+    for (let m = 5; m <= 120; m += 5) await w.cron(minutes(m));
+    expect(triesAtReg()).toBe(PUSH_TRIES);
+    expect(tokens(fcm).filter((t) => t === "token-alt@example.com")).toHaveLength(1);
+    expect(waiting()).toBe(0);
+    expect(logs.messages()).toContain("push.gave_up");
+  });
+
+  it("costs the same round trips to the database for 3 phones as for 120, at once and on the cron", async () => {
+    const tripsFor = async (job: () => Promise<unknown>) => {
+      const before = w.db.roundTrips;
+      await job();
+      return w.db.roundTrips - before;
+    };
+    const small = await clubWithPhones(3);
+    const smallSend = await tripsFor(() => small.dana.call("POST", "/api/announcements", ANNOUNCEMENT));
+    const big = await clubWithPhones(120);
+    const bigSend = await tripsFor(() => big.dana.call("POST", "/api/announcements", ANNOUNCEMENT));
+    expect(bigSend).toBe(smallSend);
+
+    // A drain with a batch to send, whatever is left behind it
+    const drainWithMore = await tripsFor(() => w.cron(minutes(5)));
+    const drainWithLast = await tripsFor(() => w.cron(minutes(10)));
+    expect(drainWithMore).toBe(drainWithLast);
+    expect(drainWithMore).toBeLessThanOrEqual(2);
+  });
+
+  it("without Firebase (your machine), every phone's notification is caught at once and nothing is left waiting", async () => {
+    w = testWorld(club(117));
+    const dana = await phone("dana@example.com");
+    await phone("reg@example.com");
+    await phone("alt@example.com");
+    for (let i = 1; i <= 117; i++) await phone(`m${i}@example.com`);
+
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+    expect(new Set(sentTo()).size).toBe(120);
+    expect(sentTo()).toHaveLength(120);
+    expect(waiting()).toBe(0);
   });
 });

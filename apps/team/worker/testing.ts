@@ -7,7 +7,8 @@ import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { parseRoster, rosterSql } from "../../../scripts/lib/roster.mjs";
 import { handleApi, type Env } from "./api/api";
 import { LiveHub } from "./live/live";
-import { pushOutbox, type Sent } from "./push/push";
+import { vi } from "vitest";
+import { drainPush, pushOutbox, type Sent } from "./push/push";
 
 /** A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. */
 const liveNamespace = (hub: LiveHub) =>
@@ -42,6 +43,92 @@ export function testWorld(roster: object[]) {
   const pushes: Sent[] = [];
   pushOutbox.capture = (p) => void pushes.push(p);
 
+  // Firebase Cloud Messaging, once a test turns it on (firebase()): what it was asked, and fetches per invocation
+  let fcm: Awaited<ReturnType<typeof firebase>> | null = null;
+  /** Run one Worker invocation, counting the fetches it makes (the free plan allows 50, ADR 0108). */
+  async function invocation<T>(run: () => Promise<T>): Promise<T> {
+    if (!fcm) return run();
+    const start = fcm.fetches;
+    try {
+      return await run();
+    } finally {
+      fcm.invocations.push(fcm.fetches - start);
+    }
+  }
+
+  /**
+   * Firebase on: a service account with a fresh key and project (so fcm.ts's cached access token never carries
+   * over), Google's token endpoint, and FCM's send. Each phone's answer is "sent" unless the test says "gone" or
+   * "failed" (`answers`, or `down` for every phone); a delivered one lands in `pushes` like an uncaught one. Any other
+   * fetch throws with its URL.
+   */
+  async function firebase() {
+    const { privateKey } = (await crypto.subtle.generateKey(
+      { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const pkcs8 = btoa(
+      String.fromCharCode(...new Uint8Array((await crypto.subtle.exportKey("pkcs8", privateKey)) as ArrayBuffer)),
+    );
+    const project = `cougars-test-${crypto.randomUUID().slice(0, 8)}`;
+    env.FIREBASE_SERVICE_ACCOUNT = JSON.stringify({
+      project_id: project,
+      client_email: `push@${project}.iam.gserviceaccount.com`,
+      private_key: `-----BEGIN PRIVATE KEY-----\n${pkcs8}\n-----END PRIVATE KEY-----\n`,
+    });
+    const sendUrl = `https://fcm.googleapis.com/v1/projects/${project}/messages:send`;
+    const world = {
+      sendUrl,
+      /** Every send FCM was asked for, in order, whatever it answered. */
+      asked: [] as { token: string; title: string; body: string; path: string }[],
+      answers: new Map<string, "gone" | "failed">(),
+      down: false,
+      fetches: 0,
+      /** Fetches made by each invocation (a request, or a cron run) since Firebase was turned on. */
+      invocations: [] as number[],
+    };
+    const memberOf = (token: string) =>
+      (
+        db.raw
+          .prepare(
+            "SELECT s.member_id m FROM push_devices d JOIN auth_sessions s ON s.id = d.session_id WHERE token = ?",
+          )
+          .get(token) as { m: number } | undefined
+      )?.m ?? 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        world.fetches++;
+        if (url === "https://oauth2.googleapis.com/token")
+          return Response.json({ access_token: "access", expires_in: 3600 });
+        if (url !== sendUrl) throw new Error(`The fake world doesn't know ${url}`);
+        const { message } = JSON.parse(String(init.body));
+        const sent = {
+          token: message.token,
+          title: message.notification.title,
+          body: message.notification.body,
+          path: message.data.path,
+        };
+        world.asked.push(sent);
+        const answer = world.down ? "failed" : world.answers.get(sent.token);
+        if (answer === "gone")
+          return Response.json(
+            { error: { status: "NOT_FOUND", details: [{ errorCode: "UNREGISTERED" }] } },
+            { status: 404 },
+          );
+        if (answer === "failed") return Response.json({ error: { status: "UNAVAILABLE" } }, { status: 503 });
+        pushes.push({ ...sent, memberId: memberOf(sent.token) });
+        return Response.json({ name: `projects/${project}/messages/${world.asked.length}` });
+      }),
+    );
+    fcm = world;
+    return world;
+  }
+
+  /** The cron triggers' notification drain (index.ts `scheduled`, every five minutes and hourly), at this time. */
+  const cron = (now: Date) => invocation(() => drainPush(env, now));
+
   interface Options {
     now?: Date;
     /** Extra headers; `null` leaves one out (a change with no Origin). */
@@ -66,14 +153,16 @@ export function testWorld(roster: object[]) {
         ...(method === "GET" || method === "HEAD" ? {} : { origin: new URL(host).origin }),
         ...headers,
       };
-      const res = await handleApi(
-        new Request(`${host}${path}`, {
-          method,
-          headers: Object.entries(sent).filter((e): e is [string, string] => e[1] !== null),
-          body: payload === undefined ? undefined : JSON.stringify(payload),
-        }),
-        env,
-        now,
+      const res = await invocation(() =>
+        handleApi(
+          new Request(`${host}${path}`, {
+            method,
+            headers: Object.entries(sent).filter((e): e is [string, string] => e[1] !== null),
+            body: payload === undefined ? undefined : JSON.stringify(payload),
+          }),
+          env,
+          now,
+        ),
       );
       for (const c of res.headers.getSetCookie()) {
         const [pair, ...attrs] = c.split("; ");
@@ -140,5 +229,5 @@ export function testWorld(roster: object[]) {
     return { ...b, next, close: () => reader.cancel() };
   }
 
-  return { db, env, live, browser, ask, signedIn, listening, mails, pushes };
+  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, cron };
 }

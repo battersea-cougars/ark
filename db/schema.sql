@@ -430,6 +430,33 @@ CREATE TABLE push_devices (
 
 CREATE INDEX push_devices_session ON push_devices (session_id);
 
+-- Notifications on their way (ADR 0108): one row per notice per phone, so a club-wide send can go out a batch at a
+-- time within the free plan's 50 fetches an invocation (worker/push/push.ts). A row is claimed before it's sent, so
+-- two drains at once never send it twice; a claim older than ten minutes was a drain that died, and is taken again.
+-- A failed send is tried again later (due_at), a few times; a phone that's forgotten takes its rows with it. Sent
+-- rows are kept a week, then pruned.
+CREATE TABLE push_outbox (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  token TEXT NOT NULL REFERENCES push_devices (token) ON DELETE CASCADE,
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  path TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  -- When it may be sent: at once, then later after each failed try
+  due_at TEXT NOT NULL,
+  tries INTEGER NOT NULL DEFAULT 0,
+  claim TEXT,
+  claimed_at TEXT,
+  sent_at TEXT
+);
+
+CREATE INDEX push_outbox_waiting ON push_outbox (sent_at, due_at);
+
+CREATE INDEX push_outbox_token ON push_outbox (token);
+
+CREATE INDEX push_outbox_created ON push_outbox (created_at);
+
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL,

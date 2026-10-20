@@ -6,6 +6,7 @@ import { chargeDue } from "./dues/dues";
 import { forgetOld } from "./settings/retention";
 import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
+import { drainPush } from "./push/push";
 import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
 import { flushSanityRequests, hasPendingSanityRequests } from "@cougars/shared/sanity-requests";
@@ -71,6 +72,8 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
   },
   async scheduled(controller: ScheduledController, env: Env) {
     const now = new Date(controller.scheduledTime);
+    // Every run, five-minutely and hourly: the next batch of notifications a club-wide send left waiting (ADR 0108)
+    await task("push.drain", () => drainPush(env, now));
     // Every five minutes (wrangler.jsonc triggers): a wanted website rebuild, once it's quiet (ADR 0100)
     if (controller.cron === "*/5 * * * *") await task("website.rebuild", () => rebuildWebsite(env, now));
     // Hourly: charge what a new day or quarter makes due (ADR 0007), warn the admins before the free allowance runs

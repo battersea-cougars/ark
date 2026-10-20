@@ -46,6 +46,16 @@ Three things shape it:
   signing out, or the session running out, stops its notifications, with nothing more for the app to do; a token
   Firebase says is gone is forgotten. The phone registers at `PUT /api/auth/device`, beside sign-in and sign-out,
   not as a change to the club (no data version bump).
+- **Sending within the free plan.** Workers Free allows 50 subrequests (fetches) an invocation and FCM takes one
+  request per phone, so a send to every phone can't go out at once. Each notification is a row in `push_outbox` (one
+  per notice per phone), written in one statement with the first batch claimed in the same round trip. A batch is at
+  most `SEND_AT_ONCE` (40) phones: with Google's access token, the live hub and a Sentry report that leaves about ten
+  fetches to spare. The first batch goes right after the reply; the rest go a batch per cron run (`push.drain`, every
+  five minutes and hourly), so 200 phones are told within about 20 minutes. Rows are claimed before sending (one
+  `UPDATE … RETURNING`), so two sends at once never send a phone twice, and what became of a batch is one round trip
+  after it. A failed send is tried again after 5, 10 and 20 minutes, then given up and logged (`push.gave_up`); what
+  was waiting for a phone that's gone or signed out isn't sent; sent rows are pruned after a week. Without
+  `FIREBASE_SERVICE_ACCOUNT` (your machine, tests) every row is caught or logged at once and nothing waits.
 - **App Review signs in** with one member's email that takes a fixed code (`APP_REVIEW_EMAIL`/`APP_REVIEW_CODE`,
   production only): reviewers can't read our email. The nonce, tries and limits still apply
   ([0023](0023-sign-in-and-sessions.md)). Members already delete their own account in the app (Apple's 5.1.1(v)).
@@ -76,3 +86,5 @@ Three things shape it:
 
 - 2026-10-11: The store app: a Capacitor shell loading the live team app, notifications through Firebase, links
   opening the app, App Review's sign-in, TestFlight builds from Actions; iOS first, Android ready (#26).
+- 2026-10-20: Sending within the free plan: a push outbox sent 40 phones at a time, the rest by the cron, claimed
+  before sending, retried with backoff (Workers Free's 50 subrequests an invocation).
