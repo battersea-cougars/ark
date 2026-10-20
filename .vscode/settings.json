@@ -1,8 +1,11 @@
 {
   "window.title": "Cougars${separator}${dirty}${activeEditorShort}",
-  // Agents' worktrees (ADR 0115) change files all the time: VS Code, its search and the Vitest extension leave them
-  // alone, so the extension doesn't restart its test server on every change in another checkout
+  // Agents' worktrees (ADR 0115) change files all the time: VS Code and its search leave them alone
   "files.watcherExclude": { "**/.worktrees/**": true },
   "search.exclude": { "**/.worktrees/**": true },
+  // One test config: the Vitest extension otherwise takes apps/team/vite.config.ts (the team app's dev server, with
+  // the Cloudflare plugin) for a second test project, and fails to start ("already a server associated with the config")
+  "vitest.rootConfig": "vitest.config.ts",
+  "vitest.configSearchPatternInclude": "vitest.config.ts",
   "vitest.configSearchPatternExclude": "{**/node_modules/**,**/.worktrees/**,**/.*/**,*.d.ts}"
 }
