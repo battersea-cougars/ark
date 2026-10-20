@@ -22,15 +22,32 @@
   import DateField from "../lib/DateField.svelte";
   import { dismissAnnouncement, postAnnouncement, removeAnnouncement } from "../app/backend.svelte";
   import { askToNotify, mayAskToNotify } from "../app/native";
+  import { slide } from "svelte/transition";
 
   // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
   $effect(() => checkForUpdates(["sessions", "tournaments"], { steady: true }));
 
   const perms = $derived(granted());
 
-  // Announcements (#85): an admin's note at the top, until its last day or until you dismiss it. Whoever may post
+  // Announcements (#85): an admin's note at the top, until its last day or until you say "Got it". Whoever may post
   // writes one in a sheet over Home (ADR 0065), and can take one down from its card
   const poster = $derived(can(perms, "post:Announcement"));
+  // "Got it": the button says so (a tick), then the note folds away, the page below closing up smoothly behind it
+  let got = $state<Record<number, boolean>>({});
+  function gotIt(id: number) {
+    if (got[id]) return;
+    got[id] = true;
+    // Didn't reach the club: it's back (the club's read again), and so is the button
+    setTimeout(
+      () => dismissAnnouncement(id).then((r) => r === null && (got[id] = false)),
+      prefersReducedMotion ? 0 : 650,
+    );
+  }
+  // Past announcements stay a tap away once there have been some here, even after you've got the last one
+  let hadNotes = $state(false);
+  $effect(() => {
+    if (db.announcements.length) hadNotes = true;
+  });
   let announcing = $state(false);
   const inAWeek = () => new Date(Date.parse(`${londonToday()}T12:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
   let note = $state({ title: "", body: "", link: "", endsOn: inAWeek() });
@@ -368,26 +385,34 @@
   </header>
 
   <!-- Announcements: the club's word, before anything else, until it ends or you're done with it -->
-  {#if db.announcements.length}
+  {#if db.announcements.length || hadNotes}
     <section class="notes" aria-label="Announcements">
       {#each db.announcements as a (a.id)}
-        <article class="note rise">
-          <Icon name="megaphone" size={18} />
-          <div class="grow">
-            <h2 class="note-title">{a.title}</h2>
-            {#if a.body}<p class="note-body">{a.body}</p>{/if}
-            {#if a.link || poster}
-              <div class="note-links">
-                {#if a.link}<a href={a.link} target="_blank" rel="noopener noreferrer">Read more</a>{/if}
-                {#if poster}<button class="link" onclick={() => removeAnnouncement(a.id)}>Take down</button>{/if}
-              </div>
-            {/if}
+        <article class="note rise" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
+          <div class="note-main">
+            <Icon name="megaphone" size={18} />
+            <div class="grow">
+              <h2 class="note-title">{a.title}</h2>
+              {#if a.body}<p class="note-body">{a.body}</p>{/if}
+            </div>
           </div>
-          <button class="icon-btn" aria-label="Dismiss: {a.title}" onclick={() => dismissAnnouncement(a.id)}
-            ><Icon name="x" size={16} /></button
-          >
+          <div class="note-foot">
+            <div class="note-links">
+              {#if a.link}<a href={a.link} target="_blank" rel="noopener noreferrer">Read more</a>{/if}
+              {#if poster}<button class="link" onclick={() => removeAnnouncement(a.id)}>Take down</button>{/if}
+            </div>
+            <button
+              class="btn primary got-it"
+              class:done={got[a.id]}
+              aria-label="Got it: {a.title}"
+              aria-pressed={!!got[a.id]}
+              onclick={() => gotIt(a.id)}
+              >{#if got[a.id]}<Icon name="check" size={18} />{/if}Got it</button
+            >
+          </div>
         </article>
       {/each}
+      <a class="past" href="/more/announcements">Past announcements<Icon name="chevronRight" size={16} /></a>
     </section>
   {/if}
 
@@ -479,7 +504,7 @@
   <!-- Everything after the lead session, in date order: other trainings, then tournaments as they come -->
   <Sheet bind:open={announcing} title="Post an announcement">
     <form class="form" onsubmit={announce}>
-      <p class="hint">At the top of everyone's Home until its last day, or until they dismiss it. Two at a time.</p>
+      <p class="hint">At the top of everyone's Home until its last day, or until they say Got it. Two at a time.</p>
       <label class="field"
         >Title <input
           class="input"
@@ -564,21 +589,31 @@
   .announce-btn {
     justify-self: start;
   }
-  /* An announcement: the club's word, on glass like the tables (ADR 0065), its icon in the brand's red */
+  /* An announcement: the club's word, on glass like the tables (ADR 0065), its icon in the brand's red. Each keeps
+     its own space below it (not the section's gap), so one folding away takes its space with it: nothing jumps */
+  .notes {
+    gap: 0;
+  }
   .note {
-    display: flex;
-    align-items: flex-start;
+    display: grid;
     gap: var(--s-3);
+    margin-bottom: var(--s-3);
     padding: var(--s-4);
     background: var(--glass);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
+    overflow: hidden;
   }
-  .note > .grow {
+  .note-main {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-3);
+  }
+  .note-main > .grow {
     flex: 1;
     min-width: 0;
   }
-  .note > :global(svg) {
+  .note-main > :global(svg) {
     flex-shrink: 0;
     margin-top: 0.15rem;
     color: var(--red-hot);
@@ -594,11 +629,26 @@
     color: var(--fg-body);
     line-height: 1.45;
   }
+  /* The links on the left, "Got it" on the right: under a thumb on a phone */
+  .note-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+  /* A desktop has the room: "Got it" sits beside what it says, not under it */
+  @media (min-width: 901px) {
+    .note {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--s-5);
+    }
+  }
   .note-links {
     display: flex;
     align-items: center;
     gap: var(--s-4);
-    margin-top: var(--s-2);
+    min-width: 0;
     font-size: var(--text-sm);
   }
   .note-links a {
@@ -606,21 +656,27 @@
     text-decoration: underline;
     text-underline-offset: 3px;
   }
-  .icon-btn {
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    width: 2rem;
-    height: 2rem;
-    margin: calc(var(--s-1) * -1) calc(var(--s-1) * -1) 0 0;
-    border: 0;
-    border-radius: var(--r-md);
-    background: none;
-    color: var(--fg-muted);
-    cursor: pointer;
+  /* The one main button on the note: wide enough for its tick, so saying it doesn't move a thing */
+  .got-it {
+    min-width: 7.5rem;
   }
-  .icon-btn:hover {
-    background: var(--row-hover);
+  /* Got: the fill gives way to a tick in green, the words stay */
+  .got-it.done,
+  .got-it.done:hover {
+    background: transparent;
+    color: var(--green-ink);
+    cursor: default;
+  }
+  .past {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    justify-self: start;
+    min-height: var(--control-h-sm);
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .past:hover {
     color: var(--fg);
   }
   /* Bigger breaks between blocks than within them */

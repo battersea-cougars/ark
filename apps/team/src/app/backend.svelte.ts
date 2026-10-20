@@ -229,7 +229,7 @@ export const attendanceOf = (memberId: number, year?: string) =>
 export const saveSettings = (settings: { liveRefreshSeconds: number }) =>
   save(() => api("PUT", "/api/settings", settings));
 
-/** Home's announcements (#85): post one, take one down, or dismiss one for yourself. */
+/** Home's announcements (#85): post one, take one down, or say "Got it" to one (for yourself). */
 export const postAnnouncement = (a: { title: string; body: string; link: string; endsOn: string }) =>
   save(() => api<{ id: number }>("POST", "/api/announcements", a), "Posted");
 export const removeAnnouncement = (id: number) => save(() => api("DELETE", `/api/announcements/${id}`), "Taken down");
@@ -237,6 +237,23 @@ export const dismissAnnouncement = (id: number) => {
   db.announcements = db.announcements.filter((a) => a.id !== id);
   return save(() => api("POST", `/api/announcements/${id}/dismiss`), "");
 };
+/** One announcement, looking back (worker/announcements pastAnnouncements). */
+export interface PastAnnouncement {
+  id: number;
+  title: string;
+  body: string;
+  link: string | null;
+  endsOn: string;
+  createdAt: string;
+  by: string | null;
+  gotIt: boolean;
+}
+/** Every announcement, newest first, a page at a time: `before` is the last one you have. */
+export const pastAnnouncements = (before?: number) =>
+  api<{ announcements: PastAnnouncement[]; more: boolean }>(
+    "GET",
+    before ? `/api/announcements?before=${before}` : "/api/announcements",
+  );
 
 /** Home's quips. */
 export const addQuip = (kind: QuipKind, text: string) =>

@@ -22,6 +22,7 @@ const LOADERS: Record<string, () => Promise<{ default: Page }>> = {
   game: () => import("../pages/Game.svelte"),
   matchup: () => import("../pages/Matchup.svelte"),
   teammates: () => import("../pages/Teammates.svelte"),
+  announcements: () => import("../pages/Announcements.svelte"),
   members: () => import("../pages/Members.svelte"),
   upload: () => import("../pages/Upload.svelte"),
   more: () => import("../pages/More.svelte"),

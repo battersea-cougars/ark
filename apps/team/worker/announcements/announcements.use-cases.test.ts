@@ -1,7 +1,8 @@
 // Announcements (#85): an admin tells everyone something ("No training on the 24th, the hall's booked") where they'll
 // see it, the top of Home. It shows until its last day or until each member dismisses it; one or two at a time,
-// newest first, not a feed. Posting and taking one down are on the record. Driven through the real Worker handlers in
-// the fake world (ADR 0031).
+// newest first, not a feed. A member says "Got it" to be done with one; every member can look back over all of them,
+// with whether they got each. Posting and taking one down are on the record. Driven through the real Worker handlers
+// in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 
@@ -77,5 +78,47 @@ describe("announcements", () => {
     expect((await dana.call("POST", "/api/announcements", { ...HALL, title: " " })).status).toBe(400);
     expect((await dana.call("POST", "/api/announcements", { ...HALL, endsOn: "2026-10-01" })).status).toBe(400);
     expect((await dana.call("POST", "/api/announcements", { ...HALL, link: "javascript:alert(1)" })).status).toBe(400);
+  });
+
+  it("a member looks back over every announcement, newest first: who posted it, when it ran, whether they got it", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const kit = { ...HALL, title: "Kit orders close Friday", endsOn: "2026-10-03" };
+    const old = (await dana.call("POST", "/api/announcements", kit, { now: on("2026-10-01") })).body.id;
+    for (const title of ["First", "Second", "Third"])
+      await dana.call("POST", "/api/announcements", { ...HALL, title }, { now: new Date() });
+    const reg = await w.signedIn("reg@example.com");
+    const third = ((await reg.call("GET", "/api/bootstrap")).body.announcements as Json[])[0].id;
+    await reg.call("POST", `/api/announcements/${third}/dismiss`);
+
+    const r = await reg.call("GET", "/api/announcements");
+    expect(r.status).toBe(200);
+    // All of them, past the two on Home and the one that's ended
+    expect(r.body.announcements.map((a: Json) => a.title)).toEqual(["Third", "Second", "First", kit.title]);
+    expect(r.body.more).toBe(false);
+    expect(r.body.announcements[0]).toEqual(
+      expect.objectContaining({ title: "Third", body: HALL.body, endsOn: HALL.endsOn, by: "Dana Admin", gotIt: true }),
+    );
+    expect(r.body.announcements[0].createdAt).toEqual(expect.any(String));
+    expect(r.body.announcements.slice(1).map((a: Json) => a.gotIt)).toEqual([false, false, false]);
+    expect(r.body.announcements.find((a: Json) => a.id === old).endsOn).toBe("2026-10-03");
+    // Whether they got it is theirs: Mo hasn't
+    const mo = await w.signedIn("mo@example.com");
+    expect((await mo.call("GET", "/api/announcements")).body.announcements[0].gotIt).toBe(false);
+  });
+
+  it("a long history comes a page at a time; one taken down isn't in it", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const ids: number[] = [];
+    for (const title of ["One", "Two", "Three", "Four"])
+      ids.push((await dana.call("POST", "/api/announcements", { ...HALL, title }, { now: new Date() })).body.id);
+    await dana.call("DELETE", `/api/announcements/${ids[1]}`);
+    const reg = await w.signedIn("reg@example.com");
+    const first = (await reg.call("GET", "/api/announcements?limit=2")).body;
+    expect(first.announcements.map((a: Json) => a.title)).toEqual(["Four", "Three"]);
+    expect(first.more).toBe(true);
+    const rest = (await reg.call("GET", `/api/announcements?limit=2&before=${first.announcements[1].id}`)).body;
+    expect(rest.announcements.map((a: Json) => a.title)).toEqual(["One"]);
+    expect(rest.more).toBe(false);
+    expect((await reg.call("GET", "/api/announcements?before=x")).status).toBe(400);
   });
 });

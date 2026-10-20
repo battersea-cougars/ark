@@ -1,11 +1,37 @@
-// Announcements (#85): posting and taking one down (on the record), and a member dismissing one for themselves.
+// Announcements (#85): posting and taking one down (on the record), a member getting one ("Got it", for themselves),
+// and looking back over all of them.
 import { id, ok, type Route } from "../api/api.route";
-import { json } from "../api/api.http";
-import { body } from "../api/api.http";
-import { announcementSummary, dismissAnnouncement, postAnnouncement, removeAnnouncement } from "./announcements";
+import { HttpError, body, json } from "../api/api.http";
+import {
+  announcementSummary,
+  dismissAnnouncement,
+  PAST_PAGE,
+  pastAnnouncements,
+  postAnnouncement,
+  removeAnnouncement,
+} from "./announcements";
 import { announced } from "../push/push.notices";
 
 export const ANNOUNCEMENTS_ROUTES: Route[] = [
+  {
+    method: "GET",
+    path: /^\/api\/announcements$/,
+    action: "authenticated",
+    // Every one, newest first, with whether you got it: ?before=<id> for the page after, ?limit= up to 100
+    handle: async (c) => {
+      const q = new URL(c.request.url).searchParams;
+      const before = q.get("before");
+      const limit = q.get("limit");
+      if ((before && !/^\d+$/.test(before)) || (limit && !/^\d+$/.test(limit)))
+        throw new HttpError(400, "before and limit should be whole numbers.");
+      return json(
+        await pastAnnouncements(c.env.DB, c.memberId, {
+          before: before ? Number(before) : null,
+          limit: limit ? Number(limit) : PAST_PAGE,
+        }),
+      );
+    },
+  },
   {
     method: "POST",
     path: /^\/api\/announcements$/,

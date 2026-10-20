@@ -128,6 +128,18 @@ const STATIC_TAIL: Route[] = [
     group: "Club",
     hint: "Everyone who plays",
   },
+  // Every announcement the club has made (#85), newest first, with whether you got each: from Home, and here
+  {
+    id: "announcements",
+    path: "/more/announcements",
+    name: "Announcements",
+    tab: "more",
+    page: "announcements",
+    action: "authenticated",
+    icon: "megaphone",
+    group: "Club",
+    hint: "Everything the club's said, and what you've got",
+  },
   {
     id: "upload",
     unfinished: true,
