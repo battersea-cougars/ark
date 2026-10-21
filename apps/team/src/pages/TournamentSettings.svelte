@@ -68,10 +68,10 @@
         <div class="table-head list-tabs">
           <span>Tournament</span>
           <span>When</span>
-          <span class="wide-only">Where</span>
+          <span class="wide-only where">Where</span>
           <span class="r wide-only">Fee</span>
           <span class="r">In</span>
-          <span class="wide-only">Teams</span>
+          <span class="wide-only teams">Teams</span>
           <span>Stands</span>
           <!-- Find one: a magnifier at the end of the row that widens into the field when you tap it -->
           <div class="finder">
@@ -104,10 +104,10 @@
                   <span class="txt"
                     ><span>{w.day}</span>{#if w.season}<span class="sub">{w.season}</span>{/if}</span
                   >
-                  <span class="wide-only muted">{tournamentPlace(t)?.name ?? "No place yet"}</span>
+                  <span class="wide-only where muted">{tournamentPlace(t)?.name ?? "No place yet"}</span>
                   <span class="r wide-only num">{t.feePence ? pounds(t.feePence) : "Free"}</span>
                   <span class="r num">{signUp(t)}</span>
-                  <span class="wide-only muted">{teams(t)}</span>
+                  <span class="wide-only teams muted">{teams(t)}</span>
                   <span class="stage {stage}">{EDITION_LABEL[stage]}</span>
                   <span class="go"><Icon name="chevronRight" size={18} /></span>
                 </button>
@@ -128,10 +128,22 @@
 <style>
   /* The tournament, when, where, its fee, how many are in, its teams, where it stands, and the chevron's room */
   .hybrid {
-    --cols: minmax(12rem, 1.6fr) minmax(7rem, 1fr) minmax(7rem, 1fr) 4rem 4rem minmax(6rem, 0.8fr) 6rem 18px;
+    /* Every column can give way (minmax 0), so the table never runs past its glass; text ends in an ellipsis */
+    --cols: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) 4rem 5.5rem minmax(0, 0.8fr) 6rem 18px;
   }
   .table-row > span {
     min-width: 0;
+  }
+  /* A breath after the right-aligned In, before the Teams that follow it */
+  .table-head > .teams,
+  .table-row > .teams {
+    padding-left: var(--s-3);
+  }
+  .table-row > .muted,
+  .table-row > .stage {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .name {
     display: flex;
@@ -194,6 +206,16 @@
   .none {
     margin: 0;
     padding: var(--s-4);
+  }
+  /* Narrower desktops: where and the teams go first (they're on the tournament itself), the fee stays */
+  @media (max-width: 1280px) {
+    .hybrid {
+      --cols: minmax(0, 1.6fr) minmax(0, 1fr) 4rem 4.5rem 6rem 18px;
+    }
+    .wide-only.where,
+    .wide-only.teams {
+      display: none;
+    }
   }
   /* A phone: the tournament, when, how many are in, where it stands */
   @media (max-width: 900px) {
