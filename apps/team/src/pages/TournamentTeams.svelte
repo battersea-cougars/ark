@@ -155,4 +155,15 @@
       padding-left: calc(3.5rem + var(--s-4));
     }
   }
+  /* A phone: Your team under the name, so the name keeps the row ("TE…" beside it on an SE): the name holds at least
+     half the row, so the badge can't squeeze in beside it */
+  @media (max-width: 600px) {
+    .grow {
+      min-width: 50%;
+    }
+    .team .badge {
+      order: 1;
+      margin-left: calc(3.5rem + var(--s-4));
+    }
+  }
 </style>

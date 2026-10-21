@@ -129,6 +129,14 @@
     border-radius: var(--r-table);
     background: var(--glass);
   }
+  /* A phone: the box is clear and each game is its own card, so the cards take the page's width and the names
+     their room */
+  @media (max-width: 600px) {
+    .fight .list-box,
+    .fight .group-bar {
+      padding-inline: 0;
+    }
+  }
   @media (min-width: 901px) {
     .list-box {
       padding-inline: var(--s-6);

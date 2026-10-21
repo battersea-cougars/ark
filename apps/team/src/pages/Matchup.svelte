@@ -255,13 +255,18 @@
     justify-items: end;
     text-align: right;
   }
+  /* A name that doesn't fit its side takes a second line ("Team / Charlie" on a phone), never "Team C…" */
   .side-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     max-width: 100%;
     overflow: hidden;
     font-size: clamp(1.4rem, 4vw, 2.2rem);
-    line-height: 1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.05;
+    overflow-wrap: break-word;
+    text-wrap: balance;
   }
   .rec {
     color: var(--fg-muted);
@@ -288,8 +293,10 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
+  /* "7pm · Game 1": one line where there's room, two on a narrow phone, so the names keep theirs */
   .when {
-    white-space: nowrap;
+    text-align: center;
+    text-wrap: balance;
   }
   /* The clock button, centred under the score (a page's direct children take its full width) */
   .clock-row {

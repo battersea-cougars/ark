@@ -389,5 +389,24 @@
       flex-direction: column-reverse;
       align-items: flex-end;
     }
+    /* A name that doesn't fit its side takes a second line ("Team / Charlie"), never "Team Ch…"; only a third is cut */
+    .tn {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      white-space: normal;
+      text-wrap: balance;
+      overflow-wrap: break-word;
+    }
+    .big .tn {
+      line-height: 1.2;
+    }
+  }
+  /* A narrow phone: the middle gives the names a little more */
+  @media (max-width: 380px) {
+    .fixture.big {
+      grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr);
+    }
   }
 </style>
