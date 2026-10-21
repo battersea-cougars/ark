@@ -310,7 +310,7 @@ export async function addQuarterCharge(
   const dueOn = quarterStart(o.quarter);
   const pence = o.pence == null ? feeOn(await subscriptionFees(db), dueOn) : o.pence;
   if (!Number.isInteger(pence) || (pence as number) <= 0 || (pence as number) > 100_000)
-    throw new HttpError(400, "How much? There's no quarterly rate set for then.");
+    throw new HttpError(400, "How much? There's no quarterly membership price set for then.");
   if (await first(db, "SELECT 1 FROM charges WHERE member_id = ? AND quarter = ?", [memberId, o.quarter]))
     throw new HttpError(409, "They're already charged for that quarter.");
   const res = await run(

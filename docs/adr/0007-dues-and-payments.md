@@ -52,7 +52,7 @@ session's fee.
   (Dues tab → Recalculate). (Overriding one session's fee is not built.)
 - **Tournament types have a default fee; each edition has its own.** Scheduling an edition copies the type's default
   (`tournament_types.default_fee_pence` → `tournaments.fee_pence`), and the admin can change it there. (Built.)
-- The **quarterly rate** is its own dated schedule (`subscription_fees`), kept on Settings → Quarterly rate; there is
+- The **quarterly rate** is its own dated schedule (`subscription_fees`), kept on Settings → Membership (the quarterly membership's price, "£90 a quarter"); there is
   no single club-wide per-session fee. Fees are set with `manage:Fees`: saving a training changes its fees only for
   someone who holds it.
 
@@ -234,3 +234,6 @@ session's fee.
 - 2026-10-21: The age buckets are plain words (Up to 30 days, 31 to 60 days, 61 to 90 days, Over 90 days), not
   hockey penalties: "Ejected" read as if we'd thrown people out. Home's admin line says "£N over 90 days late"; the
   later reminder emails lost "Misconduct" and "Ejected territory". Stored stage keys unchanged.
+- 2026-10-21: Settings' Quarterly rate is Membership, its page the quarterly membership's price ("£90 a quarter"), a
+  new one a "New quarterly membership price"; what admins read only, the code and data keep `fees`. "Call Quarterly
+  rate 'Subscriptions' or 'Membership settings'."

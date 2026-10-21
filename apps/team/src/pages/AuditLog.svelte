@@ -134,7 +134,7 @@
       case "settings.bank":
         return `${who} changed the club's bank details`;
       case "fees.quarterly":
-        return `${who} changed the quarterly rate: ${rates(d.from)} → ${rates(d.to)}`;
+        return `${who} changed the quarterly membership's price: ${rates(d.from)} → ${rates(d.to)}`;
       case "role.created":
         return `${who} made the role ${str(to?.name)}: ${list(to?.actions)}`;
       case "role.updated":

@@ -19,7 +19,7 @@ const listed = (account: Set<Action>, now = account) =>
 describe("the Settings page", () => {
   it("lists every admin area for an admin, grouped Club (its money too), Schedule, Security", () => {
     expect(listed(admin)).toEqual([
-      { section: "Club", rows: ["Members", "Unpaid fees", "Quarterly rate", "Quips"] },
+      { section: "Club", rows: ["Members", "Unpaid fees", "Membership", "Quips"] },
       { section: "Schedule", rows: ["Training", "Tournaments", "Tournament Series", "Venues"] },
       { section: "Security", rows: ["Roles", "Audit log", "Usage", "View as a member", "Dev tools"] },
     ]);
@@ -32,7 +32,7 @@ describe("the Settings page", () => {
 
   it("lists only what a role can set up", () => {
     expect(listed(treasurer)).toEqual([
-      { section: "Club", rows: ["Unpaid fees", "Quarterly rate"] },
+      { section: "Club", rows: ["Unpaid fees", "Membership"] },
     ]);
   });
 
@@ -41,7 +41,7 @@ describe("the Settings page", () => {
     expect(everyday.flatMap((s) => s.rows)).toHaveLength(listed(admin).flatMap((s) => s.rows).length);
     expect(everyday[0]).toEqual({
       section: "Club",
-      rows: ["(Members)", "(Unpaid fees)", "(Quarterly rate)", "(Quips)"],
+      rows: ["(Members)", "(Unpaid fees)", "(Membership)", "(Quips)"],
     });
   });
 

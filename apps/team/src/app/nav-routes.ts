@@ -197,14 +197,14 @@ const STATIC_TAIL: Route[] = [
   {
     id: "fees",
     path: "/settings/fees",
-    name: "Quarterly rate",
+    name: "Membership",
     tab: "more",
     page: "fees",
     action: "manage:Fees",
     icon: "pound",
     group: "Settings",
     section: "Club",
-    hint: "The fee for a whole quarter",
+    hint: "The quarterly membership's price",
   },
   {
     id: "quips",

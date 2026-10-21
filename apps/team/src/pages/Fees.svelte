@@ -8,8 +8,9 @@
   import { formatDayDate, londonToday, pounds } from "../lib/dates";
   import { feeOn } from "../lib/dues";
 
-  // The quarterly rate (ADR 0007). Session fees are set on each training, tournament fees on each tournament.
-  // A new rate is set in a side drawer, as every quick form is: the page stays where it is
+  // Membership: the quarterly membership's price (ADR 0007), the page admins know as Membership (the code's "fees").
+  // Session fees are set on each training, tournament fees on each tournament.
+  // A new price is set in a side drawer, as every quick form is: the page stays where it is
   let adding = $state(false);
   let amount = $state("");
   let from = $state(londonToday());
@@ -33,15 +34,15 @@
 
 <!-- One list, the page's subject: it takes the height left and scrolls inside (.page.fit) -->
 <div class="page fit">
-  <PageHeader title="Quarterly rate">
+  <PageHeader title="Membership">
     {#snippet sub()}
-      What Quarterly Members pay each quarter. A new rate applies from its date; charges already made keep theirs.
+      What Quarterly Members pay each quarter. A new price applies from its date; charges already made keep theirs.
       Session fees are set on each <a href="/settings/training">training</a>, tournament fees on each
       <a href="/settings/tournaments">tournament</a>.
     {/snippet}
     {#snippet actions()}
       <button class="btn sm primary" aria-haspopup="dialog" onclick={() => (adding = true)}>
-        <Icon name="plus" size={16} />Rate
+        <Icon name="plus" size={16} />Price
       </button>
     {/snippet}
   </PageHeader>
@@ -50,15 +51,15 @@
   {#if db.fees.length}
     <div class="stats">
       <div class="stat">
-        <span class="eyebrow">A quarter, now</span>
-        <span class="value num">{now ? pounds(now) : "None"}</span>
+        <span class="eyebrow">Quarterly membership, now</span>
+        <span class="value num">{now ? `${pounds(now)} a quarter` : "None"}</span>
         {#if inForce}<span class="hint">from {day(inForce)}</span>{/if}
       </div>
     </div>
 
     <h2 class="section-title">History</h2>
     <div class="list scroll-fill">
-      <div class="table-head"><span>Rate</span><span>From</span><span></span></div>
+      <div class="table-head"><span>Price</span><span>From</span><span></span></div>
       {#each history as f (f.from)}
         <div class="table-row" class:old={inForce !== undefined && f.from < inForce}>
           <span class="rate num">{pounds(f.pence)} a quarter</span>
@@ -72,10 +73,10 @@
       {/each}
     </div>
   {:else}
-    <p class="hint">No rate set yet, so Quarterly Members aren't charged.</p>
+    <p class="hint">No price set yet, so Quarterly Members aren't charged.</p>
   {/if}
 
-  <Sheet bind:open={adding} title="New quarterly rate">
+  <Sheet bind:open={adding} title="New quarterly membership price">
     <form id="fee-rate-form" class="form" onsubmit={add}>
       <div class="two">
         <label class="field">
@@ -89,7 +90,7 @@
         join).
       </p>
     </form>
-    {#snippet footer()}<button class="btn primary" type="submit" form="fee-rate-form">Set rate</button>{/snippet}
+    {#snippet footer()}<button class="btn primary" type="submit" form="fee-rate-form">Set price</button>{/snippet}
   </Sheet>
 </div>
 
