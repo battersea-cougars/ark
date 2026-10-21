@@ -56,7 +56,8 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 - **A pick made for a captain says so.** Each pick records who made it (`tournament_team_players.picked_by`). When
   that isn't the team's captain, the app says it as theirs, for that team: "Dana picked Reg for Team Cara" on the
   last-pick line, "Dana took Reg" on the ticker, "Dana for Team Cara" in the pick log, "Dana's pick" on the team card,
-  and before the pick "Picking for Team Cara" and "Pick for Cara". The record gets `draft.picked_for`, naming the
+  and before the pick "Picking for Team Cara" over the pick button and "Pick for Cara" on it (the turn at the top
+  just says whose turn it is, "Team Cara picking", for everyone, and a tap on it brings the ticker back to that pick). The record gets `draft.picked_for`, naming the
   player, the captain and who picked; a captain's own pick stays off it (it's the draft's own record). Members who
   see the teams once it's closed get no pick numbers and no pickers.
 - **One goalie a team** (`members.position = 'G'`), counting its captain, however someone gets onto a team: a

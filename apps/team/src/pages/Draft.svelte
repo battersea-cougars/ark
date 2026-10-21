@@ -673,9 +673,18 @@
             >See the fixtures</a
           >{/if}
       {:else if live}
-        {#if mine}<span class="turn now"><i class="dot"></i>Your pick</span>
-        {:else if canPick}<span class="turn now"><i class="dot"></i><span class="clip">Picking for {teamName(clock)}</span></span>
-        {:else}<span class="turn"><span class="clip">{teamName(clock)}</span>&nbsp;picking</span>{/if}
+        <!-- Who's picking, said plainly (an admin picking for them sees "Pick for …" on the button, not here); a tap
+             brings the ticker back to their card -->
+        <button
+          type="button"
+          class="turn as-btn"
+          class:now={mine || canPick}
+          title="Show in the ticker"
+          onclick={backToNow}
+          >{#if mine || canPick}<i class="dot"></i>{/if}{#if mine}Your pick{:else}<span class="clip"
+              >{teamName(clock)}</span
+            >&nbsp;picking{/if}</button
+        >
       {:else if open}
         <span class="turn done">Everyone's picked</span>
       {:else if drawn}
@@ -1168,7 +1177,7 @@
     height: 2.25rem;
     font-size: 1.2rem;
   }
-  /* A long turn ("Picking for Team Charlie") gives way to the icons, cut with an ellipsis only when it runs out of
+  /* A long turn ("Team Charlie picking") gives way to the icons, cut with an ellipsis only when it runs out of
      room, rather than pushing them off */
   .draft.fit .strip .turn {
     flex-shrink: 1;
@@ -1317,6 +1326,13 @@
     padding-right: var(--s-3);
   }
   /* Where the draft stands, in the display face on the page: words, not a block (a filled block reads as a button) */
+  /* The turn as a button: it looks like the label it is */
+  .turn.as-btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+  }
   .turn {
     display: inline-flex;
     flex-shrink: 0;
