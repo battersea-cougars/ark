@@ -224,7 +224,7 @@ describe("requests from somewhere else", () => {
     expect(SECURITY_HEADERS["content-security-policy"]).toContain("frame-ancestors 'none'");
     // The app's own page is served without the Worker (run_worker_first is /api/* only): the same set, from the file
     const file = parseHeadersFile(readFileSync(new URL("../../public/_headers", import.meta.url).pathname, "utf8"));
-    expect(file).toEqual({ "/*": SECURITY_HEADERS });
+    expect(file["/*"]).toEqual(SECURITY_HEADERS);
   });
 });
 

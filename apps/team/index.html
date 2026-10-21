@@ -8,6 +8,9 @@
     <meta name="application-name" content="Cougars Fresh Meat" />
     <meta name="robots" content="noindex" />
     <title>Cougars Fresh Meat</title>
+    <!-- The club's data, asked for at once, beside the app's files rather than after them: main.ts's fetch picks this
+         reply up (same address, same credentials). A cookie-less 401 is picked up the same way, for sign-in. -->
+    <link rel="preload" href="/api/bootstrap" as="fetch" crossorigin />
     <!-- The two faces, fetched before the stylesheet asks for them, so the first paint is in the right type -->
     <link rel="preload" href="/src/assets/fonts/InterTight-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/src/assets/fonts/Anton.woff2" as="font" type="font/woff2" crossorigin />

@@ -696,9 +696,12 @@
     opacity: 0;
     animation: lead-glint 900ms 420ms var(--ease-in-out) both;
   }
+  /* From all but invisible, not invisible: Chrome never counts what first paints at opacity 0 inside a running
+     animation, so the card's content went uncounted until In's subliminal first repainted it 1.3s later, and that
+     was the page's Largest Contentful Paint (ADR 0120). At 0.01 it counts from the frame it lands in, as it looks. */
   @keyframes lead-land {
     from {
-      opacity: 0;
+      opacity: 0.01;
       transform: translateY(14px) scale(0.975);
       filter: blur(6px);
     }

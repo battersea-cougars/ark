@@ -7,3 +7,9 @@
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: same-origin
+
+# The built files are named by their content (/assets/<name>-<hash>.js), so a name never changes what it holds: kept a
+# year, never asked about again. The page itself (index.html) keeps the asset layer's own "max-age=0,
+# must-revalidate", so a deploy shows at once (docs/adr/0120-team-app-first-paint.md).
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
