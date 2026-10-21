@@ -103,7 +103,7 @@ describe("an admin's status against the games", () => {
     at("2026-10-06T11:00:00Z");
     const t = cup({ status: "open", games: [game(1, "done")] as never });
     expect(editionState(t)).toBe("done");
-    expect(stageBadge(t, { slug: "cup", shortName: "Cup" }, "2026-10-06")).toEqual({ label: "Done", tone: "done" });
+    expect(stageBadge(t, { shortName: "Cup" }, "2026-10-06")).toEqual({ label: "Done", tone: "done" });
   });
 });
 
@@ -116,9 +116,9 @@ describe("stageOf: games come first", () => {
   it("just a season with its fixtures out doesn't shout its name on its season's last day", () => {
     const t = cup({ season: "summer", heldOn: "2027-08-31", games: [game(1, "next")] as never });
     at("2027-08-31T10:00:00Z");
-    expect(stageBadge(t, { slug: "cup", shortName: "Cup" }, "2027-08-31").label).not.toBe("Cup!");
+    expect(stageBadge(t, { shortName: "Cup" }, "2027-08-31").label).not.toBe("Cup!");
     const dated = cup({ heldOn: "2027-08-31", games: [game(1, "next")] as never });
-    expect(stageBadge(dated, { slug: "cup", shortName: "Cup" }, "2027-08-31")).toEqual({ label: "Cup!", tone: "live" });
+    expect(stageBadge(dated, { shortName: "Cup" }, "2027-08-31")).toEqual({ label: "Cup!", tone: "live" });
   });
 });
 

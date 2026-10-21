@@ -110,12 +110,13 @@ describe("finding someone by typing", () => {
 
 describe("a team's initials, when it has no logo", () => {
   it.each([
-    ["Team Dan", "TD"],
+    // A generic first word (Team, The, FC, Club) is skipped, so two "Team" sides don't share a crest
+    ["Team Dan", "DA"],
     ["The Dim Maks", "DM"],
     ["the dim maks", "DM"],
     ["Clapham  Crushers United", "CC"],
-    ["Cougars", "C"],
-    ["The", ""],
+    ["Cougars", "CO"],
+    ["The", "TH"],
     ["   ", ""],
   ])("%j is %j", (name, expected) => {
     expect(teamInitials(name)).toBe(expected);
