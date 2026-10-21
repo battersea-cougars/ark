@@ -14,9 +14,10 @@
 //        <div class="list-spacer"></div>
 //      </div>
 
-/** Room the docked toolbar row takes on a desktop page that has one (PageHeader: its sticky top, it, and a gap). */
+/** Room the docked toolbar row takes on a desktop page that has one (PageHeader: its sticky top, it, and a gap). It
+ * may sit in a wrapper (a tournament's header, lib/TournamentHead), so it's found anywhere on the page. */
 function dockedRow(page: Element | null): number {
-  const row = page?.querySelector<HTMLElement>(":scope > .page-toolbar");
+  const row = page?.querySelector<HTMLElement>(".page-toolbar");
   if (!row || getComputedStyle(row).position !== "sticky") return 0;
   return (parseFloat(getComputedStyle(row).top) || 0) * 2 + row.offsetHeight;
 }

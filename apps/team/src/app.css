@@ -518,7 +518,7 @@ h3 {
   -webkit-backdrop-filter: var(--blur);
 }
 @media (min-width: 901px) {
-  .page:has(> .page-toolbar) .hybrid .stuck {
+  .page:has(.page-toolbar) .hybrid .stuck {
     top: calc(var(--s-4) * 2 + 2.25rem);
   }
 }

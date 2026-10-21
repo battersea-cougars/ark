@@ -48,7 +48,7 @@
   const toneOf = (id: number) => teamTone(teams.findIndex((x) => x.id === id));
   const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
-  // Each team's record from the group games with a result: won, drawn, lost, in words (W D L)
+  // Each team's record from the group games with a result: won-drawn-lost and points, as a league writes it
   const records = $derived(
     big
       ? new Map(
@@ -87,10 +87,10 @@
     {#if big && id}
       {@const r = recordOf(id)}
       {#if r}
-        <!-- Won, drawn, lost: the letters say it -->
-        <span class="rec num" aria-label="{r.w} won, {r.d} drawn, {r.l} lost">
-          <span class="w">{r.w}<b>W</b></span><span class="d">{r.d}<b>D</b></span><span class="l">{r.l}<b>L</b></span>
-        </span>
+        <!-- Won-drawn-lost and points, as a league writes it: (1-1-0 2 pts) -->
+        <span class="rec num" aria-label="{r.w} won, {r.d} drawn, {r.l} lost, {r.pts} points"
+          >({r.w}-{r.d}-{r.l} {r.pts} {r.pts === 1 ? "pt" : "pts"})</span
+        >
       {/if}
     {/if}
   </span>
@@ -230,22 +230,12 @@
   .big .tn {
     font-size: var(--text-md);
   }
-  /* The record: plain numbers, the letters quiet */
+  /* The record: one quiet line under the name */
   .rec {
-    display: inline-flex;
-    gap: var(--s-2);
     color: var(--fg-muted);
     font-size: var(--text-sm);
     font-weight: 400;
-  }
-  .right .rec {
-    justify-content: flex-end;
-  }
-  .rec b {
-    margin-left: 0.1rem;
-    color: var(--fg-subtle);
-    font-size: var(--text-xs);
-    font-weight: 400;
+    white-space: nowrap;
   }
   .fixture.done .team.won .tn {
     font-weight: 700;

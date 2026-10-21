@@ -11,6 +11,7 @@
   import { BREAK_MINUTES } from "../lib/fixtures";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import GameCard from "../lib/GameCard.svelte";
+  import { listScroll } from "../lib/list-scroll";
 
   let { typeId }: { typeId: number } = $props();
 
@@ -32,6 +33,18 @@
       { name: "Playoffs", games: sorted.filter((g) => g.stage === "playoff") },
     ].filter((x) => x.games.length);
   });
+  // The group the box is showing: its header names it, swapping to Playoffs as their heading reaches the top
+  let box = $state<HTMLElement | undefined>();
+  let showing = $state(0);
+  function track() {
+    if (!box) return;
+    const top = box.scrollTop + 1;
+    let at = 0;
+    box.querySelectorAll<HTMLElement>(".group").forEach((el, i) => {
+      if (el.offsetTop <= top) at = i;
+    });
+    showing = at;
+  }
   const then = $derived(
     tournament?.playoffs.length ? `, then ${tournament.playoffs.map((p) => p.name).join(" and ")}` : "",
   );
@@ -49,15 +62,27 @@
         <button class="btn ghost sm" onclick={() => makeFixtures(tournament.id)}>Make them again</button>
       {/if}
     </div>
-    <!-- Every game in the day's order, each the same card as on the Kumite's home, grouped by stage -->
-    {#each groups as group (group.name)}
-      <section class="group">
-        <h2 class="section-title group-head">{group.name}</h2>
-        <div class="cards">
-          {#each group.games as g (g.id)}<GameCard {tournament} game={g} grouped />{/each}
+    <!-- Every game in the day's order, grouped by stage. One scroller, the page (lib/list-scroll.ts): it scrolls until
+         the header reaches the top, then the cards pass in the box under it, never under a bar; the header names the
+         group in view -->
+    <div class="hybrid fight" use:listScroll>
+      <div class="stuck">
+        <div class="list-tabs group-bar">
+          <h2 class="section-title group-head">{groups[showing]?.name ?? groups[0]?.name}</h2>
         </div>
-      </section>
-    {/each}
+        <div class="list-box" bind:this={box} onscroll={track}>
+          {#each groups as group, i (group.name)}
+            <section class="group" aria-label={group.name}>
+              {#if i > 0}<h3 class="section-title group-head">{group.name}</h3>{/if}
+              <div class="cards">
+                {#each group.games as g (g.id)}<GameCard {tournament} game={g} grouped />{/each}
+              </div>
+            </section>
+          {/each}
+        </div>
+      </div>
+      <div class="list-spacer"></div>
+    </div>
   {:else if tournament && teamsSet && manage}
     <div class="panel pad make">
       <p>{teams.length} teams. Make the fixtures: every team plays every other once{then}.</p>
@@ -81,13 +106,43 @@
   .head p {
     margin: 0;
   }
-  /* A group's header over its cards, scrolling with them: no bar for cards to pass under (ADR 0065) */
-  .group {
-    display: grid;
-    gap: var(--s-3);
+  /* The header of the stuck block (the table's own row, nothing passing behind it), then the groups in the box: a
+     later group's heading scrolls up to meet it, and it takes that group's name (ADR 0065) */
+  .group-bar {
+    padding: var(--s-3) var(--s-4);
   }
   .group-head {
     margin: 0;
+  }
+  /* Room either side of the cards inside the glass, more on a wider screen */
+  .list-box {
+    padding-inline: var(--s-4);
+  }
+  /* Here the block is clear (each game is its own glass card), and the cards keep the glass the box's rule strips */
+  .fight .stuck {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .list-box :global(.game-card) {
+    border-radius: var(--r-table);
+    background: var(--glass);
+  }
+  @media (min-width: 901px) {
+    .list-box {
+      padding-inline: var(--s-6);
+    }
+    .group-bar {
+      padding-inline: var(--s-6);
+    }
+  }
+  .group {
+    display: grid;
+    gap: var(--s-3);
+    padding-bottom: var(--s-3);
+  }
+  .group + .group {
+    padding-top: var(--s-3);
   }
   .cards {
     display: grid;
