@@ -13,7 +13,7 @@
   // phone counts down by itself (and it survives a reload or a locked phone); only start, pause, a goal and full time
   // are sent. Everyone on the page checks for changes as often as the admins set (ADR 0072), the scorekeeper too (the
   // same person may have it open twice), while the page is in view.
-  import { goesBy, goesByOf, nameOfTeam } from "../lib/names";
+  import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
   import { onDestroy } from "svelte";
   import { can } from "../access/actions";
@@ -377,6 +377,8 @@
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
   const scoreOf = (i: number) => (i === 0 ? game?.homeGoals : game?.awayGoals) ?? 0;
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <BackBar
@@ -509,6 +511,7 @@
         <div class="side" class:away={i === 1}>
           {#if teamId}
             <TeamCrest
+              among={crestNames}
               name={teamName(teamId)}
               logo={teams[indexOf(teamId)]?.logo ?? null}
               tone={teamTone(indexOf(teamId))}
@@ -576,6 +579,7 @@
             {#if teamId}
               <a class="squad-head" href={teamHref(type.slug, teamId)}>
                 <TeamCrest
+                  among={crestNames}
                   name={teamName(teamId)}
                   logo={teams[indexOf(teamId)]?.logo ?? null}
                   tone={teamTone(indexOf(teamId))}
@@ -704,6 +708,7 @@
         {#if teamId}
           <div class="score-side">
             <TeamCrest
+              among={crestNames}
               name={teamName(teamId)}
               logo={teams[indexOf(teamId)]?.logo ?? null}
               tone={teamTone(indexOf(teamId))}

@@ -4,7 +4,7 @@
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
   import { clock } from "../lib/dates";
-  import { goesByOf, nameOfTeam } from "../lib/names";
+  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
@@ -88,6 +88,8 @@
     const team = t.teams.find((x) => x.id === id);
     return nameOfTeam(team, t.teams, byId);
   };
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <div class="page">
@@ -109,7 +111,13 @@
           href={s.team?.id ? teamHref(type.slug, s.team.id) : undefined}
           aria-label={s.name}
         >
-          {#if s.team}<TeamCrest name={s.name} logo={s.team.logo} tone={teamTone(s.i)} size="4.5rem" />{/if}
+          {#if s.team}<TeamCrest
+              among={crestNames}
+              name={s.name}
+              logo={s.team.logo}
+              tone={teamTone(s.i)}
+              size="4.5rem"
+            />{/if}
           <span class="side-name display">{s.name}</span>
           {#if s.record}
             <span class="rec num" aria-label="{s.record.w} won, {s.record.d} drawn, {s.record.l} lost"

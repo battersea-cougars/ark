@@ -4,7 +4,7 @@
   // from the draft. A team that entered may be from outside the club,
   // so it's a card: its logo and name, a captain who's a member or just a name with a way to reach them, and its
   // players, members found by typing or names from outside.
-  import { shrinkLogo } from "./logo";
+  import { shrinkLogo, teamInitials } from "./logo";
   import type { TournamentKind, TournamentTeam } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import PersonPicker from "./PersonPicker.svelte";
@@ -32,14 +32,7 @@
 
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
   const label = $derived(team.name || nameOf(team.captainMemberId) || team.captainName || "New team");
-  const initials = $derived(
-    label
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase(),
-  );
+  const initials = $derived(teamInitials(label));
 
   // A logo: shrunk in the browser so it's small enough to keep in the database (logo.ts)
   let fileInput = $state<HTMLInputElement | undefined>();

@@ -1,6 +1,6 @@
 <script module lang="ts">
   // Which tournament's awards are being confirmed, if any: opened from the Awards section or the Manage sheet
-  import { goesBy, nameOfTeam } from "./names";
+  import { goesBy, nameOfTeam, teamNamesOf } from "./names";
   let editing = $state<{ id: number | null }>({ id: null });
   /** Open the awards for this tournament, to confirm. */
   export const enterAwards = (tournamentId: number) => (editing.id = tournamentId);
@@ -83,12 +83,15 @@
     const winners = awards.flatMap((a) => (draft[a.name]?.winners ?? []).map((w) => ({ award: a.name, ...w })));
     if (await setWinners(tournament.id, winners)) close();
   }
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 {#snippet winner(w: AwardWinner)}
   {#if w.teamId}
     <span class="who">
       <TeamCrest
+        among={crestNames}
         name={teamName(w.teamId)}
         logo={teams[teamIndex(w.teamId)]?.logo ?? null}
         tone={teamTone(teamIndex(w.teamId))}

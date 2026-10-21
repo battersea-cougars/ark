@@ -2,11 +2,11 @@
   // A tournament series' front page, for the one on or coming up (lib/edition.ts currentOf). The date is the header's;
   // the page follows the day, from what's happened:
   //   Before: by its stage, each leading with one thing (lib/tournament-front.ts): are you in; the draft; your team;
-  //   your next fight. What's had its day goes (History keeps it).
+  //   the fight card. What's had its day goes (History keeps it).
   //   During: your turn to keep score, your next fight, the game on now and the next, the latest results.
   // Once the last game's played it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
-  import { shortNameOf, nameOfTeam } from "../lib/names";
+  import { shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
@@ -29,8 +29,8 @@
   import LiveNote from "../lib/LiveNote.svelte";
   import { clock, londonToday } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
-  import { frontOf, myTeamIndex, nextFightOf } from "../lib/tournament-front";
-  import NextFight from "../lib/NextFight.svelte";
+  import { fightCardOf, frontOf, myTeamIndex, nextFightOf } from "../lib/tournament-front";
+  import FightCard from "../lib/FightCard.svelte";
   import YourTeam from "../lib/YourTeam.svelte";
 
   let { typeId }: { typeId: number } = $props();
@@ -95,11 +95,13 @@
   const blocks = $derived(tournament ? frontOf(tournament, me().id, londonToday()) : []);
   // Its captains and whoever runs it go back into a done draft
   const inDraft = $derived(teams.some((t) => t.captainMemberId === me().id) || can(perms, "run:Draft"));
-  // Your team's next game, and the day's first (in order)
+  // Your team's next game; the fight card, every game while there are a few (lib/tournament-front.ts)
   const myFight = $derived(tournament ? nextFightOf(tournament, me().id) : undefined);
-  const firstGame = $derived([...games].sort((a, b) => a.position - b.position)[0]);
+  const card = $derived(tournament ? fightCardOf(tournament, me().id) : undefined);
   // The latest results, newest first; the final, last of the playoffs
   const results = $derived(games.filter((g) => g.status === "done").sort((a, b) => b.position - a.position));
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
 <div class="page">
@@ -163,7 +165,7 @@
     {#if myFight && myTeamId && myFight !== now && myFight !== after}
       <section class="part">
         <h2 class="section-title">Your next fight<Kanji text={kanjiFor(type, "fights")} /></h2>
-        <NextFight {tournament} game={myFight} teamId={myTeamId} />
+        <FightCard {tournament} games={[myFight]} teamId={myTeamId} chant="{type.shortName}!" />
       </section>
     {/if}
     <section class="part">
@@ -205,8 +207,8 @@
   {:else}
     <!-- Before the first game: the page follows the stage, each leading with one thing (lib/tournament-front.ts, ADR
          0074). Sign-up: are you in, then the draft. The draft on: the draft, your sign-up a line under it. The teams
-         set: your team, then the others, the draft one line. The fixtures out: your next fight, the first up, the
-         teams. What's had its day goes; History keeps it -->
+         set: your team, then the others, the draft one line. The fixtures out: the fight card (yours marked, the
+         next one up), the teams. What's had its day goes; History keeps it -->
     {#each blocks as block (block)}
       {#if block === "signup"}
         <SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />
@@ -228,9 +230,8 @@
         <section class="part">
           <div class="part-head">
             <h2 class="section-title">{blocks.includes("my-team") ? "The other teams" : "Teams"}</h2>
-            {#if !teamsHidden}<a class="btn ghost sm" href="/tournaments/{type.slug}/teams"
-                >See all<Icon name="chevronRight" size={16} /></a
-              >{/if}
+            <!-- No See all: every team's on the page (yours above, when it leads); each opens its own, and the Teams
+                 tab has them all -->
           </div>
           {#if teamsHidden}
             <p class="note">The captains pick the teams in the draft. They're out once it's done.</p>
@@ -240,7 +241,7 @@
               {#each teams as t, i (t.id ?? i)}
                 {#if !(i === mine && blocks.includes("my-team"))}
                   <a class="chip-team" href={t.id ? teamHref(type.slug, t.id) : undefined}>
-                    <TeamCrest name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3.5rem" />
+                    <TeamCrest among={crestNames} name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3.5rem" />
                     <span class="chip-text">
                       <span class="chip-name">{teamName(i)}</span>
                       <!-- Only what the name doesn't say: that it's yours, or whose it is once it has a name of its own -->
@@ -253,23 +254,15 @@
             </div>
           {/if}
         </section>
-      {:else if block === "my-fight" && myFight && myTeamId}
+      {:else if block === "fight-card" && card?.games.length}
         <section class="part">
           <div class="part-head">
-            <h2 class="section-title">Your next fight<Kanji text={kanjiFor(type, "fights")} /></h2>
-            {#if !blocks.includes("first-up")}<a class="btn ghost sm" href={schedule}
+            <h2 class="section-title">Fight card<Kanji text={kanjiFor(type, "fights")} /></h2>
+            {#if !card.whole}<a class="btn ghost sm" href={schedule}
                 >Full fight card<Icon name="chevronRight" size={16} /></a
               >{/if}
           </div>
-          <NextFight {tournament} game={myFight} teamId={myTeamId} />
-        </section>
-      {:else if block === "first-up" && games.length}
-        <section class="part">
-          <div class="part-head">
-            <h2 class="section-title">First up</h2>
-            <a class="btn ghost sm" href={schedule}>Full fight card<Icon name="chevronRight" size={16} /></a>
-          </div>
-          <div class="list"><FixtureRow big {tournament} game={firstGame} /></div>
+          <FightCard {tournament} games={card.games} upNext={card.upNext} teamId={myTeamId} chant="{type.shortName}!" />
         </section>
       {:else if block === "make-fixtures" && manage && teams.length >= 2}
         <p class="note">The fight card isn't out yet. <a href={schedule}>Make it</a></p>

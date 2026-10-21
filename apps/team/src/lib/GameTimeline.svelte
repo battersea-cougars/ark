@@ -5,7 +5,7 @@
   // (an admin putting a result right), each row has Take off.
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { goesByOf, nameOfTeam } from "./names";
+  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { mmss } from "./game-clock.svelte";
   import { infractionLabel } from "./penalties";
@@ -73,6 +73,8 @@
     }
     return out;
   });
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 {#each groups as group (group.key)}
@@ -82,6 +84,7 @@
       <li class="goal-row" class:home={g.isHome} class:pen={g.kind === "penalty"}>
         <span class="scored">
           <TeamCrest
+            among={crestNames}
             name={teamName(g.teamId)}
             logo={teams[indexOf(g.teamId)]?.logo ?? null}
             tone={teamTone(indexOf(g.teamId))}

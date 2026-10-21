@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament, TournamentType } from "../demo/model";
-import { frontOf, nextFightOf, stageBadge } from "./tournament-front";
+import { fightCardOf, frontOf, nextFightOf, stageBadge } from "./tournament-front";
 
 const ME = 7;
 const TODAY = "2026-10-21";
@@ -98,10 +98,56 @@ describe("frontOf: the page follows the stage, each leading with one thing", () 
     expect(frontOf({ ...entered, status: "planned" }, ME, TODAY)).toEqual(["my-team", "teams", "make-fixtures"]);
   });
 
-  it("fixtures out: your next fight leads, then the first up (unless that's it), then the teams; sign-up and the draft go", () => {
-    expect(frontOf(fixtures(), ME, TODAY)).toEqual(["my-fight", "first-up", "teams"]);
-    expect(frontOf(fixtures(), 2, TODAY)).toEqual(["my-fight", "teams"]);
-    expect(frontOf(fixtures(), 99, TODAY)).toEqual(["first-up", "teams"]);
+  it("fixtures out: the fight card leads, every game in one list, then the teams; sign-up and the draft go", () => {
+    expect(frontOf(fixtures(), ME, TODAY)).toEqual(["fight-card", "teams"]);
+    expect(frontOf(fixtures(), 99, TODAY)).toEqual(["fight-card", "teams"]);
+  });
+});
+
+describe("fightCardOf: the front page's fight card", () => {
+  const eight = (statuses: ("next" | "live" | "done")[] = []) =>
+    fixtures({
+      games: [
+        game(1, 1, 3),
+        game(2, 2, 3),
+        game(3, 1, 2),
+        game(4, 3, 1),
+        game(5, 3, 2),
+        game(6, 2, 1),
+        game(7, 1, 3),
+        game(8, 2, 3),
+      ].map((g, i) => ({
+        ...g,
+        ...(statuses[i] ? game(g.position, g.homeTeamId, g.awayTeamId, statuses[i]) : {}),
+      })) as never,
+    });
+
+  it("a few games (six or fewer): all of them, in order of play, the first marked up next", () => {
+    const card = fightCardOf(fixtures({ games: [game(2, 2, 3), game(1, 1, 3)] as never }), ME);
+    expect(card.games.map((g) => g.position)).toEqual([1, 2]);
+    expect(card.upNext?.position).toBe(1);
+    expect(card.whole).toBe(true);
+  });
+
+  it("more: your games and the next one, the rest on the full fight card", () => {
+    const card = fightCardOf(eight(), ME);
+    expect(card.games.map((g) => g.position)).toEqual([1, 2, 3, 5, 6, 8]);
+    expect(card.whole).toBe(false);
+    // Not on a team: just the next one
+    expect(fightCardOf(eight(), 99).games.map((g) => g.position)).toEqual([1]);
+  });
+
+  it("under way: the game on is shown, the next after it is up next, and your played games drop off a long card", () => {
+    const card = fightCardOf(eight(["done", "done", "live"]), ME);
+    expect(card.upNext?.position).toBe(4);
+    expect(card.games.map((g) => g.position)).toEqual([3, 4, 5, 6, 8]);
+    expect(fightCardOf(fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3)] as never }), ME).upNext?.position).toBe(
+      2,
+    );
+  });
+
+  it("every game played: nothing's up next", () => {
+    expect(fightCardOf(fixtures({ games: [game(1, 1, 3, "done")] as never }), ME).upNext).toBeUndefined();
   });
 });
 
@@ -115,8 +161,8 @@ describe("stageBadge: the stamp says where it is", () => {
     expect(stageBadge(teamsSet(), kumite, TODAY)).toEqual({ label: "Teams set", tone: "set" });
   });
 
-  it("fixtures out: fight night for the Kumite, and on the day its own name shouted; plainer for the rest", () => {
-    expect(stageBadge(fixtures(), kumite, TODAY)).toEqual({ label: "Fight night", tone: "set" });
+  it("fixtures out: Fixtures out before the day, for every type; on the day itself its own name shouted", () => {
+    expect(stageBadge(fixtures(), kumite, TODAY)).toEqual({ label: "Fixtures out", tone: "set" });
     expect(stageBadge(fixtures(), cup, TODAY).label).toBe("Fixtures out");
     expect(stageBadge(fixtures({ heldOn: TODAY }), kumite, TODAY)).toEqual({ label: "Kumite!", tone: "live" });
     expect(stageBadge(fixtures({ heldOn: TODAY }), cup, TODAY).label).toBe("Cup!");

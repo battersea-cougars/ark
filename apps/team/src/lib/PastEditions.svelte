@@ -37,7 +37,13 @@
     <li>
       <a class="edition" href="/tournaments/{type.slug}/history/{t.id}">
         {#if ci >= 0}
-          <TeamCrest name={nameOf(t, champ)} logo={t.teams[ci].logo} tone={teamTone(ci)} size="3.5rem" />
+          <TeamCrest
+            among={t.teams.map((x) => nameOf(t, x.id ?? null))}
+            name={nameOf(t, champ)}
+            logo={t.teams[ci].logo}
+            tone={teamTone(ci)}
+            size="3.5rem"
+          />
         {:else}
           <span class="no-crest"><Icon name={type.icon} size={24} /></span>
         {/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { nameOfTeam } from "./names";
+  import { nameOfTeam, teamNamesOf } from "./names";
   // The tournament's champions, once it's decided (lib/edition.ts championOf: the final's winner, or the top of the
   // table without playoffs). Not a card: the crest big, the trophy, the name in the display face, and how they won
   // it, on the page itself. The crest and name lead to the team.
@@ -39,12 +39,14 @@
     )[0];
     return top ? `Top of the table, ${top.pts} points from ${top.p}` : "";
   });
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
 {#if team && winnerId}
   <section class="champ" aria-label="{type.shortName} champions">
     <a class="crest-link" href={teamHref(type.slug, winnerId)}>
-      <TeamCrest name={nameOf(winnerId)} logo={team.logo} tone={teamTone(index)} size="7rem" />
+      <TeamCrest among={crestNames} name={nameOf(winnerId)} logo={team.logo} tone={teamTone(index)} size="7rem" />
       <!-- The Kumite's victory seal, stamped on the crest's corner -->
       {#if kanjiFor(type, "champions")}<span class="stamp"><Kanji text={kanjiFor(type, "champions")} seal /></span>{/if}
     </a>

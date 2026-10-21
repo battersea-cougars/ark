@@ -1,7 +1,7 @@
 <script lang="ts">
   // A tournament's teams, at a glance: each one's crest, name and record so far, yours marked. A team opens its own
   // page (TournamentTeam): the squad, its games, and there its captain (or an admin) edits it.
-  import { shortNameOf, nameOfTeam } from "../lib/names";
+  import { shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
@@ -42,6 +42,8 @@
   const admin = $derived(can(granted(), "manage:Tournament"));
   const draftNight = $derived(tournament?.draftOn ? formatDayDate(londonISO(tournament.draftOn, "12:00")) : null);
   const played = $derived((tournament?.games ?? []).some((g) => g.homeGoals !== null));
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
 <div class="page">
@@ -74,7 +76,7 @@
         {@const t = teams[i]}
         {@const r = t.id ? records.get(t.id) : undefined}
         <a class="row team" href={t.id ? teamHref(type.slug, t.id) : undefined}>
-          <TeamCrest name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3.5rem" />
+          <TeamCrest among={crestNames} name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3.5rem" />
           <span class="grow">
             <span class="name display">{teamName(i)}</span>
             <span class="sub">Captain {firstName(t.captainMemberId) || t.captainName}</span>

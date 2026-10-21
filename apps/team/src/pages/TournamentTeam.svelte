@@ -3,7 +3,7 @@
   // the team's shown, with a way back to them all; yours is also My team (no teamId: the one you're on). Its captain
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
   // initials). A draft's players only show once it's closed, to anyone outside it (ADR 0060).
-  import { goesByOf, nameOfTeam } from "../lib/names";
+  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
@@ -52,6 +52,8 @@
   );
 
   let lookOpen = $state(false);
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <div class="page">
@@ -70,6 +72,7 @@
     <a class="back" href="/tournaments/{type.slug}/teams"><Icon name="chevronLeft" size={16} />All teams</a>
     <section class="hero">
       <TeamCrest
+        among={crestNames}
         name={team.name || fallback}
         logo={team.logo}
         tone={teamTone(index)}

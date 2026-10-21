@@ -10,7 +10,7 @@
   // then two views, Players and Teams: side by side on a wide screen, tabs on anything narrower. The players are a
   // plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
   // first of the teams, badged "Your team", with their coming pick drawn in.
-  import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam } from "../lib/names";
+  import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
@@ -478,6 +478,8 @@
   $effect(() => {
     if (open || waiting) return checkForUpdates();
   });
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, (id) => (id ? byId(id) : undefined)));
 </script>
 
 <!-- A team's turn, as a badge: Picking, Next, In N -->
@@ -615,6 +617,7 @@
       <div class="panel" aria-label={yours ? "Your team" : undefined}>
         <header>
           <TeamCrest
+            among={crestNames}
             name={teamName(i)}
             logo={t.logo}
             tone={teamTone(i)}
@@ -814,6 +817,7 @@
               animate:flip={{ duration: moveMs }}
             >
               <TeamCrest
+                among={crestNames}
                 name={teamName(t.team)}
                 logo={teams[t.team].logo}
                 tone={teamTone(t.team)}

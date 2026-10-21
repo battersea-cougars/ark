@@ -4,7 +4,7 @@
   import type { Tournament, TournamentType } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
-  import { goesByOf, nameOfTeam } from "./names";
+  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
   import TeamCrest from "./TeamCrest.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -26,10 +26,12 @@
       .map((p) => (p.memberId ? goesByOf(byId(p.memberId)) : p.name))
       .filter(Boolean),
   );
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(t.teams, byId));
 </script>
 
 <a class="your-team" href={team.id ? teamHref(type.slug, team.id) : undefined}>
-  <TeamCrest {name} logo={team.logo} tone={teamTone(index)} size="4.5rem" />
+  <TeamCrest among={crestNames} {name} logo={team.logo} tone={teamTone(index)} size="4.5rem" />
   <span class="words">
     <span class="eyebrow">You're on</span>
     <span class="name display">{name}</span>

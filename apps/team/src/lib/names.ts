@@ -53,3 +53,9 @@ export function nameOfTeam<T extends Captained>(
   };
   return `Team ${twins.some((c) => initial(c) === initial(captain)) ? goesBy({ name: captain.name }) : initial(captain)}`;
 }
+
+/** Every team's name in a tournament, in its order: what their crests are told apart among (logo.ts teamInitials). */
+export const teamNamesOf = <T extends Captained>(
+  teams: readonly T[],
+  person: (id: number | null) => Named | undefined,
+) => teams.map((t) => nameOfTeam(t, teams, person));

@@ -1,11 +1,11 @@
 <script lang="ts">
   // Your next fight (ADR 0074): your team against theirs, when, and a tap to the game (its matchup; on now, the live
-  // page). The lead of a tournament's front page once the fixtures are out, and on Home while you've one coming. One
-  // line on the page, not a card: the two crests, the names in the display face, yours first and marked.
+  // page). On Home while you've one coming (the front page has the fight card, FightCard.svelte). One line on the
+  // page, not a card: the two crests, the names in the display face, yours first and marked.
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { typeById } from "../demo/schedule.svelte";
-  import { nameOfTeam } from "./names";
+  import { nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { clock, formatDayDate, londonISO, londonToday } from "./dates";
   import { kickOff, slotMinutes } from "./fixtures";
@@ -37,6 +37,7 @@
       tone: teamTone(i),
     };
   };
+  const crestNames = $derived(teamNamesOf(t.teams, (p) => PLAYERS.find((x) => x.id === p)));
   const ours = $derived(side(teamId));
   const theirs = $derived(side(g.homeTeamId === teamId ? g.awayTeamId : g.homeTeamId));
   const at = $derived(clock(kickOff(t.startTime, slotMinutes(t), g.position)));
@@ -47,8 +48,8 @@
 
 <a class="next-fight" {href} aria-label="Your next fight: {ours.name} vs {theirs.name}, {live ? 'on now' : at}">
   <span class="crests" aria-hidden="true">
-    <TeamCrest name={ours.name} logo={ours.logo} tone={ours.tone} size="2.75rem" />
-    <TeamCrest name={theirs.name} logo={theirs.logo} tone={theirs.tone} size="2.75rem" />
+    <TeamCrest among={crestNames} name={ours.name} logo={ours.logo} tone={ours.tone} size="2.75rem" />
+    <TeamCrest among={crestNames} name={theirs.name} logo={theirs.logo} tone={theirs.tone} size="2.75rem" />
   </span>
   <span class="words">
     <span class="match display"

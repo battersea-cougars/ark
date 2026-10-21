@@ -3,7 +3,7 @@
   // score once there is one. A tap on it opens the game's own page (its matchup, or the full result once played):
   // both teams, the goals, and where it's scored or an admin puts a result right (ADR 0061).
   import { clock } from "./dates";
-  import { nameOfTeam } from "./names";
+  import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { kickOff, slotMinutes, table } from "./fixtures";
@@ -78,6 +78,8 @@
   const playable = $derived(g.status !== "done" && !!g.homeTeamId && !!g.awayTeamId);
   // A live game's clock ticks here
   $effect(() => (live ? ticking() : undefined));
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
 {#snippet side(id: number | null, seed: number | null)}
@@ -111,6 +113,7 @@
   {#if !big}<span class="n hint num" title="Game {g.position}">{@render when()}</span>{/if}
   <span class="team" class:won={won === "home"} class:lost={won === "away"}>
     {#if g.homeTeamId}<TeamCrest
+        among={crestNames}
         name={teamName(g.homeTeamId)}
         logo={logoOf(g.homeTeamId)}
         tone={toneOf(g.homeTeamId)}
@@ -138,6 +141,7 @@
   <span class="team right" class:won={won === "away"} class:lost={won === "home"}>
     {@render side(g.awayTeamId, g.awaySeed)}
     {#if g.awayTeamId}<TeamCrest
+        among={crestNames}
         name={teamName(g.awayTeamId)}
         logo={logoOf(g.awayTeamId)}
         tone={toneOf(g.awayTeamId)}

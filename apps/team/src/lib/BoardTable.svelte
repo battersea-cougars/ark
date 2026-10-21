@@ -2,7 +2,7 @@
   // A tournament's table (ADR 0061): its group games with a result, points, then goal difference, then goals for, with
   // its own points for a win, draw and loss; the champions marked once it's decided. On the board, and on a past
   // one's page (History).
-  import { nameOfTeam } from "./names";
+  import { nameOfTeam, teamNamesOf } from "./names";
   import { PLAYERS } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
   import { teamHref, teamTone } from "./team-tones";
@@ -35,6 +35,8 @@
     const t = teams.find((x) => x.id === id);
     return nameOfTeam(t, teams, (id) => PLAYERS.find((p) => p.id === id));
   };
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
 <div class="list">
@@ -46,6 +48,7 @@
           <td class="l"
             ><span class="team"
               ><span class="pos">{i + 1}</span><TeamCrest
+                among={crestNames}
                 name={teamName(r.teamId)}
                 logo={teams.find((t) => t.id === r.teamId)?.logo ?? null}
                 tone={teamTone(teams.findIndex((t) => t.id === r.teamId))}

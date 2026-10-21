@@ -40,7 +40,7 @@
   } = $props();
 
   // Where it's got to, as the stamp says it (lib/tournament-front.ts): sign-up open, the draft live, the teams set,
-  // fight night, KUMITE! on the day, done
+  // the fixtures out, KUMITE! on the day, done
   const stage = $derived(tournament ? stageBadge(tournament, type, londonToday()) : null);
   const when = $derived(tournament ? editionWhen(tournament) : null);
   const place = $derived(tournament ? tournamentPlace(tournament)?.name : undefined);
@@ -48,7 +48,7 @@
   const countdown = $derived.by(() => {
     if (!tournament || !when?.day || stage?.tone === "done") return "";
     const days = Math.round((Date.parse(tournament.heldOn) - Date.parse(londonToday())) / 86_400_000);
-    return days < 0 ? "" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
+    return days < 0 ? "" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `in ${days} days`;
   });
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
   interface Tool {
@@ -111,13 +111,16 @@
             <span class="day-line"><span class="aside">{note}</span></span>
             <span class="where">&nbsp;</span>
           {:else if tournament && when}
+            <!-- The date leads: the day, its hours and how far off (Sat 14 Nov · 7 to 9:30pm · in 24 days), the
+                 season and the place under it. Just a season: the season, its day to be set -->
             <span class="day-line"
-              ><span class="day display">{when.day ?? when.season}</span>{#if countdown}<span
-                  class="countdown display"
-                  class:today={countdown === "Today"}>{countdown}</span
+              ><span class="day display">{when.day ?? when.season}</span>{#if when.hours}<span class="more display"
+                  ><span class="dot" aria-hidden="true">·</span>{when.hours}</span
+                >{/if}{#if countdown}<span class="more display countdown" class:today={countdown === "Today"}
+                  ><span class="dot" aria-hidden="true">·</span>{countdown}</span
                 >{/if}</span
             >
-            <span class="where">{[when.day ? when.season : "", when.hours, place].filter(Boolean).join(" · ")}</span>
+            <span class="where">{[when.day ? when.season : "Day to be set", place].filter(Boolean).join(" · ")}</span>
           {:else}
             <span class="day-line"><span class="aside">No {type.shortName} scheduled yet.</span></span>
             <span class="where">&nbsp;</span>
@@ -232,21 +235,38 @@
     text-overflow: ellipsis;
   }
   .day {
+    flex: none;
     overflow: hidden;
     color: var(--fg);
     font-size: clamp(1.4rem, 3.5vw, 1.9rem);
     line-height: 1.1;
     text-overflow: ellipsis;
   }
-  /* The countdown: the day's own size down a step, quieter; on the day itself, the club's red */
-  .countdown {
-    margin-left: var(--s-3);
+  /* After the day, its hours and the countdown: the day's own face down a step, quieter; on the day itself, Today in
+     the club's red. A narrow phone keeps them on the one line by a smaller step still */
+  .more {
+    flex: none;
     color: var(--fg-muted);
     font-size: clamp(1rem, 2.4vw, 1.3rem);
     line-height: 1.1;
   }
+  .dot {
+    margin-inline: 0.4em;
+    color: var(--fg-subtle);
+  }
   .countdown.today {
     color: var(--red-hot);
+  }
+  @media (max-width: 380px) {
+    .day {
+      font-size: 1.25rem;
+    }
+    .more {
+      font-size: 0.95rem;
+    }
+    .dot {
+      margin-inline: 0.3em;
+    }
   }
   .aside {
     color: var(--fg-muted);

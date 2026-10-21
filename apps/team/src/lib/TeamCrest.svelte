@@ -5,12 +5,15 @@
 
   let {
     name,
+    among,
     logo,
     size = "2.75rem",
     tone,
     onclick,
   }: {
     name: string;
+    /** Its tournament's team names, in order: no two of their crests share initials (logo.ts). */
+    among?: readonly string[];
     logo: string | null;
     size?: string;
     /** The team's colour (team-tones.ts): its initials are in it; the tile stays grey. */
@@ -20,7 +23,7 @@
 </script>
 
 {#snippet face()}
-  {#if logo}<img src={logo} alt="" />{:else}<span class="display">{teamInitials(name)}</span>{/if}
+  {#if logo}<img src={logo} alt="" />{:else}<span class="display">{teamInitials(name, among)}</span>{/if}
 {/snippet}
 
 {#if onclick}

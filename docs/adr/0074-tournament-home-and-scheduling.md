@@ -25,8 +25,9 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 - **Its state comes from its games** (`lib/edition.ts`): under way once a game's being scored or has a result, done
   once every game's played (or an admin marked it finished). Before then, sign-up open or coming up. The day shows
   once it's confirmed or the games have been played; the season always.
-- **The header carries the when** on every tournament page (`TournamentHead.svelte`): the day big (or _Date to be
-  confirmed_), the season, the hours and place, and the state.
+- **The header carries the when** on every tournament page (`TournamentHead.svelte`), the date leading: the day,
+  its hours and how far off on one line ("SAT 14 NOV · 7 to 9:30pm · in 24 days"; Tomorrow; Today in red), the
+  season and place under it. Just a season: the season, "Day to be set" and the place.
 - **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date
   or just a season is enough). The series' other pages show the same one; there's no switcher. Once the last game's
   played it's history: nothing's on.
@@ -55,14 +56,19 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 - **Before: the page follows the stage**, each leading with one thing (`frontOf` in `lib/tournament-front.ts`);
   what's had its day goes from the page (History keeps it):
 
-  | Stage            | Stamp                                                                                                | Leads with                                                          | Then                                                                                                                                        |
-  | ---------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-  | sign-up          | SIGN-UP OPEN (COMING UP before it opens)                                                             | you're in, or In / Out, and the count                               | a draft's day and captains                                                                                                                  |
-  | the draft open   | DRAFT LIVE                                                                                           | the draft: who's picking, Go to the draft (its captains, run:Draft) | your sign-up, one small line, no buttons                                                                                                    |
-  | the teams set    | TEAMS SET                                                                                            | "You're on Team X": its crest, captain, teammates                   | the other teams; "Draft done", one line, with Go to the draft for its captains and whoever runs it; an admin's "Make it" for the fight card |
-  | the fixtures out | FIGHT NIGHT (FIXTURES OUT for a series without the motif); on the day KUMITE! (the series' own name) | your next fight: "Team Dan vs Team Cal · 7:17pm", to its matchup    | the first up (unless that's yours) and the full fight card, the teams, yours marked                                                         |
+  | Stage            | Stamp                                                   | Leads with                                                          | Then                                                                                                                                        |
+  | ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+  | sign-up          | SIGN-UP OPEN (COMING UP before it opens)                | you're in, or In / Out, and the count                               | a draft's day and captains                                                                                                                  |
+  | the draft open   | DRAFT LIVE                                              | the draft: who's picking, Go to the draft (its captains, run:Draft) | your sign-up, one small line, no buttons                                                                                                    |
+  | the teams set    | TEAMS SET                                               | "You're on Team X": its crest, captain, teammates                   | the other teams; "Draft done", one line, with Go to the draft for its captains and whoever runs it; an admin's "Make it" for the fight card |
+  | the fixtures out | FIXTURES OUT; on the day KUMITE! (the series' own name) | the fight card: every game in order of play, yours marked, Up next  | the teams, yours marked                                                                                                                     |
 
-  Off a team, the teams (or the first up) lead instead. Teams that enter have no draft, so no draft stage; while
+  The fight card (`fightCardOf`, `lib/FightCard.svelte`) is one compact row a game, the same at every stage of the
+  game: the time (Up next under the next one to be played, the chant on one being played, Final once done), the two
+  teams one over the other, a crest and a name each (yours in red) with the score once there is one, and the game's
+  number (a playoff's name). A tap opens the game. Six games or fewer: all of them; more, your games still to play,
+  the one on and the next, then Full fight card. The teams under it have no See all: every team's on the page.
+  Teams that enter have no draft, so no draft stage; while
   they're still taking sign-ups, the sign-up line sits under the teams. The draft's done is said once ("Draft done"),
   not a Closed stamp and a shout. The stamp in the header is the stage (`stageBadge`), on every page of the series;
   under way on another day it's ON NOW, and DONE once every game's played. Nothing else: no lede, no "not final"
@@ -72,8 +78,11 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 
 - **Your next fight on Home** too, under the calls to action, while you're on a team with one coming (the same
   `lib/NextFight`, with its day), in place of the feed's "The teams are out".
-- **During:** your turn to keep score, your next fight (unless it's on now or next), the fight on now and the next,
-  the latest results.
+- **During:** your turn to keep score, your next fight (unless it's on now or next, a fight card row), the fight on
+  now and the next, the latest results.
+- **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first
+  word ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the
+  first keeps its own, a later one takes its next letters, never another team's own.
 - **After:** the champions (crest, name, how they won it), the final, every fight, the awards: on its own page in
   History, with the front page back to nothing on.
 - **Fewer cards:** the champions, sign-up, keep-score duty and teams sit on the page, set apart by space, type and a
@@ -184,3 +193,9 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   draft card, your sign-up a line), the teams set (your team, then the others, "Draft done" in a line), the fixtures
   out (your next fight, then the first up and the teams); what's had its day goes. The header's stamp is the stage
   (Sign-up open, Draft live, Teams set, Fight night, KUMITE! on the day). Your next fight is on Home too.
+- 2026-10-21: The fixtures out, the front page leads with the date (the day, its hours and how far off, under the
+  title) and one fight card: every game a compact row in order of play (time, the two teams, the game's number), yours
+  in red, the next marked Up next, the score once there is one; more than six, yours and the next, then Full fight
+  card. It replaces "Your next fight" and "First up" there (Home keeps its own). The stamp says FIXTURES OUT until
+  the day, then KUMITE!; no more Fight night. Crests skip a generic first word ("Team Charlie" CH) and never share
+  initials within a tournament. The teams lose See all, every team being on the page.

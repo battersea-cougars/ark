@@ -3,7 +3,7 @@
   // game). No shots: we don't count them. Once it's over, the winner's row is bright and the loser's fades, as on the
   // fight card.
   import TeamCrest from "./TeamCrest.svelte";
-  import { nameOfTeam } from "./names";
+  import { nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { boxScore } from "./periods";
   import { PLAYERS } from "../demo/data";
@@ -21,6 +21,8 @@
   );
   const team = (id: number) => tournament.teams.find((t) => t.id === id);
   const indexOf = (id: number) => tournament.teams.findIndex((t) => t.id === id);
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(tournament.teams, byId));
 </script>
 
 {#if sides.length === 2}
@@ -38,6 +40,7 @@
           <th scope="row">
             <span class="team">
               <TeamCrest
+                among={crestNames}
                 name={nameOfTeam(team(r.teamId), tournament.teams, byId)}
                 logo={team(r.teamId)?.logo ?? null}
                 tone={teamTone(indexOf(r.teamId))}
