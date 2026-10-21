@@ -5,10 +5,12 @@
   import Drawer from "./Drawer.svelte";
   import Person from "./Person.svelte";
   import { setTournamentPlayer } from "../app/backend.svelte";
+  import { SvelteMap } from "svelte/reactivity";
 
   // Who's in a tournament, in a drawer over the draft: an admin puts in someone who didn't sign up (sign-up shut or
   // not, past the limit) or takes someone off, who then comes off their team too. Captains are in automatically and
-  // change in the tournament's settings. Search narrows the list.
+  // change in the tournament's settings. Search narrows the list. One list, A to Z: a tap says In or Add at once and
+  // the row stays where it is, so adding a run of people needs no scrolling; the save follows, undone if it fails.
   let {
     tournamentId,
     going,
@@ -24,15 +26,26 @@
       .sort((a, b) => goesBy(a).localeCompare(goesBy(b))),
   );
   const found = (p: Player) => search.length < 2 || matchesName(p, search);
-  const inIt = $derived(active.filter((p) => going.includes(p.id) && !captains.has(p.id) && found(p)));
-  const others = $derived(active.filter((p) => !going.includes(p.id) && !captains.has(p.id) && found(p)));
+  // Taps not yet in `going`: what the row says while its save is under way
+  const tapped = new SvelteMap<number, boolean>();
+  const isIn = (id: number) => tapped.get(id) ?? going.includes(id);
+  const shown = $derived(active.filter((p) => !captains.has(p.id) && found(p)));
+  const count = $derived(active.filter((p) => !captains.has(p.id) && isIn(p.id)).length);
+
+  async function toggle(id: number) {
+    const to = !isIn(id);
+    tapped.set(id, to);
+    const ok = await setTournamentPlayer(tournamentId, id, to);
+    if (ok === null || going.includes(id) === to) tapped.delete(id);
+  }
 </script>
 
-{#snippet row(p: Player, isIn: boolean)}
-  <button class="row" onclick={() => setTournamentPlayer(tournamentId, p.id, !isIn)}>
+{#snippet row(p: Player)}
+  {@const on = isIn(p.id)}
+  <button class="row" aria-label={on ? `${goesBy(p)}, in: take off` : `Add ${goesBy(p)}`} onclick={() => toggle(p.id)}>
     <Person player={p} />
     <span class="state">
-      {#if isIn}<span class="badge green">In</span>
+      {#if on}<span class="badge green">In</span>
       {:else}<span class="badge"><Icon name="plus" size={14} /> Add</span>{/if}
     </span>
   </button>
@@ -46,18 +59,13 @@
     </label>
   {/snippet}
 
-  {#if inIt.length}
-    <h3 class="section-title">In · tap to take off</h3>
+  <h3 class="section-title"><span class="num">{count}</span> in · tap to add or take off</h3>
+  {#if shown.length}
     <div class="list">
-      {#each inIt as p (p.id)}{@render row(p, true)}{/each}
+      {#each shown as p (p.id)}{@render row(p)}{/each}
     </div>
-  {/if}
-
-  {#if others.length}
-    <h3 class="section-title">Everyone else · tap to add</h3>
-    <div class="list">
-      {#each others as p (p.id)}{@render row(p, false)}{/each}
-    </div>
+  {:else}
+    <p class="hint">No one matches.</p>
   {/if}
 
   {#snippet footer()}
