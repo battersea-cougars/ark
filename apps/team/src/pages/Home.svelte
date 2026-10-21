@@ -75,12 +75,13 @@
     }
   }
 
-  // In the store app (ADR 0108): say what notifications are for before the phone asks, once; "Not now" is remembered.
-  // It's an item in the feed, under the calls to action
+  // In the store app (ADR 0108), or a browser with Web Push (#24): say what notifications are for before the phone
+  // asks, once; "Not now" is remembered. On an iPhone in a Safari tab, how to get them instead: the app on the Home
+  // Screen. It's an item in the feed, under the calls to action
   const NOT_NOW = "cougars.notify.not-now";
-  let askNotify = $state(false);
+  let askNotify = $state<"ask" | "homeScreen" | false>(false);
   mayAskToNotify()
-    .then((may) => (askNotify = may && !saidNotNow()))
+    .then((may) => (askNotify = !saidNotNow() && may))
     .catch(() => {});
   function saidNotNow() {
     try {
@@ -485,17 +486,25 @@
       {#each feed.upcoming as r (r.key)}{@render upcomingItem(r)}{/each}
     {/if}
     <a class="past" href="/calendar">See the calendar<Icon name="chevronRight" size={16} /></a>
-    <!-- The store app's one ask (ADR 0108): what notifications are for, then the phone's own question -->
+    <!-- The one ask (ADR 0108): what notifications are for, then the phone's (or browser's) own question; on an iPhone
+         in a Safari tab, the way to them -->
     {#if askNotify}
       <div class="item ask-notify rise">
         <span class="lead-col"><Icon name="bell" size={18} /></span>
         <span class="grow">
           <span class="item-text">Hear it first</span>
-          <span class="item-sub">Teams out, a place coming up, a night off: a notification, as it happens.</span>
-          <span class="note-links">
-            <button class="btn primary sm" onclick={turnOnNotifications}>Turn on notifications</button>
-            <button class="link" onclick={notNow}>Not now</button>
-          </span>
+          {#if askNotify === "homeScreen"}
+            <span class="item-sub"
+              >On iPhone, add the app to your Home Screen (Share, then Add to Home Screen) and turn them on there.</span
+            >
+            <span class="note-links"><button class="link" onclick={notNow}>Got it</button></span>
+          {:else}
+            <span class="item-sub">Teams out, a place coming up, a night off: a notification, as it happens.</span>
+            <span class="note-links">
+              <button class="btn primary sm" onclick={turnOnNotifications}>Turn on notifications</button>
+              <button class="link" onclick={notNow}>Not now</button>
+            </span>
+          {/if}
         </span>
       </div>
     {/if}

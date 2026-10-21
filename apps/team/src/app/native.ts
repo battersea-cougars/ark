@@ -45,15 +45,23 @@ export async function saveCalendar(name: string, ics: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Whether to ask about notifications: in the app, and not yet asked. */
-export async function mayAskToNotify(): Promise<boolean> {
-  if (!inApp) return false;
+/**
+ * Whether to ask about notifications, once: "ask" (not yet asked: in the app, or a browser with Web Push, #24),
+ * "homeScreen" (an iPhone in a Safari tab, where only the app on the Home Screen may have them: say how), or no.
+ */
+export async function mayAskToNotify(): Promise<"ask" | "homeScreen" | false> {
+  if (!inApp) {
+    const { mayAsk, webPush } = await import("./web-push");
+    if (!(await mayAsk())) return false;
+    return (await webPush()) === "homeScreen" ? "homeScreen" : "ask";
+  }
   const { FirebaseMessaging } = await import("@capacitor-firebase/messaging");
-  return (await FirebaseMessaging.checkPermissions()).receive === "prompt";
+  return (await FirebaseMessaging.checkPermissions()).receive === "prompt" && "ask";
 }
 
-/** Ask the phone for notifications (after saying why, on Home); yes, and this sign-in gets them. */
+/** Ask the phone (or the browser) for notifications, after saying why, from a tap; yes, and this sign-in gets them. */
 export async function askToNotify(): Promise<boolean> {
+  if (!inApp) return (await import("./web-push")).turnOn();
   const { FirebaseMessaging } = await import("@capacitor-firebase/messaging");
   const yes = (await FirebaseMessaging.requestPermissions()).receive === "granted";
   if (yes) await register();

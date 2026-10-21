@@ -5,7 +5,7 @@ import { mount } from "svelte";
 import App from "./App.svelte";
 import { ApiError, getBootstrap, running } from "./app/api";
 import { start } from "./app/backend.svelte";
-import { startInApp } from "./app/native";
+import { inApp, startInApp } from "./app/native";
 import { routeFor } from "./app/nav-routes";
 import { loadPage } from "./app/pages.svelte";
 import { navigate } from "./app/router.svelte";
@@ -27,8 +27,9 @@ try {
   mount(App, { target });
   running.app = true;
   unsplash();
-  // In the store app (ADR 0108): links and notifications open their page; nothing in a browser
-  void startInApp((path) => navigate(path)).catch(() => {});
+  // In the store app (ADR 0108): links and notifications open their page; in a browser, Web Push's (#24)
+  if (inApp) void startInApp((path) => navigate(path)).catch(() => {});
+  else void import("./app/web-push").then((w) => w.startWebPush((path) => navigate(path))).catch(() => {});
 } catch (e) {
   if (e instanceof ApiError && e.status === 401) {
     const { default: SignIn } = await import("./pages/SignIn.svelte");

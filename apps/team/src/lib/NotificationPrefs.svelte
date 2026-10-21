@@ -1,10 +1,12 @@
 <script lang="ts">
   // Notifications (ADR 0108, #24), on your profile: a switch for each kind, every one on until you turn it off. The
-  // choice is yours, not a phone's, so it's here in a browser too: notifications come through the club's app, and
-  // whichever phone you sign in on follows it. A switch answers at once; the server's reply puts it right if it
-  // failed (backend.svelte.ts save).
+  // choice is yours, not a device's: whichever phone or browser you sign in on follows it. A switch answers at once;
+  // the server's reply puts it right if it failed (backend.svelte.ts save). In a browser, first, this device's own
+  // switch (Web Push, app/web-push.ts): permission only ever from its tap; on an iPhone in a Safari tab, the way to
+  // them instead (the app on the Home Screen).
   import { chooseNotification } from "../app/backend.svelte";
   import { inApp } from "../app/native";
+  import { turnOff, turnOn, webPush, webPushHere } from "../app/web-push";
   import { db } from "../demo/store.svelte";
   import { TOPICS, type Topic } from "./notification-topics";
 
@@ -15,6 +17,35 @@
     db.notifications[topic] = on;
     void chooseNotification(topic, on);
   }
+
+  // This browser: what it can do is known at once; whether it's subscribed a moment later (the switch only flips)
+  const atFirst = inApp ? "unsupported" : webPushHere();
+  let here = $state(atFirst);
+  let deviceOn = $state(false);
+  let busy = $state(false);
+  if (atFirst === "maybe") void webPush().then((s) => (deviceOn = s === "on"));
+  const canSwitch = $derived(here === "ask" || here === "maybe" || here === "blocked");
+  async function flipDevice() {
+    busy = true;
+    try {
+      if (deviceOn) {
+        await turnOff();
+        deviceOn = false;
+      } else {
+        deviceOn = await turnOn();
+        here = webPushHere();
+      }
+    } catch {
+      deviceOn = (await webPush().catch(() => "off")) === "on";
+    } finally {
+      busy = false;
+    }
+  }
+  const deviceHint = $derived(
+    here === "blocked"
+      ? "Blocked for this site in your browser's settings."
+      : "Shown by this browser, even with the app closed.",
+  );
 </script>
 
 <section class="notifications">
@@ -22,9 +53,30 @@
   <p class="hint">
     {inApp
       ? "What this phone tells you, signed in as you."
-      : "Notifications come through the Cougars app on your phone. What you choose here goes with you."}
+      : here === "homeScreen"
+        ? "On iPhone, add the app to your Home Screen (Share, then Add to Home Screen) and turn them on there."
+        : here === "unsupported"
+          ? "This browser can't show notifications. What you choose here goes with you."
+          : "What you choose here goes with you, on every device."}
   </p>
   <ul>
+    {#if canSwitch}
+      <li>
+        <button
+          type="button"
+          class="switch"
+          role="switch"
+          aria-checked={deviceOn}
+          aria-describedby="notify-device"
+          disabled={disabled || busy || here === "blocked"}
+          onclick={flipDevice}
+        >
+          <span class="track" aria-hidden="true"></span>
+          <span>On this device</span>
+        </button>
+        <p class="hint" id="notify-device">{deviceHint}</p>
+      </li>
+    {/if}
     {#each TOPICS as t (t.topic)}
       <li>
         <button
