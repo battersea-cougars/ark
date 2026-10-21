@@ -80,7 +80,7 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   a desktop, asking there before closing with players left or a reset) are icons on that first line. On a phone the
   series' header goes altogether (the page's tabs say where you are), the ticker stays, shorter, the tabs and chips are
   a size smaller, and the players scroll inside the window's height (`.page.fit`), starting about a third of the way
-  down. Once everyone's picked, whoever runs it has "End the draft and make the fixtures" on the page (one tap: closed,
+  down. Once everyone's picked, whoever runs it has "End the draft and make the fixtures" in the middle of where the players were (one tap: closed,
   then the fixtures, unless the playoffs need more teams). A closed draft keeps Reopen and Make the fixtures on the
   page.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the

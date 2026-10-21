@@ -583,6 +583,14 @@
       <div class="plist" aria-label="Players left">
         {#each listed as p (p.id)}{@render playerRow(p, true)}{:else}<p class="hint none">No one matches.</p>{/each}
       </div>
+    {:else if open && running}
+      <!-- Everyone's picked: the way on, right where the players were -->
+      <div class="finished">
+        <p class="hint">Everyone's picked.</p>
+        <button class="btn primary" onclick={finish}
+          >{canFixture ? "End the draft and make the fixtures" : "End the draft"}</button
+        >
+      </div>
     {:else if open}
       <p class="hint">Everyone's picked. Whoever runs the draft closes it to set the teams.</p>
     {:else}
@@ -660,14 +668,7 @@
   {:else}
     <!-- A closed draft's next steps, on the page: reopen it, make the fixtures. Everything else whoever runs it does
          is behind Manage, out of the picker's way (the admin controls pattern) -->
-    {#if running && open && !pool.length}
-      <!-- Everyone's picked: the way on, on the page, not behind Manage -->
-      <div class="controls run">
-        <button class="btn primary sm" onclick={finish}
-          >{canFixture ? "End the draft and make the fixtures" : "End the draft"}</button
-        >
-      </div>
-    {:else if running && phase === "closed"}
+    {#if running && phase === "closed"}
       <div class="controls run">
         <button class="btn sm outline" onclick={() => openDraft(tournament.id)}>Reopen</button>
         {#if !tournament.games?.length && tooFew}
@@ -1339,6 +1340,16 @@
     padding-right: var(--s-3);
   }
   /* Where the draft stands, in the display face on the page: words, not a block (a filled block reads as a button) */
+  /* Everyone's picked: the button to end it in the middle of the players' space */
+  .finished {
+    display: grid;
+    flex: 1;
+    place-content: center;
+    justify-items: center;
+    gap: var(--s-3);
+    min-height: 12rem;
+    text-align: center;
+  }
   /* The turn as a button: it looks like the label it is */
   .turn.as-btn {
     padding: 0;
