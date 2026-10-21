@@ -105,6 +105,11 @@
     for (let k = 0; k < pool.length; k++) if (onTheClock(teams.length, made + k) === i) return k;
     return Infinity;
   };
+  // Who picks after the one on the clock, and a captain's own place (round one's, from the order)
+  const nextUp = $derived(teams.length ? onTheClock(teams.length, made + 1) : -1);
+  const myPlace = $derived(
+    myTeam >= 0 && typeof teams[myTeam]?.pick === "number" ? `You pick ${nth(teams[myTeam].pick!)}` : "",
+  );
   const untilMine = $derived(myTeam < 0 || turnIn(myTeam) === Infinity ? -1 : turnIn(myTeam));
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
   // The captains in the server's order: as named until the draft opens and draws it (ADR 0060)
@@ -164,6 +169,19 @@
       behavior: smooth && !prefersReducedMotion ? "smooth" : "auto",
     });
   };
+  // A pick landing while you watch: its chip lights up for a moment, so a new pick is noticed (not on arriving)
+  let fresh = $state(0);
+  let seenMade = -1;
+  $effect(() => {
+    const n = made;
+    if (seenMade >= 0 && n > seenMade && !prefersReducedMotion) {
+      fresh = n;
+      const t = setTimeout(() => (fresh = 0), 1800);
+      seenMade = n;
+      return () => clearTimeout(t);
+    }
+    seenMade = n;
+  });
   let centredAt = -1;
   $effect(() => {
     const el = tickerEl;
@@ -567,6 +585,7 @@
         <span class="turn">{whenSaid ? `Draft ${whenSaid}` : "Draft date TBC"}</span>
       {/if}
       <div class="tools">
+        {#if open && !fit && myPlace}<span class="mine eyebrow">{myPlace}</span>{/if}
         {#if open}
           <!-- Picks show up as they're made while the hub's stream is open; else on the admins' beat (ADR 0072) -->
           <span
@@ -590,27 +609,6 @@
         {/if}
       </div>
     </div>
-    <!-- Under it, one line kept while it's on: who's next, and a captain's own place (round one's, from the order) and
-         how long till their turn -->
-    {#if open}
-      <p class="upnext">
-        {#if live && pool.length > 1}<span
-            >Next: <strong
-              >{onTheClock(teams.length, made + 1) === myTeam
-                ? "you"
-                : teamName(onTheClock(teams.length, made + 1))}</strong
-            ></span
-          >{/if}
-        {#if live && pool.length > 1 && myTeam >= 0 && typeof teams[myTeam].pick === "number"}<span
-            class="sep"
-            aria-hidden="true">·</span
-          >{/if}
-        {#if myTeam >= 0 && typeof teams[myTeam].pick === "number"}<span class="mine"
-            >You pick {nth(teams[myTeam].pick!)}{#if live && untilMine > 1}, up in {untilMine}{:else if live && untilMine < 0},
-              your picks are done{/if}</span
-          >{/if}
-      </p>
-    {/if}
 
     <!-- Before it starts: the captains, no numbers until the order's set, then shuffled into it for everyone on the
          page. Whoever runs it sets the order, then starts the draft. Once it starts this folds away: the page is the
@@ -647,42 +645,24 @@
       </div>
     {/if}
 
-    <!-- The last pick, as one line everyone sees: the team's crest and name, then who they took. Always one line
-         high, so a pick arriving moves nothing; the new one flies in -->
-    {#if open || (phase === "closed" && made)}
-      <div class="last" aria-live="polite">
-        {#if lastPick}
-          {#key lastPick.n}
-            <span class="last-pick" in:fly={{ y: 6, duration: flyMs, easing: easeOut }}>
-              <span class="hint">Last:</span>
-              <TeamCrest
-                name={teamName(lastPick.team)}
-                logo={teams[lastPick.team].logo}
-                tone={teamTone(lastPick.team)}
-                size="1.25rem"
-              />
-              {#if lastPick.by}
-                <!-- Whoever ran the draft picked for the captain: said as theirs, for that team (ADR 0060) -->
-                <span class="lt">{lastPick.by}</span>
-                <span class="hint">picked</span>
-                <span class="lp"
-                  >{lastPick.name}{#if lastPick.you}<small>you</small>{/if}</span
-                >
-                <span class="hint">for</span>
-                <span class="lt">{teamName(lastPick.team)}</span>
-              {:else}
-                <span class="lt">{teamName(lastPick.team)}</span>
-                <span class="hint">picked</span>
-                <span class="lp"
-                  >{lastPick.name}{#if lastPick.you}<small>you</small>{/if}</span
-                >
-              {/if}
-            </span>
-          {/key}
-        {:else}
-          <span class="hint">Nobody's picked yet.</span>
-        {/if}
-      </div>
+    <!-- Under the turn, one small line kept while it's on: who's next (and, on a phone, a captain's own place). The
+         last pick is the ticker's newest chip, which lights up as it lands -->
+    {#if open}
+      <dl class="lines">
+        <dt>Next</dt>
+        <dd>
+          {#if live && pool.length > 1}<span class="v">{nextUp === myTeam ? "You" : teamName(nextUp)}</span>{:else}<span
+              class="k">{live ? "Nobody: this is the last pick" : "Everyone's picked"}</span
+            >{/if}
+          {#if fit && myPlace}<span class="mine">{myPlace}</span>{/if}
+        </dd>
+      </dl>
+      <!-- For a screen reader: each pick as it lands, said whole (the ticker shows it) -->
+      <p class="sr-only" aria-live="polite">
+        {#if lastPick}{lastPick.by || teamName(lastPick.team)} picked {lastPick.name}{lastPick.by
+            ? ` for ${teamName(lastPick.team)}`
+            : ""}{/if}
+      </p>
     {/if}
 
     <!-- The ticker: the picks just made, then every pick to come -->
@@ -695,6 +675,7 @@
             class:ghost={t.ghost}
             class:done={!t.ghost && t.n <= made}
             class:up={t.n === made + 1}
+            class:fresh={t.n === fresh}
             class:now={live && t.n === made + 1}
             class:me={live && t.n === made + 1 && mine}
             style:--d={Math.min(Math.abs(t.n - (made + 1)), 4)}
@@ -967,24 +948,45 @@
     color: var(--fg-subtle);
   }
   /* Who's next, and your place: one small line under the turn, always there while it's on */
-  .upnext {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    min-height: 1.5rem;
-    margin: calc(-1 * var(--s-2)) 0 0;
-    overflow: hidden;
-    color: var(--fg-muted);
+  /* Next and Last: one small size, two weights (the words muted, the names in the body colour), labels in a column of
+     their own so the names line up; a long line ends in an ellipsis */
+  .lines {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0.15rem var(--s-2);
+    margin: 0;
     font-size: var(--text-sm);
+    line-height: 1.35;
+  }
+  .lines dt {
+    color: var(--fg-muted);
+    font-weight: 400;
+  }
+  .lines dd {
+    display: flex;
+    gap: var(--s-2);
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
     white-space: nowrap;
   }
-  .upnext strong {
-    color: var(--fg);
-    font-weight: 600;
+  .lines .k {
+    color: var(--fg-muted);
   }
-  .upnext .mine {
+  .lines .v {
     color: var(--fg-body);
-    font-weight: 600;
+    font-weight: 500;
+  }
+  /* A captain's place: quiet, at the end of the Next line on a phone, before the icons on a desktop */
+  .mine {
+    flex-shrink: 0;
+    margin-left: auto;
+    color: var(--fg-muted);
+  }
+  .tools .mine {
+    align-self: center;
+    margin: 0 var(--s-2) 0 0;
+    line-height: 1;
   }
   .before {
     display: grid;
@@ -1007,8 +1009,7 @@
      the list starts high. Room at its foot for the End turn bar */
   /* While it's on, the blocks under the tabs sit closer: the lines under the turn pull up into the page's gap (the
      header and its tabs stay where they are) */
-  .draft.on .upnext,
-  .draft.on .last {
+  .draft.on .lines {
     margin-top: calc(-1 * var(--s-3));
   }
   .draft.on .ticker {
@@ -1027,8 +1028,8 @@
     height: 2.25rem;
     font-size: 1.2rem;
   }
-  .draft.fit .upnext {
-    margin-top: calc(-1 * var(--s-2));
+  .draft.fit .lines {
+    margin-top: 0;
   }
   .draft.fit .ticker {
     height: 4rem;
@@ -1197,41 +1198,6 @@
 
   /* The last pick: one line, the same height with or without one */
   /* The last pick: one small line, the same height with or without one */
-  .last {
-    display: flex;
-    align-items: center;
-    min-height: 1.5rem;
-    min-width: 0;
-    overflow: hidden;
-    font-size: var(--text-sm);
-    white-space: nowrap;
-  }
-  .last-pick {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-2);
-    min-width: 0;
-  }
-  .last-pick {
-    gap: var(--s-1) var(--s-2);
-  }
-  .last-pick .lt {
-    color: var(--fg-body);
-    font-weight: 600;
-    white-space: nowrap;
-  }
-  .last-pick .lp {
-    overflow: hidden;
-    font-weight: 600;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .last-pick small {
-    margin-left: var(--s-1);
-    color: var(--fg-muted);
-    font-size: var(--text-xs);
-    font-weight: 400;
-  }
 
   /* The ticker, as a carousel: the pick on the clock sits in the middle, larger and brought forward; the picks
      either side step back and fade with their distance (--d). Fixed sizes: it scrolls, never grows */
@@ -1303,6 +1269,19 @@
     text-overflow: ellipsis;
   }
   /* On the clock: half as big again, a card reaching over the chips either side, and a badge that says so */
+  /* The pick that just landed: a flash of the club's red round its chip, fading */
+  .tick.fresh {
+    animation: landed 1.6s var(--ease) both;
+  }
+  @keyframes landed {
+    0%,
+    30% {
+      box-shadow: 0 0 0 2px var(--red-hot);
+    }
+    100% {
+      box-shadow: 0 0 0 2px transparent;
+    }
+  }
   .tick.now {
     z-index: 1;
     scale: 1.2;

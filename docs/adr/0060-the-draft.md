@@ -68,16 +68,18 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 
 ### Where it's edited
 
-- The Draft page is for picking and running the draft. It shows the teams but doesn't edit them. Before it starts
-  it shows the captains and the order (and, for whoever runs it, Set the order, then Start the draft). Once it's on,
-  the page is the draft: the order folds away (each team card shows its place, "1st"), the most room goes to the
-  players left, and what isn't picking is small or behind a tap. One line says whose pick it is, one under it who's
-  next and a captain's own place ("You pick 2nd"), one the last pick. Rules, the pick log and **Manage** (Undo, Add
-  player, Close, Reset: a bottom sheet on a phone, a side drawer on a desktop, asking there before closing with
-  players left or a reset) are icons on that first line. On a phone the series' header goes altogether (the page's
-  tabs say where you are), the last pick is one small line ("Last: Dana picked Reg for Team Cara"), the ticker stays,
-  shorter, the tabs and chips are a size smaller, and the players scroll inside the window's height (`.page.fit`),
-  starting about a third of the way down. A closed draft keeps Reopen and Make the fixtures on the page.
+- The Draft page is for picking and running the draft. It shows the teams but doesn't edit them. Before it starts it
+  shows the captains and the order (and, for whoever runs it, Set the order, then Start the draft). Once it's on, the
+  page is the draft: the order folds away (each team card shows its place, "1st"), the most room goes to the players
+  left, and what isn't picking is small or behind a tap. One line says whose pick it is, and one small line under it
+  who's next (a captain's own place, "You pick 2nd", at its end on a phone, before the icons on a desktop). There's no
+  last-pick line: the ticker's newest chip is the last pick ("2 · took Cal", or "2 · Dan took Cal" when someone picked
+  for the captain), and it lights up as a pick lands (not with reduced motion); a screen reader hears each pick said
+  whole. Rules, the pick log and **Manage** (Undo, Add player, Close, Reset: a bottom sheet on a phone, a side drawer on
+  a desktop, asking there before closing with players left or a reset) are icons on that first line. On a phone the
+  series' header goes altogether (the page's tabs say where you are), the ticker stays, shorter, the tabs and chips are
+  a size smaller, and the players scroll inside the window's height (`.page.fit`), starting about a third of the way
+  down. A closed draft keeps Reopen and Make the fixtures on the page.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).
 - The tournament editor changes teams **in place** (by id), never writes a draft's players or its pick order, and
@@ -136,3 +138,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-21: More room on a phone once it's on: no series header, whose pick, who's next and your place in two tight
   lines, the last pick one small line, a shorter ticker, smaller tabs and chips, half the gaps; the players start at
   about a third of the screen. A desktop tightens the lines under the tabs, which don't move.
+- 2026-10-21: No last-pick line: the ticker's newest chip is it, lighting up as a pick lands and naming whoever picked
+  for a captain; the Next line is labelled, one size and two weights.
