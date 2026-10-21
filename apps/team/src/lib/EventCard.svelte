@@ -333,6 +333,7 @@
               class="yes"
               class:beckon={beckoning && !out}
               class:beckon-again={beckoning && out}
+              class:cheer={beckon && inIt && !locked}
               aria-pressed={inIt || waiting}
               disabled={locked}
               onclick={() => setIn(true)}
@@ -725,11 +726,13 @@
      In again. You may not notice you saw it. Hidden from screen readers (the alt text after the slash is empty);
      nothing moves */
   .answer > .yes.beckon,
-  .answer > .yes.beckon-again {
+  .answer > .yes.beckon-again,
+  .answer > .yes.cheer {
     position: relative;
   }
   .answer > .yes.beckon::after,
-  .answer > .yes.beckon-again::after {
+  .answer > .yes.beckon-again::after,
+  .answer > .yes.cheer::after {
     content: "PRESS ME" / "";
     position: absolute;
     inset: 0;
@@ -757,6 +760,11 @@
     mask-position: 100% 0;
     animation: subliminal 7s var(--beckon-delay, 2s) ease-in-out infinite;
   }
+  /* Once you're in, the same band says GOOD CHOICE, in the light ink over In's green */
+  .answer > .yes.cheer::after {
+    content: "GOOD CHOICE" / "";
+    color: var(--fg);
+  }
   /* The glide: about a second and a half, then the band waits off the edge until the next */
   @keyframes subliminal {
     0% {
@@ -771,7 +779,8 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .answer > .yes.beckon::after,
-    .answer > .yes.beckon-again::after {
+    .answer > .yes.beckon-again::after,
+    .answer > .yes.cheer::after {
       animation: none;
       display: none;
     }
