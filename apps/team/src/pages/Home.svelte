@@ -1,25 +1,31 @@
 <script lang="ts">
-  // Home (ADR 0118): a slim hello with what you owe, the club's announcements, then the calls to action (are you in
-  // this Friday, are you in for the Kumite), then a feed of everything else, Teammates at the very end.
+  // Home (ADR 0118): a slim hello with the Calendar's button, the club's announcements, then the calls to action (this
+  // Friday's card, always; are you in for the Kumite), then the feed: what needs you now, what's coming up, and for
+  // admins their own lines at the foot.
   import { untrack } from "svelte";
-  import { goesBy, shortName, shortNameOf } from "../lib/names";
-  import { initials } from "../lib/initials";
+  import { shortName, shortNameOf } from "../lib/names";
   import { can } from "../access/actions";
   import { PLAYERS } from "../demo/data";
-  import { owedBy } from "../demo/dues.svelte";
+  import { chargesFor, owedBy } from "../demo/dues.svelte";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
-  import { formatDayDate, formatTime, londonToday, pounds } from "../lib/dates";
-  import { aged } from "../lib/dues";
+  import { londonToday } from "../lib/dates";
+  import { aged, leftOn } from "../lib/dues";
   import { signupOpen } from "../lib/signup";
-  import { homeFeed } from "../lib/home-feed";
+  import { homeFeed, type UpcomingEvent } from "../lib/home-feed";
   import { fill, slot } from "../lib/greetings";
-  import { latestTournament, nextSession, sessionBookable, tournamentBookable } from "../demo/schedule.svelte";
+  import {
+    calendar,
+    latestTournament,
+    nextSession,
+    sessionBookable,
+    tournamentBookable,
+  } from "../demo/schedule.svelte";
   import { pick, type Quip, type QuipKind } from "../lib/quips";
-  import type { Bookable } from "../demo/model";
+  import type { Bookable, Tournament } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
   import { editionState } from "../lib/edition";
   import { checkForUpdates } from "../lib/live-updates.svelte";
@@ -93,8 +99,13 @@
     askNotify = false;
   }
 
-  // What you owe (ADR 0007): a quiet chip in the header, opening your tab; nothing when you're square
-  const owed = $derived(owedBy(who.id));
+  // What you owe (ADR 0007): a row in the feed, opening your tab; nothing when you're square
+  const owes = $derived({
+    pence: owedBy(who.id),
+    kinds: chargesFor(who.id)
+      .filter((c) => leftOn(c) > 0)
+      .map((c) => c.kind),
+  });
 
   // The soonest session of any training leads Home; the other trainings' next sessions go in the feed
   const nexts = $derived(
@@ -113,12 +124,6 @@
     session ?? { id: 0, going: [] as number[], waitlist: [] as number[], out: undefined as number[] | undefined },
   );
   const day = $derived(series?.shortName ?? "week");
-  const later = $derived(
-    nexts
-      .slice(1)
-      .map((o) => sessionBookable(o.session))
-      .sort((x, y) => x.startsAt.localeCompare(y.startsAt)),
-  );
   // The next of each tournament series, not one that's done (by its games, lib/edition.ts)
   const tournaments = $derived(
     db.tournamentTypes
@@ -128,9 +133,8 @@
         return t && editionState(t) !== "done" ? [{ type, t }] : [];
       }),
   );
-  // Taking sign-ups: a call to action up top, like Friday. The rest are teased in the feed
+  // Taking sign-ups: a call to action up top, like Friday. The rest are in what's coming up
   const signingUp = $derived(tournaments.filter(({ t }) => signupOpen(t, today)));
-  const teased = $derived(tournaments.filter(({ t }) => !signupOpen(t, today)));
 
   const isIn = $derived(next.going.includes(who.id));
   const waiting = $derived(next.waitlist.includes(who.id));
@@ -148,36 +152,46 @@
         : ev.entries.out?.includes(who.id)
           ? "out"
           : null;
-  // A call to action stays a full card while it's unanswered; one you'd already answered when you came is a line
-  // saying so, so the asks still open stand out. Answering here keeps the card for the rest of the visit: nothing
-  // jumps under your thumb (no-layout-shift)
+  // Friday's card is always there, answered or not. A tournament's call to action stays a full card while it's
+  // unanswered; one you'd already answered when you came is its row in what's coming up ("You're in"), so the asks
+  // still open stand out. Answering here keeps the card for the rest of the visit: nothing jumps under your thumb
+  // (no-layout-shift)
   let asked = $state<Record<string, boolean>>({});
   $effect(() => {
-    const open = [booking, ...signingUp.map(({ t }) => tournamentBookable(t))].filter(
-      (ev): ev is Bookable => !!ev && !standingOn(ev),
-    );
+    const open = signingUp.map(({ t }) => tournamentBookable(t)).filter((ev) => !standingOn(ev));
     untrack(() => {
       for (const ev of open) if (!asked[ev.key]) asked[ev.key] = true;
     });
   });
   const askFull = (ev: Bookable) => !standingOn(ev) || !!asked[ev.key];
 
-  // A one-line event: where you stand and what it is, then when
-  const STANDING = { in: "You're in", waitlist: "You're on the waitlist", out: "You're out" } as const;
-  function whenOf(ev: Bookable) {
-    if (ev.cancelled) return "Cancelled";
-    if (ev.season) return `${ev.season.name[0].toUpperCase()}${ev.season.name.slice(1)} ${ev.season.year}`;
-    if (ev.dateTbc) return "Date to be confirmed";
-    return `${formatDayDate(ev.startsAt)} · ${ev.timeText || `${formatTime(ev.startsAt)}–${formatTime(ev.endsAt)}`}`;
-  }
-  function eventLine(ev: Bookable) {
-    const s = standingOn(ev);
-    const asking = !s && ev.signup && !ev.cancelled && can(perms, "signup:Event");
+  // What's coming up, for the feed to pick from: everything on the club's agenda from today (not its reminders: a
+  // draft night or a sign-up closing is in what needs you now), and each tournament series' next one, however far
+  const upcomingEvent = (ev: Bookable): UpcomingEvent => {
+    const standing = standingOn(ev);
     return {
-      text: s ? `${STANDING[s]} · ${ev.title}` : ev.title,
-      sub: asking ? `${whenOf(ev)} · Are you in?` : whenOf(ev),
+      ...ev,
+      standing,
+      asking: !standing && ev.signup && !ev.cancelled && can(perms, "signup:Event"),
+      signupOpensOn: ev.kind === "tournament" ? (ev.entries as Tournament).signupOpensOn : null,
     };
-  }
+  };
+  const events = $derived.by(() => {
+    const all = [...calendar(today).filter((ev) => /^(session|tournament|oneoff):/.test(ev.key))];
+    for (const { t } of tournaments) {
+      const ev = tournamentBookable(t);
+      if (!all.some((x) => x.key === ev.key)) all.push(ev);
+    }
+    return all.map(upcomingEvent);
+  });
+  // The cards up top: not repeated below
+  const shown = $derived([
+    ...(booking ? [booking.key] : []),
+    ...signingUp
+      .map(({ t }) => tournamentBookable(t))
+      .filter(askFull)
+      .map((ev) => ev.key),
+  ]);
 
   // What the club is owed, for whoever sees Unpaid fees (read:Dues): the total, by how many, and how much of it is
   // in the worst bucket (over 90 days)
@@ -190,7 +204,7 @@
       worst: rows.reduce((s, r) => s + r.amounts[3], 0),
     };
   });
-  // The feed (lib/home-feed.ts): drafts, sign-ups closing, teams out, the club's dues, your move first
+  // The feed (lib/home-feed.ts): what needs you now, what's coming up, the admins' lines
   const feed = $derived(
     homeFeed({
       me: who.id,
@@ -201,17 +215,11 @@
       types: db.tournamentTypes,
       upcoming: tournaments,
       club,
+      owes,
+      events,
+      shown,
     }),
   );
-
-  // The squad, one tap from Home (Teammates: everyone's card, by position, searchable): the feed's last line
-  const squad = $derived(
-    db.members
-      .filter((m) => m.status === "active")
-      .map((m) => m.player)
-      .sort((a, b) => goesBy(a).localeCompare(goesBy(b))),
-  );
-  const cougars = $derived(squad.filter((p) => p.cougar).length);
 
   // Picked once per visit, from the time of day, a training night, or how often you've looked today. The count
   // is this device's only: a bit of fun, not a record.
@@ -297,9 +305,17 @@
 {/snippet}
 
 <!-- One line of the feed: an icon, a line, a sub-line, and a chevron when it opens something -->
-{#snippet item(o: { key?: string; href?: string; icon: IconName; text: string; sub: string; hot?: boolean })}
+{#snippet item(o: {
+  key?: string;
+  href?: string;
+  icon: IconName;
+  text: string;
+  sub: string;
+  hot?: boolean;
+  money?: boolean;
+})}
   {#if o.href}
-    <a class="item rise" class:hot={o.hot} href={o.href}>
+    <a class="item rise" class:hot={o.hot || o.money} href={o.href}>
       <Icon name={o.icon} size={18} />
       <span class="grow"><span class="item-text">{o.text}</span><span class="item-sub">{o.sub}</span></span>
       <Icon name="chevronRight" size={16} />
@@ -314,26 +330,29 @@
   {/if}
 {/snippet}
 
-{#snippet eventItem(ev: Bookable, sub?: string)}
-  {@const l = eventLine(ev)}
-  {@render item({ href: ev.href, icon: ev.icon, text: l.text, sub: sub ?? l.sub })}
+<!-- One row of what's coming up: the date on the left, then what it is and how you stand -->
+{#snippet upcomingItem(r: (typeof feed.upcoming)[number])}
+  <a class="item upcoming rise" href={r.href ?? "/calendar"}>
+    <span class="when" aria-hidden="true"><span class="when-top">{r.date.top}</span>{r.date.bottom}</span>
+    <span class="grow">
+      <span class="sr-only">{r.date.top} {r.date.bottom}:</span>
+      <span class="item-text">{r.text}</span><span class="item-sub">{r.sub}</span>
+    </span>
+    <Icon name="chevronRight" size={16} />
+  </a>
 {/snippet}
 
 <div class="page">
-  <!-- The hello: one line, with what you owe and (for whoever posts) a new announcement on its right -->
+  <!-- The hello: one line, with the Calendar and (for whoever posts) a new announcement on its right -->
   <header class="hello">
     <p class="kicker">Battersea Cougars</p>
     <div class="hello-row">
       <h1 class="greeting">{hello}</h1>
       <div class="hello-side">
-        {#if owed > 0}
-          <a class="owed" href="/me/tab" aria-label="You owe the club {pounds(owed)}: your tab">
-            <Icon name="pound" size={16} /><span class="num">{pounds(owed)}</span> to pay<Icon
-              name="chevronRight"
-              size={14}
-            />
-          </a>
-        {/if}
+        <!-- The Calendar: a phone's tabs have the Club in its place, so it's here (a desktop's rail has it too) -->
+        <a class="btn ghost icon" href="/calendar" aria-label="Calendar" title="Calendar"
+          ><Icon name="calendar" size={18} /></a
+        >
         {#if poster}
           <button
             class="btn ghost icon"
@@ -372,15 +391,15 @@
           >
         </article>
       {/each}
-      <a class="past" href="/more/announcements">Past announcements<Icon name="chevronRight" size={16} /></a>
+      <a class="past" href="/announcements">Past announcements<Icon name="chevronRight" size={16} /></a>
     </section>
   {/if}
 
-  <!-- The calls to action: are you in this Friday, are you in for the Kumite. Open asks are full cards; one you'd
-       answered before you came is a line saying where you stand, after them -->
-  {#if (booking && askFull(booking)) || signingUp.some(({ t }) => askFull(tournamentBookable(t)))}
+  <!-- The calls to action: this Friday's card, always (In and Out, the quip, your team once they're out); are you in
+       for the Kumite while it's open. A tournament you'd answered before you came is its row in what's coming up -->
+  {#if booking || signingUp.some(({ t }) => askFull(tournamentBookable(t)))}
     <div class="asks">
-      {#if series && booking && askFull(booking)}
+      {#if series && booking}
         <section>
           <h2 class="section-title">{answered ? `This ${day}` : `Are you in this ${day}?`}</h2>
           <!-- The locker room's word, swapped in place when you answer. Its room is fixed, so nothing moves. -->
@@ -424,22 +443,15 @@
     </div>
   {/if}
 
-  <!-- The feed: where you stand on what you've answered, then what's for you (your move first), the rest of the
-       schedule, the store app's one ask, and the squad last -->
+  <!-- The feed: what needs you now (your move first, then what you owe), what's coming up with the calendar after it,
+       the store app's one ask, and for admins their own lines at the foot -->
   <section class="feed" aria-label="What's going on">
-    {#if booking && !askFull(booking)}
-      {@render eventItem(booking, myTeam ? `On ${myTeam.name} with ${teammates(myTeam.players)}` : undefined)}
+    {#each feed.now as n (n.key)}{@render item(n)}{/each}
+    {#if feed.upcoming.length}
+      <h2 class="feed-label">Coming up</h2>
+      {#each feed.upcoming as r (r.key)}{@render upcomingItem(r)}{/each}
     {/if}
-    {#each signingUp as { type, t } (type.id)}
-      {@const ev = tournamentBookable(t)}
-      {#if !askFull(ev)}{@render eventItem(ev)}{/if}
-    {/each}
-    {#each feed as n (n.key)}{@render item(n)}{/each}
-    {#each later as ev (ev.key)}{@render eventItem(ev)}{/each}
-    {#each teased as { type, t } (type.id)}
-      {@const ev = tournamentBookable(t)}
-      {@render item({ href: ev.href, icon: ev.icon, text: `The next ${type.shortName}`, sub: eventLine(ev).sub })}
-    {/each}
+    <a class="past" href="/calendar">See the calendar<Icon name="chevronRight" size={16} /></a>
     <!-- The store app's one ask (ADR 0108): what notifications are for, then the phone's own question -->
     {#if askNotify}
       <div class="item ask-notify rise">
@@ -454,20 +466,15 @@
         </span>
       </div>
     {/if}
-    <!-- The squad: the way to everyone's card, not buried under You -->
-    {#if squad.length > 1}
-      <a class="item quiet rise" href="/more/teammates">
-        <span class="faces" aria-hidden="true">
-          {#each squad.slice(0, 3) as p (p.id)}<span class="avatar">{initials(goesBy(p))}</span>{/each}
-        </span>
-        <span class="grow">
-          <span class="item-text">Teammates</span>
-          <span class="item-sub">{squad.length} players{cougars ? ` · ${cougars} Cougars` : ""}</span>
-        </span>
-        <Icon name="chevronRight" size={16} />
-      </a>
-    {/if}
   </section>
+
+  <!-- For admins: what only they act on, out of everyone's way -->
+  {#if feed.admin.length}
+    <section class="feed" aria-labelledby="for-admins">
+      <h2 class="feed-label" id="for-admins">For admins</h2>
+      {#each feed.admin as n (n.key)}{@render item(n)}{/each}
+    </section>
+  {/if}
 
   <Sheet bind:open={announcing} title="Post an announcement">
     <form class="form" onsubmit={announce}>
@@ -561,36 +568,6 @@
       display: none;
     }
   }
-  /* What you owe: a quiet chip, its pound in the brand's red as the only colour; it opens your tab */
-  .owed {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-1);
-    height: var(--control-h-sm);
-    padding: 0 var(--s-2) 0 var(--s-3);
-    border-radius: var(--r-sm);
-    background: color-mix(in srgb, var(--fg) 8%, transparent);
-    color: var(--fg-body);
-    font-size: var(--text-sm);
-    font-weight: 500;
-    white-space: nowrap;
-    transition: background-color var(--t-fast) var(--ease-in-out);
-  }
-  .owed:hover {
-    background: color-mix(in srgb, var(--fg) 13%, transparent);
-    color: var(--fg);
-  }
-  .owed .num {
-    color: var(--fg);
-    font-weight: 600;
-  }
-  .owed > :global(svg:first-child) {
-    color: var(--red-hot);
-  }
-  .owed > :global(svg:last-child) {
-    color: var(--fg-muted);
-  }
-
   /* An announcement: the club's word, compact, on glass like the tables (ADR 0065), its icon in the brand's red;
      Got it on the right. Each keeps its own space below it (not the section's gap), so one folding away takes its
      space with it: nothing jumps */
@@ -856,26 +833,31 @@
   .ask-notify > :global(svg:first-child) {
     margin-top: 0.15rem;
   }
-  /* Teammates, last: on the page itself, no fill till you point at it */
-  .item.quiet {
-    background: none;
+  /* A quiet label over a group of the feed: Coming up, For admins */
+  .feed-label {
+    margin: var(--s-3) var(--s-1) 0;
+    color: var(--fg-muted);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
   }
-  .item.quiet:hover {
-    background: var(--surface-1);
-  }
-  /* A few of the squad's faces, overlapping, in the row to Teammates */
-  .faces {
-    display: flex;
+  /* Coming up: the date on the left, the weekday small over the day */
+  .when {
+    display: grid;
     flex-shrink: 0;
+    width: 3.25rem;
+    color: var(--fg);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
   }
-  .faces .avatar {
-    width: 1.75rem;
-    height: 1.75rem;
-    box-shadow: 0 0 0 2px var(--bg);
-    background: var(--surface-3);
-    font-size: 0.62rem;
-  }
-  .faces .avatar + .avatar {
-    margin-left: -0.35rem;
+  .when-top {
+    color: var(--fg-muted);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
   }
 </style>
