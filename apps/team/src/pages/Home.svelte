@@ -818,6 +818,62 @@
   .feed {
     gap: var(--s-2);
   }
+  /* The feed floats up into place: each row drifts up from a little lower and fades in, one after another, after the
+     cards above have arrived. A transform and opacity, so nothing moves the page */
+  .feed > :global(.rise) {
+    animation: float-up 700ms calc(350ms + var(--float-at, 840ms)) cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .feed > :nth-child(1) {
+    --float-at: 70ms;
+  }
+  .feed > :nth-child(2) {
+    --float-at: 140ms;
+  }
+  .feed > :nth-child(3) {
+    --float-at: 210ms;
+  }
+  .feed > :nth-child(4) {
+    --float-at: 280ms;
+  }
+  .feed > :nth-child(5) {
+    --float-at: 350ms;
+  }
+  .feed > :nth-child(6) {
+    --float-at: 420ms;
+  }
+  .feed > :nth-child(7) {
+    --float-at: 490ms;
+  }
+  .feed > :nth-child(8) {
+    --float-at: 560ms;
+  }
+  .feed > :nth-child(9) {
+    --float-at: 630ms;
+  }
+  .feed > :nth-child(10) {
+    --float-at: 700ms;
+  }
+  .feed > :nth-child(11) {
+    --float-at: 770ms;
+  }
+  .feed > :nth-child(12) {
+    --float-at: 840ms;
+  }
+  @keyframes float-up {
+    from {
+      opacity: 0;
+      transform: translateY(1.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .feed > :global(.rise) {
+      animation: none;
+    }
+  }
   .item {
     display: flex;
     align-items: center;
