@@ -720,33 +720,38 @@
     background: color-mix(in srgb, var(--red) 24%, transparent);
     color: var(--red-ink);
   }
-  /* The session you're asked about, while you're not in: now and then a faint sheen of light glides across In, like
-     light catching ice. Barely there, no colour, nothing moves: you may not notice you saw it */
+  /* The session you're asked about, while you're not in: a subliminal. Every so often "PRESS ME" flashes over In for a
+     split second, faint, then it's In again: you may not notice you saw it. Hidden from screen readers (the alt text
+     after the slash is empty); nothing moves */
   .answer > .yes.beckon,
   .answer > .yes.beckon-again {
     position: relative;
-    overflow: hidden;
-    isolation: isolate;
   }
   .answer > .yes.beckon::after,
   .answer > .yes.beckon-again::after {
-    content: "";
+    content: "PRESS ME" / "";
     position: absolute;
     inset: 0;
-    z-index: -1;
-    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.1) 50%, transparent 65%);
-    translate: -110% 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    background: inherit;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-style: italic;
+    letter-spacing: 0.04em;
+    opacity: 0;
     pointer-events: none;
-    animation: sheen 9s var(--beckon-delay, 1.5s) ease-in-out infinite;
+    animation: subliminal 7s var(--beckon-delay, 2s) steps(1, end) infinite;
   }
-  @keyframes sheen {
+  /* One frame-ish flash (about a tenth of a second) in seven seconds */
+  @keyframes subliminal {
     0% {
-      translate: -110% 0;
+      opacity: 0.85;
     }
-    /* A slow glide in the first two seconds, then nothing until the next */
-    22%,
+    1.4%,
     100% {
-      translate: 110% 0;
+      opacity: 0;
     }
   }
   @media (prefers-reduced-motion: reduce) {
