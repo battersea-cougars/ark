@@ -11,6 +11,7 @@
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import mark from "../assets/cougars-mark.webp";
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
   import { formatDayDate, londonToday } from "../lib/dates";
@@ -355,6 +356,8 @@
   <header class="hello">
     <p class="kicker">Battersea Cougars</p>
     <div class="hello-row">
+      <!-- The club's mark leads the hello on a phone, where it's nowhere else in the app (a desktop has it top left) -->
+      <img class="mark" src={mark} alt="" width="40" height="40" />
       <h1 class="greeting">{hello}</h1>
       <div class="hello-side">
         <!-- The Calendar: a phone's tabs have the Club in its place, so it's here (a desktop's rail has it too) -->
@@ -586,9 +589,18 @@
     gap: var(--s-1);
     flex-shrink: 0;
   }
+  .mark {
+    display: none;
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
   @media (max-width: 900px) {
     .kicker {
       display: none;
+    }
+    .mark {
+      display: block;
     }
   }
   /* An announcement: the club's word, compact, on glass like the tables (ADR 0065), its icon in the brand's red;
