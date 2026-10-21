@@ -78,5 +78,6 @@ function showError(e: unknown) {
   target.querySelector(".hint")!.textContent = e instanceof Error ? e.message : String(e);
 }
 
-// Only built copies register the service worker; in dev it would serve stale modules.
-if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");
+// Only built copies register the service worker; in dev it would serve stale modules. A browser may refuse it (private
+// browsing, some in-app browsers, crawlers): the app works without it, so that's not an error to report.
+if (import.meta.env.PROD && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
