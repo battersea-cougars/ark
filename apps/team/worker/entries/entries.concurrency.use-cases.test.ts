@@ -4,6 +4,7 @@
 // through the real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -36,7 +37,7 @@ const skaters = Array.from({ length: SKATERS }, (_, i) => `s${i + 1}@example.com
 const quarterlies = Array.from({ length: QUARTERLY }, (_, i) => `q${i + 1}@example.com`);
 const keepers = Array.from({ length: KEEPERS }, (_, i) => `k${i + 1}@example.com`);
 /** Each run interleaves the requests differently. */
-const SEEDS = [1, 2, 3, 4, 5];
+const SEEDS = seeds(5);
 
 let w: ReturnType<typeof testWorld>;
 beforeEach(() => {

@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { TEAM_NAMES, type Player, type Position } from "../demo/data";
 import { balance, compare, lineUp, makeTeams, slotIn, strength, teamCount, type Team } from "./balance";
 
+/** The CPU this test's process has used, in µs (Node's; the app's own code has no Node types). */
+type Cpu = { user: number; system: number };
+const cpuUsage = (since?: Cpu): Cpu =>
+  (globalThis as unknown as { process: { cpuUsage(since?: Cpu): Cpu } }).process.cpuUsage(since);
+
 // Made-up rosters. Ratings spread out; every third player a defender, every tenth a keeper; every fourth a Cougar.
 function roster(n: number, tweak: (p: Player, i: number) => Player = (p) => p): Player[] {
   return Array.from({ length: n }, (_, i) =>
@@ -140,10 +145,12 @@ describe("makeTeams", () => {
 
   it("is quick enough for a phone: 30 players well under a second", () => {
     const players = roster(30);
-    const t0 = performance.now();
+    const cpu = cpuUsage();
     makeTeams(players, TEAM_NAMES);
-    // A second, as it says: a phone does this in tens of ms; a tighter bound failed whenever the machine was busy
-    expect(performance.now() - t0).toBeLessThan(1000);
+    // A second, as it says: a phone does this in tens of ms. The CPU it took, not the wall clock: on a busy machine the
+    // wall clock counts the time other work had the core, and went past a second (ADR 0121)
+    const { user, system } = cpuUsage(cpu);
+    expect((user + system) / 1000).toBeLessThan(1000);
   });
 });
 

@@ -5,9 +5,10 @@
 // subrequests. Driven through the real handlers in the fake world (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { minutes, testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 
 const PHONES = 120;
-const SEEDS = [1, 2, 3, 4, 5];
+const SEEDS = seeds(5);
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
   ...Array.from({ length: PHONES - 1 }, (_, i) => ({

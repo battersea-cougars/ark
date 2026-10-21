@@ -5,6 +5,7 @@
 // Driven through the real handlers in the fake world (ADR 0031), the cron as Cloudflare runs it (`scheduled`).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { sendQueued } from "./reminders";
 
 const OWERS = 30;
@@ -18,7 +19,7 @@ const ROSTER = [
   })),
 ];
 const BANK = { name: "Battersea Cougars", sortCode: "12-34-56", account: "12345678" };
-const SEEDS = [1, 2, 3, 4, 5];
+const SEEDS = seeds(5);
 /** The free plan's subrequests an invocation (ADR 0003). */
 const SUBREQUESTS = 50;
 

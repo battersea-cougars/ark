@@ -23,7 +23,16 @@ The fake D1 (`packages/shared/testing/d1-sqlite.ts`) answers at once by default.
 behave like D1 under load: each round trip lands a few turns of the event loop after it was sent (chosen by a seeded
 generator), runs atomically, and answers a few turns after that, so requests fired together with `Promise.all`
 interleave at their awaits. `w.db.interleave(null)` turns it off. Each `*.concurrency.use-cases.test.ts` runs its
-cases under several seeds and checks the invariants, not one order of events.
+cases under several seeds (`seeds(5)`) and checks the invariants, not one order of events.
+
+A seed is one order of events, run after run, however busy the machine: the tests' WebCrypto answers at once
+(`packages/shared/testing/crypto.ts`), where Node's finishes on a thread pool whenever the machine gets to it, and a
+draft's draw is the seed's luck too. So a seed that fails fails every time; keep it in the test as the proof
+(`seeds(5, 35)`). To look further for a race:
+
+```sh
+INTERLEAVE_SEEDS=500 npx vitest run concurrency     # each case under seeds 1 to 500
+```
 
 | Area            | Test file                                                            | What's checked                                                                                                                                                                                                          |
 | --------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -49,6 +58,7 @@ Trigger whole, as Cloudflare does.
 | An admin puts a goalie on a team as its captain picks the other                              | Two goalies                                                 | One goalie a team is inside the statements                          |
 | End of a period sent by both of the scorekeeper's phones                                     | Skipped a period (the 1st's end went to the 3rd)            | Moves on only from the period said                                  |
 | A goal, penalty or Undo landing as full time is called                                       | Changed the score after the result (and the playoffs)       | Lands only while the game's on and theirs                           |
+| A goal landing just before full time (seed 35)                                               | The result said 0–0, the game 1–0: its score came after     | The goal and its score are one batch (Undo too)                     |
 | Two runs working the charges out (late taps and the hourly cron)                             | A night paid twice from the same credit, until the next run | An allocation goes in only while payment and charge are as read     |
 | An admin's Send of reminders beside the five-minute cron                                     | Both emailed the same members                               | A run takes what it sends first (`dues_reminders.sending`)          |
 | A five-minute cron run with a club-wide send and reminders waiting                           | 95 subrequests (Cloudflare stops at 50)                     | 35 at most: drains 25, reminders 10, `tell` queues the phones       |

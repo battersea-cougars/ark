@@ -5,6 +5,7 @@
 // as Cloudflare runs it (`scheduled`).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { chargeDue } from "./dues";
 
 const PLAYERS = 12;
@@ -17,7 +18,7 @@ const ROSTER = [
     email: `p${i + 1}@example.com`,
   })),
 ];
-const SEEDS = Array.from({ length: 10 }, (_, i) => i + 1);
+const SEEDS = seeds(10);
 // NOW is Tuesday 6 October 2026: the next Friday is the 9th
 const FRIDAY = new Date("2026-10-09T17:00:00Z");
 

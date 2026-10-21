@@ -225,11 +225,17 @@ describe("the hub, in a burst", () => {
     const f = await friday();
     const reg = await w.listening("s1@example.com");
     const mo = await w.signedIn("s2@example.com");
-    const t = Date.now();
-    expect((await mo.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
-    const e = await reg.next();
-    expect(e.data.changed).toContain("sessions");
-    expect(Date.now() - t).toBeLessThan(500);
+    // Held back, it would wait on a timer: with the clock stopped, it goes out all the same (not timed by the wall
+    // clock, which a busy machine slows)
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      expect((await mo.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
+      expect(vi.getTimerCount()).toBe(0);
+      const e = await reg.next();
+      expect(e.data.changed).toContain("sessions");
+    } finally {
+      vi.useRealTimers();
+    }
     await reg.close();
   });
 });

@@ -203,12 +203,6 @@ async function correctable(db: D1Database, tournamentId: number, gameId: number,
   return game;
 }
 
-/** After an admin's change to a finished game: the score from its goals, and the playoffs from the table. */
-async function corrected(db: D1Database, tournamentId: number, game: Game) {
-  await recount(db, game);
-  if (game.stage === "group") await fillPlayoffs(db, tournamentId, await tournamentOf(db, tournamentId));
-}
-
 /**
  * A goal: as it goes in (the scorekeeper, the game on, timed by the clock), or one missed on the day (an admin, the
  * game over, at the time they say or none). Its team, who scored and who assisted (both optional, both on that team).
@@ -244,46 +238,56 @@ export async function addGoal(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
-  const res = await run(
-    db,
-    `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
-     SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
-    [
-      gameId,
-      teamId,
-      scorerId,
-      assistId,
-      atMs,
-      periodOf(o, done, atMs, game, t),
-      now.toISOString(),
-      gameId,
-      who.memberId,
-    ],
-  );
+  // The goal and the score it makes in one batch: full time landing between them would make the result without it
+  const [res] = await batch(db, [
+    statement(
+      db,
+      `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
+       SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
+      [
+        gameId,
+        teamId,
+        scorerId,
+        assistId,
+        atMs,
+        periodOf(o, done, atMs, game, t),
+        now.toISOString(),
+        gameId,
+        who.memberId,
+      ],
+    ),
+    recount(db, game),
+  ]);
   if (!res.meta.changes) throw tooLate(done);
-  if (done) await corrected(db, tournamentId, game);
-  else await recount(db, game);
+  if (done && game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
 
 /** Any goal off a finished game: it wasn't one, or it was the other side's. */
 export async function removeGoal(db: D1Database, tournamentId: number, gameId: number, goalId: number, who: Who) {
   const game = await correctable(db, tournamentId, gameId, who);
-  const res = await run(db, "DELETE FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]);
+  const [res] = await batch(db, [
+    statement(db, "DELETE FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]),
+    recount(db, game),
+  ]);
   if (!res.meta.changes) throw new HttpError(404, "No such goal.");
-  await corrected(db, tournamentId, game);
+  // The playoffs from the table
+  if (game.stage === "group") await fillPlayoffs(db, tournamentId, await tournamentOf(db, tournamentId));
 }
 
 /** The last goal comes off: logged by mistake. */
 export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who) {
   const { game } = await scorable(db, tournamentId, gameId, who);
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
-  const res = await run(
-    db,
-    `DELETE FROM tournament_goals WHERE id = (SELECT max(id) FROM tournament_goals WHERE game_id = ?) AND ${stillAsFound(false)}`,
-    [gameId, gameId, who.memberId],
-  );
+  // As a goal goes in: off, and the score with it, in one batch
+  const [res] = await batch(db, [
+    statement(
+      db,
+      `DELETE FROM tournament_goals WHERE id = (SELECT max(id) FROM tournament_goals WHERE game_id = ?) AND ${stillAsFound(false)}`,
+      [gameId, gameId, who.memberId],
+    ),
+    recount(db, game),
+  ]);
   if (!res.meta.changes) throw new HttpError(409, "No goals to take back.");
-  await recount(db, game);
 }
 
 /**
@@ -370,9 +374,10 @@ export async function undoPenalty(db: D1Database, tournamentId: number, gameId: 
   if (!res.meta.changes) throw new HttpError(409, "No penalties to take back.");
 }
 
-/** The score on the game, from its goals: what everyone sees. */
+/** The score on the game, from its goals: what everyone sees. Sent in the same batch as the change to its goals, so
+ * nothing (full time's result above all) reads a goal without its score. */
 const recount = (db: D1Database, game: Game) =>
-  run(
+  statement(
     db,
     `UPDATE tournament_games SET
        home_goals = (SELECT count(*) FROM tournament_goals WHERE game_id = ? AND team_id = ?),

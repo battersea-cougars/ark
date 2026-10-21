@@ -30,6 +30,16 @@ export interface TestD1 {
   interleave(seed: number | null): void;
 }
 
+/**
+ * The seeds a concurrency test runs under: 1 to `n`, or as many as INTERLEAVE_SEEDS says, to look further for a race
+ * (`INTERLEAVE_SEEDS=500 npx vitest run concurrency`), and any seed that once found one (`found`), kept as its proof.
+ * A seed is one order of events, run after run (testing/crypto.ts), so a failing one can be run again to see it.
+ */
+export function seeds(n: number, ...found: number[]): number[] {
+  const wanted = Number(process.env.INTERLEAVE_SEEDS) || n;
+  return [...new Set([...Array.from({ length: wanted }, (_, i) => i + 1), ...found])];
+}
+
 /** A small seeded generator (mulberry32): the same seed, the same interleaving. */
 function seeded(seed: number) {
   let a = seed >>> 0;
@@ -47,9 +57,14 @@ export function createTestD1(): D1Database & TestD1 {
   for (const file of sources()) sqlite.exec(readFileSync(file, "utf8"));
   const d1 = { roundTrips: 0, sqlMs: 0 } as D1Database & TestD1;
   let luck: (() => number) | null = null;
-  /** On the way to D1, or back: none to a few turns of the event loop, when interleaving. */
+  /**
+   * On the way to D1, or back, when interleaving: a few turns of the event loop, mostly none to two but now and then
+   * many (an exponential's tail, at most 24), as D1's own latency has a tail. Without the tail a request rarely fell
+   * far enough behind another to find the races between three or four round trips (the goal and full time, ADR 0121).
+   */
   const travel = async () => {
-    for (let n = Math.floor(luck!() * 4); n > 0; n--) await new Promise((r) => setImmediate(r));
+    for (let n = Math.min(24, Math.floor(-Math.log(1 - luck!()) * 2)); n > 0; n--)
+      await new Promise((r) => setImmediate(r));
   };
   /** One round trip: there, the work done in one go (atomic), and back. */
   const roundTrip = async <T>(work: () => T): Promise<T> => {

@@ -4,6 +4,7 @@
 // Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { onTheClock } from "../../src/lib/draft";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,7 +29,7 @@ const ROSTER = [
     email: `p${i + 1}@example.com`,
   })),
 ];
-const SEEDS = [1, 2, 3, 4, 5];
+const SEEDS = seeds(5);
 const DRAFT_DAY = new Date("2026-12-08T19:30:00Z");
 const at = { now: DRAFT_DAY };
 
@@ -40,8 +41,12 @@ beforeEach(() => {
 
 type Phone = Awaited<ReturnType<typeof w.signedIn>>;
 
-/** A draft-kind tournament with eight captains and everyone signed up, the order not yet set. */
-async function draftNight() {
+/**
+ * A draft-kind tournament with eight captains and everyone signed up, the order not yet set. Its luck is the seed's
+ * (`w.luck`), so the draw, like the interleaving, is the same each run of a seed.
+ */
+async function draftNight(seed: number) {
+  w.luck(seed);
   const dana = await w.signedIn("dana@example.com");
   const dev = await w.signedIn("dev@example.com");
   const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
@@ -146,8 +151,8 @@ async function draftNight() {
   };
 }
 
-async function opened() {
-  const d = await draftNight();
+async function opened(seed: number) {
+  const d = await draftNight(seed);
   expect((await d.draft(d.dana, "draw")).status).toBe(200);
   expect((await d.draft(d.dana, "open")).status).toBe(200);
   return d;
@@ -157,7 +162,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "Set the order, tapped by two admins at once: one draw, every captain once from 1 (seed %i)",
     async (seed) => {
-      const d = await draftNight();
+      const d = await draftNight(seed);
       w.db.interleave(seed);
       const [a, b] = await Promise.all([d.draft(d.dana, "draw"), d.draft(d.dev, "draw")]);
       w.db.interleave(null);
@@ -172,7 +177,7 @@ describe("draft night: taps at once", () => {
   );
 
   it.each(SEEDS)("every captain taps Pick at once: only the one on the clock gets a player (seed %i)", async (seed) => {
-    const d = await opened();
+    const d = await opened(seed);
     w.db.interleave(seed);
     const pool = d.pool();
     const { phone, team } = d.onClock();
@@ -185,7 +190,7 @@ describe("draft night: taps at once", () => {
   });
 
   it.each(SEEDS)("the captain on the clock on two phones, two players at once: one pick (seed %i)", async (seed) => {
-    const d = await opened();
+    const d = await opened(seed);
     const { team } = d.onClock();
     const second = await w.signedIn(`c${d.captains.indexOf(team.captain) + 1}@example.com`);
     const pool = d.pool();
@@ -200,7 +205,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "the captain whose snake turn comes twice running, on two phones: one pick, the next one still theirs (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       // Seven picks in: the eighth captain is on the clock, and picks again straight after (snake order)
       for (let k = 0; k < CAPTAINS - 1; k++) expect((await d.pick(d.onClock().phone, d.pool()[0])).status).toBe(200);
       const { phone, team } = d.onClock();
@@ -219,7 +224,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "the same player picked by the captain and whoever runs the draft at once: one wins (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       const [player] = d.pool();
       w.db.interleave(seed);
       const replies = await Promise.all([d.pick(d.onClock().phone, player), d.pick(d.dana, player)]);
@@ -233,7 +238,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "an admin and the captain pick different players at once: one pick, for that turn (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       const [a, b] = d.pool();
       w.db.interleave(seed);
       const replies = await Promise.all([d.pick(d.onClock().phone, a), d.pick(d.dana, b)]);
@@ -247,7 +252,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "Undo racing the next pick: the picks stay numbered in turn, each on its team (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       for (let k = 0; k < 5; k++) expect((await d.pick(d.onClock().phone, d.pool()[0])).status).toBe(200);
       w.db.interleave(seed);
       const [undone, picked] = await Promise.all([d.undo(d.dana), d.pick(d.onClock().phone, d.pool()[0])]);
@@ -264,7 +269,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "a player says they're out just as they're picked: on a team and in, or neither (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       const [player] = d.pool();
       w.db.interleave(seed);
       await Promise.all([
@@ -287,7 +292,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "the whole draft with every captain tapping each turn: every player once, each in turn (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       w.db.interleave(seed);
       for (let turn = 0; d.pool().length; turn++) {
         const pool = d.pool();
@@ -304,7 +309,7 @@ describe("draft night: taps at once", () => {
   it.each(SEEDS)(
     "an admin puts a goalie on a team just as its captain picks the other: still one goalie a team (seed %i)",
     async (seed) => {
-      const d = await opened();
+      const d = await opened(seed);
       const [g1, g2] = d.players.slice(0, 2);
       const { phone, team } = d.onClock();
       w.db.interleave(seed);

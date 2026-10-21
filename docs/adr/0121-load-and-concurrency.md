@@ -28,12 +28,20 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   - The draft: a pick says which turn it's for (`turn`, the picks the page had seen), so a tap landing after the turn
     moved on is refused, not spent on the captain's next pick; one goalie a team is inside the statements.
   - Scoring: the end of a period moves on only from the period said; a goal, penalty or Undo lands only while the
-    game is on and theirs to score, never after full time.
+    game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
+    so full time never reads a goal without its score.
   - Dues: an allocation of credit goes in only while its payment and charge are as they were read; a dues reminder
     is taken by the run that sends it (`dues_reminders.sending`).
 - **The fake D1 interleaves like D1** (`db.interleave(seed)`, `packages/shared/testing/d1-sqlite.ts`): each round trip
-  lands a few turns of the event loop after it's sent, atomic, and answers a few turns after that. Concurrency tests
-  (`*.concurrency.use-cases.test.ts`) fire requests with `Promise.all` under several seeds and check the invariants.
+  lands a few turns of the event loop after it's sent, atomic, and answers a few turns after that (mostly none to two,
+  now and then many: D1's latency has a tail). Concurrency tests (`*.concurrency.use-cases.test.ts`) fire requests
+  with `Promise.all` under several seeds (`seeds(n)`; `INTERLEAVE_SEEDS=500` looks further) and check the invariants.
+  **A seed is one order of events**, however busy the machine: the tests' WebCrypto answers at once
+  (`packages/shared/testing/crypto.ts`: SHA-256 and RS256, the same bytes), since the real one finishes on a thread
+  pool after as many turns as the machine's load allows; a draw is the seed's luck too (`w.luck`). A seed that found a
+  race stays in its test as the proof (`seeds(5, 35)`).
+- **A test's time limit is 30 s** (`vitest.config.ts`): it catches a hang, not a slow machine; the club-sized tests
+  take 1–2.5 s on a quiet one and went past Vitest's 5 s with other suites running.
 - **A Worker invocation keeps to 50 subrequests**, counted by the fake world (fetches, emails, live hub calls): a
   request's push send is 40 phones (`SEND_AT_ONCE`); a cron run drains 25 (`DRAIN_AT_ONCE`) and sends 10 reminder
   emails (`REMINDERS.perRun`), whose phones wait for the next drain (`tell`). The worst five-minute run is about 35
@@ -71,3 +79,12 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-21: The club read's live parts made cheaper (no sorts, no scans of history; sign-ups joined once and put
   in order by the Worker; answers, picks and scoring don't bring the agenda): rows read for a draft night 1.49M ->
   1.01M (30% -> 20% of the free day), a game scored live 130k -> 87k, the Friday rush 565k -> 357k (docs/load-testing.md).
+- 2026-10-21: `npm test` failed about one run in two with other suites running beside it, and passed on rerun. Most
+  were time limits (the club-sized tests past 5 s: the limit is 30 s now). One was a real race, in production too: a
+  goal went in while the game was on, full time landed and wrote the result (0–0), and only then the goal's score
+  (1–0), so the record and the game disagreed (and a group game's playoffs were filled from the score without the
+  goal). A goal, its Undo and an admin's removal now go in one batch with the score. It showed only on a busy machine
+  because WebCrypto's timing moved requests apart; the tests' WebCrypto answers at once now, so a seed is one order of
+  events, and the fake D1's latency has a tail, so seeds find such races themselves (seed 35, and 6 of 200). Three
+  tests timed by the wall clock (balancing teams, the live hub's first event, the show switch's streaming) say it by
+  CPU time or the order of events instead.

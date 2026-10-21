@@ -4,6 +4,7 @@
 // through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -11,7 +12,7 @@ const ROSTER = [
   { name: "Cole Captain", position: "D", rating: 68, email: "cole@example.com" },
   { name: "Reg Captain", position: "F", rating: 60, email: "reg@example.com" },
 ];
-const SEEDS = [1, 2, 3, 4, 5];
+const SEEDS = seeds(5);
 const at = (minutes: number) => ({ now: new Date(NOW.getTime() + minutes * 60_000) });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,7 +134,9 @@ describe("scoring live: taps at once", () => {
     for (const r of g.results()) expect(r).toEqual(expect.objectContaining({ homeGoals: 1, awayGoals: 0 }));
   });
 
-  it.each(SEEDS)(
+  // Seed 35: the goal goes in while the game's on, full time lands and its result is read (0–0), and only then the
+  // goal's score; the result said 0–0 and the game 1–0, until the goal and its score went in one batch
+  it.each(seeds(5, 35))(
     "a goal landing just as full time is called: in the result, or refused, never after it (seed %i)",
     async (seed) => {
       const g = await gameOn();

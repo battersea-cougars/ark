@@ -97,22 +97,23 @@ it("runs the apps as the user's: no agent markers (Astro would background itself
 
 describe("forwarding", () => {
   it("streams an answer as it comes (live pages' SSE is never held back)", async () => {
+    // The answer ends 2 s after its first part: that part arrives before then, not held back until the end (said by
+    // the order of events, not a wall-clock bound a busy machine can miss)
+    let ended = false;
     const upstream = await listen(
       createServer((_req, res) => {
         res.writeHead(200, { "content-type": "text/event-stream" });
         res.write("data: first\n\n");
-        setTimeout(() => res.end("data: last\n\n"), 2000);
+        setTimeout(() => ((ended = true), res.end("data: last\n\n")), 2000);
       }),
     );
     const front = await listen(createServer((req, res) => forward(req, res, upstream, () => res.end("down"))));
     const first = await new Promise((done) => {
-      const t0 = Date.now();
       get({ host: "127.0.0.1", port: front, path: "/events" }, (res) =>
-        res.once("data", (d) => (done({ chunk: String(d), ms: Date.now() - t0 }), res.destroy())),
+        res.once("data", (d) => (done({ chunk: String(d), ended }), res.destroy())),
       );
     });
-    expect(first.chunk).toBe("data: first\n\n");
-    expect(first.ms).toBeLessThan(1000);
+    expect(first).toEqual({ chunk: "data: first\n\n", ended: false });
   });
 
   it("passes a websocket upgrade through, both ways (hot reload)", async () => {
