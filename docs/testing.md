@@ -31,6 +31,24 @@ Each run is a fresh session of its own, with no code and no caps, so it never si
 a local server answers it ([ADR 0023](adr/0023-sign-in-and-sessions.md)). Don't change shared local data to stage a
 screen; pick a member who already shows it.
 
+### Small screens
+
+`scripts/small-screens.mjs` visits every team-app page (the route tree from `nav-routes.ts`, a couple of each kind)
+and its main sheets, drawers and editor tabs in WebKit at phone widths, and lists what doesn't fit: the page scrolling
+sideways, anything past the right edge, words cut short by an ellipsis, and small tap targets. Screenshots go to
+`<out>/<width>/<page>.png` (the system's temp folder unless `--out`). It only opens things (never Keep score, In or
+Save); a state that isn't in the local data (a game nobody's scoring, or one you're scoring) is faked in the browser's
+copy of `/api/bootstrap`.
+
+```sh
+npm run app -- --private                      # prints your team port
+node scripts/dev-sign-in.mjs --port <port>
+node scripts/small-screens.mjs --port <port> [--widths 320,360,375] [--only game,schedule] [--out dir]
+```
+
+Overflow fails it (exit 1); ellipses, sideways scrollers (fine for the tab strip, a ticker, a big table) and small
+targets are listed to judge by eye.
+
 ## Use cases first
 
 The most important tests describe **what someone does** and check what they'd see and what reached the outside
