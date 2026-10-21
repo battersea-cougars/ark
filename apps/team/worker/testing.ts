@@ -8,6 +8,7 @@ import { parseRoster, rosterSql } from "../../../scripts/lib/roster.mjs";
 import { handleApi, type Env } from "./api/api";
 import { LiveHub } from "./live/live";
 import { vi } from "vitest";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { drainPush, pushOutbox, type Sent } from "./push/push";
 
 /** A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. */
@@ -50,14 +51,16 @@ export function testWorld(roster: object[]) {
 
   // Firebase Cloud Messaging, once a test turns it on (firebase()): what it was asked, and fetches per invocation
   let fcm: Awaited<ReturnType<typeof firebase>> | null = null;
+  /** The fetches of the invocation running, however many run at once (each its own count). */
+  const running = new AsyncLocalStorage<{ fetches: number }>();
   /** Run one Worker invocation, counting the fetches it makes (the free plan allows 50, ADR 0108). */
   async function invocation<T>(run: () => Promise<T>): Promise<T> {
     if (!fcm) return run();
-    const start = fcm.fetches;
+    const mine = { fetches: 0 };
     try {
-      return await run();
+      return await running.run(mine, run);
     } finally {
-      fcm.invocations.push(fcm.fetches - start);
+      fcm.invocations.push(mine.fetches);
     }
   }
 
@@ -105,6 +108,8 @@ export function testWorld(roster: object[]) {
       "fetch",
       vi.fn(async (url: string, init: RequestInit) => {
         world.fetches++;
+        const mine = running.getStore();
+        if (mine) mine.fetches++;
         if (url === "https://oauth2.googleapis.com/token")
           return Response.json({ access_token: "access", expires_in: 3600 });
         if (url !== sendUrl) throw new Error(`The fake world doesn't know ${url}`);
