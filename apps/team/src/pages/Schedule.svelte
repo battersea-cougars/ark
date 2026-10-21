@@ -23,7 +23,7 @@
   const teamsSet = $derived(!!tournament && teams.length >= 2);
   const hasResult = $derived(games.some((g) => g.homeGoals !== null));
   const manage = $derived(can(perms, "manage:Tournament"));
-  // The day's games in two groups, each under a header that sticks as its cards scroll: the round robin (its cards
+  // The day's games in two groups, each under its header: the round robin (its cards
   // needn't each say so), then the playoffs (each card keeps its name: Semi-final, Final)
   const groups = $derived.by(() => {
     const sorted = [...games].sort((a, b) => a.position - b.position);
@@ -81,16 +81,13 @@
   .head p {
     margin: 0;
   }
-  /* A group's header sticks under the app's bar while its cards pass, on the docked header's frosted ground */
+  /* A group's header over its cards, scrolling with them: no bar for cards to pass under (ADR 0065) */
+  .group {
+    display: grid;
+    gap: var(--s-3);
+  }
   .group-head {
-    position: sticky;
-    top: var(--chrome-h, 0px);
-    z-index: 2;
     margin: 0;
-    padding-block: var(--s-3);
-    background: var(--chrome-bg-solid);
-    backdrop-filter: var(--blur);
-    -webkit-backdrop-filter: var(--blur);
   }
   .cards {
     display: grid;
