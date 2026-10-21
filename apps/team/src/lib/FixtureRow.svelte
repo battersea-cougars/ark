@@ -87,9 +87,9 @@
     {#if big && id}
       {@const r = recordOf(id)}
       {#if r}
-        <!-- Won-drawn-lost and points, as a league writes it: (1-1-0 2 pts) -->
+        <!-- Won-drawn-lost and points, as a league writes it: 1-1-0 · 2 pts -->
         <span class="rec num" aria-label="{r.w} won, {r.d} drawn, {r.l} lost, {r.pts} points"
-          >({r.w}-{r.d}-{r.l} {r.pts} {r.pts === 1 ? "pt" : "pts"})</span
+          >{r.w}-{r.d}-{r.l} · {r.pts} {r.pts === 1 ? "pt" : "pts"}</span
         >
       {/if}
     {/if}
