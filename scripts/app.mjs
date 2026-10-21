@@ -17,9 +17,9 @@
 //   npm run dev / team / studio      show this checkout, start that app afresh and follow its log (Ctrl-C stops
 //                                    following; the app keeps running)
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, openSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readFileSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
-import { appLog, ask, showPaths, sleep } from "./lib/show.mjs";
+import { alive, appLog, ask, showPaths, sleep } from "./lib/show.mjs";
 import { SERVICES, checkoutOf, mainCheckout, publicPorts } from "./lib/worktrees.mjs";
 
 const args = process.argv.slice(2);
@@ -66,9 +66,19 @@ async function supervisor() {
   throw new Error(`the supervisor didn't start; see ${paths.log}`);
 }
 
-/** Waits until the supervisor's pid file is gone: it removes it last, once every app is stopped. */
+/**
+ * Waits until the supervisor's pid file is gone: it removes it last, once every app is stopped. A pid file whose
+ * process isn't running is left by a supervisor that never got to stop (the container restarted): it's gone already.
+ */
 async function gone() {
-  for (let i = 0; i < 300; i++, await sleep(100)) if (!existsSync(paths.pid)) return true;
+  for (let i = 0; i < 300; i++, await sleep(100)) {
+    if (!existsSync(paths.pid)) return true;
+    const pid = Number(readFileSync(paths.pid, "utf8"));
+    if (!pid || !alive(pid)) {
+      rmSync(paths.pid, { force: true });
+      return true;
+    }
+  }
   return false;
 }
 
