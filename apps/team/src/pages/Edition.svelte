@@ -7,6 +7,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import Awards from "../lib/Awards.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
+  import Leaderboard from "../lib/Leaderboard.svelte";
   import ChampionCard from "../lib/ChampionCard.svelte";
   import FixtureRow from "../lib/FixtureRow.svelte";
   import Kanji from "../lib/Kanji.svelte";
@@ -53,6 +54,10 @@
       <section class="part">
         <h2 class="section-title">The board</h2>
         <BoardTable {type} {tournament} />
+      </section>
+      <section class="part">
+        <h2 class="section-title">Leaders</h2>
+        <Leaderboard games={tournament.games ?? []} {tournament} />
       </section>
     {/if}
     <Awards {tournament} />

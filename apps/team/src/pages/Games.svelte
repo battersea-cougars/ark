@@ -21,6 +21,7 @@
   import { teamHref, teamTone } from "../lib/team-tones";
   import DraftStatus from "../lib/DraftStatus.svelte";
   import PastEditions from "../lib/PastEditions.svelte";
+  import Leaderboard from "../lib/Leaderboard.svelte";
   import { editTournament } from "../lib/TournamentEditorPanel.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
@@ -125,6 +126,10 @@
       <section class="part">
         <h2 class="section-title">Past {type.shortName}s<Kanji text={kanjiFor(type, "martial")} /></h2>
         <PastEditions {type} {past} />
+      </section>
+      <section class="part">
+        <h2 class="section-title">All-time leaders</h2>
+        <Leaderboard games={past.flatMap((t) => t.games ?? [])} label="All-time leaders" />
       </section>
     {/if}
   {:else if mode === "during"}

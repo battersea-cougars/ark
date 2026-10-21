@@ -167,7 +167,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 
 - Games and Standings show the real tournament, as it's played.
 - `tournament_goals` opens up top scorers and assists ([0044](0044-champions-and-awards.md) uses them).
-- `tournament_penalties` opens up penalty minutes for the leaderboards (#47); no leaderboard shows them yet.
+- `tournament_penalties` gives the leaderboards their penalty minutes ([0119](0119-tournament-leaderboards.md)).
 - A link to a game's live score is `/live`; the home page's keep-score duty goes there.
 - Few requests while a game's on, inside the free Worker allowance ([0055](0055-degrade-instead-of-break.md)).
 
@@ -204,3 +204,4 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   clock's cue shows the strength.
 - 2026-10-21: A break between periods (a series setting in minutes, 2 unless said, the Kumite 0): it counts down on
   everyone's clock once a period ends, the scorekeeper starts the next when ready, and it's in each game's slot.
+- 2026-10-21: Penalty minutes are on the leaderboards' PIM board (ADR 0119).

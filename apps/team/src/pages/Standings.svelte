@@ -1,11 +1,12 @@
 <script lang="ts">
   // The table from the tournament's group games with a result (ADR 0061): points, then goal difference, then goals
   // for, with its own points for a win, draw and loss. Empty until the fixtures are made. Once it's decided, the
-  // champions up top and marked in the table.
+  // champions up top and marked in the table. Under it, the leaderboards: points, goals, assists, PIM (#47).
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import ChampionCard from "../lib/ChampionCard.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
+  import Leaderboard from "../lib/Leaderboard.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import Icon from "../app/shell/Icon.svelte";
 
@@ -39,5 +40,7 @@
       Points, then goal difference, then goals for. Win {rules.pointsWin}, draw {rules.pointsDraw}, loss
       {rules.pointsLoss}: set under Settings → Tournaments.
     </p>
+    <h2 class="section-title">Leaders</h2>
+    <Leaderboard games={tournament.games ?? []} {tournament} />
   {/if}
 </div>
