@@ -674,7 +674,7 @@
           >{/if}
       {:else if live}
         {#if mine}<span class="turn now"><i class="dot"></i>Your pick</span>
-        {:else if canPick}<span class="turn now"><i class="dot"></i>Picking for {teamName(clock)}</span>
+        {:else if canPick}<span class="turn now"><i class="dot"></i><span class="clip">Picking for {teamName(clock)}</span></span>
         {:else}<span class="turn"><span class="clip">{teamName(clock)}</span>&nbsp;picking</span>{/if}
       {:else if open}
         <span class="turn done">Everyone's picked</span>
@@ -1168,12 +1168,12 @@
     height: 2.25rem;
     font-size: 1.2rem;
   }
-  /* A long turn ("Picking for Team Charlie") gives way to the icons, fading at its end, rather than pushing them off */
+  /* A long turn ("Picking for Team Charlie") gives way to the icons, cut with an ellipsis only when it runs out of
+     room, rather than pushing them off */
   .draft.fit .strip .turn {
     flex-shrink: 1;
     min-width: 0;
-    overflow: hidden;
-    mask-image: linear-gradient(90deg, #000 85%, transparent);
+    white-space: nowrap;
   }
   .draft.fit .strip .tools {
     flex-shrink: 0;
