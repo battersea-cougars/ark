@@ -682,8 +682,8 @@
           title="Show in the ticker"
           onclick={backToNow}
           >{#if mine || canPick}<i class="dot"></i>{/if}{#if mine}Your pick{:else}<span class="clip"
-              >{teamName(clock)}</span
-            >&nbsp;picking{/if}</button
+              >{teamName(clock)} picking</span
+            >{/if}</button
         >
       {:else if open}
         <span class="turn done">Everyone's picked</span>
