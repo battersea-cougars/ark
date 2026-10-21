@@ -99,6 +99,8 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`APPLE_TEAM_ID`](#store-app)                                             | `cougars-dev` | Apple (`store-setup.mjs`)   | Store app builds, team app (links)        |
 | [`FIREBASE_SERVICE_ACCOUNT`](#store-app)                                  | `cougars-dev` | Google Cloud, Firebase      | Team app (both): notifications            |
 | [`FIREBASE_IOS_CONFIG`](#store-app)                                       | `cougars-dev` | Firebase                    | Store app builds (`store.yml`)            |
+| [`APNS_KEY`](#store-app)                                                  | `cougars-dev` | Apple, Developer → Keys     | Nothing (backup of Firebase's copy)       |
+| [`APNS_KEY_ID`](#store-app)                                               | `cougars-dev` | Apple, Developer → Keys     | Nothing (backup of Firebase's copy)       |
 | [`APP_REVIEW_EMAIL__PRODUCTION`](#store-app)                              | `cougars`     | (us)                        | Team app (production): App Review         |
 | [`APP_REVIEW_CODE__PRODUCTION`](#store-app)                               | `cougars`     | (random, made once)         | Team app (production): App Review         |
 | [`SENTRY_AUTH_TOKEN`](#sentry)                                            | `cougars-dev` | Sentry, developer account   | Deploys (source maps), `sentry-setup.mjs` |
@@ -449,6 +451,12 @@ Review. One copy each (production reads `cougars-dev` too) but the App Review pa
 - **`FIREBASE_IOS_CONFIG`:** the iOS app's `GoogleService-Info.plist` from Firebase (Project settings → Your apps).
   Not much of a secret (its API key is limited to this app), but it stays out of the public repo: `store.yml` writes
   it into the Xcode project for the build.
+- **`APNS_KEY`, `APNS_KEY_ID`:** the Apple push (APNs) key, uploaded to Firebase (Project settings → Cloud Messaging →
+  Apple app configuration), which uses it to reach iPhones. No code reads it: it's kept only as a recovery copy, because
+  Apple lets you download it once. Certificates, IDs & Profiles → Keys → +, **Apple Push Notifications service**,
+  Sandbox & Production; `node scripts/secret-set.mjs APNS_KEY < AuthKey_XXXX.p8`, the Key ID in `APNS_KEY_ID`, then
+  delete the file. **A leaked key could** send notifications to the app's users, given their phones' tokens. Rotate:
+  make a new key, upload it to Firebase, store it here, revoke the old one (Apple allows two at a time).
 - **`APP_REVIEW_EMAIL__PRODUCTION`, `APP_REVIEW_CODE__PRODUCTION`:** Apple's reviewers sign in to the app, and can't
   read our email: this one member's email takes this fixed six-digit code instead of an emailed one (ADR 0023, 0108),
   with every other sign-in limit as ever. The member is a plain Member in production's roster. Made once:
