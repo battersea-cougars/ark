@@ -30,6 +30,10 @@ The club may one day pay for hosting, when checking more often costs next to not
   club's parts that changed ([0057](0057-team-app-loading-and-changes.md)'s slices), never data; what a member sees
   still comes from their own bootstrap. A server without a hub answers 503. The hub sends a comment every 30 seconds
   so dead phones are dropped.
+- **Each stream is a member's and a sign-in's.** One member holds at most three (`STREAMS_PER_MEMBER`); a fourth
+  closes their oldest, so a stale one never shuts out the page in front of them and nobody holds dozens (#73). Ending
+  a sign-in (signing out, an admin's Sign out everywhere, a new email, being made inactive, deleting the account)
+  closes its streams at once (`POST /end`, [0023](0023-sign-in-and-sessions.md)); the page's reconnect then gets a 401.
 - **Every change notifies the hub** at the one place all writes pass (`handleApi`, after the data version bump), with
   the slices the route declared and the data version the change made, through `waitUntil`. A notify that fails is
   logged, never fails the change.
@@ -106,3 +110,5 @@ The club may one day pay for hosting, when checking more often costs next to not
 - 2026-10-21: Live pages read only the parts an event names, one read at a time after a random wait, nothing while
   hidden; the hub sends at most one event a second, with the data versions; a page opening just after the club was
   read doesn't check again (#112). Before, every event was a whole-club reload on every phone.
+- 2026-10-21: A member holds at most three streams (a fourth closes their oldest), and a stream closes when its sign-in
+  ends; the hub knows each stream's member and session (#72, #73).

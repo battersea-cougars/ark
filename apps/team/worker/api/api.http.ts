@@ -22,6 +22,39 @@ export function sameOrigin(request: Request): boolean {
   return request.headers.get("sec-fetch-site") === "same-origin";
 }
 
+/** What a request may send (#73): plenty for any form, a team's logo or a list of Fridays. */
+export const MAX_BODY = 1024 * 1024;
+const TOO_BIG = "That's too much to send at once.";
+
+/**
+ * The request with its body read, refused with a 413 once it's over `max` bytes: before anything is parsed, and
+ * without reading more than that. The size it says it is counts first; one that says nothing is counted as it comes.
+ */
+export async function withinLimit(request: Request, max = MAX_BODY): Promise<Request> {
+  if (!request.body) return request;
+  if (Number(request.headers.get("content-length") ?? 0) > max) throw new HttpError(413, TOO_BIG);
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      throw new HttpError(413, TOO_BIG);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  return new Request(request, { body: bytes });
+}
+
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,

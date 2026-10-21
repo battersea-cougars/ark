@@ -53,6 +53,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     changes: ["tournaments", "charges", "credits", "payments"],
+    // Up to 16 teams, each with a logo (200 KB at most)
+    maxBody: 4 * 1024 * 1024,
     handle: async (c) => json(await createTournament(c.env.DB, await body(c.request)), 201),
   },
   {
@@ -66,6 +68,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     changes: ["tournaments", "charges", "credits", "payments"],
+    // Up to 16 teams, each with a logo (200 KB at most)
+    maxBody: 4 * 1024 * 1024,
     handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request)), ok()),
   },
   {

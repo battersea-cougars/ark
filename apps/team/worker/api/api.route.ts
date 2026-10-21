@@ -62,6 +62,8 @@ export interface Route {
    * `event` to the audit log, with who did it, both sides, and `about`.
    */
   audit?: Audit | { none: string };
+  /** The most a request may send, in bytes (#73): MAX_BODY (1 MB) unless it says. */
+  maxBody?: number;
   /** News for members' phones (ADR 0108): sent once the change is made, after the reply. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   notify?: Notify<any>;

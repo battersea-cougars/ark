@@ -1,8 +1,10 @@
 // The record (ADR 0024, ADR 0095): who did what, when. Written wherever something changes who can do what, at every
-// sign-in and sign-out, and for every request the API refused for want of an action; read on Settings → Audit log by
-// whoever holds read:Audit, newest first, a page at a time. Each row names the member who acted and, where the detail
-// says which member or role it was about, that one too, so the page can say it in plain words.
+// sign-in and sign-out, and for requests the API refused for want of an action (once a minute per member); read on
+// Settings → Audit log by whoever holds read:Audit, newest first, a page at a time. Each row names the member who
+// acted and, where the detail says which member or role it was about, that one too, so the page can say it in plain
+// words.
 import { all, run } from "@cougars/shared/d1";
+import { scribe } from "@cougars/shared/scribe";
 
 export async function audit(
   db: D1Database,
@@ -17,6 +19,29 @@ export async function audit(
     action,
     JSON.stringify(detail),
   ]);
+}
+
+const log = scribe.logger("audit");
+
+/**
+ * A request refused for want of an action (ADR 0024): on the record at most once a minute per member (#73), so a
+ * member (or a stolen session) looping on an admin route can't spend the club's daily D1 writes on refusals. Every
+ * refusal is in the log (Workers Logs) whether or not it's written; the one row a minute says which came first.
+ */
+export async function auditRefused(
+  db: D1Database,
+  now: Date,
+  memberId: number,
+  detail: { method: string; path: string; action: string },
+) {
+  const res = await run(
+    db,
+    `INSERT INTO audit_log (at, member_id, action, detail)
+     SELECT ?, ?, 'refused', ? WHERE NOT EXISTS (
+       SELECT 1 FROM audit_log WHERE at > ? AND action = 'refused' AND member_id = ?)`,
+    [now.toISOString(), memberId, JSON.stringify(detail), new Date(now.getTime() - 60_000).toISOString(), memberId],
+  );
+  log.warn("refused", { member: memberId, ...detail, recorded: res.meta.changes === 1 });
 }
 
 export interface AuditEntry {

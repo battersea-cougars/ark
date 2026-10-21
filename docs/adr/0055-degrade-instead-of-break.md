@@ -1,7 +1,7 @@
 # 0055. Degrade instead of break: circuit breakers, rate limits, the app's own brake and fallback content
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-20
+- **Date:** 2026-10-07 · updated 2026-10-21
 - **Merges:** 0056, 0058
 
 ## Context
@@ -63,6 +63,21 @@ best effort, not a security boundary).
 
 - Over a limit, the answer is a 429 (JSON) with a plain sentence saying to wait.
 
+**What one member can spend** (#73), beyond those limits, because a signed-in member or a stolen session gets past
+the per-address ones:
+
+- **Live streams**: at most 3 per member at the hub ([0072](0072-live-updates.md)); a fourth closes their oldest.
+- **Refusals** (a request their role can't make, [0024](0024-action-based-authorization.md)): on the audit log at
+  most once a minute per member (one statement: a write only when there's none in the last minute, read through the
+  `at` index), so looping on an admin route writes at most 1,440 rows a day, not one per request. Every refusal is a
+  `refused` warning in Workers Logs (free, no D1 write); warnings don't go to Sentry, so it isn't flooded either. Once
+  a minute per member, not per route as #73 first said: per route, a script over the app's admin routes could still
+  write tens of thousands of rows a day.
+- **Request bodies**: refused with a 413 before anything parses them, counted as they arrive (a `Content-Length`
+  over the limit isn't read at all). 1 MB for any route (`MAX_BODY`, `api.http.ts`), 2 MB for Import members, 4 MB
+  for a tournament with its teams' logos (`maxBody` on the route), 16 KB for sign-in's routes and 256 KB for the app's
+  error reports.
+
 **The team app brakes itself** (`apps/team/src/app/brake.ts`). Every call to the Worker goes through it:
 
 - Background checks for others' changes (live pages, catching up when you come back to the app) wait after a failure:
@@ -103,3 +118,5 @@ loudly, so a broken deploy never replaces the live site; live server routes alre
 - 2026-10-09: Live pages pushed to over SSE; reconnecting goes through the brake (ADR 0072).
 - 2026-10-20: The website's Sanity reads pause until the 1st at 90% of the month's CDN requests, by our own count, so
   builds keep the rest; a server route falls back to the club facts it last read (ADR 0116).
+- 2026-10-21: What one member can spend: three live streams, a refusal on the record once a minute, and request bodies
+  capped before they're parsed (#73).

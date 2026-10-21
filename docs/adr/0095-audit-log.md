@@ -89,3 +89,5 @@ in a table. A decorator around a handler would also see only the request and the
 - 2026-10-21: The page becomes a table like Roles and Unpaid fees: a row per entry (when · what · area), scrolling
   inside a `.page.fit`, a search in its header row, the area chips with icons in the page's filters, "Earlier" at the
   foot of the rows; notable entries get an icon, not a fill. The API is unchanged: search and chips sift what's read.
+- 2026-10-21: Refused requests go on the record at most once a minute per member, every one still in the log, so a loop
+  can't spend the day's D1 writes (#73); an admin signing a member out everywhere is `member.signed_out` (#72).

@@ -144,6 +144,8 @@ export const MEMBERS_ROUTES: Route[] = [
     },
     action: "manage:Member",
     changes: ["members"],
+    // A file of up to 500,000 characters, which JSON can make longer
+    maxBody: 2 * 1024 * 1024,
     // { file, apply }: a CSV or the roster's JSON. Not applied, it says who it would add, who's in already and what's
     // wrong, and changes nothing; applied, it adds them all at once. Nobody is emailed.
     handle: async (c) => {

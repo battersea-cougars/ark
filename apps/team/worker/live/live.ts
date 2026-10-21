@@ -3,7 +3,8 @@
 // asks for it; the streams live in memory, D1 is the source of truth), so if it restarts the phones just reconnect.
 // An event is only the names of the club's parts that changed (ADR 0057) and the data versions that changed them: what
 // a member sees still comes from their own read. A burst of changes (a Friday's taps) goes out as one event a second
-// at most, naming every part and version in it, so each phone reads once (#112). Written in the classic Durable
+// at most, naming every part and version in it, so each phone reads once (#112). Each stream is a member's and a
+// sign-in's: three a member at most, and closed when its sign-in ends (#72, #73). Written in the classic Durable
 // Object shape, with no runtime imports, so the tests hold a real one.
 import { scribe } from "@cougars/shared/scribe";
 
@@ -25,6 +26,13 @@ const frame = (event: string, data: unknown) => encoder.encode(`event: ${event}\
 
 /** At most one event this often: the changes in between go out together, at the end of it. */
 const EVENT_EVERY_MS = 1000;
+
+/**
+ * Streams one member may hold at once (#73): a phone, a laptop and a tab or two, since a page out of view closes its
+ * own. Another one opening closes their oldest, so a stale one never shuts out the page in front of them, and one
+ * member (or a stolen session) can't hold dozens of the hub's connections.
+ */
+export const STREAMS_PER_MEMBER = 3;
 
 /** Whose a stream is: the member, and the sign-in it came with (none: a local server's auto admin). */
 interface Listener {
@@ -107,8 +115,10 @@ export class LiveHub {
     this.send(frame("changed", event));
   }
 
-  /** One phone's stream, open until the page closes it, or its sign-in ends. */
+  /** One phone's stream, open until the page closes it, or the member opens too many others. */
   private subscribe(who: Listener): Response {
+    const theirs = [...this.streams].filter(([, w]) => w.memberId === who.memberId).map(([c]) => c);
+    for (const c of theirs.slice(0, Math.max(0, theirs.length - STREAMS_PER_MEMBER + 1))) this.end(c);
     let controller!: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
       start: (c) => {

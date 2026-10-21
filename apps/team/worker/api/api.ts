@@ -4,7 +4,7 @@
 import { londonToday } from "../../src/lib/dates";
 import { type Ctx, type Env, type Route } from "./api.route";
 import { ACCESS, SCHEDULE, slices } from "./api.slices";
-import { audit } from "../settings/audit";
+import { audit, auditRefused } from "../settings/audit";
 import { handleAuth, localHere, sessionOf } from "../auth/auth";
 import { CLUB_ROUTES } from "./bootstrap.routes";
 import { ANNOUNCEMENTS_ROUTES } from "../announcements/announcements.routes";
@@ -14,7 +14,7 @@ import { DUES_ROUTES } from "../dues/dues.routes";
 import { REMINDERS_ROUTES } from "../dues/reminders.routes";
 import { ENTRIES_ROUTES } from "../entries/entries.routes";
 import { EVENTS_ROUTES } from "../calendar/events.routes";
-import { HttpError, json, sameOrigin } from "./api.http";
+import { HttpError, json, sameOrigin, withinLimit } from "./api.http";
 import { LIMITS, addressOf, enforce } from "./api.limits";
 import { notifyLive } from "../live/live";
 import { ME_ROUTES } from "../members/me.routes";
@@ -91,19 +91,30 @@ async function health(env: Env): Promise<Response> {
   }
 }
 
+/** What sign-in's routes and the app's error reports may send: a form, a Sentry envelope (#73). */
+const MAX_AUTH_BODY = 16 * 1024;
+const MAX_ERRORS_BODY = 256 * 1024;
+
 export async function handleApi(
-  request: Request,
+  sent: Request,
   env: Env,
   now = new Date(),
   waitUntil?: (p: Promise<unknown>) => void,
 ): Promise<Response> {
+  let request = sent;
   const url = new URL(request.url);
   // Up means it can read the database: a deploy whose D1 binding is broken fails its smoke test (ADR 0010)
   if (url.pathname === "/api/health") return health(env);
   if (!sameOrigin(request)) return json({ error: "That came from somewhere else." }, 403);
+  const match = ROUTES.map((r) => ({ r, m: url.pathname.match(r.path) })).filter((x) => x.m);
+  const hit = match.find((x) => x.r.method === request.method);
   try {
     // A generous limit per address (ADR 0055); sign-in and changes have tighter ones of their own
     await enforce("api", addressOf(request), LIMITS.perAddress, "Too many requests from here. Wait a minute.");
+    // A body over its route's limit is refused before anything reads it, signed in or not (#73)
+    const errors = url.pathname === "/api/errors";
+    const max = errors ? MAX_ERRORS_BODY : url.pathname.startsWith("/api/auth/") ? MAX_AUTH_BODY : hit?.r.maxBody;
+    request = await withinLimit(request, max);
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     throw e;
@@ -119,8 +130,6 @@ export async function handleApi(
       return json({ error: "Something went wrong." }, 500);
     }
   }
-  const match = ROUTES.map((r) => ({ r, m: url.pathname.match(r.path) })).filter((x) => x.m);
-  const hit = match.find((x) => x.r.method === request.method);
   if (!hit) return json({ error: match.length ? "Method not allowed." : "Not found." }, match.length ? 405 : 404);
   // Who it was, for the log if it fails: their number only, never their name or email (ADR 0110)
   let member: number | undefined;
@@ -140,8 +149,9 @@ export async function handleApi(
     const actions = await actionsOf(env.DB, memberId);
     const { action } = hit.r;
     if (action !== "authenticated" && !actions.has("manage:all") && !actions.has(action)) {
-      // Refused for want of an action: on the record (ADR 0024), so poking at admin routes is seen
-      await audit(env.DB, now, memberId, "refused", { method: request.method, path: url.pathname, action });
+      // Refused for want of an action: on the record (ADR 0024), so poking at admin routes is seen, once a minute at
+      // most per member (#73); every one is in the log
+      await auditRefused(env.DB, now, memberId, { method: request.method, path: url.pathname, action });
       return json({ error: "Your role can't do that." }, 403);
     }
     const ctx: Ctx = {
