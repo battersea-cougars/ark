@@ -138,8 +138,12 @@ const roomIn = (kind: EntryKind, keeper: boolean) => {
   return `(? IS NULL OR (SELECT COUNT(*) FROM ${table} x WHERE x.${key} = ? AND x.signup = 'in'${side}) < ?)`;
 };
 
-/** Write someone's answer. `join` is in if there's a place, else the waitlist, decided in the same statement. */
-async function put(
+/**
+ * Write someone's answer. `join` is in if there's a place, else the waitlist, decided in the same statement; it never
+ * touches an answer that's already in or waiting (a double tap, or two of their phones at once), which would count
+ * their own place against them and send them to the back.
+ */
+function putting(
   db: D1Database,
   kind: EntryKind,
   id: number,
@@ -151,24 +155,27 @@ async function put(
   // A fresh answer clears what the register said about an old one
   const reset = kind === "session" ? ", attended = NULL, walk_in = 0" : "";
   const join = typeof signup === "object";
-  await run(
+  return statement(
     db,
     `INSERT INTO ${table} (${key}, member_id, signup, signed_up_at)
      VALUES (?, ?, ${join ? `CASE WHEN ${roomIn(kind, signup.join.keeper)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?)
-     ON CONFLICT (${key}, member_id) DO UPDATE SET signup = excluded.signup, signed_up_at = excluded.signed_up_at${reset}`,
+     ON CONFLICT (${key}, member_id) DO UPDATE SET signup = excluded.signup, signed_up_at = excluded.signed_up_at${reset}
+     ${join ? `WHERE ${table}.signup NOT IN ('in', 'waitlist')` : ""}`,
     join ? [id, memberId, signup.join.limit, id, signup.join.limit, now] : [id, memberId, signup, now],
   );
 }
+const put = (...args: Parameters<typeof putting>) => putting(...args).run();
 
 /** A place came free: the first on the waitlist (a training's Quarterly Members first) moves up, if there's still
  * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. On a
- * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. */
-async function moveUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
+ * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. Sent in
+ * the same batch as whatever freed the place, so nobody signing up in between can take it first. */
+function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
   const { table, key } = TABLES[kind];
   const kept = kind === "session";
   const side = kept ? ` AND ${keeperRow("e")} = ${places.keeper ? 1 : 0}` : "";
   const { limit } = places;
-  await run(
+  return statement(
     db,
     `UPDATE ${table} SET signup = 'in'${kept ? "" : ", signed_up_at = ?"}
      WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'${side}
@@ -186,9 +193,10 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
     if (was?.signup === "out") return;
     // Drafted: off their team while the draft's open; once it's closed (or a captain), through an admin
     if (kind === "tournament") await leaveDraft(db, id, memberId);
-    await put(db, kind, id, memberId, "out", now);
-    // A session's published teams keep them until a team maker remakes the teams or keeps them as they are (ADR 0076)
-    if (was?.signup === "in") await moveUp(db, kind, id, places, now);
+    // Out, and the first waiting in, at once (whatever they were when read: another of their taps may have moved
+    // them since). A session's published teams keep them until a team maker remakes the teams or keeps them as they
+    // are (ADR 0076)
+    await batch(db, [putting(db, kind, id, memberId, "out", now), movingUp(db, kind, id, places, now)]);
     return;
   }
   if (was?.signup === "in" || was?.signup === "waitlist") return;
@@ -241,9 +249,12 @@ export async function setPlayer(
   if (!was) return null;
   if (kind === "tournament") await leaveDraft(db, id, memberId, true);
   const { table, key } = TABLES[kind];
-  await run(db, `DELETE FROM ${table} WHERE ${key} = ? AND member_id = ?`, [id, memberId]);
-  if (kind === "session") await offTeams(db, id, memberId);
-  if (was.signup === "in") await moveUp(db, kind, id, places, now);
+  // Off, off the night's teams, and the first waiting in: one batch, so nobody signing up between takes the place
+  await batch(db, [
+    statement(db, `DELETE FROM ${table} WHERE ${key} = ? AND member_id = ?`, [id, memberId]),
+    ...(kind === "session" ? [offTeams(db, id, memberId)] : []),
+    movingUp(db, kind, id, places, now),
+  ]);
   return null;
 }
 

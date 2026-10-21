@@ -70,15 +70,14 @@ export async function publishTeams(
   ]);
 }
 
-/** Off any team for this session: they dropped out or were taken off. */
-export async function offTeams(db: D1Database, sessionId: number, memberId: number) {
-  await run(
+/** Off any team for this session: they dropped out or were taken off. A statement, for the batch that takes them off. */
+export const offTeams = (db: D1Database, sessionId: number, memberId: number) =>
+  statement(
     db,
     `DELETE FROM session_team_players
      WHERE member_id = ? AND team_id IN (SELECT id FROM session_teams WHERE session_id = ?)`,
     [memberId, sessionId],
   );
-}
 
 /** Take a session's teams down: back to before they were made. The sign-ups stay. */
 export async function removeTeams(db: D1Database, sessionId: number) {
