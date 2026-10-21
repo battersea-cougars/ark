@@ -34,7 +34,15 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   that's running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down
   the side like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard."
   An admin's **Next Kumite** is on it. Under it, every past one, newest first.
-- **Past ones are History**, a tab while the next one's on or coming up (the front page when nothing's on): each
+- **The tabs are the pages that matter at its stage** (`stageOf` in `lib/edition.ts`, `nav-routes.ts`), short
+  (Kumite, Fights, Board, Teams, Draft), so they fit an iPhone without scrolling, four at most for a member. Sign-up:
+  just the front page (a draft's teams are its captains, already on it; teams that enter: Teams). The draft open:
+  Kumite, Draft (its captains and whoever runs it), Teams. The teams set, no fixtures yet: Kumite, Teams, and the
+  Draft still for those who make the fixtures from it. The fixtures out: Kumite, Fights, Board, Teams. The rest are
+  off the strip but a link away, under the front page (Back and the lit tab go there): My team is never a tab (Teams
+  has yours first, marked; `/my-team` is under Teams), nor is History while one's running.
+- **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
+  page itself when nothing's on): each
   with how it ended (the day, the champions, the final's score), each opening its own page
   (`/tournaments/:slug/history/:id`: the champions, the final, every fight, the board, the awards), back to the list.
   Its teams' and games' pages work from there too; a past game's matchup goes back to its own page, not today's fight
@@ -154,3 +162,6 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   is set here, since it's drawn when the draft starts.
 - 2026-10-21: Home asks "Are you in for the Kumite?" right after Friday while sign-up is open, and teases it in its
   feed before ([0118](0118-home-calls-to-action-then-feed.md)).
+- 2026-10-21: A running one's tabs follow its stage (sign-up, the draft, the teams, the fixtures) and say less
+  (Kumite, Fights, Board), so they fit an iPhone: My team is no longer a tab (Teams has yours first), nor History
+  while one's running (a row at the foot of the front page); hidden pages keep their links, under the front page.

@@ -1,6 +1,7 @@
 // One edition of a tournament series, as its pages head it: where it stands, worked out from its games (scoring the
 // first starts it, the last one played ends it, whatever the settings say), and when, with its season.
 import type { Tournament } from "../demo/model";
+import type { Stage } from "../app/nav-routes";
 import { isDone } from "@cougars/shared/results";
 import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { champion } from "./fixtures";
@@ -26,6 +27,16 @@ export function editionState(t: Tournament): EditionState {
   if (isDone(t.status, games)) return "done";
   if (t.status === "live" || games.some((g) => g.status !== "next")) return "live";
   return signupOpen(t, londonToday()) ? "open" : "planned";
+}
+
+/**
+ * Where the next one has got to (ADR 0074), for which of its pages are tabs: its fixtures out once it has games; a
+ * draft's on while it's open; the teams set once a draft closes, or once teams have entered; else it's sign-up.
+ */
+export function stageOf(t: Tournament): Stage {
+  if (t.games?.length) return "fixtures";
+  if (t.kind === "draft") return t.draftState === "open" ? "draft" : t.draftState === "closed" ? "teams" : "signup";
+  return t.teams.length ? "teams" : "signup";
 }
 
 export const EDITION_LABEL: Record<EditionState, string> = {

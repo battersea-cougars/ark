@@ -7,33 +7,38 @@ import { DEV_TOOLS, UNFINISHED } from "../demo/data";
 import { buildFolds, buildRoutes, buildTabs, routeFor, type NavConfig } from "./nav-routes";
 import { navigate, router } from "./router.svelte";
 import { goesBy } from "../lib/names";
+import { stageOf } from "../lib/edition";
 
 const config = (): NavConfig => ({
   series: db.series,
-  types: db.tournamentTypes.map((t) => ({
-    ...t,
-    captains: (currentTournament(t.id)?.teams ?? []).flatMap((team) => team.captainMemberId ?? []),
-    onTeam: (currentTournament(t.id)?.teams ?? []).some(
-      (team) => team.captainMemberId === me().id || team.players.some((p) => p.memberId === me().id),
-    ),
-    // Every edition's games and teams, so a past one's links work too
-    games: db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
-    past: pastTournaments(t.id).map((x) => x.id),
-    idle: !currentTournament(t.id),
-    teams: db.tournaments
-      .filter((x) => x.typeId === t.id)
-      .flatMap((x) => x.teams)
-      .flatMap((team) =>
-        team.id
-          ? [
-              {
-                id: team.id,
-                mine: team.captainMemberId === me().id || team.players.some((p) => p.memberId === me().id),
-              },
-            ]
-          : [],
+  types: db.tournamentTypes.map((t) => {
+    const next = currentTournament(t.id);
+    return {
+      ...t,
+      captains: (next?.teams ?? []).flatMap((team) => team.captainMemberId ?? []),
+      onTeam: (next?.teams ?? []).some(
+        (team) => team.captainMemberId === me().id || team.players.some((p) => p.memberId === me().id),
       ),
-  })),
+      // Every edition's games and teams, so a past one's links work too
+      games: db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
+      past: pastTournaments(t.id).map((x) => x.id),
+      idle: !next,
+      stage: next && stageOf(next),
+      teams: db.tournaments
+        .filter((x) => x.typeId === t.id)
+        .flatMap((x) => x.teams)
+        .flatMap((team) =>
+          team.id
+            ? [
+                {
+                  id: team.id,
+                  mine: team.captainMemberId === me().id || team.players.some((p) => p.memberId === me().id),
+                },
+              ]
+            : [],
+        ),
+    };
+  }),
   me: me().id,
   members: db.members.filter((m) => m.status === "active").map((m) => ({ id: m.player.id, name: goesBy(m.player) })),
   devTools: DEV_TOOLS,

@@ -35,6 +35,8 @@
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(currentTournament(typeId));
   const past = $derived(tournament ? [] : pastTournaments(typeId));
+  // While one's on, the past ones are History: not a tab (the strip has what matters now), a row at the foot here
+  const earlier = $derived(tournament ? pastTournaments(typeId).length : 0);
   const kumite = $derived(!!kanjiFor(type, "onTheMat"));
   const firstName = (id: number | null) => shortNameOf(PLAYERS.find((p) => p.id === id));
   const teams = $derived(tournament?.teams ?? []);
@@ -231,6 +233,21 @@
     {:else if manage && teams.length >= 2}
       <p class="note">The fight card isn't out yet. <a href={schedule}>Make it</a></p>
     {/if}
+  {/if}
+  {#if earlier}
+    <section class="part">
+      <h2 class="section-title">Past {type.shortName}s<Kanji text={kanjiFor(type, "martial")} /></h2>
+      <div class="list">
+        <a class="row" href="/tournaments/{type.slug}/history">
+          <span class="glyph"><Icon name="medal" size={20} /></span>
+          <span class="grow">
+            <span class="title">History</span>
+            <span class="sub">{earlier} played, and who won</span>
+          </span>
+          <Icon name="chevronRight" size={18} />
+        </a>
+      </div>
+    </section>
   {/if}
 </div>
 

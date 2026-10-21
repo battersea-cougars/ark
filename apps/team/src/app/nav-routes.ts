@@ -53,6 +53,12 @@ export interface Fold {
   icon: IconName;
 }
 
+/**
+ * Where a running tournament has got to, which says which of its pages are tabs (ADR 0074): sign-up (just its front
+ * page), the draft on, the teams set with no fixtures yet, the fixtures out (the fight card and the board).
+ */
+export type Stage = "signup" | "draft" | "teams" | "fixtures";
+
 /** What the menu is built from: the configured trainings and tournament types. */
 export interface NavConfig {
   series: { id: number; slug: string; name: string; shortName: string; icon: IconName; active: boolean }[];
@@ -77,6 +83,8 @@ export interface NavConfig {
     past?: number[];
     /** Nothing on or coming up: just its front page (the past ones on it), none of the pages for a running one. */
     idle?: boolean;
+    /** Where its next one has got to: its tabs are the pages that matter then; left out, the fixtures are out. */
+    stage?: Stage;
   }[];
   /** Who's signed in (or being viewed as). */
   me?: number;
@@ -399,6 +407,11 @@ export function buildRoutes(config: NavConfig): Route[] {
       // With nothing on or coming up, its front page is the only one: a past one's pages sit under it
       const home = `games:${t.id}`;
       const running = !t.idle;
+      // Six or seven tabs don't fit a phone, so only the pages that matter at its stage are tabs; the rest stay a link
+      // away, under its front page (Back and the lit tab go there)
+      const stage = t.stage ?? "fixtures";
+      const tab = (show: boolean) => (show ? {} : { hidden: true, under: home });
+      const fixtures = tab(stage === "fixtures");
       return [
         {
           ...base,
@@ -406,70 +419,12 @@ export function buildRoutes(config: NavConfig): Route[] {
           path: `/tournaments/${t.slug}`,
           // Named for the tournament itself: "The Kumite"
           name: `The ${t.shortName}`,
+          short: t.shortName,
           page: "games",
           action: "read:Event",
           icon: "trophy",
         },
-        ...(running
-          ? ([
-              {
-                ...base,
-                id: `schedule:${t.id}`,
-                path: `/tournaments/${t.slug}/schedule`,
-                name: "Fight card",
-                page: "schedule",
-                action: "read:Event",
-                // The Kumite's gong starts every fight (lib/motif.ts)
-                icon: t.slug === "kumite" ? "gong" : "calendar",
-              },
-              {
-                ...base,
-                id: `standings:${t.id}`,
-                path: `/tournaments/${t.slug}/standings`,
-                name: "The board",
-                page: "standings",
-                action: "read:Event",
-                icon: "list",
-              },
-              {
-                ...base,
-                id: `teams:${t.id}`,
-                path: `/tournaments/${t.slug}/teams`,
-                name: "Teams",
-                page: "tournament-teams",
-                // Everyone's: a draft's teams once it closes (ADR 0060); where an admin edits a team (ADR 0060)
-                action: "read:Event",
-                icon: "teams",
-              },
-            ] as Route[])
-          : []),
-        // Each team's page, reached from wherever the team's shown; yours is lit as My team
-        ...(t.teams ?? []).map((team): Route => ({
-          ...base,
-          id: `team:${t.id}:${team.id}`,
-          path: `/tournaments/${t.slug}/teams/${team.id}`,
-          name: "Team",
-          page: "tournament-team",
-          params: { typeId: t.id, teamId: team.id },
-          action: "read:Event",
-          icon: "teams",
-          hidden: true,
-          under: !running ? home : team.mine ? `my-team:${t.id}` : `teams:${t.id}`,
-        })),
-        // Your team: whoever's on one, captains included; where the captain makes it theirs
-        ...(running && t.onTeam
-          ? [
-              {
-                ...base,
-                id: `my-team:${t.id}`,
-                path: `/tournaments/${t.slug}/my-team`,
-                name: "My team",
-                page: "tournament-team",
-                action: "read:Event" as const,
-                icon: "user" as const,
-              },
-            ]
-          : []),
+        // The draft first: while it's on, it's what's happening
         ...(running && t.kind === "draft"
           ? [
               {
@@ -481,11 +436,83 @@ export function buildRoutes(config: NavConfig): Route[] {
                 // Only its captains, and whoever runs the draft
                 action: me !== undefined && t.captains?.includes(me) ? ("read:Event" as const) : ("run:Draft" as const),
                 icon: "draft" as const,
+                // Till the fixtures are made from it; then it's a link away, its picks done
+                ...tab(stage !== "fixtures"),
+              },
+            ]
+          : []),
+        ...(running
+          ? ([
+              {
+                ...base,
+                id: `schedule:${t.id}`,
+                path: `/tournaments/${t.slug}/schedule`,
+                name: "Fight card",
+                short: "Fights",
+                page: "schedule",
+                action: "read:Event",
+                // The Kumite's gong starts every fight (lib/motif.ts)
+                icon: t.slug === "kumite" ? "gong" : "calendar",
+                ...fixtures,
+              },
+              {
+                ...base,
+                id: `standings:${t.id}`,
+                path: `/tournaments/${t.slug}/standings`,
+                name: "The board",
+                short: "Board",
+                page: "standings",
+                action: "read:Event",
+                icon: "list",
+                ...fixtures,
+              },
+              {
+                ...base,
+                id: `teams:${t.id}`,
+                path: `/tournaments/${t.slug}/teams`,
+                name: "Teams",
+                page: "tournament-teams",
+                // Everyone's: a draft's teams once it closes (ADR 0060); where an admin edits a team (ADR 0060)
+                action: "read:Event",
+                icon: "teams",
+                // Before the draft there's nothing the front page doesn't show (a draft's teams are its captains)
+                ...tab(stage !== "signup"),
+              },
+            ] as Route[])
+          : []),
+        // Each team's page, reached from wherever the team's shown, under Teams
+        ...(t.teams ?? []).map((team): Route => ({
+          ...base,
+          id: `team:${t.id}:${team.id}`,
+          path: `/tournaments/${t.slug}/teams/${team.id}`,
+          name: "Team",
+          page: "tournament-team",
+          params: { typeId: t.id, teamId: team.id },
+          action: "read:Event",
+          icon: "teams",
+          hidden: true,
+          under: !running ? home : `teams:${t.id}`,
+        })),
+        // Your team: whoever's on one, captains included; where the captain makes it theirs. Not a tab: Teams has
+        // yours first, marked; this link (from Home) is under it
+        ...(running && t.onTeam
+          ? [
+              {
+                ...base,
+                id: `my-team:${t.id}`,
+                path: `/tournaments/${t.slug}/my-team`,
+                name: "My team",
+                page: "tournament-team",
+                action: "read:Event" as const,
+                icon: "user" as const,
+                hidden: true,
+                under: `teams:${t.id}`,
               },
             ]
           : []),
         // History: every past one with its result, and each one's page (the champions, every fight, the board, the
-        // awards), back to the list (ADR 0074). With nothing on, the list is the front page
+        // awards), back to the list (ADR 0074). Not a tab: the front page links to it. With nothing on, the list is
+        // the front page
         ...(t.past?.length
           ? [
               ...(running
@@ -498,6 +525,8 @@ export function buildRoutes(config: NavConfig): Route[] {
                       page: "history",
                       action: "read:Event" as const,
                       icon: "medal" as const,
+                      hidden: true,
+                      under: home,
                     },
                   ]
                 : []),

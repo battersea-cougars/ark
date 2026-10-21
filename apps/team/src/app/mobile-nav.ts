@@ -18,6 +18,19 @@ export function stripRoutes(routes: Route[], current: Route, granted: ReadonlySe
 }
 
 /**
+ * Which of the strip's pages is lit on this one: itself, else the one it's under, and so on up (a past one's page is
+ * under History, which is under the front page), or none.
+ */
+export function stripCurrent(routes: Route[], route: Route, strip: Route[]): string | undefined {
+  const seen = new Set<string>();
+  for (let r: Route | undefined = route; r && !seen.has(r.id); r = routes.find((x) => x.id === r!.under)) {
+    if (strip.some((s) => s.id === r!.id)) return r.id;
+    seen.add(r.id);
+  }
+  return undefined;
+}
+
+/**
  * Where a tab goes: the last page used in it, if the member can still see it, else its first page. Profile always
  * opens your profile: the page you asked for, not the settings page you last left.
  */

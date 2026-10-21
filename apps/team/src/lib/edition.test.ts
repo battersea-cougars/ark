@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
-import { editionState, editionWhen } from "./edition";
+import { editionState, editionWhen, stageOf } from "./edition";
 
 const game = (position: number, status: "next" | "live" | "done", home = 1, away = 2) => ({
   id: position,
@@ -53,5 +53,21 @@ describe("editionWhen", () => {
     });
     expect(editionWhen(cup())).toMatchObject({ hours: "11am to 4pm", season: "Summer 2027" });
     expect(editionWhen(cup()).day).toBeTruthy();
+  });
+});
+
+describe("stageOf: which of its pages are tabs", () => {
+  it("sign-up till teams enter; the teams once they have; the fixtures once there are games", () => {
+    expect(stageOf(cup({ teams: [] }))).toBe("signup");
+    expect(stageOf(cup())).toBe("teams");
+    expect(stageOf(cup({ games: [game(1, "next")] as never }))).toBe("fixtures");
+  });
+
+  it("a draft: sign-up till it opens, the draft while it's open, the teams once it's closed", () => {
+    expect(stageOf(cup({ kind: "draft", draftState: "none" }))).toBe("signup");
+    expect(stageOf(cup({ kind: "draft", draftState: "scheduled" }))).toBe("signup");
+    expect(stageOf(cup({ kind: "draft", draftState: "open" }))).toBe("draft");
+    expect(stageOf(cup({ kind: "draft", draftState: "closed" }))).toBe("teams");
+    expect(stageOf(cup({ kind: "draft", draftState: "closed", games: [game(1, "next")] as never }))).toBe("fixtures");
   });
 });

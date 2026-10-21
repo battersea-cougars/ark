@@ -9,7 +9,7 @@
   import { initials } from "../../lib/initials";
   import { type Snippet } from "svelte";
   import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
-  import { backFor, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
+  import { backFor, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
   import { railFoot, railItems, railOn } from "../rail";
   import type { Route, TabId } from "../nav-routes";
   import { folds, routes, stayIfAllowed, tabs } from "../routes.svelte";
@@ -79,7 +79,7 @@
   // The desktop header shows the section's pages as pills in its toolbar row
   $effect(() => {
     pageBar.strip = strip.map((r) => ({ id: r.id, path: r.path, label: r.short ?? r.name }));
-    pageBar.current = route.under ?? route.id;
+    pageBar.current = stripCurrent(all, route, strip) ?? route.id;
   });
   // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
   const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
@@ -805,7 +805,8 @@
     scroll-snap-align: start;
     color: var(--fg-muted);
     font-family: var(--font-display);
-    font-size: 1.1rem;
+    /* Small enough that a section's tabs at any stage (four at most for a member) fit an iPhone's width */
+    font-size: 0.95rem;
     font-style: italic;
     letter-spacing: 0.03em;
     line-height: 1;
