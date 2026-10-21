@@ -47,7 +47,10 @@ export function settledCrypto(subtle: SubtleCrypto = crypto.subtle) {
       return (real.importKey as (...a: unknown[]) => Promise<CryptoKey>).apply(subtle, args);
     return now(() => {
       const keyObject = createPrivateKey({ key: bytes(key as BufferSource), format: "der", type: "pkcs8" });
-      const cryptoKey = keyObject.toCryptoKey(alg as RsaHashedImportParams, extractable, usages);
+      // Node's own CryptoKey and KeyUsage types differ from the DOM's the apps check against: the same objects
+      const cryptoKey = keyObject.toCryptoKey(alg as RsaHashedImportParams, extractable, [
+        ...usages,
+      ] as KeyUsage[]) as unknown as CryptoKey;
       keys.set(cryptoKey, keyObject);
       return cryptoKey;
     });
