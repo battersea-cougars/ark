@@ -2,8 +2,8 @@
   // You (ADR 0022): only your own things. Your card (name, position, roles), the switch between your everyday role and
   // your full one, your details (phone, position, bio, the name you go by: name and email are an admin's to change,
   // since sign-in and the roster go by them), notifications, your dues, your data, and sign out. The phone's last tab
-  // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone and beside the
-  // avatar on a desktop (lib/SettingsButton), never listed here.
+  // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton)
+  // and at the foot of a desktop's dock, never listed here.
   import Icon from "../app/shell/Icon.svelte";
   import { goesBy, shortName } from "../lib/names";
   import { POSITIONS, POSITION_ICONS, emailFor, phoneFor, type Position } from "../demo/data";

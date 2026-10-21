@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goesBy, shortName } from "./names";
-  // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /more/teammates/:id). It
+  // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
   // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
   // Gwenda's editors do: a header with who they are and a close button top right, then a body that scrolls on its
   // own. Tabs along the header's foot: Details, Attendance and Dues, each with the whole card. The card they were

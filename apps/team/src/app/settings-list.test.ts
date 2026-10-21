@@ -19,14 +19,14 @@ const listed = (account: Set<Action>, now = account) =>
 describe("the Settings page", () => {
   it("lists every admin area for an admin, grouped Club, Schedule, Money, Security", () => {
     expect(listed(admin)).toEqual([
-      { section: "Club", rows: ["Members", "Unpaid fees", "Announcements", "Quips"] },
+      { section: "Club", rows: ["Members", "Unpaid fees", "Quips"] },
       { section: "Schedule", rows: ["Training", "Tournaments", "Tournament Series", "Venues"] },
       { section: "Money", rows: ["Quarterly rate"] },
       { section: "Security", rows: ["Roles", "Audit log", "Usage", "View as a member", "Dev tools"] },
     ]);
   });
 
-  it("is empty for a member and a session lead (they have no gear): Announcements is listed for whoever posts", () => {
+  it("is empty for a member and a session lead (they have no gear)", () => {
     expect(listed(member)).toEqual([]);
     expect(listed(sessionLead)).toEqual([]);
   });
@@ -43,8 +43,12 @@ describe("the Settings page", () => {
     expect(everyday.flatMap((s) => s.rows)).toHaveLength(listed(admin).flatMap((s) => s.rows).length);
     expect(everyday[0]).toEqual({
       section: "Club",
-      rows: ["(Members)", "(Unpaid fees)", "(Announcements)", "(Quips)"],
+      rows: ["(Members)", "(Unpaid fees)", "(Quips)"],
     });
+  });
+
+  it("doesn't list past announcements: they're Home's page, posted from Home", () => {
+    expect(listed(admin).flatMap((s) => s.rows)).not.toContain("Announcements");
   });
 
   it("Upload is a contributor's, not every member's: in Settings, not the rail", () => {

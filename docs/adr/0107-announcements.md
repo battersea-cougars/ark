@@ -22,8 +22,8 @@ notifications aren't built yet (#24).
   phone, beside the words on a desktop. Pressed, it turns to a green tick for a moment, then the note folds away (the
   page closes up behind it smoothly; nothing jumps). It was a small ✕ in the corner, which read as "close" rather than
   "I've read this".
-- **Every announcement can be looked back over** at More → Announcements (`/more/announcements`, a link under the
-  notes on Home too): newest first, each with who posted it, when it ran, and whether you got it ("Got it", or "Missed
+- **Every announcement can be looked back over** at Home → Past announcements (`/announcements`, Home's own page, a link
+  under the notes): newest first, each with who posted it, when it ran, and whether you got it ("Got it", or "Missed
   it" for one that ended first). One still on can be got there, and whoever may post can take one still on down from
   its row (once they've got it, it's no longer on their Home). `GET /api/announcements`, one read, a page of 20 at a
   time (`?before=<id>`, `?limit=` up to 100).
@@ -44,3 +44,6 @@ notifications aren't built yet (#24).
 - 2026-10-10: Announcements on Home, posted by admins, two at a time, dismissable, ending on their last day (#85).
 - 2026-10-20: "Got it" in words (the main button) instead of a ✕, folding the note away; every announcement can be
   looked back over, with whether you got it, at More → Announcements.
+- 2026-10-21: Past announcements are Home's page (`/announcements`, the old `/more/announcements` redirects), not a
+  Settings row for whoever posts: on a desktop it showed the Settings list, as if it were a setting. Posting stays on
+  Home (the megaphone) ([0065](0065-page-frame-and-admin-actions.md)).

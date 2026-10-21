@@ -1044,7 +1044,7 @@
     bio={byId(id).bio}
     removeLabel={can(perms, "update:Event") ? `Remove from ${series.shortName}` : undefined}
     onremove={() => removeFromSession(id)}
-    detailsHref={can(perms, "manage:Member") ? `/more/teammates/${id}` : undefined}
+    detailsHref={can(perms, "manage:Member") ? `/club/${id}` : undefined}
     onclose={() => (lifted = null)}
   />
 {/if}

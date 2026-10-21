@@ -34,13 +34,13 @@ export function tabHref(
 }
 
 /**
- * Where a phone's Back goes (#86), or null for a tab's own pages (Home, Friday, Calendar, the Kumite's pages, You),
+ * Where a phone's Back goes (#86), or null for a tab's own pages (Home, Friday, the club, the Kumite's pages, You),
  * which have the tabs instead. `history`: by the browser's history (the page it was opened from); otherwise the shell
  * goes there in this page's place, so Back never adds a page to go forward to.
  *
  * - A settings page goes back to Settings, wherever it was opened from (Home → Unpaid fees → Back is Settings, then
- *   Back from Settings is Home). `granted`: what you can do, so a page that's only listed in Settings for some
- *   (Announcements, which anyone reads) goes back the ordinary way for everyone else.
+ *   Back from Settings is Home). `granted`: what you can do, so a settings page listed only for some goes back the
+ *   ordinary way for everyone else.
  * - Settings goes back to wherever you came from, but never to a settings page (that would go round in a circle):
  *   then, and opened from outside, to You.
  * - Every other page goes back to the page it was opened from in the app; opened from outside or after a reload, to

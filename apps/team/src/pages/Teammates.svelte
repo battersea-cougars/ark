@@ -1,8 +1,9 @@
 <script lang="ts">
-  // Teammates: the club's active players. Everyone sees trading cards, A to Z; tap one to turn it over.
+  // The club (a phone's Club tab, a desktop's rail): its active players for now, its contacts later (#67). Everyone
+  // sees trading cards, A to Z; tap one to turn it over.
   // Someone who manages members also gets the join requests to approve, and a tap on a card opens everything about
   // them (MemberSheet). The table of everyone is Settings → Members.
-  // A link to /more/teammates/:id (Unpaid fees, a training's card) opens here with that card up.
+  // A link to /club/:id (a training's card) opens here with that card up.
   import { goesBy, matchesName } from "../lib/names";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";
@@ -50,7 +51,7 @@
   });
   function close() {
     lifted = null;
-    if (memberId != null) navigate("/more/teammates", { replace: true });
+    if (memberId != null) navigate("/club", { replace: true });
   }
   function approve(m: (typeof pending)[number]) {
     m.status = "active";
@@ -61,7 +62,7 @@
 
 <div class="page full">
   <PageHeader
-    title="Teammates"
+    title="The club"
     subtitle="{active.length} players · {active.filter((m) => m.player.cougar).length} Cougars{admin && pending.length
       ? ` · ${pending.length} asking to join`
       : ''}"
@@ -76,7 +77,7 @@
       {/if}
     {/snippet}
     {#snippet toolbar()}
-      <SearchField bind:value={query} placeholder="Search teammates" collapsible={!phone.current} />
+      <SearchField bind:value={query} placeholder="Search players" collapsible={!phone.current} />
     {/snippet}
     {#snippet filters()}
       <div class="filters" role="group" aria-label="Position">

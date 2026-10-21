@@ -5,9 +5,9 @@
 import type { Requirement } from "../access/actions";
 import type { IconName } from "./shell/icons";
 
-export type TabId = "home" | "training" | "calendar" | "tournaments" | "more";
+export type TabId = "home" | "training" | "club" | "tournaments" | "more";
 
-/** You: your own pages (the You page). Club: member pages in the desktop rail. Settings: listed under the gear. */
+/** You: your own pages (the You page). Club: the club page, in the desktop rail. Settings: listed under the gear. */
 export type Group = "Club" | "You" | "Settings";
 
 /** Settings' groups, in the order the Settings page lists them. */
@@ -31,9 +31,6 @@ export interface Route {
   group?: Group;
   /** Sub-heading inside Settings. */
   section?: Section;
-  /** What lists it in Settings, when that's more than opening it takes: anyone reads Announcements, whoever posts
-   * them finds it in Settings. */
-  manage?: Requirement;
   /** The folding rail section it sits in: a tournament type ("type:1"). */
   fold?: string;
   /** Reached from a page, not from any menu (the register). */
@@ -148,14 +145,16 @@ const STATIC_TAIL: Route[] = [
     icon: "user",
     hidden: true,
   },
+  // The club (a phone's Club tab, a desktop's rail): its players now, its contacts later (#67)
   {
-    id: "teammates",
-    path: "/more/teammates",
-    name: "Teammates",
-    tab: "more",
+    id: "club",
+    path: "/club",
+    name: "The club",
+    short: "Club",
+    tab: "club",
     page: "teammates",
     action: "authenticated",
-    icon: "user",
+    icon: "club",
     group: "Club",
     hint: "Everyone who plays",
   },
@@ -194,21 +193,6 @@ const STATIC_TAIL: Route[] = [
     group: "Settings",
     section: "Club",
     hint: "Who owes what, and for how long",
-  },
-  // Every announcement the club has made (#85), newest first, with whether you got each. Anyone can read it (from
-  // Home's Past announcements); it's listed in Settings for whoever posts them
-  {
-    id: "announcements",
-    path: "/more/announcements",
-    name: "Announcements",
-    tab: "more",
-    page: "announcements",
-    action: "authenticated",
-    manage: "post:Announcement",
-    icon: "megaphone",
-    group: "Settings",
-    section: "Club",
-    hint: "Everything the club's said, and who got it",
   },
   {
     id: "quips",
@@ -367,24 +351,42 @@ export function buildRoutes(config: NavConfig): Route[] {
     ]),
     ...(config.members ?? []).map((m): Route => ({
       id: `member:${m.id}`,
-      path: `/more/teammates/${m.id}`,
+      path: `/club/${m.id}`,
       name: m.name,
-      tab: "more",
-      // Teammates, with this member's big card open
+      tab: "club",
+      // The club, with this member's big card open
       page: "teammates",
       params: { memberId: m.id },
       action: "manage:Member",
       icon: "user",
       hidden: true,
+      under: "club",
     })),
+    // Every announcement the club has made (#85), newest first, with whether you got each: Home's page, from its Past
+    // announcements, for everyone. Posting one is Home's too (the megaphone)
+    {
+      id: "announcements",
+      path: "/announcements",
+      name: "Announcements",
+      tab: "home",
+      page: "announcements",
+      action: "authenticated",
+      icon: "megaphone",
+      hidden: true,
+      under: "home",
+    },
+    // Not a phone tab (the Club has its place): opened from Home's header, so it's under Home there. A desktop's rail
+    // keeps it
     {
       id: "calendar",
       path: "/calendar",
       name: "Calendar",
-      tab: "calendar",
+      tab: "home",
       page: "calendar",
       action: "read:Event",
       icon: "calendar",
+      hidden: true,
+      under: "home",
     },
     ...types.flatMap((t): Route[] => {
       const base = { tab: "tournaments" as const, params: { typeId: t.id }, fold: `type:${t.id}` };
@@ -547,8 +549,8 @@ export const buildFolds = (config: NavConfig): Fold[] =>
   config.types.filter((t) => t.active).map((t) => ({ id: `type:${t.id}`, name: t.name, icon: t.icon }));
 
 /**
- * Phone tabs. With one training or one tournament type, the tab takes its short name ("Friday", "Kumite"). The last
- * is you: your avatar, opening your You page (your own things; Settings is the gear).
+ * Phone tabs. With one training or one tournament type, the tab takes its short name ("Friday", "Kumite"). The club
+ * sits between them (its players; the Calendar is a button on Home). The last is you: your avatar, opening your You page (your own things; Settings is the gear).
  */
 export function buildTabs(config: NavConfig): { id: TabId; label: string; icon: IconName }[] {
   const series = config.series.filter((s) => s.active);
@@ -564,7 +566,7 @@ export function buildTabs(config: NavConfig): { id: TabId; label: string; icon: 
           },
         ]
       : []),
-    { id: "calendar", label: "Calendar", icon: "calendar" },
+    { id: "club", label: "Club", icon: "club" },
     ...(types.length
       ? [
           {
@@ -576,6 +578,18 @@ export function buildTabs(config: NavConfig): { id: TabId; label: string; icon: 
       : []),
     { id: "more", label: "You", icon: "user" },
   ];
+}
+
+// Old paths, and where their pages live now
+const MOVED: [from: string, to: string][] = [
+  ["/more/teammates", "/club"],
+  ["/more/announcements", "/announcements"],
+];
+
+/** Where an old link goes now (Teammates became the club), or null when it's where it should be. */
+export function movedTo(path: string): string | null {
+  const hit = MOVED.find(([from]) => path === from || path.startsWith(from + "/"));
+  return hit ? hit[1] + path.slice(hit[0].length) : null;
 }
 
 export const routeFor = (routes: Route[], path: string): Route | undefined =>

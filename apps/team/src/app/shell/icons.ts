@@ -49,6 +49,8 @@ export const ICONS = {
   filter: "M4 6h16M7 12h10M10 18h4",
   pin: "M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
   // Picks: positions, how money came in, which way an adjustment goes
+  // The club: a crest with one of its players on it
+  club: "M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6zM12 11.5a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5zM8.25 16a3.75 3.75 0 0 1 7.5 0",
   shield: "M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6z",
   net: "M3 20V8l3-3h12l3 3v12M3 20h18M3 8h18M8 8v12M13 8v12M18 8v12M3 14h18",
   bank: "M3 9.5 12 4l9 5.5M4 9.5h16M6 9.5v8M10 9.5v8M14 9.5v8M18 9.5v8M3 20h18",

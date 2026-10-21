@@ -40,7 +40,7 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 **One page frame**
 
 - On a desktop every page is the same frame (`--page-max`, 76rem) and its content keeps a reading width (52rem) from
-  the frame's left edge. A page that needs the room (the Draft, Teammates, Settings → Tournaments) is `.page.full` and
+  the frame's left edge. A page that needs the room (the Draft, the club, Settings → Tournaments) is `.page.full` and
   uses the whole frame. A page that is one big table (Settings → Members) is `.page.fill`
   ([0069](0069-members.md)). Nothing is centred on its own.
 - Every title is at the same height: PageHeader keeps the eyebrow's line on a desktop even when there's none, and
@@ -48,8 +48,9 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - An editor panel opens in the page's column: the same left edge and width as the content under it
   (`lib/page-column.ts`), the reading width or the whole frame for a `.full` page. Phones are unchanged: full screen.
 - Settings keeps its list beside the dock, so its pages share their own left edge, all of them.
-- **One way into Settings: the gear, top right**, beside a desktop's badge and in a phone's You bar (its own icon: a
-  chunky cog with a puck). The dock has no Settings tile; members with nothing to set up keep More there.
+- **One way into Settings: the gear**, at the foot of a desktop's dock (below the member pages, set apart by space,
+  lit on Settings and its pages) and top right in a phone's You bar (its own icon: a chunky cog with a puck). A
+  desktop's top right is just your avatar, opening You.
 - On a phone the slim bar slides up out of sight as you scroll down and comes back the moment you scroll up or reach
   the top (#83). A transform over the page, so nothing moves; the bottom tabs stay; not while a sheet is open. A
   page's search stays in the page and scrolls with it. Every page, Friday's too: what sticks under the bar (its
@@ -146,3 +147,9 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   gone. A page every member can read but only some set up names what lists it in Settings (`manage`: Announcements,
   by `post:Announcement`). On a phone, Back from a settings page goes to Settings, and Back from Settings to where you
   came from. "We show the gear icon and also a bunch of links and a profile button".
+- 2026-10-21: On a desktop the gear joins the rail, at its foot below the member pages, set apart by space, for
+  whoever can set something up; the top-right corner keeps only your avatar (You isn't in the rail). Phones are
+  unchanged. "On desktop, the admin button should be in the nav rail."
+- 2026-10-21: Past announcements leave Settings: they're Home's page (`/announcements`), for everyone, so the rail
+  lights Home there and no Settings list shows ([0107](0107-announcements.md)). The rail is Home, the trainings,
+  Calendar, the tournament types and the club (`/club`, which was Teammates), then the gear.

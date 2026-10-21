@@ -1,6 +1,6 @@
 <script lang="ts">
   // The shell. Desktop: the page has the whole screen; a dock of the member pages floats mid-left (app/rail), the
-  // brand mark top-left, the Settings gear and your avatar (your You page) top-right, the wordmark bottom-left. A section's
+  // Settings gear at its foot, the brand mark top-left, your avatar (your You page) top-right, the wordmark bottom-left. A section's
   // pages (The Kumite, Fight card, Draft) sit in the page header's toolbar row, which pins as the page scrolls
   // (PageHeader). Phones: five tabs at the bottom, and a slim bar along the top with the page's name (or its
   // section's strip of pages), its actions, and its filters: inline when they fit, otherwise a Filters button that
@@ -10,14 +10,13 @@
   import { type Snippet } from "svelte";
   import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
   import { backFor, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
-  import { railItems, railOn } from "../rail";
+  import { railFoot, railItems, railOn } from "../rail";
   import type { Route, TabId } from "../nav-routes";
   import { folds, routes, stayIfAllowed, tabs } from "../routes.svelte";
   import { navigate, router } from "../router.svelte";
   import { fly } from "svelte/transition";
   import { easeOut, eject, fadeMs, flyMs, prefersReducedMotion, zoom } from "../motion";
-  import SettingsButton from "../../lib/SettingsButton.svelte";
-  import { openSetting, settingsNow } from "../settings-entry.svelte";
+  import { canReachSettings, enterSettings, openSetting, settingsNow } from "../settings-entry.svelte";
   import PullToRefresh from "./PullToRefresh.svelte";
   import Icon from "./Icon.svelte";
   import logo from "../../assets/cougars-mark.webp";
@@ -34,9 +33,10 @@
   const tabList = $derived(tabs());
   const strip = $derived(route.focus ? [] : stripRoutes(all, route, perms));
 
-  // The dock: member pages only (app/rail). Settings is the gear, top right; your own things (Dues) are on your You
-  // page, the avatar beside it.
+  // The dock: member pages (app/rail), then at its foot the Settings gear for whoever can set something up; your own
+  // things (Dues) are on your You page, the avatar top right.
   const dock = $derived(railItems(all, folds(), perms).map((item) => ({ ...item, on: railOn(item, route) })));
+  const dockFoot = $derived(railFoot(all, canReachSettings()).map((item) => ({ ...item, on: railOn(item, route) })));
 
   // Desktop settings: every settings page in a list beside the dock while you're in one, so moving between them is
   // one click; its title goes back to the Settings page. Rows your everyday role can't open are quieter (Settings)
@@ -273,19 +273,26 @@
 <div class="shell" class:focus={route.focus} class:in-settings={inSettings && !phone.current}>
   <!-- Desktop: the dock, floating mid-left -->
   <nav class="dock" aria-label="Main" inert={route.focus || undefined}>
-    {#each dock as item (item.id)}
-      <a
-        class="dock-item"
-        class:on={item.on}
-        href={item.href}
-        aria-current={item.on ? "page" : undefined}
-        aria-label={item.name}
-      >
-        <Icon name={item.icon} size={20} />
-        <span class="dock-label" aria-hidden="true">{item.name}</span>
-      </a>
-    {/each}
+    {#each dock as item (item.id)}{@render dockItem(item)}{/each}
+    <!-- Settings, set apart at the foot: the way in (in your everyday role it switches you up on the way) -->
+    {#each dockFoot as item (item.id)}{@render dockItem(item, "foot")}{/each}
   </nav>
+
+  {#snippet dockItem(item: (typeof dock)[number], foot?: "foot")}
+    <a
+      class="dock-item"
+      class:foot
+      class:on={item.on}
+      href={item.href}
+      aria-current={item.on ? "page" : undefined}
+      aria-label={item.name}
+      title={foot ? item.name : undefined}
+      onclick={foot ? () => enterSettings() : undefined}
+    >
+      <Icon name={item.icon} size={20} />
+      <span class="dock-label" aria-hidden="true">{item.name}</span>
+    </a>
+  {/snippet}
 
   {#if inSettings && !phone.current}
     <!-- Desktop: every settings page, beside the dock -->
@@ -371,14 +378,13 @@
           </div>
         {/if}
       {:else if !route.focus}
-        <!-- Desktop: the mark, then the gear and your avatar, in the top corners -->
+        <!-- Desktop: the mark, then your avatar, in the top corners (the gear is at the dock's foot) -->
         <div class="topbar" style:top="{pinnedH}px">
           <a class="brand" href="/" aria-label="Home">
             <img src={logo} alt="" width="36" height="36" />
           </a>
-          <!-- Settings and you, top right: the gear (the way in, as a phone's) and your avatar, opening your You page -->
+          <!-- You, top right: your avatar, opening your You page -->
           <div class="you-corner">
-            <SettingsButton tile on={inSettings || route.id === "settings"} />
             <a
               class="you-tile"
               class:on={route.tab === "more" && route.group === "You"}
@@ -608,6 +614,10 @@
   }
   .dock-item:focus-visible {
     outline-offset: 3px;
+  }
+  /* Settings: below the member pages, set apart by space */
+  .dock-item.foot {
+    margin-top: var(--s-5);
   }
   .dock-label {
     position: absolute;
@@ -987,7 +997,7 @@
   .settings-home:hover {
     color: var(--red-ink);
   }
-  /* Your avatar, top right: the gear's glass tile; your You page opens from it, no menu */
+  /* Your avatar, top right, on glass: your You page opens from it, no menu */
   .you-tile {
     display: inline-grid;
     place-items: center;

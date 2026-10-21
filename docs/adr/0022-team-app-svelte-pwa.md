@@ -27,16 +27,18 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   Cloudflare **Worker** (`team` in each account), which also answers `/api/*` with JSON. It deploys to
   dev from `main`, and to production only at launch ([ADR 0010](0010-environments-and-deploys.md)).
 - It binds the same D1 database as the website (`DB`); the schema stays in `db/`.
-- **Mobile first.** The shell follows Gwenda ops: one route tree, five bottom tabs at ≤900px with safe-area insets, a
-  collapsible rail on desktop. The last tab is You (your avatar): it always opens your profile, one page for everything
+- **Mobile first.** The shell follows Gwenda ops: one route tree, five bottom tabs at ≤900px with safe-area insets
+  (Home, the training, Club, the tournament, You), a collapsible rail on desktop. Club is the club's page (`/club`:
+  its players, and later its contacts, #67). The Calendar isn't a tab: a phone opens it from Home's header (a button
+  beside the greeting) and it has Back to Home; a desktop's rail keeps it. The last tab is You (your avatar): it always opens your profile, one page for everything
   that isn't a tab. You first: your card (which opens your account: Profile, Dues, your everyday role, Sign out), your
   details, your everyday role and your data; then Dues and the club's pages; then, for whoever can set things up,
   every Settings page grouped as the desktop's list. The Settings gear sits in its bar, top right, as beside the
   desktop's badge ([0065](0065-page-frame-and-admin-actions.md)); it opens Settings (a phone's list of them) and in
   your everyday role switches you up on the way ([0024](0024-action-based-authorization.md)). Its bar is titled You.
   Every page that isn't a tab's own has Back, named for the page it was opened from (Home → Unpaid fees → ‹ Home);
-  opened from outside, to the page it belongs under (a settings page to Settings, the rest to You). Teammates is also
-  a row on Home, so a member reaches the squad in one tap. Phones keep chrome slim: a 40px top bar, an opaque tab bar,
+  opened from outside, to the page it belongs under (a settings page to Settings, Home's pages to Home, the rest to
+  You). Phones keep chrome slim: a 40px top bar, an opaque tab bar,
   no page subtitles.
 - **A PWA**: manifest, icons and a service worker that caches the app shell. Screens that must work offline (the game
   clock) keep their data in IndexedDB and sync when there's signal.
@@ -94,3 +96,8 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   everyday-role switch, your details, notifications, your dues, your account (your data, privacy, delete, sign out).
   No Settings lists, club links or account sheet; the desktop's badge and its menu became your avatar, opening the
   You page (ADR 0065 for Settings). Supersedes the earlier You page lines from today.
+- 2026-10-21: The Club tab takes the Calendar's place on a phone: the club's players (Teammates, now `/club`; old
+  links redirect), its contacts later (#67). The Calendar opens from a button in Home's header, with Back to Home;
+  the desktop rail keeps it and gains the club. Teammates leaves Home's feed: it was there only because a phone had no
+  way to it. "Maybe instead of a calendar in the mobile nav, we move the calendar icon to the home page somewhere and
+  add a club icon to see the club."

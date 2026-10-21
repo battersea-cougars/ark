@@ -1,6 +1,6 @@
 <script lang="ts">
-  // The Settings gear: the one way in, the same top-right place on a phone (the You page's bar) and a desktop (beside
-  // your avatar). In your everyday role it switches you up to your full role on the way (app/settings-entry), and the
+  // The Settings gear on a phone: the one way in, top right in the You page's bar (a desktop's is at the dock's foot,
+  // app/shell/Shell). In your everyday role it switches you up to your full role on the way (app/settings-entry), and the
   // switch at the top of Settings shows it.
   import Icon from "../app/shell/Icon.svelte";
   import { canReachSettings, enterSettings } from "../app/settings-entry.svelte";

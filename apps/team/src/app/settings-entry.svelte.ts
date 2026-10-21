@@ -1,5 +1,5 @@
-// The way into Settings: one gear, top right, in a phone's You page bar and beside a desktop's avatar (ADR 0022, ADR
-// 0065). It shows for anyone whose account can set something up in any of their roles, their everyday one too:
+// The way into Settings: one gear, top right in a phone's You page bar and at the foot of a desktop's dock (ADR 0022,
+// ADR 0065). It shows for anyone whose account can set something up in any of their roles, their everyday one too:
 // opening Settings switches them up to their full role on the way (ADR 0024), so nobody has to find that switch first.
 import { can, type Action, type Requirement } from "../access/actions";
 import { elevated, granted, hasEveryday, impersonating, realGranted, setElevated } from "../demo/session.svelte";

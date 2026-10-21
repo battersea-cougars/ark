@@ -1,6 +1,6 @@
 // Client-side history routing. Links are plain <a href>; the shell intercepts same-origin clicks.
 import { untrack } from "svelte";
-import type { TabId } from "./nav-routes";
+import { movedTo, type TabId } from "./nav-routes";
 import { walk, type Move } from "./trail";
 
 const LAST_KEY = "team.mobile.last";
@@ -17,6 +17,9 @@ function readLast(): Partial<Record<TabId, string>> {
  * `from`: the page this one was opened from, in the app, along the trail (#86); null after a reload, or once Back has
  * walked the trail to its start. `back`: this page was reached by going back, so it opens where you left it.
  */
+// An old link (Teammates is the club now) opens where its page lives, as if it had always been there
+const arrived = movedTo(location.pathname);
+if (arrived) history.replaceState({}, "", arrived);
 export const router = $state({ path: location.pathname, last: readLast(), from: null as string | null, back: false });
 
 let trail: string[] = [];
@@ -27,7 +30,8 @@ function moved(move: Move) {
   router.back = next.back;
 }
 
-export function navigate(path: string, { replace = false } = {}) {
+export function navigate(to: string, { replace = false } = {}) {
+  const path = movedTo(to) ?? to;
   if (path === router.path) return;
   if (replace) {
     history.replaceState({}, "", path);

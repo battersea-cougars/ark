@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Action } from "../access/actions";
 import { backFor, stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
-import { buildRoutes, buildTabs, routeFor, type NavConfig } from "./nav-routes";
+import { buildRoutes, buildTabs, movedTo, routeFor, type NavConfig } from "./nav-routes";
 
 const member = new Set<Action>(["read:Event", "signup:Event"]);
 const admin = new Set<Action>(["manage:all"]);
@@ -91,8 +91,49 @@ describe("the Draft page", () => {
 
 describe("buildTabs", () => {
   it("names the tab after the only training or tournament", () => {
-    expect(buildTabs(one).map((t) => t.label)).toEqual(["Home", "Friday", "Calendar", "Kumite", "You"]);
-    expect(buildTabs(many).map((t) => t.label)).toEqual(["Home", "Training", "Calendar", "Tournaments", "You"]);
+    expect(buildTabs(one).map((t) => t.label)).toEqual(["Home", "Friday", "Club", "Kumite", "You"]);
+    expect(buildTabs(many).map((t) => t.label)).toEqual(["Home", "Training", "Club", "Tournaments", "You"]);
+  });
+});
+
+describe("the club on a phone", () => {
+  const routes = buildRoutes({ ...one, members: [{ id: 12, name: "Cara" }] });
+
+  it("a member reaches the club's players from the Club tab, its own page with no strip and no Back", () => {
+    expect(buildTabs(one).find((t) => t.id === "club")).toMatchObject({ label: "Club", icon: "club" });
+    const club = routeFor(routes, tabHref(routes, "club", member, {}))!;
+    expect(club).toMatchObject({ path: "/club", page: "teammates", tab: "club", name: "The club" });
+    expect(stripRoutes(routes, club, member)).toEqual([]);
+    expect(backFor(routes, club, "/")).toBeNull();
+  });
+
+  it("a member's page is under the club: the Club tab stays lit, Back goes to the club", () => {
+    const cara = routeFor(routes, "/club/12")!;
+    expect(cara).toMatchObject({ page: "teammates", params: { memberId: 12 }, tab: "club", under: "club" });
+    expect(backFor(routes, cara, null)?.to.path).toBe("/club");
+  });
+
+  it("old links to Teammates go to the club", () => {
+    expect(movedTo("/more/teammates")).toBe("/club");
+    expect(movedTo("/more/teammates/12")).toBe("/club/12");
+    expect(movedTo("/club")).toBeNull();
+  });
+});
+
+describe("the Calendar on a phone", () => {
+  const routes = buildRoutes(one);
+  const calendar = routeFor(routes, "/calendar")!;
+
+  it("isn't a tab: it's opened from Home's header, so the Home tab stays lit and it has Back to Home", () => {
+    expect(buildTabs(one).map((t) => t.id)).not.toContain("calendar");
+    expect(calendar).toMatchObject({ page: "calendar", tab: "home", under: "home" });
+    expect(stripRoutes(routes, calendar, member)).toEqual([]);
+    expect(backFor(routes, calendar, "/")).toMatchObject({ to: { path: "/" }, history: true });
+    expect(backFor(routes, calendar, null)).toMatchObject({ to: { path: "/" }, history: false });
+  });
+
+  it("Home has no strip for it", () => {
+    expect(stripRoutes(routes, routeFor(routes, "/")!, member)).toEqual([]);
   });
 });
 
@@ -208,7 +249,7 @@ describe("Back on a phone (backFor)", () => {
 
   it("goes back to where you came from: Home → Dues → Back is Home", () => {
     expect(back("/me/tab", "/")).toEqual({ to: "/", history: true });
-    expect(back("/more/teammates", "/calendar")).toEqual({ to: "/calendar", history: true });
+    expect(back("/privacy", "/calendar")).toEqual({ to: "/calendar", history: true });
   });
 
   it("a settings page always goes back to Settings: Home → Unpaid fees → Back is Settings, in its place", () => {
@@ -228,19 +269,22 @@ describe("Back on a phone (backFor)", () => {
     expect(back("/settings", null)).toEqual({ to: "/me", history: false });
   });
 
-  it("Announcements is a setting for whoever posts them; anyone else goes back the way they came", () => {
-    expect(back("/more/announcements", "/", admin)).toEqual({ to: "/settings", history: false });
-    expect(back("/more/announcements", "/", member)).toEqual({ to: "/", history: true });
-    expect(back("/more/announcements", null, member)).toEqual({ to: "/me", history: false });
+  it("past announcements are Home's page, for everyone: Back to Home, never to Settings", () => {
+    expect(at("/announcements")).toMatchObject({ page: "announcements", tab: "home", under: "home" });
+    expect(at("/announcements").group).toBeUndefined();
+    expect(back("/announcements", "/", admin)).toEqual({ to: "/", history: true });
+    expect(back("/announcements", null, admin)).toEqual({ to: "/", history: false });
+    expect(back("/announcements", null, member)).toEqual({ to: "/", history: false });
+    expect(movedTo("/more/announcements")).toBe("/announcements");
   });
 
   it("opened from outside or after a reload: the rest of the You tab to You", () => {
     expect(back("/me/tab", null)).toEqual({ to: "/me", history: false });
-    expect(back("/more/teammates", null)).toEqual({ to: "/me", history: false });
+    expect(back("/privacy", null)).toEqual({ to: "/me", history: false });
   });
 
   it("a tab's own pages have the tabs, not Back", () => {
-    for (const path of ["/", "/me", "/calendar", "/training/friday", "/tournaments/kumite/standings"])
+    for (const path of ["/", "/me", "/club", "/training/friday", "/tournaments/kumite/standings"])
       expect(back(path, "/settings/overdue")).toBeNull();
   });
 });

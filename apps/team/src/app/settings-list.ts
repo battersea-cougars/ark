@@ -10,12 +10,9 @@ export interface SettingsRow {
   open: boolean;
 }
 
-/** What puts a page in Settings: more than reading it, for a page anyone can read (Announcements). */
-export const listedBy = (r: Route) => r.manage ?? r.action;
-
 /** A page in Settings for whoever holds `granted` (with none given, any Settings page). */
 export const isSetting = (r: Route, granted?: ReadonlySet<Action>): boolean =>
-  r.group === "Settings" && (!granted || can(granted, listedBy(r)));
+  r.group === "Settings" && (!granted || can(granted, r.action));
 
 /** Settings' groups and rows: listed by what your account can do, open by what you can do now. */
 export function settingsSections(
@@ -27,6 +24,6 @@ export function settingsSections(
     section,
     rows: routes
       .filter((r) => r.section === section && isSetting(r, account))
-      .map((route) => ({ route, open: can(now, listedBy(route)) && can(now, route.action) })),
+      .map((route) => ({ route, open: can(now, route.action) })),
   })).filter((s) => s.rows.length);
 }
