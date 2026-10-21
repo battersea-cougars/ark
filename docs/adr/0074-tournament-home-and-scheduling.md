@@ -39,7 +39,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   (`/tournaments/:slug/history/:id`: the champions, the final, every fight, the board, the awards), back to the list.
   Its teams' and games' pages work from there too; a past game's matchup goes back to its own page, not today's fight
   card.
-- The app's **Home teases each series' next one** in a feature card (date or season, sign-up, the way to its page).
+- The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under
+  Friday's; before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
 
 ### The acts (`Games.svelte`)
 
@@ -151,3 +152,5 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   the whole step to find them in, then Check. Captains can be moved up the pick order.
 - 2026-10-21: Captains are picked from the whole club's list with an Add on each row, shown as chips; no pick order
   is set here, since it's drawn when the draft starts.
+- 2026-10-21: Home asks "Are you in for the Kumite?" right after Friday while sign-up is open, and teases it in its
+  feed before ([0118](0118-home-calls-to-action-then-feed.md)).

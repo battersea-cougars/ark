@@ -34,8 +34,8 @@ Three things shape it:
     Quarterly Member took your place and you're waiting ([0030](0030-training-and-tournament-schedule.md), #97), a session
     you're in is off, an announcement. A route says what's news with `notify` (`worker/push/push.notices.ts`), read
     before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
-    (`waitUntil`), and a notification that can't be sent never fails the change. Home asks once, saying what
-    they're for, before the phone's own question; "Not now" is remembered. A reminder of what you owe
+    (`waitUntil`), and a notification that can't be sent never fails the change. Home asks once, a row in its feed
+    ([0118](0118-home-calls-to-action-then-feed.md)) saying what they're for, before the phone's own question; "Not now" is remembered. A reminder of what you owe
     ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
@@ -104,3 +104,5 @@ Three things shape it:
   Member bumps to the waitlist hears it, topic `places` (#97).
 - 2026-10-20: A dues reminder is news too: `tell` (worker/tell/tell.ts) emails a member and notifies their phone in
   one call, so a feature never talks to Gmail or Firebase itself (#79).
+- 2026-10-21: Home's notification ask moved under the calls to action, a row in its feed
+  ([0118](0118-home-calls-to-action-then-feed.md)).

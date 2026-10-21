@@ -1,17 +1,21 @@
 <script lang="ts">
+  // Home (ADR 0118): a slim hello with what you owe, the club's announcements, then the calls to action (are you in
+  // this Friday, are you in for the Kumite), then a feed of everything else, Teammates at the very end.
+  import { untrack } from "svelte";
   import { goesBy, shortName, shortNameOf } from "../lib/names";
   import { initials } from "../lib/initials";
   import { can } from "../access/actions";
-  import { PLAYERS, referenceFor } from "../demo/data";
+  import { PLAYERS } from "../demo/data";
   import { owedBy } from "../demo/dues.svelte";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
   import { formatDayDate, formatTime, londonToday, pounds } from "../lib/dates";
-  import { BUCKETS, aged } from "../lib/dues";
+  import { aged } from "../lib/dues";
   import { signupOpen } from "../lib/signup";
-  import { draftTurn } from "../lib/draft";
+  import { homeFeed } from "../lib/home-feed";
   import { fill, slot } from "../lib/greetings";
   import { latestTournament, nextSession, sessionBookable, tournamentBookable } from "../demo/schedule.svelte";
   import { pick, type Quip, type QuipKind } from "../lib/quips";
@@ -29,9 +33,11 @@
   $effect(() => checkForUpdates(["sessions", "tournaments"], { steady: true }));
 
   const perms = $derived(granted());
+  const who = $derived(me());
+  const today = londonToday();
 
   // Announcements (#85): an admin's note at the top, until its last day or until you say "Got it". Whoever may post
-  // writes one in a sheet over Home (ADR 0065), and can take one down from its card
+  // writes one in a sheet over Home (ADR 0065), from the + in the header, and can take one down from its note
   const poster = $derived(can(perms, "post:Announcement"));
   // "Got it": the button says so (a tick), then the note folds away, the page below closing up smoothly behind it
   let got = $state<Record<number, boolean>>({});
@@ -60,7 +66,8 @@
     }
   }
 
-  // In the store app (ADR 0108): say what notifications are for before the phone asks, once; "Not now" is remembered
+  // In the store app (ADR 0108): say what notifications are for before the phone asks, once; "Not now" is remembered.
+  // It's an item in the feed, under the calls to action
   const NOT_NOW = "cougars.notify.not-now";
   let askNotify = $state(false);
   mayAskToNotify()
@@ -86,9 +93,10 @@
     askNotify = false;
   }
 
-  const who = $derived(me());
-  // The soonest session of any training leads Home; the other trainings' next sessions follow, then the next
-  // tournament of each type.
+  // What you owe (ADR 0007): a quiet chip in the header, opening your tab; nothing when you're square
+  const owed = $derived(owedBy(who.id));
+
+  // The soonest session of any training leads Home; the other trainings' next sessions go in the feed
   const nexts = $derived(
     db.series
       .filter((s) => s.active)
@@ -100,157 +108,77 @@
   );
   const series = $derived(nexts[0]?.series);
   const session = $derived(nexts[0]?.session);
-  const others = $derived(nexts.slice(1));
   const booking = $derived(session && sessionBookable(session));
   const next = $derived(
     session ?? { id: 0, going: [] as number[], waitlist: [] as number[], out: undefined as number[] | undefined },
   );
   const day = $derived(series?.shortName ?? "week");
+  const later = $derived(
+    nexts
+      .slice(1)
+      .map((o) => sessionBookable(o.session))
+      .sort((x, y) => x.startsAt.localeCompare(y.startsAt)),
+  );
+  // The next of each tournament series, not one that's done (by its games, lib/edition.ts)
   const tournaments = $derived(
     db.tournamentTypes
       .filter((t) => t.active)
-      .map((type) => ({ type, t: latestTournament(type.id) }))
-      // The next one, not one that's done (by its games, lib/edition.ts)
-      .filter((x) => x.t && editionState(x.t) !== "done"),
-  );
-  // Each series' next one is teased up top (a tentative date or a season is enough: people know to keep it free)
-  const later = $derived(
-    others.map((o) => sessionBookable(o.session)).sort((x, y) => x.startsAt.localeCompare(y.startsAt)),
-  );
-  // For you (ADR 0060, 0042): a captain's draft, the draft an admin runs, a sign-up about to close you haven't answered
-  type Nudge = {
-    key: string;
-    href?: string;
-    text: string;
-    sub: string;
-    hot: boolean;
-    icon?: "draft" | "teams" | "pound";
-  };
-  const nth = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
-  const today = londonToday();
-  const nudges = $derived(
-    db.agenda
-      .filter((r) => r.day >= today && (r.kind === "draft" || r.kind === "signup_closes"))
-      .flatMap((r): Nudge[] => {
-        const t = db.tournaments.find((x) => x.id === r.sourceId);
-        const type = t && db.tournamentTypes.find((y) => y.id === t.typeId);
-        if (!t || !type) return [];
-        const when = r.allDay ? formatDayDate(r.startsAt) : `${formatDayDate(r.startsAt)} at ${formatTime(r.startsAt)}`;
-        if (r.kind === "signup_closes") {
-          if (!signupOpen(t, londonToday()) || t.going.includes(who.id) || t.waitlist.includes(who.id)) return [];
-          return [
-            {
-              key: r.key,
-              href: `/tournaments/${type.slug}`,
-              text: `Sign-up for ${t.name} closes ${when}`,
-              sub: "Are you in?",
-              hot: false,
-            },
-          ];
-        }
-        const draft = `/tournaments/${type.slug}/draft`;
-        const mine = t.teams.findIndex((x) => x.captainMemberId === who.id);
-        // Picks, as the server counts them: a player an admin put on by hand isn't one
-        // An open draft has a card of its own (liveDrafts), whatever day it was meant for
-        if (t.draftState === "open") return [];
-        if (mine >= 0) {
-          return [
-            {
-              key: r.key,
-              href: draft,
-              text: `Draft ${when}`,
-              sub: `${t.name} · you pick ${nth(mine + 1)}`,
-              hot: false,
-            },
-          ];
-        }
-        if (!can(perms, "run:Draft")) return [];
-        return [
-          {
-            key: r.key,
-            href: draft,
-            text: `Draft ${when}`,
-            sub: `${t.name} · open it when the captains are ready`,
-            hot: false,
-          },
-        ];
+      .flatMap((type) => {
+        const t = latestTournament(type.id);
+        return t && editionState(t) !== "done" ? [{ type, t }] : [];
       }),
   );
-  // A draft that's open, for its captains and whoever runs it: on until it's closed, however long that takes. A
-  // captain hears when it's their pick, or how many picks away it is
-  const liveDrafts = $derived(
-    tournaments.flatMap(({ type, t }): Nudge[] => {
-      if (!t || t.kind !== "draft" || t.draftState !== "open") return [];
-      const mine = t.teams.findIndex((x) => x.captainMemberId === who.id);
-      if (mine < 0 && !can(perms, "run:Draft")) return [];
-      const href = `/tournaments/${type.slug}/draft`;
-      const key = `draft-open:${t.id}`;
-      const { left, until } = draftTurn(t, mine);
-      if (!left)
-        return [
-          { key, href, text: "Everyone's picked", sub: `${t.name} · the draft closes to set the teams`, hot: false },
-        ];
-      if (mine < 0)
-        return [{ key, href, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
-      if (until === 0)
-        return [{ key, href, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true }];
-      return [
-        {
-          key,
-          href,
-          text: "The draft's open",
-          sub: until < Infinity ? `${t.name} · you pick in ${until}` : `${t.name} · your picks are done`,
-          hot: false,
-        },
-      ];
-    }),
-  );
-  // Everyone else (ADR 0060): the draft is the captains' business, so a member hears that it's on, with nothing to
-  // open; once it's closed, the teams are out, and that's a link to them
-  const draftNews = $derived(
-    can(perms, "run:Draft")
-      ? []
-      : tournaments.flatMap(({ type, t }): Nudge[] => {
-          if (!t || t.kind !== "draft" || t.teams.some((x) => x.captainMemberId === who.id)) return [];
-          if (t.draftState === "open")
-            return [
-              {
-                key: `draft-on:${t.id}`,
-                text: `The ${t.name} draft is on`,
-                sub: "The captains are picking. You'll see the teams when they're done.",
-                hot: false,
-              },
-            ];
-          if (t.draftState === "closed" && t.teams.some((x) => x.players.length))
-            return [
-              {
-                key: `teams-out:${t.id}`,
-                href: `/tournaments/${type.slug}/teams`,
-                text: "The teams are out",
-                sub: `${t.name} · see who you're playing with`,
-                hot: false,
-                icon: "teams",
-              },
-            ];
-          return [];
-        }),
-  );
+  // Taking sign-ups: a call to action up top, like Friday. The rest are teased in the feed
+  const signingUp = $derived(tournaments.filter(({ t }) => signupOpen(t, today)));
+  const teased = $derived(tournaments.filter(({ t }) => !signupOpen(t, today)));
+
   const isIn = $derived(next.going.includes(who.id));
   const waiting = $derived(next.waitlist.includes(who.id));
   const declined = $derived(next.out?.includes(who.id) ?? false);
   const answered = $derived(isIn || waiting || declined);
   // Out since the teams were made: still on one until a team maker decides (ADR 0076), but not yours to play on
   const myTeam = $derived(isIn ? db.teams[next.id]?.find((t) => t.players.includes(who.id)) : undefined);
-  const owed = $derived(owedBy(who.id));
-  // Dues, on Home, only once something's really late (a Misconduct: over 60 days). Before that the pound badge on
-  // the Dues tab says it, and the session leads (ADR 0007)
-  const late = $derived(
-    aged(
-      db.charges.filter((c) => c.memberId === who.id),
-      today,
-    )[0],
-  );
-  const nag = $derived(owed > 0 && (late?.oldest ?? 0) >= 2);
+
+  // Where you stand on an event: in, waiting, out, or not said
+  const standingOn = (ev: Bookable) =>
+    ev.entries.going.includes(who.id)
+      ? "in"
+      : ev.entries.waitlist.includes(who.id)
+        ? "waitlist"
+        : ev.entries.out?.includes(who.id)
+          ? "out"
+          : null;
+  // A call to action stays a full card while it's unanswered; one you'd already answered when you came is a line
+  // saying so, so the asks still open stand out. Answering here keeps the card for the rest of the visit: nothing
+  // jumps under your thumb (no-layout-shift)
+  let asked = $state<Record<string, boolean>>({});
+  $effect(() => {
+    const open = [booking, ...signingUp.map(({ t }) => tournamentBookable(t))].filter(
+      (ev): ev is Bookable => !!ev && !standingOn(ev),
+    );
+    untrack(() => {
+      for (const ev of open) if (!asked[ev.key]) asked[ev.key] = true;
+    });
+  });
+  const askFull = (ev: Bookable) => !standingOn(ev) || !!asked[ev.key];
+
+  // A one-line event: where you stand and what it is, then when
+  const STANDING = { in: "You're in", waitlist: "You're on the waitlist", out: "You're out" } as const;
+  function whenOf(ev: Bookable) {
+    if (ev.cancelled) return "Cancelled";
+    if (ev.season) return `${ev.season.name[0].toUpperCase()}${ev.season.name.slice(1)} ${ev.season.year}`;
+    if (ev.dateTbc) return "Date to be confirmed";
+    return `${formatDayDate(ev.startsAt)} · ${ev.timeText || `${formatTime(ev.startsAt)}–${formatTime(ev.endsAt)}`}`;
+  }
+  function eventLine(ev: Bookable) {
+    const s = standingOn(ev);
+    const asking = !s && ev.signup && !ev.cancelled && can(perms, "signup:Event");
+    return {
+      text: s ? `${STANDING[s]} · ${ev.title}` : ev.title,
+      sub: asking ? `${whenOf(ev)} · Are you in?` : whenOf(ev),
+    };
+  }
+
   // What the club is owed, for whoever sees Unpaid fees (read:Dues): the total, by how many, and how much of it is
   // in the worst bucket (over 90 days)
   const club = $derived.by(() => {
@@ -262,33 +190,21 @@
       worst: rows.reduce((s, r) => s + r.amounts[3], 0),
     };
   });
-  // For you: one spot under the lead card for everything else that wants your attention, your move first. Slim
-  // rows, never cards, so however many there are the session still leads the page.
-  const forYou = $derived.by((): Nudge[] => {
-    const rows: Nudge[] = [];
-    if (nag)
-      rows.push({
-        key: "dues",
-        href: "/me/tab",
-        text: `You owe the club ${pounds(owed)}`,
-        sub: `Some of it's over 60 days · reference ${referenceFor(who.id)}`,
-        hot: true,
-        icon: "pound",
-      });
-    rows.push(...liveDrafts, ...nudges, ...draftNews);
-    if (club && club.total > 0)
-      rows.push({
-        key: "club-dues",
-        href: "/settings/overdue",
-        text: `Owed to the club ${pounds(club.total)}`,
-        sub: `${club.people} ${club.people === 1 ? "person" : "people"}${club.worst > 0 ? ` · ${pounds(club.worst)} ${BUCKETS[3]} (over 90 days)` : ""}`,
-        hot: false,
-        icon: "pound",
-      });
-    return rows.sort((a, b) => Number(b.hot) - Number(a.hot));
-  });
-  // The squad, one tap from Home (Teammates: everyone's card, by position, searchable); on a phone it's otherwise
-  // under You. A few faces, the count and the Cougars among them.
+  // The feed (lib/home-feed.ts): drafts, sign-ups closing, teams out, the club's dues, your move first
+  const feed = $derived(
+    homeFeed({
+      me: who.id,
+      today,
+      runsDrafts: can(perms, "run:Draft"),
+      agenda: db.agenda,
+      tournaments: db.tournaments,
+      types: db.tournamentTypes,
+      upcoming: tournaments,
+      club,
+    }),
+  );
+
+  // The squad, one tap from Home (Teammates: everyone's card, by position, searchable): the feed's last line
   const squad = $derived(
     db.members
       .filter((m) => m.status === "active")
@@ -296,12 +212,12 @@
       .sort((a, b) => goesBy(a).localeCompare(goesBy(b))),
   );
   const cougars = $derived(squad.filter((p) => p.cougar).length);
+
   // Picked once per visit, from the time of day, a training night, or how often you've looked today. The count
   // is this device's only: a bit of fun, not a record.
   const VISITS_KEY = "team.home.visits";
   const visits = countVisit();
   function countVisit(): number {
-    const today = londonToday();
     try {
       const saved = JSON.parse(localStorage.getItem(VISITS_KEY) ?? "null") as { day: string; n: number } | null;
       const n = saved?.day === today ? saved.n + 1 : 1;
@@ -380,18 +296,54 @@
   {/if}
 {/snippet}
 
-<div class="page">
-  <header class="hello">
-    <!-- Your badge: the last tab on a phone (your profile), the corner on a desktop -->
-    <div class="hello-top">
-      <p class="kicker">Battersea Cougars</p>
+<!-- One line of the feed: an icon, a line, a sub-line, and a chevron when it opens something -->
+{#snippet item(o: { key?: string; href?: string; icon: IconName; text: string; sub: string; hot?: boolean })}
+  {#if o.href}
+    <a class="item rise" class:hot={o.hot} href={o.href}>
+      <Icon name={o.icon} size={18} />
+      <span class="grow"><span class="item-text">{o.text}</span><span class="item-sub">{o.sub}</span></span>
+      <Icon name="chevronRight" size={16} />
+    </a>
+  {:else}
+    <!-- Just news: nothing to open -->
+    <div class="item rise" role="status">
+      <Icon name={o.icon} size={18} />
+      <span class="grow"><span class="item-text">{o.text}</span><span class="item-sub">{o.sub}</span></span>
+      <span class="badge red live">Live</span>
     </div>
-    <h1 class="display poster">{hello}</h1>
-    {#if poster}
-      <button class="btn ghost sm announce-btn" onclick={() => (announcing = true)}
-        ><Icon name="plus" size={16} />Announcement</button
-      >
-    {/if}
+  {/if}
+{/snippet}
+
+{#snippet eventItem(ev: Bookable, sub?: string)}
+  {@const l = eventLine(ev)}
+  {@render item({ href: ev.href, icon: ev.icon, text: l.text, sub: sub ?? l.sub })}
+{/snippet}
+
+<div class="page">
+  <!-- The hello: one line, with what you owe and (for whoever posts) a new announcement on its right -->
+  <header class="hello">
+    <p class="kicker">Battersea Cougars</p>
+    <div class="hello-row">
+      <h1 class="greeting">{hello}</h1>
+      <div class="hello-side">
+        {#if owed > 0}
+          <a class="owed" href="/me/tab" aria-label="You owe the club {pounds(owed)}: your tab">
+            <Icon name="pound" size={16} /><span class="num">{pounds(owed)}</span> to pay<Icon
+              name="chevronRight"
+              size={14}
+            />
+          </a>
+        {/if}
+        {#if poster}
+          <button
+            class="btn ghost icon"
+            aria-label="Post an announcement"
+            title="Post an announcement"
+            onclick={() => (announcing = true)}><Icon name="megaphone" size={18} /></button
+          >
+        {/if}
+      </div>
+    </div>
   </header>
 
   <!-- Announcements: the club's word, before anything else, until it ends or you're done with it -->
@@ -399,138 +351,124 @@
     <section class="notes" aria-label="Announcements">
       {#each db.announcements as a (a.id)}
         <article class="note rise" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
-          <div class="note-main">
-            <Icon name="megaphone" size={18} />
-            <div class="grow">
-              <h2 class="note-title">{a.title}</h2>
-              {#if a.body}<p class="note-body">{a.body}</p>{/if}
-            </div>
+          <Icon name="megaphone" size={18} />
+          <div class="grow">
+            <h2 class="note-title">{a.title}</h2>
+            {#if a.body}<p class="note-body">{a.body}</p>{/if}
+            {#if a.link || poster}
+              <div class="note-links">
+                {#if a.link}<a href={a.link} target="_blank" rel="noopener noreferrer">Read more</a>{/if}
+                {#if poster}<button class="link" onclick={() => removeAnnouncement(a.id)}>Take down</button>{/if}
+              </div>
+            {/if}
           </div>
-          <div class="note-foot">
-            <div class="note-links">
-              {#if a.link}<a href={a.link} target="_blank" rel="noopener noreferrer">Read more</a>{/if}
-              {#if poster}<button class="link" onclick={() => removeAnnouncement(a.id)}>Take down</button>{/if}
-            </div>
-            <button
-              class="btn primary got-it"
-              class:done={got[a.id]}
-              aria-label="Got it: {a.title}"
-              aria-pressed={!!got[a.id]}
-              onclick={() => gotIt(a.id)}
-              >{#if got[a.id]}<Icon name="check" size={18} />{/if}Got it</button
-            >
-          </div>
+          <button
+            class="btn primary sm got-it"
+            class:done={got[a.id]}
+            aria-label="Got it: {a.title}"
+            aria-pressed={!!got[a.id]}
+            onclick={() => gotIt(a.id)}
+            >{#if got[a.id]}<Icon name="check" size={16} />{/if}Got it</button
+          >
         </article>
       {/each}
       <a class="past" href="/more/announcements">Past announcements<Icon name="chevronRight" size={16} /></a>
     </section>
   {/if}
 
-  <!-- The store app's one ask (ADR 0108): what notifications are for, then the phone's own question -->
-  {#if askNotify}
-    <section class="notes" aria-label="Notifications">
-      <article class="note rise">
+  <!-- The calls to action: are you in this Friday, are you in for the Kumite. Open asks are full cards; one you'd
+       answered before you came is a line saying where you stand, after them -->
+  {#if (booking && askFull(booking)) || signingUp.some(({ t }) => askFull(tournamentBookable(t)))}
+    <div class="asks">
+      {#if series && booking && askFull(booking)}
+        <section>
+          <h2 class="section-title">{answered ? `This ${day}` : `Are you in this ${day}?`}</h2>
+          <!-- The locker room's word, swapped in place when you answer. Its room is fixed, so nothing moves. -->
+          <p class="message" aria-live="polite">
+            <span class="sr-only">{quip?.text ?? ""}</span>
+            <span aria-hidden="true"
+              >{typed}{#if quip}<span class="caret" class:done={typed === quip.text}></span>{/if}</span
+            >
+          </p>
+          <!-- The night you came for: it makes an entrance, the rest of the page just rises -->
+          <div class="lead">
+            <EventCard
+              event={booking}
+              canSignUp={can(perms, "signup:Event")}
+              feature
+              beckon
+              glance
+              link
+              place={false}
+              footer={myTeam ? teamLine : undefined}
+              {onanswer}
+            >
+              {#snippet links()}{@render placeLinks(booking)}{/snippet}
+            </EventCard>
+          </div>
+        </section>
+      {/if}
+      {#each signingUp as { type, t } (type.id)}
+        {@const ev = tournamentBookable(t)}
+        {#if askFull(ev)}
+          <section>
+            <h2 class="section-title">
+              {standingOn(ev) ? `The ${type.shortName}` : `Are you in for the ${type.shortName}?`}
+            </h2>
+            <EventCard event={ev} canSignUp={can(perms, "signup:Event")} feature beckon glance link place={false}>
+              {#snippet links()}{@render placeLinks(ev)}{/snippet}
+            </EventCard>
+          </section>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+
+  <!-- The feed: where you stand on what you've answered, then what's for you (your move first), the rest of the
+       schedule, the store app's one ask, and the squad last -->
+  <section class="feed" aria-label="What's going on">
+    {#if booking && !askFull(booking)}
+      {@render eventItem(booking, myTeam ? `On ${myTeam.name} with ${teammates(myTeam.players)}` : undefined)}
+    {/if}
+    {#each signingUp as { type, t } (type.id)}
+      {@const ev = tournamentBookable(t)}
+      {#if !askFull(ev)}{@render eventItem(ev)}{/if}
+    {/each}
+    {#each feed as n (n.key)}{@render item(n)}{/each}
+    {#each later as ev (ev.key)}{@render eventItem(ev)}{/each}
+    {#each teased as { type, t } (type.id)}
+      {@const ev = tournamentBookable(t)}
+      {@render item({ href: ev.href, icon: ev.icon, text: `The next ${type.shortName}`, sub: eventLine(ev).sub })}
+    {/each}
+    <!-- The store app's one ask (ADR 0108): what notifications are for, then the phone's own question -->
+    {#if askNotify}
+      <div class="item ask-notify rise">
         <Icon name="bell" size={18} />
-        <div class="grow">
-          <h2 class="note-title">Hear it first</h2>
-          <p class="note-body">Teams out, a place coming up, a night off: a notification, as it happens.</p>
-          <div class="note-links">
+        <span class="grow">
+          <span class="item-text">Hear it first</span>
+          <span class="item-sub">Teams out, a place coming up, a night off: a notification, as it happens.</span>
+          <span class="note-links">
             <button class="btn primary sm" onclick={turnOnNotifications}>Turn on notifications</button>
             <button class="link" onclick={notNow}>Not now</button>
-          </div>
-        </div>
-      </article>
-    </section>
-  {/if}
-
-  {#if series && session && booking}
-    <section>
-      <h2 class="section-title">{answered ? `This ${day}` : `Are you in this ${day}?`}</h2>
-      <!-- The locker room's word, swapped in place when you answer. Its room is fixed, so nothing moves. -->
-      <p class="message" aria-live="polite">
-        <span class="sr-only">{quip?.text ?? ""}</span>
-        <span aria-hidden="true"
-          >{typed}{#if quip}<span class="caret" class:done={typed === quip.text}></span>{/if}</span
-        >
-      </p>
-      <!-- The night you came for: it makes an entrance, the rest of the page just rises -->
-      <div class="lead">
-        <EventCard
-          event={booking}
-          canSignUp={can(perms, "signup:Event")}
-          feature
-          beckon
-          glance
-          link
-          place={false}
-          footer={myTeam ? teamLine : undefined}
-          {onanswer}
-        >
-          {#snippet links()}{@render placeLinks(booking)}{/snippet}
-        </EventCard>
-      </div>
-    </section>
-  {/if}
-
-  {#if forYou.length}
-    <section aria-labelledby="for-you">
-      <h2 class="section-title" id="for-you">For you</h2>
-      <div class="nudges">
-        {#each forYou as n (n.key)}
-          {#if n.href}
-            <a class="nudge rise" class:hot={n.hot} href={n.href}>
-              <Icon name={n.icon ?? "draft"} size={18} />
-              <span class="grow"><span class="nudge-text">{n.text}</span><span class="nudge-sub">{n.sub}</span></span>
-              <Icon name="chevronRight" size={16} />
-            </a>
-          {:else}
-            <!-- Just news: nothing to open -->
-            <div class="nudge rise" role="status">
-              <Icon name={n.icon ?? "draft"} size={18} />
-              <span class="grow"><span class="nudge-text">{n.text}</span><span class="nudge-sub">{n.sub}</span></span>
-              <span class="badge red live">Live</span>
-            </div>
-          {/if}
-        {/each}
-      </div>
-    </section>
-  {/if}
-
-  <!-- The squad: the way to everyone's card, not buried under You -->
-  {#if squad.length > 1}
-    <section aria-labelledby="squad">
-      <h2 class="section-title" id="squad">Teammates</h2>
-      <div class="list">
-        <a class="row" href="/more/teammates">
-          <span class="faces" aria-hidden="true">
-            {#each squad.slice(0, 4) as p (p.id)}<span class="avatar">{initials(goesBy(p))}</span>{/each}
           </span>
-          <span class="grow">
-            <span class="title">Everyone who plays</span>
-            <span class="sub">{squad.length} players{cougars ? ` · ${cougars} Cougars` : ""}</span>
-          </span>
-          <Icon name="chevronRight" size={18} />
-        </a>
+        </span>
       </div>
-    </section>
-  {/if}
-
-  <!-- The next of each tournament series, teased: when (or the season), signing up, and the way to its page -->
-  {#each tournaments as { type, t } (type.id)}
-    {#if t}
-      {@const ev = tournamentBookable(t)}
-      <section>
-        <h2 class="section-title">The next {type.shortName}</h2>
-        <!-- Like the lead card: the whole card opens the tournament's page (the draft, the teams, last time's
-             champions) -->
-        <EventCard event={ev} canSignUp={can(perms, "signup:Event")} feature glance link place={false}>
-          {#snippet links()}{@render placeLinks(ev)}{/snippet}
-        </EventCard>
-      </section>
     {/if}
-  {/each}
+    <!-- The squad: the way to everyone's card, not buried under You -->
+    {#if squad.length > 1}
+      <a class="item quiet rise" href="/more/teammates">
+        <span class="faces" aria-hidden="true">
+          {#each squad.slice(0, 3) as p (p.id)}<span class="avatar">{initials(goesBy(p))}</span>{/each}
+        </span>
+        <span class="grow">
+          <span class="item-text">Teammates</span>
+          <span class="item-sub">{squad.length} players{cougars ? ` · ${cougars} Cougars` : ""}</span>
+        </span>
+        <Icon name="chevronRight" size={16} />
+      </a>
+    {/if}
+  </section>
 
-  <!-- Everything after the lead session, in date order: other trainings, then tournaments as they come -->
   <Sheet bind:open={announcing} title="Post an announcement">
     <form class="form" onsubmit={announce}>
       <p class="hint">At the top of everyone's Home until its last day, or until they say Got it. Two at a time.</p>
@@ -560,138 +498,141 @@
       <button class="btn primary">Post it</button>
     </form>
   </Sheet>
-
-  {#if later.length}
-    <section>
-      <h2 class="section-title">Later</h2>
-      {#each later as ev (ev.key)}
-        <EventCard event={ev} canSignUp={can(perms, "signup:Event")} compact link />
-      {/each}
-    </section>
-  {/if}
 </div>
 
 <style>
-  /* A few of the squad's faces, overlapping, in the row to Teammates */
-  .faces {
-    display: flex;
-    flex-shrink: 0;
+  /* Bigger breaks between blocks than within them */
+  .page {
+    gap: var(--s-6);
   }
-  .faces .avatar {
-    width: 2rem;
-    height: 2rem;
-    box-shadow: 0 0 0 2px var(--bg);
-    background: var(--surface-3);
-    font-size: 0.68rem;
+  @media (max-width: 900px) {
+    .page {
+      gap: var(--s-5);
+    }
   }
-  .faces .avatar + .avatar {
-    margin-left: -0.35rem;
-  }
-  .hello {
+  section,
+  .asks {
     display: grid;
     gap: var(--s-3);
-    padding-top: var(--s-2);
   }
-  .hello-top {
-    display: flex;
-    align-items: center;
+  .asks {
+    gap: var(--s-6);
+  }
+
+  /* The hello: one modest line, not a poster, so Friday's card is in the first screen of a phone. On a desktop the
+     kicker keeps every page's eyebrow line (ADR 0065) */
+  .hello {
+    display: grid;
+    gap: var(--s-2);
+  }
+  .kicker {
     min-height: 1.5rem;
   }
-  @media (min-width: 901px) {
-    /* Your badge is in the corner, so the kicker is just an eyebrow: the title lands where every page's does */
-    .hello {
-      padding-top: 0;
-    }
-    .hello-top {
-      margin-bottom: calc(var(--s-2) - var(--s-3));
-    }
+  .hello-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: var(--control-h-sm);
   }
-  .hello h1 {
-    font-size: clamp(2.6rem, 10vw, 3.4rem);
-    letter-spacing: 0.005em;
+  .greeting {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 5.5vw, 2rem);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+    text-transform: uppercase;
+    color: var(--fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  /* Phones are short of height: the greeting gets straight to it (no kicker, a smaller poster), and Friday's card
-     comes up into the first screen */
+  .hello-side {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    flex-shrink: 0;
+  }
   @media (max-width: 900px) {
-    .hello {
-      padding-top: 0;
-    }
-    .hello-top {
+    .kicker {
       display: none;
     }
-    .hello h1 {
-      font-size: clamp(1.9rem, 8vw, 2.4rem);
-    }
   }
-  section {
-    display: grid;
-    gap: var(--s-3);
+  /* What you owe: a quiet chip, its pound in the brand's red as the only colour; it opens your tab */
+  .owed {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    height: var(--control-h-sm);
+    padding: 0 var(--s-2) 0 var(--s-3);
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg-body);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color var(--t-fast) var(--ease-in-out);
   }
-  .hello {
-    position: relative;
+  .owed:hover {
+    background: color-mix(in srgb, var(--fg) 13%, transparent);
+    color: var(--fg);
   }
-  .announce-btn {
-    justify-self: start;
+  .owed .num {
+    color: var(--fg);
+    font-weight: 600;
   }
-  /* An announcement: the club's word, on glass like the tables (ADR 0065), its icon in the brand's red. Each keeps
-     its own space below it (not the section's gap), so one folding away takes its space with it: nothing jumps */
+  .owed > :global(svg:first-child) {
+    color: var(--red-hot);
+  }
+  .owed > :global(svg:last-child) {
+    color: var(--fg-muted);
+  }
+
+  /* An announcement: the club's word, compact, on glass like the tables (ADR 0065), its icon in the brand's red;
+     Got it on the right. Each keeps its own space below it (not the section's gap), so one folding away takes its
+     space with it: nothing jumps */
   .notes {
     gap: 0;
   }
   .note {
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
     gap: var(--s-3);
-    margin-bottom: var(--s-3);
-    padding: var(--s-4);
+    margin-bottom: var(--s-2);
+    padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+    border-radius: var(--r-lg);
     background: var(--glass);
     backdrop-filter: var(--blur);
     -webkit-backdrop-filter: var(--blur);
     overflow: hidden;
   }
-  .note-main {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--s-3);
-  }
-  .note-main > .grow {
-    flex: 1;
-    min-width: 0;
-  }
-  .note-main > :global(svg) {
-    flex-shrink: 0;
-    margin-top: 0.15rem;
+  .note > :global(svg) {
+    margin-top: 0.4rem;
     color: var(--red-hot);
   }
   .note-title {
-    margin: 0;
+    margin: 0.3rem 0 0;
     color: var(--fg);
     font-size: var(--text-base);
     font-weight: 600;
+    line-height: 1.3;
   }
   .note-body {
     margin: var(--s-1) 0 0;
     color: var(--fg-body);
+    font-size: var(--text-sm);
     line-height: 1.45;
-  }
-  /* The links on the left, "Got it" on the right: under a thumb on a phone */
-  .note-foot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--s-3);
-  }
-  /* A desktop has the room: "Got it" sits beside what it says, not under it */
-  @media (min-width: 901px) {
-    .note {
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: var(--s-5);
-    }
   }
   .note-links {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--s-4);
+    margin-top: var(--s-2);
     min-width: 0;
     font-size: var(--text-sm);
   }
@@ -702,7 +643,7 @@
   }
   /* The one main button on the note: wide enough for its tick, so saying it doesn't move a thing */
   .got-it {
-    min-width: 7.5rem;
+    min-width: 6.25rem;
   }
   /* Got: the fill gives way to a tick in green, the words stay */
   .got-it.done,
@@ -723,15 +664,7 @@
   .past:hover {
     color: var(--fg);
   }
-  /* Bigger breaks between blocks than within them */
-  .page {
-    gap: var(--s-8);
-  }
-  @media (max-width: 900px) {
-    .page {
-      gap: var(--s-6);
-    }
-  }
+
   /* The lead card's entrance: it lands (up from below, blurred to sharp), then a single glint of rink light crosses
      it. Only this card: everything else on Home just rises. A transform and a filter, so nothing moves the page. */
   .lead {
@@ -876,37 +809,73 @@
       padding-inline: var(--s-4);
     }
   }
-  /* For you: a nudge per thing to do, quiet unless it's your move now */
-  .nudges {
-    display: grid;
+
+  /* The feed: one light row per thing, a fill and no edges; your move's icon in red, the colour only an accent */
+  .feed {
     gap: var(--s-2);
   }
-  .nudge {
+  .item {
     display: flex;
     align-items: center;
     gap: var(--s-3);
+    min-height: 3.5rem;
     padding: var(--s-3) var(--s-4);
     border-radius: var(--r-lg);
     background: var(--surface-1);
     color: var(--fg);
   }
-  a.nudge:hover {
+  a.item:hover {
     background: var(--surface-2);
   }
-  .nudge.hot {
-    background: var(--red-wash);
+  .item > :global(svg:first-child) {
+    flex-shrink: 0;
+    color: var(--fg-muted);
   }
-  .nudge.hot :global(svg:first-child) {
+  .item.hot > :global(svg:first-child) {
     color: var(--red-hot);
   }
-  .nudge .grow {
-    display: grid;
+  .item > :global(svg:last-child) {
+    flex-shrink: 0;
+    color: var(--fg-muted);
   }
-  .nudge-text {
+  .item .grow {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+  }
+  .item-text {
     font-weight: 600;
   }
-  .nudge-sub {
+  .item-sub {
     color: var(--fg-muted);
     font-size: var(--text-sm);
+  }
+  .ask-notify {
+    align-items: flex-start;
+  }
+  .ask-notify > :global(svg:first-child) {
+    margin-top: 0.15rem;
+  }
+  /* Teammates, last: on the page itself, no fill till you point at it */
+  .item.quiet {
+    background: none;
+  }
+  .item.quiet:hover {
+    background: var(--surface-1);
+  }
+  /* A few of the squad's faces, overlapping, in the row to Teammates */
+  .faces {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .faces .avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    box-shadow: 0 0 0 2px var(--bg);
+    background: var(--surface-3);
+    font-size: 0.62rem;
+  }
+  .faces .avatar + .avatar {
+    margin-left: -0.35rem;
   }
 </style>

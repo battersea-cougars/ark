@@ -158,9 +158,9 @@ session's fee.
 
 - A member's **Dues**: what they owe, each session and tournament they were charged for and whether it's paid, and the
   bank details with their reference.
-- **Owing is a badge, not a nag.** The Dues tab carries what you owe as a badge until it's paid. Home says it only
-  once something's really late (a Misconduct, over 60 days), as a row under the session card, never above it: the
-  session you came to sign up for leads the page. Settling up before signing up is an open question (#66).
+- **Owing is a badge, not a nag.** The Dues tab carries what you owe as a badge until it's paid, and Home's header
+  as a quiet chip ("£24 to pay", opening your tab), never a row in its feed: the session you came to sign up for
+  leads the page ([0118](0118-home-calls-to-action-then-feed.md)). Settling up before signing up is an open question (#66).
 - **What a session collected** is the sum of its paid charges, shown beside what it was due (the training's editor).
 - Who sees everyone's charges: `read:Dues` or `record:Payment`. Anyone else sees only their own (ADR 0036).
 - Marking a payment, taking one back, a lump sum, a quarter charged or taken back by hand, and a new quarterly rate
@@ -229,3 +229,5 @@ session's fee.
   reminder notifies the member's phone too.
 - 2026-10-20: A walk-in on a full night (or one added before it) waits for the team maker's Let in instead of being
   in whatever the places, so isn't charged until they're in; a night that's over still records who came.
+- 2026-10-21: What you owe moved from a row on Home (after 60 days) to a small chip in Home's header, shown while
+  you owe anything ([0118](0118-home-calls-to-action-then-feed.md)).

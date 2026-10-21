@@ -78,6 +78,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0084](0084-sticker-colour-scheme.md)          | The Sticker colour scheme: one yellow main button, red for the brand, tokens for everything                          |
 | [0103](0103-drawers-sheets-and-panels.md)      | A side drawer for working beside the page, a sheet for a short job, a panel for a whole editor; one sheet on a phone |
 | [0117](0117-wizards-for-multi-step-creates.md) | A create that asks several questions is a wizard (lib/Wizard), a step at a time                                      |
+| [0118](0118-home-calls-to-action-then-feed.md) | Home: a slim hello with what you owe, announcements, the calls to action, then a feed                                |
 | [0104](0104-app-versions-and-updates.md)       | A version and a build id; when a newer build answers, the app offers a reload, never forces one                      |
 | [0105](0105-code-grouped-by-feature.md)        | Code is grouped by feature; entry points read like a table of contents; files are `{domain}.{kind}.ts`               |
 
