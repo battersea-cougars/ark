@@ -4,7 +4,7 @@
 // the same (`interleave`, a seed each run). Driven through the real handlers in the fake world (ADR 0031), the cron
 // as Cloudflare runs it (`scheduled`).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NOW, testWorld } from "../testing";
+import { testWorld } from "../testing";
 import { chargeDue } from "./dues";
 
 const PLAYERS = 12;

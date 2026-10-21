@@ -3,7 +3,7 @@
 // statements between their awaits; the fake D1 does the same (`interleave`, a seed each run). Driven through the real
 // Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NOW, testWorld } from "../testing";
+import { testWorld } from "../testing";
 import { onTheClock } from "../../src/lib/draft";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -28,7 +28,8 @@
     "secrets": "node scripts/env-pull.mjs --status",
     "team": "node scripts/app.mjs dev team",
     "worktree": "node scripts/worktree.mjs",
-    "merge:check": "node scripts/merge-check.mjs"
+    "merge:check": "node scripts/merge-check.mjs",
+    "load": "node scripts/load/load.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

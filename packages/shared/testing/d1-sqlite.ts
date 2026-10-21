@@ -19,6 +19,8 @@ export interface TestD1 {
   raw: Database.Database;
   /** Round trips to D1 so far (a batch is one): each costs the Worker CPU time (ADR 0059). */
   roundTrips: number;
+  /** Time spent inside SQLite so far, in ms: D1's own work, which isn't the Worker's CPU time. */
+  sqlMs: number;
   /**
    * Requests at once, as D1 serves them (docs/load-testing.md): from here on each round trip lands at a moment
    * chosen by a seeded generator, a few turns of the event loop after it was sent, and its reply comes back a few
@@ -43,20 +45,24 @@ function seeded(seed: number) {
 export function createTestD1(): D1Database & TestD1 {
   const sqlite = new Database(":memory:");
   for (const file of sources()) sqlite.exec(readFileSync(file, "utf8"));
-  const d1 = { roundTrips: 0 } as D1Database & TestD1;
+  const d1 = { roundTrips: 0, sqlMs: 0 } as D1Database & TestD1;
   let luck: (() => number) | null = null;
   /** On the way to D1, or back: none to a few turns of the event loop, when interleaving. */
   const travel = async () => {
-    if (!luck) return;
-    for (let n = Math.floor(luck() * 4); n > 0; n--) await new Promise((r) => setImmediate(r));
+    for (let n = Math.floor(luck!() * 4); n > 0; n--) await new Promise((r) => setImmediate(r));
   };
   /** One round trip: there, the work done in one go (atomic), and back. */
   const roundTrip = async <T>(work: () => T): Promise<T> => {
     d1.roundTrips++;
-    if (!luck) return work();
-    await travel();
-    const out = work();
-    await travel();
+    if (luck) await travel();
+    const t = performance.now();
+    let out: T;
+    try {
+      out = work();
+    } finally {
+      d1.sqlMs += performance.now() - t;
+    }
+    if (luck) await travel();
     return out;
   };
 
