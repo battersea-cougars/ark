@@ -26,7 +26,7 @@ export const mailConfig = (club: string | null): MailConfig => ({
   club,
 });
 
-/** Turnstile's secret for this environment (lib/server/turnstile.ts); unset, nobody counts as verified. */
+/** Turnstile's secret for this environment (packages/shared/turnstile.ts); unset, nobody counts as verified. */
 export const turnstileSecret = () => TURNSTILE_SECRET_KEY;
 
 /** The deploy smoke test's token (lib/server/smoke.ts); unset, nothing counts as a smoke test. */

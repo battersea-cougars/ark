@@ -21,6 +21,10 @@ import {
   verify,
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
+import { SITEVERIFY } from "@cougars/shared/turnstile";
+
+/** The token a person's Turnstile widget gives, rendered for this form (testWorld's turnstile()). */
+export const humanToken = (action: string) => `person:${action}`;
 
 /**
  * A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. A call to it is one of the
@@ -295,6 +299,28 @@ export function testWorld(roster: object[]) {
   }
 
   /**
+   * Cloudflare Turnstile on (#13): the team app has a secret, and siteverify answers. A browser's widget gives
+   * `humanToken(action)`, which Cloudflare confirms for that action; any other token, or none, it says no to. `down`:
+   * Cloudflare can't be reached. `asked`: each check, as Cloudflare got it.
+   */
+  function turnstile() {
+    env.TURNSTILE_SECRET_KEY = "turnstile-test-secret";
+    const world = { asked: [] as Record<string, string>[], down: false };
+    serve((url, init) => {
+      if (url !== SITEVERIFY) return null;
+      const sent = Object.fromEntries(new URLSearchParams(String(init.body)));
+      world.asked.push(sent);
+      if (world.down) throw new Error("connect ETIMEDOUT");
+      const action = /^person:(.+)$/.exec(sent.response)?.[1];
+      const known = sent.secret === env.TURNSTILE_SECRET_KEY && !!action;
+      return Response.json(
+        known ? { success: true, action } : { success: false, "error-codes": ["invalid-input-response"] },
+      );
+    });
+    return world;
+  }
+
+  /**
    * Luck, seeded: from here on every `crypto.getRandomValues` (the draft's draw, sign-in codes, tokens) comes from a
    * small seeded generator (mulberry32), so a draw comes out the same each run. Unseeded, it's the real thing.
    */
@@ -390,9 +416,10 @@ export function testWorld(roster: object[]) {
     return { call, open, jar };
   }
 
-  /** Ask for a code; the reply (with the code, on a local server). */
+  /** Ask for a code, as a person (their Turnstile token, checked once turnstile() is on); the reply (with the code,
+   * on a local server). */
   const ask = async (b: ReturnType<typeof browser>, email: string, now = NOW) =>
-    (await b.call("POST", "/api/auth/start", { email }, { now })).body;
+    (await b.call("POST", "/api/auth/start", { email, turnstile: humanToken("sign-in") }, { now })).body;
 
   /** A browser signed in as the member with this email. */
   async function signedIn(email: string) {
@@ -439,5 +466,21 @@ export function testWorld(roster: object[]) {
     return { ...b, next, close: () => reader.cancel() };
   }
 
-  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, webPush, cron, scheduled, luck };
+  return {
+    db,
+    env,
+    live,
+    browser,
+    ask,
+    signedIn,
+    listening,
+    mails,
+    pushes,
+    firebase,
+    webPush,
+    turnstile,
+    cron,
+    scheduled,
+    luck,
+  };
 }

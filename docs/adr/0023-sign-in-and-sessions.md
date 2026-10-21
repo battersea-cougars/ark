@@ -45,7 +45,10 @@ worker.
     The limits count against the browser asking, not the member: someone who knows a member's email can't use them up
     and lock the member out of their own browser (#69).
   - per address, best effort: 10 code requests in 10 minutes and 5 requests to join an hour;
-  - asking to join stops while 50 people are waiting.
+  - asking to join stops while 50 people are waiting (the same reply for everyone), and an unanswered request goes
+    after 30 days;
+  - **Turnstile** in front of asking for a code and asking to join, refusing a failed check
+    ([0028](0028-turnstile-and-auto-reply.md), #13).
 - New people **request access**; an admin approves them ([0024](0024-action-based-authorization.md)).
 - The email goes through the Gmail API (`packages/shared/email.ts`, [0027](0027-email-through-gmail-api.md)).
 - **Sign in with Google** (OAuth with PKCE, for a member whose verified Google email matches) is planned as a
@@ -107,8 +110,8 @@ worker.
 - Each API request makes one indexed D1 read for the session, well inside the free tier for a club.
 - The limits mean what they say: 5 wrong per code, 20 a day per browser, 30 codes a day per member. The odds of
   guessing are negligible (at most 150 tries a day against a one-in-a-million code that lasts 15 minutes).
-- Someone rotating browsers and addresses can still use up a member's 30 codes for a day. Turnstile on sign-in (#13)
-  closes that; until then the per-address limit and the higher ceiling make it slow and noisy (`sign_in.capped`).
+- Someone rotating browsers and addresses could use up a member's 30 codes for a day; Turnstile (#13) makes each
+  request need a person's browser, so it would take a person.
 - For a deploy to open up the local switches, three independent things now have to go wrong: the config, the config
   test and the smoke test.
 - A tunnel to your laptop (a public name onto a local server) doesn't get the code on screen or the auto admin; sign
@@ -137,3 +140,4 @@ worker.
 - 2026-10-21: Sessions end: an admin signs a member out everywhere from their sheet, a member everywhere from the You
   page, and a new email or being made inactive does it on its own; an ended session's phones and live streams go with
   it. Renewal rotates the token (10 minutes' grace) and a session ends a year after signing in (#72).
+- 2026-10-21: Turnstile in front of asking for a code and asking to join (#13, [0028](0028-turnstile-and-auto-reply.md)).

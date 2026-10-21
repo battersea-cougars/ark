@@ -53,6 +53,7 @@
 	<array>
 		<string>team.batterseacougars.com</string>
 		<string>team.cougars-dev.workers.dev</string>
+		<string>challenges.cloudflare.com</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

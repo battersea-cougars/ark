@@ -60,7 +60,7 @@ export default defineConfig({
       GMAIL_REFRESH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       // Where every email goes outside production; unset, the sending account itself (the developer Gmail account).
       MAIL_SAFE_TO: envField.string({ context: "server", access: "public", optional: true }),
-      // Cloudflare Turnstile on /join (lib/server/turnstile.ts, ADR 0028). The site key is public, one per Cloudflare
+      // Cloudflare Turnstile on /join (packages/shared/turnstile.ts, ADR 0028). The site key is public, one per Cloudflare
       // account (deploy.yml); the default is Cloudflare's test key, which always passes, for a laptop. The secret is a
       // Worker secret; unset, nobody counts as verified (no auto-replies).
       TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", default: "1x00000000000000000000AA" }),

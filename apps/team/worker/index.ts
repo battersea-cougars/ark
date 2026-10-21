@@ -27,17 +27,20 @@ export { LiveHub } from "./live/live";
 // Worker (wrangler.jsonc: run_worker_first is /api/* only), so public/_headers carries the same set for them; a test
 // keeps the two the same (security.test.ts, ADR 0036). The policy: the app runs only its own scripts, styles, fonts
 // and files, talks only to its own origin, shows its own images and the ones it makes (team logos as data URLs,
-// previews as blob URLs), and is never shown inside another site's frame. HTTPS only, for a year, as on the website.
+// previews as blob URLs), and is never shown inside another site's frame. The one outsider is Cloudflare Turnstile on
+// the sign-in page (#13): its script and its frame, from challenges.cloudflare.com. HTTPS only, for a year, as on the
+// website.
 export const SECURITY_HEADERS: Record<string, string> = {
   "content-security-policy": [
     "default-src 'self'",
     // index.html's one inline script, which reads the club before the app's files arrive (ADR 0120); its hash, so
     // nothing else inline runs (api.security.test.ts checks it against the page)
-    "script-src 'self' 'sha256-C5G3NqX0uMVW33PZsPgX8GpIvrA94mxoDWbKvRdrTII='",
+    "script-src 'self' https://challenges.cloudflare.com 'sha256-C5G3NqX0uMVW33PZsPgX8GpIvrA94mxoDWbKvRdrTII='",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
+    "frame-src https://challenges.cloudflare.com",
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",

@@ -27,7 +27,8 @@ Three things shape it:
   builds, production's for the store. Sign-in, the live hub, the update offer ([0104](0104-app-versions-and-updates.md))
   and every change work as in a browser, and **a deploy of `team` updates the app**: the shell is rebuilt only when it
   changes. Only the offline screen is in the app (`apps/team/native/offline.html`, "Can't reach the club", Try again).
-  `limitsNavigationsToAppBoundDomains` keeps the shell to the team app's own domains.
+  `limitsNavigationsToAppBoundDomains` keeps the shell to the team app's own domains, and Turnstile's
+  (`challenges.cloudflare.com`, the sign-in page's check, [0028](0028-turnstile-and-auto-reply.md)).
 - **What the app does that a browser can't** (`src/app/native.ts`, which asks "is this the app", never "is this an
   iPhone", and falls back to the browser's way everywhere else):
   - **Notifications**: the night's teams are out (which team you're on), a place came up off the waitlist, a
@@ -136,3 +137,5 @@ Three things shape it:
   `worker/push/webpush.ts` through the same outbox; one VAPID pair for both environments (`VAPID_PRIVATE_KEY`,
   `scripts/webpush-setup.mjs`); Home's ask and the You page's "On this device" in a browser, and on an iPhone in a
   Safari tab a line about the Home Screen instead of a prompt.
+- 2026-10-21: `challenges.cloudflare.com` joins the iPhone app's app-bound domains, for Turnstile on sign-in (#13); App
+  Review's address skips the check.

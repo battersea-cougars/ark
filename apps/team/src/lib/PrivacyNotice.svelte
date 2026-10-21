@@ -33,8 +33,16 @@
   <p>
     The app sets two cookies, which it needs to work: one while you sign in, one to keep you signed in. It remembers
     which browser each sign-in is on, so you can tell your devices apart. Sign-in codes are kept for 30 days, and a
-    sign-in for 30 days after you sign out or it runs out. A record of who changed what in the app (who was made an
-    admin, say) is kept for 2 years.
+    sign-in for 30 days after you sign out or it runs out. A request to join that nobody has answered is forgotten after
+    30 days. A record of who changed what in the app (who was made an admin, say) is kept for 2 years.
+  </p>
+  <p>
+    To keep bots out, asking for a code and asking to join use Cloudflare Turnstile, which checks your browser looks
+    like a person's and sets no cookies (<a
+      href="https://www.cloudflare.com/turnstile-privacy-policy/"
+      target="_blank"
+      rel="noopener">Cloudflare's Turnstile privacy notice</a
+    >).
   </p>
 
   <h2>Where it's kept, and for how long</h2>

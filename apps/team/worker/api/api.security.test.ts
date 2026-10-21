@@ -233,9 +233,16 @@ describe("requests from somewhere else", () => {
     const inline = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
     expect(inline).toHaveLength(1);
     const hash = `'sha256-${createHash("sha256").update(inline[0]).digest("base64")}'`;
-    // Edited index.html's script? Put this hash in SECURITY_HEADERS (worker/index.ts) and public/_headers
+    // Edited index.html's script? Put this hash in SECURITY_HEADERS (worker/index.ts) and public/_headers. The one
+    // other source is Turnstile's, on the sign-in page (#13)
     const scripts = SECURITY_HEADERS["content-security-policy"].split("; ").find((d) => d.startsWith("script-src"));
-    expect(scripts).toBe(`script-src 'self' ${hash}`);
+    expect(scripts).toBe(`script-src 'self' https://challenges.cloudflare.com ${hash}`);
+  });
+
+  it("frames nothing but Turnstile's check, and talks to no one but itself (#13)", () => {
+    const policy = SECURITY_HEADERS["content-security-policy"].split("; ");
+    expect(policy).toContain("frame-src https://challenges.cloudflare.com");
+    expect(policy).toContain("connect-src 'self'");
   });
 });
 

@@ -14,7 +14,7 @@ import { enquiryMail } from "../../lib/server/enquiry-mail";
 import { clubInbox, mailConfig, smokeToken, turnstileSecret } from "../../lib/server/mail-env";
 import { isSmoke, smokeMailConfig, SMOKE_HEADER } from "../../lib/server/smoke";
 import { autoReplyMail } from "../../lib/server/auto-reply";
-import { TURNSTILE_FIELD, verifyTurnstile } from "../../lib/server/turnstile";
+import { TURNSTILE_FIELD, verifyTurnstile } from "@cougars/shared/turnstile";
 import { getSettings } from "../../lib/sanity/content";
 import { sendMail } from "@cougars/shared/email";
 import { scribe } from "@cougars/shared/scribe";

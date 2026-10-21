@@ -191,6 +191,8 @@ describe("signing in with the code", () => {
     await w.ask(w.browser(), "reg@example.com");
     expect(loggedEmails().map((e) => e.to)).toEqual([["dev@example.com"]]);
     w.mails.length = 0;
+    // Production's server has Turnstile set up; the browser is a person's
+    w.turnstile();
     Object.assign(env, { SITE_ENV: "production" });
     await w.ask(w.browser(), "dana@example.com");
     expect(loggedEmails().map((e) => e.to)).toEqual([["dana@example.com"]]);

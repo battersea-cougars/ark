@@ -328,6 +328,8 @@ jobs:
       SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
       # Production's site; target.mjs puts the team app on team.<its domain>. Dev stays on workers.dev.
       SITE_URL: ${{ github.ref == 'refs/heads/release' && 'https://batterseacougars.com' || '' }}
+      # The same Turnstile widgets as the website's (its hostnames cover team.), for sign-in and Ask to join (#13)
+      TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -340,9 +342,10 @@ jobs:
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      # The app in the browser reports its errors too (ADR 0111): the team project's DSN, built in
+      # The app in the browser reports its errors too (ADR 0111): the team project's DSN, built in; and Turnstile's
+      # public site key for the sign-in page (#13)
       - name: Build
-        run: VITE_SENTRY_DSN="${SENTRY_DSN_TEAM:-}" VITE_SITE_ENV="$SITE_ENV" VITE_RELEASE="$PUBLIC_BUILD_VERSION" npm run build -w @cougars/team
+        run: VITE_SENTRY_DSN="${SENTRY_DSN_TEAM:-}" VITE_SITE_ENV="$SITE_ENV" VITE_RELEASE="$PUBLIC_BUILD_VERSION" VITE_TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY" npm run build -w @cougars/team
 
       # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0111). A PR
       # preview only deletes them.
@@ -376,7 +379,7 @@ jobs:
           # Where its errors go (ADR 0111): the team project's DSN, as the Worker's SENTRY_DSN
           SENTRY_DSN="${SENTRY_DSN_TEAM:-}"
           for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY \
-            FIREBASE_SERVICE_ACCOUNT VAPID_PRIVATE_KEY APPLE_TEAM_ID APP_REVIEW_EMAIL APP_REVIEW_CODE SENTRY_DSN; do
+            FIREBASE_SERVICE_ACCOUNT VAPID_PRIVATE_KEY APPLE_TEAM_ID APP_REVIEW_EMAIL APP_REVIEW_CODE SENTRY_DSN TURNSTILE_SECRET_KEY; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/cougars_team/wrangler.json
             else

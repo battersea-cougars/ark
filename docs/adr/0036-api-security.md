@@ -79,8 +79,9 @@ of future sessions is idempotent).
 - **The team app** sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`
   and a **content security policy**: only its own scripts, styles (inline allowed: Svelte sets style attributes),
   fonts and files; talks only to its own origin; its own images plus `data:` (team logos) and `blob:` (upload
-  previews); no objects, no other base, forms only to itself, `frame-ancestors 'none'`. A new outside resource means
-  widening the policy on purpose, in both places.
+  previews); no objects, no other base, forms only to itself, `frame-ancestors 'none'`. The one outsider is
+  Cloudflare Turnstile on the sign-in page ([0028](0028-turnstile-and-auto-reply.md), #13): its script and its frame
+  from `challenges.cloudflare.com`. A new outside resource means widening the policy on purpose, in both places.
 - **The website** sends `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (it
   links out and is public, so the origin may travel) and a **content security policy** (`CSP` in
   `src/middleware.ts`):
@@ -150,3 +151,4 @@ of future sessions is idempotent).
 - 2026-10-20: The website gets a full content security policy, enforced, with no inline scripts; both apps send
   HSTS; links from the Studio are checked before they reach a page
   ([#78](https://github.com/battersea-cougars/ark/issues/78)).
+- 2026-10-21: The team app's policy lets in Turnstile's script and frame, for sign-in and Ask to join (#13).

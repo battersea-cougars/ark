@@ -84,8 +84,8 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`GMAIL_CLIENT_ID`](#gmail)                                               | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
 | [`GMAIL_CLIENT_SECRET`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
 | [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)                  |
-| [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website (production)                      |
-| [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website (dev)                             |
+| [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website, team app (production)            |
+| [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website, team app (dev)                   |
 | [`SMOKE_TOKEN`](#smoke_token)                                             | (none)        | Made by each deploy         | Deploy smoke test of the form (both)      |
 | [`TEAM_ROSTER__PRODUCTION`](#team-roster)                                 | `cougars`     | (the admins only)           | Deploys (D1 seed)                         |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                       | `cougars-dev` | GitHub, `Cougars rebuilds`  | Team app (both): rebuilds                 |
@@ -324,20 +324,26 @@ inbox, and dev can only ever send from its own test account, never the club's.
 
 Cloudflare Turnstile on the "Try a session" form: it tells people from bots, and only people get the automatic
 reply ([ADR 0028](docs/adr/0028-turnstile-and-auto-reply.md)). Free. Without the secret nobody counts as verified:
-enquiries are still saved and emailed to the club, but nobody gets an auto-reply.
+enquiries are still saved and emailed to the club, but nobody gets an auto-reply. The team app's sign-in and Ask to
+join use the same widget and secret (#13), and refuse a failed check; there, without the secret, nothing is checked
+(your machine), except on a deployed production server, which refuses sign-in until it has one.
 
 - **Issued by:** Cloudflare, one widget per account, named `cougars`, made by
   `node scripts/env-pull.mjs [--environment production] -- node scripts/turnstile-setup.mjs dev|production`. It
   stores the secret key straight in Secrets Manager (nobody sees it) and prints the site key, which goes in
-  `deploy.yml`. The account's `CLOUDFLARE_API_TOKEN` needs **Turnstile Write** for it. By hand instead: sidebar
+  `deploy.yml` (the website's job and the team app's, as `TURNSTILE_SITE_KEY`). Its hostnames cover the team app
+  (`team.cougars-dev.workers.dev`, `team.batterseacougars.com`), so there's no second widget. The account's
+  `CLOUDFLARE_API_TOKEN` needs **Turnstile Write** for it. By hand instead: sidebar
   **Turnstile** (under _Application security_ in the new
   dashboard) → **Add widget**: name `cougars-website`, hostname the site's (Cougars Dev: `cougars-dev.workers.dev`, which covers `web.` and its PR previews;
   Cougars: `batterseacougars.com`), widget mode **Managed**, pre-clearance **No** → **Create**. It shows a **site
   key** (public: it goes in `deploy.yml` as `TURNSTILE_SITE_KEY` for that environment) and a **secret key**:
   `npm run secret:set TURNSTILE_SECRET_KEY` (dev) or `TURNSTILE_SECRET_KEY__PRODUCTION`.
-- **Used by:** the website's `/api/join` (Worker), to check each form's token with Cloudflare.
-- **Gets there by:** CI pull from Secrets Manager, then `deploy.yml` pushes it to the Worker as a secret on every
-  deploy. A laptop uses Cloudflare's test site key (always passes) and no secret, so no auto-replies locally.
+- **Used by:** the website's `/api/join` (Worker), and the team app's `/api/auth/start` and `/api/auth/request`
+  (`worker/auth/auth.turnstile.ts`), to check each form's token with Cloudflare.
+- **Gets there by:** CI pull from Secrets Manager, then `deploy.yml` pushes it to both Workers as a secret on every
+  deploy. A laptop uses Cloudflare's test site key (always passes) and no secret, so no auto-replies locally; the
+  team app on a laptop has no site key and no secret, so it shows no widget and checks nothing.
 - **Expires:** no.
 - **Rotate:** the widget → **Rotate secret key**, update Secrets Manager, deploy.
 

@@ -29,6 +29,12 @@ describe("verifyTurnstile", () => {
     expect(await verifyTurnstile("tok", "secret", undefined, siteverify(new Error("timeout")))).toBe(false);
   });
 
+  it("is false for a token made for another form, given which one it's for", async () => {
+    const cf = siteverify({ success: true, action: "join" });
+    expect(await verifyTurnstile("tok", "secret", undefined, { ...cf, action: "join" })).toBe(true);
+    expect(await verifyTurnstile("tok", "secret", undefined, { ...cf, action: "sign-in" })).toBe(false);
+  });
+
   it("doesn't ask Cloudflare without a token or a secret", async () => {
     const cf = siteverify({ success: true });
     expect(await verifyTurnstile(null, "secret", undefined, cf)).toBe(false);

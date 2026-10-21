@@ -4,7 +4,7 @@ import { first, run } from "@cougars/shared/d1";
 export * from "../enquiry-form";
 import type { Enquiry } from "../enquiry-form";
 
-/** Save an enquiry. `verified`: Cloudflare Turnstile said a person sent it (lib/server/turnstile.ts). */
+/** Save an enquiry. `verified`: Cloudflare Turnstile said a person sent it (packages/shared/turnstile.ts). */
 export async function saveEnquiry(db: D1Database, e: Enquiry, { verified = false } = {}): Promise<number> {
   const result = await run(
     db,

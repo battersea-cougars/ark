@@ -21,12 +21,13 @@ import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
 import { forgetDevice, registerDevice } from "../push/push";
 import { endSessions } from "./auth.sessions";
+import { mustBeHuman, type TurnstileEnv } from "./auth.turnstile";
 import type { LiveEnv } from "../live/live";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
 
-export interface AuthEnv extends LiveEnv {
+export interface AuthEnv extends LiveEnv, TurnstileEnv {
   DB: D1Database;
   /** "local" only under `vite` on your machine: no email leaves it, even with Gmail set up; the code is shown on screen. */
   TEAM_ENV?: string;
@@ -307,10 +308,13 @@ async function failuresToday(db: D1Database, nonceHash: string, now: Date) {
  */
 async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   await enforce("sign-in", addressOf(request), LIMITS.signIn, TOO_MANY_TRIES);
-  const address = email(await body(request));
+  const sent = await body(request);
+  const address = email(sent);
+  // A person, not a script (#13): Turnstile, but for App Review's one address, whose code is fixed and never emailed
+  const local = localHere(env, request);
+  if (!isReview(env, address)) await mustBeHuman(env, request, sent, { action: "sign-in", local });
   // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now. The same for everyone,
   // member or not, so it gives nothing away.
-  const local = localHere(env, request);
   if (!local && mailConfig(env).gmail && (await mailPausedUntil()))
     throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
   let nonce = cookie(request, cookieName(request, "nonce")) ?? token();
@@ -350,10 +354,7 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
     return res();
   }
 
-  const review =
-    !!env.APP_REVIEW_EMAIL &&
-    /^\d{6}$/.test(env.APP_REVIEW_CODE ?? "") &&
-    address === env.APP_REVIEW_EMAIL.trim().toLowerCase();
+  const review = isReview(env, address);
   const theCode = review ? env.APP_REVIEW_CODE! : code();
   await run(
     env.DB,
@@ -377,6 +378,12 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   else await sending;
   return res();
 }
+
+/** App Review's account (ADR 0108), when production has one set up. */
+const isReview = (env: AuthEnv, address: string) =>
+  !!env.APP_REVIEW_EMAIL &&
+  /^\d{6}$/.test(env.APP_REVIEW_CODE ?? "") &&
+  address === env.APP_REVIEW_EMAIL.trim().toLowerCase();
 
 interface Challenge {
   id: number;
@@ -501,7 +508,10 @@ async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = f
   return withCookies(json({ ok: true }), [setCookie(request, "session", "", 0)]);
 }
 
-/** Someone new asks to join: a pending member an admin approves. The reply never says the email was taken. */
+/**
+ * Someone new asks to join: a pending member an admin approves. The reply never says the email was taken, and a full
+ * list is full for everyone, member or not (#13). Turnstile first, so a script can't fill the list.
+ */
 async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   await enforce("join", addressOf(request), LIMITS.join, TOO_MANY_TRIES);
   const b = await body(request);
@@ -509,12 +519,13 @@ async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise
   const address = email(b);
   const phone = text(b, "phone", { optional: true, max: 30 }) || null;
   const position = oneOf(b, "position", ["F", "D", "G"] as const);
+  await mustBeHuman(env, request, b, { action: "join", local: localHere(env, request) });
   const reply = json({ ok: true, message: "Thanks. An admin will let you in; then sign in with that email." });
 
-  if (await first(env.DB, `SELECT 1 FROM members WHERE email = ?`, [address])) return reply;
   const pending = await first<{ n: number }>(env.DB, `SELECT count(*) AS n FROM members WHERE status = 'pending'`);
   if ((pending?.n ?? 0) >= MAX_PENDING)
     throw new HttpError(429, "Lots of people are waiting to be let in. Try tomorrow.");
+  if (await first(env.DB, `SELECT 1 FROM members WHERE email = ?`, [address])) return reply;
   const res = await run(
     env.DB,
     `INSERT INTO members (name, email, phone, position, status, joined_on, created_at)

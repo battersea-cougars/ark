@@ -7,6 +7,7 @@
   import { api } from "../app/api";
   import mark from "../assets/cougars-mark.webp";
   import PrivacyNotice from "../lib/PrivacyNotice.svelte";
+  import { humanCheck } from "../lib/turnstile";
 
   // The app's privacy notice is readable before signing in too (#30): at /privacy, or from the link at the foot
   type Step = "email" | "code" | "join" | "asked" | "privacy";
@@ -17,6 +18,9 @@
   let busy = $state(false);
   let error = $state("");
   let note = $state("");
+  // A person asking, not a script (#13): Turnstile's token goes with each, unseen unless Cloudflare wants a tap
+  const signInCheck = humanCheck("sign-in");
+  const joinCheck = humanCheck("join");
   // On your own machine nothing is emailed, so the server hands the code back
   let devCode = $state("");
   let join = $state({ name: "", email: "", phone: "", position: "F" });
@@ -35,7 +39,11 @@
 
   const send = () =>
     run(async () => {
-      const r = await api<{ message: string; devCode?: string }>("POST", "/api/auth/start", { email });
+      const turnstile = await signInCheck.token();
+      const r = await api<{ message: string; devCode?: string }>("POST", "/api/auth/start", {
+        email,
+        turnstile,
+      }).finally(signInCheck.reset);
       note = r.message;
       devCode = r.devCode ?? "";
       code = devCode;
@@ -50,7 +58,10 @@
 
   const ask = () =>
     run(async () => {
-      const r = await api<{ message: string }>("POST", "/api/auth/request", join);
+      const turnstile = await joinCheck.token();
+      const r = await api<{ message: string }>("POST", "/api/auth/request", { ...join, turnstile }).finally(
+        joinCheck.reset,
+      );
       note = r.message;
       step = "asked";
     });
@@ -81,6 +92,8 @@
           Your email
           <input class="input" type="email" autocomplete="email" required bind:value={email} />
         </label>
+        <!-- Turnstile: empty unless Cloudflare wants a tap -->
+        <div class="human" {@attach signInCheck.attach}></div>
         <button class="btn primary block" disabled={busy}>Send me a code</button>
       </form>
       <p class="hint">New to the club? <button class="link" onclick={() => go("join")}>Ask to join</button></p>
@@ -152,6 +165,7 @@
             {/each}
           </div>
         </div>
+        <div class="human" {@attach joinCheck.attach}></div>
         <button class="btn primary block" disabled={busy}>Ask to join</button>
       </form>
       <p class="hint">Already a member? <button class="link" onclick={() => go("email")}>Sign in</button></p>
@@ -174,6 +188,12 @@
 </main>
 
 <style>
+  /* Next to no room (its gap given back; Turnstile's own empty box stays) until Cloudflare puts its tap there */
+  .human {
+    display: flex;
+    justify-content: center;
+    margin-top: calc(-1 * var(--s-4));
+  }
   .signin {
     display: grid;
     place-items: center;
