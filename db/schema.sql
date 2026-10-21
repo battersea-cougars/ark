@@ -436,13 +436,16 @@ CREATE TABLE auth_sessions (
 
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);
 
--- A phone with the store app (ADR 0108): its Firebase token, and the sign-in it belongs to. Signing out (or the
--- session running out) stops its notifications; a session deleted takes its phones with it.
+-- A device that wants notifications (ADR 0108): a phone with the store app (its Firebase token) or a browser with Web
+-- Push (its subscription's endpoint), and the sign-in it belongs to. Signing out forgets it, and the session running
+-- out stops its notifications; a session deleted takes its devices with it.
 CREATE TABLE push_devices (
   token TEXT PRIMARY KEY,
   session_id INTEGER NOT NULL REFERENCES auth_sessions (id) ON DELETE CASCADE,
-  -- "ios" or "android" (web push, #24, can join later)
+  -- "ios" or "android" (the store app, through Firebase) or "web" (a browser, worker/push/webpush.ts)
   platform TEXT NOT NULL,
+  -- A browser's subscription keys, {"p256dh": ..., "auth": ...} (JSON); null for a phone
+  web_keys TEXT,
   created_at TEXT NOT NULL
 );
 

@@ -11,6 +11,16 @@ import { LiveHub } from "./live/live";
 import { vi } from "vitest";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { drainPush, pushOutbox, type Sent } from "./push/push";
+import {
+  createDecipheriv,
+  createPublicKey,
+  diffieHellman,
+  generateKeyPairSync,
+  hkdfSync,
+  randomUUID,
+  verify,
+} from "node:crypto";
+import type { KeyObject } from "node:crypto";
 
 /**
  * A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. A call to it is one of the
@@ -68,21 +78,50 @@ export function testWorld(roster: object[]) {
   const pushes: Sent[] = [];
   pushOutbox.capture = (p) => void pushes.push(p);
 
-  // Firebase Cloud Messaging, once a test turns it on (firebase()): what it was asked, and fetches per invocation
-  let fcm: Awaited<ReturnType<typeof firebase>> | null = null;
+  /** Subrequests made by each invocation (a request, or a cron run) since a push service was turned on (firebase(),
+   * webPush()): fetches, emails and live hub calls. */
+  let invocations: number[] | null = null;
   /**
    * Run one Worker invocation, counting its subrequests (the free plan allows 50, ADR 0003): fetches, emails and calls
-   * to the live hub. Counted once Firebase is on (`fcm.invocations`).
+   * to the live hub. Counted once a push service is on (`invocations`).
    */
   async function invocation<T>(run: () => Promise<T>): Promise<T> {
-    if (!fcm) return run();
+    if (!invocations) return run();
     const mine = { fetches: 0 };
     try {
       return await running.run(mine, run);
     } finally {
-      fcm.invocations.push(mine.fetches);
+      invocations.push(mine.fetches);
     }
   }
+
+  // The outside world the Worker fetches, once a test turns a service on: each answers its own addresses (null for
+  // anyone else's), and any fetch nobody answers throws with its URL. Every fetch is one of the invocation's subrequests
+  const services: ((url: string, init: RequestInit) => Response | null)[] = [];
+  function serve(service: (url: string, init: RequestInit) => Response | null) {
+    invocations ??= [];
+    if (!services.length)
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string | URL, init: RequestInit) => {
+          counted();
+          for (const answer of services) {
+            const res = answer(String(url), init);
+            if (res) return res;
+          }
+          throw new Error(`The fake world doesn't know ${url}`);
+        }),
+      );
+    services.push(service);
+    return invocations;
+  }
+  /** The member a device is signed in as. */
+  const memberOf = (token: string) =>
+    (
+      db.raw
+        .prepare("SELECT s.member_id m FROM push_devices d JOIN auth_sessions s ON s.id = d.session_id WHERE token = ?")
+        .get(token) as { m: number } | undefined
+    )?.m ?? 0;
 
   /**
    * Firebase on: a service account with a fresh key and project (so fcm.ts's cached access token never carries
@@ -113,57 +152,145 @@ export function testWorld(roster: object[]) {
       answers: new Map<string, "gone" | "failed" | "apns">(),
       down: false,
       fetches: 0,
-      /** Subrequests made by each invocation (a request, or a cron run) since Firebase was turned on: fetches, emails
-       * and live hub calls. */
+      /** Subrequests made by each invocation (a request, or a cron run) since a push service was turned on. */
       invocations: [] as number[],
     };
-    const memberOf = (token: string) =>
-      (
-        db.raw
-          .prepare(
-            "SELECT s.member_id m FROM push_devices d JOIN auth_sessions s ON s.id = d.session_id WHERE token = ?",
-          )
-          .get(token) as { m: number } | undefined
-      )?.m ?? 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init: RequestInit) => {
+    world.invocations = serve((url: string, init: RequestInit) => {
+      if (url === "https://oauth2.googleapis.com/token") {
         world.fetches++;
-        counted();
-        if (url === "https://oauth2.googleapis.com/token")
-          return Response.json({ access_token: "access", expires_in: 3600 });
-        if (url !== sendUrl) throw new Error(`The fake world doesn't know ${url}`);
-        const { message } = JSON.parse(String(init.body));
-        const sent = {
-          token: message.token,
-          title: message.notification.title,
-          body: message.notification.body,
-          path: message.data.path,
-        };
-        world.asked.push(sent);
-        const answer = world.down ? "failed" : world.answers.get(sent.token);
-        if (answer === "gone")
-          return Response.json(
-            { error: { status: "NOT_FOUND", details: [{ errorCode: "UNREGISTERED" }] } },
-            { status: 404 },
-          );
-        if (answer === "failed") return Response.json({ error: { status: "UNAVAILABLE" } }, { status: 503 });
-        if (answer === "apns")
-          return Response.json(
-            {
-              error: {
-                message: "Invalid APNs credential.",
-                status: "UNAUTHENTICATED",
-                details: [{ errorCode: "THIRD_PARTY_AUTH_ERROR" }],
-              },
+        return Response.json({ access_token: "access", expires_in: 3600 });
+      }
+      if (url !== sendUrl) return null;
+      world.fetches++;
+      const { message } = JSON.parse(String(init.body));
+      const sent = {
+        token: message.token,
+        title: message.notification.title,
+        body: message.notification.body,
+        path: message.data.path,
+      };
+      world.asked.push(sent);
+      const answer = world.down ? "failed" : world.answers.get(sent.token);
+      if (answer === "gone")
+        return Response.json(
+          { error: { status: "NOT_FOUND", details: [{ errorCode: "UNREGISTERED" }] } },
+          { status: 404 },
+        );
+      if (answer === "failed") return Response.json({ error: { status: "UNAVAILABLE" } }, { status: 503 });
+      if (answer === "apns")
+        return Response.json(
+          {
+            error: {
+              message: "Invalid APNs credential.",
+              status: "UNAUTHENTICATED",
+              details: [{ errorCode: "THIRD_PARTY_AUTH_ERROR" }],
             },
-            { status: 401 },
-          );
-        pushes.push({ ...sent, memberId: memberOf(sent.token) });
-        return Response.json({ name: `projects/${project}/messages/${world.asked.length}` });
-      }),
-    );
-    fcm = world;
+          },
+          { status: 401 },
+        );
+      pushes.push({ ...sent, memberId: memberOf(sent.token) });
+      return Response.json({ name: `projects/${project}/messages/${world.asked.length}` });
+    });
+    return world;
+  }
+
+  /**
+   * Web Push on (ADR 0108, #24): the club's VAPID key pair, and the browsers' push services. A test makes a browser's
+   * subscription with `subscription()` (its own key pair and secret, as a browser does); the fake push service takes
+   * a send to it only with a VAPID signature that checks out for that service, opens the message with the browser's
+   * key (RFC 8291, worked out here with node:crypto, apart from webpush.ts) and delivers it to `pushes`, unless the
+   * test says "gone" or "failed" (`answers`, or `down` for every browser). What it refused, and why, is in `refused`.
+   */
+  function webPush() {
+    const jwkOf = (k: KeyObject) => k.export({ format: "jwk" });
+    const pointOf = (k: KeyObject) => {
+      const { x, y } = jwkOf(k);
+      return Buffer.concat([Buffer.from([4]), Buffer.from(x!, "base64url"), Buffer.from(y!, "base64url")]);
+    };
+    const pointKey = (point: Buffer) =>
+      createPublicKey({
+        key: {
+          kty: "EC",
+          crv: "P-256",
+          x: point.subarray(1, 33).toString("base64url"),
+          y: point.subarray(33).toString("base64url"),
+        },
+        format: "jwk",
+      });
+    const vapid = generateKeyPairSync("ec", { namedCurve: "P-256" });
+    env.VAPID_PUBLIC_KEY = pointOf(vapid.publicKey).toString("base64url");
+    env.VAPID_PRIVATE_KEY = jwkOf(vapid.privateKey).d!;
+    const browsers = new Map<string, { key: KeyObject; auth: Buffer }>();
+    const SERVICES = [
+      "https://fcm.googleapis.com/fcm/send/",
+      "https://updates.push.services.mozilla.com/wpush/v2/",
+      "https://web.push.apple.com/",
+      "https://wns2-par02p.notify.windows.com/w/?token=",
+    ];
+    const world = {
+      /** A browser's subscription, as PushSubscription.toJSON() gives it, on Google's push service or another. */
+      subscription(service: "google" | "mozilla" | "apple" | "windows" = "google") {
+        const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
+        const auth = Buffer.from(randomUUID().replace(/-/g, ""), "hex");
+        const at = ["google", "mozilla", "apple", "windows"].indexOf(service);
+        const endpoint = `${SERVICES[at]}${randomUUID()}`;
+        browsers.set(endpoint, { key: privateKey, auth });
+        return {
+          endpoint,
+          expirationTime: null,
+          keys: { p256dh: pointOf(privateKey).toString("base64url"), auth: auth.toString("base64url") },
+        };
+      },
+      /** Every send a push service was asked for and opened, in order, whatever it answered. */
+      asked: [] as { endpoint: string; title: string; body: string; path: string; tag: string }[],
+      refused: [] as string[],
+      answers: new Map<string, "gone" | "failed">(),
+      down: false,
+      invocations: [] as number[],
+    };
+    const refuse = (why: string) => (world.refused.push(why), new Response(why, { status: 403 }));
+    world.invocations = serve((url: string, init: RequestInit) => {
+      if (!SERVICES.some((s) => url.startsWith(s))) return null;
+      const browser = browsers.get(url);
+      if (!browser) return new Response("no such subscription", { status: 404 });
+      const headers = new Headers(init.headers);
+      // The VAPID signature (RFC 8292): our key, for this push service, unexpired, signed
+      const [, jwt, k] = headers.get("authorization")?.match(/^vapid t=([^,]+), k=(.+)$/) ?? [];
+      if (!jwt || k !== env.VAPID_PUBLIC_KEY) return refuse("not our VAPID key");
+      const [head, payload, signature] = jwt.split(".");
+      const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
+      if (claims.aud !== new URL(url).origin) return refuse(`aud ${claims.aud}`);
+      if (!/^(https:|mailto:)/.test(claims.sub)) return refuse("no sub");
+      const signed = verify(
+        "sha256",
+        Buffer.from(`${head}.${payload}`),
+        { key: pointKey(Buffer.from(k, "base64url")), dsaEncoding: "ieee-p1363" },
+        Buffer.from(signature, "base64url"),
+      );
+      if (!signed) return refuse("bad signature");
+      if (headers.get("content-encoding") !== "aes128gcm" || !headers.get("ttl")) return refuse("headers");
+      // Opened as the browser opens it (RFC 8291 §3.4, RFC 8188)
+      const message = Buffer.from(init.body as Uint8Array);
+      const salt = message.subarray(0, 16);
+      const keyId = message.subarray(21, 21 + message[20]);
+      const uaPublic = pointOf(browser.key);
+      const ecdh = diffieHellman({ privateKey: browser.key, publicKey: pointKey(keyId) });
+      const info = (s: string, ...more: Buffer[]) => Buffer.concat([Buffer.from(s), ...more]);
+      const ikm = Buffer.from(hkdfSync("sha256", ecdh, browser.auth, info("WebPush: info\0", uaPublic, keyId), 32));
+      const cek = Buffer.from(hkdfSync("sha256", ikm, salt, info("Content-Encoding: aes128gcm\0"), 16));
+      const nonce = Buffer.from(hkdfSync("sha256", ikm, salt, info("Content-Encoding: nonce\0"), 12));
+      const sealed = message.subarray(21 + message[20]);
+      const decipher = createDecipheriv("aes-128-gcm", cek, nonce);
+      decipher.setAuthTag(sealed.subarray(-16));
+      const record = Buffer.concat([decipher.update(sealed.subarray(0, -16)), decipher.final()]);
+      const opened = JSON.parse(record.subarray(0, record.lastIndexOf(2)).toString());
+      world.asked.push({ endpoint: url, ...opened });
+      const answer = world.down ? "failed" : world.answers.get(url);
+      if (answer === "gone") return new Response("unsubscribed", { status: 410 });
+      if (answer === "failed") return new Response("busy", { status: 503 });
+      pushes.push({ token: url, title: opened.title, body: opened.body, path: opened.path, memberId: memberOf(url) });
+      return new Response(null, { status: 201 });
+    });
     return world;
   }
 
@@ -312,5 +439,5 @@ export function testWorld(roster: object[]) {
     return { ...b, next, close: () => reader.cancel() };
   }
 
-  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, cron, scheduled, luck };
+  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, webPush, cron, scheduled, luck };
 }

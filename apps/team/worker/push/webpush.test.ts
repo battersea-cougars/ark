@@ -22,7 +22,7 @@ async function keyPair(publicKey: string, d: string, alg: "ECDH" | "ECDSA") {
   const point = fromB64url(publicKey);
   const jwk = { kty: "EC", crv: "P-256", x: b64url(point.slice(1, 33)), y: b64url(point.slice(33)) };
   const params = { name: alg, namedCurve: "P-256" };
-  const use = alg === "ECDH" ? (["deriveBits"] as KeyUsage[]) : (["sign"] as KeyUsage[]);
+  const use = alg === "ECDH" ? ["deriveBits"] : ["sign"];
   return {
     privateKey: await crypto.subtle.importKey("jwk", { ...jwk, d }, params, true, use),
     publicKey: await crypto.subtle.importKey("jwk", jwk, params, true, alg === "ECDH" ? [] : ["verify"]),
@@ -117,5 +117,23 @@ describe("where a subscription may point", () => {
     expect(validKeys({ p256dh: RFC.uaPublic, auth: RFC.salt + "AA" })).toBe(false);
     expect(validKeys({ p256dh: RFC.uaPublic })).toBe(false);
     expect(validKeys("keys")).toBe(false);
+  });
+});
+
+describe("in the tests' WebCrypto (testing/crypto.ts)", () => {
+  it("is all worked out at once, never on the thread pool, so a concurrency seed is one order of events", async () => {
+    // Microtasks only: the thread pool's answers need a turn of the event loop, which never comes here
+    const atOnce = async (p: Promise<unknown>) => {
+      let done = false;
+      void p.then(() => (done = true));
+      for (let i = 0; i < 500 && !done; i++) await Promise.resolve();
+      return done;
+    };
+    expect(await atOnce(encrypt(new Uint8Array([1, 2, 3]), { p256dh: RFC.uaPublic, auth: RFC.auth }))).toBe(true);
+    const vapid = { publicKey: RFC.asPublic, privateKey: RFC.asPrivate };
+    expect(await atOnce(vapidAuthorization(vapid, "https://web.push.apple.com", 0))).toBe(true);
+    // And the real thing isn't: the check can tell
+    const real = SubtleCrypto.prototype.digest.call(crypto.subtle, "SHA-256", new Uint8Array(1));
+    expect(await atOnce(real)).toBe(false);
   });
 });

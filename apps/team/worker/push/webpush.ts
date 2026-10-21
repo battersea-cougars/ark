@@ -105,7 +105,12 @@ export async function encrypt(
   const asPublic = new Uint8Array((await crypto.subtle.exportKey("raw", server.publicKey)) as ArrayBuffer);
   const ua = await crypto.subtle.importKey("raw", uaPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
   const ecdhSecret = new Uint8Array(
-    await crypto.subtle.deriveBits({ name: "ECDH", public: ua }, server.privateKey, 256),
+    // `public` as WebCrypto names it (the Workers types call it `$public`, as `public` is a reserved word there)
+    await crypto.subtle.deriveBits(
+      { name: "ECDH", public: ua } as unknown as SubtleCryptoDeriveKeyAlgorithm,
+      server.privateKey,
+      256,
+    ),
   );
   // The browser's secret mixed in (RFC 8291 §3.3), then the content key and nonce (RFC 8188 §2.2, 2.3)
   const ikm = await hkdf(authSecret, ecdhSecret, concat(utf8("WebPush: info\0"), uaPublic, asPublic), 32);

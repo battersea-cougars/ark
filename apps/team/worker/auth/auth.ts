@@ -18,7 +18,7 @@ import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
-import { registerDevice } from "../push/push";
+import { forgetDevice, forgetSessionDevices, registerDevice } from "../push/push";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
@@ -235,7 +235,7 @@ export async function handleAuth(
   if (pathname === "/api/auth/start" && m === "POST") return start(request, env, now, waitUntil);
   if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now);
   if (pathname === "/api/auth/sign-out" && m === "POST") return signOut(request, env, now);
-  if (pathname === "/api/auth/device" && m === "PUT") return device(request, env, now);
+  if (pathname === "/api/auth/device" && (m === "PUT" || m === "DELETE")) return device(request, env, now);
   if (pathname === "/api/auth/request" && m === "POST") return requestAccess(request, env, now);
   // Your own machine only: anywhere else it isn't there at all (null: the API's 404)
   if (pathname === "/api/auth/dev" && m === "POST" && localHere(env, request)) return devSignIn(request, env, now);
@@ -431,8 +431,9 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
 }
 
 /**
- * The store app's phone, signed in as this session, wants notifications (ADR 0108): `{ token, platform }`. Here, beside
- * signing in and out, because a phone belongs to a sign-in: signing out stops its notifications.
+ * This device, signed in as this session, wants notifications (ADR 0108): PUT a phone's `{ token, platform }` or a
+ * browser's `{ platform: "web", subscription }`; DELETE `{ token }` when a browser's switch is turned off. Here, beside
+ * signing in and out, because a device belongs to a sign-in: signing out forgets it.
  */
 async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   const value = cookie(request, cookieName(request, "session"));
@@ -444,7 +445,8 @@ async function device(request: Request, env: AuthEnv, now: Date): Promise<Respon
       [await sha256(value), now.toISOString()],
     ));
   if (!row) return json({ error: "Sign in first." }, 401);
-  await registerDevice(env.DB, row.id, await body(request), now.toISOString());
+  if (request.method === "DELETE") await forgetDevice(env.DB, row.id, await body(request));
+  else await registerDevice(env.DB, row.id, await body(request), now.toISOString());
   return json({ ok: true });
 }
 
@@ -458,6 +460,7 @@ async function signOut(request: Request, env: AuthEnv, now: Date): Promise<Respo
     );
     if (row) {
       await run(env.DB, `UPDATE auth_sessions SET revoked_at = ? WHERE id = ?`, [now.toISOString(), row.id]);
+      await forgetSessionDevices(env.DB, row.id);
       await audit(env.DB, now, row.member_id, "sign_out");
     }
   }

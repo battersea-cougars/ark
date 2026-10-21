@@ -1,8 +1,9 @@
 // The push outbox when sends overlap (docs/load-testing.md, ADR 0108): a club-wide announcement's first batch, the
 // cron's drains, and another announcement, all at once. A real D1 runs each statement atomically but interleaves two
 // invocations' statements between their awaits; the fake D1 does the same (`interleave`, a seed each run). Rows are
-// claimed before they're sent, so no phone hears a notice twice, and no invocation goes past the free plan's 50
-// subrequests. Driven through the real handlers in the fake world (ADR 0031).
+// claimed before they're sent, so no device hears a notice twice, and no invocation goes past the free plan's 50
+// subrequests. A third of the club is on a browser (Web Push, whose sealing and signing are settled WebCrypto too,
+// testing/crypto.ts, so a seed stays one order of events). Driven through the real handlers in the fake world (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { minutes, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
@@ -32,22 +33,27 @@ afterEach(() => {
 
 async function clubWithPhones() {
   const fcm = await w.firebase();
+  const web = w.webPush();
   const emails = ["dana@example.com", ...ROSTER.slice(1).map((r) => r.email)];
   let dana: Awaited<ReturnType<typeof w.signedIn>> | null = null;
-  for (const email of emails) {
+  for (const [i, email] of emails.entries()) {
     const b = await w.signedIn(email);
-    expect((await b.call("PUT", "/api/auth/device", { token: `token-${email}`, platform: "ios" })).status).toBe(200);
+    const device =
+      i % 3 === 2
+        ? { platform: "web", subscription: web.subscription() }
+        : { token: `token-${email}`, platform: "ios" };
+    expect((await b.call("PUT", "/api/auth/device", device)).status).toBe(200);
     dana ??= b;
   }
   fcm.invocations.length = 0;
-  return { dana: dana!, fcm };
+  return { dana: dana!, fcm, web };
 }
 
 describe("the push outbox, sends at once", () => {
   it.each(SEEDS)(
-    "two announcements and three cron drains at once, then the rest: every phone hears each once, no invocation past 50 (seed %i)",
+    "two announcements and three cron drains at once, then the rest: every device hears each once, no invocation past 50 (seed %i)",
     async (seed) => {
-      const { dana, fcm } = await clubWithPhones();
+      const { dana, fcm, web } = await clubWithPhones();
       expect((await dana.call("POST", "/api/announcements", news("First"))).status).toBe(201);
       w.db.interleave(seed);
       await Promise.all([
@@ -58,7 +64,12 @@ describe("the push outbox, sends at once", () => {
       ]);
       w.db.interleave(null);
       for (let run = 2; run <= 12; run++) await w.cron(minutes(5 * run));
-      const heard = fcm.asked.map((a) => `${a.token} ${a.title}`);
+      const heard = [
+        ...fcm.asked.map((a) => `${a.token} ${a.title}`),
+        ...web.asked.map((a) => `${a.endpoint} ${a.title}`),
+      ];
+      expect(web.asked).toHaveLength(2 * 40);
+      expect(web.refused).toEqual([]);
       expect(heard).toHaveLength(2 * PHONES);
       expect(new Set(heard).size).toBe(2 * PHONES);
       expect(fcm.invocations.filter((n) => n > 50)).toEqual([]);
