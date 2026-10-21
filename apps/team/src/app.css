@@ -1021,6 +1021,22 @@ button.row:hover:not(:disabled) {
   background: transparent;
   color: var(--fg-subtle);
 }
+/* Touch screens have no hover to show what can be tapped: a quiet button (ghost, or no kind) rests with the faint
+   fill a mouse gives it on hover and its words at full strength, so it reads as a button, not a label beside an edged
+   one. An icon alone already reads as tappable, and the bar's buttons are chrome: both stay as they are. A tap shows
+   itself with a deeper fill, as nothing hovers first */
+@media (hover: none) {
+  .btn:not(.primary, .outline, .icon, :disabled) {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg);
+  }
+  .btn:not(.primary, :disabled):active {
+    background: color-mix(in srgb, var(--fg) 16%, transparent);
+  }
+  .bar-actions .btn:not(.primary, :disabled) {
+    background: none;
+  }
+}
 /* Phones: the bar's buttons are icons only, to save room. The words stay for screen readers (a font size of
    0 hides them from view, not from the accessibility tree); `.keep-label` keeps them on show, for a label that
    matters in the moment ("Tap again") */
