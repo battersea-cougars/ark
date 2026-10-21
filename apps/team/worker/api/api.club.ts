@@ -3,7 +3,7 @@
 // members.ts, ...). Who's asking is a row of its own (`viewer`), so what they may not see never leaves the database
 // (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
-import { aheadIn, quarterlySkater } from "../entries/entries";
+import { quarterlyOn } from "../entries/entries";
 
 /** Who's asking, and what changes what they see. */
 export interface Viewer {
@@ -65,23 +65,43 @@ const rows = (columns: string, select: string) =>
     .map((c) => `'${c}', "${c}"`)
     .join(", ")})) FROM (${select}))`;
 
-/** Answers to a kind of event, as anyone but whoever runs events sees them: their own "out", walk-in and no-show. */
-const entries = (table: string, key: string, events: string, extra: string) =>
+// Answers come unsorted, with when each was given: entries.ts entriesFrom puts them in queue order. Sorted here they'd
+// be read twice, as D1 counts rows (a sort's rows count again), on every live update of a busy night.
+
+/** Answers to a tournament or a club event, as anyone but whoever runs events sees them: their own "out". */
+const entries = (table: string, key: string, events: string) =>
   rows(
-    "eventId memberId signup walkIn attended ahead quarterly",
-    `SELECT e.${key} eventId, e.member_id memberId, e.signup,
-            ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.walk_in ELSE 0 END" : "0"} walkIn,
-            ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.attended END" : "NULL"} attended,
-            ${aheadIn(extra === "session" ? "session" : "event")} ahead,
-            ${quarterlySkater(extra === "session" ? "session" : "event")} quarterly
+    "eventId memberId signup walkIn attended ahead quarterly signedUpAt id",
+    `SELECT e.${key} eventId, e.member_id memberId, e.signup, 0 walkIn, NULL attended, 0 ahead, 0 quarterly,
+            e.signed_up_at signedUpAt, e.id
      FROM ${table} e, viewer v
      WHERE e.${key} IN (${events})
-       AND (e.signup IN ('in', 'waitlist') OR v.sees_register OR e.member_id = v.member_id)
-     ORDER BY ahead DESC, e.signed_up_at, e.id`,
+       AND (e.signup IN ('in', 'waitlist') OR v.sees_register OR e.member_id = v.member_id)`,
   );
 
-const SESSIONS_SHOWN = "SELECT s.id FROM training_sessions s, viewer v WHERE s.held_on >= v.sessions_from";
-const EVENTS_SHOWN = "SELECT ce.id FROM club_events ce, viewer v WHERE ce.ends_at >= v.now";
+/**
+ * A training's answers, as anyone but whoever runs events sees them (their own walk-in and no-show too), and whether
+ * each is a Quarterly skater's on the day (ADR 0030). Only the weeks shown are read, by index, then their answers:
+ * with SQLite left to choose the order it read every answer ever given, and with a correlated subquery for each
+ * column, a full night's sign-ups were about eight rows an answer (docs/load-testing.md).
+ */
+const sessionEntries = rows(
+  "eventId memberId signup walkIn attended quarterly signedUpAt id",
+  `SELECT e.session_id eventId, e.member_id memberId, e.signup,
+          CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.walk_in ELSE 0 END walkIn,
+          CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.attended END attended,
+          m.position <> 'G' AND ${quarterlyOn("e.member_id", "s.held_on")} quarterly, e.signed_up_at signedUpAt, e.id
+   -- In this order (a CROSS JOIN keeps it): the weeks shown, then their answers, then who answered
+   FROM viewer v CROSS JOIN training_sessions s CROSS JOIN attendance e ON e.session_id = s.id
+     CROSS JOIN members m ON m.id = e.member_id
+   WHERE s.held_on >= v.sessions_from
+     AND (e.signup IN ('in', 'waitlist') OR v.sees_register OR e.member_id = v.member_id)`,
+);
+
+// The viewer first (a CROSS JOIN keeps the order), so the day picks the rows by index; left to choose, SQLite reads
+// every training there has ever been and checks its day
+const SESSIONS_SHOWN = "SELECT s.id FROM viewer v CROSS JOIN training_sessions s WHERE s.held_on >= v.sessions_from";
+const EVENTS_SHOWN = "SELECT ce.id FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now";
 
 /** Your own, or anyone's for who may see them. */
 const mine = "(v.sees_private OR m.id = v.member_id)";
@@ -127,7 +147,7 @@ const PARTS = {
     `SELECT s.id, s.series_id seriesId, s.held_on heldOn, s.moved_from movedFrom, s.start_time startTime,
             s.end_time endTime, s.venue_id venueId, s.venue, s.map_url mapUrl, s.capacity, s.note,
             s.cancelled_at cancelledAt, s.register_closed_at registerClosedAt, s.fee_pence feePence
-     FROM training_sessions s, viewer v WHERE s.held_on >= v.sessions_from ORDER BY s.held_on, s.id`,
+     FROM viewer v CROSS JOIN training_sessions s WHERE s.held_on >= v.sessions_from ORDER BY s.held_on, s.id`,
   ),
   // A training's fee, from each date (ADR 0007)
   seriesFees: rows(
@@ -135,7 +155,7 @@ const PARTS = {
     `SELECT series_id seriesId, amount_pence pence, effective_from "from" FROM series_fees
      ORDER BY series_id, effective_from`,
   ),
-  sessionEntries: entries("attendance", "session_id", SESSIONS_SHOWN, "session"),
+  sessionEntries,
   sessionTeams: rows(
     "sessionId teamId name memberId",
     `SELECT t.session_id sessionId, t.id teamId, t.name, p.member_id memberId
@@ -197,15 +217,15 @@ const PARTS = {
     `SELECT tournament_id tournamentId, award, team_id teamId, member_id memberId FROM tournament_award_winners
      ORDER BY tournament_id, position`,
   ),
-  tournamentEntries: entries("tournament_entries", "tournament_id", "SELECT id FROM tournaments", "tournament"),
+  tournamentEntries: entries("tournament_entries", "tournament_id", "SELECT id FROM tournaments"),
   clubEvents: rows(
     "id title startsAt endsAt venueId venue mapUrl description public signup capacity cancelledAt",
     `SELECT ce.id, ce.title, ce.starts_at startsAt, ce.ends_at endsAt, ce.venue_id venueId, ce.venue,
             ce.map_url mapUrl, ce.description, ce.public, ce.signup_enabled signup, ce.capacity,
             ce.cancelled_at cancelledAt
-     FROM club_events ce, viewer v WHERE ce.ends_at >= v.now ORDER BY ce.starts_at`,
+     FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now ORDER BY ce.starts_at`,
   ),
-  eventEntries: entries("club_event_entries", "event_id", EVENTS_SHOWN, "event"),
+  eventEntries: entries("club_event_entries", "event_id", EVENTS_SHOWN),
   // Dues (ADR 0007): your own charges, or everyone's for who sees Unpaid fees. Paid: in full, the last payment's day.
   charges: rows(
     "id memberId kind refId quarter title seriesId typeId startTime pence dueOn paidOn paidVia paidPence byHand",
@@ -276,7 +296,7 @@ const PARTS = {
   agenda: rows(
     `source source_id kind group_key title starts_at ends_at day all_day date_tbc season venue map_url description
      public cancelled audience`,
-    `SELECT a.* FROM agenda a, viewer v
+    `SELECT a.* FROM viewer v CROSS JOIN agenda a
      WHERE a.day >= v.today
        AND (a.audience <> 'captains' OR v.runs_draft OR (a.source = 'tournament' AND a.source_id IN
              (SELECT tournament_id FROM tournament_teams WHERE captain_member_id = v.member_id)))

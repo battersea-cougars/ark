@@ -513,7 +513,9 @@ CREATE TABLE tournament_teams (
   created_at TEXT NOT NULL
 );
 
-CREATE INDEX tournament_teams_tournament ON tournament_teams (tournament_id);
+-- In the order the club read lists them (pick order, else the order they entered), so it reads them unsorted: a
+-- sort's rows count again as D1 counts rows read (docs/load-testing.md)
+CREATE INDEX tournament_teams_tournament ON tournament_teams (tournament_id, coalesce(pick, 1000), id);
 
 CREATE TABLE tournament_team_players (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -529,7 +531,8 @@ CREATE TABLE tournament_team_players (
   picked_by INTEGER REFERENCES members (id) ON DELETE SET NULL
 );
 
-CREATE INDEX tournament_team_players_team ON tournament_team_players (team_id);
+-- In the club read's order: a team's picks, else its order
+CREATE INDEX tournament_team_players_team ON tournament_team_players (team_id, coalesce(pick_number, position), id);
 
 -- One number for "the club's data has changed": one more on every change through the team app, the seed and the
 -- roster, so the app's bootstrap can answer "nothing's changed" (ETag, ADR 0053). It starts from the time it was
@@ -679,6 +682,8 @@ CREATE TABLE tournament_goals (
 );
 
 CREATE INDEX tournament_goals_game ON tournament_goals (game_id, id);
+-- In the club read's order (by game time, untimed last), so it reads every goal once, not twice for a sort
+CREATE INDEX tournament_goals_time ON tournament_goals (at_ms IS NULL, period, at_ms, id);
 
 -- Each penalty as it was called (ADR 0061): its team, what for (lib/penalties.ts INFRACTIONS, always said), who (null:
 -- a bench penalty, only for a bench infraction), 2, 4 (a double minor) or 5 minutes, and when in game time. The penalty clock is worked out from
@@ -700,6 +705,7 @@ CREATE TABLE tournament_penalties (
 );
 
 CREATE INDEX tournament_penalties_game ON tournament_penalties (game_id, id);
+CREATE INDEX tournament_penalties_time ON tournament_penalties (at_ms IS NULL, period, at_ms, id);
 CREATE INDEX tournament_penalties_member ON tournament_penalties (member_id);
 
 

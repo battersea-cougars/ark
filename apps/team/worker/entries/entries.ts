@@ -421,15 +421,35 @@ interface EntryRow {
   ahead?: number;
   /** A Quarterly skater, whatever their answer (quarterlySkater) */
   quarterly?: number;
+  /** When it was given, and its row: the club read sends answers unsorted (api.club.ts) */
+  signedUpAt?: string;
+  id?: number;
 }
 
-/** Answers as read, in queue order (aheadIn first, then sign-up order), grouped by event: an event with none has
- * empty lists. */
+/** Signed up (in or waiting) as a Quarterly skater: ahead in a training's queue (aheadIn). */
+const isAhead = (r: EntryRow) =>
+  r.ahead === undefined ? Boolean(r.quarterly) && (r.signup === "in" || r.signup === "waitlist") : Boolean(r.ahead);
+
+/**
+ * Queue order: Quarterly skaters signed up for a training first, then sign-up order. Rows that don't say when they
+ * were given (`listEntries`, sorted by its query) keep the order they came in (a stable sort).
+ */
+function inQueueOrder(rows: EntryRow[]): EntryRow[] {
+  const when = (r: EntryRow) => r.signedUpAt ?? "";
+  return [...rows].sort(
+    (a, b) =>
+      Number(isAhead(b)) - Number(isAhead(a)) ||
+      (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : 0) ||
+      (a.id ?? 0) - (b.id ?? 0),
+  );
+}
+
+/** Answers grouped by event, each in queue order: an event with none has empty lists. */
 export function entriesFrom(rows: EntryRow[], ids: number[]): Map<number, Entries> {
   const out = new Map<number, Entries>(
     ids.map((id) => [id, { going: [], waitlist: [], quarterly: [], out: [], walkIns: [], noShows: [] }]),
   );
-  for (const r of rows) {
+  for (const r of inQueueOrder(rows)) {
     const e = out.get(r.eventId);
     if (!e) continue;
     if (r.signup === "in") e.going.push(r.memberId);
