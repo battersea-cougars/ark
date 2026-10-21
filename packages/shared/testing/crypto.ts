@@ -93,8 +93,10 @@ export function settledCrypto(subtle: SubtleCrypto = crypto.subtle) {
       make = () => createPrivateKey({ key: bytes(key as BufferSource), format: "der", type: "pkcs8" });
     else if (format === "raw" && SECRETS.includes(name)) make = () => createSecretKey(bytes(key as BufferSource));
     else if (format === "raw" && curve) make = () => pointKey(bytes(key as BufferSource));
-    else if (format === "jwk" && curve) {
-      const jwk = key as JsonWebKey;
+    // (format as string): the DOM's typings split jwk into its own overload, which Parameters<> doesn't see
+    else if ((format as string) === "jwk" && curve) {
+      // The DOM's JsonWebKey and Node's are the same object, typed apart
+      const jwk = key as unknown as import("node:crypto").JsonWebKey;
       make = () =>
         jwk.d ? createPrivateKey({ key: jwk, format: "jwk" }) : createPublicKey({ key: jwk, format: "jwk" });
     }
@@ -141,7 +143,7 @@ export function settledCrypto(subtle: SubtleCrypto = crypto.subtle) {
       return now(() =>
         arrayBuffer(diffieHellman({ privateKey: keyObject, publicKey: theirs }).subarray(0, length / 8)),
       );
-    const hash = hashOf(alg.hash as Alg);
+    const hash = hashOf((alg as { hash?: Alg }).hash);
     if (name === "HKDF" && keyObject && hash) {
       const { salt, info } = alg as unknown as { salt: BufferSource; info: BufferSource };
       return now(() =>
