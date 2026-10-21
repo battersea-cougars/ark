@@ -9,7 +9,7 @@ import { batch, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { fillPlayoffs, listGames, tournamentOf, type Game } from "./fixtures";
 import { HttpError, int, oneOf } from "../api/api.http";
-import { INFRACTIONS, PENALTY_MINUTES } from "../../src/lib/penalties";
+import { INFRACTIONS, infractionOf, PENALTY_MINUTES } from "../../src/lib/penalties";
 
 interface Who {
   memberId: number;
@@ -236,7 +236,7 @@ export async function undoGoal(db: D1Database, tournamentId: number, gameId: num
 /**
  * A penalty, kept the way goals are: as it's called (the scorekeeper, the game on, timed by the clock), or one missed
  * on the day (an admin, the game over, at the time they say or none). Its team; who (optional: a bench penalty, or
- * nobody said; on that team); 2 or 5 minutes (2 unless said); what for (optional, from the list).
+ * on that team; a bench infraction may be on nobody); 2, 4 or 5 minutes (2 unless said; some only 2); what for (always).
  */
 export async function addPenalty(
   db: D1Database,
@@ -259,14 +259,16 @@ export async function addPenalty(
   const minutes = o.minutes == null ? 2 : int(o, "minutes");
   if (!(PENALTY_MINUTES as readonly number[]).includes(minutes))
     throw new HttpError(400, "A penalty's 2, 4 (a double minor) or 5 minutes.");
-  const infraction =
-    o.infraction == null || o.infraction === ""
-      ? ""
-      : oneOf(
-          o,
-          "infraction",
-          INFRACTIONS.map((i) => i.value),
-        );
+  // Always for something; a player's infraction is on someone, a bench one may be on nobody
+  const infraction = infractionOf(
+    oneOf(
+      o,
+      "infraction",
+      INFRACTIONS.map((i) => i.value),
+    ),
+  )!;
+  if (!infraction.bench && memberId === null) throw new HttpError(400, "Who's it on?");
+  if (infraction.minorOnly && minutes !== 2) throw new HttpError(400, `${infraction.label} is a minor: 2 minutes.`);
   const t = await tournamentOf(db, tournamentId);
   const atMs = done
     ? o.atMs == null
@@ -277,7 +279,7 @@ export async function addPenalty(
     db,
     `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, recorded_by, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [gameId, teamId, memberId, minutes, infraction, atMs, who.memberId, now.toISOString()],
+    [gameId, teamId, memberId, minutes, infraction.value, atMs, who.memberId, now.toISOString()],
   );
 }
 

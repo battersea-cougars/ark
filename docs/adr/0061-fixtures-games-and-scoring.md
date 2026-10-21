@@ -75,14 +75,19 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 ### Penalties
 
 - **Kept the way goals are**: under each team's Goal, a quieter **Penalty** (a ghost button) opens a drawer, a tall
-  sheet on a phone ([0103](0103-drawers-sheets-and-panels.md)), every choice a tap, no drop-downs: who (that team's
-  players; nobody picked is a bench penalty), the length (Minor 2, Double minor 4 as 2+2, Major 5; Minor unless
-  said; no tournament setting yet) and,
-  if they like, what for (tripping, hooking, high stick, slashing, interference, holding, roughing, too many
-  players, delay of game, unsportsmanlike, other: `lib/penalties.ts` INFRACTIONS). It's stamped with the game
-  clock. The same rules as a goal: only whoever holds the scoresheet while it's on; once it's over, only an admin,
-  at the time they say or none.
-- `tournament_penalties` holds each: game, team, member (or none), minutes, infraction ('' when not said), game time,
+  sheet on a phone ([0103](0103-drawers-sheets-and-panels.md)), every choice a tap, no drop-downs, in this order:
+  - **For**, always said (`lib/penalties.ts` INFRACTIONS). Player infractions (tripping, hooking, high stick,
+    slashing, interference, holding, roughing, unsportsmanlike, other) need **who** (Save waits, saying "Pick who
+    it's on"; the Worker refuses one on nobody: "Who's it on?"). Bench infractions (too many players, delay of game,
+    bench minor) may be on nobody, a **Bench** penalty; too many players and a bench minor start on Bench and are
+    always a minor (the other lengths off; the Worker refuses them).
+  - **Who**: Bench, then that team's players.
+  - **Length**: Minor 2, Double minor 4 as 2+2, Major 5; Minor unless said; no tournament setting yet.
+
+  It's stamped with the game clock. The same rules as a goal: only whoever holds the scoresheet while it's on; once
+  it's over, only an admin, at the time they say or none.
+
+- `tournament_penalties` holds each: game, team, member (or none, a bench penalty), minutes, infraction, game time,
   who recorded it and when. Penalty minutes per player and team (the leaderboards' PIM, #47) are their sum
   (`penaltyMinutes`).
 - **The penalty clock is worked out, never stored** (`lib/penalties.ts`): a penalty runs in game time from when it
@@ -96,7 +101,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   off a finished game in Edit the result. On the record as goals are: not tap by tap, but in the game's result at
   full time and with each fix after (`game.scored` carries `penaltyMinutes`).
 - They show in time order with the goals, on the live page (live viewers get them as goals, [0072](0072-live-updates.md))
-  and on the matchup once it's played: `12:04 · PIM 2 · Dan (Tripping)`; a player's minutes are a badge in the teams.
+  and on the matchup once it's played: `12:04 · PIM 2 · Dan · Tripping`, or `Bench · Too many players`; a player's minutes are a badge in the teams.
 
 ### The clock and updates
 
@@ -137,6 +142,8 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 
 - 2026-10-09: The Fight card is every game as the same card as the tournament's home; the rounds no longer show.
 - 2026-10-21: The Fight card groups its games under a pinned header (Round robin, Playoffs) over a scrolling box; round robin cards drop their stage line; records read W-D-L · N pts.
-- 2026-10-21: Penalties, kept the way goals are: Penalty under Goal (who, 2 or 5 minutes, what for), a penalty clock
-  in game time beside each team that a power-play goal cuts short, double minors (2+2) among the lengths, taken back and put right like goals, and shown
-  with the goals in time order (`tournament_penalties`).
+- 2026-10-21: Penalties, kept the way goals are: Penalty under Goal (what for, who, Minor 2 / Double minor 2+2 /
+  Major 5), a penalty clock in game time beside each team that a power-play goal cuts short, taken back and put right
+  like goals, and shown with the goals in time order (`tournament_penalties`). What for comes first and is always
+  said; a player's infraction needs who, a bench one (too many players, delay of game, bench minor) may be on nobody,
+  and too many players and a bench minor are always 2 minutes.

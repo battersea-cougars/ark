@@ -1,7 +1,7 @@
 // The penalty clock's maths (lib/penalties.ts): what's still being served at a moment of game time, how long is left,
 // and a minor cut short by a power-play goal.
 import { describe, expect, it } from "vitest";
-import { gameTime, penaltyEnds, penaltyMinutes, running } from "./penalties";
+import { gameTime, penaltyEnds, penaltyLine, penaltyMinutes, running } from "./penalties";
 
 const MIN = 60_000;
 const pen = (
@@ -95,6 +95,13 @@ describe("a double minor", () => {
 
   it("counts four penalty minutes", () => {
     expect(penaltyMinutes([{ penalties: [pen(1, 1, 0, 4, 7)] }]).byMember.get(7)).toBe(4);
+  });
+});
+
+describe("who a penalty's on", () => {
+  it("is Bench when nobody: what for, after", () => {
+    expect(penaltyLine({ memberId: null, infraction: "too-many-players" }, () => "")).toBe("Bench · Too many players");
+    expect(penaltyLine({ memberId: 7, infraction: "tripping" }, () => "Dan")).toBe("Dan · Tripping");
   });
 });
 

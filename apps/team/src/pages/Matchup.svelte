@@ -17,7 +17,7 @@
   import { meetings } from "../lib/matchups";
   import { editionWhen } from "../lib/edition";
   import { mmss } from "../lib/game-clock.svelte";
-  import { infractionLabel } from "../lib/penalties";
+  import { penaltyLine } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -84,8 +84,8 @@
         atMs: p.atMs,
         teamId: p.teamId,
         home: p.teamId === game?.homeTeamId,
-        scorer: `PIM ${p.minutes} · ${goesByOf(byId(p.memberId)) || "Bench"}`,
-        assist: p.infraction ? infractionLabel(p.infraction) : "",
+        scorer: `PIM ${p.minutes} · ${penaltyLine(p, (id) => goesByOf(byId(id)))}`,
+        assist: "",
       })),
     ]
       .map((e, i) => ({ e, i }))

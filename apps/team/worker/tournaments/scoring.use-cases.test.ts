@@ -369,7 +369,7 @@ describe("penalties, kept the way goals are", () => {
     ).toBe(200);
     // A bench penalty: nobody in particular, five minutes
     expect(
-      (await penalty(keeper, first.id, { teamId: first.awayTeamId, minutes: 5, infraction: "too-many-players" }, at(6)))
+      (await penalty(keeper, first.id, { teamId: first.awayTeamId, minutes: 5, infraction: "delay-of-game" }, at(6)))
         .status,
     ).toBe(200);
     const mo = await w.signedIn("mo@example.com");
@@ -388,7 +388,7 @@ describe("penalties, kept the way goals are", () => {
         teamId: first.awayTeamId,
         memberId: null,
         minutes: 5,
-        infraction: "too-many-players",
+        infraction: "delay-of-game",
         atMs: 360_000,
       }),
     ]);
@@ -428,10 +428,19 @@ describe("penalties, kept the way goals are", () => {
     expect((await penalty(playing, first.id, { teamId: first.homeTeamId }, at(1))).status).toBe(403);
     expect((await penalty(dana, first.id, { teamId: first.homeTeamId }, at(1))).status).toBe(403);
     expect(
-      (await penalty(keeper, first.id, { teamId: first.homeTeamId, memberId: captainOf(first.awayTeamId) }, at(1)))
+      (
+        await penalty(
+          keeper,
+          first.id,
+          { teamId: first.homeTeamId, memberId: captainOf(first.awayTeamId), infraction: "tripping" },
+          at(1),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await penalty(keeper, first.id, { teamId: first.homeTeamId, minutes: 3, infraction: "delay-of-game" }, at(1)))
         .status,
     ).toBe(400);
-    expect((await penalty(keeper, first.id, { teamId: first.homeTeamId, minutes: 3 }, at(1))).status).toBe(400);
     expect((await penalty(keeper, first.id, { teamId: first.homeTeamId, infraction: "biting" }, at(1))).status).toBe(
       400,
     );
@@ -440,19 +449,71 @@ describe("penalties, kept the way goals are", () => {
     expect((await penalty(keeper, first.id, { teamId: first.homeTeamId }, at(13))).status).toBe(403);
     // An admin puts one missed on the day in its place, or with no time
     expect(
-      (await penalty(dana, first.id, { teamId: first.awayTeamId, memberId: captainOf(first.awayTeamId), atMs: 90_000 }))
-        .status,
+      (
+        await penalty(dana, first.id, {
+          teamId: first.awayTeamId,
+          memberId: captainOf(first.awayTeamId),
+          infraction: "holding",
+          atMs: 90_000,
+        })
+      ).status,
     ).toBe(200);
     const g = (await tournament()).games.find((x: Json) => x.id === first.id);
-    expect(g.penalties).toEqual([expect.objectContaining({ atMs: 90_000, minutes: 2, infraction: "" })]);
+    expect(g.penalties).toEqual([expect.objectContaining({ atMs: 90_000, minutes: 2, infraction: "holding" })]);
+  });
+
+  it("it's always for something: one on a player needs who, a bench one can be on nobody", async () => {
+    const { first, keeperOf, clock, penalty, captainOf, tournament } = await cup();
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    const home = first.homeTeamId;
+    // Nothing said: refused
+    let res = await penalty(keeper, first.id, { teamId: home, memberId: captainOf(home) }, at(1));
+    expect(res.status).toBe(400);
+    // A player's infraction (Other too) on nobody: refused
+    for (const infraction of ["tripping", "other"]) {
+      res = await penalty(keeper, first.id, { teamId: home, infraction }, at(1));
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe("Who's it on?");
+    }
+    // A bench one on nobody: a bench penalty
+    for (const infraction of ["too-many-players", "delay-of-game", "bench-minor"])
+      expect((await penalty(keeper, first.id, { teamId: home, infraction }, at(2))).status).toBe(200);
+    // Delay of game can still be on a player
+    expect(
+      (await penalty(keeper, first.id, { teamId: home, memberId: captainOf(home), infraction: "delay-of-game" }, at(3)))
+        .status,
+    ).toBe(200);
+    const g = (await tournament(undefined, at(3))).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties.map((p: Json) => [p.infraction, p.memberId])).toEqual([
+      ["too-many-players", null],
+      ["delay-of-game", null],
+      ["bench-minor", null],
+      ["delay-of-game", captainOf(home)],
+    ]);
+  });
+
+  it("too many players, and a bench minor, are always two minutes", async () => {
+    const { first, keeperOf, clock, penalty } = await cup();
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    for (const infraction of ["too-many-players", "bench-minor"])
+      for (const minutes of [4, 5])
+        expect((await penalty(keeper, first.id, { teamId: first.homeTeamId, infraction, minutes }, at(1))).status).toBe(
+          400,
+        );
+    expect(
+      (await penalty(keeper, first.id, { teamId: first.homeTeamId, infraction: "too-many-players", minutes: 2 }, at(1)))
+        .status,
+    ).toBe(200);
   });
 
   it("a penalty logged by mistake comes off: the scorekeeper takes back the last; an admin any one, after", async () => {
     const { id, first, keeperOf, clock, penalty, tournament, dana } = await cup();
     const keeper = await keeperOf(first);
     await clock(keeper, first.id, "start", at(0));
-    await penalty(keeper, first.id, { teamId: first.homeTeamId }, at(1));
-    await penalty(keeper, first.id, { teamId: first.awayTeamId }, at(2));
+    await penalty(keeper, first.id, { teamId: first.homeTeamId, infraction: "delay-of-game" }, at(1));
+    await penalty(keeper, first.id, { teamId: first.awayTeamId, infraction: "delay-of-game" }, at(2));
     const path = `/api/tournaments/${id}/games/${first.id}/penalties`;
     expect((await dana.call("DELETE", `${path}/last`, undefined, { now: at(2) })).status).toBe(403);
     expect((await keeper.call("DELETE", `${path}/last`, undefined, { now: at(2) })).status).toBe(200);
@@ -474,12 +535,12 @@ describe("penalties, kept the way goals are", () => {
       );
     const keeper = await keeperOf(first);
     await clock(keeper, first.id, "start", at(0));
-    await penalty(keeper, first.id, { teamId: first.homeTeamId, minutes: 5 }, at(1));
+    await penalty(keeper, first.id, { teamId: first.homeTeamId, minutes: 5, infraction: "delay-of-game" }, at(1));
     // Not tap by tap
     expect(scored()).toHaveLength(0);
     await clock(keeper, first.id, "end", at(12));
     expect(JSON.stringify(scored().at(-1))).toContain('"penaltyMinutes":5');
-    await penalty(dana, first.id, { teamId: first.awayTeamId });
+    await penalty(dana, first.id, { teamId: first.awayTeamId, infraction: "bench-minor" });
     expect(scored()).toHaveLength(2);
     expect(JSON.stringify(scored().at(-1))).toContain('"penaltyMinutes":7');
   });
@@ -498,8 +559,8 @@ describe("penalties, kept the way goals are", () => {
     await clock(dana, g1.id, "end", at(12));
     await sheet(dana, g2.id, "claim");
     await clock(dana, g2.id, "start", at(15));
-    await penalty(dana, g2.id, { teamId: both, memberId: dan }, at(16));
-    await penalty(dana, g2.id, { teamId: both }, at(17));
+    await penalty(dana, g2.id, { teamId: both, memberId: dan, infraction: "slashing" }, at(16));
+    await penalty(dana, g2.id, { teamId: both, infraction: "too-many-players" }, at(17));
     const t = await tournament(undefined, at(17));
     const { byMember, byTeam } = pims(t.games);
     expect(byMember.get(dan)).toBe(9);

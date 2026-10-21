@@ -4,21 +4,27 @@
 // A double minor is one penalty of four minutes, served as two minors back to back: a power-play goal ends only the
 // one running, and the second two minutes start fresh from the goal.
 
-/** What a penalty can be for: a short list of the common ones, and Other. Stored by value; "" when nobody said. */
+/**
+ * What a penalty can be for, always said: a short list of the common ones, and Other. Stored by value. A player's
+ * infraction needs who it's on; a bench one (`bench`) may be on nobody, a bench penalty, and some are always a minor
+ * on the bench (`minorOnly`: the sheet starts them on Bench, at 2).
+ */
 export const INFRACTIONS = [
-  { value: "tripping", label: "Tripping" },
-  { value: "hooking", label: "Hooking" },
-  { value: "high-stick", label: "High stick" },
-  { value: "slashing", label: "Slashing" },
-  { value: "interference", label: "Interference" },
-  { value: "holding", label: "Holding" },
-  { value: "roughing", label: "Roughing" },
-  { value: "too-many-players", label: "Too many players" },
-  { value: "delay-of-game", label: "Delay of game" },
-  { value: "unsportsmanlike", label: "Unsportsmanlike" },
-  { value: "other", label: "Other" },
+  { value: "tripping", label: "Tripping", bench: false, minorOnly: false },
+  { value: "hooking", label: "Hooking", bench: false, minorOnly: false },
+  { value: "high-stick", label: "High stick", bench: false, minorOnly: false },
+  { value: "slashing", label: "Slashing", bench: false, minorOnly: false },
+  { value: "interference", label: "Interference", bench: false, minorOnly: false },
+  { value: "holding", label: "Holding", bench: false, minorOnly: false },
+  { value: "roughing", label: "Roughing", bench: false, minorOnly: false },
+  { value: "unsportsmanlike", label: "Unsportsmanlike", bench: false, minorOnly: false },
+  { value: "too-many-players", label: "Too many players", bench: true, minorOnly: true },
+  { value: "delay-of-game", label: "Delay of game", bench: true, minorOnly: false },
+  { value: "bench-minor", label: "Bench minor", bench: true, minorOnly: true },
+  { value: "other", label: "Other", bench: false, minorOnly: false },
 ] as const;
 export type Infraction = (typeof INFRACTIONS)[number]["value"];
+export const infractionOf = (value: string) => INFRACTIONS.find((i) => i.value === value);
 
 /** A minor (2), a double minor (4: 2+2) or a major (5). */
 export const PENALTY_MINUTES = [2, 4, 5] as const;
@@ -32,7 +38,11 @@ export const PENALTY_KINDS = [
 const isMinor = (minutes: number) => minutes === 2 || minutes === 4;
 
 /** As a game's log says it: Tripping. */
-export const infractionLabel = (value: string) => INFRACTIONS.find((i) => i.value === value)?.label ?? "";
+export const infractionLabel = (value: string) => infractionOf(value)?.label ?? "";
+
+/** Who it's on, then what for: "Dan · Tripping", or "Bench · Too many players" when it's on nobody. */
+export const penaltyLine = (p: { memberId: number | null; infraction: string }, nameOf: (id: number) => string) =>
+  [(p.memberId !== null && nameOf(p.memberId)) || "Bench", infractionLabel(p.infraction)].filter(Boolean).join(" · ");
 
 interface PenaltyLike {
   id: number;

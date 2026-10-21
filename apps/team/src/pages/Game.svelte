@@ -49,7 +49,14 @@
   import { leftOf, mmss, ticking } from "../lib/game-clock.svelte";
   import { kickOff, startingNow } from "../lib/fixtures";
   import { teamHref, teamTone } from "../lib/team-tones";
-  import { INFRACTIONS, infractionLabel, PENALTY_KINDS, running as serving } from "../lib/penalties";
+  import {
+    INFRACTIONS,
+    infractionLabel,
+    infractionOf,
+    PENALTY_KINDS,
+    penaltyLine,
+    running as serving,
+  } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -266,8 +273,24 @@
     whenMin = 0;
     whenSec = 0;
   };
+  // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes
+  function pickInfraction(f: (typeof INFRACTIONS)[number]) {
+    if (!calling) return;
+    calling.infraction = f.value;
+    if (f.minorOnly) {
+      calling.memberId = null;
+      calling.minutes = 2;
+    }
+  }
+  // Always for something; a player's infraction on someone (lib/penalties.ts, as the Worker checks)
+  const callNeeds = $derived.by(() => {
+    if (!calling) return "";
+    const rule = infractionOf(calling.infraction);
+    if (!rule) return "Pick what it's for";
+    return !rule.bench && calling.memberId === null ? "Pick who it's on" : "";
+  });
   function savePenalty(known = true) {
-    if (!calling || !tournament || !game) return;
+    if (!calling || !tournament || !game || callNeeds) return;
     const { team, memberId, minutes, infraction } = calling;
     const atMs = !fixing
       ? undefined
@@ -604,7 +627,7 @@
           <span class="tool-text"
             ><strong>Take back the last penalty</strong><span
               >{lastPenalty
-                ? `${who(lastPenalty.memberId)} · PIM ${lastPenalty.minutes} · ${lastPenalty.atMs === null ? "–" : mmss(lastPenalty.atMs)}`
+                ? `${penaltyLine(lastPenalty, (id) => who(id))} · PIM ${lastPenalty.minutes} · ${lastPenalty.atMs === null ? "–" : mmss(lastPenalty.atMs)}`
                 : "No penalties yet"}</span
             ></span
           >
@@ -764,7 +787,7 @@
     {/snippet}
   </Drawer>
 
-  <!-- A penalty: who, the minutes, what for, each a tap, in a drawer (a tall sheet on a phone, ADR 0103) like a
+  <!-- A penalty: what for, who, the length, each a tap, in a drawer (a tall sheet on a phone, ADR 0103) like a
        goal's. Stamped with the game clock; an admin putting a result right says when -->
   <Drawer
     bind:open={() => !!calling, (v) => !v && (calling = null)}
@@ -772,44 +795,49 @@
     sub={calling ? `${teamName(calling.team)}${calling.memberId ? ` · ${who(calling.memberId)}` : ""}` : undefined}
   >
     {#if calling}
+      {@const rule = infractionOf(calling.infraction)}
       <div class="call">
         <div class="field call-part">
+          <span id="pen-for">For</span>
+          <div class="seg block sm pick-grid" role="group" aria-labelledby="pen-for">
+            {#each INFRACTIONS as f (f.value)}
+              <button type="button" aria-pressed={calling.infraction === f.value} onclick={() => pickInfraction(f)}
+                >{f.label}</button
+              >
+            {/each}
+          </div>
+        </div>
+        <div class="field call-part">
           <span id="pen-who">Who</span>
+          <!-- Bench is there for a bench infraction (on nobody); a player's needs a player -->
           <div class="seg block pick-grid" role="group" aria-labelledby="pen-who">
+            <button
+              type="button"
+              aria-pressed={!!rule?.bench && calling.memberId === null}
+              disabled={!!rule && !rule.bench}
+              onclick={() => calling && (calling.memberId = null)}>Bench</button
+            >
             {#each roster(calling.team) as p (p.id)}
               <button
                 type="button"
                 aria-pressed={calling.memberId === p.id}
-                onclick={() => calling && (calling.memberId = calling.memberId === p.id ? null : p.id)}
+                onclick={() => calling && (calling.memberId = calling.memberId === p.id && rule?.bench ? null : p.id)}
                 >{goesBy(p)}</button
               >
             {/each}
           </div>
-          <p class="hint call-hint">Nobody picked: a bench penalty.</p>
         </div>
         <div class="field call-part">
-          <span id="pen-min">Minutes</span>
+          <span id="pen-min">Length</span>
           <div class="seg block tiles" role="group" aria-labelledby="pen-min">
             {#each PENALTY_KINDS as k (k.minutes)}
               <button
                 type="button"
                 aria-pressed={calling.minutes === k.minutes}
+                disabled={!!rule?.minorOnly && k.minutes !== 2}
                 onclick={() => calling && (calling.minutes = k.minutes)}
                 ><Icon name="clock" size={22} /><span class="name">{k.name}</span><span class="sub">{k.length}</span
                 ></button
-              >
-            {/each}
-          </div>
-        </div>
-        <div class="field call-part">
-          <span id="pen-for">For <span class="hint">(if you like)</span></span>
-          <div class="seg block sm pick-grid" role="group" aria-labelledby="pen-for">
-            {#each INFRACTIONS as f (f.value)}
-              <button
-                type="button"
-                aria-pressed={calling.infraction === f.value}
-                onclick={() => calling && (calling.infraction = calling.infraction === f.value ? "" : f.value)}
-                >{f.label}</button
               >
             {/each}
           </div>
@@ -844,15 +872,17 @@
       </div>
     {/if}
     {#snippet footer()}
+      <!-- What's still needed, in a line kept for it -->
+      <p class="hint foot-hint" aria-live="polite">{callNeeds}</p>
       <div class="when-actions">
         {#if fixing}
-          <button class="btn outline name-skip" disabled={busy} onclick={() => savePenalty(false)}
+          <button class="btn outline name-skip" disabled={busy || !!callNeeds} onclick={() => savePenalty(false)}
             >Don't know when</button
           >
         {:else}
           <button class="btn outline name-skip" onclick={() => (calling = null)}>Cancel</button>
         {/if}
-        <button class="btn primary name-skip" disabled={busy} onclick={() => savePenalty(true)}
+        <button class="btn primary name-skip" disabled={busy || !!callNeeds} onclick={() => savePenalty(true)}
           >{fixing ? "Add the penalty" : `Penalty${calling ? ` · ${calling.minutes} min` : ""}`}</button
         >
       </div>
@@ -1176,9 +1206,11 @@
     display: grid;
     gap: var(--s-2);
   }
-  .call-hint {
-    margin: 0;
+  .foot-hint {
+    min-height: 1.4em;
+    margin: 0 0 var(--s-2);
     font-size: var(--text-sm);
+    text-align: center;
   }
   .pick-grid {
     display: grid;

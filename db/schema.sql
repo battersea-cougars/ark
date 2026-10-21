@@ -652,8 +652,8 @@ CREATE TABLE tournament_goals (
 
 CREATE INDEX tournament_goals_game ON tournament_goals (game_id, id);
 
--- Each penalty as it was called (ADR 0061): its team, who (null: a bench penalty, or nobody said), 2 or 5 minutes, what
--- for (lib/penalties.ts INFRACTIONS; '' when nobody said), and when in game time. The penalty clock is worked out from
+-- Each penalty as it was called (ADR 0061): its team, what for (lib/penalties.ts INFRACTIONS, always said), who (null:
+-- a bench penalty, only for a bench infraction), 2, 4 (a double minor) or 5 minutes, and when in game time. The penalty clock is worked out from
 -- these and the goals, never stored. Penalty minutes per player and team (the leaderboards' PIM) are their sum
 CREATE TABLE tournament_penalties (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
