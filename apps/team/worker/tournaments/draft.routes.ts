@@ -1,7 +1,7 @@
 // The draft (ADR 0060): picks, and opening, closing and resetting it.
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { closeDraft, draftProgress, drawOrder, lastPickedFor, openDraft, pick, resetDraft, undoPick } from "./draft";
-import { body, json } from "../api/api.http";
+import { HttpError, body, json } from "../api/api.http";
 
 export const DRAFT_ROUTES: Route[] = [
   {
@@ -18,9 +18,12 @@ export const DRAFT_ROUTES: Route[] = [
     // The captain on the clock, or whoever's running the draft: draft.ts decides
     action: "authenticated",
     changes: ["tournaments"],
+    // { memberId, turn? }: turn is the picks made as the app saw them (draft.ts)
     handle: async (c) => {
-      const { memberId } = await memberIdIn(c);
-      await pick(c.env.DB, id(c), memberId, c);
+      const { b, memberId } = await memberIdIn(c);
+      if (b.turn !== undefined && (!Number.isInteger(b.turn) || (b.turn as number) < 0))
+        throw new HttpError(400, "turn should be the picks made so far.");
+      await pick(c.env.DB, id(c), memberId, c, b.turn as number | undefined);
       return json({ ok: true, memberId });
     },
   },

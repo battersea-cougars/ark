@@ -518,9 +518,9 @@ const tournamentBody = (t: Tournament) => ({
   playoffs: t.playoffs,
   teams: t.teams,
 });
-/** The captain on the clock (or whoever's running the draft) picks a member. */
-export const draftPick = (tournamentId: number, memberId: number) =>
-  save(() => api("POST", `/api/tournaments/${tournamentId}/draft/picks`, { memberId }), "Picked");
+/** The captain on the clock (or whoever's running the draft) picks a member, for the turn after `turn` picks. */
+export const draftPick = (tournamentId: number, memberId: number, turn: number) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/draft/picks`, { memberId, turn }), "Picked");
 /** Whoever's running the draft takes back the last pick. */
 export const undoDraftPick = (tournamentId: number) =>
   save(() => api("DELETE", `/api/tournaments/${tournamentId}/draft/picks/last`), "Pick undone");

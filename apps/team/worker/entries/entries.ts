@@ -192,11 +192,11 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   if (a === "out") {
     if (was?.signup === "out") return;
     // Drafted: off their team while the draft's open; once it's closed (or a captain), through an admin
-    if (kind === "tournament") await leaveDraft(db, id, memberId);
+    const offTeam = kind === "tournament" ? await leaveDraft(db, id, memberId) : [];
     // Out, and the first waiting in, at once (whatever they were when read: another of their taps may have moved
     // them since). A session's published teams keep them until a team maker remakes the teams or keeps them as they
     // are (ADR 0076)
-    await batch(db, [putting(db, kind, id, memberId, "out", now), movingUp(db, kind, id, places, now)]);
+    await batch(db, [...offTeam, putting(db, kind, id, memberId, "out", now), movingUp(db, kind, id, places, now)]);
     return;
   }
   if (was?.signup === "in" || was?.signup === "waitlist") return;
@@ -247,10 +247,11 @@ export async function setPlayer(
     return (await current(db, kind, id, memberId))?.signup ?? null;
   }
   if (!was) return null;
-  if (kind === "tournament") await leaveDraft(db, id, memberId, true);
+  const offTeam = kind === "tournament" ? await leaveDraft(db, id, memberId, true) : [];
   const { table, key } = TABLES[kind];
   // Off, off the night's teams, and the first waiting in: one batch, so nobody signing up between takes the place
   await batch(db, [
+    ...offTeam,
     statement(db, `DELETE FROM ${table} WHERE ${key} = ? AND member_id = ?`, [id, memberId]),
     ...(kind === "session" ? [offTeams(db, id, memberId)] : []),
     movingUp(db, kind, id, places, now),

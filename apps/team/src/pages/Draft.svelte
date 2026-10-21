@@ -342,7 +342,7 @@
     if (!tournament || !chosenPlayer || ending) return;
     ending = true;
     try {
-      await draftPick(tournament.id, chosenPlayer.id);
+      await draftPick(tournament.id, chosenPlayer.id, made);
     } finally {
       ending = false;
     }

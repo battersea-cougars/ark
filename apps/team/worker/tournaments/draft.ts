@@ -179,18 +179,25 @@ async function oneGoalie(db: D1Database, teamId: number, memberId: number) {
   if (has) throw new HttpError(409, "They've got a goalie already.");
 }
 
-/** The captain on the clock (or someone running the draft) picks a member who said they're in. */
+/**
+ * The captain on the clock (or someone running the draft) picks a member who said they're in. `turn`, when the app
+ * sends it, is how many picks it had seen: a pick is for that turn and no other, so a tap that lands after the turn
+ * moved on (a second phone, a slow network, the captain whose snake turn comes twice running) is refused, not spent
+ * on their next pick. Without it, the turn is whatever it is when the pick lands.
+ */
 export async function pick(
   db: D1Database,
   tournamentId: number,
   memberId: number,
   by: { memberId: number; actions: Set<Action> },
+  turn?: number,
 ) {
   const t = await tournamentOf(db, tournamentId);
   if (t.state !== "open")
     throw new HttpError(409, t.state === "closed" ? "The draft is closed." : "The draft isn't open yet.");
   const teams = await teamsOf(db, tournamentId);
   const made = (await first<{ n: number }>(db, `SELECT (${PICKS}) n`, [tournamentId]))?.n ?? 0;
+  if (turn !== undefined && turn !== made) throw new HttpError(409, "Someone just picked: have another look.");
   const team = teams[onTheClock(teams.length, made)];
   const running = can(by.actions, "run:Draft");
   if (!running && !teams.some((x) => x.captain === by.memberId)) throw new HttpError(403, "Only the captains pick.");
@@ -241,15 +248,22 @@ export async function undoPick(db: D1Database, tournamentId: number) {
 /**
  * Someone comes out of a drafted tournament (entries.ts). A member saying they're out: while the draft is open, a pick
  * comes off their team; once it's closed, or for a captain, it goes through an admin. An admin taking them off
- * (`byAdmin`) takes them off their team whenever; a captain still comes off in the tournament's settings.
+ * (`byAdmin`) takes them off their team whenever; a captain still comes off in the tournament's settings. Checks, then
+ * gives the statement that takes them off their team, for the same batch as their answer: a pick landing between the
+ * two would leave them on a team they've said no to.
  */
-export async function leaveDraft(db: D1Database, tournamentId: number, memberId: number, byAdmin = false) {
+export async function leaveDraft(
+  db: D1Database,
+  tournamentId: number,
+  memberId: number,
+  byAdmin = false,
+): Promise<D1PreparedStatement[]> {
   const t = await first<{ kind: string; state: string }>(
     db,
     "SELECT kind, draft_state state FROM tournaments WHERE id = ?",
     [tournamentId],
   );
-  if (t?.kind !== "draft") return;
+  if (t?.kind !== "draft") return [];
   const captain = await first(db, "SELECT 1 FROM tournament_teams WHERE tournament_id = ? AND captain_member_id = ?", [
     tournamentId,
     memberId,
@@ -261,15 +275,23 @@ export async function leaveDraft(db: D1Database, tournamentId: number, memberId:
         ? "That's a captain: change the captains in the tournament's settings."
         : "You're a captain: ask an admin to take you off.",
     );
-  const picked = await first<{ id: number }>(
-    db,
-    `SELECT p.id FROM tournament_team_players p JOIN tournament_teams tt ON tt.id = p.team_id
-     WHERE tt.tournament_id = ? AND p.member_id = ?`,
-    [tournamentId, memberId],
-  );
-  if (!picked) return;
-  if (t.state === "closed" && !byAdmin) throw new HttpError(409, "You're on a team now: ask an admin to take you off.");
-  await run(db, "DELETE FROM tournament_team_players WHERE id = ?", [picked.id]);
+  if (t.state === "closed" && !byAdmin) {
+    const picked = await first(
+      db,
+      `SELECT 1 FROM tournament_team_players p JOIN tournament_teams tt ON tt.id = p.team_id
+       WHERE tt.tournament_id = ? AND p.member_id = ?`,
+      [tournamentId, memberId],
+    );
+    if (picked) throw new HttpError(409, "You're on a team now: ask an admin to take you off.");
+  }
+  return [
+    statement(
+      db,
+      `DELETE FROM tournament_team_players WHERE member_id = ?
+       AND team_id IN (SELECT id FROM tournament_teams WHERE tournament_id = ?)`,
+      [memberId, tournamentId],
+    ),
+  ];
 }
 
 /** An admin puts someone in a drafted tournament: not once the draft's closed (reopen it first). */
