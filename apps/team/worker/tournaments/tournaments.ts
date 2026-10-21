@@ -23,6 +23,7 @@ interface TypeRow {
   points_loss: number;
   game_minutes: number;
   penalty_rule: PenaltyRule;
+  periods: number;
   kind: Kind;
   active: number;
   default_fee_pence: number;
@@ -117,6 +118,7 @@ export function tournamentTypesFrom(rows: TypeRow[]) {
     pointsLoss: t.points_loss,
     gameMinutes: t.game_minutes,
     penaltyRule: t.penalty_rule,
+    periods: t.periods,
     kind: t.kind,
     active: Boolean(t.active),
     defaultFeePence: t.default_fee_pence,
@@ -149,8 +151,12 @@ async function typeFields(db: D1Database, o: Record<string, unknown>) {
     ...(await placeFields(db, o, "location")),
     playoffsOf(o),
     o.penaltyRule == null ? "power_play" : penaltyRuleOf(o),
+    o.periods == null ? 1 : periodsOf(o),
   ] as Param[];
 }
+
+/** A game's periods (ADR 0061): 1 to 3. */
+const periodsOf = (o: Record<string, unknown>) => int(o, "periods", { min: 1, max: 3 });
 
 /** How a penalty's served (ADR 0061, lib/penalties.ts). */
 const penaltyRuleOf = (o: Record<string, unknown>) =>
@@ -167,8 +173,8 @@ export async function createTournamentType(db: D1Database, o: Record<string, unk
     db,
     `INSERT INTO tournament_types (name, short_name, icon, tone, points_win, points_draw, points_loss, game_minutes,
        kind, active, default_fee_pence, default_start_time, default_end_time, awards, venue_id, location, map_url,
-       playoffs, penalty_rule, slug)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       playoffs, penalty_rule, periods, slug)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [...f, slug],
   );
   return { id: Number(res.meta.last_row_id), slug };
@@ -180,7 +186,7 @@ export async function updateTournamentType(db: D1Database, id: number, o: Record
     `UPDATE tournament_types SET name = ?, short_name = ?, icon = ?, tone = ?, points_win = ?, points_draw = ?,
        points_loss = ?, game_minutes = ?, kind = ?, active = ?, default_fee_pence = ?, default_start_time = ?,
        default_end_time = ?, awards = ?, venue_id = ?,
-       location = ?, map_url = ?, playoffs = ?, penalty_rule = ?
+       location = ?, map_url = ?, playoffs = ?, penalty_rule = ?, periods = ?
      WHERE id = ?`,
     [...(await typeFields(db, o)), id],
   );
@@ -218,6 +224,7 @@ export type TournamentListRow = {
   pointsLoss: number;
   gameMinutes: number;
   penaltyRule: PenaltyRule;
+  periods: number;
   kind: Kind;
   awards: string;
   playoffs: string;
@@ -516,7 +523,15 @@ async function seriesOf(db: D1Database, o: Record<string, unknown>) {
  */
 type Rules = Pick<
   TypeRow,
-  "points_win" | "points_draw" | "points_loss" | "game_minutes" | "kind" | "awards" | "playoffs" | "penalty_rule"
+  | "points_win"
+  | "points_draw"
+  | "points_loss"
+  | "game_minutes"
+  | "kind"
+  | "awards"
+  | "playoffs"
+  | "penalty_rule"
+  | "periods"
 >;
 
 function rulesOf(o: Record<string, unknown>, series: Rules | null) {
@@ -530,6 +545,7 @@ function rulesOf(o: Record<string, unknown>, series: Rules | null) {
     given("awards") ? awardsOf(o) : (series?.awards ?? "[]"),
     given("playoffs") ? playoffsOf(o) : (series?.playoffs ?? "[]"),
     given("penaltyRule") ? penaltyRuleOf(o) : (series?.penalty_rule ?? "power_play"),
+    given("periods") ? periodsOf(o) : (series?.periods ?? 1),
   ] as Param[];
 }
 
@@ -565,8 +581,8 @@ export async function createTournament(db: D1Database, given: Record<string, unk
     db,
     `INSERT INTO tournaments (type_id, name, venue_id, location, map_url, held_on, start_time, end_time, capacity, status, fee_pence,
        season, public, signup_opens_on, signup_closes_on, draft_on, points_win, points_draw, points_loss,
-       game_minutes, kind, awards, playoffs, penalty_rule)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       game_minutes, kind, awards, playoffs, penalty_rule, periods)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [typeId, ...fields],
   );
   const id = Number(res.meta.last_row_id);
@@ -579,7 +595,7 @@ export async function updateTournament(db: D1Database, id: number, o: Record<str
   const { typeId } = await seriesOf(db, o);
   const current = await first<Rules & { draft_state: string }>(
     db,
-    `SELECT points_win, points_draw, points_loss, game_minutes, kind, awards, playoffs, penalty_rule, draft_state
+    `SELECT points_win, points_draw, points_loss, game_minutes, kind, awards, playoffs, penalty_rule, periods, draft_state
      FROM tournaments WHERE id = ?`,
     [id],
   );
@@ -595,7 +611,7 @@ export async function updateTournament(db: D1Database, id: number, o: Record<str
     `UPDATE tournaments SET type_id = ?, name = ?, venue_id = ?, location = ?, map_url = ?, held_on = ?, start_time = ?, end_time = ?, capacity = ?,
        status = ?, fee_pence = ?, season = ?, public = ?, signup_opens_on = ?, signup_closes_on = ?, draft_on = ?,
        points_win = ?, points_draw = ?, points_loss = ?, game_minutes = ?, kind = ?, awards = ?, playoffs = ?,
-       penalty_rule = ?
+       penalty_rule = ?, periods = ?
      WHERE id = ?`,
     [typeId, ...fields, id],
   );

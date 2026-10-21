@@ -461,6 +461,7 @@ const typeBody = (t: TournamentType) => ({
   pointsLoss: t.pointsLoss,
   gameMinutes: t.gameMinutes,
   penaltyRule: t.penaltyRule,
+  periods: t.periods,
   kind: t.kind,
   active: t.active,
   defaultFeePence: t.defaultFeePence,
@@ -499,6 +500,7 @@ const tournamentBody = (t: Tournament) => ({
   pointsLoss: t.pointsLoss,
   gameMinutes: t.gameMinutes,
   penaltyRule: t.penaltyRule,
+  periods: t.periods,
   kind: t.kind,
   awards: t.awards,
   playoffs: t.playoffs,
@@ -548,6 +550,9 @@ export const holdScoresheet = (tournamentId: number, gameId: number, action: "cl
 /** The clock: start (or start again), pause, or full time (the score's the result). */
 export const clockGame = (tournamentId: number, gameId: number, action: "start" | "pause" | "end") =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action }), action === "end" ? "Full time" : "");
+/** A period's over (ADR 0061): the next starts paused at full length. Said twice, nothing more happens. */
+export const nextPeriod = (tournamentId: number, gameId: number, period: number) =>
+  save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "period", period }), "");
 /** Who won a tournament's awards, the whole list (ADR 0044). */
 export const setWinners = (
   tournamentId: number,
@@ -560,7 +565,13 @@ export const setGameClock = (tournamentId: number, gameId: number, leftMs: numbe
 export const addGoal = (
   tournamentId: number,
   gameId: number,
-  goal: { teamId: number; scorerId: number | null; assistId: number | null; atMs?: number | null },
+  goal: {
+    teamId: number;
+    scorerId: number | null;
+    assistId: number | null;
+    atMs?: number | null;
+    period?: number | null;
+  },
 ) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/goals`, goal), "Goal");
 /** Any goal off a finished game: an admin putting the result right. */
 export const removeGoal = (tournamentId: number, gameId: number, goalId: number) =>
@@ -572,7 +583,14 @@ export const undoGoal = (tournamentId: number, gameId: number) =>
 export const addPenalty = (
   tournamentId: number,
   gameId: number,
-  penalty: { teamId: number; memberId: number | null; minutes: number; infraction: string; atMs?: number | null },
+  penalty: {
+    teamId: number;
+    memberId: number | null;
+    minutes: number;
+    infraction: string;
+    atMs?: number | null;
+    period?: number | null;
+  },
 ) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/penalties`, penalty), "Penalty");
 /** Any penalty off a finished game: an admin putting it right. */
 export const removePenalty = (tournamentId: number, gameId: number, penaltyId: number) =>

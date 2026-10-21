@@ -13,11 +13,11 @@
   import TournamentHead from "../lib/TournamentHead.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamHref, teamTone } from "../lib/team-tones";
-  import { kickOff, table } from "../lib/fixtures";
+  import { kickOff, slotMinutes, table } from "../lib/fixtures";
+  import BoxScore from "../lib/BoxScore.svelte";
+  import GameTimeline from "../lib/GameTimeline.svelte";
   import { meetings } from "../lib/matchups";
   import { editionWhen } from "../lib/edition";
-  import { mmss } from "../lib/game-clock.svelte";
-  import { infractionLabel, penaltyLine } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -67,35 +67,6 @@
   );
   const played = $derived(game?.status === "done");
   const href = $derived(`/tournaments/${type.slug}/games/${gameId}`);
-
-  // Who scored, and each penalty, in time order with the time on the clock (none said: last)
-  const goals = $derived(
-    [
-      ...(game?.goals ?? []).map((g) => ({
-        key: `g${g.id}`,
-        atMs: g.atMs as number | null,
-        teamId: g.teamId,
-        home: g.teamId === game?.homeTeamId,
-        scorer: goesByOf(byId(g.scorerId)) || "Unknown",
-        assist: g.assistId ? `from ${goesByOf(byId(g.assistId))}` : "",
-      })),
-      ...(game?.penalties ?? []).map((p) => ({
-        key: `p${p.id}`,
-        atMs: p.atMs,
-        teamId: p.teamId,
-        home: p.teamId === game?.homeTeamId,
-        // A penalty shot and a sit-out (the tournament's setting), or the box
-        scorer:
-          tournament?.penaltyRule === "sit_out"
-            ? `Penalty shot · ${penaltyLine({ ...p, infraction: "" }, (id) => goesByOf(byId(id)))}${p.memberId !== null ? ` sits ${p.minutes}` : ""}${p.infraction ? ` · ${infractionLabel(p.infraction)}` : ""}`
-            : `PIM ${p.minutes} · ${penaltyLine(p, (id) => goesByOf(byId(id)))}`,
-        assist: "",
-      })),
-    ]
-      .map((e, i) => ({ e, i }))
-      .sort((a, b) => (a.e.atMs ?? Infinity) - (b.e.atMs ?? Infinity) || a.i - b.i)
-      .map(({ e }) => e),
-  );
 
   // When these captains' sides last met, in past ones of this series
   const past = $derived.by(() => {
@@ -158,7 +129,7 @@
                 ? "On now"
                 : played
                   ? "Full time"
-                  : clock(kickOff(tournament.startTime, tournament.gameMinutes, game.position))} · {game.name ||
+                  : clock(kickOff(tournament.startTime, slotMinutes(tournament), game.position))} · {game.name ||
                 `Game ${game.position}`}</span
             >
           </div>
@@ -178,20 +149,12 @@
       </div>
     {/if}
 
-    {#if played && goals.length}
+    {#if played}
+      <!-- The box score, then the game as it went, by period (lib/BoxScore, lib/GameTimeline: as on the live page) -->
       <section class="part">
         <h2 class="section-title">{game.penalties?.length ? "Goals and penalties" : "The goals"}</h2>
-        <ol class="goals">
-          {#each goals as g (g.key)}
-            <li class:away={!g.home}>
-              <span class="t num">{g.atMs === null ? "–" : mmss(g.atMs)}</span>
-              <span class="who"
-                >{g.scorer}{#if g.assist}<small>{g.assist}</small>{/if}</span
-              >
-              <span class="for">{nameOf(tournament, g.teamId)}</span>
-            </li>
-          {/each}
-        </ol>
+        <BoxScore {tournament} {game} />
+        {#if game.goals?.length || game.penalties?.length}<GameTimeline {tournament} {game} />{/if}
       </section>
     {/if}
 
@@ -387,22 +350,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .who small {
-    margin-left: var(--s-2);
-    color: var(--fg-subtle);
-    font-size: var(--text-2xs);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .goals,
   .meetings {
     display: grid;
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .goals li,
   .meetings li {
     display: flex;
     align-items: baseline;
@@ -410,21 +363,6 @@
     min-height: 2.5rem;
     padding: var(--s-2) 0;
     border-bottom: 1px solid var(--border);
-  }
-  .goals .t {
-    width: 3rem;
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-  }
-  .who {
-    flex: 1;
-    min-width: 0;
-    color: var(--fg);
-    font-weight: 500;
-  }
-  .for {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
   }
   .m-when {
     width: 8rem;

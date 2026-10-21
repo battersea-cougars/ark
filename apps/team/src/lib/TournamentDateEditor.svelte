@@ -37,6 +37,7 @@
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
   import { PENALTY_RULE_OPTIONS, type PenaltyRule } from "./penalties";
+  import { PERIOD_OPTIONS } from "./periods";
   import DateField from "../lib/DateField.svelte";
   import TeamCard from "./TeamCard.svelte";
   import { typePlace } from "../demo/schedule.svelte";
@@ -91,6 +92,7 @@
     pointsLoss: number;
     gameMinutes: number;
     penaltyRule: PenaltyRule;
+    periods: number;
     kind: TournamentKind;
     awards: { name: string; about: string }[];
     playoffs: Playoff[];
@@ -131,6 +133,7 @@
         pointsLoss: t.pointsLoss,
         gameMinutes: t.gameMinutes,
         penaltyRule: t.penaltyRule ?? "power_play",
+        periods: t.periods ?? 1,
         kind: t.kind,
         awards: t.awards.map((a) => ({ ...a })),
         playoffs: (t.playoffs ?? []).map((g) => ({ ...g })),
@@ -163,6 +166,7 @@
       pointsLoss: 0,
       gameMinutes: 12,
       penaltyRule: "power_play",
+      periods: 1,
       kind: "teams",
       awards: [],
       playoffs: [],
@@ -203,6 +207,7 @@
     date.pointsLoss = t.pointsLoss;
     date.gameMinutes = t.gameMinutes;
     date.penaltyRule = t.penaltyRule;
+    date.periods = t.periods;
     date.kind = t.kind;
     date.awards = t.awards.map((a) => ({ ...a }));
     date.playoffs = (t.playoffs ?? []).map((g) => ({ ...g }));
@@ -350,6 +355,7 @@
     pointsLoss: d.pointsLoss,
     gameMinutes: d.gameMinutes,
     penaltyRule: d.penaltyRule,
+    periods: d.periods,
     kind: d.kind,
     awards: d.awards.filter((a) => a.name.trim()),
     playoffs: d.playoffs.filter((g) => g.name.trim()),
@@ -481,9 +487,17 @@
                 >A loss <input class="input num" type="number" min="0" bind:value={date.pointsLoss} /></label
               >
               <label class="field">
-                Game length (minutes)
+                Minutes a period
                 <input class="input num" type="number" min="1" max="90" bind:value={date.gameMinutes} />
               </label>
+            </div>
+            <div class="field">
+              Periods
+              <Choice
+                bind:value={() => String(date.periods), (v) => (date.periods = Number(v))}
+                options={PERIOD_OPTIONS}
+                aria-label="Periods"
+              />
             </div>
             <div class="field">
               Penalties

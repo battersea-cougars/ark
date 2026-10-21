@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { champion, kickOff, roundRobin, scorekeepers, table, startingNow, teamsForPlayoffs } from "./fixtures";
+import {
+  champion,
+  kickOff,
+  roundRobin,
+  scorekeepers,
+  slotMinutes,
+  table,
+  startingNow,
+  teamsForPlayoffs,
+} from "./fixtures";
 
 describe("roundRobin", () => {
   it("has every team play every other exactly once, nobody twice in a round", () => {
@@ -22,6 +31,31 @@ describe("table", () => {
     const rows = table([1, 2, 3, 4], [g(1, 2, 3, 0), g(3, 4, 1, 0), g(1, 3, 1, 1), g(2, 4, null, null)]);
     expect(rows.map((r) => r.teamId).slice(0, 2)).toEqual([1, 3]);
     expect(rows[0]).toMatchObject({ p: 2, w: 1, d: 1, pts: 4 });
+  });
+});
+
+describe("a game's slot, with periods", () => {
+  it("is its periods times the minutes in each, so three 12-minute periods push the next game back", () => {
+    expect(slotMinutes({ gameMinutes: 12 })).toBe(12);
+    expect(slotMinutes({ gameMinutes: 12, periods: 1 })).toBe(12);
+    expect(slotMinutes({ gameMinutes: 12, periods: 3 })).toBe(36);
+    // 36 minutes a game and the 5-minute changeover
+    expect(kickOff("11:00", slotMinutes({ gameMinutes: 12, periods: 3 }), 2)).toBe("11:41");
+    expect(kickOff("11:00", slotMinutes({ gameMinutes: 12, periods: 3 }), 3)).toBe("12:22");
+  });
+
+  it("starting a game now moves the day back by whole slots", () => {
+    const t = {
+      startTime: "11:00",
+      endTime: "16:00",
+      gameMinutes: 10,
+      periods: 3,
+      signupOpensOn: null,
+      signupClosesOn: null,
+      draftOn: null,
+    };
+    // Game 2 now at 12:00: game 1 started a 30-minute slot and a 5-minute break before
+    expect(startingNow(t, 2, "2026-10-09", "12:00")).toMatchObject({ startTime: "11:25" });
   });
 });
 

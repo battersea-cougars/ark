@@ -143,19 +143,19 @@ const PARTS = {
      WHERE t.session_id IN (${SESSIONS_SHOWN}) ORDER BY t.position, t.id, p.rowid`,
   ),
   tournamentTypes: rows(
-    `id slug name short_name icon tone format points_win points_draw points_loss game_minutes penalty_rule kind active
+    `id slug name short_name icon tone format points_win points_draw points_loss game_minutes penalty_rule periods kind active
      default_fee_pence default_start_time default_end_time awards playoffs venue_id location map_url`,
     "SELECT * FROM tournament_types ORDER BY id",
   ),
   tournaments: rows(
     `id typeId name venueId location mapUrl heldOn startTime endTime capacity status champions feePence season
-     public signupOpensOn signupClosesOn draftOn pointsWin pointsDraw pointsLoss gameMinutes penaltyRule kind awards
+     public signupOpensOn signupClosesOn draftOn pointsWin pointsDraw pointsLoss gameMinutes penaltyRule periods kind awards
      playoffs draftState`,
     `SELECT t.id, t.type_id typeId, t.name, t.venue_id venueId, t.location, t.map_url mapUrl, t.held_on heldOn,
             t.start_time startTime, t.end_time endTime, t.capacity, t.status, t.champions, t.fee_pence feePence,
             t.season, t.public, t.signup_opens_on signupOpensOn,
             t.signup_closes_on signupClosesOn, t.draft_on draftOn, t.points_win pointsWin, t.points_draw pointsDraw,
-            t.points_loss pointsLoss, t.game_minutes gameMinutes, t.penalty_rule penaltyRule, t.kind, t.awards, t.playoffs, t.draft_state draftState
+            t.points_loss pointsLoss, t.game_minutes gameMinutes, t.penalty_rule penaltyRule, t.periods, t.kind, t.awards, t.playoffs, t.draft_state draftState
      FROM tournaments t ORDER BY t.held_on`,
   ),
   // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts)
@@ -172,23 +172,24 @@ const PARTS = {
   ),
   games: rows(
     `id tournamentId stage round position name homeTeamId awayTeamId homeSeed awaySeed homeGoals awayGoals status
-     clockLeftMs clockStartedAt keeperId`,
+     clockLeftMs clockStartedAt keeperId period`,
     `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
             away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
             away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
-            keeper_member_id keeperId
+            keeper_member_id keeperId, period
      FROM tournament_games ORDER BY tournament_id, position`,
   ),
   goals: rows(
-    "id gameId teamId scorerId assistId atMs",
-    `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs
-     FROM tournament_goals ORDER BY at_ms IS NULL, at_ms, id`,
+    "id gameId teamId scorerId assistId atMs period",
+    `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs,
+            period
+     FROM tournament_goals ORDER BY at_ms IS NULL, period, at_ms, id`,
   ),
   penalties: rows(
-    "id gameId teamId memberId minutes infraction atMs recordedBy",
-    `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs,
+    "id gameId teamId memberId minutes infraction atMs period recordedBy",
+    `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs, period,
             recorded_by recordedBy
-     FROM tournament_penalties ORDER BY at_ms IS NULL, at_ms, id`,
+     FROM tournament_penalties ORDER BY at_ms IS NULL, period, at_ms, id`,
   ),
   winners: rows(
     "tournamentId award teamId memberId",

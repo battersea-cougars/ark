@@ -25,7 +25,6 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
   import { PLAYERS, type Player } from "../demo/data";
-  import type { GamePenalty, TournamentGame } from "../demo/model";
   import { granted, me } from "../demo/session.svelte";
   import { goBack, router } from "../app/router.svelte";
   import { routes } from "../app/routes.svelte";
@@ -34,6 +33,7 @@
     addGoal,
     addPenalty,
     clockGame,
+    nextPeriod,
     holdScoresheet,
     removeGoal,
     removePenalty,
@@ -47,16 +47,12 @@
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { leftOf, mmss, ticking } from "../lib/game-clock.svelte";
-  import { kickOff, startingNow } from "../lib/fixtures";
+  import { kickOff, slotMinutes, startingNow } from "../lib/fixtures";
+  import BoxScore from "../lib/BoxScore.svelte";
+  import GameTimeline from "../lib/GameTimeline.svelte";
+  import { inGameTime, periodName } from "../lib/periods";
   import { teamHref, teamTone } from "../lib/team-tones";
-  import {
-    INFRACTIONS,
-    infractionLabel,
-    infractionOf,
-    PENALTY_KINDS,
-    penaltyLine,
-    running as serving,
-  } from "../lib/penalties";
+  import { INFRACTIONS, infractionOf, PENALTY_KINDS, penaltyLine, running as serving } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -88,17 +84,33 @@
 
   // The clock, ticking while this page is up
   $effect(() => ticking());
+  // The clock counts down each period in turn (ADR 0061): full is a period's length
   const full = $derived((tournament?.gameMinutes ?? 12) * 60_000);
+  const periods = $derived(tournament?.periods ?? 1);
+  const period = $derived(game?.period ?? 1);
+  const lastPeriod = $derived(period >= periods);
   const left = $derived(game && game.status !== "next" ? leftOf(game) : full);
   const running = $derived(!!game?.clockStartedAt);
   const over = $derived(game?.status === "done");
-  const timeUp = $derived(game?.status === "live" && left === 0);
+  // Time's up in the last period: full time. In one before it, the period's over and the next comes next
+  const timeUp = $derived(game?.status === "live" && left === 0 && lastPeriod);
+  const periodUp = $derived(game?.status === "live" && left === 0 && !lastPeriod);
   // A playoff can't end level (worker/tournaments/scoring.ts): level at time up, it plays on and the next goal wins
   const level = $derived(!!game && game.stage === "playoff" && (game.homeGoals ?? 0) === (game.awayGoals ?? 0));
+  // A period's over (its time's up, or the scorekeeper says so): the next starts paused at its full length. Sent from
+  // the scorekeeper's phone when the clock hits zero; saying it twice is harmless (the Worker knows the period's done)
+  let endedPeriod = 0;
+  const endPeriod = () => tournament && game && act(() => nextPeriod(tournament.id, game.id, period));
+  $effect(() => {
+    if (periodUp && keeper && endedPeriod !== period) {
+      endedPeriod = period;
+      endPeriod();
+    }
+  });
   // A buzz when time runs out on the scorekeeper's phone
   let buzzed = false;
   $effect(() => {
-    if (timeUp && running && keeper && !buzzed) {
+    if ((timeUp || periodUp) && running && keeper && !buzzed) {
       buzzed = true;
       void buzz([400, 150, 400]);
     }
@@ -237,6 +249,7 @@
   }
   let whenMin = $state(0);
   let whenSec = $state(0);
+  let whenPeriod = $state(1);
 
   // A goal: the team, then who scored, then who assisted (or nobody said); an admin's, then when
   let picking = $state<{ team: number; scorer?: number | null; assist?: number | null } | null>(null);
@@ -251,6 +264,7 @@
       picking = { ...picking, assist: id };
       whenMin = 0;
       whenSec = 0;
+      whenPeriod = 1;
       return;
     }
     const goal = { teamId: picking.team, scorerId: picking.scorer, assistId: id };
@@ -261,7 +275,13 @@
   function addFixed(known: boolean) {
     if (!picking || !tournament || !game) return;
     const atMs = known ? Math.min(full, (Math.max(0, whenMin) * 60 + Math.max(0, Math.min(59, whenSec))) * 1000) : null;
-    const goal = { teamId: picking.team, scorerId: picking.scorer ?? null, assistId: picking.assist ?? null, atMs };
+    const goal = {
+      teamId: picking.team,
+      scorerId: picking.scorer ?? null,
+      assistId: picking.assist ?? null,
+      atMs,
+      period: known ? whenPeriod : null,
+    };
     picking = null;
     act(() => addGoal(tournament.id, game.id, goal));
   }
@@ -272,6 +292,7 @@
     calling = { team, memberId: null, minutes: 2, infraction: "" };
     whenMin = 0;
     whenSec = 0;
+    whenPeriod = 1;
   };
   // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes
   function pickInfraction(f: (typeof INFRACTIONS)[number]) {
@@ -298,7 +319,16 @@
         ? Math.min(full, (Math.max(0, whenMin) * 60 + Math.max(0, Math.min(59, whenSec))) * 1000)
         : null;
     calling = null;
-    act(() => addPenalty(tournament.id, game.id, { teamId: team, memberId, minutes, infraction, atMs }));
+    act(() =>
+      addPenalty(tournament.id, game.id, {
+        teamId: team,
+        memberId,
+        minutes,
+        infraction,
+        atMs,
+        period: atMs == null ? null : whenPeriod,
+      }),
+    );
   }
   const lastPenalty = $derived(
     game?.penalties?.length ? game.penalties.reduce((a, b) => (b.id > a.id ? b : a)) : undefined,
@@ -310,39 +340,18 @@
   const rule = $derived(tournament?.penaltyRule ?? "power_play");
   const sitOut = $derived(rule === "sit_out");
   const box = $derived(
-    game?.status === "live" ? serving(game.penalties ?? [], game.goals ?? [], full - left, rule) : [],
+    game?.status === "live"
+      ? serving(
+          (game.penalties ?? []).map((p) => ({ ...p, atMs: inGameTime(p.period, p.atMs, full) })),
+          (game.goals ?? []).map((g) => ({ ...g, atMs: inGameTime(g.period, g.atMs, full) })),
+          inGameTime(period, full - left, full)!,
+          rule,
+        )
+      : [],
   );
   const boxOf = (teamId: number | null) => box.filter((b) => b.penalty.teamId === teamId);
   const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
 
-  // The game as it went, latest first: each goal with the score it made, and each penalty, in time order. Home on
-  // the left, away on the right
-  type Entry =
-    | (NonNullable<TournamentGame["goals"]>[number] & { kind: "goal"; key: string; isHome: boolean; score: string })
-    | (GamePenalty & { kind: "penalty"; key: string; isHome: boolean });
-  const stream = $derived.by(() => {
-    let home = 0;
-    let away = 0;
-    const goals: Entry[] = (game?.goals ?? []).map((g) => {
-      const isHome = g.teamId === game?.homeTeamId;
-      if (isHome) home++;
-      else away++;
-      return { ...g, kind: "goal" as const, key: `g${g.id}`, isHome, score: `${home}–${away}` };
-    });
-    const penalties: Entry[] = (game?.penalties ?? []).map((p) => ({
-      ...p,
-      kind: "penalty" as const,
-      key: `p${p.id}`,
-      isHome: p.teamId === game?.homeTeamId,
-    }));
-    // In time order (none said: last), goals first at the same moment, each kind in its own order
-    const when = (e: Entry) => (e.atMs === null ? Infinity : e.atMs);
-    return [...goals, ...penalties]
-      .map((e, i) => ({ e, i }))
-      .sort((a, b) => when(a.e) - when(b.e) || a.i - b.i)
-      .map(({ e }) => e)
-      .reverse();
-  });
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
   const scoreOf = (i: number) => (i === 0 ? game?.homeGoals : game?.awayGoals) ?? 0;
@@ -384,11 +393,11 @@
       <span class="cue hint">
         {#if over}Full time
         {:else if game.status === "next"}Kick-off {clock(
-            kickOff(tournament.startTime, tournament.gameMinutes, game.position),
+            kickOff(tournament.startTime, slotMinutes(tournament), game.position),
           )}
         {:else if timeUp && level}Level: next goal wins
         {:else if timeUp}{keeper ? "Time's up: call full time" : "Time's up"}
-        {:else}{running ? "Live" : "Paused"}{/if}
+        {:else}{periods > 1 ? `${periodName(period)} period · ` : ""}{running ? "Live" : "Paused"}{/if}
       </span>
     </svelte:element>
 
@@ -448,7 +457,13 @@
       {:else if keeper}
         <button class="btn control" class:start={!running} class:pause={running} disabled={busy} onclick={startPause}>
           <Icon name={running ? "pause" : "play"} size={26} />
-          {running ? "Pause" : game.status === "next" ? "Start the game" : "Start again"}
+          {running
+            ? "Pause"
+            : game.status === "next"
+              ? "Start the game"
+              : periods > 1 && left === full
+                ? `Start the ${periodName(period)}`
+                : "Start again"}
         </button>
       {/if}
     {/if}
@@ -496,56 +511,20 @@
 
     <section class="log">
       <h2 class="section-title">{game.penalties?.length ? "Goals and penalties" : "Goals"}</h2>
-      {#if stream.length}
-        <!-- A timeline: each goal and penalty on its team's side, when down the middle with the score a goal made, or
-             a penalty's minutes -->
-        <ol class="stream">
-          {#each stream as g (g.key)}
-            <li class="goal-row" class:home={g.isHome} class:pen={g.kind === "penalty"}>
-              <span class="scored">
-                <TeamCrest
-                  name={teamName(g.teamId)}
-                  logo={teams[indexOf(g.teamId)]?.logo ?? null}
-                  tone={teamTone(indexOf(g.teamId))}
-                  size={g.kind === "goal" ? "3.75rem" : "2.25rem"}
-                />
-                <span class="who">
-                  <span class="team-label">{teamName(g.teamId)}</span>
-                  {#if g.kind === "goal"}
-                    <span class="scorer">{goesByOf(byId(g.scorerId)) || "Goal"}</span>
-                    {#if g.assistId}<span class="assist">Assist · {goesByOf(byId(g.assistId))}</span>{/if}
-                  {:else}
-                    <span class="scorer">{who(g.memberId)}</span>
-                    {#if (sitOut && g.memberId !== null) || g.infraction}<span class="assist"
-                        >{[sitOut && g.memberId !== null ? `Sits ${g.minutes}` : "", infractionLabel(g.infraction)]
-                          .filter(Boolean)
-                          .join(" · ")}</span
-                      >{/if}
-                  {/if}
-                </span>
-              </span>
-              {#if fixing}
-                <!-- Putting it right: any goal or penalty comes off, from the empty side of its row -->
-                <button
-                  class="btn ghost sm take-off"
-                  disabled={busy}
-                  onclick={() =>
-                    act(() =>
-                      g.kind === "goal"
-                        ? removeGoal(tournament.id, game.id, g.id)
-                        : removePenalty(tournament.id, game.id, g.id),
-                    )}><Icon name="x" size={15} />Take off</button
-                >
-              {/if}
-              <span class="at">
-                <span class="at-time display num">{g.atMs === null ? "–" : mmss(g.atMs)}</span>
-                <span class="at-score num"
-                  >{g.kind === "goal" ? g.score : sitOut ? "Penalty shot" : `PIM ${g.minutes}`}</span
-                >
-              </span>
-            </li>
-          {/each}
-        </ol>
+      {#if game.status !== "next"}<BoxScore {tournament} {game} />{/if}
+      {#if game.goals?.length || game.penalties?.length}
+        <GameTimeline
+          {tournament}
+          {game}
+          latestFirst={!over}
+          {busy}
+          onremove={fixing
+            ? (kind, id) =>
+                act(() =>
+                  kind === "goal" ? removeGoal(tournament.id, game.id, id) : removePenalty(tournament.id, game.id, id),
+                )
+            : undefined}
+        />
       {:else}
         <p class="hint">{game.status === "next" ? "Not kicked off yet." : "No goals yet."}</p>
       {/if}
@@ -645,6 +624,16 @@
             ></span
           >
         </button>
+        {#if !lastPeriod}
+          <button class="tool" disabled={busy} onclick={() => tool(endPeriod)}>
+            <Icon name="whistle" size={22} />
+            <span class="tool-text"
+              ><strong>End the {periodName(period)} period</strong><span
+                >The {periodName(period + 1)} starts paused, the clock back to {mmss(full)}.</span
+              ></span
+            >
+          </button>
+        {/if}
         <button class="tool" class:danger={confirmEnd} disabled={busy || level} onclick={end}>
           <Icon name="whistle" size={22} />
           <span class="tool-text"
@@ -755,6 +744,15 @@
   >
     {#if picking && picking.scorer !== undefined && picking.assist !== undefined}
       <!-- When, in game time: minutes and seconds in -->
+      {#if periods > 1}
+        <div class="seg block sm when-period" role="group" aria-label="Which period">
+          {#each Array.from({ length: periods }, (_, k) => k + 1) as n (n)}
+            <button type="button" aria-pressed={whenPeriod === n} onclick={() => (whenPeriod = n)}
+              >{periodName(n)}</button
+            >
+          {/each}
+        </div>
+      {/if}
       <div class="set-time">
         <label class="field"
           ><span>Minutes in</span><input
@@ -858,6 +856,15 @@
         {#if fixing}
           <div class="field call-part">
             <span>When</span>
+            {#if periods > 1}
+              <div class="seg block sm when-period" role="group" aria-label="Which period">
+                {#each Array.from({ length: periods }, (_, k) => k + 1) as n (n)}
+                  <button type="button" aria-pressed={whenPeriod === n} onclick={() => (whenPeriod = n)}
+                    >{periodName(n)}</button
+                  >
+                {/each}
+              </div>
+            {/if}
             <div class="set-time">
               <label class="field"
                 ><span>Minutes in</span><input
@@ -1012,20 +1019,6 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--s-2);
-  }
-  /* In the empty half of a goal's row */
-  .take-off {
-    grid-row: 1;
-    grid-column: 3;
-    justify-self: start;
-    gap: var(--s-1);
-  }
-  .home .take-off {
-    grid-column: 3;
-  }
-  .goal-row:not(.home) .take-off {
-    grid-column: 1;
-    justify-self: end;
   }
   .colon {
     padding-bottom: 0.4rem;
@@ -1203,16 +1196,6 @@
   .box-more {
     font-size: var(--text-xs);
   }
-  /* A penalty in the timeline: a smaller line than a goal */
-  .goal-row.pen {
-    min-height: 3.75rem;
-  }
-  .pen .scorer {
-    font-weight: 500;
-  }
-  .pen .at-time {
-    font-size: 1.1rem;
-  }
   .call {
     display: grid;
     gap: var(--s-6);
@@ -1220,6 +1203,9 @@
   .call-part {
     display: grid;
     gap: var(--s-2);
+  }
+  .when-period {
+    margin-bottom: var(--s-4);
   }
   .foot-hint {
     min-height: 1.4em;
@@ -1242,79 +1228,6 @@
     margin: 0;
     padding: 0;
     list-style: none;
-  }
-  /* The stream: home goals left, away goals right, the time and the score down the middle */
-  .stream {
-    display: grid;
-  }
-  .goal-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr);
-    align-items: center;
-    min-height: 5.5rem;
-    padding-block: var(--s-3);
-  }
-  .goal-row + .goal-row {
-    border-top: 1px solid var(--border);
-  }
-  .at {
-    display: grid;
-    justify-items: center;
-    gap: 0.1rem;
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .at-time {
-    color: var(--fg);
-    font-size: 1.5rem;
-    line-height: 1;
-  }
-  .at-score {
-    color: var(--fg-subtle);
-    font-size: var(--text-xs);
-    font-weight: 600;
-  }
-  .scored {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    min-width: 0;
-    grid-column: 3;
-    grid-row: 1;
-  }
-  .home .scored {
-    flex-direction: row-reverse;
-    grid-column: 1;
-    text-align: right;
-  }
-  .who {
-    display: grid;
-    gap: 0.1rem;
-    min-width: 0;
-  }
-  .team-label {
-    overflow: hidden;
-    color: var(--fg-subtle);
-    font-size: var(--text-2xs);
-    font-weight: 600;
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .scorer {
-    overflow: hidden;
-    color: var(--fg);
-    font-weight: 600;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .assist {
-    overflow: hidden;
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    white-space: nowrap;
-    text-overflow: ellipsis;
   }
   .rosters {
     display: grid;

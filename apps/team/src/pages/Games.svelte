@@ -26,7 +26,7 @@
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { clock, londonToday } from "../lib/dates";
-  import { kickOff } from "../lib/fixtures";
+  import { kickOff, slotMinutes } from "../lib/fixtures";
 
   let { typeId }: { typeId: number } = $props();
 
@@ -137,7 +137,7 @@
           <span class="duty-title">Your team's turn to keep score</span>
           <span class="duty-sub"
             >Game {duty.position} · {vs(duty)}{duty.status === "next"
-              ? ` · ${clock(kickOff(tournament.startTime, tournament.gameMinutes, duty.position))}`
+              ? ` · ${clock(kickOff(tournament.startTime, slotMinutes(tournament), duty.position))}`
               : ""}</span
           >
         </span>

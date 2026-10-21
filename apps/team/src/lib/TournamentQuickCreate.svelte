@@ -184,6 +184,7 @@
       pointsLoss: type.pointsLoss,
       gameMinutes: type.gameMinutes,
       penaltyRule: type.penaltyRule,
+      periods: type.periods,
       kind: type.kind,
       awards: type.awards.map((a) => ({ ...a })),
       playoffs: (type.playoffs ?? []).map((g) => ({ ...g })),

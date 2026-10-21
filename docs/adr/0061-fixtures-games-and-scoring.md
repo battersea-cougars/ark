@@ -72,6 +72,24 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   moves the tournament: its day to today, its hours so this game kicks off now (the day as long as before), its
   sign-up and draft days no later than the new day (`startingNow`), using the same save an admin makes in settings.
 
+### Periods and the box score
+
+- **A game is 1 to 3 periods** (`periods`, a series setting beside the rules, as taps, copied onto each tournament
+  like the penalty rule; a new series and the Kumite have 1). Game minutes are the minutes in each period. A game's
+  slot on the day is its periods times those minutes, plus the break (`slotMinutes`), so kick-off times, starting
+  now and the schedule's words (`gameLength`: "games of 3 × 12-minute periods") follow it.
+- **The clock runs per period** (`tournament_games.period`). At zero, before the last period, the scorekeeper's phone
+  ends it (or End the period in Scoring's tools): the next starts paused at full length, and the screen says "2nd
+  period"; the clock action names the period it ends, so a second phone or a retry changes nothing. After the last
+  it's full time, as before. A sound at zero and scoring offline are still #45.
+- **Goals and penalties keep their period** beside the time into it (`period`, null with no time; an admin's after
+  the game says which). The penalty clock works in game time across the breaks (`inGameTime`), so a penalty late in
+  one period carries into the next.
+- **The box score** (`lib/BoxScore`, `lib/periods.ts` boxScore) is on the live page and the played game's matchup: a
+  row a team, its goals per period then T (just T for one period), tabular numbers, no rules between rows, the
+  winner bright and the loser faded as on the fight card; no shots (we don't count them). Under it, the goals and
+  penalties (`lib/GameTimeline`, shared by both pages) under each period's name, or no heading for one period.
+
 ### Penalties
 
 - **Kept the way goals are**: under each team's Goal, a quieter **Penalty** (a ghost button) opens a drawer, a tall
@@ -156,5 +174,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   Major 5), a penalty clock in game time beside each team that a power-play goal cuts short, taken back and put right
   like goals, and shown with the goals in time order (`tournament_penalties`). What for comes first and is always
   said; a player's infraction needs who, a bench one (too many players, delay of game, bench minor) may be on nobody,
-  and too many players and a bench minor are always 2 minutes. How it's served is a series setting copied onto each tournament: Power play, or a
-  penalty shot with the player sitting out (the Kumite).
+  and too many players and a bench minor are always 2 minutes. How it's served is a series setting copied onto each
+  tournament: Power play, or a penalty shot with the player sitting out (the Kumite). Periods (1 to 3, a series
+  setting copied onto each tournament): the clock runs per period, goals and penalties keep theirs, a game's slot is
+  all its periods, and a box score with the timeline by period on the live page and the matchup (#45, in part).

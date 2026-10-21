@@ -100,6 +100,8 @@ export interface TournamentType {
   gameMinutes: number;
   /** How a penalty's served (ADR 0061), copied onto each new edition. */
   penaltyRule: PenaltyRule;
+  /** A game's periods (1 to 3), each gameMinutes long (ADR 0061), copied onto each new edition. */
+  periods: number;
   /** How its tournaments make teams (ADR 0030). */
   kind: TournamentKind;
   active: boolean;
@@ -184,6 +186,8 @@ export interface Tournament extends Entries {
   gameMinutes: number;
   /** How a penalty's served, copied from its series (ADR 0061); left out on a save, it keeps what it was. */
   penaltyRule?: PenaltyRule;
+  /** A game's periods, each gameMinutes long, copied from its series (ADR 0061); left out, it keeps what it was. */
+  periods?: number;
   /** How it makes teams (ADR 0030): teams enter, or captains draft members. */
   kind: TournamentKind;
   awards: { name: string; about: string }[];
@@ -283,8 +287,17 @@ export interface TournamentGame {
   /** The game clock: time left when it last stopped, and when it was started again (null: stopped). */
   clockLeftMs?: number | null;
   clockStartedAt?: string | null;
-  /** Each goal as it went in, in order. */
-  goals?: { id: number; teamId: number; scorerId: number | null; assistId: number | null; atMs: number }[];
+  /** The period being played (ADR 0061): the clock counts each down in turn. */
+  period?: number;
+  /** Each goal as it went in, in order: its period and the time into it. */
+  goals?: {
+    id: number;
+    teamId: number;
+    scorerId: number | null;
+    assistId: number | null;
+    atMs: number;
+    period?: number | null;
+  }[];
   /** Each penalty as it was called, in order (lib/penalties.ts works out the penalty clock). */
   penalties?: GamePenalty[];
 }
@@ -298,6 +311,8 @@ export interface GamePenalty {
   /** lib/penalties.ts INFRACTIONS, or "" when nobody said. */
   infraction: string;
   atMs: number | null;
+  /** Which period (atMs is the time into it); null with no time. */
+  period?: number | null;
   recordedBy?: number | null;
 }
 

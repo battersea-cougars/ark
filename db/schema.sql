@@ -160,6 +160,8 @@ CREATE TABLE tournament_types (
   -- How a penalty's served (ADR 0061), copied onto each new edition: power_play (the box, a player short) or sit_out
   -- (a penalty shot, the player sits out, nobody short)
   penalty_rule TEXT NOT NULL DEFAULT 'power_play',
+  -- A game's periods (1 to 3), each game_minutes long (ADR 0061), copied onto each new edition
+  periods INTEGER NOT NULL DEFAULT 1,
   -- How its tournaments make teams (ADR 0030): teams (teams enter) or draft (captains draft members)
   kind TEXT NOT NULL DEFAULT 'teams',
   active INTEGER NOT NULL DEFAULT 1,
@@ -208,6 +210,8 @@ CREATE TABLE tournaments (
   game_minutes INTEGER NOT NULL DEFAULT 12,
   -- power_play or sit_out, copied from its series (ADR 0061)
   penalty_rule TEXT NOT NULL DEFAULT 'power_play',
+  -- A game's periods, each game_minutes long, copied from its series (ADR 0061)
+  periods INTEGER NOT NULL DEFAULT 1,
   -- teams (teams enter) or draft (captains draft members), copied from its series (ADR 0030)
   kind TEXT NOT NULL DEFAULT 'teams',
   awards TEXT NOT NULL DEFAULT '[]',
@@ -638,7 +642,9 @@ CREATE TABLE tournament_games (
   clock_left_ms INTEGER,
   clock_started_at TEXT,
   -- Who holds the scoresheet: whoever pressed Start scoring; nobody else scores it until they (or an admin) let go
-  keeper_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL
+  keeper_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  -- The period being played (ADR 0061): the clock counts down each one in turn
+  period INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX tournament_games_tournament ON tournament_games (tournament_id, position);
@@ -652,6 +658,8 @@ CREATE TABLE tournament_goals (
   assist_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
   -- When, in game time; NULL when nobody said (a result typed in, a goal an admin added without a time)
   at_ms INTEGER,
+  -- In which period (at_ms is the time into it); NULL with no time
+  period INTEGER,
   created_at TEXT NOT NULL
 );
 
@@ -669,6 +677,8 @@ CREATE TABLE tournament_penalties (
   infraction TEXT NOT NULL DEFAULT '',
   -- When, in game time; NULL when an admin added it after the game without a time
   at_ms INTEGER,
+  -- In which period (at_ms is the time into it); NULL with no time
+  period INTEGER,
   -- Who wrote it down: the scorekeeper, or an admin putting the result right
   recorded_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
   created_at TEXT NOT NULL

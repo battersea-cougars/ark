@@ -28,6 +28,8 @@ export interface Game {
   /** The game clock: time left when it last stopped, and when it was started again (null: stopped). */
   clockLeftMs: number | null;
   clockStartedAt: string | null;
+  /** The period being played (1 unless the tournament has more): the clock counts down each in turn. */
+  period: number;
   /** Each goal as it went in, in order. */
   goals: Goal[];
   /** Each penalty as it was called, in order. */
@@ -39,8 +41,10 @@ export interface Goal {
   teamId: number;
   scorerId: number | null;
   assistId: number | null;
-  /** When, in game time: null when nobody said (a result typed in). */
+  /** When, as time into its period: null when nobody said (a result typed in). */
   atMs: number | null;
+  /** Which period; null with no time. */
+  period: number | null;
 }
 
 export interface Penalty {
@@ -52,8 +56,9 @@ export interface Penalty {
   minutes: number;
   /** lib/penalties.ts INFRACTIONS, or "" when nobody said. */
   infraction: string;
-  /** When, in game time: null when an admin added it after without a time. */
+  /** When, as time into its period: null when an admin added it after without a time. */
   atMs: number | null;
+  period: number | null;
   recordedBy: number | null;
 }
 
@@ -67,15 +72,16 @@ export async function listGames(db: D1Database, tournamentId?: number): Promise<
       `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
               away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
               away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
-              keeper_member_id keeperId
+              keeper_member_id keeperId, period
        FROM tournament_games ${where} ORDER BY tournament_id, position`,
       args,
     ),
     statement(
       db,
-      `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs
+      `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs,
+              period
        FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games ${where})
-       ORDER BY at_ms IS NULL, at_ms, id`,
+       ORDER BY at_ms IS NULL, period, at_ms, id`,
       args,
     ),
     statement(
@@ -87,9 +93,9 @@ export async function listGames(db: D1Database, tournamentId?: number): Promise<
     statement(
       db,
       `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs,
-              recorded_by recordedBy
+              period, recorded_by recordedBy
        FROM tournament_penalties WHERE game_id IN (SELECT id FROM tournament_games ${where})
-       ORDER BY at_ms IS NULL, at_ms, id`,
+       ORDER BY at_ms IS NULL, period, at_ms, id`,
       args,
     ),
   ]);
@@ -135,13 +141,14 @@ export interface TournamentRow {
   draw: number;
   loss: number;
   gameMinutes: number;
+  periods: number;
 }
 
 export async function tournamentOf(db: D1Database, id: number) {
   const t = await first<TournamentRow>(
     db,
     `SELECT kind, draft_state draftState, playoffs, points_win win, points_draw draw, points_loss loss,
-            game_minutes gameMinutes
+            game_minutes gameMinutes, periods
      FROM tournaments WHERE id = ?`,
     [id],
   );

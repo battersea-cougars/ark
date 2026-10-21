@@ -9,6 +9,7 @@
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import { makeFixtures } from "../app/backend.svelte";
   import { BREAK_MINUTES } from "../lib/fixtures";
+  import { gameLength } from "../lib/periods";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import GameCard from "../lib/GameCard.svelte";
   import { listScroll } from "../lib/list-scroll";
@@ -56,7 +57,7 @@
   {#if tournament && games.length}
     <div class="head">
       <p class="hint num">
-        {tournament.gameMinutes}-minute games, {BREAK_MINUTES} minutes between, from {clock(tournament.startTime)}
+        {gameLength(tournament)}, {BREAK_MINUTES} minutes between, from {clock(tournament.startTime)}
       </p>
       {#if manage && !hasResult}
         <button class="btn ghost sm" onclick={() => makeFixtures(tournament.id)}>Make them again</button>
@@ -90,7 +91,7 @@
     </div>
   {:else}
     <EmptyState icon={type.slug === "kumite" ? "gong" : "calendar"} title="No fight card yet">
-      It's made once the teams are in: a round robin, {(tournament ?? type).gameMinutes}-minute games{then}.
+      It's made once the teams are in: a round robin, {gameLength(tournament ?? type)}{then}.
     </EmptyState>
   {/if}
 </div>

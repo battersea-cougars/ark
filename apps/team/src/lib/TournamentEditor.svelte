@@ -8,6 +8,7 @@
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
   import { PENALTY_RULE_OPTIONS } from "./penalties";
+  import { PERIOD_OPTIONS } from "./periods";
   import { createTournamentType, updateTournamentType } from "../app/backend.svelte";
   import { TOURNAMENT_KINDS, type TournamentType } from "../demo/model";
   import { db } from "../demo/store.svelte";
@@ -34,6 +35,7 @@
     pointsLoss: 0,
     gameMinutes: 12,
     penaltyRule: "power_play",
+    periods: 1,
     kind: "teams",
     active: true,
     defaultFeePence: 1500,
@@ -175,9 +177,18 @@
                   >A loss <input class="input num" type="number" min="0" bind:value={form.pointsLoss} /></label
                 >
                 <label class="field">
-                  Game length (minutes)
+                  Minutes a period
                   <input class="input num" type="number" min="1" max="90" bind:value={form.gameMinutes} />
                 </label>
+              </div>
+              <!-- A game's periods (ADR 0061): the clock runs per period, the slot on the day is all of them -->
+              <div class="field">
+                Periods
+                <Choice
+                  bind:value={() => String(form?.periods ?? 1), (v) => form && (form.periods = Number(v))}
+                  options={PERIOD_OPTIONS}
+                  aria-label="Periods"
+                />
               </div>
               <!-- How a penalty's served (ADR 0061): each new tournament copies it -->
               <div class="field">

@@ -7,9 +7,10 @@
 // as it happens.
 import { batch, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
-import { fillPlayoffs, listGames, tournamentOf, type Game } from "./fixtures";
+import { fillPlayoffs, listGames, tournamentOf, type Game, type TournamentRow } from "./fixtures";
 import { HttpError, int, oneOf } from "../api/api.http";
 import { INFRACTIONS, infractionOf, PENALTY_MINUTES } from "../../src/lib/penalties";
+import { periodName } from "../../src/lib/periods";
 
 interface Who {
   memberId: number;
@@ -83,7 +84,8 @@ const leftNow = (g: Game, now: Date) =>
 
 /**
  * The clock: start (or start again), pause, set (the time left, by the scorekeeper's watch: paused, or running on from
- * there), or end (full time: the score's the result).
+ * there), period (the period said is over: the next starts paused at full length; said twice, it's already done), or
+ * end (full time: the score's the result).
  */
 export async function clockGame(
   db: D1Database,
@@ -93,7 +95,7 @@ export async function clockGame(
   who: Who,
   now: Date,
 ) {
-  const action = oneOf(o, "action", ["start", "pause", "set", "end"] as const);
+  const action = oneOf(o, "action", ["start", "pause", "set", "period", "end"] as const);
   const { game, games } = await scorable(db, tournamentId, gameId, who);
   const t = await tournamentOf(db, tournamentId);
   if (action === "start") {
@@ -126,6 +128,19 @@ export async function clockGame(
     ]);
     return;
   }
+  if (action === "period") {
+    const ending = int(o, "period", { min: 1, max: 3 });
+    // Already moved on (another phone, a retry): nothing to do
+    if (ending < game.period) return;
+    if (ending > game.period) throw new HttpError(409, `It's the ${periodName(game.period)} period.`);
+    if (game.period >= t.periods) throw new HttpError(409, "That's the last period: call full time.");
+    await run(
+      db,
+      "UPDATE tournament_games SET period = period + 1, clock_left_ms = ?, clock_started_at = NULL WHERE id = ?",
+      [t.gameMinutes * 60_000, gameId],
+    );
+    return;
+  }
   if (action === "pause") {
     if (!game.clockStartedAt) return;
     await run(db, "UPDATE tournament_games SET clock_left_ms = ?, clock_started_at = NULL WHERE id = ?", [
@@ -144,6 +159,13 @@ export async function clockGame(
   );
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
+
+/**
+ * Which period a goal or penalty was in: the one being played, or for an admin's after the game, the one they say (the
+ * 1st unless said), none with no time.
+ */
+const periodOf = (o: Record<string, unknown>, done: boolean, atMs: number | null, game: Game, t: TournamentRow) =>
+  !done ? game.period : atMs === null ? null : o.period == null ? 1 : int(o, "period", { min: 1, max: t.periods });
 
 /** Someone on this team: its captain or one of its players. */
 const onTeam = (db: D1Database, teamId: number, memberId: number) =>
@@ -204,9 +226,9 @@ export async function addGoal(
     : t.gameMinutes * 60_000 - leftNow(game, now);
   await run(
     db,
-    `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [gameId, teamId, scorerId, assistId, atMs, now.toISOString()],
+    `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [gameId, teamId, scorerId, assistId, atMs, periodOf(o, done, atMs, game, t), now.toISOString()],
   );
   if (done) await corrected(db, tournamentId, game);
   else await recount(db, game);
@@ -277,9 +299,20 @@ export async function addPenalty(
     : t.gameMinutes * 60_000 - leftNow(game, now);
   await run(
     db,
-    `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, recorded_by, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [gameId, teamId, memberId, minutes, infraction.value, atMs, who.memberId, now.toISOString()],
+    `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, period, recorded_by,
+       created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      gameId,
+      teamId,
+      memberId,
+      minutes,
+      infraction.value,
+      atMs,
+      periodOf(o, done, atMs, game, t),
+      who.memberId,
+      now.toISOString(),
+    ],
   );
 }
 

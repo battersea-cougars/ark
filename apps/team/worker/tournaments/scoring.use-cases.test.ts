@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 /** A cup three teams entered, each captained by a member, with its fixtures made (and its playoffs, if any). */
-async function cup(playoffs: { name: string; home: number; away: number }[] = []) {
+async function cup(playoffs: { name: string; home: number; away: number }[] = [], extra: object = {}) {
   const dana = await w.signedIn("dana@example.com");
   const sees = async (as = dana, now = NOW) =>
     (await as.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
@@ -41,6 +41,7 @@ async function cup(playoffs: { name: string; home: number; away: number }[] = []
     feePence: 0,
     kind: "teams",
     playoffs,
+    ...extra,
     teams: Object.entries(captains).map(([name, captainMemberId]) => ({
       name,
       logo: null,
@@ -620,5 +621,97 @@ describe("how a penalty's served is the series' setting, copied onto each tourna
     const dana = await w.signedIn("dana@example.com");
     const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
     expect(boot.tournamentTypes.find((t: Json) => t.slug === "kumite").penaltyRule).toBe("sit_out");
+  });
+});
+
+describe("periods: the clock runs per period, and goals and penalties say which", () => {
+  it("a series sets its periods (1 to 3), and its tournaments copy them", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const series = {
+      name: "Three Cup",
+      shortName: "Three",
+      icon: "trophy",
+      tone: "green",
+      kind: "teams",
+      pointsWin: 3,
+      pointsDraw: 1,
+      pointsLoss: 0,
+      gameMinutes: 12,
+      active: true,
+      defaultFeePence: 0,
+      awards: [],
+      location: "",
+    };
+    let res = await dana.call("POST", "/api/tournament-types", series);
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === res.body.id).periods).toBe(1);
+    res = await dana.call("POST", "/api/tournament-types", { ...series, name: "Three 2", periods: 3 });
+    const three = res.body.id;
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === three).periods).toBe(3);
+    expect((await dana.call("POST", "/api/tournament-types", { ...series, name: "Four", periods: 4 })).status).toBe(
+      400,
+    );
+    res = await dana.call("POST", "/api/tournaments", {
+      typeId: three,
+      name: "Three 2026",
+      location: "",
+      heldOn: "2026-12-12",
+      startTime: "10:00",
+      endTime: "15:00",
+      status: "planned",
+      feePence: 0,
+    });
+    expect((await sees()).tournaments.find((t: Json) => t.id === res.body.id).periods).toBe(3);
+    // The Kumite's one period
+    expect((await sees()).tournamentTypes.find((t: Json) => t.slug === "kumite").periods).toBe(1);
+  });
+
+  it("at the end of the 1st, the 2nd starts paused at full length; goals carry their period; full time after the 3rd", async () => {
+    const { first, keeperOf, clock, goal, tournament, gameMinutes, id } = await cup([], { periods: 3 });
+    const keeper = await keeperOf(first);
+    const period = (who: { call: Json }, p: number, now: Date) =>
+      who.call("POST", `/api/tournaments/${id}/games/${first.id}/clock`, { action: "period", period: p }, { now });
+    const game = async (now: Date) => (await tournament(undefined, now)).games.find((x: Json) => x.id === first.id);
+    await clock(keeper, first.id, "start", at(0));
+    await goal(keeper, first.id, { teamId: first.homeTeamId }, at(3));
+    expect((await game(at(3))).period).toBe(1);
+    // Time's up in the 1st: on to the 2nd, paused, the full length again
+    expect((await period(keeper, 1, at(gameMinutes))).status).toBe(200);
+    let g = await game(at(gameMinutes + 1));
+    expect(g).toMatchObject({ status: "live", period: 2, clockStartedAt: null, clockLeftMs: gameMinutes * 60_000 });
+    // Sent twice (two phones, a retry): still the 2nd
+    expect((await period(keeper, 1, at(gameMinutes + 1))).status).toBe(200);
+    expect((await game(at(gameMinutes + 1))).period).toBe(2);
+    await clock(keeper, first.id, "start", at(20));
+    await goal(keeper, first.id, { teamId: first.awayTeamId }, at(22));
+    g = await game(at(22));
+    expect(g.goals.map((x: Json) => [x.period, x.atMs])).toEqual([
+      [1, 3 * 60_000],
+      [2, 2 * 60_000],
+    ]);
+    // Only the scorekeeper
+    const mo = await w.signedIn("mo@example.com");
+    expect((await period(mo, 2, at(23))).status).toBe(403);
+    expect((await period(keeper, 2, at(23))).status).toBe(200);
+    // The last: there's no 4th; full time ends it
+    expect((await period(keeper, 3, at(40))).status).toBe(409);
+    expect((await clock(keeper, first.id, "end", at(40))).status).toBe(200);
+    expect(await game(at(40))).toMatchObject({ status: "done", period: 3, homeGoals: 1, awayGoals: 1 });
+  });
+
+  it("a penalty carries its period too", async () => {
+    const { first, keeperOf, clock, penalty, tournament, id, gameMinutes } = await cup([], { periods: 2 });
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    await keeper.call(
+      "POST",
+      `/api/tournaments/${id}/games/${first.id}/clock`,
+      { action: "period", period: 1 },
+      { now: at(gameMinutes) },
+    );
+    await clock(keeper, first.id, "start", at(15));
+    await penalty(keeper, first.id, { teamId: first.homeTeamId, infraction: "delay-of-game" }, at(16));
+    const g = (await tournament(undefined, at(16))).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties).toEqual([expect.objectContaining({ period: 2, atMs: 60_000 })]);
   });
 });

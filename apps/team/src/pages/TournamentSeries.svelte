@@ -7,6 +7,7 @@
   // Settings → Tournament Series: a kind of tournament the club runs again and again (The Cougars Kumite), as a card.
   // Its defaults (rules, fee, location, awards, look) are set once here; a new tournament that picks the series
   // starts from them (Settings → Tournaments). A series gets its own section in the menu.
+  import { gameLength } from "../lib/periods";
   import { saving } from "../app/backend.svelte";
   import { kindLabel } from "../demo/model";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -30,7 +31,7 @@
         next: typePlace(t)?.name ?? "No usual location",
         nextLabel: "At",
         lines: [
-          `Win ${t.pointsWin} · Draw ${t.pointsDraw} · Loss ${t.pointsLoss} · ${t.gameMinutes}-minute games`,
+          `Win ${t.pointsWin} · Draw ${t.pointsDraw} · Loss ${t.pointsLoss} · ${gameLength(t)}`,
           `${pounds(t.defaultFeePence) || "Free"} to enter · ${mine.length} ${mine.length === 1 ? "tournament" : "tournaments"}`,
         ],
       };
