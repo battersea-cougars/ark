@@ -185,6 +185,7 @@
       gameMinutes: type.gameMinutes,
       penaltyRule: type.penaltyRule,
       periods: type.periods,
+      defaultPenaltyMinutes: type.defaultPenaltyMinutes,
       kind: type.kind,
       awards: type.awards.map((a) => ({ ...a })),
       playoffs: (type.playoffs ?? []).map((g) => ({ ...g })),

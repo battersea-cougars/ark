@@ -78,8 +78,8 @@ INSERT OR IGNORE INTO training_sessions (id, series_id, held_on, moved_from, sta
   (40, 1, '2026-10-02', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- tournament_types
-INSERT OR IGNORE INTO tournament_types (id, slug, name, short_name, icon, tone, format, points_win, points_draw, points_loss, game_minutes, penalty_rule, periods, kind, active, default_fee_pence, awards, venue_id, location, default_start_time, default_end_time) VALUES
-  (1, 'kumite', 'The Cougars Kumite', 'Kumite', 'swords', 'red', 'round_robin', 3, 1, 0, 12, 'sit_out', 1, 'draft', 1, 0, '[{"name":"Champions","about":"The team on top of the table at the end of the day."},{"name":"Top scorer","about":"Most goals across every game."},{"name":"Best goalie","about":"Voted by the skaters they stopped."},{"name":"The Dim Mak","about":"Fastest goal from a faceoff. One touch. Lights out."}]', 1, '', '19:30', '21:30');
+INSERT OR IGNORE INTO tournament_types (id, slug, name, short_name, icon, tone, format, points_win, points_draw, points_loss, game_minutes, penalty_rule, default_penalty_minutes, periods, kind, active, default_fee_pence, awards, venue_id, location, default_start_time, default_end_time) VALUES
+  (1, 'kumite', 'The Cougars Kumite', 'Kumite', 'swords', 'red', 'round_robin', 3, 1, 0, 12, 'sit_out', 2, 1, 'draft', 1, 0, '[{"name":"Champions","about":"The team on top of the table at the end of the day."},{"name":"Top scorer","about":"Most goals across every game."},{"name":"Best goalie","about":"Voted by the skaters they stopped."},{"name":"The Dim Mak","about":"Fastest goal from a faceoff. One touch. Lights out."}]', 1, '', '19:30', '21:30');
 
 -- quips
 INSERT OR IGNORE INTO quips (id, kind, text) VALUES

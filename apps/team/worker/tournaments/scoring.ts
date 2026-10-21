@@ -258,7 +258,7 @@ export async function undoGoal(db: D1Database, tournamentId: number, gameId: num
 /**
  * A penalty, kept the way goals are: as it's called (the scorekeeper, the game on, timed by the clock), or one missed
  * on the day (an admin, the game over, at the time they say or none). Its team; who (optional: a bench penalty, or
- * on that team; a bench infraction may be on nobody); 2, 4 or 5 minutes (2 unless said; some only 2); what for (always).
+ * on that team; a bench infraction may be on nobody); 2, 4 or 5 minutes (the tournament's usual length unless said; some only 2); what for (always).
  */
 export async function addPenalty(
   db: D1Database,
@@ -278,9 +278,6 @@ export async function addPenalty(
   const memberId = o.memberId == null ? null : int(o, "memberId");
   if (memberId !== null && !(await onTeam(db, teamId, memberId).first()))
     throw new HttpError(400, "They're not on that team.");
-  const minutes = o.minutes == null ? 2 : int(o, "minutes");
-  if (!(PENALTY_MINUTES as readonly number[]).includes(minutes))
-    throw new HttpError(400, "A penalty's 2, 4 (a double minor) or 5 minutes.");
   // Always for something; a player's infraction is on someone, a bench one may be on nobody
   const infraction = infractionOf(
     oneOf(
@@ -290,8 +287,12 @@ export async function addPenalty(
     ),
   )!;
   if (!infraction.bench && memberId === null) throw new HttpError(400, "Who's it on?");
-  if (infraction.minorOnly && minutes !== 2) throw new HttpError(400, `${infraction.label} is a minor: 2 minutes.`);
   const t = await tournamentOf(db, tournamentId);
+  // Unless said, the tournament's usual length (a minor-only infraction is always 2)
+  const minutes = o.minutes != null ? int(o, "minutes") : infraction.minorOnly ? 2 : t.defaultPenaltyMinutes;
+  if (!(PENALTY_MINUTES as readonly number[]).includes(minutes))
+    throw new HttpError(400, "A penalty's 2, 4 (a double minor) or 5 minutes.");
+  if (infraction.minorOnly && minutes !== 2) throw new HttpError(400, `${infraction.label} is a minor: 2 minutes.`);
   const atMs = done
     ? o.atMs == null
       ? null

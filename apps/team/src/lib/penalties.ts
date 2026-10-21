@@ -60,6 +60,12 @@ export const PENALTY_KINDS = [
   { minutes: 4, name: "Double minor", length: "2+2 min" },
   { minutes: 5, name: "Major", length: "5 min" },
 ] as const;
+/** The usual length, a series' setting each tournament copies (ADR 0061): the penalty sheet starts on it. */
+export const PENALTY_LENGTH_OPTIONS = PENALTY_KINDS.map((k) => ({
+  value: String(k.minutes),
+  label: k.name,
+  hint: k.length,
+}));
 /** A minor or a double minor: a power-play goal cuts it short. A major is served in full. */
 const isMinor = (minutes: number) => minutes === 2 || minutes === 4;
 

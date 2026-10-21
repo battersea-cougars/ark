@@ -100,7 +100,9 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
     bench minor) may be on nobody, a **Bench** penalty; too many players and a bench minor start on Bench and are
     always a minor (the other lengths off; the Worker refuses them).
   - **Who**: Bench, then that team's players.
-  - **Length**: Minor 2, Double minor 4 as 2+2, Major 5; Minor unless said; no tournament setting yet.
+  - **Length**: Minor 2, Double minor 4 as 2+2, Major 5. The sheet starts on the **usual penalty**
+    (`default_penalty_minutes`), a series setting beside Penalties, copied onto each tournament (a new series and the
+    Kumite: Minor); the Worker takes it when none is said. Too many players and a bench minor stay 2.
 
   It's stamped with the game clock. The same rules as a goal: only whoever holds the scoresheet while it's on; once
   it's over, only an admin, at the time they say or none.
@@ -178,3 +180,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   tournament: Power play, or a penalty shot with the player sitting out (the Kumite). Periods (1 to 3, a series
   setting copied onto each tournament): the clock runs per period, goals and penalties keep theirs, a game's slot is
   all its periods, and a box score with the timeline by period on the live page and the matchup (#45, in part).
+- 2026-10-21: The usual penalty length (Minor 2, Double minor 2+2, Major 5) is a series setting copied onto each
+  tournament; the penalty sheet starts on it, and a penalty called without a length takes it.

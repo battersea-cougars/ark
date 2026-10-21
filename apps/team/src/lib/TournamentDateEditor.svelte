@@ -36,7 +36,7 @@
   import PersonPicker from "./PersonPicker.svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
-  import { PENALTY_RULE_OPTIONS, type PenaltyRule } from "./penalties";
+  import { PENALTY_LENGTH_OPTIONS, PENALTY_RULE_OPTIONS, type PenaltyRule } from "./penalties";
   import { PERIOD_OPTIONS } from "./periods";
   import DateField from "../lib/DateField.svelte";
   import TeamCard from "./TeamCard.svelte";
@@ -93,6 +93,7 @@
     gameMinutes: number;
     penaltyRule: PenaltyRule;
     periods: number;
+    defaultPenaltyMinutes: number;
     kind: TournamentKind;
     awards: { name: string; about: string }[];
     playoffs: Playoff[];
@@ -134,6 +135,7 @@
         gameMinutes: t.gameMinutes,
         penaltyRule: t.penaltyRule ?? "power_play",
         periods: t.periods ?? 1,
+        defaultPenaltyMinutes: t.defaultPenaltyMinutes ?? 2,
         kind: t.kind,
         awards: t.awards.map((a) => ({ ...a })),
         playoffs: (t.playoffs ?? []).map((g) => ({ ...g })),
@@ -167,6 +169,7 @@
       gameMinutes: 12,
       penaltyRule: "power_play",
       periods: 1,
+      defaultPenaltyMinutes: 2,
       kind: "teams",
       awards: [],
       playoffs: [],
@@ -208,6 +211,7 @@
     date.gameMinutes = t.gameMinutes;
     date.penaltyRule = t.penaltyRule;
     date.periods = t.periods;
+    date.defaultPenaltyMinutes = t.defaultPenaltyMinutes;
     date.kind = t.kind;
     date.awards = t.awards.map((a) => ({ ...a }));
     date.playoffs = (t.playoffs ?? []).map((g) => ({ ...g }));
@@ -356,6 +360,7 @@
     gameMinutes: d.gameMinutes,
     penaltyRule: d.penaltyRule,
     periods: d.periods,
+    defaultPenaltyMinutes: d.defaultPenaltyMinutes,
     kind: d.kind,
     awards: d.awards.filter((a) => a.name.trim()),
     playoffs: d.playoffs.filter((g) => g.name.trim()),
@@ -502,6 +507,14 @@
             <div class="field">
               Penalties
               <Choice bind:value={date.penaltyRule} options={PENALTY_RULE_OPTIONS} aria-label="Penalties" />
+            </div>
+            <div class="field">
+              Usual penalty
+              <Choice
+                bind:value={() => String(date.defaultPenaltyMinutes), (v) => (date.defaultPenaltyMinutes = Number(v))}
+                options={PENALTY_LENGTH_OPTIONS}
+                aria-label="Usual penalty"
+              />
             </div>
           </FormSection>
           <FormSection title="Playoffs" description="After the round robin, by place in the table.">

@@ -142,13 +142,15 @@ export interface TournamentRow {
   loss: number;
   gameMinutes: number;
   periods: number;
+  /** The length a penalty's called at unless said (ADR 0061). */
+  defaultPenaltyMinutes: number;
 }
 
 export async function tournamentOf(db: D1Database, id: number) {
   const t = await first<TournamentRow>(
     db,
     `SELECT kind, draft_state draftState, playoffs, points_win win, points_draw draw, points_loss loss,
-            game_minutes gameMinutes, periods
+            game_minutes gameMinutes, periods, default_penalty_minutes defaultPenaltyMinutes
      FROM tournaments WHERE id = ?`,
     [id],
   );

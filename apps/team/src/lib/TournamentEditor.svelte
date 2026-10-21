@@ -7,7 +7,7 @@
   import { tick } from "svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
-  import { PENALTY_RULE_OPTIONS } from "./penalties";
+  import { PENALTY_LENGTH_OPTIONS, PENALTY_RULE_OPTIONS } from "./penalties";
   import { PERIOD_OPTIONS } from "./periods";
   import { createTournamentType, updateTournamentType } from "../app/backend.svelte";
   import { TOURNAMENT_KINDS, type TournamentType } from "../demo/model";
@@ -36,6 +36,7 @@
     gameMinutes: 12,
     penaltyRule: "power_play",
     periods: 1,
+    defaultPenaltyMinutes: 2,
     kind: "teams",
     active: true,
     defaultFeePence: 1500,
@@ -194,6 +195,18 @@
               <div class="field">
                 Penalties
                 <Choice bind:value={form.penaltyRule} options={PENALTY_RULE_OPTIONS} aria-label="Penalties" />
+              </div>
+              <!-- The length the penalty sheet starts on (ADR 0061); too many players and a bench minor stay 2 -->
+              <div class="field">
+                Usual penalty
+                <Choice
+                  bind:value={
+                    () => String(form?.defaultPenaltyMinutes ?? 2),
+                    (v) => form && (form.defaultPenaltyMinutes = Number(v))
+                  }
+                  options={PENALTY_LENGTH_OPTIONS}
+                  aria-label="Usual penalty"
+                />
               </div>
             </FormSection>
             <FormSection title="Playoffs" description="After the round robin, by place in the table.">

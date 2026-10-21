@@ -624,6 +624,66 @@ describe("how a penalty's served is the series' setting, copied onto each tourna
   });
 });
 
+describe("the usual penalty length is the series' setting, copied onto each tournament", () => {
+  const SERIES = {
+    name: "Rough Cup",
+    shortName: "Rough",
+    icon: "trophy",
+    tone: "green",
+    kind: "teams",
+    pointsWin: 3,
+    pointsDraw: 1,
+    pointsLoss: 0,
+    gameMinutes: 12,
+    active: true,
+    defaultFeePence: 0,
+    awards: [],
+    location: "",
+  };
+
+  it("an admin sets it on a series (Minor 2, Double minor 2+2, Major 5); a new series is a Minor; its tournaments copy it", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    let res = await dana.call("POST", "/api/tournament-types", SERIES);
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === res.body.id).defaultPenaltyMinutes).toBe(2);
+    res = await dana.call("POST", "/api/tournament-types", { ...SERIES, name: "Major Cup", defaultPenaltyMinutes: 5 });
+    const major = res.body.id;
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === major).defaultPenaltyMinutes).toBe(5);
+    expect(
+      (await dana.call("POST", "/api/tournament-types", { ...SERIES, name: "Odd", defaultPenaltyMinutes: 3 })).status,
+    ).toBe(400);
+    res = await dana.call("POST", "/api/tournaments", {
+      typeId: major,
+      name: "Major Cup 2026",
+      location: "",
+      heldOn: "2026-12-12",
+      startTime: "10:00",
+      endTime: "15:00",
+      status: "planned",
+      feePence: 0,
+    });
+    const t = res.body.id;
+    expect((await sees()).tournaments.find((x: Json) => x.id === t).defaultPenaltyMinutes).toBe(5);
+    const own = (await sees()).tournaments.find((x: Json) => x.id === t);
+    expect(
+      (await dana.call("PUT", `/api/tournaments/${t}`, { ...own, teams: [], defaultPenaltyMinutes: 4 })).status,
+    ).toBe(200);
+    expect((await sees()).tournaments.find((x: Json) => x.id === t).defaultPenaltyMinutes).toBe(4);
+    expect((await sees()).tournamentTypes.find((x: Json) => x.slug === "kumite").defaultPenaltyMinutes).toBe(2);
+  });
+
+  it("a penalty called without its length is the tournament's usual one; too many players is still 2", async () => {
+    const { first, keeperOf, clock, penalty, captainOf, tournament } = await cup([], { defaultPenaltyMinutes: 5 });
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    const dan = captainOf(first.homeTeamId);
+    await penalty(keeper, first.id, { teamId: first.homeTeamId, memberId: dan, infraction: "roughing" }, at(1));
+    await penalty(keeper, first.id, { teamId: first.awayTeamId, infraction: "too-many-players" }, at(2));
+    const g = (await tournament(undefined, at(2))).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties.map((p: Json) => p.minutes)).toEqual([5, 2]);
+  });
+});
+
 describe("periods: the clock runs per period, and goals and penalties say which", () => {
   it("a series sets its periods (1 to 3), and its tournaments copy them", async () => {
     const dana = await w.signedIn("dana@example.com");

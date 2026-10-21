@@ -102,6 +102,8 @@ export interface TournamentType {
   penaltyRule: PenaltyRule;
   /** A game's periods (1 to 3), each gameMinutes long (ADR 0061), copied onto each new edition. */
   periods: number;
+  /** The penalty sheet's usual length (2, 4 or 5, ADR 0061), copied onto each new edition. */
+  defaultPenaltyMinutes: number;
   /** How its tournaments make teams (ADR 0030). */
   kind: TournamentKind;
   active: boolean;
@@ -188,6 +190,8 @@ export interface Tournament extends Entries {
   penaltyRule?: PenaltyRule;
   /** A game's periods, each gameMinutes long, copied from its series (ADR 0061); left out, it keeps what it was. */
   periods?: number;
+  /** The penalty sheet's usual length, copied from its series (ADR 0061); left out, it keeps what it was. */
+  defaultPenaltyMinutes?: number;
   /** How it makes teams (ADR 0030): teams enter, or captains draft members. */
   kind: TournamentKind;
   awards: { name: string; about: string }[];

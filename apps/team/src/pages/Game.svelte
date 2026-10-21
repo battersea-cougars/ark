@@ -285,23 +285,27 @@
     picking = null;
     act(() => addGoal(tournament.id, game.id, goal));
   }
-  // A penalty: the team, then who (or nobody: a bench penalty), the minutes (2 unless said) and what for (or not
+  // A penalty: what for, then who (or nobody: a bench penalty), the minutes (the tournament's usual length unless
   // said); an admin's, then when. One drawer, every choice a tap
   let calling = $state<{ team: number; memberId: number | null; minutes: number; infraction: string } | null>(null);
   const callPenalty = (team: number) => {
-    calling = { team, memberId: null, minutes: 2, infraction: "" };
+    calling = { team, memberId: null, minutes: usualPenalty, infraction: "" };
     whenMin = 0;
     whenSec = 0;
     whenPeriod = 1;
   };
-  // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes
+  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0061)
+  const usualPenalty = $derived(tournament?.defaultPenaltyMinutes ?? 2);
+  // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes; back from one,
+  // the usual length again
   function pickInfraction(f: (typeof INFRACTIONS)[number]) {
     if (!calling) return;
+    const was = infractionOf(calling.infraction);
     calling.infraction = f.value;
     if (f.minorOnly) {
       calling.memberId = null;
       calling.minutes = 2;
-    }
+    } else if (was?.minorOnly) calling.minutes = usualPenalty;
   }
   // Always for something; a player's infraction on someone (lib/penalties.ts, as the Worker checks)
   const callNeeds = $derived.by(() => {

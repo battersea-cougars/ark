@@ -160,6 +160,9 @@ CREATE TABLE tournament_types (
   -- How a penalty's served (ADR 0061), copied onto each new edition: power_play (the box, a player short) or sit_out
   -- (a penalty shot, the player sits out, nobody short)
   penalty_rule TEXT NOT NULL DEFAULT 'power_play',
+  -- The penalty length the penalty sheet starts on (ADR 0061), copied onto each new edition: 2 (a minor), 4 (a double
+  -- minor, 2+2) or 5 (a major)
+  default_penalty_minutes INTEGER NOT NULL DEFAULT 2,
   -- A game's periods (1 to 3), each game_minutes long (ADR 0061), copied onto each new edition
   periods INTEGER NOT NULL DEFAULT 1,
   -- How its tournaments make teams (ADR 0030): teams (teams enter) or draft (captains draft members)
@@ -210,6 +213,8 @@ CREATE TABLE tournaments (
   game_minutes INTEGER NOT NULL DEFAULT 12,
   -- power_play or sit_out, copied from its series (ADR 0061)
   penalty_rule TEXT NOT NULL DEFAULT 'power_play',
+  -- 2, 4 or 5: the penalty sheet's usual length, copied from its series (ADR 0061)
+  default_penalty_minutes INTEGER NOT NULL DEFAULT 2,
   -- A game's periods, each game_minutes long, copied from its series (ADR 0061)
   periods INTEGER NOT NULL DEFAULT 1,
   -- teams (teams enter) or draft (captains draft members), copied from its series (ADR 0030)
