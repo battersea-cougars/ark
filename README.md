@@ -101,6 +101,7 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`FIREBASE_IOS_CONFIG`](#store-app)                                       | `cougars-dev` | Firebase                    | Store app builds (`store.yml`)            |
 | [`APNS_KEY`](#store-app)                                                  | `cougars-dev` | Apple, Developer → Keys     | Nothing (backup of Firebase's copy)       |
 | [`APNS_KEY_ID`](#store-app)                                               | `cougars-dev` | Apple, Developer → Keys     | Nothing (backup of Firebase's copy)       |
+| [`VAPID_PRIVATE_KEY`](#web-push)                                          | `cougars-dev` | Made by `webpush-setup.mjs` | Team app (both): browser notifications    |
 | [`APP_REVIEW_EMAIL__PRODUCTION`](#store-app)                              | `cougars`     | (us)                        | Team app (production): App Review         |
 | [`APP_REVIEW_CODE__PRODUCTION`](#store-app)                               | `cougars`     | (random, made once)         | Team app (production): App Review         |
 | [`SENTRY_AUTH_TOKEN`](#sentry)                                            | `cougars-dev` | Sentry, developer account   | Deploys (source maps), `sentry-setup.mjs` |
@@ -469,6 +470,24 @@ Review. One copy each (production reads `cougars-dev` too) but the App Review pa
   `APPLE_TEAM_ID`, the App Review pair) on the team Worker as secrets.
 - **Android, later:** `PLAY_SERVICE_ACCOUNT` (Play Console upload), `PLAY_UPLOAD_KEY` and `FIREBASE_ANDROID_CONFIG`
   join these (ADR 0108).
+
+### Web Push
+
+Notifications in a browser ([ADR 0108](docs/adr/0108-store-apps.md), #24): Android's Chrome or Firefox, a desktop, an
+iPhone with the app on its Home Screen. The team Worker sends straight to each browser's push service
+(`worker/push/webpush.ts`), signed with the club's VAPID key pair. No account anywhere: the key pair is all there is.
+
+- **`VAPID_PRIVATE_KEY`:** the pair's private key (P-256, its 32-byte `d`, base64url). Its public key is no secret:
+  `VAPID_PUBLIC_KEY` in `apps/team/wrangler.jsonc`'s vars, which the Worker reads and the app's build bakes in. One pair
+  for dev and production (production reads `cougars-dev` too): a browser's subscription belongs to the origin that
+  made it, so the two never share one. Made, private key straight into Bitwarden and public key into
+  `wrangler.jsonc`, by `node scripts/webpush-setup.mjs` (safe to run again: with both in place it only checks they're a
+  pair); commit `wrangler.jsonc` after. **A leaked key could** send notifications to members' browsers, but only
+  given their subscriptions too, which are only in the club's database. Rotate: delete the secret, run the script,
+  commit, deploy; each browser takes the new key the next time it opens the app (until then its sends fail and are
+  logged).
+- **Gets there by:** CI pull from Secrets Manager; `deploy.yml` puts it on the team Worker as a secret. On your
+  machine, the team app's dev server has it when started with dev secrets (`npm run app`), so `localhost` can try it.
 
 ### Sentry
 

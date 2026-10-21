@@ -20,6 +20,12 @@
   // Hourly: the usage check emails the admins once a day if the free allowance passes 80% (ADR 0059). Every five
   // minutes: a wanted website rebuild, once it's quiet (worker/website/website.ts, ADR 0100). Both free.
   "triggers": { "crons": ["7 * * * *", "*/5 * * * *"] },
-  // The club's GitHub App, which asks for website rebuilds (README#github_app_private_key). Not secret; its key is.
-  "vars": { "GITHUB_APP_CLIENT_ID": "Iv23liuUhxYcTesso0TW", "GITHUB_APP_INSTALLATION_ID": "169599165" },
+  "vars": {
+    // The club's GitHub App, which asks for website rebuilds (README#github_app_private_key). Not secret; its key is.
+    "GITHUB_APP_CLIENT_ID": "Iv23liuUhxYcTesso0TW",
+    "GITHUB_APP_INSTALLATION_ID": "169599165",
+    // Web Push's public key (README#web-push, scripts/webpush-setup.mjs), for the Worker's signature and the app's
+    // subscriptions (vite.config.ts builds it in). Not secret; VAPID_PRIVATE_KEY is.
+    "VAPID_PUBLIC_KEY": "BAbNPSsLBAU6J1q8lELDWYGUBw289EtNIThpgCI5TV1vQ1b5AE3Q_EX9zPnInSgf1NfEOIjHQbIEewYECJFP78M",
+  },
 }

@@ -9,6 +9,9 @@ import { takeOverPort } from "../../scripts/lib/dev-server.mjs";
 const PORT = 4510;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
 const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
+// Web Push's public key (README#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
+const VAPID_PUBLIC_KEY =
+  readFileSync(new URL("wrangler.jsonc", import.meta.url), "utf8").match(/"VAPID_PUBLIC_KEY":\s*"([^"]*)"/)?.[1] ?? "";
 
 // Port 4510 is the team app's (README, Ports). strictPort: never drift onto another project's port. Under the show
 // switch (`npm run team`, ADR 0115) it runs on a private port given as --port, and 4510 forwards to it.
@@ -22,6 +25,7 @@ export default defineConfig(({ command }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_BUILD__: JSON.stringify(command === "serve" ? "dev" : buildId()),
+    __VAPID_PUBLIC_KEY__: JSON.stringify(VAPID_PUBLIC_KEY),
   },
   plugins: [
     oneDevServer(PORT),
@@ -41,6 +45,10 @@ export default defineConfig(({ command }) => ({
                 // The Usage page (ADR 0059), when started through env-pull: in memory, never in a file
                 CLOUDFLARE_ANALYTICS_TOKEN: process.env.CLOUDFLARE_ANALYTICS_TOKEN ?? "",
                 CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+                // Web Push from your machine to your own browser (localhost may subscribe): the private key only when
+                // started through env-pull, in memory
+                VAPID_PUBLIC_KEY,
+                VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? "",
               },
             }
           : undefined,
