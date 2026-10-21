@@ -74,9 +74,10 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   players left, and what isn't picking is small or behind a tap. One line says whose pick it is, one under it who's
   next and a captain's own place ("You pick 2nd"), one the last pick. Rules, the pick log and **Manage** (Undo, Add
   player, Close, Reset: a bottom sheet on a phone, a side drawer on a desktop, asking there before closing with
-  players left or a reset) are icons on that first line. On a phone the series' header drops its date lines, the
-  ticker stays (the picks at a glance), and the players scroll inside the window's height (`.page.fit`), starting
-  high. A closed draft keeps Reopen and Make the fixtures on the page.
+  players left or a reset) are icons on that first line. On a phone the series' header goes altogether (the page's
+  tabs say where you are), the last pick is one small line ("Last: Dana picked Reg for Team Cara"), the ticker stays,
+  shorter, the tabs and chips are a size smaller, and the players scroll inside the window's height (`.page.fit`),
+  starting about a third of the way down. A closed draft keeps Reopen and Make the fixtures on the page.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).
 - The tournament editor changes teams **in place** (by id), never writes a draft's players or its pick order, and
@@ -132,3 +133,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   who made it (`picked_by`) and says so everywhere, and on the record. Once the draft's on the Draft page gives the
   room to the picking: the order folds away onto the team cards, the admin's buttons go behind Manage, and on a phone
   the players scroll inside the window.
+- 2026-10-21: More room on a phone once it's on: no series header, whose pick, who's next and your place in two tight
+  lines, the last pick one small line, a shorter ticker, smaller tabs and chips, half the gaps; the players start at
+  about a third of the screen. A desktop tightens the lines under the tabs, which don't move.

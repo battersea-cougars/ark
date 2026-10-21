@@ -155,6 +155,8 @@
   // Only the ticker scrolls: scrollIntoView would also move the page under you (it scrolls every scroller around it)
   $effect(() => {
     void made;
+    // and again when the layout changes (a phone's ticker is narrower)
+    void fit;
     const now = tickerEl?.querySelector<HTMLElement>(".tick.up");
     if (!tickerEl || !now) return;
     tickerEl.scrollTo({
@@ -237,7 +239,8 @@
   // a time. No in-between layout
   let pageW = $state(0);
   const columns = $derived(pageW >= 960);
-  const fit = $derived(!columns && open);
+  // (Not before the page's width is known: a desktop would start as a phone, and its ticker scroll to the wrong place)
+  const fit = $derived(pageW > 0 && !columns && open);
   type View = "players" | "teams";
   let view = $state<View>("players");
   // Switching tabs slides the new view in from the side it's on (no slide out: the old one just goes, so the page
@@ -495,7 +498,7 @@
 
 <!-- On a phone, once it's open, the page is the window's height and the players scroll inside it (.page.fit), so the
      list starts high and takes the rest -->
-<div class="page full draft" class:fit bind:clientWidth={pageW}>
+<div class="page full draft" class:fit class:on={open} bind:clientWidth={pageW}>
   {#if tournament}
     <TournamentHead {type} {tournament} title="Draft" compact={phone.current && open} />
   {/if}
@@ -583,6 +586,10 @@
                 : teamName(onTheClock(teams.length, made + 1))}</strong
             ></span
           >{/if}
+        {#if live && pool.length > 1 && myTeam >= 0 && typeof teams[myTeam].pick === "number"}<span
+            class="sep"
+            aria-hidden="true">·</span
+          >{/if}
         {#if myTeam >= 0 && typeof teams[myTeam].pick === "number"}<span class="mine"
             >You pick {nth(teams[myTeam].pick!)}{#if live && untilMine > 1}, up in {untilMine}{:else if live && untilMine < 0},
               your picks are done{/if}</span
@@ -632,23 +639,24 @@
         {#if lastPick}
           {#key lastPick.n}
             <span class="last-pick" in:fly={{ y: 6, duration: flyMs, easing: easeOut }}>
+              <span class="hint">Last:</span>
               <TeamCrest
                 name={teamName(lastPick.team)}
                 logo={teams[lastPick.team].logo}
                 tone={teamTone(lastPick.team)}
-                size="1.75rem"
+                size="1.25rem"
               />
               {#if lastPick.by}
                 <!-- Whoever ran the draft picked for the captain: said as theirs, for that team (ADR 0060) -->
-                <span class="lt display">{lastPick.by}</span>
+                <span class="lt">{lastPick.by}</span>
                 <span class="hint">picked</span>
                 <span class="lp"
                   >{lastPick.name}{#if lastPick.you}<small>you</small>{/if}</span
                 >
                 <span class="hint">for</span>
-                <span class="lt display">{teamName(lastPick.team)}</span>
+                <span class="lt">{teamName(lastPick.team)}</span>
               {:else}
-                <span class="lt display">{teamName(lastPick.team)}</span>
+                <span class="lt">{teamName(lastPick.team)}</span>
                 <span class="hint">picked</span>
                 <span class="lp"
                   >{lastPick.name}{#if lastPick.you}<small>you</small>{/if}</span
@@ -679,7 +687,12 @@
             aria-hidden={t.ghost ? "true" : undefined}
           >
             {#if !t.ghost}
-              <TeamCrest name={teamName(t.team)} logo={teams[t.team].logo} tone={teamTone(t.team)} size="2.25rem" />
+              <TeamCrest
+                name={teamName(t.team)}
+                logo={teams[t.team].logo}
+                tone={teamTone(t.team)}
+                size={fit ? "1.75rem" : "2.25rem"}
+              />
               <span class="who display"
                 >{#if t.team === myTeam}<Icon name="user" size={12} />You{:else}<span class="clip"
                     >{teamName(t.team)}</span
@@ -942,7 +955,7 @@
   .upnext {
     display: flex;
     align-items: center;
-    gap: var(--s-4);
+    gap: var(--s-2);
     min-height: 1.5rem;
     margin: calc(-1 * var(--s-2)) 0 0;
     overflow: hidden;
@@ -955,7 +968,6 @@
     font-weight: 600;
   }
   .upnext .mine {
-    margin-left: auto;
     color: var(--fg-body);
     font-weight: 600;
   }
@@ -978,8 +990,54 @@
 
   /* A phone, the draft open: the window's height; the players (or the teams) take what's left and scroll inside, so
      the list starts high. Room at its foot for the End turn bar */
+  /* While it's on, the blocks under the tabs sit closer: the lines under the turn pull up into the page's gap (the
+     header and its tabs stay where they are) */
+  .draft.on .upnext,
+  .draft.on .last {
+    margin-top: calc(-1 * var(--s-3));
+  }
+  .draft.on .ticker {
+    margin-top: calc(-1 * var(--s-2));
+  }
   .draft.fit {
+    gap: var(--s-2);
     padding-bottom: var(--s-3);
+  }
+  /* Tighter on a phone: the turn a size down and the line under it right under it, the ticker shorter, the tabs and
+     chips a size smaller */
+  .draft.fit .strip {
+    min-height: 2.25rem;
+  }
+  .draft.fit .turn {
+    height: 2.25rem;
+    font-size: 1.2rem;
+  }
+  .draft.fit .upnext {
+    margin-top: calc(-1 * var(--s-2));
+  }
+  .draft.fit .ticker {
+    height: 4rem;
+    padding-inline: calc(50% - 4.5rem);
+  }
+  .draft.fit .tick {
+    width: 9rem;
+    height: 3rem;
+    padding: 0 var(--s-3) 0 var(--s-2);
+    column-gap: var(--s-2);
+  }
+  .draft.fit .tick.now {
+    scale: 1.08;
+  }
+  .draft.fit .tablist > button {
+    height: 2rem;
+    font-size: 1rem;
+  }
+  .draft.fit .players {
+    gap: var(--s-2);
+  }
+  .draft.fit .filter {
+    height: 1.9rem;
+    font-size: var(--text-xs);
   }
   .draft.fit > .pane {
     display: flex;
@@ -1123,11 +1181,15 @@
   }
 
   /* The last pick: one line, the same height with or without one */
+  /* The last pick: one small line, the same height with or without one */
   .last {
     display: flex;
     align-items: center;
-    min-height: 2.25rem;
+    min-height: 1.5rem;
     min-width: 0;
+    overflow: hidden;
+    font-size: var(--text-sm);
+    white-space: nowrap;
   }
   .last-pick {
     display: inline-flex;
@@ -1135,11 +1197,12 @@
     gap: var(--s-2);
     min-width: 0;
   }
+  .last-pick {
+    gap: var(--s-1) var(--s-2);
+  }
   .last-pick .lt {
-    font-size: 1.15rem;
-    line-height: 1;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
+    color: var(--fg-body);
+    font-weight: 600;
     white-space: nowrap;
   }
   .last-pick .lp {

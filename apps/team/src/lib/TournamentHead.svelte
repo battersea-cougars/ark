@@ -34,7 +34,7 @@
     manage?: boolean;
     /** In place of the date line, for a page about the series rather than one of its dates (History). */
     note?: string;
-    /** A phone page that needs its room (the Draft page, once it's open): the eyebrow and stamp, no date lines. */
+    /** A phone page that needs its room (the Draft page, once it's open): no header; the page's tabs say where. */
     compact?: boolean;
   } = $props();
 
@@ -88,20 +88,21 @@
   }
 </script>
 
-<div class="tone" style:--tone="var(--tone-{type.tone})">
-  <PageHeader {title} eyebrow={type.name} eyebrowIcon={type.icon}>
-    {#snippet badge()}
-      {#if stage}
-        <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red on, green open -->
-        <span class="stamp {stage}">
-          {EDITION_LABEL[stage]}
-        </span>
-      {/if}
-    {/snippet}
-    {#snippet sub()}
-      <!-- Always the same two lines, on every page of the series, so the tabs under it never move: the day big (or
+<!-- Compact (a phone page that needs its room): no header at all; the page's tabs say where you are -->
+{#if !compact}<div class="tone" style:--tone="var(--tone-{type.tone})">
+    <PageHeader {title} eyebrow={type.name} eyebrowIcon={type.icon}>
+      {#snippet badge()}
+        {#if stage}
+          <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red on, green open -->
+          <span class="stamp {stage}">
+            {EDITION_LABEL[stage]}
+          </span>
+        {/if}
+      {/snippet}
+      {#snippet sub()}
+        <!-- Always the same two lines, on every page of the series, so the tabs under it never move: the day big (or
            that it's to be confirmed), then the season, hours and place -->
-      {#if !compact}<span class="when-box">
+        <span class="when-box">
           {#if note}
             <span class="day-line"><span class="aside">{note}</span></span>
             <span class="where">&nbsp;</span>
@@ -117,25 +118,25 @@
             <span class="day-line"><span class="aside">No {type.shortName} scheduled yet.</span></span>
             <span class="where">&nbsp;</span>
           {/if}
-        </span>{/if}
-    {/snippet}
-    {#snippet actions()}
-      {#if admin && tools.length}
-        <!-- One quiet button on the series' front page (ADR 0065): what an admin does to the series, kept out of the
+        </span>
+      {/snippet}
+      {#snippet actions()}
+        {#if admin && tools.length}
+          <!-- One quiet button on the series' front page (ADR 0065): what an admin does to the series, kept out of the
              way of everyone else's view -->
-        <div class="manage">
-          <button
-            class="btn sm ghost icon"
-            aria-haspopup="dialog"
-            aria-label="Manage the {type.shortName}"
-            title="Manage"
-            onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
-          >
-        </div>
-      {/if}
-    {/snippet}
-  </PageHeader>
-</div>
+          <div class="manage">
+            <button
+              class="btn sm ghost icon"
+              aria-haspopup="dialog"
+              aria-label="Manage the {type.shortName}"
+              title="Manage"
+              onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
+            >
+          </div>
+        {/if}
+      {/snippet}
+    </PageHeader>
+  </div>{/if}
 
 {#snippet toolList()}
   <div class="tools">
