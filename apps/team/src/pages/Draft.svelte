@@ -817,8 +817,9 @@
             </div>
           {/each}
         </div>
-        <!-- A pointer's way along: a chevron over each edge while there's more that way (not on a phone: swipe).
-             With the current pick out of view, the chevron on its side leads back to it (a red dot says so) -->
+        <!-- A pointer's way along: a chevron over each edge while there's more that way (not on a phone: swipe), one
+             pick a click either way. With the current pick out of view, a red dot by the chevron on its side says
+             which way it is -->
         {#each [-1, 1] as const as side (side)}
           {@const toNow = nowSide === side}
           <button
@@ -828,9 +829,9 @@
             class:to-now={toNow}
             class:gone={!(side < 0 ? canLeft : canRight)}
             tabindex="-1"
-            aria-label={toNow ? "Back to now" : side < 0 ? "Earlier picks" : "Picks to come"}
-            title={toNow ? "Now" : undefined}
-            onclick={() => (toNow ? backToNow() : page(side))}
+            aria-label={side < 0 ? "Earlier picks" : "Picks to come"}
+            title={toNow ? "The current pick is this way" : undefined}
+            onclick={() => page(side)}
             ><Icon name={side < 0 ? "chevronLeft" : "chevronRight"} size={22} /></button
           >
         {/each}
@@ -1556,7 +1557,7 @@
     .back-now {
       display: none;
     }
-    /* The chevron that leads back to now: a small red dot by it */
+    /* The chevron on the current pick's side: a small red dot by it says which way it is */
     .edge.to-now::after {
       content: "";
       position: absolute;
@@ -1594,8 +1595,8 @@
       inset 0 1px 0 rgb(255 255 255 / 0.05),
       0 0 0 1px var(--border-strong);
   }
-  /* The current pick, scrolled away from: a red dot in its corner says it's the one on the clock */
-  .tick.now:not(.lift)::before {
+  /* The current pick: a red dot in its corner, always, so it's found wherever you've scrolled */
+  .tick.now::before {
     content: "";
     position: absolute;
     top: 0.4rem;
