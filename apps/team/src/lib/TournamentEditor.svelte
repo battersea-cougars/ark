@@ -37,6 +37,7 @@
     penaltyRule: "power_play",
     periods: 1,
     defaultPenaltyMinutes: 2,
+    breakMinutes: 2,
     kind: "teams",
     active: true,
     defaultFeePence: 1500,
@@ -180,6 +181,11 @@
                 <label class="field">
                   Minutes a period
                   <input class="input num" type="number" min="1" max="90" bind:value={form.gameMinutes} />
+                </label>
+                <!-- Between periods (ADR 0061): the scorekeeper's screen counts it down; it's in each game's slot -->
+                <label class="field">
+                  Break between periods
+                  <input class="input num" type="number" min="0" max="15" bind:value={form.breakMinutes} />
                 </label>
               </div>
               <!-- A game's periods (ADR 0061): the clock runs per period, the slot on the day is all of them -->

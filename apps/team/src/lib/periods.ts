@@ -1,6 +1,7 @@
 // Periods (ADR 0061), shared by the Worker and the app: a game is 1 to 3 periods of the tournament's game minutes,
 // the clock running per period. Goals and penalties keep their period and the time into it; game time runs on across
-// the breaks, so a penalty given late in one period carries into the next. The box score is the goals per period.
+// the breaks, so a penalty given late in one period carries into the next. Between periods, a break of the
+// tournament's minutes. The box score is the goals per period.
 
 /** How many periods a game can have, as a series' setting shows them. */
 export const PERIOD_OPTIONS = [
@@ -9,9 +10,25 @@ export const PERIOD_OPTIONS = [
   { value: "3", label: "3", hint: "Thirds, as in the NHL" },
 ];
 
-/** How long a game is, in words: "12-minute games", or "games of 3 × 12-minute periods". */
-export const gameLength = (t: { gameMinutes: number; periods?: number }) =>
-  (t.periods ?? 1) > 1 ? `games of ${t.periods} × ${t.gameMinutes}-minute periods` : `${t.gameMinutes}-minute games`;
+/** How long a game is, in words: "12-minute games", or "games of 3 × 12-minute periods, 2-minute breaks". */
+export const gameLength = (t: { gameMinutes: number; periods?: number; breakMinutes?: number }) =>
+  (t.periods ?? 1) > 1
+    ? `games of ${t.periods} × ${t.gameMinutes}-minute periods${t.breakMinutes ? `, ${t.breakMinutes}-minute breaks` : ""}`
+    : `${t.gameMinutes}-minute games`;
+
+/**
+ * The break before the next period (ADR 0061): what's left of it (ms), counting from when the last period ended,
+ * while the next hasn't started; 0 once it's run out (the scorekeeper's tap still starts the next). Null when there's
+ * no break on: none set, no period ended yet, or the next under way.
+ */
+export function breakLeft(
+  g: { periodEndedAt?: string | null; clockStartedAt?: string | null },
+  breakMinutes: number,
+  nowMs: number,
+) {
+  if (!breakMinutes || !g.periodEndedAt || g.clockStartedAt) return null;
+  return Math.max(0, breakMinutes * 60_000 - (nowMs - Date.parse(g.periodEndedAt)));
+}
 
 /** 1st, 2nd, 3rd. */
 export const periodName = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;

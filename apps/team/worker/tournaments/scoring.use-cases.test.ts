@@ -775,3 +775,67 @@ describe("periods: the clock runs per period, and goals and penalties say which"
     expect(g.penalties).toEqual([expect.objectContaining({ period: 2, atMs: 60_000 })]);
   });
 });
+
+describe("a break between periods", () => {
+  it("is a series setting in minutes (2 unless said, up to 15), copied onto its tournaments; the Kumite has none", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const series = {
+      name: "Break Cup",
+      shortName: "Break",
+      icon: "trophy",
+      tone: "green",
+      kind: "teams",
+      pointsWin: 3,
+      pointsDraw: 1,
+      pointsLoss: 0,
+      gameMinutes: 12,
+      active: true,
+      defaultFeePence: 0,
+      awards: [],
+      location: "",
+      periods: 3,
+    };
+    let res = await dana.call("POST", "/api/tournament-types", series);
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === res.body.id).breakMinutes).toBe(2);
+    res = await dana.call("POST", "/api/tournament-types", { ...series, name: "Break 2", breakMinutes: 4 });
+    const four = res.body.id;
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === four).breakMinutes).toBe(4);
+    expect(
+      (await dana.call("POST", "/api/tournament-types", { ...series, name: "Long", breakMinutes: 16 })).status,
+    ).toBe(400);
+    res = await dana.call("POST", "/api/tournaments", {
+      typeId: four,
+      name: "Break 2026",
+      location: "",
+      heldOn: "2026-12-12",
+      startTime: "10:00",
+      endTime: "15:00",
+      status: "planned",
+      feePence: 0,
+    });
+    expect((await sees()).tournaments.find((t: Json) => t.id === res.body.id).breakMinutes).toBe(4);
+    expect((await sees()).tournamentTypes.find((t: Json) => t.slug === "kumite").breakMinutes).toBe(0);
+  });
+
+  it("starts when a period ends, for everyone to see; the scorekeeper starts the next when they're ready, early or not", async () => {
+    const { first, keeperOf, clock, tournament, id, gameMinutes } = await cup([], { periods: 2, breakMinutes: 2 });
+    const keeper = await keeperOf(first);
+    const game = async (now: Date) => (await tournament(undefined, now)).games.find((x: Json) => x.id === first.id);
+    await clock(keeper, first.id, "start", at(0));
+    expect((await game(at(1))).periodEndedAt).toBeNull();
+    await keeper.call(
+      "POST",
+      `/api/tournaments/${id}/games/${first.id}/clock`,
+      { action: "period", period: 1 },
+      { now: at(gameMinutes) },
+    );
+    // Everyone sees when the break began (and works out what's left of it)
+    const mo = await w.signedIn("mo@example.com");
+    const g = (await tournament(mo, at(gameMinutes + 1))).games.find((x: Json) => x.id === first.id);
+    expect(g).toMatchObject({ period: 2, clockStartedAt: null, periodEndedAt: at(gameMinutes).toISOString() });
+    // A minute in, the 2nd starts: the break's over
+    expect((await clock(keeper, first.id, "start", at(gameMinutes + 1))).status).toBe(200);
+    expect((await game(at(gameMinutes + 2))).periodEndedAt).toBeNull();
+  });
+});

@@ -143,20 +143,20 @@ const PARTS = {
      WHERE t.session_id IN (${SESSIONS_SHOWN}) ORDER BY t.position, t.id, p.rowid`,
   ),
   tournamentTypes: rows(
-    `id slug name short_name icon tone format points_win points_draw points_loss game_minutes penalty_rule default_penalty_minutes periods kind active
+    `id slug name short_name icon tone format points_win points_draw points_loss game_minutes penalty_rule default_penalty_minutes periods break_minutes kind active
      default_fee_pence default_start_time default_end_time awards playoffs venue_id location map_url`,
     "SELECT * FROM tournament_types ORDER BY id",
   ),
   tournaments: rows(
     `id typeId name venueId location mapUrl heldOn startTime endTime capacity status champions feePence season
-     public signupOpensOn signupClosesOn draftOn pointsWin pointsDraw pointsLoss gameMinutes penaltyRule defaultPenaltyMinutes periods kind awards
+     public signupOpensOn signupClosesOn draftOn pointsWin pointsDraw pointsLoss gameMinutes penaltyRule defaultPenaltyMinutes periods breakMinutes kind awards
      playoffs draftState`,
     `SELECT t.id, t.type_id typeId, t.name, t.venue_id venueId, t.location, t.map_url mapUrl, t.held_on heldOn,
             t.start_time startTime, t.end_time endTime, t.capacity, t.status, t.champions, t.fee_pence feePence,
             t.season, t.public, t.signup_opens_on signupOpensOn,
             t.signup_closes_on signupClosesOn, t.draft_on draftOn, t.points_win pointsWin, t.points_draw pointsDraw,
             t.points_loss pointsLoss, t.game_minutes gameMinutes, t.penalty_rule penaltyRule,
-            t.default_penalty_minutes defaultPenaltyMinutes, t.periods, t.kind, t.awards, t.playoffs, t.draft_state draftState
+            t.default_penalty_minutes defaultPenaltyMinutes, t.periods, t.break_minutes breakMinutes, t.kind, t.awards, t.playoffs, t.draft_state draftState
      FROM tournaments t ORDER BY t.held_on`,
   ),
   // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts)
@@ -173,11 +173,11 @@ const PARTS = {
   ),
   games: rows(
     `id tournamentId stage round position name homeTeamId awayTeamId homeSeed awaySeed homeGoals awayGoals status
-     clockLeftMs clockStartedAt keeperId period`,
+     clockLeftMs clockStartedAt keeperId period periodEndedAt`,
     `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
             away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
             away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
-            keeper_member_id keeperId, period
+            keeper_member_id keeperId, period, period_ended_at periodEndedAt
      FROM tournament_games ORDER BY tournament_id, position`,
   ),
   goals: rows(

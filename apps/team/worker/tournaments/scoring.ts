@@ -84,7 +84,8 @@ const leftNow = (g: Game, now: Date) =>
 
 /**
  * The clock: start (or start again), pause, set (the time left, by the scorekeeper's watch: paused, or running on from
- * there), period (the period said is over: the next starts paused at full length; said twice, it's already done), or
+ * there), period (the period said is over: the next starts paused at full length after the break, which runs from
+ * now until the scorekeeper starts it; said twice, it's already done), or
  * end (full time: the score's the result).
  */
 export async function clockGame(
@@ -115,7 +116,12 @@ export async function clockGame(
            clock_started_at = ? WHERE id = ?`,
         [t.gameMinutes * 60_000, now.toISOString(), gameId],
       );
-    } else await run(db, "UPDATE tournament_games SET clock_started_at = ? WHERE id = ?", [now.toISOString(), gameId]);
+    } else
+      // Starting the next period ends the break before it
+      await run(db, "UPDATE tournament_games SET clock_started_at = ?, period_ended_at = NULL WHERE id = ?", [
+        now.toISOString(),
+        gameId,
+      ]);
     return;
   }
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
@@ -136,8 +142,9 @@ export async function clockGame(
     if (game.period >= t.periods) throw new HttpError(409, "That's the last period: call full time.");
     await run(
       db,
-      "UPDATE tournament_games SET period = period + 1, clock_left_ms = ?, clock_started_at = NULL WHERE id = ?",
-      [t.gameMinutes * 60_000, gameId],
+      `UPDATE tournament_games SET period = period + 1, clock_left_ms = ?, clock_started_at = NULL, period_ended_at = ?
+       WHERE id = ?`,
+      [t.gameMinutes * 60_000, now.toISOString(), gameId],
     );
     return;
   }

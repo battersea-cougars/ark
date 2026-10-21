@@ -165,6 +165,8 @@ CREATE TABLE tournament_types (
   default_penalty_minutes INTEGER NOT NULL DEFAULT 2,
   -- A game's periods (1 to 3), each game_minutes long (ADR 0061), copied onto each new edition
   periods INTEGER NOT NULL DEFAULT 1,
+  -- The break between periods, in minutes (0 to 15, ADR 0061), copied onto each new edition
+  break_minutes INTEGER NOT NULL DEFAULT 2,
   -- How its tournaments make teams (ADR 0030): teams (teams enter) or draft (captains draft members)
   kind TEXT NOT NULL DEFAULT 'teams',
   active INTEGER NOT NULL DEFAULT 1,
@@ -217,6 +219,8 @@ CREATE TABLE tournaments (
   default_penalty_minutes INTEGER NOT NULL DEFAULT 2,
   -- A game's periods, each game_minutes long, copied from its series (ADR 0061)
   periods INTEGER NOT NULL DEFAULT 1,
+  -- The break between periods, in minutes, copied from its series (ADR 0061)
+  break_minutes INTEGER NOT NULL DEFAULT 2,
   -- teams (teams enter) or draft (captains draft members), copied from its series (ADR 0030)
   kind TEXT NOT NULL DEFAULT 'teams',
   awards TEXT NOT NULL DEFAULT '[]',
@@ -649,7 +653,9 @@ CREATE TABLE tournament_games (
   -- Who holds the scoresheet: whoever pressed Start scoring; nobody else scores it until they (or an admin) let go
   keeper_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
   -- The period being played (ADR 0061): the clock counts down each one in turn
-  period INTEGER NOT NULL DEFAULT 1
+  period INTEGER NOT NULL DEFAULT 1,
+  -- When the last period ended: the break before the next, until its clock starts (ADR 0061)
+  period_ended_at TEXT
 );
 
 CREATE INDEX tournament_games_tournament ON tournament_games (tournament_id, position);

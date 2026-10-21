@@ -46,7 +46,7 @@
   import { clock, formatDayDate, londonISO, londonTime, londonToday } from "../lib/dates";
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
-  import { leftOf, mmss, ticking } from "../lib/game-clock.svelte";
+  import { breakLeftOf, leftOf, mmss, ticking } from "../lib/game-clock.svelte";
   import { kickOff, slotMinutes, startingNow } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
@@ -100,6 +100,13 @@
   const left = $derived(game && game.status !== "next" ? leftOf(game) : full);
   const running = $derived(!!game?.clockStartedAt);
   const over = $derived(game?.status === "done");
+  // Between periods: the break counts down from when the last ended, for everyone, until the scorekeeper starts the
+  // next (early, or once it's run out: then it says the next is up). Null: no break on
+  const breakMs = $derived(
+    game?.status === "live" && period > 1 ? breakLeftOf(game, tournament?.breakMinutes ?? 0) : null,
+  );
+  const onBreak = $derived(breakMs !== null && breakMs > 0);
+  const breakFull = $derived((tournament?.breakMinutes ?? 0) * 60_000);
   // Time's up in the last period: full time. In one before it, the period's over and the next comes next
   const timeUp = $derived(game?.status === "live" && left === 0 && lastPeriod);
   const periodUp = $derived(game?.status === "live" && left === 0 && !lastPeriod);
@@ -210,7 +217,7 @@
   // Set the time: by the scorekeeper's watch (the game started late on the app, or the ref says so). Paused, it stays
   // paused; running, it runs on from the time set
   let setting = $state(false);
-  const settable = $derived(keeper && game?.status === "live");
+  const settable = $derived(keeper && game?.status === "live" && !onBreak);
   let setMin = $state(0);
   let setSec = $state(0);
   function openSet() {
@@ -377,7 +384,15 @@
   label={back.label}
   onclick={() => goBack(games)}
   title={game ? `Game ${game.position}` : "Game"}
-  right={over ? "Full time" : game?.status === "live" ? (running ? "Running" : "Paused") : "Not started"}
+  right={over
+    ? "Full time"
+    : game?.status === "live"
+      ? running
+        ? "Running"
+        : onBreak
+          ? "Break"
+          : "Paused"
+      : "Not started"}
   action={keeper && !over ? scoring_ : undefined}
 />
 <!-- Keeping score: said in the bar, in red, and a tap opens the scorekeeper's tools, so the clock gets the screen -->
@@ -398,13 +413,15 @@
       class="clock"
       class:running
       class:done={over || timeUp}
+      class:on-break={onBreak}
       class:settable
       role={settable ? undefined : "timer"}
-      aria-label={settable ? `Set the time: ${mmss(left)} left` : mmss(left)}
+      aria-label={settable ? `Set the time: ${mmss(left)} left` : onBreak ? `Break: ${mmss(breakMs!)}` : mmss(left)}
       onclick={settable ? openSet : undefined}
     >
-      <span class="time display num">{mmss(left)}</span>
-      <span class="meter"><span style:transform="scaleX({left / full})"></span></span>
+      <!-- On a break, the break's countdown in place of the paused clock -->
+      <span class="time display num">{onBreak ? mmss(breakMs!) : mmss(left)}</span>
+      <span class="meter"><span style:transform="scaleX({onBreak ? breakMs! / breakFull : left / full})"></span></span>
       <span class="cue hint">
         {#if over}Full time
         {:else if game.status === "next"}Kick-off {clock(
@@ -412,6 +429,8 @@
           )}
         {:else if timeUp && level}Level: next goal wins
         {:else if timeUp}{keeper ? "Time's up: call full time" : "Time's up"}
+        {:else if onBreak}Break · {periodName(period)} period next
+        {:else if breakMs === 0}Break's over · {periodName(period)} period next
         {:else}{periods > 1 ? `${periodName(period)} period · ` : ""}{running ? "Live" : "Paused"}{strength
             ? ` · ${strength}`
             : ""}{/if}
@@ -974,6 +993,10 @@
   }
   .done .time {
     color: var(--red-hot);
+  }
+  /* The break's countdown: an accent, so it's never mistaken for the game clock */
+  .on-break .time {
+    color: var(--caution-ink);
   }
   .meter {
     width: min(100%, 18rem);

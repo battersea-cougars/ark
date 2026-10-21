@@ -27,8 +27,12 @@ export function roundRobin(teamIds: number[]): [number, number][][] {
 /** The changeover between games, in minutes. */
 export const BREAK_MINUTES = 5;
 
-/** A game's length on the day: its periods (1 unless said) times the minutes in each (ADR 0061). */
-export const slotMinutes = (t: { gameMinutes: number; periods?: number }) => t.gameMinutes * (t.periods ?? 1);
+/**
+ * A game's length on the day: its periods (1 unless said) times the minutes in each, and the breaks between them
+ * (ADR 0061).
+ */
+export const slotMinutes = (t: { gameMinutes: number; periods?: number; breakMinutes?: number }) =>
+  t.gameMinutes * (t.periods ?? 1) + (t.breakMinutes ?? 0) * ((t.periods ?? 1) - 1);
 
 /**
  * When a game kicks off: one pitch, games in order from the tournament's start, each its length (`slotMinutes`: a
@@ -89,6 +93,7 @@ export function startingNow<
     endTime: string;
     gameMinutes: number;
     periods?: number;
+    breakMinutes?: number;
     signupOpensOn: string | null;
     signupClosesOn: string | null;
     draftOn: string | null;

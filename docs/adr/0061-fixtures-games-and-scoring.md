@@ -76,8 +76,14 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 
 - **A game is 1 to 3 periods** (`periods`, a series setting beside the rules, as taps, copied onto each tournament
   like the penalty rule; a new series and the Kumite have 1). Game minutes are the minutes in each period. A game's
-  slot on the day is its periods times those minutes, plus the break (`slotMinutes`), so kick-off times, starting
-  now and the schedule's words (`gameLength`: "games of 3 × 12-minute periods") follow it.
+  slot on the day is its periods times those minutes, the breaks between them, plus the changeover (`slotMinutes`),
+  so kick-off times, starting now and the schedule's words (`gameLength`: "games of 3 × 12-minute periods, 2-minute
+  breaks") follow it.
+- **A break between periods** (`break_minutes`, a series setting in minutes beside Periods, 0 to 15, copied onto
+  each tournament; a new series 2, the Kumite 0 with its one period). When a period ends the game keeps when
+  (`tournament_games.period_ended_at`), and everyone's clock, the scorekeeper's and the live page's, shows the
+  break counting down in place of the paused clock ("Break · 2nd period next"), then "Break's over · 2nd period
+  next". Starting the next is still the scorekeeper's tap, early if they like; it ends the break.
 - **The clock runs per period** (`tournament_games.period`). At zero, before the last period, the scorekeeper's phone
   ends it (or End the period in Scoring's tools): the next starts paused at full length, and the screen says "2nd
   period"; the clock action names the period it ends, so a second phone or a retry changes nothing. After the last
@@ -196,3 +202,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-21: Coincidental penalties: same-length pairs called at the same time cancel (no man advantage, served in
   full), one minor each with nothing else on is four on four; only what doesn't cancel counts for a power play; the
   clock's cue shows the strength.
+- 2026-10-21: A break between periods (a series setting in minutes, 2 unless said, the Kumite 0): it counts down on
+  everyone's clock once a period ends, the scorekeeper starts the next when ready, and it's in each game's slot.

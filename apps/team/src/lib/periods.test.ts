@@ -1,6 +1,6 @@
 // Periods (ADR 0061): the box score's goals per period, the period's name, and game time across period breaks.
 import { describe, expect, it } from "vitest";
-import { boxScore, inGameTime, periodName } from "./periods";
+import { boxScore, breakLeft, gameLength, inGameTime, periodName } from "./periods";
 import { running } from "./penalties";
 
 const MIN = 60_000;
@@ -53,5 +53,33 @@ describe("periods", () => {
     expect(running([onClock], [], inGameTime(2, MIN, periodMs)!)).toEqual([]);
     // Not timed: no game time
     expect(inGameTime(1, null, periodMs)).toBeNull();
+  });
+});
+
+describe("the break between periods", () => {
+  const ended = "2026-11-14T10:12:00Z";
+  const at = (s: number) => Date.parse(ended) + s * 1000;
+  it("counts down from when the period ended, while the next hasn't started", () => {
+    const g = { periodEndedAt: ended, clockStartedAt: null };
+    expect(breakLeft(g, 2, at(18))).toBe(102_000);
+    // Over: none left, still waiting on the scorekeeper's tap
+    expect(breakLeft(g, 2, at(500))).toBe(0);
+  });
+
+  it("isn't on once the next period starts, before any period's ended, or with no break set", () => {
+    expect(breakLeft({ periodEndedAt: ended, clockStartedAt: ended }, 2, at(18))).toBeNull();
+    expect(breakLeft({ periodEndedAt: null, clockStartedAt: null }, 2, at(18))).toBeNull();
+    expect(breakLeft({ periodEndedAt: ended, clockStartedAt: null }, 0, at(18))).toBeNull();
+  });
+});
+
+describe("a game's length, in words", () => {
+  it("says the periods and the breaks between them", () => {
+    expect(gameLength({ gameMinutes: 12 })).toBe("12-minute games");
+    expect(gameLength({ gameMinutes: 12, periods: 3, breakMinutes: 0 })).toBe("games of 3 × 12-minute periods");
+    expect(gameLength({ gameMinutes: 12, periods: 3, breakMinutes: 2 })).toBe(
+      "games of 3 × 12-minute periods, 2-minute breaks",
+    );
+    expect(gameLength({ gameMinutes: 12, periods: 1, breakMinutes: 2 })).toBe("12-minute games");
   });
 });

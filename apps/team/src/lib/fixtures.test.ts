@@ -44,6 +44,12 @@ describe("a game's slot, with periods", () => {
     expect(kickOff("11:00", slotMinutes({ gameMinutes: 12, periods: 3 }), 3)).toBe("12:22");
   });
 
+  it("takes in the breaks between periods: three 12s with 2-minute breaks are 40 minutes; one period has none", () => {
+    expect(slotMinutes({ gameMinutes: 12, periods: 3, breakMinutes: 2 })).toBe(40);
+    expect(slotMinutes({ gameMinutes: 12, periods: 1, breakMinutes: 2 })).toBe(12);
+    expect(kickOff("11:00", slotMinutes({ gameMinutes: 12, periods: 3, breakMinutes: 2 }), 2)).toBe("11:45");
+  });
+
   it("starting a game now moves the day back by whole slots", () => {
     const t = {
       startTime: "11:00",

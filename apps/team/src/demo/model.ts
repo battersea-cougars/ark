@@ -104,6 +104,8 @@ export interface TournamentType {
   periods: number;
   /** The penalty sheet's usual length (2, 4 or 5, ADR 0061), copied onto each new edition. */
   defaultPenaltyMinutes: number;
+  /** The break between periods, in minutes (ADR 0061), copied onto each new edition. */
+  breakMinutes: number;
   /** How its tournaments make teams (ADR 0030). */
   kind: TournamentKind;
   active: boolean;
@@ -192,6 +194,8 @@ export interface Tournament extends Entries {
   periods?: number;
   /** The penalty sheet's usual length, copied from its series (ADR 0061); left out, it keeps what it was. */
   defaultPenaltyMinutes?: number;
+  /** The break between periods, copied from its series (ADR 0061); left out, it keeps what it was. */
+  breakMinutes?: number;
   /** How it makes teams (ADR 0030): teams enter, or captains draft members. */
   kind: TournamentKind;
   awards: { name: string; about: string }[];
@@ -293,6 +297,8 @@ export interface TournamentGame {
   clockStartedAt?: string | null;
   /** The period being played (ADR 0061): the clock counts each down in turn. */
   period?: number;
+  /** When the last period ended: the break before this one, until its clock starts (ADR 0061). */
+  periodEndedAt?: string | null;
   /** Each goal as it went in, in order: its period and the time into it. */
   goals?: {
     id: number;

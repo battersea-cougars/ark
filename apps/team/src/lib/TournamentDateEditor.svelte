@@ -94,6 +94,7 @@
     penaltyRule: PenaltyRule;
     periods: number;
     defaultPenaltyMinutes: number;
+    breakMinutes: number;
     kind: TournamentKind;
     awards: { name: string; about: string }[];
     playoffs: Playoff[];
@@ -136,6 +137,7 @@
         penaltyRule: t.penaltyRule ?? "power_play",
         periods: t.periods ?? 1,
         defaultPenaltyMinutes: t.defaultPenaltyMinutes ?? 2,
+        breakMinutes: t.breakMinutes ?? 2,
         kind: t.kind,
         awards: t.awards.map((a) => ({ ...a })),
         playoffs: (t.playoffs ?? []).map((g) => ({ ...g })),
@@ -170,6 +172,7 @@
       penaltyRule: "power_play",
       periods: 1,
       defaultPenaltyMinutes: 2,
+      breakMinutes: 2,
       kind: "teams",
       awards: [],
       playoffs: [],
@@ -212,6 +215,7 @@
     date.penaltyRule = t.penaltyRule;
     date.periods = t.periods;
     date.defaultPenaltyMinutes = t.defaultPenaltyMinutes;
+    date.breakMinutes = t.breakMinutes;
     date.kind = t.kind;
     date.awards = t.awards.map((a) => ({ ...a }));
     date.playoffs = (t.playoffs ?? []).map((g) => ({ ...g }));
@@ -361,6 +365,7 @@
     penaltyRule: d.penaltyRule,
     periods: d.periods,
     defaultPenaltyMinutes: d.defaultPenaltyMinutes,
+    breakMinutes: d.breakMinutes,
     kind: d.kind,
     awards: d.awards.filter((a) => a.name.trim()),
     playoffs: d.playoffs.filter((g) => g.name.trim()),
@@ -494,6 +499,10 @@
               <label class="field">
                 Minutes a period
                 <input class="input num" type="number" min="1" max="90" bind:value={date.gameMinutes} />
+              </label>
+              <label class="field">
+                Break between periods
+                <input class="input num" type="number" min="0" max="15" bind:value={date.breakMinutes} />
               </label>
             </div>
             <div class="field">
