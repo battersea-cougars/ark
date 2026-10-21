@@ -112,3 +112,7 @@ Three things shape it:
 - 2026-10-21: A cron run drains 25 phones, not 40, and `tell` queues its phones for the drain: a five-minute run with
   a club-wide send and reminders waiting made 95 subrequests, over the free plan's 50
   ([0121](0121-load-and-concurrency.md)).
+- 2026-10-21: Set up for real. Apple: the user's Individual membership (Team ID from `store-setup.mjs`) until it
+  becomes an Organisation for Typesmiths, which makes and releases the app (#103). Firebase is on in the club's one
+  Google Cloud project, `battersea-cougars` (no second project), set up by `scripts/firebase-setup.mjs`; only the
+  APNs key's upload is by hand. Every key, the APNs one too, is backed up in Bitwarden ([0002](0002-secrets-in-bitwarden.md)).

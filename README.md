@@ -446,9 +446,12 @@ Review. One copy each (production reads `cougars-dev` too) but the App Review pa
   (`/.well-known/apple-app-site-association`).
 - **`FIREBASE_SERVICE_ACCOUNT`:** the JSON key of a Google service account in the Firebase project (the developer
   GCP project), role **Firebase Cloud Messaging API Admin** only, named `firebase-service-account` (Google allows no
-  capitals). The Worker signs an hour's token with it to send notifications. **A leaked key could** send our members
+  capitals). Made, with its key stored, by `node scripts/firebase-setup.mjs` (signed in with `gcloud auth login` as an
+  Owner of `battersea-cougars`), which also turns Firebase on there. The Worker signs an hour's token with it to send
+  notifications. **A leaked key could** send our members
   notifications, nothing else. Rotate: add a new key to the account, store it, redeploy `team`, delete the old key.
-- **`FIREBASE_IOS_CONFIG`:** the iOS app's `GoogleService-Info.plist` from Firebase (Project settings → Your apps).
+- **`FIREBASE_IOS_CONFIG`:** the iOS app's `GoogleService-Info.plist` from Firebase, stored by `scripts/firebase-setup.mjs`
+  (it makes the iOS app too).
   Not much of a secret (its API key is limited to this app), but it stays out of the public repo: `store.yml` writes
   it into the Xcode project for the build.
 - **`APNS_KEY`, `APNS_KEY_ID`:** the Apple push (APNs) key, uploaded to Firebase (Project settings → Cloud Messaging →
