@@ -705,7 +705,7 @@
           >
         {/if}
         <button class="btn ghost sm" onclick={() => (rulesOpen = true)} aria-label="Rules"
-          ><Icon name="whistle" size={16} /><span class="lbl">Rules</span></button
+          ><Icon name="rules" size={16} /><span class="lbl">Rules</span></button
         >
         <button class="btn ghost sm" onclick={() => (logOpen = true)} aria-label="Pick log"
           ><Icon name="list" size={16} /><span class="lbl">Pick log</span></button
