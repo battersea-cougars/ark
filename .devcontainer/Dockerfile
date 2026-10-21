@@ -46,10 +46,20 @@ RUN curl -sL -o /tmp/bws.zip \
     && rm -f /tmp/bws.zip \
     && bws --version
 
+# Firebase and Google Cloud CLIs: scripted setup of the Firebase project, its apps and service accounts (ADR 0108).
+# Their sign-ins live in volumes (devcontainer.json), so a rebuild keeps them.
+RUN npm install -g firebase-tools@15.32.1
+RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+        > /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends google-cloud-cli \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG USERNAME=node
 
 RUN \
-    mkdir -p /home/${USERNAME}/.config /home/${USERNAME}/.config/pnpm /home/${USERNAME}/.pnpm-store \
+    mkdir -p /home/${USERNAME}/.config /home/${USERNAME}/.config/pnpm /home/${USERNAME}/.config/gcloud /home/${USERNAME}/.config/configstore /home/${USERNAME}/.pnpm-store \
     && printf "store-dir=/home/${USERNAME}/.pnpm-store\n" > /home/${USERNAME}/.config/pnpm/rc \
     && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.config /home/${USERNAME}/.pnpm-store
 
