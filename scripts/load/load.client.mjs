@@ -1,5 +1,6 @@
 // Members' phones for a load run (docs/load-testing.md): each signed in as itself, with its own address unless the run
-// says they share one (the rink's wifi), doing what the team app does: the bootstrap with its ETag at the version its
+// says they share one (the rink's wifi; against dev every phone is this machine's one address), doing what the team
+// app does: the bootstrap with its ETag at the version its
 // copy holds (ADR 0053), a change with the page's Origin and its reply's parts put in place, and a live page's stream
 // (ADR 0072), its copy of the club reading the parts an event names (the app's own catch-up.ts, #112).
 import { ClubCopy } from "../../apps/team/src/app/catch-up.ts";
@@ -11,6 +12,8 @@ export class Stats {
     this.rows = [];
     this.errors = new Map();
     this.started = performance.now();
+    /** The clock's time at the start, so a request's moment can be put in the rate limiter's minutes. */
+    this.startedAt = Date.now();
   }
   add(label, ms, status, why) {
     this.rows.push({ label, ms, status, at: performance.now() - this.started });
@@ -27,16 +30,11 @@ export class Stats {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export { sleep };
 
-/**
- * A member's phone: `call` for a request (timed into `stats`), `boot` for the bootstrap with its ETag, `follow` for a
- * live page's stream.
- */
-export async function phone(url, email, stats, { address } = {}) {
-  const origin = new URL(url).origin;
-  const base = { ...(address ? { "cf-connecting-ip": address } : {}) };
+/** Signed in as dev-sign-in does (POST /api/auth/dev): a local server only. */
+async function devSignIn(url, email, base) {
   const res = await fetch(`${url}/api/auth/dev`, {
     method: "POST",
-    headers: { ...base, "content-type": "application/json", origin },
+    headers: { ...base, "content-type": "application/json", origin: new URL(url).origin },
     body: JSON.stringify({ email }),
   });
   if (!res.ok) throw new Error(`Couldn't sign in ${email}: ${res.status} ${await res.text()}`);
@@ -46,6 +44,20 @@ export async function phone(url, email, stats, { address } = {}) {
     .filter((c) => !c.endsWith("="))
     .join("; ");
   const { memberId } = await res.json();
+  return { cookie, memberId };
+}
+
+/**
+ * A member's phone: `call` for a request (timed into `stats`), `boot` for the bootstrap with its ETag, `follow` for a
+ * live page's stream. `target`: { url, signIn? } (load.mjs); with `signIn` (a session minted for it, load.club.mjs)
+ * the phone sends that cookie, else it signs in as dev-sign-in does. `address`: the cf-connecting-ip it claims, on a
+ * local server only (Cloudflare sets its own).
+ */
+export async function phone(target, email, stats, { address } = {}) {
+  const { url } = target;
+  const origin = new URL(url).origin;
+  const base = { ...(address ? { "cf-connecting-ip": address } : {}) };
+  const { cookie, memberId } = target.signIn ? await target.signIn(email) : await devSignIn(url, email, base);
   let etag = null;
   let club = null;
   /** Whether the last read of the whole club got an answer. */
@@ -78,6 +90,7 @@ export async function phone(url, email, stats, { address } = {}) {
   });
 
   async function call(label, method, path, payload, headers = {}) {
+    if (target.stopping?.()) return { status: 0, body: { error: "stopped" }, version: null };
     const t = performance.now();
     let status = 0;
     let body;
@@ -178,17 +191,17 @@ export async function phone(url, email, stats, { address } = {}) {
   return { email, memberId, call, change, boot, follow, copy, club: () => club };
 }
 
+/** The address a phone claims on a local server (`shared`: the rink's wifi); none against dev, where it's ours. */
+export const addressFor = (target, n, shared) =>
+  target.remote ? undefined : shared ? "10.0.0.1" : `10.1.${Math.floor(n / 250)}.${n % 250}`;
+
 /** Phones for these members, signed in a few at a time. `shared`: all from one address (a rink's wifi). */
-export async function phones(url, emails, stats, { shared = false } = {}) {
+export async function phones(target, emails, stats, { shared = false } = {}) {
   const out = [];
   for (let i = 0; i < emails.length; i += 10)
     out.push(
       ...(await Promise.all(
-        emails.slice(i, i + 10).map((e, k) =>
-          phone(url, e, stats, {
-            address: shared ? "10.0.0.1" : `10.1.${Math.floor((i + k) / 250)}.${(i + k) % 250}`,
-          }),
-        ),
+        emails.slice(i, i + 10).map((e, k) => phone(target, e, stats, { address: addressFor(target, i + k, shared) })),
       )),
     );
   return out;

@@ -1,5 +1,8 @@
 // The club's busy moments, as load runs (docs/load-testing.md). Each sets up through the API as the admin (not timed),
-// then does what the members' phones would, timed into `stats`. Against a Worker of the run's own (load.server.mjs).
+// then does what the members' phones would, timed into `stats`. Against a Worker of the run's own (load.server.mjs)
+// or dev (load.dev.mjs): what each makes is named with the run's mark (load.club.mjs), kept off the website, and
+// deleted through the API at the end where there's a route for it; the rest goes in the run's clean-up.
+import { MARK } from "./load.club.mjs";
 import { phone, phones, sleep } from "./load.client.mjs";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -14,24 +17,55 @@ const onTheClock = (teams, made) => {
   const slot = made % teams;
   return round % 2 ? teams - 1 - slot : slot;
 };
-const crons = (url, cron) => fetch(`${url}/__scheduled?cron=${encodeURIComponent(cron)}`).then((r) => r.status);
+/** The admin's phone (its own address, or the shared one). */
+const adminPhone = (target, roster, stats, shared, address = "10.9.9.9") =>
+  phone(target, roster[0].email, stats, { address: target.remote ? undefined : shared ? "10.0.0.1" : address });
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+/**
+ * A training night of the run's own, made through the API as the admin: one session three days on, 40 skaters'
+ * places and 2 keepers', free, off the website. The club's own Fridays are never touched.
+ */
+async function loadNight(admin, club) {
+  const day = inDays(3);
+  const like = club.series[0] ?? {};
+  const { id: _id, slug: _slug, ...rest } = like;
+  must(
+    await admin.call("setup", "POST", "/api/series", {
+      ...rest,
+      name: `Load night ${MARK}`,
+      shortName: "Load",
+      icon: like.icon ?? "skate",
+      tone: like.tone ?? "green",
+      repeatEvery: 1,
+      weekdays: [WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()]],
+      startsOn: day,
+      endsOn: day,
+      startTime: like.startTime ?? "19:00",
+      endTime: like.endTime ?? "21:00",
+      capacity: 40,
+      goalieCapacity: 2,
+      public: false,
+      active: true,
+      fees: [],
+    }),
+    "training",
+  );
+  const after = await admin.boot("setup");
+  const series = after.series.find((x) => x.name === `Load night ${MARK}`);
+  return after.sessions.find((x) => x.seriesId === series.id);
+}
 
 /**
  * Friday sign-up opening: every member opens the app and taps In within 10 seconds, everyone on Home following the
  * sign-ups live; both crons run in the middle of it; then the team maker publishes the teams while they're all still
  * on the page.
  */
-async function fridayRush({ url, roster, stats, shared, notes }) {
-  const admin = await phone(url, roster[0].email, stats, { address: shared ? "10.0.0.1" : "10.9.9.9" });
-  const club = await admin.boot("setup");
-  const session = club.sessions.find((s) => s.heldOn >= today() && !s.cancelledAt);
-  const series = club.series.find((s) => s.id === session.seriesId) ?? club.series[0];
-  must(
-    await admin.call("setup", "PUT", `/api/series/${series.id}`, { ...series, capacity: 40, goalieCapacity: 2 }),
-    "places",
-  );
+async function fridayRush({ target, roster, stats, shared, notes }) {
+  const admin = await adminPhone(target, roster, stats, shared);
+  const session = await loadNight(admin, await admin.boot("setup"));
   const everyone = await phones(
-    url,
+    target,
     roster.map((r) => r.email),
     stats,
     { shared },
@@ -46,8 +80,7 @@ async function fridayRush({ url, roster, stats, shared, notes }) {
   });
   // The crons, in the middle of it
   await sleep(window / 2);
-  const ran = await Promise.all([crons(url, "*/5 * * * *"), crons(url, "7 * * * *")]);
-  notes.push(`Crons in the middle of it: ${ran.join(", ")}`);
+  notes.push(`Crons in the middle of it: ${(await target.crons()).join(", ")}`);
   await Promise.all(taps);
   const night = (await admin.boot("setup")).sessions.find((s) => s.id === session.id);
   notes.push(`The night: ${night.going.length} in, ${night.waitlist.length} waiting (40 skaters' places, 2 keepers')`);
@@ -64,13 +97,13 @@ async function fridayRush({ url, roster, stats, shared, notes }) {
  * A Kumite draft: eight captains picking in turn, 60 players watching the draft room live, whoever runs it taking one
  * pick back and making one for a captain.
  */
-async function liveDraft({ url, roster, stats, shared, notes }) {
-  const admin = await phone(url, roster[0].email, stats, { address: shared ? "10.0.0.1" : "10.9.9.9" });
+async function liveDraft({ target, roster, stats, shared, notes }) {
+  const admin = await adminPhone(target, roster, stats, shared);
   const club = await admin.boot("setup");
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const type = must(
     await admin.call("setup", "POST", "/api/tournament-types", {
-      name: "Load Cup",
+      name: `Load Cup ${MARK}`,
       shortName: "Load",
       icon: "trophy",
       tone: "green",
@@ -93,7 +126,8 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
   const t = must(
     await admin.call("setup", "POST", "/api/tournaments", {
       typeId: type.id,
-      name: "Load Cup 2026",
+      name: `Load Cup 2026 ${MARK}`,
+      public: false,
       location: "",
       heldOn: inDays(10),
       startTime: "11:00",
@@ -108,7 +142,7 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
     "tournament",
   );
   const watching = await phones(
-    url,
+    target,
     players.map((r) => r.email),
     stats,
     { shared },
@@ -118,7 +152,7 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
   must(await admin.call("setup", "POST", `/api/tournaments/${t.id}/draft/draw`, {}), "draw");
   must(await admin.call("setup", "POST", `/api/tournaments/${t.id}/draft/open`, {}), "open");
   const captainPhones = await phones(
-    url,
+    target,
     captains.map((r) => r.email),
     stats,
     { shared },
@@ -192,17 +226,21 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
   const d = draftOf(await admin.boot("setup"));
   notes.push(`Picks made: ${d.made} of ${players.length}; ${picks} by captains`);
   await Promise.all(stops.map((s) => s()));
+  notes.push(
+    `The draft's tournament deleted: ${(await admin.call("setup", "DELETE", `/api/tournaments/${t.id}`)).status}`,
+  );
 }
 
 /** A game scored live: one scorekeeper, 80 members following the game page. */
-async function scoring({ url, roster, stats, shared, notes }) {
-  const admin = await phone(url, roster[0].email, stats, { address: shared ? "10.0.0.1" : "10.9.9.9" });
+async function scoring({ target, roster, stats, shared, notes }) {
+  const admin = await adminPhone(target, roster, stats, shared);
   const club = await admin.boot("setup");
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const captains = roster.slice(1, 4);
   const t = must(
     await admin.call("setup", "POST", "/api/tournaments", {
-      name: "Load Scrimmage",
+      name: `Load Scrimmage ${MARK}`,
+      public: false,
       location: "Battersea Park",
       heldOn: today(),
       startTime: "10:00",
@@ -227,9 +265,9 @@ async function scoring({ url, roster, stats, shared, notes }) {
   const keeperName = captains.find(
     (c) => idOf.get(c.name) === x.teams.find((tm) => tm.id === game.scoringTeamId).captainMemberId,
   );
-  const keeper = await phone(url, keeperName.email, stats, { address: shared ? "10.0.0.1" : "10.9.9.8" });
+  const keeper = await adminPhone(target, [keeperName], stats, shared, "10.9.9.8");
   const viewers = await phones(
-    url,
+    target,
     roster.slice(10, 90).map((r) => r.email),
     stats,
     { shared },
@@ -261,23 +299,29 @@ async function scoring({ url, roster, stats, shared, notes }) {
   const g = (await admin.boot("setup")).tournaments.find((y) => y.id === t.id).games.find((y) => y.id === game.id);
   notes.push(`Full time: ${g.homeGoals}–${g.awayGoals}, ${g.status}`);
   await Promise.all(stops.map((s) => s()));
+  notes.push(
+    `The game's tournament deleted: ${(await admin.call("setup", "DELETE", `/api/tournaments/${t.id}`)).status}`,
+  );
 }
 
 /**
  * One phone at a time, nothing else running: what each request costs on its own (latency, CPU, rows), the yardstick
- * for the busy runs. A cold bootstrap, an unchanged one (304), a changed one, an In and an Out.
+ * for the busy runs. A cold bootstrap, an unchanged one (304), a changed one, an In and an Out. Against dev, `cpu` and
+ * `d1` are null: latencies only.
  */
-async function baseline({ url, roster, stats, cpu, d1, notes }) {
-  const admin = await phone(url, roster[0].email, stats);
-  const session = (await admin.boot("setup")).sessions.find((s) => s.heldOn >= today() && !s.cancelledAt);
+async function baseline({ target, roster, stats, cpu, d1, notes }) {
+  const admin = await adminPhone(target, roster, stats, false);
+  const session = await loadNight(admin, await admin.boot("setup"));
   const members = await phones(
-    url,
+    target,
     roster.slice(1, 21).map((r) => r.email),
     stats,
   );
   const costs = [];
   /** One request, its CPU and D1 rows on its own */
+  // Against dev there's no counter beside each request: its latency here, Cloudflare's numbers for the run as a whole
   const alone = async (label, run) => {
+    if (!d1) return run();
     await d1(true);
     const before = cpu();
     await run();

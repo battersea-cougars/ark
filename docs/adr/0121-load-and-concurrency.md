@@ -1,4 +1,4 @@
-# 0121. Requests at once are safe by statement, not by luck; every invocation keeps to 50 subrequests; load is run locally
+# 0121. Requests at once are safe by statement, not by luck; every invocation keeps to 50 subrequests; load runs locally or on dev, never production
 
 - **Status:** Accepted
 - **Date:** 2026-10-21 · updated 2026-10-21
@@ -46,8 +46,14 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   request's push send is 40 phones (`SEND_AT_ONCE`); a cron run drains 25 (`DRAIN_AT_ONCE`) and sends 10 reminder
   emails (`REMINDERS.perRun`), whose phones wait for the next drain (`tell`). The worst five-minute run is about 35
   (25 phones, 10 emails, Google's and Gmail's tokens, the club's address from Sanity, a website rebuild's 2).
-- **Load is run on your own machine, never on dev or production** (`npm run load`, docs/load-testing.md): the built
-  Worker under `wrangler dev` with its own D1 in a temp folder, 120 members signed in as `dev-sign-in` does.
+- **Load runs on your own machine, or on dev once the user's been told, never on production** (`npm run load`,
+  docs/load-testing.md): locally, the built Worker under `wrangler dev` with its own D1 in a temp folder, 120 members
+  signed in as `dev-sign-in` does. On dev (`--target dev`, only dev's address and `cougars-dev`, refused otherwise),
+  the run brings its own 120 members (`@load.test`) and mints their sign-ins as the app stores them, with no code
+  and no change to the app; everything it makes carries a mark and is taken away at the end, Ctrl-C included
+  (`--cleanup` for a run killed hard). Its numbers are Cloudflare's: CPU per request, D1 rows, the live hub. Dev
+  can't enforce the per-address limits (no Cache API on `*.workers.dev`, the domain's rule is production's), so a
+  dev run isn't paced: it counts what production's limits would have refused (#113).
 - **D1 counts a sort's rows again** (a `USE TEMP B-TREE FOR ORDER BY` reads each row twice, as billed): a part read
   on every live update is read in an index's order (`db/schema.sql`), or unsorted and put in order by the Worker
   (sign-ups, `entries.ts`). A filter by day puts the viewer first (`viewer v CROSS JOIN …`), so the day picks the
@@ -88,3 +94,7 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   events, and the fake D1's latency has a tail, so seeds find such races themselves (seed 35, and 6 of 200). Three
   tests timed by the wall clock (balancing teams, the live hub's first event, the show switch's streaming) say it by
   CPU time or the order of events instead.
+- 2026-10-21: Load on dev too (`--target dev`, the user agreed: "it's what dev is for"), never production: the run's
+  own members with minted sign-ins, cleaned up after; Cloudflare's own CPU and D1 numbers for the run's window; a
+  soak (`--minutes`) with a budget of the day's rows read; the per-address limits counted, not enforced, since dev
+  can't. `--target local` runs the same path on your machine.

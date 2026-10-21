@@ -1,29 +1,19 @@
 // A team Worker of the load run's own (docs/load-testing.md): the built Worker under `wrangler dev`, on a port the OS
 // picks, with its own D1 in a fresh temp folder (never main's local D1, never dev or production), seeded with the
 // club's schema and seed and a roster of `members`. Signed in the way scripts/dev-sign-in.mjs does (POST
-// /api/auth/dev, a local server only), never by asking for codes. The workerd process's CPU time is read from /proc.
+// /api/auth/dev, a local server only), never by asking for codes; or, with `roster: false` (`--target local`), as
+// against dev: the run adds its own members and mints their sessions into this D1 (`d1db`, load.club.mjs). The
+// workerd process's CPU time is read from /proc.
 import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseRoster, rosterSql } from "../lib/roster.mjs";
+import { loadRoster } from "./load.club.mjs";
 
 const ROOT = join(import.meta.dirname, "../..");
 const DIST = join(ROOT, "apps/team/dist/cougars_team");
-
-/** The club for a load run: an admin, then members, a few of them keepers. */
-export function loadRoster(members) {
-  return [
-    { name: "Load Admin", position: "D", rating: 70, email: "admin@load.test", roles: ["Admin"] },
-    ...Array.from({ length: members - 1 }, (_, i) => ({
-      name: `Member ${i + 1}`,
-      position: i % 30 === 0 ? "G" : i % 3 ? "F" : "D",
-      rating: 40 + (i % 40),
-      email: `m${i + 1}@load.test`,
-    })),
-  ];
-}
 
 const freePort = () =>
   new Promise((resolve, reject) => {
@@ -67,7 +57,7 @@ function cpuMs(pid) {
   }
 }
 
-export async function startServer({ members = 120, build = true, log = console.log } = {}) {
+export async function startServer({ members = 120, build = true, roster: seedRoster = true, log = console.log } = {}) {
   if (build || !existsSync(join(DIST, "index.js"))) {
     log("Building the team app…");
     sh("npm", ["run", "build", "-w", "@cougars/team"]);
@@ -82,22 +72,27 @@ export async function startServer({ members = 120, build = true, log = console.l
   const state = mkdtempSync(join(tmpdir(), "cougars-load-"));
   const roster = loadRoster(members);
   writeFileSync(join(state, "roster.sql"), rosterSql(parseRoster(JSON.stringify(roster)), new Date()));
-  for (const file of [join(ROOT, "db/schema.sql"), join(ROOT, "db/seed/club.sql"), join(state, "roster.sql")])
-    sh("npx", [
-      "wrangler",
-      "d1",
-      "execute",
-      "DB",
-      "--local",
-      "--persist-to",
-      state,
-      "-c",
-      config,
-      "--yes",
-      "--file",
-      file,
-    ]);
-  log(`Seeded ${members} members into ${state}`);
+  const execute = (...how) =>
+    sh("npx", ["wrangler", "d1", "execute", "DB", "--local", "--persist-to", state, "-c", config, "--yes", ...how]);
+  const files = [join(ROOT, "db/schema.sql"), join(ROOT, "db/seed/club.sql")];
+  for (const file of seedRoster ? [...files, join(state, "roster.sql")] : files) execute("--file", file);
+  log(
+    seedRoster ? `Seeded ${members} members into ${state}` : `Seeded the club (no members of the run's) into ${state}`,
+  );
+  /** This D1 as load.club.mjs reaches a database: `run` a script, the `rows` of one SELECT. */
+  let n = 0;
+  const d1db = {
+    name: `local D1 in ${state}`,
+    run(sql) {
+      const file = join(state, `run-${n++}.sql`);
+      writeFileSync(file, sql);
+      execute("--file", file);
+    },
+    rows(sql) {
+      const [answer] = JSON.parse(execute("--json", "--command", sql));
+      return answer.results;
+    },
+  };
 
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
@@ -162,5 +157,5 @@ export async function startServer({ members = 120, build = true, log = console.l
     else log(`Kept its D1 in ${state}`);
   }
 
-  return { url, roster, state, cpu, d1, stop, output: () => output };
+  return { url, roster, state, cpu, d1, d1db, stop, output: () => output };
 }
