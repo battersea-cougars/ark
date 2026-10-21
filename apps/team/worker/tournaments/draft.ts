@@ -163,8 +163,18 @@ export async function resetDraft(db: D1Database, tournamentId: number) {
 }
 
 /**
+ * SQL: the member isn't a goalie joining a team that has one (its captain or a player). Inside the statement that puts
+ * them on, so a pick and an admin's edit landing together can't give a team two. Params: member, member, team, team.
+ */
+const NOT_A_SECOND_GOALIE = `NOT (EXISTS (SELECT 1 FROM members WHERE id = ? AND position = 'G') AND EXISTS (
+    SELECT 1 FROM members m WHERE m.position = 'G' AND m.id <> ? AND (
+      m.id = (SELECT captain_member_id FROM tournament_teams WHERE id = ?)
+      OR m.id IN (SELECT member_id FROM tournament_team_players WHERE team_id = ?))))`;
+
+/**
  * One goalie a team (ADR 0060): a goalie can't join a team that has one, its captain or a player. Refused for a pick,
- * whoever makes it, and for an admin's team edit.
+ * whoever makes it, and for an admin's team edit. Checked first for the words; the statements keep to it too
+ * (NOT_A_SECOND_GOALIE).
  */
 async function oneGoalie(db: D1Database, teamId: number, memberId: number) {
   const keeper = await first(db, "SELECT 1 FROM members WHERE id = ? AND position = 'G'", [memberId]);
@@ -211,7 +221,7 @@ export async function pick(
      SELECT ?, ?, '', (SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?),
             (SELECT coalesce(max(p.pick_number), 0) + 1 FROM tournament_team_players p
              JOIN tournament_teams t ON t.id = p.team_id WHERE t.tournament_id = ?), ?
-     WHERE ? IN (${POOL}) AND (${PICKS}) = ?`,
+     WHERE ? IN (${POOL}) AND (${PICKS}) = ? AND ${NOT_A_SECOND_GOALIE}`,
     [
       team.id,
       memberId,
@@ -225,10 +235,17 @@ export async function pick(
       tournamentId,
       tournamentId,
       made,
+      memberId,
+      memberId,
+      team.id,
+      team.id,
     ],
   );
-  if (!res.meta.changes)
+  if (!res.meta.changes) {
+    // A goalie landed on the team just before: say so
+    await oneGoalie(db, team.id, memberId);
     throw new HttpError(409, "They can't be picked: not signed up, a captain, already picked, or someone just picked.");
+  }
 }
 
 /** Someone running the draft takes back the last pick. */
@@ -337,18 +354,21 @@ export async function putOnTeam(db: D1Database, tournamentId: number, teamId: nu
   );
   if (on?.team === teamId) return;
   const position = `(SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?)`;
-  if (on)
-    await run(db, `UPDATE tournament_team_players SET team_id = ?, position = ${position} WHERE id = ?`, [
-      teamId,
-      teamId,
-      on.id,
-    ]);
-  else
-    await run(
-      db,
-      `INSERT INTO tournament_team_players (team_id, member_id, name, position) VALUES (?, ?, '', ${position})`,
-      [teamId, memberId, teamId],
-    );
+  const guard = [memberId, memberId, teamId, teamId];
+  const res = on
+    ? await run(
+        db,
+        `UPDATE tournament_team_players SET team_id = ?, position = ${position} WHERE id = ? AND ${NOT_A_SECOND_GOALIE}`,
+        [teamId, teamId, on.id, ...guard],
+      )
+    : await run(
+        db,
+        `INSERT INTO tournament_team_players (team_id, member_id, name, position)
+         SELECT ?, ?, '', ${position} WHERE ${NOT_A_SECOND_GOALIE}`,
+        [teamId, memberId, teamId, ...guard],
+      );
+  // A goalie picked onto the team just before
+  if (!res.meta.changes) throw new HttpError(409, "They've got a goalie already.");
   // On a team means in the tournament
   await run(
     db,

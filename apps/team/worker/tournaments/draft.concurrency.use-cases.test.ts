@@ -300,4 +300,26 @@ describe("draft night: taps at once", () => {
       d.holds();
     },
   );
+
+  it.each(SEEDS)(
+    "an admin puts a goalie on a team just as its captain picks the other: still one goalie a team (seed %i)",
+    async (seed) => {
+      const d = await opened();
+      const [g1, g2] = d.players.slice(0, 2);
+      const { phone, team } = d.onClock();
+      w.db.interleave(seed);
+      await Promise.all([
+        d.pick(phone, g1),
+        d.dana.call("POST", `/api/tournaments/${d.id}/teams/${team.id}/players`, { memberId: g2 }, at),
+      ]);
+      w.db.interleave(null);
+      const goalies = w.db.raw
+        .prepare(
+          `SELECT COUNT(*) n FROM tournament_team_players p JOIN members m ON m.id = p.member_id
+           WHERE p.team_id = ? AND m.position = 'G'`,
+        )
+        .get(team.id) as { n: number };
+      expect(goalies.n).toBeLessThanOrEqual(1);
+    },
+  );
 });
