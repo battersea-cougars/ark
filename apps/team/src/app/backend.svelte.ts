@@ -198,12 +198,9 @@ export const setPlayer = async (sessionId: number, memberId: number, inIt: boole
 /** The team maker lets someone waiting in, over the limit if need be (ADR 0076). */
 export const letIn = (sessionId: number, memberId: number, name: string) =>
   save(() => api("POST", `/api/sessions/${sessionId}/let-in`, { memberId }), `${name} is in`);
-/** An admin puts someone in a tournament (sign-up shut or not), or takes them off. */
-export const setTournamentPlayer = (tournamentId: number, memberId: number, inIt: boolean) =>
-  save(
-    () => api("POST", `/api/tournaments/${tournamentId}/players`, { memberId, in: inIt }),
-    inIt ? "Added" : "Taken off",
-  );
+/** Several in or off at once: the Add player drawer's Done. */
+export const setTournamentPlayers = (tournamentId: number, players: { memberId: number; in: boolean }[]) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/players`, { players }), "Saved");
 /** Publish a session's teams: everyone sees them. */
 export const publishTeams = (sessionId: number, teams: Team[], done = "Teams saved") =>
   save(() => api("POST", `/api/sessions/${sessionId}/teams`, { teams }), done);

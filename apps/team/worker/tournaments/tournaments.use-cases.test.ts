@@ -505,6 +505,36 @@ describe("a tournament, from setting it up to the draft", () => {
         expect((await pick(cara, ids.Dana)).status).toBe(200);
       });
 
+      it("an admin picks several in the Add player drawer and saves them on Done, in one go", async () => {
+        const { dana, id, tournament, ids } = await signedUp();
+        const res = await dana.call(
+          "POST",
+          `/api/tournaments/${id}/players`,
+          {
+            players: [
+              { memberId: ids.Dana, in: true },
+              { memberId: ids.Reg, in: false },
+            ],
+          },
+          { now: DRAFT_DAY },
+        );
+        expect(res.status).toBe(200);
+        const going = (await tournament()).going;
+        expect(going).toContain(ids.Dana);
+        expect(going).not.toContain(ids.Reg);
+      });
+
+      it("a captain in the batch is refused, as one at a time (the drawer never offers them)", async () => {
+        const { dana, id, ids } = await signedUp();
+        const res = await dana.call(
+          "POST",
+          `/api/tournaments/${id}/players`,
+          { players: [{ memberId: ids.Cara, in: false }] },
+          { now: DRAFT_DAY },
+        );
+        expect(res.status).toBe(409);
+      });
+
       it("only an admin can put someone in", async () => {
         const { id, ids } = await signedUp();
         const reg = await member("reg@example.com");

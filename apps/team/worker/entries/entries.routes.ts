@@ -48,11 +48,26 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
           ? [slice, "charges", "credits", "payments"]
           : [slice],
     // An admin puts someone in (a training's places kept: in, or waiting), or takes them off; the reply says where
-    // they are now: { signup: "in" | "waitlist" | null }
+    // they are now: { signup: "in" | "waitlist" | null }. Or several, saved together from the Add player drawer's
+    // Done: { players: [{ memberId, in }] }, in order, stopping at the first refused
     handle: async (c) => {
-      const { b, memberId } = await memberIdIn(c);
+      const b = await body(c.request);
+      if (Array.isArray(b.players)) {
+        const players = b.players.map(change);
+        for (const p of players) await setPlayer(c.env.DB, kind, id(c), p.memberId, p.in, c.now);
+        return ok();
+      }
+      const { memberId } = await memberIdIn(c, b);
       if (typeof b.in !== "boolean") throw new HttpError(400, "in should be true or false.");
       return json({ signup: await setPlayer(c.env.DB, kind, id(c), memberId, b.in, c.now) });
     },
   },
 ]);
+
+/** One of a batch's changes, checked: a member, in or not */
+function change(p: unknown): { memberId: number; in: boolean } {
+  const { memberId, in: inIt } = (p ?? {}) as { memberId?: unknown; in?: unknown };
+  if (!Number.isInteger(memberId) || (memberId as number) <= 0) throw new HttpError(400, "Which member?");
+  if (typeof inIt !== "boolean") throw new HttpError(400, "in should be true or false.");
+  return { memberId: memberId as number, in: inIt };
+}

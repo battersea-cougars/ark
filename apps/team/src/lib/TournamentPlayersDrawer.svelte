@@ -4,13 +4,14 @@
   import Icon from "../app/shell/Icon.svelte";
   import Drawer from "./Drawer.svelte";
   import Person from "./Person.svelte";
-  import { setTournamentPlayer } from "../app/backend.svelte";
+  import { setTournamentPlayers } from "../app/backend.svelte";
   import { SvelteMap } from "svelte/reactivity";
 
   // Who's in a tournament, in a drawer over the draft: an admin puts in someone who didn't sign up (sign-up shut or
   // not, past the limit) or takes someone off, who then comes off their team too. Captains are in automatically and
   // change in the tournament's settings. Search narrows the list. One list, A to Z: a tap says In or Add at once and
-  // the row stays where it is, so adding a run of people needs no scrolling; the save follows, undone if it fails.
+  // the row stays where it is, so adding a run of people needs no scrolling. Nothing's sent until the drawer closes
+  // (Done, or however it's shut): then every change goes in one save.
   let {
     tournamentId,
     going,
@@ -26,18 +27,25 @@
       .sort((a, b) => goesBy(a).localeCompare(goesBy(b))),
   );
   const found = (p: Player) => search.length < 2 || matchesName(p, search);
-  // Taps not yet in `going`: what the row says while its save is under way
+  // The taps so far, kept here until the drawer closes
   const tapped = new SvelteMap<number, boolean>();
   const isIn = (id: number) => tapped.get(id) ?? going.includes(id);
   const shown = $derived(active.filter((p) => !captains.has(p.id) && found(p)));
   const count = $derived(active.filter((p) => !captains.has(p.id) && isIn(p.id)).length);
 
-  async function toggle(id: number) {
+  function toggle(id: number) {
     const to = !isIn(id);
-    tapped.set(id, to);
-    const ok = await setTournamentPlayer(tournamentId, id, to);
-    if (ok === null || going.includes(id) === to) tapped.delete(id);
+    if (going.includes(id) === to) tapped.delete(id);
+    else tapped.set(id, to);
   }
+
+  // Closed: what changed is saved, then the list reads from `going` again
+  $effect(() => {
+    if (open || !tapped.size) return;
+    const players = [...tapped].map(([memberId, inIt]) => ({ memberId, in: inIt }));
+    tapped.clear();
+    void setTournamentPlayers(tournamentId, players);
+  });
 </script>
 
 {#snippet row(p: Player)}

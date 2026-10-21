@@ -101,8 +101,8 @@ export const rowsOf =
 export const ok = () => json({ ok: true });
 
 /** The member a request's body names, checked. */
-export async function memberIdIn(c: Ctx) {
-  const b = await body(c.request);
+export async function memberIdIn(c: Ctx, read?: Record<string, unknown>) {
+  const b = read ?? (await body(c.request));
   const memberId = Number(b.memberId);
   if (!Number.isInteger(memberId) || memberId <= 0) throw new HttpError(400, "Which member?");
   return { b, memberId };
