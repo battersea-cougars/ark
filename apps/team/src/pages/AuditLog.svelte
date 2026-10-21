@@ -1,11 +1,16 @@
 <script lang="ts">
   // Settings → Audit log (ADR 0095): the record of who changed what, and when. Sign-ins, every change made with more
   // than being signed in (members, roles, money, training, the Kumite, the club's settings) and every request refused
-  // for want of an action, newest first, in plain words, a page at a time, filterable by area. Read when the page
-  // opens; Refresh reads it again.
+  // for want of an action, newest first, in plain words, a page at a time. A table like the app's others: a row per
+  // entry (when, what, its area), a search over who and what, and chips by area. Read when the page opens; Refresh
+  // reads it again.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
+  import type { IconName } from "../app/shell/icons";
   import PageHeader from "../lib/PageHeader.svelte";
+  import SearchField from "../lib/SearchField.svelte";
+  import { flip } from "svelte/animate";
+  import { cardMoveMs, easeOut, sift } from "../app/motion";
   import { ACTIONS, type Action } from "../access/actions";
   import { formatDayDate, formatTime, pounds } from "../lib/dates";
 
@@ -233,11 +238,17 @@
   /** A refusal, a stopped sign-in, or something undone that can't be put back: worth a second look. */
   const notable = (e: Entry) =>
     ["refused", "sign_in.capped", "tournament.deleted", "session.reset", "draft.reset"].includes(e.action);
-  const day = (e: Entry) => e.at.slice(0, 10);
 
-  // Areas, to read one part of the club's record at a time (#80): by the event's name
-  const AREAS = ["Members", "Money", "Training", "Kumite", "Settings"] as const;
-  type Area = (typeof AREAS)[number];
+  // Areas, to read one part of the club's record at a time (#80): by the event's name, each with its chip's icon
+  const AREAS = [
+    ["Members", "user"],
+    ["Money", "pound"],
+    ["Training", "stick"],
+    ["Kumite", "swords"],
+    ["Settings", "settings"],
+  ] as const satisfies readonly (readonly [string, IconName])[];
+  type Area = (typeof AREAS)[number][0];
+  const iconOf = Object.fromEntries(AREAS) as Record<Area, IconName>;
   function areaOf(action: string): Area | null {
     if (/^(charge|payment|dues|fees)\.|^member\.(paid|plan|quarterly)$/.test(action)) return "Money";
     if (/^(sign_in|sign_out|access|member|members|role|refused)\b/.test(action)) return "Members";
@@ -247,22 +258,45 @@
     return null;
   }
   let area = $state<Area | null>(null);
-  const shown = $derived(area ? entries.filter((e) => areaOf(e.action) === area) : entries);
+
+  // Each entry read once, in words, so the search looks through what you see: who, what, and the area
+  const rows = $derived(entries.map((e) => ({ ...e, said: said(e), area: areaOf(e.action) })));
+  // The search finds an entry by who did it, what they did or to whom, as on the other tables
+  let query = $state("");
+  const shown = $derived.by(() => {
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return rows.filter((r) => {
+      if (area && r.area !== area) return false;
+      const text = `${r.said} ${r.area ?? ""} ${r.action}`.toLowerCase();
+      return words.every((w) => text.includes(w));
+    });
+  });
+  const earlier = () => load(entries[entries.length - 1].id);
 </script>
 
-<div class="page">
+<!-- One list, the page's subject: it takes the height left and scrolls inside (.page.fit), its header row the
+     table's own, above the rows and never a bar they pass under -->
+<div class="page fit">
   <PageHeader
     title="Audit log"
     subtitle="Who changed what, and when: everything an admin, a team maker, a scorer or a treasurer does."
+    active={area ? 1 : 0}
+    onclear={() => (area = null)}
   >
     {#snippet actions()}
-      <button class="btn sm" onclick={() => load()} disabled={loading}><Icon name="undo" size={16} />Refresh</button>
+      <button class="btn sm ghost" onclick={() => load()} disabled={loading}
+        ><Icon name="refresh" size={16} />Refresh</button
+      >
     {/snippet}
-    {#snippet toolbar()}
+    {#snippet filters()}
       <div class="filters" role="group" aria-label="Area">
-        <button class="filter" aria-pressed={area === null} onclick={() => (area = null)}>Everything</button>
-        {#each AREAS as a (a)}
-          <button class="filter" aria-pressed={area === a} onclick={() => (area = a)}>{a}</button>
+        <button class="filter" aria-pressed={area === null} onclick={() => (area = null)}
+          ><Icon name="list" size={16} />Everything</button
+        >
+        {#each AREAS as [a, icon] (a)}
+          <button class="filter" aria-pressed={area === a} onclick={() => (area = a)}
+            ><Icon name={icon} size={16} />{a}</button
+          >
         {/each}
       </div>
     {/snippet}
@@ -270,79 +304,152 @@
 
   {#if error}
     <p class="error">{error}</p>
-  {:else if !entries.length}
-    <p class="hint">{loading ? "Reading the record…" : "Nothing on the record yet."}</p>
-  {:else if !shown.length}
-    <p class="hint">Nothing for {area} so far{more ? ": Earlier reads further back" : ""}.</p>
-    {#if more}
-      <button class="btn ghost older" onclick={() => load(entries[entries.length - 1].id)} disabled={loading}>
-        {loading ? "Reading…" : "Earlier"}
-      </button>
-    {/if}
-  {:else}
-    <ol class="log">
-      {#each shown as e, i (e.id)}
-        {#if i === 0 || day(e) !== day(shown[i - 1])}
-          <li class="day"><h2 class="section-title">{formatDayDate(e.at)}</h2></li>
-        {/if}
-        <li class="entry" class:notable={notable(e)}>
-          <time class="when num" datetime={e.at}>{formatTime(e.at)}</time>
-          <span class="what">
-            {#if notable(e)}<Icon name="alert" size={14} />{/if}
-            {said(e)}
-          </span>
-        </li>
-      {/each}
-    </ol>
-    {#if more}
-      <button class="btn ghost older" onclick={() => load(entries[entries.length - 1].id)} disabled={loading}>
-        {loading ? "Reading…" : "Earlier"}
-      </button>
-    {/if}
   {/if}
+
+  <div class="table scroll-fill">
+    <div class="table-head">
+      <span>When</span>
+      <span>What</span>
+      <span class="col-area">Area</span>
+      <!-- Find an entry: a magnifier at the end of the row that widens into the field when you tap it -->
+      <div class="finder">
+        <SearchField bind:value={query} placeholder="Search who or what" label="Search the log" collapsible />
+      </div>
+    </div>
+    <div class="list rows">
+      <!-- A search or a chip sifts rows; the rest glide to their places (as on Roles and Unpaid fees) -->
+      {#each shown as r (r.id)}
+        <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:sift out:sift={{ out: true }}>
+          <div class="table-row entry">
+            <time class="when num" datetime={r.at}
+              ><span class="day">{formatDayDate(r.at)}</span><span class="time">{formatTime(r.at)}</span></time
+            >
+            <span class="what" class:notable={notable(r)}>
+              {#if notable(r)}<Icon name="alert" size={14} />{/if}
+              <span>{r.said}</span>
+            </span>
+            <span class="col-area">
+              {#if r.area}<Icon name={iconOf[r.area]} size={14} />{r.area}{/if}
+            </span>
+          </div>
+        </div>
+      {:else}
+        <p class="hint none">
+          {#if !entries.length}
+            {loading ? "Reading the record…" : "Nothing on the record yet."}
+          {:else if query.trim()}
+            Nothing matches “{query.trim()}”{area ? ` in ${area}` : ""} so far{more
+              ? ": Earlier reads further back"
+              : ""}.
+          {:else}
+            Nothing for {area} so far{more ? ": Earlier reads further back" : ""}.
+          {/if}
+        </p>
+      {/each}
+      <!-- The API reads a page at a time: Earlier reads the next, at the foot of the rows (the same room while it
+           reads, so nothing moves) -->
+      {#if more}
+        <div class="earlier">
+          <button class="btn ghost sm" onclick={earlier} disabled={loading}>{loading ? "Reading…" : "Earlier"}</button>
+        </div>
+      {/if}
+    </div>
+  </div>
 </div>
 
 <style>
-  .log {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: var(--s-1);
+  /* The table: glass, its header row on top and the rows scrolling under it, inside the edge */
+  .table {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--r-table);
+    background: var(--glass);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    /* When, what happened, and its area */
+    --cols: 9.5rem minmax(0, 1fr) 7.5rem;
   }
-  .day {
-    margin-top: var(--s-3);
+  .page.fit .table.scroll-fill {
+    overflow: hidden;
   }
-  .day:first-child {
-    margin-top: 0;
+  .rows {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    align-content: start;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
-  .day .section-title {
-    margin: 0 0 var(--s-1);
-  }
-  .entry {
-    display: grid;
-    grid-template-columns: 3.25rem 1fr;
+  /* The day, then the time, on one line: the rows stay one line high where there's room */
+  .when {
+    display: flex;
     gap: var(--s-2);
     align-items: baseline;
-    padding: var(--s-1) var(--s-2);
-    border-radius: var(--r-md);
-  }
-  .entry.notable {
-    background: var(--surface-2);
-  }
-  .when {
     color: var(--fg-muted);
     font-size: var(--text-sm);
   }
+  .time {
+    color: var(--fg);
+  }
   .what {
-    display: inline-flex;
+    display: flex;
     gap: var(--s-1);
     align-items: baseline;
     min-width: 0;
     overflow-wrap: anywhere;
   }
-  .older {
-    justify-self: start;
-    margin-top: var(--s-3);
+  /* A refusal or something that can't be put back: an icon says so, the words stay as they are */
+  .what.notable :global(svg) {
+    flex-shrink: 0;
+    align-self: center;
+    color: var(--caution);
+  }
+  .entry .col-area {
+    display: inline-flex;
+    gap: var(--s-1);
+    align-items: center;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .none {
+    margin: 0;
+    padding: var(--s-4);
+  }
+  .earlier {
+    display: flex;
+    justify-content: center;
+    padding: var(--s-2);
+    background: var(--rule) top / 100% 1px no-repeat;
+  }
+  /* A phone: the area goes (the chips say it); the time sits over the day, narrow, at the top of the words */
+  @media (max-width: 900px) {
+    .entry {
+      align-items: start;
+    }
+    .when {
+      display: grid;
+      gap: 0.1rem;
+    }
+    .time {
+      order: -1;
+    }
+    .day {
+      font-size: var(--text-xs);
+    }
+    .table {
+      --cols: 4.25rem minmax(0, 1fr);
+    }
+    .table-head,
+    .table-row {
+      gap: var(--s-3);
+    }
+    .col-area,
+    .entry .col-area {
+      display: none;
+    }
   }
 </style>

@@ -1,7 +1,7 @@
 # 0095. Each change declares what it puts on the audit log, on its route, and the log has a page in plain words
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-10
+- **Date:** 2026-10-09 · updated 2026-10-21
 - **Merges:** 0098
 
 ## Context
@@ -59,10 +59,12 @@ in a table. A decorator around a handler would also see only the request and the
 - **`GET /api/audit`** returns the newest entries first, a page at a time (`before=<id>` for the next page, up to 200
   a page). Each entry names who acted and, where its detail names a member or a role, that one by its current name,
   so the page needs no other data to say what happened.
-- **Settings → Audit log**, under Security (`AuditLog.svelte`): one line per entry, by day, in plain words ("Dana
-  changed Reg: roles Member → Helper, Member", "Pat was refused GET /api/usage: needs \"See the club's free
-  Cloudflare allowance\""). Refusals and capped sign-ins stand out. "Earlier" reads the next page. Chips filter by
-  area: Members, Money, Training, Kumite, Settings.
+- **Settings → Audit log**, under Security (`AuditLog.svelte`): a table like the app's others (ADR 0065), one row per
+  entry: when (the day and time), what in plain words ("Dana changed Reg: roles Member → Helper, Member", "Pat was
+  refused GET /api/usage: needs \"See the club's free Cloudflare allowance\""), and its area (dropped on a phone).
+  The page is `.page.fit` and the table scrolls inside, under its own header row. Refusals and capped sign-ins carry
+  an alert icon. A search in the header row (who, what) and filter chips by area (Members, Money, Training, Kumite,
+  Settings, each with its icon) sift the entries read so far; "Earlier", at the foot of the rows, reads the next page.
 
 ## Consequences
 
@@ -84,3 +86,6 @@ in a table. A decorator around a handler would also see only the request and the
   entries become `dev_mail.changed`, and tournament, session and draft resets join (was 0098).
 - 2026-10-10: Every change made with more than being signed in goes on the record; an opt-out names its reason
   (`{ none }` replaces `false`); goals and the clock are summarised as `game.scored`; the page filters by area (#80).
+- 2026-10-21: The page becomes a table like Roles and Unpaid fees: a row per entry (when · what · area), scrolling
+  inside a `.page.fit`, a search in its header row, the area chips with icons in the page's filters, "Earlier" at the
+  foot of the rows; notable entries get an icon, not a fill. The API is unchanged: search and chips sift what's read.
