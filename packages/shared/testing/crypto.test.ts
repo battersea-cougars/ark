@@ -47,4 +47,63 @@ describe("WebCrypto in tests", () => {
     const theirs = await real.sign("RSASSA-PKCS1-v1_5", await real.importKey(pkcs8, alg), data);
     expect(new Uint8Array(await signature)).toEqual(new Uint8Array(theirs));
   });
+
+  it("does Web Push's work as WebCrypto does, at once: ECDH, HKDF, AES-GCM and ES256 (worker/push/webpush.ts)", async () => {
+    const ec = { name: "ECDH", namedCurve: "P-256" };
+    // Ours, and one made by the real thing: the same secret either way round
+    const ours = crypto.subtle.generateKey(ec, true, ["deriveBits"]) as Promise<CryptoKeyPair>;
+    expect(await settles(ours)).toBe(true);
+    const theirs = (await proto.generateKey.call(crypto.subtle, ec, true, ["deriveBits"])) as CryptoKeyPair;
+    const ourPoint = crypto.subtle.exportKey("raw", (await ours).publicKey);
+    expect(await settles(ourPoint)).toBe(true);
+    expect(new Uint8Array((await ourPoint) as ArrayBuffer)).toHaveLength(65);
+    const theirPoint = (await proto.exportKey.call(crypto.subtle, "raw", theirs.publicKey)) as ArrayBuffer;
+    const theirPublic = crypto.subtle.importKey("raw", theirPoint, ec, false, []);
+    expect(await settles(theirPublic)).toBe(true);
+    const secret = crypto.subtle.deriveBits({ name: "ECDH", public: await theirPublic }, (await ours).privateKey, 256);
+    expect(await settles(secret)).toBe(true);
+    const ourPublicForThem = await proto.importKey.call(crypto.subtle, "raw", await ourPoint, ec, false, []);
+    const same = await proto.deriveBits.call(
+      crypto.subtle,
+      { name: "ECDH", public: ourPublicForThem },
+      theirs.privateKey,
+      256,
+    );
+    expect(new Uint8Array(await secret)).toEqual(new Uint8Array(same));
+
+    // HKDF, the same bits
+    const hkdf = { name: "HKDF", hash: "SHA-256", salt: data, info: data };
+    const ikm = crypto.subtle.importKey("raw", await secret, "HKDF", false, ["deriveBits"]);
+    expect(await settles(ikm)).toBe(true);
+    const bits = crypto.subtle.deriveBits(hkdf, await ikm, 128);
+    expect(await settles(bits)).toBe(true);
+    const realIkm = await proto.importKey.call(crypto.subtle, "raw", await secret, "HKDF", false, ["deriveBits"]);
+    expect(new Uint8Array(await bits)).toEqual(
+      new Uint8Array(await proto.deriveBits.call(crypto.subtle, hkdf, realIkm, 128)),
+    );
+
+    // AES-128-GCM, the same ciphertext and tag
+    const gcm = { name: "AES-GCM", iv: new Uint8Array(12) };
+    const key = crypto.subtle.importKey("raw", await bits, "AES-GCM", false, ["encrypt"]);
+    expect(await settles(key)).toBe(true);
+    const sealed = crypto.subtle.encrypt(gcm, await key, data);
+    expect(await settles(sealed)).toBe(true);
+    const realKey = await proto.importKey.call(crypto.subtle, "raw", await bits, "AES-GCM", false, ["encrypt"]);
+    expect(new Uint8Array(await sealed)).toEqual(
+      new Uint8Array(await proto.encrypt.call(crypto.subtle, gcm, realKey, data)),
+    );
+
+    // ES256 from a JWK: r ‖ s, which the real thing verifies
+    const es = { name: "ECDSA", namedCurve: "P-256" };
+    const pair = (await proto.generateKey.call(crypto.subtle, es, true, ["sign", "verify"])) as CryptoKeyPair;
+    const jwk = (await proto.exportKey.call(crypto.subtle, "jwk", pair.privateKey)) as JsonWebKey;
+    const signer = crypto.subtle.importKey("jwk", jwk, es, false, ["sign"]);
+    expect(await settles(signer)).toBe(true);
+    const signature = crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, await signer, data);
+    expect(await settles(signature)).toBe(true);
+    expect(new Uint8Array(await signature)).toHaveLength(64);
+    expect(await real.verify({ name: "ECDSA", hash: "SHA-256" } as never, pair.publicKey, await signature, data)).toBe(
+      true,
+    );
+  });
 });
