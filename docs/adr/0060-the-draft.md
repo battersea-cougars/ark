@@ -75,7 +75,7 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   next and a captain's own place ("You pick 2nd"), one the last pick. Rules, the pick log and **Manage** (Undo, Add
   player, Close, Reset: a bottom sheet on a phone, a side drawer on a desktop, asking there before closing with
   players left or a reset) are icons on that first line. On a phone the series' header drops its date lines, the
-  ticker goes (the lines above say it), and the players scroll inside the window's height (`.page.fit`), starting
+  ticker stays (the picks at a glance), and the players scroll inside the window's height (`.page.fit`), starting
   high. A closed draft keeps Reopen and Make the fixtures on the page.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).

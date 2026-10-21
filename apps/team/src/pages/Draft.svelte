@@ -663,7 +663,7 @@
     {/if}
 
     <!-- The ticker: the picks just made, then every pick to come -->
-    {#if ticker.length && columns}
+    {#if ticker.length}
       <div class="ticker" bind:this={tickerEl} aria-label="Picks">
         {#each ticker as t (t.n)}
           <!-- An empty place (before the first picks) is the chip's shape with nothing in it -->
