@@ -79,8 +79,8 @@
       <div class="who">
         <h2 class="display">{team.name || fallback}</h2>
         <p class="hint">
-          Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{#if !drafting}
-            {" · "}{team.players.length + 1} {team.players.length ? "players" : "player so far"}{/if}
+          Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{#if !drafting}&nbsp;· {team.players.length + 1}
+            {team.players.length ? "players" : "player so far"}{/if}
         </p>
       </div>
       {#if canEdit && team.id}
