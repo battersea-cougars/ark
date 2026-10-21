@@ -1333,6 +1333,7 @@
   }
   .roster {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-3);
   }
   .not-playing {

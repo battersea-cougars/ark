@@ -563,6 +563,7 @@
      kicker keeps every page's eyebrow line (ADR 0065) */
   .hello {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-2);
   }
   .kicker {
@@ -586,9 +587,13 @@
     line-height: 1.05;
     text-transform: uppercase;
     color: var(--fg);
+    /* A long hello on a narrow phone takes a second line (the row's as tall as two, beside the mark), never "…" */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    text-wrap: balance;
   }
   .hello-side {
     display: flex;

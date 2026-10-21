@@ -229,11 +229,11 @@
                 />
               </label>
               {#if setsFees}
-                <label class="field span-3">
+                <label class="field span-3 dated">
                   Fee per session (£)
                   <input class="input num" inputmode="decimal" bind:value={feeAmount} />
                 </label>
-                <div class="field span-3">
+                <div class="field span-3 dated">
                   Fee from <DateField id="training-fee-from" aria-label="Fee from" bind:value={feeFrom} />
                 </div>
               {/if}
@@ -275,7 +275,7 @@
                 </div>
                 <p class="hint">{describeRule(form)}</p>
               </fieldset>
-              <div class="field span-3">
+              <div class="field span-3 dated">
                 First session <DateField
                   id="training-first"
                   aria-label="First session"
@@ -283,7 +283,7 @@
                   bind:value={form.startsOn}
                 />
               </div>
-              <div class="field span-3">
+              <div class="field span-3 dated">
                 Last session
                 <DateField
                   id="training-last"
@@ -396,6 +396,7 @@
 <style>
   .nights {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-3);
   }
   .nights h2 {
@@ -445,6 +446,7 @@
     font-size: var(--text-sm);
     font-weight: 600;
     cursor: pointer;
+    min-height: 2.75rem; /* a finger's worth, though the words are small */
   }
   .act:hover {
     text-decoration: underline;
@@ -484,6 +486,12 @@
       grid-column: 1 / -1;
     }
   }
+  /* A phone: a date's field and the one beside it one under the other, so the date reads whole ("Wed 21 Oct 2026") */
+  @container (max-width: 26rem) {
+    .span-3.dated {
+      grid-column: 1 / -1;
+    }
+  }
   /* Icon and colour on one line while they fit */
   .style {
     display: flex;
@@ -492,6 +500,7 @@
   }
   .sessions {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-6);
   }
   .night .collected {
@@ -500,8 +509,10 @@
     align-self: center;
     font-size: var(--text-sm);
   }
+  /* A narrow phone: the weeks' arrows under the heading, rather than past the edge */
   .nights-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--s-3);

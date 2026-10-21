@@ -1170,6 +1170,7 @@
   section,
   .part {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-3);
     align-content: start;
     padding-block: var(--s-5) var(--s-6);
@@ -1291,11 +1292,13 @@
     justify-content: flex-end;
     gap: var(--s-2);
   }
+  /* A narrow phone: the quarter's arrows under the heading, rather than past the edge */
   .head-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--s-3);
+    gap: var(--s-1) var(--s-3);
   }
   /* A section's heading stays at the top of the body while its rows scroll under it */
   .head-row.pinned {

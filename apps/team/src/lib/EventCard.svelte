@@ -836,8 +836,10 @@
     .side {
       display: flex;
       flex-basis: 100%;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
+      gap: var(--s-2) var(--s-3);
       text-align: left;
     }
     .side:not(:has(*)) {
@@ -855,6 +857,15 @@
     }
     .answer > button {
       min-width: 0;
+    }
+  }
+  /* A narrow phone (an SE): Home's counts keep their one line by dropping the out faces (the red count says it) */
+  @container (max-width: 19rem) {
+    .glance .crowd {
+      column-gap: var(--s-3);
+    }
+    .glance .faces.out {
+      display: none;
     }
   }
   /* The card's own padding can't follow its container (a container query only reaches what's inside), so a phone

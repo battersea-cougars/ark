@@ -129,6 +129,10 @@
 </div>
 
 <style>
+  /* Beside next quarter's tiles, its title takes a second line rather than "Next quarter · Jan–M…" */
+  .next .title {
+    white-space: normal;
+  }
   .plan {
     display: grid;
     gap: var(--s-3);

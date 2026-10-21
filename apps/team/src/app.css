@@ -511,6 +511,7 @@ h3 {
   top: 0;
   z-index: 3;
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* the box's width, never its header row's: the tabs scroll instead */
   border: 0; /* no edge: the glass and its row lines are enough (2026-10-10) */
   border-radius: var(--r-table);
   background: var(--glass);
@@ -849,6 +850,16 @@ button.row:hover:not(:disabled) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* A narrow phone: a name beside a badge or a button takes a second line rather than "Hayden H…" */
+@media (max-width: 400px) {
+  .row .title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
 }
 .row .sub {
   display: block;
@@ -1203,10 +1214,18 @@ button.row:hover:not(:disabled) {
 /* ─── Tabs ─── A card's or an editor's sections (Details, Attendance, Dues): the club's italic capitals, the one
    you're on in fg with the poster title's red slash under it. Words on the page, not boxes. */
 .tablist {
+  --tab-pad: var(--s-3);
   display: flex;
   gap: var(--s-1);
   overflow-x: auto;
   scrollbar-width: none;
+}
+/* A narrow phone: the tabs closer together, so a row of three or four still fits without scrolling */
+@media (max-width: 400px) {
+  .tablist {
+    --tab-pad: var(--s-2);
+    gap: 0;
+  }
 }
 .tablist > button {
   position: relative;
@@ -1215,7 +1234,7 @@ button.row:hover:not(:disabled) {
   gap: var(--s-2);
   flex: none;
   height: 2.5rem;
-  padding: 0 var(--s-3);
+  padding: 0 var(--tab-pad);
   border: 0;
   background: none;
   color: var(--fg-muted);
@@ -1238,8 +1257,8 @@ button.row:hover:not(:disabled) {
 .tablist > button[aria-selected="true"]::after {
   content: "";
   position: absolute;
-  left: var(--s-3);
-  right: var(--s-3);
+  left: var(--tab-pad);
+  right: var(--tab-pad);
   bottom: 0;
   height: 4px;
   transform: skewX(-24deg);
