@@ -1,8 +1,7 @@
 <script lang="ts">
   // Home (ADR 0118): a slim hello with the Calendar's button, the locker room (the club's announcements, then what
-  // you owe), then the calls to action (this
-  // Friday's card, always; are you in for the Kumite), then the feed: what needs you now, what's coming up, and for
-  // admins their own lines at the foot.
+  // you owe), then the calls to action (this Friday's card, always; are you in for the Kumite; your next fight), then
+  // the feed: what needs you now, what's coming up, and for admins their own lines at the foot.
   import { untrack } from "svelte";
   import { shortName, shortNameOf } from "../lib/names";
   import { can } from "../access/actions";
@@ -14,6 +13,7 @@
   import mark from "../assets/cougars-mark.webp";
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
+  import NextFight from "../lib/NextFight.svelte";
   import { formatDayDate, londonToday } from "../lib/dates";
   import { aged, leftOn } from "../lib/dues";
   import { signupOpen } from "../lib/signup";
@@ -423,7 +423,7 @@
 
   <!-- The calls to action: this Friday's card, always (In and Out, the quip, your team once they're out); are you in
        for the Kumite while it's open. A tournament you'd answered before you came is its row in what's coming up -->
-  {#if booking || signingUp.some(({ t }) => askFull(tournamentBookable(t)))}
+  {#if booking || feed.fights.length || signingUp.some(({ t }) => askFull(tournamentBookable(t)))}
     <div class="asks">
       {#if series && booking}
         <section>
@@ -465,6 +465,13 @@
             </EventCard>
           </section>
         {/if}
+      {/each}
+      <!-- On a team with a fight to come: who, when, and the way to it, as the tournament's own page leads with it -->
+      {#each feed.fights as f (f.t.id)}
+        <section>
+          <h2 class="section-title">Your next {f.type.shortName} fight</h2>
+          <NextFight tournament={f.t} game={f.game} teamId={f.teamId} day />
+        </section>
       {/each}
     </div>
   {/if}

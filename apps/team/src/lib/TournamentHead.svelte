@@ -11,7 +11,8 @@
   import PageHeader from "./PageHeader.svelte";
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
   import { tournamentPlace } from "../demo/schedule.svelte";
-  import { EDITION_LABEL, editionState, editionWhen } from "./edition";
+  import { editionWhen } from "./edition";
+  import { stageBadge } from "./tournament-front";
   import AwardsDrawer, { enterAwards } from "./AwardsDrawer.svelte";
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
@@ -38,12 +39,14 @@
     compact?: boolean;
   } = $props();
 
-  const stage = $derived(tournament ? editionState(tournament) : null);
+  // Where it's got to, as the stamp says it (lib/tournament-front.ts): sign-up open, the draft live, the teams set,
+  // fight night, KUMITE! on the day, done
+  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday()) : null);
   const when = $derived(tournament ? editionWhen(tournament) : null);
   const place = $derived(tournament ? tournamentPlace(tournament)?.name : undefined);
   // How long till the day, beside it: today, tomorrow, in N days. Only for a fixed day that's still to come
   const countdown = $derived.by(() => {
-    if (!tournament || !when?.day || stage === "done") return "";
+    if (!tournament || !when?.day || stage?.tone === "done") return "";
     const days = Math.round((Date.parse(tournament.heldOn) - Date.parse(londonToday())) / 86_400_000);
     return days < 0 ? "" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`;
   });
@@ -93,9 +96,10 @@
     <PageHeader {title} eyebrow={type.name} eyebrowIcon={type.icon}>
       {#snippet badge()}
         {#if stage}
-          <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red on, green open -->
-          <span class="stamp {stage}">
-            {EDITION_LABEL[stage]}
+          <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red live (the
+               draft, the day), green open, the teams and fixtures set plain -->
+          <span class="stamp {stage.tone}">
+            {stage.label}
           </span>
         {/if}
       {/snippet}
@@ -197,6 +201,9 @@
   .stamp.open {
     color: var(--green-ink);
   }
+  .stamp.set {
+    color: var(--fg);
+  }
   /* On a phone it sits in the eyebrow line: no taller than the line, so the header's height never changes */
   @media (max-width: 900px) {
     .stamp {
@@ -204,6 +211,11 @@
       border-width: 1.5px;
       font-size: 0.85rem;
     }
+  }
+  /* The header's line clamps to two lines on a phone, and WebKit's clamp cuts the countdown short ("TOD…") on one
+     line with room to spare: these two lines have their own fixed height, so no clamp */
+  :global(p.line:has(> .when-box)) {
+    display: block;
   }
   /* Two fixed lines: the same height whatever's in them, so nothing below moves from page to page */
   .when-box {

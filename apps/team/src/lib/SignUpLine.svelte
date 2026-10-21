@@ -1,6 +1,7 @@
 <script lang="ts">
   // Saying you're in for a tournament, on its own page: one line, not a card (the date's in the header). How many are
-  // in, whether you are, and In / Out. The card itself is for the app's Home feed.
+  // in, whether you are, and In / Out. The card itself is for the app's Home feed. Once the draft's on, just a line:
+  // where you stand and the count, no buttons (ADR 0074).
   import type { Tournament } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { answerFor } from "../app/backend.svelte";
@@ -8,7 +9,16 @@
   import { signupOpen } from "./signup";
   import { formatDayDate, londonISO, londonToday } from "./dates";
 
-  let { tournament: t, canSignUp }: { tournament: Tournament; canSignUp: boolean } = $props();
+  let {
+    tournament: t,
+    canSignUp,
+    line = false,
+  }: {
+    tournament: Tournament;
+    canSignUp: boolean;
+    /** One small line under the draft: where you stand and the count, no In / Out. */
+    line?: boolean;
+  } = $props();
 
   const id = $derived(me().id);
   const inIt = $derived(t.going.includes(id));
@@ -33,7 +43,12 @@
   }
 </script>
 
-{#if open || planned || t.going.length}
+{#if line}
+  <p class="line hint">
+    {inIt ? "You're in" : waiting ? "You're on the waitlist" : out ? "You're out" : "You didn't sign up"} · {t.going
+      .length} signed up
+  </p>
+{:else if open || planned || t.going.length}
   <div class="signup">
     <span class="words">
       <strong
@@ -71,6 +86,10 @@
 {/if}
 
 <style>
+  .line {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
   .signup {
     display: flex;
     flex-wrap: wrap;

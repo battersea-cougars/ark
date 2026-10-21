@@ -76,6 +76,31 @@ describe("Home's feed", () => {
     expect(feed(closed).now).toMatchObject([{ text: "The teams are out", href: "/tournaments/kumite/teams" }]);
   });
 
+  it("on a team once the fixtures are out: your next fight, up top, in place of the teams being out", () => {
+    const team = (id: number, captain: number, players: number[]) => ({
+      id,
+      name: "",
+      logo: null,
+      captainMemberId: captain,
+      captainName: "",
+      contact: "",
+      players: players.map((memberId) => ({ memberId, name: "" })),
+    });
+    const game = (id: number, position: number, home: number, away: number, status = "next") =>
+      ({ id, position, homeTeamId: home, awayTeamId: away, status }) as never;
+    const out = kumite({
+      draftState: "closed",
+      teams: [team(1, 2, [3]), team(2, 4, [ME]), team(3, 5, [6])],
+      games: [game(81, 1, 1, 3, "done"), game(82, 2, 2, 3), game(83, 3, 1, 2)],
+    });
+    const rows = feed(out);
+    expect(rows.fights.map((f) => [f.t.id, f.game.id, f.teamId])).toEqual([[10, 82, 2]]);
+    expect(rows.now).toEqual([]);
+    // Not on a team: no fight of yours, and the teams are still news
+    expect(feed(out, { me: 99 }).fights).toEqual([]);
+    expect(feed(out, { me: 99 }).now.map((r) => r.text)).toEqual(["The teams are out"]);
+  });
+
   it("doesn't nag about a sign-up closing when Home already asks about that tournament up top", () => {
     const t = kumite();
     expect(feed(t, { agenda: [closes] }).now).toEqual([]);

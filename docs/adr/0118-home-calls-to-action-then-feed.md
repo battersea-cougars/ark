@@ -28,9 +28,12 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
    room; then "Are you in for the Kumite?" for each series' next tournament that is taking sign-ups, a full card
    (EventCard). A tournament you had already answered when you opened Home is its row in what's coming up ("You're
    in") instead, so the asks still open stand out; one you answer while you're there keeps its card for the rest of
-   the visit, so nothing jumps under your thumb.
+   the visit, so nothing jumps under your thumb. Then **your next fight** in each series you're on a team in, once
+   its fixtures are out ("Your next Kumite fight": the two crests, "Team Dan vs Team Cal", the time, day and game,
+   opening its matchup), the same line its front page leads with ([0074](0074-tournament-home-and-scheduling.md)).
 4. **The feed** (`lib/home-feed.ts`), light rows (an icon or a date, a line, a sub-line, a chevron):
-   - **What needs you now**, your move first: an open draft, the draft being on, the teams being out, a captain's
+   - **What needs you now**, your move first: an open draft, the draft being on, the teams being out (not once you've a fight
+     coming: that says it), a captain's
      draft day, a sign-up closing for a tournament not asked about up top.
    - **Coming up**, in date order, each with its date on the left as the lead card shows it (`lib/DateBlock`: Fri / 30 / Oct stacked, a size
      down; Summer / TBC / 2027 with no day yet): each
@@ -67,3 +70,6 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
 - 2026-10-21: The announcements block is called the locker room (the quips are already "the locker room's word"),
   and what you owe moved into it, its last notice with Settle up, out of the feed: "the amount the person owes is kind
   of in the middle of nowhere". Code and data keep "announcement"; only the words people see changed.
+- 2026-10-21: Your next fight (a tournament you're on a team in, its fixtures out) is a call to action after the
+  sign-ups, the same line the tournament's front page leads with, and it replaces "The teams are out" for you: "show
+  my upcoming games for kumite on home".

@@ -52,13 +52,28 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 
 ### The acts (`Games.svelte`)
 
-- **Before:** the sign-up line, the draft, the teams, the first fight once the card's out. Nothing else: no lede, no
-  "not final" hint. The sign-up line says where sign-up stands ("Sign-up opens Fri 16 Oct" before it opens). The
-  teams are "Teams", each with its crest and name, and a line under only when it adds something ("Your team", or its
-  captain once the team has its own name). The draft card leads with the draft's day or "Draft date TBC", shows the
-  captains as discs (initials in their team's colour, the name on hover and for a screen reader, a ring on yours),
-  or says "Captains to be named."
-- **During:** your turn to keep score, the fight on now and the next, the latest results.
+- **Before: the page follows the stage**, each leading with one thing (`frontOf` in `lib/tournament-front.ts`);
+  what's had its day goes from the page (History keeps it):
+
+  | Stage            | Stamp                                                                                                | Leads with                                                          | Then                                                                                                                                        |
+  | ---------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+  | sign-up          | SIGN-UP OPEN (COMING UP before it opens)                                                             | you're in, or In / Out, and the count                               | a draft's day and captains                                                                                                                  |
+  | the draft open   | DRAFT LIVE                                                                                           | the draft: who's picking, Go to the draft (its captains, run:Draft) | your sign-up, one small line, no buttons                                                                                                    |
+  | the teams set    | TEAMS SET                                                                                            | "You're on Team X": its crest, captain, teammates                   | the other teams; "Draft done", one line, with Go to the draft for its captains and whoever runs it; an admin's "Make it" for the fight card |
+  | the fixtures out | FIGHT NIGHT (FIXTURES OUT for a series without the motif); on the day KUMITE! (the series' own name) | your next fight: "Team Dan vs Team Cal · 7:17pm", to its matchup    | the first up (unless that's yours) and the full fight card, the teams, yours marked                                                         |
+
+  Off a team, the teams (or the first up) lead instead. Teams that enter have no draft, so no draft stage; while
+  they're still taking sign-ups, the sign-up line sits under the teams. The draft's done is said once ("Draft done"),
+  not a Closed stamp and a shout. The stamp in the header is the stage (`stageBadge`), on every page of the series;
+  under way on another day it's ON NOW, and DONE once every game's played. Nothing else: no lede, no "not final"
+  hint. The teams are "Teams", each with its crest and name, and a line under only when it adds something ("Your
+  team", in red, or its captain once the team has its own name). The draft card leads with the draft's day or "Draft
+  date TBC", shows the captains as discs, or says "Captains to be named."
+
+- **Your next fight on Home** too, under the calls to action, while you're on a team with one coming (the same
+  `lib/NextFight`, with its day), in place of the feed's "The teams are out".
+- **During:** your turn to keep score, your next fight (unless it's on now or next), the fight on now and the next,
+  the latest results.
 - **After:** the champions (crest, name, how they won it), the final, every fight, the awards: on its own page in
   History, with the front page back to nothing on.
 - **Fewer cards:** the champions, sign-up, keep-score duty and teams sit on the page, set apart by space, type and a
@@ -165,3 +180,7 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 - 2026-10-21: A running one's tabs follow its stage (sign-up, the draft, the teams, the fixtures) and say less
   (Kumite, Fights, Board), so they fit an iPhone: My team is no longer a tab (Teams has yours first), nor History
   while one's running (a row at the foot of the front page); hidden pages keep their links, under the front page.
+- 2026-10-21: The front page follows the stage, each leading with one thing: sign-up (are you in), the draft (the
+  draft card, your sign-up a line), the teams set (your team, then the others, "Draft done" in a line), the fixtures
+  out (your next fight, then the first up and the teams); what's had its day goes. The header's stamp is the stage
+  (Sign-up open, Draft live, Teams set, Fight night, KUMITE! on the day). Your next fight is on Home too.

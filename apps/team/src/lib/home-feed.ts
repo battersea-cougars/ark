@@ -1,12 +1,14 @@
-// Home's feed (ADR 0118): under the calls to action, three groups. First what needs you now: a captain's draft, the
+// Home's feed (ADR 0118): under the calls to action (with your next fight, once you're on a team with one coming, ADR
+// 0074), three groups. First what needs you now: a captain's draft, the
 // draft being on, the teams being out, a sign-up closing you haven't answered. (What you owe is a notice up top.) Then what's coming
 // up, in date order and capped: the other trainings' next sessions, each tournament series' next one, the club's
 // events, with "See the calendar" after them. Last, under "For admins", only for whoever they're for: running the
 // draft, and what the club is owed.
-import type { AgendaRow, Bookable, Tournament, TournamentType } from "../demo/model";
+import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
 import { signupOpen } from "./signup";
+import { myTeamIndex, nextFightOf } from "./tournament-front";
 
 export type FeedIcon = "draft" | "teams" | "pound";
 
@@ -85,7 +87,17 @@ export interface FeedInput {
   shown?: string[];
 }
 
+/** Your team's next game in a tournament on or coming up: a call to action of its own (lib/NextFight). */
+export interface Fight {
+  type: TournamentType;
+  t: Tournament;
+  game: TournamentGame;
+  teamId: number;
+}
+
 export interface Feed {
+  /** Your next fight in each series you're on a team in. */
+  fights: Fight[];
   now: FeedItem[];
   upcoming: UpcomingRow[];
   admin: FeedItem[];
@@ -116,7 +128,7 @@ export function homeFeed(input: FeedInput): Feed {
       hot: false,
       icon: "pound",
     });
-  return { now, upcoming: upcomingRows(input), admin };
+  return { fights: nextFights(input), now, upcoming: upcomingRows(input), admin };
 }
 
 /** What you owe, and what for: the kind of each charge with something left on it. */
@@ -264,6 +276,15 @@ function liveDrafts({ upcoming, me, runsDrafts }: FeedInput): FeedItem[] {
   });
 }
 
+// Your next fight, wherever you're on a team with one still to play
+function nextFights({ upcoming, me }: FeedInput): Fight[] {
+  return upcoming.flatMap(({ type, t }): Fight[] => {
+    const game = nextFightOf(t, me);
+    const teamId = t.teams[myTeamIndex(t, me)]?.id;
+    return game && teamId ? [{ type, t, game, teamId }] : [];
+  });
+}
+
 // Everyone else (ADR 0060): the draft is the captains' business, so a member hears that it's on, with nothing to open;
 // once it's closed, the teams are out, and that's a link to them
 function draftNews({ upcoming, me, runsDrafts }: FeedInput): FeedItem[] {
@@ -280,7 +301,8 @@ function draftNews({ upcoming, me, runsDrafts }: FeedInput): FeedItem[] {
           icon: "draft",
         },
       ];
-    if (t.draftState === "closed" && t.teams.some((x) => x.players.length))
+    // Once you've a fight coming, that says it better
+    if (t.draftState === "closed" && t.teams.some((x) => x.players.length) && !nextFightOf(t, me))
       return [
         {
           key: `teams-out:${t.id}`,

@@ -1,8 +1,9 @@
 <script lang="ts">
   // A tournament series' front page, for the one on or coming up (lib/edition.ts currentOf). The date is the header's;
   // the page follows the day, from what's happened:
-  //   Before: saying you're in, the draft and its captains, the teams, the first game.
-  //   During: your turn to keep score, the game on now and the next, the latest results.
+  //   Before: by its stage, each leading with one thing (lib/tournament-front.ts): are you in; the draft; your team;
+  //   your next fight. What's had its day goes (History keeps it).
+  //   During: your turn to keep score, your next fight, the game on now and the next, the latest results.
   // Once the last game's played it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
   import { shortNameOf, nameOfTeam } from "../lib/names";
@@ -28,6 +29,9 @@
   import LiveNote from "../lib/LiveNote.svelte";
   import { clock, londonToday } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
+  import { frontOf, myTeamIndex, nextFightOf } from "../lib/tournament-front";
+  import NextFight from "../lib/NextFight.svelte";
+  import YourTeam from "../lib/YourTeam.svelte";
 
   let { typeId }: { typeId: number } = $props();
 
@@ -62,9 +66,7 @@
   });
 
   // The teams: a draft's only once it's closed, unless you're in it (the server holds back the rest, ADR 0060)
-  const mine = $derived(
-    teams.findIndex((t) => t.captainMemberId === me().id || t.players.some((p) => p.memberId === me().id)),
-  );
+  const mine = $derived(tournament ? myTeamIndex(tournament, me().id) : -1);
   const teamsHidden = $derived(
     tournament?.kind === "draft" &&
       tournament.draftState !== "closed" &&
@@ -89,6 +91,13 @@
 
   // Which act, by the games (lib/edition.ts): during (one being scored or in), else before
   const mode = $derived(tournament && editionState(tournament) === "live" ? "during" : "before");
+  // Before the first game, what leads and what follows, by the stage (lib/tournament-front.ts)
+  const blocks = $derived(tournament ? frontOf(tournament, me().id, londonToday()) : []);
+  // Its captains and whoever runs it go back into a done draft
+  const inDraft = $derived(teams.some((t) => t.captainMemberId === me().id) || can(perms, "run:Draft"));
+  // Your team's next game, and the day's first (in order)
+  const myFight = $derived(tournament ? nextFightOf(tournament, me().id) : undefined);
+  const firstGame = $derived([...games].sort((a, b) => a.position - b.position)[0]);
   // The latest results, newest first; the final, last of the playoffs
   const results = $derived(games.filter((g) => g.status === "done").sort((a, b) => b.position - a.position));
 </script>
@@ -151,6 +160,12 @@
         <a class="btn sm outline" href="/tournaments/{type.slug}/games/{duty.id}/live">Keep score</a>
       </div>
     {/if}
+    {#if myFight && myTeamId && myFight !== now && myFight !== after}
+      <section class="part">
+        <h2 class="section-title">Your next fight<Kanji text={kanjiFor(type, "fights")} /></h2>
+        <NextFight {tournament} game={myFight} teamId={myTeamId} />
+      </section>
+    {/if}
     <section class="part">
       <div class="part-head">
         <h2 class="section-title">On the mat<Kanji text={kanjiFor(type, "onTheMat")} /></h2>
@@ -188,51 +203,78 @@
       </section>
     {/if}
   {:else}
-    <!-- Before: saying you're in, the draft, the teams, the first game. Once the next one's set (even with its date
-         to come) the last one's in History, not here -->
-    <SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />
-    {#if tournament.kind === "draft"}
-      <DraftStatus {type} {tournament} />
-    {/if}
-    {#if teams.length}
-      <section class="part">
-        <div class="part-head">
-          <h2 class="section-title">Teams</h2>
-          {#if !teamsHidden}<a class="btn ghost sm" href="/tournaments/{type.slug}/teams"
-              >See all<Icon name="chevronRight" size={16} /></a
+    <!-- Before the first game: the page follows the stage, each leading with one thing (lib/tournament-front.ts, ADR
+         0074). Sign-up: are you in, then the draft. The draft on: the draft, your sign-up a line under it. The teams
+         set: your team, then the others, the draft one line. The fixtures out: your next fight, the first up, the
+         teams. What's had its day goes; History keeps it -->
+    {#each blocks as block (block)}
+      {#if block === "signup"}
+        <SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />
+      {:else if block === "signup-line"}
+        <SignUpLine {tournament} canSignUp={false} line />
+      {:else if block === "draft"}
+        <DraftStatus {type} {tournament} />
+      {:else if block === "draft-done"}
+        <!-- Done, said once; its captains and whoever runs it go back in from here (to reopen it, or make the fixtures) -->
+        <p class="draft-done">
+          <Icon name="draft" size={18} /><span>Draft done</span>
+          {#if inDraft}<a class="btn ghost sm" href="/tournaments/{type.slug}/draft"
+              >Go to the draft<Icon name="chevronRight" size={16} /></a
             >{/if}
-        </div>
-        {#if teamsHidden}
-          <p class="note">The captains pick the teams in the draft. They're out once it's done.</p>
-        {:else}
-          <!-- Each team: its crest and name, yours marked; each opens the team -->
-          <div class="teams-grid">
-            {#each teams as t, i (t.id ?? i)}
-              <a class="chip-team" href={t.id ? teamHref(type.slug, t.id) : undefined}>
-                <TeamCrest name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3.5rem" />
-                <span class="chip-text">
-                  <span class="chip-name">{teamName(i)}</span>
-                  <!-- Only what the name doesn't say: that it's yours, or whose it is once it has a name of its own -->
-                  {#if i === mine}<span class="chip-sub">Your team</span>
-                  {:else if t.name}<span class="chip-sub">Captain {firstName(t.captainMemberId)}</span>{/if}
-                </span>
-              </a>
-            {/each}
+        </p>
+      {:else if block === "my-team"}
+        <YourTeam {type} {tournament} index={mine} />
+      {:else if block === "teams" && teams.length}
+        <section class="part">
+          <div class="part-head">
+            <h2 class="section-title">{blocks.includes("my-team") ? "The other teams" : "Teams"}</h2>
+            {#if !teamsHidden}<a class="btn ghost sm" href="/tournaments/{type.slug}/teams"
+                >See all<Icon name="chevronRight" size={16} /></a
+              >{/if}
           </div>
-        {/if}
-      </section>
-    {/if}
-    {#if games.length}
-      <section class="part">
-        <div class="part-head">
-          <h2 class="section-title">First up</h2>
-          <a class="btn ghost sm" href={schedule}>Full fight card<Icon name="chevronRight" size={16} /></a>
-        </div>
-        <div class="list"><FixtureRow big {tournament} game={games[0]} /></div>
-      </section>
-    {:else if manage && teams.length >= 2}
-      <p class="note">The fight card isn't out yet. <a href={schedule}>Make it</a></p>
-    {/if}
+          {#if teamsHidden}
+            <p class="note">The captains pick the teams in the draft. They're out once it's done.</p>
+          {:else}
+            <!-- Each team: its crest and name, yours marked; each opens the team -->
+            <div class="teams-grid">
+              {#each teams as t, i (t.id ?? i)}
+                {#if !(i === mine && blocks.includes("my-team"))}
+                  <a class="chip-team" href={t.id ? teamHref(type.slug, t.id) : undefined}>
+                    <TeamCrest name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3.5rem" />
+                    <span class="chip-text">
+                      <span class="chip-name">{teamName(i)}</span>
+                      <!-- Only what the name doesn't say: that it's yours, or whose it is once it has a name of its own -->
+                      {#if i === mine}<span class="chip-sub yours">Your team</span>
+                      {:else if t.name}<span class="chip-sub">Captain {firstName(t.captainMemberId)}</span>{/if}
+                    </span>
+                  </a>
+                {/if}
+              {/each}
+            </div>
+          {/if}
+        </section>
+      {:else if block === "my-fight" && myFight && myTeamId}
+        <section class="part">
+          <div class="part-head">
+            <h2 class="section-title">Your next fight<Kanji text={kanjiFor(type, "fights")} /></h2>
+            {#if !blocks.includes("first-up")}<a class="btn ghost sm" href={schedule}
+                >Full fight card<Icon name="chevronRight" size={16} /></a
+              >{/if}
+          </div>
+          <NextFight {tournament} game={myFight} teamId={myTeamId} />
+        </section>
+      {:else if block === "first-up" && games.length}
+        <section class="part">
+          <div class="part-head">
+            <h2 class="section-title">First up</h2>
+            <a class="btn ghost sm" href={schedule}>Full fight card<Icon name="chevronRight" size={16} /></a>
+          </div>
+          <div class="list"><FixtureRow big {tournament} game={firstGame} /></div>
+        </section>
+      {:else if block === "make-fixtures" && manage && teams.length >= 2}
+        <p class="note">The fight card isn't out yet. <a href={schedule}>Make it</a></p>
+      {/if}
+    {/each}
   {/if}
   {#if earlier}
     <section class="part">
@@ -336,8 +378,10 @@
   }
   .part-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: 0 var(--s-2);
   }
   .part-head .btn {
     gap: var(--s-1);
@@ -401,5 +445,22 @@
   .chip-sub {
     color: var(--fg-muted);
     font-size: var(--text-xs);
+  }
+  /* Yours: the club's red, in the words, not a fill */
+  .chip-sub.yours {
+    color: var(--red-hot);
+    font-weight: 600;
+  }
+  /* The draft, done: one line on the page */
+  .draft-done {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-3);
+    margin: 0;
+    color: var(--fg-muted);
+  }
+  .draft-done .btn {
+    gap: var(--s-1);
   }
 </style>
