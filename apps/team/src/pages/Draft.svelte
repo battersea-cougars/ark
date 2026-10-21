@@ -1,5 +1,6 @@
 <script lang="ts">
-  // A captains' draft (ADR 0060). An admin opens it on the night; the captains take turns, in snake order, picking
+  // A captains' draft (ADR 0060). An admin opens it on the night, which draws the pick order at random (DraftOrder
+  // shuffles the names into it for whoever's watching); the captains take turns, in snake order, picking
   // from the members who said they're in (captains are in automatically, never picked). The captain on the clock picks
   // on their own phone: Pick marks a player, End turn sends it (ADR 0060). Whoever runs the draft can pick for them,
   // undo the last pick, close it, reopen it (ADR 0060). A team takes one goalie (ADR 0060). Teams are edited on the
@@ -21,6 +22,7 @@
   import { fly } from "svelte/transition";
   import TournamentPlayersDrawer from "../lib/TournamentPlayersDrawer.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
+  import DraftOrder from "../lib/DraftOrder.svelte";
   import { teamTone } from "../lib/team-tones";
   import TeamLookSheet from "../lib/TeamLookSheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
@@ -92,6 +94,14 @@
   };
   const untilMine = $derived(myTeam < 0 || turnIn(myTeam) === Infinity ? -1 : turnIn(myTeam));
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
+  // The captains in the server's order: as named until the draft opens and draws it (ADR 0060)
+  const order = $derived(
+    teams.flatMap((t) =>
+      t.captainMemberId
+        ? [{ id: t.captainMemberId, name: goesByOf(byId(t.captainMemberId)), you: t.captainMemberId === me().id }]
+        : [],
+    ),
+  );
 
   // Positions: what a team has, counting its captain; one goalie a team (ADR 0060)
   const membersOf = (i: number) =>
@@ -113,7 +123,8 @@
   // so it scrolls but never grows; the one on the clock is kept in view
   const SHOWN_BEFORE = 3;
   const ticker = $derived.by(() => {
-    if (!teams.length || phase === "none" || (phase === "closed" && !made)) return [];
+    // Not before it opens: the order's drawn then (DraftOrder), so there's no order to show
+    if (!teams.length || (phase !== "open" && phase !== "closed") || (phase === "closed" && !made)) return [];
     const out: { n: number; team: number; took?: string; ghost?: boolean }[] = [];
     // Nothing to show (nobody to pick, none picked): no ticker, not a row of empty places
     if (!made && !pool.length) return [];
@@ -252,8 +263,13 @@
   // While it's open, the other captains' picks show up as they're made, from the hub's stream (ADR 0072), with a
   // check on the admins' beat as the fallback (ADR 0072). A check is a Worker request and a few small queries
   // (session, roles, data version); a room of phones on one wifi stays inside the per-address limit (ADR 0055)
+  // On the night, before it opens, the page follows too, so the draw arrives on every phone at once and shuffles in
+  // (DraftOrder)
+  const waiting = $derived(
+    phase !== "open" && phase !== "closed" && teams.length >= 2 && (tournament?.draftOn ?? "") <= londonToday(),
+  );
   $effect(() => {
-    if (open) return checkForUpdates();
+    if (open || waiting) return checkForUpdates();
   });
 </script>
 
@@ -500,6 +516,11 @@
       </div>
     </div>
 
+    <!-- The pick order: no numbers until the draft opens and draws it; then shuffled into it for whoever's here -->
+    {#if phase !== "closed"}
+      <DraftOrder {type} captains={order} drawn={open} />
+    {/if}
+
     <!-- The last pick, as one line everyone sees: the team's crest and name, then who they took. Always one line
          high, so a pick arriving moves nothing; the new one flies in -->
     {#if open || (phase === "closed" && made)}
@@ -606,6 +627,10 @@
 {#if tournament}
   <Drawer bind:open={rulesOpen} title="Draft rules" sub="{teams.length} captains · snake order">
     <ol class="rules">
+      <li>
+        <strong>The order's drawn.</strong>
+        <span>Who picks first is drawn at random as the draft opens, not the order the captains were named in.</span>
+      </li>
       <li>
         <strong>Snake order.</strong>
         <span

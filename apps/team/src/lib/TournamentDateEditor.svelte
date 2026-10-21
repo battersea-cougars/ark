@@ -14,7 +14,7 @@
 <script lang="ts">
   // One tournament's editor, in the panel its card opens (Settings → Tournaments): what an admin comes here
   // for. When and where it is, its rules and awards, sign-up, and its teams (ADR 0030): teams that entered, or a
-  // draft's captains in pick order and the draft night, on tabs as the training editor lays out its fields. Picking a series copies its defaults in (ADR 0030); they can
+  // draft's captains (in no order: it's drawn as the draft opens) and the draft night, on tabs as the training editor lays out its fields. Picking a series copies its defaults in (ADR 0030); they can
   // then change for this one. The series' look (icon, colour) stays the series'.
   import TimeSelect from "./TimeSelect.svelte";
   import { tick } from "svelte";
@@ -283,7 +283,8 @@
   );
   const memberList = $derived(members.map((m) => ({ id: m.player.id, name: goesBy(m.player) })));
 
-  // Teams (ADR 0030): nobody on two of them; a draft's are in pick order
+  // Teams (ADR 0030): nobody on two of them. A draft's are in no order till it opens and draws one (ADR 0060), and
+  // then they're shown in it
   const MAX_TEAMS = 16;
   const taken = $derived(
     new Set(
@@ -296,10 +297,10 @@
   function addCaptain(memberId: number) {
     date.teams.push({ name: "", logo: null, captainMemberId: memberId, captainName: "", contact: "", players: [] });
   }
-  function moveTeam(i: number, by: -1 | 1) {
-    const [t] = date.teams.splice(i, 1);
-    date.teams.splice(i + by, 0, t);
-  }
+  const drawn = $derived.by(() => {
+    const state = dateId ? db.tournaments.find((x) => x.id === dateId)?.draftState : undefined;
+    return state === "open" || state === "closed";
+  });
 
   // Four tabs: the tournament itself, how it's played, sign-up, then its teams (and a draft's night)
   type Tab = "details" | "rules" | "signup" | "teams";
@@ -601,7 +602,7 @@
           <FormSection
             title={date.kind === "draft" ? "Captains" : "Teams"}
             description={date.kind === "draft"
-              ? "The captains, in pick order. Their players come from the draft."
+              ? "The captains, in any order: the pick order's drawn when the draft opens. Their players come from the draft."
               : "Each team that's entered: its name, logo, captain and players."}
           >
             <div class="teams" class:draft={date.kind === "draft"}>
@@ -609,13 +610,10 @@
                 <TeamCard
                   bind:team={date.teams[i]}
                   kind={date.kind}
-                  pick={i + 1}
+                  place={i + 1}
+                  pick={drawn ? i + 1 : null}
                   members={memberList}
                   {taken}
-                  onmove={{
-                    up: i > 0 ? () => moveTeam(i, -1) : undefined,
-                    down: i < date.teams.length - 1 ? () => moveTeam(i, 1) : undefined,
-                  }}
                   onremove={() => date.teams.splice(i, 1)}
                 />
               {:else}
@@ -624,9 +622,9 @@
             </div>
             {#if date.teams.length < MAX_TEAMS}
               {#if date.kind === "draft"}
-                <!-- The next pick's slot: find a member and they're its captain -->
+                <!-- The next captain's slot: find a member and they're one -->
                 <div class="add-captain">
-                  <span class="next num" aria-hidden="true">{date.teams.length + 1}</span>
+                  <span class="next num" aria-hidden="true"></span>
                   <span class="slot" aria-hidden="true"><Icon name="plus" size={16} /></span>
                   <PersonPicker
                     id="add-captain"

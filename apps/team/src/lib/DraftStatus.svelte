@@ -24,7 +24,7 @@
   const inside = $derived(mine >= 0 || running);
   const state = $derived(tournament.draftState);
   const turn = $derived(draftTurn(tournament, mine));
-  // The captains, in pick order: a disc each, in their team's colour (the same as its crest below)
+  // The captains, in pick order once the draft's opened and drawn it (before then, in no order): a disc each, in their team's colour (the same as its crest below)
   const captains = $derived(
     teams.map((t, i) => {
       const p = PLAYERS.find((p) => p.id === t.captainMemberId);
@@ -60,13 +60,13 @@
     }
     return {
       title: when ? `Draft ${when}` : "Draft date TBC",
-      sub: mine >= 0 ? `You pick ${nth(mine + 1)}.` : "",
+      // The order means nothing until the draft opens and draws it (ADR 0060)
+      sub: "Order drawn when the draft starts.",
       badge: "",
     };
   });
   // Your pick: the way in takes the accent, like End turn; otherwise it's a quiet outline on the card
   const yours = $derived(state === "open" && mine >= 0 && turn.left > 0 && turn.until === 0);
-  const nth = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
 </script>
 
 {#if state === "closed"}

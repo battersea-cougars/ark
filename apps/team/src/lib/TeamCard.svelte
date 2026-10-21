@@ -1,6 +1,7 @@
 <script lang="ts">
-  // One team in a tournament's editor (ADR 0030). In a draft it's a row: its pick, its captain (a member, found by
-  // typing) and an optional name; its players come from the draft. A team that entered may be from outside the club,
+  // One team in a tournament's editor (ADR 0030). In a draft it's a row: its captain (a member, found by typing) and an
+  // optional name, with its place in the pick order once the draft's opened and drawn it (ADR 0060); its players come
+  // from the draft. A team that entered may be from outside the club,
   // so it's a card: its logo and name, a captain who's a member or just a name with a way to reach them, and its
   // players, members found by typing or names from outside.
   import { shrinkLogo } from "./logo";
@@ -11,21 +12,21 @@
   let {
     team = $bindable(),
     kind,
-    pick,
+    place,
+    pick = null,
     members,
     taken,
-    onmove,
     onremove,
   }: {
     team: TournamentTeam;
     kind: TournamentKind;
-    /** Its place in the draft's pick order, from 1. */
-    pick: number;
+    /** Its place in the editor's list, from 1: the order they're named in, which means nothing for the draft. */
+    place: number;
+    /** Its place in the draft's pick order, from 1, once the draft's opened and drawn it; null till then. */
+    pick?: number | null;
     members: { id: number; name: string }[];
     /** Members already on a team (this one's included), who can't be added again. */
     taken: Set<number>;
-    /** Earlier (-1) or later (1) in the pick order; absent where it can't move. */
-    onmove?: { up?: () => void; down?: () => void };
     onremove: () => void;
   } = $props();
 
@@ -90,18 +91,18 @@
 {/snippet}
 
 {#if kind === "draft"}
-  <!-- A captain, in pick order -->
+  <!-- A captain; the number is their pick, once the draft's drawn the order (the column's kept either way) -->
   <div class="captain">
-    <span class="pick num" title="Pick order">{pick}</span>
+    <span class="pick num" title={pick ? "Pick order, drawn as the draft opened" : undefined}>{pick ?? ""}</span>
     {@render logo()}
     {#if changing || !team.captainMemberId}
       <PersonPicker
-        id="captain-{pick}"
+        id="captain-{place}"
         {members}
         value={team.captainMemberId}
         exclude={taken}
         autofocus={changing}
-        aria-label="Captain, pick {pick}"
+        aria-label={pick ? `Captain, pick ${pick}` : "Captain"}
         onpick={(id) => (pickCaptain(id), (changing = false))}
         ondone={() => (changing = false)}
       />
@@ -119,20 +120,6 @@
       aria-label="Team name"
     />
     <div class="actions">
-      <button
-        type="button"
-        class="btn sm ghost icon"
-        aria-label="Pick earlier"
-        disabled={!onmove?.up}
-        onclick={() => onmove?.up?.()}><Icon name="chevronUp" size={16} /></button
-      >
-      <button
-        type="button"
-        class="btn sm ghost icon"
-        aria-label="Pick later"
-        disabled={!onmove?.down}
-        onclick={() => onmove?.down?.()}><Icon name="chevronDown" size={16} /></button
-      >
       <button type="button" class="btn sm ghost icon" aria-label="Remove {label}" onclick={onremove}>
         <Icon name="x" size={16} />
       </button>
