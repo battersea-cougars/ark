@@ -148,7 +148,9 @@
     .team {
       flex-wrap: wrap;
     }
+    /* The record on a line of its own, last, so the chevron stays up by the name */
     .record {
+      order: 1;
       width: 100%;
       padding-left: calc(3.5rem + var(--s-4));
     }
