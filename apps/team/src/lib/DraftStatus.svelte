@@ -75,14 +75,19 @@
 
 {#if state === "closed"}
   <!-- Closed: the teams are set, and it says so -->
-  <a class="draft panel glass closed" href="/tournaments/{type.slug}/teams">
+  <!-- The whole card goes to the teams (its link stretches over it); captains and whoever runs it also get the draft,
+       where it's reopened and the fixtures are made -->
+  <div class="draft panel glass closed">
     <span class="stamp display">Closed</span>
     <span class="text">
       <span class="shout display">The draft is done</span>
       {@render discs()}
     </span>
-    <span class="see">See the teams<Icon name="chevronRight" size={16} /></span>
-  </a>
+    <span class="ways">
+      {#if inside}<a class="btn sm outline to-draft" href="/tournaments/{type.slug}/draft">Go to the draft</a>{/if}
+      <a class="see" href="/tournaments/{type.slug}/teams">See the teams<Icon name="chevronRight" size={16} /></a>
+    </span>
+  </div>
 {:else}
   <div class="draft panel glass">
     <!-- The draft's date, as the event card shows one -->
@@ -106,7 +111,9 @@
       {#if view.sub}<p class="sub">{view.sub}</p>{/if}
       {@render discs()}
     </div>
-    {#if inside && teams.length && state !== "none"}
+    <!-- Captains and whoever runs it get straight in from here, from the moment there are captains: setting the order
+         and opening it happen on the Draft page, so it can't wait until it's open -->
+    {#if inside && teams.length}
       <a class="btn sm" class:outline={!yours} class:primary={yours} href="/tournaments/{type.slug}/draft"
         >Go to the draft</a
       >
@@ -184,6 +191,26 @@
   }
   .closed:hover .see {
     color: var(--fg);
+  }
+  .closed {
+    position: relative;
+  }
+  .see::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .ways {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-3) var(--s-5);
+  }
+  /* Above the card's own link, so it's its own tap */
+  .to-draft {
+    position: relative;
+    z-index: 1;
   }
   .text {
     display: grid;
