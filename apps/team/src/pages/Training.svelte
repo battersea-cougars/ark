@@ -27,7 +27,7 @@
   import { phone } from "../lib/viewport.svelte";
   import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
   import { flip } from "svelte/animate";
-  import { clock, formatDayDate } from "../lib/dates";
+  import { clock, clockRange, formatDayDate } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
   import { lineUp, makeTeams, slotIn, strength, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
@@ -592,7 +592,7 @@
 
 <!-- Every week on Fri · 7:30pm–9:30pm · the place, a tap opening the map -->
 {#snippet usually()}
-  {describeRule(series)} · {clock(series.startTime)}–{clock(series.endTime)}{#if usual}&nbsp;· <a
+  {describeRule(series)} · {clockRange(series.startTime, series.endTime)}{#if usual}&nbsp;· <a
       href={usual.mapUrl}
       target="_blank"
       rel="noopener noreferrer">{usual.name}</a

@@ -18,7 +18,7 @@ const { items, day } = Astro.props;
 const times = (i: WhatsOnItem) => {
   if (!i.endsAt) return formatTime(i.startsAt);
   const sameDay = formatDayDate(i.startsAt) === formatDayDate(i.endsAt);
-  return `${formatTime(i.startsAt)}–${sameDay ? "" : `${formatShortDay(i.endsAt)} `}${formatTime(i.endsAt)}`;
+  return `${formatTime(i.startsAt)} to ${sameDay ? "" : `${formatShortDay(i.endsAt)} `}${formatTime(i.endsAt)}`;
 };
 const about = (i: WhatsOnItem) => (i.dateTbc ? i.title : `${i.title}, ${formatDayDate(i.startsAt)}`);
 // The weekly sessions are one row ("Every Fri", next date beneath), naming any week that's called off

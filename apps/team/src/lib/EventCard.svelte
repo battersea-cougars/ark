@@ -13,7 +13,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { formatTime, londonToday } from "./dates";
+  import { londonToday, timeRange } from "./dates";
   import DateBlock from "./DateBlock.svelte";
   import { initials } from "./initials";
   import { phone } from "./viewport.svelte";
@@ -106,7 +106,7 @@
         ? "Day and time to be confirmed"
         : event.dateTbc
           ? "Date and time to be confirmed"
-          : `${formatTime(event.startsAt)}–${formatTime(event.endsAt)}`,
+          : timeRange(event.startsAt, event.endsAt),
   );
   const tally = $derived(
     [

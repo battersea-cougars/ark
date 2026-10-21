@@ -38,7 +38,7 @@ describe("autoReplyMail", () => {
     const mail = autoReplyMail(enquiry, settings, "club@example.com");
     expect(mail).toMatchObject({ to: ["jo@example.com"], replyTo: "club@example.com" });
     expect(mail.text).toMatch(/^Hi Jo,/);
-    expect(mail.text).toContain("We play Fridays, 19:30–21:30 at Battersea Sports Centre, London SW11 3AB.");
+    expect(mail.text).toContain("We play Fridays, 19:30 to 21:30 at Battersea Sports Centre, London SW11 3AB.");
     expect(mail.text).toContain(FALLBACK_FRIDAYS.kitNotes);
   });
 
@@ -61,7 +61,7 @@ describe("autoReplyMail", () => {
     expect(mail.html).toContain("Cougars");
     expect(mail.html).toContain("Hi Jo,");
     expect(mail.html).toContain("Fridays");
-    expect(mail.html).toContain("19:30–21:30");
+    expect(mail.html).toContain("19:30 to 21:30");
     expect(mail.html).toContain("Battersea Sports Centre");
     expect(mail.html).toContain(`href="${FALLBACK_FRIDAYS.venue.mapUrl}"`);
     expect(mail.html).toContain("Helmet, gloves and shin pads are non-negotiable.");

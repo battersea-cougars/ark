@@ -51,7 +51,7 @@ describe("editionWhen", () => {
       hours: null,
       season: "Summer 2027",
     });
-    expect(editionWhen(cup())).toMatchObject({ hours: "11:00–16:00", season: "Summer 2027" });
+    expect(editionWhen(cup())).toMatchObject({ hours: "11am to 4pm", season: "Summer 2027" });
     expect(editionWhen(cup()).day).toBeTruthy();
   });
 });

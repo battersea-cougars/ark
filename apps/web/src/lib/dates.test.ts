@@ -8,7 +8,7 @@ describe("dates (Europe/London)", () => {
   });
 
   it("collapses same-day ranges", () => {
-    expect(formatRange("2026-12-04T19:30:00Z", "2026-12-04T21:30:00Z")).toBe("Fri 4 Dec 2026 · 19:30–21:30");
+    expect(formatRange("2026-12-04T19:30:00Z", "2026-12-04T21:30:00Z")).toBe("Fri 4 Dec 2026 · 19:30 to 21:30");
   });
 
   it("gives a short day without the year, in London", () => {

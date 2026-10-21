@@ -4,7 +4,7 @@ import type { Tournament } from "../demo/model";
 import { isDone } from "@cougars/shared/results";
 import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { champion } from "./fixtures";
-import { formatDayDate, londonISO, londonToday } from "./dates";
+import { clockRange, formatDayDate, londonISO, londonToday } from "./dates";
 import { signupOpen } from "./signup";
 
 export type EditionState = "live" | "done" | "open" | "planned";
@@ -42,7 +42,7 @@ export function editionWhen(t: Tournament) {
   return {
     day: dated ? formatDayDate(londonISO(t.heldOn, t.startTime)) : null,
     season,
-    hours: dated ? `${t.startTime}–${t.endTime}` : null,
+    hours: dated ? clockRange(t.startTime, t.endTime) : null,
   };
 }
 

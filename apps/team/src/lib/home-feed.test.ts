@@ -139,7 +139,7 @@ describe("what's coming up", () => {
     const rows = up([ev("quiz", "2026-11-05T19:00:00Z"), ev("drinks", "2026-10-30T19:00:00Z")]);
     expect(rows.map((r) => r.text)).toEqual(["drinks", "quiz"]);
     expect(rows[0].on).toEqual({ at: "2026-10-30T19:00:00Z", season: undefined, tbc: undefined });
-    expect(rows[0].sub).toBe("7pm–7pm · The Lock");
+    expect(rows[0].sub).toBe("7pm · The Lock");
   });
 
   it("doesn't repeat the lead Friday: the row is the Friday after it, once", () => {
@@ -160,7 +160,7 @@ describe("what's coming up", () => {
       ev("tournament:1", "2026-11-14T10:00:00Z", { kind: "tournament", filter: "type:2", standing: "in" }),
     ]);
     expect(rows.map((r) => [r.key, r.sub])).toEqual([
-      ["tournament:1", "10am–10am · You're in"],
+      ["tournament:1", "10am · You're in"],
       ["tournament:2", "Sign-up opens 1 May"],
     ]);
     expect(rows[1].on).toMatchObject({ season: { name: "summer", year: 2027 }, tbc: true });

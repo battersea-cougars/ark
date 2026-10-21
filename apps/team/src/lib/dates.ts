@@ -23,6 +23,18 @@ export function clock(hhmm: string): string {
   return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
 }
 
+/** Two wall-clock times as a span: "7:30 to 9:30pm" (am/pm said once when they share it), "11am to 2:30pm". */
+export function clockRange(from: string, to: string): string {
+  const a = clock(from);
+  const b = clock(to);
+  if (a === b) return a;
+  const same = a.slice(-2) === b.slice(-2);
+  return `${same ? a.slice(0, -2) : a} to ${b}`;
+}
+/** The same for two instants, in London time. */
+export const timeRange = (fromIso: string, toIso: string) =>
+  clockRange(time.format(new Date(fromIso)), time.format(new Date(toIso)));
+
 /** { weekday: "Fri", day: "9", month: "Oct" } for date badges. */
 export function dateBadge(iso: string) {
   const p = parts.formatToParts(new Date(iso));

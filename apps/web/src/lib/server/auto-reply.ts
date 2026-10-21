@@ -22,7 +22,7 @@ export function autoReplyMail(e: Enquiry, s: SiteSettings, club: string | null):
     ...(slot
       ? [
           "",
-          `We play ${slot.day}s, ${slot.start}–${slot.end} at ${s.venue.name}, ${s.venue.address}.`,
+          `We play ${slot.day}s, ${slot.start} to ${slot.end} at ${s.venue.name}, ${s.venue.address}.`,
           `Map: ${s.venue.mapUrl}`,
         ]
       : []),
@@ -50,7 +50,7 @@ function autoReplyHtml(e: Enquiry, s: SiteSettings, club: string | null): string
   const when = slot
     ? `
     <div style="margin:28px 0 0;${label}">When and where</div>
-    <div style="padding:8px 0 4px;font-family:${display};font-size:30px;line-height:1.1;text-transform:uppercase;color:${bone};">${h(slot.day)}s · ${h(slot.start)}–${h(slot.end)}</div>
+    <div style="padding:8px 0 4px;font-family:${display};font-size:30px;line-height:1.1;text-transform:uppercase;color:${bone};">${h(slot.day)}s · ${h(slot.start)} to ${h(slot.end)}</div>
     <p style="${EMAIL_TYPE.text}">${h(s.venue.name)}, ${h(s.venue.address)}</p>
     <div style="padding-top:8px;"><a href="${h(s.venue.mapUrl)}" style="display:inline-block;background:${yellow};color:${carbon};border-radius:8px;padding:12px 20px;font-family:${body};font-size:16px;font-weight:700;text-decoration:none;">Open the map</a></div>`
     : "";

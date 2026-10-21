@@ -2,7 +2,7 @@
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
 import { signupOpen } from "../lib/signup";
 import { currentOf, editionState, latestOf, previousOf } from "../lib/edition";
-import { formatDayDate, formatTime, londonISO, londonToday } from "../lib/dates";
+import { clockRange, formatDayDate, formatTime, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
@@ -12,12 +12,12 @@ export const seriesById = (id: number) => db.series.find((s) => s.id === id);
 export const typeById = (id: number | null) => db.tournamentTypes.find((t) => t.id === id);
 
 /**
- * When a tournament is, for a line of text: "Sat 12 June · 11:00–16:00", or "Summer 2027" while it's just a season.
+ * When a tournament is, for a line of text: "Sat 12 June · 11am to 4pm", or "Summer 2027" while it's just a season.
  */
 export const whenOf = (t: Tournament) =>
   t.season
     ? seasonLabel(t.season, t.heldOn)
-    : `${formatDayDate(londonISO(t.heldOn, t.startTime))} · ${t.startTime}–${t.endTime}`;
+    : `${formatDayDate(londonISO(t.heldOn, t.startTime))} · ${clockRange(t.startTime, t.endTime)}`;
 
 // Where each thing really is (ADR 0030): its saved venue, else its own name and map link, else its series' place
 export const seriesPlace = (s: TrainingSeries) =>

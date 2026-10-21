@@ -4,7 +4,7 @@
 // events, with "See the calendar" after them. Last, under "For admins", only for whoever they're for: running the
 // draft, and what the club is owed.
 import type { AgendaRow, Bookable, Tournament, TournamentType } from "../demo/model";
-import { dateBadge, formatTime, londonISO, londonToday, pounds } from "./dates";
+import { dateBadge, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { BUCKETS } from "./dues";
 import { draftTurn } from "./draft";
 import { signupOpen } from "./signup";
@@ -168,7 +168,7 @@ function upcomingRows({ events = [], shown = [], today }: FeedInput): UpcomingRo
 }
 
 function upcomingRow(e: UpcomingEvent, today: string): UpcomingRow {
-  const time = e.timeText || (e.season ? "" : `${formatTime(e.startsAt)}–${formatTime(e.endsAt)}`);
+  const time = e.timeText || (e.season ? "" : timeRange(e.startsAt, e.endsAt));
   const opens = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
   const how = e.cancelled
     ? "Cancelled"

@@ -48,7 +48,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import { teamsForPlayoffs } from "./fixtures";
   import { goesBy } from "./names";
-  import { clock, formatDayDate, londonISO, pounds } from "./dates";
+  import { clockRange, formatDayDate, londonISO, pounds } from "./dates";
   import Select from "./Select.svelte";
   import Person from "./Person.svelte";
   import Wizard from "./Wizard.svelte";
@@ -361,7 +361,7 @@
             <dt class="eyebrow">When</dt>
             <dd>
               {whenText}<span class="sub"
-                >{clock(values.startTime)}–{clock(values.endTime)}{place ? ` · ${place}` : ""}</span
+                >{clockRange(values.startTime, values.endTime)}{place ? ` · ${place}` : ""}</span
               >
             </dd>
             <button type="button" class="btn ghost sm" onclick={() => (step = 0)}>Change</button>

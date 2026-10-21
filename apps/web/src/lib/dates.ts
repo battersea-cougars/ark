@@ -42,7 +42,7 @@ export function formatRange(startIso: string, endIso?: string | null) {
   const start = `${formatDayDate(startIso)} · ${formatTime(startIso)}`;
   if (!endIso) return start;
   const sameDay = formatDayDate(startIso) === formatDayDate(endIso);
-  return sameDay ? `${start}–${formatTime(endIso)}` : `${start} – ${formatDayDate(endIso)} · ${formatTime(endIso)}`;
+  return sameDay ? `${start} to ${formatTime(endIso)}` : `${start} to ${formatDayDate(endIso)} · ${formatTime(endIso)}`;
 }
 
 /** "2026-10-02": the calendar day in London, like a Sanity `date` field. */
