@@ -87,6 +87,16 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   It's stamped with the game clock. The same rules as a goal: only whoever holds the scoresheet while it's on; once
   it's over, only an admin, at the time they say or none.
 
+- **How a penalty's served is a series setting, Penalties** (`penalty_rule`), beside the rules in the series' Defaults
+  and copied onto each tournament, where it can differ (as the fee and game length are):
+  - **Power play** (the standard, a new series' default): the player's in the box, the team plays short, and a
+    power-play goal ends a minor (a double minor's running half).
+  - **Penalty shot, player sits out** (the Kumite, `db/seed/club.sql`): the other team takes a penalty shot, not
+    recorded; the player can't play for the length (2, 2+2 or 5), but nobody plays short and goals don't end it. The
+    clock reads "Dan · sits out 1:42"; the timeline "4:10 · Penalty shot · Dan / Sits 2 · Tripping". A bench penalty
+    (too many players) is a penalty shot with nobody sitting out: on the timeline, no clock.
+  - The seed only adds what's missing, so a database that already has the Kumite keeps Power play until an admin sets
+    Penalties on the series and its tournaments (or one `UPDATE`); production starts fresh with it.
 - `tournament_penalties` holds each: game, team, member (or none, a bench penalty), minutes, infraction, game time,
   who recorded it and when. Penalty minutes per player and team (the leaderboards' PIM, #47) are their sum
   (`penaltyMinutes`).
@@ -146,4 +156,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   Major 5), a penalty clock in game time beside each team that a power-play goal cuts short, taken back and put right
   like goals, and shown with the goals in time order (`tournament_penalties`). What for comes first and is always
   said; a player's infraction needs who, a bench one (too many players, delay of game, bench minor) may be on nobody,
-  and too many players and a bench minor are always 2 minutes.
+  and too many players and a bench minor are always 2 minutes. How it's served is a series setting copied onto each tournament: Power play, or a
+  penalty shot with the player sitting out (the Kumite).

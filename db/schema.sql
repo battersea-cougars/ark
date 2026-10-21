@@ -157,6 +157,9 @@ CREATE TABLE tournament_types (
   points_draw INTEGER NOT NULL DEFAULT 1,
   points_loss INTEGER NOT NULL DEFAULT 0,
   game_minutes INTEGER NOT NULL DEFAULT 12,
+  -- How a penalty's served (ADR 0061), copied onto each new edition: power_play (the box, a player short) or sit_out
+  -- (a penalty shot, the player sits out, nobody short)
+  penalty_rule TEXT NOT NULL DEFAULT 'power_play',
   -- How its tournaments make teams (ADR 0030): teams (teams enter) or draft (captains draft members)
   kind TEXT NOT NULL DEFAULT 'teams',
   active INTEGER NOT NULL DEFAULT 1,
@@ -203,6 +206,8 @@ CREATE TABLE tournaments (
   points_draw INTEGER NOT NULL DEFAULT 1,
   points_loss INTEGER NOT NULL DEFAULT 0,
   game_minutes INTEGER NOT NULL DEFAULT 12,
+  -- power_play or sit_out, copied from its series (ADR 0061)
+  penalty_rule TEXT NOT NULL DEFAULT 'power_play',
   -- teams (teams enter) or draft (captains draft members), copied from its series (ADR 0030)
   kind TEXT NOT NULL DEFAULT 'teams',
   awards TEXT NOT NULL DEFAULT '[]',

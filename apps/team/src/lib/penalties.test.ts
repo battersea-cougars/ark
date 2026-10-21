@@ -98,6 +98,29 @@ describe("a double minor", () => {
   });
 });
 
+describe("penalty shot, the player sits out (the Kumite's rule)", () => {
+  it("a goal against doesn't end it: nobody's short-handed", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, MIN, 4, 8)];
+    const g = [goal(2, 2 * MIN)];
+    expect(penaltyEnds(p, g, "sit_out").get(1)).toBe(3 * MIN);
+    expect(penaltyEnds(p, g, "sit_out").get(2)).toBe(5 * MIN);
+  });
+
+  it("the sit-out counts in game time, and clears when served", () => {
+    const p = [pen(1, 1, MIN, 2, 7)];
+    const kickOff = Date.parse("2026-11-14T10:00:00Z");
+    const paused = { clockLeftMs: 10 * MIN, clockStartedAt: null };
+    expect(running(p, [], gameTime(paused, 12 * MIN, kickOff + 30 * MIN), "sit_out")[0].leftMs).toBe(MIN);
+    expect(running(p, [], 3 * MIN, "sit_out")).toEqual([]);
+  });
+
+  it("a bench penalty has nobody sitting out: no clock", () => {
+    expect(running([pen(1, 1, MIN, 2, null)], [], 2 * MIN, "sit_out")).toEqual([]);
+    // In a power play, the bench penalty puts someone in the box
+    expect(running([pen(1, 1, MIN, 2, null)], [], 2 * MIN)).toHaveLength(1);
+  });
+});
+
 describe("who a penalty's on", () => {
   it("is Bench when nobody: what for, after", () => {
     expect(penaltyLine({ memberId: null, infraction: "too-many-players" }, () => "")).toBe("Bench · Too many players");

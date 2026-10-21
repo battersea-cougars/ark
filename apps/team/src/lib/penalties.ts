@@ -26,6 +26,32 @@ export const INFRACTIONS = [
 export type Infraction = (typeof INFRACTIONS)[number]["value"];
 export const infractionOf = (value: string) => INFRACTIONS.find((i) => i.value === value);
 
+/**
+ * How a penalty's served, a series' setting each tournament copies (ADR 0061): a power play (the player in the box,
+ * the team a player short, a power-play goal ending a minor), or a penalty shot for the other team (not recorded)
+ * with the player sitting out for the length: nobody's short, and goals don't end it.
+ */
+export const PENALTY_RULES = [
+  {
+    value: "power_play",
+    label: "Power play",
+    hint: "In the box, the team plays short; a power-play goal ends a minor.",
+  },
+  {
+    value: "sit_out",
+    label: "Penalty shot",
+    hint: "The other team takes a shot; the player sits out, nobody plays short.",
+  },
+] as const;
+export type PenaltyRule = (typeof PENALTY_RULES)[number]["value"];
+/** As a series' or tournament's setting shows them: a tap each, with what it means. */
+export const PENALTY_RULE_OPTIONS = PENALTY_RULES.map((r) => ({
+  value: r.value as PenaltyRule,
+  label: r.label,
+  hint: r.hint,
+  icon: (r.value === "power_play" ? "clock" : "puck") as "clock" | "puck",
+}));
+
 /** A minor (2), a double minor (4: 2+2) or a major (5). */
 export const PENALTY_MINUTES = [2, 4, 5] as const;
 /** How the scorekeeper picks the minutes: the name and the length. */
@@ -74,7 +100,7 @@ export function gameTime(
  * penalised team's earliest running minor; in a double minor, only the two minutes being served: in the first two,
  * the second two start fresh from the goal. A penalty with no time has no end.
  */
-export function penaltyEnds(penalties: PenaltyLike[], goals: GoalLike[]) {
+export function penaltyEnds(penalties: PenaltyLike[], goals: GoalLike[], rule: PenaltyRule = "power_play") {
   const ends = new Map<number, number>();
   // A double minor's first two minutes end here (moved to the goal that ended them)
   const firstHalf = new Map<number, number>();
@@ -83,6 +109,8 @@ export function penaltyEnds(penalties: PenaltyLike[], goals: GoalLike[]) {
     ends.set(p.id, p.atMs! + p.minutes * 60_000);
     if (p.minutes === 4) firstHalf.set(p.id, p.atMs! + 2 * 60_000);
   }
+  // Sitting out: nobody's short, so no goal ends one
+  if (rule === "sit_out") return ends;
   const on = (p: PenaltyLike, t: number) => p.atMs! < t && ends.get(p.id)! > t;
   for (const g of goals.filter((x) => x.atMs !== null).sort((a, b) => a.atMs! - b.atMs!)) {
     const t = g.atMs!;
@@ -108,11 +136,18 @@ export function penaltyEnds(penalties: PenaltyLike[], goals: GoalLike[]) {
 
 /**
  * The penalties being served at `elapsedMs` of game time, in the order given, each with the time left (a double
- * minor's both halves, so 4:00 counting down) and whether it's a double minor (shown 2+2).
+ * minor's both halves, so 4:00 counting down) and whether it's a double minor (shown 2+2). Sitting out, a bench
+ * penalty has nobody to sit out: no clock.
  */
-export function running<P extends PenaltyLike>(penalties: P[], goals: GoalLike[], elapsedMs: number) {
-  const ends = penaltyEnds(penalties, goals);
+export function running<P extends PenaltyLike>(
+  penalties: P[],
+  goals: GoalLike[],
+  elapsedMs: number,
+  rule: PenaltyRule = "power_play",
+) {
+  const ends = penaltyEnds(penalties, goals, rule);
   return penalties
+    .filter((p) => rule === "power_play" || p.memberId !== null)
     .filter((p) => p.atMs !== null && p.atMs <= elapsedMs && ends.get(p.id)! > elapsedMs)
     .sort((a, b) => a.atMs! - b.atMs! || a.id - b.id)
     .map((penalty) => ({ penalty, leftMs: ends.get(penalty.id)! - elapsedMs, double: penalty.minutes === 4 }));

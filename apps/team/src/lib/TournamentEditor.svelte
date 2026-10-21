@@ -6,6 +6,8 @@
   import TimeSelect from "./TimeSelect.svelte";
   import { tick } from "svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
+  import Choice from "./Choice.svelte";
+  import { PENALTY_RULE_OPTIONS } from "./penalties";
   import { createTournamentType, updateTournamentType } from "../app/backend.svelte";
   import { TOURNAMENT_KINDS, type TournamentType } from "../demo/model";
   import { db } from "../demo/store.svelte";
@@ -31,6 +33,7 @@
     pointsDraw: 1,
     pointsLoss: 0,
     gameMinutes: 12,
+    penaltyRule: "power_play",
     kind: "teams",
     active: true,
     defaultFeePence: 1500,
@@ -175,6 +178,11 @@
                   Game length (minutes)
                   <input class="input num" type="number" min="1" max="90" bind:value={form.gameMinutes} />
                 </label>
+              </div>
+              <!-- How a penalty's served (ADR 0061): each new tournament copies it -->
+              <div class="field">
+                Penalties
+                <Choice bind:value={form.penaltyRule} options={PENALTY_RULE_OPTIONS} aria-label="Penalties" />
               </div>
             </FormSection>
             <FormSection title="Playoffs" description="After the round robin, by place in the table.">

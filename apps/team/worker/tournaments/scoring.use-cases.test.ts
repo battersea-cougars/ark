@@ -567,3 +567,58 @@ describe("penalties, kept the way goals are", () => {
     expect(byTeam.get(both)).toBe(11);
   });
 });
+
+describe("how a penalty's served is the series' setting, copied onto each tournament", () => {
+  const SERIES = {
+    name: "Shootout Cup",
+    shortName: "Shootout",
+    icon: "trophy",
+    tone: "green",
+    kind: "teams",
+    pointsWin: 3,
+    pointsDraw: 1,
+    pointsLoss: 0,
+    gameMinutes: 12,
+    active: true,
+    defaultFeePence: 0,
+    awards: [],
+    location: "",
+  };
+
+  it("an admin sets Penalties on a series; a new series is Power play; its tournaments copy it and can differ", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    // Left out: the standard
+    let res = await dana.call("POST", "/api/tournament-types", SERIES);
+    expect(res.status).toBe(201);
+    const plain = res.body.id;
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === plain).penaltyRule).toBe("power_play");
+    res = await dana.call("POST", "/api/tournament-types", { ...SERIES, name: "Sit-out Cup", penaltyRule: "sit_out" });
+    const sitOut = res.body.id;
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === sitOut).penaltyRule).toBe("sit_out");
+    expect(
+      (await dana.call("POST", "/api/tournament-types", { ...SERIES, name: "Odd", penaltyRule: "sin_bin" })).status,
+    ).toBe(400);
+    // Changed on the series
+    expect(
+      (await dana.call("PUT", `/api/tournament-types/${plain}`, { ...SERIES, penaltyRule: "sit_out" })).status,
+    ).toBe(200);
+    expect((await sees()).tournamentTypes.find((t: Json) => t.id === plain).penaltyRule).toBe("sit_out");
+    // A tournament copies its series', and one can differ
+    const day = { name: "Sit-out Cup 2026", location: "", heldOn: "2026-12-12", startTime: "10:00", endTime: "15:00" };
+    res = await dana.call("POST", "/api/tournaments", { ...day, typeId: sitOut, status: "planned", feePence: 0 });
+    const t = res.body.id;
+    expect((await sees()).tournaments.find((x: Json) => x.id === t).penaltyRule).toBe("sit_out");
+    const own = (await sees()).tournaments.find((x: Json) => x.id === t);
+    expect(
+      (await dana.call("PUT", `/api/tournaments/${t}`, { ...own, teams: [], penaltyRule: "power_play" })).status,
+    ).toBe(200);
+    expect((await sees()).tournaments.find((x: Json) => x.id === t).penaltyRule).toBe("power_play");
+  });
+
+  it("the Kumite's penalties are a penalty shot, the player sitting out", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    expect(boot.tournamentTypes.find((t: Json) => t.slug === "kumite").penaltyRule).toBe("sit_out");
+  });
+});

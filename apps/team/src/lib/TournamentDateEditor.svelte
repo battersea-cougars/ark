@@ -35,6 +35,8 @@
   import PlacePicker from "./PlacePicker.svelte";
   import PersonPicker from "./PersonPicker.svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
+  import Choice from "./Choice.svelte";
+  import { PENALTY_RULE_OPTIONS, type PenaltyRule } from "./penalties";
   import DateField from "../lib/DateField.svelte";
   import TeamCard from "./TeamCard.svelte";
   import { typePlace } from "../demo/schedule.svelte";
@@ -88,6 +90,7 @@
     pointsDraw: number;
     pointsLoss: number;
     gameMinutes: number;
+    penaltyRule: PenaltyRule;
     kind: TournamentKind;
     awards: { name: string; about: string }[];
     playoffs: Playoff[];
@@ -127,6 +130,7 @@
         pointsDraw: t.pointsDraw,
         pointsLoss: t.pointsLoss,
         gameMinutes: t.gameMinutes,
+        penaltyRule: t.penaltyRule ?? "power_play",
         kind: t.kind,
         awards: t.awards.map((a) => ({ ...a })),
         playoffs: (t.playoffs ?? []).map((g) => ({ ...g })),
@@ -158,6 +162,7 @@
       pointsDraw: 1,
       pointsLoss: 0,
       gameMinutes: 12,
+      penaltyRule: "power_play",
       kind: "teams",
       awards: [],
       playoffs: [],
@@ -197,6 +202,7 @@
     date.pointsDraw = t.pointsDraw;
     date.pointsLoss = t.pointsLoss;
     date.gameMinutes = t.gameMinutes;
+    date.penaltyRule = t.penaltyRule;
     date.kind = t.kind;
     date.awards = t.awards.map((a) => ({ ...a }));
     date.playoffs = (t.playoffs ?? []).map((g) => ({ ...g }));
@@ -343,6 +349,7 @@
     pointsDraw: d.pointsDraw,
     pointsLoss: d.pointsLoss,
     gameMinutes: d.gameMinutes,
+    penaltyRule: d.penaltyRule,
     kind: d.kind,
     awards: d.awards.filter((a) => a.name.trim()),
     playoffs: d.playoffs.filter((g) => g.name.trim()),
@@ -477,6 +484,10 @@
                 Game length (minutes)
                 <input class="input num" type="number" min="1" max="90" bind:value={date.gameMinutes} />
               </label>
+            </div>
+            <div class="field">
+              Penalties
+              <Choice bind:value={date.penaltyRule} options={PENALTY_RULE_OPTIONS} aria-label="Penalties" />
             </div>
           </FormSection>
           <FormSection title="Playoffs" description="After the round robin, by place in the table.">

@@ -1,6 +1,7 @@
 // The team app's schedule model (ADR 0030). These are the shapes the D1 tables will have; the demo keeps them in
 // memory. Training repeats (series → sessions); tournaments are scheduled one by one under a type; anything else
 // is a one-off event. The calendar is all three together.
+import type { PenaltyRule } from "../lib/penalties";
 import type { IconName } from "../app/shell/icons";
 import type { DatedFee } from "../lib/dues";
 import type { Weekday } from "../lib/recurrence";
@@ -97,6 +98,8 @@ export interface TournamentType {
   pointsDraw: number;
   pointsLoss: number;
   gameMinutes: number;
+  /** How a penalty's served (ADR 0061), copied onto each new edition. */
+  penaltyRule: PenaltyRule;
   /** How its tournaments make teams (ADR 0030). */
   kind: TournamentKind;
   active: boolean;
@@ -179,6 +182,8 @@ export interface Tournament extends Entries {
   pointsDraw: number;
   pointsLoss: number;
   gameMinutes: number;
+  /** How a penalty's served, copied from its series (ADR 0061); left out on a save, it keeps what it was. */
+  penaltyRule?: PenaltyRule;
   /** How it makes teams (ADR 0030): teams enter, or captains draft members. */
   kind: TournamentKind;
   awards: { name: string; about: string }[];

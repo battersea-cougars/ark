@@ -305,7 +305,13 @@
   );
   // The penalty clock, beside each team: what's being served now, in game time, so it stops when the clock does
   // (lib/penalties.ts; a power-play goal ends a minor)
-  const box = $derived(game?.status === "live" ? serving(game.penalties ?? [], game.goals ?? [], full - left) : []);
+  // How a penalty's served, the tournament's setting: in the box (a power play), or a penalty shot with the player
+  // sitting out (nobody short; goals don't end it; a bench one has nobody to sit out)
+  const rule = $derived(tournament?.penaltyRule ?? "power_play");
+  const sitOut = $derived(rule === "sit_out");
+  const box = $derived(
+    game?.status === "live" ? serving(game.penalties ?? [], game.goals ?? [], full - left, rule) : [],
+  );
   const boxOf = (teamId: number | null) => box.filter((b) => b.penalty.teamId === teamId);
   const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
 
@@ -467,6 +473,7 @@
               {#each boxOf(teamId).slice(0, 2) as b (b.penalty.id)}
                 <li>
                   <span class="box-who">{who(b.penalty.memberId)}</span>
+                  {#if sitOut}<span class="box-double">sits out</span>{/if}
                   <span class="box-left num">{mmss(b.leftMs)}</span>
                   {#if b.double}<span class="box-double num" title="Double minor">2+2</span>{/if}
                 </li>
@@ -509,7 +516,11 @@
                     {#if g.assistId}<span class="assist">Assist · {goesByOf(byId(g.assistId))}</span>{/if}
                   {:else}
                     <span class="scorer">{who(g.memberId)}</span>
-                    {#if g.infraction}<span class="assist">{infractionLabel(g.infraction)}</span>{/if}
+                    {#if (sitOut && g.memberId !== null) || g.infraction}<span class="assist"
+                        >{[sitOut && g.memberId !== null ? `Sits ${g.minutes}` : "", infractionLabel(g.infraction)]
+                          .filter(Boolean)
+                          .join(" · ")}</span
+                      >{/if}
                   {/if}
                 </span>
               </span>
@@ -528,7 +539,9 @@
               {/if}
               <span class="at">
                 <span class="at-time display num">{g.atMs === null ? "–" : mmss(g.atMs)}</span>
-                <span class="at-score num">{g.kind === "goal" ? g.score : `PIM ${g.minutes}`}</span>
+                <span class="at-score num"
+                  >{g.kind === "goal" ? g.score : sitOut ? "Penalty shot" : `PIM ${g.minutes}`}</span
+                >
               </span>
             </li>
           {/each}
@@ -1181,6 +1194,8 @@
   }
   /* A double minor: one clock, four minutes, marked */
   .box-double {
+    flex-shrink: 0;
+    white-space: nowrap;
     color: var(--fg-subtle);
     font-size: var(--text-2xs);
     font-weight: 700;
