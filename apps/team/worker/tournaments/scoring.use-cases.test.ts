@@ -63,6 +63,8 @@ async function cup(playoffs: { name: string; home: number; away: number }[] = []
     who.call("POST", `/api/tournaments/${id}/games/${gameId}/clock`, { action }, { now });
   const goal = (who: { call: Json }, gameId: number, body: object, now = NOW) =>
     who.call("POST", `/api/tournaments/${id}/games/${gameId}/goals`, body, { now });
+  const penalty = (who: { call: Json }, gameId: number, body: object, now = NOW) =>
+    who.call("POST", `/api/tournaments/${id}/games/${gameId}/penalties`, body, { now });
   /** Start scoring (take the scoresheet) or let it go. */
   const sheet = (who: { call: Json }, gameId: number, action: "claim" | "release", now = NOW) =>
     who.call("POST", `/api/tournaments/${id}/games/${gameId}/scorer`, { action }, { now });
@@ -82,6 +84,7 @@ async function cup(playoffs: { name: string; home: number; away: number }[] = []
     as,
     clock,
     goal,
+    penalty,
     sheet,
     keeperOf,
     captainOf,
@@ -351,5 +354,155 @@ describe("a playoff needs a winner", () => {
     expect(
       (await dana.call("PUT", `/api/tournaments/${id}/games/${game.id}`, { homeGoals: 3, awayGoals: 2 })).status,
     ).toBe(200);
+  });
+});
+
+describe("penalties, kept the way goals are", () => {
+  it("the scorekeeper records a penalty (who, the minutes, what for), timed by the game clock, and everyone sees it", async () => {
+    const { first, keeperOf, clock, penalty, captainOf, tournament } = await cup();
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    const dan = captainOf(first.homeTeamId);
+    expect(
+      (await penalty(keeper, first.id, { teamId: first.homeTeamId, memberId: dan, infraction: "tripping" }, at(4)))
+        .status,
+    ).toBe(200);
+    // A bench penalty: nobody in particular, five minutes
+    expect(
+      (await penalty(keeper, first.id, { teamId: first.awayTeamId, minutes: 5, infraction: "too-many-players" }, at(6)))
+        .status,
+    ).toBe(200);
+    const mo = await w.signedIn("mo@example.com");
+    const g = (await tournament(mo, at(6))).games.find((x: Json) => x.id === first.id);
+    const keeperId = captainOf(first.scoringTeamId);
+    expect(g.penalties).toEqual([
+      expect.objectContaining({
+        teamId: first.homeTeamId,
+        memberId: dan,
+        minutes: 2,
+        infraction: "tripping",
+        atMs: 240_000,
+        recordedBy: keeperId,
+      }),
+      expect.objectContaining({
+        teamId: first.awayTeamId,
+        memberId: null,
+        minutes: 5,
+        infraction: "too-many-players",
+        atMs: 360_000,
+      }),
+    ]);
+    // The score's untouched
+    expect(g).toMatchObject({ homeGoals: 0, awayGoals: 0 });
+  });
+
+  it("a double minor is one penalty of four minutes", async () => {
+    const { first, keeperOf, clock, penalty, captainOf, tournament } = await cup();
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    const dan = captainOf(first.awayTeamId);
+    expect(
+      (
+        await penalty(
+          keeper,
+          first.id,
+          { teamId: first.awayTeamId, memberId: dan, minutes: 4, infraction: "high-stick" },
+          at(3),
+        )
+      ).status,
+    ).toBe(200);
+    const g = (await tournament(undefined, at(3))).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties).toEqual([expect.objectContaining({ memberId: dan, minutes: 4, atMs: 180_000 })]);
+  });
+
+  it("only the scorekeeper records one, for a player on that team, 2, 4 or 5 minutes; after full time only an admin", async () => {
+    const { first, keeperOf, clock, penalty, captainOf, dana, tournament, as } = await cup();
+    const keeper = await keeperOf(first);
+    // Not before kick-off
+    expect((await penalty(keeper, first.id, { teamId: first.homeTeamId })).status).toBe(409);
+    await clock(keeper, first.id, "start", at(0));
+    const mo = await w.signedIn("mo@example.com");
+    // Not even a captain playing in it
+    const playing = await as(first.homeTeamId);
+    expect((await penalty(mo, first.id, { teamId: first.homeTeamId }, at(1))).status).toBe(403);
+    expect((await penalty(playing, first.id, { teamId: first.homeTeamId }, at(1))).status).toBe(403);
+    expect((await penalty(dana, first.id, { teamId: first.homeTeamId }, at(1))).status).toBe(403);
+    expect(
+      (await penalty(keeper, first.id, { teamId: first.homeTeamId, memberId: captainOf(first.awayTeamId) }, at(1)))
+        .status,
+    ).toBe(400);
+    expect((await penalty(keeper, first.id, { teamId: first.homeTeamId, minutes: 3 }, at(1))).status).toBe(400);
+    expect((await penalty(keeper, first.id, { teamId: first.homeTeamId, infraction: "biting" }, at(1))).status).toBe(
+      400,
+    );
+    expect((await penalty(keeper, first.id, { teamId: first.scoringTeamId }, at(1))).status).toBe(400);
+    await clock(keeper, first.id, "end", at(12));
+    expect((await penalty(keeper, first.id, { teamId: first.homeTeamId }, at(13))).status).toBe(403);
+    // An admin puts one missed on the day in its place, or with no time
+    expect(
+      (await penalty(dana, first.id, { teamId: first.awayTeamId, memberId: captainOf(first.awayTeamId), atMs: 90_000 }))
+        .status,
+    ).toBe(200);
+    const g = (await tournament()).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties).toEqual([expect.objectContaining({ atMs: 90_000, minutes: 2, infraction: "" })]);
+  });
+
+  it("a penalty logged by mistake comes off: the scorekeeper takes back the last; an admin any one, after", async () => {
+    const { id, first, keeperOf, clock, penalty, tournament, dana } = await cup();
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    await penalty(keeper, first.id, { teamId: first.homeTeamId }, at(1));
+    await penalty(keeper, first.id, { teamId: first.awayTeamId }, at(2));
+    const path = `/api/tournaments/${id}/games/${first.id}/penalties`;
+    expect((await dana.call("DELETE", `${path}/last`, undefined, { now: at(2) })).status).toBe(403);
+    expect((await keeper.call("DELETE", `${path}/last`, undefined, { now: at(2) })).status).toBe(200);
+    let g = (await tournament(undefined, at(2))).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties.map((p: Json) => p.teamId)).toEqual([first.homeTeamId]);
+    // Not while it's on: an admin's for a finished game
+    expect((await dana.call("DELETE", `${path}/${g.penalties[0].id}`)).status).toBe(409);
+    await clock(keeper, first.id, "end", at(12));
+    expect((await dana.call("DELETE", `${path}/${g.penalties[0].id}`)).status).toBe(200);
+    g = (await tournament()).games.find((x: Json) => x.id === first.id);
+    expect(g.penalties).toEqual([]);
+  });
+
+  it("they're on the record with the result, as goals are: at full time, and with each fix after", async () => {
+    const { first, keeperOf, clock, penalty, dana } = await cup();
+    const scored = () =>
+      (w.db.raw.prepare("SELECT detail FROM audit_log WHERE action = 'game.scored' ORDER BY id").all() as Json[]).map(
+        (r) => JSON.parse(r.detail),
+      );
+    const keeper = await keeperOf(first);
+    await clock(keeper, first.id, "start", at(0));
+    await penalty(keeper, first.id, { teamId: first.homeTeamId, minutes: 5 }, at(1));
+    // Not tap by tap
+    expect(scored()).toHaveLength(0);
+    await clock(keeper, first.id, "end", at(12));
+    expect(JSON.stringify(scored().at(-1))).toContain('"penaltyMinutes":5');
+    await penalty(dana, first.id, { teamId: first.awayTeamId });
+    expect(scored()).toHaveLength(2);
+    expect(JSON.stringify(scored().at(-1))).toContain('"penaltyMinutes":7');
+  });
+
+  it("penalty minutes add up per player and per team, across the day's games", async () => {
+    const { games, clock, penalty, sheet, captainOf, tournament, dana } = await cup();
+    const pims = (await import("../../src/lib/penalties")).penaltyMinutes;
+    // Game 1 then game 2, each with a penalty for whoever's in both
+    const [g1, g2] = games;
+    const both = [g1.homeTeamId, g1.awayTeamId].find((t: number) => [g2.homeTeamId, g2.awayTeamId].includes(t));
+    const dan = captainOf(both);
+    await sheet(dana, g1.id, "claim");
+    await clock(dana, g1.id, "start", at(0));
+    await penalty(dana, g1.id, { teamId: both, memberId: dan, infraction: "hooking" }, at(2));
+    await penalty(dana, g1.id, { teamId: both, memberId: dan, minutes: 5, infraction: "roughing" }, at(5));
+    await clock(dana, g1.id, "end", at(12));
+    await sheet(dana, g2.id, "claim");
+    await clock(dana, g2.id, "start", at(15));
+    await penalty(dana, g2.id, { teamId: both, memberId: dan }, at(16));
+    await penalty(dana, g2.id, { teamId: both }, at(17));
+    const t = await tournament(undefined, at(17));
+    const { byMember, byTeam } = pims(t.games);
+    expect(byMember.get(dan)).toBe(9);
+    expect(byTeam.get(both)).toBe(11);
   });
 });

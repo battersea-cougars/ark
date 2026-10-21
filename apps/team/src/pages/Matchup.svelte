@@ -17,6 +17,7 @@
   import { meetings } from "../lib/matchups";
   import { editionWhen } from "../lib/edition";
   import { mmss } from "../lib/game-clock.svelte";
+  import { infractionLabel } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -67,14 +68,29 @@
   const played = $derived(game?.status === "done");
   const href = $derived(`/tournaments/${type.slug}/games/${gameId}`);
 
-  // Who scored, in order, with the time on the clock
+  // Who scored, and each penalty, in time order with the time on the clock (none said: last)
   const goals = $derived(
-    (game?.goals ?? []).map((g) => ({
-      ...g,
-      home: g.teamId === game?.homeTeamId,
-      scorer: goesByOf(byId(g.scorerId)),
-      assist: goesByOf(byId(g.assistId)),
-    })),
+    [
+      ...(game?.goals ?? []).map((g) => ({
+        key: `g${g.id}`,
+        atMs: g.atMs as number | null,
+        teamId: g.teamId,
+        home: g.teamId === game?.homeTeamId,
+        scorer: goesByOf(byId(g.scorerId)) || "Unknown",
+        assist: g.assistId ? `from ${goesByOf(byId(g.assistId))}` : "",
+      })),
+      ...(game?.penalties ?? []).map((p) => ({
+        key: `p${p.id}`,
+        atMs: p.atMs,
+        teamId: p.teamId,
+        home: p.teamId === game?.homeTeamId,
+        scorer: `PIM ${p.minutes} · ${goesByOf(byId(p.memberId)) || "Bench"}`,
+        assist: p.infraction ? infractionLabel(p.infraction) : "",
+      })),
+    ]
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => (a.e.atMs ?? Infinity) - (b.e.atMs ?? Infinity) || a.i - b.i)
+      .map(({ e }) => e),
   );
 
   // When these captains' sides last met, in past ones of this series
@@ -160,13 +176,13 @@
 
     {#if played && goals.length}
       <section class="part">
-        <h2 class="section-title">The goals</h2>
+        <h2 class="section-title">{game.penalties?.length ? "Goals and penalties" : "The goals"}</h2>
         <ol class="goals">
-          {#each goals as g (g.id)}
+          {#each goals as g (g.key)}
             <li class:away={!g.home}>
-              <span class="t num">{mmss(g.atMs)}</span>
+              <span class="t num">{g.atMs === null ? "–" : mmss(g.atMs)}</span>
               <span class="who"
-                >{g.scorer || "Unknown"}{#if g.assist}<small>from {g.assist}</small>{/if}</span
+                >{g.scorer}{#if g.assist}<small>{g.assist}</small>{/if}</span
               >
               <span class="for">{nameOf(tournament, g.teamId)}</span>
             </li>

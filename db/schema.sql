@@ -652,6 +652,26 @@ CREATE TABLE tournament_goals (
 
 CREATE INDEX tournament_goals_game ON tournament_goals (game_id, id);
 
+-- Each penalty as it was called (ADR 0061): its team, who (null: a bench penalty, or nobody said), 2 or 5 minutes, what
+-- for (lib/penalties.ts INFRACTIONS; '' when nobody said), and when in game time. The penalty clock is worked out from
+-- these and the goals, never stored. Penalty minutes per player and team (the leaderboards' PIM) are their sum
+CREATE TABLE tournament_penalties (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  game_id INTEGER NOT NULL REFERENCES tournament_games (id) ON DELETE CASCADE,
+  team_id INTEGER NOT NULL REFERENCES tournament_teams (id) ON DELETE CASCADE,
+  member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  minutes INTEGER NOT NULL DEFAULT 2,
+  infraction TEXT NOT NULL DEFAULT '',
+  -- When, in game time; NULL when an admin added it after the game without a time
+  at_ms INTEGER,
+  -- Who wrote it down: the scorekeeper, or an admin putting the result right
+  recorded_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX tournament_penalties_game ON tournament_penalties (game_id, id);
+CREATE INDEX tournament_penalties_member ON tournament_penalties (member_id);
+
 
 -- The club's agenda (ADR 0042): what's on and when, one row per thing on a day. Every part of the club pushes its own
 -- rows when it changes (packages/shared/agenda.ts): each training session, a tournament's day, its draft night and its sign-up

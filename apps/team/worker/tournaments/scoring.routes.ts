@@ -2,19 +2,29 @@
 import { id, ok, rowOf, type Ctx, type Route } from "../api/api.route";
 import { scoreGame } from "./fixtures";
 import { body } from "../api/api.http";
-import { addGoal, clockGame, holdScoresheet, removeGoal, undoGoal } from "./scoring";
+import {
+  addGoal,
+  addPenalty,
+  clockGame,
+  holdScoresheet,
+  removeGoal,
+  removePenalty,
+  undoGoal,
+  undoPenalty,
+} from "./scoring";
 
 /** The game in a path (its second number). */
 const game = (c: Ctx) => Number(c.params[1]);
+/** A game's result as it's on the record: its score, and its penalty minutes. */
+const RESULT = `SELECT id, home_goals homeGoals, away_goals awayGoals, status,
+    (SELECT coalesce(sum(minutes), 0) FROM tournament_penalties WHERE game_id = g.id) penaltyMinutes
+  FROM tournament_games g WHERE id = ?`;
 /**
- * A game's result once it's over, else nothing (ADR 0095): goals and the clock aren't on the record tap by tap, but as
- * one game.scored when the game ends, and again for each edit after it's ended.
+ * A game's result once it's over, else nothing (ADR 0095): goals, penalties and the clock aren't on the record tap by
+ * tap, but as one game.scored when the game ends, and again for each edit after it's ended.
  */
 const finalScore = async (c: Ctx) => {
-  const g = (await rowOf(
-    "SELECT id, home_goals homeGoals, away_goals awayGoals, status FROM tournament_games WHERE id = ?",
-    game,
-  )(c)) as { status: string } | null;
+  const g = (await rowOf(RESULT, game)(c)) as { status: string } | null;
   return g?.status === "done" ? g : null;
 };
 
@@ -24,10 +34,7 @@ export const SCORING_ROUTES: Route[] = [
     path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)$/,
     audit: {
       event: "game.scored",
-      subject: rowOf(
-        "SELECT id, home_goals homeGoals, away_goals awayGoals, status FROM tournament_games WHERE id = ?",
-        game,
-      ),
+      subject: rowOf(RESULT, game),
     },
     action: "score:Match",
     changes: ["tournaments"],
@@ -84,5 +91,35 @@ export const SCORING_ROUTES: Route[] = [
     changes: ["tournaments"],
     // An admin takes any goal off a finished game (scoring.ts decides who)
     handle: async (c) => (await removeGoal(c.env.DB, id(c), Number(c.params[1]), Number(c.params[2]), c), ok()),
+  },
+  // Penalties, kept the way goals are
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/penalties$/,
+    audit: { event: "game.scored", subject: finalScore },
+    action: "authenticated",
+    changes: ["tournaments"],
+    // { teamId, memberId?, minutes?, infraction?, atMs? }
+    handle: async (c) => (
+      await addPenalty(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
+      ok()
+    ),
+  },
+  {
+    method: "DELETE",
+    path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/penalties\/last$/,
+    audit: { event: "game.scored", subject: finalScore },
+    action: "authenticated",
+    changes: ["tournaments"],
+    handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c), ok()),
+  },
+  {
+    method: "DELETE",
+    path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/penalties\/(\d+)$/,
+    audit: { event: "game.scored", subject: finalScore },
+    action: "authenticated",
+    changes: ["tournaments"],
+    // An admin takes any penalty off a finished game (scoring.ts decides who)
+    handle: async (c) => (await removePenalty(c.env.DB, id(c), Number(c.params[1]), Number(c.params[2]), c), ok()),
   },
 ];

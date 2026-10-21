@@ -82,7 +82,16 @@ export const SLICES = {
   },
   tournamentTypes: { parts: ["tournamentTypes"], shape: (_c: Ctx, p: Parts) => tournamentTypesFrom(p.tournamentTypes) },
   tournaments: {
-    parts: ["tournaments", "tournamentTeams", "tournamentPlayers", "games", "goals", "winners", "tournamentEntries"],
+    parts: [
+      "tournaments",
+      "tournamentTeams",
+      "tournamentPlayers",
+      "games",
+      "goals",
+      "penalties",
+      "winners",
+      "tournamentEntries",
+    ],
     shape: (c: Ctx, p: Parts) =>
       draftSeenBy(
         c,
@@ -91,7 +100,7 @@ export const SLICES = {
             p.tournaments,
             p.tournamentTeams,
             p.tournamentPlayers,
-            gamesFrom(p.games, p.goals, p.tournamentTeams),
+            gamesFrom(p.games, p.goals, p.tournamentTeams, p.penalties),
             p.winners,
           ),
           p.tournamentEntries,

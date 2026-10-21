@@ -280,6 +280,20 @@ export interface TournamentGame {
   clockStartedAt?: string | null;
   /** Each goal as it went in, in order. */
   goals?: { id: number; teamId: number; scorerId: number | null; assistId: number | null; atMs: number }[];
+  /** Each penalty as it was called, in order (lib/penalties.ts works out the penalty clock). */
+  penalties?: GamePenalty[];
+}
+
+/** A penalty (ADR 0061): who (null: a bench penalty, or nobody said), 2 or 5 minutes, what for, when in game time. */
+export interface GamePenalty {
+  id: number;
+  teamId: number;
+  memberId: number | null;
+  minutes: number;
+  /** lib/penalties.ts INFRACTIONS, or "" when nobody said. */
+  infraction: string;
+  atMs: number | null;
+  recordedBy?: number | null;
 }
 
 /** A row of the club's agenda (ADR 0042, packages/shared/agenda.ts): what's on and when, from today. */

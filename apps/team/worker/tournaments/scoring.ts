@@ -2,12 +2,14 @@
 // lib/fixtures.ts), but one person keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can
 // score that game until they let it go, or an admin does (someone had to leave: anyone can take it on from there).
 // The holder starts and pauses the clock, logs each goal as it goes in (who scored, who assisted, when in game
-// time), takes back the last one, and calls full time, which makes the score the result. One game at a time. The
-// score is on the game as it changes, so everyone sees it as it happens.
+// time), and each penalty (who, 2 or 5 minutes, what for, when), takes back the last of either, and calls full time,
+// which makes the score the result. One game at a time. The score is on the game as it changes, so everyone sees it
+// as it happens.
 import { batch, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { fillPlayoffs, listGames, tournamentOf, type Game } from "./fixtures";
 import { HttpError, int, oneOf } from "../api/api.http";
+import { INFRACTIONS, PENALTY_MINUTES } from "../../src/lib/penalties";
 
 interface Who {
   memberId: number;
@@ -229,6 +231,73 @@ export async function undoGoal(db: D1Database, tournamentId: number, gameId: num
   );
   if (!res.meta.changes) throw new HttpError(409, "No goals to take back.");
   await recount(db, game);
+}
+
+/**
+ * A penalty, kept the way goals are: as it's called (the scorekeeper, the game on, timed by the clock), or one missed
+ * on the day (an admin, the game over, at the time they say or none). Its team; who (optional: a bench penalty, or
+ * nobody said; on that team); 2 or 5 minutes (2 unless said); what for (optional, from the list).
+ */
+export async function addPenalty(
+  db: D1Database,
+  tournamentId: number,
+  gameId: number,
+  o: Record<string, unknown>,
+  who: Who,
+  now: Date,
+) {
+  const { game } = await gameOf(db, tournamentId, gameId);
+  const done = game.status === "done";
+  if (done) mustCorrect(game, who);
+  else mustHold(game, who);
+  if (!done && game.status !== "live") throw new HttpError(409, "That game isn't on.");
+  const teamId = int(o, "teamId")!;
+  if (teamId !== game.homeTeamId && teamId !== game.awayTeamId) throw new HttpError(400, "That team isn't playing.");
+  const memberId = o.memberId == null ? null : int(o, "memberId");
+  if (memberId !== null && !(await onTeam(db, teamId, memberId).first()))
+    throw new HttpError(400, "They're not on that team.");
+  const minutes = o.minutes == null ? 2 : int(o, "minutes");
+  if (!(PENALTY_MINUTES as readonly number[]).includes(minutes))
+    throw new HttpError(400, "A penalty's 2, 4 (a double minor) or 5 minutes.");
+  const infraction =
+    o.infraction == null || o.infraction === ""
+      ? ""
+      : oneOf(
+          o,
+          "infraction",
+          INFRACTIONS.map((i) => i.value),
+        );
+  const t = await tournamentOf(db, tournamentId);
+  const atMs = done
+    ? o.atMs == null
+      ? null
+      : int(o, "atMs", { max: t.gameMinutes * 60_000 })
+    : t.gameMinutes * 60_000 - leftNow(game, now);
+  await run(
+    db,
+    `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, recorded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [gameId, teamId, memberId, minutes, infraction, atMs, who.memberId, now.toISOString()],
+  );
+}
+
+/** Any penalty off a finished game: an admin putting it right. */
+export async function removePenalty(db: D1Database, tournamentId: number, gameId: number, penaltyId: number, who: Who) {
+  await correctable(db, tournamentId, gameId, who);
+  const res = await run(db, "DELETE FROM tournament_penalties WHERE id = ? AND game_id = ?", [penaltyId, gameId]);
+  if (!res.meta.changes) throw new HttpError(404, "No such penalty.");
+}
+
+/** The last penalty comes off: logged by mistake. */
+export async function undoPenalty(db: D1Database, tournamentId: number, gameId: number, who: Who) {
+  const { game } = await scorable(db, tournamentId, gameId, who);
+  if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
+  const res = await run(
+    db,
+    "DELETE FROM tournament_penalties WHERE id = (SELECT max(id) FROM tournament_penalties WHERE game_id = ?)",
+    [gameId],
+  );
+  if (!res.meta.changes) throw new HttpError(409, "No penalties to take back.");
 }
 
 /** The score on the game, from its goals: what everyone sees. */

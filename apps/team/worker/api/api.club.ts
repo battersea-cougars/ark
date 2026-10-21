@@ -184,6 +184,12 @@ const PARTS = {
     `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs
      FROM tournament_goals ORDER BY at_ms IS NULL, at_ms, id`,
   ),
+  penalties: rows(
+    "id gameId teamId memberId minutes infraction atMs recordedBy",
+    `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs,
+            recorded_by recordedBy
+     FROM tournament_penalties ORDER BY at_ms IS NULL, at_ms, id`,
+  ),
   winners: rows(
     "tournamentId award teamId memberId",
     `SELECT tournament_id tournamentId, award, team_id teamId, member_id memberId FROM tournament_award_winners

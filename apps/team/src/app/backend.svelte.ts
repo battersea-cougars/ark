@@ -566,6 +566,18 @@ export const removeGoal = (tournamentId: number, gameId: number, goalId: number)
 /** The last goal comes off. */
 export const undoGoal = (tournamentId: number, gameId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/last`), "Goal taken back");
+/** A penalty as it's called (or, for an admin after the game, at the time they say): team, who, minutes, what for. */
+export const addPenalty = (
+  tournamentId: number,
+  gameId: number,
+  penalty: { teamId: number; memberId: number | null; minutes: number; infraction: string; atMs?: number | null },
+) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/penalties`, penalty), "Penalty");
+/** Any penalty off a finished game: an admin putting it right. */
+export const removePenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
+  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/${penaltyId}`), "Penalty taken off");
+/** The last penalty comes off. */
+export const undoPenalty = (tournamentId: number, gameId: number) =>
+  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/last`), "Penalty taken back");
 
 export const createTournament = (t: Tournament) =>
   save(() => api<{ id: number }>("POST", "/api/tournaments", tournamentBody(t)), "Date added");

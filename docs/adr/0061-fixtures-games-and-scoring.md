@@ -1,7 +1,7 @@
 # 0061. The app makes a tournament's fixtures, and each game is scored live by one person on its own page
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-21
 - **Merges:** 0071, 0090
 
 ## Context
@@ -72,11 +72,37 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   moves the tournament: its day to today, its hours so this game kicks off now (the day as long as before), its
   sign-up and draft days no later than the new day (`startingNow`), using the same save an admin makes in settings.
 
+### Penalties
+
+- **Kept the way goals are**: under each team's Goal, a quieter **Penalty** (a ghost button) opens a drawer, a tall
+  sheet on a phone ([0103](0103-drawers-sheets-and-panels.md)), every choice a tap, no drop-downs: who (that team's
+  players; nobody picked is a bench penalty), the length (Minor 2, Double minor 4 as 2+2, Major 5; Minor unless
+  said; no tournament setting yet) and,
+  if they like, what for (tripping, hooking, high stick, slashing, interference, holding, roughing, too many
+  players, delay of game, unsportsmanlike, other: `lib/penalties.ts` INFRACTIONS). It's stamped with the game
+  clock. The same rules as a goal: only whoever holds the scoresheet while it's on; once it's over, only an admin,
+  at the time they say or none.
+- `tournament_penalties` holds each: game, team, member (or none), minutes, infraction ('' when not said), game time,
+  who recorded it and when. Penalty minutes per player and team (the leaderboards' PIM, #47) are their sum
+  (`penaltyMinutes`).
+- **The penalty clock is worked out, never stored** (`lib/penalties.ts`): a penalty runs in game time from when it
+  was given, so it stops when the game clock does, and clears when served. A goal against a team with more players in
+  the box than the scorers (a power-play goal) ends that team's earliest running minor; a major runs its five
+  minutes. A double minor is one penalty of 4 (its minutes count 4) served as two minors back to back, one clock
+  from 4:00 marked 2+2: a power-play goal in its first two starts the second two fresh from the goal; in its second
+  two, it ends it. Under each team's score, while the game's on, two lines are kept for who's in the box and the time left,
+  so nothing moves when one's called or served.
+- **Taken back and put right like goals**: Take back the last penalty in Scoring's tools; an admin adds or takes any
+  off a finished game in Edit the result. On the record as goals are: not tap by tap, but in the game's result at
+  full time and with each fix after (`game.scored` carries `penaltyMinutes`).
+- They show in time order with the goals, on the live page (live viewers get them as goals, [0072](0072-live-updates.md))
+  and on the matchup once it's played: `12:04 · PIM 2 · Dan (Tripping)`; a player's minutes are a badge in the teams.
+
 ### The clock and updates
 
 - The clock is stored as time left and when it last started (`clock_left_ms`, `clock_started_at`), so it survives a
   reload or a locked phone. It never ticks on the server or in storage: each phone counts down by itself, and only
-  start, pause, set, goals and full time are sent. Holding ticks in a cookie was turned down: a cookie rides on every
+  start, pause, set, goals, penalties and full time are sent. Holding ticks in a cookie was turned down: a cookie rides on every
   request, and the server would lag the pitch.
 - Everyone on a live page, the scorekeeper too, gets changes as [0072](0072-live-updates.md) sets out.
 
@@ -91,6 +117,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 
 - Games and Standings show the real tournament, as it's played.
 - `tournament_goals` opens up top scorers and assists ([0044](0044-champions-and-awards.md) uses them).
+- `tournament_penalties` opens up penalty minutes for the leaderboards (#47); no leaderboard shows them yet.
 - A link to a game's live score is `/live`; the home page's keep-score duty goes there.
 - Few requests while a game's on, inside the free Worker allowance ([0055](0055-degrade-instead-of-break.md)).
 
@@ -110,3 +137,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 
 - 2026-10-09: The Fight card is every game as the same card as the tournament's home; the rounds no longer show.
 - 2026-10-21: The Fight card groups its games under a pinned header (Round robin, Playoffs) over a scrolling box; round robin cards drop their stage line; records read W-D-L · N pts.
+- 2026-10-21: Penalties, kept the way goals are: Penalty under Goal (who, 2 or 5 minutes, what for), a penalty clock
+  in game time beside each team that a power-play goal cuts short, double minors (2+2) among the lengths, taken back and put right like goals, and shown
+  with the goals in time order (`tournament_penalties`).

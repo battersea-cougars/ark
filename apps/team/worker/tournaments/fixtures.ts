@@ -30,6 +30,8 @@ export interface Game {
   clockStartedAt: string | null;
   /** Each goal as it went in, in order. */
   goals: Goal[];
+  /** Each penalty as it was called, in order. */
+  penalties: Penalty[];
 }
 
 export interface Goal {
@@ -41,11 +43,25 @@ export interface Goal {
   atMs: number | null;
 }
 
+export interface Penalty {
+  id: number;
+  teamId: number;
+  /** Who: null for a bench penalty, or nobody said. */
+  memberId: number | null;
+  /** 2 or 5. */
+  minutes: number;
+  /** lib/penalties.ts INFRACTIONS, or "" when nobody said. */
+  infraction: string;
+  /** When, in game time: null when an admin added it after without a time. */
+  atMs: number | null;
+  recordedBy: number | null;
+}
+
 export async function listGames(db: D1Database, tournamentId?: number): Promise<Game[]> {
   const where = tournamentId ? "WHERE tournament_id = ?" : "";
   const args = tournamentId ? [tournamentId] : [];
-  // All three in one round trip
-  const [rows, goals, teams] = await batch(db, [
+  // All four in one round trip
+  const [rows, goals, teams, penalties] = await batch(db, [
     statement(
       db,
       `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
@@ -68,22 +84,32 @@ export async function listGames(db: D1Database, tournamentId?: number): Promise<
        ORDER BY tournament_id, coalesce(pick, 1000), id`,
       args,
     ),
+    statement(
+      db,
+      `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs,
+              recorded_by recordedBy
+       FROM tournament_penalties WHERE game_id IN (SELECT id FROM tournament_games ${where})
+       ORDER BY at_ms IS NULL, at_ms, id`,
+      args,
+    ),
   ]);
   return gamesFrom(
-    rows.results as Omit<Game, "scoringTeamId" | "goals">[],
+    rows.results as Omit<Game, "scoringTeamId" | "goals" | "penalties">[],
     goals.results as (Goal & { gameId: number })[],
     teams.results as { id: number; tournamentId: number }[],
+    penalties.results as (Penalty & { gameId: number })[],
   );
 }
 
 /**
- * Games as read, each with its goals and who keeps score. `teams` is every team of their tournaments, in pick order
- * (a draft) or the order they entered.
+ * Games as read, each with its goals, its penalties and who keeps score. `teams` is every team of their tournaments,
+ * in pick order (a draft) or the order they entered.
  */
 export function gamesFrom(
-  rows: Omit<Game, "scoringTeamId" | "goals">[],
+  rows: Omit<Game, "scoringTeamId" | "goals" | "penalties">[],
   goals: (Goal & { gameId: number })[],
   teams: { id: number; tournamentId: number }[],
+  penalties: (Penalty & { gameId: number })[] = [],
 ): Game[] {
   // Who keeps score, per tournament, from its teams in pick order and its games in the day's order
   const keepers = new Map<number, number>();
@@ -97,6 +123,7 @@ export function gamesFrom(
     ...g,
     scoringTeamId: keepers.get(g.id) ?? null,
     goals: goals.filter((x) => x.gameId === g.id).map(({ gameId: _, ...x }) => x),
+    penalties: penalties.filter((x) => x.gameId === g.id).map(({ gameId: _, ...x }) => x),
   }));
 }
 
@@ -159,6 +186,11 @@ export async function makeFixtures(db: D1Database, id: number) {
     statement(
       db,
       "DELETE FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)",
+      [id],
+    ),
+    statement(
+      db,
+      "DELETE FROM tournament_penalties WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)",
       [id],
     ),
     statement(db, "DELETE FROM tournament_games WHERE tournament_id = ?", [id]),

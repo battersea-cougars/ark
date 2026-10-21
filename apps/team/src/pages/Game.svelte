@@ -4,7 +4,8 @@
   // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
   // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
   // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
-  // assisted, take the last goal back, and Full time, which makes the score the result; the clock's start and pause is
+  // assisted, a quieter Penalty (who, 2 or 5 minutes, what for) whose clock runs beside the team, take the last goal or
+  // penalty back, and Full time, which makes the score the result; the clock's start and pause is
   // one big button right under the clock, with clear space before the goals, so it's easy to hit and hard to hit by
   // mistake.
   //
@@ -24,15 +25,19 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
   import { PLAYERS, type Player } from "../demo/data";
+  import type { GamePenalty, TournamentGame } from "../demo/model";
   import { granted, me } from "../demo/session.svelte";
   import { goBack, router } from "../app/router.svelte";
   import { routes } from "../app/routes.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import {
     addGoal,
+    addPenalty,
     clockGame,
     holdScoresheet,
     removeGoal,
+    removePenalty,
+    undoPenalty,
     scoreGame,
     setGameClock,
     undoGoal,
@@ -44,6 +49,7 @@
   import { leftOf, mmss, ticking } from "../lib/game-clock.svelte";
   import { kickOff, startingNow } from "../lib/fixtures";
   import { teamHref, teamTone } from "../lib/team-tones";
+  import { INFRACTIONS, infractionLabel, PENALTY_KINDS, running as serving } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -252,19 +258,64 @@
     picking = null;
     act(() => addGoal(tournament.id, game.id, goal));
   }
-  // The goals, latest first, each with the score it made: home goals on the left, away on the right
+  // A penalty: the team, then who (or nobody: a bench penalty), the minutes (2 unless said) and what for (or not
+  // said); an admin's, then when. One drawer, every choice a tap
+  let calling = $state<{ team: number; memberId: number | null; minutes: number; infraction: string } | null>(null);
+  const callPenalty = (team: number) => {
+    calling = { team, memberId: null, minutes: 2, infraction: "" };
+    whenMin = 0;
+    whenSec = 0;
+  };
+  function savePenalty(known = true) {
+    if (!calling || !tournament || !game) return;
+    const { team, memberId, minutes, infraction } = calling;
+    const atMs = !fixing
+      ? undefined
+      : known
+        ? Math.min(full, (Math.max(0, whenMin) * 60 + Math.max(0, Math.min(59, whenSec))) * 1000)
+        : null;
+    calling = null;
+    act(() => addPenalty(tournament.id, game.id, { teamId: team, memberId, minutes, infraction, atMs }));
+  }
+  const lastPenalty = $derived(
+    game?.penalties?.length ? game.penalties.reduce((a, b) => (b.id > a.id ? b : a)) : undefined,
+  );
+  // The penalty clock, beside each team: what's being served now, in game time, so it stops when the clock does
+  // (lib/penalties.ts; a power-play goal ends a minor)
+  const box = $derived(game?.status === "live" ? serving(game.penalties ?? [], game.goals ?? [], full - left) : []);
+  const boxOf = (teamId: number | null) => box.filter((b) => b.penalty.teamId === teamId);
+  const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
+
+  // The game as it went, latest first: each goal with the score it made, and each penalty, in time order. Home on
+  // the left, away on the right
+  type Entry =
+    | (NonNullable<TournamentGame["goals"]>[number] & { kind: "goal"; key: string; isHome: boolean; score: string })
+    | (GamePenalty & { kind: "penalty"; key: string; isHome: boolean });
   const stream = $derived.by(() => {
     let home = 0;
     let away = 0;
-    return (game?.goals ?? [])
-      .map((g) => {
-        const isHome = g.teamId === game?.homeTeamId;
-        if (isHome) home++;
-        else away++;
-        return { ...g, isHome, score: `${home}–${away}` };
-      })
+    const goals: Entry[] = (game?.goals ?? []).map((g) => {
+      const isHome = g.teamId === game?.homeTeamId;
+      if (isHome) home++;
+      else away++;
+      return { ...g, kind: "goal" as const, key: `g${g.id}`, isHome, score: `${home}–${away}` };
+    });
+    const penalties: Entry[] = (game?.penalties ?? []).map((p) => ({
+      ...p,
+      kind: "penalty" as const,
+      key: `p${p.id}`,
+      isHome: p.teamId === game?.homeTeamId,
+    }));
+    // In time order (none said: last), goals first at the same moment, each kind in its own order
+    const when = (e: Entry) => (e.atMs === null ? Infinity : e.atMs);
+    return [...goals, ...penalties]
+      .map((e, i) => ({ e, i }))
+      .sort((a, b) => when(a.e) - when(b.e) || a.i - b.i)
+      .map(({ e }) => e)
       .reverse();
   });
+  const pimOf = (memberId: number) =>
+    (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
   const scoreOf = (i: number) => (i === 0 ? game?.homeGoals : game?.awayGoals) ?? 0;
 </script>
 
@@ -386,9 +437,27 @@
           {/if}
           <span class="display name">{teamName(teamId)}</span>
           <span class="display goals num"><RollNumber value={scoreOf(i)} /></span>
+          {#if game.status === "live"}
+            <!-- The penalty clock: who's in the box and the time left, counting down with the game clock. Two lines'
+                 room kept whether or not anyone's in, so nothing moves when a penalty's called or served -->
+            <ul class="box" aria-label="{teamName(teamId)}'s penalties">
+              {#each boxOf(teamId).slice(0, 2) as b (b.penalty.id)}
+                <li>
+                  <span class="box-who">{who(b.penalty.memberId)}</span>
+                  <span class="box-left num">{mmss(b.leftMs)}</span>
+                  {#if b.double}<span class="box-double num" title="Double minor">2+2</span>{/if}
+                </li>
+              {/each}
+              {#if boxOf(teamId).length > 2}<li class="box-more hint">+{boxOf(teamId).length - 2} more</li>{/if}
+            </ul>
+          {/if}
           {#if teamId && ((keeper && game.status === "live") || (fixing && over))}
             <button class="btn outline goal" disabled={busy} onclick={() => (picking = { team: teamId })}
               >{fixing ? "Add a goal" : "Goal"}</button
+            >
+            <!-- Quieter than Goal: the main event's the goals -->
+            <button class="btn ghost sm penalty" disabled={busy} onclick={() => callPenalty(teamId)}
+              ><Icon name="flag" size={16} />{fixing ? "Add a penalty" : "Penalty"}</button
             >
           {/if}
         </div>
@@ -396,37 +465,47 @@
     </div>
 
     <section class="log">
-      <h2 class="section-title">Goals</h2>
-      {#if game.goals?.length}
-        <!-- A timeline: each goal on its team's side, when it went in and the score it made down the middle -->
+      <h2 class="section-title">{game.penalties?.length ? "Goals and penalties" : "Goals"}</h2>
+      {#if stream.length}
+        <!-- A timeline: each goal and penalty on its team's side, when down the middle with the score a goal made, or
+             a penalty's minutes -->
         <ol class="stream">
-          {#each stream as g (g.id)}
-            <li class="goal-row" class:home={g.isHome}>
+          {#each stream as g (g.key)}
+            <li class="goal-row" class:home={g.isHome} class:pen={g.kind === "penalty"}>
               <span class="scored">
                 <TeamCrest
                   name={teamName(g.teamId)}
                   logo={teams[indexOf(g.teamId)]?.logo ?? null}
                   tone={teamTone(indexOf(g.teamId))}
-                  size="3.75rem"
+                  size={g.kind === "goal" ? "3.75rem" : "2.25rem"}
                 />
                 <span class="who">
                   <span class="team-label">{teamName(g.teamId)}</span>
-                  <span class="scorer">{goesByOf(byId(g.scorerId)) || "Goal"}</span>
-                  {#if g.assistId}<span class="assist">Assist · {goesByOf(byId(g.assistId))}</span>{/if}
+                  {#if g.kind === "goal"}
+                    <span class="scorer">{goesByOf(byId(g.scorerId)) || "Goal"}</span>
+                    {#if g.assistId}<span class="assist">Assist · {goesByOf(byId(g.assistId))}</span>{/if}
+                  {:else}
+                    <span class="scorer">{who(g.memberId)}</span>
+                    {#if g.infraction}<span class="assist">{infractionLabel(g.infraction)}</span>{/if}
+                  {/if}
                 </span>
               </span>
               {#if fixing}
-                <!-- Putting it right: any goal comes off, from the empty side of its row -->
+                <!-- Putting it right: any goal or penalty comes off, from the empty side of its row -->
                 <button
                   class="btn ghost sm take-off"
                   disabled={busy}
-                  onclick={() => act(() => removeGoal(tournament.id, game.id, g.id))}
-                  ><Icon name="x" size={15} />Take off</button
+                  onclick={() =>
+                    act(() =>
+                      g.kind === "goal"
+                        ? removeGoal(tournament.id, game.id, g.id)
+                        : removePenalty(tournament.id, game.id, g.id),
+                    )}><Icon name="x" size={15} />Take off</button
                 >
               {/if}
               <span class="at">
                 <span class="at-time display num">{g.atMs === null ? "–" : mmss(g.atMs)}</span>
-                <span class="at-score num">{g.score}</span>
+                <span class="at-score num">{g.kind === "goal" ? g.score : `PIM ${g.minutes}`}</span>
               </span>
             </li>
           {/each}
@@ -455,10 +534,12 @@
               <ol class="squad-list">
                 {#each roster(teamId) as p (p.id)}
                   {@const scored = (game.goals ?? []).filter((x) => x.scorerId === p.id).length}
+                  {@const pim = pimOf(p.id)}
                   <li>
                     <span class="c display">{p.id === teams[indexOf(teamId)]?.captainMemberId ? "C" : ""}</span>
                     <span class="pname">{goesBy(p)}</span>
                     {#if scored}<span class="badge">{scored > 1 ? `${scored} goals` : "Goal"}</span>{/if}
+                    {#if pim}<span class="badge">PIM {pim}</span>{/if}
                     <span class="pos">{p.position}</span>
                   </li>
                 {/each}
@@ -498,7 +579,7 @@
        a side drawer on a desktop (ADR 0103) -->
   {#snippet toolList()}
     <div class="tools">
-      <p class="hint tools-note">Only you can run the clock and log goals, until you hand it over.</p>
+      <p class="hint tools-note">Only you can run the clock and log goals and penalties, until you hand it over.</p>
       {#if game.status === "live"}
         <button
           class="tool"
@@ -511,6 +592,20 @@
               >{lastGoal
                 ? `${goesByOf(byId(lastGoal.scorerId)) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
                 : "No goals yet"}</span
+            ></span
+          >
+        </button>
+        <button
+          class="tool"
+          disabled={busy || !lastPenalty}
+          onclick={() => tool(() => act(() => undoPenalty(tournament.id, game.id)))}
+        >
+          <Icon name="undo" size={22} />
+          <span class="tool-text"
+            ><strong>Take back the last penalty</strong><span
+              >{lastPenalty
+                ? `${who(lastPenalty.memberId)} · PIM ${lastPenalty.minutes} · ${lastPenalty.atMs === null ? "–" : mmss(lastPenalty.atMs)}`
+                : "No penalties yet"}</span
             ></span
           >
         </button>
@@ -666,6 +761,101 @@
           >{picking?.scorer === undefined ? "Didn't see who" : "No assist"}</button
         >
       {/if}
+    {/snippet}
+  </Drawer>
+
+  <!-- A penalty: who, the minutes, what for, each a tap, in a drawer (a tall sheet on a phone, ADR 0103) like a
+       goal's. Stamped with the game clock; an admin putting a result right says when -->
+  <Drawer
+    bind:open={() => !!calling, (v) => !v && (calling = null)}
+    title="Penalty"
+    sub={calling ? `${teamName(calling.team)}${calling.memberId ? ` · ${who(calling.memberId)}` : ""}` : undefined}
+  >
+    {#if calling}
+      <div class="call">
+        <div class="field call-part">
+          <span id="pen-who">Who</span>
+          <div class="seg block pick-grid" role="group" aria-labelledby="pen-who">
+            {#each roster(calling.team) as p (p.id)}
+              <button
+                type="button"
+                aria-pressed={calling.memberId === p.id}
+                onclick={() => calling && (calling.memberId = calling.memberId === p.id ? null : p.id)}
+                >{goesBy(p)}</button
+              >
+            {/each}
+          </div>
+          <p class="hint call-hint">Nobody picked: a bench penalty.</p>
+        </div>
+        <div class="field call-part">
+          <span id="pen-min">Minutes</span>
+          <div class="seg block tiles" role="group" aria-labelledby="pen-min">
+            {#each PENALTY_KINDS as k (k.minutes)}
+              <button
+                type="button"
+                aria-pressed={calling.minutes === k.minutes}
+                onclick={() => calling && (calling.minutes = k.minutes)}
+                ><Icon name="clock" size={22} /><span class="name">{k.name}</span><span class="sub">{k.length}</span
+                ></button
+              >
+            {/each}
+          </div>
+        </div>
+        <div class="field call-part">
+          <span id="pen-for">For <span class="hint">(if you like)</span></span>
+          <div class="seg block sm pick-grid" role="group" aria-labelledby="pen-for">
+            {#each INFRACTIONS as f (f.value)}
+              <button
+                type="button"
+                aria-pressed={calling.infraction === f.value}
+                onclick={() => calling && (calling.infraction = calling.infraction === f.value ? "" : f.value)}
+                >{f.label}</button
+              >
+            {/each}
+          </div>
+        </div>
+        {#if fixing}
+          <div class="field call-part">
+            <span>When</span>
+            <div class="set-time">
+              <label class="field"
+                ><span>Minutes in</span><input
+                  class="input num"
+                  type="number"
+                  min="0"
+                  inputmode="numeric"
+                  bind:value={whenMin}
+                /></label
+              >
+              <span class="colon display">:</span>
+              <label class="field"
+                ><span>Seconds</span><input
+                  class="input num"
+                  type="number"
+                  min="0"
+                  max="59"
+                  inputmode="numeric"
+                  bind:value={whenSec}
+                /></label
+              >
+            </div>
+          </div>
+        {/if}
+      </div>
+    {/if}
+    {#snippet footer()}
+      <div class="when-actions">
+        {#if fixing}
+          <button class="btn outline name-skip" disabled={busy} onclick={() => savePenalty(false)}
+            >Don't know when</button
+          >
+        {:else}
+          <button class="btn outline name-skip" onclick={() => (calling = null)}>Cancel</button>
+        {/if}
+        <button class="btn primary name-skip" disabled={busy} onclick={() => savePenalty(true)}
+          >{fixing ? "Add the penalty" : `Penalty${calling ? ` · ${calling.minutes} min` : ""}`}</button
+        >
+      </div>
     {/snippet}
   </Drawer>
 {/if}
@@ -922,6 +1112,77 @@
     border-color: var(--red);
     background: var(--red);
     color: var(--on-red);
+  }
+  /* Quieter than Goal: a ghost button under it, words and a flag */
+  .penalty {
+    width: 100%;
+    gap: var(--s-1);
+    color: var(--fg-muted);
+  }
+  /* The penalty clock: two lines kept, a name and the time left each, no box around it */
+  .box {
+    display: grid;
+    align-content: start;
+    gap: 0.1rem;
+    width: 100%;
+    min-height: calc(2 * 1.5rem + 0.1rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .box li {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: var(--s-2);
+    height: 1.5rem;
+    min-width: 0;
+    font-size: var(--text-sm);
+  }
+  .box-who {
+    overflow: hidden;
+    color: var(--fg-muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .box-left {
+    color: var(--red-hot);
+    font-weight: 700;
+  }
+  /* A double minor: one clock, four minutes, marked */
+  .box-double {
+    color: var(--fg-subtle);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+  }
+  .box-more {
+    font-size: var(--text-xs);
+  }
+  /* A penalty in the timeline: a smaller line than a goal */
+  .goal-row.pen {
+    min-height: 3.75rem;
+  }
+  .pen .scorer {
+    font-weight: 500;
+  }
+  .pen .at-time {
+    font-size: 1.1rem;
+  }
+  .call {
+    display: grid;
+    gap: var(--s-6);
+  }
+  .call-part {
+    display: grid;
+    gap: var(--s-2);
+  }
+  .call-hint {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+  .pick-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .log {
     display: grid;
