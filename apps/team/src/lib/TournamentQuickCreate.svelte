@@ -385,9 +385,7 @@
           {/if}
         </dl>
         <p class="hint">
-          The rest comes from the series: {type.defaultFeePence ? `its fee (${pounds(type.defaultFeePence)}), ` : ""}its
-          rules, awards and playoffs. Something different this time?
-          <button type="button" class="link" onclick={onadvanced}>Advanced</button> has every setting.
+          {type.defaultFeePence ? `${pounds(type.defaultFeePence)} · ` : ""}Rules, awards and playoffs as usual.
         </p>
       </section>
     {/if}
@@ -555,16 +553,6 @@
   .check .btn {
     grid-column: 2;
     grid-row: 1 / span 2;
-  }
-  .link {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--fg);
-    font: inherit;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    cursor: pointer;
   }
   .advanced {
     flex-shrink: 0;
