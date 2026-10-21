@@ -18,8 +18,8 @@
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { flip } from "svelte/animate";
-  import { easeOut, flyMs, prefersReducedMotion } from "../app/motion";
-  import { fly, slide } from "svelte/transition";
+  import { easeOut, fadeMs, flyMs, prefersReducedMotion } from "../app/motion";
+  import { fade, fly, slide } from "svelte/transition";
   import TournamentPlayersDrawer from "../lib/TournamentPlayersDrawer.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
@@ -154,7 +154,8 @@
     if (phase !== "closed")
       for (let n = Math.min(picks.length, SHOWN_BEFORE) - SHOWN_BEFORE + 1; n <= 0; n++)
         out.push({ n, team: -1, ghost: true });
-    for (const p of picks.slice(-SHOWN_BEFORE))
+    // Every pick so far (it scrolls back through them), then every one to come
+    for (const p of picks)
       out.push({ n: p.n, team: p.team, took: p.memberId ? firstName(p.memberId) : p.name, by: pickerOf(p, p.team) });
     if (phase !== "closed")
       for (let n = made + 1; n <= made + pool.length; n++) out.push({ n, team: onTheClock(teams.length, n - 1) });
@@ -186,18 +187,56 @@
     }
     seenMade = n;
   });
+  // It scrolls freely (swipe, trackpad, shift-wheel, arrow keys) through the picks made and every one to come. It
+  // only follows the picks itself while you're at the current one, or haven't touched it: someone looking ahead isn't
+  // yanked back by a pick landing. Away from it, Now (at the side it's on, over the edge) brings you back
+  let atNow = true;
+  let nowSide = $state<0 | -1 | 1>(0);
+  function look() {
+    const el = tickerEl;
+    const now = el?.querySelector<HTMLElement>(".tick.up");
+    if (!el || !now) return void (nowSide = 0);
+    const mid = now.offsetLeft + now.offsetWidth / 2 - el.scrollLeft;
+    atNow = Math.abs(mid - el.clientWidth / 2) < now.offsetWidth / 2;
+    // Out of view: Now shows, on the side the current pick is
+    nowSide = mid < now.offsetWidth / 2 ? -1 : mid > el.clientWidth - now.offsetWidth / 2 ? 1 : 0;
+  }
+  function backToNow() {
+    if (!tickerEl) return;
+    atNow = true;
+    centre(tickerEl, true);
+  }
+  function tickerKeys(e: KeyboardEvent) {
+    const el = tickerEl;
+    if (!el) return;
+    const step = el.querySelector<HTMLElement>(".tick:not(.up)")?.offsetWidth ?? 160;
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      el.scrollBy({
+        left: (e.key === "ArrowRight" ? 1 : -1) * step,
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+      });
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      backToNow();
+    }
+  }
   let centredAt = -1;
   $effect(() => {
     const el = tickerEl;
     if (!el) return;
     const n = made;
-    centre(el, centredAt >= 0 && n !== centredAt);
+    if (centredAt < 0 || atNow) centre(el, centredAt >= 0 && n !== centredAt);
     centredAt = n;
+    requestAnimationFrame(look);
   });
   $effect(() => {
     const el = tickerEl;
     if (!el) return;
-    const ro = new ResizeObserver(() => centre(el, false));
+    const ro = new ResizeObserver(() => {
+      if (atNow) centre(el, false);
+      look();
+    });
     ro.observe(el);
     return () => ro.disconnect();
   });
@@ -671,39 +710,64 @@
 
     <!-- The ticker: the picks just made, then every pick to come -->
     {#if ticker.length}
-      <div class="ticker" bind:this={tickerEl} aria-label="Picks">
-        {#each ticker as t (t.n)}
-          <!-- An empty place (before the first picks) is the chip's shape with nothing in it -->
-          <div
-            class="tick"
-            class:ghost={t.ghost}
-            class:done={!t.ghost && t.n <= made}
-            class:up={t.n === made + 1}
-            class:fresh={t.n === fresh}
-            class:now={live && t.n === made + 1}
-            class:me={live && t.n === made + 1 && mine}
-            style:--d={Math.min(Math.abs(t.n - (made + 1)), 4)}
-            animate:flip={{ duration: moveMs }}
-            aria-hidden={t.ghost ? "true" : undefined}
+      <div class="ticker-wrap">
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions (a scroller the keyboard moves: arrows, Home for now) -->
+        <div
+          class="ticker"
+          bind:this={tickerEl}
+          aria-label="Picks: arrow keys look along, Home goes back to now"
+          tabindex="0"
+          role="region"
+          onscroll={look}
+          onkeydown={tickerKeys}
+        >
+          {#each ticker as t (t.n)}
+            <!-- An empty place (before the first picks) is the chip's shape with nothing in it -->
+            <div
+              class="tick"
+              class:ghost={t.ghost}
+              class:done={!t.ghost && t.n <= made}
+              class:up={t.n === made + 1}
+              class:fresh={t.n === fresh}
+              class:now={live && t.n === made + 1}
+              class:me={live && t.n === made + 1 && mine}
+              style:--d={Math.min(Math.abs(t.n - (made + 1)), 2)}
+              animate:flip={{ duration: moveMs }}
+              aria-hidden={t.ghost ? "true" : undefined}
+            >
+              {#if !t.ghost}
+                <TeamCrest
+                  name={teamName(t.team)}
+                  logo={teams[t.team].logo}
+                  tone={teamTone(t.team)}
+                  size={fit ? "1.75rem" : "2.25rem"}
+                />
+                <span class="who display"
+                  >{#if t.team === myTeam}<Icon name="user" size={12} />You{:else}<span class="clip"
+                      >{teamName(t.team)}</span
+                    >{/if}</span
+                >
+                {#if live && t.n === made + 1 && mine}<span class="badge red clock"><i class="dot"></i>Your pick</span>
+                {:else if live && t.n === made + 1}<span class="badge clock">On the clock</span>
+                {:else}<span class="meta num">{tickMeta(t)}</span>{/if}
+              {/if}
+            </div>
+          {/each}
+        </div>
+        <!-- Back to the current pick: over the ticker's edge on its side, so showing it moves nothing -->
+        {#if nowSide}
+          <button
+            class="btn sm back-now"
+            class:left={nowSide < 0}
+            onclick={backToNow}
+            transition:fade={{ duration: fadeMs }}
+            aria-label="Back to the current pick"
+            >{#if nowSide < 0}<Icon name="chevronLeft" size={14} />Now{:else}Now<Icon
+                name="chevronRight"
+                size={14}
+              />{/if}</button
           >
-            {#if !t.ghost}
-              <TeamCrest
-                name={teamName(t.team)}
-                logo={teams[t.team].logo}
-                tone={teamTone(t.team)}
-                size={fit ? "1.75rem" : "2.25rem"}
-              />
-              <span class="who display"
-                >{#if t.team === myTeam}<Icon name="user" size={12} />You{:else}<span class="clip"
-                    >{teamName(t.team)}</span
-                  >{/if}</span
-              >
-              {#if live && t.n === made + 1 && mine}<span class="badge red clock"><i class="dot"></i>Your pick</span>
-              {:else if live && t.n === made + 1}<span class="badge clock">On the clock</span>
-              {:else}<span class="meta num">{tickMeta(t)}</span>{/if}
-            {/if}
-          </div>
-        {/each}
+        {/if}
       </div>
     {/if}
 
@@ -1285,6 +1349,29 @@
     text-overflow: ellipsis;
   }
   /* On the clock: half as big again, a card reaching over the chips either side, and a badge that says so */
+  /* The ticker and, over its edge, Now: back to the current pick when you've looked away from it */
+  .ticker-wrap {
+    position: relative;
+    min-width: 0;
+  }
+  .ticker:focus-visible {
+    outline: 2px solid var(--focus, var(--fg-muted));
+    outline-offset: 2px;
+  }
+  .back-now {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    z-index: 2;
+    gap: 0.2rem;
+    translate: 0 -50%;
+    background: var(--surface-3);
+    box-shadow: var(--shadow-pop);
+  }
+  .back-now.left {
+    right: auto;
+    left: 0;
+  }
   /* The pick that just landed: a flash of the club's red round its chip, fading */
   .tick.fresh {
     animation: landed 1.6s var(--ease) both;

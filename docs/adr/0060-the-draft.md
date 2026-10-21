@@ -140,3 +140,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   about a third of the screen. A desktop tightens the lines under the tabs, which don't move.
 - 2026-10-21: No last-pick line: the ticker's newest chip is it, lighting up as a pick lands and naming whoever picked
   for a captain; the Next line is labelled, one size and two weights.
+- 2026-10-21: The ticker scrolls freely through every pick made and to come (swipe, trackpad, arrow keys), follows
+  the picks only while you're at the current one, and shows Now over its edge to bring you back (Home too).
