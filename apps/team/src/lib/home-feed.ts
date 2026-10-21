@@ -1,5 +1,5 @@
 // Home's feed (ADR 0118): under the calls to action, three groups. First what needs you now: a captain's draft, the
-// draft being on, the teams being out, a sign-up closing you haven't answered, and what you owe. Then what's coming
+// draft being on, the teams being out, a sign-up closing you haven't answered. (What you owe is a notice up top.) Then what's coming
 // up, in date order and capped: the other trainings' next sessions, each tournament series' next one, the club's
 // events, with "See the calendar" after them. Last, under "For admins", only for whoever they're for: running the
 // draft, and what the club is owed.
@@ -19,8 +19,6 @@ export interface FeedItem {
   sub: string;
   hot: boolean;
   icon: FeedIcon;
-  /** What you owe: the £ in red, the amount in the body's colour. */
-  money?: boolean;
   /** The day it's about (a draft night, a sign-up's last day): its date block stands in for the icon. */
   on?: When;
 }
@@ -82,8 +80,6 @@ export interface FeedInput {
   upcoming: { type: TournamentType; t: Tournament }[];
   /** What the club is owed, for whoever sees Unpaid fees (read:Dues); null for everyone else. */
   club: { total: number; people: number; worst: number } | null;
-  /** What you owe, and what for: the kind of each charge with something left on it. */
-  owes?: { pence: number; kinds: string[] };
   /** What's on from today, any order: Home picks the rows. */
   events?: UpcomingEvent[];
   /** Already a card up top (the lead Friday, a tournament still asking): not repeated. */
@@ -110,8 +106,6 @@ export function homeFeed(input: FeedInput): Feed {
   );
   const forAdmins = (r: FeedItem) => r.key.startsWith("admin:");
   const now = rows.filter((r) => !forAdmins(r));
-  const mine = owing(input);
-  if (mine) now.push(mine);
   const admin = rows.filter(forAdmins);
   const { club } = input;
   if (club && club.total > 0)
@@ -126,9 +120,15 @@ export function homeFeed(input: FeedInput): Feed {
   return { now, upcoming: upcomingRows(input), admin };
 }
 
-// What you owe: a row opening your tab, after what's about the play; nothing when you're square
-function owing({ owes }: FeedInput): FeedItem | null {
-  if (!owes || owes.pence <= 0) return null;
+/** What you owe, and what for: the kind of each charge with something left on it. */
+export interface Owes {
+  pence: number;
+  kinds: string[];
+}
+
+/** What you owe, as a notice in the locker room (Home's top, after the club's): none when you're square. */
+export function owedNotice(owes: Owes): { text: string; sub: string; href: string } | null {
+  if (owes.pence <= 0) return null;
   const n = owes.kinds.length;
   const what = owes.kinds.every((k) => k === "session")
     ? n === 1
@@ -137,15 +137,7 @@ function owing({ owes }: FeedInput): FeedItem | null {
     : n === 1
       ? "charge"
       : "charges";
-  return {
-    key: "you-owe",
-    href: "/me/tab",
-    text: `${pounds(owes.pence)} to pay`,
-    sub: n ? `Your tab · ${n} ${what}` : "Your tab",
-    hot: false,
-    icon: "pound",
-    money: true,
-  };
+  return { text: `${pounds(owes.pence)} to pay`, sub: n ? `Your tab · ${n} ${what}` : "Your tab", href: "/me/tab" };
 }
 
 const dayOf = (iso: string) => londonToday(new Date(iso));

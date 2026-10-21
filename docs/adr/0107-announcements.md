@@ -22,8 +22,8 @@ notifications aren't built yet (#24).
   phone, beside the words on a desktop. Pressed, it turns to a green tick for a moment, then the note folds away (the
   page closes up behind it smoothly; nothing jumps). It was a small ✕ in the corner, which read as "close" rather than
   "I've read this".
-- **Every announcement can be looked back over** at Home → Past announcements (`/announcements`, Home's own page, a link
-  under the notes): newest first, each with who posted it, when it ran, and whether you got it ("Got it", or "Missed
+- **Every announcement can be looked back over** at Home → Everything from the locker room (`/announcements`, Home's
+  own page, titled Locker room, a link under the notes): newest first, each with who posted it, when it ran, and whether you got it ("Got it", or "Missed
   it" for one that ended first). One still on can be got there, and whoever may post can take one still on down from
   its row (once they've got it, it's no longer on their Home). `GET /api/announcements`, one read, a page of 20 at a
   time (`?before=<id>`, `?limit=` up to 100).
@@ -47,3 +47,6 @@ notifications aren't built yet (#24).
 - 2026-10-21: Past announcements are Home's page (`/announcements`, the old `/more/announcements` redirects), not a
   Settings row for whoever posts: on a desktop it showed the Settings list, as if it were a setting. Posting stays on
   Home (the megaphone) ([0065](0065-page-frame-and-admin-actions.md)).
+- 2026-10-21: People see announcements as the **locker room**: its label on Home, the past page titled Locker room,
+  "Post to the locker room", the notification topic Locker room. Code, routes and data keep "announcement". What you
+  owe sits in it as its last notice ([0118](0118-home-calls-to-action-then-feed.md)).

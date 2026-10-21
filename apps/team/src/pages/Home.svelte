@@ -1,5 +1,6 @@
 <script lang="ts">
-  // Home (ADR 0118): a slim hello with the Calendar's button, the club's announcements, then the calls to action (this
+  // Home (ADR 0118): a slim hello with the Calendar's button, the locker room (the club's announcements, then what
+  // you owe), then the calls to action (this
   // Friday's card, always; are you in for the Kumite), then the feed: what needs you now, what's coming up, and for
   // admins their own lines at the foot.
   import { untrack } from "svelte";
@@ -15,7 +16,7 @@
   import { formatDayDate, londonToday } from "../lib/dates";
   import { aged, leftOn } from "../lib/dues";
   import { signupOpen } from "../lib/signup";
-  import { homeFeed, type UpcomingEvent, type When } from "../lib/home-feed";
+  import { homeFeed, owedNotice, type UpcomingEvent, type When } from "../lib/home-feed";
   import DateBlock from "../lib/DateBlock.svelte";
   import { fill, slot } from "../lib/greetings";
   import {
@@ -100,13 +101,16 @@
     askNotify = false;
   }
 
-  // What you owe (ADR 0007): a row in the feed, opening your tab; nothing when you're square
-  const owes = $derived({
-    pence: owedBy(who.id),
-    kinds: chargesFor(who.id)
-      .filter((c) => leftOn(c) > 0)
-      .map((c) => c.kind),
-  });
+  // What you owe (ADR 0007): a notice in the locker room, after the club's, with Settle up opening your tab; it
+  // stays while you owe anything, and there's none when you're square
+  const owing = $derived(
+    owedNotice({
+      pence: owedBy(who.id),
+      kinds: chargesFor(who.id)
+        .filter((c) => leftOn(c) > 0)
+        .map((c) => c.kind),
+    }),
+  );
 
   // The soonest session of any training leads Home; the other trainings' next sessions go in the feed
   const nexts = $derived(
@@ -216,7 +220,6 @@
       types: db.tournamentTypes,
       upcoming: tournaments,
       club,
-      owes,
       events,
       shown,
     }),
@@ -306,18 +309,9 @@
 {/snippet}
 
 <!-- One line of the feed: an icon, a line, a sub-line, and a chevron when it opens something -->
-{#snippet item(o: {
-  key?: string;
-  href?: string;
-  icon: IconName;
-  text: string;
-  sub: string;
-  hot?: boolean;
-  money?: boolean;
-  on?: When;
-})}
+{#snippet item(o: { key?: string; href?: string; icon: IconName; text: string; sub: string; hot?: boolean; on?: When })}
   {#if o.href}
-    <a class="item rise" class:hot={o.hot || o.money} class:dated={o.on} href={o.href}>
+    <a class="item rise" class:hot={o.hot} class:dated={o.on} href={o.href}>
       {#if o.on}{@render when(o.on)}{:else}<span class="lead-col"><Icon name={o.icon} size={18} /></span>{/if}
       <span class="grow"><span class="item-text">{o.text}</span><span class="item-sub">{o.sub}</span></span>
       <Icon name="chevronRight" size={16} />
@@ -370,8 +364,8 @@
         {#if poster}
           <button
             class="btn ghost icon"
-            aria-label="Post an announcement"
-            title="Post an announcement"
+            aria-label="Post to the locker room"
+            title="Post to the locker room"
             onclick={() => (announcing = true)}><Icon name="megaphone" size={18} /></button
           >
         {/if}
@@ -379,9 +373,11 @@
     </div>
   </header>
 
-  <!-- Announcements: the club's word, before anything else, until it ends or you're done with it -->
-  {#if db.announcements.length || hadNotes}
-    <section class="notes" aria-label="Announcements">
+  <!-- The locker room: the club's word (announcements), before anything else, until it ends or you're done with it;
+       then what you owe, until you've paid -->
+  {#if db.announcements.length || hadNotes || owing}
+    <section class="notes" aria-labelledby="locker-room">
+      <h2 class="feed-label room-label" id="locker-room">Locker room</h2>
       {#each db.announcements as a (a.id)}
         <article class="note rise" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
           <Icon name="megaphone" size={18} />
@@ -405,7 +401,20 @@
           >
         </article>
       {/each}
-      <a class="past" href="/announcements">Past announcements<Icon name="chevronRight" size={16} /></a>
+      {#if owing}
+        <!-- Yours alone, no Got it: Settle up, where Got it sits -->
+        <article class="note owing rise" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
+          <Icon name="pound" size={18} />
+          <div class="grow">
+            <h2 class="note-title">{owing.text}</h2>
+            <p class="note-body">{owing.sub}</p>
+          </div>
+          <a class="btn primary sm got-it" href={owing.href}>Settle up</a>
+        </article>
+      {/if}
+      {#if db.announcements.length || hadNotes}
+        <a class="past" href="/announcements">Everything from the locker room<Icon name="chevronRight" size={16} /></a>
+      {/if}
     </section>
   {/if}
 
@@ -490,7 +499,7 @@
     </section>
   {/if}
 
-  <Sheet bind:open={announcing} title="Post an announcement">
+  <Sheet bind:open={announcing} title="Post to the locker room">
     <form class="form" onsubmit={announce}>
       <p class="hint">At the top of everyone's Home until its last day, or until they say Got it. Two at a time.</p>
       <label class="field"
@@ -587,6 +596,10 @@
      space with it: nothing jumps */
   .notes {
     gap: 0;
+  }
+  /* Its label sits on the notes as the feed's labels sit on theirs */
+  .feed-label.room-label {
+    margin: 0 var(--s-1) var(--s-2);
   }
   .note {
     display: grid;

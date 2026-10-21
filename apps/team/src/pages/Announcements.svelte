@@ -59,7 +59,7 @@
 </script>
 
 <div class="page fit">
-  <PageHeader title="Announcements" subtitle="Everything the club's said, newest first, and whether you got it." />
+  <PageHeader title="Locker room" subtitle="Everything the club's said, newest first, and whether you got it." />
 
   {#if error}
     <p class="error">{error}</p>

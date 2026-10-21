@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
-import { homeFeed, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
+import { homeFeed, owedNotice, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
 
 const ME = 7;
 const type = { id: 1, slug: "kumite", name: "The Cougars Kumite", shortName: "Kumite" } as TournamentType;
@@ -97,28 +97,19 @@ describe("Home's feed", () => {
   });
 });
 
-describe("what you owe, in the feed", () => {
-  it("a member who owes sees a row opening their tab, after what's about the play", () => {
-    const closed = kumite({
-      draftState: "closed",
-      teams: [
-        {
-          name: "A",
-          logo: null,
-          captainMemberId: 2,
-          captainName: "",
-          contact: "",
-          players: [{ memberId: ME, name: "" }],
-        },
-      ],
+describe("what you owe, in the locker room", () => {
+  it("a member who owes sees a notice opening their tab, and no row in the feed", () => {
+    expect(owedNotice({ pence: 5800, kinds: ["session", "session", "session"] })).toEqual({
+      text: "£58 to pay",
+      sub: "Your tab · 3 nights",
+      href: "/me/tab",
     });
-    const rows = feed(closed, { owes: { pence: 5800, kinds: ["session", "session", "session"] } }).now;
-    expect(rows.map((r) => r.text)).toEqual(["The teams are out", "£58 to pay"]);
-    expect(rows[1]).toMatchObject({ href: "/me/tab", sub: "Your tab · 3 nights", icon: "pound", money: true });
+    expect(owedNotice({ pence: 1000, kinds: ["quarterly"] })?.sub).toBe("Your tab · 1 charge");
+    expect(feed(kumite()).now.some((r) => r.href === "/me/tab")).toBe(false);
   });
 
   it("nobody square sees one", () => {
-    expect(feed(kumite(), { owes: { pence: 0, kinds: [] } }).now).toEqual([]);
+    expect(owedNotice({ pence: 0, kinds: [] })).toBeNull();
   });
 });
 

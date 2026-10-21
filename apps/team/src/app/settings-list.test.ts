@@ -48,7 +48,8 @@ describe("the Settings page", () => {
   });
 
   it("doesn't list past announcements: they're Home's page, posted from Home", () => {
-    expect(listed(admin).flatMap((s) => s.rows)).not.toContain("Announcements");
+    const ids = settingsSections(routes, admin, admin).flatMap((s) => s.rows.map((r) => r.route.id));
+    expect(ids).not.toContain("announcements");
   });
 
   it("Upload is a contributor's, not every member's: in Settings, not the rail", () => {

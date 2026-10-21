@@ -10,7 +10,7 @@ export const TOPICS = [
     hint: "A place came up for you, or a Quarterly Member took yours and you're waiting.",
   },
   { topic: "sessionOff", label: "A session's off", hint: "A night you're in for, or waiting for, is cancelled." },
-  { topic: "announcements", label: "Announcements", hint: "What the club puts on Home." },
+  { topic: "announcements", label: "Locker room", hint: "What the club posts on Home." },
   { topic: "dues", label: "Dues", hint: "What you owe the club, when it's due." },
 ] as const;
 

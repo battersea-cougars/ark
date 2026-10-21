@@ -18,9 +18,11 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
 1. **A slim hello**: one line of greeting (the display face, not a poster; the kicker above it on a desktop only, so
    the title sits on every page's line, [0065](0065-page-frame-and-admin-actions.md)). On its right, a **Calendar**
    button (a phone's tabs have the Club in its place, [0022](0022-team-app-svelte-pwa.md)), and for whoever may post
-   an announcement a megaphone button, opening the sheet over Home.
-2. **Announcements**, compact: icon, title, a line, Got it on the right, and Past announcements, Home's own page
-   ([0107](0107-announcements.md)).
+   an announcement a megaphone button, opening "Post to the locker room" over Home.
+2. **The locker room** (a small label over it): the club's announcements, compact (icon, title, a line, Got it on
+   the right), then **what you owe** as its last notice ("£58 to pay", "Your tab · 3 nights", the £ in red) with
+   Settle up where Got it sits, opening your tab: no Got it, it stays while you owe anything and is gone at £0. Then
+   "Everything from the locker room", Home's page of past announcements ([0107](0107-announcements.md)).
 3. **The calls to action**: **this Friday's card, always** (the soonest training's next session, with the locker
    room's quip, In and Out, and your team along its foot once the teams are out), answered or not, in its reserved
    room; then "Are you in for the Kumite?" for each series' next tournament that is taking sign-ups, a full card
@@ -29,8 +31,7 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
    the visit, so nothing jumps under your thumb.
 4. **The feed** (`lib/home-feed.ts`), light rows (an icon or a date, a line, a sub-line, a chevron):
    - **What needs you now**, your move first: an open draft, the draft being on, the teams being out, a captain's
-     draft day, a sign-up closing for a tournament not asked about up top; then **what you owe** ("£58 to pay",
-     "Your tab · 3 nights", the £ the only red), opening your tab, none when you're square.
+     draft day, a sign-up closing for a tournament not asked about up top.
    - **Coming up**, in date order, each with its date on the left as the lead card shows it (`lib/DateBlock`: Fri / 30 / Oct stacked, a size
      down; Summer / TBC / 2027 with no day yet): each
      training's next session and each tournament series' next one (however far off), and the club's events in the
@@ -44,8 +45,8 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
 
 - The first screen of a phone is the greeting, any announcement and Friday's card; under it, a short feed of what's
   next.
-- What you owe is always on Home while you owe something: a row of the feed, after what's about the play, no longer
-  only after 60 days ([0007](0007-dues-and-payments.md)). What the club is owed is an admin's, at the foot.
+- What you owe is always on Home while you owe something: the locker room's last notice, no longer only after 60
+  days ([0007](0007-dues-and-payments.md)). What the club is owed is an admin's, at the foot.
 - The feed's rules are pure and tested (`lib/home-feed.test.ts`); Home only lays them out.
 - Answering from a line in the feed means opening the event's page, where In and Out are.
 
@@ -63,3 +64,6 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
   EventCard), a size down in the rows, in one fixed column that icon rows share, so every row's words line up. A
   draft night or a sign-up's last day shows its block in place of the icon. With no day yet the block keeps its
   shape: the season, TBC, the year (the card's own too). "Can the format of the dates be consistent?"
+- 2026-10-21: The announcements block is called the locker room (the quips are already "the locker room's word"),
+  and what you owe moved into it, its last notice with Settle up, out of the feed: "the amount the person owes is kind
+  of in the middle of nowhere". Code and data keep "announcement"; only the words people see changed.

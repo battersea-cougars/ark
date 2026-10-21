@@ -367,7 +367,8 @@ export function buildRoutes(config: NavConfig): Route[] {
     {
       id: "announcements",
       path: "/announcements",
-      name: "Announcements",
+      // The locker room: what people see it called
+      name: "Locker room",
       tab: "home",
       page: "announcements",
       action: "authenticated",
