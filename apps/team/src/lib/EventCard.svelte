@@ -720,25 +720,40 @@
     background: color-mix(in srgb, var(--red) 24%, transparent);
     color: var(--red-ink);
   }
-  /* The session you're asked about, while you're not in: In pulses once, a soft ring. A shadow, so nothing moves. */
+  /* The session you're asked about, while you're not in: now and then a faint sheen of light glides across In, like
+     light catching ice. Barely there, no colour, nothing moves: you may not notice you saw it */
   .answer > .yes.beckon,
   .answer > .yes.beckon-again {
-    animation: beckon 1.2s var(--beckon-delay, 300ms) var(--ease-in-out) 1 both;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
   }
-  @keyframes beckon {
-    0%,
-    100% {
-      box-shadow: 0 0 0 0 color-mix(in srgb, var(--green) 0%, transparent);
+  .answer > .yes.beckon::after,
+  .answer > .yes.beckon-again::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.1) 50%, transparent 65%);
+    translate: -110% 0;
+    pointer-events: none;
+    animation: sheen 9s var(--beckon-delay, 1.5s) ease-in-out infinite;
+  }
+  @keyframes sheen {
+    0% {
+      translate: -110% 0;
     }
-    50% {
-      box-shadow: 0 0 0 5px color-mix(in srgb, var(--green) 28%, transparent);
-      background: color-mix(in srgb, var(--green) 14%, color-mix(in srgb, var(--fg) 10%, transparent));
+    /* A slow glide in the first two seconds, then nothing until the next */
+    22%,
+    100% {
+      translate: 110% 0;
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .answer > .yes.beckon,
-    .answer > .yes.beckon-again {
+    .answer > .yes.beckon::after,
+    .answer > .yes.beckon-again::after {
       animation: none;
+      display: none;
     }
   }
   .foot {
