@@ -143,17 +143,12 @@
 
   // The ticker: the picks just made (who was taken), then every pick to come, each with its team. Fixed-size chips,
   // so it scrolls but never grows; the one on the clock is kept in view
-  const SHOWN_BEFORE = 3;
   const ticker = $derived.by(() => {
     // Not before it opens: the order's drawn then (DraftOrder), so there's no order to show
     if (!teams.length || (phase !== "open" && phase !== "closed") || (phase === "closed" && !made)) return [];
-    const out: { n: number; team: number; took?: string; by?: string; ghost?: boolean }[] = [];
+    const out: { n: number; team: number; took?: string; by?: string }[] = [];
     // Nothing to show (nobody to pick, none picked): no ticker, not a row of empty places
     if (!made && !pool.length) return [];
-    // Before the first few picks, empty places keep the next one in the middle; the picks fill them in
-    if (phase !== "closed")
-      for (let n = Math.min(picks.length, SHOWN_BEFORE) - SHOWN_BEFORE + 1; n <= 0; n++)
-        out.push({ n, team: -1, ghost: true });
     // Every pick so far (it scrolls back through them), then every one to come
     for (const p of picks)
       out.push({ n: p.n, team: p.team, took: p.memberId ? firstName(p.memberId) : p.name, by: pickerOf(p, p.team) });
@@ -203,7 +198,7 @@
     // The chip in the middle: it's lifted as you scroll, as the current pick is when you're at it
     const middle = el.scrollLeft + el.clientWidth / 2;
     let best = Infinity;
-    for (const chip of el.querySelectorAll<HTMLElement>(".tick:not(.ghost)")) {
+    for (const chip of el.querySelectorAll<HTMLElement>(".tick")) {
       const off = Math.abs(chip.offsetLeft + chip.offsetWidth / 2 - middle);
       if (off < best) [best, focused] = [off, Number(chip.dataset.n)];
     }
@@ -219,7 +214,7 @@
   function page(dir: -1 | 1) {
     const el = tickerEl;
     if (!el) return;
-    const step = el.querySelector<HTMLElement>(".tick:not(.ghost)")?.offsetWidth ?? 160;
+    const step = el.querySelector<HTMLElement>(".tick")?.offsetWidth ?? 160;
     const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
     el.scrollBy({ left: dir * (step + gap), behavior: prefersReducedMotion ? "auto" : "smooth" });
   }
@@ -783,11 +778,9 @@
           onkeydown={tickerKeys}
         >
           {#each ticker as t (t.n)}
-            <!-- An empty place (before the first picks) is the chip's shape with nothing in it -->
             <div
               class="tick"
-              class:ghost={t.ghost}
-              class:done={!t.ghost && t.n <= made}
+              class:done={t.n <= made}
               class:up={t.n === made + 1}
               class:fresh={t.n === fresh}
               class:now={live && t.n === made + 1}
@@ -796,24 +789,21 @@
               data-n={t.n}
               style:--d={Math.min(Math.abs(t.n - raised), 2)}
               animate:flip={{ duration: moveMs }}
-              aria-hidden={t.ghost ? "true" : undefined}
             >
-              {#if !t.ghost}
-                <TeamCrest
-                  name={teamName(t.team)}
-                  logo={teams[t.team].logo}
-                  tone={teamTone(t.team)}
-                  size={fit ? "1.75rem" : "2.25rem"}
-                />
-                <span class="who display"
-                  >{#if t.team === myTeam}<Icon name="user" size={12} />You{:else}<span class="clip"
-                      >{teamName(t.team)}</span
-                    >{/if}</span
-                >
-                {#if live && t.n === made + 1 && mine}<span class="badge red clock"><i class="dot"></i>Your pick</span>
-                {:else if live && t.n === made + 1}<span class="badge clock">On the clock</span>
-                {:else}<span class="meta num">{tickMeta(t)}</span>{/if}
-              {/if}
+              <TeamCrest
+                name={teamName(t.team)}
+                logo={teams[t.team].logo}
+                tone={teamTone(t.team)}
+                size={fit ? "1.75rem" : "2.25rem"}
+              />
+              <span class="who display"
+                >{#if t.team === myTeam}<Icon name="user" size={12} />You{:else}<span class="clip"
+                    >{teamName(t.team)}</span
+                  >{/if}</span
+              >
+              {#if live && t.n === made + 1 && mine}<span class="badge red clock"><i class="dot"></i>Your pick</span>
+              {:else if live && t.n === made + 1}<span class="badge clock">On the clock</span>
+              {:else}<span class="meta num">{tickMeta(t)}</span>{/if}
             </div>
           {/each}
         </div>
@@ -831,8 +821,7 @@
             tabindex="-1"
             aria-label={side < 0 ? "Earlier picks" : "Picks to come"}
             title={toNow ? "The current pick is this way" : undefined}
-            onclick={() => page(side)}
-            ><Icon name={side < 0 ? "chevronLeft" : "chevronRight"} size={22} /></button
+            onclick={() => page(side)}><Icon name={side < 0 ? "chevronLeft" : "chevronRight"} size={22} /></button
           >
         {/each}
         <!-- A phone's way back to the current pick: a small round arrow in the edge's fade, on its side -->
@@ -1375,10 +1364,6 @@
     scroll-snap-type: x proximity;
     scrollbar-width: none;
     mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
-  }
-  /* An empty place before the first picks: the chip's shape, faint, with nothing in it */
-  .tick.ghost {
-    background: color-mix(in srgb, var(--surface-2) 75%, transparent);
   }
   .tick {
     scroll-snap-align: center;
