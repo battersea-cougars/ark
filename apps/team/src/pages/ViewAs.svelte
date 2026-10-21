@@ -1,5 +1,5 @@
 <script lang="ts">
-  // View as a member (ADR 0024): the app exactly as they see it, read-only. In Settings → Security, where an admin
+  // View as a member (ADR 0024): the app exactly as they see it, read-only. In Settings → System, where an admin
   // looks for it; the bar across the top while you're viewing brings you back.
   import { matchesName, goesBy } from "../lib/names";
   import { db } from "../demo/store.svelte";

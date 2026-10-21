@@ -10,8 +10,12 @@ export type TabId = "home" | "training" | "club" | "tournaments" | "more";
 /** You: your own pages (the You page). Club: the club page, in the desktop rail. Settings: listed under the gear. */
 export type Group = "Club" | "You" | "Settings";
 
-/** Settings' groups, in the order the Settings page lists them. */
-export const SECTIONS = ["Club", "Schedule", "Security"] as const;
+/**
+ * Settings' groups, in the order the Settings page and a desktop's settings list show them: by how often an admin needs
+ * them, everyday jobs first, set-up-once things last. Inside each, the rows come in STATIC_TAIL's order, the page used
+ * most first. This is the one place the order lives (settings-list.test.ts pins it).
+ */
+export const SECTIONS = ["Club", "Schedule", "Content", "System"] as const;
 export type Section = (typeof SECTIONS)[number];
 
 export interface Route {
@@ -94,12 +98,13 @@ const DEV_TOOLS_ROUTE: Route = {
   action: "manage:Settings",
   icon: "settings",
   group: "Settings",
-  section: "Security",
+  section: "System",
   hint: "Dev only: who gets real email",
 };
 
 // You first: the phone's last tab (your avatar) and a desktop's avatar, top right, open it: only your own things.
-// Everything an admin sets up is in Settings (the gear), grouped Club / Schedule / Security (ADR 0065)
+// Everything an admin sets up is in Settings (the gear), grouped Club / Schedule / Content / System (ADR 0065), in
+// the order below
 const STATIC_TAIL: Route[] = [
   {
     id: "profile",
@@ -207,6 +212,18 @@ const STATIC_TAIL: Route[] = [
     hint: "The quarterly membership's price",
   },
   {
+    id: "roles",
+    path: "/settings/roles",
+    name: "Roles",
+    tab: "more",
+    page: "roles",
+    action: "manage:Role",
+    icon: "key",
+    group: "Settings",
+    section: "Club",
+    hint: "What each role can do",
+  },
+  {
     id: "quips",
     path: "/settings/quips",
     name: "Quips",
@@ -215,7 +232,7 @@ const STATIC_TAIL: Route[] = [
     action: "manage:Quip",
     icon: "chat",
     group: "Settings",
-    section: "Club",
+    section: "Content",
     hint: "What Home says when people sign up",
   },
   // Contributors' (not every member's), so in Settings, not the rail
@@ -229,7 +246,7 @@ const STATIC_TAIL: Route[] = [
     action: "upload:Photo",
     icon: "upload",
     group: "Settings",
-    section: "Club",
+    section: "Content",
     hint: "Photos to the site, videos to YouTube",
   },
   {
@@ -281,16 +298,16 @@ const STATIC_TAIL: Route[] = [
     hint: "Addresses and map links",
   },
   {
-    id: "roles",
-    path: "/settings/roles",
-    name: "Roles",
+    id: "view-as",
+    path: "/settings/view-as",
+    name: "View as a member",
     tab: "more",
-    page: "roles",
-    action: "manage:Role",
-    icon: "key",
+    page: "view-as",
+    action: "impersonate:Member",
+    icon: "eye",
     group: "Settings",
-    section: "Security",
-    hint: "What each role can do",
+    section: "System",
+    hint: "The app as they see it, read-only",
   },
   {
     id: "audit",
@@ -301,7 +318,7 @@ const STATIC_TAIL: Route[] = [
     action: "read:Audit",
     icon: "list",
     group: "Settings",
-    section: "Security",
+    section: "System",
     hint: "Who changed what, and when",
   },
   {
@@ -313,20 +330,8 @@ const STATIC_TAIL: Route[] = [
     action: "read:Usage",
     icon: "clock",
     group: "Settings",
-    section: "Security",
+    section: "System",
     hint: "Today's use of the free plan",
-  },
-  {
-    id: "view-as",
-    path: "/settings/view-as",
-    name: "View as a member",
-    tab: "more",
-    page: "view-as",
-    action: "impersonate:Member",
-    icon: "eye",
-    group: "Settings",
-    section: "Security",
-    hint: "The app as they see it, read-only",
   },
 ];
 

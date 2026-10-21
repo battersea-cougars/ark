@@ -50,7 +50,7 @@ taps to start and stop.
 **View as a member** (`impersonate:Member`, "View the app as a member (read-only)")
 
 - Admins have it through `manage:all`; it can be given to other roles.
-- It's a page in **Settings → Security** (View as a member), where an admin looks for their tools. Picking someone
+- It's a page in **Settings → System** (View as a member), where an admin looks for their tools. Picking someone
   makes the app show what they see, with their actions: their Home, their team, their tab, only the pages their
   roles allow.
 - **Read-only.** While viewing as someone you can't change anything as them: the app disables the controls (In/Out,
@@ -109,3 +109,4 @@ taps to start and stop.
   the You page and at the top of Settings, replaces the account menu's; the gear (and New event) still switch you up
   on the way, and the switch shows it. In your everyday role Settings keeps every row your account can open, the ones
   that role can't open quieter, and opening one switches you up.
+- 2026-10-21: View as a member is under Settings → System (was Security), first there ([0065](0065-page-frame-and-admin-actions.md)).

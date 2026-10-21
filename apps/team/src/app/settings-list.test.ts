@@ -17,12 +17,22 @@ const listed = (account: Set<Action>, now = account) =>
   }));
 
 describe("the Settings page", () => {
-  it("lists every admin area for an admin, grouped Club (its money too), Schedule, Security", () => {
+  it("lists every admin area for an admin, everyday jobs first: Club (its people and money), Schedule, Content, System", () => {
     expect(listed(admin)).toEqual([
-      { section: "Club", rows: ["Members", "Unpaid fees", "Membership", "Quips"] },
+      { section: "Club", rows: ["Members", "Unpaid fees", "Membership", "Roles"] },
       { section: "Schedule", rows: ["Training", "Tournaments", "Tournament Series", "Venues"] },
-      { section: "Security", rows: ["Roles", "Audit log", "Usage", "View as a member", "Dev tools"] },
+      { section: "Content", rows: ["Quips"] },
+      { section: "System", rows: ["View as a member", "Audit log", "Usage", "Dev tools"] },
     ]);
+  });
+
+  it("an unfinished page joins its section in its place (Upload, after Quips)", () => {
+    const unfinished = buildRoutes({ ...config, unfinished: true });
+    expect(
+      settingsSections(unfinished, admin, admin)
+        .find((s) => s.section === "Content")
+        ?.rows.map((r) => r.route.name),
+    ).toEqual(["Quips", "Upload"]);
   });
 
   it("is empty for a member and a session lead (they have no gear)", () => {
@@ -31,9 +41,7 @@ describe("the Settings page", () => {
   });
 
   it("lists only what a role can set up", () => {
-    expect(listed(treasurer)).toEqual([
-      { section: "Club", rows: ["Unpaid fees", "Membership"] },
-    ]);
+    expect(listed(treasurer)).toEqual([{ section: "Club", rows: ["Unpaid fees", "Membership"] }]);
   });
 
   it("an admin in their everyday role sees the same list, the rows that role can't open quiet, so nothing moves", () => {
@@ -41,7 +49,7 @@ describe("the Settings page", () => {
     expect(everyday.flatMap((s) => s.rows)).toHaveLength(listed(admin).flatMap((s) => s.rows).length);
     expect(everyday[0]).toEqual({
       section: "Club",
-      rows: ["(Members)", "(Unpaid fees)", "(Membership)", "(Quips)"],
+      rows: ["(Members)", "(Unpaid fees)", "(Membership)", "(Roles)"],
     });
   });
 

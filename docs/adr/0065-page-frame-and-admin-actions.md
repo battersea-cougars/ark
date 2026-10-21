@@ -155,3 +155,10 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   Calendar, the tournament types and the club (`/club`, which was Teammates), then the gear.
 - 2026-10-21: Money folds into Club: its one page (the quarterly rate) sits under Club after Unpaid fees, and the
   Money heading goes. Settings is grouped Club, Schedule and Security. "The money section can be combined with Club."
+- 2026-10-21: Settings in the order an admin needs it, everyday jobs first, set-up-once last, each section's most used
+  page first: **Club** (Members, Unpaid fees, Membership, Roles), **Schedule** (Training, Tournaments, Tournament
+  Series, Venues), **Content** (Quips, Upload), **System** (View as a member, Audit log, Usage, Dev tools). Roles
+  joins the club's people; Quips and Upload leave Club for Content; Security is System, as it holds the app's own
+  pages. The order lives in one place (`SECTIONS` and the routes' order in `nav-routes.ts`), so the phone's Settings
+  page and a desktop's settings list agree; `settings-list.test.ts` pins it. "Make sure the order of all the admin
+  pages makes sense."
