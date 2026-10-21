@@ -1,6 +1,7 @@
 // Penalties (ADR 0061), shared by the Worker and the app: what can be called, the penalty clock, and the minutes each
 // player and team has spent in the box. The clock is worked out, never stored: a penalty runs in game time from when
-// it was given, so it pauses when the game clock does, and a minor ends early at a power-play goal against its team.
+// it was given (or, a player's second, from when their first ends), so it pauses when the game clock does, and a
+// minor ends early at a power-play goal against its team.
 // A double minor is one penalty of four minutes, served as two minors back to back: a power-play goal ends only the
 // one running, and the second two minutes start fresh from the goal.
 
@@ -100,50 +101,83 @@ export function gameTime(
   return Math.min(fullMs, Math.max(0, fullMs - left));
 }
 
-/**
- * When each penalty ends, in game time, by id: its minutes after it was given, or a minor sooner, at a power-play goal
- * (a goal against its team while that team has more players in the box than the scorers). That goal ends the
- * penalised team's earliest running minor; in a double minor, only the two minutes being served: in the first two,
- * the second two start fresh from the goal. A penalty with no time has no end.
- */
-export function penaltyEnds(penalties: PenaltyLike[], goals: GoalLike[], rule: PenaltyRule = "power_play") {
-  const ends = new Map<number, number>();
-  // A double minor's first two minutes end here (moved to the goal that ended them)
-  const firstHalf = new Map<number, number>();
-  const timed = penalties.filter((p) => p.atMs !== null);
-  for (const p of timed) {
-    ends.set(p.id, p.atMs! + p.minutes * 60_000);
-    if (p.minutes === 4) firstHalf.set(p.id, p.atMs! + 2 * 60_000);
-  }
-  // Sitting out: nobody's short, so no goal ends one
-  if (rule === "sit_out") return ends;
-  const on = (p: PenaltyLike, t: number) => p.atMs! < t && ends.get(p.id)! > t;
-  for (const g of goals.filter((x) => x.atMs !== null).sort((a, b) => a.atMs! - b.atMs!)) {
-    const t = g.atMs!;
-    const boxed = (teamId: number) => timed.filter((p) => p.teamId === teamId && on(p, t));
-    const scorers = boxed(g.teamId).length;
-    // Two teams a game: whoever's against the scorers
-    const teams = new Set(timed.filter((p) => p.teamId !== g.teamId && on(p, t)).map((p) => p.teamId));
-    for (const team of teams) {
-      const theirs = boxed(team);
-      if (theirs.length <= scorers) continue;
-      const minor = theirs.filter((p) => isMinor(p.minutes)).sort((a, b) => a.atMs! - b.atMs! || a.id - b.id)[0];
-      if (!minor) continue;
-      const half = firstHalf.get(minor.id);
-      if (half !== undefined && t < half) {
-        // The first two end; the second two are served in full from now
-        firstHalf.set(minor.id, t);
-        ends.set(minor.id, t + 2 * 60_000);
-      } else ends.set(minor.id, t);
-    }
-  }
-  return ends;
+/** When a penalty's served, in game time: from when it starts (a player's next waits for their last) to its end. */
+export interface Served {
+  startMs: number;
+  endMs: number;
 }
 
 /**
- * The penalties being served at `elapsedMs` of game time, in the order given, each with the time left (a double
- * minor's both halves, so 4:00 counting down) and whether it's a double minor (shown 2+2). Sitting out, a bench
- * penalty has nobody to sit out: no clock.
+ * When each penalty is served, in game time, by id. A penalty with no time has none.
+ *
+ * - **One after another**: a player serves one penalty at a time, so one given while they're still serving another
+ *   starts when that one ends (in both rules). A bench penalty is nobody's: it starts when it's given.
+ * - **A power-play goal** (a goal against a team with more players in the box than the scorers) ends the penalised
+ *   team's earliest running minor; in a double minor, only the two minutes being served: in the first two, the
+ *   second two start fresh from the goal. A major runs its five. Sitting out, nobody's short, so no goal ends one.
+ *
+ * Worked out goal by goal, in time order: each goal's cut can move when a waiting penalty starts, which changes who's
+ * in the box at the next goal.
+ */
+export function penaltyClock(penalties: PenaltyLike[], goals: GoalLike[], rule: PenaltyRule = "power_play") {
+  const timed = penalties
+    .filter((p) => p.atMs !== null)
+    .sort((a, b) => a.atMs! - b.atMs! || a.id - b.id) as (PenaltyLike & { atMs: number })[];
+  // What goals did: a penalty ended there, or a double minor's first two ended there (the second two from then)
+  const endedAt = new Map<number, number>();
+  const halfEndedAt = new Map<number, number>();
+
+  const schedule = () => {
+    const out = new Map<number, Served>();
+    const lastEnd = new Map<string, number>();
+    for (const p of timed) {
+      const player = p.memberId === null ? null : `${p.teamId}:${p.memberId}`;
+      const startMs = Math.max(p.atMs, player ? (lastEnd.get(player) ?? -Infinity) : -Infinity);
+      const endMs =
+        endedAt.get(p.id) ??
+        (halfEndedAt.has(p.id) ? halfEndedAt.get(p.id)! + 2 * 60_000 : startMs + p.minutes * 60_000);
+      if (player) lastEnd.set(player, endMs);
+      out.set(p.id, { startMs, endMs });
+    }
+    return out;
+  };
+
+  let served = schedule();
+  if (rule === "sit_out") return served;
+  for (const g of goals.filter((x) => x.atMs !== null).sort((a, b) => a.atMs! - b.atMs!)) {
+    const t = g.atMs!;
+    // In the box at the goal: started before it, not yet served
+    const boxed = (teamId: number) =>
+      timed.filter((p) => p.teamId === teamId && served.get(p.id)!.startMs < t && served.get(p.id)!.endMs > t);
+    const scorers = boxed(g.teamId).length;
+    // Two teams a game: whoever's against the scorers
+    for (const team of new Set(timed.filter((p) => p.teamId !== g.teamId).map((p) => p.teamId))) {
+      const theirs = boxed(team);
+      if (theirs.length <= scorers) continue;
+      const minor = theirs
+        .filter((p) => isMinor(p.minutes))
+        .sort((a, b) => served.get(a.id)!.startMs - served.get(b.id)!.startMs || a.id - b.id)[0];
+      if (!minor) continue;
+      const { startMs } = served.get(minor.id)!;
+      const halfEnd = halfEndedAt.get(minor.id) ?? startMs + 2 * 60_000;
+      // A double minor's first two end; the second two are served in full from now. Else it's over
+      if (minor.minutes === 4 && !halfEndedAt.has(minor.id) && t < halfEnd) halfEndedAt.set(minor.id, t);
+      else endedAt.set(minor.id, t);
+    }
+    served = schedule();
+  }
+  return served;
+}
+
+/** When each penalty ends, in game time, by id (penaltyClock). */
+export const penaltyEnds = (penalties: PenaltyLike[], goals: GoalLike[], rule: PenaltyRule = "power_play") =>
+  new Map([...penaltyClock(penalties, goals, rule)].map(([id, s]) => [id, s.endMs]));
+
+/**
+ * The penalties on the clock at `elapsedMs` of game time, in the order they're served, each with the time left (a
+ * double minor's both halves, so 4:00 counting down) and whether it's a double minor (shown 2+2). One waiting for the
+ * player's last to end is there too (`waiting`), its whole length left: "then 2:00". Sitting out, a bench penalty has
+ * nobody to sit out: no clock.
  */
 export function running<P extends PenaltyLike>(
   penalties: P[],
@@ -151,12 +185,18 @@ export function running<P extends PenaltyLike>(
   elapsedMs: number,
   rule: PenaltyRule = "power_play",
 ) {
-  const ends = penaltyEnds(penalties, goals, rule);
+  const served = penaltyClock(penalties, goals, rule);
   return penalties
     .filter((p) => rule === "power_play" || p.memberId !== null)
-    .filter((p) => p.atMs !== null && p.atMs <= elapsedMs && ends.get(p.id)! > elapsedMs)
-    .sort((a, b) => a.atMs! - b.atMs! || a.id - b.id)
-    .map((penalty) => ({ penalty, leftMs: ends.get(penalty.id)! - elapsedMs, double: penalty.minutes === 4 }));
+    .filter((p) => p.atMs !== null && p.atMs <= elapsedMs && served.get(p.id)!.endMs > elapsedMs)
+    .map((penalty) => ({ penalty, ...served.get(penalty.id)! }))
+    .sort((a, b) => a.startMs - b.startMs || a.penalty.id - b.penalty.id)
+    .map(({ penalty, startMs, endMs }) => ({
+      penalty,
+      leftMs: endMs - Math.max(startMs, elapsedMs),
+      double: penalty.minutes === 4,
+      waiting: startMs > elapsedMs,
+    }));
 }
 
 /** Penalty minutes, per player and per team, over these games (the leaderboards' PIM, #47). */

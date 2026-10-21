@@ -22,7 +22,9 @@ const goal = (teamId: number, atMs: number | null) => ({ teamId, atMs });
 describe("the penalty clock", () => {
   it("counts down in game time: two minutes from when it was given", () => {
     const p = [pen(1, 1, 3 * MIN)];
-    expect(running(p, [], 3 * MIN + 30_000)).toEqual([{ penalty: p[0], leftMs: 90_000, double: false }]);
+    expect(running(p, [], 3 * MIN + 30_000)).toEqual([
+      { penalty: p[0], leftMs: 90_000, double: false, waiting: false },
+    ]);
   });
 
   it("runs with the game clock, and stands still while it's paused", () => {
@@ -75,7 +77,7 @@ describe("the penalty clock", () => {
 describe("a double minor", () => {
   it("runs four minutes as one, marked 2+2", () => {
     const p = [pen(1, 1, MIN, 4)];
-    expect(running(p, [], MIN)).toEqual([{ penalty: p[0], leftMs: 4 * MIN, double: true }]);
+    expect(running(p, [], MIN)).toEqual([{ penalty: p[0], leftMs: 4 * MIN, double: true, waiting: false }]);
     expect(running(p, [], 4 * MIN)[0].leftMs).toBe(MIN);
     expect(running(p, [], 5 * MIN)).toEqual([]);
   });
@@ -95,6 +97,50 @@ describe("a double minor", () => {
 
   it("counts four penalty minutes", () => {
     expect(penaltyMinutes([{ penalties: [pen(1, 1, 0, 4, 7)] }]).byMember.get(7)).toBe(4);
+  });
+});
+
+describe("one player, one penalty after another", () => {
+  // Dan (7) on the Ants (1); Bo (8) on the Bees (2)
+  it("a second on a player still serving one starts when the first ends, shown waiting", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, 2 * MIN, 2, 7)];
+    expect(penaltyEnds(p, []).get(1)).toBe(3 * MIN);
+    expect(penaltyEnds(p, []).get(2)).toBe(5 * MIN);
+    // 2:30 in: the first has 30 seconds left, the second its full two, waiting
+    expect(running(p, [], 2.5 * MIN)).toEqual([
+      { penalty: p[0], leftMs: 30_000, double: false, waiting: false },
+      { penalty: p[1], leftMs: 2 * MIN, double: false, waiting: true },
+    ]);
+    expect(running(p, [], 4 * MIN)).toEqual([{ penalty: p[1], leftMs: MIN, double: false, waiting: false }]);
+  });
+
+  it("a minor then a major: the five start when the two end", () => {
+    const p = [pen(1, 1, 0, 2, 7), pen(2, 1, 0, 5, 7)];
+    expect(penaltyEnds(p, []).get(2)).toBe(7 * MIN);
+  });
+
+  it("the team's a player short, not two: one each in the box is four on four, and a goal ends nothing", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, 1.5 * MIN, 2, 7), pen(3, 2, 1.25 * MIN, 2, 8)];
+    const ends = penaltyEnds(p, [goal(2, 2 * MIN)]);
+    expect([ends.get(1), ends.get(2), ends.get(3)]).toEqual([3 * MIN, 5 * MIN, 3.25 * MIN]);
+  });
+
+  it("a power-play goal ending the first starts the waiting one there", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, 1.5 * MIN, 2, 7)];
+    const ends = penaltyEnds(p, [goal(2, 2 * MIN)]);
+    expect(ends.get(1)).toBe(2 * MIN);
+    expect(ends.get(2)).toBe(4 * MIN);
+  });
+
+  it("sitting out, too: served one after the other", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, 2 * MIN, 4, 7)];
+    expect(penaltyEnds(p, [], "sit_out").get(2)).toBe(7 * MIN);
+    expect(running(p, [], 2 * MIN, "sit_out").map((r) => r.waiting)).toEqual([false, true]);
+  });
+
+  it("bench penalties aren't anyone's: each starts when it's given", () => {
+    const p = [pen(1, 1, MIN, 2, null), pen(2, 1, 2 * MIN, 2, null)];
+    expect(penaltyEnds(p, []).get(2)).toBe(4 * MIN);
   });
 });
 

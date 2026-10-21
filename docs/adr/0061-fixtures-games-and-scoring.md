@@ -121,7 +121,9 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   who recorded it and when. Penalty minutes per player and team (the leaderboards' PIM, #47) are their sum
   (`penaltyMinutes`).
 - **The penalty clock is worked out, never stored** (`lib/penalties.ts`): a penalty runs in game time from when it
-  was given, so it stops when the game clock does, and clears when served. A goal against a team with more players in
+  was given, so it stops when the game clock does, and clears when served. **A player serves one at a time**: a
+  second given while they're still serving one starts when that one ends (in both rules), and the team's a player
+  short, not two; the clock shows it waiting, "then 2:00". A bench penalty is nobody's, so it starts when given. A goal against a team with more players in
   the box than the scorers (a power-play goal) ends that team's earliest running minor; a major runs its five
   minutes. A double minor is one penalty of 4 (its minutes count 4) served as two minors back to back, one clock
   from 4:00 marked 2+2: a power-play goal in its first two starts the second two fresh from the goal; in its second
@@ -182,3 +184,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   all its periods, and a box score with the timeline by period on the live page and the matchup (#45, in part).
 - 2026-10-21: The usual penalty length (Minor 2, Double minor 2+2, Major 5) is a series setting copied onto each
   tournament; the penalty sheet starts on it, and a penalty called without a length takes it.
+- 2026-10-21: Consecutive penalties: a player's second penalty, given while they're still serving one, starts when
+  that one ends (power play and sitting out alike), shown waiting on the clock ("then 2:00").

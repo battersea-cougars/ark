@@ -490,10 +490,11 @@
                  room kept whether or not anyone's in, so nothing moves when a penalty's called or served -->
             <ul class="box" aria-label="{teamName(teamId)}'s penalties">
               {#each boxOf(teamId).slice(0, 2) as b (b.penalty.id)}
-                <li>
+                <!-- One waiting for the player's last to end: its whole length, "then 2:00" -->
+                <li class:waiting={b.waiting}>
                   <span class="box-who">{who(b.penalty.memberId)}</span>
-                  {#if sitOut}<span class="box-double">sits out</span>{/if}
-                  <span class="box-left num">{mmss(b.leftMs)}</span>
+                  {#if sitOut && !b.waiting}<span class="box-double">sits out</span>{/if}
+                  <span class="box-left num">{b.waiting ? `then ${mmss(b.leftMs)}` : mmss(b.leftMs)}</span>
                   {#if b.double}<span class="box-double num" title="Double minor">2+2</span>{/if}
                 </li>
               {/each}
@@ -1190,6 +1191,11 @@
   .box-left {
     color: var(--red-hot);
     font-weight: 700;
+  }
+  /* Waiting its turn: not counting down yet, so not red */
+  .box li.waiting .box-left {
+    color: var(--fg-muted);
+    font-weight: 400;
   }
   /* A double minor: one clock, four minutes, marked */
   .box-double {
