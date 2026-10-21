@@ -119,7 +119,8 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
 ## Sentry
 
 - **Organisation** `battersea-cougars`, EU region, free Developer plan (one user: the developer account, which forwards
-  the alert emails). Projects `web` and `team`; one alert, for production ([ADR 0111](adr/0111-errors-and-uptime.md)).
+  the alert emails). Projects `web` and `team`; alerts on a new issue (production, dev) and a spike (production), and a cron
+  monitor on the team Worker's hourly run ([ADR 0111](adr/0111-errors-and-uptime.md)).
 - **Secrets:** `SENTRY_AUTH_TOKEN` (the developer account's personal token: setup and source maps), and the two DSNs,
   made by `scripts/sentry-setup.mjs`.
 

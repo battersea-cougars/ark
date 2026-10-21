@@ -149,6 +149,7 @@ export async function notifyLive(env: LiveEnv, changed: readonly string[], versi
       body: JSON.stringify({ changed, version }),
     });
   } catch (e) {
-    log.warn("live.notify.failed", e);
+    // An error, not a warning: every phone on a live page misses this change until its next check (ADR 0111)
+    log.error("live.notify.failed", e, { changed });
   }
 }

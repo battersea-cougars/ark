@@ -1,7 +1,7 @@
 # 0111. Errors and down alerts go to Sentry, with nothing about a person in them
 
 - **Status:** Accepted
-- **Date:** 2026-10-18 · updated 2026-10-18
+- **Date:** 2026-10-18 · updated 2026-10-21
 
 ## Context
 
@@ -18,10 +18,16 @@ smaller (5k errors a month, one user) but plain about it.
 
 - **Sentry**, organisation `battersea-cougars` in the **EU region**, free Developer plan. Its one user is the developer
   Gmail account, which forwards the alerts to whoever needs them. `scripts/sentry-setup.mjs` makes everything through
-  the API, and running it again changes nothing that's right: projects `web` and `team`, the alert, the DSNs into
-  Secrets Manager (not the repo), and with `--uptime` the monitors.
-- **One alert:** an email on a new issue whose event says `environment: production`, in either project. Sentry's own
-  default alert is never made. Dev's errors are kept and visible, but tell nobody.
+  the API, and running it again changes nothing that's right: projects `web` and `team`, the alerts, the cron
+  monitor, the DSNs into Secrets Manager (not the repo), and with `--uptime` the uptime monitors.
+- **Three alerts,** each an email to the organisation's members, in either project: a **new issue in production**, a
+  **new issue in dev** (caught before a release takes it to members), and a **spike in production**, an issue seen more
+  than 10 times in 5 minutes, new or not (at most one email an hour per issue). They go by the event's `environment`
+  tag. Sentry's own default alert is never made.
+- **A cron that stops is noticed:** the team Worker's hourly run checks in with a Sentry cron monitor (`team-hourly`,
+  `Sentry.withMonitor` in `apps/team/worker/index.ts`); an hour without a check-in opens an issue, so the alerts email.
+  The free plan has one cron monitor, so it's the hourly run (dues, the allowance check); the five-minutely run stops
+  with it if the Worker's crons stop. A job that fails inside a run is reported by its own `cron.failed` line.
 - **Servers:** each Worker is wrapped in `@sentry/cloudflare`'s `withSentry` (`apps/web/src/worker.ts`,
   `apps/team/worker/index.ts`), so an error nothing caught is reported, and every `error` or `fatal` log line is
   reported through scribe's reporter (`packages/shared/scribe.sentry.ts`, ADR 0110). Environment from `SITE_ENV`,
@@ -31,6 +37,13 @@ smaller (5k errors a month, one user) but plain about it.
   only in a build with a DSN. It sends through the team Worker's `/api/errors` (`packages/shared/sentry-tunnel.ts`): the
   app's CSP allows only its own origin, ad blockers leave that address alone, and the tunnel passes on only envelopes
   for our project, only from our pages. Old code after a deploy (it reloads itself) isn't reported.
+- **From the first moment:** Sentry stays off the first-paint path, so `src/app/errors.early.ts`, main.ts's first import
+  and a few lines with no imports, listens for errors and rejections until Sentry is up and hands them over then (20 at
+  most). A start-up that fails (the "Can't reach the club's data" screen) is reported the same way, except sign-in
+  (401), resting (429, ADR 0055) and old code that reloads. The same `beforeSend` sees each.
+- **What a member feels is an error, not a warning** (ADR 0110): the live hub not hearing of a change (phones stay
+  stale until their next check), the free allowance unreadable (nobody would be warned before it runs out). A 500 says
+  its method, path, route and the member's number (never their name or email).
 - **The website in the browser** loads no SDK (it would add about 25 KB to every page for three small scripts). A
   catcher of a few lines, the first script in `<head>` (`src/scripts/head.js`, a file so the content security policy
   needs no inline exception, [0036](0036-api-security.md)), posts each distinct uncaught error once, by
@@ -64,3 +77,7 @@ smaller (5k errors a month, one user) but plain about it.
 - 2026-10-18: Uptime checks every 10 minutes, not every minute: a down site is known soon enough, and it's about 290
   requests a day instead of 2,900 (#16).
 - 2026-10-20: The browser catcher moved into `src/scripts/head.js`; policy refusals are reported too (#78).
+- 2026-10-21: A start-up failure is reported, and errors before Sentry is up wait for it (`errors.early.ts`): a
+  Safari-only failure on Home had shown "Can't reach the club's data" and told nobody. Two more alerts: a new issue in
+  dev, and a spike in production; a cron monitor on the team Worker's hourly run (#32). The live hub's failure and an
+  unreadable allowance are errors now; a 500 names its route and member (#75).

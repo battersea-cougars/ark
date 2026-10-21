@@ -17,6 +17,8 @@ import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sent
 // The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0111)
 scribe.configure({ adapter: consoleAdapter, report: sentryReporter(Sentry) });
 const log = scribe.logger("cron");
+/** The hourly run's Sentry cron monitor, made by scripts/sentry-setup.mjs (the free plan has one). */
+const HOURLY_MONITOR = "team-hourly";
 
 // The live hub (ADR 0072): Cloudflare finds the Durable Object class here
 export { LiveHub } from "./live/live";
@@ -85,13 +87,16 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
     }
     // Hourly: charge what a new day or quarter makes due and remind whoever's due one (ADR 0007), warn the admins
     // before the free allowance runs out (ADR 0059), and forget old sign-in records (#30). Each on its own, so one
-    // failing doesn't stop the rest.
+    // failing doesn't stop the rest. It checks in with Sentry's cron monitor (ADR 0111, scripts/sentry-setup.mjs), so
+    // an hour it doesn't run is an alert; a job's failure is reported by its own log line. No Sentry here: just runs.
     else {
-      await task("dues.charge", () => chargeDue(env, now));
-      await task("dues.remind", () => remindDue(env, now));
-      await task("usage.check", () => checkUsage(env, now));
-      await task("retention.forget", () => forgetOld(env.DB, now));
-      await task("sanity.count", () => flushSanityRequests(env.DB, now));
+      await Sentry.withMonitor(HOURLY_MONITOR, async () => {
+        await task("dues.charge", () => chargeDue(env, now));
+        await task("dues.remind", () => remindDue(env, now));
+        await task("usage.check", () => checkUsage(env, now));
+        await task("retention.forget", () => forgetOld(env.DB, now));
+        await task("sanity.count", () => flushSanityRequests(env.DB, now));
+      });
     }
   },
 } satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>);

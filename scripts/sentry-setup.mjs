@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Sentry for the club's errors and down alerts (ADR 0111), made through its API and safe to run again: it changes nothing
 // that's already right.
-//   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, DSNs into Secrets Manager
+//   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, DSNs into Secrets Manager
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs --uptime   also the uptime monitors (once /health is live)
 // Needs SENTRY_AUTH_TOKEN (README#secrets). The organisation is the developer account's, in the EU region.
 //
-// Each app is a project. The only alert is an email on a new issue in production: dev's errors are kept but tell
-// nobody. The DSNs go to Secrets Manager, not the repo; the deploy hands them to the apps.
+// Each app is a project. Three alerts email: a new issue in production, a new issue in dev, and a spike in production.
+// The team Worker's hourly cron has a cron monitor. The DSNs go to Secrets Manager, not the repo; the deploy hands them
+// to the apps.
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const ORG = "battersea-cougars";
@@ -22,7 +23,6 @@ const PROJECTS = [
     health: `${SITE.replace("://", "://team.")}/api/health`,
   },
 ];
-const ALERT = "New issue in production";
 
 const token = process.env.SENTRY_AUTH_TOKEN;
 if (!token) throw new Error("No SENTRY_AUTH_TOKEN: run it through scripts/env-pull.mjs.");
@@ -80,8 +80,25 @@ for (const want of PROJECTS) {
   console.log(`  Uptime "${monitor.name}" on ${monitor.url}: ${there ? "kept right" : "made"}.`);
 }
 
-// The one alert (a Sentry "workflow"): a new issue in production, in either project, emails the organisation's member.
-// It listens to each project's issue stream, and to its uptime monitor, whose failures open issues too.
+// When the team Worker's crons stop (a broken deploy, a trigger lost): the hourly run checks in with Sentry, and a missed
+// check-in opens an issue, so the alerts below email. One cron monitor is all the free plan has, so it's the hourly
+// run, the one that charges dues and watches the free allowance; the five-minutely run stops with it if the Worker's
+// crons stop at all. The Worker checks in by this slug (apps/team/worker/index.ts).
+const CRON = {
+  project: "team",
+  name: "team hourly cron",
+  slug: "team-hourly",
+  type: "cron_job",
+  config: { schedule_type: "crontab", schedule: "7 * * * *", checkin_margin: 10, max_runtime: 10, timezone: "UTC" },
+};
+const crons = await sentry("GET", `/organizations/${ORG}/monitors/`);
+const cron = crons.find((m) => m.slug === CRON.slug);
+if (cron) await sentry("PUT", `/organizations/${ORG}/monitors/${CRON.slug}/`, CRON);
+else await sentry("POST", `/organizations/${ORG}/monitors/`, CRON);
+console.log(`Cron monitor "${CRON.name}": ${cron ? "kept right" : "made"}.`);
+
+// The alerts (Sentry "workflows"), each emailing the organisation's members. They listen to each project's issue
+// stream, its uptime monitor and the cron monitor, whose failures open issues too.
 const detectors = await sentry("GET", `/organizations/${ORG}/detectors/`);
 const projectIds = new Set(
   (await sentry("GET", `/organizations/${ORG}/projects/`))
@@ -89,42 +106,64 @@ const projectIds = new Set(
     .map((p) => p.id),
 );
 const detectorIds = detectors
-  .filter((d) => projectIds.has(d.projectId) && ["issue_stream", "uptime_domain_failure"].includes(d.type))
+  .filter(
+    (d) =>
+      projectIds.has(d.projectId) &&
+      ["issue_stream", "uptime_domain_failure", "monitor_check_in_failure"].includes(d.type),
+  )
   .map((d) => d.id);
-const workflow = {
-  name: ALERT,
-  enabled: true,
-  // By the event's tag, not the workflow's environment: Sentry only takes an environment it has already seen
-  environment: null,
-  config: { frequency: 30 },
-  triggers: {
-    logicType: "any-short",
-    conditions: [{ type: "first_seen_event", comparison: true, conditionResult: true }],
-  },
-  actionFilters: [
-    {
-      logicType: "all",
-      conditions: [
-        {
-          type: "tagged_event",
-          comparison: { key: "environment", match: "eq", value: "production" },
-          conditionResult: true,
-        },
-      ],
-      actions: [
-        {
-          type: "email",
-          integrationId: null,
-          data: { fallthroughType: "ActiveMembers" },
-          config: { targetType: "issue_owners", targetIdentifier: null },
-        },
-      ],
-    },
-  ],
-  detectorIds,
+
+// By the event's tag, not the workflow's environment: Sentry only takes an environment it has already seen
+const inEnvironment = (value) => ({
+  type: "tagged_event",
+  comparison: { key: "environment", match: "eq", value },
+  conditionResult: true,
+});
+const email = {
+  type: "email",
+  integrationId: null,
+  data: { fallthroughType: "ActiveMembers" },
+  config: { targetType: "issue_owners", targetIdentifier: null },
 };
+const firstSeen = { type: "first_seen_event", comparison: true, conditionResult: true };
+const ALERTS = [
+  // A new issue: production's are what members hit; dev's are caught before a release takes them there
+  { name: "New issue in production", trigger: [firstSeen], filter: [inEnvironment("production")], every: 30 },
+  { name: "New issue in dev", trigger: [firstSeen], filter: [inEnvironment("dev")], every: 30 },
+  // A spike: an issue seen more than 10 times in 5 minutes in production (a loop, or everyone hitting the same thing),
+  // new or not. At most an email an hour per issue.
+  {
+    name: "Spike in production",
+    trigger: [],
+    filter: [
+      inEnvironment("production"),
+      {
+        type: "event_frequency_count",
+        comparison: {
+          interval: "5m",
+          value: 10,
+          filters: [{ key: "environment", match: "eq", value: "production" }],
+        },
+        conditionResult: true,
+      },
+    ],
+    every: 60,
+  },
+];
 const workflows = await sentry("GET", `/organizations/${ORG}/workflows/`);
-const ours = workflows.find((w) => w.name === ALERT);
-if (ours) await sentry("PUT", `/organizations/${ORG}/workflows/${ours.id}/`, workflow);
-else await sentry("POST", `/organizations/${ORG}/workflows/`, workflow);
-console.log(`Alert "${ALERT}": ${ours ? "kept right" : "made"}, on ${detectorIds.length} monitors.`);
+for (const alert of ALERTS) {
+  const workflow = {
+    name: alert.name,
+    enabled: true,
+    environment: null,
+    // Minutes between two emails about one issue
+    config: { frequency: alert.every },
+    triggers: { logicType: "any-short", conditions: alert.trigger },
+    actionFilters: [{ logicType: "all", conditions: alert.filter, actions: [email] }],
+    detectorIds,
+  };
+  const ours = workflows.find((w) => w.name === alert.name);
+  if (ours) await sentry("PUT", `/organizations/${ORG}/workflows/${ours.id}/`, workflow);
+  else await sentry("POST", `/organizations/${ORG}/workflows/`, workflow);
+  console.log(`Alert "${alert.name}": ${ours ? "kept right" : "made"}, on ${detectorIds.length} monitors.`);
+}

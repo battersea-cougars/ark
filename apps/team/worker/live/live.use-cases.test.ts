@@ -2,6 +2,7 @@
 // page holds one open stream from the club's live hub, and a change made through the API reaches them all at once.
 // The stream carries only the names of the parts that changed; each phone then reads its own view.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { captureLogs } from "@cougars/shared/testing/scribe";
 import { NOW, testWorld } from "../testing";
 
 const ROSTER = [
@@ -160,6 +161,21 @@ describe("a draft night, with every captain's phone on the draft room", () => {
   it("someone not signed in gets no stream", async () => {
     const res = await w.browser().open("GET", "/api/live", { now: NOW });
     expect(res.status).toBe(401);
+  });
+
+  it("a hub that can't be reached never fails the pick, and the developer hears of it: phones miss it until their next check", async () => {
+    const reported: { msg: string; fields: Json }[] = [];
+    captureLogs({ report: (_e, entry) => void reported.push({ msg: entry.msg, fields: entry.fields }) });
+    const night = await draftNight();
+    w.env.LIVE = {
+      idFromName: (name: string) => name,
+      get: () => ({ fetch: async () => Promise.reject(new Error("Durable Object reset")) }),
+    } as unknown as DurableObjectNamespace;
+    const cara = await w.signedIn("cara@example.com");
+    expect((await night.pick(cara, night.reg)).status).toBe(200);
+    expect(reported).toMatchObject([
+      { msg: "live.notify.failed", fields: { changed: expect.arrayContaining(["tournaments"]) } },
+    ]);
   });
 
   it("without a live hub (a server without the binding), the page is told and falls back to checking", async () => {

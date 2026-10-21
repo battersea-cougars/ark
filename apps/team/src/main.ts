@@ -1,3 +1,5 @@
+// First, so it listens before anything else runs: errors from the start wait for Sentry (ADR 0111)
+import { reportEarly } from "./app/errors.early";
 import "./app.css";
 import { mount } from "svelte";
 import App from "./App.svelte";
@@ -15,7 +17,8 @@ import { isStaleCode, recoverOnce } from "./app/stale-code";
 // loads (ADR 0120). The data is in place before the app mounts. Nobody signed in: the sign-in screen, which reloads the page once they are.
 const club = getBootstrap();
 const target = document.getElementById("app")!;
-// Errors to Sentry (ADR 0111), started beside the club's data rather than before it: a built copy only
+// Errors to Sentry (ADR 0111), started beside the club's data rather than before it: a built copy only. What goes wrong
+// before it's up waits for it (errors.early.ts)
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 if (dsn) void import("./app/errors").then(({ startErrorReports }) => startErrorReports(dsn)).catch(() => {});
 try {
@@ -30,7 +33,12 @@ try {
   if (e instanceof ApiError && e.status === 401) {
     const { default: SignIn } = await import("./pages/SignIn.svelte");
     mount(SignIn, { target });
-  } else if (!(isStaleCode(e) && newCode())) showError(e);
+  } else if (!(isStaleCode(e) && newCode())) {
+    // Sentry hears of it (when it's up, errors.early.ts): this is how a Safari-only failure on Home stayed unseen.
+    // Not resting (429, ADR 0055): that's the club's allowance used up, which the admins are emailed about.
+    if (!(e instanceof ApiError && e.status === 429)) reportEarly(e, "start");
+    showError(e);
+  }
   unsplash();
 }
 

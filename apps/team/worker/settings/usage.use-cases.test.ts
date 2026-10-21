@@ -4,6 +4,7 @@
 // Cloudflare's analytics API is faked; everything else is real.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mail } from "@cougars/shared/email";
+import { captureLogs } from "@cougars/shared/testing/scribe";
 import { NOW, testWorld } from "../testing";
 import { checkUsage } from "./usage";
 
@@ -177,6 +178,14 @@ describe("the hourly check", () => {
     expect(await run()).toEqual([]);
     delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
     expect(await run()).toEqual([]);
+  });
+
+  it("tells the developer when Cloudflare can't be read, since nobody would be warned before the allowance ran out", async () => {
+    const reported: string[] = [];
+    captureLogs({ report: (_e, entry) => void reported.push(entry.msg) });
+    cloudflare({ ok: false });
+    await run();
+    expect(reported).toEqual(["usage.unavailable"]);
   });
 });
 

@@ -475,11 +475,12 @@ Review. One copy each (production reads `cougars-dev` too) but the App Review pa
 Errors from both apps, server and browser, and the down alerts ([ADR 0111](docs/adr/0111-errors-and-uptime.md)). One
 organisation, `battersea-cougars`, in Sentry's **EU region** (`de.sentry.io`), on the free Developer plan (one user:
 the developer Gmail account, which forwards the alerts). Projects `web` and `team`; each event says its environment.
-The only alert is an email on a new issue in **production**; dev's errors are kept but tell nobody.
+Alerts email on a new issue in **production** or **dev**, and on a spike in production; the team Worker's hourly cron has a
+cron monitor.
 
 - **`SENTRY_AUTH_TOKEN`:** a personal token of the developer account (User settings → Personal Tokens), named
   `SENTRY_AUTH_TOKEN`, with Project Admin, Team Read & Write, Release Admin, Issue & Event Read, Organization Read and
-  Alerts Read & Write. Used by `scripts/sentry-setup.mjs` (projects, the alert, the uptime monitors) and by the deploy
+  Alerts Read & Write. Used by `scripts/sentry-setup.mjs` (projects, the alerts, the cron and uptime monitors) and by the deploy
   to upload source maps. Set: `npm run secret:set SENTRY_AUTH_TOKEN`. **Expires:** no; rotate by making a new one,
   setting it, and revoking the old.
 - **`SENTRY_DSN_WEB`, `SENTRY_DSN_TEAM`:** where each app sends its errors. Not really secret (the team app's is in

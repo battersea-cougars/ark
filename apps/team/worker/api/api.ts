@@ -118,10 +118,13 @@ export async function handleApi(
   const match = ROUTES.map((r) => ({ r, m: url.pathname.match(r.path) })).filter((x) => x.m);
   const hit = match.find((x) => x.r.method === request.method);
   if (!hit) return json({ error: match.length ? "Method not allowed." : "Not found." }, match.length ? 405 : 404);
+  // Who it was, for the log if it fails: their number only, never their name or email (ADR 0110)
+  let member: number | undefined;
   try {
     const who = await whoIs(request, env, now);
     if (!who) return json({ error: "Sign in first." }, 401);
     const { memberId } = who;
+    member = memberId;
     const writes = request.method !== "GET";
     if (writes)
       await enforce(
@@ -218,7 +221,7 @@ export async function handleApi(
     return res;
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
-    log.error("request.failed", e, { method: request.method, path: url.pathname });
+    log.error("request.failed", e, { method: request.method, path: url.pathname, route: hit.r.path.source, member });
     return json({ error: "Something went wrong." }, 500);
   }
 }
