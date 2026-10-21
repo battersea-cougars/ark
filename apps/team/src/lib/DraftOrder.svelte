@@ -1,7 +1,7 @@
 <script lang="ts">
-  // The draft's pick order (ADR 0060), on the Draft page. The order the captains were named in means nothing: until
-  // the draft opens they're shown without numbers, and opening it draws the order at random on the server. Whoever's
-  // on the page as the draw arrives (ADR 0072) sees it happen: the names shuffle a few times and settle into the
+  // The draft's pick order (ADR 0060), on the Draft page before it opens. The order the captains were named in means
+  // nothing: until it's drawn they're shown without numbers, and Set the order (whoever runs the draft) draws it at
+  // random on the server. Whoever's on the page as the draw arrives (ADR 0072) sees it happen: the names shuffle a few times and settle into the
   // drawn order, the numbers stamped on (and, on the Kumite, its seal). Anyone opening the page later just sees the
   // order; so does anyone who asks for less motion. It's round one's: the snake turns it each round.
   import { onDestroy, untrack } from "svelte";
@@ -11,6 +11,7 @@
   import { kanjiFor } from "./motif";
   import { prefersReducedMotion } from "../app/motion";
   import type { TournamentType } from "../demo/model";
+  import { nth } from "./draft";
 
   let {
     type,
@@ -18,9 +19,9 @@
     drawn,
   }: {
     type: TournamentType;
-    /** The captains, in the order the server has them: drawn, once the draft's opened. */
+    /** The captains, in the order the server has them: drawn, once it's been drawn. */
     captains: { id: number; name: string; you: boolean }[];
-    /** The draft's opened, so the order is drawn and fixed. */
+    /** The order's drawn, and fixed. */
     drawn: boolean;
   } = $props();
 
@@ -78,6 +79,8 @@
 
   const shown = $derived(shuffling ? shuffling.flatMap((id) => captains.find((c) => c.id === id) ?? []) : captains);
   const numbered = $derived(drawn && !shuffling);
+  // A captain's own place, said in words
+  const mine = $derived(captains.findIndex((c) => c.you));
 </script>
 
 <section class="order" class:shuffling={!!shuffling} aria-label="Pick order">
@@ -91,9 +94,10 @@
     <h2 class="eyebrow">Pick order</h2>
     <!-- One line, the same whatever it says, so the draw arriving moves nothing -->
     <p class="hint" aria-live="polite">
-      {#if !drawn}Order drawn when the draft starts.
-      {:else if shuffling}Drawing the order…
-      {:else}Drawn at random.{/if}
+      {#if !drawn}Waiting for the order.
+      {:else if shuffling}Setting the order…
+      {:else if mine >= 0}Order set: <strong>you pick {nth(mine + 1)}</strong>.
+      {:else}Order set.{/if}
     </p>
   </header>
   <ol class="names">
@@ -123,6 +127,10 @@
   h2 {
     margin: 0;
     flex-shrink: 0;
+  }
+  .hint strong {
+    color: var(--fg);
+    font-weight: 600;
   }
   .hint {
     flex: 1;

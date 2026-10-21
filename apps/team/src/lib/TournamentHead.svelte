@@ -25,6 +25,7 @@
     title,
     manage: offer = false,
     note,
+    compact = false,
   }: {
     type: TournamentType;
     tournament?: Tournament;
@@ -33,6 +34,8 @@
     manage?: boolean;
     /** In place of the date line, for a page about the series rather than one of its dates (History). */
     note?: string;
+    /** A phone page that needs its room (the Draft page, once it's open): the eyebrow and stamp, no date lines. */
+    compact?: boolean;
   } = $props();
 
   const stage = $derived(tournament ? editionState(tournament) : null);
@@ -98,23 +101,23 @@
     {#snippet sub()}
       <!-- Always the same two lines, on every page of the series, so the tabs under it never move: the day big (or
            that it's to be confirmed), then the season, hours and place -->
-      <span class="when-box">
-        {#if note}
-          <span class="day-line"><span class="aside">{note}</span></span>
-          <span class="where">&nbsp;</span>
-        {:else if tournament && when}
-          <span class="day-line"
-            ><span class="day display">{when.day ?? when.season}</span>{#if countdown}<span
-                class="countdown display"
-                class:today={countdown === "Today"}>{countdown}</span
-              >{/if}</span
-          >
-          <span class="where">{[when.day ? when.season : "", when.hours, place].filter(Boolean).join(" · ")}</span>
-        {:else}
-          <span class="day-line"><span class="aside">No {type.shortName} scheduled yet.</span></span>
-          <span class="where">&nbsp;</span>
-        {/if}
-      </span>
+      {#if !compact}<span class="when-box">
+          {#if note}
+            <span class="day-line"><span class="aside">{note}</span></span>
+            <span class="where">&nbsp;</span>
+          {:else if tournament && when}
+            <span class="day-line"
+              ><span class="day display">{when.day ?? when.season}</span>{#if countdown}<span
+                  class="countdown display"
+                  class:today={countdown === "Today"}>{countdown}</span
+                >{/if}</span
+            >
+            <span class="where">{[when.day ? when.season : "", when.hours, place].filter(Boolean).join(" · ")}</span>
+          {:else}
+            <span class="day-line"><span class="aside">No {type.shortName} scheduled yet.</span></span>
+            <span class="where">&nbsp;</span>
+          {/if}
+        </span>{/if}
     {/snippet}
     {#snippet actions()}
       {#if admin && tools.length}

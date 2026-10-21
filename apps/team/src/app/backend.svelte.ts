@@ -519,6 +519,9 @@ export const takeOffTeam = (tournamentId: number, teamId: number, memberId: numb
 export const setTeamLook = (tournamentId: number, teamId: number, name: string, logo: string | null) =>
   save(() => api("PUT", `/api/tournaments/${tournamentId}/teams/${teamId}/look`, { name, logo }));
 /** Whoever runs the draft opens it (ADR 0060): the captains can pick. */
+/** Step 1 (ADR 0060): the captains' pick order, drawn at random on the server, once. */
+export const drawOrder = (tournamentId: number) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/draft/draw`, {}), "Order set");
 export const openDraft = (tournamentId: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/open`, {}), "The draft is open");
 /** ...and closes it: everyone's picked, or the rest are left out on purpose. The teams are then set. */

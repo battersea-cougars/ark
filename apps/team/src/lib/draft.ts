@@ -13,6 +13,16 @@ export function onTheClock(teams: number, made: number): number {
   return round % 2 ? teams - 1 - slot : slot;
 }
 
+/** 1st, 2nd, 3rd, 4th…: a captain's place in the pick order, in words. */
+export const nth = (n: number) => {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  return `${n}${teen ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
+};
+
+/** Whether a draft's pick order is drawn (ADR 0060): every captain has their number. */
+export const orderDrawn = (teams: { pick?: number | null }[]) =>
+  teams.length > 0 && teams.every((t) => typeof t.pick === "number");
+
 /** Enough of a tournament to say where its draft stands. */
 interface Drafting {
   teams: { captainMemberId: number | null; players: { memberId: number | null; pick?: number | null }[] }[];

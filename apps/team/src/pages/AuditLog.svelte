@@ -196,6 +196,15 @@
         return `${who} recorded ${about}'s attendance`;
       case "draft.pick_undone":
         return `${who} undid the last pick in the draft`;
+      case "draft.drawn":
+        return `${who} drew the draft's pick order: ${
+          Array.isArray(d.to)
+            ? (d.to as { captain?: string }[]).map((t, i) => `${i + 1} ${str(t.captain)}`).join(", ")
+            : ""
+        }`;
+      case "draft.picked_for":
+        // Whoever ran the draft picked for a captain: said as theirs, for that captain's team (ADR 0060)
+        return `${who} picked ${str(to?.player) || about} for ${str(to?.captain)}'s team`;
       case "draft.opened":
         return `${who} opened the draft for ${str(to?.name)}`;
       case "draft.closed":

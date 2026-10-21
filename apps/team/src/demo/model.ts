@@ -138,7 +138,15 @@ export interface TournamentTeam {
    * Members, or players from outside the club by name, in order (a draft's in the order they were picked). `pick`:
    * the draft pick that brought them (its order across the whole draft); null when an admin put them on directly.
    */
-  players: { memberId: number | null; name: string; pick?: number | null }[];
+  players: {
+    memberId: number | null;
+    name: string;
+    pick?: number | null;
+    /** Who made the pick: its captain, or whoever ran the draft picking for them (ADR 0060). */
+    pickedBy?: number | null;
+  }[];
+  /** A draft's pick order, from 1, once it's drawn (ADR 0060); null till then, and for a team that entered. */
+  pick?: number | null;
 }
 
 /** One edition, scheduled on its own: a name, a location, a date. */

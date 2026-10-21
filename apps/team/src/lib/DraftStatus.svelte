@@ -12,7 +12,7 @@
   import { granted, me } from "../demo/session.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { dateBadge, formatDayDate, londonISO } from "./dates";
-  import { draftTurn } from "./draft";
+  import { draftTurn, nth, orderDrawn } from "./draft";
   import { editTournament } from "./TournamentEditorPanel.svelte";
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
@@ -24,7 +24,7 @@
   const inside = $derived(mine >= 0 || running);
   const state = $derived(tournament.draftState);
   const turn = $derived(draftTurn(tournament, mine));
-  // The captains, in pick order once the draft's opened and drawn it (before then, in no order): a disc each, in their team's colour (the same as its crest below)
+  // The captains, in pick order once it's drawn (before then, in no order): a disc each, in their team's colour (the same as its crest below)
   const captains = $derived(
     teams.map((t, i) => {
       const p = PLAYERS.find((p) => p.id === t.captainMemberId);
@@ -60,8 +60,12 @@
     }
     return {
       title: when ? `Draft ${when}` : "Draft date TBC",
-      // The order means nothing until the draft opens and draws it (ADR 0060)
-      sub: "Order drawn when the draft starts.",
+      // The order means nothing until it's drawn (ADR 0060); then a captain hears their place
+      sub: !orderDrawn(teams)
+        ? "Waiting for the pick order."
+        : mine >= 0
+          ? `You pick ${nth(mine + 1)}.`
+          : "Pick order set.",
       badge: "",
     };
   });
