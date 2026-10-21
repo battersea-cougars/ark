@@ -108,6 +108,41 @@ describe("what the club tells them", () => {
     ]);
   });
 
+  it("teams changed after they're out: only whoever changed team hears, not everyone again", async () => {
+    const reg = await phone("reg@example.com");
+    const alt = await phone("alt@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    const session = await friday(dana);
+    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    const regId = await memberId(dana, "Reg Player");
+    const altId = await memberId(dana, "Alt Player");
+    const teams = (black: number[], white: number[]) =>
+      dana.call("POST", `/api/sessions/${session.id}/teams`, {
+        teams: [
+          { name: "Black", players: black },
+          { name: "White", players: white },
+        ],
+      });
+    await teams([regId], [altId]);
+    expect(sentTo().sort()).toEqual(["token-alt@example.com", "token-reg@example.com"]);
+    w.pushes.length = 0;
+
+    // Shuffled about, nobody's team changed: nothing to tell
+    await teams([regId], [altId]);
+    expect(w.pushes).toEqual([]);
+
+    // Alt swaps to Black
+    await teams([regId, altId], []);
+    expect(w.pushes).toEqual([
+      expect.objectContaining({
+        token: "token-alt@example.com",
+        title: "Team change",
+        body: "Fri 9 Oct: you're now on Black.",
+      }),
+    ]);
+  });
+
   it("a place comes up on a full night: whoever moves up off the waitlist hears they're in", async () => {
     const dana = await w.signedIn("dana@example.com");
     const series = (await boot(dana)).series[0];

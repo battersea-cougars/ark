@@ -116,3 +116,5 @@ Three things shape it:
   becomes an Organisation for Typesmiths, which makes and releases the app (#103). Firebase is on in the club's one
   Google Cloud project, `battersea-cougars` (no second project), set up by `scripts/firebase-setup.mjs`; only the
   APNs key's upload is by hand. Every key, the APNs one too, is backed up in Bitwarden ([0002](0002-secrets-in-bitwarden.md)).
+- 2026-10-21: Teams published again only notify a player whose team changed ("Team change: you're now on …"); the first
+  publish still tells everyone their team.

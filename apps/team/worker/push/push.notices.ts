@@ -76,22 +76,38 @@ export const places = (kind: EntryKind, why = "A place came up"): Notify<{ membe
   },
 });
 
-/** The night's teams are out: each player hears which team they're on. */
-export const teamsOut: Notify = {
-  after: async (c) => {
+/** Each player's team on the night, by member id. */
+async function teamOf(c: Ctx) {
+  const rows = await all<{ name: string; players: string }>(
+    c.env.DB,
+    `SELECT t.name, (SELECT json_group_array(p.member_id) FROM session_team_players p WHERE p.team_id = t.id) players
+     FROM session_teams t WHERE t.session_id = ? ORDER BY t.position`,
+    [id(c)],
+  );
+  return new Map(rows.flatMap((t) => (JSON.parse(t.players) as number[]).map((m) => [m, t.name] as const)));
+}
+
+/**
+ * The night's teams are out: each player hears which team they're on. Published again (an admin moving people
+ * about), only a player whose team changed hears, that they're now on another.
+ */
+export const teamsOut: Notify<Map<number, string>> = {
+  before: teamOf,
+  after: async (c, before) => {
     const event = await eventOf(c.env.DB, "session", id(c));
     if (!event) return [];
-    const teams = await all<{ name: string; players: string }>(
-      c.env.DB,
-      `SELECT t.name, (SELECT json_group_array(p.member_id) FROM session_team_players p WHERE p.team_id = t.id) players
-       FROM session_teams t WHERE t.session_id = ? ORDER BY t.position`,
-      [id(c)],
-    );
-    return teams.map((t) => ({
-      to: JSON.parse(t.players) as number[],
+    const now = await teamOf(c);
+    const out = !before.size;
+    const byTeam = new Map<string, number[]>();
+    for (const [member, team] of now) {
+      if (before.get(member) === team) continue;
+      byTeam.set(team, [...(byTeam.get(team) ?? []), member]);
+    }
+    return [...byTeam].map(([team, to]) => ({
+      to,
       topic: "teams" as const,
-      title: "Teams are out",
-      body: `${event.name}: you're on ${t.name}.`,
+      title: out ? "Teams are out" : "Team change",
+      body: out ? `${event.name}: you're on ${team}.` : `${event.name}: you're now on ${team}.`,
       path: event.path,
     }));
   },
