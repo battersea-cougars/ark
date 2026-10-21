@@ -140,11 +140,12 @@ export async function clockGame(
     if (ending < game.period) return;
     if (ending > game.period) throw new HttpError(409, `It's the ${periodName(game.period)} period.`);
     if (game.period >= t.periods) throw new HttpError(409, "That's the last period: call full time.");
+    // Only from the period said: the same end sent by two phones at once moves on once
     await run(
       db,
       `UPDATE tournament_games SET period = period + 1, clock_left_ms = ?, clock_started_at = NULL, period_ended_at = ?
-       WHERE id = ?`,
-      [t.gameMinutes * 60_000, now.toISOString(), gameId],
+       WHERE id = ? AND period = ? AND status = 'live'`,
+      [t.gameMinutes * 60_000, now.toISOString(), gameId, ending],
     );
     return;
   }
@@ -173,6 +174,18 @@ export async function clockGame(
  */
 const periodOf = (o: Record<string, unknown>, done: boolean, atMs: number | null, game: Game, t: TournamentRow) =>
   !done ? game.period : atMs === null ? null : o.period == null ? 1 : int(o, "period", { min: 1, max: t.periods });
+
+/**
+ * SQL: the game is still as the tap found it, when its goal or penalty lands: on, with this scorekeeper holding the
+ * sheet, or over, for an admin's correction. A goal sent just as full time is called is refused, never counted after
+ * the result. Params: the game, then the scorekeeper (unused once it's over).
+ */
+const stillAsFound = (done: boolean) =>
+  done
+    ? "EXISTS (SELECT 1 FROM tournament_games WHERE id = ? AND status = 'done' AND ? IS NOT NULL)"
+    : "EXISTS (SELECT 1 FROM tournament_games WHERE id = ? AND status = 'live' AND keeper_member_id = ?)";
+const tooLate = (done: boolean) =>
+  new HttpError(409, done ? "That game's back on." : "That game's over: full time's been called.");
 
 /** Someone on this team: its captain or one of its players. */
 const onTeam = (db: D1Database, teamId: number, memberId: number) =>
@@ -231,12 +244,23 @@ export async function addGoal(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
-  await run(
+  const res = await run(
     db,
     `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [gameId, teamId, scorerId, assistId, atMs, periodOf(o, done, atMs, game, t), now.toISOString()],
+     SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
+    [
+      gameId,
+      teamId,
+      scorerId,
+      assistId,
+      atMs,
+      periodOf(o, done, atMs, game, t),
+      now.toISOString(),
+      gameId,
+      who.memberId,
+    ],
   );
+  if (!res.meta.changes) throw tooLate(done);
   if (done) await corrected(db, tournamentId, game);
   else await recount(db, game);
 }
@@ -255,8 +279,8 @@ export async function undoGoal(db: D1Database, tournamentId: number, gameId: num
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   const res = await run(
     db,
-    "DELETE FROM tournament_goals WHERE id = (SELECT max(id) FROM tournament_goals WHERE game_id = ?)",
-    [gameId],
+    `DELETE FROM tournament_goals WHERE id = (SELECT max(id) FROM tournament_goals WHERE game_id = ?) AND ${stillAsFound(false)}`,
+    [gameId, gameId, who.memberId],
   );
   if (!res.meta.changes) throw new HttpError(409, "No goals to take back.");
   await recount(db, game);
@@ -305,11 +329,11 @@ export async function addPenalty(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
-  await run(
+  const res = await run(
     db,
     `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, period, recorded_by,
        created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
     [
       gameId,
       teamId,
@@ -320,8 +344,11 @@ export async function addPenalty(
       periodOf(o, done, atMs, game, t),
       who.memberId,
       now.toISOString(),
+      gameId,
+      who.memberId,
     ],
   );
+  if (!res.meta.changes) throw tooLate(done);
 }
 
 /** Any penalty off a finished game: an admin putting it right. */
@@ -337,8 +364,8 @@ export async function undoPenalty(db: D1Database, tournamentId: number, gameId: 
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   const res = await run(
     db,
-    "DELETE FROM tournament_penalties WHERE id = (SELECT max(id) FROM tournament_penalties WHERE game_id = ?)",
-    [gameId],
+    `DELETE FROM tournament_penalties WHERE id = (SELECT max(id) FROM tournament_penalties WHERE game_id = ?) AND ${stillAsFound(false)}`,
+    [gameId, gameId, who.memberId],
   );
   if (!res.meta.changes) throw new HttpError(409, "No penalties to take back.");
 }
