@@ -106,6 +106,7 @@ describe("the club's agenda", () => {
     // Enough to draft: two captains, two picks each
     for (const who of ["reg", "mo", "ash", "bo"])
       await (await as(`${who}@example.com`)).call("POST", `/api/tournaments/${id}/answer`, { answer: "in" });
+    expect((await dana.call("POST", `/api/tournaments/${id}/draft/draw`, {})).status).toBe(200);
     expect((await dana.call("POST", `/api/tournaments/${id}/draft/open`, {})).status).toBe(200);
     await dana.call("POST", `/api/tournaments/${id}/draft/close`, { leaveOut: true });
     expect(kinds(await dana.agenda(), /Winter Cup/)).not.toContain("draft");

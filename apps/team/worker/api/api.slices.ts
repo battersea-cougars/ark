@@ -181,7 +181,7 @@ export function draftSeenBy<T extends ReturnType<typeof tournamentsFrom>[number]
         ...team,
         players: closed
           ? team.players
-              .map((p) => ({ ...p, pick: null }))
+              .map((p) => ({ ...p, pick: null, pickedBy: null }))
               .sort((a, b) => jumble(team.id, a.memberId, a.name) - jumble(team.id, b.memberId, b.name))
           : [],
       })),

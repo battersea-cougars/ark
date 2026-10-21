@@ -220,7 +220,14 @@ export type TournamentTeamRow = {
   contact: string;
   pick: number | null;
 };
-export type TournamentPlayerRow = { teamId: number; memberId: number | null; name: string; pick: number | null };
+export type TournamentPlayerRow = {
+  teamId: number;
+  memberId: number | null;
+  name: string;
+  pick: number | null;
+  /** Who made the pick: its captain, or whoever ran the draft picking for them (ADR 0060). */
+  pickedBy: number | null;
+};
 
 /** Tournaments as read (api.club.ts), each with its games, award winners, and teams with their players. */
 export function tournamentsFrom(
@@ -460,6 +467,13 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   }
   for (const e of existing)
     if (!kept.has(e.id)) statements.push(statement(db, "DELETE FROM tournament_teams WHERE id = ?", [e.id]));
+  // A draft's captains changed before it opened: the order drawn was for the old ones, so it goes, to be drawn again.
+  // Once it's open they can't change (above)
+  if (kind === "draft" && state !== "open" && state !== "closed") {
+    const same =
+      teams.length === existing.length && teams.every((t) => existing.some((e) => e.captain === t.captainMemberId));
+    if (!same) statements.push(statement(db, "UPDATE tournament_teams SET pick = NULL WHERE tournament_id = ?", [id]));
+  }
   // A draft's captains play: they're in, and so never in the pool to pick from
   if (kind === "draft")
     for (const t of teams)

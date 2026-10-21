@@ -18,19 +18,22 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 
 - `tournaments.draft_state`: none (reads as scheduled while it has a day and captains) → **open** → **closed**. Whoever
   runs the draft (`run:Draft`) opens and closes it; nothing happens on its own.
-- **The pick order is drawn as the draft opens**, not the order the captains were named in, which means nothing:
-  being named first mustn't mean picking first. The first opening (not yet open, or after a reset) draws it on the
-  server, a Fisher-Yates shuffle on `crypto.getRandomValues`, and stores it as `tournament_teams.pick` (1 = first) in
-  the same batch as the opening, so two admins tapping Open can't draw twice. It's fixed from then on: opening again,
-  closing and reopening, and saving the editor keep it, and the editor can't reorder the captains (it shows the drawn
-  numbers once there are some). It's round one's; the snake turns it each round. A reset clears it, and the next
-  opening draws again. Until it's drawn, `pick` is null and the app shows the captains without numbers ("Order drawn
-  when the draft starts").
-- **Everyone sees the draw happen.** The opening reaches every open Draft page at once ([0072](0072-live-updates.md));
-  a page that sees the order arrive shuffles the captains' names a few times (Svelte `flip`, about two and a half
-  seconds) and settles them into the drawn order with the numbers stamped on, and on the Kumite its blood seal
-  (`lib/DraftOrder.svelte`). Someone opening the page later, or asking for less motion, just sees the order. The
-  shuffle on screen is only for show: the order is the server's.
+- **Two steps: set the order, then start the draft.** The pick order is never the order the captains were named in,
+  which means nothing: being named first mustn't mean picking first. Before it opens, whoever runs the draft taps
+  **Set the order** (`POST …/draft/draw`, `run:Draft`): the server draws it, a Fisher-Yates shuffle on
+  `crypto.getRandomValues`, and stores it as `tournament_teams.pick` (1 = first). Each number is set only while some
+  captain is still without one, in one batch, so a second admin's tap a moment later changes nothing. Then **Start the
+  draft** (`…/draft/open`) opens it; opening with no order set is refused (409, "Set the order first."). The order is
+  fixed from then on: setting it again, opening, closing and reopening, and saving the editor keep it, and the editor
+  can't reorder the captains. Changing the captains before it opens takes the order away (it was for the old ones),
+  to be set again; a reset takes it away too. It's round one's; the snake turns it each round. Until it's set, `pick`
+  is null and the app shows the captains without numbers ("Waiting for the order").
+- **Everyone sees the order set.** Setting it reaches every open Draft page at once ([0072](0072-live-updates.md);
+  the page follows the stream before it opens, from the draft's day); a page that sees the order arrive shuffles the
+  captains' names (Svelte `flip`, about two and a half seconds) and settles them into the order with the numbers
+  stamped on, and on the Kumite its blood seal (`lib/DraftOrder.svelte`). A captain reads their place in words ("you
+  pick 2nd"), there and on the series' home card. Someone opening the page later, or asking for less motion, just
+  sees the order. The shuffle on screen is only for show: the order is the server's.
 - Opening needs at least two captains, and the first time enough sign-ups for every team to have its captain and two
   more (`MIN_TEAM_SIZE`, `playersNeeded` in `src/lib/draft.ts`). Otherwise 409.
 - Closing needs everyone picked, or the admin choosing to leave the rest out. Closed locks the picks and the captains.
@@ -50,6 +53,12 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 - **Picking is two steps.** Pick marks a player on your screen (tap another to change your mind); **End turn** sends
   it. The server is unchanged: a pick is one request. Whoever runs the draft picks for the captain on the clock the
   same way. Picking out of turn, or someone no longer in the pool, is a 409.
+- **A pick made for a captain says so.** Each pick records who made it (`tournament_team_players.picked_by`). When
+  that isn't the team's captain, the app says it as theirs, for that team: "Dana picked Reg for Team Cara" on the
+  last-pick line, "Dana took Reg" on the ticker, "Dana for Team Cara" in the pick log, "Dana's pick" on the team card,
+  and before the pick "Picking for Team Cara" and "Pick for Cara". The record gets `draft.picked_for`, naming the
+  player, the captain and who picked; a captain's own pick stays off it (it's the draft's own record). Members who
+  see the teams once it's closed get no pick numbers and no pickers.
 - **One goalie a team** (`members.position = 'G'`), counting its captain, however someone gets onto a team: a
   captain's pick, a pick by whoever runs it, or an admin's team edit. A second is refused: "They've got a goalie
   already." Teams that enter whole (`kind: "teams"`) bring their own side. The Draft page has goalies as their own
@@ -59,8 +68,15 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 
 ### Where it's edited
 
-- The Draft page is for picking and running the draft (open, close, reopen, reset, Undo, Add player). It shows the
-  teams but doesn't edit them.
+- The Draft page is for picking and running the draft. It shows the teams but doesn't edit them. Before it starts
+  it shows the captains and the order (and, for whoever runs it, Set the order, then Start the draft). Once it's on,
+  the page is the draft: the order folds away (each team card shows its place, "1st"), the most room goes to the
+  players left, and what isn't picking is small or behind a tap. One line says whose pick it is, one under it who's
+  next and a captain's own place ("You pick 2nd"), one the last pick. Rules, the pick log and **Manage** (Undo, Add
+  player, Close, Reset: a bottom sheet on a phone, a side drawer on a desktop, asking there before closing with
+  players left or a reset) are icons on that first line. On a phone the series' header drops its date lines, the
+  ticker goes (the lines above say it), and the players scroll inside the window's height (`.page.fit`), starting
+  high. A closed draft keeps Reopen and Make the fixtures on the page.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).
 - The tournament editor changes teams **in place** (by id), never writes a draft's players or its pick order, and
@@ -111,3 +127,8 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-21: The pick order is drawn at random on the server as the draft first opens, not the order the captains
   were named in; fixed until a reset; shown without numbers until then, and shuffled into place for whoever's
   watching. The editor's pick numbers and its earlier/later buttons go.
+- 2026-10-21: Setting the order is its own step before the draft starts (Set the order, then Start the draft;
+  starting without it is refused), and a captain sees their place once it's set. A pick made for a captain records
+  who made it (`picked_by`) and says so everywhere, and on the record. Once the draft's on the Draft page gives the
+  room to the picking: the order folds away onto the team cards, the admin's buttons go behind Manage, and on a phone
+  the players scroll inside the window.

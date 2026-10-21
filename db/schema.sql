@@ -506,7 +506,9 @@ CREATE TABLE tournament_team_players (
   -- Their order on the team (a draft's picks come in this order)
   position INTEGER NOT NULL DEFAULT 0,
   -- A draft pick: its number in the whole draft (1, 2, …), which decides whose turn it is and what Undo takes back
-  pick_number INTEGER
+  pick_number INTEGER,
+  -- Who made a draft pick: the team's captain, or someone running the draft picking for them (ADR 0060)
+  picked_by INTEGER REFERENCES members (id) ON DELETE SET NULL
 );
 
 CREATE INDEX tournament_team_players_team ON tournament_team_players (team_id);

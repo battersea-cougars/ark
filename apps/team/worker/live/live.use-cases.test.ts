@@ -76,19 +76,23 @@ async function draftNight({ opened = true } = {}) {
     ).toBe(200);
   // The draw (seeded) puts Cara first
   w.luck(1);
+  const draw = () => dana.call("POST", `/api/tournaments/${id}/draft/draw`, {}, { now: DRAFT_DAY });
   const open = () => dana.call("POST", `/api/tournaments/${id}/draft/open`, {}, { now: DRAFT_DAY });
-  if (opened) expect((await open()).status).toBe(200);
+  if (opened) {
+    expect((await draw()).status).toBe(200);
+    expect((await open()).status).toBe(200);
+  }
   const pick = (as: { call: typeof dana.call }, memberId: number) =>
     as.call("POST", `/api/tournaments/${id}/draft/picks`, { memberId }, { now: DRAFT_DAY });
-  return { dana, id, open, pick, sees, reg: await idOf("Reg Player") };
+  return { dana, id, draw, open, pick, sees, reg: await idOf("Reg Player") };
 }
 
 describe("a draft night, with every captain's phone on the draft room", () => {
-  it("opening the draft reaches every phone at once, and each reads the same drawn pick order", async () => {
+  it("the draw reaches every phone at once, and each reads the same drawn pick order", async () => {
     const night = await draftNight({ opened: false });
     const cole = await listening("cole@example.com");
     const reg = await listening("reg@example.com");
-    expect((await night.open()).status).toBe(200);
+    expect((await night.draw()).status).toBe(200);
     expect((await cole.next()).data.changed).toContain("tournaments");
     expect((await reg.next()).data.changed).toContain("tournaments");
     const order = async (email: string) =>

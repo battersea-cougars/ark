@@ -166,8 +166,8 @@ const PARTS = {
      FROM tournament_teams t, viewer v ORDER BY t.tournament_id, coalesce(t.pick, 1000), t.id`,
   ),
   tournamentPlayers: rows(
-    "teamId memberId name pick",
-    `SELECT team_id teamId, member_id memberId, name, pick_number pick FROM tournament_team_players
+    "teamId memberId name pick pickedBy",
+    `SELECT team_id teamId, member_id memberId, name, pick_number pick, picked_by pickedBy FROM tournament_team_players
      ORDER BY team_id, coalesce(pick_number, position), id`,
   ),
   games: rows(

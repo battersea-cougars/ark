@@ -1,5 +1,5 @@
 // A captains' draft (ADR 0060, after 0052; reset and reopen: 0064, 0066; one goalie a team: 0067). An admin opens it on
-// the night, which draws the captains' pick order at random; the captains take turns, in snake order from it,
+// the night, once the captains' pick order is drawn at random (step 1, drawOrder); the captains take turns, in snake order from it,
 // picking from the members who said they're in (captains are in automatically and never picked); an admin closes it
 // once everyone's picked, or leaving the rest out on purpose, and then the teams are locked. Someone running the draft
 // (run:Draft) can pick for the captain on the clock, and undo the last pick.
@@ -65,16 +65,50 @@ export function shuffled<T>(items: readonly T[]): T[] {
   return out;
 }
 
+/** Whether the pick order's been drawn: every captain has their number (the editor undraws it if they change). */
+async function isDrawn(db: D1Database, tournamentId: number) {
+  const n = await first<{ teams: number; drawn: number }>(
+    db,
+    "SELECT COUNT(*) teams, COUNT(pick) drawn FROM tournament_teams WHERE tournament_id = ?",
+    [tournamentId],
+  );
+  return !!n && n.teams > 0 && n.drawn === n.teams;
+}
+
 /**
- * An admin opens the draft: the captains can pick. The first time (not yet open, or reset), it draws the captains'
- * pick order at random: the order they were named in means nothing. It's round one's; the snake turns it after. A
- * closed one reopens with its picks and its order, where it left off (0066).
+ * Step 1 (ADR 0060): someone running the draft draws the captains' pick order at random, before it opens: the order
+ * they were named in means nothing. It's round one's; the snake turns it after. Drawn once: drawing again, opening and
+ * reopening keep it, and only a reset (or changing the captains before it opens) takes it away.
+ */
+export async function drawOrder(db: D1Database, tournamentId: number) {
+  await tournamentOf(db, tournamentId);
+  const teams = await teamsOf(db, tournamentId);
+  if (teams.length < 2) throw new HttpError(409, "A draft needs at least two captains.");
+  if (await isDrawn(db, tournamentId)) return;
+  // One batch, each number set only while some captain's still without one: a second admin's draw, a moment later,
+  // finds them all numbered and changes nothing
+  await batch(
+    db,
+    shuffled(teams).map((team, i) =>
+      statement(
+        db,
+        `UPDATE tournament_teams SET pick = ? WHERE id = ?
+         AND (SELECT COUNT(*) FROM tournament_teams WHERE tournament_id = ? AND pick IS NULL) > 0`,
+        [i + 1, team.id, tournamentId],
+      ),
+    ),
+  );
+}
+
+/**
+ * Step 2: an admin opens the draft, once the order's drawn: the captains can pick. A closed one reopens with its
+ * picks and its order, where it left off (0066).
  */
 export async function openDraft(db: D1Database, tournamentId: number) {
-  const t = await tournamentOf(db, tournamentId);
-  const teams = await teamsOf(db, tournamentId);
-  const captains = teams.length;
+  await tournamentOf(db, tournamentId);
+  const captains = (await teamsOf(db, tournamentId)).length;
   if (captains < 2) throw new HttpError(409, "A draft needs at least two captains.");
+  if (!(await isDrawn(db, tournamentId))) throw new HttpError(409, "Set the order first.");
   // The first time, only with enough to pick from: every team its captain and two more (a reopened one carries on)
   const picked = await first<{ n: number }>(db, `SELECT (${PICKS}) n`, [tournamentId]);
   if (!picked?.n) {
@@ -90,20 +124,7 @@ export async function openDraft(db: D1Database, tournamentId: number) {
         `Not enough players yet: a team's at least ${MIN_TEAM_SIZE}, so the draft needs ${need} signed up for ${captains} captains: ${pool?.n ?? 0} so far.`,
       );
   }
-  // Drawn once, as it opens, in one batch with the opening: two admins tapping Open at once can't draw twice, as the
-  // second finds it open already
-  const draw =
-    t.state === "none"
-      ? shuffled(teams).map((team, i) =>
-          statement(
-            db,
-            `UPDATE tournament_teams SET pick = ? WHERE id = ?
-             AND (SELECT draft_state FROM tournaments WHERE id = ?) = 'none'`,
-            [i + 1, team.id, tournamentId],
-          ),
-        )
-      : [];
-  await batch(db, [...draw, statement(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ?", [tournamentId])]);
+  await run(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ?", [tournamentId]);
   await syncTournament(db, tournamentId);
 }
 
@@ -135,7 +156,7 @@ export async function resetDraft(db: D1Database, tournamentId: number) {
     [tournamentId],
   );
   await run(db, "UPDATE tournaments SET draft_state = 'none' WHERE id = ?", [tournamentId]);
-  // And its pick order: the next opening draws again
+  // And its pick order: it's drawn again before it next opens
   await run(db, "UPDATE tournament_teams SET pick = NULL WHERE tournament_id = ?", [tournamentId]);
   // Its draft night comes back to the agenda
   await syncTournament(db, tournamentId);
@@ -179,12 +200,25 @@ export async function pick(
   // and no other pick has landed since
   const res = await run(
     db,
-    `INSERT INTO tournament_team_players (team_id, member_id, name, position, pick_number)
+    `INSERT INTO tournament_team_players (team_id, member_id, name, position, pick_number, picked_by)
      SELECT ?, ?, '', (SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?),
             (SELECT coalesce(max(p.pick_number), 0) + 1 FROM tournament_team_players p
-             JOIN tournament_teams t ON t.id = p.team_id WHERE t.tournament_id = ?)
+             JOIN tournament_teams t ON t.id = p.team_id WHERE t.tournament_id = ?), ?
      WHERE ? IN (${POOL}) AND (${PICKS}) = ?`,
-    [team.id, memberId, team.id, tournamentId, memberId, tournamentId, tournamentId, tournamentId, tournamentId, made],
+    [
+      team.id,
+      memberId,
+      team.id,
+      tournamentId,
+      // Who picked: the captain, or whoever runs the draft picking for them, which the app and the record say
+      by.memberId,
+      memberId,
+      tournamentId,
+      tournamentId,
+      tournamentId,
+      tournamentId,
+      made,
+    ],
   );
   if (!res.meta.changes)
     throw new HttpError(409, "They can't be picked: not signed up, a captain, already picked, or someone just picked.");
@@ -307,6 +341,22 @@ export async function takeOffTeam(db: D1Database, tournamentId: number, teamId: 
   await teamOf(db, tournamentId, teamId);
   await run(db, "DELETE FROM tournament_team_players WHERE team_id = ? AND member_id = ?", [teamId, memberId]);
 }
+
+/**
+ * The latest pick someone made for a captain (ADR 0060): whoever runs the draft picking for the team on the clock. The
+ * record's subject, so a pick for someone else goes on it, naming both, and a captain's own doesn't.
+ */
+export const lastPickedFor = (db: D1Database, tournamentId: number) =>
+  first(
+    db,
+    `SELECT p.pick_number pick, p.member_id memberId, m.name player, t.id teamId, t.captain_member_id captainMemberId,
+            c.name captain, p.picked_by pickedBy
+     FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+     LEFT JOIN members m ON m.id = p.member_id LEFT JOIN members c ON c.id = t.captain_member_id
+     WHERE t.tournament_id = ? AND p.pick_number IS NOT NULL AND p.picked_by IS NOT t.captain_member_id
+     ORDER BY p.pick_number DESC LIMIT 1`,
+    [tournamentId],
+  );
 
 /** How far a draft has got: its state and picks made (the record, ADR 0095). */
 export const draftProgress = (db: D1Database, tournamentId: number) =>

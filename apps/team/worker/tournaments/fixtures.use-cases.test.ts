@@ -144,6 +144,7 @@ describe("fixtures", () => {
     // Not opened yet: the teams are their captains, and that's enough to play each other
     expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
     // The draft opening and closing leaves them be
+    await dana.call("POST", `/api/tournaments/${id}/draft/draw`, {});
     await dana.call("POST", `/api/tournaments/${id}/draft/open`, {});
     await dana.call("POST", `/api/tournaments/${id}/draft/close`, { leaveOut: true });
     const games = (await sees()).tournaments.find((t: Json) => t.id === id).games;
