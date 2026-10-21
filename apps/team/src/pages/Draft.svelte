@@ -1492,8 +1492,8 @@
     right: auto;
     left: var(--s-1);
   }
-  /* The chevrons: only where there's a pointer. A soft fade of the page behind, the chevron half seen, firmer under
-     the pointer; gone when there's nothing further that way */
+  /* The chevrons: only where there's a pointer. Just the chevron over the chips, half seen, firmer under the pointer;
+     gone when there's nothing further that way */
   .edge {
     display: none;
   }
@@ -1508,7 +1508,7 @@
       width: 2.75rem;
       padding: 0;
       border: 0;
-      background: linear-gradient(90deg, var(--bg) 20%, transparent);
+      background: none;
       color: var(--fg);
       opacity: 0.45;
       cursor: pointer;
@@ -1522,7 +1522,6 @@
     }
     .edge.right {
       right: 0;
-      background: linear-gradient(270deg, var(--bg) 20%, transparent);
     }
     .edge.gone {
       opacity: 0;
