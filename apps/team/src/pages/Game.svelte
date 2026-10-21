@@ -893,18 +893,20 @@
     {/if}
     {#snippet footer()}
       <!-- What's still needed, in a line kept for it -->
-      <p class="hint foot-hint" aria-live="polite">{callNeeds}</p>
-      <div class="when-actions">
-        {#if fixing}
-          <button class="btn outline name-skip" disabled={busy || !!callNeeds} onclick={() => savePenalty(false)}
-            >Don't know when</button
+      <div class="call-foot">
+        <p class="hint foot-hint" aria-live="polite">{callNeeds}</p>
+        <div class="when-actions">
+          {#if fixing}
+            <button class="btn outline name-skip" disabled={busy || !!callNeeds} onclick={() => savePenalty(false)}
+              >Don't know when</button
+            >
+          {:else}
+            <button class="btn outline name-skip" onclick={() => (calling = null)}>Cancel</button>
+          {/if}
+          <button class="btn primary name-skip" disabled={busy || !!callNeeds} onclick={() => savePenalty(true)}
+            >{fixing ? "Add the penalty" : `Penalty${calling ? ` · ${calling.minutes} min` : ""}`}</button
           >
-        {:else}
-          <button class="btn outline name-skip" onclick={() => (calling = null)}>Cancel</button>
-        {/if}
-        <button class="btn primary name-skip" disabled={busy || !!callNeeds} onclick={() => savePenalty(true)}
-          >{fixing ? "Add the penalty" : `Penalty${calling ? ` · ${calling.minutes} min` : ""}`}</button
-        >
+        </div>
       </div>
     {/snippet}
   </Drawer>
@@ -1206,6 +1208,10 @@
   }
   .when-period {
     margin-bottom: var(--s-4);
+  }
+  .call-foot {
+    display: grid;
+    width: 100%;
   }
   .foot-hint {
     min-height: 1.4em;
