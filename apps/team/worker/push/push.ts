@@ -5,7 +5,7 @@
 // it's sent: a send is a batch small enough for the free plan, and the cron sends the rest.
 import { batch, run, statement } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
-import { sendAll, type Message, type Outcome } from "./fcm";
+import { sendAll, type Message, type Outcome, type Result } from "./fcm";
 import { scribe } from "@cougars/shared/scribe";
 import type { Topic } from "../../src/lib/notification-topics";
 
@@ -163,20 +163,22 @@ export async function drainPush(env: PushEnv, now: Date, atOnce = DRAIN_AT_ONCE)
  */
 async function send(env: PushEnv, rows: Claimed[], claimId: string, now: Date) {
   if (!rows.length) return;
-  let outcomes: Outcome[];
+  let results: Result[];
   if (!env.FIREBASE_SERVICE_ACCOUNT) {
     for (const { id: _id, tries: _tries, ...m } of rows) pushOutbox.capture?.(m);
     log.info("push.logged", { phones: rows.length, title: rows[0].title });
-    outcomes = rows.map(() => "sent");
+    results = rows.map(() => ({ outcome: "sent" }));
   } else {
     try {
-      outcomes = await sendAll(env.FIREBASE_SERVICE_ACCOUNT, rows, now.getTime());
+      results = await sendAll(env.FIREBASE_SERVICE_ACCOUNT, rows, now.getTime());
     } catch (e) {
       // A notification never fails the change it's about: this batch is tried again later
       log.error("push.failed", e);
-      outcomes = rows.map(() => "failed");
+      results = rows.map(() => ({ outcome: "failed" }));
     }
   }
+  const outcomes: Outcome[] = results.map((r) => r.outcome);
+  const reasons = [...new Set(results.flatMap((r) => (r.reason ? [r.reason] : [])))];
   const idsOf = (keep: (r: Claimed, outcome: Outcome) => boolean) =>
     JSON.stringify(rows.filter((r, i) => keep(r, outcomes[i])).map((r) => r.id));
   const lastTry = (r: Claimed) => r.tries + 1 >= PUSH_TRIES;
@@ -206,6 +208,6 @@ async function send(env: PushEnv, rows: Claimed[], claimId: string, now: Date) {
       JSON.stringify(gone),
     ]),
   ]);
-  if (failed) log.error("push.failed", { failed, of: rows.length });
+  if (failed) log.error("push.failed", { failed, of: rows.length, reasons });
   if (givenUp) log.error("push.gave_up", { phones: givenUp, tries: PUSH_TRIES });
 }

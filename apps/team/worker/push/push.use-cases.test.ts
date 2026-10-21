@@ -418,6 +418,19 @@ describe("a club-wide send, within the free plan", () => {
     expect(logs.messages()).toContain("push.gave_up");
   });
 
+  it("a send Firebase refuses logs Firebase's reason, so a wrong Apple key shows in the log", async () => {
+    const logs = captureLogs();
+    const fcm = await w.firebase();
+    // What Firebase says when the Apple push key it holds is wrong or missing (an upload in the wrong slot)
+    fcm.answers.set("token-reg@example.com", "apns");
+    await phone("reg@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
+
+    const failed = logs.entries.find((e) => e.msg === "push.failed");
+    expect(failed?.fields).toMatchObject({ failed: 1, of: 1, reasons: ["THIRD_PARTY_AUTH_ERROR"] });
+  });
+
   it("costs the same round trips to the database for 3 phones as for 120, at once and on the cron", async () => {
     const tripsFor = async (job: () => Promise<unknown>) => {
       const before = w.db.roundTrips;

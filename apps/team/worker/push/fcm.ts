@@ -20,6 +20,13 @@ export interface Message {
 /** What Firebase said: sent, gone (the app was removed or the token replaced: forget the phone), or failed. */
 export type Outcome = "sent" | "gone" | "failed";
 
+/** An outcome, and for a failure Firebase's reason (its error code, e.g. THIRD_PARTY_AUTH_ERROR: Apple refused the
+ * key Firebase holds), for the log. */
+export interface Result {
+  outcome: Outcome;
+  reason?: string;
+}
+
 const b64url = (bytes: Uint8Array | string) =>
   btoa(typeof bytes === "string" ? bytes : String.fromCharCode(...bytes))
     .replace(/=+$/, "")
@@ -65,12 +72,12 @@ async function accessToken(account: ServiceAccount, now: number): Promise<string
  * Send each message (one request each: FCM has no batch send any more); what became of each, in the same order. Each
  * is a subrequest, so callers send a batch of at most SEND_AT_ONCE (push.ts); the Worker runs six at a time.
  */
-export async function sendAll(serviceAccount: string, messages: Message[], now = Date.now()): Promise<Outcome[]> {
+export async function sendAll(serviceAccount: string, messages: Message[], now = Date.now()): Promise<Result[]> {
   const account = JSON.parse(serviceAccount) as ServiceAccount;
   const token = await accessToken(account, now);
   const url = `https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`;
   return Promise.all(
-    messages.map(async (m): Promise<Outcome> => {
+    messages.map(async (m): Promise<Result> => {
       const res = await fetch(url, {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
@@ -83,10 +90,13 @@ export async function sendAll(serviceAccount: string, messages: Message[], now =
           },
         }),
       });
-      if (res.ok) return "sent";
-      const error = (await res.json().catch(() => ({}))) as { error?: { details?: { errorCode?: string }[] } };
+      if (res.ok) return { outcome: "sent" };
+      const error = (await res.json().catch(() => ({}))) as {
+        error?: { status?: string; details?: { errorCode?: string }[] };
+      };
       const code = error.error?.details?.find((d) => d.errorCode)?.errorCode;
-      return res.status === 404 || code === "UNREGISTERED" ? "gone" : "failed";
+      if (res.status === 404 || code === "UNREGISTERED") return { outcome: "gone" };
+      return { outcome: "failed", reason: code ?? error.error?.status ?? `HTTP ${res.status}` };
     }),
   );
 }

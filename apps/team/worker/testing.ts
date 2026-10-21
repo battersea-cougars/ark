@@ -110,7 +110,7 @@ export function testWorld(roster: object[]) {
       sendUrl,
       /** Every send FCM was asked for, in order, whatever it answered. */
       asked: [] as { token: string; title: string; body: string; path: string }[],
-      answers: new Map<string, "gone" | "failed">(),
+      answers: new Map<string, "gone" | "failed" | "apns">(),
       down: false,
       fetches: 0,
       /** Subrequests made by each invocation (a request, or a cron run) since Firebase was turned on: fetches, emails
@@ -148,6 +148,17 @@ export function testWorld(roster: object[]) {
             { status: 404 },
           );
         if (answer === "failed") return Response.json({ error: { status: "UNAVAILABLE" } }, { status: 503 });
+        if (answer === "apns")
+          return Response.json(
+            {
+              error: {
+                message: "Invalid APNs credential.",
+                status: "UNAUTHENTICATED",
+                details: [{ errorCode: "THIRD_PARTY_AUTH_ERROR" }],
+              },
+            },
+            { status: 401 },
+          );
         pushes.push({ ...sent, memberId: memberOf(sent.token) });
         return Response.json({ name: `projects/${project}/messages/${world.asked.length}` });
       }),
