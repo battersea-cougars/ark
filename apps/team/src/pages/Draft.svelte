@@ -44,7 +44,7 @@
   import { checkForUpdates, everyHowOften, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { formatDayDate, londonISO, londonToday } from "../lib/dates";
-  import { MIN_TEAM_SIZE, nth, onTheClock, orderDrawn, playersNeeded } from "../lib/draft";
+  import { MIN_TEAM_SIZE, myTurnLine, nth, onTheClock, orderDrawn, picksUntil, playersNeeded } from "../lib/draft";
   import { teamsForPlayoffs } from "../lib/fixtures";
   import { navigate } from "../app/router.svelte";
 
@@ -107,9 +107,13 @@
   };
   // Who picks after the one on the clock, and a captain's own place (round one's, from the order)
   const nextUp = $derived(teams.length ? onTheClock(teams.length, made + 1) : -1);
-  const myPlace = $derived(
-    myTeam >= 0 && typeof teams[myTeam]?.pick === "number" ? `You pick ${nth(teams[myTeam].pick!)}` : "",
-  );
+  // A captain's: their place and how soon they pick again (lib/draft.ts). Not for someone picked onto a team, nor an
+  // admin who isn't a captain
+  const myPlace = $derived.by(() => {
+    const t = myTeam >= 0 ? teams[myTeam] : undefined;
+    if (!t || t.captainMemberId !== me().id || typeof t.pick !== "number") return "";
+    return myTurnLine(t.pick, picksUntil(teams.length, made, myTeam, pool.length));
+  });
   const untilMine = $derived(myTeam < 0 || turnIn(myTeam) === Infinity ? -1 : turnIn(myTeam));
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
   // The captains in the server's order: as named until the draft opens and draws it (ADR 0060)
@@ -585,7 +589,7 @@
         <span class="turn">{whenSaid ? `Draft ${whenSaid}` : "Draft date TBC"}</span>
       {/if}
       <div class="tools">
-        {#if open && !fit && myPlace}<span class="mine eyebrow">{myPlace}</span>{/if}
+        {#if open && !fit && myPlace}<span class="mine num">{myPlace}</span>{/if}
         {#if open}
           <!-- Picks show up as they're made while the hub's stream is open; else on the admins' beat (ADR 0072) -->
           <span
@@ -654,7 +658,7 @@
           {#if live && pool.length > 1}<span class="v">{nextUp === myTeam ? "You" : teamName(nextUp)}</span>{:else}<span
               class="k">{live ? "Nobody: this is the last pick" : "Everyone's picked"}</span
             >{/if}
-          {#if fit && myPlace}<span class="mine">{myPlace}</span>{/if}
+          {#if fit && myPlace}<span class="mine num">{myPlace}</span>{/if}
         </dd>
       </dl>
       <!-- For a screen reader: each pick as it lands, said whole (the ticker shows it) -->
@@ -982,6 +986,8 @@
     flex-shrink: 0;
     margin-left: auto;
     color: var(--fg-muted);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
   }
   .tools .mine {
     align-self: center;
@@ -1027,6 +1033,16 @@
   .draft.fit .turn {
     height: 2.25rem;
     font-size: 1.2rem;
+  }
+  /* A long turn ("Picking for Team Charlie") gives way to the icons, fading at its end, rather than pushing them off */
+  .draft.fit .strip .turn {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .draft.fit .strip .tools {
+    flex-shrink: 0;
   }
   .draft.fit .lines {
     margin-top: 0;

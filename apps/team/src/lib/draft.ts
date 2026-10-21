@@ -23,6 +23,23 @@ export const nth = (n: number) => {
 export const orderDrawn = (teams: { pick?: number | null }[]) =>
   teams.length > 0 && teams.every((t) => typeof t.pick === "number");
 
+/**
+ * How many picks until a team's next turn, after `made` picks among `teams` teams in snake order, with `left` still
+ * to pick: 0 when it's on the clock, Infinity when the pool runs out first.
+ */
+export function picksUntil(teams: number, made: number, team: number, left: number): number {
+  for (let k = 0; k < left; k++) if (onTheClock(teams, made + k) === team) return k;
+  return Infinity;
+}
+
+/** A captain's place and how soon they pick: "You pick 2nd · next in 3", "· you're next", "· now", or just the place. */
+export function myTurnLine(place: number, until: number): string {
+  const said = `You pick ${nth(place)}`;
+  if (until === 0) return `${said} · now`;
+  if (until === 1) return `${said} · you're next`;
+  return until === Infinity ? said : `${said} · next in ${until}`;
+}
+
 /** Enough of a tournament to say where its draft stands. */
 interface Drafting {
   teams: { captainMemberId: number | null; players: { memberId: number | null; pick?: number | null }[] }[];
