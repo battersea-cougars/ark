@@ -26,6 +26,13 @@ export const RESULTS_SQL = {
     FROM tournament_goals o JOIN tournament_games g ON g.id = o.game_id
     LEFT JOIN members s ON s.id = o.scorer_member_id LEFT JOIN members a ON a.id = o.assist_member_id
     WHERE g.tournament_id IN (${PUBLIC}) AND g.status = 'done'`,
+  // Penalties (ADR 0061): a game's minutes a side, a player's beside their goals. Only who and how long: what for
+  // and when stay in the app
+  penalties: `SELECT g.tournament_id tournamentId, o.game_id gameId, o.team_id teamId, m.id memberId,
+      m.name memberName, m.web_name memberWebName, o.minutes
+    FROM tournament_penalties o JOIN tournament_games g ON g.id = o.game_id
+    LEFT JOIN members m ON m.id = o.member_id
+    WHERE g.tournament_id IN (${PUBLIC}) AND g.status = 'done'`,
   winners: `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, m.name memberName,
       m.web_name memberWebName
     FROM tournament_award_winners w LEFT JOIN members m ON m.id = w.member_id

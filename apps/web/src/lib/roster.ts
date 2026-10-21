@@ -19,6 +19,8 @@ export interface RosterRow {
   /** From tournaments on the website (ADR 0100). */
   goals?: number;
   assists?: number;
+  /** Penalty minutes. */
+  pim?: number;
   titles?: number;
 }
 
@@ -36,6 +38,7 @@ export const toPlayer = (r: RosterRow): Player => ({
       tournaments: r.tournaments ?? 0,
       goals: r.goals ?? 0,
       assists: r.assists ?? 0,
+      pim: r.pim ?? 0,
       titles: r.titles ?? 0,
     },
   }),

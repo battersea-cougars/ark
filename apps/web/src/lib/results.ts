@@ -32,6 +32,9 @@ export interface PublishedGame {
   away: string;
   homeGoals: number;
   awayGoals: number;
+  /** Penalty minutes a side (ADR 0061). */
+  homePim: number;
+  awayPim: number;
 }
 
 export interface PublishedEdition {
@@ -60,8 +63,8 @@ export interface PublishedEdition {
     pts: number;
   }[];
   games: PublishedGame[];
-  /** Everyone with a goal or an assist: most goals, then most assists. */
-  scorers: { name: string; team: string; goals: number; assists: number }[];
+  /** Everyone with a goal, an assist or a penalty: most goals, then most assists, then fewest penalty minutes. */
+  scorers: { name: string; team: string; goals: number; assists: number; pim: number }[];
 }
 
 /** The snapshot's rows, as scripts/lib/results-sql.mjs reads them. */
@@ -112,6 +115,16 @@ export interface ResultRows {
     assistName: string | null;
     assistWebName: string | null;
   }[];
+  /** Missing from a snapshot taken before penalties were kept. */
+  penalties?: {
+    tournamentId: number;
+    gameId: number;
+    teamId: number;
+    memberId: number | null;
+    memberName: string | null;
+    memberWebName: string | null;
+    minutes: number;
+  }[];
   winners: {
     tournamentId: number;
     award: string;
@@ -157,6 +170,9 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
     const crestOf = new Map(teams.map((x) => [x.id, crestFile(x.id, x.logo)?.path ?? null]));
     const points = { win: t.pointsWin, draw: t.pointsDraw, loss: t.pointsLoss };
     const teamIds = teams.map((x) => x.id);
+    const penalties = (rows.penalties ?? []).filter((p) => p.tournamentId === t.id);
+    const pimOf = (gameId: number, teamId: number) =>
+      penalties.filter((p) => p.gameId === gameId && p.teamId === teamId).reduce((n, p) => n + p.minutes, 0);
 
     // The champions: as confirmed, else worked out from the games
     const winners = rows.winners.filter((w) => w.tournamentId === t.id);
@@ -211,12 +227,15 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
                 away: nameOf.get(g.awayTeamId)!,
                 homeGoals: g.homeGoals,
                 awayGoals: g.awayGoals,
+                homePim: pimOf(g.id, g.homeTeamId),
+                awayPim: pimOf(g.id, g.awayTeamId),
               },
             ]
           : [],
       ),
       scorers: scorersOf(
         rows.goals.filter((o) => o.tournamentId === t.id),
+        penalties,
         nameOf,
       ),
     });
@@ -240,13 +259,20 @@ function teamNamer(teams: TeamRow[]) {
   };
 }
 
-function scorersOf(goals: ResultRows["goals"], teamName: Map<number, string>) {
-  const by = new Map<number, { name: string; team: string; goals: number; assists: number }>();
+function scorersOf(
+  goals: ResultRows["goals"],
+  penalties: NonNullable<ResultRows["penalties"]>,
+  teamName: Map<number, string>,
+) {
+  const by = new Map<number, { name: string; team: string; goals: number; assists: number; pim: number }>();
   const tally = (id: number | null, name: string | null, webName: string | null, teamId: number) => {
     if (!id || !name) return null;
     let s = by.get(id);
     if (!s)
-      by.set(id, (s = { name: onTheWebsite(name, webName), team: teamName.get(teamId) ?? "", goals: 0, assists: 0 }));
+      by.set(
+        id,
+        (s = { name: onTheWebsite(name, webName), team: teamName.get(teamId) ?? "", goals: 0, assists: 0, pim: 0 }),
+      );
     return s;
   };
   for (const o of goals) {
@@ -255,5 +281,12 @@ function scorersOf(goals: ResultRows["goals"], teamName: Map<number, string>) {
     const assist = tally(o.assistId, o.assistName, o.assistWebName, o.teamId);
     if (assist) assist.assists++;
   }
-  return [...by.values()].sort((a, b) => b.goals - a.goals || b.assists - a.assists || a.name.localeCompare(b.name));
+  // A bench penalty is nobody's
+  for (const p of penalties) {
+    const s = tally(p.memberId, p.memberName, p.memberWebName, p.teamId);
+    if (s) s.pim += p.minutes;
+  }
+  return [...by.values()].sort(
+    (a, b) => b.goals - a.goals || b.assists - a.assists || a.pim - b.pim || a.name.localeCompare(b.name),
+  );
 }

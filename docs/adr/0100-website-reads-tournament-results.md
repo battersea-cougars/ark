@@ -1,7 +1,7 @@
 # 0100. Tournament results are built into the website from D1, and the team app rebuilds it when one changes
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-09
+- **Date:** 2026-10-09 · updated 2026-10-21
 
 ## Context
 
@@ -32,7 +32,9 @@ Three ways were open:
 - **One rule set.** The table, the champion and "done" live in `@cougars/shared/results`, used by the Worker, the app
   and the website, so they can't disagree.
 - **Static pages.** `/results/` lists every published tournament, newest first; `/results/<id>/` shows its champions,
-  awards with their winners, the table, every score, the scorers and the teams. The champions board on the home page
+  awards with their winners, the table, every score, the scorers and the teams. Where there were penalties, each
+  game says its penalty minutes a side ("PIM 4–2") and the scorers become Players, with a PIM column (who and how
+  long only: what for and when stay in the app). The champions board on the home page
   and `/kumite/` is built in. Crests are written as files (`/crests/<team id>.webp`), only for published teams, never
   SVG. Award winners show only once an admin has confirmed them; with no confirmed Champions, the champions are worked
   out from the games.
@@ -48,9 +50,9 @@ Three ways were open:
   initial (`@cougars/shared/names`, as on the roster). That includes members who aren't Cougars, and players from
   outside the club, who have no profile. A team with no name of its own is "Team" and its captain's chosen name, else
   their first name. A full name never reaches a page.
-- **Player stats** on `/team/` and the back of a card add goals, assists and titles, from published tournaments only,
-  in the roster snapshot (`scripts/lib/roster-sql.mjs`, #65). Goals and assists count from played games, as on a
-  result. A title is a tournament whose Champions an admin confirmed, on that team as captain or player.
+- **Player stats** on `/team/` and the back of a card add goals, assists, penalty minutes (PIM) and titles, from published tournaments only,
+  in the roster snapshot (`scripts/lib/roster-sql.mjs`, #65). Goals, assists and penalty minutes count from played
+  games, as on a result. A title is a tournament whose Champions an admin confirmed, on that team as captain or player.
 - Sanity's `kumiteResult` type, its query and the Studio schema are gone.
 
 ## Consequences
@@ -73,3 +75,5 @@ Three ways were open:
   account's Worker requests; the team app rebuilds the website through the club's GitHub App when a result changes.
 - 2026-10-10: The rebuild runs `deploy.yml` directly (`workflow_dispatch`) instead of a `repository_dispatch`, so the
   App needs Actions: write, not Contents: write (#71).
+- 2026-10-21: Penalties reach the website: each game's penalty minutes a side, a player's PIM beside their goals on
+  a result, and PIM in the `/team/` stats and on a card.

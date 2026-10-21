@@ -78,11 +78,37 @@ async function cup(changes: object = {}) {
     ] as const)
       expect((await goal(team, scorer, assist)).status).toBe(200);
   };
+  /** A penalty an admin puts on the played game: on a player, or the bench. */
+  const penalty = (teamId: number, who: string | null, minutes: number) =>
+    dana.call("POST", `/api/tournaments/${id}/games/${game}/penalties`, {
+      teamId,
+      memberId: who ? idOf(who) : null,
+      minutes,
+      infraction: who ? "roughing" : "delay-of-game",
+    });
   const confirm = (list: object[]) => dana.call("PUT", `/api/tournaments/${id}/winners`, { winners: list });
-  return { dana, id, idOf, ants, bees, play, confirm };
+  return { dana, id, idOf, ants, bees, play, penalty, confirm };
 }
 
 describe("tournament results on the website", () => {
+  it("a played game's penalties show: each side's minutes, and each player's beside their goals", async () => {
+    const { id, play, penalty, ants, bees } = await cup();
+    await play();
+    expect((await penalty(ants, "Reg Player", 2)).status).toBe(200);
+    expect((await penalty(bees, "Mo Member", 5)).status).toBe(200);
+    expect((await penalty(bees, null, 2)).status).toBe(200);
+    const r = (await publishedEdition(id))!;
+    const g = r.games[0];
+    expect(g.home === "Ants" ? [g.homePim, g.awayPim] : [g.awayPim, g.homePim]).toEqual([2, 7]);
+    expect(r.scorers).toEqual(
+      expect.arrayContaining([
+        { name: "Reg P.", team: "Ants", goals: 0, assists: 1, pim: 2 },
+        { name: "Mo M.", team: "Bees", goals: 0, assists: 0, pim: 5 },
+      ]),
+    );
+    expect(JSON.stringify(r)).not.toMatch(FULL_NAMES);
+  });
+
   it("once the last game's played, anyone sees the champions, the table, the score and who scored", async () => {
     const cara = await w.signedIn("cara@example.com");
     expect((await cara.call("PUT", "/api/me", { position: "F", webName: "The Wall" })).status).toBe(200);
@@ -105,9 +131,9 @@ describe("tournament results on the website", () => {
     expect(g.home === "Ants" ? [g.homeGoals, g.awayGoals] : [g.awayGoals, g.homeGoals]).toEqual([2, 1]);
     // By the name they chose; else first name and initial
     expect(r.scorers).toEqual([
-      { name: "The Wall", team: "Ants", goals: 2, assists: 0 },
-      { name: "Cole C.", team: "Bees", goals: 1, assists: 0 },
-      { name: "Reg P.", team: "Ants", goals: 0, assists: 1 },
+      { name: "The Wall", team: "Ants", goals: 2, assists: 0, pim: 0 },
+      { name: "Cole C.", team: "Bees", goals: 1, assists: 0, pim: 0 },
+      { name: "Reg P.", team: "Ants", goals: 0, assists: 1, pim: 0 },
     ]);
     expect(r.teams.map((x) => [x.name, x.players])).toEqual([
       ["Ants", ["The Wall", "Reg P."]],

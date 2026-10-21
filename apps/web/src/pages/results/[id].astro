@@ -1,6 +1,6 @@
 ---
 // One tournament's result, as of this build (ADR 0100): the champions, the awards (once confirmed), the table, every
-// score, who scored and who played. Only a public tournament that's done has a page; the team app starts a rebuild
+// score (and each side's penalty minutes, ADR 0061), who scored and who played. Only a public tournament that's done has a page; the team app starts a rebuild
 // when a result changes.
 import type { GetStaticPaths } from "astro";
 import Base from "../../layouts/Base.astro";
@@ -20,6 +20,8 @@ const rounds = [
   { title: "Games", games: groups },
 ];
 const awards = r.awards.filter((a) => a.winners.length);
+// Penalty minutes show only where there were any
+const anyPim = r.scorers.some((s) => s.pim > 0) || r.games.some((g) => g.homePim + g.awayPim > 0);
 ---
 
 <Base
@@ -110,6 +112,11 @@ const awards = r.awards.filter((a) => a.winners.length);
                     {g.homeGoals}–{g.awayGoals}
                   </span>
                   <span class={g.awayGoals > g.homeGoals ? "side away won" : "side away"}>{g.away}</span>
+                  {g.homePim + g.awayPim > 0 && (
+                    <span class="pim muted">
+                      PIM {g.homePim}–{g.awayPim}
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>
@@ -119,7 +126,7 @@ const awards = r.awards.filter((a) => a.winners.length);
 
     {r.scorers.length > 0 && (
       <section class="block" data-reveal>
-        <p class="kicker">Scorers</p>
+        <p class="kicker">{anyPim ? "Players" : "Scorers"}</p>
         <div class="table-scroll">
           <table class="grid">
             <thead>
@@ -136,6 +143,11 @@ const awards = r.awards.filter((a) => a.winners.length);
                 <th class="label num" scope="col">
                   Assists
                 </th>
+                {anyPim && (
+                  <th class="label num" scope="col">
+                    <abbr title="Penalty minutes">PIM</abbr>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -145,6 +157,7 @@ const awards = r.awards.filter((a) => a.winners.length);
                   <td>{s.team}</td>
                   <td class="num">{s.goals}</td>
                   <td class="num">{s.assists}</td>
+                  {anyPim && <td class="num">{s.pim}</td>}
                 </tr>
               ))}
             </tbody>
@@ -274,6 +287,13 @@ const awards = r.awards.filter((a) => a.winners.length);
   .games .won {
     color: var(--text);
     font-weight: 600;
+  }
+  /* Each side's penalty minutes, under the score */
+  .games .pim {
+    grid-column: 2;
+    justify-self: center;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
   }
   .score {
     font-family: var(--display);

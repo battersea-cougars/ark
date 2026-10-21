@@ -91,6 +91,9 @@ const year = new Date().getFullYear();
                       Assists
                     </th>
                     <th class="label stat" scope="col">
+                      <abbr title="Penalty minutes">PIM</abbr>
+                    </th>
+                    <th class="label stat" scope="col">
                       Titles
                     </th>
                   </>
@@ -112,6 +115,7 @@ const year = new Date().getFullYear();
                       <td class="stat">{p.stats?.tournaments ?? "–"}</td>
                       <td class="stat">{p.stats?.goals ?? "–"}</td>
                       <td class="stat">{p.stats?.assists ?? "–"}</td>
+                      <td class="stat">{p.stats?.pim ?? "–"}</td>
                       <td class="stat">{p.stats?.titles ?? "–"}</td>
                     </>
                   )}

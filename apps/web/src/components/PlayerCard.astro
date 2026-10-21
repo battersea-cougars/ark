@@ -24,6 +24,7 @@ const stats = [
   // From tournaments on the website (ADR 0100), only once there's something to show
   ["Titles", p.stats?.titles || null],
   ["Goals", p.stats?.goals || null],
+  ["PIM", p.stats?.pim || null],
 ].filter(([, v]) => v);
 ---
 

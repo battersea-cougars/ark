@@ -42,7 +42,7 @@ describe("the website roster's record", () => {
     ]);
   });
 
-  it("counts goals, assists and titles from tournaments on the website only: public and done (ADR 0100)", () => {
+  it("counts goals, assists, penalty minutes and titles from tournaments on the website only: public and done (ADR 0100)", () => {
     const db = createTestD1().raw;
     const member = db.prepare(
       "INSERT INTO members (name, cougar, status, joined_on, created_at) VALUES (?, 1, 'active', '2025-01-01', '2025-01-01')",
@@ -83,7 +83,14 @@ describe("the website roster's record", () => {
         db
           .prepare("INSERT INTO tournament_award_winners (tournament_id, award, team_id) VALUES (?, 'Champions', ?)")
           .run(t, teamId);
-      return { ours, theirs, goal, champions };
+      const penalty = (teamId, memberId, minutes) =>
+        db
+          .prepare(
+            `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, created_at)
+             VALUES (?, ?, ?, ?, 'tripping', '2026-01-01')`,
+          )
+          .run(g, teamId, memberId, minutes);
+      return { ours, theirs, goal, champions, penalty };
     };
 
     const summer = cup("Summer Cup");
@@ -92,12 +99,17 @@ describe("the website roster's record", () => {
     summer.goal(summer.theirs, dee, null);
     summer.goal(summer.ours, null, sam); // a goal nobody named the scorer of, Sam's assist
     summer.champions(summer.ours);
+    summer.penalty(summer.ours, sam, 2);
+    summer.penalty(summer.ours, sam, 5);
+    summer.penalty(summer.theirs, null, 2); // a bench penalty: nobody's
     // Kept off the website, and one still being played: neither counts
     const members = cup("Members' Cup", { isPublic: 0 });
     members.goal(members.ours, sam);
     members.champions(members.ours);
     const today = cup("Today's Cup", { game: "live" });
     today.goal(today.ours, sam);
+    today.penalty(today.ours, sam, 2);
+    members.penalty(members.ours, dee, 2);
 
     const rows = Object.fromEntries(
       db
@@ -105,7 +117,7 @@ describe("the website roster's record", () => {
         .all()
         .map((r) => [r.name, r]),
     );
-    expect(rows["Sam Jones"]).toMatchObject({ goals: 2, assists: 1, titles: 1 });
-    expect(rows["Dee Fence"]).toMatchObject({ goals: 1, assists: 0, titles: 0 });
+    expect(rows["Sam Jones"]).toMatchObject({ goals: 2, assists: 1, titles: 1, pim: 7 });
+    expect(rows["Dee Fence"]).toMatchObject({ goals: 1, assists: 0, titles: 0, pim: 0 });
   });
 });
