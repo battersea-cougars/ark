@@ -1,4 +1,4 @@
-# 0120. Home's first paint: the data and every file it needs are asked for at once, under a JavaScript budget
+# 0120. Home's first paint: the app is imported up front, beside the data, under a JavaScript budget
 
 - **Status:** Accepted
 - **Date:** 2026-10-21
@@ -8,15 +8,17 @@
 Chrome DevTools rated the team app's Largest Contentful Paint (LCP) on Home 5.51 s, poor, on 4510. That is the Vite
 dev server ([0022](0022-team-app-svelte-pwa.md)): about two hundred unbundled modules, so it overstates. Measured
 honestly (the build served by `wrangler dev` on its built Worker, signed in, Playwright, a 412 px phone, a cold cache,
-Chrome's own presets with 4x CPU slowdown; median of five):
+Chrome's own presets with 4x CPU slowdown; median of five; the two builds served side by side, so under the same load):
 
-| Home's LCP                 | Unthrottled | Fast 4G | Slow 4G |
-| -------------------------- | ----------- | ------- | ------- |
-| Dev server (4510's kind)   | 0.57 s      | 5.0 s   |         |
-| Built, before              | 1.67 s      | 2.72 s  | 4.36 s  |
-| Built, after               | 0.45 s      | 1.20 s  | 2.31 s  |
-| Built, repeat visit before |             | 1.85 s  | 2.05 s  |
-| Built, repeat visit after  |             | 0.73 s  | 1.14 s  |
+| Home's LCP                  | Unthrottled | Fast 4G | Slow 4G |
+| --------------------------- | ----------- | ------- | ------- |
+| Dev server (4510's kind)    | 0.57 s      | 5.0 s   |         |
+| Built, before               | 1.56 s      | 2.47 s  | 2.73 s  |
+| Built, after                | 0.26 s      | 0.94 s  | 2.04 s  |
+| Built, repeat visit, before |             | 1.85 s  | 2.05 s  |
+| Built, repeat visit, after  |             | 0.32 s  | 0.36 s  |
+
+(A busier machine earlier in the day had the build before at 2.72 s and 4.36 s on Fast and Slow 4G.)
 
 Three things were in front of it:
 
@@ -38,13 +40,21 @@ preloaded with `font-display: swap`. The splash paints before any script.
 ## Decision
 
 - **The data first**: `index.html` preloads `/api/bootstrap` (`as="fetch" crossorigin`, the same request
-  `main.ts`'s `fetch` makes, which picks the reply up). A 401 is picked up the same way, for sign-in.
-- **The first screen in one wave**: a build step (`firstScreen` in `vite.config.ts`) adds a `modulepreload` for every
-  chunk Home's first paint needs (`FIRST_SCREEN`: Svelte's `mount`, `App`, the routes, the page loader, `Home`, and
-  their imports) and a style preload for their CSS. Fetched and parsed beside the data, run only when `main.ts`
-  imports them, after the data, as before. A name in the list that matches no chunk fails the build.
-- **A budget**: the same step fails the build when the first screen's JavaScript passes **100 kB gzipped** (76 kB
-  when set). Over it: load what Home doesn't need at once with `import()`, or raise it there with a reason.
+  `main.ts`'s `fetch` makes, which picks the reply up). A 401 is picked up the same way, for sign-in. It matters: a
+  module's body runs only once its static imports are in, so without it the fetch would wait for the app's files.
+- **Importing the app reads no data.** The store (`demo/store.svelte.ts`) starts empty and the session
+  (`demo/session.svelte.ts`) starts as nobody in particular; `start()` (`app/backend.svelte.ts`) fills both once the
+  data's in: `hydrate`, then the store's copy of every slice (as after a reload), then `startSession` (who you're
+  viewing as, your everyday role). So `main.ts` imports `mount`, `App` and the router statically and awaits the data
+  before it mounts, not before it imports.
+- **Home is part of the app**: a static import in `app/pages.svelte.ts`, where the app opens; every other page stays an
+  `import()`. Vite's own `modulepreload` links (build.modulePreload) then fetch the whole first screen with the entry,
+  in one wave, and its stylesheets are linked in the page. Nothing in our config lists files. The sign-in screen and
+  Sentry stay `import()`s.
+- **A budget**: `scripts/team-app-budget.mjs`, run by the team app's `build` script (so by `pr.yml` and the deploy's
+  build), follows the build manifest (`build.manifest`) from the entry through its static imports and fails past
+  **100 kB gzipped** (76 kB when set). Over it: load what Home doesn't need at once with `import()`, or raise it there
+  with a reason. `public/.assetsignore` keeps the manifest off the site.
 - **The lead card lands from opacity 0.01**, not 0: it looks the same, and Chrome counts it from the frame it lands
   in.
 - **Hashed files are kept a year**: `public/_headers` gives `/assets/*` `public, max-age=31536000, immutable`; the
@@ -52,16 +62,23 @@ preloaded with `font-display: swap`. The splash paints before any script.
 
 ## Consequences
 
-- Slow 4G with a cold cache is now about 2.3 s, under 2.5 s; Fast 4G 1.2 s; a repeat visit about 1 s. `wrangler dev`
-  serves HTTP/1.1 (six connections, forty-odd small files queue), so a deploy on HTTP/2 should be a little faster.
-- Every page opened from a link also fetches Home's files (about 20 kB gzipped); the sign-in screen fetches the
-  app's. Cheap beside the trips saved.
-- A repeat visit's splash paints about 0.15 s later (the service worker answers the forty-odd preloads first); the
-  page itself is up sooner.
+- Slow 4G with a cold cache is now about 2.0 s, under 2.5 s; Fast 4G about 0.9 s; a repeat visit about 0.35 s.
+  `wrangler dev` serves HTTP/1.1 (six connections; thirty-odd files queue), so a deploy on HTTP/2 should be a little
+  faster.
+- Every page opened from a link also fetches Home (about 20 kB gzipped). The sign-in screen fetches the whole app,
+  once per device. Cheap beside the trips saved.
+- Home's stylesheets block the splash's first paint now (about 13 kB in all, not 6): on Slow 4G the splash shows at
+  about 1.1 s, not 0.9 s; the page itself is up sooner.
+- A module that reads the club's data as it loads would see it empty: read it in a function, a `$derived` or a
+  component, never at a module's top level. Only the store and the session did.
+- A file missing after a deploy now fails the entry itself, not a later `import()` (`stale-code`'s reload covers only
+  those); both come from the same page, which is never cached, so they match.
 - The dev server is still slow (4 s on Fast 4G, unbundled modules); judge LCP on a build, not on 4510.
 - Left: Home's live check (`checkForUpdates`) reads `/api/bootstrap` again as it starts, right after the app did
   (a 304, but a request); the variable Inter Tight face is 44 kB.
 
 ## History
 
-- 2026-10-21: Measured and decided as above.
+- 2026-10-21: Measured and decided as above. First a build step in `vite.config.ts` listed the first screen's
+  modules and added preloads for them; replaced the same day: a hand-kept list of paths breaks quietly when files
+  move, and the cause was the app reading its data as it loaded, so that went instead, and Vite preloads on its own.

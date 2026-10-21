@@ -101,5 +101,5 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   the desktop rail keeps it and gains the club. Teammates leaves Home's feed: it was there only because a phone had no
   way to it. "Maybe instead of a calendar in the mobile nav, we move the calendar icon to the home page somewhere and
   add a club icon to see the club."
-- 2026-10-21: How fast Home first paints (the data and Home's files asked for at once, a 100 kB JavaScript budget
-  for them, hashed files kept a year) is its own record, [0120](0120-team-app-first-paint.md).
+- 2026-10-21: How fast Home first paints (the app imported up front beside the data, a 100 kB JavaScript budget
+  for it, hashed files kept a year) is its own record, [0120](0120-team-app-first-paint.md).

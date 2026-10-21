@@ -1,27 +1,34 @@
 import "./app.css";
+import { mount } from "svelte";
+import App from "./App.svelte";
 import { ApiError, getBootstrap, running } from "./app/api";
+import { start } from "./app/backend.svelte";
+import { startInApp } from "./app/native";
+import { routeFor } from "./app/nav-routes";
+import { loadPage } from "./app/pages.svelte";
+import { navigate } from "./app/router.svelte";
+import { routes } from "./app/routes.svelte";
 import { isStaleCode, recoverOnce } from "./app/stale-code";
-import { hydrate } from "./demo/data";
 
-// The club's data comes first: the store and the app's modules read it as they load, so they're imported only
-// after it's in place. Nothing above may import the store. Nobody signed in: the sign-in screen, which reloads the
-// page once they are.
+// The app is imported up front, so Vite fetches all of it (Home too, app/pages.svelte.ts) with this file, beside the
+// club's data, which index.html asked for at once; nothing reads the data as it loads (ADR 0120). The data is in place
+// before the app mounts. Nobody signed in: the sign-in screen, which reloads the page once they are.
+const club = getBootstrap();
 const target = document.getElementById("app")!;
 // Errors to Sentry (ADR 0111), started beside the club's data rather than before it: a built copy only
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 if (dsn) void import("./app/errors").then(({ startErrorReports }) => startErrorReports(dsn)).catch(() => {});
 try {
-  hydrate(await getBootstrap());
-  const [{ mount }, { default: App }] = await Promise.all([import("svelte"), import("./App.svelte"), firstPage()]);
+  start(await club);
+  await firstPage();
   mount(App, { target });
   running.app = true;
   unsplash();
   // In the store app (ADR 0108): links and notifications open their page; nothing in a browser
-  const [{ startInApp }, { navigate }] = await Promise.all([import("./app/native"), import("./app/router.svelte")]);
   void startInApp((path) => navigate(path)).catch(() => {});
 } catch (e) {
   if (e instanceof ApiError && e.status === 401) {
-    const [{ mount }, { default: SignIn }] = await Promise.all([import("svelte"), import("./pages/SignIn.svelte")]);
+    const { default: SignIn } = await import("./pages/SignIn.svelte");
     mount(SignIn, { target });
   } else if (!(isStaleCode(e) && newCode())) showError(e);
   unsplash();
@@ -39,13 +46,8 @@ function newCode() {
   return recoverOnce(sessionStorage, () => location.reload());
 }
 
-// The page you're opening, so the app's first paint has it (each page is its own chunk: app/pages.svelte.ts)
+// The page you're opening, so the app's first paint has it (Home is already in; another page is its own chunk)
 async function firstPage() {
-  const [{ routes }, { routeFor }, { loadPage }] = await Promise.all([
-    import("./app/routes.svelte"),
-    import("./app/nav-routes"),
-    import("./app/pages.svelte"),
-  ]);
   const all = routes();
   await loadPage((routeFor(all, location.pathname) ?? routeFor(all, "/")!).page);
 }

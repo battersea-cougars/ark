@@ -27,13 +27,14 @@ import {
   REMINDERS,
   SUBSCRIPTION_FEES,
 } from "../demo/data";
-import type { Position, Slices } from "../demo/data";
+import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
 import { api, bootstrapIfChanged, brake, getBootstrap } from "./api";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
+import { startSession } from "../demo/session.svelte";
 
 /** The last save's outcome, shown briefly by the shell. */
 export const saving = $state({ busy: 0, message: "", failed: false });
@@ -104,6 +105,13 @@ const copyAll = () => Object.values(COPY).forEach((copy) => copy());
 function apply(changed: Slices) {
   applySlices(changed);
   for (const key of Object.keys(changed) as (keyof Slices)[]) COPY[key]?.();
+}
+
+/** The club's data, in place before the app mounts (main.ts): the store, and who you are in it. */
+export function start(b: Bootstrap) {
+  hydrate(b);
+  copyAll();
+  startSession();
 }
 
 /** Reload the whole club into the app. */

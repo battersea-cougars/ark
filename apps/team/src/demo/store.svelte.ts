@@ -1,5 +1,6 @@
-// The app's working copy of the club's data, filled from D1 (demo/data.ts hydrate) and replaced by
-// app/backend.svelte.ts after each change.
+// The app's working copy of the club's data, filled from D1 (demo/data.ts hydrate) and copied in by
+// app/backend.svelte.ts: once the data's in (start), and after each change. Empty until then, so it can be imported
+// before the data arrives (main.ts).
 import type { Team } from "../lib/balance";
 import {
   AGENDA,

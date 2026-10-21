@@ -26,7 +26,13 @@ function readElevated(): boolean {
   }
 }
 
-export const session = $state({ as: readAs(), everyday: EVERYDAY_ROLE, elevated: readElevated() });
+export const session = $state({ as: null as number | null, everyday: null as number | null, elevated: readElevated() });
+
+/** Once the club's data is in (app/backend.svelte.ts start): who you're viewing as, and your everyday role. */
+export function startSession() {
+  session.as = readAs();
+  session.everyday = EVERYDAY_ROLE;
+}
 
 const player = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
 

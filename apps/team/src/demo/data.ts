@@ -36,7 +36,7 @@ export let REAL_ID = 0;
 export let DEV_TOOLS = false;
 /** Screens still on demo data (Upload) are shown: dev and local only (#63). */
 export let UNFINISHED = false;
-/** The role you run the app as day to day, if not your full one (ADR 0024). Read once by session.svelte.ts. */
+/** The role you run the app as day to day, if not your full one (ADR 0024). Read once by session.svelte.ts startSession. */
 export let EVERYDAY_ROLE: number | null = null;
 
 const EMAILS = new Map<number, string | null>();
@@ -186,7 +186,8 @@ const fill = <T>(list: T[], items: T[]) => list.splice(0, list.length, ...items)
 /** The parts of the club's data that a change sends back (worker/api/api.ts SLICES): all of it but who you are. */
 export type Slices = Partial<Omit<Bootstrap, "me" | "actions" | "devTools" | "unfinished">>;
 
-/** Put the club's data in place. Runs before the app mounts, and again whenever the whole club is reloaded. */
+/** Put the club's data in place (app/backend.svelte.ts copies it into the store). Runs before the app mounts, and again
+ * whenever the whole club is reloaded. */
 export function hydrate(b: Bootstrap) {
   REAL_ID = b.me;
   DEV_TOOLS = !!b.devTools;

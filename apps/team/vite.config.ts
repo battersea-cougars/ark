@@ -1,6 +1,5 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
@@ -27,7 +26,6 @@ export default defineConfig(({ command }) => ({
   plugins: [
     oneDevServer(PORT),
     waitForDepsCache(),
-    firstScreen(),
     svelte(),
     cloudflare({
       persistState: { path: process.env.COUGARS_LOCAL_STATE || "../../apps/web/.wrangler/state" },
@@ -60,8 +58,9 @@ export default defineConfig(({ command }) => ({
   // The notifications plugin's web build wants the Firebase web SDK; the app never uses it (src/app/no-web-push.ts)
   resolve: { alias: { "firebase/messaging": fileURLToPath(new URL("src/app/no-web-push.ts", import.meta.url)) } },
   // Source maps for Sentry (ADR 0111): written but never linked from the files; the deploy uploads them, then deletes
-  // them before the files go live
-  build: { sourcemap: "hidden" },
+  // them before the files go live. The manifest (which files each chunk imports) is for scripts/team-app-budget.mjs,
+  // which weighs what the first paint loads (ADR 0120); public/.assetsignore keeps it off the site.
+  build: { sourcemap: "hidden", manifest: true },
   server: { port: PORT, strictPort: true, host: true },
   preview: { port: PORT, strictPort: true, host: true },
 }));
@@ -104,88 +103,6 @@ function waitForDepsCache(): Plugin {
           await new Promise((resolve) => setTimeout(resolve, 25));
         next();
       });
-    },
-  };
-}
-
-// The first screen, fetched all at once (docs/adr/0120-team-app-first-paint.md). main.ts reads the club's data before
-// it imports the app (the store reads it as it loads), so without this the browser only learns of App and Home once
-// /api/bootstrap is back, then finds their imports one level at a time: three trips in a row on a phone's network.
-// Listed here, every file Home's first paint needs is fetched beside the data (modulepreload: fetched and parsed,
-// never run early), and the build fails if they grow past the budget.
-const FIRST_SCREEN = [
-  "/svelte/src/index-client.js", // mount()
-  "/src/App.svelte",
-  "/src/app/routes.svelte.ts",
-  "/src/app/nav-routes.ts",
-  "/src/app/pages.svelte.ts",
-  "/src/pages/Home.svelte", // where the app opens (manifest start_url); another page's link loads its own chunk
-];
-/** The first screen's JavaScript, gzipped: 76 kB when this was set (2026-10-21); about a third more is room to grow. */
-const FIRST_SCREEN_BUDGET_KB = 100;
-
-function firstScreen(): Plugin {
-  return {
-    name: "cougars:first-screen",
-    apply: "build",
-    transformIndexHtml: {
-      order: "post",
-      handler(html, { bundle }) {
-        if (!bundle) return html;
-        const chunks = Object.values(bundle).filter((file) => file.type === "chunk");
-        const js = new Set<string>();
-        const css = new Set<string>();
-        const take = (chunk: (typeof chunks)[number]) => {
-          if (js.has(chunk.fileName)) return;
-          js.add(chunk.fileName);
-          chunk.viteMetadata?.importedCss.forEach((file) => css.add(file));
-          for (const file of chunk.imports) {
-            const imported = bundle[file];
-            if (imported?.type === "chunk") take(imported);
-          }
-        };
-        // The entry's own imports Vite already links (and its stylesheet), so they aren't listed twice
-        chunks.filter((chunk) => chunk.isEntry).forEach(take);
-        const linked = new Set([...js, ...css]);
-        for (const id of FIRST_SCREEN) {
-          const chunk = chunks.find((c) => c.facadeModuleId?.endsWith(id));
-          if (!chunk) throw new Error(`first screen: no chunk for ${id} (vite.config.ts FIRST_SCREEN)`);
-          take(chunk);
-        }
-        const kb =
-          [...js].reduce((sum, file) => {
-            const chunk = bundle[file];
-            return sum + (chunk.type === "chunk" ? gzipSync(chunk.code).length : 0);
-          }, 0) / 1024;
-        if (kb > FIRST_SCREEN_BUDGET_KB)
-          throw new Error(
-            `The first screen's JavaScript is ${kb.toFixed(1)} kB gzipped, over its ${FIRST_SCREEN_BUDGET_KB} kB budget ` +
-              `(vite.config.ts, ADR 0120): load what Home doesn't need at once with import(), or raise the budget there.`,
-          );
-        this.info?.(
-          `first screen: ${js.size} files, ${kb.toFixed(1)} kB of JavaScript gzipped (budget ${FIRST_SCREEN_BUDGET_KB})`,
-        );
-        const href = (file: string) => `/${file}`;
-        return {
-          html,
-          tags: [
-            ...[...js]
-              .filter((file) => !linked.has(file))
-              .map((file) => ({
-                tag: "link",
-                attrs: { rel: "modulepreload", crossorigin: true, href: href(file) },
-                injectTo: "head" as const,
-              })),
-            ...[...css]
-              .filter((file) => !linked.has(file))
-              .map((file) => ({
-                tag: "link",
-                attrs: { rel: "preload", as: "style", crossorigin: true, href: href(file) },
-                injectTo: "head" as const,
-              })),
-          ],
-        };
-      },
     },
   };
 }

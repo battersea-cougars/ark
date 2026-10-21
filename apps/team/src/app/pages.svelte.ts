@@ -1,14 +1,15 @@
-// Page components by route.page (nav-routes.ts pairs each page with its params), each in its own chunk: a phone
+// Page components by route.page (nav-routes.ts pairs each page with its params). Home, where the app opens, is part of
+// the app itself, so Vite fetches it with the app's own files (ADR 0120); every other page is its own chunk: a phone
 // downloads and parses the page it opens on, not all of them. main.ts loads that one before the app mounts, so the
 // first paint has its page; once the app's up, the pages you can open load in the background, so moving between
 // them never waits. Pages take different props, so the map is loosely typed.
 import type { Component } from "svelte";
+import Home from "../pages/Home.svelte";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Page = Component<any>;
 
 const LOADERS: Record<string, () => Promise<{ default: Page }>> = {
-  home: () => import("../pages/Home.svelte"),
   calendar: () => import("../pages/Calendar.svelte"),
   training: () => import("../pages/Training.svelte"),
   games: () => import("../pages/Games.svelte"),
@@ -44,7 +45,7 @@ const LOADERS: Record<string, () => Promise<{ default: Page }>> = {
 };
 
 // The pages loaded so far. Raw: a component is swapped whole, never changed inside.
-let loaded = $state.raw<Record<string, Page>>({});
+let loaded = $state.raw<Record<string, Page>>({ home: Home });
 // Loads under way, so a page asked for twice is fetched once
 const pending: Record<string, Promise<Page>> = {};
 

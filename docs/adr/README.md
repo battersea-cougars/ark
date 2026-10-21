@@ -81,7 +81,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0118](0118-home-calls-to-action-then-feed.md) | Home: a slim hello with what you owe, announcements, the calls to action, then a feed                                |
 | [0104](0104-app-versions-and-updates.md)       | A version and a build id; when a newer build answers, the app offers a reload, never forces one                      |
 | [0105](0105-code-grouped-by-feature.md)        | Code is grouped by feature; entry points read like a table of contents; files are `{domain}.{kind}.ts`               |
-| [0120](0120-team-app-first-paint.md)           | Home's first paint: the data and every file it needs asked for at once, under a 100 kB JavaScript budget             |
+| [0120](0120-team-app-first-paint.md)           | Home's first paint: the app imported up front beside the data, under a 100 kB JavaScript budget                      |
 
 ## Team app: the club
 
