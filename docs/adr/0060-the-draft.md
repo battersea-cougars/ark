@@ -144,3 +144,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   the picks only while you're at the current one, and shows Now over its edge to bring you back (Home too).
 - 2026-10-21: A search on the Players view, as Friday's (a magnifier that widens over the row): by name, with the
   position chips and their counts, kept as typed after a pick; matching players are lit on the Teams view.
+- 2026-10-21: A desktop's ticker has a half-seen chevron over each edge (about a ticker's width a click, gone at the
+  end; the one on the current pick's side, dotted, leads back to it) and its wheel scrolls it sideways while it can; a
+  phone's way back is a small round arrow. A desktop's search is its own row over the chips.

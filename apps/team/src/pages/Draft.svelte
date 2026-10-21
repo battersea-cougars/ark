@@ -200,7 +200,32 @@
     atNow = Math.abs(mid - el.clientWidth / 2) < now.offsetWidth / 2;
     // Out of view: Now shows, on the side the current pick is
     nowSide = mid < now.offsetWidth / 2 ? -1 : mid > el.clientWidth - now.offsetWidth / 2 ? 1 : 0;
+    // Whether there's more either way (a desktop's chevrons)
+    canLeft = el.scrollLeft > 2;
+    canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
   }
+  let canLeft = $state(false);
+  let canRight = $state(false);
+  // A desktop's chevron: about a ticker's width of chips along
+  function page(dir: -1 | 1) {
+    const el = tickerEl;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: prefersReducedMotion ? "auto" : "smooth" });
+  }
+  // A mouse's wheel over it scrolls it sideways, while it can go that way; at its end the page scrolls as usual
+  $effect(() => {
+    const el = tickerEl;
+    if (!el || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const wheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const more = e.deltaY > 0 ? el.scrollLeft + el.clientWidth < el.scrollWidth - 1 : el.scrollLeft > 0;
+      if (!more) return;
+      e.preventDefault();
+      el.scrollBy({ left: e.deltaY });
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  });
   function backToNow() {
     if (!tickerEl) return;
     atNow = true;
@@ -530,13 +555,18 @@
       {/if}
     {:else if pool.length}
       <!-- The position filter: the app's filter chips, as Teammates has them, each with how many are left -->
-      <div class="filters" class:with-finder={columns} role="group" aria-label="Position">
+      {#if columns}
+        <!-- A desktop: the search on a row of its own over the chips, always there, so neither covers the other -->
+        <div class="find-row">
+          <SearchField bind:value={query} placeholder="Search players" label="Search players" />
+        </div>
+      {/if}
+      <div class="filters" role="group" aria-label="Position">
         {#each [["all", "All", found.length, "teams"], ["F", "Forwards", foundTally.F, "stick"], ["D", "Defence", foundTally.D, "shield"], ["G", "Keepers", foundTally.G, "net"]] as const as [v, label, n, icon] (v)}
           <button class="filter" aria-pressed={filter === v} onclick={() => (filter = v)}
             ><Icon name={icon} size={16} />{label}<span class="count num">{n}</span></button
           >
         {/each}
-        {#if columns}{@render finder()}{/if}
       </div>
       <div class="plist" aria-label="Players left">
         {#each listed as p (p.id)}{@render playerRow(p, true)}{:else}<p class="hint none">No one matches.</p>{/each}
@@ -774,18 +804,32 @@
             </div>
           {/each}
         </div>
-        <!-- Back to the current pick: over the ticker's edge on its side, so showing it moves nothing -->
+        <!-- A pointer's way along: a chevron over each edge while there's more that way (not on a phone: swipe).
+             With the current pick out of view, the chevron on its side leads back to it (a red dot says so) -->
+        {#each [-1, 1] as const as side (side)}
+          {@const toNow = nowSide === side}
+          <button
+            class="edge"
+            class:left={side < 0}
+            class:right={side > 0}
+            class:to-now={toNow}
+            class:gone={!(side < 0 ? canLeft : canRight)}
+            tabindex="-1"
+            aria-label={toNow ? "Back to now" : side < 0 ? "Earlier picks" : "Picks to come"}
+            title={toNow ? "Now" : undefined}
+            onclick={() => (toNow ? backToNow() : page(side))}
+            ><Icon name={side < 0 ? "chevronLeft" : "chevronRight"} size={22} /></button
+          >
+        {/each}
+        <!-- A phone's way back to the current pick: a small round arrow in the edge's fade, on its side -->
         {#if nowSide}
           <button
-            class="btn sm back-now"
+            class="back-now"
             class:left={nowSide < 0}
             onclick={backToNow}
             transition:fade={{ duration: fadeMs }}
-            aria-label="Back to the current pick"
-            >{#if nowSide < 0}<Icon name="chevronLeft" size={14} />Now{:else}Now<Icon
-                name="chevronRight"
-                size={14}
-              />{/if}</button
+            aria-label="Back to now"
+            title="Now"><Icon name={nowSide < 0 ? "chevronLeft" : "chevronRight"} size={16} /></button
           >
         {/if}
       </div>
@@ -1374,8 +1418,7 @@
   /* On the clock: half as big again, a card reaching over the chips either side, and a badge that says so */
   /* The search, at the end of the tabs (a phone) or the chips (a desktop): it opens leftwards, over the tabs if it
      must, so the row's height never changes and nothing moves */
-  .tab-row,
-  .filters.with-finder {
+  .tab-row {
     position: relative;
   }
   .tab-row .tablist {
@@ -1385,8 +1428,11 @@
   .tab-row:has(:global(.search:focus-within), :global(.search.filled)) .tablist {
     opacity: 0;
   }
-  .filters.with-finder {
-    padding-right: 3rem;
+  .find-row {
+    display: flex;
+  }
+  .find-row :global(.search) {
+    width: 100%;
   }
   .finder {
     position: absolute;
@@ -1399,9 +1445,6 @@
     pointer-events: none;
     --open-width: 100%;
     --search-frost: var(--blur);
-  }
-  .filters .finder {
-    --open-width: 16rem;
   }
   .finder > :global(*) {
     pointer-events: auto;
@@ -1429,16 +1472,79 @@
   .back-now {
     position: absolute;
     top: 50%;
-    right: 0;
+    right: var(--s-1);
     z-index: 2;
-    gap: 0.2rem;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--surface-3) 70%, transparent);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    color: var(--fg);
+    opacity: 0.8;
     translate: 0 -50%;
-    background: var(--surface-3);
-    box-shadow: var(--shadow-pop);
   }
   .back-now.left {
     right: auto;
-    left: 0;
+    left: var(--s-1);
+  }
+  /* The chevrons: only where there's a pointer. A soft fade of the page behind, the chevron half seen, firmer under
+     the pointer; gone when there's nothing further that way */
+  .edge {
+    display: none;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .edge {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      width: 2.75rem;
+      padding: 0;
+      border: 0;
+      background: linear-gradient(90deg, var(--bg) 20%, transparent);
+      color: var(--fg);
+      opacity: 0.45;
+      cursor: pointer;
+      transition: opacity var(--t-fast) var(--ease-in-out);
+    }
+    .edge:hover {
+      opacity: 0.95;
+    }
+    .edge.left {
+      left: 0;
+    }
+    .edge.right {
+      right: 0;
+      background: linear-gradient(270deg, var(--bg) 20%, transparent);
+    }
+    .edge.gone {
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* A pointer has the chevron for it: no round button */
+    .back-now {
+      display: none;
+    }
+    /* The chevron that leads back to now: a small red dot by it */
+    .edge.to-now::after {
+      content: "";
+      position: absolute;
+      top: calc(50% - 1.1rem);
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 50%;
+      background: var(--red-hot);
+    }
+    .edge.to-now {
+      opacity: 0.8;
+    }
   }
   /* The pick that just landed: a flash of the club's red round its chip, fading */
   .tick.fresh {
@@ -1500,7 +1606,8 @@
   }
   /* The teams start level with the first player, under the filter (a chip's height and the gap) */
   .views.filtered > .col:not(.pool) {
-    padding-top: calc(2.25rem + var(--s-3));
+    /* (the search's row and the chips', and the gaps after them) */
+    padding-top: calc(2.5rem + 2.25rem + 2 * var(--s-3));
   }
   .views .teams {
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
