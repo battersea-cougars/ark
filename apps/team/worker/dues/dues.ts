@@ -383,31 +383,40 @@ function credit(db: D1Database, memberId?: number): D1PreparedStatement[] {
  * to the member's oldest charges not paid in full. A lump sum pays several charges and part of the next; what's left
  * over is credit, and pays the next charge as it comes. One round trip, none if there's nothing to pay. Returns how
  * many allocations it made.
+ *
+ * Two of these at once (every change that touches who came works the charges out, and so does the cron) read the same
+ * credit: each allocation goes in only while its payment and its charge are still as they were read, so the second
+ * spends nothing, and what's left is paid next time.
  */
 async function spend(db: D1Database, [spare, owed]: [D1Result<Spare>, D1Result<Owed>]): Promise<number> {
-  const byMember = new Map<number, Owed[]>();
-  for (const c of owed.results) byMember.set(c.member_id, [...(byMember.get(c.member_id) ?? []), c]);
-  const made: { payment: number; charge: number; amount: number }[] = [];
+  const byMember = new Map<number, (Owed & { was: number })[]>();
+  for (const c of owed.results)
+    byMember.set(c.member_id, [...(byMember.get(c.member_id) ?? []), { ...c, was: c.left }]);
+  const made: { payment: number; charge: number; amount: number; spare: number; left: number }[] = [];
   for (const p of spare.results) {
     let left = p.spare;
     for (const c of byMember.get(p.member_id) ?? []) {
       if (!left) break;
       const amount = Math.min(left, c.left);
       if (!amount) continue;
-      made.push({ payment: p.id, charge: c.id, amount });
+      made.push({ payment: p.id, charge: c.id, amount, spare: p.spare, left: c.was });
       c.left -= amount;
       left -= amount;
     }
   }
-  if (made.length)
-    await run(
-      db,
-      `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence)
-       SELECT value ->> 'payment', value ->> 'charge', value ->> 'amount' FROM json_each(?) WHERE true
-       ON CONFLICT (payment_id, charge_id) DO UPDATE SET amount_pence = amount_pence + excluded.amount_pence`,
-      [JSON.stringify(made)],
-    );
-  return made.length;
+  if (!made.length) return 0;
+  const res = await run(
+    db,
+    `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence)
+     SELECT j.value ->> 'payment', j.value ->> 'charge', j.value ->> 'amount' FROM json_each(?) j
+     WHERE (SELECT p.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
+              WHERE pa.payment_id = p.id), 0) FROM payments p WHERE p.id = j.value ->> 'payment') = j.value ->> 'spare'
+       AND (SELECT c.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
+              WHERE pa.charge_id = c.id), 0) FROM charges c WHERE c.id = j.value ->> 'charge') = j.value ->> 'left'
+     ON CONFLICT (payment_id, charge_id) DO UPDATE SET amount_pence = amount_pence + excluded.amount_pence`,
+    [JSON.stringify(made)],
+  );
+  return res.meta.changes ?? 0;
 }
 
 /** Credit pays what's owed (spend), for one member or everyone. Two round trips. */
