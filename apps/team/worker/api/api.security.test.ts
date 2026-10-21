@@ -1,6 +1,7 @@
 // The API's security rules (ADR 0036), as someone would try to get round them: no session, a plain member poking
 // at admin routes, a member manager reaching for Admin, another site's form, and a member reading bootstrap in
 // devtools. Driven through the real handler in the fake world (testing.ts, ADR 0031).
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker, { SECURITY_HEADERS } from "../index";
@@ -225,6 +226,16 @@ describe("requests from somewhere else", () => {
     // The app's own page is served without the Worker (run_worker_first is /api/* only): the same set, from the file
     const file = parseHeadersFile(readFileSync(new URL("../../public/_headers", import.meta.url).pathname, "utf8"));
     expect(file["/*"]).toEqual(SECURITY_HEADERS);
+  });
+
+  it("runs only the page's own inline script, the one that reads the club at once (ADR 0120)", () => {
+    const page = readFileSync(new URL("../../index.html", import.meta.url).pathname, "utf8");
+    const inline = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+    expect(inline).toHaveLength(1);
+    const hash = `'sha256-${createHash("sha256").update(inline[0]).digest("base64")}'`;
+    // Edited index.html's script? Put this hash in SECURITY_HEADERS (worker/index.ts) and public/_headers
+    const scripts = SECURITY_HEADERS["content-security-policy"].split("; ").find((d) => d.startsWith("script-src"));
+    expect(scripts).toBe(`script-src 'self' ${hash}`);
   });
 });
 

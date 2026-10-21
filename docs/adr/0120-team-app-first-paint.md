@@ -39,9 +39,19 @@ preloaded with `font-display: swap`. The splash paints before any script.
 
 ## Decision
 
-- **The data first**: `index.html` preloads `/api/bootstrap` (`as="fetch" crossorigin`, the same request
-  `main.ts`'s `fetch` makes, which picks the reply up). A 401 is picked up the same way, for sign-in. It matters: a
-  module's body runs only once its static imports are in, so without it the fetch would wait for the app's files.
+- **The data first**: a one-line inline script at the top of `index.html` starts `fetch("/api/bootstrap")` and leaves
+  the promise on `window.cougarsBootstrap`; the app's first `getBootstrap` (`app/api.ts`) takes it, once, and reads
+  the reply through the same path as any other (the brake, the ETag, the version and build headers). If that read
+  failed (no network), the app asks itself, so a failure reads as before. A 401 is picked up the same way, for
+  sign-in. It matters: a module's body runs only once its static imports are in, so without it the fetch would wait
+  for the app's files. Not a `<link rel="preload" as="fetch">`: Safari (WebKit, our members' phones) fetched the
+  preload and then fetched again for the app, two reads of the whole club on every open. The policy allows exactly
+  that script by its hash (`script-src 'self' 'sha256-…'`, in `worker/index.ts` and `public/_headers`);
+  `api.security.test.ts` fails when the script changes and the hash doesn't. Vite leaves an inline classic script as
+  it is, so the built page has the same hash.
+- **The splash goes at once if it never painted**: when the data and the files are both quick, the app mounts before
+  the splash's first frame, no fade runs and no `transitionend` comes; `main.ts` removes it straight away rather than
+  leaving it, unseen, over the page until the 400 ms fallback. A fading splash lets taps through.
 - **Importing the app reads no data.** The store (`demo/store.svelte.ts`) starts empty and the session
   (`demo/session.svelte.ts`) starts as nobody in particular; `start()` (`app/backend.svelte.ts`) fills both once the
   data's in: `hydrate`, then the store's copy of every slice (as after a reload), then `startSession` (who you're
@@ -85,3 +95,10 @@ preloaded with `font-display: swap`. The splash paints before any script.
   move, and the cause was the app reading its data as it loaded, so that went instead, and Vite preloads on its own.
 - 2026-10-21: Home's second read of `/api/bootstrap` as it opens is gone: a live page opening within 10 seconds of
   the club being read doesn't check again (#112, [0072](0072-live-updates.md)).
+- 2026-10-21: The bootstrap is read by an inline script, not a preload link: in WebKit the preload was never reused,
+  so every open read the whole club twice (Chromium reused it). Measured on the build (`wrangler dev`, signed in,
+  Playwright, an iPhone 13 profile, cold cache, median of five, old and new served side by side): bootstrap reads on
+  open, WebKit 2 -> 1, Chromium 1 -> 1; LCP WebKit 296 -> 256 ms, Chromium 228 -> 224 ms, Chromium with 4x CPU on
+  Fast 4G 1.83 -> 1.74 s, Slow 4G 5.53 -> 5.32 s (this machine and these presets run slower than the table above's;
+  compare the pairs). With the reply sooner, WebKit mounted before the splash painted, so the splash sat unseen over
+  the page for 400 ms: it now goes at once when no fade runs, and lets taps through while fading.

@@ -29,7 +29,9 @@ export { LiveHub } from "./live/live";
 export const SECURITY_HEADERS: Record<string, string> = {
   "content-security-policy": [
     "default-src 'self'",
-    "script-src 'self'",
+    // index.html's one inline script, which reads the club before the app's files arrive (ADR 0120); its hash, so
+    // nothing else inline runs (api.security.test.ts checks it against the page)
+    "script-src 'self' 'sha256-C5G3NqX0uMVW33PZsPgX8GpIvrA94mxoDWbKvRdrTII='",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",

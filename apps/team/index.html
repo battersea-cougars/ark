@@ -8,9 +8,13 @@
     <meta name="application-name" content="Cougars Fresh Meat" />
     <meta name="robots" content="noindex" />
     <title>Cougars Fresh Meat</title>
-    <!-- The club's data, asked for at once, beside the app's files rather than after them: main.ts's fetch picks this
-         reply up (same address, same credentials). A cookie-less 401 is picked up the same way, for sign-in. -->
-    <link rel="preload" href="/api/bootstrap" as="fetch" crossorigin />
+    <!-- The club's data, asked for at once, beside the app's files rather than after them: the app's first read
+         (src/app/api.ts getBootstrap) takes this reply, so every browser reads it once. Not a preload link: Safari
+         fetched one and then fetched again for the app (ADR 0120). Its hash is in the security policy (public/_headers,
+         worker/index.ts); api.security.test.ts says when an edit here needs a new one. -->
+    <script>
+      window.cougarsBootstrap = fetch("/api/bootstrap").catch(() => null);
+    </script>
     <!-- The two faces, fetched before the stylesheet asks for them, so the first paint is in the right type -->
     <link rel="preload" href="/src/assets/fonts/InterTight-Variable.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/src/assets/fonts/Anton.woff2" as="font" type="font/woff2" crossorigin />
@@ -41,8 +45,10 @@
         background: #0e0d0b;
         transition: opacity 160ms ease-out;
       }
+      /* Fading: taps already reach the page underneath */
       #splash.gone {
         opacity: 0;
+        pointer-events: none;
       }
       #splash img {
         width: 4.5rem;

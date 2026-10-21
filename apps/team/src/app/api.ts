@@ -41,12 +41,12 @@ function versioned<T>(res: Response, data: T): T {
 /** The club's data version a reply was read at (or after), if it said (catch-up.ts). */
 export const versionOf = (data: unknown) => (data && typeof data === "object" ? versions.get(data) : undefined);
 
-/** Every call to the Worker: through the brake, which hears how it went. */
-async function send(path: string, init?: RequestInit): Promise<Response> {
+/** Every call to the Worker: through the brake, which hears how it went. `started`: a request already on its way. */
+async function send(path: string, init?: RequestInit, started?: Promise<Response>): Promise<Response> {
   const why = brake.take();
   if (why) throw new ApiError(429, why);
   try {
-    return await fetch(path, init);
+    return await (started ?? fetch(path, init));
   } catch (e) {
     brake.failed();
     throw e;
@@ -74,8 +74,23 @@ async function read<T>(res: Response, path: string): Promise<T> {
 // ADR 0072): a club that hasn't changed since is an empty 304.
 let bootstrapTag: string | null = null;
 
+// index.html reads the club before any script has arrived (ADR 0120). The first getBootstrap takes that reply, once;
+// if it never came (no network), the app asks itself, so a failure reads as it always did.
+declare global {
+  interface Window {
+    cougarsBootstrap?: Promise<Response | null>;
+  }
+}
+async function startedBootstrap(): Promise<Response | undefined> {
+  const started = globalThis.window?.cougarsBootstrap;
+  if (!started) return undefined;
+  delete window.cougarsBootstrap;
+  return (await started) ?? undefined;
+}
+
 export async function getBootstrap(): Promise<Bootstrap> {
-  const res = await send("/api/bootstrap");
+  const early = await startedBootstrap();
+  const res = await send("/api/bootstrap", undefined, early && Promise.resolve(early));
   const data = await read<Bootstrap>(res, "/api/bootstrap");
   bootstrapTag = res.headers.get("etag");
   heardBuild(res.headers.get(BUILD_HEADER));
