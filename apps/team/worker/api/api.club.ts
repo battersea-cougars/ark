@@ -3,7 +3,7 @@
 // members.ts, ...). Who's asking is a row of its own (`viewer`), so what they may not see never leaves the database
 // (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
-import { aheadIn } from "../entries/entries";
+import { aheadIn, quarterlySkater } from "../entries/entries";
 
 /** Who's asking, and what changes what they see. */
 export interface Viewer {
@@ -68,11 +68,12 @@ const rows = (columns: string, select: string) =>
 /** Answers to a kind of event, as anyone but whoever runs events sees them: their own "out", walk-in and no-show. */
 const entries = (table: string, key: string, events: string, extra: string) =>
   rows(
-    "eventId memberId signup walkIn attended ahead",
+    "eventId memberId signup walkIn attended ahead quarterly",
     `SELECT e.${key} eventId, e.member_id memberId, e.signup,
             ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.walk_in ELSE 0 END" : "0"} walkIn,
             ${extra === "session" ? "CASE WHEN v.sees_register OR e.member_id = v.member_id THEN e.attended END" : "NULL"} attended,
-            ${aheadIn(extra === "session" ? "session" : "event")} ahead
+            ${aheadIn(extra === "session" ? "session" : "event")} ahead,
+            ${quarterlySkater(extra === "session" ? "session" : "event")} quarterly
      FROM ${table} e, viewer v
      WHERE e.${key} IN (${events})
        AND (e.signup IN ('in', 'waitlist') OR v.sees_register OR e.member_id = v.member_id)

@@ -8,6 +8,7 @@
   import { can } from "../access/actions";
   import { PLAYERS, POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Plan, type Player } from "../demo/data";
   import { rosterGroups } from "../lib/roster-groups";
+  import { nextUp, placesLeft } from "../lib/places";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -51,18 +52,12 @@
   );
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
-  // Quarterly skaters signed up: above those paying as they go, in and waiting (ADR 0030), badged so the order reads
+  // Quarterly skaters: above those paying as they go, in and waiting (ADR 0030), badged so the order reads; and those
+  // who said they're out, for whoever sees who's out
   const ahead = $derived(new Set(session?.quarterly ?? []));
-  // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position; in or waiting, Quarterly as
-  // the queue has them; out, as their membership says, for whoever's told everyone's plan (null: not told)
-  const queued = (id: number): Plan =>
+  // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position, skaters as the session says
+  const planIn = (id: number): Plan =>
     byId(id).position === "G" ? "Keeper" : ahead.has(id) ? "Subscription" : "Pay as you go";
-  const outPlan = (id: number): Plan | null =>
-    byId(id).position === "G"
-      ? "Keeper"
-      : can(perms, "manage:Member")
-        ? (db.members.find((m) => m.player.id === id)?.plan ?? null)
-        : null;
   const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
 
   let registering = $state(false);
@@ -79,9 +74,11 @@
     s.waitlist = s.waitlist.filter((x) => x !== id);
     s.walkIns = s.walkIns?.filter((x) => x !== id);
     s.noShows = s.noShows?.filter((x) => x !== id);
-    if (wasIn && s.waitlist.length && (!info?.capacity || s.going.length < info.capacity)) {
-      s.going = [...s.going, s.waitlist[0]];
-      s.waitlist = s.waitlist.slice(1);
+    // The first waiting on their side moves up: a keeper's place to a keeper, a skater's to a skater (lib/places.ts)
+    const up = wasIn && info ? nextUp(id, s.going, s.waitlist, info) : undefined;
+    if (up !== undefined) {
+      s.going = [...s.going, up];
+      s.waitlist = s.waitlist.filter((x) => x !== up);
     }
     const out = db.teams[s.id];
     if (out) {
@@ -149,8 +146,11 @@
   // The teams without them: where keeping, slotting in and moving start from
   const withoutLeavers = () =>
     (teams ?? []).map((t) => ({ name: t.name, players: t.players.filter((id) => next.going.includes(id)) }));
-  // Places left; below nothing once the team maker has let someone in over the limit ("1 over")
-  const spaces = $derived(info?.capacity ? info.capacity - next.going.length : null);
+  // Places left, the skaters' (keepers' counted apart, said only where the series sets them, lib/places.ts); below
+  // nothing once the team maker has let someone in over the limit ("1 over")
+  const places = $derived(info ? placesLeft(next.going, info) : { skaters: null, keepers: null });
+  const spaces = $derived(places.skaters);
+  const keeperSpaces = $derived(places.keepers);
 
   // Every change to the teams is saved as it's made, and everyone sees it (ADR 0076): no draft to publish, so
   // nothing waits on a button scrolled out of sight
@@ -522,8 +522,8 @@
      search leaves). Skaters numbered by their place in the queue (Quarterly first, then sign-up order), keepers on
      their own, their places counted apart (lib/roster-groups.ts). The headings scroll with the rows; a group the
      search empties folds away, the rest gliding up -->
-{#snippet byPlan(all: number[], plan: (id: number) => Plan | null, numbered = false, letting = false)}
-  {@const { groups, numbers } = rosterGroups(all, plan)}
+{#snippet byPlan(all: number[], numbered = false, letting = false)}
+  {@const { groups, numbers } = rosterGroups(all, planIn)}
   {@const shown = groups.map((g) => ({ ...g, ids: matching(g.ids) })).filter((g) => g.ids.length)}
   {#if !shown.length}
     <p class="hint">No one matches.</p>
@@ -724,16 +724,16 @@
     <div id="roster-panel" class="list-box" role="tabpanel">
       {#if shown === "in"}
         {#if next.going.length}
-          <div class="whos-in" class:gathered={gathering}>{@render byPlan(next.going, queued, true)}</div>
+          <div class="whos-in" class:gathered={gathering}>{@render byPlan(next.going, true)}</div>
         {:else}
           <p class="hint">Nobody yet. If you ain't first, you last. Teams come out after sign-up closes.</p>
         {/if}
       {:else if shown === "waiting"}
-        {#if next.waitlist.length}{@render byPlan(next.waitlist, queued, true, arranging)}{:else}<p class="hint">
+        {#if next.waitlist.length}{@render byPlan(next.waitlist, true, arranging)}{:else}<p class="hint">
             Nobody's waiting.
           </p>{/if}
       {:else if outs.length}
-        {@render byPlan(outs, outPlan)}
+        {@render byPlan(outs)}
       {:else}
         <p class="hint">Nobody's said they're out.</p>
       {/if}
@@ -758,8 +758,15 @@
       <div class="list-head">
         <div class="head-line">
           <h2 class="section-title">Who's coming</h2>
-          {#if spaces !== null}<span class="spaces num"
-              >{spaces < 0 ? `${-spaces} over` : `${spaces} ${spaces === 1 ? "space" : "spaces"} left`}</span
+          <!-- The skaters' places left, and the keepers' where the series sets them: one under the other on a phone -->
+          {#if spaces !== null || keeperSpaces !== null}<span class="spaces num"
+              >{#if spaces !== null}<span
+                  >{spaces < 0 ? `${-spaces} over` : `${spaces} ${spaces === 1 ? "space" : "spaces"} left`}</span
+                >{/if}{#if keeperSpaces !== null}<span class="keepers"
+                  >{keeperSpaces < 0
+                    ? `${-keeperSpaces} ${keeperSpaces === -1 ? "keeper" : "keepers"} over`
+                    : `${keeperSpaces} for ${keeperSpaces === 1 ? "a keeper" : "keepers"}`}</span
+                >{/if}</span
             >{/if}
         </div>
         {#if next.going.length || next.waitlist.length || outs.length}
@@ -1600,10 +1607,19 @@
     min-width: 0;
   }
   .spaces {
+    display: inline-flex;
     flex: none;
+    flex-direction: column;
     color: var(--fg-muted);
     font-size: var(--text-sm);
+    line-height: 1.25;
     white-space: nowrap;
+  }
+  @media (min-width: 601px) {
+    .spaces {
+      flex-direction: row;
+      gap: var(--s-3);
+    }
   }
   .late {
     display: flex;

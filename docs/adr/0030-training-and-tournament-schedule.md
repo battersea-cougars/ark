@@ -75,19 +75,23 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   signed up (a Quarterly Member taking the last pay-as-you-go place; someone already waiting keeps their place in the
   queue). Only the team maker's Let in puts anyone over the limit. The reply says where they went (`signup`), and the
   register says so ("Full: Walt's on the waiting list", Waiting on their row) with Let in beside them for whoever
-  can. A night that's over is a record: someone ticked as there is in, whatever the places. Places are one limit for
-  skaters and keepers together, as sign-up counts them; `goalie_capacity` is stored and edited but not enforced.
-- **Keepers aren't in it**: they keep their sign-up place, and a skater never takes a keeper's. Whether keepers pay at
-  all, or need a plan of their own, is open.
+  can. A night that's over is a record: someone ticked as there is in, whatever the places.
+- **The places are the skaters'; keepers have their own**: a keeper is never on the waiting list because the skaters
+  are full, and never takes a skater's place. A series' `goalie_capacity` is the keepers' limit (null: none), kept to
+  the same way: over it a keeper waits. Places are counted a side at a time, so a place a keeper leaves goes to the
+  first keeper waiting, never a skater ahead of them, and a skater's to the first skater (`worker/entries`,
+  `lib/places.ts`). The Friday page says the skaters' places left, and the keepers' too where the series sets them.
+- **Keepers aren't in the Quarterly order**: they keep their sign-up place, and a skater never takes a keeper's.
+  Whether keepers pay at all, or need a plan of their own, is open.
 - The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge (the word,
   at every width) on their row in the sign-up lists and a tag on their card, so the order reads. That tells every member who signed up on the Quarterly plan, which is the
-  point of the badge; nobody else's plan is sent.
+  point of the badge. Whoever sees who said they're out (who runs events) gets the same flag for them, so Out groups
+  by plan too; nobody else's plan is sent.
 - Friday's Who's coming shows each list (In, Waiting, Out) **grouped by plan**, under small headings with their
   counts: Quarterly, Pay as you go, Keepers (the three plans, ADR 0007). Skaters keep their number in the one queue,
   on across Quarterly and Pay as you go; keepers are numbered on their own, their places counted apart. The Quarterly
-  badge is left off inside the Quarterly group, where the heading says it. Out has no queue to read plans from, so
-  it groups skaters by membership for whoever sees everyone's plan (`manage:Member`) and as Skaters for anyone else
-  (`lib/roster-groups.ts`).
+  badge is left off inside the Quarterly group, where the heading says it. Out groups the same way, from the
+  `quarterly` flag sent for those who are out (`lib/roster-groups.ts`).
 - Tournaments and club events keep plain sign-up order.
 
 ### A tournament owns its rules
@@ -189,4 +193,7 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   means the waiting list, and only the team maker lets anyone in over the limit. Adding had put them in whatever the
   places, so a Friday could fill past its limit with nobody waiting.
 - 2026-10-21: Friday's Who's coming is grouped by plan (Quarterly, Pay as you go, Keepers), each with its count;
-  skaters keep their queue number across the first two, keepers are numbered on their own.
+  skaters keep their queue number across the first two, keepers are numbered on their own. Out too: the
+  `quarterly` flag is sent for those who said they're out, to whoever sees them.
+- 2026-10-21: Keepers don't count towards the places, which are the skaters'; a series' `goalie_capacity` is now
+  enforced as the keepers' own limit (it had been stored but not enforced, and keepers had taken skaters' places).

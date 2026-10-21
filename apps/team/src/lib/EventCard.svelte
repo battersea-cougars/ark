@@ -4,6 +4,7 @@
   // their faces and first names, the count and spaces left, and In and Out at the end of that row, so you answer
   // next to the people you'd be playing with. Every kind carries its own icon and colour (set by an admin per
   // training and tournament type), so the calendar reads at a glance. Nothing moves when you answer.
+  import { keeps, nextUp, onSide, roomFor } from "./places";
   import { goesByOf } from "./names";
   import type { Snippet } from "svelte";
   import type { Bookable } from "../demo/model";
@@ -68,7 +69,13 @@
   const inIt = $derived(entries.going.includes(id));
   const waiting = $derived(entries.waitlist.includes(id));
   const out = $derived(entries.out?.includes(id) ?? false);
-  const full = $derived(event.capacity != null && entries.going.length >= event.capacity);
+  // A training's places are the skaters', keepers' counted apart (lib/places.ts): full is full for you, on your side
+  const training = $derived(event.kind === "training");
+  const full = $derived(
+    training ? !roomFor(id, entries.going, event) : event.capacity != null && entries.going.length >= event.capacity,
+  );
+  // Your number in the queue: a training's keepers are numbered on their own
+  const queue = (list: number[]) => (training ? onSide(list, keeps(id)) : list);
 
   // Who's going: the first five faces, in sign-up order, and first names (you first in both, when you're in)
   const nameOf = (pid: number) => goesByOf(PLAYERS.find((p) => p.id === pid));
@@ -87,7 +94,10 @@
   const rest = $derived(others.length - names.length);
   // "You, Aman, Chris" (then "and 4 more", a link to the full list), and "7 / 21 in · 14 spaces · 2 waiting": built here, so a formatter can't eat a space
   const crowd = $derived([inIt ? "You" : "", ...names].filter(Boolean).join(", "));
-  const spaces = $derived(event.capacity ? Math.max(0, event.capacity - entries.going.length) : null);
+  // Places a training counts are the skaters' (keepers come on top, said apart)
+  const keepersIn = $derived(training ? onSide(entries.going, true).length : 0);
+  const counted = $derived(entries.going.length - keepersIn);
+  const spaces = $derived(event.capacity ? Math.max(0, event.capacity - counted) : null);
   const linked = $derived(link && !!event.href);
   const hours = $derived(
     event.timeText
@@ -101,6 +111,7 @@
   const tally = $derived(
     [
       `${event.capacity ? ` / ${event.capacity}` : ""} in`,
+      keepersIn ? `${keepersIn} ${keepersIn === 1 ? "keeper" : "keepers"}` : "",
       spaces === null ? "" : `${spaces} ${spaces === 1 ? "space" : "spaces"}`,
       entries.waitlist.length ? `${entries.waitlist.length} waiting` : "",
     ]
@@ -149,11 +160,18 @@
     entries.out = (entries.out ?? []).filter((x) => x !== id);
     if (!going) {
       entries.out = [...entries.out, id];
-      // Someone drops out: the first on the waitlist moves up.
-      if (wasIn && entries.waitlist.length && event.capacity && entries.going.length < event.capacity) {
-        const up = entries.waitlist[0];
+      // Someone drops out: the first on the waitlist moves up (a training's: the first on their side, keeper or
+      // skater, lib/places.ts)
+      const up = !wasIn
+        ? undefined
+        : training
+          ? nextUp(id, entries.going, entries.waitlist, event)
+          : event.capacity && entries.going.length < event.capacity
+            ? entries.waitlist[0]
+            : undefined;
+      if (up !== undefined) {
         entries.going = [...entries.going, up];
-        entries.waitlist = entries.waitlist.slice(1);
+        entries.waitlist = entries.waitlist.filter((x) => x !== up);
         entries.quarterly = entries.quarterly?.filter((x) => x !== up);
       }
       onanswer?.("out");
@@ -274,11 +292,13 @@
         <span class="time num">{hours}</span>
         {#if soon}<span class="soon">{soon}</span>{/if}
       {:else if event.signup}
-        {#if inIt}<span class="badge green num">You're in · number {entries.going.indexOf(id) + 1}</span>
-        {:else if waiting}<span class="badge amber num">Waitlist · number {entries.waitlist.indexOf(id) + 1}</span>
+        {#if inIt}<span class="badge green num">You're in · number {queue(entries.going).indexOf(id) + 1}</span>
+        {:else if waiting}<span class="badge amber num"
+            >Waitlist · number {queue(entries.waitlist).indexOf(id) + 1}</span
+          >
         {:else if out}<span class="badge red">You're out</span>
         {:else}<span class="badge">Not answered yet</span>{/if}
-        {#if roster && !glance}<span class="tally num"><strong>{entries.going.length}</strong>{tally}</span>{/if}
+        {#if roster && !glance}<span class="tally num"><strong>{counted}</strong>{tally}</span>{/if}
       {/if}
     </div>
   </div>

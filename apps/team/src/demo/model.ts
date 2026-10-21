@@ -223,7 +223,10 @@ export interface Bookable {
   /** Opens the map. */
   mapUrl?: string;
   signup: boolean;
+  /** Places (a training's: the skaters'); null: no limit. */
   capacity?: number | null;
+  /** A training's places for keepers, counted apart (lib/places.ts); null or unset: no limit. */
+  goalieCapacity?: number | null;
   cancelled?: boolean;
   description?: string;
   /** The date isn't confirmed: shown as "TBC", sorted by the date it has. */

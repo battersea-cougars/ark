@@ -72,6 +72,22 @@ async function fullFriday(day = NEXT_FRIDAY) {
 }
 
 describe("adding a player keeps to the places", () => {
+  it("a keeper added to a Friday full of skaters is in: the places are the skaters'", async () => {
+    const f = await fullFriday();
+    expect((await f.putIn(f.id.Kim)).status).toBe(200);
+    expect((await f.register(f.id.Walt)).status).toBe(200); // a skater: waits
+    expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul, f.id.Kim], waitlist: [f.id.Walt] });
+  });
+
+  it("the register's walk-in keeper on a full night is in, and taking them off lets no skater in", async () => {
+    const f = await fullFriday();
+    expect((await f.register(f.id.Walt)).status).toBe(200); // waits
+    expect((await f.register(f.id.Kim)).status).toBe(200);
+    expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul, f.id.Kim], waitlist: [f.id.Walt] });
+    expect((await f.register(f.id.Kim, false)).status).toBe(200);
+    expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul], waitlist: [f.id.Walt] });
+  });
+
   it("the register adds someone to a Friday with room: they're in, as a walk-in, and the reply says so", async () => {
     const f = await fullFriday();
     const dana = await as("dana@example.com");
@@ -132,10 +148,10 @@ describe("adding a player keeps to the places", () => {
     const f = await fullFriday();
     const walt = await as("walt@example.com");
     expect((await walt.call("POST", `/api/sessions/${f.friday.id}/answer`, { answer: "in" })).status).toBe(200);
-    const kim = await as("kim@example.com");
-    expect((await kim.call("POST", `/api/sessions/${f.friday.id}/answer`, { answer: "in" })).status).toBe(200);
+    const tess = await as("tess@example.com");
+    expect((await tess.call("POST", `/api/sessions/${f.friday.id}/answer`, { answer: "in" })).status).toBe(200);
     expect((await f.register(f.id.Walt)).body.signup).toBe("waitlist");
-    expect((await f.seen()).waitlist).toEqual([f.id.Walt, f.id.Kim]);
+    expect((await f.seen()).waitlist).toEqual([f.id.Walt, f.id.Tess]);
   });
 
   it("an admin putting someone in a full Friday puts them on the waiting list; with room, in", async () => {
@@ -150,12 +166,6 @@ describe("adding a player keeps to the places", () => {
     await (await as("reg@example.com")).call("POST", `/api/sessions/${f.friday.id}/answer`, { answer: "out" });
     expect((await f.putIn(f.id.Kim)).body.signup).toBe("in");
     expect(await f.seen()).toMatchObject({ going: [f.id.Walt, f.id.Kim], waitlist: [] });
-  });
-
-  it("a keeper added to a full Friday waits too, and takes nobody's place", async () => {
-    const f = await fullFriday();
-    expect((await f.register(f.id.Kim)).body.signup).toBe("waitlist");
-    expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul], waitlist: [f.id.Kim] });
   });
 
   it("a Quarterly Member added to a full Friday takes the place of the last one in paying as they go", async () => {

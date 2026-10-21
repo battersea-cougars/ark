@@ -45,6 +45,7 @@ export function resolve(session: TrainingSession, series = seriesById(session.se
       seriesPlace(series),
     ),
     capacity: session.capacity ?? series.capacity,
+    goalieCapacity: series.goalieCapacity ?? null,
     cancelled: Boolean(session.cancelledAt),
   };
 }
@@ -63,6 +64,7 @@ export function sessionBookable(session: TrainingSession): Bookable {
     ...where(r.place),
     signup: !r.cancelled,
     capacity: r.capacity,
+    goalieCapacity: r.goalieCapacity,
     cancelled: r.cancelled,
     href: `/training/${r.series.slug}`,
     entries: session,

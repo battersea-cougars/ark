@@ -1,7 +1,8 @@
 // Who's in (T2): sign-ups for training sessions, tournaments and club events, and the register on the night. One
 // row per person per event (db/schema.sql). The rules live here, not in the app: a full
 // event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
-// waitlist moves up. A training's list is in one order, Quarterly Members first (ADR 0030): one signing up for a full
+// waitlist moves up. A training's places are the skaters'; keepers have their own, if the series sets any, else no
+// limit (ADR 0030), so a keeper never takes a skater's place, nor a skater a keeper's. A training's list is in one order, Quarterly Members first (ADR 0030): one signing up for a full
 // session takes the place of the last one in who pays as they go. Adding someone to a training keeps to
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
@@ -25,7 +26,8 @@ export const TABLES = {
 export interface Entries {
   going: number[];
   waitlist: number[];
-  /** Who signed up (in or waiting) is a Quarterly Member, so comes first (a training's only) */
+  /** Who's a Quarterly skater (a training's only): in or waiting, so they come first; out too, for whoever sees who's
+   * out, so the list of those can be grouped by plan like the others (ADR 0030) */
   quarterly: number[];
   out: number[];
   walkIns: number[];
@@ -40,15 +42,23 @@ export const quarterlyOn = (member: string, day: string) =>
 const SESSION_DAY = "(SELECT held_on FROM training_sessions WHERE id = e.session_id)";
 /** Keepers aren't in the Quarterly rule (ADR 0030): they keep their sign-up place, and nobody takes theirs */
 const SKATER = "(SELECT position FROM members WHERE id = e.member_id) <> 'G'";
+/** SQL: 1 for a keeper's row (`x`, an attendance row), else 0 */
+const keeperRow = (x: string) => `((SELECT position FROM members WHERE id = ${x}.member_id) = 'G')`;
+/** A training's places for a keeper (1) or a skater (0), at the session `s` of the series `ts`; null: no limit */
+const placesFor = (keeper: string) =>
+  `CASE WHEN ${keeper} THEN COALESCE(s.goalie_capacity, ts.goalie_capacity) ELSE COALESCE(s.capacity, ts.capacity) END`;
 
 /**
  * SQL: 1 for someone signed up for a training (in or waiting) who comes first, being a Quarterly Member on the day
  * (ADR 0030), else 0. `e` is the attendance row. Other kinds are first come, first served.
  */
+// (Not a bare 0 for the rest: in an ORDER BY that names column 0)
 export const aheadIn = (kind: EntryKind) =>
-  kind === "session"
-    ? `(e.signup IN ('in', 'waitlist') AND ${SKATER} AND ${quarterlyOn("e.member_id", SESSION_DAY)})`
-    : "FALSE"; // (not a bare 0: in an ORDER BY that names column 0)
+  kind === "session" ? `(e.signup IN ('in', 'waitlist') AND ${quarterlySkater(kind)})` : "FALSE";
+
+/** SQL: 1 for a Quarterly skater's answer to a training (in, waiting or out), else 0. `e` is the attendance row. */
+export const quarterlySkater = (kind: EntryKind) =>
+  kind === "session" ? `(${SKATER} AND ${quarterlyOn("e.member_id", SESSION_DAY)})` : "FALSE";
 
 /**
  * A Quarterly skater waiting for a full training takes the place of the last skater in who pays as they go (not a
@@ -73,15 +83,25 @@ const bumping = (db: D1Database, sessionId: number, memberId: number) =>
   );
 const bump = (db: D1Database, sessionId: number, memberId: number) => batch(db, [bumping(db, sessionId, memberId)]);
 
-/** Whether the event exists and takes sign-ups, and its limit (null: no limit). */
-async function capacity(db: D1Database, kind: EntryKind, id: number): Promise<number | null> {
+/** Where a member's place counts: their side of a training (a keeper's places or the skaters'), and its limit */
+interface Places {
+  /** null: no limit */
+  limit: number | null;
+  /** A keeper on a training (their places counted apart); always false elsewhere */
+  keeper: boolean;
+}
+
+/** Whether the event exists and takes sign-ups, and the places that count for this member. */
+async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: number): Promise<Places> {
   const row =
     kind === "session"
-      ? await first<{ capacity: number | null; cancelled: string | null }>(
+      ? await first<{ capacity: number | null; cancelled: string | null; keeper: number }>(
           db,
-          `SELECT COALESCE(s.capacity, ts.capacity) capacity, s.cancelled_at cancelled
-           FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id WHERE s.id = ?`,
-          [id],
+          `SELECT k.keeper, ${placesFor("k.keeper")} capacity, s.cancelled_at cancelled
+           FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
+             JOIN (SELECT COALESCE((SELECT position = 'G' FROM members WHERE id = ?), 0) keeper) k
+           WHERE s.id = ?`,
+          [memberId, id],
         )
       : kind === "tournament"
         ? await first<{ capacity: number | null; cancelled: null }>(
@@ -97,7 +117,7 @@ async function capacity(db: D1Database, kind: EntryKind, id: number): Promise<nu
   if (!row) throw new HttpError(404, "No such event.");
   if (row.cancelled) throw new HttpError(409, "That session's cancelled.");
   if ("signup" in row && !row.signup) throw new HttpError(409, "That event doesn't take sign-ups.");
-  return row.capacity;
+  return { limit: row.capacity, keeper: "keeper" in row && Boolean(row.keeper) };
 }
 
 async function current(db: D1Database, kind: EntryKind, id: number, memberId: number) {
@@ -111,8 +131,12 @@ async function current(db: D1Database, kind: EntryKind, id: number, memberId: nu
 
 // Two people at once: each statement is atomic, but two requests' statements can interleave. So whether there's a
 // place is decided inside the statement that takes it, never counted first and written after (entries.test.ts).
-const roomIn = (table: string, key: string) =>
-  `(? IS NULL OR (SELECT COUNT(*) FROM ${table} WHERE ${key} = ? AND signup = 'in') < ?)`;
+// A training counts a side at a time: keepers' places or skaters' (`keeper`, a boolean, so safe in the SQL).
+const roomIn = (kind: EntryKind, keeper: boolean) => {
+  const { table, key } = TABLES[kind];
+  const side = kind === "session" ? ` AND ${keeperRow("x")} = ${keeper ? 1 : 0}` : "";
+  return `(? IS NULL OR (SELECT COUNT(*) FROM ${table} x WHERE x.${key} = ? AND x.signup = 'in'${side}) < ?)`;
+};
 
 /** Write someone's answer. `join` is in if there's a place, else the waitlist, decided in the same statement. */
 async function put(
@@ -120,7 +144,7 @@ async function put(
   kind: EntryKind,
   id: number,
   memberId: number,
-  signup: "in" | "out" | { join: number | null },
+  signup: "in" | "out" | { join: Places },
   now: string,
 ) {
   const { table, key } = TABLES[kind];
@@ -130,30 +154,33 @@ async function put(
   await run(
     db,
     `INSERT INTO ${table} (${key}, member_id, signup, signed_up_at)
-     VALUES (?, ?, ${join ? `CASE WHEN ${roomIn(table, key)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?)
+     VALUES (?, ?, ${join ? `CASE WHEN ${roomIn(kind, signup.join.keeper)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?)
      ON CONFLICT (${key}, member_id) DO UPDATE SET signup = excluded.signup, signed_up_at = excluded.signed_up_at${reset}`,
-    join ? [id, memberId, signup.join, id, signup.join, now] : [id, memberId, signup, now],
+    join ? [id, memberId, signup.join.limit, id, signup.join.limit, now] : [id, memberId, signup, now],
   );
 }
 
 /** A place came free: the first on the waitlist (a training's Quarterly Members first) moves up, if there's still
- * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. */
-async function moveUp(db: D1Database, kind: EntryKind, id: number, limit: number | null, now: string) {
+ * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. On a
+ * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. */
+async function moveUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
   const { table, key } = TABLES[kind];
   const kept = kind === "session";
+  const side = kept ? ` AND ${keeperRow("e")} = ${places.keeper ? 1 : 0}` : "";
+  const { limit } = places;
   await run(
     db,
     `UPDATE ${table} SET signup = 'in'${kept ? "" : ", signed_up_at = ?"}
-     WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'
+     WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'${side}
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
-       AND ${roomIn(table, key)}`,
+       AND ${roomIn(kind, places.keeper)}`,
     kept ? [id, limit, id, limit] : [now, id, limit, id, limit],
   );
 }
 
 /** A member says in or out for themselves. In on a full event is the waitlist. */
 export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
-  const limit = await capacity(db, kind, id);
+  const places = await capacity(db, kind, id, memberId);
   const was = await current(db, kind, id, memberId);
   if (a === "out") {
     if (was?.signup === "out") return;
@@ -161,7 +188,7 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
     if (kind === "tournament") await leaveDraft(db, id, memberId);
     await put(db, kind, id, memberId, "out", now);
     // A session's published teams keep them until a team maker remakes the teams or keeps them as they are (ADR 0076)
-    if (was?.signup === "in") await moveUp(db, kind, id, limit, now);
+    if (was?.signup === "in") await moveUp(db, kind, id, places, now);
     return;
   }
   if (was?.signup === "in" || was?.signup === "waitlist") return;
@@ -180,8 +207,8 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
       throw new HttpError(409, "Sign-up has closed.");
     }
   }
-  await put(db, kind, id, memberId, { join: limit }, now);
-  if (kind === "session" && limit !== null) await bump(db, id, memberId);
+  await put(db, kind, id, memberId, { join: places }, now);
+  if (kind === "session" && places.limit !== null && !places.keeper) await bump(db, id, memberId);
 }
 
 /**
@@ -197,14 +224,14 @@ export async function setPlayer(
   inIt: boolean,
   now: string,
 ): Promise<string | null> {
-  const limit = await capacity(db, kind, id);
+  const places = await capacity(db, kind, id, memberId);
   const was = await current(db, kind, id, memberId);
   if (inIt) {
     if (was?.signup === "in") return "in";
     if (kind === "session") {
       if (was?.signup === "waitlist") return "waitlist";
-      await put(db, kind, id, memberId, { join: limit }, now);
-      if (limit !== null) await bump(db, id, memberId);
+      await put(db, kind, id, memberId, { join: places }, now);
+      if (places.limit !== null && !places.keeper) await bump(db, id, memberId);
     } else {
       if (kind === "tournament") await joinDraft(db, id);
       await put(db, kind, id, memberId, "in", now);
@@ -216,7 +243,7 @@ export async function setPlayer(
   const { table, key } = TABLES[kind];
   await run(db, `DELETE FROM ${table} WHERE ${key} = ? AND member_id = ?`, [id, memberId]);
   if (kind === "session") await offTeams(db, id, memberId);
-  if (was.signup === "in") await moveUp(db, kind, id, limit, now);
+  if (was.signup === "in") await moveUp(db, kind, id, places, now);
   return null;
 }
 
@@ -259,13 +286,20 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
     cancelled: string | null;
     signup: string | null;
     walkIn: number | null;
+    keeper: number;
   }>(
     db,
-    `SELECT s.id, s.held_on heldOn, s.cancelled_at cancelled, a.signup, a.walk_in walkIn
+    `SELECT s.id, s.held_on heldOn, s.cancelled_at cancelled, a.signup, a.walk_in walkIn,
+       COALESCE((SELECT position = 'G' FROM members WHERE id = ?), 0) keeper
      FROM training_sessions s LEFT JOIN attendance a ON a.session_id = s.id AND a.member_id = ?
      WHERE s.id IN (SELECT value FROM json_each(?))`,
-    [memberId, ids],
+    [memberId, memberId, ids],
   );
+  // A keeper's places or the skaters' (a boolean, so safe in the SQL)
+  const keeper = rows[0]?.keeper ? "1" : "0";
+  const room = `(${placesFor(keeper)} IS NULL
+    OR (SELECT COUNT(*) FROM attendance x WHERE x.session_id = s.id AND x.signup = 'in' AND ${keeperRow("x")} = ${keeper})
+      < ${placesFor(keeper)})`;
   const today = londonToday(new Date(now));
   const was = new Map(rows.map((r) => [r.id, r]));
   const signedUp: Mark[] = [];
@@ -302,9 +336,7 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
       db,
       `INSERT INTO attendance (session_id, member_id, signup, signed_up_at, attended, walk_in, recorded_by, recorded_at)
        SELECT q.id, ?, CASE WHEN q.room THEN 'in' ELSE 'waitlist' END, ?, CASE WHEN q.room THEN 1 END, 1, ?, ?
-       FROM (SELECT s.id, (COALESCE(s.capacity, ts.capacity) IS NULL
-               OR (SELECT COUNT(*) FROM attendance x WHERE x.session_id = s.id AND x.signup = 'in')
-                 < COALESCE(s.capacity, ts.capacity)) room
+       FROM (SELECT s.id, ${room} room
              FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
              WHERE s.id IN (SELECT value FROM json_each(?))) q WHERE true
        ON CONFLICT (session_id, member_id) DO UPDATE SET signup = excluded.signup,
@@ -315,7 +347,7 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
          attended = excluded.attended, recorded_by = excluded.recorded_by, recorded_at = excluded.recorded_at`,
       [memberId, now, by, now, list(joining)],
     ),
-    ...joining.map((sessionId) => bumping(db, sessionId, memberId)),
+    ...(keeper === "1" ? [] : joining.map((sessionId) => bumping(db, sessionId, memberId))),
     statement(db, `DELETE FROM attendance WHERE member_id = ? AND session_id IN (${offList})`, [memberId, list(off)]),
     statement(
       db,
@@ -323,18 +355,17 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
        AND team_id IN (SELECT id FROM session_teams WHERE session_id IN (${offList}))`,
       [memberId, list(off)],
     ),
-    // A place came free on each of those nights: the first waiting moves up, where there's room
+    // A place came free on each of those nights (a keeper's or a skater's, as theirs was): the first waiting for one
+    // moves up, where there's room
     statement(
       db,
       `UPDATE attendance SET signup = 'in'
        WHERE id IN (
          SELECT (SELECT e.id FROM attendance e WHERE e.session_id = s.id AND e.signup = 'waitlist'
+                   AND ${keeperRow("e")} = ${keeper}
                  ORDER BY ${aheadIn("session")} DESC, e.signed_up_at, e.id LIMIT 1)
          FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
-         WHERE s.id IN (${offList})
-           AND (COALESCE(s.capacity, ts.capacity) IS NULL
-             OR (SELECT COUNT(*) FROM attendance x WHERE x.session_id = s.id AND x.signup = 'in')
-               < COALESCE(s.capacity, ts.capacity)))`,
+         WHERE s.id IN (${offList}) AND ${room})`,
       [list(off)],
     ),
   ]);
@@ -360,7 +391,8 @@ export async function listEntries(db: D1Database, kind: EntryKind, ids: number[]
   const extra = kind === "session" ? "e.walk_in walkIn, e.attended" : "0 walkIn, NULL attended";
   const rows = await all<EntryRow>(
     db,
-    `SELECT e.${key} eventId, e.member_id memberId, e.signup, ${extra}, ${aheadIn(kind)} ahead FROM ${table} e
+    `SELECT e.${key} eventId, e.member_id memberId, e.signup, ${extra}, ${aheadIn(kind)} ahead,
+            ${quarterlySkater(kind)} quarterly FROM ${table} e
      WHERE e.${key} IN (SELECT value FROM json_each(?)) ORDER BY ahead DESC, e.signed_up_at, e.id`,
     [JSON.stringify(ids)],
   );
@@ -375,6 +407,8 @@ interface EntryRow {
   walkIn: number;
   attended: number | null;
   ahead?: number;
+  /** A Quarterly skater, whatever their answer (quarterlySkater) */
+  quarterly?: number;
 }
 
 /** Answers as read, in queue order (aheadIn first, then sign-up order), grouped by event: an event with none has
@@ -389,7 +423,7 @@ export function entriesFrom(rows: EntryRow[], ids: number[]): Map<number, Entrie
     if (r.signup === "in") e.going.push(r.memberId);
     else if (r.signup === "waitlist") e.waitlist.push(r.memberId);
     else e.out.push(r.memberId);
-    if (r.ahead) e.quarterly.push(r.memberId);
+    if (r.ahead || r.quarterly) e.quarterly.push(r.memberId);
     if (r.walkIn) e.walkIns.push(r.memberId);
     if (r.attended === 0) e.noShows.push(r.memberId);
   }

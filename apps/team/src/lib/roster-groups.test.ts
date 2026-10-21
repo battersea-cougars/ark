@@ -39,14 +39,4 @@ describe("Friday's Who's coming, grouped by plan", () => {
     const { numbers } = rosterGroups([1, 2, 3, 4, 5], plan);
     expect(numbers.get(5)).toBe(4);
   });
-
-  it("puts skaters whose plan the viewer isn't told under Skaters, between the plans and the keepers", () => {
-    const { groups, numbers } = rosterGroups([3, 4, 9], (id) => (id === 9 ? null : plan(id)));
-    expect(groups.map((g) => [g.title, g.ids])).toEqual([
-      ["Pay as you go", [3]],
-      ["Skaters", [9]],
-      ["Keepers", [4]],
-    ]);
-    expect(numbers.get(9)).toBe(2);
-  });
 });

@@ -9,6 +9,7 @@
   import Person from "./Person.svelte";
   import { formatDayDate } from "./dates";
   import { letIn, markHere } from "../app/backend.svelte";
+  import { roomFor } from "./places";
 
   // The register for the night, in a drawer over the training page: every active member, sign-ups first and
   // already ticked, everyone else below to tick as they walk in. Search narrows the list. Ticks are written to the
@@ -19,12 +20,14 @@
   const series = $derived(seriesById(seriesId)!);
   const session = $derived(nextSession(series));
   const when = $derived(session ? formatDayDate(sessionBookable(session).startsAt) : "No session coming up");
-  const capacity = $derived(session ? resolve(session, series).capacity : null);
+  // The night's places: the skaters', keepers' counted apart (lib/places.ts)
+  const limits = $derived(session ? resolve(session, series) : { capacity: null });
   const going = $derived(session?.going ?? []);
   const waitlist = $derived(session?.waitlist ?? []);
   const walkIns = $derived(session?.walkIns ?? []);
   const noShows = $derived(session?.noShows ?? []);
-  const full = $derived(capacity != null && going.length >= capacity);
+  // Full for skaters; a keeper may still have a place
+  const full = $derived(!roomFor(0, going, limits, () => false));
   // Who's playing over the limit is the team maker's call (ADR 0076)
   const letting = $derived(can(granted(), "publish:Teams"));
   const here = (id: number) => going.includes(id) && !noShows.includes(id);
@@ -66,7 +69,7 @@
       // Turned up without signing up: in if there's room, else on the waiting list for the team maker to let in.
       // (A Quarterly Member may take someone's place: the server's reply puts the lists right.)
       void markHere(s.id, id, true, shortName(p));
-      if (full) s.waitlist = [...s.waitlist, id];
+      if (!roomFor(id, going, limits)) s.waitlist = [...s.waitlist, id];
       else s.going = [...s.going, id];
       s.out = s.out?.filter((x) => x !== id);
       s.walkIns = [...walkIns, id];
