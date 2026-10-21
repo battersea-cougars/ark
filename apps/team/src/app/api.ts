@@ -1,6 +1,7 @@
 // Fetching from the team app's Worker (apps/team/worker/api/api.ts). Kept apart from the store so the app can load the
 // club's data before anything that reads it is imported (main.ts).
-import type { Bootstrap } from "../demo/data";
+import type { Bootstrap, Slices } from "../demo/data";
+import { atVersion, VERSION_HEADER } from "./club-tag";
 import { Brake } from "./brake";
 import { BUILD_HEADER } from "./build";
 import { heardBuild } from "./update.svelte";
@@ -27,8 +28,18 @@ export async function api<T = unknown>(method: string, path: string, payload?: u
     headers: payload === undefined ? undefined : { "content-type": "application/json" },
     body: payload === undefined ? undefined : JSON.stringify(payload),
   });
-  return read<T>(res, path);
+  return versioned(res, await read<T>(res, path));
 }
+
+// The club's data version a reply was read at (a change's, the bootstrap's), kept beside the reply itself
+const versions = new WeakMap<object, number>();
+function versioned<T>(res: Response, data: T): T {
+  const v = res.headers.get(VERSION_HEADER);
+  if (v && data && typeof data === "object") versions.set(data, Number(v));
+  return data;
+}
+/** The club's data version a reply was read at (or after), if it said (catch-up.ts). */
+export const versionOf = (data: unknown) => (data && typeof data === "object" ? versions.get(data) : undefined);
 
 /** Every call to the Worker: through the brake, which hears how it went. */
 async function send(path: string, init?: RequestInit): Promise<Response> {
@@ -58,8 +69,9 @@ async function read<T>(res: Response, path: string): Promise<T> {
   return data as T;
 }
 
-// The bootstrap's ETag (ADR 0053). The browser keeps the reply and asks with it by itself; an unchanged club comes
-// back as the kept copy, with the same tag.
+// The bootstrap's ETag (ADR 0053). Opening the app, the browser asks with the reply it kept; after that the app asks
+// with the tag at the data version its copy holds, which moves on as live pages read the club in parts (catch-up.ts,
+// ADR 0072): a club that hasn't changed since is an empty 304.
 let bootstrapTag: string | null = null;
 
 export async function getBootstrap(): Promise<Bootstrap> {
@@ -67,12 +79,25 @@ export async function getBootstrap(): Promise<Bootstrap> {
   const data = await read<Bootstrap>(res, "/api/bootstrap");
   bootstrapTag = res.headers.get("etag");
   heardBuild(res.headers.get(BUILD_HEADER));
-  return data;
+  return versioned(res, data);
 }
 
-/** The whole club, or null if nothing has changed since the last time it was read. */
-export async function bootstrapIfChanged(): Promise<Bootstrap | null> {
-  const before = bootstrapTag;
-  const data = await getBootstrap();
-  return before && bootstrapTag === before ? null : data;
+/** The whole club, or null if nothing has changed since the version held (`versionOf` the club says its version). */
+export async function bootstrapIfChanged(held: number): Promise<Bootstrap | null> {
+  if (!bootstrapTag || !held) return getBootstrap();
+  const ask = { cache: "no-store" as const, headers: { "if-none-match": atVersion(bootstrapTag, held) } };
+  const res = await send("/api/bootstrap", ask);
+  if (res.status !== 304) {
+    const data = await read<Bootstrap>(res, "/api/bootstrap");
+    bootstrapTag = res.headers.get("etag");
+    heardBuild(res.headers.get(BUILD_HEADER));
+    return versioned(res, data);
+  }
+  brake.answered(304, true);
+  heardBuild(res.headers.get(BUILD_HEADER));
+  return null;
 }
+
+/** Just these parts of the club, and the data version they're at least as new as (catch-up.ts). */
+export const readSlices = (names: string[]) =>
+  api<{ version: number; slices: Slices }>("GET", `/api/slices?names=${names.join(",")}`);

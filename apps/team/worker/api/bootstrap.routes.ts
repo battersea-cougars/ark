@@ -1,9 +1,11 @@
-// The club, read: the bootstrap (everything the app shows, ADR 0053) and the live stream of what changed (ADR 0072).
+// The club, read: the bootstrap (everything the app shows, ADR 0053), the live stream of what changed (ADR 0072), and
+// the parts a change named, for a live page to catch up on without reading the whole club (#112).
 import { type Route } from "./api.route";
 import { SLICES, slices, type Slice } from "./api.slices";
 import { devToolsHere } from "../settings/devtools";
 import { chargeDue } from "../dues/dues";
-import { json } from "./api.http";
+import { HttpError, json } from "./api.http";
+import { sameTag } from "../../src/app/club-tag";
 import { liveStream } from "../live/live";
 import { ensureSessions } from "../training/training";
 import { bootstrapTag, buildOf, dataVersion, notModified, sessionsMade, tagged } from "./api.version";
@@ -35,7 +37,7 @@ export const CLUB_ROUTES: Route[] = [
         ({ version } = await dataVersion(db));
       }
       const tag = bootstrapTag(buildOf(c.env), version, c.memberId, c.today);
-      if (c.request.headers.get("if-none-match") === tag) return notModified(tag);
+      if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, version);
       const reply = json({
         me: c.memberId,
         actions: [...c.actions],
@@ -45,7 +47,24 @@ export const CLUB_ROUTES: Route[] = [
         unfinished: devToolsHere(c.env),
         ...(await slices(c, Object.keys(SLICES) as Slice[])),
       });
-      return tagged(reply, tag);
+      return tagged(reply, tag, version);
+    },
+  },
+  {
+    method: "GET",
+    path: /^\/api\/slices$/,
+    action: "authenticated",
+    // Just these parts (`?names=sessions,agenda`), as this member may see them, and the data version they're at
+    // least as new as: what a live page reads when the hub names them (ADR 0072). The version is read first, so
+    // every change up to it is in what follows.
+    handle: async (c) => {
+      const names = (new URL(c.request.url).searchParams.get("names") ?? "").split(",").filter(Boolean);
+      if (!names.length || !names.every((n) => Object.hasOwn(SLICES, n)))
+        throw new HttpError(400, "Which parts of the club?");
+      const { version } = await dataVersion(c.env.DB);
+      const reply = json({ version, slices: await slices(c, names as Slice[]) });
+      reply.headers.set("cache-control", "no-store");
+      return reply;
     },
   },
 ];

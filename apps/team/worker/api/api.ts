@@ -28,6 +28,7 @@ import { TRAINING_ROUTES } from "../training/training.routes";
 import { notify } from "../push/push";
 import { PUSH_ROUTES } from "../push/push.routes";
 import { bumpDataVersion } from "./api.version";
+import { VERSION_HEADER } from "../../src/app/club-tag";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
 import { scribe } from "@cougars/shared/scribe";
 import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
@@ -191,12 +192,12 @@ export async function handleApi(
     }
     if (writes && res.ok) {
       // A change: every member's bootstrap is out of date (ADR 0053)
-      await bumpDataVersion(env.DB);
+      const version = await bumpDataVersion(env.DB);
       // ...and this member gets the parts it touched back, to put in place
       const declared = hit.r.changes ?? [];
       const changes = declared.some((d) => SCHEDULE.includes(d)) ? [...declared, "agenda" as const] : declared;
-      // ...and everyone on a live page hears which parts (ADR 0072), once this reply is on its way
-      const told = notifyLive(env, changes);
+      // ...and everyone on a live page hears which parts, and the version (ADR 0072), once this reply is on its way
+      const told = notifyLive(env, changes, version);
       if (waitUntil) waitUntil(told);
       else await told;
       if (changes.length) {
@@ -205,6 +206,8 @@ export async function handleApi(
           : ctx;
         const reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         const out = json({ ...reply, changed: await slices(now, changes) }, res.status);
+        // Read after the version went up: the app's copy has this change's parts at least as new (src/app/catch-up.ts)
+        out.headers.set(VERSION_HEADER, String(version));
         if (who.setCookie) out.headers.append("set-cookie", who.setCookie);
         return out;
       }

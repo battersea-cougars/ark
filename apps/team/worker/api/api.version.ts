@@ -8,6 +8,7 @@
 // build may send a different shape).
 import { first, run } from "@cougars/shared/d1";
 import { APP_BUILD, BUILD_HEADER } from "../../src/app/build";
+import { clubTag, VERSION_HEADER } from "../../src/app/club-tag";
 
 // On your own machine, the Worker's code reloads on every change, and with it this
 const STARTED = Date.now().toString(36);
@@ -31,36 +32,37 @@ export async function sessionsMade(db: D1Database, today: string): Promise<void>
   );
 }
 
-/** After a change: every member's bootstrap is out of date. */
-export async function bumpDataVersion(db: D1Database): Promise<void> {
-  await run(
+/** After a change: every member's bootstrap is out of date. The new version, which names this change (ADR 0072). */
+export async function bumpDataVersion(db: D1Database): Promise<number> {
+  const row = await first<{ version: number }>(
     db,
     `INSERT INTO data_version (id, version) VALUES (1, CAST(strftime('%s', 'now') AS INTEGER))
-     ON CONFLICT (id) DO UPDATE SET version = version + 1`,
+     ON CONFLICT (id) DO UPDATE SET version = version + 1 RETURNING version`,
   );
+  return row?.version ?? 0;
 }
 
 /** The deploy: Cloudflare's version id, or (on your own machine) when this code was loaded. */
 export const buildOf = (env: { TEAM_ENV?: string; CF_VERSION_METADATA?: { id: string } }) =>
   (env.TEAM_ENV !== "local" && env.CF_VERSION_METADATA?.id) || STARTED;
 
-export const bootstrapTag = (build: string, version: number, memberId: number, today: string) =>
-  `"${build}.${version}.${memberId}.${today}"`;
+export const bootstrapTag = clubTag;
 
 // The browser keeps the reply but asks before each use; only this member's browser (private)
 const REVALIDATE = "private, no-cache";
 
-/** A reply with its tag, which the browser keeps and asks about next time. */
-export function tagged(res: Response, tag: string): Response {
+/** A reply with its tag, which the browser keeps and asks about next time, and the data version it's at. */
+export function tagged(res: Response, tag: string, version: number): Response {
   res.headers.set("etag", tag);
+  res.headers.set(VERSION_HEADER, String(version));
   res.headers.set("cache-control", REVALIDATE);
   // Which build answered: an app left open sees a newer one is out and offers to reload (ADR 0104)
   res.headers.set(BUILD_HEADER, APP_BUILD);
   return res;
 }
 
-export const notModified = (tag: string) =>
+export const notModified = (tag: string, version: number) =>
   new Response(null, {
     status: 304,
-    headers: { etag: tag, "cache-control": REVALIDATE, [BUILD_HEADER]: APP_BUILD },
+    headers: { etag: tag, "cache-control": REVALIDATE, [BUILD_HEADER]: APP_BUILD, [VERSION_HEADER]: String(version) },
   });

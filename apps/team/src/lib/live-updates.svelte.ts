@@ -1,11 +1,13 @@
 // Live pages follow along (ADR 0072): a game being scored, the tournament's home while a game's on, the draft room
 // while it's open. The page holds one stream from the club's live hub, which says which parts of the club changed
-// the moment they do; the page then reads its own view (one request, a 304 when it already has it). While the
-// stream's open the page still checks every minute, as a safety net; when it's down (a dropped connection, a server
+// the moment they do; the app then reads just those parts (one read at a time, after a short random wait, so a burst
+// is one read: app/catch-up.ts, #112). While the stream's open the page still checks every minute, as a safety net
+// (a 304 when the copy has every change); when it's down (a dropped connection, a server
 // without a hub), it checks on the admins' beat instead (ADR 0072), and says so. Only while the page is in view; the
 // brake (ADR 0055) still has the last word: a connect is one of the tab's calls, and nothing goes out while it rests.
 import { brake } from "../app/api";
-import { refreshIfChanged } from "../app/backend.svelte";
+import { checked, copy, refreshIfChanged } from "../app/backend.svelte";
+import type { Heard } from "../app/catch-up";
 import { db } from "../demo/store.svelte";
 
 /** Seconds between checks, as the admins set it: the pace when there's no stream. */
@@ -26,14 +28,21 @@ const SAFETY_MS = 60_000;
 const FIRST_RETRY_MS = 10_000;
 const MAX_RETRY_MS = 5 * 60_000;
 
+/** The club read this recently (the app just opened): a page opening now doesn't check again. */
+const FRESH_MS = 10_000;
+
 let streams = 0;
 
-/** The parts an event names; not what the hub sends means everything followed, as a check costs one request. */
-function whatChanged(data: string, follow: readonly string[]): string[] {
+/**
+ * What an event says changed: the parts, and the versions that changed them. Not what the hub sends means everything
+ * followed, with no versions, which only a check of the whole club can settle (a 304 when nothing has changed).
+ */
+function whatChanged(data: string, follow: readonly string[]): Pick<Heard, "changed"> & Partial<Heard> {
   try {
-    return JSON.parse(data).changed ?? [];
+    const { changed = [], versions } = JSON.parse(data);
+    return { changed, versions };
   } catch {
-    return [...follow];
+    return { changed: [...follow] };
   }
 }
 
@@ -75,9 +84,8 @@ export function checkForUpdates(follow: readonly string[] = ["tournaments"], { s
       onBeat();
       if (catchUp) check();
     };
-    es.addEventListener("changed", (e: MessageEvent<string>) => {
-      if (whatChanged(e.data, follow).some((s) => follow.includes(s))) check();
-    });
+    // The app's copy reads what it lacks, if this page (or another open) follows any of it
+    es.addEventListener("changed", (e: MessageEvent<string>) => copy.hear(whatChanged(e.data, follow)));
     // Dropped, refused (a server without a hub answers 503), or the day's allowance is spent: the browser would try
     // again in a few seconds forever; the app waits longer each time, and checks on the admins' beat meanwhile
     es.onerror = () => drop(true);
@@ -103,11 +111,14 @@ export function checkForUpdates(follow: readonly string[] = ["tournaments"], { s
   };
 
   document.addEventListener("visibilitychange", onVisible);
-  check();
+  const unfollow = copy.follow(follow);
+  // Opened just after the app read the club (Home, as the app opens): nothing to check yet (ADR 0120)
+  if (Date.now() - checked.at > FRESH_MS) check();
   onBeat();
   connect(false);
   return () => {
     stopped = true;
+    unfollow();
     document.removeEventListener("visibilitychange", onVisible);
     clearInterval(beat);
     clearTimeout(retry);

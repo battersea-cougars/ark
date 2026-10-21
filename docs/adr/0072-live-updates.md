@@ -31,10 +31,22 @@ The club may one day pay for hosting, when checking more often costs next to not
   still comes from their own bootstrap. A server without a hub answers 503. The hub sends a comment every 30 seconds
   so dead phones are dropped.
 - **Every change notifies the hub** at the one place all writes pass (`handleApi`, after the data version bump), with
-  the slices the route declared, through `waitUntil`. A notify that fails is logged, never fails the change.
-- **A page reloads on an event naming a part it follows** (the ETag check, [0053](0053-live-reads-are-cached.md): one
-  request, a 304 when it already has it), and on reconnecting after a drop. The stream is open only while the page is
-  in view; hidden, it's closed, and coming back reopens it and catches up.
+  the slices the route declared and the data version the change made, through `waitUntil`. A notify that fails is
+  logged, never fails the change.
+- **The hub sends at most one event a second**: the first change after a quiet second goes out at once; the ones
+  after it wait for the end of that second and go out together, naming every part and every version in them. So a
+  burst (a Friday's taps) is one event a second, not one a tap.
+- **A page reads only the parts an event names, not the whole club** (#112). The app's copy of the club
+  (`app/catch-up.ts`) knows the data version it holds all of; an event naming a part a page follows makes it read
+  the parts it lacks (`GET /api/slices?names=…`, each as this member may see it, with the version read first), one
+  read at a time, after a random wait of up to a second, so a burst is one read a phone and the phones don't all ask
+  in the same instant. Nothing is read while the page is out of view. A change's own reply carries its version
+  (`x-club-version`), so the phone that made it reads nothing more. A change to members or roles (what someone may
+  do) reads the whole club. The whole club's check (the ETag, [0053](0053-live-reads-are-cached.md)) asks at the
+  version the copy holds, so once the parts are in it's a 304; a version the copy never heard of (a change that told
+  nobody, like the dues cron's, or one made before the stream opened) leaves it short until that check reads it all.
+  The stream reconnecting after a drop checks the whole club too. The stream is open only while the page is in view;
+  hidden, it's closed, and coming back reopens it and catches up.
 - **Reconnecting goes through the brake** ([0055](0055-degrade-instead-of-break.md)): the browser's own 3-second retry
   is turned off; the app reopens after 10 seconds, doubling to 5 minutes, never while the brake rests, and each
   connect counts as one of the tab's calls for the day.
@@ -42,6 +54,8 @@ The club may one day pay for hosting, when checking more often costs next to not
   net. While it's down, it checks at **one club setting, `live_refresh_seconds`** (`club_settings`; default 10, 5 to
   120 seconds), sent to everyone in the bootstrap (`settings`). Admins (`manage:Settings`) set it on **Usage**, beside
   today's use, with what it costs: requests per phone per hour, and a tournament day as a share of the free day.
+- **A page opening just after the club was read doesn't check it again** (within 10 seconds: Home, as the app
+  opens, [0120](0120-team-app-first-paint.md)).
 - **Every live page uses this** (`lib/live-updates.svelte.ts`): the game page from the game up next to full time (the
   scorekeeper's too: the same person may have it open on two devices), the tournament's home on its day while games
   are on, and the draft room while it's open. Only while the page is in view; the brake still has the last word.
@@ -59,8 +73,16 @@ The club may one day pay for hosting, when checking more often costs next to not
   21,600, and about 900 GB-s of the 13,000 (one object billed while anyone is connected, whatever the number of
   phones). A tournament day of live scoring is about 1,800 GB-s. These are estimates, not yet measured.
 - Measured locally ([0121](0121-load-and-concurrency.md), docs/load-testing.md): requests stay a few per cent of the
-  day, but every phone reloads the whole club on every change, so **D1 rows read** is what runs out: a draft night
-  with 68 phones about 87% of the free 5M, a full Friday rush with everyone on Home about twice it (#112).
+  day; **D1 rows read** was what ran out while every phone reloaded the whole club on every change (a draft night
+  with 68 phones about 87% of the free 5M, a full Friday rush about twice it, #112). Reading only the parts, one
+  read at a time, with the hub's one event a second: a draft night about 33%, a game scored live for 80 phones
+  about 3% (was 24%), the Friday rush about 12% with every read landing.
+- A change reaches other screens a little later at a quiet moment (a random wait of up to a second before the read,
+  and up to a second in the hub when changes come close together); under load the lighter reads make it sooner (a
+  pick on every screen 1.2 s at the median, was 1.6 s).
+- The data version is now part of what the app and the hub say to each other (an event's `versions`, a reply's
+  `x-club-version`, the ETag at the version held): a change that bumps it without notifying (the dues cron) costs
+  each live phone one whole read on its next check, as before.
 - The app has two ways to hear about a change, and both have to keep working: the tests drive the stream
   (`live.use-cases.test.ts`), and the fallback is what a locked phone, a dropped connection or a hub restart falls back
   on.
@@ -81,3 +103,6 @@ The club may one day pay for hosting, when checking more often costs next to not
 - 2026-10-20: A training's page keeps following once the teams are out (but not for a team maker), so teams made,
   moved or cleared reach everyone on it without a refresh.
 - 2026-10-21: Load runs measured the fan-out: D1 rows read, not requests, is the limit a busy day passes (#112).
+- 2026-10-21: Live pages read only the parts an event names, one read at a time after a random wait, nothing while
+  hidden; the hub sends at most one event a second, with the data versions; a page opening just after the club was
+  read doesn't check again (#112). Before, every event was a whole-club reload on every phone.

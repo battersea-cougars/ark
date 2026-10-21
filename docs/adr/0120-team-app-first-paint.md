@@ -74,11 +74,14 @@ preloaded with `font-display: swap`. The splash paints before any script.
 - A file missing after a deploy now fails the entry itself, not a later `import()` (`stale-code`'s reload covers only
   those); both come from the same page, which is never cached, so they match.
 - The dev server is still slow (4 s on Fast 4G, unbundled modules); judge LCP on a build, not on 4510.
-- Left: Home's live check (`checkForUpdates`) reads `/api/bootstrap` again as it starts, right after the app did
-  (a 304, but a request); the variable Inter Tight face is 44 kB.
+- Left: the variable Inter Tight face is 44 kB. Home's live check (`checkForUpdates`) no longer reads
+  `/api/bootstrap` again as it starts, right after the app did: a page opening within 10 seconds of the club being
+  read doesn't check ([0072](0072-live-updates.md)).
 
 ## History
 
 - 2026-10-21: Measured and decided as above. First a build step in `vite.config.ts` listed the first screen's
   modules and added preloads for them; replaced the same day: a hand-kept list of paths breaks quietly when files
   move, and the cause was the app reading its data as it loaded, so that went instead, and Vite preloads on its own.
+- 2026-10-21: Home's second read of `/api/bootstrap` as it opens is gone: a live page opening within 10 seconds of
+  the club being read doesn't check again (#112, [0072](0072-live-updates.md)).

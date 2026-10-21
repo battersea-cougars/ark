@@ -1,6 +1,9 @@
 // Members' phones for a load run (docs/load-testing.md): each signed in as itself, with its own address unless the run
-// says they share one (the rink's wifi), doing what the team app does: the bootstrap with its ETag (ADR 0053), a
-// change with the page's Origin, and a live page's stream (ADR 0072), reloading on an event naming a part it follows.
+// says they share one (the rink's wifi), doing what the team app does: the bootstrap with its ETag at the version its
+// copy holds (ADR 0053), a change with the page's Origin and its reply's parts put in place, and a live page's stream
+// (ADR 0072), its copy of the club reading the parts an event names (the app's own catch-up.ts, #112).
+import { ClubCopy } from "../../apps/team/src/app/catch-up.ts";
+import { atVersion, VERSION_HEADER } from "../../apps/team/src/app/club-tag.ts";
 
 /** Every request's time and answer, by what it was (`label`). */
 export class Stats {
@@ -45,11 +48,40 @@ export async function phone(url, email, stats, { address } = {}) {
   const { memberId } = await res.json();
   let etag = null;
   let club = null;
+  /** Whether the last read of the whole club got an answer. */
+  let booted = false;
+  /** The pages following along, each told when the copy changes. */
+  const following = new Set();
+  /** When the oldest change not yet on this phone's screen was heard of. */
+  let heardAt = null;
+  const onScreen = () => {
+    if (heardAt !== null) stats.add("live: change to screen", performance.now() - heardAt, 200);
+    heardAt = null;
+    for (const f of following) f(club);
+  };
+  const copy = new ClubCopy({
+    readParts: async (names) => {
+      const r = await call("live: read parts", "GET", `/api/slices?names=${names.join(",")}`);
+      if (r.status !== 200) throw new Error(String(r.status));
+      return r.body;
+    },
+    readWhole: async () => {
+      await boot("live: read the whole club");
+      if (!booted) throw new Error("no club");
+      onScreen();
+    },
+    apply: (slices) => {
+      club = { ...club, ...slices };
+      onScreen();
+    },
+    visible: () => true,
+  });
 
   async function call(label, method, path, payload, headers = {}) {
     const t = performance.now();
     let status = 0;
     let body;
+    let version = null;
     try {
       const r = await fetch(`${url}${path}`, {
         method,
@@ -65,26 +97,42 @@ export async function phone(url, email, stats, { address } = {}) {
       const text = await r.text();
       body = text && (r.headers.get("content-type") ?? "").includes("json") ? JSON.parse(text) : { error: text };
       if (path === "/api/bootstrap" && status === 200) etag = r.headers.get("etag");
+      version = Number(r.headers.get(VERSION_HEADER)) || null;
     } catch (e) {
       body = { error: String(e) };
     }
     stats.add(label, performance.now() - t, status, body?.error);
-    return { status, body };
+    return { status, body, version };
   }
 
-  /** The club, as the app reads it: a 304 when nothing's changed since its last copy. */
+  /** The club, as the app reads it: a 304 when nothing's changed since the version its copy holds. */
   async function boot(label = "bootstrap") {
-    const r = await call(label, "GET", "/api/bootstrap", undefined, etag ? { "if-none-match": etag } : {});
-    if (r.status === 200) club = r.body;
+    const ask = etag && copy.held ? { "if-none-match": atVersion(etag, copy.held) } : {};
+    const r = await call(label, "GET", "/api/bootstrap", undefined, ask);
+    if (r.status === 200) {
+      club = r.body;
+      copy.wholeAt(r.version ?? 0);
+    }
+    booted = r.status === 200 || r.status === 304;
     return club;
   }
 
+  /** A change, as the app's `save` makes it: the parts its reply brings put in place. */
+  async function change(label, method, path, payload) {
+    const r = await call(label, method, path, payload);
+    if (r.status < 300 && r.body?.changed && r.version) club = { ...club, ...copy.partsAt(r.version, r.body.changed) };
+    return r;
+  }
+
   /**
-   * A live page: the stream open, and on each event naming a part in `parts`, a reload (`onChange` after it). Returns
-   * a stop function. Events and the time from a change to this phone having reloaded go into `stats`.
+   * A live page: the stream open, each event to the phone's copy of the club, which reads what it lacks if a part in
+   * `parts` is among it (`onChange` after). Returns a stop function. Events and the time from a change being heard of
+   * to this phone having it go into `stats`.
    */
   function follow(parts, onChange = () => {}) {
     const ctl = new AbortController();
+    const unfollow = copy.follow(parts);
+    following.add(onChange);
     const done = (async () => {
       const t = performance.now();
       const r = await fetch(`${url}/api/live`, { headers: { ...base, cookie }, signal: ctl.signal }).catch(() => null);
@@ -93,12 +141,6 @@ export async function phone(url, email, stats, { address } = {}) {
       const reader = r.body.getReader();
       const decoder = new TextDecoder();
       let buffered = "";
-      // Each event its own check, as the app does (live-updates.svelte.ts: no waiting for the last one)
-      const reload = async (heardAt) => {
-        await boot("live: reload");
-        stats.add("live: change to screen", performance.now() - heardAt, 200);
-        onChange(club);
-      };
       for (;;) {
         const { value, done: end } = await reader.read().catch(() => ({ done: true }));
         if (end) return;
@@ -111,26 +153,29 @@ export async function phone(url, email, stats, { address } = {}) {
             .find((l) => l.startsWith("data:"))
             ?.slice(5);
           if (!data) continue;
-          let changed;
+          let heard;
           try {
-            changed = JSON.parse(data).changed ?? [];
+            heard = JSON.parse(data);
           } catch {
-            changed = parts;
+            heard = { changed: parts };
           }
-          if (changed.some((p) => parts.includes(p))) {
-            stats.add("live: event", 0, 200);
-            reload(performance.now());
-          }
+          if ((heard.changed ?? []).some((p) => parts.includes(p))) stats.add("live: event", 0, 200);
+          copy.hear({ changed: heard.changed ?? [], versions: heard.versions });
+          // Something to read: from now until it's on the screen
+          if (copy.lacking(true).length) heardAt ??= performance.now();
         }
       }
     })();
     return async () => {
       ctl.abort();
+      unfollow();
+      following.delete(onChange);
+      copy.stop();
       await done.catch(() => {});
     };
   }
 
-  return { email, memberId, call, boot, follow, club: () => club };
+  return { email, memberId, call, change, boot, follow, copy, club: () => club };
 }
 
 /** Phones for these members, signed in a few at a time. `shared`: all from one address (a rink's wifi). */

@@ -1,7 +1,7 @@
 # 0121. Requests at once are safe by statement, not by luck; every invocation keeps to 50 subrequests; load is run locally
 
 - **Status:** Accepted
-- **Date:** 2026-10-21
+- **Date:** 2026-10-21 · updated 2026-10-21
 
 ## Context
 
@@ -47,11 +47,18 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - Pushes from a club-wide send reach the last of 200 phones in about 35 minutes (it was 20), and a reminder's phone
   hears it with the next drain, up to five minutes after the email.
 - The load runs show that the Worker's CPU (1–3 ms a request) and requests (a few per cent of the day) have room,
-  but **D1 rows read do not**: every live page reloads the whole club on every change, so a draft night spends about
-  87% of the free day's rows and a full Friday rush models at about 200% (#112). A rink's wifi is one address for the
+  but **D1 rows read did not**: every live page reloaded the whole club on every change, so a draft night spent about
+  87% of the free day's rows and a full Friday rush modelled at about 200% (#112). Live pages now read only the
+  parts that changed, one read at a time ([0072](0072-live-updates.md)): a draft night about 33%, a game scored
+  live about 3%, the Friday rush about 12%. Rows read is still the line to watch on a draft night.
+- The load runs' phones use the app's own copy of the club (`apps/team/src/app/catch-up.ts`), so what they read is
+  what the app reads. A rink's wifi is one address for the
   per-address limit (#113). A goal sent twice is two goals (#114).
 
 ## History
 
 - 2026-10-21: Concurrency tests with an interleaving fake D1, the races they found fixed in their statements, the
   subrequest budget per invocation, and the local load runs (#112, #113, #114 from them).
+- 2026-10-21: The fan-out fixed (#112, [0072](0072-live-updates.md)) and rerun: rows read for a draft night 4.4M →
+  1.7M, a game scored live 1.2M → 0.14M, the Friday rush with no errors at 0.6M; the phones in the runs use the app's
+  own `catch-up.ts`.

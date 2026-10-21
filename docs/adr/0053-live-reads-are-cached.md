@@ -45,7 +45,9 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - **The team app's bootstrap has an ETag**: the club's data version (`data_version`, one more on every change through
   the API, the club seed and the roster seed), the member, the day and the deploy. It's sent `private, no-cache`, so
   the browser asks again with `If-None-Match` by itself and gets an empty 304 after one row read when nothing has
-  changed. The app's code doesn't change.
+  changed. After the app opens, its checks send `If-None-Match` themselves, at the data version the app's copy holds
+  (`x-club-version`), since a live page moves that on by reading only the parts that changed
+  ([0072](0072-live-updates.md)); a weak tag (`W/`, a proxy that compressed the reply) matches too.
 
 ## Consequences
 
@@ -71,3 +73,5 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   bootstrap given an ETag, after uncached reads also spent YouTube's daily quota (was 0054).
 - 2026-10-20: The build's content read through the same plain-fetch reader as the live reads (no `@sanity/client`), the
   club facts in one query instead of five, and every read counted (ADR 0116).
+- 2026-10-21: The app's checks ask with the tag at the version its copy holds, not the browser's last reply, as live
+  pages now read only the parts that changed (#112, ADR 0072); the reply says its version (`x-club-version`).

@@ -2,7 +2,8 @@
 // parts of the club it touched (`changed`), which replace those parts of the app's working copy
 // (demo/store.svelte.ts), so what you see is what's stored. Screens change the copy at once for a quick answer, then
 // the reply brings back what the server decided (the waitlist, say). The whole club is read when the app opens, when
-// it comes back into view (only if something changed, ADR 0053), and after a failed change.
+// it comes back into view (only if something changed, ADR 0053), and after a failed change; a live page reads just
+// the parts the hub says changed (`copy`, catch-up.ts, ADR 0072).
 import type { MemberRow, Role } from "../demo/data";
 import {
   applySlices,
@@ -31,7 +32,8 @@ import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
-import { api, bootstrapIfChanged, brake, getBootstrap } from "./api";
+import { api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
+import { ClubCopy } from "./catch-up";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
@@ -107,27 +109,48 @@ function apply(changed: Slices) {
   for (const key of Object.keys(changed) as (keyof Slices)[]) COPY[key]?.();
 }
 
-/** The club's data, in place before the app mounts (main.ts): the store, and who you are in it. */
-export function start(b: Bootstrap) {
+/** The whole club in place, and the data version it's at. */
+function whole(b: Bootstrap) {
   hydrate(b);
   copyAll();
+  copy.wholeAt(versionOf(b) ?? 0);
+}
+
+/** When the whole club was last read or found unchanged: a live page opening just after doesn't ask again. */
+export const checked = { at: 0 };
+
+/**
+ * The app's copy of the club, kept up as live pages hear of changes (ADR 0072): just the parts that changed, one read
+ * at a time after a short random wait, nothing while the app's out of view.
+ */
+export const copy = new ClubCopy({
+  // A background read, like a check: not while the brake says wait (ADR 0055); the page's beat catches up after
+  readParts: (names) => (brake.mayCheck() ? readSlices(names) : Promise.reject(new Error("resting"))),
+  readWhole: () => (brake.mayCheck() ? refreshIfChanged() : Promise.reject(new Error("resting"))),
+  apply: (slices) => apply(slices as Slices),
+  visible: () => document.visibilityState === "visible",
+});
+
+/** The club's data, in place before the app mounts (main.ts): the store, and who you are in it. */
+export function start(b: Bootstrap) {
+  whole(b);
+  checked.at = Date.now();
   startSession();
 }
 
 /** Reload the whole club into the app. */
 export async function refresh() {
-  hydrate(await getBootstrap());
-  copyAll();
+  whole(await getBootstrap());
+  checked.at = Date.now();
 }
 
 /** Anyone else's changes, if there are any: a small check (no club data read) when there aren't (ADR 0053). */
 export async function refreshIfChanged() {
   // A background check: skipped while the brake says wait (ADR 0055)
   if (!brake.mayCheck()) return;
-  const b = await bootstrapIfChanged();
-  if (!b) return;
-  hydrate(b);
-  copyAll();
+  const b = await bootstrapIfChanged(copy.held);
+  checked.at = Date.now();
+  if (b) whole(b);
 }
 
 /**
@@ -137,10 +160,9 @@ export async function refreshIfChanged() {
  */
 export async function pullToRefresh() {
   try {
-    const b = await bootstrapIfChanged();
-    if (!b) return;
-    hydrate(b);
-    copyAll();
+    const b = await bootstrapIfChanged(copy.held);
+    checked.at = Date.now();
+    if (b) whole(b);
   } catch (e) {
     say(e instanceof Error ? e.message : "Couldn't refresh.", true);
   }
@@ -171,7 +193,9 @@ export async function save<T>(change: () => Promise<T>, done = "Saved"): Promise
   try {
     const result = await change();
     const changed = (result as { changed?: Slices } | null)?.changed;
-    if (changed) apply(changed);
+    // Its parts, read after the change: as new as the version it made, unless something newer is in already
+    const version = versionOf(result);
+    if (changed) apply(version ? (copy.partsAt(version, changed) as Slices) : changed);
     else await refresh();
     if (done) say(done, false);
     return result;

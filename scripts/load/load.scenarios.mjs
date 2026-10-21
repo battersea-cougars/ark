@@ -42,7 +42,7 @@ async function fridayRush({ url, roster, stats, shared, notes }) {
     await sleep(Math.random() * window);
     await p.boot("bootstrap: open the app");
     stops.push(p.follow(["sessions"]));
-    await p.call("answer: in", "POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    await p.change("answer: in", "POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
   });
   // The crons, in the middle of it
   await sleep(window / 2);
@@ -55,7 +55,7 @@ async function fridayRush({ url, roster, stats, shared, notes }) {
   await sleep(2000);
   const going = night.going;
   const teams = [0, 1].map((t) => ({ name: t ? "Whites" : "Darks", players: going.filter((_, i) => i % 2 === t) }));
-  must(await admin.call("publish teams", "POST", `/api/sessions/${session.id}/teams`, { teams }), "teams");
+  must(await admin.change("publish teams", "POST", `/api/sessions/${session.id}/teams`, { teams }), "teams");
   await sleep(5000);
   await Promise.all(stops.map((s) => s()));
 }
@@ -125,6 +125,7 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
   );
   const goalies = new Set(club.members.filter((m) => m.position === "G").map((m) => m.id));
   let picks = 0;
+  let lastPick = Date.now();
   let finished = false;
   /** The draft as a phone sees it: whose turn, and who's left. */
   const draftOf = (c) => {
@@ -149,10 +150,13 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
     const hasGoalie = d.team.players.some((p) => goalies.has(p.memberId)) || goalies.has(cap.memberId);
     const choices = d.pool.filter((m) => !(hasGoalie && goalies.has(m)));
     const memberId = choices[Math.floor(Math.random() * choices.length)] ?? d.pool[0];
-    const r = await cap.call("pick", "POST", `/api/tournaments/${t.id}/draft/picks`, { memberId, turn: d.made });
-    if (r.status === 200) picks++;
+    // Its reply brings the draft back, as the app's save puts it in place
+    const r = await cap.change("pick", "POST", `/api/tournaments/${t.id}/draft/picks`, { memberId, turn: d.made });
     busy.delete(cap);
-    await cap.boot("bootstrap: after the pick");
+    // Refused (the turn moved on, or the one left is a second goalie): wait for the next change, not try again at once
+    if (r.status !== 200) return;
+    picks++;
+    lastPick = Date.now();
     turn(cap);
   };
   for (const cap of captainPhones) {
@@ -167,16 +171,17 @@ async function liveDraft({ url, roster, stats, shared, notes }) {
   while (!finished && Date.now() - started < 240_000) {
     await sleep(1000);
     const d = draftOf(await admin.boot("bootstrap: whoever runs it"));
-    if (!d.pool.length) finished = true;
+    // Everyone's picked, or nobody can be (the last left would be a team's second goalie)
+    if (!d.pool.length || Date.now() - lastPick > 15_000) finished = true;
     if (!undone && d.made >= 20) {
       undone = true;
       notes.push(
-        `Undo at pick ${d.made}: ${(await admin.call("undo", "DELETE", `/api/tournaments/${t.id}/draft/picks/last`)).status}`,
+        `Undo at pick ${d.made}: ${(await admin.change("undo", "DELETE", `/api/tournaments/${t.id}/draft/picks/last`)).status}`,
       );
     }
     if (!pickedFor && d.made >= 30 && d.pool.length) {
       pickedFor = true;
-      const r = await admin.call("pick for a captain", "POST", `/api/tournaments/${t.id}/draft/picks`, {
+      const r = await admin.change("pick for a captain", "POST", `/api/tournaments/${t.id}/draft/picks`, {
         memberId: d.pool.find((m) => !goalies.has(m)) ?? d.pool[0],
         turn: d.made,
       });
@@ -232,26 +237,26 @@ async function scoring({ url, roster, stats, shared, notes }) {
   const stops = viewers.map((p) => (p.boot("bootstrap: open the game"), p.follow(["tournaments"])));
   await sleep(2000);
   const path = `/api/tournaments/${t.id}/games/${game.id}`;
-  must(await keeper.call("claim the sheet", "POST", `${path}/scorer`, { action: "claim" }), "claim");
-  must(await keeper.call("clock", "POST", `${path}/clock`, { action: "start" }), "start");
+  must(await keeper.change("claim the sheet", "POST", `${path}/scorer`, { action: "claim" }), "claim");
+  must(await keeper.change("clock", "POST", `${path}/clock`, { action: "start" }), "start");
   const home = game.homeTeamId;
   const away = game.awayTeamId;
   for (let i = 0; i < 12; i++) {
     await sleep(2500);
-    await keeper.call("goal", "POST", `${path}/goals`, { teamId: i % 3 ? home : away });
+    await keeper.change("goal", "POST", `${path}/goals`, { teamId: i % 3 ? home : away });
     if (i % 4 === 1)
-      await keeper.call("penalty", "POST", `${path}/penalties`, {
+      await keeper.change("penalty", "POST", `${path}/penalties`, {
         teamId: i % 2 ? away : home,
         infraction: "delay-of-game",
       });
     if (i === 5) {
-      await keeper.call("clock", "POST", `${path}/clock`, { action: "period", period: 1 });
+      await keeper.change("clock", "POST", `${path}/clock`, { action: "period", period: 1 });
       await sleep(1000);
-      await keeper.call("clock", "POST", `${path}/clock`, { action: "start" });
+      await keeper.change("clock", "POST", `${path}/clock`, { action: "start" });
     }
-    if (i === 8) await keeper.call("undo goal", "DELETE", `${path}/goals/last`);
+    if (i === 8) await keeper.change("undo goal", "DELETE", `${path}/goals/last`);
   }
-  await keeper.call("clock", "POST", `${path}/clock`, { action: "end" });
+  await keeper.change("clock", "POST", `${path}/clock`, { action: "end" });
   await sleep(4000);
   const g = (await admin.boot("setup")).tournaments.find((y) => y.id === t.id).games.find((y) => y.id === game.id);
   notes.push(`Full time: ${g.homeGoals}–${g.awayGoals}, ${g.status}`);

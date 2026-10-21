@@ -1,8 +1,10 @@
 // The club's live hub (ADR 0072): one Durable Object per environment that holds every open live page's stream and
 // tells them all at once when something changed. It stores nothing (declared SQLite-backed because the free plan
 // asks for it; the streams live in memory, D1 is the source of truth), so if it restarts the phones just reconnect.
-// An event is only the names of the club's parts that changed (ADR 0057): what a member sees still comes from their
-// own bootstrap. Written in the classic Durable Object shape, with no runtime imports, so the tests hold a real one.
+// An event is only the names of the club's parts that changed (ADR 0057) and the data versions that changed them: what
+// a member sees still comes from their own read. A burst of changes (a Friday's taps) goes out as one event a second
+// at most, naming every part and version in it, so each phone reads once (#112). Written in the classic Durable
+// Object shape, with no runtime imports, so the tests hold a real one.
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("live");
@@ -21,9 +23,17 @@ const SSE_HEADERS = {
 const encoder = new TextEncoder();
 const frame = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
+/** At most one event this often: the changes in between go out together, at the end of it. */
+const EVENT_EVERY_MS = 1000;
+
 export class LiveHub {
   private readonly streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
   private heartbeat: ReturnType<typeof setInterval> | undefined;
+  /** What's changed since the last event, waiting for the next. */
+  private readonly changed = new Set<string>();
+  private readonly versions: number[] = [];
+  private lastSent = 0;
+  private waiting: ReturnType<typeof setTimeout> | undefined;
 
   // The object's state and environment: unused, it keeps nothing
   constructor(_state?: unknown, _env?: unknown) {}
@@ -37,11 +47,37 @@ export class LiveHub {
     const { pathname } = new URL(request.url);
     if (request.method === "GET" && pathname === "/subscribe") return this.subscribe();
     if (request.method === "POST" && pathname === "/notify") {
-      const { changed = [] } = (await request.json().catch(() => ({}))) as { changed?: string[] };
-      this.send(frame("changed", { changed }));
+      const { changed = [], version } = (await request.json().catch(() => ({}))) as {
+        changed?: string[];
+        version?: number;
+      };
+      this.heard(changed, version);
       return Response.json({ listeners: this.listeners });
     }
     return new Response("Not found", { status: 404 });
+  }
+
+  /**
+   * A change: out at once if the last event was a second or more ago, else with the others at the end of that second.
+   * Nobody listening, nothing to send: a change made before anyone's on a live page starts no wait.
+   */
+  private heard(changed: readonly string[], version: number | undefined) {
+    if (!this.streams.size) return;
+    for (const c of changed) this.changed.add(c);
+    if (version !== undefined) this.versions.push(version);
+    if (this.waiting) return;
+    const left = this.lastSent + EVENT_EVERY_MS - Date.now();
+    if (left <= 0) this.flush();
+    else this.waiting = setTimeout(() => this.flush(), left);
+  }
+
+  private flush() {
+    this.waiting = undefined;
+    this.lastSent = Date.now();
+    const event = { changed: [...this.changed], versions: [...this.versions].sort((a, b) => a - b) };
+    this.changed.clear();
+    this.versions.length = 0;
+    this.send(frame("changed", event));
   }
 
   /** One phone's stream, open until the page closes it. */
@@ -73,10 +109,14 @@ export class LiveHub {
 
   private drop(c: ReadableStreamDefaultController<Uint8Array>) {
     this.streams.delete(c);
-    if (!this.streams.size && this.heartbeat) {
-      clearInterval(this.heartbeat);
-      this.heartbeat = undefined;
-    }
+    if (this.streams.size) return;
+    clearInterval(this.heartbeat);
+    this.heartbeat = undefined;
+    // Nobody left to tell
+    clearTimeout(this.waiting);
+    this.waiting = undefined;
+    this.changed.clear();
+    this.versions.length = 0;
   }
 }
 
@@ -99,14 +139,14 @@ export async function liveStream(env: LiveEnv): Promise<Response> {
   return hub(env).fetch("https://live/subscribe");
 }
 
-/** After a change: tell everyone listening which parts. Never fails the change. */
-export async function notifyLive(env: LiveEnv, changed: readonly string[]): Promise<void> {
+/** After a change: tell everyone listening which parts, and the data version the change made. Never fails the change. */
+export async function notifyLive(env: LiveEnv, changed: readonly string[], version?: number): Promise<void> {
   if (!env.LIVE || !changed.length) return;
   try {
     await hub(env).fetch("https://live/notify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ changed }),
+      body: JSON.stringify({ changed, version }),
     });
   } catch (e) {
     log.warn("live.notify.failed", e);
