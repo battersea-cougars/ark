@@ -1,7 +1,8 @@
 // Penalties (ADR 0061), shared by the Worker and the app: what can be called, the penalty clock, and the minutes each
 // player and team has spent in the box. The clock is worked out, never stored: a penalty runs in game time from when
 // it was given (or, a player's second, from when their first ends), so it pauses when the game clock does, and a
-// minor ends early at a power-play goal against its team.
+// minor ends early at a power-play goal against its team. Penalties called on both teams at once cancel out
+// (coincidental): no man advantage, or four on four for one minor each.
 // A double minor is one penalty of four minutes, served as two minors back to back: a power-play goal ends only the
 // one running, and the second two minutes start fresh from the goal.
 
@@ -105,19 +106,34 @@ export function gameTime(
 export interface Served {
   startMs: number;
   endMs: number;
+  /**
+   * Called at the same time as one of the same length on the other team: the two cancel out, so neither counts for
+   * the man advantage, and no goal ends it (it's served in full).
+   */
+  coincidental: boolean;
+  /** One of a pair of coincidental minors with nothing else on: both teams play a player short, four on four. */
+  fourOnFour: boolean;
 }
 
 /**
- * When each penalty is served, in game time, by id. A penalty with no time has none.
+ * When each penalty is served, in game time, by id, and whether it counts for the man advantage. A penalty with no
+ * time has none.
  *
  * - **One after another**: a player serves one penalty at a time, so one given while they're still serving another
  *   starts when that one ends (in both rules). A bench penalty is nobody's: it starts when it's given.
- * - **A power-play goal** (a goal against a team with more players in the box than the scorers) ends the penalised
- *   team's earliest running minor; in a double minor, only the two minutes being served: in the first two, the
- *   second two start fresh from the goal. A major runs its five. Sitting out, nobody's short, so no goal ends one.
+ * - **Coincidental**: penalties called on both teams at the same moment of game time (the same stoppage) cancel out
+ *   in pairs of the same length (a minor with a minor, a double minor with a double, a major with a major); a major
+ *   against a minor doesn't cancel. A cancelled pair is served in full, the players replaced on the ice: no man
+ *   advantage, and no goal ends them. The exception is **one minor each with nothing else on the clock**: the teams
+ *   play four on four (both a player short, so still no power play). The players come out at the next stoppage
+ *   after their time's up; we don't record stoppages, so they're served when their time runs out.
+ * - **A power-play goal** (a goal against a team with more players short than the scorers, counting only what
+ *   doesn't cancel) ends the penalised team's earliest running minor that isn't coincidental; in a double minor, only
+ *   the two minutes being served: in the first two, the second two start fresh from the goal. A major runs its five.
+ * - **Sitting out**, nobody's short: no man advantage, nothing cancels, and no goal ends one.
  *
- * Worked out goal by goal, in time order: each goal's cut can move when a waiting penalty starts, which changes who's
- * in the box at the next goal.
+ * Worked out moment by moment, in time order: a goal's cut can move when a waiting penalty starts, which changes
+ * who's on at the next goal, and whether a later pair is four on four.
  */
 export function penaltyClock(penalties: PenaltyLike[], goals: GoalLike[], rule: PenaltyRule = "power_play") {
   const timed = penalties
@@ -126,6 +142,7 @@ export function penaltyClock(penalties: PenaltyLike[], goals: GoalLike[], rule: 
   // What goals did: a penalty ended there, or a double minor's first two ended there (the second two from then)
   const endedAt = new Map<number, number>();
   const halfEndedAt = new Map<number, number>();
+  const pairs = new Map<number, { coincidental: boolean; fourOnFour: boolean }>();
 
   const schedule = () => {
     const out = new Map<number, Served>();
@@ -137,37 +154,89 @@ export function penaltyClock(penalties: PenaltyLike[], goals: GoalLike[], rule: 
         endedAt.get(p.id) ??
         (halfEndedAt.has(p.id) ? halfEndedAt.get(p.id)! + 2 * 60_000 : startMs + p.minutes * 60_000);
       if (player) lastEnd.set(player, endMs);
-      out.set(p.id, { startMs, endMs });
+      out.set(p.id, { startMs, endMs, coincidental: false, fourOnFour: false, ...pairs.get(p.id) });
     }
     return out;
   };
 
   let served = schedule();
   if (rule === "sit_out") return served;
-  for (const g of goals.filter((x) => x.atMs !== null).sort((a, b) => a.atMs! - b.atMs!)) {
-    const t = g.atMs!;
-    // In the box at the goal: started before it, not yet served
-    const boxed = (teamId: number) =>
-      timed.filter((p) => p.teamId === teamId && served.get(p.id)!.startMs < t && served.get(p.id)!.endMs > t);
-    const scorers = boxed(g.teamId).length;
-    // Two teams a game: whoever's against the scorers
-    for (const team of new Set(timed.filter((p) => p.teamId !== g.teamId).map((p) => p.teamId))) {
-      const theirs = boxed(team);
-      if (theirs.length <= scorers) continue;
-      const minor = theirs
-        .filter((p) => isMinor(p.minutes))
-        .sort((a, b) => served.get(a.id)!.startMs - served.get(b.id)!.startMs || a.id - b.id)[0];
-      if (!minor) continue;
-      const { startMs } = served.get(minor.id)!;
-      const halfEnd = halfEndedAt.get(minor.id) ?? startMs + 2 * 60_000;
-      // A double minor's first two end; the second two are served in full from now. Else it's over
-      if (minor.minutes === 4 && !halfEndedAt.has(minor.id) && t < halfEnd) halfEndedAt.set(minor.id, t);
-      else endedAt.set(minor.id, t);
+  // Counts for the man advantage: not cancelled out (or cancelled, but played four on four)
+  const counts = (id: number) => !served.get(id)!.coincidental || served.get(id)!.fourOnFour;
+  const goalTimes = goals.filter((x) => x.atMs !== null).map((x) => x.atMs!);
+  const moments = [...new Set([...goalTimes, ...timed.map((p) => p.atMs)])].sort((a, b) => a - b);
+  for (const t of moments) {
+    // Goals first: a penalty called at the moment of a goal starts after it
+    for (const g of goals.filter((x) => x.atMs === t)) {
+      // Short at the goal: started before it, not yet served, and counting
+      const short = (teamId: number) =>
+        timed.filter(
+          (p) => p.teamId === teamId && served.get(p.id)!.startMs < t && served.get(p.id)!.endMs > t && counts(p.id),
+        );
+      const scorers = short(g.teamId).length;
+      // Two teams a game: whoever's against the scorers
+      for (const team of new Set(timed.filter((p) => p.teamId !== g.teamId).map((p) => p.teamId))) {
+        const theirs = short(team);
+        if (theirs.length <= scorers) continue;
+        const minor = theirs
+          .filter((p) => isMinor(p.minutes) && !served.get(p.id)!.coincidental)
+          .sort((a, b) => served.get(a.id)!.startMs - served.get(b.id)!.startMs || a.id - b.id)[0];
+        if (!minor) continue;
+        const { startMs } = served.get(minor.id)!;
+        const halfEnd = halfEndedAt.get(minor.id) ?? startMs + 2 * 60_000;
+        // A double minor's first two end; the second two are served in full from now. Else it's over
+        if (minor.minutes === 4 && !halfEndedAt.has(minor.id) && t < halfEnd) halfEndedAt.set(minor.id, t);
+        else endedAt.set(minor.id, t);
+      }
+      served = schedule();
     }
+    // Then what's called now: pairs of the same length, one a team, cancel out
+    const called = timed.filter((p) => p.atMs === t);
+    const teams = [...new Set(called.map((p) => p.teamId))];
+    if (teams.length !== 2) continue;
+    const [a, b] = teams.map((team) => called.filter((p) => p.teamId === team));
+    for (const minutes of PENALTY_MINUTES) {
+      const ofA = a.filter((p) => p.minutes === minutes);
+      const ofB = b.filter((p) => p.minutes === minutes);
+      for (let i = 0; i < Math.min(ofA.length, ofB.length); i++)
+        for (const p of [ofA[i], ofB[i]]) pairs.set(p.id, { coincidental: true, fourOnFour: false });
+    }
+    // One minor each, and nothing else on the clock (running or waiting): four on four
+    const onAlready = timed.some((p) => p.atMs < t && served.get(p.id)!.endMs > t);
+    if (a.length === 1 && b.length === 1 && a[0].minutes === 2 && b[0].minutes === 2 && !onAlready)
+      for (const p of [a[0], b[0]]) pairs.set(p.id, { coincidental: true, fourOnFour: true });
     served = schedule();
   }
   return served;
 }
+
+/**
+ * How many players each team is short at `elapsedMs` of game time, by team (only those short): its penalties being
+ * served that count for the man advantage (penaltyClock). Sitting out, nobody's ever short.
+ */
+export function playersShort(
+  penalties: PenaltyLike[],
+  goals: GoalLike[],
+  elapsedMs: number,
+  rule: PenaltyRule = "power_play",
+) {
+  const out = new Map<number, number>();
+  if (rule === "sit_out") return out;
+  const served = penaltyClock(penalties, goals, rule);
+  for (const p of penalties) {
+    const s = served.get(p.id);
+    if (!s || s.startMs > elapsedMs || s.endMs <= elapsedMs || (s.coincidental && !s.fourOnFour)) continue;
+    out.set(p.teamId, (out.get(p.teamId) ?? 0) + 1);
+  }
+  return out;
+}
+
+/**
+ * The strength on the ice, as hockey says it, this team first: "5 on 4", "4 on 4"; nothing at full strength. Five
+ * skaters a side, never fewer than three.
+ */
+export const manpower = (ours: number, theirs: number) =>
+  ours || theirs ? `${Math.max(3, 5 - ours)} on ${Math.max(3, 5 - theirs)}` : "";
 
 /** When each penalty ends, in game time, by id (penaltyClock). */
 export const penaltyEnds = (penalties: PenaltyLike[], goals: GoalLike[], rule: PenaltyRule = "power_play") =>

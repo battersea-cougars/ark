@@ -123,9 +123,16 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - **The penalty clock is worked out, never stored** (`lib/penalties.ts`): a penalty runs in game time from when it
   was given, so it stops when the game clock does, and clears when served. **A player serves one at a time**: a
   second given while they're still serving one starts when that one ends (in both rules), and the team's a player
-  short, not two; the clock shows it waiting, "then 2:00". A bench penalty is nobody's, so it starts when given. A goal against a team with more players in
-  the box than the scorers (a power-play goal) ends that team's earliest running minor; a major runs its five
-  minutes. A double minor is one penalty of 4 (its minutes count 4) served as two minors back to back, one clock
+  short, not two; the clock shows it waiting, "then 2:00". A bench penalty is nobody's, so it starts when given.
+  **Coincidental penalties** (called on both teams at the same game time, so the same stoppage) cancel out in pairs
+  of the same length (minor with minor, double with double, major with major; a major against a minor doesn't):
+  a pair is served in full with the players replaced, so no man advantage and no goal ends them. One minor each
+  with nothing else on the clock is the exception: four on four, both a player short. They come out at the next
+  stoppage after their time; we don't record stoppages, so they're served when it runs out. The clock's cue says
+  the strength, home first ("Live · 5 on 4", "4 on 4"; `playersShort`, `manpower`). A goal against a team with
+  more players short than the scorers, counting only what doesn't cancel (a power-play goal), ends that team's
+  earliest running minor that isn't coincidental; a major runs its five minutes. Sitting out, there's never a man
+  advantage, so none of this applies. A double minor is one penalty of 4 (its minutes count 4) served as two minors back to back, one clock
   from 4:00 marked 2+2: a power-play goal in its first two starts the second two fresh from the goal; in its second
   two, it ends it. Under each team's score, while the game's on, two lines are kept for who's in the box and the time left,
   so nothing moves when one's called or served.
@@ -186,3 +193,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   tournament; the penalty sheet starts on it, and a penalty called without a length takes it.
 - 2026-10-21: Consecutive penalties: a player's second penalty, given while they're still serving one, starts when
   that one ends (power play and sitting out alike), shown waiting on the clock ("then 2:00").
+- 2026-10-21: Coincidental penalties: same-length pairs called at the same time cancel (no man advantage, served in
+  full), one minor each with nothing else on is four on four; only what doesn't cancel counts for a power play; the
+  clock's cue shows the strength.

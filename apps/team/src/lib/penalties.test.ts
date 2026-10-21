@@ -1,7 +1,16 @@
 // The penalty clock's maths (lib/penalties.ts): what's still being served at a moment of game time, how long is left,
 // and a minor cut short by a power-play goal.
 import { describe, expect, it } from "vitest";
-import { gameTime, penaltyEnds, penaltyLine, penaltyMinutes, running } from "./penalties";
+import {
+  gameTime,
+  manpower,
+  penaltyClock,
+  penaltyEnds,
+  penaltyLine,
+  penaltyMinutes,
+  playersShort,
+  running,
+} from "./penalties";
 
 const MIN = 60_000;
 const pen = (
@@ -141,6 +150,71 @@ describe("one player, one penalty after another", () => {
   it("bench penalties aren't anyone's: each starts when it's given", () => {
     const p = [pen(1, 1, MIN, 2, null), pen(2, 1, 2 * MIN, 2, null)];
     expect(penaltyEnds(p, []).get(2)).toBe(4 * MIN);
+  });
+});
+
+describe("coincidental penalties: called on both teams at the same time", () => {
+  // Dan (7) and Al (9) on the Ants (1); Bo (8) and Cy (10) on the Bees (2)
+  const short = (p: ReturnType<typeof pen>[], g: ReturnType<typeof goal>[], at: number) =>
+    Object.fromEntries(playersShort(p, g, at));
+
+  it("one minor each, nothing else on: four on four, no power play, both served in full", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 2, MIN, 2, 8)];
+    expect(penaltyClock(p, []).get(1)).toMatchObject({ coincidental: true, fourOnFour: true });
+    expect(short(p, [], 2 * MIN)).toEqual({ 1: 1, 2: 1 });
+    expect(manpower(1, 1)).toBe("4 on 4");
+    // A goal at four on four ends neither
+    const ends = penaltyEnds(p, [goal(2, 2 * MIN), goal(1, 2.5 * MIN)]);
+    expect([ends.get(1), ends.get(2)]).toEqual([3 * MIN, 3 * MIN]);
+    expect(short(p, [], 3 * MIN)).toEqual({});
+  });
+
+  it("two against one: a pair cancels, the one left over is a power play, and a goal ends that one", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, MIN, 2, 9), pen(3, 2, MIN, 2, 8)];
+    const clock = penaltyClock(p, []);
+    expect([1, 2, 3].map((id) => clock.get(id)!.coincidental)).toEqual([true, false, true]);
+    // Not one each: no four on four, the pair are replaced on the ice
+    expect(clock.get(1)!.fourOnFour).toBe(false);
+    expect(short(p, [], 2 * MIN)).toEqual({ 1: 1 });
+    expect(manpower(1, 0)).toBe("4 on 5");
+    const ends = penaltyEnds(p, [goal(2, 2 * MIN)]);
+    expect([ends.get(1), ends.get(2), ends.get(3)]).toEqual([3 * MIN, 2 * MIN, 3 * MIN]);
+  });
+
+  it("a minor, then a coincidental pair: still the one power play, and the goal ends the first minor", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 1, 1.5 * MIN, 2, 9), pen(3, 2, 1.5 * MIN, 2, 8)];
+    const clock = penaltyClock(p, []);
+    // Something's on already: the pair cancel, played five on four, not four on three
+    expect(clock.get(2)).toMatchObject({ coincidental: true, fourOnFour: false });
+    expect(short(p, [], 2 * MIN)).toEqual({ 1: 1 });
+    const ends = penaltyEnds(p, [goal(2, 2 * MIN)]);
+    expect([ends.get(1), ends.get(2), ends.get(3)]).toEqual([2 * MIN, 3.5 * MIN, 3.5 * MIN]);
+  });
+
+  it("a major against a minor doesn't cancel: four on four for two, then a power play the major's goals don't end", () => {
+    const p = [pen(1, 1, MIN, 5, 7), pen(2, 2, MIN, 2, 8)];
+    expect(penaltyClock(p, []).get(1)!.coincidental).toBe(false);
+    expect(short(p, [], 2 * MIN)).toEqual({ 1: 1, 2: 1 });
+    expect(short(p, [], 4 * MIN)).toEqual({ 1: 1 });
+    // A goal at four on four ends nothing; a power-play goal can't end a major
+    const ends = penaltyEnds(p, [goal(1, 2 * MIN), goal(2, 4 * MIN)]);
+    expect([ends.get(1), ends.get(2)]).toEqual([6 * MIN, 3 * MIN]);
+  });
+
+  it("coincidental majors: no man advantage either way", () => {
+    const p = [pen(1, 1, MIN, 5, 7), pen(2, 2, MIN, 5, 8), pen(3, 1, 2 * MIN, 2, 9)];
+    expect(short(p, [], 1.5 * MIN)).toEqual({});
+    // A minor after: that's the power play, and its goal ends it
+    expect(short(p, [], 2.5 * MIN)).toEqual({ 1: 1 });
+    expect(penaltyEnds(p, [goal(2, 3 * MIN)]).get(3)).toBe(3 * MIN);
+    expect(penaltyEnds(p, [goal(2, 3 * MIN)]).get(1)).toBe(6 * MIN);
+  });
+
+  it("sitting out, there's never a man advantage", () => {
+    const p = [pen(1, 1, MIN, 2, 7), pen(2, 2, MIN, 2, 8), pen(3, 1, 2 * MIN, 2, 9)];
+    expect(short(p, [], 2.5 * MIN)).toEqual({ 1: 2, 2: 1 });
+    expect(Object.fromEntries(playersShort(p, [], 2.5 * MIN, "sit_out"))).toEqual({});
+    expect(manpower(0, 0)).toBe("");
   });
 });
 

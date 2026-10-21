@@ -52,7 +52,15 @@
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { inGameTime, periodName } from "../lib/periods";
   import { teamHref, teamTone } from "../lib/team-tones";
-  import { INFRACTIONS, infractionOf, PENALTY_KINDS, penaltyLine, running as serving } from "../lib/penalties";
+  import {
+    INFRACTIONS,
+    infractionOf,
+    manpower,
+    PENALTY_KINDS,
+    penaltyLine,
+    playersShort,
+    running as serving,
+  } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
 
@@ -343,16 +351,19 @@
   // sitting out (nobody short; goals don't end it; a bench one has nobody to sit out)
   const rule = $derived(tournament?.penaltyRule ?? "power_play");
   const sitOut = $derived(rule === "sit_out");
-  const box = $derived(
-    game?.status === "live"
-      ? serving(
-          (game.penalties ?? []).map((p) => ({ ...p, atMs: inGameTime(p.period, p.atMs, full) })),
-          (game.goals ?? []).map((g) => ({ ...g, atMs: inGameTime(g.period, g.atMs, full) })),
-          inGameTime(period, full - left, full)!,
-          rule,
-        )
-      : [],
-  );
+  const inGame = $derived({
+    penalties: (game?.penalties ?? []).map((p) => ({ ...p, atMs: inGameTime(p.period, p.atMs, full) })),
+    goals: (game?.goals ?? []).map((g) => ({ ...g, atMs: inGameTime(g.period, g.atMs, full) })),
+    now: inGameTime(period, full - left, full)!,
+  });
+  const box = $derived(game?.status === "live" ? serving(inGame.penalties, inGame.goals, inGame.now, rule) : []);
+  // The strength on the ice, home first ("5 on 4", "4 on 4" for coincidental minors): only what doesn't cancel out
+  // counts (lib/penalties.ts). Sitting out, never
+  const strength = $derived.by(() => {
+    if (game?.status !== "live") return "";
+    const short = playersShort(inGame.penalties, inGame.goals, inGame.now, rule);
+    return manpower(short.get(game.homeTeamId ?? -1) ?? 0, short.get(game.awayTeamId ?? -1) ?? 0);
+  });
   const boxOf = (teamId: number | null) => box.filter((b) => b.penalty.teamId === teamId);
   const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
 
@@ -401,7 +412,9 @@
           )}
         {:else if timeUp && level}Level: next goal wins
         {:else if timeUp}{keeper ? "Time's up: call full time" : "Time's up"}
-        {:else}{periods > 1 ? `${periodName(period)} period · ` : ""}{running ? "Live" : "Paused"}{/if}
+        {:else}{periods > 1 ? `${periodName(period)} period · ` : ""}{running ? "Live" : "Paused"}{strength
+            ? ` · ${strength}`
+            : ""}{/if}
       </span>
     </svelte:element>
 
