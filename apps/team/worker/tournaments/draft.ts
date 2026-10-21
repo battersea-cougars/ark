@@ -1,8 +1,9 @@
-// A captains' draft (ADR 0060, after 0052; reset and reopen: 0064, 0066; one goalie a team: 0067). An admin opens it on the night; the captains take turns, in snake order,
+// A captains' draft (ADR 0060, after 0052; reset and reopen: 0064, 0066; one goalie a team: 0067). An admin opens it on
+// the night, which draws the captains' pick order at random; the captains take turns, in snake order from it,
 // picking from the members who said they're in (captains are in automatically and never picked); an admin closes it
 // once everyone's picked, or leaving the rest out on purpose, and then the teams are locked. Someone running the draft
 // (run:Draft) can pick for the captain on the clock, and undo the last pick.
-import { all, first, run } from "@cougars/shared/d1";
+import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { MIN_TEAM_SIZE, onTheClock, playersNeeded } from "../../src/lib/draft";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
@@ -44,10 +45,35 @@ const POOL = `SELECT e.member_id FROM tournament_entries e
                                         JOIN tournament_teams t ON t.id = p.team_id
                                         WHERE t.tournament_id = ? AND p.member_id IS NOT NULL)`;
 
-/** An admin opens the draft: the captains can pick. A closed one reopens with its picks, where it left off (0066). */
+/** A whole number from 0 to `below` - 1, every one equally likely (no modulo bias), from the Worker's crypto. */
+function randomBelow(below: number): number {
+  const buf = new Uint32Array(1);
+  const limit = 2 ** 32 - (2 ** 32 % below);
+  let n: number;
+  do n = crypto.getRandomValues(buf)[0];
+  while (n >= limit);
+  return n % below;
+}
+
+/** The same things in a fair random order: a Fisher-Yates shuffle. */
+export function shuffled<T>(items: readonly T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = randomBelow(i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * An admin opens the draft: the captains can pick. The first time (not yet open, or reset), it draws the captains'
+ * pick order at random: the order they were named in means nothing. It's round one's; the snake turns it after. A
+ * closed one reopens with its picks and its order, where it left off (0066).
+ */
 export async function openDraft(db: D1Database, tournamentId: number) {
-  await tournamentOf(db, tournamentId);
-  const captains = (await teamsOf(db, tournamentId)).length;
+  const t = await tournamentOf(db, tournamentId);
+  const teams = await teamsOf(db, tournamentId);
+  const captains = teams.length;
   if (captains < 2) throw new HttpError(409, "A draft needs at least two captains.");
   // The first time, only with enough to pick from: every team its captain and two more (a reopened one carries on)
   const picked = await first<{ n: number }>(db, `SELECT (${PICKS}) n`, [tournamentId]);
@@ -64,7 +90,20 @@ export async function openDraft(db: D1Database, tournamentId: number) {
         `Not enough players yet: a team's at least ${MIN_TEAM_SIZE}, so the draft needs ${need} signed up for ${captains} captains: ${pool?.n ?? 0} so far.`,
       );
   }
-  await run(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ?", [tournamentId]);
+  // Drawn once, as it opens, in one batch with the opening: two admins tapping Open at once can't draw twice, as the
+  // second finds it open already
+  const draw =
+    t.state === "none"
+      ? shuffled(teams).map((team, i) =>
+          statement(
+            db,
+            `UPDATE tournament_teams SET pick = ? WHERE id = ?
+             AND (SELECT draft_state FROM tournaments WHERE id = ?) = 'none'`,
+            [i + 1, team.id, tournamentId],
+          ),
+        )
+      : [];
+  await batch(db, [...draw, statement(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ?", [tournamentId])]);
   await syncTournament(db, tournamentId);
 }
 
@@ -85,8 +124,8 @@ export async function closeDraft(db: D1Database, tournamentId: number, leaveOut:
 }
 
 /**
- * Someone running the draft starts it again: every pick comes off and it's back to not yet open. The sign-ups,
- * captains and fixtures stay: the teams are the same teams, only their players change (0066).
+ * Someone running the draft starts it again: every pick comes off, the pick order with them, and it's back to not yet
+ * open. The sign-ups, captains and fixtures stay: the teams are the same teams, only their players change (0066).
  */
 export async function resetDraft(db: D1Database, tournamentId: number) {
   await tournamentOf(db, tournamentId);
@@ -96,6 +135,8 @@ export async function resetDraft(db: D1Database, tournamentId: number) {
     [tournamentId],
   );
   await run(db, "UPDATE tournaments SET draft_state = 'none' WHERE id = ?", [tournamentId]);
+  // And its pick order: the next opening draws again
+  await run(db, "UPDATE tournament_teams SET pick = NULL WHERE tournament_id = ?", [tournamentId]);
   // Its draft night comes back to the agenda
   await syncTournament(db, tournamentId);
 }

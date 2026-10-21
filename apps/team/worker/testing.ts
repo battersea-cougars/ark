@@ -29,7 +29,12 @@ export interface Reply {
   headers: Headers;
 }
 
+/** The seeded luck of the last world that asked for it (luck()): a new world starts with the real thing. */
+let seeded: { mockRestore(): void } | null = null;
+
 export function testWorld(roster: object[]) {
+  seeded?.mockRestore();
+  seeded = null;
   const db = createTestD1();
   db.raw.exec(rosterSql(parseRoster(JSON.stringify(roster)), NOW));
   db.raw.exec(FIRST_KUMITE_SQL);
@@ -124,6 +129,32 @@ export function testWorld(roster: object[]) {
     );
     fcm = world;
     return world;
+  }
+
+  /**
+   * Luck, seeded: from here on every `crypto.getRandomValues` (the draft's draw, sign-in codes, tokens) comes from a
+   * small seeded generator (mulberry32), so a draw comes out the same each run. Unseeded, it's the real thing.
+   */
+  function luck(seed: number) {
+    let a = seed >>> 0;
+    const next = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return (t ^ (t >>> 14)) >>> 0;
+    };
+    seeded?.mockRestore();
+    seeded = vi.spyOn(crypto, "getRandomValues").mockImplementation(<T extends ArrayBufferView | null>(array: T): T => {
+      if (array) {
+        const bytes = new Uint8Array(array.buffer, array.byteOffset, array.byteLength);
+        for (let i = 0; i < bytes.length; i += 4) {
+          const n = next();
+          for (let k = 0; k < 4 && i + k < bytes.length; k++) bytes[i + k] = (n >>> (8 * k)) & 0xff;
+        }
+      }
+      return array;
+    });
   }
 
   /** The cron triggers' notification drain (index.ts `scheduled`, every five minutes and hourly), at this time. */
@@ -229,5 +260,5 @@ export function testWorld(roster: object[]) {
     return { ...b, next, close: () => reader.cancel() };
   }
 
-  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, cron };
+  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, cron, luck };
 }

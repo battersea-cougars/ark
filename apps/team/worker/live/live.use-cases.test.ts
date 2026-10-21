@@ -27,7 +27,7 @@ beforeEach(() => {
 const listening = (email: string) => w.listening(email, DRAFT_DAY);
 
 /** A draft night, open, with Cara on the clock. */
-async function draftNight() {
+async function draftNight({ opened = true } = {}) {
   const dana = await w.signedIn("dana@example.com");
   const sees = async (b: { call: typeof dana.call }) => (await b.call("GET", "/api/bootstrap")).body as Json;
   const idOf = async (name: string) => (await sees(dana)).members.find((m: Json) => m.name === name).id as number;
@@ -74,13 +74,35 @@ async function draftNight() {
       (await (await w.signedIn(`${who}@example.com`)).call("POST", `/api/tournaments/${id}/answer`, { answer: "in" }))
         .status,
     ).toBe(200);
-  expect((await dana.call("POST", `/api/tournaments/${id}/draft/open`, {}, { now: DRAFT_DAY })).status).toBe(200);
+  // The draw (seeded) puts Cara first
+  w.luck(1);
+  const open = () => dana.call("POST", `/api/tournaments/${id}/draft/open`, {}, { now: DRAFT_DAY });
+  if (opened) expect((await open()).status).toBe(200);
   const pick = (as: { call: typeof dana.call }, memberId: number) =>
     as.call("POST", `/api/tournaments/${id}/draft/picks`, { memberId }, { now: DRAFT_DAY });
-  return { dana, id, pick, reg: await idOf("Reg Player") };
+  return { dana, id, open, pick, sees, reg: await idOf("Reg Player") };
 }
 
 describe("a draft night, with every captain's phone on the draft room", () => {
+  it("opening the draft reaches every phone at once, and each reads the same drawn pick order", async () => {
+    const night = await draftNight({ opened: false });
+    const cole = await listening("cole@example.com");
+    const reg = await listening("reg@example.com");
+    expect((await night.open()).status).toBe(200);
+    expect((await cole.next()).data.changed).toContain("tournaments");
+    expect((await reg.next()).data.changed).toContain("tournaments");
+    const order = async (email: string) =>
+      (await night.sees(await w.signedIn(email))).tournaments
+        .find((t: Json) => t.id === night.id)
+        .teams.map((t: Json) => [t.captainMemberId, t.pick]);
+    const drawn = await order("dana@example.com");
+    expect(drawn.map(([, pick]: number[]) => pick)).toEqual([1, 2]);
+    expect(await order("cole@example.com")).toEqual(drawn);
+    expect(await order("reg@example.com")).toEqual(drawn);
+    await cole.close();
+    await reg.close();
+  });
+
   it("a captain's pick reaches the other captain's open stream at once, naming what changed", async () => {
     const night = await draftNight();
     const cole = await listening("cole@example.com");

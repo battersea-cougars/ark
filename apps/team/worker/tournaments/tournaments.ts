@@ -340,7 +340,7 @@ export async function setTeamLook(
 }
 
 /**
- * A tournament's teams, in order (a draft's pick order), at most 16 of up to 30 players. A draft's teams each have a
+ * A tournament's teams, in order (a draft's as named: its pick order is drawn when it opens), at most 16 of up to 30 players. A draft's teams each have a
  * member as captain; a team that entered has a name. Nobody plays for two teams. Absent: left as they are.
  */
 function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
@@ -379,8 +379,8 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
 
 /**
  * Save a tournament's teams as the editor sends them (ADR 0060): each one changed in place (by its id, or in a draft
- * by its captain), new ones added, missing ones removed. A draft's picks are never touched here, and once its draft
- * is open its captains and their order are fixed. A draft's captains are in the tournament automatically.
+ * by its captain), new ones added, missing ones removed. A draft's picks and pick order are never touched here (the
+ * order is drawn when it opens), and once its draft is open its captains and their drawn order are fixed. A draft's captains are in the tournament automatically.
  */
 async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] | null, now = new Date()) {
   if (!teams) return;
@@ -413,8 +413,10 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   // Every change goes in one batch. A team just added is the newest: ids only go up (AUTOINCREMENT), and a batch
   // runs in order, alone
   const statements: D1PreparedStatement[] = [];
-  for (const [i, t] of teams.entries()) {
-    const pick = kind === "draft" ? i + 1 : null;
+  for (const t of teams) {
+    // A draft's pick order is drawn when it opens (draft.ts), never the editor's: the order they're named in means
+    // nothing, so a save leaves it as it is (none yet, or the draw)
+    const drawn = kind === "draft" ? 1 : 0;
     const found = match(t);
     let teamId: Param;
     let team: string;
@@ -425,9 +427,10 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
       statements.push(
         statement(
           db,
-          `UPDATE tournament_teams SET name = ?, logo = ?, captain_member_id = ?, captain_name = ?, contact = ?, pick = ?
+          `UPDATE tournament_teams SET name = ?, logo = ?, captain_member_id = ?, captain_name = ?, contact = ?,
+             pick = CASE WHEN ? THEN pick END
            WHERE id = ?`,
-          [t.name, t.logo, t.captainMemberId, t.captainName, t.contact, pick, teamId],
+          [t.name, t.logo, t.captainMemberId, t.captainName, t.contact, drawn, teamId],
         ),
       );
     } else {
@@ -436,9 +439,9 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
       statements.push(
         statement(
           db,
-          `INSERT INTO tournament_teams (tournament_id, name, logo, captain_member_id, captain_name, contact, pick, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [id, t.name, t.logo, t.captainMemberId, t.captainName, t.contact, pick, now.toISOString()],
+          `INSERT INTO tournament_teams (tournament_id, name, logo, captain_member_id, captain_name, contact, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [id, t.name, t.logo, t.captainMemberId, t.captainName, t.contact, now.toISOString()],
         ),
       );
     }

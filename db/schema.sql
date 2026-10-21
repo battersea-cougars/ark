@@ -489,7 +489,8 @@ CREATE TABLE tournament_teams (
   captain_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
   captain_name TEXT NOT NULL DEFAULT '',
   contact TEXT NOT NULL DEFAULT '',
-  -- Captains draft: the captain's pick order, from 1; null for a team that entered
+  -- Captains draft: the captain's pick order, from 1, drawn at random as the draft opens (ADR 0060); null until
+  -- then, and for a team that entered
   pick INTEGER,
   created_at TEXT NOT NULL
 );

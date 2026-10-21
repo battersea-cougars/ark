@@ -208,7 +208,7 @@ describe("the schedule", () => {
     );
   });
 
-  it("an admin sets a Kumite's sign-up deadline, draft night and its captains' teams in pick order", async () => {
+  it("an admin sets a Kumite's sign-up deadline, draft night and its captains' teams, in no pick order till the draw", async () => {
     const b = await boot();
     const date = b.tournaments[0];
     const ids = Object.fromEntries(b.members.map((m: { name: string; id: number }) => [m.name, m.id]));
@@ -231,8 +231,8 @@ describe("the schedule", () => {
     const saved = (await boot()).tournaments[0];
     expect(saved).toMatchObject({ kind: "draft", signupClosesOn: "2027-06-05", draftOn: "2027-06-09" });
     expect(saved.teams.map((t: { captainMemberId: number; pick: number }) => [t.captainMemberId, t.pick])).toEqual([
-      [ids["Reg Player"], 1],
-      [ids["Dana Admin"], 2],
+      [ids["Reg Player"], null],
+      [ids["Dana Admin"], null],
     ]);
     // Nothing after the day itself; a draft's captain is a member; nobody on two teams
     const bad = [

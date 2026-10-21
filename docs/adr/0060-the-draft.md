@@ -1,7 +1,7 @@
 # 0060. A captains' draft is run by an admin, picked by its captains, and seen by members once it's closed
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-21
 - **Merges:** 0064, 0066, 0067, 0068, 0070
 
 ## Context
@@ -18,6 +18,19 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 
 - `tournaments.draft_state`: none (reads as scheduled while it has a day and captains) → **open** → **closed**. Whoever
   runs the draft (`run:Draft`) opens and closes it; nothing happens on its own.
+- **The pick order is drawn as the draft opens**, not the order the captains were named in, which means nothing:
+  being named first mustn't mean picking first. The first opening (not yet open, or after a reset) draws it on the
+  server, a Fisher-Yates shuffle on `crypto.getRandomValues`, and stores it as `tournament_teams.pick` (1 = first) in
+  the same batch as the opening, so two admins tapping Open can't draw twice. It's fixed from then on: opening again,
+  closing and reopening, and saving the editor keep it, and the editor can't reorder the captains (it shows the drawn
+  numbers once there are some). It's round one's; the snake turns it each round. A reset clears it, and the next
+  opening draws again. Until it's drawn, `pick` is null and the app shows the captains without numbers ("Order drawn
+  when the draft starts").
+- **Everyone sees the draw happen.** The opening reaches every open Draft page at once ([0072](0072-live-updates.md));
+  a page that sees the order arrive shuffles the captains' names a few times (Svelte `flip`, about two and a half
+  seconds) and settles them into the drawn order with the numbers stamped on, and on the Kumite its blood seal
+  (`lib/DraftOrder.svelte`). Someone opening the page later, or asking for less motion, just sees the order. The
+  shuffle on screen is only for show: the order is the server's.
 - Opening needs at least two captains, and the first time enough sign-ups for every team to have its captain and two
   more (`MIN_TEAM_SIZE`, `playersNeeded` in `src/lib/draft.ts`). Otherwise 409.
 - Closing needs everyone picked, or the admin choosing to leave the rest out. Closed locks the picks and the captains.
@@ -50,8 +63,8 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   teams but doesn't edit them.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).
-- The tournament editor changes teams **in place** (by id), never writes a draft's players, and can't change the
-  captains or their order once the draft is open. A save without some rules keeps the tournament's own, not the
+- The tournament editor changes teams **in place** (by id), never writes a draft's players or its pick order, and
+  can't change the captains once the draft is open. A save without some rules keeps the tournament's own, not the
   series'.
 
 ### Who sees what
@@ -95,3 +108,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   (was 0068).
 - 2026-10-08: The server hides picks from members until the draft closes, then shows teams in no order; the Teams page
   opens to everyone (was 0070).
+- 2026-10-21: The pick order is drawn at random on the server as the draft first opens, not the order the captains
+  were named in; fixed until a reset; shown without numbers until then, and shuffled into place for whoever's
+  watching. The editor's pick numbers and its earlier/later buttons go.
