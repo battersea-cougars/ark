@@ -1238,6 +1238,9 @@
       height: 22px;
       font-size: 0.55rem;
       color: var(--tone-teal);
+      /* Its own line box and no tracking: the tab's line height and the avatar's spacing pushed the letters up-left */
+      line-height: 1;
+      letter-spacing: 0;
     }
     .tab.on .tab-avatar {
       background: var(--tone-teal);
