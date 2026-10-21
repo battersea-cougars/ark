@@ -294,10 +294,7 @@
     {:else if name === "Captains"}
       <!-- The whole step: the captains so far as chips and the search stay put; the club's list scrolls under them -->
       <section class="captains-step">
-        <div class="q">
-          <h3 class="section-title">Who are the captains? <span class="opt">· optional</span></h3>
-          <p class="hint">The draft's pick order is drawn when it starts. They can be named later.</p>
-        </div>
+        <h3 class="section-title">Captains <span class="opt">· optional</span></h3>
         <!-- One line, the same height however many: it scrolls sideways rather than pushing the list down -->
         <ul class="chips" bind:this={chips} aria-label="Captains">
           {#each values.captains as id, i (id)}
@@ -311,7 +308,7 @@
               >
             </li>
           {:else}
-            <li class="hint none">Captains to be named: add them from the list.</li>
+            <li class="hint none">None yet</li>
           {/each}
         </ul>
         <label class="search">
