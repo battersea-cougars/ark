@@ -720,9 +720,10 @@
     background: color-mix(in srgb, var(--red) 24%, transparent);
     color: var(--red-ink);
   }
-  /* The session you're asked about, while you're not in: a subliminal. Every so often "PRESS ME" flashes over In for a
-     split second, faint, then it's In again: you may not notice you saw it. Hidden from screen readers (the alt text
-     after the slash is empty); nothing moves */
+  /* The session you're asked about, while you're not in: a subliminal. Every so often a band of light glides across
+     In, and inside it, only where the light is, the button reads PRESS ME: lit for the moment the band passes, then
+     In again. You may not notice you saw it. Hidden from screen readers (the alt text after the slash is empty);
+     nothing moves */
   .answer > .yes.beckon,
   .answer > .yes.beckon-again {
     position: relative;
@@ -735,23 +736,37 @@
     display: grid;
     place-items: center;
     border-radius: inherit;
-    background: inherit;
-    color: var(--fg);
+    /* The button's own ground, lit a little: inside the band it covers In */
+    background-color: inherit;
+    background-image: linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1));
+    /* In's own green, the colour it turns once you tap it, glowing a little */
+    color: var(--green-ink);
     font-family: var(--font-display);
     font-style: italic;
     letter-spacing: 0.04em;
-    opacity: 0;
+    text-shadow: 0 0 0.7em color-mix(in srgb, var(--green) 55%, transparent);
     pointer-events: none;
-    animation: subliminal 7s var(--beckon-delay, 2s) steps(1, end) infinite;
+    /* Only the band shows: a soft-edged slant three times the button's width, slid across it */
+    -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 46%, #000 54%, transparent 62%);
+    mask-image: linear-gradient(105deg, transparent 38%, #000 46%, #000 54%, transparent 62%);
+    -webkit-mask-size: 300% 100%;
+    mask-size: 300% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+    animation: subliminal 7s var(--beckon-delay, 2s) ease-in-out infinite;
   }
-  /* One frame-ish flash (about a tenth of a second) in seven seconds */
+  /* The glide: about a second and a half, then the band waits off the edge until the next */
   @keyframes subliminal {
     0% {
-      opacity: 0.85;
+      -webkit-mask-position: 100% 0;
+      mask-position: 100% 0;
     }
-    1.4%,
+    22%,
     100% {
-      opacity: 0;
+      -webkit-mask-position: 0% 0;
+      mask-position: 0% 0;
     }
   }
   @media (prefers-reduced-motion: reduce) {
