@@ -11,7 +11,7 @@
   import { granted } from "../demo/session.svelte";
   import { PLAYERS, referenceFor } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { BUCKETS, BUCKET_HINT, aged } from "../lib/dues";
+  import { BUCKETS, aged } from "../lib/dues";
   import { londonToday, pounds } from "../lib/dates";
   import { listScroll } from "../lib/list-scroll";
   import SearchField from "../lib/SearchField.svelte";
@@ -66,7 +66,7 @@
     const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const money = (p: number) => (p / 100).toFixed(2);
     const lines = [
-      ["Name", "Reference", ...BUCKETS.map((b, i) => `${b} (${BUCKET_HINT[i]})`), "Total"],
+      ["Name", "Reference", ...BUCKETS, "Total"],
       ...rows.map((r) => [r.player.name, r.reference, ...r.amounts.map(money), money(r.total)]),
       ["Total", "", ...totals.map(money), money(grand)],
     ];
@@ -117,7 +117,6 @@
         ></span>
         <span class="display num value">{pounds(totals[i])}</span>
         <span class="eyebrow">{b}</span>
-        <span class="hint">{BUCKET_HINT[i]}</span>
       </div>
     {/each}
   </div>
@@ -283,7 +282,7 @@
   }
   .bucket {
     display: grid;
-    grid-template-rows: 3.5rem auto auto auto;
+    grid-template-rows: 3.5rem auto auto;
     align-items: end;
     gap: var(--s-1);
     padding: var(--s-4) var(--s-3);
@@ -354,9 +353,6 @@
   @media (max-width: 420px) {
     .bucket {
       padding-inline: var(--s-2);
-    }
-    .bucket .hint {
-      display: none;
     }
   }
 </style>

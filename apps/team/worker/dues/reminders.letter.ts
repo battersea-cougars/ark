@@ -1,6 +1,6 @@
 // A reminder of what someone owes (ADR 0007), as the member reads it: plain text first, in the club's voice, the same in
 // the club's HTML frame (packages/shared/email-html.ts); and the line their phone shows. What they owe, charge by
-// charge, the total, their own reference and where to pay. Firmer the longer it's been, as the penalties go.
+// charge, the total, their own reference and where to pay. Firmer the longer it's been.
 import { EMAIL, EMAIL_TYPE, emailPage, escapeHtml } from "@cougars/shared/email-html";
 import type { Mail } from "@cougars/shared/email";
 import { formatDayDate } from "../../src/lib/dates";
@@ -22,7 +22,7 @@ export interface Letter {
   reference: string;
   charges: Owed[];
   bank: Bank;
-  /** The age of their oldest charge, as Unpaid fees buckets it: 0 Minor, 1 Major, 2 Misconduct, 3 Ejected. */
+  /** The age of their oldest charge, as Unpaid fees buckets it: 0 up to 30 days, 1 31 to 60, 2 61 to 90, 3 over 90. */
   stage: 0 | 1 | 2 | 3;
 }
 
@@ -35,9 +35,10 @@ export const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 const OPENING = [
   (total: string) => `A friendly nudge from the Cougars: you've ${total} to settle.`,
   (total: string) => `A reminder from the Cougars: you've ${total} owing, some of it for over a month.`,
-  (total: string) => `That's a Misconduct: ${total} owing, some of it for over two months. Please settle up this week.`,
   (total: string) =>
-    `You're in Ejected territory: ${total} owing, some of it for over three months. Please settle up, or reply and tell us what's going on.`,
+    `A reminder from the Cougars: you've ${total} owing, some of it for over two months. Please settle up this week.`,
+  (total: string) =>
+    `A firm reminder from the Cougars: you've ${total} owing, some of it for over three months. Please settle up, or reply and tell us what's going on.`,
 ];
 
 const whatOf = (c: Owed) => c.what ?? (c.quarter ? `Quarterly, ${quarterMonths(c.quarter)}` : "Dues");

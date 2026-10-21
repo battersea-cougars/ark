@@ -135,17 +135,16 @@ session's fee.
   gets one (what each owes, how late, when they were last reminded, who's held back) and what one says; then they
   send. It's on the record (`dues.reminded`).
 - **The email** is the member's own: each unpaid charge (the day, what for, what's left on it), the total, their
-  reference and the bank details. Plain text first, the same in the club's frame; firmer the longer it's been (Minor,
-  Major, Misconduct, Ejected). With it, a notification on their phone if they have the store app
+  reference and the bank details. Plain text first, the same in the club's frame; firmer the longer it's been. With it, a notification on their phone if they have the store app
   ([0108](0108-store-apps.md)): the dues code tells a member through one call (`worker/tell/tell.ts`), which sends the
   email under the mail rules ([0027](0027-email-through-gmail-api.md)) and the notification through `notify`, so a
   new channel (web push, #24) doesn't touch the dues code.
 - **The hourly Cron Trigger reminds members as their oldest unpaid charge ages**, between 10:00 and 20:00 in London.
   The rules live in one place (`REMINDERS` in `reminders.ts`):
-  - **Minor**: from 14 days, every 4 weeks.
-  - **Major** (31 days): every 2 weeks.
-  - **Misconduct** (61 days): every week.
-  - **Ejected** (over 90 days): nothing automatic. That's an admin's call; their own send still works.
+  - **Up to 30 days**: from 14 days, every 4 weeks.
+  - **31 to 60 days**: every 2 weeks.
+  - **61 to 90 days**: every week.
+  - **Over 90 days**: nothing automatic. That's an admin's call; their own send still works.
 - **At most one reminder a week to anyone**, an admin's send included: someone reminded by hand isn't reminded again
   by the cron that week, and the other way round. A member with no email, or not active, gets none.
 - **Claimed, then sent a few at a time.** A reminder is claimed first, as a queued row in `dues_reminders`, in one
@@ -166,8 +165,9 @@ session's fee.
 - Marking a payment, taking one back, a lump sum, a quarter charged or taken back by hand, and a new quarterly rate
   are on the record ([0095](0095-audit-log.md)).
 - **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member and
-  bucketed by each charge's age: **Minor** (0–30 days), **Major** (31–60), **Misconduct** (61–90), **Ejected**
-  (over 90). Column totals, a drill-down to each member's charges, and CSV export. Its Manage button holds the
+  bucketed by each charge's age in plain words: **Up to 30 days**, **31 to 60 days**, **61 to 90 days**, **Over 90
+  days** (ranges say "to", never a dash). The reminders' stored stages keep their old keys (`minor`, `major`,
+  `misconduct`); nobody sees them. Column totals, a drill-down to each member's charges, and CSV export. Its Manage button holds the
   reminders and the bank details.
 
 ## Consequences
@@ -231,3 +231,6 @@ session's fee.
   in whatever the places, so isn't charged until they're in; a night that's over still records who came.
 - 2026-10-21: What you owe moved from a row on Home (after 60 days) to a small chip in Home's header, shown while
   you owe anything ([0118](0118-home-calls-to-action-then-feed.md)).
+- 2026-10-21: The age buckets are plain words (Up to 30 days, 31 to 60 days, 61 to 90 days, Over 90 days), not
+  hockey penalties: "Ejected" read as if we'd thrown people out. Home's admin line says "£N over 90 days late"; the
+  later reminder emails lost "Misconduct" and "Ejected territory". Stored stage keys unchanged.

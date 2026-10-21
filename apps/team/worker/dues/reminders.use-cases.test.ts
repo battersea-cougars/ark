@@ -1,6 +1,6 @@
 // Dues reminders (ADR 0007): whoever records payments emails members what they owe, from Unpaid fees, after seeing
-// who gets one and what it says; and the hourly Cron Trigger reminds members as a charge ages (Minor, Major,
-// Misconduct), never more than one a week. Each goes through the one "tell a member" seam: an email, and a
+// who gets one and what it says; and the hourly Cron Trigger reminds members as a charge ages (up to 30 days,
+// 31 to 60, 61 to 90), never more than one a week. Each goes through the one "tell a member" seam: an email, and a
 // notification on their phone if they have the store app (ADR 0108). Driven through the real handlers in the fake world
 // (ADR 0031): mail is caught in its outbox, phones in its push outbox, and the cron is called as `scheduled` calls it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -191,7 +191,7 @@ describe("at most one reminder a week", () => {
 });
 
 describe("the hourly reminders, as a charge ages", () => {
-  it("the thresholds live in one place: Minor from 14 days, Major and Misconduct more often, none once Ejected", () => {
+  it("the thresholds live in one place: from 14 days, more often from 31 and 61, none over 90", () => {
     expect(REMINDERS.stages.map((s) => [s.from, s.every])).toEqual([
       [14, 28],
       [31, 14],
@@ -203,7 +203,7 @@ describe("the hourly reminders, as a charge ages", () => {
 
   it("reminds someone once their oldest charge is a fortnight old, and only once however often it runs", async () => {
     await bank();
-    await owes("Reg Player", 1200, "2026-09-20"); // 16 days: Minor
+    await owes("Reg Player", 1200, "2026-09-20"); // 16 days: up to 30
     await owes("Mo Newbie", 1200, "2026-10-02"); // 4 days: too soon
     await remindDue(w.env, NOW);
     await remindDue(w.env, later(0, 1));
@@ -212,7 +212,7 @@ describe("the hourly reminders, as a charge ages", () => {
     expect(w.mails[0].text).toContain("COUGARS REG P");
   });
 
-  it("Minor every four weeks, Major every two, Misconduct every week, and nothing once it's Ejected", async () => {
+  it("every four weeks up to 30 days, every two to 60, every week to 90, and nothing over 90 days", async () => {
     await bank();
     await owes("Reg Player", 1200, "2026-09-22"); // 14 days old today
     const days: number[] = [];
@@ -221,8 +221,8 @@ describe("the hourly reminders, as a charge ages", () => {
       await remindDue(w.env, later(d));
       if (w.mails.length > before) days.push(d + 14);
     }
-    // His oldest charge's age each time he heard: 14 (Minor); 31, 45, 59 (Major, a fortnight apart); then weekly
-    // (Misconduct, a week after the last), until it's Ejected at 91
+    // His oldest charge's age each time he heard: 14; 31, 45, 59 (a fortnight apart); then weekly
+    // from 61 (a week after the last), until it's over 90 at 91
     expect(days).toEqual([14, 31, 45, 59, 66, 73, 80, 87]);
     expect(w.mails[1].subject).toContain("£12.00");
   });

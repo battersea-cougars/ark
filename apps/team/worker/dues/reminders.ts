@@ -19,11 +19,12 @@ const log = scribe.logger("reminders");
 
 /**
  * The rules, all in one place (ADR 0007). By the age of a member's oldest unpaid charge (Unpaid fees' buckets): from a
- * fortnight, every four weeks while it's Minor; every two weeks once it's Major (31 days); every week once it's a
- * Misconduct (61). Ejected (over 90 days) gets nothing automatic: that's an admin's call, and their own send still
+ * fortnight, every four weeks while it's up to 30 days; every two weeks from 31 days; every week from 61 days. Over 90
+ * days gets nothing automatic: that's an admin's call, and their own send still
  * works. Never more than one a week to anyone, an admin's send included.
  */
 export const REMINDERS = {
+  // The stored stage names (reminders.stage in D1) are the old keys; admins see Unpaid fees' plain buckets
   stages: [
     { stage: "minor", from: 14, every: 28 },
     { stage: "major", from: 31, every: 14 },
@@ -50,7 +51,7 @@ export interface Ower {
   email: boolean;
   pence: number;
   charges: number;
-  /** Their oldest charge's bucket: 0 Minor, 1 Major, 2 Misconduct, 3 Ejected. */
+  /** Their oldest charge's bucket: 0 up to 30 days, 1 31 to 60, 2 61 to 90, 3 over 90. */
   stage: 0 | 1 | 2 | 3;
   oldest: string;
   /** When they were last reminded (claimed), or null. */

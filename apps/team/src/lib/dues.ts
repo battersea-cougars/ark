@@ -106,15 +106,14 @@ export function feeOn(fees: DatedFee[], date: string): number {
   return best?.pence ?? 0;
 }
 
-/** Unpaid fees' columns, by how long a charge has been owed: penalties, worse the longer it's left. */
-export const BUCKETS = ["Minor", "Major", "Misconduct", "Ejected"] as const;
-export const BUCKET_HINT = ["0–30 days", "31–60", "61–90", "over 90"] as const;
+/** Unpaid fees' columns, by how long a charge has been owed, in plain words (ranges say "to", never a dash). */
+export const BUCKETS = ["Up to 30 days", "31 to 60 days", "61 to 90 days", "Over 90 days"] as const;
 
 const DAY = 86_400_000;
 export const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / DAY);
 
-/** 0 Minor (0–30 days), 1 Major (31–60), 2 Misconduct (61–90), 3 Ejected (over 90). */
+/** 0 up to 30 days, 1 31 to 60, 2 61 to 90, 3 over 90. */
 export function bucketOf(dueOn: string, today: string): 0 | 1 | 2 | 3 {
   const age = daysBetween(dueOn, today);
   return age <= 30 ? 0 : age <= 60 ? 1 : age <= 90 ? 2 : 3;

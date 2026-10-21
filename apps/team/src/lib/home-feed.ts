@@ -5,7 +5,6 @@
 // draft, and what the club is owed.
 import type { AgendaRow, Bookable, Tournament, TournamentType } from "../demo/model";
 import { dateBadge, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
-import { BUCKETS } from "./dues";
 import { draftTurn } from "./draft";
 import { signupOpen } from "./signup";
 
@@ -113,7 +112,7 @@ export function homeFeed(input: FeedInput): Feed {
       key: "admin:club-dues",
       href: "/settings/overdue",
       text: `Owed to the club ${pounds(club.total)}`,
-      sub: `${club.people} ${club.people === 1 ? "person" : "people"}${club.worst > 0 ? ` · ${pounds(club.worst)} ${BUCKETS[3]} (over 90 days)` : ""}`,
+      sub: `${club.people} ${club.people === 1 ? "person" : "people"}${club.worst > 0 ? ` · ${pounds(club.worst)} over 90 days late` : ""}`,
       hot: false,
       icon: "pound",
     });
