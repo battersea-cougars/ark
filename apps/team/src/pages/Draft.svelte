@@ -200,17 +200,28 @@
     atNow = Math.abs(mid - el.clientWidth / 2) < now.offsetWidth / 2;
     // Out of view: Now shows, on the side the current pick is
     nowSide = mid < now.offsetWidth / 2 ? -1 : mid > el.clientWidth - now.offsetWidth / 2 ? 1 : 0;
+    // The chip in the middle: it's lifted as you scroll, as the current pick is when you're at it
+    const middle = el.scrollLeft + el.clientWidth / 2;
+    let best = Infinity;
+    for (const chip of el.querySelectorAll<HTMLElement>(".tick:not(.ghost)")) {
+      const off = Math.abs(chip.offsetLeft + chip.offsetWidth / 2 - middle);
+      if (off < best) [best, focused] = [off, Number(chip.dataset.n)];
+    }
     // Whether there's more either way (a desktop's chevrons)
     canLeft = el.scrollLeft > 2;
     canRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
   }
+  let focused = $state<number | null>(null);
+  const raised = $derived(focused ?? made + 1);
   let canLeft = $state(false);
   let canRight = $state(false);
-  // A desktop's chevron: about a ticker's width of chips along
+  // A desktop's chevron: one pick along, so each click lifts the next
   function page(dir: -1 | 1) {
     const el = tickerEl;
     if (!el) return;
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: prefersReducedMotion ? "auto" : "smooth" });
+    const step = el.querySelector<HTMLElement>(".tick:not(.ghost)")?.offsetWidth ?? 160;
+    const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+    el.scrollBy({ left: dir * (step + gap), behavior: prefersReducedMotion ? "auto" : "smooth" });
   }
   // A mouse's wheel over it scrolls it sideways, while it can go that way; at its end the page scrolls as usual
   $effect(() => {
@@ -781,7 +792,9 @@
               class:fresh={t.n === fresh}
               class:now={live && t.n === made + 1}
               class:me={live && t.n === made + 1 && mine}
-              style:--d={Math.min(Math.abs(t.n - (made + 1)), 2)}
+              class:lift={t.n === raised}
+              data-n={t.n}
+              style:--d={Math.min(Math.abs(t.n - raised), 2)}
               animate:flip={{ duration: moveMs }}
               aria-hidden={t.ghost ? "true" : undefined}
             >
@@ -1188,7 +1201,7 @@
     padding: 0 var(--s-3) 0 var(--s-2);
     column-gap: var(--s-2);
   }
-  .draft.fit .tick.now {
+  .draft.fit .tick.lift {
     scale: 1.08;
   }
   .draft.fit .tablist > button {
@@ -1357,12 +1370,17 @@
     margin-block: 0;
     padding-inline: calc(50% - 5.5rem);
     overflow-x: auto;
+    /* Settles with a chip in the middle, so the one lifted is the one centred */
+    scroll-snap-type: x proximity;
     scrollbar-width: none;
     mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
   }
   /* An empty place before the first picks: the chip's shape, faint, with nothing in it */
   .tick.ghost {
     background: color-mix(in srgb, var(--surface-2) 75%, transparent);
+  }
+  .tick {
+    scroll-snap-align: center;
   }
   .ticker::-webkit-scrollbar {
     display: none;
@@ -1514,14 +1532,21 @@
       cursor: pointer;
       transition: opacity var(--t-fast) var(--ease-in-out);
     }
+    /* Out of the tab order (the ticker takes the arrow keys), so no focus ring on a click */
+    .edge:focus,
+    .edge:focus-visible {
+      outline: none;
+      box-shadow: none;
+    }
     .edge:hover {
       opacity: 0.95;
     }
+    /* Out past the ticker's faded ends, clear of the chips */
     .edge.left {
-      left: 0;
+      left: -1rem;
     }
     .edge.right {
-      right: 0;
+      right: -1rem;
     }
     .edge.gone {
       opacity: 0;
@@ -1558,7 +1583,8 @@
       box-shadow: 0 0 0 2px transparent;
     }
   }
-  .tick.now {
+  /* The chip in the middle, raised: the current pick when you're at it, or the one you've scrolled to */
+  .tick.lift {
     z-index: 1;
     scale: 1.2;
     /* The home page's cards: the panel ground, a firm edge and a lit top */
@@ -1567,6 +1593,17 @@
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.05),
       0 0 0 1px var(--border-strong);
+  }
+  /* The current pick, scrolled away from: a red dot in its corner says it's the one on the clock */
+  .tick.now:not(.lift)::before {
+    content: "";
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--red-hot);
   }
   /* Your turn: the REC light. The card's edge and the word You go red and the badge pulses; another team's turn
      stays neutral, so yours is never taken for theirs at a glance */
