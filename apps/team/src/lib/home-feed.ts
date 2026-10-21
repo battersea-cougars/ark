@@ -4,7 +4,7 @@
 // events, with "See the calendar" after them. Last, under "For admins", only for whoever they're for: running the
 // draft, and what the club is owed.
 import type { AgendaRow, Bookable, Tournament, TournamentType } from "../demo/model";
-import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds } from "./dates";
+import { dateBadge, formatTime, londonISO, londonToday, pounds } from "./dates";
 import { BUCKETS } from "./dues";
 import { draftTurn } from "./draft";
 import { signupOpen } from "./signup";
@@ -21,6 +21,15 @@ export interface FeedItem {
   icon: FeedIcon;
   /** What you owe: the £ in red, the amount in the body's colour. */
   money?: boolean;
+  /** The day it's about (a draft night, a sign-up's last day): its date block stands in for the icon. */
+  on?: When;
+}
+
+/** A date to show as the stacked block (lib/DateBlock): the day, or a season, or not confirmed. */
+export interface When {
+  at: string;
+  season?: { name: string; year: number };
+  tbc?: boolean;
 }
 
 export type Standing = "in" | "waitlist" | "out";
@@ -49,12 +58,12 @@ export interface UpcomingEvent extends Pick<
   signupOpensOn?: string | null;
 }
 
-/** A row of what's coming up: its date on the left ("Fri" over "30 Oct", or "Summer 2027"), then what and how. */
+/** A row of what's coming up: its date on the left (Fri / 30 / Oct, or Summer / TBC / 2027), then what and how. */
 export interface UpcomingRow {
   key: string;
   href?: string;
   icon: Bookable["icon"];
-  date: { top: string; bottom: string };
+  on: When;
   text: string;
   sub: string;
 }
@@ -167,10 +176,6 @@ function upcomingRows({ events = [], shown = [], today }: FeedInput): UpcomingRo
 }
 
 function upcomingRow(e: UpcomingEvent, today: string): UpcomingRow {
-  const badge = dateBadge(e.startsAt);
-  const date = e.season
-    ? { top: e.season.name[0].toUpperCase() + e.season.name.slice(1), bottom: String(e.season.year) }
-    : { top: badge.weekday, bottom: `${badge.day} ${badge.month}` };
   const time = e.timeText || (e.season ? "" : `${formatTime(e.startsAt)}–${formatTime(e.endsAt)}`);
   const opens = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
   const how = e.cancelled
@@ -182,8 +187,9 @@ function upcomingRow(e: UpcomingEvent, today: string): UpcomingRow {
         : e.asking
           ? "Are you in?"
           : e.venue;
-  const sub = [e.dateTbc && !e.season ? "Date to be confirmed" : time, how].filter(Boolean).join(" · ");
-  return { key: e.key, href: e.href, icon: e.icon, date, text: e.title, sub };
+  const sub = [e.dateTbc ? "" : time, how].filter(Boolean).join(" · ");
+  const on = { at: e.startsAt, season: e.season, tbc: e.dateTbc };
+  return { key: e.key, href: e.href, icon: e.icon, on, text: e.title, sub };
 }
 
 // From the agenda (ADR 0060, 0042): a captain's draft day, the draft an admin runs, a sign-up about to close (for a
@@ -195,7 +201,9 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
       const t = tournaments.find((x) => x.id === r.sourceId);
       const type = t && types.find((y) => y.id === t.typeId);
       if (!t || !type) return [];
-      const when = r.allDay ? formatDayDate(r.startsAt) : `${formatDayDate(r.startsAt)} at ${formatTime(r.startsAt)}`;
+      // The day is the row's date block; the line says the time, if it has one
+      const on = { at: r.startsAt };
+      const at = r.allDay ? "" : ` at ${formatTime(r.startsAt)}`;
       if (r.kind === "signup_closes") {
         // The next of a series taking sign-ups is already asked up top, as a card of its own
         if (upcoming.some((u) => u.t.id === t.id)) return [];
@@ -204,7 +212,8 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
           {
             key: r.key,
             href: `/tournaments/${type.slug}`,
-            text: `Sign-up for ${t.name} closes ${when}`,
+            text: `Sign-up for ${t.name} closes`,
+            on,
             sub: "Are you in?",
             hot: false,
             icon: "draft",
@@ -220,7 +229,8 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
           {
             key: r.key,
             href,
-            text: `Draft ${when}`,
+            text: `Draft${at}`,
+            on,
             sub: `${t.name} · you pick ${nth(mine + 1)}`,
             hot: false,
             icon: "draft",
@@ -231,7 +241,8 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
         {
           key: `admin:${r.key}`,
           href,
-          text: `Draft ${when}`,
+          text: `Draft${at}`,
+          on,
           sub: `${t.name} · open it when the captains are ready`,
           hot: false,
           icon: "draft",

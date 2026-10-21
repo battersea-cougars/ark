@@ -12,10 +12,11 @@
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
-  import { londonToday } from "../lib/dates";
+  import { formatDayDate, londonToday } from "../lib/dates";
   import { aged, leftOn } from "../lib/dues";
   import { signupOpen } from "../lib/signup";
-  import { homeFeed, type UpcomingEvent } from "../lib/home-feed";
+  import { homeFeed, type UpcomingEvent, type When } from "../lib/home-feed";
+  import DateBlock from "../lib/DateBlock.svelte";
   import { fill, slot } from "../lib/greetings";
   import {
     calendar,
@@ -313,29 +314,42 @@
   sub: string;
   hot?: boolean;
   money?: boolean;
+  on?: When;
 })}
   {#if o.href}
-    <a class="item rise" class:hot={o.hot || o.money} href={o.href}>
-      <Icon name={o.icon} size={18} />
+    <a class="item rise" class:hot={o.hot || o.money} class:dated={o.on} href={o.href}>
+      {#if o.on}{@render when(o.on)}{:else}<span class="lead-col"><Icon name={o.icon} size={18} /></span>{/if}
       <span class="grow"><span class="item-text">{o.text}</span><span class="item-sub">{o.sub}</span></span>
       <Icon name="chevronRight" size={16} />
     </a>
   {:else}
     <!-- Just news: nothing to open -->
-    <div class="item rise" role="status">
-      <Icon name={o.icon} size={18} />
+    <div class="item rise" class:dated={o.on} role="status">
+      {#if o.on}{@render when(o.on)}{:else}<span class="lead-col"><Icon name={o.icon} size={18} /></span>{/if}
       <span class="grow"><span class="item-text">{o.text}</span><span class="item-sub">{o.sub}</span></span>
       <span class="badge red live">Live</span>
     </div>
   {/if}
 {/snippet}
 
+<!-- A row's date: the lead card's stacked block (lib/DateBlock), a size down, in a fixed column so every row's lines
+     up; the screen reader hears it in the row's words -->
+{#snippet when(on: When)}
+  <span class="when" aria-hidden="true"><DateBlock at={on.at} season={on.season} tbc={on.tbc} small /></span>
+{/snippet}
+
 <!-- One row of what's coming up: the date on the left, then what it is and how you stand -->
 {#snippet upcomingItem(r: (typeof feed.upcoming)[number])}
-  <a class="item upcoming rise" href={r.href ?? "/calendar"}>
-    <span class="when" aria-hidden="true"><span class="when-top">{r.date.top}</span>{r.date.bottom}</span>
+  <a class="item dated rise" href={r.href ?? "/calendar"}>
+    {@render when(r.on)}
     <span class="grow">
-      <span class="sr-only">{r.date.top} {r.date.bottom}:</span>
+      <span class="sr-only"
+        >{r.on.season
+          ? `${r.on.season.name} ${r.on.season.year}`
+          : r.on.tbc
+            ? "Date to be confirmed"
+            : formatDayDate(r.on.at)}:</span
+      >
       <span class="item-text">{r.text}</span><span class="item-sub">{r.sub}</span>
     </span>
     <Icon name="chevronRight" size={16} />
@@ -455,7 +469,7 @@
     <!-- The store app's one ask (ADR 0108): what notifications are for, then the phone's own question -->
     {#if askNotify}
       <div class="item ask-notify rise">
-        <Icon name="bell" size={18} />
+        <span class="lead-col"><Icon name="bell" size={18} /></span>
         <span class="grow">
           <span class="item-text">Hear it first</span>
           <span class="item-sub">Teams out, a place coming up, a night off: a notification, as it happens.</span>
@@ -804,11 +818,10 @@
   a.item:hover {
     background: var(--surface-2);
   }
-  .item > :global(svg:first-child) {
-    flex-shrink: 0;
+  .lead-col {
     color: var(--fg-muted);
   }
-  .item.hot > :global(svg:first-child) {
+  .item.hot .lead-col {
     color: var(--red-hot);
   }
   .item > :global(svg:last-child) {
@@ -830,7 +843,7 @@
   .ask-notify {
     align-items: flex-start;
   }
-  .ask-notify > :global(svg:first-child) {
+  .ask-notify .lead-col {
     margin-top: 0.15rem;
   }
   /* A quiet label over a group of the feed: Coming up, For admins */
@@ -842,22 +855,13 @@
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
   }
-  /* Coming up: the date on the left, the weekday small over the day */
-  .when {
+  /* The row's first column, the same width on every row: a date block (lib/DateBlock, a size down) or an icon in its
+     middle, so every row's words start on one line */
+  .when,
+  .lead-col {
     display: grid;
+    place-items: center;
     flex-shrink: 0;
-    width: 3.25rem;
-    color: var(--fg);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    line-height: 1.15;
-    text-align: center;
-  }
-  .when-top {
-    color: var(--fg-muted);
-    font-size: var(--text-2xs);
-    font-weight: 700;
-    letter-spacing: var(--tracking-label);
-    text-transform: uppercase;
+    width: 2.75rem;
   }
 </style>

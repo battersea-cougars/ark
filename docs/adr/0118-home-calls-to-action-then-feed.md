@@ -31,7 +31,8 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
    - **What needs you now**, your move first: an open draft, the draft being on, the teams being out, a captain's
      draft day, a sign-up closing for a tournament not asked about up top; then **what you owe** ("£58 to pay",
      "Your tab · 3 nights", the £ the only red), opening your tab, none when you're square.
-   - **Coming up**, in date order, each with its date on the left ("Fri" over "30 Oct", or "Summer 2027"): each
+   - **Coming up**, in date order, each with its date on the left as the lead card shows it (`lib/DateBlock`: Fri / 30 / Oct stacked, a size
+     down; Summer / TBC / 2027 with no day yet): each
      training's next session and each tournament series' next one (however far off), and the club's events in the
      next six weeks; at most seven, then "See the calendar". What's a card up top isn't repeated: the Friday row is
      the one after the card's. The sub-line says the time and where you stand, or when sign-up opens.
@@ -58,3 +59,7 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
   needs you now, then what's coming up in date order (capped, then See the calendar), then For admins at the foot
   ("the owed-to-club line is more for admins"). What you owe left the header for a row in the feed ("awkwardly
   placed, just make it part of the member's feed"). Past announcements are Home's page.
+- 2026-10-21: Every date on Home is the lead card's stacked block (day, number, month; `lib/DateBlock`, shared with
+  EventCard), a size down in the rows, in one fixed column that icon rows share, so every row's words line up. A
+  draft night or a sign-up's last day shows its block in place of the icon. With no day yet the block keeps its
+  shape: the season, TBC, the year (the card's own too). "Can the format of the dates be consistent?"

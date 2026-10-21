@@ -13,7 +13,8 @@
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { dateBadge, formatTime, londonToday } from "./dates";
+  import { formatTime, londonToday } from "./dates";
+  import DateBlock from "./DateBlock.svelte";
   import { initials } from "./initials";
   import { phone } from "./viewport.svelte";
   import { crossfade } from "svelte/transition";
@@ -61,7 +62,6 @@
   const KIND = { training: "Training", tournament: "Tournament", social: "Social" } as const;
 
   const entries = $derived(event.entries);
-  const badge = $derived(dateBadge(event.startsAt));
   const id = $derived(me().id);
   // Viewing as someone is read-only (ADR 0024): you see their answer, you can't change it.
   const locked = $derived(impersonating());
@@ -241,21 +241,8 @@
 >
   <div class="top">
     <div class="date">
-      {#if event.season}
-        <!-- Just a season so far: the season over its year -->
-        <span class="eyebrow">{event.season.name}</span>
-        <span class="display day">'{String(event.season.year).slice(2)}</span>
-        <span class="eyebrow">&nbsp;</span>
-      {:else if event.dateTbc}
-        <!-- Not confirmed: the date it has only decides where it sorts, so it isn't shown -->
-        <span class="eyebrow">Date</span>
-        <span class="display day">TBC</span>
-        <span class="eyebrow">&nbsp;</span>
-      {:else}
-        <span class="eyebrow">{badge.weekday}</span>
-        <span class="display day">{badge.day}</span>
-        <span class="eyebrow">{badge.month}</span>
-      {/if}
+      <!-- Just a season so far, or a date not confirmed (the date it has only decides where it sorts): TBC -->
+      <DateBlock at={event.startsAt} season={event.season} tbc={event.dateTbc} />
     </div>
     <!-- What matters first: which session (icon and name) and when. Where is a quiet second line. -->
     <div class="what">
@@ -398,16 +385,10 @@
   .date {
     position: relative;
     display: grid;
-    justify-items: center;
-    gap: 0.1rem;
     min-width: 3.25rem;
     padding-right: var(--s-4);
     border-right: 1px solid var(--border);
     text-align: center;
-  }
-  .day {
-    font-size: 1.9rem;
-    color: var(--fg);
   }
   /* Calendar rows: the divider beside the date takes the type's colour, so a month reads at a glance */
   .compact .date {

@@ -80,7 +80,9 @@ describe("Home's feed", () => {
     const t = kumite();
     expect(feed(t, { agenda: [closes] }).now).toEqual([]);
     // A one-off tournament (not the next of a series Home asks about) still gets its reminder
-    expect(feed(t, { agenda: [closes], upcoming: [] }).now.map((r) => r.sub)).toEqual(["Are you in?"]);
+    expect(feed(t, { agenda: [closes], upcoming: [] }).now).toMatchObject([
+      { text: "Sign-up for The Cougars Kumite closes", sub: "Are you in?", on: { at: closes.startsAt } },
+    ]);
   });
 
   it("whoever runs the draft hears about it under For admins, not with everyone's", () => {
@@ -145,7 +147,7 @@ describe("what's coming up", () => {
   it("is in date order, a date on the left of each", () => {
     const rows = up([ev("quiz", "2026-11-05T19:00:00Z"), ev("drinks", "2026-10-30T19:00:00Z")]);
     expect(rows.map((r) => r.text)).toEqual(["drinks", "quiz"]);
-    expect(rows[0].date).toEqual({ top: "Fri", bottom: "30 Oct" });
+    expect(rows[0].on).toEqual({ at: "2026-10-30T19:00:00Z", season: undefined, tbc: undefined });
     expect(rows[0].sub).toBe("7pm–7pm · The Lock");
   });
 
@@ -170,7 +172,7 @@ describe("what's coming up", () => {
       ["tournament:1", "10am–10am · You're in"],
       ["tournament:2", "Sign-up opens 1 May"],
     ]);
-    expect(rows[1].date).toEqual({ top: "Summer", bottom: "2027" });
+    expect(rows[1].on).toMatchObject({ season: { name: "summer", year: 2027 }, tbc: true });
   });
 
   it("looks a few weeks ahead and stops at a handful, for See the calendar", () => {
