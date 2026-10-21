@@ -153,16 +153,31 @@
   });
   let tickerEl = $state<HTMLElement | undefined>();
   // Only the ticker scrolls: scrollIntoView would also move the page under you (it scrolls every scroller around it)
-  $effect(() => {
-    void made;
-    // and again when the layout changes (a phone's ticker is narrower)
-    void fit;
-    const now = tickerEl?.querySelector<HTMLElement>(".tick.up");
-    if (!tickerEl || !now) return;
-    tickerEl.scrollTo({
-      left: now.offsetLeft - (tickerEl.clientWidth - now.offsetWidth) / 2,
-      behavior: prefersReducedMotion ? "auto" : "smooth",
+  // A pick slides it along; arriving, or the ticker changing size (the page settling, a phone's narrower chips), puts
+  // the pick on the clock in the middle at once: a smooth scroll started while the page was still laying out stopped
+  // short, leaving only the empty places in view
+  const centre = (el: HTMLElement, smooth: boolean) => {
+    const now = el.querySelector<HTMLElement>(".tick.up");
+    if (!now) return;
+    el.scrollTo({
+      left: now.offsetLeft - (el.clientWidth - now.offsetWidth) / 2,
+      behavior: smooth && !prefersReducedMotion ? "smooth" : "auto",
     });
+  };
+  let centredAt = -1;
+  $effect(() => {
+    const el = tickerEl;
+    if (!el) return;
+    const n = made;
+    centre(el, centredAt >= 0 && n !== centredAt);
+    centredAt = n;
+  });
+  $effect(() => {
+    const el = tickerEl;
+    if (!el) return;
+    const ro = new ResizeObserver(() => centre(el, false));
+    ro.observe(el);
+    return () => ro.disconnect();
   });
   // The pick log: every pick so far, in order, who went where
   // A pick someone made for the captain (whoever runs the draft) says who: `by` is their name (ADR 0060)
