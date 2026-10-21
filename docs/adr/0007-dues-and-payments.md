@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-20
+- **Date:** 2026-10-05 · updated 2026-10-21
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
@@ -148,9 +148,12 @@ session's fee.
 - **At most one reminder a week to anyone**, an admin's send included: someone reminded by hand isn't reminded again
   by the cron that week, and the other way round. A member with no email, or not active, gets none.
 - **Claimed, then sent a few at a time.** A reminder is claimed first, as a queued row in `dues_reminders`, in one
-  statement that checks the week, so two runs at once send one. Each run then sends at most 15 (a Worker run makes
-  at most 50 requests, and each email is one). The rest go on the next five-minute run, so a send to the whole club
-  is done within minutes. A send that fails is released and tried again; someone who has paid by the time it goes
+  statement that checks the week, so two runs at once send one. A run then takes the next few to send (`sending`, in
+  the same round trip that reads them), so an admin's Send beside the cron, or two runs at once, never both email
+  someone; a run that died is overtaken after ten minutes. Each run sends at most 10 (a Worker run makes at most 50
+  requests, each email is one, and the same cron run also drains the push outbox: [0121](0121-load-and-concurrency.md)
+  has the sums); the phones hear it with the next push drain. The rest go on the next five-minute run, so a send to
+  the whole club is done within the hour. A send that fails is released and tried again; someone who has paid by the time it goes
   gets nothing. Admins see when someone was last reminded.
 
 **What people see**
@@ -237,3 +240,6 @@ session's fee.
 - 2026-10-21: Settings' Quarterly rate is Membership, its page the quarterly membership's price ("£90 a quarter"), a
   new one a "New quarterly membership price"; what admins read only, the code and data keep `fees`. "Call Quarterly
   rate 'Subscriptions' or 'Membership settings'."
+- 2026-10-21: Two runs sending reminders at once (an admin's Send and the five-minute cron) emailed someone twice: a
+  run now takes what it sends first (`dues_reminders.sending`); 10 a run instead of 15, so a cron run keeps within 50
+  subrequests with the push drain beside it ([0121](0121-load-and-concurrency.md)).

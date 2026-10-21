@@ -574,7 +574,8 @@ CREATE TABLE club_settings (
 
 -- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by) or the
 -- hourly cron (stage), at most one per member a week. A row is claimed (queued) before it's sent, so two runs send one
--- email; a send that fails is deleted, so it's tried again. Admins see when someone was last reminded.
+-- email, and a run takes it to send (sending, sending_at) so two runs at once never both send it; a send that fails is
+-- deleted, so it's tried again. Admins see when someone was last reminded.
 CREATE TABLE dues_reminders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
@@ -584,6 +585,9 @@ CREATE TABLE dues_reminders (
   claimed_at TEXT NOT NULL,
   -- queued until it's gone, then sent, with what they owed when it went
   status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent')),
+  -- The run sending it (an id of its own) and since when; a run that died is overtaken after a while
+  sending TEXT,
+  sending_at TEXT,
   sent_at TEXT,
   pence INTEGER
 );

@@ -61,6 +61,11 @@ export async function registerDevice(db: D1Database, sessionId: number, o: Recor
 // whatever else the request or cron run fetches (a Sentry report), that leaves about ten to spare. The rest wait in
 // push_outbox for the next cron run (index.ts `scheduled`: every five minutes, and hourly).
 export const SEND_AT_ONCE = 40;
+/**
+ * A cron run sends fewer: the same invocation also sends dues reminders (an email each, REMINDERS.perRun) and asks for
+ * a website rebuild, and all of it shares the 50 (docs/load-testing.md has the sums).
+ */
+export const DRAIN_AT_ONCE = 25;
 /** Tries a notification gets before it's given up: again after 5, 10 and 20 minutes. */
 export const PUSH_TRIES = 4;
 const RETRY_AFTER_MINUTES = 5;
@@ -73,8 +78,9 @@ const PRUNE_AT_ONCE = 500;
 const MINUTE = 60_000;
 const ago = (now: Date, ms: number) => new Date(now.getTime() - ms).toISOString();
 
-/** Rows to send now, claimed so no other send takes them; without Firebase, all of them (nothing is fetched). */
-function claim(env: PushEnv, now: Date, claimId: string) {
+/** Up to `atOnce` rows to send now, claimed so no other send takes them; without Firebase, all of them (nothing is
+ * fetched). */
+function claim(env: PushEnv, now: Date, claimId: string, atOnce: number) {
   return statement(
     env.DB,
     `UPDATE push_outbox SET claim = ?, claimed_at = ?
@@ -88,7 +94,7 @@ function claim(env: PushEnv, now: Date, claimId: string) {
       now.toISOString(),
       now.toISOString(),
       ago(now, CLAIM_EXPIRES_MINUTES * MINUTE),
-      env.FIREBASE_SERVICE_ACCOUNT ? SEND_AT_ONCE : -1,
+      env.FIREBASE_SERVICE_ACCOUNT ? atOnce : -1,
     ],
   );
 }
@@ -109,9 +115,10 @@ type Claimed = Sent & { id: number; tries: number };
 /**
  * Tell them: a row in the outbox for every phone signed in as one of them who hasn't turned that topic off, written in
  * one statement with the first batch claimed in the same round trip, and that batch sent now (after the reply). A club-wide send bigger than a
- * batch is finished by the cron (drainPush).
+ * batch is finished by the cron (drainPush). `atOnce` is how many go now: fewer when the invocation has other
+ * requests to make (tell, whose emails come first), none to leave them all for the cron.
  */
-export async function notify(env: PushEnv, notices: Notice[], now: Date) {
+export async function notify(env: PushEnv, notices: Notice[], now: Date, atOnce = SEND_AT_ONCE) {
   const wanted = notices.filter((n) => n.to === "everyone" || n.to.length);
   if (!wanted.length) return;
   const claimId = crypto.randomUUID();
@@ -129,13 +136,13 @@ export async function notify(env: PushEnv, notices: Notice[], now: Date) {
        ORDER BY n.key, s.member_id, d.token`,
       [now.toISOString(), now.toISOString(), JSON.stringify(wanted), now.toISOString()],
     ),
-    claim(env, now, claimId),
+    claim(env, now, claimId, atOnce),
   ]);
   await send(env, claimed.results, claimId, now);
 }
 
 /** The cron's part: the next batch waiting, and a week's sent notifications pruned, in one round trip. */
-export async function drainPush(env: PushEnv, now: Date) {
+export async function drainPush(env: PushEnv, now: Date, atOnce = DRAIN_AT_ONCE) {
   const claimId = crypto.randomUUID();
   const [, , claimed] = await batch<Claimed>(env.DB, [
     statement(
@@ -144,7 +151,7 @@ export async function drainPush(env: PushEnv, now: Date) {
       [ago(now, KEEP_DAYS * 24 * 60 * MINUTE), PRUNE_AT_ONCE],
     ),
     dropUnwanted(env, now),
-    claim(env, now, claimId),
+    claim(env, now, claimId, atOnce),
   ]);
   await send(env, claimed.results, claimId, now);
 }

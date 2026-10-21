@@ -6,16 +6,25 @@ import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
 import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { parseRoster, rosterSql } from "../../../scripts/lib/roster.mjs";
 import { handleApi, type Env } from "./api/api";
+import worker from "./index";
 import { LiveHub } from "./live/live";
 import { vi } from "vitest";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { drainPush, pushOutbox, type Sent } from "./push/push";
 
-/** A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. */
-const liveNamespace = (hub: LiveHub) =>
+/**
+ * A namespace with one object in it, for the fake world: what `env.LIVE` is on a real Worker. A call to it is one of the
+ * invocation's subrequests, as on Cloudflare (`counted`).
+ */
+const liveNamespace = (hub: LiveHub, counted: () => void) =>
   ({
     idFromName: (name: string) => name,
-    get: () => ({ fetch: (input: RequestInfo | URL, init?: RequestInit) => hub.fetch(new Request(input, init)) }),
+    get: () => ({
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+        counted();
+        return hub.fetch(new Request(input, init));
+      },
+    }),
   }) as unknown as DurableObjectNamespace;
 
 // Tuesday 6 October 2026, midday in London
@@ -41,19 +50,30 @@ export function testWorld(roster: object[]) {
   db.raw.exec(FIRST_KUMITE_SQL);
   // The live hub (ADR 0072) as the Worker reaches it: one object, behind a namespace that always finds it
   const live = new LiveHub();
-  const env: Env = { DB: db, TEAM_ENV: "local", LIVE: liveNamespace(live) };
-  // The club's email, faked: each one the app would have sent, whole, in order (packages/shared/email.ts outbox)
+  /** The subrequests of the invocation running, however many run at once (each its own count, ADR 0003). */
+  const running = new AsyncLocalStorage<{ fetches: number }>();
+  const counted = () => {
+    const mine = running.getStore();
+    if (mine) mine.fetches++;
+  };
+  const env: Env = { DB: db, TEAM_ENV: "local", LIVE: liveNamespace(live, counted) };
+  // The club's email, faked: each one the app would have sent, whole, in order (packages/shared/email.ts outbox).
+  // Each is one request to Gmail on a real Worker, so it counts as one of the invocation's subrequests
   const mails: Mail[] = [];
-  outbox.capture = (m) => void mails.push(m);
+  outbox.capture = (m) => {
+    mails.push(m);
+    counted();
+  };
   // Notifications on phones (ADR 0108), faked the same way: each one Firebase would have delivered, one per phone
   const pushes: Sent[] = [];
   pushOutbox.capture = (p) => void pushes.push(p);
 
   // Firebase Cloud Messaging, once a test turns it on (firebase()): what it was asked, and fetches per invocation
   let fcm: Awaited<ReturnType<typeof firebase>> | null = null;
-  /** The fetches of the invocation running, however many run at once (each its own count). */
-  const running = new AsyncLocalStorage<{ fetches: number }>();
-  /** Run one Worker invocation, counting the fetches it makes (the free plan allows 50, ADR 0108). */
+  /**
+   * Run one Worker invocation, counting its subrequests (the free plan allows 50, ADR 0003): fetches, emails and calls
+   * to the live hub. Counted once Firebase is on (`fcm.invocations`).
+   */
   async function invocation<T>(run: () => Promise<T>): Promise<T> {
     if (!fcm) return run();
     const mine = { fetches: 0 };
@@ -93,7 +113,8 @@ export function testWorld(roster: object[]) {
       answers: new Map<string, "gone" | "failed">(),
       down: false,
       fetches: 0,
-      /** Fetches made by each invocation (a request, or a cron run) since Firebase was turned on. */
+      /** Subrequests made by each invocation (a request, or a cron run) since Firebase was turned on: fetches, emails
+       * and live hub calls. */
       invocations: [] as number[],
     };
     const memberOf = (token: string) =>
@@ -108,8 +129,7 @@ export function testWorld(roster: object[]) {
       "fetch",
       vi.fn(async (url: string, init: RequestInit) => {
         world.fetches++;
-        const mine = running.getStore();
-        if (mine) mine.fetches++;
+        counted();
         if (url === "https://oauth2.googleapis.com/token")
           return Response.json({ access_token: "access", expires_in: 3600 });
         if (url !== sendUrl) throw new Error(`The fake world doesn't know ${url}`);
@@ -164,6 +184,21 @@ export function testWorld(roster: object[]) {
 
   /** The cron triggers' notification drain (index.ts `scheduled`, every five minutes and hourly), at this time. */
   const cron = (now: Date) => invocation(() => drainPush(env, now));
+  /**
+   * One run of a Cron Trigger, whole, as Cloudflare runs it (index.ts `scheduled`): every job it does, in one
+   * invocation, with what it left to waitUntil finished inside it.
+   */
+  const scheduled = (trigger: "*/5 * * * *" | "7 * * * *", now: Date) =>
+    invocation(async () => {
+      const after: Promise<unknown>[] = [];
+      const ctx = { waitUntil: (p: Promise<unknown>) => void after.push(p), passThroughOnException() {} };
+      await worker.scheduled!(
+        { cron: trigger, scheduledTime: now.getTime(), noRetry() {} } as ScheduledController,
+        env as never,
+        ctx as unknown as ExecutionContext,
+      );
+      await Promise.all(after);
+    });
 
   interface Options {
     now?: Date;
@@ -265,5 +300,5 @@ export function testWorld(roster: object[]) {
     return { ...b, next, close: () => reader.cancel() };
   }
 
-  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, cron, luck };
+  return { db, env, live, browser, ask, signedIn, listening, mails, pushes, firebase, cron, scheduled, luck };
 }

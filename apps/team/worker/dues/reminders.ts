@@ -34,8 +34,9 @@ export const REMINDERS = {
   weekDays: 7,
   /** In London, from 10:00 until 20:00: nobody's woken by what they owe. */
   hours: [10, 20],
-  /** Emails per run, well under a Worker's 50 requests (with the Gmail token, Sanity and the phones). */
-  perRun: 15,
+  /** Emails per run, well under a Worker's 50 requests: the cron run that sends them also drains the push outbox
+   * (DRAIN_AT_ONCE) and may ask for a website rebuild (docs/load-testing.md has the sums). */
+  perRun: 10,
   /** Members claimed by one cron run at most; the rest wait for the next hour. */
   claimLimit: 100,
 } as const;
@@ -243,24 +244,36 @@ function lettersFrom(rows: Omit<Queued, "id">[], bank: Bank, now: Date, preview 
   return out;
 }
 
+/** A run that took reminders to send and hasn't said what became of them after this long died: they're taken again. */
+const SENDING_EXPIRES_MS = 10 * 60_000;
+
 /**
  * Send what's queued, oldest first, a few at a time (REMINDERS.perRun): the email and the phone, through `tell`. One
- * read, then one batch to mark them: sent, or gone (they've paid since, have no email, or the send failed, so it's
- * tried again another time). Without bank details nothing goes, and it waits.
+ * round trip takes them (so another run at once, an admin's Send beside the cron, takes others or none) and reads
+ * each letter; then one batch marks them: sent, or gone (they've paid since, have no email, or the send failed, so
+ * it's tried again another time). Without bank details nothing goes, and it waits.
  */
 export async function sendQueued(env: Env, now: Date, limit: number = REMINDERS.perRun) {
-  const [queued, bankRows] = (await batch(env.DB, [
+  const run = crypto.randomUUID();
+  const [, queued, bankRows] = (await batch(env.DB, [
+    statement(
+      env.DB,
+      `UPDATE dues_reminders SET sending = ?, sending_at = ?
+       WHERE id IN (SELECT id FROM dues_reminders WHERE status = 'queued' AND (sending_at IS NULL OR sending_at < ?)
+                    ORDER BY id LIMIT ?)`,
+      [run, now.toISOString(), new Date(now.getTime() - SENDING_EXPIRES_MS).toISOString(), limit],
+    ),
     statement(
       env.DB,
       `SELECT r.id, m.id memberId, m.name, m.web_name webName, m.email, m.status, m.payment_reference reference,
          (SELECT json_group_array(json_object('what', o.what, 'quarter', o.quarter, 'dueOn', o.due_on, 'left', o."left"))
             FROM (${LEFT} WHERE c.member_id = m.id) o WHERE o."left" > 0) charges
-       FROM (SELECT id, member_id FROM dues_reminders WHERE status = 'queued' ORDER BY id LIMIT ?) r
+       FROM (SELECT id, member_id FROM dues_reminders WHERE sending = ? AND status = 'queued' ORDER BY id) r
          JOIN members m ON m.id = r.member_id`,
-      [limit],
+      [run],
     ),
     statement(env.DB, BANK),
-  ])) as [D1Result<Queued>, D1Result<SettingsRow>];
+  ])) as [D1Result, D1Result<Queued>, D1Result<SettingsRow>];
   if (!queued.results.length) return 0;
   const bank = bankFrom(bankRows.results[0]);
   if (!bank) return 0;
@@ -274,11 +287,12 @@ export async function sendQueued(env: Env, now: Date, limit: number = REMINDERS.
     statement(
       env.DB,
       `UPDATE dues_reminders AS r SET status = 'sent', sent_at = ?, pence = j.value ->> 'pence'
-       FROM json_each(?) j WHERE r.id = j.value ->> 'id'`,
-      [now.toISOString(), JSON.stringify(sent)],
+       FROM json_each(?) j WHERE r.id = j.value ->> 'id' AND r.sending = ?`,
+      [now.toISOString(), JSON.stringify(sent), run],
     ),
-    statement(env.DB, "DELETE FROM dues_reminders WHERE id IN (SELECT value FROM json_each(?))", [
+    statement(env.DB, "DELETE FROM dues_reminders WHERE id IN (SELECT value FROM json_each(?)) AND sending = ?", [
       JSON.stringify(dropped),
+      run,
     ]),
   ]);
   if (dropped.length) log.info("reminders.dropped", { count: dropped.length });

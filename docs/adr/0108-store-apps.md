@@ -62,7 +62,10 @@ Three things shape it:
   per notice per phone), written in one statement with the first batch claimed in the same round trip. A batch is at
   most `SEND_AT_ONCE` (40) phones: with Google's access token, the live hub and a Sentry report that leaves about ten
   fetches to spare. The first batch goes right after the reply; the rest go a batch per cron run (`push.drain`, every
-  five minutes and hourly), so 200 phones are told within about 20 minutes. Rows are claimed before sending (one
+  five minutes and hourly), of `DRAIN_AT_ONCE` (25), since the same run also sends dues reminders and may ask for a
+  website rebuild ([0121](0121-load-and-concurrency.md) has the sums), so 200 phones are told within about 35
+  minutes. A notification sent with an email (`tell`) is only queued, for the next drain: the emails have taken the
+  invocation's requests. Rows are claimed before sending (one
   `UPDATE … RETURNING`), so two sends at once never send a phone twice, and what became of a batch is one round trip
   after it. A failed send is tried again after 5, 10 and 20 minutes, then given up and logged (`push.gave_up`); what
   was waiting for a phone that's gone or signed out isn't sent; sent rows are pruned after a week. Without
@@ -106,3 +109,6 @@ Three things shape it:
   one call, so a feature never talks to Gmail or Firebase itself (#79).
 - 2026-10-21: Home's notification ask moved under the calls to action, a row in its feed
   ([0118](0118-home-calls-to-action-then-feed.md)).
+- 2026-10-21: A cron run drains 25 phones, not 40, and `tell` queues its phones for the drain: a five-minute run with
+  a club-wide send and reminders waiting made 95 subrequests, over the free plan's 50
+  ([0121](0121-load-and-concurrency.md)).

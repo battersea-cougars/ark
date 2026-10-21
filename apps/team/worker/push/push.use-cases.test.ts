@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureLogs } from "@cougars/shared/testing/scribe";
 import { minutes, testWorld } from "../testing";
-import { PUSH_TRIES, SEND_AT_ONCE } from "./push";
+import { DRAIN_AT_ONCE, PUSH_TRIES, SEND_AT_ONCE } from "./push";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -337,19 +337,19 @@ describe("a club-wide send, within the free plan", () => {
     await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
     expect(fcm.asked).toHaveLength(SEND_AT_ONCE);
 
-    // The five-minute cron sends the rest, a batch each run
-    for (let run = 1; run <= 3; run++) await w.cron(minutes(5 * run));
+    // The five-minute cron sends the rest, a (smaller) batch each run
+    for (let run = 1; run <= 4; run++) await w.cron(minutes(5 * run));
     expect(fcm.asked).toHaveLength(120);
     expect(new Set(tokens(fcm)).size).toBe(120);
     expect(w.pushes.every((p) => p.title === "Pub after")).toBe(true);
     // Nothing left: the next runs send nothing
-    await w.cron(minutes(20));
+    await w.cron(minutes(25));
     await w.cron(minutes(60));
     expect(fcm.asked).toHaveLength(120);
     expect(waiting()).toBe(0);
-    // One access token and SEND_AT_ONCE sends at most, well under the 50
-    expect(Math.max(...fcm.invocations)).toBeLessThanOrEqual(SEND_AT_ONCE + 1);
-    expect(SEND_AT_ONCE + 1).toBeLessThan(50);
+    // One access token, the live hub and SEND_AT_ONCE sends at most, well under the 50
+    expect(Math.max(...fcm.invocations)).toBeLessThanOrEqual(SEND_AT_ONCE + 2);
+    expect(SEND_AT_ONCE + 2).toBeLessThan(50);
   });
 
   it("two drains at once never send a phone twice", async () => {
@@ -357,8 +357,8 @@ describe("a club-wide send, within the free plan", () => {
     await dana.call("POST", "/api/announcements", ANNOUNCEMENT);
 
     await Promise.all([w.cron(minutes(5)), w.cron(minutes(5))]);
-    expect(fcm.asked).toHaveLength(3 * SEND_AT_ONCE);
-    expect(new Set(tokens(fcm)).size).toBe(3 * SEND_AT_ONCE);
+    expect(fcm.asked).toHaveLength(SEND_AT_ONCE + 2 * DRAIN_AT_ONCE);
+    expect(new Set(tokens(fcm)).size).toBe(SEND_AT_ONCE + 2 * DRAIN_AT_ONCE);
   });
 
   it("a phone Firebase says is gone is forgotten, with what was still waiting for it", async () => {

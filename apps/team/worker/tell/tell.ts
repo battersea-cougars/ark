@@ -21,7 +21,8 @@ export interface Message {
 /**
  * Tell each member theirs: the emails one by one (each is one request to Gmail), then every phone notification in one
  * `notify`. A member whose email failed isn't notified either, so they hear it once, when it's tried again. Returns
- * whose email went. The caller keeps the batch small: a Worker run makes at most 50 requests (ADR 0003).
+ * whose email went. The caller keeps the batch small: a Worker run makes at most 50 requests (ADR 0003), and the
+ * emails have taken theirs, so the phones are only queued: the next push drain (the five-minute cron) sends them.
  */
 export async function tell(env: Env & PushEnv, messages: Message[], now: Date): Promise<Set<number>> {
   if (!messages.length) return new Set();
@@ -37,6 +38,6 @@ export async function tell(env: Env & PushEnv, messages: Message[], now: Date): 
   }
   const notices = messages.filter((m) => told.has(m.memberId)).map((m) => ({ ...m.notice, to: [m.memberId] }));
   // A notification never stops the email it goes with
-  await notify(env, notices, now).catch((e) => log.error("push.failed", e));
+  await notify(env, notices, now, 0).catch((e) => log.error("push.failed", e));
   return told;
 }
