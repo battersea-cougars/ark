@@ -78,6 +78,13 @@ world.restore();
 Give each area a small helper for the person doing it (`admin(world)`, `member(world, "Jo")`) with the actions
 they take and a `sees()` for what's on their screen, so the test reads like the use case.
 
+## Requests at once, and load
+
+Two requests' statements interleave on D1 between their awaits; the fake D1 does the same when asked
+(`w.db.interleave(seed)`), and each feature's `*.concurrency.use-cases.test.ts` fires requests together under several
+seeds. Load runs against a Worker of your own (`npm run load -- friday-rush`, never dev or production). How, and what
+they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-concurrency.md)).
+
 ## Known bugs
 
 A use case that finds a real bug stays in the suite, written as `it.fails("… (known bug #N)", …)` with a comment

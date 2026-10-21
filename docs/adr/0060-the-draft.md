@@ -52,7 +52,9 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 - Each pick has a `pick_number` (`tournament_team_players`): turn order and Undo (the last pick) follow it.
 - **Picking is two steps.** Pick marks a player on your screen (tap another to change your mind); **End turn** sends
   it. The server is unchanged: a pick is one request. Whoever runs the draft picks for the captain on the clock the
-  same way. Picking out of turn, or someone no longer in the pool, is a 409.
+  same way. Picking out of turn, or someone no longer in the pool, is a 409. A pick says which turn it's for (`turn`,
+  the picks the page had seen): one landing after the turn moved on (a second phone, the captain whose snake turn
+  comes twice running) is refused, never spent on their next pick ([0121](0121-load-and-concurrency.md)).
 - **A pick made for a captain says so.** Each pick records who made it (`tournament_team_players.picked_by`). When
   that isn't the team's captain, the app says it as theirs, for that team: "Dana picked Reg for Team Cara" on the
   last-pick line, "Dana took Reg" on the ticker, "Dana for Team Cara" in the pick log, "Dana's pick" on the team card,
@@ -150,3 +152,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-21: A desktop's ticker has a half-seen chevron over each edge (about a ticker's width a click, gone at the
   end; the one on the current pick's side, dotted, leads back to it) and its wheel scrolls it sideways while it can; a
   phone's way back is a small round arrow. A desktop's search is its own row over the chips.
+- 2026-10-21: Picks at once ([0121](0121-load-and-concurrency.md)): a pick says its turn, so a stale tap is refused; a
+  player saying they're out as they're picked comes off their team with their answer; one goalie a team holds when
+  an admin's edit and a pick land together.

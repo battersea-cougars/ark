@@ -1,7 +1,7 @@
 # 0072. Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-20
+- **Date:** 2026-10-08 · updated 2026-10-21
 - **Merges:** 0096
 
 ## Context
@@ -58,6 +58,9 @@ The club may one day pay for hosting, when checking more often costs next to not
 - A pick or a goal shows on every phone within about a second. A draft night is about 2,000 Worker requests instead of
   21,600, and about 900 GB-s of the 13,000 (one object billed while anyone is connected, whatever the number of
   phones). A tournament day of live scoring is about 1,800 GB-s. These are estimates, not yet measured.
+- Measured locally ([0121](0121-load-and-concurrency.md), docs/load-testing.md): requests stay a few per cent of the
+  day, but every phone reloads the whole club on every change, so **D1 rows read** is what runs out: a draft night
+  with 68 phones about 87% of the free 5M, a full Friday rush with everyone on Home about twice it (#112).
 - The app has two ways to hear about a change, and both have to keep working: the tests drive the stream
   (`live.use-cases.test.ts`), and the fallback is what a locked phone, a dropped connection or a hub restart falls back
   on.
@@ -77,3 +80,4 @@ The club may one day pay for hosting, when checking more often costs next to not
   check a minute.
 - 2026-10-20: A training's page keeps following once the teams are out (but not for a team maker), so teams made,
   moved or cleared reach everyone on it without a refresh.
+- 2026-10-21: Load runs measured the fan-out: D1 rows read, not requests, is the limit a busy day passes (#112).

@@ -97,7 +97,7 @@ describe("scoring live: taps at once", () => {
   it.each(SEEDS)(
     "the same goal sent from the scorekeeper's two phones at once is two goals; Undo takes one back (seed %i)",
     async (seed) => {
-      // Nothing retries a change on its own (backend.ts `save`), and a goal has no id from the phone, so two posts
+      // Nothing retries a change on its own (backend.ts `save`), and a goal has no id from the phone (#114), so two posts
       // are two goals, the way two goals a second apart are. The scorekeeper sees 2–0 and takes one back
       const g = await gameOn();
       w.db.interleave(seed);

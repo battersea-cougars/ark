@@ -205,3 +205,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-21: A break between periods (a series setting in minutes, 2 unless said, the Kumite 0): it counts down on
   everyone's clock once a period ends, the scorekeeper starts the next when ready, and it's in each game's slot.
 - 2026-10-21: Penalty minutes are on the leaderboards' PIM board (ADR 0119).
+- 2026-10-21: Taps at once ([0121](0121-load-and-concurrency.md)): the end of a period sent by two phones moves on
+  once; a goal, penalty or Undo landing as full time is called is refused, so the result is never changed after the
+  whistle. The same goal from two phones is still two goals (#114).
