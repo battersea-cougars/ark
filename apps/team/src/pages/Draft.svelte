@@ -680,7 +680,7 @@
     {/if}
 
     <!-- Where you stand, as one badge, and the tools. Always the same height. How to pick is in Rules, not here -->
-    <div class="strip">
+    <div class="strip" class:set={phase === "closed"}>
       {#if phase === "closed"}
         <span class="turn done">Teams set</span>
         {#if tournament.games?.length}<a class="btn ghost sm" href="/tournaments/{type.slug}/schedule"
@@ -1294,6 +1294,12 @@
     gap: var(--s-3);
     min-height: 2.6rem;
     min-width: 0;
+  }
+  /* Teams set, with See the fixtures beside it: on a narrow phone the tools take the next line (nothing changes here
+     any more, so nothing jumps) */
+  .strip.set {
+    flex-wrap: wrap;
+    row-gap: var(--s-2);
   }
 
   /* End turn: floats at the bottom centre over the page, above the tabs on a phone; the page keeps room for it at

@@ -67,10 +67,10 @@
       <div class="stuck">
         <div class="table-head list-tabs">
           <span>Tournament</span>
-          <span>When</span>
+          <span class="when">When</span>
           <span class="wide-only where">Where</span>
           <span class="r wide-only">Fee</span>
-          <span class="r">In</span>
+          <span class="r in">In</span>
           <span class="wide-only teams">Teams</span>
           <span>Stands</span>
           <!-- Find one: a magnifier at the end of the row that widens into the field when you tap it -->
@@ -101,12 +101,12 @@
                       <span class="sub">{type?.name ?? "On its own"}</span>
                     </span>
                   </span>
-                  <span class="txt"
+                  <span class="txt when"
                     ><span>{w.day}</span>{#if w.season}<span class="sub">{w.season}</span>{/if}</span
                   >
                   <span class="wide-only where muted">{tournamentPlace(t)?.name ?? "No place yet"}</span>
                   <span class="r wide-only num">{t.feePence ? pounds(t.feePence) : "Free"}</span>
-                  <span class="r num">{signUp(t)}</span>
+                  <span class="r num in">{signUp(t)}</span>
                   <span class="wide-only teams muted">{teams(t)}</span>
                   <span class="stage {stage}">{EDITION_LABEL[stage]}</span>
                   <span class="go"><Icon name="chevronRight" size={18} /></span>
@@ -227,6 +227,16 @@
       gap: var(--s-3);
     }
     .wide-only {
+      display: none;
+    }
+  }
+  /* A narrow phone: the tournament, where it stands, and the chevron; when and who's in are in its editor */
+  @media (max-width: 480px) {
+    .hybrid {
+      --cols: minmax(0, 1fr) auto 18px;
+    }
+    .when,
+    .in {
       display: none;
     }
   }

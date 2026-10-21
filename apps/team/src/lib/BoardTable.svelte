@@ -44,12 +44,13 @@
       {#each rows as r, i (r.teamId)}
         <tr class:top={i === 0 && r.p > 0} class:champ={r.teamId === champ}>
           <td class="l"
-            ><span class="pos">{i + 1}</span><TeamCrest
-              name={teamName(r.teamId)}
-              logo={teams.find((t) => t.id === r.teamId)?.logo ?? null}
-              tone={teamTone(teams.findIndex((t) => t.id === r.teamId))}
-              size="2.75rem"
-            /><a class="team-link" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a
+            ><span class="team"
+              ><span class="pos">{i + 1}</span><TeamCrest
+                name={teamName(r.teamId)}
+                logo={teams.find((t) => t.id === r.teamId)?.logo ?? null}
+                tone={teamTone(teams.findIndex((t) => t.id === r.teamId))}
+                size="2.75rem"
+              /><a class="team-link" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a></span
             >{#if r.teamId === champ}<span class="badge red champ-badge"><Icon name="trophy" size={13} />Champions</span
               >{/if}</td
           >
@@ -104,14 +105,18 @@
     color: var(--fg);
     font-weight: 500;
   }
-  /* The team: its place, its crest, its name, on one line */
-  .l :global(.crest) {
-    margin-right: var(--s-3);
+  /* The team: its place, its crest, its name, on one line (a long name wraps beside them on a phone) */
+  .team {
+    display: inline-flex;
+    align-items: center;
     vertical-align: middle;
   }
+  .l :global(.crest) {
+    flex-shrink: 0;
+    margin-right: var(--s-3);
+  }
   .pos {
-    display: inline-block;
-    vertical-align: middle;
+    flex-shrink: 0;
     width: 1.5rem;
     color: var(--fg-subtle);
     font-weight: 400;
@@ -124,5 +129,28 @@
     padding-right: var(--s-4);
     color: var(--fg);
     font-weight: 700;
+  }
+  /* A phone: every column in the width (none past the edge), the figures closer, a long name on two lines */
+  @media (max-width: 600px) {
+    th,
+    td {
+      padding-inline: var(--s-2);
+    }
+    .l {
+      padding-left: var(--s-3);
+      white-space: normal;
+    }
+    .pts {
+      padding-right: var(--s-3);
+    }
+    .l :global(.crest) {
+      margin-right: var(--s-2);
+    }
+  }
+  /* A narrow one: the crests go (the names say it), so the table's seven columns fit */
+  @media (max-width: 420px) {
+    .l :global(.crest) {
+      display: none;
+    }
   }
 </style>
