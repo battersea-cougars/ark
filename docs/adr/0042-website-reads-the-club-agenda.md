@@ -37,7 +37,9 @@ cut-off times, and neither showed a tournament's draft night or sign-up deadline
   ([ADR 0053](0053-live-reads-are-cached.md)).
 - The team app's bootstrap gets an `agenda` part from today; a draft night only for that tournament's captains and
   those running the draft. A change to anything on the calendar replies with the agenda too
-  ([ADR 0057](0057-team-app-loading-and-changes.md)).
+  ([ADR 0057](0057-team-app-loading-and-changes.md)), and live pages read it again; a change that can't move
+  anything on it, though its part is on the calendar (an answer, a draft pick or the draw, anything while a game is
+  scored), says so on its route (`calendar: false`, `api.route.ts`), and the agenda isn't read for it.
 - In the team app a one-off event (`club_events`) has a title, date, start and end, location, a short description,
   _Show on the website_ and _Members say in or out_. People with `update:Event` edit it and cancel or restore it.
 
@@ -62,3 +64,5 @@ cut-off times, and neither showed a tournament's draft night or sign-up deadline
 - 2026-10-07: One `agenda` table that every change pushes to replaces the website's and the app's separate rules
   (was 0062).
 - 2026-10-07: Caches run everywhere, not only in production ([ADR 0053](0053-live-reads-are-cached.md)).
+- 2026-10-21: Answers, picks and scoring no longer bring the agenda with them (`calendar: false`): they never push to
+  it, and every live phone read it again for each (about 35 rows a read on a draft night; docs/load-testing.md).

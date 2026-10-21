@@ -132,13 +132,14 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     }
   });
 
-  it("a tap reads just what it changed on the other phones (the sign-ups, what's owed, the agenda), not the whole club", async () => {
+  it("a tap reads just what it changed on the other phones (the sign-ups, what's owed), not the agenda or the whole club", async () => {
     const f = await friday();
     const reg = await phoneOn("s1@example.com", ["sessions"]);
     const mo = await phoneOn("s2@example.com", ["sessions"]);
     expect((await mo.change("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
-    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, credits, payments, agenda"]);
+    // An answer moves nothing on the calendar, so the agenda isn't read again (api.route.ts `calendar`)
+    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, credits, payments"]);
     expect(reg.club().sessions.find((s: Json) => s.id === f.session.id).going).toHaveLength(1);
   });
 

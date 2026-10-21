@@ -48,6 +48,12 @@ export interface Route {
    */
   changes?: readonly Slice[];
   /**
+   * false: the change never moves anything on the calendar (an answer, a pick, a goal), though its parts are on it, so
+   * the agenda isn't read again for it, by this member or every live page (ADR 0042, docs/load-testing.md). Anything
+   * else that changes a calendar part brings the agenda with it.
+   */
+  calendar?: false;
+  /**
    * On the record (ADR 0095): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
    * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says
    * (security.test.ts). The wrapper reads `subject` before the handler and again after; when the two differ it writes

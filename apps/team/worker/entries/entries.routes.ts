@@ -18,6 +18,8 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     audit: { none: "a member's own sign-up: the sign-ups are their own record (signed_up_at)" },
     action: "signup:Event",
     changes: slice === "clubEvents" ? [slice] : [slice, "charges", "credits", "payments"],
+    // Who's in: nothing on the calendar moves
+    calendar: false,
     // Out of a full event: the first waiting is in, and hears it. A Quarterly Member in for a full training: the one
     // whose place they took is waiting now, and hears that
     notify: places(kind),
@@ -47,6 +49,7 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
         : slice === "tournaments"
           ? [slice, "charges", "credits", "payments"]
           : [slice],
+    calendar: false,
     // An admin puts someone in (a training's places kept: in, or waiting), or takes them off; the reply says where
     // they are now: { signup: "in" | "waitlist" | null }. Or several, saved together from the Add player drawer's
     // Done: { players: [{ memberId, in }] }, in order, stopping at the first refused

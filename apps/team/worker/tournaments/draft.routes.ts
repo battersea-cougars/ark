@@ -18,6 +18,8 @@ export const DRAFT_ROUTES: Route[] = [
     // The captain on the clock, or whoever's running the draft: draft.ts decides
     action: "authenticated",
     changes: ["tournaments"],
+    // Who picked whom: nothing on the calendar moves
+    calendar: false,
     // { memberId, turn? }: turn is the picks made as the app saw them (draft.ts)
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
@@ -40,6 +42,8 @@ export const DRAFT_ROUTES: Route[] = [
     },
     action: "run:Draft",
     changes: ["tournaments"],
+    // Who picked whom: nothing on the calendar moves
+    calendar: false,
     handle: async (c) => (await undoPick(c.env.DB, id(c)), ok()),
   },
   {
@@ -54,6 +58,8 @@ export const DRAFT_ROUTES: Route[] = [
     },
     action: "run:Draft",
     changes: ["tournaments"],
+    // Who picked whom: nothing on the calendar moves
+    calendar: false,
     // Step 1: the pick order, drawn at random, once (ADR 0060); every phone on the page sees it shuffle in
     handle: async (c) => (await drawOrder(c.env.DB, id(c)), ok()),
   },

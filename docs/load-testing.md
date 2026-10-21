@@ -141,6 +141,26 @@ phones each reloading for each of 120 taps; only about a third of the reloads th
 rows read are a floor. All 120 taps in a rerun on Cloudflare would be safe by statement (the tests above), but the
 fan-out is the real cost.
 
+### After the cheaper reads (2026-10-21): no sorts, no history, no agenda for nothing
+
+D1 bills the rows each statement reads, and a sort's rows count again. The live parts, read on every phone for every
+change, were paying for things nobody sees: every tournament team, player, goal and penalty went through a sort; a
+training's sign-ups worked each answer's skater, day and plan out in correlated subqueries (about eight rows an
+answer); trainings and events filtered by day read every row there has ever been (the planner put the table before
+the viewer); and an answer, a pick or a goal brought the agenda with it, which none of them touches. Now: indexes in
+the read's order for teams, players, goals and penalties (`db/schema.sql`); the sign-ups joined once, read unsorted
+and put in queue order by the Worker (`entries.ts`); the viewer first in a day's filter; and `calendar: false` on the
+routes that can't move the calendar (`api.route.ts`). Same machine, the same hour, main's Worker against this one:
+
+| Run         | D1 rows read, before | After                  | A read on a phone, before → after              |
+| ----------- | -------------------- | ---------------------- | ---------------------------------------------- |
+| live-draft  | 1.49M (29.7%), 334   | **1.01M (20.2%)**, 228 | the tournaments ~280 → ~150 rows               |
+| scoring     | 130k (2.6%), 98      | **87k (1.7%)**, 66     | no agenda                                      |
+| friday-rush | 565k (11.3%), 775    | **357k (7.1%)**, 475   | the sign-ups ~8 → ~3 rows an answer, no agenda |
+
+(The "before" ran on this branch's schema, so its tournaments already had the new indexes' help: the real before is
+a little higher, 1.64M for the draft earlier in the day.) On the local club's copy (28 members, a month of trainings), an admin's bootstrap went from 1,504 rows to 1,137, a read of the sign-ups from 577 to 244 and of the tournaments from 114 to 78.
+
 ### Free-tier headroom
 
 | Limit (Workers Free, D1 Free)       | Per request / run                                            | A Friday                                                          | A Kumite day                                                                              |
@@ -158,9 +178,12 @@ fresh database's.
 
 ### What to do next
 
-1. **The live fan-out's rows read (#112)**: done, above. What's left: a draft night is still a third of the day
-   (each pick is one read on each phone, of every tournament); a read of just the tournament the page shows, or of
-   the sign-ups' own answers, would cut it again. Rows per read grow with the club's history.
+1. **The live fan-out's rows read (#112)**: done, above, and the parts made cheaper. What's left: a draft night is
+   a fifth of the day, each pick one read on each phone of every tournament there has been (about 150 rows with one
+   tournament; it grows with every season). Reading just the tournament the page shows (a part per tournament, the
+   hub naming which) would hold it near today's cost however long the club's history. The bootstrap's `members` part
+   counts every member's games played from all their attendance (two rows each), read on every whole read: a
+   stored count (or an index covering it) would keep opening the app from growing with history.
 2. **Watch the Usage page on the first draft night and the first busy Friday** ([0059](adr/0059-usage-page-and-check.md)):
    rows read is the line to watch, not requests.
 3. **The rink's wifi** is one address for the per-address limit (#113): count signed-in GETs per member.

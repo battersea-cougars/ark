@@ -38,6 +38,7 @@ export const SCORING_ROUTES: Route[] = [
     },
     action: "score:Match",
     changes: ["tournaments"],
+    calendar: false,
     // A game's final score; the last group result fills the playoffs
     handle: async (c) => (await scoreGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request)), ok()),
   },
@@ -48,6 +49,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { none: "taking or giving up the scoresheet: who holds it is on the game (keeper_member_id)" },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     // { action: "claim" | "release" }: Start scoring, or let it go
     handle: async (c) => (await holdScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c), ok()),
   },
@@ -57,6 +59,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     // { action: "start" | "pause" | "end" }
     handle: async (c) => (
       await clockGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
@@ -69,6 +72,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     // { teamId, scorerId?, assistId? }
     handle: async (c) => (
       await addGoal(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
@@ -81,6 +85,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     handle: async (c) => (await undoGoal(c.env.DB, id(c), Number(c.params[1]), c), ok()),
   },
   {
@@ -89,6 +94,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     // An admin takes any goal off a finished game (scoring.ts decides who)
     handle: async (c) => (await removeGoal(c.env.DB, id(c), Number(c.params[1]), Number(c.params[2]), c), ok()),
   },
@@ -99,6 +105,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     // { teamId, memberId?, minutes?, infraction?, atMs? }
     handle: async (c) => (
       await addPenalty(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
@@ -111,6 +118,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c), ok()),
   },
   {
@@ -119,6 +127,7 @@ export const SCORING_ROUTES: Route[] = [
     audit: { event: "game.scored", subject: finalScore },
     action: "authenticated",
     changes: ["tournaments"],
+    calendar: false,
     // An admin takes any penalty off a finished game (scoring.ts decides who)
     handle: async (c) => (await removePenalty(c.env.DB, id(c), Number(c.params[1]), Number(c.params[2]), c), ok()),
   },

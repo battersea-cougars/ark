@@ -40,6 +40,10 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   (25 phones, 10 emails, Google's and Gmail's tokens, the club's address from Sanity, a website rebuild's 2).
 - **Load is run on your own machine, never on dev or production** (`npm run load`, docs/load-testing.md): the built
   Worker under `wrangler dev` with its own D1 in a temp folder, 120 members signed in as `dev-sign-in` does.
+- **D1 counts a sort's rows again** (a `USE TEMP B-TREE FOR ORDER BY` reads each row twice, as billed): a part read
+  on every live update is read in an index's order (`db/schema.sql`), or unsorted and put in order by the Worker
+  (sign-ups, `entries.ts`). A filter by day puts the viewer first (`viewer v CROSS JOIN …`), so the day picks the
+  rows by index rather than every row there has ever been.
 
 ## Consequences
 
@@ -50,7 +54,9 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   but **D1 rows read did not**: every live page reloaded the whole club on every change, so a draft night spent about
   87% of the free day's rows and a full Friday rush modelled at about 200% (#112). Live pages now read only the
   parts that changed, one read at a time ([0072](0072-live-updates.md)): a draft night about 33%, a game scored
-  live about 3%, the Friday rush about 12%. Rows read is still the line to watch on a draft night.
+  live about 3%, the Friday rush about 12%; and those parts are read without sorts, scans of the club's history or
+  the agenda when nothing on it moved: a draft night about 20%, a game about 2%, the rush about 7%. Rows read is
+  still the line to watch on a draft night.
 - The load runs' phones use the app's own copy of the club (`apps/team/src/app/catch-up.ts`), so what they read is
   what the app reads. A rink's wifi is one address for the
   per-address limit (#113). A goal sent twice is two goals (#114).
@@ -62,3 +68,6 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-21: The fan-out fixed (#112, [0072](0072-live-updates.md)) and rerun: rows read for a draft night 4.4M →
   1.7M, a game scored live 1.2M → 0.14M, the Friday rush with no errors at 0.6M; the phones in the runs use the app's
   own `catch-up.ts`.
+- 2026-10-21: The club read's live parts made cheaper (no sorts, no scans of history; sign-ups joined once and put
+  in order by the Worker; answers, picks and scoring don't bring the agenda): rows read for a draft night 1.49M ->
+  1.01M (30% -> 20% of the free day), a game scored live 130k -> 87k, the Friday rush 565k -> 357k (docs/load-testing.md).

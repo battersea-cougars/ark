@@ -195,7 +195,8 @@ export async function handleApi(
       const version = await bumpDataVersion(env.DB);
       // ...and this member gets the parts it touched back, to put in place
       const declared = hit.r.changes ?? [];
-      const changes = declared.some((d) => SCHEDULE.includes(d)) ? [...declared, "agenda" as const] : declared;
+      const calendar = hit.r.calendar !== false && declared.some((d) => SCHEDULE.includes(d));
+      const changes = calendar ? [...declared, "agenda" as const] : declared;
       // ...and everyone on a live page hears which parts, and the version (ADR 0072), once this reply is on its way
       const told = notifyLive(env, changes, version);
       if (waitUntil) waitUntil(told);
