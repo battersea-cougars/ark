@@ -1,5 +1,6 @@
 // The club is in London: always format in Europe/London, whatever the build
 // machine's timezone is.
+import { londonDay } from "@cougars/shared/london";
 const TZ = "Europe/London";
 
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
@@ -9,8 +10,6 @@ const shortDay = fmt({ weekday: "short", day: "numeric", month: "short" });
 const longDate = fmt({ day: "numeric", month: "long", year: "numeric" });
 const time = fmt({ hour: "2-digit", minute: "2-digit", hour12: false });
 const parts = fmt({ day: "numeric", month: "short" });
-// en-CA formats dates as YYYY-MM-DD
-const isoDay = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
 
 export const formatDate = (iso: string) => longDate.format(new Date(iso));
 /** "Fri 4 Dec 2026" (Intl puts a comma after the weekday; we drop it). */
@@ -46,7 +45,7 @@ export function formatRange(startIso: string, endIso?: string | null) {
 }
 
 /** "2026-10-02": the calendar day in London, like a Sanity `date` field. */
-export const londonDay = (iso: string) => isoDay.format(new Date(iso));
+export { londonDay };
 
 /** The UTC instant of a London wall-clock time on a date: londonISO("2026-10-09", "19:30"). BST-safe. */
 export function londonISO(date: string, time: string): string {

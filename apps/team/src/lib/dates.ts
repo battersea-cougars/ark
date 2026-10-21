@@ -1,5 +1,6 @@
 // Europe/London formatting. A copy of the website's helpers until dates.ts moves to shared/ (#35);
 // projects don't import each other's files (ADR 0006).
+import { londonDate } from "@cougars/shared/london";
 const TZ = "Europe/London";
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
 
@@ -69,5 +70,4 @@ export function londonISO(date: string, time: string): string {
 /** Today's date in London, "YYYY-MM-DD". */
 /** "19:30": the London wall-clock time of an instant, for a time input. */
 export const londonTime = (iso: string) => time.format(new Date(iso));
-export const londonToday = (now = new Date()) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+export const londonToday = (now = new Date()) => londonDate(now);
