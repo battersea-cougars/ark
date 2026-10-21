@@ -3,7 +3,7 @@
   import { seasonEnd, type Season } from "@cougars/shared/seasons";
   /**
    * What the quick form asks: the season, the day if it's known, the hours, when sign-up opens, the draft's day, the
-   * captains in pick order.
+   * captains (a set: the draft draws their pick order when it starts).
    */
   export interface QuickValues {
     season: Season;
@@ -35,7 +35,7 @@
 <script lang="ts">
   // The next date in a series, as a wizard (ADR 0074, lib/Wizard ADR 0117): When (its season, its day once that's
   // known, its hours, the series' usual ones filled in), Sign-up (when it opens, and the draft's day), Captains (a
-  // draft series only, in pick order, with the whole step to find them in), then Check, a look over it with a way
+  // draft series only, a set whose pick order the draft draws, with the whole step to find them in), then Check, a look over it with a way
   // back to each answer, and Schedule it. Only the season is needed, so every step is open from the start; the draft's
   // day shows as TBC and the captains as "to be named" until they're set. The rest (place, fee, rules, awards) comes
   // from the series; Advanced opens the full editor with these filled in.
@@ -50,7 +50,7 @@
   import { goesBy } from "./names";
   import { clock, formatDayDate, londonISO, pounds } from "./dates";
   import Select from "./Select.svelte";
-  import SearchField from "./SearchField.svelte";
+  import Person from "./Person.svelte";
   import Wizard from "./Wizard.svelte";
   import { reachableStep } from "./wizard";
   import { quickDay, quickProblem, quickSteps } from "./quick-create";
@@ -78,7 +78,7 @@
   const members = $derived(
     db.members
       .filter((m) => m.status === "active")
-      .map((m) => ({ id: m.player.id, name: goesBy(m.player) }))
+      .map((m) => ({ id: m.player.id, name: goesBy(m.player), player: m.player }))
       .sort((a, b) => a.name.localeCompare(b.name)),
   );
   const nameOf = (id: number) => members.find((m) => m.id === id)?.name ?? "";
@@ -90,7 +90,14 @@
   const reachable = $derived(reachableStep(problems.map((p) => !p)));
   let creating = $state(false);
   let failed = $state("");
-  const problem = $derived(failed || problems[step] || "");
+  const playoffTeams = $derived(teamsForPlayoffs(type.playoffs ?? []));
+  // Too few captains for the playoffs: said at the foot of Captains, without holding it there
+  const short = $derived(
+    steps[step] === "Captains" && values.captains.length > 0 && values.captains.length < playoffTeams
+      ? `The ${type.shortName}'s playoffs need ${playoffTeams} teams: add more captains, or fewer playoffs under Advanced.`
+      : "",
+  );
+  const problem = $derived(failed || problems[step] || short);
 
   // "Summer 2027": this season and the next few (as the full editor offers)
   const seasonOptions = $derived(
@@ -115,28 +122,26 @@
     }
   }
 
-  // Captains: typed for, the matches fill the step; a pick goes on the end of the order and the search empties
+  // Captains: the whole club in a list the search narrows, an Add on each row; a pick shows as a chip above the
+  // search. Already picked, the row says Added. They're a set: the pick order is drawn when the draft starts.
   let query = $state("");
-  const found = $derived(
-    findPeople(
-      members.filter((m) => !values.captains.includes(m.id)),
-      query,
-    ),
-  );
-  const playoffTeams = $derived(teamsForPlayoffs(type.playoffs ?? []));
+  const found = $derived(findPeople(members, query, Infinity));
+  const firstFree = $derived(found.find((m) => !values.captains.includes(m.id)));
+  let chips = $state<HTMLElement | undefined>();
   function addCaptain(id: number) {
+    if (values.captains.includes(id)) return;
     values.captains.push(id);
-    query = "";
-  }
-  function moveUp(i: number) {
-    const [id] = values.captains.splice(i, 1);
-    values.captains.splice(i - 1, 0, id);
+    // The new chip into view at the end of the strip
+    requestAnimationFrame(() => chips?.scrollTo({ left: chips.scrollWidth, behavior: "smooth" }));
   }
   function findKey(e: KeyboardEvent) {
     if (e.key === "Enter") {
       // Picks the first match; never goes on to the next step
       e.preventDefault();
-      if (query.trim() && found[0]) addCaptain(found[0].id);
+      if (query.trim() && firstFree) {
+        addCaptain(firstFree.id);
+        query = "";
+      }
     } else if (e.key === "Escape" && query) {
       // Empties the search, not the sheet
       e.preventDefault();
@@ -287,65 +292,61 @@
         </section>
       {/if}
     {:else if name === "Captains"}
-      <!-- The whole step: the search at the top, then either the captains so far or, while typing, who matches -->
+      <!-- The whole step: the captains so far as chips and the search stay put; the club's list scrolls under them -->
       <section class="captains-step">
         <div class="q">
           <h3 class="section-title">Who are the captains? <span class="opt">· optional</span></h3>
-          <p class="hint">In pick order: the first picks first. They can be named later.</p>
+          <p class="hint">The draft's pick order is drawn when it starts. They can be named later.</p>
         </div>
-        <div class="find">
-          <SearchField
+        <!-- One line, the same height however many: it scrolls sideways rather than pushing the list down -->
+        <ul class="chips" bind:this={chips} aria-label="Captains">
+          {#each values.captains as id, i (id)}
+            <li class="chip">
+              <span class="chip-name">{nameOf(id)}</span>
+              <button
+                type="button"
+                class="chip-btn"
+                aria-label="Take {nameOf(id)} off"
+                onclick={() => values.captains.splice(i, 1)}><Icon name="x" size={14} /></button
+              >
+            </li>
+          {:else}
+            <li class="hint none">Captains to be named: add them from the list.</li>
+          {/each}
+        </ul>
+        <label class="search">
+          <Icon name="search" size={18} />
+          <input
+            class="input"
+            type="search"
+            placeholder="Find a player"
+            aria-label="Find a player to add as a captain"
             bind:value={query}
-            placeholder="Add a captain: type a name…"
-            label="Find a member to add as a captain"
             onkeydown={findKey}
           />
-        </div>
+        </label>
         <div class="pane">
-          {#if query.trim()}
-            <ul class="rows found" aria-label="Members who match">
+          {#if found.length}
+            <div class="list" aria-label="Members">
               {#each found as m (m.id)}
-                <li>
-                  <button type="button" class="row-btn" onclick={() => addCaptain(m.id)}>
-                    <span class="name">{m.name}</span><span class="add"
-                      ><Icon name="plus" size={16} />Captain {values.captains.length + 1}</span
-                    >
-                  </button>
-                </li>
-              {:else}
-                <li class="hint none">Nobody called “{query.trim()}”.</li>
+                {@const added = values.captains.includes(m.id)}
+                <button
+                  type="button"
+                  class="row"
+                  aria-label={added ? `${m.name}, added` : `Add ${m.name} as a captain`}
+                  disabled={added}
+                  onclick={() => addCaptain(m.id)}
+                >
+                  <Person player={m.player} />
+                  <span class="state">
+                    {#if added}<span class="badge green">Added</span>
+                    {:else}<span class="badge"><Icon name="plus" size={14} /> Add</span>{/if}
+                  </span>
+                </button>
               {/each}
-            </ul>
-          {:else if values.captains.length}
-            <ol class="rows captains" aria-label="Captains, in pick order">
-              {#each values.captains as id, i (id)}
-                <li>
-                  <span class="pick num">{i + 1}</span>
-                  <span class="name">{nameOf(id)}</span>
-                  <button
-                    type="button"
-                    class="btn ghost sm icon"
-                    aria-label="Move {nameOf(id)} up"
-                    disabled={i === 0}
-                    onclick={() => moveUp(i)}><Icon name="chevronUp" size={16} /></button
-                  >
-                  <button
-                    type="button"
-                    class="btn ghost sm icon"
-                    aria-label="Take {nameOf(id)} off"
-                    onclick={() => values.captains.splice(i, 1)}><Icon name="x" size={16} /></button
-                  >
-                </li>
-              {/each}
-            </ol>
-            {#if values.captains.length < playoffTeams}
-              <p class="hint warn">
-                <Icon name="alert" size={16} />The {type.shortName}'s playoffs need {playoffTeams} teams: add more captains,
-                or choose fewer playoffs under Advanced.
-              </p>
-            {/if}
+            </div>
           {:else}
-            <p class="hint none">Captains to be named. Type a name above to add the first.</p>
+            <p class="hint none">Nobody called “{query.trim()}”.</p>
           {/if}
         </div>
       </section>
@@ -375,7 +376,7 @@
               <dt class="eyebrow">Captains</dt>
               <dd>
                 {#if values.captains.length}
-                  {values.captains.map((id, i) => `${i + 1}. ${nameOf(id)}`).join(" · ")}
+                  {values.captains.map(nameOf).join(" · ")}
                 {:else}
                   To be named
                 {/if}
@@ -446,80 +447,90 @@
     gap: var(--s-4);
     min-height: 0;
   }
-  .find :global(.search) {
-    width: 100%;
-  }
-  .pane {
+  /* The captains so far: numbered chips on one line that scrolls sideways, so the list under them never moves */
+  .chips {
     display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: var(--s-3);
-    min-height: 12rem;
-    margin: 0 calc(-1 * var(--s-2));
-    padding: 0 var(--s-2);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-  }
-  .rows {
-    display: grid;
-    gap: 2px;
+    flex-shrink: 0;
+    align-items: center;
+    gap: var(--s-2);
+    height: 2.5rem;
     margin: 0;
     padding: 0;
+    overflow-x: auto;
     list-style: none;
+    scrollbar-width: none;
   }
-  .captains li,
-  .row-btn {
-    display: flex;
+  .chip {
+    display: inline-flex;
+    flex: none;
     align-items: center;
-    gap: var(--s-3);
-    min-height: 3rem;
-    padding: 0 var(--s-2) 0 var(--s-3);
+    gap: var(--s-2);
+    height: 2.25rem;
+    padding: 0 var(--s-1) 0 var(--s-3);
     border-radius: var(--r-md);
     background: var(--surface-2);
   }
-  .row-btn {
-    width: 100%;
-    border: 0;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    background: transparent;
-    transition: background-color var(--t-fast) var(--ease-in-out);
-  }
-  .row-btn:hover,
-  .row-btn:focus-visible {
-    background: var(--surface-2);
-  }
-  .add {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-1);
-    color: var(--fg-muted);
+  .chip-name {
+    color: var(--fg);
     font-size: var(--text-sm);
-  }
-  .row-btn:hover .add,
-  .row-btn:focus-visible .add {
-    color: var(--fg);
-  }
-  .pick {
-    width: 1.5rem;
-    color: var(--red-hot);
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    text-align: center;
-  }
-  .name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    color: var(--fg);
     font-weight: 500;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .chip-btn {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .chip-btn:hover {
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+    color: var(--fg);
+  }
+  /* The search, as Add player's */
+  .search {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+    color: var(--fg-subtle);
+  }
+  .search :global(svg) {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+    left: var(--s-4);
+    top: 50%;
+    translate: 0 -50%;
+  }
+  .search input {
+    padding-left: 2.75rem;
+  }
+  /* The club's list: the rest of the step, scrolling on its own */
+  .pane {
+    flex: 1;
+    min-height: 12rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--r-table);
+  }
+  .state {
+    display: inline-flex;
+    flex: none;
+    justify-content: flex-end;
+    min-width: 5.5rem;
+  }
+  .row:disabled {
+    cursor: default;
+  }
   .none {
-    padding: var(--s-3);
+    margin: 0;
+    padding: var(--s-2) 0;
+    white-space: nowrap;
   }
 
   /* Check: each answer on a line of its own, set apart by space, a way back to it on the right */

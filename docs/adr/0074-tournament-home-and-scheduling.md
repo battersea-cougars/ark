@@ -77,9 +77,10 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   [0117](0117-wizards-for-multi-step-creates.md)):
   1. **When:** the season, a day or none for TBC, and Starts and Ends filled in from the series.
   2. **Sign-up:** when sign-up opens (today by default) and, a draft series only, the draft's day (optional).
-  3. **Captains** (a draft series only, optional): the whole step to find them in. Typing fills it with who matches;
-     a tap adds them to the end of the pick order. Otherwise it shows the captains in pick order, each movable up or
-     taken off.
+  3. **Captains** (a draft series only, optional): the whole club in a list as Add player has it, a search narrowing
+     it and an Add on each row (Added once picked; Enter adds the first match). The captains so far sit above the
+     search as chips with a ×, on one line that scrolls sideways so the list never moves. They're a set, not an
+     order: the pick order is drawn when the draft starts. Too few for the playoffs is said at the foot.
   4. **Check:** each answer in words, with Change back to its step.
 - Only the season is needed, so every step is open from the start; hours the wrong way round, or sign-up or the
   draft after the day, hold it on that step and the foot says why.
@@ -148,3 +149,5 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   front page (`currentOf`); its after act is its own page in History.
 - 2026-10-21: The questions are a wizard (lib/Wizard, ADR 0117): When, Sign-up (with the draft's day), Captains with
   the whole step to find them in, then Check. Captains can be moved up the pick order.
+- 2026-10-21: Captains are picked from the whole club's list with an Add on each row, shown as chips; no pick order
+  is set here, since it's drawn when the draft starts.
