@@ -23,10 +23,12 @@
   let here = $state(atFirst);
   let deviceOn = $state(false);
   let busy = $state(false);
+  let failed = $state(false);
   if (atFirst === "maybe") void webPush().then((s) => (deviceOn = s === "on"));
   const canSwitch = $derived(here === "ask" || here === "maybe" || here === "blocked");
   async function flipDevice() {
     busy = true;
+    failed = false;
     try {
       if (deviceOn) {
         await turnOff();
@@ -36,6 +38,7 @@
         here = webPushHere();
       }
     } catch {
+      failed = true;
       deviceOn = (await webPush().catch(() => "off")) === "on";
     } finally {
       busy = false;
@@ -44,7 +47,9 @@
   const deviceHint = $derived(
     here === "blocked"
       ? "Blocked for this site in your browser's settings."
-      : "Shown by this browser, even with the app closed.",
+      : failed
+        ? "This browser couldn't turn them on. Try again later."
+        : "Shown by this browser, even with the app closed.",
   );
 </script>
 

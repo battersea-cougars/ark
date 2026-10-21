@@ -42,10 +42,9 @@ Three things shape it:
     (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`; `draft` joins it
     when the draft's notifications are sent, so there's never a switch for nothing). Every topic is on until a member
     turns it off: `notification_prefs` holds only what they switched, and the statement that fills the outbox skips
-    them, so choosing costs no round trip. The choice is the member's, not a phone's: one copy, whichever phone they
-    sign in on (and Web Push, if it comes). The You page shows a switch per topic to everyone, in a browser too, with a
-    line saying notifications come through the club's app; it's in the bootstrap (`notifications`), and
-    `PUT /api/me/notifications` (`worker/push/push.routes.ts`) changes only your own.
+    them, so choosing costs no round trip. The choice is the member's, not a device's: one copy, whichever phone or
+    browser they sign in on. The You page shows a switch per topic to everyone; it's in the bootstrap
+    (`notifications`), and `PUT /api/me/notifications` (`worker/push/push.routes.ts`) changes only your own.
   - **Links to the team app open the app** (an email's "Open the app"): the Worker answers
     `/.well-known/apple-app-site-association` from `APPLE_TEAM_ID` (`worker/store/store.links.ts`), and a link or a
     tapped notification opens its page.
@@ -87,14 +86,29 @@ Three things shape it:
   internal testing track with a Play service account (`PLAY_SERVICE_ACCOUNT`). Google's review has no 4.2: the same
   app passes.
 
+- **Browsers get them too, through Web Push** (#24): Android's Chrome or Firefox, a desktop, and an iPhone with the app
+  on its Home Screen (iOS 16.4+), with no store. A browser's subscription is a device like a phone: a `push_devices`
+  row with platform `web`, its endpoint as the token and its keys in `web_keys`, so topics, the outbox, its batches,
+  retries and the sign-in tie are the same, and push.ts sends each row its own way, phones through Firebase and
+  browsers straight to their push service (`worker/push/webpush.ts`: RFC 8291 aes128gcm, RFC 8292 VAPID ES256, all
+  WebCrypto; one fetch per browser, counted like a phone's). A subscription is only taken on a browser's push service
+  (Google, Mozilla, Apple, Windows), so the Worker never fetches an address someone chose. One VAPID key pair serves
+  dev and production (a subscription belongs to its origin, so they never share one): the private key is
+  `VAPID_PRIVATE_KEY` in Bitwarden, the public key a var in `wrangler.jsonc` that the app's build bakes in
+  (`scripts/webpush-setup.mjs` makes both). In the app (`src/app/web-push.ts`): Home asks once as the store app does,
+  and the You page has **On this device**; permission only ever from a tap; turning it off unsubscribes and forgets it,
+  and signing out forgets the session's devices. An iPhone in a Safari tab can't have them, so it isn't asked: it's
+  told, in a line, to add the app to the Home Screen. `public/sw.js` shows a push, a tap opens its page, and a renewed
+  subscription is given to the club again.
+
 ## Consequences
 
 - The app is only as available as the team app's server: no signal is the offline screen (the service worker's
   cached shell works in app-bound domains, so a page already open keeps working).
 - Production must be reachable without Cloudflare Access for App Review: the store build is submitted at launch.
 - Apple's fee is paid yearly on the existing account; Firebase Cloud Messaging and the macOS runners cost nothing.
-- Web push for the Home Screen app (#24) can share `push_devices` (`platform: web`) and `notify`; only its sending
-  differs.
+- Web Push (#24) shares `push_devices` (`platform: web`) and `notify`; only its sending differs. A member on Android
+  hears the club without the Play Store. An iPhone in Safari without the app on its Home Screen still hears nothing.
 
 ## History
 
@@ -118,3 +132,7 @@ Three things shape it:
   APNs key's upload is by hand. Every key, the APNs one too, is backed up in Bitwarden ([0002](0002-secrets-in-bitwarden.md)).
 - 2026-10-21: Teams published again only notify a player whose team changed ("Team change: you're now on …"); the first
   publish still tells everyone their team.
+- 2026-10-21: Web Push (#24): browsers are devices too (`platform: web`), sent straight to their push service by
+  `worker/push/webpush.ts` through the same outbox; one VAPID pair for both environments (`VAPID_PRIVATE_KEY`,
+  `scripts/webpush-setup.mjs`); Home's ask and the You page's "On this device" in a browser, and on an iPhone in a
+  Safari tab a line about the Home Screen instead of a prompt.

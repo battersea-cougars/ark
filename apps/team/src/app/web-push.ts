@@ -81,7 +81,12 @@ const give = (sub: PushSubscription) => api("PUT", "/api/auth/device", { platfor
 export async function turnOn(): Promise<boolean> {
   if (!supported()) return false;
   if ((await Notification.requestPermission()) !== "granted") return false;
-  await give(await subscribe(await worker()));
+  const sub = await subscribe(await worker());
+  // The club said no (a push service it doesn't know): not left subscribed for nothing
+  await give(sub).catch(async (e) => {
+    await sub.unsubscribe().catch(() => {});
+    throw e;
+  });
   return true;
 }
 
