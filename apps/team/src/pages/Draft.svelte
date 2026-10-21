@@ -460,6 +460,12 @@
   async function fixtures() {
     if (tournament && (await makeFixtures(tournament.id))) navigate(`/tournaments/${type.slug}/schedule`);
   }
+  // Everyone's picked: one button ends the draft and, when the teams can have them, makes the fixtures
+  const canFixture = $derived(!tournament?.games?.length && !tooFew);
+  async function finish() {
+    if (!tournament || (await closeDraft(tournament.id)) === null) return;
+    if (canFixture) await fixtures();
+  }
 
   // While it's open, the other captains' picks show up as they're made, from the hub's stream (ADR 0072), with a
   // check on the admins' beat as the fallback (ADR 0072). A check is a Worker request and a few small queries
@@ -654,7 +660,14 @@
   {:else}
     <!-- A closed draft's next steps, on the page: reopen it, make the fixtures. Everything else whoever runs it does
          is behind Manage, out of the picker's way (the admin controls pattern) -->
-    {#if running && phase === "closed"}
+    {#if running && open && !pool.length}
+      <!-- Everyone's picked: the way on, on the page, not behind Manage -->
+      <div class="controls run">
+        <button class="btn primary sm" onclick={finish}
+          >{canFixture ? "End the draft and make the fixtures" : "End the draft"}</button
+        >
+      </div>
+    {:else if running && phase === "closed"}
       <div class="controls run">
         <button class="btn sm outline" onclick={() => openDraft(tournament.id)}>Reopen</button>
         {#if !tournament.games?.length && tooFew}
