@@ -793,6 +793,8 @@
   .strip::-webkit-scrollbar {
     display: none;
   }
+  /* A section's pages as tabs in the club's italic capitals, as on desktop (lib/Pills.svelte): the plain small words
+     they were read as a caption, not as places to go */
   .strip-link {
     position: relative;
     z-index: 1;
@@ -802,8 +804,12 @@
     padding: 0 var(--s-2);
     scroll-snap-align: start;
     color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-style: italic;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    text-transform: uppercase;
     white-space: nowrap;
     transition: color var(--t-fast) var(--ease-in-out);
   }
@@ -814,16 +820,16 @@
   .strip-link:focus-visible {
     outline-offset: -2px;
   }
-  /* The current page: a red underline the width of its label */
+  /* The current page: the poster title's red slash under its label */
   .strip-link.on::after {
     content: "";
     position: absolute;
     left: var(--s-2);
     right: var(--s-2);
     bottom: 0;
-    height: 2px;
-    border-radius: 1px;
-    background: var(--red-hot);
+    height: 4px;
+    transform: skewX(-24deg);
+    background: var(--red);
   }
 
   /* ─── The poster word: the page's section in huge outlined capitals behind its title ─── */
