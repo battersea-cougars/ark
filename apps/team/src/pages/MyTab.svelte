@@ -80,7 +80,6 @@
       <div class="row">
         <span class="grow">
           <span class="title">This quarter · {quarterMonths(thisQuarter)}</span>
-          <span class="sub">Fixed now it's started; ask an admin if it's wrong.</span>
         </span>
         <!-- The plan at a glance: its icon and name, as next quarter's tiles show them -->
         <span class="badge plan-badge">
@@ -93,14 +92,14 @@
         <div class="row">
           <span class="grow">
             <span class="title">Keepers play free</span>
-            <span class="sub">No plan to choose: training costs you nothing. Tournaments are paid on their own.</span>
+            <span class="sub">Training's on the house.</span>
           </span>
         </div>
       {:else}
         <div class="row next">
           <span class="grow">
             <span class="title">Next quarter · {quarterMonths(next)}</span>
-            <span class="sub">Yours to change until it starts on {formatDayDate(`${nextStarts}T12:00:00Z`)}.</span>
+            <span class="sub">Change it until {formatDayDate(`${nextStarts}T12:00:00Z`)}</span>
           </span>
           <div class="seg block tiles" role="group" aria-label="Next quarter's plan">
             {#each [["Pay as you go", false], ["Subscription", true]] as const as [plan, quarterly] (plan)}
@@ -114,8 +113,8 @@
                 <span class="name">{quarterly ? "Quarterly" : "Pay as you go"}</span>
                 <span class="sub"
                   >{quarterly
-                    ? `${rate ? `${pounds(rate)} · ` : ""}every training night`
-                    : `${nightly ? `${pounds(nightly)} ` : ""}a night you come`}</span
+                    ? `${rate ? `${pounds(rate)} ` : ""}a quarter`
+                    : `${nightly ? `${pounds(nightly)} ` : ""}a night`}</span
                 >
               </button>
             {/each}
@@ -123,9 +122,6 @@
         </div>
       {/if}
     </div>
-    {#if !keeper}
-      <p class="hint">Quarterly covers every training night in the quarter; tournaments are paid on their own.</p>
-    {/if}
   </section>
 
   <h2 class="section-title">Charges and payments</h2>

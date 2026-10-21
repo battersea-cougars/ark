@@ -1160,7 +1160,7 @@ button.row:hover:not(:disabled) {
   left: var(--s-3);
   width: 1.25rem;
 }
-/* Tiles: an icon, a name and a line under it, for a choice that needs saying (Plan: "£90 · every training night") */
+/* Tiles: an icon, a name and a line under it, for a choice that needs saying (Plan: "£90 a quarter") */
 .seg.tiles > button {
   display: grid;
   grid-template-columns: auto 1fr;
