@@ -6,7 +6,8 @@
   // only show for admins (read:Rating). With `onopen` it's a button: the page flips it over (PlayerCardZoom), and
   // hides this one meanwhile, as if it's been picked up.
   import { goesBy, shortName } from "./names";
-  import { POSITIONS, type Player } from "../demo/data";
+  import { POSITIONS, POSITION_ICONS, type Player } from "../demo/data";
+  import Icon from "../app/shell/Icon.svelte";
   import mark from "../assets/cougars-mark.webp";
 
   let {
@@ -46,7 +47,11 @@
     </span>
     <span class="plate"><strong style:--len={len}>{first}</strong></span>
     <span class="foot">
-      <span class="pos">{POSITIONS[player.position]}</span>
+      <span class="pos"
+        ><span class="pos-icon"><Icon name={POSITION_ICONS[player.position]} size={14} /></span>{POSITIONS[
+          player.position
+        ]}</span
+      >
       {#if showRating}<span class="num">{player.rating}</span>{/if}
     </span>
   </article>
@@ -211,11 +216,19 @@
   }
   /* The position is the first thing a captain looks for, so it's printed big, in ink */
   .pos {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
     color: var(--card-ink);
     font-family: var(--font-display);
     font-size: 9cqw;
     font-weight: 400;
     letter-spacing: 0.03em;
+  }
+  /* The position's icon scales with the card's big print */
+  .pos-icon :global(svg) {
+    width: 0.8em;
+    height: 0.8em;
   }
   /* On the Cougars team: a red tag in the photo's top right corner; your own "You" tag drops under it */
   .cougar-tag {

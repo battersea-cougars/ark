@@ -6,7 +6,7 @@
   // menus on the back behave like any others.
   import { goesBy, shortName } from "./names";
   import { onMount, tick } from "svelte";
-  import { POSITIONS, type Player } from "../demo/data";
+  import { POSITIONS, POSITION_ICONS, type Player } from "../demo/data";
   import mark from "../assets/cougars-mark.webp";
   import { EASE_OUT, prefersReducedMotion } from "../app/motion";
   import Icon from "../app/shell/Icon.svelte";
@@ -154,7 +154,9 @@
             <div>
               <h2>{goesBy(player)}</h2>
               <p class="pos">
-                {POSITIONS[player.position]}{#if player.cougar}<span class="cougar"> · Cougar</span>{/if}
+                <Icon name={POSITION_ICONS[player.position]} size={16} />{POSITIONS[
+                  player.position
+                ]}{#if player.cougar}<span class="cougar"> · Cougar</span>{/if}
               </p>
             </div>
           </div>
@@ -329,13 +331,21 @@
     line-height: 1;
     text-transform: uppercase;
   }
+  /* The position with its icon (stick, shield, net), so it reads at a glance */
   .pos {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
     margin-top: 1.5cqw;
     color: var(--fg-muted);
     font-size: 4.4cqw;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+  .pos :global(svg) {
+    width: 1.1em;
+    height: 1.1em;
   }
   .cougar {
     color: var(--red-hot);
