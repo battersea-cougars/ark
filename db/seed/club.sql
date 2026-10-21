@@ -128,7 +128,7 @@ INSERT OR IGNORE INTO quips (id, kind, text) VALUES
   (63, 'in', 'In. Hydrate like you mean it.'),
   (64, 'in', 'Locked in. Try to keep up.'),
   (65, 'waitlist', 'Full house. Start hoping someone pulls a hamstring.'),
-  (66, 'waitlist', 'Waitlist. Someone always bottles it.'),
+  (66, 'waitlist', 'Waitlist. Someone''s hamstring will go.'),
   (67, 'waitlist', 'Waitlist. Keep your skates by the door.'),
   (68, 'out', 'Gutted. Right, who wants their spot?'),
   (69, 'out', 'Rest up. You need it.'),
