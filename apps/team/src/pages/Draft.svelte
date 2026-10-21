@@ -10,7 +10,8 @@
   // then two views, Players and Teams: side by side on a wide screen, tabs on anything narrower. The players are a
   // plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
   // first of the teams, badged "Your team", with their coming pick drawn in.
-  import { goesBy, goesByOf, shortNameOf, nameOfTeam } from "../lib/names";
+  import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam } from "../lib/names";
+  import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
   import { PLAYERS, type Player, type Position } from "../demo/data";
@@ -137,7 +138,6 @@
   };
   const myTally = $derived(myTeam >= 0 ? tallyOf(membersOf(myTeam)) : null);
   const haveGoalie = $derived(!!myTally?.G);
-  const poolTally = $derived(tallyOf(pool));
   // The team on the clock has a goalie: the goalies' rows can't be picked for it
   const clockHasGoalie = $derived(clock >= 0 && membersOf(clock).some((p) => p.position === "G"));
 
@@ -278,7 +278,13 @@
   // Players: the pool, filtered by position
   type Filter = "all" | Position;
   let filter = $state<Filter>("all");
-  const shown = $derived(filter === "all" ? pool : pool.filter((p) => p.position === filter));
+  // Find someone, as on Friday: their name, either one, any part of it. It works with the position chips (their
+  // counts follow it) and stays as typed after a pick, so a captain can keep hunting; Esc or its × empties it
+  let query = $state("");
+  const found = $derived(query.trim() ? pool.filter((p) => matchesName(p, query)) : pool);
+  const foundTally = $derived(tallyOf(found));
+  const searching = $derived(phase !== "closed" && pool.length > 0);
+  const shown = $derived(filter === "all" ? found : found.filter((p) => p.position === filter));
   // Just the pool, A to Z by the name they go by: who's good is the captain's call, not the app's
   const byName = (a: Player, b: Player) => goesBy(a).localeCompare(goesBy(b), "en", { sensitivity: "base" });
   const listed = $derived([...shown].sort(byName));
@@ -463,7 +469,12 @@
     {#each t.players as p, n (p.memberId ?? p.name)}
       {@const m = p.memberId ? byId(p.memberId) : undefined}
       {@const by = pickerOf(p, i)}
-      <li class="row" class:you={p.memberId === me().id} animate:flip={{ duration: moveMs }}>
+      <li
+        class="row"
+        class:you={p.memberId === me().id}
+        class:hit={!!query.trim() && !!m && matchesName(m, query)}
+        animate:flip={{ duration: moveMs }}
+      >
         <span class="n num">{n + 1}</span>
         <span class="name"
           >{goesByOf(m) || p.name}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
@@ -519,15 +530,16 @@
       {/if}
     {:else if pool.length}
       <!-- The position filter: the app's filter chips, as Teammates has them, each with how many are left -->
-      <div class="filters" role="group" aria-label="Position">
-        {#each [["all", "All", pool.length, "teams"], ["F", "Forwards", poolTally.F, "stick"], ["D", "Defence", poolTally.D, "shield"], ["G", "Keepers", poolTally.G, "net"]] as const as [v, label, n, icon] (v)}
+      <div class="filters" class:with-finder={columns} role="group" aria-label="Position">
+        {#each [["all", "All", found.length, "teams"], ["F", "Forwards", foundTally.F, "stick"], ["D", "Defence", foundTally.D, "shield"], ["G", "Keepers", foundTally.G, "net"]] as const as [v, label, n, icon] (v)}
           <button class="filter" aria-pressed={filter === v} onclick={() => (filter = v)}
             ><Icon name={icon} size={16} />{label}<span class="count num">{n}</span></button
           >
         {/each}
+        {#if columns}{@render finder()}{/if}
       </div>
       <div class="plist" aria-label="Players left">
-        {#each listed as p (p.id)}{@render playerRow(p, true)}{/each}
+        {#each listed as p (p.id)}{@render playerRow(p, true)}{:else}<p class="hint none">No one matches.</p>{/each}
       </div>
     {:else if open}
       <p class="hint">Everyone's picked. Whoever runs the draft closes it to set the teams.</p>
@@ -535,6 +547,14 @@
       <p class="hint">Nobody's signed up yet.</p>
     {/if}
   </section>
+{/snippet}
+
+<!-- Find someone: a magnifier at the end of the row that widens into the field when you tap it (across the row, over
+     the tabs, on a phone), as Friday's does -->
+{#snippet finder()}
+  <div class="finder">
+    <SearchField bind:value={query} placeholder="Search players" label="Search players" collapsible />
+  </div>
 {/snippet}
 
 {#snippet teamsView()}
@@ -773,13 +793,16 @@
 
     {#if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
-      <div class="tablist" role="tablist" aria-label="Draft">
-        <button role="tab" aria-selected={view === "players"} onclick={() => show("players")}>Players</button>
-        <button role="tab" aria-selected={view === "teams"} onclick={() => show("teams")}
-          >Teams{#if myTeam >= 0 && open && !haveGoalie}<span class="need" title="No goalie yet"
-              ><Icon name="alert" size={13} />G</span
-            >{/if}</button
-        >
+      <div class="tab-row">
+        <div class="tablist" role="tablist" aria-label="Draft">
+          <button role="tab" aria-selected={view === "players"} onclick={() => show("players")}>Players</button>
+          <button role="tab" aria-selected={view === "teams"} onclick={() => show("teams")}
+            >Teams{#if myTeam >= 0 && open && !haveGoalie}<span class="need" title="No goalie yet"
+                ><Icon name="alert" size={13} />G</span
+              >{/if}</button
+          >
+        </div>
+        {#if searching}{@render finder()}{/if}
       </div>
       {#key view}
         <div class="pane" in:fly={{ x: 32 * dir, duration: flyMs, easing: easeOut, opacity: 0 }}>
@@ -1349,6 +1372,51 @@
     text-overflow: ellipsis;
   }
   /* On the clock: half as big again, a card reaching over the chips either side, and a badge that says so */
+  /* The search, at the end of the tabs (a phone) or the chips (a desktop): it opens leftwards, over the tabs if it
+     must, so the row's height never changes and nothing moves */
+  .tab-row,
+  .filters.with-finder {
+    position: relative;
+  }
+  .tab-row .tablist {
+    padding-right: 3rem;
+    transition: opacity var(--t) var(--ease);
+  }
+  .tab-row:has(:global(.search:focus-within), :global(.search.filled)) .tablist {
+    opacity: 0;
+  }
+  .filters.with-finder {
+    padding-right: 3rem;
+  }
+  .finder {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    translate: 0 -50%;
+    pointer-events: none;
+    --open-width: 100%;
+    --search-frost: var(--blur);
+  }
+  .filters .finder {
+    --open-width: 16rem;
+  }
+  .finder > :global(*) {
+    pointer-events: auto;
+  }
+  /* A player on a team who matches the search: their name lit */
+  .row.hit {
+    border-radius: var(--r-sm);
+    background: color-mix(in srgb, var(--fg) 9%, transparent);
+  }
+  .row.hit .name {
+    color: var(--fg);
+  }
+  .none {
+    padding: var(--s-3) 0;
+  }
   /* The ticker and, over its edge, Now: back to the current pick when you've looked away from it */
   .ticker-wrap {
     position: relative;

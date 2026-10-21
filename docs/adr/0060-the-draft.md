@@ -142,3 +142,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   for a captain; the Next line is labelled, one size and two weights.
 - 2026-10-21: The ticker scrolls freely through every pick made and to come (swipe, trackpad, arrow keys), follows
   the picks only while you're at the current one, and shows Now over its edge to bring you back (Home too).
+- 2026-10-21: A search on the Players view, as Friday's (a magnifier that widens over the row): by name, with the
+  position chips and their counts, kept as typed after a pick; matching players are lit on the Teams view.
