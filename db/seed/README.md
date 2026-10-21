@@ -45,5 +45,5 @@ none, and roles are added, never removed. So what admins change in the app alway
 
 Changing production's admins: the command in [README.md#team-roster](../../README.md#team-roster). Production's roster (`TEAM_ROSTER__PRODUCTION`) is only its
 admins; everyone else comes in through **Members → Manage → Import members** in the team app, which takes a CSV
-(columns `name`, `email`, `position`, `rating`, `cougar`, `roles`) or this same JSON
+(the club's columns `name`, `position`, `subx`, `email`, `role`, `is Cougars`, with `rating` optional; the drawer has a template) or this same JSON
 ([ADR 0069](../../docs/adr/0069-members.md)). After that, add and edit members in the app.

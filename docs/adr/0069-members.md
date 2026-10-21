@@ -47,14 +47,25 @@ live at once.
 
 - Members' **Manage** button (one button, [0065](0065-page-frame-and-admin-actions.md)) has two tools: Add a member
   (above) and **Import members**, a side drawer. The admin chooses a file: a spreadsheet saved as CSV whose first row
-  names the columns (`name` needed; `email`, `position` F/D/G, `rating` 0–100 (50 if blank), `cougar` yes/no, `roles`
-  separated by `;`), or the roster's JSON ([db/seed/README.md](../../db/seed/README.md)).
+  names the columns, or the roster's JSON ([db/seed/README.md](../../db/seed/README.md)). The columns are the club's
+  own sheet's, matched in any case and any order (others are ignored); the drawer's **Download template** has exactly
+  them, in this order, with one example row:
+  - `name` (needed); `position` F/D/G (F if blank);
+  - `subx` (also `subscription`, `plan`, `quarterly`): this quarter's plan ([0007](0007-dues-and-payments.md)).
+    `quarterly`, `q`, `yes`, `y`, `true`, `1`, `sub`, `subscription` make them a Quarterly Member from the import's
+    day, as an admin ticking Quarterly does; `payg`, `pay as you go`, `no`, `n`, `false`, `0` or blank, pay as you go;
+    `keeper` only for a G (anyone else is a problem row). A G is on the Keeper plan whatever it says;
+  - `email`; `role` (or `roles`): role names in any case, several separated by `;` or `|`;
+  - `is Cougars` (or `cougars`, `cougar`): yes/no, y/n, true/false, 1/0, x;
+  - `rating` 0–100, optional: 50 if left out, the database's default, as for anyone an admin adds.
 - `POST /api/members/import` with `{ file }` checks it and changes nothing: who'd be added, who's already in the club
   (same email, or same name: skipped and left as they are, as the roster seed does) and what's wrong, by row (a bad
-  position or rating, an unknown role, a role that can do more than the importer, the same name or email twice).
+  position, rating or plan, a keeper who isn't a G, an unknown role, a role that can do more than the importer, the
+  same name or email twice), with each person's plan.
   With `apply: true` it adds them, refusing a file with any problem.
-- **All or nothing, in one D1 batch** (insert, payment reference, roles per member): the free plan allows 50 queries
-  per request, and a half-imported file would be worse than none. Up to 500 rows a file.
+- **All or nothing, in one D1 batch** (insert, payment reference, roles per member, then one `INSERT … SELECT` over
+  `json_each` that gives every Quarterly row its subscription, found by name and the import's `created_at`): the free
+  plan allows 50 queries per request, and a half-imported file would be worse than none. Up to 500 rows a file.
 - **Nobody is emailed.** An import is for bringing the club in at launch; the admins say when the app's ready, and
   everyone signs in with the email in the file. On the record as `members.imported`, with the names.
 
@@ -106,3 +117,6 @@ live at once.
   added all at once with nobody emailed.
 - 2026-10-10: Asking to join emails the admins, with a link to the member's sheet; being let in emails the member
   (#77).
+- 2026-10-21: Import takes the club's own spreadsheet: a `subx` column for the plan (Quarterly from the import's day,
+  pay as you go, Keeper for a G), header aliases (`role`, `is Cougars`), and a Download template with the club's
+  columns; the check shows each person's plan.

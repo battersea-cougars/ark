@@ -2,6 +2,7 @@
 // roster's JSON (db/seed/README.md). Like the roster seed it only adds: someone already in the club, by email or by
 // name, is left as they are. The whole file is checked first and goes in all at once or not at all, in one D1 batch
 // (the free plan allows 50 queries per request). Nobody is emailed: they sign in with their email once told.
+// The columns are the club's own spreadsheet's (name, position, subx, email, role, is Cougars), or the app's names.
 import { all } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import type { Action } from "../../src/access/actions";
@@ -18,7 +19,10 @@ export interface ImportRow {
   cougar: boolean;
   /** Besides Member, which everyone gets. */
   roles: string[];
+  /** Their plan this quarter (ADR 0007): a goalie is always on the Keeper plan. */
+  plan: Plan;
 }
+export type Plan = "quarterly" | "payg" | "keeper";
 export interface ImportNote {
   row: number;
   name: string;
@@ -31,8 +35,26 @@ export interface ImportCheck {
 }
 
 const MAX_ROWS = 500;
-const COLUMNS = ["name", "email", "position", "rating", "cougar", "roles"] as const;
-type Column = (typeof COLUMNS)[number];
+type Column = "name" | "email" | "position" | "rating" | "cougar" | "roles" | "plan";
+/** Each column by the names a header may give it, in any case. */
+const HEADERS: Record<string, Column> = {
+  name: "name",
+  email: "email",
+  "e-mail": "email",
+  position: "position",
+  rating: "rating",
+  cougar: "cougar",
+  cougars: "cougar",
+  "is cougar": "cougar",
+  "is cougars": "cougar",
+  role: "roles",
+  roles: "roles",
+  subx: "plan",
+  subscription: "plan",
+  plan: "plan",
+  quarterly: "plan",
+};
+const column = (header: string) => HEADERS[header.trim().toLowerCase().replace(/\s+/g, " ")];
 const POSITIONS: Record<string, "F" | "D" | "G"> = {
   f: "F",
   forward: "F",
@@ -46,6 +68,24 @@ const POSITIONS: Record<string, "F" | "D" | "G"> = {
 };
 const YES = new Set(["yes", "y", "true", "1", "x"]);
 const NO = new Set(["", "no", "n", "false", "0"]);
+const PLANS: Record<string, Plan> = {
+  quarterly: "quarterly",
+  q: "quarterly",
+  yes: "quarterly",
+  y: "quarterly",
+  true: "quarterly",
+  "1": "quarterly",
+  sub: "quarterly",
+  subscription: "quarterly",
+  payg: "payg",
+  "pay as you go": "payg",
+  no: "payg",
+  n: "payg",
+  false: "payg",
+  "0": "payg",
+  "": "payg",
+  keeper: "keeper",
+};
 
 /** CSV as spreadsheets save it: quoted fields may hold commas, quotes ("") and line breaks. */
 export function parseCsv(text: string): string[][] {
@@ -92,12 +132,21 @@ function records(file: string): { row: number; get: (c: Column) => unknown }[] {
       throw new HttpError(400, "That file isn't valid JSON.");
     }
     if (!Array.isArray(list)) throw new HttpError(400, "The JSON should be a list of players.");
-    return list.map((r, i) => ({ row: i + 1, get: (c) => (r as Record<string, unknown> | null)?.[c] }));
+    return list.map((r, i) => {
+      const fields = new Map<Column, unknown>();
+      for (const [k, v] of Object.entries((r as Record<string, unknown> | null) ?? {}))
+        if (column(k) && !fields.has(column(k))) fields.set(column(k), v);
+      return { row: i + 1, get: (c) => fields.get(c) };
+    });
   }
   const [head, ...body] = parseCsv(text);
-  const at = new Map((head ?? []).map((h, i) => [h.trim().toLowerCase(), i]));
+  const at = new Map<Column, number>();
+  (head ?? []).forEach((h, i) => column(h) && !at.has(column(h)) && at.set(column(h), i));
   if (!at.has("name"))
-    throw new HttpError(400, `The first row should name the columns, with at least "name": ${COLUMNS.join(", ")}.`);
+    throw new HttpError(
+      400,
+      `The first row should name the columns, with at least "name": name, position, subx, email, role, is Cougars.`,
+    );
   return body.map((cells, i) => ({
     row: i + 2,
     get: (c) => (at.has(c) ? cells[at.get(c)!]?.trim() : undefined),
@@ -153,6 +202,14 @@ export async function checkImport(db: D1Database, file: unknown, caller: Readonl
     if (!(cougarValue === true || cougarValue === false || YES.has(cougarText) || NO.has(cougarText)))
       wrong("Cougar should be yes or no");
 
+    const planValue = get("plan");
+    const chosen =
+      typeof planValue === "boolean" ? (planValue ? "quarterly" : "payg") : PLANS[raw("plan").toLowerCase()];
+    if (!chosen) wrong("Subx should be quarterly, payg or keeper");
+    else if (chosen === "keeper" && position && position !== "G") wrong("Keeper is for a goalie: position G");
+    // Keepers play training free, whatever the file says (ADR 0007)
+    const plan: Plan = position === "G" ? "keeper" : (chosen ?? "payg");
+
     const roleValue = get("roles");
     const given = (Array.isArray(roleValue) ? roleValue.map(String) : raw("roles").split(/[;|]/))
       .map((r) => r.trim())
@@ -174,7 +231,7 @@ export async function checkImport(db: D1Database, file: unknown, caller: Readonl
     if (out.problems.some((p) => p.row === row)) continue;
     if (names.has(name.toLowerCase()) || (email && emails.has(email)))
       out.skip.push({ row, name, why: "Already in the club" });
-    else out.add.push({ row, name, email, position, rating, cougar, roles: named });
+    else out.add.push({ row, name, email, position, rating, cougar, roles: named, plan });
   }
   return out;
 }
@@ -212,6 +269,18 @@ export async function importMembers(db: D1Database, file: unknown, caller: Reado
         .bind(...roles),
     ];
   });
+  // Quarterly Members from today, as when an admin ticks Quarterly (setQuarterly): one statement for them all, so the
+  // batch stays three a member. Who's new is known by name (none was in the club) and this import's created_at.
+  const quarterly = check.add.filter((p) => p.plan === "quarterly").map((p) => p.name);
+  if (quarterly.length)
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO subscriptions (member_id, starts_on, created_at)
+           SELECT id, ?, ? FROM members WHERE created_at = ? AND name IN (SELECT value FROM json_each(?))`,
+        )
+        .bind(on, at, at, JSON.stringify(quarterly)),
+    );
   await db.batch(statements);
   return { added: check.add.map((p) => p.name), skipped: check.skip.length };
 }

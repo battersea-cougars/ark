@@ -51,16 +51,42 @@
   }
 
   const POS = { F: "Forward", D: "Defence", G: "Goalie" } as const;
+  const PLAN = { quarterly: "Quarterly", payg: "Pay as you go", keeper: "Keeper" } as const;
+
+  // The club's own columns, in its order, with one made-up player to copy
+  const TEMPLATE =
+    "name,position,subx,email,role,is Cougars\r\nJo Bloggs,F,quarterly,jo@example.com,Session lead,yes\r\n";
+  const template = `data:text/csv;charset=utf-8,${encodeURIComponent(TEMPLATE)}`;
 </script>
 
 <Drawer bind:open title="Import members" sub="From a spreadsheet saved as CSV">
   <div class="stack">
+    <p class="hint">The first row names the columns, in any order:</p>
+    <dl class="columns">
+      <dt>name</dt>
+      <dd>Needed</dd>
+      <dt>position</dt>
+      <dd>F, D or G (F if blank)</dd>
+      <dt>subx</dt>
+      <dd>quarterly (or yes), payg (or no, or blank), keeper. A G is always Keeper</dd>
+      <dt>email</dt>
+      <dd>What they sign in with</dd>
+      <dt>role</dt>
+      <dd>Session lead, Contributor or Admin; several separated by ;</dd>
+      <dt>is Cougars</dt>
+      <dd>yes or no</dd>
+      <dt>rating</dt>
+      <dd>Optional, 0–100: 50 if left out, as for anyone you add</dd>
+    </dl>
     <p class="hint">
-      The first row names the columns: <strong>name</strong> (needed), <strong>email</strong>,
-      <strong>position</strong> (F, D or G), <strong>rating</strong> (0–100, 50 if blank),
-      <strong>cougar</strong> (yes or no) and <strong>roles</strong> (separated by ;). Anyone already in the club is left
-      as they are. Nobody is emailed: they sign in with their email when you tell them.
+      Anyone already in the club is left as they are. Nobody is emailed: they sign in with their email when you tell
+      them.
     </p>
+
+    <a class="btn ghost block" href={template} download="cougars-members.csv">
+      <Icon name="download" size={18} />
+      Download template
+    </a>
 
     <label class="btn outline block">
       <Icon name="upload" size={18} />
@@ -94,7 +120,7 @@
               <li>
                 <strong>{p.name}</strong>
                 <span
-                  >{POS[p.position]} · {p.rating}{p.cougar ? " · Cougar" : ""}{p.roles.length
+                  >{PLAN[p.plan]} · {POS[p.position]} · {p.rating}{p.cougar ? " · Cougar" : ""}{p.roles.length
                     ? ` · ${p.roles.join(", ")}`
                     : ""}</span
                 >
@@ -129,6 +155,21 @@
   }
   .hint {
     margin: 0;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--s-1) var(--s-3);
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+  .columns dt {
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .columns dd {
+    margin: 0;
+    color: var(--fg-muted);
   }
   label.btn {
     position: relative;

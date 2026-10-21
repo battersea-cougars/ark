@@ -313,6 +313,8 @@ export interface ImportCheck {
     rating: number;
     cougar: boolean;
     roles: string[];
+    /** This quarter's plan (ADR 0007): a goalie is always on the Keeper plan. */
+    plan: "quarterly" | "payg" | "keeper";
   }[];
   skip: { row: number; name: string; why: string }[];
   problems: { row: number; name: string; why: string }[];
