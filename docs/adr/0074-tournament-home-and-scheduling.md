@@ -1,7 +1,7 @@
 # 0074. A tournament's home follows the day in three acts, and the next one is scheduled from it in a few questions
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-20
+- **Date:** 2026-10-08 · updated 2026-10-21
 - **Merges:** 0086, 0087, 0088, 0089, 0091
 
 ## Context
@@ -73,16 +73,21 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 
 ### Scheduling the next one in a few questions
 
-- A new date in a series opens on numbered questions (`TournamentQuickCreate.svelte`):
-  1. **When is it?** A day, or "not fixed yet" for TBC, with Starts and Ends filled in from the series.
-  2. **When does sign-up open?** Defaulting to today.
-  3. **When's the draft?** Optional, a draft series only.
-  4. **Who are the captains?** Optional, in pick order.
+- A new date in a series opens on its questions as a wizard, a step at a time (`TournamentQuickCreate.svelte`, ADR
+  [0117](0117-wizards-for-multi-step-creates.md)):
+  1. **When:** the season, a day or none for TBC, and Starts and Ends filled in from the series.
+  2. **Sign-up:** when sign-up opens (today by default) and, a draft series only, the draft's day (optional).
+  3. **Captains** (a draft series only, optional): the whole step to find them in. Typing fills it with who matches;
+     a tap adds them to the end of the pick order. Otherwise it shows the captains in pick order, each movable up or
+     taken off.
+  4. **Check:** each answer in words, with Change back to its step.
+- Only the season is needed, so every step is open from the start; hours the wrong way round, or sign-up or the
+  draft after the day, hold it on that step and the foot says why.
 - **Schedule it** creates it and closes the panel on the page, which now shows the new one.
 - **The rest comes from the series:** its name, fee, place, rules, awards and playoffs; status planned. The server
   fills in what a new one leaves out (hours, status, the series' fee, rules), so the quick form sends only what it
   asked.
-- **Advanced** opens the full editor with the answers filled in. **Back to the questions** returns to them, keeping
+- **Advanced** (at the wizard's foot, and on Check) opens the full editor with the answers filled in. **Back to the questions** returns to them, keeping
   what was changed there. A one-off tournament (no series) and Settings → Tournaments use the full editor.
 - **A series has usual hours** (`tournament_types.default_start_time`, `default_end_time`, defaulting to
   11:00–16:00), set in its settings (Settings → Tournament Series → When, where and fee) beside its place and fee.
@@ -118,7 +123,7 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 - A tournament's status matters less: an admin needn't mark it live or finished, or open sign-up, for the page to
   move on.
 - A past one has an address of its own, so it can be shared.
-- Scheduling the next one is one button and up to four answers.
+- Scheduling the next one is one button and up to four steps.
 - Tournaments made before sign-up had a day have no opening day, so they wait for an admin as before. A series made
   before it had hours keeps 11:00–16:00 until an admin sets them.
 - There's no undo for a delete. A played tournament's results go with it, so the question says so.
@@ -141,3 +146,5 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 - 2026-10-20: With nothing on, the series is one page: no Fight card, board, Teams, Draft or History; a big "No Kumite
   yet" in the motif with an admin's Next Kumite, and every past one under it. The last one played no longer holds the
   front page (`currentOf`); its after act is its own page in History.
+- 2026-10-21: The questions are a wizard (lib/Wizard, ADR 0117): When, Sign-up (with the draft's day), Captains with
+  the whole step to find them in, then Check. Captains can be moved up the pick order.

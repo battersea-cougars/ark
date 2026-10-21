@@ -9,7 +9,17 @@
     placeholder = "Search",
     label = "Search",
     collapsible = false,
-  }: { value?: string; placeholder?: string; label?: string; collapsible?: boolean } = $props();
+    onkeydown,
+    onfocus,
+  }: {
+    value?: string;
+    placeholder?: string;
+    label?: string;
+    collapsible?: boolean;
+    /** Keys while typing, before its own (Enter to pick the first match). */
+    onkeydown?: (e: KeyboardEvent) => void;
+    onfocus?: (e: FocusEvent) => void;
+  } = $props();
   let input = $state<HTMLInputElement | undefined>();
 </script>
 
@@ -21,7 +31,9 @@
     bind:value
     {placeholder}
     aria-label={label}
+    {onfocus}
     onkeydown={(e) => {
+      onkeydown?.(e);
       if (e.key === "Escape" && collapsible) {
         value = "";
         input?.blur();

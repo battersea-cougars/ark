@@ -22,6 +22,7 @@
     children,
     footer,
     tall = false,
+    fill = false,
     lazy = false,
   }: {
     open?: boolean;
@@ -38,6 +39,8 @@
     footer?: Snippet;
     /** Something that grows (a list, the register, an editor): near full height on a phone, scrolling inside. */
     tall?: boolean;
+    /** What's in it lays itself out to the sheet's height, with its own scrolling and foot (lib/Wizard). */
+    fill?: boolean;
     /** Its contents exist only while it's open (a drawer's, which expect to start afresh each time). */
     lazy?: boolean;
   } = $props();
@@ -158,7 +161,7 @@
       >
     </div>
     {#if top}<div class="top">{@render top()}</div>{/if}
-    <div class="body">{@render children()}</div>
+    <div class="body" class:fill>{@render children()}</div>
     {#if footer}<div class="foot">{@render footer()}</div>{/if}
   {/if}
 </dialog>
@@ -254,6 +257,13 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  /* Filled by something with its own scrolling and foot: the edges are its to keep */
+  .body.fill {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
   .foot {
     display: flex;
     flex-shrink: 0;
@@ -292,7 +302,7 @@
     .foot {
       padding-inline: var(--s-5);
     }
-    .body {
+    .body:not(.fill) {
       padding-bottom: var(--s-5);
     }
     .foot {

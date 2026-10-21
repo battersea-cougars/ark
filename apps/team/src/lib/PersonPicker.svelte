@@ -5,6 +5,7 @@
   // each pick.
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import { findPeople } from "./person-search";
 
   let {
     members,
@@ -50,19 +51,8 @@
   const matches = $derived.by(() => {
     const q = (open ? query : "").trim().toLowerCase();
     const pool = members.filter((m) => m.id === value || !exclude?.has(m.id));
-    if (!q || (!clearOnPick && q === nameOf(value).toLowerCase())) return pool.slice(0, 60);
-    const rank = (n: string) => {
-      const s = n.toLowerCase();
-      if (s.startsWith(q)) return 0;
-      if (s.split(/\s+/).some((w) => w.startsWith(q))) return 1;
-      return s.includes(q) ? 2 : 3;
-    };
-    return pool
-      .map((m) => ({ m, r: rank(m.name) }))
-      .filter((x) => x.r < 3)
-      .sort((a, b) => a.r - b.r || a.m.name.localeCompare(b.m.name))
-      .slice(0, 60)
-      .map((x) => x.m);
+    if (!clearOnPick && q === nameOf(value).toLowerCase()) return pool.slice(0, 60);
+    return findPeople(pool, q);
   });
 
   function place() {

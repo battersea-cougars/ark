@@ -31,6 +31,7 @@
     onclose,
     actions,
     footer,
+    fill = false,
     children,
   }: {
     eyebrow: string;
@@ -42,6 +43,8 @@
     actions?: Snippet;
     /** The footer bar along the bottom, actions on the right (Save), as every Gwenda modal has. */
     footer?: Snippet;
+    /** The body lays itself out to the panel's height, with its own scrolling and foot (lib/Wizard). */
+    fill?: boolean;
     children: Snippet;
   } = $props();
 
@@ -88,6 +91,7 @@
     sub={eyebrow}
     head={actions}
     {footer}
+    {fill}
     tall
     onclose={() => {
       closing = true;
@@ -118,7 +122,7 @@
           <button class="btn ghost icon close-x" aria-label="Close" onclick={close}><Icon name="x" size={18} /></button>
         </div>
       </header>
-      <div class="body">{@render children()}</div>
+      <div class="body" class:fill>{@render children()}</div>
       {#if footer}<footer class="panel-foot">{@render footer()}</footer>{/if}
     </div>
   </div>
@@ -219,6 +223,12 @@
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  .body.fill {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+  }
   /* Always in view at the bottom: the panel's own actions, on the right */
   .panel-foot {
     display: flex;
@@ -236,7 +246,7 @@
     .chip {
       display: none;
     }
-    .body {
+    .body:not(.fill) {
       padding: var(--s-4) var(--s-4) var(--s-6);
     }
   }
