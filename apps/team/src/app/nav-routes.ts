@@ -11,7 +11,7 @@ export type TabId = "home" | "training" | "club" | "tournaments" | "more";
 export type Group = "Club" | "You" | "Settings";
 
 /** Settings' groups, in the order the Settings page lists them. */
-export const SECTIONS = ["Club", "Schedule", "Money", "Security"] as const;
+export const SECTIONS = ["Club", "Schedule", "Security"] as const;
 export type Section = (typeof SECTIONS)[number];
 
 export interface Route {
@@ -99,7 +99,7 @@ const DEV_TOOLS_ROUTE: Route = {
 };
 
 // You first: the phone's last tab (your avatar) and a desktop's avatar, top right, open it: only your own things.
-// Everything an admin sets up is in Settings (the gear), grouped Club / Schedule / Money / Security (ADR 0065)
+// Everything an admin sets up is in Settings (the gear), grouped Club / Schedule / Security (ADR 0065)
 const STATIC_TAIL: Route[] = [
   {
     id: "profile",
@@ -195,6 +195,18 @@ const STATIC_TAIL: Route[] = [
     hint: "Who owes what, and for how long",
   },
   {
+    id: "fees",
+    path: "/settings/fees",
+    name: "Quarterly rate",
+    tab: "more",
+    page: "fees",
+    action: "manage:Fees",
+    icon: "pound",
+    group: "Settings",
+    section: "Club",
+    hint: "The fee for a whole quarter",
+  },
+  {
     id: "quips",
     path: "/settings/quips",
     name: "Quips",
@@ -267,18 +279,6 @@ const STATIC_TAIL: Route[] = [
     group: "Settings",
     section: "Schedule",
     hint: "Addresses and map links",
-  },
-  {
-    id: "fees",
-    path: "/settings/fees",
-    name: "Quarterly rate",
-    tab: "more",
-    page: "fees",
-    action: "manage:Fees",
-    icon: "pound",
-    group: "Settings",
-    section: "Money",
-    hint: "The fee for a whole quarter",
   },
   {
     id: "roles",

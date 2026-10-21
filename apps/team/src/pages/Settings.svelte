@@ -1,6 +1,6 @@
 <script lang="ts">
   // Settings, where the gear goes (lib/SettingsButton), the same page on a phone and a desktop: every admin area your
-  // account can set up, grouped Club / Schedule / Money / Security (app/settings-list). With an everyday role, the
+  // account can set up, grouped Club / Schedule / Security (app/settings-list). With an everyday role, the
   // switch comes first; in that role the rows it can't open go quiet rather than away, so nothing moves, and opening
   // one switches you up (ADR 0024).
   import Icon from "../app/shell/Icon.svelte";

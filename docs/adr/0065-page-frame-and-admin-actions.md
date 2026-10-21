@@ -153,3 +153,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
 - 2026-10-21: Past announcements leave Settings: they're Home's page (`/announcements`), for everyone, so the rail
   lights Home there and no Settings list shows ([0107](0107-announcements.md)). The rail is Home, the trainings,
   Calendar, the tournament types and the club (`/club`, which was Teammates), then the gear.
+- 2026-10-21: Money folds into Club: its one page (the quarterly rate) sits under Club after Unpaid fees, and the
+  Money heading goes. Settings is grouped Club, Schedule and Security. "The money section can be combined with Club."

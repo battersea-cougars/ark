@@ -1,5 +1,5 @@
-// What the Settings page lists (ADR 0065): every admin area your account can set up, grouped Club / Schedule / Money /
-// Security. Listed by your account's roles, so the list doesn't change when you switch to your everyday role (ADR
+// What the Settings page lists (ADR 0065): every admin area your account can set up, grouped Club / Schedule / Security
+// (the money pages are the club's). Listed by your account's roles, so the list doesn't change when you switch to your everyday role (ADR
 // 0024): the rows that role can't open just go quiet, and opening one switches you up.
 import { can, type Action } from "../access/actions";
 import { SECTIONS, type Route, type Section } from "./nav-routes";
