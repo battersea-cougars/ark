@@ -1,7 +1,7 @@
 # 0002. Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-20
+- **Date:** 2026-10-05 · updated 2026-10-21
 - **Merges:** 0012
 
 ## Context
@@ -18,7 +18,10 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 ## Decision
 
 1. **Bitwarden Secrets Manager is the only store for secrets.** CI and scripts load them at run time
-   (`scripts/lib/bitwarden.mjs`, `scripts/env-pull.mjs`).
+   (`scripts/lib/bitwarden.mjs`, `scripts/env-pull.mjs`). It is also our recovery store: **every secret we make
+   goes in**, including one that only a provider uses and no code of ours reads (the Apple push key, uploaded to
+   Firebase) and one a provider lets us download only once. Such a backup is documented in the README like any other,
+   its _Used by_ saying it's a backup.
 2. **Two projects, for every app:** `cougars` (production, `NAME__PRODUCTION`) and `cougars-dev` (dev `NAME__DEV`
    and shared plain `NAME` values). The production/dev split ([ADR 0010](0010-environments-and-deploys.md)) is the
    one that keeps production safe, so that is the one we keep. The third project slot stays free.
@@ -68,3 +71,5 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 - 2026-10-05: Two projects and three machine accounts shared by every app, instead of Ark's per-app pairs, to fit
   the free plan; GitHub holds one token per environment (0012).
 - 2026-10-20: One exception: Instagram's self-renewing token is kept in D1, sealed with a Bitwarden key ([ADR 0113](0113-photos-from-instagram.md)).
+- 2026-10-21: Bitwarden is also the recovery store: every secret we make goes in, even one only a provider uses (the APNs
+  key Firebase holds), not only those our code reads.
