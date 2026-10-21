@@ -283,8 +283,14 @@
     .captain {
       grid-template-columns: 1.5rem var(--control-h) minmax(0, 1fr) auto;
     }
+    /* The name field takes a line of its own under the name; the ✕ stays up on the name's line, not alone below */
     .captain > .input {
+      grid-row: 2;
       grid-column: 3 / -1;
+    }
+    .captain > .actions {
+      grid-row: 1;
+      grid-column: 4;
     }
     .picked {
       margin-left: 0;
