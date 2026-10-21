@@ -453,11 +453,10 @@
     {:else if id === who.id}<span class="you-stamp">You</span>{/if}
     {#if p.cougar}<span class="badge red">Cougar</span>{/if}
     {#if queue && ahead.has(id)}{@render quarterlyBadge()}{/if}
-    {@render positionBadge(p)}
   </button>
 {/snippet}
 
-<!-- Where they play, at the end of every row so the column scans: the position's icon and letter on a phone (F, D,
+<!-- Where they play, at the end of a team maker's row (not Who's coming: the list's groups say keepers): the position's icon and letter on a phone (F, D,
      K), its word on a desktop; the word is always there for screen readers. A badge, no colour: the words say it -->
 {#snippet positionBadge(p: Player)}
   <span class="badge pos" title={POSITIONS[p.position]}
