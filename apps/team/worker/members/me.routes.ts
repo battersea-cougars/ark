@@ -4,6 +4,7 @@ import { ok, type Route } from "../api/api.route";
 import { body } from "../api/api.http";
 import { choosePlan, memberStanding, planNext, setEverydayRole, updateProfile } from "./members";
 import { eraseMember, memberData } from "./members.erase";
+import { endLive } from "../live/live";
 
 export const ME_ROUTES: Route[] = [
   {
@@ -25,7 +26,11 @@ export const ME_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["members"],
     // Delete your account: you're signed out everywhere, and the club keeps only what it must, about nobody
-    handle: async (c) => (await eraseMember(c.env.DB, c.memberId, c.today, c.now), ok()),
+    handle: async (c) => {
+      await eraseMember(c.env.DB, c.memberId, c.today, c.now);
+      await endLive(c.env, { memberId: c.memberId });
+      return ok();
+    },
   },
   {
     method: "PUT",

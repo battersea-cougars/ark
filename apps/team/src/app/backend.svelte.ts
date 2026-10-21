@@ -380,6 +380,10 @@ export const saveMember = (m: MemberRow) =>
 export const eraseMember = (memberId: number) =>
   save(() => api("DELETE", `/api/members/${memberId}`), "Account deleted");
 
+/** An admin signs a member out on every browser and phone (#72): they sign in again with a code. */
+export const signOutMember = (memberId: number) =>
+  save(() => api("POST", `/api/members/${memberId}/sign-out`), "Signed out everywhere");
+
 /** An admin sets a member's email (what they sign in with) and phone. */
 export const saveContact = (memberId: number, email: string, phone: string) =>
   save(() => api("PUT", `/api/members/${memberId}/contact`, { email, phone }));

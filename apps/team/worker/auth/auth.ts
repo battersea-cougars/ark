@@ -1,7 +1,8 @@
-// Sign-in (ADR 0023, ADR 0023). A member types their email; the browser gets a private nonce cookie and the member
+// Sign-in (ADR 0023). A member types their email; the browser gets a private nonce cookie and the member
 // gets a 6-digit code by email. The code signs them in only next to that cookie, so a forwarded email signs no one
 // in elsewhere. There's no link to tap: on an iPhone it would open a browser, never the installed app. Then a
-// session cookie for about 6 months, renewed while it's used, backed by an auth_sessions row an admin can revoke.
+// session cookie for about 6 months, renewed while it's used (with a new token each time, and never past a year),
+// backed by an auth_sessions row an admin can end (auth.sessions.ts).
 // New people ask for access; an admin approves them on Teammates.
 //
 // Every token (nonce, code, session) is random and stored only as its SHA-256 hash. The reply to an email
@@ -18,12 +19,14 @@ import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
-import { forgetDevice, forgetSessionDevices, registerDevice } from "../push/push";
+import { forgetDevice, registerDevice } from "../push/push";
+import { endSessions } from "./auth.sessions";
+import type { LiveEnv } from "../live/live";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
 
-export interface AuthEnv {
+export interface AuthEnv extends LiveEnv {
   DB: D1Database;
   /** "local" only under `vite` on your machine: no email leaves it, even with Gmail set up; the code is shown on screen. */
   TEAM_ENV?: string;
@@ -54,8 +57,13 @@ const MAX_CHALLENGES_PER_MEMBER_DAY = 30;
 /** Wrong codes one browser may type in a day before it stops taking any (and being sent new ones). */
 const MAX_FAILURES_PER_DAY = 20;
 const SESSION_DAYS = 180;
-/** A session's expiry moves on at most once a day, so most requests don't write. */
+const SESSION_MS = SESSION_DAYS * 86_400_000;
+/** However much it's used, a session ends a year after signing in (#72): then it's the code again. */
+const LIFETIME_MS = 365 * 86_400_000;
+/** A session's expiry moves on at most once a day, so most requests don't write; each time it gets a new token. */
 const RENEW_AFTER_MS = 24 * 3600_000;
+/** How long the token before a renewal still works: requests already on their way, a reply that got lost. */
+const ROTATE_GRACE_MS = 10 * 60_000;
 /** Asking to join stops while this many are waiting, so a script can't fill the list. */
 const MAX_PENDING = 50;
 
@@ -157,28 +165,60 @@ export async function mailSetup(env: AuthEnv): Promise<MailConfig> {
 
 // ─── Sessions ───
 
-/** The member a request's session cookie belongs to, and a renewed cookie when it's due one. */
+interface SessionRow {
+  id: number;
+  member_id: number;
+  last_seen_at: string;
+  created_at: string;
+  token_hash: string;
+}
+
+/**
+ * The live session a request's cookie is for: its current token, or the one before a renewal for a few minutes after
+ * (ROTATE_GRACE_MS). An inactive member's session isn't one.
+ */
+async function findSession(request: Request, env: AuthEnv, now: Date): Promise<(SessionRow & { hash: string }) | null> {
+  const value = cookie(request, cookieName(request, "session"));
+  if (!value) return null;
+  const hash = await sha256(value);
+  const row = await first<SessionRow>(
+    env.DB,
+    `SELECT s.id, s.member_id, s.last_seen_at, s.created_at, s.token_hash FROM auth_sessions s
+       JOIN members m ON m.id = s.member_id
+     WHERE (s.token_hash = ? OR (s.previous_hash = ? AND s.rotated_at > ?))
+       AND s.revoked_at IS NULL AND s.expires_at > ? AND m.status = 'active'`,
+    [hash, hash, addMs(now, -ROTATE_GRACE_MS), now.toISOString()],
+  );
+  return row && { ...row, hash };
+}
+
+/**
+ * The member a request's session belongs to, and a renewed cookie when it's due one. Renewing gives the session a new
+ * token (#72), so a copied cookie stops working a day or so after its member last used it; the expiry moves on, but
+ * never past a year from signing in.
+ */
 export async function sessionOf(
   request: Request,
   env: AuthEnv,
   now: Date,
-): Promise<{ memberId: number; setCookie?: string } | null> {
-  const value = cookie(request, cookieName(request, "session"));
-  if (!value) return null;
-  const row = await first<{ id: number; member_id: number; last_seen_at: string }>(
-    env.DB,
-    `SELECT s.id, s.member_id, s.last_seen_at FROM auth_sessions s JOIN members m ON m.id = s.member_id
-     WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ? AND m.status = 'active'`,
-    [await sha256(value), now.toISOString()],
-  );
+): Promise<{ memberId: number; sessionId: number; setCookie?: string } | null> {
+  const row = await findSession(request, env, now);
   if (!row) return null;
-  if (now.getTime() - Date.parse(row.last_seen_at) < RENEW_AFTER_MS) return { memberId: row.member_id };
-  await run(env.DB, `UPDATE auth_sessions SET last_seen_at = ?, expires_at = ? WHERE id = ?`, [
-    now.toISOString(),
-    addMs(now, SESSION_DAYS * 86_400_000),
-    row.id,
-  ]);
-  return { memberId: row.member_id, setCookie: setCookie(request, "session", value, SESSION_DAYS * 86_400) };
+  const who = { memberId: row.member_id, sessionId: row.id };
+  // Not due, or this is the token before a renewal that's just happened: as it is
+  if (row.hash !== row.token_hash || now.getTime() - Date.parse(row.last_seen_at) < RENEW_AFTER_MS) return who;
+  const fresh = token();
+  const expires = Math.min(now.getTime() + SESSION_MS, Date.parse(row.created_at) + LIFETIME_MS);
+  // Only one request renews it: another arriving at the same moment with the same token keeps it, in the grace
+  const renewed = await run(
+    env.DB,
+    `UPDATE auth_sessions SET token_hash = ?, previous_hash = token_hash, rotated_at = ?, last_seen_at = ?,
+       expires_at = ? WHERE id = ? AND token_hash = ?`,
+    [await sha256(fresh), now.toISOString(), now.toISOString(), new Date(expires).toISOString(), row.id, row.hash],
+  );
+  if (renewed.meta.changes !== 1) return who;
+  const maxAge = Math.max(0, Math.floor((expires - now.getTime()) / 1000));
+  return { ...who, setCookie: setCookie(request, "session", fresh, maxAge) };
 }
 
 /** A member's bank reference (ADR 0007), unless they have one. */
@@ -207,7 +247,7 @@ async function startSession(request: Request, env: AuthEnv, now: Date, memberId:
       (request.headers.get("user-agent") ?? "").slice(0, 200),
       now.toISOString(),
       now.toISOString(),
-      addMs(now, SESSION_DAYS * 86_400_000),
+      addMs(now, SESSION_MS),
     ],
   );
   await audit(env.DB, now, memberId, "sign_in", { method });
@@ -235,6 +275,7 @@ export async function handleAuth(
   if (pathname === "/api/auth/start" && m === "POST") return start(request, env, now, waitUntil);
   if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now);
   if (pathname === "/api/auth/sign-out" && m === "POST") return signOut(request, env, now);
+  if (pathname === "/api/auth/sign-out-everywhere" && m === "POST") return signOut(request, env, now, true);
   if (pathname === "/api/auth/device" && (m === "PUT" || m === "DELETE")) return device(request, env, now);
   if (pathname === "/api/auth/request" && m === "POST") return requestAccess(request, env, now);
   // Your own machine only: anywhere else it isn't there at all (null: the API's 404)
@@ -436,33 +477,26 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
  * signing in and out, because a device belongs to a sign-in: signing out forgets it.
  */
 async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
-  const value = cookie(request, cookieName(request, "session"));
-  const row =
-    value &&
-    (await first<{ id: number }>(
-      env.DB,
-      "SELECT id FROM auth_sessions WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?",
-      [await sha256(value), now.toISOString()],
-    ));
+  const row = await findSession(request, env, now);
   if (!row) return json({ error: "Sign in first." }, 401);
   if (request.method === "DELETE") await forgetDevice(env.DB, row.id, await body(request));
   else await registerDevice(env.DB, row.id, await body(request), now.toISOString());
   return json({ ok: true });
 }
 
-async function signOut(request: Request, env: AuthEnv, now: Date): Promise<Response> {
-  const value = cookie(request, cookieName(request, "session"));
-  if (value) {
-    const row = await first<{ id: number; member_id: number }>(
-      env.DB,
-      `SELECT id, member_id FROM auth_sessions WHERE token_hash = ? AND revoked_at IS NULL`,
-      [await sha256(value)],
+/**
+ * Sign this browser out, or (`everywhere`, from the You page) every browser and phone you're signed in on (#72). Its
+ * phones stop hearing from the club and its live pages close (auth.sessions.ts).
+ */
+async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = false): Promise<Response> {
+  const row = await findSession(request, env, now);
+  if (row) {
+    const sessions = await endSessions(
+      env,
+      now.toISOString(),
+      everywhere ? { memberId: row.member_id } : { sessionId: row.id },
     );
-    if (row) {
-      await run(env.DB, `UPDATE auth_sessions SET revoked_at = ? WHERE id = ?`, [now.toISOString(), row.id]);
-      await forgetSessionDevices(env.DB, row.id);
-      await audit(env.DB, now, row.member_id, "sign_out");
-    }
+    await audit(env.DB, now, row.member_id, "sign_out", everywhere ? { everywhere, sessions } : {});
   }
   return withCookies(json({ ok: true }), [setCookie(request, "session", "", 0)]);
 }

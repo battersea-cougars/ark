@@ -75,7 +75,9 @@ async function draftNight({ opened = true } = {}) {
       (await (await w.signedIn(`${who}@example.com`)).call("POST", `/api/tournaments/${id}/answer`, { answer: "in" }))
         .status,
     ).toBe(200);
-  // The draw (seeded) puts Cara first
+  // The draw (seeded) puts Cara first. Dana's session is renewed first, on the night (a new token, #72), so the
+  // draw has the luck to itself
+  await dana.call("GET", "/api/bootstrap", undefined, { now: DRAFT_DAY });
   w.luck(1);
   const draw = () => dana.call("POST", `/api/tournaments/${id}/draft/draw`, {}, { now: DRAFT_DAY });
   const open = () => dana.call("POST", `/api/tournaments/${id}/draft/open`, {}, { now: DRAFT_DAY });

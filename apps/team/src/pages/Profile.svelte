@@ -71,9 +71,9 @@
     saveEverydayRole(id);
   }
   const owed = $derived(owedBy(who.id));
-  // Off this device only; the app reloads to the sign-in screen
-  async function signOut() {
-    await api("POST", "/api/auth/sign-out").catch(() => {});
+  // Off this device, or every browser and phone you're signed in on (#72); the app reloads to the sign-in screen
+  async function signOut(everywhere = false) {
+    await api("POST", everywhere ? "/api/auth/sign-out-everywhere" : "/api/auth/sign-out").catch(() => {});
     location.replace("/");
   }
   function save(e: SubmitEvent) {
@@ -178,9 +178,16 @@
   {/if}
 
   <YourData disabled={locked}>
-    <button class="row" type="button" disabled={locked} onclick={signOut}>
+    <button class="row" type="button" disabled={locked} onclick={() => signOut()}>
       <span class="glyph"><Icon name="signOut" /></span>
       <span class="grow"><span class="title">Sign out</span><span class="sub">Of this device</span></span>
+    </button>
+    <button class="row" type="button" disabled={locked} onclick={() => signOut(true)}>
+      <span class="glyph"><Icon name="signOut" /></span>
+      <span class="grow"
+        ><span class="title">Sign out everywhere</span><span class="sub">Every browser and phone, this one too</span
+        ></span
+      >
     </button>
   </YourData>
 

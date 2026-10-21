@@ -66,7 +66,11 @@ export const ROUTES: Route[] = [
 ];
 
 /** Who's asking: their session, or (on your own machine, when asked for) the first admin. */
-async function whoIs(request: Request, env: Env, now: Date): Promise<{ memberId: number; setCookie?: string } | null> {
+async function whoIs(
+  request: Request,
+  env: Env,
+  now: Date,
+): Promise<{ memberId: number; sessionId?: number; setCookie?: string } | null> {
   const session = await sessionOf(request, env, now);
   if (session) return session;
   // Only on a private address (ADR 0023): a build that said "local" by mistake still opens to nobody
@@ -145,6 +149,7 @@ export async function handleApi(
       request,
       params: hit.m!.slice(1),
       memberId,
+      sessionId: who.sessionId ?? null,
       actions,
       today: londonToday(now),
       now: now.toISOString(),
@@ -216,9 +221,12 @@ export async function handleApi(
         return out;
       }
     }
-    // A session in use is renewed now and then
-    if (who.setCookie) res.headers.append("set-cookie", who.setCookie);
-    return res;
+    // A session in use is renewed now and then, with a new token. A reply from elsewhere (the live hub's stream) has
+    // headers that can't change, so it's copied first
+    if (!who.setCookie) return res;
+    const renewed = new Response(res.body, res);
+    renewed.headers.append("set-cookie", who.setCookie);
+    return renewed;
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     log.error("request.failed", e, { method: request.method, path: url.pathname, route: hit.r.path.source, member });

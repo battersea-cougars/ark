@@ -22,6 +22,7 @@
     saveContact,
     eraseMember,
     saveMember,
+    signOutMember,
     setQuarterly,
     setMemberEveryday,
     type AttendanceRow,
@@ -429,6 +430,14 @@
     if (done) shut();
   }
 
+  // Signing them out everywhere (#72): a lost phone, a shared laptop. They sign in again with a code.
+  let signingOut = $state(false);
+  async function signOutEverywhere() {
+    signingOut = true;
+    await signOutMember(member.player.id);
+    signingOut = false;
+  }
+
   // Closing with changes asks first (the footer); Discard or Save goes on to close
   function close() {
     if (changed) return void (asking = true);
@@ -680,6 +689,10 @@
                 <!-- A member who asked the club by email to delete their account (#30): as if they'd done it -->
                 <div class="group">
                   <h3 class="eyebrow">Their account</h3>
+                  <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out (#72) -->
+                  <button class="btn ghost sm start" type="button" disabled={signingOut} onclick={signOutEverywhere}
+                    >Sign out everywhere</button
+                  >
                   <button
                     class="btn ghost sm danger"
                     type="button"
@@ -1399,8 +1412,11 @@
     text-decoration: line-through;
   }
   /* Deleting their account: red words, and the one red fill is the tap that does it */
+  .start,
   .danger {
     justify-self: start;
+  }
+  .danger {
     color: var(--red-hot);
   }
   .delete {

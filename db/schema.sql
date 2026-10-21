@@ -431,10 +431,16 @@ CREATE TABLE auth_sessions (
   created_at TEXT NOT NULL,
   last_seen_at TEXT NOT NULL,
   expires_at TEXT NOT NULL,
-  revoked_at TEXT
+  revoked_at TEXT,
+  -- The token before the last renewal gave it a new one (#72): it still works for a few minutes after rotated_at, so
+  -- requests already on their way with it, or a reply with the new cookie that never arrived, don't sign anyone out
+  previous_hash TEXT,
+  rotated_at TEXT
 );
 
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);
+
+CREATE INDEX auth_sessions_previous ON auth_sessions (previous_hash);
 
 -- A device that wants notifications (ADR 0108): a phone with the store app (its Firebase token) or a browser with Web
 -- Push (its subscription's endpoint), and the sign-in it belongs to. Signing out forgets it, and the session running

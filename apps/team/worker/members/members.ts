@@ -120,7 +120,7 @@ export function canGrant(caller: ReadonlySet<Action>, actions: Iterable<string>)
 }
 
 /** Refuses changing a member who can do something the caller can't (an admin, to a member manager). */
-async function mayChange(db: D1Database, caller: ReadonlySet<Action>, memberId: number) {
+export async function mayChange(db: D1Database, caller: ReadonlySet<Action>, memberId: number) {
   if (!canGrant(caller, await actionsOf(db, memberId)))
     throw new HttpError(403, "They can do things you can't, so only someone with those powers can change them.");
 }
@@ -178,7 +178,7 @@ export async function updateMember(
   id: number,
   o: Record<string, unknown>,
   by: By,
-): Promise<{ letIn: boolean }> {
+): Promise<{ letIn: boolean; shutOut: boolean }> {
   const caller = by.actions;
   const existing = await first<{ id: number; status: string }>(db, "SELECT id, status FROM members WHERE id = ?", [id]);
   if (!existing) throw new HttpError(404, "No such member.");
@@ -247,7 +247,8 @@ export async function updateMember(
   for (const roleId of ids)
     statements.push(statement(db, "INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)", [id, roleId]));
   await batch(db, statements);
-  return { letIn: existing.status === "pending" && status === "active" };
+  // Made inactive (or back to waiting): their sign-ins end, so letting them back in later opens none of them (#72)
+  return { letIn: existing.status === "pending" && status === "active", shutOut: status !== "active" };
 }
 
 function roleFields(o: Record<string, unknown>) {
@@ -372,10 +373,16 @@ export const everydayOf = async (db: D1Database, id: number) =>
 
 /**
  * An admin sets how to reach a member: the email they sign in with (ADR 0023), and a phone. A blank email means
- * none; an email is one member's only.
+ * none; an email is one member's only. Whether the email changed: if it did, they're signed out everywhere (#72).
  */
-export async function setContact(db: D1Database, id: number, o: Record<string, unknown>, by: By) {
-  if (!(await first(db, "SELECT 1 FROM members WHERE id = ?", [id]))) throw new HttpError(404, "No such member.");
+export async function setContact(
+  db: D1Database,
+  id: number,
+  o: Record<string, unknown>,
+  by: By,
+): Promise<{ emailChanged: boolean }> {
+  const was = await first<{ email: string | null }>(db, "SELECT email FROM members WHERE id = ?", [id]);
+  if (!was) throw new HttpError(404, "No such member.");
   // Their email signs them in: changing a more powerful member's would be a way to become them
   await mayChange(db, by.actions, id);
   const email = text(o, "email", { optional: true, max: 254 }).toLowerCase() || null;
@@ -390,6 +397,7 @@ export async function setContact(db: D1Database, id: number, o: Record<string, u
     if (other) throw new HttpError(409, `${other.name} already has that email.`);
   }
   await run(db, "UPDATE members SET email = ?, phone = ? WHERE id = ?", [email, phone, id]);
+  return { emailChanged: (was.email?.toLowerCase() ?? null) !== email };
 }
 
 /** Make someone a Quarterly Member from today, or end it today (ADR 0007). */

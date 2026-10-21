@@ -51,6 +51,7 @@
   const label = (a: unknown) => (typeof a === "string" && a in ACTIONS ? ACTIONS[a as Action].name : String(a));
   const list = (v: unknown) => (Array.isArray(v) && v.length ? v.map(label).join(", ") : "nothing");
   const str = (v: unknown) => (typeof v === "string" && v ? v : "none");
+  const num = (v: unknown) => (typeof v === "number" ? v : 0);
   const pence = (v: unknown) => (typeof v === "number" ? pounds(v) : "?");
   const rates = (v: unknown) =>
     Array.isArray(v) && v.length
@@ -68,7 +69,9 @@
       case "sign_in":
         return `${who} signed in`;
       case "sign_out":
-        return `${who} signed out`;
+        return d.everywhere ? `${who} signed out everywhere` : `${who} signed out`;
+      case "member.signed_out":
+        return `${who} signed ${about} out everywhere (${num(from?.sessions)} sign-in${num(from?.sessions) === 1 ? "" : "s"} ended)`;
       case "sign_in.capped":
         return `${who}'s sign-in stopped for the day: too many wrong codes`;
       case "access.requested":

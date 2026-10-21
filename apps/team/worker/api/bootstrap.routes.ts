@@ -16,7 +16,8 @@ export const CLUB_ROUTES: Route[] = [
     path: /^\/api\/live$/,
     action: "authenticated",
     // Changes as they happen, as a stream (ADR 0072): only the names of the parts that changed, from the live hub
-    handle: async (c) => liveStream(c.env),
+    // Each closed when its sign-in ends (#72)
+    handle: async (c) => liveStream(c.env, { memberId: c.memberId, sessionId: c.sessionId }),
   },
   {
     method: "GET",

@@ -1,7 +1,7 @@
 # 0023. Everyone signs in with an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-09
+- **Date:** 2026-10-05 · updated 2026-10-21
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context
@@ -56,7 +56,19 @@ worker.
 - The session cookie holds a **random 256-bit token**. D1 keeps only its SHA-256 hash in `auth_sessions`, as it does
   for the nonce and the code. There is no signing key and no `TEAM_SESSION_SECRET`.
 - The session lasts 180 days. Its expiry moves on at most once a day while it's used, so most requests read and don't
-  write. Revoking the row, or making the member inactive, ends it on the next request.
+  write, and never past **a year from signing in**: then it's the code again. Each renewal gives the session a **new
+  token** (`previous_hash`, `rotated_at` in `auth_sessions`); the one before still works for 10 minutes, for requests
+  already on their way and a reply whose new cookie never arrived. Only one request renews it (the update names the
+  token it replaces), so two arriving together don't race. A copied cookie stops working once its member's next
+  renewal is 10 minutes old.
+- **Ending sessions** (`worker/auth/auth.sessions.ts`, #72): signing out (this browser), **Sign out everywhere** on
+  the You page (every browser and phone of yours, this one too), and an admin's **Sign out everywhere** on a member's
+  sheet (`POST /api/members/:id/sign-out`, `manage:Member`, never for someone who can do more than them, on the
+  record as `member.signed_out` with how many sign-ins it ended). A **new sign-in email** and being **made inactive**
+  end every session on their own, so letting someone back in opens none of their old ones. An ended session is
+  revoked, its phones go (its `push_devices` rows, store app and web push alike, so nothing more is sent to them) and
+  its live streams close at the hub ([0072](0072-live-updates.md)). Deleting an account deletes its sessions (the
+  phones go with them, `ON DELETE CASCADE`) and closes its streams.
 - Cookies: `cougars_session` and `cougars_nonce` (15 minutes), both `HttpOnly`, `SameSite=Lax` and `Path=/`. On https
   they're `Secure` and named with the `__Host-` prefix, so no sibling subdomain can set or shadow them.
 - Sign-ins, sign-outs, capped sign-ins and requests to join go in `audit_log` ([0095](0095-audit-log.md)).
@@ -88,7 +100,10 @@ worker.
 - Sign-in depends on email delivery.
 - No session secret to create, rotate and document.
 - A stolen database can't sign anyone in, because it holds only hashes. A stolen cookie works until the session is
-  revoked or the member is made inactive, the same as with a signed cookie.
+  ended (by the member, an admin, an email change or being made inactive) or its member's next renewal, whichever
+  is first; if the thief renews first, the member is the one signed out, and signs in again.
+- A member whose phone loses the reply that carried the new cookie, and stays offline more than 10 minutes, signs
+  in again.
 - Each API request makes one indexed D1 read for the session, well inside the free tier for a club.
 - The limits mean what they say: 5 wrong per code, 20 a day per browser, 30 codes a day per member. The odds of
   guessing are negligible (at most 150 tries a day against a one-in-a-million code that lasts 15 minutes).
@@ -119,3 +134,6 @@ worker.
 - 2026-10-10: The code limits count per browser (its nonce), with a ceiling of 30 a day per member, after a review
   showed 20 wrong guesses from anywhere locked a member out for a day (#69).
 - 2026-10-11: App Review's account signs in with a fixed code set by secrets in production only, and the store app's phone registers for notifications at `/api/auth/device`, belonging to its sign-in ([0108](0108-store-apps.md)).
+- 2026-10-21: Sessions end: an admin signs a member out everywhere from their sheet, a member everywhere from the You
+  page, and a new email or being made inactive does it on its own; an ended session's phones and live streams go with
+  it. Renewal rotates the token (10 minutes' grace) and a session ends a year after signing in (#72).

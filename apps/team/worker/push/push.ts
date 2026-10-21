@@ -83,10 +83,6 @@ export async function forgetDevice(db: D1Database, sessionId: number, o: Record<
   await run(db, "DELETE FROM push_devices WHERE token = ? AND session_id = ?", [o.token, sessionId]);
 }
 
-/** Signing out: this session's devices are forgotten (what was waiting for them goes too). */
-export const forgetSessionDevices = (db: D1Database, sessionId: number) =>
-  run(db, "DELETE FROM push_devices WHERE session_id = ?", [sessionId]);
-
 const vapidOf = (env: PushEnv): Vapid | null =>
   env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY
     ? { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY }

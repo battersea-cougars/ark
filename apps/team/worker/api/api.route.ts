@@ -30,6 +30,8 @@ export interface Ctx {
   request: Request;
   params: string[];
   memberId: number;
+  /** The sign-in the request came with; null for a local server's auto admin. */
+  sessionId: number | null;
   actions: Set<Action>;
   today: string;
   now: string;

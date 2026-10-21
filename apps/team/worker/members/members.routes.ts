@@ -5,6 +5,8 @@ import { checkImport, importMembers } from "./members.import";
 import { tellTheyreIn } from "./members.mail";
 import { first } from "@cougars/shared/d1";
 import { eraseMember } from "./members.erase";
+import { endSessions, liveSessions } from "../auth/auth.sessions";
+import { endLive } from "../live/live";
 import { markAll, type Mark } from "../entries/entries";
 import { memberExists } from "../dues/dues";
 import {
@@ -12,6 +14,7 @@ import {
   attendanceOf,
   attendanceOn,
   everydayOf,
+  mayChange,
   memberEmail,
   memberJoined,
   memberStanding,
@@ -92,7 +95,32 @@ export const MEMBERS_ROUTES: Route[] = [
     },
     action: "manage:Member",
     changes: ["members"],
-    handle: async (c) => (await setContact(c.env.DB, id(c), await body(c.request), c), ok()),
+    handle: async (c) => {
+      const { emailChanged } = await setContact(c.env.DB, id(c), await body(c.request), c);
+      // A new sign-in email: whoever was signed in as them with the old one is signed out (#72)
+      if (emailChanged) await endSessions(c.env, c.now, { memberId: id(c) });
+      return ok();
+    },
+  },
+  {
+    method: "POST",
+    path: /^\/api\/members\/(\d+)\/sign-out$/,
+    // Signed out everywhere: how many sign-ins they had, and none after
+    audit: {
+      event: "member.signed_out",
+      subject: (c) => liveSessions(c.env.DB, id(c), c.now),
+      about: (c) => ({ memberId: id(c) }),
+    },
+    action: "manage:Member",
+    changes: ["members"],
+    // A lost phone, a shared laptop, a worry: every browser and phone they're signed in on is signed out, and stops
+    // hearing from the club. They sign in again with a code.
+    handle: async (c) => {
+      await memberExists(c.env.DB, id(c));
+      await mayChange(c.env.DB, c.actions, id(c));
+      await endSessions(c.env, c.now, { memberId: id(c) });
+      return ok();
+    },
   },
   {
     method: "POST",
@@ -139,7 +167,8 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     handle: async (c) => {
-      const { letIn } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      const { letIn, shutOut } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      if (shutOut) await endSessions(c.env, c.now, { memberId: id(c) });
       // Let in after asking to join: they hear so, with the way in (ADR 0069)
       if (letIn) {
         const m = await first<{ name: string; email: string | null }>(
@@ -164,6 +193,10 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     // A member who asked the club, by email, to delete their account (#30): as if they'd done it themselves
-    handle: async (c) => (await eraseMember(c.env.DB, id(c), c.today, c.now), ok()),
+    handle: async (c) => {
+      await eraseMember(c.env.DB, id(c), c.today, c.now);
+      await endLive(c.env, { memberId: id(c) });
+      return ok();
+    },
   },
 ];

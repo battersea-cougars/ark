@@ -26,8 +26,15 @@ const frame = (event: string, data: unknown) => encoder.encode(`event: ${event}\
 /** At most one event this often: the changes in between go out together, at the end of it. */
 const EVENT_EVERY_MS = 1000;
 
+/** Whose a stream is: the member, and the sign-in it came with (none: a local server's auto admin). */
+interface Listener {
+  memberId: number;
+  sessionId: number | null;
+}
+
 export class LiveHub {
-  private readonly streams = new Set<ReadableStreamDefaultController<Uint8Array>>();
+  /** Every open stream, oldest first, and whose it is. */
+  private readonly streams = new Map<ReadableStreamDefaultController<Uint8Array>, Listener>();
   private heartbeat: ReturnType<typeof setInterval> | undefined;
   /** What's changed since the last event, waiting for the next. */
   private readonly changed = new Set<string>();
@@ -44,8 +51,28 @@ export class LiveHub {
   }
 
   async fetch(request: Request): Promise<Response> {
-    const { pathname } = new URL(request.url);
-    if (request.method === "GET" && pathname === "/subscribe") return this.subscribe();
+    const { pathname, searchParams } = new URL(request.url);
+    if (request.method === "GET" && pathname === "/subscribe") {
+      const session = searchParams.get("session");
+      return this.subscribe({
+        memberId: Number(searchParams.get("member")),
+        sessionId: session ? Number(session) : null,
+      });
+    }
+    // Signed out (#72): their streams close, so a session that's ended stops hearing the club at once
+    if (request.method === "POST" && pathname === "/end") {
+      const { memberId, sessionIds = [] } = (await request.json().catch(() => ({}))) as {
+        memberId?: number;
+        sessionIds?: number[];
+      };
+      let ended = 0;
+      for (const [c, who] of this.streams)
+        if (who.memberId === memberId || (who.sessionId !== null && sessionIds.includes(who.sessionId))) {
+          this.end(c);
+          ended++;
+        }
+      return Response.json({ ended });
+    }
     if (request.method === "POST" && pathname === "/notify") {
       const { changed = [], version } = (await request.json().catch(() => ({}))) as {
         changed?: string[];
@@ -80,13 +107,13 @@ export class LiveHub {
     this.send(frame("changed", event));
   }
 
-  /** One phone's stream, open until the page closes it. */
-  private subscribe(): Response {
+  /** One phone's stream, open until the page closes it, or its sign-in ends. */
+  private subscribe(who: Listener): Response {
     let controller!: ReadableStreamDefaultController<Uint8Array>;
     const stream = new ReadableStream<Uint8Array>({
       start: (c) => {
         controller = c;
-        this.streams.add(c);
+        this.streams.set(c, who);
         c.enqueue(encoder.encode(`retry: ${RETRY_MS}\n: hello\n\n`));
         this.heartbeat ??= setInterval(() => this.send(encoder.encode(": ping\n\n")), HEARTBEAT_MS);
       },
@@ -98,13 +125,23 @@ export class LiveHub {
 
   /** To every stream; one that's gone (the phone closed it, the network dropped it) is forgotten. */
   private send(bytes: Uint8Array) {
-    for (const c of this.streams) {
+    for (const c of this.streams.keys()) {
       try {
         c.enqueue(bytes);
       } catch {
         this.drop(c);
       }
     }
+  }
+
+  /** Close a stream from this end: the page's EventSource sees it go, and reconnects through its brake. */
+  private end(c: ReadableStreamDefaultController<Uint8Array>) {
+    try {
+      c.close();
+    } catch {
+      // gone already
+    }
+    this.drop(c);
   }
 
   private drop(c: ReadableStreamDefaultController<Uint8Array>) {
@@ -130,13 +167,29 @@ export interface LiveEnv {
 const hub = (env: LiveEnv) => env.LIVE!.get(env.LIVE!.idFromName(env.SITE_ENV ?? "local"));
 
 /** A member's stream of changes, from the hub; a 503 that says so on a server without one. */
-export async function liveStream(env: LiveEnv): Promise<Response> {
+export async function liveStream(env: LiveEnv, who: Listener): Promise<Response> {
   if (!env.LIVE)
     return Response.json(
       { error: "Live updates aren't on here; the page checks for changes instead." },
       { status: 503 },
     );
-  return hub(env).fetch("https://live/subscribe");
+  const q = new URLSearchParams({ member: String(who.memberId), session: String(who.sessionId ?? "") });
+  return hub(env).fetch(`https://live/subscribe?${q}`);
+}
+
+/** Close the streams of a member who's been signed out everywhere, or of these sign-ins (#72). Never fails. */
+export async function endLive(env: LiveEnv, which: { memberId: number } | { sessionIds: number[] }): Promise<void> {
+  if (!env.LIVE) return;
+  try {
+    await hub(env).fetch("https://live/end", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(which),
+    });
+  } catch (e) {
+    // The session is ended all the same: its stream hears nothing it shouldn't for long (the next request is a 401)
+    log.warn("live.end.failed", { error: String(e) });
+  }
 }
 
 /** After a change: tell everyone listening which parts, and the data version the change made. Never fails the change. */

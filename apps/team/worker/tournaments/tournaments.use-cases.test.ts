@@ -430,9 +430,10 @@ describe("a tournament, from setting it up to the draft", () => {
     it("picks wait until an admin opens the draft, and only an admin can open it", async () => {
       const { dana, cara, draft, pick, tournament, ids } = await signedUp();
       expect((await tournament()).draftState).toBe("scheduled");
+      expect((await draft(dana, "draw")).status).toBe(200);
+      // Drawn, not open: no picks yet, and a captain can't open it
       expect((await pick(cara, ids.Reg)).status).toBe(409);
       expect((await draft(cara, "open")).status).toBe(403);
-      expect((await draft(dana, "draw")).status).toBe(200);
       expect((await draft(dana, "open")).status).toBe(200);
       expect((await tournament()).draftState).toBe("open");
       expect((await pick(cara, ids.Reg)).status).toBe(200);
