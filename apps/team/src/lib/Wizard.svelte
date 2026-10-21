@@ -202,9 +202,11 @@
     background: var(--surface-3);
     transition: background-color var(--t) var(--ease);
   }
+  /* Room for the italic's lean past the box, or the last letter is clipped */
   .steps .label {
     overflow: hidden;
     text-overflow: ellipsis;
+    padding-inline-end: 0.2em;
   }
   .steps .n {
     color: var(--fg-subtle);
