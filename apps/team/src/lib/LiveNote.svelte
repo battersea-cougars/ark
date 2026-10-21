@@ -16,9 +16,11 @@
   .swap {
     display: inline-grid;
   }
+  /* Either may wrap on a narrow phone ("Updates every 30 seconds, to keep the club on the free plan"): the box is
+     as tall as the taller, so the swap still moves nothing */
   .word {
     grid-area: 1 / 1;
-    white-space: nowrap;
+    text-wrap: balance;
   }
   .ghost {
     visibility: hidden;

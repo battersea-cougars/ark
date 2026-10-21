@@ -955,6 +955,8 @@
   }
   .game {
     display: grid;
+    /* One column the window's width, never its content's (as .page): a long line wraps, it doesn't widen the page */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-6);
     width: 100%;
     max-width: 36rem;
@@ -1124,6 +1126,8 @@
     display: inline-flex;
     align-items: center;
     gap: var(--s-2);
+    text-align: center;
+    text-wrap: balance;
   }
   .keep-line .btn {
     gap: var(--s-1);
