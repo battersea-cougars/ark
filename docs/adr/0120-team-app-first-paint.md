@@ -97,8 +97,10 @@ preloaded with `font-display: swap`. The splash paints before any script.
   the club being read doesn't check again (#112, [0072](0072-live-updates.md)).
 - 2026-10-21: The bootstrap is read by an inline script, not a preload link: in WebKit the preload was never reused,
   so every open read the whole club twice (Chromium reused it). Measured on the build (`wrangler dev`, signed in,
-  Playwright, an iPhone 13 profile, cold cache, median of five, old and new served side by side): bootstrap reads on
-  open, WebKit 2 -> 1, Chromium 1 -> 1; LCP WebKit 296 -> 256 ms, Chromium 228 -> 224 ms, Chromium with 4x CPU on
-  Fast 4G 1.83 -> 1.74 s, Slow 4G 5.53 -> 5.32 s (this machine and these presets run slower than the table above's;
-  compare the pairs). With the reply sooner, WebKit mounted before the splash painted, so the splash sat unseen over
-  the page for 400 ms: it now goes at once when no fade runs, and lets taps through while fading.
+  Playwright, an iPhone 13 profile, cold cache, the two builds served side by side and opened in turn, on a busy
+  machine): bootstrap reads on open, WebKit 2 -> 1, Chromium 1 -> 1; WebKit, the median of ten, LCP 770 -> 542 ms and
+  the splash gone 632 -> 313 ms; Chromium with 4x CPU on Fast 4G, the median of six, LCP 1.98 -> 1.77 s (this machine
+  runs slower than the table above's; compare the pairs). With the reply sooner, WebKit mounted before the splash
+  painted, so the splash sat unseen over the page for 400 ms: it now goes at once when no fade runs, and lets taps
+  through while fading. (The WebKit runs need the date fix of the same day, dates built from their parts: before it,
+  Home showed "Can't reach the club's data" in WebKit.)
