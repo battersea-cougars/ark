@@ -6,7 +6,8 @@
   import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";
-  import { PLAYERS, POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Player } from "../demo/data";
+  import { PLAYERS, POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Plan, type Player } from "../demo/data";
+  import { rosterGroups } from "../lib/roster-groups";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -52,6 +53,16 @@
   const outs = $derived(next.out ?? []);
   // Quarterly skaters signed up: above those paying as they go, in and waiting (ADR 0030), badged so the order reads
   const ahead = $derived(new Set(session?.quarterly ?? []));
+  // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position; in or waiting, Quarterly as
+  // the queue has them; out, as their membership says, for whoever's told everyone's plan (null: not told)
+  const queued = (id: number): Plan =>
+    byId(id).position === "G" ? "Keeper" : ahead.has(id) ? "Subscription" : "Pay as you go";
+  const outPlan = (id: number): Plan | null =>
+    byId(id).position === "G"
+      ? "Keeper"
+      : can(perms, "manage:Member")
+        ? (db.members.find((m) => m.player.id === id)?.plan ?? null)
+        : null;
   const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
 
   let registering = $state(false);
@@ -217,11 +228,10 @@
     const bottom = Math.min(r.bottom, window.innerHeight);
     return bottom - top > 160 ? { x: r.left + r.width / 2, y: (top + bottom) / 2 } : undefined;
   }
-  // Where a player is on the page now: their row on a team, or their card or row under Who's in (in sign-up order)
+  // Where a player is on the page now: their row on a team, or their card or row under Who's in
   function playerRect(id: number): DOMRect | null {
     const el =
-      document.querySelector(`.team [data-player="${id}"]`) ??
-      document.querySelector(`.whos-in > :is(.cards, .list) > :nth-child(${next.going.indexOf(id) + 1})`);
+      document.querySelector(`.team [data-player="${id}"]`) ?? document.querySelector(`.whos-in [data-player="${id}"]`);
     const r = el?.getBoundingClientRect();
     return r && r.bottom > 0 && r.top < window.innerHeight ? r : null;
   }
@@ -464,25 +474,27 @@
   >
 {/snippet}
 
-<!-- Numbered by their place (Quarterly skaters first, then sign-up order), whatever the search leaves showing -->
 <!-- A search deals cards in and folds them away, or sifts rows; the rest glide to their places (as on Teammates) -->
-<!-- `letting`: the waiting list, for the team maker: each with Let in beside them -->
-{#snippet players(all: number[], numbered = false, letting = false)}
-  {@const ids = matching(all)}
-  {#if !ids.length}
-    <p class="hint">No one matches.</p>
-  {:else if view === "cards"}
+<!-- `n`: each one's number, if they're numbered; `letting`: the waiting list, for the team maker: each with Let in
+     beside them; `badged`: the Quarterly badge, where the list doesn't already say so -->
+{#snippet players(ids: number[], n: (id: number) => number | undefined, letting = false, badged = true)}
+  {#if view === "cards"}
     <div class="cards scroll-fill">
       {#each ids as id (id)}
-        {@const i = all.indexOf(id)}
-        <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:deal out:deal={{ out: true }}>
+        <div
+          class="slot"
+          data-player={id}
+          animate:flip={{ duration: cardMoveMs, easing: easeOut }}
+          in:deal
+          out:deal={{ out: true }}
+        >
           <PlayerCard
             player={byId(id)}
-            n={numbered ? i + 1 : undefined}
+            n={n(id)}
             you={id === who.id}
-            quarterly={ahead.has(id)}
+            quarterly={badged && ahead.has(id)}
             lifted={lifted?.id === id}
-            onopen={(el) => (lifted = { id, el, n: numbered ? i + 1 : undefined })}
+            onopen={(el) => (lifted = { id, el, n: n(id) })}
           />
           {#if letting}{@render letInButton(id, true)}{/if}
         </div>
@@ -494,13 +506,40 @@
         <div class="slot" animate:flip={{ duration: cardMoveMs, easing: easeOut }} in:sift out:sift={{ out: true }}>
           {#if letting}
             <div class="letting">
-              {@render player(id, numbered ? all.indexOf(id) + 1 : undefined)}
+              {@render player(id, n(id), badged)}
               {@render letInButton(id)}
             </div>
           {:else}
-            {@render player(id, numbered ? all.indexOf(id) + 1 : undefined)}
+            {@render player(id, n(id), badged)}
           {/if}
         </div>
+      {/each}
+    </div>
+  {/if}
+{/snippet}
+
+<!-- A tab of Who's coming, by plan: Quarterly, Pay as you go, Keepers, each under its heading and count (whoever the
+     search leaves). Skaters numbered by their place in the queue (Quarterly first, then sign-up order), keepers on
+     their own, their places counted apart (lib/roster-groups.ts). The headings scroll with the rows; a group the
+     search empties folds away, the rest gliding up -->
+{#snippet byPlan(all: number[], plan: (id: number) => Plan | null, numbered = false, letting = false)}
+  {@const { groups, numbers } = rosterGroups(all, plan)}
+  {@const shown = groups.map((g) => ({ ...g, ids: matching(g.ids) })).filter((g) => g.ids.length)}
+  {#if !shown.length}
+    <p class="hint">No one matches.</p>
+  {:else}
+    <div class="plans">
+      {#each shown as g (g.title)}
+        <section
+          class="plan-group"
+          aria-label={g.title}
+          animate:flip={{ duration: cardMoveMs, easing: easeOut }}
+          in:sift
+          out:sift={{ out: true }}
+        >
+          <h3 class="plan-head eyebrow">{g.title} <span class="num">{g.ids.length}</span></h3>
+          {@render players(g.ids, (id) => (numbered ? numbers.get(id) : undefined), letting, false)}
+        </section>
       {/each}
     </div>
   {/if}
@@ -685,16 +724,16 @@
     <div id="roster-panel" class="list-box" role="tabpanel">
       {#if shown === "in"}
         {#if next.going.length}
-          <div class="whos-in" class:gathered={gathering}>{@render players(next.going, true)}</div>
+          <div class="whos-in" class:gathered={gathering}>{@render byPlan(next.going, queued, true)}</div>
         {:else}
           <p class="hint">Nobody yet. If you ain't first, you last. Teams come out after sign-up closes.</p>
         {/if}
       {:else if shown === "waiting"}
-        {#if next.waitlist.length}{@render players(next.waitlist, true, arranging)}{:else}<p class="hint">
+        {#if next.waitlist.length}{@render byPlan(next.waitlist, queued, true, arranging)}{:else}<p class="hint">
             Nobody's waiting.
           </p>{/if}
       {:else if outs.length}
-        {@render players(outs)}
+        {@render byPlan(outs, outPlan)}
       {:else}
         <p class="hint">Nobody's said they're out.</p>
       {/if}
@@ -807,7 +846,9 @@
             </div>
           {:else}
             <p class="hint">Signed up after the teams were made. They'll be put on a team.</p>
-            {@render players(unplaced)}
+            {#if matching(unplaced).length}{@render players(matching(unplaced), () => undefined)}{:else}<p class="hint">
+                No one matches.
+              </p>{/if}
           {/if}
         </section>
       {/if}
@@ -1115,6 +1156,30 @@
   /* Cards stand in the box with room round them, so the box's edge never clips a card's outline or lift */
   .hybrid .list-box :global(.cards) {
     padding: var(--s-3);
+  }
+  /* Who's coming by plan: each group's heading small caps in the muted ink with its count, in the rows' own
+     inset, on the page's glass (no bar, no line); it scrolls with the rows. Space, not a rule, between groups */
+  .plans {
+    display: flow-root;
+  }
+  .plan-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-2);
+    margin: 0;
+    padding: var(--s-3) var(--row-pad, var(--s-3)) var(--s-1);
+  }
+  .plan-group + .plan-group .plan-head {
+    padding-top: var(--s-5);
+  }
+  .plan-head .num {
+    color: var(--fg);
+  }
+  .hybrid .plan-group :global(.cards) {
+    padding-top: var(--s-2);
+  }
+  .plan-group:has(.cards) .plan-head {
+    padding-inline: var(--s-3);
   }
   /* Each row in a slot of its own (so it can move): the hairline goes between slots */
   .tight > .slot + .slot {

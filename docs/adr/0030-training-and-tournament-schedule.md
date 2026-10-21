@@ -82,6 +82,12 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - The app gets the lists in that order, with who is Quarterly (`quarterly`), shown as a Quarterly badge (the word,
   at every width) on their row in the sign-up lists and a tag on their card, so the order reads. That tells every member who signed up on the Quarterly plan, which is the
   point of the badge; nobody else's plan is sent.
+- Friday's Who's coming shows each list (In, Waiting, Out) **grouped by plan**, under small headings with their
+  counts: Quarterly, Pay as you go, Keepers (the three plans, ADR 0007). Skaters keep their number in the one queue,
+  on across Quarterly and Pay as you go; keepers are numbered on their own, their places counted apart. The Quarterly
+  badge is left off inside the Quarterly group, where the heading says it. Out has no queue to read plans from, so
+  it groups skaters by membership for whoever sees everyone's plan (`manage:Member`) and as Skaters for anyone else
+  (`lib/roster-groups.ts`).
 - Tournaments and club events keep plain sign-up order.
 
 ### A tournament owns its rules
@@ -182,3 +188,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-20: Adding a player (the register's Add player, an admin putting someone in) keeps to the places: full
   means the waiting list, and only the team maker lets anyone in over the limit. Adding had put them in whatever the
   places, so a Friday could fill past its limit with nobody waiting.
+- 2026-10-21: Friday's Who's coming is grouped by plan (Quarterly, Pay as you go, Keepers), each with its count;
+  skaters keep their queue number across the first two, keepers are numbered on their own.
