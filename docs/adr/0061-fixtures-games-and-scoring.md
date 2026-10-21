@@ -19,7 +19,8 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   then the playoff games the tournament's settings ask for. They can be made again until a game has a result; then
   they're set (409).
 - **The Fight card is every game in the day's order**, each the same card as on the tournament's home
-  (lib/GameCard): its stage (Round robin, or the playoff's name), the teams, the score, Game N of M. The rounds only
+  (lib/GameCard), grouped under a header that sticks as its cards pass: Round robin, then Playoffs. A round robin
+  card doesn't say its stage again; a playoff's keeps its name (Semi-final, Final). The teams, the score, Game N of M. The rounds only
   order the round robin's games (nobody plays twice running); players never see them.
 - **Playoffs** are a setting copied from the series like the rules ([0030](0030-training-and-tournament-schedule.md)):
   a list of games by table position, each with a name, e.g. Final (1 v 2), or Final and 3rd place. None is fine.
@@ -108,3 +109,4 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-09: The Details button went: a tap anywhere on a game's row opens its matchup.
 
 - 2026-10-09: The Fight card is every game as the same card as the tournament's home; the rounds no longer show.
+- 2026-10-21: The Fight card groups its games under sticky headers (Round robin, Playoffs); round robin cards drop their stage line.

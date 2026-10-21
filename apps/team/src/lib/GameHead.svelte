@@ -16,6 +16,7 @@
     action,
     centre,
   }: {
+    /** Empty when a group's header already says it (the Fight card's Round robin). */
     stage: string;
     kanji?: string;
     playoff?: boolean;
@@ -34,7 +35,7 @@
        day, then the stage -->
   <span class="titles">
     <span class="place">{place}</span>
-    <span class="stage">{stage}<Kanji text={kanji} /></span>
+    {#if stage}<span class="stage">{stage}<Kanji text={kanji} /></span>{/if}
   </span>
   {#if centre}<span class="centre">{@render centre()}</span>{/if}
   <span class="end"

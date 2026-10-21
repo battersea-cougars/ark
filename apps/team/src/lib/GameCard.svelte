@@ -15,9 +15,12 @@
   let {
     tournament,
     game: g,
+    grouped = false,
   }: {
     tournament: Tournament;
     game: TournamentGame;
+    /** Under a group header that names the round robin: the card doesn't say it again (a playoff keeps its name). */
+    grouped?: boolean;
   } = $props();
 
   const type = $derived(typeById(tournament.typeId));
@@ -28,7 +31,7 @@
   const count = $derived(tournament.games?.length ?? 0);
   // 決勝 is the Final's own; any other playoff (a semi-final, 3rd place) gets the fights'
   const kanji = $derived(kanjiFor(type, playoff && /^(the )?final$/i.test(g.name.trim()) ? "final" : "fights"));
-  const stage = $derived(playoff ? g.name : "Round robin");
+  const stage = $derived(playoff ? g.name : grouped ? "" : "Round robin");
   const liveHref = $derived(`/tournaments/${type?.slug ?? ""}/games/${g.id}/live`);
   const place = $derived(`Game ${g.position} of ${count}`);
   const done = $derived(g.status === "done");
