@@ -60,12 +60,15 @@
   let {
     type,
     values = $bindable(),
+    step = $bindable(0),
     oncreated,
     onadvanced,
     close,
   }: {
     type: TournamentType;
     values: QuickValues;
+    /** The step in view: bound, so it outlasts a visit to Advanced */
+    step?: number;
     oncreated: (id: number) => void;
     /** The full editor, with these answers filled in. */
     onadvanced: () => void;
@@ -85,7 +88,6 @@
 
   // The steps, how far on it can go, and what stops the one in view
   const steps = $derived(quickSteps(draft));
-  let step = $state(0);
   const problems = $derived(steps.map((s) => quickProblem(s, values, draft)));
   const reachable = $derived(reachableStep(problems.map((p) => !p)));
   let creating = $state(false);
@@ -324,7 +326,7 @@
         </label>
         <div class="pane">
           {#if found.length}
-            <div class="list" aria-label="Members">
+            <div class="list tight" aria-label="Members">
               {#each found as m (m.id)}
                 {@const added = values.captains.includes(m.id)}
                 <button
@@ -334,7 +336,7 @@
                   disabled={added}
                   onclick={() => addCaptain(m.id)}
                 >
-                  <Person player={m.player} />
+                  <Person player={m.player} bare />
                   <span class="state">
                     {#if added}<span class="badge green">Added</span>
                     {:else}<span class="badge"><Icon name="plus" size={14} /> Add</span>{/if}
@@ -523,6 +525,16 @@
   }
   .row:disabled {
     cursor: default;
+  }
+  /* One line a member, as on Friday's list: just the name, so more of the club fits */
+  .tight .row {
+    min-height: 2.75rem;
+    padding-block: var(--s-2);
+  }
+  .tight .row :global(.avatar) {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.625rem;
   }
   .none {
     margin: 0;
