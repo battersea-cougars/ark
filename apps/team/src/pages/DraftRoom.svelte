@@ -100,12 +100,15 @@
   // edges off; if one does, it goes straight back
   function onscrollcapture(e: Event) {
     const el = e.target;
-    if (
-      el instanceof HTMLElement &&
-      el.scrollLeft &&
-      (el.matches(".room, .room > .body") || el.querySelector(":scope > .room"))
-    )
-      el.scrollLeft = 0;
+    // The window itself: never sideways
+    if (el === document || el === document.documentElement || el === document.body) {
+      if (window.scrollX) window.scrollTo(0, window.scrollY);
+      return;
+    }
+    if (!(el instanceof HTMLElement)) return;
+    if (el.scrollLeft && (el.matches(".room, .room > .body") || el.querySelector(":scope > .room"))) el.scrollLeft = 0;
+    // The view and the room are the window: only the body under the bar scrolls, so neither moves up either
+    if (el.scrollTop && (el.matches(".room") || el.querySelector(":scope > .room"))) el.scrollTop = 0;
   }
   let wasFull = !!document.fullscreenElement;
   function onfullscreenchange() {
@@ -180,7 +183,7 @@
   /* Never wider than the window, and never scrolled sideways: clip, not hidden, so nothing (a focus, a scroll into
      view) can shift it either way and cut both edges off */
   .room {
-    overflow-x: clip;
+    overflow: clip;
     max-width: none;
     gap: var(--s-3);
     padding-top: max(var(--s-3), env(safe-area-inset-top));
@@ -279,9 +282,14 @@
     overflow-x: hidden;
     overflow-y: auto;
   }
-  /* The shell's view under the room: nothing sideways to scroll to */
+  /* The shell's view under the room: not a scroller at all (the room is its height; the body under the bar scrolls) */
   :global(.view:has(> .room)) {
-    overflow-x: hidden;
+    overflow: clip;
+  }
+  /* And the page itself, while the room's open (the browser's full screen too) */
+  :global(html:has(.room)),
+  :global(body:has(.room)) {
+    overflow-x: clip;
   }
   @media (max-width: 640px) {
     .live {

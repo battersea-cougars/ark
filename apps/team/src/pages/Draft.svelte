@@ -1287,7 +1287,8 @@
     align-items: center;
     position: relative;
     gap: var(--s-2);
-    height: 5.5rem;
+    /* Room above and below the card in front (raised, lit) so its edges and glow are never cut */
+    height: 6.25rem;
     margin-block: 0;
     padding-inline: calc(50% - 5.5rem);
     overflow-x: auto;
@@ -1785,6 +1786,12 @@
       padding: 0 var(--s-2);
     }
   }
+  /* A small phone: the strip keeps the turn and its icons; your place in the order is on the ticker */
+  @media (max-width: 400px) {
+    .tools .mine {
+      display: none;
+    }
+  }
   /* A small phone: the four fit by their words alone (the icons go), never past the edge */
   @media (max-width: 420px) {
     .players .filter > :global(svg) {
@@ -1924,7 +1931,8 @@
   }
   /* The picks along the top, a size up: there's the room for it */
   .draft.room:not(.fit) .ticker {
-    height: 7rem;
+    /* Room above and below the card in front (raised, lit) so its edges and glow are never cut */
+    height: 7.75rem;
     padding-inline: calc(50% - 7.5rem);
   }
   .draft.room:not(.fit) .tick {
