@@ -218,7 +218,7 @@
       case "draft.closed":
         return `${who} closed the draft for ${str(to?.name)}`;
       case "draft.finished":
-        return `${who} closed the draft for ${str(to?.name)}: ${Number(to?.games ?? 0)} games on the fight card`;
+        return `${who} closed the draft for ${str(to?.name)}: ${Number(to?.games ?? 0)} matches on the Fight Card`;
       case "game.scored":
         return `${who} recorded a result: ${Number(to?.homeGoals ?? 0)}–${Number(to?.awayGoals ?? 0)}`;
       case "tournament_series.created":
