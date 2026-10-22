@@ -7,6 +7,7 @@ import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { MIN_TEAM_SIZE, onTheClock, playersNeeded } from "../../src/lib/draft";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
+import { fixturesCanBeMade, makeFixtures } from "./fixtures";
 import { can, type Action } from "../../src/access/actions";
 
 interface DraftTeam {
@@ -32,9 +33,20 @@ const teamsOf = (db: D1Database, tournamentId: number) =>
     [tournamentId],
   );
 
-/** Picks made so far: whose turn it is follows from how many. */
+/** Picks made so far (the record, and whether a draft has started). */
 const PICKS = `SELECT COUNT(*) FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
                WHERE t.tournament_id = ? AND p.pick_number IS NOT NULL`;
+
+/**
+ * The slot of the pick to make now (0: round one's first): the first pick number nobody has, less one. The turn
+ * follows the numbers, not how many picks there are (#125): a pick that came off leaves its number empty, filled
+ * first by the team whose pick it was (lib/draft.ts nextSlots, the same for the page). One param: the tournament.
+ */
+const NEXT_SLOT = `WITH taken AS (SELECT p.pick_number n FROM tournament_team_players p
+                     JOIN tournament_teams t ON t.id = p.team_id
+                     WHERE t.tournament_id = ? AND p.pick_number IS NOT NULL)
+                   SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM taken WHERE n = 1) THEN 0
+                     ELSE (SELECT min(n) FROM taken WHERE n + 1 NOT IN (SELECT n FROM taken)) END`;
 
 /** Members who said they're in, aren't captains and haven't been picked: who's left. */
 const POOL = `SELECT e.member_id FROM tournament_entries e
@@ -100,12 +112,22 @@ export async function drawOrder(db: D1Database, tournamentId: number) {
   );
 }
 
+/** Whether a game of the tournament has started or has a result: then its teams are set. */
+const played = (db: D1Database, tournamentId: number) =>
+  first(db, "SELECT 1 FROM tournament_games WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next')", [
+    tournamentId,
+  ]);
+
 /**
- * Step 2: an admin opens the draft, once the order's drawn: the captains can pick. A closed one reopens with its
- * picks and its order, where it left off (0066).
+ * Step 2: an admin opens the draft, once the order's drawn: the captains can pick (and each hears it, with their
+ * place: push.notices.ts draftOpen). A closed one reopens with its picks and its order, where it left off (0066),
+ * and its fixtures, which are between the same teams; not once a game's started or has a result, when the teams are
+ * set and a change is the Teams page's.
  */
 export async function openDraft(db: D1Database, tournamentId: number) {
-  await tournamentOf(db, tournamentId);
+  const t = await tournamentOf(db, tournamentId);
+  if (t.state === "closed" && (await played(db, tournamentId)))
+    throw new HttpError(409, "A game's been played: the teams are set. Change a team on the Teams page.");
   const captains = (await teamsOf(db, tournamentId)).length;
   if (captains < 2) throw new HttpError(409, "A draft needs at least two captains.");
   if (!(await isDrawn(db, tournamentId))) throw new HttpError(409, "Set the order first.");
@@ -140,6 +162,42 @@ export async function closeDraft(db: D1Database, tournamentId: number, leaveOut:
   if (left?.n && !leaveOut)
     throw new HttpError(409, `${left.n} still to pick. Pick them, or close it leaving them out.`);
   await run(db, "UPDATE tournaments SET draft_state = 'closed' WHERE id = ?", [tournamentId]);
+  // Its draft night leaves the agenda
+  await syncTournament(db, tournamentId);
+}
+
+/**
+ * Everyone's picked (or the rest are left out on purpose): one tap closes the draft and makes the fixtures (ADR 0060,
+ * 0061). Checked first, so a refusal changes nothing: the players left, and that the fixtures can be made (enough teams
+ * for the playoffs). Then the close is the claim (ADR 0121): only the request that turns it from open to closed makes
+ * the fixtures, so two taps at once close it once and make one set; the other is refused. Fixtures already made (before
+ * the draft, or before a reopen) are kept: they're between the same teams. Should making them fail after the close,
+ * the draft goes back to open, as it was.
+ */
+export async function finishDraft(db: D1Database, tournamentId: number, leaveOut: boolean) {
+  const t = await tournamentOf(db, tournamentId);
+  if (t.state !== "open")
+    throw new HttpError(409, t.state === "closed" ? "The draft is closed." : "The draft isn't open.");
+  const left = await first<{ n: number }>(db, `SELECT COUNT(*) n FROM (${POOL})`, [
+    tournamentId,
+    tournamentId,
+    tournamentId,
+  ]);
+  if (left?.n && !leaveOut)
+    throw new HttpError(409, `${left.n} still to pick. Pick them, or close it leaving them out.`);
+  const games = await first(db, "SELECT 1 FROM tournament_games WHERE tournament_id = ?", [tournamentId]);
+  if (!games) await fixturesCanBeMade(db, tournamentId);
+  const res = await run(db, "UPDATE tournaments SET draft_state = 'closed' WHERE id = ? AND draft_state = 'open'", [
+    tournamentId,
+  ]);
+  if (!res.meta.changes) throw new HttpError(409, "The draft is closed.");
+  if (!games)
+    try {
+      await makeFixtures(db, tournamentId);
+    } catch (e) {
+      await run(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ?", [tournamentId]);
+      throw e;
+    }
   // Its draft night leaves the agenda
   await syncTournament(db, tournamentId);
 }
@@ -190,10 +248,11 @@ async function oneGoalie(db: D1Database, teamId: number, memberId: number) {
 }
 
 /**
- * The captain on the clock (or someone running the draft) picks a member who said they're in. `turn`, when the app
- * sends it, is how many picks it had seen: a pick is for that turn and no other, so a tap that lands after the turn
- * moved on (a second phone, a slow network, the captain whose snake turn comes twice running) is refused, not spent
- * on their next pick. Without it, the turn is whatever it is when the pick lands.
+ * The captain on the clock (or someone running the draft) picks a member who said they're in. The turn follows the
+ * pick numbers (NEXT_SLOT, #125). `turn`, when the app sends it, is the slot it saw on the clock (with no picks taken
+ * off, how many picks it had seen): a pick is for that turn and no other, so a tap that lands after the turn moved on
+ * (a second phone, a slow network, the captain whose snake turn comes twice running) is refused, not spent on their
+ * next pick. Without it, the turn is whatever it is when the pick lands.
  */
 export async function pick(
   db: D1Database,
@@ -206,27 +265,25 @@ export async function pick(
   if (t.state !== "open")
     throw new HttpError(409, t.state === "closed" ? "The draft is closed." : "The draft isn't open yet.");
   const teams = await teamsOf(db, tournamentId);
-  const made = (await first<{ n: number }>(db, `SELECT (${PICKS}) n`, [tournamentId]))?.n ?? 0;
-  if (turn !== undefined && turn !== made) throw new HttpError(409, "Someone just picked: have another look.");
-  const team = teams[onTheClock(teams.length, made)];
+  const slot = (await first<{ n: number }>(db, `SELECT (${NEXT_SLOT}) n`, [tournamentId]))?.n ?? 0;
+  if (turn !== undefined && turn !== slot) throw new HttpError(409, "Someone just picked: have another look.");
+  const team = teams[onTheClock(teams.length, slot)];
   const running = can(by.actions, "run:Draft");
   if (!running && !teams.some((x) => x.captain === by.memberId)) throw new HttpError(403, "Only the captains pick.");
   if (!running && team.captain !== by.memberId) throw new HttpError(409, "It's not your pick.");
   await oneGoalie(db, team.id, memberId);
   // One statement, so two captains tapping at once can't both pick: it only goes in if they're still in the pool
-  // and no other pick has landed since
+  // and the pick on the clock is still this one (no other has landed, or come off, since). It takes that pick's number
   const res = await run(
     db,
     `INSERT INTO tournament_team_players (team_id, member_id, name, position, pick_number, picked_by)
-     SELECT ?, ?, '', (SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?),
-            (SELECT coalesce(max(p.pick_number), 0) + 1 FROM tournament_team_players p
-             JOIN tournament_teams t ON t.id = p.team_id WHERE t.tournament_id = ?), ?
-     WHERE ? IN (${POOL}) AND (${PICKS}) = ? AND ${NOT_A_SECOND_GOALIE}`,
+     SELECT ?, ?, '', (SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?), ?, ?
+     WHERE ? IN (${POOL}) AND (${NEXT_SLOT}) = ? AND ${NOT_A_SECOND_GOALIE}`,
     [
       team.id,
       memberId,
       team.id,
-      tournamentId,
+      slot + 1,
       // Who picked: the captain, or whoever runs the draft picking for them, which the app and the record say
       by.memberId,
       memberId,
@@ -234,7 +291,7 @@ export async function pick(
       tournamentId,
       tournamentId,
       tournamentId,
-      made,
+      slot,
       memberId,
       memberId,
       team.id,

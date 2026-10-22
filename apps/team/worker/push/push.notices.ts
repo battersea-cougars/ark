@@ -6,6 +6,7 @@ import { id, type Ctx, type Notify } from "../api/api.route";
 import { TABLES, aheadIn, type EntryKind } from "../entries/entries";
 import type { Notice } from "./push";
 import { announcementSummary } from "../announcements/announcements";
+import { nth } from "../../src/lib/draft";
 
 /** An event as a notification names it, and where it is in the app. */
 async function eventOf(db: D1Database, kind: EntryKind, eventId: number) {
@@ -145,5 +146,33 @@ export const announced: Notify = {
   after: async (c, _before, reply) => {
     const a = (await announcementSummary(c.env.DB, reply.id as number)) as { title: string; body: string } | null;
     return a ? [{ to: "everyone", topic: "announcements", title: a.title, body: a.body.slice(0, 180), path: "/" }] : [];
+  },
+};
+
+/**
+ * The draft's open (ADR 0060): each captain hears it on their phone, with their place in the order ("Winter Cup 2026
+ * Draft Open", "You pick 2nd"), and a tap opens the Draft page. Only the first time: a closed draft reopening isn't
+ * news (topic `draft`).
+ */
+export const draftOpen: Notify<string | undefined> = {
+  before: async (c) =>
+    (await first<{ state: string }>(c.env.DB, "SELECT draft_state state FROM tournaments WHERE id = ?", [id(c)]))
+      ?.state,
+  after: async (c, before) => {
+    if (before !== "none") return [];
+    const captains = await all<{ name: string; slug: string | null; memberId: number; pick: number }>(
+      c.env.DB,
+      `SELECT t.name, ty.slug, tt.captain_member_id memberId, tt.pick FROM tournaments t
+       JOIN tournament_teams tt ON tt.tournament_id = t.id LEFT JOIN tournament_types ty ON ty.id = t.type_id
+       WHERE t.id = ? AND t.draft_state = 'open' AND tt.captain_member_id IS NOT NULL AND tt.pick IS NOT NULL`,
+      [id(c)],
+    );
+    return captains.map((x) => ({
+      to: [x.memberId],
+      topic: "draft" as const,
+      title: `${x.name} Draft Open`,
+      body: `You pick ${nth(x.pick)}`,
+      path: x.slug ? `/tournaments/${x.slug}/draft` : "/",
+    }));
   },
 };

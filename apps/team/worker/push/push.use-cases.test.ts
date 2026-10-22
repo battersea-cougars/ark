@@ -201,7 +201,7 @@ describe("what a member chooses to hear", () => {
 
   it("hears everything until they say otherwise", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const all = { teams: true, places: true, sessionOff: true, announcements: true, dues: true };
+    const all = { teams: true, places: true, sessionOff: true, announcements: true, dues: true, draft: true };
     expect(await prefs(reg)).toEqual(all);
     expect((await boot(reg)).notifications).toEqual(all);
   });
@@ -242,8 +242,8 @@ describe("what a member chooses to hear", () => {
     expect((await put({})).status).toBe(400);
     expect((await put({ teams: "no" })).status).toBe(400);
     expect((await put({ gossip: false })).status).toBe(400);
-    // The draft's notifications aren't sent yet, so there's nothing to turn off
-    expect((await put({ draft: false })).status).toBe(400);
+    // The draft's open is sent to its captains (ADR 0060), so it's a topic to turn off
+    expect((await put({ draft: false })).status).toBe(200);
     expect(await prefs(reg)).toMatchObject({ teams: true });
   });
 

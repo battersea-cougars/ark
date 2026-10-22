@@ -3,7 +3,7 @@
 // Worker handlers in the fake world, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
-import { onTheClock } from "../../src/lib/draft";
+import { nextSlots, onTheClock } from "../../src/lib/draft";
 import { chargeDue } from "../dues/dues";
 import { testWorld } from "../testing";
 
@@ -90,7 +90,15 @@ async function draftNight({ captains = 2, signed = PLAYERS, kind = "draft" as "d
   const onClock = async () => {
     const order = await teams();
     const made = order.reduce((n, t) => n + t.players.length, 0);
-    const team = order[onTheClock(order.length, made)];
+    // The first pick number nobody has (#125): the turn follows the numbers, not the count
+    const taken = (
+      rows(
+        `SELECT p.pick_number n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+         WHERE t.tournament_id = ? AND p.pick_number IS NOT NULL`,
+        id,
+      ) as { n: number }[]
+    ).map((r) => r.n);
+    const team = order[onTheClock(order.length, nextSlots(taken, 1)[0])];
     return { phone: captainPhones[captainIds.indexOf(team.captain)], team, made };
   };
   return {
@@ -387,23 +395,34 @@ describe("someone leaves mid-draft", () => {
     return { ...d, first, second, picked };
   }
 
-  // The turn follows how many picks there are, so the first captain's pick saying they're out moves the turn back to
-  // the second captain, who picks a third player while the first has none.
-  // https://github.com/battersea-cougars/ark/issues/125
-  it.fails(
-    "the first captain's only pick says they're out: the first captain, now with nobody, is still on the clock (known bug #125)",
-    async () => {
-      const d = await threePicks();
-      const leaver = d.playerPhones[d.players.indexOf(d.picked[0])];
-      expect((await leaver.call("POST", `/api/tournaments/${d.id}/answer`, { answer: "out" }, at)).status).toBe(200);
-      expect((await d.teams())[0].players).toEqual([]);
-      // The second captain, with two already, can't take a third before the first has one; the first picks
-      const secondPhone = d.captainPhones[d.captainIds.indexOf(d.second.captain)];
-      const firstPhone = d.captainPhones[d.captainIds.indexOf(d.first.captain)];
-      expect((await d.pick(secondPhone, d.players[4])).status).toBe(409);
-      expect((await d.pick(firstPhone, d.players[4])).status).toBe(200);
-    },
-  );
+  // The turn follows the pick numbers, not how many picks there are (#125): the first pick saying they're out leaves
+  // pick 1 empty, and its captain fills it before the draft goes on.
+  it("the first captain's only pick says they're out: the first captain, now with nobody, is on the clock to fill it (#125)", async () => {
+    const d = await threePicks();
+    const leaver = d.playerPhones[d.players.indexOf(d.picked[0])];
+    expect((await leaver.call("POST", `/api/tournaments/${d.id}/answer`, { answer: "out" }, at)).status).toBe(200);
+    expect((await d.teams())[0].players).toEqual([]);
+    // The second captain, with two already, can't take a third before the first has one; the first picks
+    const secondPhone = d.captainPhones[d.captainIds.indexOf(d.second.captain)];
+    const firstPhone = d.captainPhones[d.captainIds.indexOf(d.first.captain)];
+    expect((await d.pick(secondPhone, d.players[4])).status).toBe(409);
+    // The pick says its turn as the page sees it: pick 1's, the empty one
+    expect((await d.pick(firstPhone, d.players[4], 0)).status).toBe(200);
+    const numbers = rows(
+      `SELECT p.member_id m, p.pick_number n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+         WHERE t.tournament_id = ? ORDER BY p.pick_number`,
+      d.id,
+    );
+    expect(numbers).toEqual([
+      { m: d.players[4], n: 1 },
+      { m: d.picked[1], n: 2 },
+      { m: d.picked[2], n: 3 },
+    ]);
+    // Then on in snake order from pick 4: the first captain's again
+    expect((await d.pick(secondPhone, d.players[5])).status).toBe(409);
+    expect((await d.pick(firstPhone, d.players[5], 3)).status).toBe(200);
+    expect((await d.teams()).map((t) => t.players.length)).toEqual([2, 2]);
+  });
 
   it("the last pick says they're out: it's as if Undo, and the captain who lost them picks again", async () => {
     const d = await threePicks();

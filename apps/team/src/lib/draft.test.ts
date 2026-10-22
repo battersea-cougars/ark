@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { myTurnLine, onTheClock, picksUntil } from "./draft";
+import { myTurnLine, nextSlots, onTheClock, picksUntil } from "./draft";
+
+/** The slots to come after `made` picks with no gaps, `left` of them. */
+const after = (made: number, left: number) =>
+  nextSlots(
+    Array.from({ length: made }, (_, i) => i + 1),
+    left,
+  );
 
 describe("onTheClock", () => {
   it("snakes: 1 2 3 3 2 1 1 2", () => {
@@ -16,12 +23,12 @@ describe("picksUntil: how soon a captain picks again, through the snake's turn",
   it("counts down to each of the 2nd team's picks, round the turnaround", () => {
     for (let made = 0; made < 15; made++) {
       const next = turns.find((p) => p > made)!;
-      expect(picksUntil(4, made, 1, 100)).toBe(next - 1 - made);
+      expect(picksUntil(4, after(made, 100), 1)).toBe(next - 1 - made);
     }
   });
   it("is never when the pool runs out first", () => {
-    expect(picksUntil(4, 2, 1, 3)).toBe(Infinity);
-    expect(picksUntil(4, 2, 1, 5)).toBe(4);
+    expect(picksUntil(4, after(2, 3), 1)).toBe(Infinity);
+    expect(picksUntil(4, after(2, 5), 1)).toBe(4);
   });
 });
 

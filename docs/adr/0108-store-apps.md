@@ -40,8 +40,9 @@ Three things shape it:
     ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
-    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`; `draft` joins it
-    when the draft's notifications are sent, so there's never a switch for nothing). Every topic is on until a member
+    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`, `draft`; a topic
+    joins it only once something's sent on it, so there's never a switch for nothing). `draft`: a draft's opening,
+    to each of its captains with their place ([0060](0060-the-draft.md)). Every topic is on until a member
     turns it off: `notification_prefs` holds only what they switched, and the statement that fills the outbox skips
     them, so choosing costs no round trip. The choice is the member's, not a device's: one copy, whichever phone or
     browser they sign in on. The You page shows a switch per topic to everyone; it's in the bootstrap
@@ -139,3 +140,5 @@ Three things shape it:
   Safari tab a line about the Home Screen instead of a prompt.
 - 2026-10-21: `challenges.cloudflare.com` joins the iPhone app's app-bound domains, for Turnstile on sign-in (#13); App
   Review's address skips the check.
+- 2026-10-22: The `draft` topic: opening a draft tells each captain, "<tournament> Draft Open", "You pick 2nd"
+  ([0060](0060-the-draft.md)).

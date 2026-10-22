@@ -167,8 +167,11 @@ const teamIdsOf = async (db: D1Database, id: number) =>
     )
   ).map((t) => t.id);
 
-/** An admin has the app make the fixtures: the round robin, then the playoffs waiting on the table. */
-export async function makeFixtures(db: D1Database, id: number) {
+/**
+ * Whether the app can make the fixtures now, refused in words if not: two teams or more, no game played, and enough
+ * teams for the playoffs. Its tournament, teams and playoffs, for making them.
+ */
+export async function fixturesCanBeMade(db: D1Database, id: number) {
   const t = await tournamentOf(db, id);
   const teams = await teamIdsOf(db, id);
   if (teams.length < 2) throw new HttpError(409, "Fixtures need at least two teams.");
@@ -183,6 +186,15 @@ export async function makeFixtures(db: D1Database, id: number) {
   const playoffs = JSON.parse(t.playoffs) as Playoff[];
   const short = playoffs.find((p) => Math.max(p.home, p.away) > teams.length);
   if (short) throw new HttpError(409, `${short.name} needs ${Math.max(short.home, short.away)} teams.`);
+  return { teams, playoffs };
+}
+
+/**
+ * An admin has the app make the fixtures: the round robin, then the playoffs waiting on the table. Also the second
+ * half of a draft's one-tap close (draft.ts finishDraft).
+ */
+export async function makeFixtures(db: D1Database, id: number) {
+  const { teams, playoffs } = await fixturesCanBeMade(db, id);
 
   const rounds = roundRobin(teams);
   const rows: (string | number | null)[][] = [];

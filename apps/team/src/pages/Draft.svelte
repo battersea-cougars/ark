@@ -1,10 +1,11 @@
 <script lang="ts">
-  // A captains' draft (ADR 0060). An admin opens it on the night, which draws the pick order at random (DraftOrder
-  // shuffles the names into it for whoever's watching); the captains take turns, in snake order, picking
-  // from the members who said they're in (captains are in automatically, never picked). The captain on the clock picks
-  // on their own phone: Pick marks a player, End turn sends it (ADR 0060). Whoever runs the draft can pick for them,
-  // undo the last pick, close it, reopen it (ADR 0060). A team takes one goalie (ADR 0060). Teams are edited on the
-  // Teams page, not here.
+  // A captains' draft (ADR 0060), led one step at a time, one main button each for whoever runs it: Shuffle (the pick
+  // order, drawn at random on the server; DraftOrder shuffles the names into it for whoever's watching), Open draft
+  // (each captain hears where they pick), the picking, then Close draft & make fixtures in one tap; closed, it says
+  // so, and Reopen is in Manage. The captains take turns, in snake order, picking from the members who said they're in
+  // (captains are in automatically, never picked). The captain on the clock picks on their own phone: Pick marks a
+  // player, End turn sends it. Whoever runs the draft can pick for them and undo the last pick. A team takes one
+  // goalie. Teams are edited on the Teams page, not here.
   //
   // Laid out as a draft room: a ticker of picks across the top (the one on the clock brought forward with a badge),
   // then two views, Players and Teams: side by side on a wide screen, tabs on anything narrower. The players are a
@@ -37,6 +38,7 @@
     closeDraft,
     draftPick,
     drawOrder,
+    finishDraft,
     makeFixtures,
     openDraft,
     resetDraft,
@@ -45,9 +47,17 @@
   import { checkForUpdates, everyHowOften, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { formatDayDate, londonISO, londonToday } from "../lib/dates";
-  import { MIN_TEAM_SIZE, myTurnLine, nth, onTheClock, orderDrawn, picksUntil, playersNeeded } from "../lib/draft";
+  import {
+    MIN_TEAM_SIZE,
+    myTurnLine,
+    nextSlots,
+    nth,
+    onTheClock,
+    orderDrawn,
+    picksUntil,
+    playersNeeded,
+  } from "../lib/draft";
   import { teamsForPlayoffs } from "../lib/fixtures";
-  import { navigate } from "../app/router.svelte";
 
   let { typeId }: { typeId: number } = $props();
 
@@ -82,7 +92,16 @@
   const drawn = $derived(orderDrawn(teams));
   const open = $derived(phase === "open");
   const live = $derived(open && pool.length > 0);
-  const clock = $derived(teams.length ? onTheClock(teams.length, made) : -1);
+  // The picks to come, one for each player left, as slots of the snake: the turn follows the pick numbers, so a pick
+  // that came off (the player said they're out) is filled first, by its own team (#125). With no gaps, from `made`
+  const slots = $derived(
+    nextSlots(
+      picks.map((p) => p.pick),
+      pool.length,
+    ),
+  );
+  const slot = $derived(slots[0] ?? made);
+  const clock = $derived(teams.length ? onTheClock(teams.length, slot) : -1);
   const running = $derived(can(perms, "run:Draft"));
   const mine = $derived(clock >= 0 && teams[clock].captainMemberId === me().id);
   const canPick = $derived(open && (running || mine));
@@ -102,18 +121,15 @@
   // The teams in pick order, yours first
   const teamOrder = $derived([...(myTeam >= 0 ? [myTeam] : []), ...teams.map((_, i) => i).filter((i) => i !== myTeam)]);
   // How many picks until a team's turn (0: now); never, once the pool runs out first
-  const turnIn = (i: number) => {
-    for (let k = 0; k < pool.length; k++) if (onTheClock(teams.length, made + k) === i) return k;
-    return Infinity;
-  };
+  const turnIn = (i: number) => picksUntil(teams.length, slots, i);
   // Who picks after the one on the clock, and a captain's own place (round one's, from the order)
-  const nextUp = $derived(teams.length ? onTheClock(teams.length, made + 1) : -1);
+  const nextUp = $derived(teams.length && slots.length > 1 ? onTheClock(teams.length, slots[1]) : -1);
   // A captain's: their place and how soon they pick again (lib/draft.ts). Not for someone picked onto a team, nor an
   // admin who isn't a captain
   const myPlace = $derived.by(() => {
     const t = myTeam >= 0 ? teams[myTeam] : undefined;
     if (!t || t.captainMemberId !== me().id || typeof t.pick !== "number") return "";
-    return myTurnLine(t.pick, picksUntil(teams.length, made, myTeam, pool.length));
+    return myTurnLine(t.pick, picksUntil(teams.length, slots, myTeam));
   });
   const untilMine = $derived(myTeam < 0 || turnIn(myTeam) === Infinity ? -1 : turnIn(myTeam));
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
@@ -153,7 +169,7 @@
     for (const p of picks)
       out.push({ n: p.n, team: p.team, took: p.memberId ? firstName(p.memberId) : p.name, by: pickerOf(p, p.team) });
     if (phase !== "closed")
-      for (let n = made + 1; n <= made + pool.length; n++) out.push({ n, team: onTheClock(teams.length, n - 1) });
+      slots.forEach((slot, k) => out.push({ n: made + 1 + k, team: onTheClock(teams.length, slot) }));
     return out;
   });
   let tickerEl = $state<HTMLElement | undefined>();
@@ -342,7 +358,8 @@
     if (!tournament || !chosenPlayer || ending) return;
     ending = true;
     try {
-      await draftPick(tournament.id, chosenPlayer.id, made);
+      // The turn it's for: the slot on the clock as this page sees it (the server refuses it once that's moved on)
+      await draftPick(tournament.id, chosenPlayer.id, slot);
     } finally {
       ending = false;
     }
@@ -376,12 +393,22 @@
   // The strip says "today" on the day, rather than the date
   const whenSaid = $derived(tournament?.draftOn === londonToday() ? "today" : when);
 
-  // Closing with members still to pick: say so, and ask before leaving them out
+  // The fixtures, and whether any game's started or has a result: then the teams are set and it can't reopen
+  const games = $derived(tournament?.games ?? []);
+  const played = $derived(games.some((g) => g.status !== "next" || g.homeGoals !== null));
+  // The last step (ADR 0060): one tap closes the draft and makes the fixtures (fixtures already made are kept, as
+  // they're between the same teams). Without enough teams for the playoffs, and none made, it can only close
+  const makesFixtures = $derived(!games.length && !tooFew);
+  const finishes = $derived(games.length > 0 || !tooFew);
+  const finishLabel = $derived(makesFixtures ? "Close draft & make fixtures" : "Close the draft");
+  const finish = (leaveOut = false) =>
+    tournament && job(() => (finishes ? finishDraft(tournament.id, leaveOut) : closeDraft(tournament.id, leaveOut)));
+  // Closing with members still to pick (Manage): say so, and ask before leaving them out
   let confirmLeaveOut = $state(false);
   async function close() {
     if (!tournament) return;
     if (pool.length && !confirmLeaveOut) return void (confirmLeaveOut = true);
-    await closeDraft(tournament.id, pool.length > 0);
+    await finish(pool.length > 0);
     confirmLeaveOut = false;
     manageOpen = false;
   }
@@ -406,9 +433,20 @@
   }
   let manageOpen = $state(false);
   const tools = $derived.by(() => {
-    if (!tournament || phase === "closed") return [] as Tool[];
+    if (!tournament) return [] as Tool[];
     const id = tournament.id;
     const list: Tool[] = [];
+    // Closed: the quiet way back, until a game's been played and the teams are set (the Teams page changes them then)
+    if (phase === "closed") {
+      if (running && !played)
+        list.push({
+          icon: "undo",
+          label: "Reopen the draft",
+          sub: "The captains carry on where they left off; the fixtures stay",
+          run: () => void job(() => openDraft(id)).then(() => (manageOpen = false)),
+        });
+      return list;
+    }
     if (running && open && made)
       list.push({
         icon: "undo",
@@ -426,7 +464,7 @@
     if (running && open)
       list.push({
         icon: "check",
-        label: "Close the draft",
+        label: finishLabel,
         sub: pool.length ? `${pool.length} still to pick` : "Everyone's picked: set the teams",
         run: () => void close(),
       });
@@ -455,16 +493,6 @@
     } finally {
       busy = false;
     }
-  }
-
-  async function fixtures() {
-    if (tournament && (await makeFixtures(tournament.id))) navigate(`/tournaments/${type.slug}/schedule`);
-  }
-  // Everyone's picked: one button ends the draft and, when the teams can have them, makes the fixtures
-  const canFixture = $derived(!tournament?.games?.length && !tooFew);
-  async function finish() {
-    if (!tournament || (await closeDraft(tournament.id)) === null) return;
-    if (canFixture) await fixtures();
   }
 
   // While it's open, the other captains' picks show up as they're made, from the hub's stream (ADR 0072), with a
@@ -585,16 +613,10 @@
       <div class="plist" aria-label="Players left">
         {#each listed as p (p.id)}{@render playerRow(p, true)}{:else}<p class="hint none">No one matches.</p>{/each}
       </div>
-    {:else if open && running}
-      <!-- Everyone's picked: the way on, right where the players were -->
-      <div class="finished">
-        <p class="hint">Everyone's picked.</p>
-        <button class="btn primary" onclick={finish}
-          >{canFixture ? "End the draft and make the fixtures" : "End the draft"}</button
-        >
-      </div>
     {:else if open}
-      <p class="hint">Everyone's picked. Whoever runs the draft closes it to set the teams.</p>
+      <p class="hint">
+        {running ? "Everyone's picked." : "Everyone's picked. Whoever runs the draft closes it to set the teams."}
+      </p>
     {:else}
       <p class="hint">Nobody's signed up yet.</p>
     {/if}
@@ -669,26 +691,10 @@
       {/snippet}
     </EmptyState>
   {:else}
-    <!-- A closed draft's next steps, on the page: reopen it, make the fixtures. Everything else whoever runs it does
-         is behind Manage, out of the picker's way (the admin controls pattern) -->
-    {#if running && phase === "closed"}
-      <div class="controls run">
-        <button class="btn sm outline" onclick={() => openDraft(tournament.id)}>Reopen</button>
-        {#if !tournament.games?.length && tooFew}
-          <p class="ask warn">The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings</p>
-        {:else if !tournament.games?.length}
-          <button class="btn primary sm" onclick={fixtures}>Make the fixtures</button>
-        {/if}
-      </div>
-    {/if}
-
     <!-- Where you stand, as one badge, and the tools. Always the same height. How to pick is in Rules, not here -->
-    <div class="strip" class:set={phase === "closed"}>
+    <div class="strip">
       {#if phase === "closed"}
-        <span class="turn done">Teams set</span>
-        {#if tournament.games?.length}<a class="btn ghost sm" href="/tournaments/{type.slug}/schedule"
-            >See the fixtures</a
-          >{/if}
+        <span class="turn done">Draft closed</span>
       {:else if live}
         <!-- Who's picking, said plainly (an admin picking for them sees "Pick for …" on the button, not here); a tap
              brings the ticker back to their card -->
@@ -735,37 +741,79 @@
       </div>
     </div>
 
-    <!-- Before it starts: the captains, no numbers until the order's set, then shuffled into it for everyone on the
-         page. Whoever runs it sets the order, then starts the draft. Once it starts this folds away: the page is the
-         draft, and the order's on the team cards -->
+    <!-- Before it starts: the captains, no numbers until the order's drawn, then shuffled into it for everyone on the
+         page. The page leads whoever runs it one step at a time, one main button each (ADR 0060): Shuffle, then Open
+         draft; the players and teams stay hidden until the order's drawn. Once it starts this folds away: the page is
+         the draft, and the order's on the team cards -->
     {#if phase !== "open" && phase !== "closed"}
       <div class="before" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
         <DraftOrder {type} captains={order} {drawn} />
-        {#if running}
-          <!-- One line, the same height whichever button it holds, so setting the order moves nothing -->
-          <div class="start">
-            {#if !drawn}
-              <p class="ask">Who picks first is drawn at random, for everyone watching.</p>
-              <button class="btn primary sm" disabled={busy} onclick={() => job(() => drawOrder(tournament.id))}
-                >Set the order</button
-              >
+        <!-- The step: one line and its button, the same block whichever step, so the draw arriving moves nothing -->
+        <div class="step" class:member={!running}>
+          {#if !running}
+            <p class="ask">
+              <strong>Draft not open yet.</strong>
+              {drawn
+                ? "It opens when whoever runs it says go."
+                : "The pick order's drawn first, for everyone watching."}
+            </p>
+          {:else if !drawn}
+            <p class="ask">Who picks first is drawn at random, for everyone watching.</p>
+            <button class="btn primary" disabled={busy} onclick={() => job(() => drawOrder(tournament.id))}
+              >Shuffle</button
+            >
+          {:else}
+            {#if short}
+              <p class="ask">A team's at least {MIN_TEAM_SIZE}: needs {needed} signed up, {pool.length} so far</p>
+            {:else if tooFew}
+              <p class="ask warn">
+                The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings
+              </p>
             {:else}
-              {#if short}
-                <p class="ask">A team's at least {MIN_TEAM_SIZE}: needs {needed} signed up, {pool.length} so far</p>
-              {:else if tooFew}
-                <p class="ask warn">
-                  The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings
-                </p>
-              {:else}
-                <p class="ask">The captains pick in this order, snaking back each round.</p>
-              {/if}
-              <button
-                class="btn primary sm"
-                disabled={short || busy}
-                onclick={() => job(() => openDraft(tournament.id))}>Start the draft</button
-              >
+              <p class="ask">
+                Opening it tells each captain where they pick. They pick in this order, snaking back each round.
+              </p>
             {/if}
-          </div>
+            <button class="btn primary" disabled={short || busy} onclick={() => job(() => openDraft(tournament.id))}
+              ><Icon name="gong" size={18} />Open draft</button
+            >
+          {/if}
+        </div>
+      </div>
+    {/if}
+
+    <!-- The last step: everyone's picked, and one tap closes the draft and makes the fixtures -->
+    {#if open && running && !pool.length}
+      <div class="step">
+        {#if tooFew && !games.length}
+          <p class="ask warn">The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings</p>
+        {:else}
+          <p class="ask">
+            <strong>Everyone's picked.</strong>
+            {makesFixtures ? "Close it to set the teams and make the fixtures." : "Close it to set the teams."}
+          </p>
+        {/if}
+        <button class="btn primary" disabled={busy} onclick={() => finish()}
+          ><Icon name="check" size={18} />{finishLabel}</button
+        >
+      </div>
+    {/if}
+
+    <!-- Closed: the teams are set. Fixtures not made yet (the playoffs needed more teams): that's the one step left -->
+    {#if phase === "closed"}
+      <div class="step" class:member={!running || !!games.length || tooFew}>
+        <p class="ask">
+          {games.length ? "The teams are set and the fixtures are out." : "The teams are set."}
+          {#if running && !games.length && tooFew}<span class="warn"
+              >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
+            >{/if}
+        </p>
+        {#if games.length}
+          <a class="btn outline sm" href="/tournaments/{type.slug}/schedule">See the fixtures</a>
+        {:else if running && !tooFew}
+          <button class="btn primary" disabled={busy} onclick={() => job(() => makeFixtures(tournament.id))}
+            >Make the fixtures</button
+          >
         {/if}
       </div>
     {/if}
@@ -865,7 +913,9 @@
       </div>
     {/if}
 
-    {#if !columns}
+    {#if !drawn && phase !== "open" && phase !== "closed"}
+      <!-- The players and teams wait for the order: the first thing on the night is the draw -->
+    {:else if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
       <div class="tab-row">
         <div class="tablist" role="tablist" aria-label="Draft">
@@ -1160,16 +1210,33 @@
     gap: var(--s-3);
     min-width: 0;
   }
-  .start {
+  /* A step of the night: what's next in a line, and its one main button. Side by side on a desktop; on a phone the
+     button takes the width under the line, where a thumb is */
+  .step {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: var(--s-3);
-    min-height: var(--control-h-sm);
+    min-height: var(--control-h);
   }
-  .start .ask {
+  .step .ask {
     flex: 1;
     min-width: 0;
+  }
+  .step .ask strong {
+    color: var(--fg);
+  }
+  .step .warn {
+    color: var(--tone-amber);
+  }
+  @media (max-width: 599px) {
+    .step:not(.member) {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .step:not(.member) .btn {
+      width: 100%;
+    }
   }
 
   /* A phone, the draft open: the window's height; the players (or the teams) take what's left and scroll inside, so
@@ -1259,18 +1326,6 @@
     grid-template-columns: minmax(0, 1fr);
     padding-bottom: 6rem;
   }
-  .run {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-2);
-  }
-  .controls {
-    justify-content: flex-end;
-  }
-  .controls {
-    align-items: center;
-    min-height: var(--control-h-sm);
-  }
   .ask {
     margin: 0 var(--s-2) 0 0;
     color: var(--fg-body);
@@ -1298,12 +1353,6 @@
     gap: var(--s-3);
     min-height: 2.6rem;
     min-width: 0;
-  }
-  /* Teams set, with See the fixtures beside it: on a narrow phone the tools take the next line (nothing changes here
-     any more, so nothing jumps) */
-  .strip.set {
-    flex-wrap: wrap;
-    row-gap: var(--s-2);
   }
 
   /* End turn: floats at the bottom centre over the page, above the tabs on a phone; the page keeps room for it at
@@ -1350,16 +1399,6 @@
     padding-right: var(--s-3);
   }
   /* Where the draft stands, in the display face on the page: words, not a block (a filled block reads as a button) */
-  /* Everyone's picked: the button to end it in the middle of the players' space */
-  .finished {
-    display: grid;
-    flex: 1;
-    place-content: center;
-    justify-items: center;
-    gap: var(--s-3);
-    min-height: 12rem;
-    text-align: center;
-  }
   /* The turn as a button: it looks like the label it is */
   .turn.as-btn {
     padding: 0;

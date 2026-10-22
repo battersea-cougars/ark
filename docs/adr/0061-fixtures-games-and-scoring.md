@@ -1,7 +1,7 @@
 # 0061. The app makes a tournament's fixtures, and each game is scored live by one person on its own page
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-21
+- **Date:** 2026-10-07 · updated 2026-10-22
 - **Merges:** 0071, 0090
 
 ## Context
@@ -17,7 +17,8 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - **Fixtures need two teams, nothing more**: a draft's captains ([0060](0060-the-draft.md)) or the teams that entered.
   An admin has the app make them: a round robin by the circle method (every team plays every other once, in rounds),
   then the playoff games the tournament's settings ask for. They can be made again until a game has a result; then
-  they're set (409).
+  they're set (409). A captains' draft makes them as it closes, in the same tap (Close draft & make fixtures,
+  [0060](0060-the-draft.md)), unless they're already made.
 - **The Fight card is every game in the day's order**, each the same card as on the tournament's home
   (lib/GameCard), grouped under a header: Round robin, then Playoffs. One scroller (lib/list-scroll.ts): the page scrolls until the header reaches the top, then the cards pass in a box under it, never under a bar, and the header takes the name of the group in view. Each team's record under its name reads as a league writes it: 1-1-0 · 2 pts. A round robin
   card doesn't say its stage again; a playoff's keeps its name (Semi-final, Final). The teams, the score, Game N of M. The rounds only
@@ -212,3 +213,4 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   whistle. The same goal from two phones is still two goals (#114).
 - 2026-10-22: A group result put right while a playoff's being played no longer changes that playoff's teams: only
   one still to start takes them from the table, decided in its statement (#122).
+- 2026-10-22: A draft's close makes the fixtures in the same request, keeping any already made ([0060](0060-the-draft.md)).

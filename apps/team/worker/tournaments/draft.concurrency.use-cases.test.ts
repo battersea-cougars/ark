@@ -95,7 +95,7 @@ async function draftNight(seed: number) {
   }
   const captainPhones: Phone[] = [];
   for (let i = 1; i <= CAPTAINS; i++) captainPhones.push(await w.signedIn(`c${i}@example.com`));
-  const draft = (as: Phone, what: "draw" | "open" | "close") =>
+  const draft = (as: Phone, what: "draw" | "open" | "close" | "finish") =>
     as.call("POST", `/api/tournaments/${id}/draft/${what}`, {}, at);
   /** A pick, for the turn the app sees now (the picks made so far), as the Draft page sends it. */
   const pick = (as: Phone, memberId: number, turn = picks().length) =>
@@ -303,6 +303,31 @@ describe("draft night: taps at once", () => {
       w.db.interleave(null);
       expect(d.picks()).toHaveLength(PLAYERS);
       d.holds();
+    },
+  );
+
+  it.each(SEEDS)(
+    "Close the draft and make the fixtures, tapped by two admins at once: closed once, one set of fixtures (seed %i)",
+    async (seed) => {
+      const d = await opened(seed);
+      // Everyone picked, a goalie only where the team has none
+      for (let turn = 0; d.pool().length; turn++) {
+        const { phone } = d.onClock();
+        let landed = false;
+        for (const m of d.pool()) if ((landed = (await d.pick(phone, m)).status === 200)) break;
+        expect(landed).toBe(true);
+        expect(turn).toBeLessThan(PLAYERS);
+      }
+      w.db.interleave(seed);
+      const replies = await Promise.all([d.draft(d.dana, "finish"), d.draft(d.dev, "finish")]);
+      w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
+      const games = w.db.raw
+        .prepare("SELECT home_team_id h, away_team_id a FROM tournament_games WHERE tournament_id = ?")
+        .all(d.id) as { h: number; a: number }[];
+      // Eight teams, every one playing every other once: 28 games, none twice
+      expect(games).toHaveLength((CAPTAINS * (CAPTAINS - 1)) / 2);
+      expect(new Set(games.map((g) => [g.h, g.a].sort().join())).size).toBe(games.length);
     },
   );
 

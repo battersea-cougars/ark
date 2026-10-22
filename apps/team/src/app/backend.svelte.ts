@@ -564,15 +564,21 @@ export const takeOffTeam = (tournamentId: number, teamId: number, memberId: numb
 /** A team's name and logo: its captain or an admin. */
 export const setTeamLook = (tournamentId: number, teamId: number, name: string, logo: string | null) =>
   save(() => api("PUT", `/api/tournaments/${tournamentId}/teams/${teamId}/look`, { name, logo }));
-/** Whoever runs the draft opens it (ADR 0060): the captains can pick. */
-/** Step 1 (ADR 0060): the captains' pick order, drawn at random on the server, once. */
+/** Step 1 (ADR 0060): the captains' pick order, drawn at random on the server, once (Shuffle). */
 export const drawOrder = (tournamentId: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/draw`, {}), "Order set");
+/** Step 2: whoever runs the draft opens it (Open draft); each captain hears it, with their place. Or reopens it. */
 export const openDraft = (tournamentId: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/open`, {}), "The draft is open");
 /** ...and closes it: everyone's picked, or the rest are left out on purpose. The teams are then set. */
 export const closeDraft = (tournamentId: number, leaveOut = false) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/close`, { leaveOut }), "The draft is closed");
+/** Everyone's picked (or the rest left out): one tap closes the draft and makes the fixtures (ADR 0060). */
+export const finishDraft = (tournamentId: number, leaveOut = false) =>
+  save(
+    () => api("POST", `/api/tournaments/${tournamentId}/draft/finish`, { leaveOut }),
+    "The draft is closed and the fixtures are out",
+  );
 /** The round robin and its playoffs, once the teams are set (ADR 0061). */
 export const makeFixtures = (tournamentId: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/fixtures`), "Fixtures made");

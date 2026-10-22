@@ -1,7 +1,7 @@
 # 0060. A captains' draft is run by an admin, picked by its captains, and seen by members once it's closed
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-21
+- **Date:** 2026-10-07 · updated 2026-10-22
 - **Merges:** 0064, 0066, 0067, 0068, 0070
 
 ## Context
@@ -18,12 +18,19 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 
 - `tournaments.draft_state`: none (reads as scheduled while it has a day and captains) → **open** → **closed**. Whoever
   runs the draft (`run:Draft`) opens and closes it; nothing happens on its own.
-- **Two steps: set the order, then start the draft.** The pick order is never the order the captains were named in,
-  which means nothing: being named first mustn't mean picking first. Before it opens, whoever runs the draft taps
-  **Set the order** (`POST …/draft/draw`, `run:Draft`): the server draws it, a Fisher-Yates shuffle on
+- **The night is led one step at a time**, one main (sticker-yellow) button for whoever runs it at each: **Shuffle**,
+  then **Open draft**, then the picking, then **Close draft & make fixtures**; closed, the page says so and Reopen is
+  in Manage. Everyone else sees the same step in words ("Draft not open yet").
+- **Two steps before it opens: shuffle the order, then open the draft.** The pick order is never the order the
+  captains were named in, which means nothing: being named first mustn't mean picking first. Before it opens, whoever
+  runs the draft taps **Shuffle** (`POST …/draft/draw`, `run:Draft`): the server draws it, a Fisher-Yates shuffle on
   `crypto.getRandomValues`, and stores it as `tournament_teams.pick` (1 = first). Each number is set only while some
-  captain is still without one, in one batch, so a second admin's tap a moment later changes nothing. Then **Start the
-  draft** (`…/draft/open`) opens it; opening with no order set is refused (409, "Set the order first."). The order is
+  captain is still without one, in one batch, so a second admin's tap a moment later changes nothing. Until it's drawn
+  the page shows only the captains: the players and the teams come once the order's there. Then **Open draft**
+  (`…/draft/open`) opens it; opening with no order set is refused (409, "Set the order first."). **Opening tells each
+  captain on their phone** ([0108](0108-store-apps.md), topic `draft`), with their place: "Kumite Summer 2027 Draft
+  Open", "You pick 2nd" (the tournament's name, then their place in round one), a tap opening the Draft page. Only
+  the first time: a closed draft reopening isn't news. The order is
   fixed from then on: setting it again, opening, closing and reopening, and saving the editor keep it, and the editor
   can't reorder the captains. Changing the captains before it opens takes the order away (it was for the old ones),
   to be set again; a reset takes it away too. It's round one's; the snake turns it each round. Until it's set, `pick`
@@ -37,8 +44,18 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 - Opening needs at least two captains, and the first time enough sign-ups for every team to have its captain and two
   more (`MIN_TEAM_SIZE`, `playersNeeded` in `src/lib/draft.ts`). Otherwise 409.
 - Closing needs everyone picked, or the admin choosing to leave the rest out. Closed locks the picks and the captains.
-- **A closed draft reopens**, keeping its picks: the captain on the clock is whoever's next, as if it had never
-  closed. Adding a player to a closed draft is refused (409): reopen it first.
+- **Closing makes the fixtures, in one tap** (`POST …/draft/finish`, `run:Draft`, `{ leaveOut }`): closed, then the
+  round robin and playoffs ([0061](0061-fixtures-games-and-scoring.md)). Everything that could refuse is checked
+  first (players left, enough teams for the playoffs), so a refusal changes nothing; the close is the claim
+  ([0121](0121-load-and-concurrency.md)): only the request that turns it from open to closed makes the fixtures, so a
+  double tap closes once and makes one set. Fixtures already made (before the draft, or before a reopen) are kept:
+  they're between the same teams. With too few teams for the playoffs and none made, the page offers a plain close
+  (`…/draft/close`) and says to change the playoffs; Make the fixtures follows on the closed page.
+- **A closed draft reopens** (Reopen, in Manage), keeping its picks: the captain on the clock is whoever's next, as if
+  it had never closed. Its fixtures stay as they are, being between the same teams, and closing again keeps them. **Not
+  once a game has started or has a result** (409, "A game's been played: the teams are set. Change a team on the
+  Teams page."): from then on a change is a team edit, so a result is never left behind by teams that moved under it.
+  Adding a player to a closed draft is refused (409): reopen it first.
 - **Reset** (`run:Draft`, open or closed) takes every pick off and sets `draft_state` back to none. Sign-ups, captains
   (and admin-added players, who are sign-ups) and the fixtures stay. It's allowed after games have results; the app
   asks first, since it can't be undone.
@@ -49,11 +66,15 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 
 - Picks only while it's open, in snake order, from members who said they're in. **Captains are in automatically**, on
   their own team, never in the pool, and can't withdraw themselves.
-- Each pick has a `pick_number` (`tournament_team_players`): turn order and Undo (the last pick) follow it.
+- Each pick has a `pick_number` (`tournament_team_players`): turn order and Undo (the last pick) follow it. **The turn
+  is the first pick number nobody has** (`NEXT_SLOT` in `draft.ts`, `nextSlots` in `src/lib/draft.ts` for the page),
+  not how many picks there are (#125): a pick that comes off (the player says they're out, an admin takes them off)
+  leaves its number empty, and the team whose pick it was fills it next, with that number; then the draft goes on
+  from the last. With no gaps it's the count, as before.
 - **Picking is two steps.** Pick marks a player on your screen (tap another to change your mind); **End turn** sends
   it. The server is unchanged: a pick is one request. Whoever runs the draft picks for the captain on the clock the
   same way. Picking out of turn, or someone no longer in the pool, is a 409. A pick says which turn it's for (`turn`,
-  the picks the page had seen): one landing after the turn moved on (a second phone, the captain whose snake turn
+  the slot the page saw on the clock: the picks it had seen, with no gaps): one landing after the turn moved on (a second phone, the captain whose snake turn
   comes twice running) is refused, never spent on their next pick ([0121](0121-load-and-concurrency.md)).
 - **A pick made for a captain says so.** Each pick records who made it (`tournament_team_players.picked_by`). When
   that isn't the team's captain, the app says it as theirs, for that team: "Dana picked Reg for Team Cara" on the
@@ -72,7 +93,7 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 ### Where it's edited
 
 - The Draft page is for picking and running the draft. It shows the teams but doesn't edit them. Before it starts it
-  shows the captains and the order (and, for whoever runs it, Set the order, then Start the draft). Once it's on, the
+  shows the captains and the order (and, for whoever runs it, Shuffle, then Open draft; the players and teams only once the order's drawn). Once it's on, the
   page is the draft: the order folds away (each team card shows its place, "1st"), the most room goes to the players
   left, and what isn't picking is small or behind a tap. One line says whose pick it is, and one small line under it
   who's next (a captain's own place, "You pick 2nd", at its end on a phone, before the icons on a desktop). There's no
@@ -82,9 +103,9 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   a desktop, asking there before closing with players left or a reset) are icons on that first line. On a phone the
   series' header goes altogether (the page's tabs say where you are), the ticker stays, shorter, the tabs and chips are
   a size smaller, and the players scroll inside the window's height (`.page.fit`), starting about a third of the way
-  down. Once everyone's picked, whoever runs it has "End the draft and make the fixtures" in the middle of where the players were (one tap: closed,
-  then the fixtures, unless the playoffs need more teams). A closed draft keeps Reopen and Make the fixtures on the
-  page.
+  down. Once everyone's picked, whoever runs it has **Close draft & make fixtures** over the players and
+  teams (one request: closed, then the fixtures). A closed draft says so on the page ("Draft closed", the teams set,
+  See the fixtures); Reopen is in Manage, and Make the fixtures is on the page only when none were made.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).
 - The tournament editor changes teams **in place** (by id), never writes a draft's players or its pick order, and
@@ -155,3 +176,9 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-21: Picks at once ([0121](0121-load-and-concurrency.md)): a pick says its turn, so a stale tap is refused; a
   player saying they're out as they're picked comes off their team with their answer; one goalie a team holds when
   an admin's edit and a pick land together.
+- 2026-10-22: The night led a step at a time, one main button each: Shuffle (the players and teams hidden until the
+  order's drawn), Open draft (each captain told on their phone, "<tournament> Draft Open", "You pick 2nd"), the
+  picking, then Close draft & make fixtures as one request (the close is the claim, so a double tap makes one set;
+  fixtures already made are kept). Closed says so, Reopen moves into Manage and keeps the fixtures, and is refused
+  once a game has started or has a result. The turn follows the pick numbers, not the count: a pick that came off is
+  filled first by its own team (#125).

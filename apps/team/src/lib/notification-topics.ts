@@ -1,7 +1,6 @@
 // What the club's notifications are about (ADR 0108, #24): the one list, for the Worker (each Notice says its topic;
 // a member who turned one off isn't sent it) and for the You page (a switch each). Every topic is on until a member
-// turns it off. Kept: "draft" (the draft starts, your pick), for when the draft's notifications are sent; it joins this
-// list then, so there's never a switch for something that's never sent.
+// turns it off. A topic joins this list only once something's sent on it, so there's never a switch for nothing.
 export const TOPICS = [
   { topic: "teams", label: "Teams are out", hint: "Which team you're on, once the night's teams are published." },
   {
@@ -12,6 +11,7 @@ export const TOPICS = [
   { topic: "sessionOff", label: "A session's off", hint: "A night you're in for, or waiting for, is cancelled." },
   { topic: "announcements", label: "Locker room", hint: "What the club posts on Home." },
   { topic: "dues", label: "Dues", hint: "What you owe the club, when it's due." },
+  { topic: "draft", label: "The draft", hint: "A draft you captain is open, and where you pick." },
 ] as const;
 
 export type Topic = (typeof TOPICS)[number]["topic"];

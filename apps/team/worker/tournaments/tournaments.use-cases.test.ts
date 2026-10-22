@@ -276,7 +276,7 @@ describe("a tournament, from setting it up to the draft", () => {
       for (const who of ["reg", "mo", "ash", "bo"]) await (await member(`${who}@example.com`)).answer(story.id, "in");
       const cara = await member("cara@example.com");
       const cole = await member("cole@example.com");
-      const draft = (as: { call: typeof cara.call }, what: "draw" | "open" | "close", body: object = {}) =>
+      const draft = (as: { call: typeof cara.call }, what: "draw" | "open" | "close" | "finish", body: object = {}) =>
         as.call("POST", `/api/tournaments/${story.id}/draft/${what}`, body, { now: DRAFT_DAY });
       const pick = (as: { call: typeof cara.call }, memberId: number) =>
         as.call("POST", `/api/tournaments/${story.id}/draft/picks`, { memberId }, { now: DRAFT_DAY });
@@ -681,6 +681,133 @@ describe("a tournament, from setting it up to the draft", () => {
       expect((await pick(cara, ids.Mo)).status).toBe(409);
       expect((await pick(cole, ids.Mo)).status).toBe(200);
       expect((await tournament()).games.length).toBeGreaterThan(0);
+    });
+
+    describe("the night, one step at a time: the order, open, pick, then one tap closes it and makes the fixtures", () => {
+      /** A phone with the app, signed in as this member, so the club can tell them things (ADR 0108). */
+      const withPhone = async (as: { call: (...a: Json[]) => Promise<Json> }, token: string) =>
+        expect((await as.call("PUT", "/api/auth/device", { token, platform: "ios" })).status).toBe(200);
+      const draftPath = (typeId: number) =>
+        `/tournaments/${(w.db.raw.prepare("SELECT slug FROM tournament_types WHERE id = ?").get(typeId) as Json).slug}/draft`;
+      /** Everyone picked: Reg and Bo to Cara, Mo and Ash to Cole (Cara first). */
+      async function allPicked() {
+        const s = await draftOpen();
+        for (const [who, m] of [
+          [s.cara, s.ids.Reg],
+          [s.cole, s.ids.Mo],
+          [s.cole, s.ids.Ash],
+          [s.cara, s.ids.Bo],
+        ] as const)
+          expect((await s.pick(who, m)).status).toBe(200);
+        return s;
+      }
+
+      it('opening it tells each captain on their phone, with their place: "Winter Cup 2026 Draft Open", "You pick 2nd"', async () => {
+        const s = await signedUp(COLE_FIRST);
+        await withPhone(s.cara, "cara-phone");
+        await withPhone(s.cole, "cole-phone");
+        await withPhone(await member("reg@example.com"), "reg-phone");
+        expect((await s.draft(s.dana, "draw")).status).toBe(200);
+        // Drawing the order isn't news to send: it's on the page, for whoever's watching
+        expect(w.pushes).toEqual([]);
+        expect((await s.draft(s.dana, "open")).status).toBe(200);
+        const path = draftPath(s.typeId);
+        expect(
+          w.pushes
+            .map(({ token, title, body, path }) => ({ token, title, body, path }))
+            .sort((a, b) => a.token.localeCompare(b.token)),
+        ).toEqual([
+          { token: "cara-phone", title: "Winter Cup 2026 Draft Open", body: "You pick 2nd", path },
+          { token: "cole-phone", title: "Winter Cup 2026 Draft Open", body: "You pick 1st", path },
+        ]);
+      });
+
+      it("reopening a closed draft doesn't tell them again, and a captain who turned the draft off doesn't hear", async () => {
+        const s = await signedUp();
+        await withPhone(s.cara, "cara-phone");
+        await withPhone(s.cole, "cole-phone");
+        expect((await s.cole.call("PUT", "/api/me/notifications", { draft: false })).status).toBe(200);
+        expect((await s.draft(s.dana, "draw")).status).toBe(200);
+        expect((await s.draft(s.dana, "open")).status).toBe(200);
+        expect(w.pushes.map((p) => p.token)).toEqual(["cara-phone"]);
+        w.pushes.length = 0;
+        expect((await s.draft(s.dana, "close", { leaveOut: true })).status).toBe(200);
+        expect((await s.draft(s.dana, "open")).status).toBe(200);
+        expect(w.pushes).toEqual([]);
+      });
+
+      it("everyone's picked: one tap closes it and makes the fixtures; only someone running the draft can", async () => {
+        const { dana, cara, draft, tournament } = await allPicked();
+        expect((await draft(cara, "finish")).status).toBe(403);
+        expect((await draft(dana, "finish")).status).toBe(200);
+        const t = await tournament();
+        expect(t.draftState).toBe("closed");
+        // Two teams: one round-robin game between them
+        expect(t.games.map((g: Json) => [g.homeTeamId, g.awayTeamId])).toEqual([[t.teams[0].id, t.teams[1].id]]);
+        // A second tap finds it closed, and makes nothing more
+        expect((await draft(dana, "finish")).status).toBe(409);
+        expect((await tournament()).games).toHaveLength(1);
+      });
+
+      it("with players still to pick it says how many, and closes leaving them out only when told to", async () => {
+        const { dana, cara, draft, pick, tournament, ids } = await draftOpen();
+        expect((await pick(cara, ids.Reg)).status).toBe(200);
+        const res = await draft(dana, "finish");
+        expect([res.status, res.body.error]).toEqual([
+          409,
+          "3 still to pick. Pick them, or close it leaving them out.",
+        ]);
+        expect((await tournament()).draftState).toBe("open");
+        expect((await tournament()).games).toEqual([]);
+        expect((await draft(dana, "finish", { leaveOut: true })).status).toBe(200);
+        expect((await tournament()).games).toHaveLength(1);
+      });
+
+      it("fixtures made before the draft are kept, not made again", async () => {
+        const { dana, id, draft, tournament } = await allPicked();
+        expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
+        const before = (await tournament()).games.map((g: Json) => g.id);
+        expect((await draft(dana, "finish")).status).toBe(200);
+        expect((await tournament()).games.map((g: Json) => g.id)).toEqual(before);
+      });
+
+      it("when the playoffs need more teams than there are, nothing changes: it says so, and stays open", async () => {
+        const { dana, id, draft, tournament } = await allPicked();
+        const t = await tournament();
+        const playoffs = [{ name: "3rd v 4th", home: 3, away: 4 }];
+        expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...t, playoffs }, { now: DRAFT_DAY })).status).toBe(
+          200,
+        );
+        const res = await draft(dana, "finish");
+        expect([res.status, res.body.error]).toEqual([409, "3rd v 4th needs 4 teams."]);
+        expect((await tournament()).draftState).toBe("open");
+        expect((await tournament()).games).toEqual([]);
+      });
+
+      it("reopened before any game's played, the fixtures stay (they're between the same teams); closing again keeps them", async () => {
+        const { dana, draft, tournament } = await allPicked();
+        expect((await draft(dana, "finish")).status).toBe(200);
+        const games = (await tournament()).games.map((g: Json) => g.id);
+        expect((await draft(dana, "open")).status).toBe(200);
+        expect((await tournament()).games.map((g: Json) => g.id)).toEqual(games);
+        expect((await draft(dana, "finish")).status).toBe(200);
+        expect((await tournament()).games.map((g: Json) => g.id)).toEqual(games);
+      });
+
+      it("once a game has a result the draft can't reopen: the teams are set (change one on the Teams page)", async () => {
+        const { dana, id, draft, tournament } = await allPicked();
+        expect((await draft(dana, "finish")).status).toBe(200);
+        const game = (await tournament()).games[0];
+        expect(
+          (await dana.call("PUT", `/api/tournaments/${id}/games/${game.id}`, { homeGoals: 2, awayGoals: 1 })).status,
+        ).toBe(200);
+        const res = await draft(dana, "open");
+        expect([res.status, res.body.error]).toEqual([
+          409,
+          "A game's been played: the teams are set. Change a team on the Teams page.",
+        ]);
+        expect((await tournament()).draftState).toBe("closed");
+      });
     });
 
     it("a team takes one goalie: a second is refused, for a captain, for whoever runs the draft, and for an admin's team edit", async () => {

@@ -1,7 +1,18 @@
-// The draft (ADR 0060): picks, and opening, closing and resetting it.
+// The draft (ADR 0060): picks, and drawing the order, opening, closing (with the fixtures) and resetting it.
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
-import { closeDraft, draftProgress, drawOrder, lastPickedFor, openDraft, pick, resetDraft, undoPick } from "./draft";
+import {
+  closeDraft,
+  draftProgress,
+  drawOrder,
+  finishDraft,
+  lastPickedFor,
+  openDraft,
+  pick,
+  resetDraft,
+  undoPick,
+} from "./draft";
 import { HttpError, body, json } from "../api/api.http";
+import { draftOpen } from "../push/push.notices";
 
 export const DRAFT_ROUTES: Route[] = [
   {
@@ -72,8 +83,25 @@ export const DRAFT_ROUTES: Route[] = [
     },
     action: "run:Draft",
     changes: ["tournaments"],
-    // Step 2, once the order's drawn: the captains can pick (ADR 0060)
+    // Step 2, once the order's drawn: the captains can pick (ADR 0060), and each hears it, with their place
+    notify: draftOpen,
     handle: async (c) => (await openDraft(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/draft\/finish$/,
+    audit: {
+      event: "draft.finished",
+      subject: rowOf(
+        `SELECT id, name, draft_state draftState,
+                (SELECT COUNT(*) FROM tournament_games WHERE tournament_id = tournaments.id) games
+         FROM tournaments WHERE id = ?`,
+      ),
+    },
+    action: "run:Draft",
+    changes: ["tournaments"],
+    // Everyone's picked (or { leaveOut: true }): one tap closes the draft and makes the fixtures (ADR 0060)
+    handle: async (c) => (await finishDraft(c.env.DB, id(c), (await body(c.request)).leaveOut === true), ok()),
   },
   {
     method: "POST",

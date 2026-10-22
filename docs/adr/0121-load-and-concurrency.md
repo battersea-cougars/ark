@@ -1,7 +1,7 @@
 # 0121. Requests at once are safe by statement, not by luck; every invocation keeps to 50 subrequests; load runs locally or on dev, never production
 
 - **Status:** Accepted
-- **Date:** 2026-10-21 · updated 2026-10-21
+- **Date:** 2026-10-21 · updated 2026-10-22
 
 ## Context
 
@@ -25,8 +25,10 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   - Sign-ups: out and the first waiting moving up are one batch (an admin taking someone off too), so nobody
     signing up between takes the place; joining never rewrites an answer already in or waiting (a double tap kept
     its place); a drafted player saying they're out comes off their team in the same batch.
-  - The draft: a pick says which turn it's for (`turn`, the picks the page had seen), so a tap landing after the turn
-    moved on is refused, not spent on the captain's next pick; one goalie a team is inside the statements.
+  - The draft: a pick says which turn it's for (`turn`, the slot the page saw on the clock), so a tap landing after
+    the turn moved on is refused, not spent on the captain's next pick; the pick goes in only while that slot is
+    still the first free pick number; one goalie a team is inside the statements. Close draft & make fixtures claims
+    the close (`UPDATE … WHERE draft_state = 'open'`, its changes checked) before making them, so two taps make one set.
   - Scoring: the end of a period moves on only from the period said; a goal, penalty or Undo lands only while the
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
     so full time never reads a goal without its score; an admin's typed-in result and its goals are one batch, each
@@ -105,3 +107,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-22: Two more checked-then-written rules decided in their statements: a typed-in result's goals (two saves
   at once doubled them, #124) and the last admin (two admins demoting or erasing each other at once left none, #135),
   with their seeds' tests.
+- 2026-10-22: The draft's one-tap close and fixtures claims the close first; a pick's turn is its slot, the first
+  free pick number (#125).
