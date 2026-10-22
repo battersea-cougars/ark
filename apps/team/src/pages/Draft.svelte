@@ -596,6 +596,21 @@
       const done = await (finishes ? finishDraft(tournament.id, leaveOut) : closeDraft(tournament.id, leaveOut));
       if (done !== null && making && router.path !== home) navigate(home);
     });
+  // Sealing the teams: the hanko presses onto the card (DraftStep pressed), is held, and the card lifts away, and only
+  // then does the draft close, so the page's move to the next status comes after the stamp. Less motion: at once
+  let sealing = $state(false);
+  async function seal() {
+    if (sealing || busy) return;
+    if (!prefersReducedMotion) {
+      sealing = true;
+      await new Promise((r) => setTimeout(r, 900));
+    }
+    try {
+      await finish();
+    } finally {
+      sealing = false;
+    }
+  }
   const fixturesNow = () =>
     tournament &&
     job(async () => {
@@ -918,14 +933,14 @@
 
     <!-- The last step: everyone's picked, and one tap closes the draft and makes the fixtures -->
     {#if open && !pool.length}
-      <DraftStep {type} mark="sealed" seal title="Seal the teams">
+      <DraftStep {type} mark="sealed" seal title="Seal the teams" pressed={sealing}>
         {#if running && tooFew && !games.length}<span class="warn"
             >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
           >
         {:else}<strong>Everyone's picked.</strong>{/if}
         {#snippet action()}
           {#if running}
-            <button class="btn primary" disabled={busy} onclick={() => finish()}
+            <button class="btn primary" disabled={busy || sealing} onclick={seal}
               ><Icon name="check" size={18} />{finishLabel}</button
             >
           {/if}
