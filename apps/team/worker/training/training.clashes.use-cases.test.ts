@@ -44,7 +44,7 @@ const JUNIORS = {
   public: true,
   active: true,
 };
-type Training = typeof JUNIORS & { id?: number };
+type Training = Omit<typeof JUNIORS, "endsOn"> & { id?: number; endsOn: string | null };
 
 /** What the training editor asks before it saves: the nights this training adds or moves, and what's on then. */
 const ask = async (b: Browser, t: Training) => {
@@ -157,6 +157,34 @@ describe("a training over something already on", () => {
     expect((await ask(dana, moved)).map((c) => [c.source, c.title, c.canCancel])).toEqual([
       ["tournament", "Kumite", false],
     ]);
+  });
+
+  it("the Kumite stays on, so the training can skip that night: saved, its own night is made and cancelled", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    expect((await dana.call("POST", "/api/tournaments", kumite())).status).toBe(201);
+    const weekly = { ...JUNIORS, endsOn: null };
+
+    // Which of the training's nights the Kumite is over: the one it can skip
+    const clashes = await ask(dana, weekly);
+    const kumiteRow = clashes.find((c) => c.source === "tournament");
+    expect(kumiteRow).toMatchObject({ title: "Kumite", canCancel: false, nights: [FRIDAY] });
+    expect(clashes.filter((c) => c.source === "session").every((c) => c.nights.length === 1)).toBe(true);
+
+    // The skip is an answer like any other: the save that leaves the Kumite out isn't the one asked about
+    expect((await dana.call("POST", "/api/series", { ...weekly, clashes: [] })).status).toBe(409);
+    const saved = await dana.call("POST", "/api/series", { ...weekly, clashes: keys(clashes) });
+    expect(saved.status).toBe(201);
+
+    // Then its own night that Friday, made if it isn't yet (the same one if it is), through its own cancel
+    const night = await dana.call("POST", `/api/series/${saved.body.id}/sessions`, { heldOn: FRIDAY });
+    expect(night.status).toBe(200);
+    expect(night.body.id).toBe((await nightOn(dana, FRIDAY, saved.body.id)).id);
+    expect((await dana.call("POST", `/api/sessions/${night.body.id}/cancelled`, { cancelled: true })).status).toBe(200);
+    expect(await nightOn(dana, FRIDAY, saved.body.id)).toMatchObject({ cancelledAt: expect.any(String) });
+    // The next Friday's on as usual, and asked again the Kumite isn't over a night that's off
+    expect(await nightOn(dana, "2026-10-23", saved.body.id)).toMatchObject({ cancelledAt: null });
+    const again = await ask(dana, { ...weekly, id: saved.body.id, startTime: "18:45" });
+    expect(again.map((c) => c.source)).not.toContain("tournament");
   });
 
   it("a save that doesn't move the day or hours isn't asked about, nor refused for what was already there", async () => {

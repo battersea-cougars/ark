@@ -26,6 +26,8 @@ export interface Clash {
   canCancel: boolean;
   /** Who's in or waiting: who'd hear it's off. */
   signedUp: number;
+  /** Asked with a training's rule: the days of its nights this is over, the ones it could skip instead. */
+  nights?: string[];
 }
 
 /** Each kind's cancel, and the action it needs (training.routes.ts, events.routes.ts). */
@@ -68,7 +70,7 @@ export async function findClashes(
  */
 export async function clashesOver(
   db: D1Database,
-  spans: Span[],
+  spans: (Span & { day?: string })[],
   except: string | null,
   today: string,
   actions: ReadonlySet<Action>,
@@ -114,7 +116,7 @@ export async function clashesOver(
     ),
   ]);
 
-  const found: Omit<Clash, "key" | "canCancel" | "signedUp">[] = rows.map((r) => ({
+  const found: Omit<Clash, "key" | "canCancel" | "signedUp" | "nights">[] = rows.map((r) => ({
     source: r.source,
     id: r.id,
     seriesId: null,
@@ -176,12 +178,14 @@ export async function clashesOver(
     .map((c) => {
       const cancel = CANCEL[c.source];
       const seriesId = c.seriesId ?? sessionMeta.find((s) => s.id === c.id)?.seriesId ?? null;
+      const over = spans.filter((w, i) => w.day && overlaps(windows[i], [ms(c.startsAt), ms(c.endsAt)]));
       return {
         ...c,
         key: `${c.source}:${c.id ?? `${seriesId}@${c.day}`}`,
         seriesId,
         canCancel: cancel !== null && can(actions, cancel),
         signedUp: signedUp.find((n) => n.source === c.source && n.id === c.id)?.n ?? 0,
+        ...(over.length ? { nights: over.map((w) => w.day!) } : {}),
       };
     })
     .filter((c) => !(c.source === "session" && `series:${c.seriesId}` === except))

@@ -773,6 +773,8 @@ export interface Clash {
   endsAt: string;
   canCancel: boolean;
   signedUp: number;
+  /** Asked with a training's rule: the days of its nights this is over, which it could skip instead. */
+  nights?: string[];
 }
 /**
  * What's on between these two times (`except`: the thing being edited, "tournament:5"), or over the nights a
@@ -803,13 +805,22 @@ export async function cancelClashes(chosen: Clash[]) {
   for (const c of chosen) {
     if (c.source === "club_event" && c.id) {
       if ((await setClubEventCancelled(c.id, true)) !== null) off++;
-    } else if (c.source === "session") {
-      const id =
-        c.id ??
-        (await save(() => api<{ id: number }>("POST", `/api/series/${c.seriesId}/sessions`, { heldOn: c.day }), ""))
-          ?.id;
-      if (id && (await setCancelled(id, true)) !== null) off++;
-    }
+    } else if (c.source === "session" && (await cancelNight(c.seriesId!, c.day, c.id))) off++;
   }
   return off;
+}
+/**
+ * A training skipping its own nights over something that stays on (the Kumite), after its save went in: each night
+ * made if it isn't yet (the same one if it is), then off by its own cancel. How many went off.
+ */
+export async function skipNights(seriesId: number, days: string[]) {
+  let off = 0;
+  for (const day of days) if (await cancelNight(seriesId, day)) off++;
+  return off;
+}
+/** One training night off by its own cancel; one the weeks ahead haven't made yet is made first. */
+async function cancelNight(seriesId: number, day: string, id: number | null = null) {
+  const night =
+    id ?? (await save(() => api<{ id: number }>("POST", `/api/series/${seriesId}/sessions`, { heldOn: day }), ""))?.id;
+  return !!night && (await setCancelled(night, true)) !== null;
 }

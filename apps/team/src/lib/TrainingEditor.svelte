@@ -9,7 +9,15 @@
   import type { TrainingSeries } from "../demo/model";
   import { resolve } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import { cancelClashes, createSeries, moreSessions, saving, setCancelled, updateSeries } from "../app/backend.svelte";
+  import {
+    cancelClashes,
+    createSeries,
+    moreSessions,
+    saving,
+    setCancelled,
+    skipNights,
+    updateSeries,
+  } from "../app/backend.svelte";
   import ClashSheet from "./ClashSheet.svelte";
   import { trainingQuestion } from "./clashes";
   import Icon from "../app/shell/Icon.svelte";
@@ -196,7 +204,7 @@
       db.series.find((x) => x.id === form!.id),
     );
     for (let tries = 0; tries < 2; tries++) {
-      const chosen = question ? await clashSheet?.ask(question, form.name) : [];
+      const chosen = question ? await clashSheet?.ask(question, form.name, form.shortName) : [];
       if (chosen === null) return;
       const asked = question ? (clashSheet?.asked() ?? []) : undefined;
       const done = selected === "new" ? await createSeries(form, asked) : await updateSeries(form, asked);
@@ -204,7 +212,11 @@
         if (saving.refused === 409 && question) continue;
         return;
       }
+      // Then what was chosen goes off by its own cancel: theirs, and this training's own nights it skips
+      const skip = question ? (clashSheet?.skipped() ?? []) : [];
       await cancelClashes(chosen ?? []);
+      const id = selected === "new" ? (done as { id: number }).id : form.id;
+      if (skip.length) await skipNights(id, skip);
       // The blank form gives way to the new training's editor, in the same panel
       if (selected === "new") oncreated?.((done as { id: number }).id);
       return;

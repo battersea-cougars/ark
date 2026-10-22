@@ -71,3 +71,41 @@ export function trainingQuestion(t: Training, saved?: Training): TrainingQuestio
   const { repeatEvery, weekdays, startsOn, endsOn, startTime, endTime } = t;
   return { seriesId: t.id || undefined, repeatEvery, weekdays, startsOn, endsOn, startTime, endTime };
 }
+
+// ─── Answering the sheet (lib/ClashSheet) ───
+
+/** A row's answer: call it off, keep both, or (it stays on) skip the training being saved that night. */
+export type Answer = "" | "cancel" | "keep" | "skip";
+type Row = { key: string; canCancel: boolean; nights?: string[] };
+
+/**
+ * What a row asks: "cancel" (Cancel it / Keep both) if the admin can call it off here, "skip" (Skip the training that
+ * night / Keep both) if it stays on and a training is being saved over it, or nothing to choose.
+ */
+export function choiceOf(c: Row, training: boolean): "cancel" | "skip" | null {
+  if (c.canCancel) return "cancel";
+  return training && c.nights?.length ? "skip" : null;
+}
+
+/** The answer for all of those that can be called off: theirs if they all agree, none if not. */
+export function answerOfAll(rows: Row[], picks: Record<string, Answer>): "" | "cancel" | "keep" {
+  const own = rows.filter((c) => c.canCancel).map((c) => picks[c.key] ?? "");
+  return own.length && own.every((p) => p === own[0]) && (own[0] === "cancel" || own[0] === "keep") ? own[0] : "";
+}
+
+/** One answer for all: every row that can be called off set to it; a skip is left as it is. */
+export function answerAll(rows: Row[], picks: Record<string, Answer>, to: "cancel" | "keep") {
+  return { ...picks, ...Object.fromEntries(rows.filter((c) => c.canCancel).map((c) => [c.key, to])) };
+}
+
+/** The days of the training's own nights to call off: those over something kept on that the admin chose to skip. */
+export function nightsToSkip(rows: Row[], picks: Record<string, Answer>) {
+  const days = rows.filter((c) => picks[c.key] === "skip").flatMap((c) => c.nights ?? []);
+  return [...new Set(days)].sort();
+}
+
+/** "Skip Juniors that night", short enough to sit beside Keep both (lib/Choice keeps a row to 40 letters). */
+export function skipLabel(name: string) {
+  const label = `Skip ${name.trim()} that night`;
+  return name.trim() && label.length + "Keep both".length <= 40 ? label : "Skip training that night";
+}
