@@ -36,8 +36,8 @@ const day = (offset: number, time = "19:00:00Z") =>
   `${new Date(Date.parse(`${TODAY}T12:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10)}T${time}`;
 
 describe("Home with nothing on", () => {
-  it("has nothing in any group: no rows, no fights, no admin lines", () => {
-    expect(feed()).toEqual({ fights: [], now: [], upcoming: [], admin: [] });
+  it("has nothing in any group: no lead, no rows, no admin lines", () => {
+    expect(feed()).toEqual({ lead: null, now: [], upcoming: [], admin: [] });
     expect(feed({ events: [] }).upcoming).toEqual([]);
   });
 
@@ -97,8 +97,11 @@ describe("what's coming up, at the edges", () => {
   it("asks Are you in? from the day sign-up opens, and says when it opens before that", () => {
     const t = (signupOpensOn: string) =>
       ev("tournament:1", day(30), { kind: "tournament", filter: "type:1", asking: true, signupOpensOn });
-    expect(up([t(TODAY)])[0].sub).toBe("7pm · Are you in?");
-    expect(up([t("2026-10-22")])[0].sub).toBe("7pm · Sign-up opens 22 Oct");
+    // A training night sooner is the lead, so the tournament is a row
+    const fri = ev("session:1", day(1), { kind: "training", filter: "series:1", asking: true });
+    const row = (e: UpcomingEvent) => up([fri, e]).find((r) => r.key === "tournament:1");
+    expect(row(t(TODAY))?.sub).toBe("7pm · Are you in?");
+    expect(row(t("2026-10-22"))?.sub).toBe("7pm · Sign-up opens 22 Oct");
   });
 
   it("a date still to be confirmed shows no time, only how it stands", () => {
@@ -106,8 +109,8 @@ describe("what's coming up, at the edges", () => {
     expect(rows[0].sub).toBe("You're on the waitlist");
   });
 
-  it("everything a card already shows up top, and nothing else: no rows", () => {
-    expect(up([ev("a", day(1)), ev("b", day(2))], { shown: ["a", "b"] })).toEqual([]);
+  it("the lead isn't a row as well, and nothing else is left out", () => {
+    expect(up([ev("a", day(1), { asking: true }), ev("b", day(2))]).map((r) => r.key)).toEqual(["b"]);
   });
 });
 

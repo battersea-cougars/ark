@@ -1,7 +1,8 @@
 <script lang="ts">
   // Home (ADR 0118): a slim hello with the Calendar's button, the locker room (the club's announcements, then what
-  // you owe), then the calls to action (this Friday's card, always; are you in for the Kumite; your next fight), then
-  // the feed: what needs you now, what's coming up, and for admins their own lines at the foot.
+  // you owe), then the lead: your next thing, whatever it is (a training night, your next fight, a draft you're a
+  // captain in, a tournament asking), with its action; then the feed: what needs you now, what's coming up after the
+  // lead, and for admins their own lines at the foot.
   import { untrack } from "svelte";
   import { shortName, shortNameOf } from "../lib/names";
   import { can } from "../access/actions";
@@ -13,11 +14,10 @@
   import mark from "../assets/cougars-mark.webp";
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
-  import NextFight from "../lib/NextFight.svelte";
+  import FightCard from "../lib/FightCard.svelte";
   import { formatDayDate, londonToday } from "../lib/dates";
   import { aged, leftOn } from "../lib/dues";
-  import { signupOpen } from "../lib/signup";
-  import { homeFeed, owedNotice, type UpcomingEvent, type When } from "../lib/home-feed";
+  import { homeFeed, owedNotice, type Lead, type UpcomingEvent, type When } from "../lib/home-feed";
   import DateBlock from "../lib/DateBlock.svelte";
   import { fill, slot } from "../lib/greetings";
   import {
@@ -28,7 +28,7 @@
     tournamentBookable,
   } from "../demo/schedule.svelte";
   import { pick, type Quip, type QuipKind } from "../lib/quips";
-  import type { Bookable, Tournament } from "../demo/model";
+  import type { Bookable, TrainingSession, Tournament } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
   import { editionState } from "../lib/edition";
   import { checkForUpdates } from "../lib/live-updates.svelte";
@@ -44,6 +44,8 @@
   const perms = $derived(granted());
   const who = $derived(me());
   const today = londonToday();
+  // When Home was opened: what's over by then isn't next
+  const openedAt = new Date().toISOString();
 
   // Announcements (#85): an admin's note at the top, until its last day or until you say "Got it". Whoever may post
   // writes one in a sheet over Home (ADR 0065), from the + in the header, and can take one down from its note
@@ -114,7 +116,7 @@
     }),
   );
 
-  // The soonest session of any training leads Home; the other trainings' next sessions go in the feed
+  // Each training's next session: the hello knows a training night by it
   const nexts = $derived(
     db.series
       .filter((s) => s.active)
@@ -124,13 +126,6 @@
       })
       .sort((a, b) => a.at.localeCompare(b.at)),
   );
-  const series = $derived(nexts[0]?.series);
-  const session = $derived(nexts[0]?.session);
-  const booking = $derived(session && sessionBookable(session));
-  const next = $derived(
-    session ?? { id: 0, going: [] as number[], waitlist: [] as number[], out: undefined as number[] | undefined },
-  );
-  const day = $derived(series?.shortName ?? "week");
   // The next of each tournament series, not one that's done (by its games, lib/edition.ts)
   const tournaments = $derived(
     db.tournamentTypes
@@ -140,15 +135,6 @@
         return t && editionState(t) !== "done" ? [{ type, t }] : [];
       }),
   );
-  // Taking sign-ups: a call to action up top, like Friday. The rest are in what's coming up
-  const signingUp = $derived(tournaments.filter(({ t }) => signupOpen(t, today)));
-
-  const isIn = $derived(next.going.includes(who.id));
-  const waiting = $derived(next.waitlist.includes(who.id));
-  const declined = $derived(next.out?.includes(who.id) ?? false);
-  const answered = $derived(isIn || waiting || declined);
-  // Out since the teams were made: still on one until a team maker decides (ADR 0076), but not yours to play on
-  const myTeam = $derived(isIn ? db.teams[next.id]?.find((t) => t.players.includes(who.id)) : undefined);
 
   // Where you stand on an event: in, waiting, out, or not said
   const standingOn = (ev: Bookable) =>
@@ -159,21 +145,10 @@
         : ev.entries.out?.includes(who.id)
           ? "out"
           : null;
-  // Friday's card is always there, answered or not. A tournament's call to action stays a full card while it's
-  // unanswered; one you'd already answered when you came is its row in what's coming up ("You're in"), so the asks
-  // still open stand out. Answering here keeps the card for the rest of the visit: nothing jumps under your thumb
-  // (no-layout-shift)
-  let asked = $state<Record<string, boolean>>({});
-  $effect(() => {
-    const open = signingUp.map(({ t }) => tournamentBookable(t)).filter((ev) => !standingOn(ev));
-    untrack(() => {
-      for (const ev of open) if (!asked[ev.key]) asked[ev.key] = true;
-    });
-  });
-  const askFull = (ev: Bookable) => !standingOn(ev) || !!asked[ev.key];
 
-  // What's coming up, for the feed to pick from: everything on the club's agenda from today (not its reminders: a
-  // draft night or a sign-up closing is in what needs you now), and each tournament series' next one, however far
+  // What's on, for the feed to pick the lead and the rows from: everything on the club's agenda from today (not its
+  // reminders: a draft night or a sign-up closing is in what needs you now), and each tournament series' next one,
+  // however far
   const upcomingEvent = (ev: Bookable): UpcomingEvent => {
     const standing = standingOn(ev);
     return {
@@ -183,22 +158,15 @@
       signupOpensOn: ev.kind === "tournament" ? (ev.entries as Tournament).signupOpensOn : null,
     };
   };
-  const events = $derived.by(() => {
+  const bookables = $derived.by(() => {
     const all = [...calendar(today).filter((ev) => /^(session|tournament|oneoff):/.test(ev.key))];
     for (const { t } of tournaments) {
       const ev = tournamentBookable(t);
       if (!all.some((x) => x.key === ev.key)) all.push(ev);
     }
-    return all.map(upcomingEvent);
+    return all;
   });
-  // The cards up top: not repeated below
-  const shown = $derived([
-    ...(booking ? [booking.key] : []),
-    ...signingUp
-      .map(({ t }) => tournamentBookable(t))
-      .filter(askFull)
-      .map((ev) => ev.key),
-  ]);
+  const events = $derived(bookables.map(upcomingEvent));
 
   // What the club is owed, for whoever sees Unpaid fees (read:Dues): the total, by how many, and how much of it is
   // in the worst bucket (over 90 days)
@@ -211,6 +179,9 @@
       worst: rows.reduce((s, r) => s + r.amounts[3], 0),
     };
   });
+  // The lead is picked once a visit (lib/home-feed.ts leadOf) and stays while it's on: answering Out on it doesn't
+  // swap the card under your thumb (no-layout-shift)
+  let pinned = $state<string>();
   // The feed (lib/home-feed.ts): what needs you now, what's coming up, the admins' lines
   const feed = $derived(
     homeFeed({
@@ -223,9 +194,53 @@
       upcoming: tournaments,
       club,
       events,
-      shown,
+      now: openedAt,
+      pinned,
     }),
   );
+
+  $effect(() => {
+    const key = feed.lead?.key;
+    untrack(() => {
+      if (key && !pinned) pinned = key;
+    });
+  });
+  const lead = $derived(feed.lead);
+  // An event's lead: its card (EventCard) wants the whole of it
+  const leadEvent = $derived(lead?.kind === "event" ? bookables.find((b) => b.key === lead.key) : undefined);
+  // A training night's lead: the locker room's word over it, and your team along its foot once the teams are out
+  const session = $derived(leadEvent?.kind === "training" ? (leadEvent.entries as TrainingSession) : undefined);
+  const series = $derived(session && db.series.find((x) => x.id === session.seriesId));
+  const day = $derived(series?.shortName ?? "week");
+  const isIn = $derived(!!session?.going.includes(who.id));
+  const waiting = $derived(!!session?.waitlist.includes(who.id));
+  const declined = $derived(session?.out?.includes(who.id) ?? false);
+  const answered = $derived(isIn || waiting || declined);
+  // Out since the teams were made: still on one until a team maker decides (ADR 0076), but not yours to play on
+  const myTeam = $derived(isIn && session ? db.teams[session.id]?.find((t) => t.players.includes(who.id)) : undefined);
+  const typeOf = (t: Tournament) => db.tournamentTypes.find((x) => x.id === t.typeId);
+  // What the lead's heading asks or says
+  const leadTitle = (l: Lead) => {
+    if (l.kind === "draft") return l.item.text;
+    if (l.kind === "fight")
+      return l.fight.game.status === "live"
+        ? `You're on: the ${l.fight.type.shortName}`
+        : `Your next ${l.fight.type.shortName} fight`;
+    const ev = l.event;
+    const said = !!ev.standing;
+    if (ev.kind === "training") {
+      // This Friday, next Friday (the one after one you're out of), or further off, its date
+      const ahead =
+        (Date.parse(`${londonToday(new Date(ev.startsAt))}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000;
+      const when = ahead < 7 ? `this ${day}` : ahead < 14 ? `next ${day}` : `on ${formatDayDate(ev.startsAt)}`;
+      return answered ? when[0].toUpperCase() + when.slice(1) : `Are you in ${when}?`;
+    }
+    if (ev.kind === "tournament") {
+      const name = typeOf(leadEvent?.entries as Tournament)?.shortName;
+      return name ? (said ? `The ${name}` : `Are you in for the ${name}?`) : said ? "Up next" : `Are you in?`;
+    }
+    return said ? "Up next" : "Are you in?";
+  };
 
   // Picked once per visit, from the time of day, a training night, or how often you've looked today. The count
   // is this device's only: a bit of fun, not a record.
@@ -245,7 +260,7 @@
   const hello = $derived.by(() => {
     const set = lines(slot(new Date(), nexts[0]?.session.heldOn === londonToday(), visits));
     const line = set[Math.floor(roll * set.length)]?.text ?? "{name}";
-    return fill(line, { name: shortName(who), visits, day: series?.shortName ?? "training night" });
+    return fill(line, { name: shortName(who), visits, day: nexts[0]?.series.shortName ?? "training night" });
   });
 
   // The locker room has a word for you until you answer, and another once you have.
@@ -422,13 +437,13 @@
     </section>
   {/if}
 
-  <!-- The calls to action: this Friday's card, always (In and Out, the quip, your team once they're out); are you in
-       for the Kumite while it's open. A tournament you'd answered before you came is its row in what's coming up -->
-  {#if booking || feed.fights.length || signingUp.some(({ t }) => askFull(tournamentBookable(t)))}
-    <div class="asks">
-      {#if series && booking}
-        <section>
-          <h2 class="section-title">{answered ? `This ${day}` : `Are you in this ${day}?`}</h2>
+  <!-- The lead: your next thing, whatever it is, with its action. An event's card (In and Out; a training night with
+       the locker room's quip and your team along its foot), your next fight, or a draft you're a captain in -->
+  {#if lead}
+    <section aria-labelledby="lead-title">
+      <h2 class="section-title" id="lead-title">{leadTitle(lead)}</h2>
+      {#if leadEvent}
+        {#if session}
           <!-- The locker room's word, swapped in place when you answer. Its room is fixed, so nothing moves. -->
           <p class="message" aria-live="polite">
             <span class="sr-only">{quip?.text ?? ""}</span>
@@ -436,45 +451,61 @@
               >{typed}{#if quip}<span class="caret" class:done={typed === quip.text}></span>{/if}</span
             >
           </p>
-          <!-- The night you came for: it makes an entrance, the rest of the page just rises -->
-          <div class="lead">
-            <EventCard
-              event={booking}
-              canSignUp={can(perms, "signup:Event")}
-              feature
-              beckon
-              glance
-              link
-              place={false}
-              footer={myTeam ? teamLine : undefined}
-              {onanswer}
-            >
-              {#snippet links()}{@render placeLinks(booking)}{/snippet}
-            </EventCard>
-          </div>
-        </section>
-      {/if}
-      {#each signingUp as { type, t } (type.id)}
-        {@const ev = tournamentBookable(t)}
-        {#if askFull(ev)}
-          <section>
-            <h2 class="section-title">
-              {standingOn(ev) ? `The ${type.shortName}` : `Are you in for the ${type.shortName}?`}
-            </h2>
-            <EventCard event={ev} canSignUp={can(perms, "signup:Event")} feature beckon glance link place={false}>
-              {#snippet links()}{@render placeLinks(ev)}{/snippet}
-            </EventCard>
-          </section>
         {/if}
-      {/each}
-      <!-- On a team with a fight to come: who, when, and the way to it, as the tournament's own page leads with it -->
-      {#each feed.fights as f (f.t.id)}
-        <section>
-          <h2 class="section-title">Your next {f.type.shortName} fight</h2>
-          <NextFight tournament={f.t} game={f.game} teamId={f.teamId} day />
-        </section>
-      {/each}
-    </div>
+        <!-- The thing you came for: it makes an entrance, the rest of the page just rises -->
+        <div class="lead">
+          <EventCard
+            event={leadEvent}
+            canSignUp={can(perms, "signup:Event")}
+            feature
+            beckon
+            glance
+            link
+            place={false}
+            footer={myTeam ? teamLine : undefined}
+            onanswer={session ? onanswer : undefined}
+          >
+            {#snippet links()}{@render placeLinks(leadEvent)}{/snippet}
+          </EventCard>
+        </div>
+      {:else if lead.kind === "fight"}
+        {@const { t, game, teamId } = lead.fight}
+        {@const where = tournamentBookable(t)}
+        {@const live = game.status === "live"}
+        <!-- On a team with a fight to come: the game as the fight card has it (who, when, which game), the day and
+             the place under it, and the way to the game -->
+        <div class="lead lead-plain">
+          <FightCard tournament={t} games={[game]} upNext={live ? undefined : game} {teamId} />
+          <p class="lead-meta">
+            <span>{t.heldOn === today ? "Today" : formatDayDate(where.startsAt)}</span>
+            {#if where.venue}
+              {#if where.mapUrl}
+                <a href={where.mapUrl} target="_blank" rel="noopener noreferrer"
+                  ><Icon name="pin" size={16} />{where.venue}</a
+                >
+              {:else}<span><Icon name="pin" size={16} />{where.venue}</span>{/if}
+            {/if}
+          </p>
+          <div class="lead-actions">
+            <a class="btn primary" href="/tournaments/{lead.fight.type.slug}/games/{game.id}{live ? '/live' : ''}"
+              >{live ? "Watch it live" : "See the matchup"}</a
+            >
+          </div>
+        </div>
+      {:else if lead.kind === "draft"}
+        {@const d = lead.item}
+        <!-- A draft you're a captain in: on now, or its day; the way into it -->
+        <div class="lead lead-plain lead-draft">
+          {#if d.on}<DateBlock at={d.on.at} />{:else}<span class="lead-icon"><Icon name="draft" size={28} /></span>{/if}
+          <p class="lead-line">
+            <strong>{d.sub.split(" · ")[0]}</strong><span>{d.sub.split(" · ").slice(1).join(" · ")}</span>
+          </p>
+          <div class="lead-actions">
+            <a class="btn primary" href={d.href}>{d.hot ? "Make your pick" : "Open the draft"}</a>
+          </div>
+        </div>
+      {/if}
+    </section>
   {/if}
 
   <!-- The feed: what needs you now (your move first, then what you owe), what's coming up with the calendar after it,
@@ -559,13 +590,9 @@
       gap: var(--s-5);
     }
   }
-  section,
-  .asks {
+  section {
     display: grid;
     gap: var(--s-3);
-  }
-  .asks {
-    gap: var(--s-6);
   }
 
   /* The hello: one modest line, not a poster, so Friday's card is in the first screen of a phone. On a desktop the
@@ -753,6 +780,74 @@
       opacity: 1;
       background-position: -20% 0;
     }
+  }
+  /* A lead that isn't an event's card (your fight, a draft): on the page, not a panel; it lands like the card, without
+     the glint, which is the card's */
+  .lead-plain {
+    display: grid;
+    gap: var(--s-3);
+  }
+  .lead-plain::after {
+    display: none;
+  }
+  .lead-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1) var(--s-4);
+    margin: 0 var(--s-2);
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .lead-meta > * {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    min-width: 0;
+  }
+  .lead-meta a {
+    color: var(--fg-body);
+  }
+  .lead-meta a:hover {
+    color: var(--fg);
+  }
+  .lead-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+  /* A phone: the main button across, under your thumb */
+  @media (max-width: 600px) {
+    .lead-actions .btn.primary {
+      flex: 1 1 12rem;
+    }
+  }
+  .lead-draft {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--s-4);
+  }
+  .lead-draft .lead-actions {
+    grid-column: 1 / -1;
+  }
+  .lead-icon {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    color: var(--red-hot);
+  }
+  .lead-line {
+    display: grid;
+    gap: 0.15rem;
+    margin: 0;
+    color: var(--fg-muted);
+    line-height: 1.3;
+  }
+  .lead-line strong {
+    color: var(--fg);
+    font-size: var(--text-lg);
+    font-weight: 600;
   }
   @media (prefers-reduced-motion: reduce) {
     .lead,

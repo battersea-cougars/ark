@@ -23,14 +23,16 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
    the right), then **what you owe** as its last notice ("£58 to pay", "Your tab · 3 nights", the £ in red) with
    Settle up where Got it sits, opening your tab: no Got it, it stays while you owe anything and is gone at £0. Then
    "Everything from the locker room", Home's page of past announcements ([0107](0107-announcements.md)).
-3. **The calls to action**: **this Friday's card, always** (the soonest training's next session, with the locker
-   room's quip, In and Out, and your team along its foot once the teams are out), answered or not, in its reserved
-   room; then "Are you in for the Kumite?" for each series' next tournament that is taking sign-ups, a full card
-   (EventCard). A tournament you had already answered when you opened Home is its row in what's coming up ("You're
-   in") instead, so the asks still open stand out; one you answer while you're there keeps its card for the rest of
-   the visit, so nothing jumps under your thumb. Then **your next fight** in each series you're on a team in, once
-   its fixtures are out ("Your next Kumite fight": the two crests, "Team Dan vs Team Cal", the time, day and game,
-   opening its matchup), the same line its front page leads with ([0074](0074-tournament-home-and-scheduling.md)).
+3. **The lead: your next thing, whatever it is** (`lib/home-feed.ts` `leadOf`), one card with its action: a
+   training night (its card with In and Out, the locker room's quip, your team along its foot once the teams are
+   out; "Are you in this Friday?", "next Friday" or its date when it's further off), your next fight in a tournament
+   you're on a team in once its fixtures are out (the game as the fight card has it, the day and the place, See the
+   matchup; Watch it live while it's on), a draft you're a captain in (on now with picks to make, or its day; Make
+   your pick), or a tournament or social you're in or may sign up for now ("Are you in for the Kumite?", its card).
+   The soonest leads (a fight's time is its kick-off on the day, in London); at the same moment a fight, then a
+   draft, then the schedule's order. What you've said you're out of leads only when nothing else is yours; a
+   cancelled one, one with no day yet, one with nothing to answer, or one that's over never does. The lead picked
+   when you opened Home stays for the visit while it's still on, so answering Out doesn't swap it under your thumb.
 4. **The feed** (`lib/home-feed.ts`), light rows (an icon or a date, a line, a sub-line, a chevron):
    - **What needs you now**, your move first: an open draft, the draft being on, the teams being out (not once you've a fight
      coming: that says it), a captain's
@@ -38,15 +40,16 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
    - **Coming up**, in date order, each with its date on the left as the lead card shows it (`lib/DateBlock`: Fri / 30 / Oct stacked, a size
      down; Summer / TBC / 2027 with no day yet): each
      training's next session and each tournament series' next one (however far off), and the club's events in the
-     next six weeks; at most seven, then "See the calendar". What's a card up top isn't repeated: the Friday row is
-     the one after the card's. The sub-line says the time and where you stand, or when sign-up opens.
+     next six weeks; at most seven, then "See the calendar". The lead isn't repeated (for a fight, its tournament):
+     with a Friday leading, the Friday row is the one after it. The sub-line says the time and where you stand, when
+     sign-up opens, or when your fight is.
    - The store app's notification ask ([0108](0108-store-apps.md)), dismissible.
    - **For admins**, at the foot under a quiet label, only for whoever they're for: running the draft, and what the
      club is owed (opening Unpaid fees).
 
 ## Consequences
 
-- The first screen of a phone is the greeting, any announcement and Friday's card; under it, a short feed of what's
+- The first screen of a phone is the greeting, any announcement and the lead (your next thing); under it, a short feed of what's
   next.
 - What you owe is always on Home while you owe something: the locker room's last notice, no longer only after 60
   days ([0007](0007-dues-and-payments.md)). What the club is owed is an admin's, at the foot.
@@ -73,3 +76,9 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
 - 2026-10-21: Your next fight (a tournament you're on a team in, its fixtures out) is a call to action after the
   sign-ups, the same line the tournament's front page leads with, and it replaces "The teams are out" for you: "show
   my upcoming games for kumite on home".
+- 2026-10-22: One lead instead of a stack of calls to action: "the next event should be the main call to action. So
+  if there's a Kumite and I have a game, the main card should be that. Basically whatever the next event. The coming
+  up will show the next events after that." Friday's card is no longer always there: it leads when it's your next
+  thing, else it's a row in what's coming up; a tournament asking and your next fight are the lead when they're
+  soonest, else rows ("Are you in?", "Your fight at 10:17am"). A captain's draft can lead too, and isn't then a row in
+  what needs you now.

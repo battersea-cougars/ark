@@ -1,12 +1,13 @@
-// Home's feed (ADR 0118): under the calls to action (with your next fight, once you're on a team with one coming, ADR
-// 0074), three groups. First what needs you now: a captain's draft, the
-// draft being on, the teams being out, a sign-up closing you haven't answered. (What you owe is a notice up top.) Then what's coming
-// up, in date order and capped: the other trainings' next sessions, each tournament series' next one, the club's
-// events, with "See the calendar" after them. Last, under "For admins", only for whoever they're for: running the
-// draft, and what the club is owed.
+// Home's feed (ADR 0118). First the lead: your next thing, whatever it is (a training night, your next fight, a draft
+// you're a captain in, a tournament asking), the one card up top with its action. Then three groups. What needs you
+// now: a captain's draft, the draft being on, the teams being out, a sign-up closing you haven't answered. (What you
+// owe is a notice up top.) Then what's coming up after the lead, in date order and capped: each training's and each
+// tournament series' next one, the club's events, with "See the calendar" after them. Last, under "For admins", only
+// for whoever they're for: running the draft, and what the club is owed.
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
+import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
 
@@ -22,6 +23,8 @@ export interface FeedItem {
   icon: FeedIcon;
   /** The day it's about (a draft night, a sign-up's last day): its date block stands in for the icon. */
   on?: When;
+  /** A captain's own draft, with picks still to make or its day to come: it may lead Home, as of this instant. */
+  captainAt?: string;
 }
 
 /** A date to show as the stacked block (lib/DateBlock): the day, or a season, or not confirmed. */
@@ -81,10 +84,12 @@ export interface FeedInput {
   upcoming: { type: TournamentType; t: Tournament }[];
   /** What the club is owed, for whoever sees Unpaid fees (read:Dues); null for everyone else. */
   club: { total: number; people: number; worst: number } | null;
-  /** What's on from today, any order: Home picks the rows. */
+  /** What's on from today, any order: Home picks the lead and the rows. */
   events?: UpcomingEvent[];
-  /** Already a card up top (the lead Friday, a tournament still asking): not repeated. */
-  shown?: string[];
+  /** The instant Home was opened (ISO); left out, the start of today in London. */
+  now?: string;
+  /** The lead Home has shown this visit: it stays the lead while it's still on, so nothing jumps when you answer. */
+  pinned?: string;
 }
 
 /** Your team's next game in a tournament on or coming up: a call to action of its own (lib/NextFight). */
@@ -95,9 +100,15 @@ export interface Fight {
   teamId: number;
 }
 
+/** Home's one card up top: your next thing, as an event's card, your next fight, or a captain's draft. */
+export type Lead =
+  | { kind: "event"; key: string; at: string; event: UpcomingEvent }
+  | { kind: "fight"; key: string; at: string; fight: Fight }
+  | { kind: "draft"; key: string; at: string; item: FeedItem };
+
 export interface Feed {
-  /** Your next fight in each series you're on a team in. */
-  fights: Fight[];
+  /** Your next thing, or nothing at all on. */
+  lead: Lead | null;
   now: FeedItem[];
   upcoming: UpcomingRow[];
   admin: FeedItem[];
@@ -116,7 +127,10 @@ export function homeFeed(input: FeedInput): Feed {
     (a, b) => Number(b.hot) - Number(a.hot),
   );
   const forAdmins = (r: FeedItem) => r.key.startsWith("admin:");
-  const now = rows.filter((r) => !forAdmins(r));
+  const fights = nextFights(input);
+  const lead = leadOf(input, fights, rows);
+  // A draft that leads isn't a row as well
+  const now = rows.filter((r) => !forAdmins(r) && !(lead?.kind === "draft" && lead.key === r.key));
   const admin = rows.filter(forAdmins);
   const { club } = input;
   if (club && club.total > 0)
@@ -128,7 +142,7 @@ export function homeFeed(input: FeedInput): Feed {
       hot: false,
       icon: "pound",
     });
-  return { fights: nextFights(input), now, upcoming: upcomingRows(input), admin };
+  return { lead, now, upcoming: upcomingRows(input, lead, fights), admin };
 }
 
 /** What you owe, and what for: the kind of each charge with something left on it. */
@@ -156,9 +170,54 @@ const plusDays = (day: string, n: number) =>
   new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const STANDING: Record<Standing, string> = { in: "You're in", waitlist: "You're on the waitlist", out: "You're out" };
 
-// Coming up: each training's and each tournament series' next one, the club's events in the next few weeks; what's
-// a card up top isn't repeated. Dated ones by date, a season-only tournament after them; capped
-function upcomingRows({ events = [], shown = [], today }: FeedInput): UpcomingRow[] {
+/** A tournament's own key on the schedule (lib/schedule tournamentBookable): its fight stands in for it. */
+const tournamentKey = (t: Tournament) => `tournament:${t.id}`;
+/** When your fight kicks off, London's wall clock on the tournament's day, as an instant. */
+const fightAt = ({ t, game }: Fight) => londonISO(t.heldOn, kickOff(t.startTime, slotMinutes(t), game.position));
+
+/**
+ * The lead: your next thing, whatever it is. Yours are your fights (in place of their tournament), a draft you're a
+ * captain in (open, with picks to make: now; else its day), and any event you're in, waiting on, or may sign up for
+ * now; the soonest of them leads, and at the same moment a fight, then a draft, then the schedule's order. With
+ * nothing of yours, the next you've said you're out of (you may change your mind); an event with nothing to answer
+ * (a social with no sign-up, a tournament not asking yet) never leads. Nor a cancelled one, one with no day yet, or
+ * one that's over. The one Home pinned this visit stays while it's still on, so answering Out doesn't swap it.
+ */
+export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lead | null {
+  const { events = [], today, pinned } = input;
+  const nowMs = Date.parse(input.now ?? londonISO(today, "00:00"));
+  const yours: Lead[] = [];
+  const others: Lead[] = [];
+  for (const fight of fights) {
+    if (fight.t.season || fight.t.heldOn < today) continue;
+    yours.push({ kind: "fight", key: `fight:${fight.t.id}`, at: fightAt(fight), fight });
+  }
+  for (const item of rows) if (item.captainAt) yours.push({ kind: "draft", key: item.key, at: item.captainAt, item });
+  const fought = new Set(fights.map((f) => tournamentKey(f.t)));
+  for (const event of events) {
+    if (event.cancelled || event.season || event.dateTbc || fought.has(event.key)) continue;
+    if (Date.parse(event.endsAt) <= nowMs) continue;
+    const lead: Lead = { kind: "event", key: event.key, at: event.startsAt, event };
+    if (event.standing === "out") others.push(lead);
+    else if (event.standing || event.asking) yours.push(lead);
+  }
+  const held = pinned && [...yours, ...others].find((l) => l.key === pinned);
+  if (held) return held;
+  // Soonest first; a stable sort keeps a fight, then a draft, then the schedule's order at the same moment
+  const soonest = (list: Lead[]) => [...list].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0] ?? null;
+  return soonest(yours) ?? soonest(others);
+}
+
+// Coming up: each training's and each tournament series' next one, the club's events in the next few weeks; the lead
+// isn't repeated (for a fight, its tournament). Dated ones by date, a season-only tournament after them; capped
+function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, fights: Fight[]): UpcomingRow[] {
+  const shown = !lead
+    ? []
+    : lead.kind === "event"
+      ? [lead.key]
+      : lead.kind === "fight"
+        ? [tournamentKey(lead.fight.t)]
+        : [];
   const until = plusDays(today, AHEAD_DAYS);
   const seen = new Set<string>();
   const sorted = events
@@ -175,21 +234,25 @@ function upcomingRows({ events = [], shown = [], today }: FeedInput): UpcomingRo
     if (e.kind !== "tournament" && dayOf(e.startsAt) > until) continue;
     picked.push(e);
   }
-  return picked.slice(0, UPCOMING_MAX).map((e) => upcomingRow(e, today));
+  // A tournament you've a fight in says when it is
+  const fightTimes = new Map(fights.map((f) => [tournamentKey(f.t), formatTime(fightAt(f))]));
+  return picked.slice(0, UPCOMING_MAX).map((e) => upcomingRow(e, today, fightTimes.get(e.key)));
 }
 
-function upcomingRow(e: UpcomingEvent, today: string): UpcomingRow {
+function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingRow {
   const time = e.timeText || (e.season ? "" : timeRange(e.startsAt, e.endsAt));
   const opens = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
   const how = e.cancelled
     ? "Cancelled"
-    : e.standing
-      ? STANDING[e.standing]
-      : opens
-        ? `Sign-up opens ${opens.day} ${opens.month}`
-        : e.asking
-          ? "Are you in?"
-          : e.venue;
+    : fight
+      ? `Your fight at ${fight}`
+      : e.standing
+        ? STANDING[e.standing]
+        : opens
+          ? `Sign-up opens ${opens.day} ${opens.month}`
+          : e.asking
+            ? "Are you in?"
+            : e.venue;
   const sub = [e.dateTbc ? "" : time, how].filter(Boolean).join(" · ");
   const on = { at: e.startsAt, season: e.season, tbc: e.dateTbc };
   return { key: e.key, href: e.href, icon: e.icon, on, text: e.title, sub };
@@ -208,7 +271,7 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
       const on = { at: r.startsAt };
       const at = r.allDay ? "" : ` at ${formatTime(r.startsAt)}`;
       if (r.kind === "signup_closes") {
-        // The next of a series taking sign-ups is already asked up top, as a card of its own
+        // The next of a series taking sign-ups is already asked: the lead, or its row in what's coming up
         if (upcoming.some((u) => u.t.id === t.id)) return [];
         if (!signupOpen(t, today) || t.going.includes(me) || t.waitlist.includes(me)) return [];
         return [
@@ -237,6 +300,7 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
             sub: `${t.name} · you pick ${nth(mine + 1)}`,
             hot: false,
             icon: "draft",
+            captainAt: r.allDay ? londonISO(r.day, "00:00") : r.startsAt,
           },
         ];
       if (!runsDrafts) return [];
@@ -256,7 +320,9 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
 
 // A draft that's open, for its captains and whoever runs it: on until it's closed, however long that takes. A captain
 // hears when it's their pick, or how many picks away it is
-function liveDrafts({ upcoming, me, runsDrafts }: FeedInput): FeedItem[] {
+function liveDrafts({ upcoming, me, runsDrafts, now, today }: FeedInput): FeedItem[] {
+  // A captain with picks still to make: it's on now, so it may lead
+  const captainAt = now ?? londonISO(today, "00:00");
   return upcoming.flatMap(({ type, t }): FeedItem[] => {
     if (t.kind !== "draft" || t.draftState !== "open") return [];
     const mine = t.teams.findIndex((x) => x.captainMemberId === me);
@@ -270,9 +336,10 @@ function liveDrafts({ upcoming, me, runsDrafts }: FeedInput): FeedItem[] {
     if (mine < 0)
       return [{ ...row, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
     if (until === 0)
-      return [{ ...row, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true }];
-    const sub = until < Infinity ? `${t.name} · you pick in ${until}` : `${t.name} · your picks are done`;
-    return [{ ...row, text: "The draft's open", sub, hot: false }];
+      return [{ ...row, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt }];
+    if (until === Infinity)
+      return [{ ...row, text: "The draft's open", sub: `${t.name} · your picks are done`, hot: false }];
+    return [{ ...row, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt }];
   });
 }
 

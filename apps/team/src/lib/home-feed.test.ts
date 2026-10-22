@@ -18,6 +18,10 @@ const kumite = (over: Partial<Tournament> = {}) =>
     out: [],
     teams: [],
     draftState: "none",
+    heldOn: "2026-10-31",
+    startTime: "10:00",
+    gameMinutes: 12,
+    season: null,
     ...over,
   }) as unknown as Tournament;
 const closes = {
@@ -43,7 +47,7 @@ const feed = (t: Tournament, over: Partial<FeedInput> = {}) =>
   });
 
 describe("Home's feed", () => {
-  it("a captain on the clock hears it first; the club's dues are an admin's line, at the bottom", () => {
+  it("a captain on the clock has it as Home's lead; the club's dues are an admin's line, at the bottom", () => {
     const t = kumite({
       draftState: "open",
       teams: [
@@ -52,8 +56,8 @@ describe("Home's feed", () => {
       ],
     });
     const rows = feed(t, { club: { total: 9000, people: 3, worst: 0 } });
-    expect(rows.now.map((r) => r.text)).toEqual(["It's your pick"]);
-    expect(rows.now[0].hot).toBe(true);
+    expect(rows.lead).toMatchObject({ kind: "draft", item: { text: "It's your pick", hot: true } });
+    expect(rows.now).toEqual([]);
     expect(rows.admin.map((r) => [r.text, r.href])).toEqual([["Owed to the club £90", "/settings/overdue"]]);
   });
 
@@ -94,10 +98,10 @@ describe("Home's feed", () => {
       games: [game(81, 1, 1, 3, "done"), game(82, 2, 2, 3), game(83, 3, 1, 2)],
     });
     const rows = feed(out);
-    expect(rows.fights.map((f) => [f.t.id, f.game.id, f.teamId])).toEqual([[10, 82, 2]]);
+    expect(rows.lead).toMatchObject({ kind: "fight", fight: { game: { id: 82 }, teamId: 2 } });
     expect(rows.now).toEqual([]);
     // Not on a team: no fight of yours, and the teams are still news
-    expect(feed(out, { me: 99 }).fights).toEqual([]);
+    expect(feed(out, { me: 99 }).lead).toBeNull();
     expect(feed(out, { me: 99 }).now.map((r) => r.text)).toEqual(["The teams are out"]);
   });
 
@@ -158,7 +162,7 @@ describe("what's coming up", () => {
       filter: "series:1",
       title: "Friday Training",
     });
-  const up = (events: UpcomingEvent[], shown: string[] = []) => feed(kumite(), { events, shown }).upcoming;
+  const up = (events: UpcomingEvent[]) => feed(kumite(), { events }).upcoming;
 
   it("is in date order, a date on the left of each", () => {
     const rows = up([ev("quiz", "2026-11-05T19:00:00Z"), ev("drinks", "2026-10-30T19:00:00Z")]);
@@ -168,12 +172,13 @@ describe("what's coming up", () => {
   });
 
   it("doesn't repeat the lead Friday: the row is the Friday after it, once", () => {
-    const rows = up([friday(0), friday(1)], ["session:0"]);
+    const rows = up([{ ...friday(0), asking: true }, friday(1)]);
     expect(rows.map((r) => r.key)).toEqual(["session:1"]);
   });
 
   it("each training and tournament series once, its next; where you stand, or when sign-up opens", () => {
     const rows = up([
+      { ...friday(0), asking: true },
       ev("tournament:2", "2027-06-30T10:00:00Z", {
         kind: "tournament",
         filter: "type:1",
