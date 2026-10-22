@@ -20,6 +20,8 @@ import { notifyLive } from "../live/live";
 import { MAIL_ROUTES } from "../mail/mail.routes";
 import { ME_ROUTES } from "../members/me.routes";
 import { MEMBERS_ROUTES } from "../members/members.routes";
+import { PASSKEY_ROUTES } from "../auth/auth.passkeys.routes";
+import { BREAK_GLASS_ROUTES } from "../auth/auth.break-glass";
 import { actionsOf, firstAdmin } from "../members/members";
 import { ROLES_ROUTES } from "../members/roles.routes";
 import { SCORING_ROUTES } from "../tournaments/scoring.routes";
@@ -53,6 +55,9 @@ export const ROUTES: Route[] = [
   // People: members and roles
   ...MEMBERS_ROUTES,
   ...ROLES_ROUTES,
+  // Ways in: a member's passkeys from their sheet, and the week's break-glass sign-ins (ADR 0023)
+  ...PASSKEY_ROUTES,
+  ...BREAK_GLASS_ROUTES,
   // Fridays: training nights, sign-ups, and what they cost
   ...TRAINING_ROUTES,
   ...ENTRIES_ROUTES,

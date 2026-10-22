@@ -553,6 +553,23 @@ cron monitor.
 | `GITHUB_APP_CLIENT_ID`                 | team `wrangler.jsonc`       | `Iv23liuUhxYcTesso0TW`, the Cougars rebuilds App                                                                |
 | `GITHUB_APP_INSTALLATION_ID`           | team `wrangler.jsonc`       | `169599165`, its installation on `battersea-cougars/ark`                                                        |
 
+## Locked out
+
+Members sign in to the team app with a passkey or an emailed code ([ADR 0023](docs/adr/0023-sign-in-and-sessions.md)).
+An admin with neither (Gmail down, every admin's passkeys lost, no admin signed in anywhere) gets in by **break
+glass**, from a terminal with `bw-unlock` done and the environment's Cloudflare token in Bitwarden:
+
+```sh
+npm run admin:break-glass -- dana@example.com                    # dev
+npm run admin:break-glass -- dana@example.com --env production   # asks for the email again
+```
+
+It refuses anyone but an active admin (`manage:all`), prints one six-digit code here and nowhere else, and that admin
+types their email and the code on the usual sign-in page within 15 minutes. The first browser to ask for their code
+takes it; it works once, with the usual five tries. It's on the record (Activity, `auth.break_glass`), every admin
+hears of it (phone, and email if it's working), and each admin's Home shows it with **Sign it out**. Once in, add a
+passkey on the You page, and let others in the usual ways.
+
 ## Docs
 
 - [docs/accounts.md](docs/accounts.md): every outside service, who owns it, and which secrets come from it

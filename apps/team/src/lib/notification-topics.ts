@@ -19,6 +19,13 @@ export const TOPICS = [
     hint: "Google cancelled the app's access to send email, so nobody gets a sign-in code until it's reconnected.",
     action: "manage:Settings",
   },
+  // Only ever sent to admins (a break-glass sign-in, ADR 0023), so only they see its switch
+  {
+    topic: "security",
+    label: "Break-glass sign-ins",
+    hint: "Someone got in with a code made at a terminal, not by email or passkey.",
+    action: "manage:all",
+  },
 ] as const;
 
 export type Topic = (typeof TOPICS)[number]["topic"];

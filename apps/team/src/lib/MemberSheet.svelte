@@ -23,6 +23,7 @@
     eraseMember,
     saveMember,
     signOutMember,
+    removeMemberPasskeys,
     setQuarterly,
     setMemberEveryday,
     type AttendanceRow,
@@ -33,6 +34,8 @@
   import { granted, me, session } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import Ledger from "./Ledger.svelte";
+  import { api } from "../app/api";
+  import type { Passkey } from "../app/passkeys";
   import Sheet from "./Sheet.svelte";
   import RemindReview from "./RemindReview.svelte";
   import MoneyField from "./MoneyField.svelte";
@@ -444,6 +447,30 @@
     signingOut = false;
   }
 
+  // Their passkeys (ADR 0023): by device and the day they added it; an admin removes them all (a lost or sold phone).
+  // Their sign-ins stay: that's Sign out everywhere, beside it
+  let theirPasskeys = $state<Passkey[] | null>(null);
+  $effect(() => {
+    if (memberId === me().id) return;
+    theirPasskeys = null;
+    api<{ passkeys: Passkey[] }>("GET", `/api/members/${memberId}/passkeys`)
+      .then((r) => (theirPasskeys = r.passkeys))
+      .catch(() => (theirPasskeys = null));
+  });
+  const passkeysLine = $derived(
+    theirPasskeys === null
+      ? ""
+      : theirPasskeys.length
+        ? `Passkeys: ${theirPasskeys.map((p) => `${p.name}, ${formatDayDate(p.createdAt)}`).join("; ")}`
+        : "No passkeys: they sign in with a code.",
+  );
+  let removingPasskeys = $state(false);
+  async function removePasskeys() {
+    removingPasskeys = true;
+    if (await removeMemberPasskeys(memberId)) theirPasskeys = [];
+    removingPasskeys = false;
+  }
+
   // Closing with changes asks first (the footer); Discard or Save goes on to close
   function close() {
     if (changed) return void (asking = true);
@@ -709,6 +736,16 @@
                   <button class="btn ghost sm start" type="button" disabled={signingOut} onclick={signOutEverywhere}
                     >Sign out everywhere</button
                   >
+                  <!-- Their passkeys (ADR 0023): a line of what they have, kept in place so it never moves the rest -->
+                  <p class="hint passkeys-line">{passkeysLine}</p>
+                  {#if theirPasskeys?.length}
+                    <button
+                      class="btn ghost sm start"
+                      type="button"
+                      disabled={removingPasskeys}
+                      onclick={removePasskeys}>Remove their passkeys</button
+                    >
+                  {/if}
                   <button
                     class="btn ghost sm danger"
                     type="button"
@@ -1121,6 +1158,11 @@
   .group {
     display: grid;
     gap: var(--s-3);
+  }
+  .passkeys-line {
+    min-height: 1.45em;
+    margin: 0;
+    font-size: var(--text-sm);
   }
   .fields {
     display: grid;

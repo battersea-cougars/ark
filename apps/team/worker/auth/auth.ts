@@ -24,6 +24,8 @@ import { firstAdmin } from "../members/members";
 import { forgetDevice, registerDevice } from "../push/push";
 import { endSessions } from "./auth.sessions";
 import { mustBeHuman, type TurnstileEnv } from "./auth.turnstile";
+import { handlePasskeys } from "./auth.passkeys";
+import { brokeGlass, claimBreakGlass } from "./auth.break-glass";
 import type { LiveEnv } from "../live/live";
 import { scribe } from "@cougars/shared/scribe";
 
@@ -77,7 +79,7 @@ export async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-function token(): string {
+export function token(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
@@ -113,11 +115,14 @@ export function privateHost(hostname: string): boolean {
 export const localHere = (env: { TEAM_ENV?: string }, request: Request) =>
   env.TEAM_ENV === "local" && privateHost(new URL(request.url).hostname);
 /**
+ * The app's cookies: the session, a code's nonce, a passkey sign-in's nonce (auth.passkeys.ts), and a Gmail reconnect
+ * on its way through Google (mail/mail.ts).
+ */
+type CookieBase = "session" | "nonce" | "passkey" | "gmail";
+/**
  * A cookie's name here. On https it carries the __Host- prefix: the browser then insists on Secure, Path=/ and no
  * Domain, so no sibling subdomain can set or shadow it. Plain http (a local server on the LAN) can't use it.
  */
-/** The app's cookies: the session, a sign-in's nonce, and a Gmail reconnect on its way through Google (mail/mail.ts). */
-type CookieBase = "session" | "nonce" | "gmail";
 export const cookieName = (request: Request, base: CookieBase) => `${isHttps(request) ? "__Host-" : ""}cougars_${base}`;
 
 export function cookie(request: Request, name: string): string | null {
@@ -133,7 +138,7 @@ export function setCookie(request: Request, base: CookieBase, value: string, max
   return `${cookieName(request, base)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-const addMs = (now: Date, ms: number) => new Date(now.getTime() + ms).toISOString();
+export const addMs = (now: Date, ms: number) => new Date(now.getTime() + ms).toISOString();
 
 const TOO_MANY_TRIES = "Too many tries from here. Wait a few minutes.";
 
@@ -180,7 +185,11 @@ interface SessionRow {
  * The live session a request's cookie is for: its current token, or the one before a renewal for a few minutes after
  * (ROTATE_GRACE_MS). An inactive member's session isn't one.
  */
-async function findSession(request: Request, env: AuthEnv, now: Date): Promise<(SessionRow & { hash: string }) | null> {
+export async function findSession(
+  request: Request,
+  env: AuthEnv,
+  now: Date,
+): Promise<(SessionRow & { hash: string }) | null> {
   const value = cookie(request, cookieName(request, "session"));
   if (!value) return null;
   const hash = await sha256(value);
@@ -230,7 +239,17 @@ export async function giveReference(db: D1Database, memberId: number, name: stri
   await run(db, sql, [...candidates, memberId]);
 }
 
-async function startSession(request: Request, env: AuthEnv, now: Date, memberId: number, method: string) {
+/**
+ * A new sign-in for a member, however they proved it's them (a code, a passkey, break glass, dev): the session's
+ * cookie, and the sign-in nonces' cookies cleared. On the record as `sign_in` with its method.
+ */
+export async function startSession(
+  request: Request,
+  env: AuthEnv,
+  now: Date,
+  memberId: number,
+  method: SignInMethod,
+): Promise<{ cookies: string[]; sessionId: number }> {
   // Someone made before references read as names (migration 0012) gets theirs the next time they sign in
   const unreferenced = await first<{ name: string }>(
     env.DB,
@@ -239,10 +258,10 @@ async function startSession(request: Request, env: AuthEnv, now: Date, memberId:
   );
   if (unreferenced) await giveReference(env.DB, memberId, unreferenced.name);
   const value = token();
-  await run(
+  const session = await first<{ id: number }>(
     env.DB,
     `INSERT INTO auth_sessions (member_id, token_hash, method, user_agent, created_at, last_seen_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     [
       memberId,
       await sha256(value),
@@ -254,17 +273,27 @@ async function startSession(request: Request, env: AuthEnv, now: Date, memberId:
     ],
   );
   await audit(env.DB, now, memberId, "sign_in", { method });
-  return [setCookie(request, "session", value, SESSION_DAYS * 86_400), setCookie(request, "nonce", "", 0)];
+  return {
+    sessionId: session!.id,
+    cookies: [
+      setCookie(request, "session", value, SESSION_DAYS * 86_400),
+      setCookie(request, "nonce", "", 0),
+      setCookie(request, "passkey", "", 0),
+    ],
+  };
 }
 
-const withCookies = (res: Response, cookies: string[]) => {
+/** How a member proved it's them: an emailed code, a passkey, a break-glass code from the terminal, or dev's sign-in. */
+export type SignInMethod = "code" | "passkey" | "break_glass" | "dev";
+
+export const withCookies = (res: Response, cookies: string[]) => {
   for (const c of cookies) res.headers.append("set-cookie", c);
   return res;
 };
 
 // ─── The routes, before anyone is signed in ───
 
-type Waiter = (p: Promise<unknown>) => void;
+export type Waiter = (p: Promise<unknown>) => void;
 
 /** Sign-in's own routes, answered without a session. Null for anything else. */
 export async function handleAuth(
@@ -276,7 +305,9 @@ export async function handleAuth(
   const { pathname } = new URL(request.url);
   const m = request.method;
   if (pathname === "/api/auth/start" && m === "POST") return start(request, env, now, waitUntil);
-  if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now);
+  if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now, waitUntil);
+  // Passkeys: adding one (signed in), and signing in with one (auth.passkeys.ts)
+  if (pathname.startsWith("/api/auth/passkeys")) return handlePasskeys(request, env, now);
   if (pathname === "/api/auth/sign-out" && m === "POST") return signOut(request, env, now);
   if (pathname === "/api/auth/sign-out-everywhere" && m === "POST") return signOut(request, env, now, true);
   if (pathname === "/api/auth/device" && (m === "PUT" || m === "DELETE")) return device(request, env, now);
@@ -315,22 +346,25 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   // A person, not a script (#13): Turnstile, but for App Review's one address, whose code is fixed and never emailed
   const local = localHere(env, request);
   if (!isReview(env, address)) await mustBeHuman(env, request, sent, { action: "sign-in", local });
-  // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now. The same for everyone,
-  // member or not, so it gives nothing away.
-  if (!local && (await mailPausedUntil()) && (await mailConfig(env)).gmail)
-    throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
   let nonce = cookie(request, cookieName(request, "nonce")) ?? token();
   const res = (devCode?: string) =>
     withCookies(json({ ok: true, message: SAME_REPLY, ...(devCode ? { devCode } : {}) }), [
       setCookie(request, "nonce", nonce, CHALLENGE_MINUTES * 60),
     ]);
+  const paused = async () => !local && !!(await mailPausedUntil()) && !!(await mailConfig(env)).gmail;
+  // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now. The same for everyone,
+  // member or not, so it gives nothing away.
+  const PAUSED = "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.";
 
   const member = await first<{ id: number; name: string }>(
     env.DB,
     `SELECT id, name FROM members WHERE email = ? AND status = 'active'`,
     [address],
   );
-  if (!member) return res();
+  if (!member) {
+    if (await paused()) throw new HttpError(503, PAUSED);
+    return res();
+  }
   // One member a browser at a time (ADR 0023): asking for another account's code starts a fresh nonce, so the earlier
   // account's codes die with the old one, and every guess under a nonce counts against the one account it's for
   const another = await first(
@@ -340,6 +374,10 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   );
   if (another) nonce = token();
   const nonceHash = await sha256(nonce);
+  // A break-glass code made for this admin at a terminal (auth.break-glass.ts): the first browser to ask claims it, and
+  // nothing is emailed, so it works while Gmail is down. From here it's a code like any other.
+  if (await claimBreakGlass(env.DB, now, member.id, nonceHash)) return res();
+  if (await paused()) throw new HttpError(503, PAUSED);
   const counts = await first<{ hour: number; day: number; everywhere: number }>(
     env.DB,
     `SELECT coalesce(sum(nonce_hash = ? AND created_at > ?), 0) AS hour,
@@ -392,6 +430,7 @@ interface Challenge {
   member_id: number;
   code_hash: string;
   attempts: number;
+  kind: "code" | "break_glass";
 }
 
 /** This browser's live challenges: every code it asked for in the last 15 minutes, still unused. */
@@ -401,7 +440,7 @@ async function liveChallenges(request: Request, env: AuthEnv, now: Date): Promis
   const nonceHash = await sha256(nonce);
   const rows = await all<Challenge>(
     env.DB,
-    `SELECT id, member_id, code_hash, attempts FROM login_challenges
+    `SELECT id, member_id, code_hash, attempts, kind FROM login_challenges
      WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC`,
     [nonceHash, now.toISOString()],
   );
@@ -424,7 +463,7 @@ async function spend(env: AuthEnv, now: Date, c: Challenge, nonceHash: string): 
 }
 
 /** The 6-digit code, typed in the browser that asked. Any of its live codes will do. */
-async function verify(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+async function verify(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   const typed = text(await body(request), "code", { max: 20 }).replace(/\s/g, "");
   const live = await liveChallenges(request, env, now);
   if (!live) throw new HttpError(400, ELSEWHERE);
@@ -447,7 +486,11 @@ async function verify(request: Request, env: AuthEnv, now: Date): Promise<Respon
   if (match && (await spend(env, now, match, nonceHash))) {
     // A right code isn't a wrong one
     await run(env.DB, `UPDATE login_challenges SET attempts = attempts - 1 WHERE id = ?`, [counted.id]);
-    return withCookies(json({ ok: true }), await startSession(request, env, now, match.member_id, "code"));
+    const method = match.kind === "break_glass" ? "break_glass" : "code";
+    const { cookies, sessionId } = await startSession(request, env, now, match.member_id, method);
+    // Break glass: on the record, and every admin hears of it (auth.break-glass.ts)
+    if (method === "break_glass") await brokeGlass(env, now, match.member_id, sessionId, waitUntil);
+    return withCookies(json({ ok: true }), cookies);
   }
   if (match) throw new HttpError(400, ELSEWHERE);
   const left = await first<{ n: number }>(
@@ -477,7 +520,7 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
         ?.id
     : await firstAdmin(env.DB);
   if (memberId == null) throw new HttpError(404, "No active member has that email.");
-  return withCookies(json({ ok: true, memberId }), await startSession(request, env, now, memberId, "dev"));
+  return withCookies(json({ ok: true, memberId }), (await startSession(request, env, now, memberId, "dev")).cookies);
 }
 
 /**

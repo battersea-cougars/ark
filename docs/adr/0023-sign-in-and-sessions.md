@@ -1,7 +1,7 @@
-# 0023. Everyone signs in with an emailed code that works only in the browser that asked for it
+# 0023. Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-21
+- **Date:** 2026-10-05 · updated 2026-10-22
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context
@@ -19,6 +19,12 @@ shut out at once. With that lookup, a signed cookie adds nothing: the row decide
 
 Local dev needs a way to sign in when nothing is emailed from a laptop, and that way must never work on a deployed
 worker.
+
+A code needs Gmail. When Gmail is down (a spent sending limit, a lost token, #101), nobody signs in, admins included,
+and it's admins who would fix it. Members want "proper login" too: a passkey (WebAuthn) signs in with the face,
+finger or PIN the phone already uses, with nothing to type, in the browser and in the iPhone app. Passkeys cost
+nothing ([0003](0003-free-tiers-only.md)). If every admin also lost their passkeys while Gmail was down, the club would
+need a way back in that no stranger on the internet could use.
 
 ## Decision
 
@@ -53,6 +59,69 @@ worker.
 - The email goes through the Gmail API (`packages/shared/email.ts`, [0027](0027-email-through-gmail-api.md)).
 - **Sign in with Google** (OAuth with PKCE, for a member whose verified Google email matches) is planned as a
   shortcut. It isn't built.
+
+**Passkeys** (`worker/auth/auth.passkeys.ts`, `src/app/passkeys.ts`)
+
+- A signed-in member adds one on the **You page** ("Use Face ID next time", Touch ID, Windows Hello, "your
+  fingerprint", by device), sees each (named for the device it was made on and who keeps it, "iPhone · iCloud
+  Keychain", with the day it was added and last used) and removes any. After a **code** sign-in on a device that can
+  make one, Home offers one **once** ("Not now" or adding it, remembered on the device). The **sign-in page** offers
+  the device's passkey in the email field's suggestions where the browser can (conditional mediation), and a **Sign
+  in with a passkey** button; the emailed code stays for a first sign-in, a new phone or a lost passkey.
+- Verified in the Worker with WebCrypto by **@simplewebauthn/server** (ES256 and RS256; no attestation asked for, so
+  no vendor lists); the browser side is **@simplewebauthn/browser**. Discoverable passkeys only, and **user
+  verification required** both when adding one and signing in. The member is a random 32-byte handle on the passkey,
+  never their number or email; their other passkeys are listed when adding one, so a device never makes two. At most
+  10 a member.
+- **Challenges** (`passkey_challenges`): random, stored as their SHA-256, single-use, **five minutes**. Adding a
+  passkey: bound to the session that asked. Signing in: bound to the browser that asked by a nonce cookie of its own
+  (`cougars_passkey`, `__Host-` on https, five minutes), as a code is to its nonce. The challenge is **spent in the
+  statement that claims it**, before the signature is checked, so two requests carrying one answer make at most one
+  session ([0121](0121-load-and-concurrency.md)), and a replayed answer, another browser's, a late one or one signed
+  for another challenge or another site is refused.
+- **The signature counter** moves on only from the value read (`UPDATE … WHERE sign_count = ?`): a counter that's
+  gone backwards, or two sign-ins with the same count, is a copied key, refused and on the record
+  (`sign_in.passkey_cloned`). Synced passkeys (iCloud Keychain, Google Password Manager) always say 0, and stay so.
+- **Where a passkey belongs** (its RP ID) is the host the request came to, and the browser's reported origin must be
+  that request's origin: `localhost` on your machine, `team.cougars-dev.workers.dev` on dev, production's team domain
+  (`team.` + `SITE_URL`'s host, `scripts/ci/target.mjs`, which turns `workers_dev` off there so production answers on
+  nothing else). No setting to keep in step. A passkey made on dev doesn't work on production, and a LAN address over
+  http can't use passkeys at all (the button isn't shown).
+- **A passkey sign-in is a session like a code's** (method `passkey`): the same cookie, renewals, limits and endings;
+  an inactive member is refused, and the page is told when a passkey isn't known (removed), so it can tell the device
+  (`signalUnknownCredential`). Removing a passkey doesn't sign anyone out.
+- **What takes passkeys away**: the member (You page), an admin from the member's sheet (**Remove their passkeys**,
+  `DELETE /api/members/:id/passkeys`, `manage:Member`, never for someone who can do more than them, on the record as
+  `member.passkeys_removed`), being **made inactive**, a **new sign-in email** (whoever had the account before keeps
+  no way in) and deleting the account. **Sign out everywhere** (the member's or an admin's) ends sessions only: a
+  passkey needs the member's own face or PIN on their own device, which a copied cookie doesn't, and someone worried
+  about a lost phone removes its passkey beside it. Letting someone back in starts them with a code.
+- **The iPhone app** loads the team app's own address in WKWebView ([0108](0108-store-apps.md)), so its passkeys are
+  the domain's; the app may use them because its entitlements list `webcredentials:` for both team domains beside
+  `applinks:`, and the domain's `apple-app-site-association` (`store.links.ts`) names the app under
+  `webcredentials` (a test holds the two lists together).
+
+**Break glass** (`scripts/admin-break-glass.mjs`, `worker/auth/auth.break-glass.ts`)
+
+- For when Gmail is down, every admin has lost their passkeys and none is signed in. **Never a web route**: someone
+  with the club's Bitwarden and that environment's Cloudflare token runs `npm run admin:break-glass -- <email>
+[--env dev|production]` (production asks for the email again). It refuses unless the email is an active member
+  holding `manage:all`, writes **one** code for them in `login_challenges` (hashed like any code, **15 minutes**,
+  `kind` `break_glass`), calls off any earlier one of theirs not yet used, and prints the code on that terminal only.
+- **Accepting it without a nonce**: no browser asked for it, so it starts unclaimed (`nonce_hash` `break-glass`,
+  never a hash). The admin types their email on the usual sign-in page: the **first browser to ask** for that
+  member's code **claims it** (one `UPDATE … WHERE nonce_hash = 'break-glass'`), and is sent nothing, so it works with
+  Gmail down. From then on it's a code like any other, bound to that browser: 5 wrong tries, the browser's 20 a day,
+  single-use, and spending it ends that browser's other codes. Someone else who knows the admin's email and asks in
+  the same 15 minutes would claim it first and still face a one-in-a-million code with five tries; the admin would
+  find it doesn't work and run the script again. Asking for that member's code while it waits answers as usual (no
+  "paused email" reply), which says something only to someone who knew the email and asked in those minutes.
+- **Everyone knows**: on the record as `auth.break_glass` (`issued`, with who ran it, the machine's user and git email;
+  `signed_in`, with the session; `ended`); its session's method is `break_glass`. When it's used every admin is told on
+  their phone (topic `security`, a switch only admins see) and by email, if email works, neither waiting on the other.
+  Each admin's Home lists the week's break-glass codes and sessions (`GET /api/break-glass`, `manage:Member`), with
+  **Sign it out** for a session or **Call it off** for a code not used (`POST /api/break-glass/sessions|codes/:id/end`,
+  on the record).
 
 **Sessions**
 
@@ -99,8 +168,13 @@ worker.
 
 ## Consequences
 
-- One way to sign in, the same in the PWA, in a browser and in any future store app: copy the code from the email.
-- Sign-in depends on email delivery.
+- Two ways to sign in, the same in the PWA, in a browser and in the store app: a passkey, or the code from the email.
+- A member with a passkey signs in without email; a first sign-in, a new phone or a lost passkey still depends on email
+  delivery. With Gmail down and no passkey, an admin gets in by break glass, which needs someone with the club's
+  Bitwarden and Cloudflare at a terminal, and then lets others in the usual ways.
+- A stolen database can't sign anyone in with a passkey either: it holds public keys.
+- The Worker carries @simplewebauthn/server (a few hundred KB of the bundle, nothing per request beyond one signature
+  check); a passkey sign-in is two requests and a handful of D1 statements.
 - No session secret to create, rotate and document.
 - A stolen database can't sign anyone in, because it holds only hashes. A stolen cookie works until the session is
   ended (by the member, an admin, an email change or being made inactive) or its member's next renewal, whichever
@@ -141,7 +215,16 @@ worker.
   page, and a new email or being made inactive does it on its own; an ended session's phones and live streams go with
   it. Renewal rotates the token (10 minutes' grace) and a session ends a year after signing in (#72).
 - 2026-10-21: Turnstile in front of asking for a code and asking to join (#13, [0028](0028-turnstile-and-auto-reply.md)).
+- 2026-10-22: Passkeys: added on the You page and offered once after a code sign-in, signed in with on the sign-in
+  page (and its email field's suggestions), verified in the Worker with @simplewebauthn/server; challenges single-use,
+  five minutes, bound to the session or browser that asked and spent before checking; counter checked in its
+  statement; the RP ID is the request's own host. Being made inactive, a new email, an admin or the member remove
+  passkeys; sign out everywhere doesn't. The iPhone app gets `webcredentials:` for both team domains.
+- 2026-10-22: Break glass: a terminal script writes one 15-minute code for an active admin, which the first browser to
+  ask for their code claims; every use on the record, every admin told (phone, email, Home) and able to sign it out.
 - 2026-10-23: A member changes their own sign-in email from the You page: a code to the new address (stored hashed,
   15 minutes, 5 tries, 5 an hour and 10 a day), typed while signed in. Their other sessions end, this one stays, and the
   old address is told. An address that's someone else's gets a note instead of a code, with the same reply, so the app
   never says whose it is. Everything a member did stays theirs, as it hangs on their id, not their address.
+- 2026-10-23: Changing your own sign-in email keeps your passkeys: you're signed in and confirm the new address with a
+  code, so the account is still yours. An admin changing someone's email still removes theirs.

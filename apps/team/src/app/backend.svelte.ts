@@ -401,6 +401,10 @@ export const eraseMember = (memberId: number) =>
 export const signOutMember = (memberId: number) =>
   save(() => api("POST", `/api/members/${memberId}/sign-out`), "Signed out everywhere");
 
+/** An admin removes a member's passkeys (ADR 0023): they sign in with a code next time; their sign-ins stay. */
+export const removeMemberPasskeys = (memberId: number) =>
+  save(() => api("DELETE", `/api/members/${memberId}/passkeys`), "Passkeys removed");
+
 /** An admin sets a member's email (what they sign in with) and phone. */
 export const saveContact = (memberId: number, email: string, phone: string) =>
   save(() => api("PUT", `/api/members/${memberId}/contact`, { email, phone }));

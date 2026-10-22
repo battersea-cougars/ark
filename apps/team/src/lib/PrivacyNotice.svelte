@@ -31,10 +31,12 @@
 
   <h2>Signing in</h2>
   <p>
-    The app sets two cookies, which it needs to work: one while you sign in, one to keep you signed in. It remembers
-    which browser each sign-in is on, so you can tell your devices apart. Sign-in codes are kept for 30 days, and a
-    sign-in for 30 days after you sign out or it runs out. A request to join that nobody has answered is forgotten after
-    30 days. A record of who changed what in the app (who was made an admin, say) is kept for 2 years.
+    The app sets the cookies it needs to work: one while you sign in, one to keep you signed in. It remembers which
+    browser each sign-in is on, so you can tell your devices apart. Sign-in codes are kept for 30 days, and a sign-in
+    for 30 days after you sign out or it runs out. If you add a passkey, the club keeps only its public half, what
+    device it was made on and when it was last used, until you or an admin remove it; your face or fingerprint never
+    leaves your device. A request to join that nobody has answered is forgotten after 30 days. A record of who changed
+    what in the app (who was made an admin, say) is kept for 2 years.
   </p>
   <p>
     To keep bots out, asking for a code and asking to join use Cloudflare Turnstile, which checks your browser looks

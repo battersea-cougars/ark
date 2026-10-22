@@ -209,6 +209,7 @@ describe("what a member chooses to hear", () => {
       dues: true,
       draft: true,
       email: true,
+      security: true,
     };
     expect(await prefs(reg)).toEqual(all);
     expect((await boot(reg)).notifications).toEqual(all);

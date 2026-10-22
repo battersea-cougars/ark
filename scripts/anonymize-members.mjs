@@ -93,6 +93,7 @@ for (const s of swaps) {
   out.push(
     `DELETE FROM auth_sessions WHERE member_id = ${s.id};`,
     `DELETE FROM login_challenges WHERE member_id = ${s.id};`,
+    `DELETE FROM passkeys WHERE member_id = ${s.id};`,
   );
 }
 // Who asked about joining, through the website

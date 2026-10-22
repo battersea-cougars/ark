@@ -23,6 +23,7 @@ import {
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 import { SITEVERIFY } from "@cougars/shared/turnstile";
+import { authenticator } from "./testing.authenticator";
 
 /** The token a person's Turnstile widget gives, rendered for this form (testWorld's turnstile()). */
 export const humanToken = (action: string) => `person:${action}`;
@@ -628,6 +629,8 @@ export function testWorld(roster: object[]) {
     gmail,
     webPush,
     turnstile,
+    /** A device's passkeys (testing.authenticator.ts): real keys, real signatures. */
+    authenticator,
     cron,
     scheduled,
     luck,

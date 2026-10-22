@@ -48,7 +48,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 | #                                          | Decision                                                                                                   |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| [0023](0023-sign-in-and-sessions.md)       | Everyone signs in with an emailed code that works only in the browser that asked for it                    |
+| [0023](0023-sign-in-and-sessions.md)       | Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it       |
 | [0024](0024-action-based-authorization.md) | Permissions are actions; roles are data built from actions; admins can view as a member or run as less     |
 | [0036](0036-api-security.md)               | Every API response sends only what that caller may see, decided on the server, and every page is hardened  |
 | [0095](0095-audit-log.md)                  | Each change declares what it puts on the audit log, on its route, and the log has a page in plain words    |

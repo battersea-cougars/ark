@@ -122,6 +122,50 @@
     askNotify = false;
   }
 
+  // Signed in with a code on a device that can make a passkey (ADR 0023): offer one, once, a row beside the
+  // notifications ask. Added or "Not now", it's never asked again on this device
+  // (Loaded after Home paints: it's a few kB most visits never use, ADR 0120)
+  const passkeys = import("../app/passkeys");
+  let offerPasskey = $state(false);
+  let checkWord = $state("a passkey");
+  let passkeyNote = $state("");
+  passkeys
+    .then(async (p) => {
+      checkWord = p.checkName();
+      offerPasskey = await p.mayOfferPasskey();
+    })
+    .catch(() => {});
+  async function addPasskeyHere() {
+    passkeyNote = "";
+    const p = await passkeys;
+    try {
+      if (!(await p.addPasskey())) return;
+      p.offered();
+      offerPasskey = false;
+    } catch (e) {
+      passkeyNote = e instanceof Error ? e.message : "Your device couldn't add one.";
+    }
+  }
+  async function passkeyNotNow() {
+    (await passkeys).offered();
+    offerPasskey = false;
+  }
+
+  // Break glass (ADR 0023): for admins, the week's sign-ins with a code made at a terminal, and any such code not used
+  // yet, with a way to sign it out or call it off if nobody meant to. Read on its own, only for whoever manages members
+  type BreakGlass = { kind: "code" | "session"; id: number; memberId: number; at: string; live: boolean };
+  let breakGlass = $state<BreakGlass[]>([]);
+  const loadBreakGlass = () =>
+    api<{ breakGlass: BreakGlass[] }>("GET", "/api/break-glass")
+      .then((r) => (breakGlass = r.breakGlass))
+      .catch(() => {});
+  if (can(granted(), "manage:Member")) void loadBreakGlass();
+  async function endBreakGlass(b: BreakGlass) {
+    await api("POST", `/api/break-glass/${b.kind === "code" ? "codes" : "sessions"}/${b.id}/end`, {}).catch(() => {});
+    await loadBreakGlass();
+  }
+  const nameOf = (id: number) => shortNameOf(PLAYERS.find((p) => p.id === id)) || "An admin";
+
   // What you owe (ADR 0007): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
   // (a charge whose day has passed, lib/dues.ts) is also a loud icon in the hello, opening the same tab
   const late = $derived(overdue(db.charges, who.id, today));
@@ -700,9 +744,25 @@
   </section>
 
   <!-- What needs you (your move first), and the store app's one ask -->
-  {#if feed.now.length || askNotify}
+  {#if feed.now.length || askNotify || offerPasskey}
     <section class="feed" aria-label="What needs you">
       {#each feed.now as n (n.key)}{@render item(n)}{/each}
+      <!-- In with a code: next time, the device's face check instead (ADR 0023), asked once -->
+      {#if offerPasskey}
+        <div class="item ask-notify rise">
+          <span class="lead-col"><Icon name="key" size={18} /></span>
+          <span class="grow">
+            <span class="item-text">Use {checkWord} next time</span>
+            <span class="item-sub"
+              >{passkeyNote || "Six digits from your inbox? Never again. Well, on this device."}</span
+            >
+            <span class="note-links">
+              <button class="btn primary sm" onclick={addPasskeyHere}>Add a passkey</button>
+              <button class="link" onclick={passkeyNotNow}>Not now</button>
+            </span>
+          </span>
+        </div>
+      {/if}
       <!-- The one ask (ADR 0108): what notifications are for, then the phone's (or browser's) own question; on an iPhone
          in a Safari tab, the way to them -->
       {#if askNotify}
@@ -729,9 +789,38 @@
   {/if}
 
   <!-- For admins: what only they act on, out of everyone's way -->
-  {#if feed.admin.length}
+  {#if feed.admin.length || breakGlass.length}
     <section class="feed" aria-labelledby="for-admins">
       <h2 class="feed-label" id="for-admins">For admins</h2>
+      {#each breakGlass as b (`${b.kind}:${b.id}`)}
+        <div class="item rise" role="status">
+          <span class="lead-col"><Icon name="shield" size={18} /></span>
+          <span class="grow">
+            <span class="item-text"
+              >{b.kind === "session"
+                ? `${nameOf(b.memberId)} broke the glass`
+                : `Break-glass code for ${nameOf(b.memberId)}`}</span
+            >
+            <span class="item-sub"
+              >{formatDayDate(b.at)}
+              {formatTime(b.at)} · {b.kind === "session"
+                ? b.live
+                  ? "signed in without email or passkey"
+                  : "signed out now"
+                : b.live
+                  ? "made at a terminal, not used yet"
+                  : "called off or ran out"}</span
+            >
+            {#if b.live}
+              <span class="note-links">
+                <button class="btn ghost sm" onclick={() => endBreakGlass(b)}
+                  >{b.kind === "session" ? "Sign it out" : "Call it off"}</button
+                >
+              </span>
+            {/if}
+          </span>
+        </div>
+      {/each}
       {#each feed.admin as n (n.key)}{@render item(n)}{/each}
     </section>
   {/if}
@@ -902,10 +991,19 @@
     min-width: 0;
     font-size: var(--text-sm);
   }
-  .note-links a {
+  .note-links a,
+  .note-links .link {
     color: var(--fg);
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+  /* "Not now", "Take down": words, not a button's box */
+  .note-links .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
   }
   /* The one main button on the note: wide enough for its tick, so saying it doesn't move a thing */
   .got-it {

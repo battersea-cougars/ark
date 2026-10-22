@@ -47,9 +47,10 @@ Three things shape it:
     ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
-    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`, `draft`; a topic
+    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`, `draft`, `security`; a topic
     joins it only once something's sent on it, so there's never a switch for nothing). `draft`: a draft's opening,
-    to each of its captains with their place ([0060](0060-the-draft.md)). Every topic is on until a member
+    to each of its captains with their place ([0060](0060-the-draft.md)). `security`: a break-glass sign-in, to
+    admins only, whose switch only admins see ([0023](0023-sign-in-and-sessions.md)). Every topic is on until a member
     turns it off: `notification_prefs` holds only what they switched, and the statement that fills the outbox skips
     them, so choosing costs no round trip. The choice is the member's, not a device's: one copy, whichever phone or
     browser they sign in on. The You page shows a switch per topic to everyone; it's in the bootstrap
@@ -184,3 +185,6 @@ Three things shape it:
   a two-minute debounce per member and `key` lets the latest win and drops a round trip back to what they were last
   told (`push_told`); a drain every minute between the five-minute runs, 40 a run, so a club-wide send held overnight
   is out by 08:03. The numbers are in `worker/push/push.rules.ts`.
+- 2026-10-22: Passkeys in the app ([0023](0023-sign-in-and-sessions.md)): its entitlements add `webcredentials:` for
+  both team domains, which `apple-app-site-association` already names it for; and the `security` topic (a break-glass
+  sign-in, admins only).

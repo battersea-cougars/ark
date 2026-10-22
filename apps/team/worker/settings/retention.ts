@@ -15,6 +15,8 @@ export const KEEP_AUDIT_DAYS = 730;
 export async function forgetOld(db: D1Database, now: Date) {
   const ago = (days: number) => new Date(now.getTime() - days * DAY).toISOString();
   await run(db, "DELETE FROM login_challenges WHERE created_at < ?", [ago(KEEP_CODES_DAYS)]);
+  // A passkey's challenge is spent or gone within five minutes: kept a day, only to see what happened
+  await run(db, "DELETE FROM passkey_challenges WHERE created_at < ?", [ago(1)]);
   await run(db, "DELETE FROM auth_sessions WHERE COALESCE(revoked_at, expires_at) < ?", [
     ago(KEEP_ENDED_SESSIONS_DAYS),
   ]);

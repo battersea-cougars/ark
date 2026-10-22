@@ -26,6 +26,7 @@
     "env:pull": "node scripts/env-pull.mjs",
     "secret:set": "node scripts/secret-set.mjs",
     "secrets": "node scripts/env-pull.mjs --status",
+    "admin:break-glass": "node scripts/admin-break-glass.mjs",
     "team": "node scripts/app.mjs dev team",
     "worktree": "node scripts/worktree.mjs",
     "merge:check": "node scripts/merge-check.mjs",

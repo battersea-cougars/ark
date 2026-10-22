@@ -1,7 +1,8 @@
 // The store app's links (ADR 0108): a phone asks the team app's own address which app it trusts with its links, so
-// a link to the team app (an email's) opens the app. Served by the Worker, not a file, so the Apple team's id is a
-// setting (APPLE_TEAM_ID, wrangler.jsonc vars) and nothing's there until the app is set up. Android's assetlinks.json
-// joins it when the Play Store app comes.
+// a link to the team app (an email's) opens the app, and (webcredentials) which app may use its passkeys (ADR 0023):
+// with the app's entitlement for the same domain, the iPhone app signs in with a passkey as Safari does. Served by
+// the Worker, not a file, so the Apple team's id is a setting (APPLE_TEAM_ID, wrangler.jsonc vars) and nothing's there
+// until the app is set up. Android's assetlinks.json joins it when the Play Store app comes.
 
 export const APP_ID = "com.batterseacougars.team";
 

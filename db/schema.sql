@@ -457,12 +457,16 @@ CREATE TABLE login_challenges (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
   code_hash TEXT NOT NULL,
+  -- The browser that asked (its nonce cookie's hash). A break-glass code starts with 'break-glass', no browser's: the
+  -- first browser to ask for that member's code claims it (ADR 0023, scripts/admin-break-glass.mjs)
   nonce_hash TEXT NOT NULL,
   -- Wrong codes so far; at 5 the challenge is spent
   attempts INTEGER NOT NULL DEFAULT 0,
   expires_at TEXT NOT NULL,
   used_at TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  -- 'code' (emailed) or 'break_glass' (made at a terminal, for when nobody can get in: no email, no passkey)
+  kind TEXT NOT NULL DEFAULT 'code'
 );
 
 CREATE INDEX login_challenges_nonce ON login_challenges (nonce_hash);
@@ -506,6 +510,54 @@ CREATE TABLE auth_sessions (
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);
 
 CREATE INDEX auth_sessions_previous ON auth_sessions (previous_hash);
+
+-- A member's passkeys (ADR 0023): sign in with Face ID, a fingerprint or the phone's PIN, no email needed. Only the
+-- public key is kept; the private one never leaves the member's device (or their password manager). One row per
+-- passkey, named for the device it was made on; the member, or an admin, removes it.
+CREATE TABLE passkeys (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  -- The credential's id (base64url), as the authenticator gives it back at sign-in
+  credential_id TEXT NOT NULL UNIQUE,
+  -- Its public key (COSE, base64url)
+  public_key TEXT NOT NULL,
+  -- The authenticator's signature counter: a passkey that goes backwards is a copy, and refused. Synced passkeys
+  -- (iCloud Keychain, Google Password Manager) always say 0
+  sign_count INTEGER NOT NULL DEFAULT 0,
+  -- The random id the passkey knows its member by (base64url), the same for each of a member's passkeys: not their
+  -- email or number
+  user_handle TEXT NOT NULL,
+  -- How the browser can reach it ("internal", "hybrid", ...), JSON, for the next sign-in's hints
+  transports TEXT NOT NULL DEFAULT '[]',
+  -- The domain it belongs to (the team app's own: localhost, dev's or production's)
+  rp_id TEXT NOT NULL,
+  -- "iPhone", "Mac · iCloud Keychain": what the member sees it as, with created_at
+  name TEXT NOT NULL,
+  backed_up INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT
+);
+
+CREATE INDEX passkeys_member ON passkeys (member_id);
+
+-- A passkey's challenge (ADR 0023): random, single-use, five minutes, stored as its hash and bound like a code's nonce.
+-- Adding a passkey: to the session asking (session_id). Signing in: to the browser asking (nonce_hash, its passkey
+-- nonce cookie), and to nobody yet, since a passkey says whose it is.
+CREATE TABLE passkey_challenges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  challenge_hash TEXT NOT NULL UNIQUE,
+  -- 'register' or 'sign_in'
+  purpose TEXT NOT NULL,
+  session_id INTEGER REFERENCES auth_sessions (id) ON DELETE CASCADE,
+  -- Adding one: the id the new passkey will know its member by (passkeys.user_handle)
+  user_handle TEXT,
+  nonce_hash TEXT,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX passkey_challenges_created ON passkey_challenges (created_at);
 
 -- A device that wants notifications (ADR 0108): a phone with the store app (its Firebase token) or a browser with Web
 -- Push (its subscription's endpoint), and the sign-in it belongs to. Signing out forgets it, and the session running

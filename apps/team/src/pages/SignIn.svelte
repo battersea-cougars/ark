@@ -1,5 +1,6 @@
 <script lang="ts">
-  // Signing in (ADR 0023): your email, then the 6-digit code from the email, typed here, where you asked for it.
+  // Signing in (ADR 0023): a passkey, if this device has one (picked from the email field's suggestions, or the button),
+  // else your email, then the 6-digit code from the email, typed here, where you asked for it.
   // Someone new asks to join instead, and an admin lets them in. Shown by main.ts whenever nobody's signed in; it
   // reloads the app once they are. It reads nothing of the club's.
   import Icon from "../app/shell/Icon.svelte";
@@ -8,6 +9,7 @@
   import mark from "../assets/cougars-mark.webp";
   import PrivacyNotice from "../lib/PrivacyNotice.svelte";
   import { humanCheck } from "../lib/turnstile";
+  import { passkeysWork, signedInWithCode, signInWithPasskey } from "../app/passkeys";
 
   // The app's privacy notice is readable before signing in too (#30): at /privacy, or from the link at the foot
   type Step = "email" | "code" | "join" | "asked" | "privacy";
@@ -53,8 +55,24 @@
   const verify = () =>
     run(async () => {
       await api("POST", "/api/auth/verify", { code });
+      // In with a code: Home may offer a passkey, once
+      signedInWithCode();
       location.replace("/");
     });
+
+  // Passkeys (ADR 0023): the email field offers this device's passkey for the club as you tap it (where the browser
+  // can), and the button asks the device straight out. No email either way: it works while Gmail's down
+  const passkeys = passkeysWork();
+  const withPasskey = () =>
+    run(async () => {
+      if (await signInWithPasskey()) location.replace("/");
+    });
+  $effect(() => {
+    if (!passkeys || step !== "email") return;
+    signInWithPasskey(true)
+      .then((ok) => ok && location.replace("/"))
+      .catch((e) => (error = e instanceof Error ? e.message : String(e)));
+  });
 
   const ask = () =>
     run(async () => {
@@ -90,12 +108,18 @@
       >
         <label class="field">
           Your email
-          <input class="input" type="email" autocomplete="email" required bind:value={email} />
+          <input class="input" type="email" autocomplete="email webauthn" required bind:value={email} />
         </label>
         <!-- Turnstile: empty unless Cloudflare wants a tap -->
         <div class="human" {@attach signInCheck.attach}></div>
         <button class="btn primary block" disabled={busy}>Send me a code</button>
       </form>
+      {#if passkeys}
+        <button class="btn outline block" type="button" disabled={busy} onclick={withPasskey}>
+          <Icon name="key" size={18} />Sign in with a passkey
+        </button>
+        <p class="hint small">Added one on the You page? No inbox needed.</p>
+      {/if}
       <p class="hint">New to the club? <button class="link" onclick={() => go("join")}>Ask to join</button></p>
     {:else if step === "code"}
       {#if devCode}

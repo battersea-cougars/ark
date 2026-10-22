@@ -7,6 +7,7 @@ import { tellTheyreIn } from "./members.mail";
 import { first } from "@cougars/shared/d1";
 import { eraseMember } from "./members.erase";
 import { endSessions, liveSessions } from "../auth/auth.sessions";
+import { forgetPasskeys } from "../auth/auth.passkeys";
 import { endLive } from "../live/live";
 import { markAll, type Mark } from "../entries/entries";
 import { memberExists } from "../dues/dues";
@@ -100,8 +101,12 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members"],
     handle: async (c) => {
       const { emailChanged } = await setContact(c.env.DB, id(c), await body(c.request), c);
-      // A new sign-in email: whoever was signed in as them with the old one is signed out (#72)
-      if (emailChanged) await endSessions(c.env, c.now, { memberId: id(c) });
+      // A new sign-in email: whoever was signed in as them with the old one is signed out (#72), and their passkeys go,
+      // so whoever had the account before keeps no way in (ADR 0023)
+      if (emailChanged) {
+        await endSessions(c.env, c.now, { memberId: id(c) });
+        await forgetPasskeys(c.env.DB, id(c));
+      }
       return ok();
     },
   },
@@ -173,7 +178,11 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members"],
     handle: async (c) => {
       const { letIn, shutOut } = await updateMember(c.env.DB, id(c), await body(c.request), c);
-      if (shutOut) await endSessions(c.env, c.now, { memberId: id(c) });
+      // Made inactive: every way in goes, sessions and passkeys alike; let back in, they start with a code (ADR 0023)
+      if (shutOut) {
+        await endSessions(c.env, c.now, { memberId: id(c) });
+        await forgetPasskeys(c.env.DB, id(c));
+      }
       // Let in after asking to join: they hear so, with the way in (ADR 0069)
       if (letIn) {
         const m = await first<{ name: string; email: string | null }>(

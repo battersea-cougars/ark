@@ -19,6 +19,7 @@
   import YourData from "../lib/YourData.svelte";
   import ChangeEmail from "../lib/ChangeEmail.svelte";
   import NotificationPrefs from "../lib/NotificationPrefs.svelte";
+  import Passkeys from "../lib/Passkeys.svelte";
   import { phone } from "../lib/viewport.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { APP_BUILD, APP_VERSION } from "../app/build";
@@ -161,6 +162,9 @@
   </form>
 
   <NotificationPrefs disabled={locked} />
+
+  <!-- Your passkeys (ADR 0023): only your own, so not while you're viewing as someone -->
+  {#if !locked}<Passkeys />{/if}
 
   <div class="list">
     <a class="row" href="/me/tab">

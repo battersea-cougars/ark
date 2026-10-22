@@ -70,14 +70,15 @@ Don't mock our own code. If a test needs to stub one of our functions, it's test
 
 `packages/shared/testing/fake-world.ts` gives each test a fresh world:
 
-| Service        | Faked as                                                                               |
-| -------------- | -------------------------------------------------------------------------------------- |
-| D1             | In-memory SQLite with every migration applied (`packages/shared/testing/d1-sqlite.ts`) |
-| Gmail API      | An outbox: `world.mail.sent()`                                                         |
-| Sanity         | Documents in memory, queried with groq-js (the real GROQ engine)                       |
-| YouTube        | Upload sessions and playlist items                                                     |
-| Turnstile      | A token list: tokens the test marks as passed verify, everything else fails            |
-| Google sign-in | An OAuth server that signs in whichever verified email the test chooses                |
+| Service        | Faked as                                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| D1             | In-memory SQLite with every migration applied (`packages/shared/testing/d1-sqlite.ts`)                                                   |
+| Gmail API      | An outbox: `world.mail.sent()`                                                                                                           |
+| Sanity         | Documents in memory, queried with groq-js (the real GROQ engine)                                                                         |
+| YouTube        | Upload sessions and playlist items                                                                                                       |
+| Turnstile      | A token list: tokens the test marks as passed verify, everything else fails                                                              |
+| Google sign-in | An OAuth server that signs in whichever verified email the test chooses                                                                  |
+| Passkeys       | `w.authenticator()`: a device's real keys (ES256, or RS256 for Windows Hello) signing real WebAuthn answers (`testing.authenticator.ts`) |
 
 It replaces global `fetch` while installed. Any outside call it doesn't know **throws with its URL**: a new
 integration shows up as a failing test, not a silent network call. Every world has fresh random secrets, so

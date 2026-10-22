@@ -19,6 +19,8 @@ export const LIMITS = {
   writesPerMember: { limit: 60, windowSeconds: 60 },
   /** Asking for a sign-in code, from one address. */
   signIn: { limit: 10, windowSeconds: 600 },
+  /** A passkey's challenge, from one address: the sign-in page asks for one as it opens, and again after a try. */
+  passkey: { limit: 60, windowSeconds: 600 },
   /** The join form, from one address. */
   join: { limit: 5, windowSeconds: 3600 },
 } satisfies Record<string, Limit>;

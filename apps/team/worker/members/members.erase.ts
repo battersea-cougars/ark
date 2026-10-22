@@ -70,6 +70,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     q("DELETE FROM auth_sessions WHERE member_id = ?", id),
     q("DELETE FROM login_challenges WHERE member_id = ?", id),
     q("DELETE FROM email_changes WHERE member_id = ?", id),
+    q("DELETE FROM passkeys WHERE member_id = ?", id),
     q("DELETE FROM notification_prefs WHERE member_id = ?", id),
     // Places for what's still to come are given up; what's been played stays, about nobody
     q(
@@ -176,9 +177,16 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       ),
       statement(db, "SELECT at, action FROM audit_log WHERE member_id = ? ORDER BY id", [id]),
       statement(db, "SELECT topic, enabled FROM notification_prefs WHERE member_id = ? ORDER BY topic", [id]),
+      // Your passkeys (ADR 0023): what each is called and when; the public key is no use to anyone, so it isn't here
+      statement(
+        db,
+        "SELECT name, created_at addedAt, last_used_at lastUsedAt FROM passkeys WHERE member_id = ? ORDER BY id",
+        [id],
+      ),
     ])
   ).map((r) => r.results);
-  const [roles, training, tournaments, events, plans, charges, payments, devices, record, notifications] = rows;
+  const [roles, training, tournaments, events, plans, charges, payments, devices, record, notifications, passkeys] =
+    rows;
   const data = {
     about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
     downloadedOn: today,
@@ -191,6 +199,7 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
     charges,
     payments,
     devices,
+    passkeys,
     record,
     // What your phone tells you: every kind of notification, on unless you turned it off
     notifications: prefsFrom(notifications as { topic: string; enabled: number }[]),

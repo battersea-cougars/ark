@@ -13,8 +13,7 @@
   import { realGranted } from "../demo/session.svelte";
 
   let { disabled = false }: { disabled?: boolean } = $props();
-
-  // A topic for one job (the email stopping, for whoever looks after it) is only theirs to switch
+  // A topic for one job (the email stopping, a break-glass sign-in) is only for whoever does it to switch
   const topics = $derived(TOPICS.filter((t) => !("action" in t) || can(realGranted(), t.action)));
 
   function flip(topic: Topic) {
