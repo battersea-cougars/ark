@@ -3,7 +3,7 @@
 // once you've looked too often (lib/greetings.ts picks the set). Admins edit them in Settings → Quips; the
 // starting set is in db/seed/club.sql. Keep them short and cheeky, never needy, and never make one a club fact.
 
-export type ReplyKind = "ask" | "in" | "waitlist" | "out";
+export type ReplyKind = "ask" | "in" | "waitlist" | "out" | "empty";
 export type GreetingKind = "morning" | "afternoon" | "evening" | "late" | "training" | "nag";
 export type QuipKind = ReplyKind | GreetingKind;
 export type QuipGroup = "reply" | "greeting";
@@ -24,6 +24,13 @@ export const QUIP_KINDS: { kind: QuipKind; group: QuipGroup; label: string; hint
   { kind: "in", group: "reply", label: "In", hint: "When you say you're in", max: QUIP_MAX },
   { kind: "waitlist", group: "reply", label: "Waitlist", hint: "When it's full and you're queued", max: QUIP_MAX },
   { kind: "out", group: "reply", label: "Out", hint: "When you say you're out", max: QUIP_MAX },
+  {
+    kind: "empty",
+    group: "reply",
+    label: "Nobody in",
+    hint: "A training's Who's coming, before anyone's answered",
+    max: QUIP_MAX,
+  },
   { kind: "morning", group: "greeting", label: "Morning", hint: "Home's title before noon", max: GREETING_MAX },
   { kind: "afternoon", group: "greeting", label: "Afternoon", hint: "Home's title from noon", max: GREETING_MAX },
   { kind: "evening", group: "greeting", label: "Evening", hint: "Home's title from 6pm", max: GREETING_MAX },

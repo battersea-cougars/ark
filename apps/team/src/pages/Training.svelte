@@ -34,6 +34,10 @@
   import { onDestroy, tick } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import EmptyState from "../lib/EmptyState.svelte";
+  import { nightOpen, nightOpensOn, opensWords } from "../lib/signup";
+  import { pick } from "../lib/quips";
+  import { londonToday } from "../lib/dates";
+  import { fade } from "svelte/transition";
   import { nextSession, resolve, seriesById, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
 
   let { seriesId }: { seriesId: number } = $props();
@@ -52,6 +56,20 @@
   );
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
+  // Nobody's answered at all: no tabs and no empty table, but a line on the page, and when sign-up isn't open yet,
+  // when it opens (ADR 0030)
+  const nobody = $derived(!next.going.length && !next.waitlist.length && !outs.length);
+  const opensOn = $derived(session ? nightOpensOn(session.heldOn, series.signupOpensDays) : null);
+  const notOpen = $derived(!!session && !!opensOn && !nightOpen(session.heldOn, series.signupOpensDays, londonToday()));
+  // A quip about slackers (Settings → Quips, "Nobody in"): picked once a night, so a live update never swaps it
+  const SLACKERS = "No slackers allowed. Be the first one in.";
+  let slackers = $state({ night: 0, text: SLACKERS });
+  $effect(() => {
+    const night = next.id;
+    if (night === slackers.night) return;
+    const lines = db.quips.filter((q) => q.kind === "empty" && q.text.trim());
+    slackers = { night, text: pick(lines)?.text ?? SLACKERS };
+  });
   // Quarterly skaters: above those paying as they go, in and waiting (ADR 0030), badged so the order reads; and those
   // who said they're out, for whoever sees who's out
   const ahead = $derived(new Set(session?.quarterly ?? []));
@@ -768,23 +786,32 @@
                 >{/if}</span
             >{/if}
         </div>
-        {#if next.going.length || next.waitlist.length || outs.length}
-          <div class="seg sm" role="group" aria-label="Show players as">
-            <button aria-pressed={view === "cards"} onclick={() => setView("cards")}
-              ><Icon name="cards" size={16} />Cards</button
-            >
-            <button aria-pressed={view === "list"} onclick={() => setView("list")}
-              ><Icon name="list" size={16} />List</button
-            >
-          </div>
-        {/if}
+        <!-- Kept in its place while nobody's answered, so the first In doesn't move the heading -->
+        <div class="seg sm" class:unused={nobody} inert={nobody} role="group" aria-label="Show players as">
+          <button aria-pressed={view === "cards"} onclick={() => setView("cards")}
+            ><Icon name="cards" size={16} />Cards</button
+          >
+          <button aria-pressed={view === "list"} onclick={() => setView("list")}
+            ><Icon name="list" size={16} />List</button
+          >
+        </div>
       </div>
       <!-- The page scrolls until the tabs reach the top, then on through the rows, the box under the tabs showing
            them pass (lib/list-scroll.ts) -->
-      <div class="roster rise hybrid" use:listScroll>
-        <div class="stuck">{@render roster(true)}</div>
-        <div class="list-spacer"></div>
-      </div>
+      {#if nobody}
+        <!-- Nobody's answered: a line on the page, in the space the tabs will take, until the first In -->
+        <div class="nobody" in:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+          <p class="display nobody-line">
+            {notOpen && opensOn ? `Sign-up opens ${opensWords(opensOn, londonToday())}.` : "Nobody's in yet."}
+          </p>
+          <p class="nobody-quip">{notOpen ? "Then we'll see who the slackers are." : slackers.text}</p>
+        </div>
+      {:else}
+        <div class="roster rise hybrid" use:listScroll>
+          <div class="stuck">{@render roster(true)}</div>
+          <div class="list-spacer"></div>
+        </div>
+      {/if}
     {:else}
       <!-- Once there are teams: anyone missing from them first, then sign-up and your answer, then the teams -->
       {@render signUp(unplaced.length > 0 || left.length > 0)}
@@ -1058,6 +1085,27 @@
   }
   .list-head .section-title {
     margin: 0;
+  }
+  .list-head .seg.unused {
+    visibility: hidden;
+  }
+  /* Nobody's answered yet: on the page, no panel; the display line and a quip, two lines kept for each so a longer
+     quip never moves anything */
+  .nobody {
+    display: grid;
+    gap: var(--s-2);
+    padding-block: var(--s-6) var(--s-8);
+  }
+  .nobody-line {
+    margin: 0;
+    font-size: var(--text-xl);
+    color: var(--fg);
+  }
+  .nobody-quip {
+    margin: 0;
+    min-height: 2lh;
+    color: var(--fg-muted);
+    font-size: var(--text-md);
   }
   .make {
     min-width: 9.5rem;

@@ -99,6 +99,10 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   at every width) on their row in the sign-up lists and a tag on their card, so the order reads. That tells every member who signed up on the Quarterly plan, which is the
   point of the badge. Whoever sees who said they're out (who runs events) gets the same flag for them, so Out groups
   by plan too; nobody else's plan is sent.
+- **Before anyone's answered**, Friday's Who's coming is a line on the page, not tabs over an empty table: "Nobody's
+  in yet." and a quip about slackers (Settings → Quips, "Nobody in"), or, before its sign-up opens, when it does
+  ("Sign-up opens Monday. Then we'll see who the slackers are."). The first answer brings the tabs in below the
+  heading, which keeps its place.
 - Friday's Who's coming shows each list (In, Waiting, Out) **grouped by plan**, under small headings with their
   counts: Quarterly, Pay as you go, Keepers (the three plans, ADR 0007). Skaters keep their number in the one queue,
   on across Quarterly and Pay as you go; keepers are numbered on their own, their places counted apart. The Quarterly
@@ -220,3 +224,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   waiting move up, in the batch that erases it (#137).
 - 2026-10-22: A training's nights open for sign-up a number of days before (Friday Training: 4, the Monday), and
   members are told on the day, once; empty is always open. The seed sets Friday's (dev and production need the same).
+- 2026-10-22: Who's coming with nobody answered is a line and a quip about slackers (a new quip kind, "Nobody in"),
+  or when sign-up opens, instead of an empty table.

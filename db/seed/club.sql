@@ -135,7 +135,12 @@ INSERT OR IGNORE INTO quips (id, kind, text) VALUES
   (70, 'out', 'We''ll miss you. Briefly.'),
   (71, 'out', 'Out. Your stick will forgive you.'),
   (72, 'out', 'Tragic. Anyway, more shifts for us.'),
-  (73, 'out', 'Shame. Guess I''ll take your spot then.');
+  (73, 'out', 'Shame. Guess I''ll take your spot then.'),
+  (74, 'empty', 'No slackers allowed. Be the first one in.'),
+  (75, 'empty', 'Empty. The slackers are still deciding.'),
+  (76, 'empty', 'Not one. Slackers, the lot of them.'),
+  (77, 'empty', 'Even Van Damme had to go first.'),
+  (78, 'empty', 'Zero in. Slackers, this is your call.');
 
 -- series_fees: Friday Training's pay-as-you-go fee per session (ADR 0007), for every night from a year before the
 -- app went live
