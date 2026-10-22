@@ -61,6 +61,18 @@
     if (document.querySelector("dialog[open], .drawer[role='dialog']")) return;
     exit();
   }
+  // Never sideways: the room, its body and the view under it only ever scroll down. A scroller can't be clipped on
+  // one axis and scroll on the other, so a focus or a scroll into view could still shift one sideways and cut both
+  // edges off; if one does, it goes straight back
+  function onscrollcapture(e: Event) {
+    const el = e.target;
+    if (
+      el instanceof HTMLElement &&
+      el.scrollLeft &&
+      (el.matches(".room, .room > .body") || el.querySelector(":scope > .room"))
+    )
+      el.scrollLeft = 0;
+  }
   let wasFull = !!document.fullscreenElement;
   function onfullscreenchange() {
     if (document.fullscreenElement) wasFull = true;
@@ -69,7 +81,7 @@
 </script>
 
 <svelte:window {onkeydown} />
-<svelte:document {onfullscreenchange} />
+<svelte:document {onfullscreenchange} {onscrollcapture} />
 
 <!-- The room is the window: the bar, then the draft filling the rest (its columns scroll inside themselves) -->
 <div class="page full fit room">
@@ -118,7 +130,10 @@
 
 <style>
   /* The whole window, past the page frame: it's a room */
+  /* Never wider than the window, and never scrolled sideways: clip, not hidden, so nothing (a focus, a scroll into
+     view) can shift it either way and cut both edges off */
   .room {
+    overflow-x: clip;
     max-width: none;
     gap: var(--s-3);
     padding-top: max(var(--s-3), env(safe-area-inset-top));
@@ -201,7 +216,16 @@
     grid-template-rows: minmax(0, 1fr);
     min-width: 0;
     min-height: 0;
+    /* Out to the window's edges, the draft inset back by the gutter: the ticker's arrows sit in the gutter, as on the
+       page, inside this scroller rather than past it */
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+    overflow-x: hidden;
     overflow-y: auto;
+  }
+  /* The shell's view under the room: nothing sideways to scroll to */
+  :global(.view:has(> .room)) {
+    overflow-x: hidden;
   }
   @media (max-width: 640px) {
     .live,

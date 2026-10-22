@@ -2106,7 +2106,14 @@
       flex: 1 1 auto;
       justify-content: center;
       gap: var(--s-1);
+      min-width: 0;
       padding: 0 var(--s-2);
+    }
+  }
+  /* A small phone: the four fit by their words alone (the icons go), never past the edge */
+  @media (max-width: 420px) {
+    .players .filter > :global(svg) {
+      display: none;
     }
   }
   /* Tight rows, so more of the pool is in view at once; flush with the filter and the page's edge. No row fill: the
