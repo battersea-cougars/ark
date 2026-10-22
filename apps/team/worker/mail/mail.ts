@@ -221,10 +221,10 @@ export async function sendTestEmail(env: AuthEnv, memberId: number, now: string)
     gmailCredentials(env),
     readMailHealth(env.DB),
   ]);
-  // Outside production the admin's own address gets it (safeMail still keeps the club's inbox out); production sends
-  // to whoever it's to, as the club's address
+  // Outside production the admin's own address gets it (safeMail still keeps the club's inbox out). It reads as the
+  // club's address everywhere, as production's email does, so the alias is checked before launch
   const config = { ...setup, allow: [...(setup.allow ?? []), address] };
-  const mail = { to: [address], ...testEmail(account, using?.source ?? null, setup.club ?? null) };
+  const mail = { to: [address], asClub: true, ...testEmail(account, using?.source ?? null, setup.club ?? null) };
   let result: TestResult;
   let to = [address];
   let refused: string | undefined;
@@ -256,7 +256,7 @@ function testEmail(account: string | null, source: "reconnected" | "deployed" | 
       "",
       `Sent by: ${account ?? "the sending account"}`,
       `With: ${token}`,
-      `In production the From line reads: "Battersea Cougars <${club ?? "the club's address"}>"`,
+      `The From line should read: "Battersea Cougars <${club ?? "the club's address"}>". If it shows ${account ?? "the sending account"} instead, the club's address isn't a verified "Send mail as" alias in that account's Gmail yet.`,
       "",
       "Only you get this: a test email only ever goes to the admin who pressed the button.",
       "",

@@ -136,3 +136,6 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   reads; 5 an hour per admin, each try on the record (`mail.test_sent`). Every reconnect try is on the record too
   (`mail.reconnect_tried` with how it ended, never anything from Google's answer), and the page says the last one
   from there, not only from its address.
+- 2026-10-22: The test email reads as the club's address outside production too (`Mail.asClub`, that email alone,
+  which only ever goes to the admin who asked), so the "Send mail as" alias is checked before launch; it says what
+  a From line showing the sending account means.

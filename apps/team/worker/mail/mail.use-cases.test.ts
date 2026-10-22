@@ -241,7 +241,7 @@ describe("Send a test email", () => {
     expect(google.sent).toHaveLength(1);
     const mail = google.sent[0];
     expect(mail.to).toEqual(["dana@example.com"]);
-    expect(mail.from).toBe("Battersea Cougars <dev@example.com>");
+    expect(mail.from).toBe("Battersea Cougars <club@example.com>");
     expect(mail.subject).toContain("Test email");
     expect(mail.token).toBe(google.deployed);
     expect(await dana.email()).toMatchObject({ lastSentAt: expect.any(String), failure: null });
@@ -271,6 +271,15 @@ describe("Send a test email", () => {
   it("in production it goes as the club's address, still only to the admin", async () => {
     const dana = await admin();
     w.env.SITE_ENV = "production";
+    expect((await dana.test()).body).toMatchObject({ result: "sent", to: ["dana@example.com"] });
+    expect(google.sent.at(-1)).toMatchObject({
+      from: "Battersea Cougars <club@example.com>",
+      to: ["dana@example.com"],
+    });
+  });
+
+  it("outside production it reads as the club's address too, so the alias is checked before launch", async () => {
+    const dana = await admin();
     expect((await dana.test()).body).toMatchObject({ result: "sent", to: ["dana@example.com"] });
     expect(google.sent.at(-1)).toMatchObject({
       from: "Battersea Cougars <club@example.com>",

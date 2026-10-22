@@ -30,6 +30,11 @@ export interface Mail {
   replyTo?: string;
   /** Values never written to a log, in any part of the mail (a sign-in code): a logged copy says [redacted]. */
   secrets?: string[];
+  /**
+   * Read as the club's address outside production too: only the admin's test email, which goes to them alone, so the
+   * "Send mail as" alias is checked before launch.
+   */
+  asClub?: boolean;
 }
 
 /**
@@ -239,8 +244,8 @@ async function sendThroughGmail(
   const safe = safeMail(mail, { siteEnv: config.siteEnv, safeTo: config.safeTo || account, allow: config.allow, club });
   // Production sends from the developer account but reads as the club: the club's address is that account's "Send
   // mail as" alias (ADR 0027), so replies go to the club inbox. Until the alias is verified, or while the club's address
-  // isn't known, it's the account's own. Elsewhere the account is its own sender.
-  const sender = isProduction(config.siteEnv) && club ? club : account;
+  // isn't known, it's the account's own. Elsewhere the account is its own sender, but for the admin's test email.
+  const sender = (isProduction(config.siteEnv) || mail.asClub) && club ? club : account;
   if (safe.to !== mail.to) {
     log.info("mail.redirected", { to: safe.to, originalTo: mail.to });
   }
