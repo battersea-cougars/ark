@@ -1,7 +1,7 @@
 // The draft room's rules (ADR 0060): who's let in, when a captain's offered it, what its bar says, and when it shows
 // everyone out (the draft closed, or stepped back to before it opened).
 import { describe, expect, it } from "vitest";
-import { canEnterRoom, roomOffered, roomPath, roomTurn } from "./draft-room";
+import { canEnterRoom, draftShows, roomPath, roomTurn } from "./draft-room";
 
 const CARA = 1;
 const COLE = 2;
@@ -44,21 +44,20 @@ describe("who the draft room is for", () => {
   });
 });
 
-describe("offering it to a captain", () => {
-  it("when their pick is now or two away; not further off", () => {
-    // A B B A A B: Cara now, Cole in 1; after one pick Cole now, Cara in 2; after Cole's two, Cara now
-    expect(roomOffered(draft(0), CARA)).toBe(true);
-    expect(roomOffered(draft(1), CARA)).toBe(true);
-    // A longer snake: four captains, the first waits six picks at the turn
-    const four = draft(0);
-    four.teams.push({ captainMemberId: 7, players: [] }, { captainMemberId: 8, players: [] });
-    four.teams[0].players.push({ memberId: 10, pick: 1 });
-    expect(roomOffered(four, CARA)).toBe(false);
+describe("where the picking is", () => {
+  it("before it opens: the steps (the draw, opening it), on the page", () => {
+    expect(draftShows(draft(0, "none"), false)).toBe("steps");
   });
 
-  it("not once they've no picks left, nor to someone who only runs it", () => {
-    expect(roomOffered(draft(6), CARA)).toBe(false);
-    expect(roomOffered(draft(0), REG)).toBe(false);
+  it("while it's picked: a summary on the Kumite's page, the picking itself only in the room", () => {
+    expect(draftShows(draft(3), false)).toBe("summary");
+    expect(draftShows(draft(3), true)).toBe("picking");
+  });
+
+  it("everyone picked, or closed: the teams, on the page and in the room alike", () => {
+    expect(draftShows(draft(6), false)).toBe("done");
+    expect(draftShows(draft(6), true)).toBe("done");
+    expect(draftShows(draft(6, "closed"), false)).toBe("done");
   });
 });
 

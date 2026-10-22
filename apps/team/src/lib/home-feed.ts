@@ -7,7 +7,7 @@
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
-import { ROOM_SOON, roomPath } from "./draft-room";
+import { roomPath } from "./draft-room";
 import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
@@ -364,20 +364,19 @@ function liveDrafts({ upcoming, me, runsDrafts, now, today }: FeedInput): FeedIt
     const { left, until } = draftTurn(t, mine);
     if (!left)
       return [{ ...row, text: "Everyone's picked", sub: `${t.name} · the draft closes to set the teams`, hot: false }];
+    // The picking's in the draft room (ADR 0060): there, while there are picks to make
+    const room = { ...row, href: roomPath(type.slug) };
     if (mine < 0)
-      return [{ ...row, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
-    // Your pick now or close: straight into the draft room (ADR 0060), the whole screen for it
-    const soon = { ...row, href: roomPath(type.slug) };
+      return [{ ...room, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
     const draft = { tournamentId: t.id, place: mine + 1, until };
     if (until === 0)
       return [
-        { ...soon, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt, draft },
+        { ...room, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt, draft },
       ];
     if (until === Infinity)
       return [{ ...row, text: "The draft's open", sub: `${t.name} · your picks are done`, hot: false }];
-    const near = until <= ROOM_SOON ? soon : row;
     return [
-      { ...near, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt, draft },
+      { ...room, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt, draft },
     ];
   });
 }

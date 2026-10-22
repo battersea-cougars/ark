@@ -65,6 +65,23 @@ describe("Home's feed", () => {
     expect(rows.admin.map((r) => [r.text, r.href])).toEqual([["Owed to the club £90", "/settings/overdue"]]);
   });
 
+  it("the picking's in the draft room: a captain's row and whoever runs it go straight there; done, the page", () => {
+    const teams = [
+      { name: "A", logo: null, captainMemberId: 2, captainName: "", contact: "", players: [] },
+      { name: "B", logo: null, captainMemberId: ME, captainName: "", contact: "", players: [] },
+    ];
+    // Waiting for your turn (the other team's on the clock): the room
+    const waiting = feed(kumite({ draftState: "open", teams }));
+    expect(waiting.lead).toMatchObject({ item: { href: "/tournaments/kumite/draft/room" } });
+    // Whoever runs it, not a captain: the room too
+    const runner = feed(kumite({ draftState: "open", teams: teams.map((t) => ({ ...t, captainMemberId: 2 })) }), {
+      runsDrafts: true,
+    });
+    expect(runner.admin.concat(runner.now).find((r) => r.text === "The draft's open")?.href).toBe(
+      "/tournaments/kumite/draft/room",
+    );
+  });
+
   it("a member hears the draft is on, with nothing to open, then that the teams are out", () => {
     const on = feed(kumite({ draftState: "open" })).now;
     expect(on.map((r) => [r.text, r.href])).toEqual([["The draft is on", undefined]]);

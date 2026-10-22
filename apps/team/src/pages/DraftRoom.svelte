@@ -1,8 +1,8 @@
 <script lang="ts">
   // The draft room (ADR 0060): the draft, the whole screen, for its captains and whoever runs it while it's open. A
   // focus page, so the app's rail, dock and tabs go (Shell); no header or track either, just a slim bar: the mark,
-  // Draft room, whose turn, Manage the draft for whoever runs it, and the way out. Out by ✕, Escape (the browser's
-  // full screen ending, where it took it) or Back; shown out to the page once the draft closes (the teams set slide
+  // Draft room, whose turn, Manage the draft for whoever runs it, full screen on and off, and the way out. Out by ✕
+  // or Back (Escape only leaves full screen); shown out to the page once the draft closes (the teams set slide
   // in there) or steps back, or if it isn't yours. The draft itself is the page's own (Draft), live as it is there.
   import { onDestroy, untrack } from "svelte";
   import Draft from "./Draft.svelte";
@@ -22,7 +22,7 @@
   import ManageList, { type ManageItem } from "../lib/ManageList.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
-  import { canEnterRoom, leaveFullScreen, roomTurn } from "../lib/draft-room";
+  import { canEnterRoom, canFullScreen, leaveFullScreen, roomTurn, toggleFullScreen } from "../lib/draft-room";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
@@ -38,7 +38,21 @@
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const nameOf = (i: number) => nameOfTeam(teams[i], teams, byId);
-  const turn = $derived(tournament && inRoom ? roomTurn(tournament, me().id, nameOf) : null);
+  const dataTurn = $derived(tournament && inRoom ? roomTurn(tournament, me().id, nameOf) : null);
+  // The team the light's on, as the draft's timeline shows it (lib/draft-sequence.ts): the bar changes with the light,
+  // after the glide, not when the data does
+  let shownClock = $state(-1);
+  const myIndex = $derived(teams.findIndex((t) => t.captainMemberId === me().id));
+  const turn = $derived(
+    dataTurn && dataTurn.team !== null && shownClock >= 0
+      ? {
+          ...dataTurn,
+          team: shownClock,
+          you: shownClock === myIndex,
+          said: shownClock === myIndex ? "Your pick" : `${nameOf(shownClock)} is picking`,
+        }
+      : dataTurn,
+  );
   // A phone's: the name without its "Team", and just "picking" (CHARLIE B PICKING), so it's never cut
   const short = $derived(
     turn && turn.team !== null && !turn.you ? `${nameOf(turn.team).replace(/^team\s+/i, "")} picking` : "",
@@ -72,7 +86,7 @@
     run();
   }
 
-  // Out: once (✕, Escape and the full screen ending can come together), back where you came from
+  // Out: once (✕ and Back can come together), back where you came from
   let leaving = false;
   function exit() {
     if (leaving) return;
@@ -92,13 +106,6 @@
   });
   onDestroy(leaveFullScreen);
 
-  // Escape: out of the room, unless a sheet or drawer is open over it (Escape's theirs then). In the browser's full
-  // screen, Escape ends that first, which is out too
-  function onkeydown(e: KeyboardEvent) {
-    if (e.key !== "Escape" || e.defaultPrevented) return;
-    if (document.querySelector("dialog[open], .drawer[role='dialog']")) return;
-    exit();
-  }
   // Never sideways: the room, its body and the view under it only ever scroll down. A scroller can't be clipped on
   // one axis and scroll on the other, so a focus or a scroll into view could still shift one sideways and cut both
   // edges off; if one does, it goes straight back
@@ -114,14 +121,13 @@
     // The view and the room are the window: only the body under the bar scrolls, so neither moves up either
     if (el.scrollTop && (el.matches(".room") || el.querySelector(":scope > .room"))) el.scrollTop = 0;
   }
-  let wasFull = !!document.fullscreenElement;
-  function onfullscreenchange() {
-    if (document.fullscreenElement) wasFull = true;
-    else if (wasFull) exit();
-  }
+  // Full screen is the room's own button, on and off (Escape leaves it too, and you stay in the room); ✕ and Back
+  // leave the room. Where the browser has none (an iPhone's Safari), no button: the room's the whole page anyway
+  const fullScreenable = canFullScreen();
+  let full = $state(!!document.fullscreenElement);
+  const onfullscreenchange = () => (full = !!document.fullscreenElement);
 </script>
 
-<svelte:window {onkeydown} />
 <svelte:document {onfullscreenchange} {onscrollcapture} />
 
 <!-- The room is the window: the bar, then the draft filling the rest (its columns scroll inside themselves) -->
@@ -145,11 +151,12 @@
             size="2rem"
           />
         {/if}
-        <strong class="said display" class:you={turn.you}
-          >{#if turn.you}<i class="dot"></i>{turn.said}{:else}<span class="long">{turn.said}</span><span class="short"
-              >{short}</span
-            >{/if}</strong
-        >
+        {#if turn.you}
+          <!-- Yours: the one red, a badge with its light (colour's an accent, ADR 0084) -->
+          <span class="badge red yours"><i class="dot"></i>{turn.said}</span>
+        {:else}
+          <strong class="said display"><span class="long">{turn.said}</span><span class="short">{short}</span></strong>
+        {/if}
         {#if turn.inPicks !== null}<span class="soon num">you're in {turn.inPicks}</span>{/if}
       {/if}
     </span>
@@ -163,14 +170,29 @@
           onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
         >
       {/if}
-      <button class="btn sm ghost icon" aria-label="Leave the draft room" title="Leave (Esc)" onclick={exit}
+      {#if fullScreenable}
+        <button
+          class="btn sm ghost icon"
+          aria-label={full ? "Leave full screen" : "Full screen"}
+          aria-pressed={full}
+          title={full ? "Leave full screen" : "Full screen"}
+          onclick={toggleFullScreen}><Icon name={full ? "shrink" : "expand"} size={18} /></button
+        >
+      {/if}
+      <button class="btn sm ghost icon" aria-label="Leave the draft room" title="Leave the draft room" onclick={exit}
         ><Icon name="x" size={20} /></button
       >
     </span>
   </header>
   {#if tournament && inRoom}
     <div class="body">
-      <Draft {typeId} room />
+      <Draft
+        {typeId}
+        room
+        onshown={(c) => {
+          shownClock = c;
+        }}
+      />
     </div>
   {/if}
 </div>
@@ -234,8 +256,13 @@
     text-transform: uppercase;
     white-space: nowrap;
   }
-  .said.you {
-    color: var(--red-hot);
+  .yours {
+    flex: none;
+    gap: 0.35rem;
+    padding: 0.35rem 0.75rem;
+    font-size: var(--text-md);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   .soon {
     flex-shrink: 0;

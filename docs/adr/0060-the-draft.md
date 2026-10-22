@@ -301,3 +301,15 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   Follow the draft picks it up again. The board scrolls the team burning in, else the one picking, into view in its
   own area. A phone's teams list shows the card in front whole at its top, its top and foot fading, never cut ("why
   do we keep cutting off the card at the top!"); the room's bar on a phone says CHARLIE B PICKING, never cut.
+- 2026-10-22: The room is where the picking is ("maybe we should make the draft room mandatory, so that the draft
+  page shows just who is currently picking. You enter the room explicitly — and can also go full screen", the user).
+  The Kumite page's Draft open is a summary (who's picking, big, with their crest, the pick's number, the last pick
+  burning in as it lands, and Enter the draft room); the pool, teams and carousel are the room's alone. Home's rows
+  for a captain with picks to make, and whoever runs it, go to the room; the Draft Open push to the page. Full screen
+  is the room's own button, never automatic; Escape only leaves it, ✕ and Back leave the room. A turn changing is one
+  timeline (lib/draft-sequence.ts; "burn in the name, scroll to next team, and then highlight"): the pick burns in,
+  a moment held, the carousels glide to the next team together, then the light moves and the bar says so, and on a
+  phone your turn brings the players last; picks landing meanwhile wait. The card's glint plays once as the light
+  arrives ("just the first time it becomes active"). Your pick has no red outline, glow or fill, only its red Your
+  pick badge ("too much red highlight"). On a phone the room opens on Teams (Players if it's your turn), tabs Teams |
+  Players; the board (pool beside the team cards) from about 900px wide.

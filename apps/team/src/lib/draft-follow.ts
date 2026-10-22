@@ -1,5 +1,6 @@
-// Following the draft (ADR 0060). On a phone, where the players and the teams are a tab apart, a captain's view goes
-// where the draft is: your pick made, the teams, your team in front for it to burn in; then the team on the clock;
+// Following the draft (ADR 0060). On a phone, where the teams and the players are a tab apart, the room opens on the
+// teams, the team on the clock in front (on the players if it's your turn), and a captain's view goes where the draft
+// is: your pick made, the teams, your team in front for it to burn in; then the team on the clock;
 // each pick that lands burns into its team in front, held a moment with the name cooled, and only then on to the next
 // team; your turn, back to the players. Never on while a pick's still burning in: the move waits for it. Touch a tab
 // or move the teams yourself and it leaves you be until your next pick or your next turn (or Follow the draft). The
@@ -19,7 +20,14 @@ export interface Follow {
   queued: { clock: number; mine: number } | null;
 }
 
-export const following = (focus = -1): Follow => ({ view: "players", follow: true, focus, busy: false, queued: null });
+/** Opening the room: following, on the teams with the team on the clock in front; on the players if it's your turn. */
+export const following = (clock = -1, mine = -2): Follow => ({
+  view: clock === mine ? "players" : "teams",
+  follow: true,
+  focus: clock,
+  busy: false,
+  queued: null,
+});
 
 export type FollowEvent =
   /** Your pick went in, onto your team (`team`). */
@@ -35,13 +43,10 @@ export type FollowEvent =
   /** Follow the draft: back with it, wherever it's got to. */
   | { kind: "resume"; clock: number; mine: number };
 
-/**
- * Where it goes for the turn at `clock`: your turn, the players to pick from; anyone else's, their team in front, if
- * you're watching the teams (on the players, planning your pick, you're left there).
- */
+/** Where it goes for the turn at `clock`: your turn, the players to pick from; anyone else's, their team in front. */
 function moveTo(s: Follow, clock: number, mine: number): Follow {
   if (clock === mine) return { ...s, view: "players", follow: true, focus: clock };
-  return s.follow && s.view === "teams" ? { ...s, focus: clock } : s;
+  return s.follow ? { ...s, view: "teams", focus: clock } : s;
 }
 
 export function followDraft(s: Follow, e: FollowEvent): Follow {
@@ -49,7 +54,7 @@ export function followDraft(s: Follow, e: FollowEvent): Follow {
     case "picked":
       return { ...s, view: "teams", follow: true, focus: e.team };
     case "reveal":
-      return s.follow && s.view === "teams" ? { ...s, busy: true, focus: e.team } : { ...s, busy: true };
+      return s.follow ? { ...s, busy: true, view: "teams", focus: e.team } : { ...s, busy: true };
     case "settled": {
       const done = { ...s, busy: false, queued: null };
       return s.queued ? moveTo(done, s.queued.clock, s.queued.mine) : done;
@@ -61,8 +66,6 @@ export function followDraft(s: Follow, e: FollowEvent): Follow {
     case "manual":
       return { ...s, follow: false, view: e.view ?? s.view };
     case "resume":
-      return e.clock === e.mine
-        ? moveTo({ ...s, follow: true }, e.clock, e.mine)
-        : { ...s, follow: true, view: "teams", focus: e.clock };
+      return moveTo({ ...s, follow: true }, e.clock, e.mine);
   }
 }

@@ -5,12 +5,14 @@ import { describe, expect, it } from "vitest";
 import { followDraft, following, type Follow, type FollowEvent } from "./draft-follow";
 
 const MINE = 0;
+/** In the room, my turn just come round. */
+const myTurn = () => following(MINE, MINE);
 const run = (s: Follow, ...events: FollowEvent[]) => events.reduce(followDraft, s);
 const where = (s: Follow) => ({ view: s.view, focus: s.focus, follow: s.follow });
 
 describe("following the draft on a phone", () => {
   it("my pick made: over to the teams, my team in front while it burns in, then the team on the clock", () => {
-    const s = run(following(MINE), { kind: "picked", team: MINE }, { kind: "reveal", team: MINE });
+    const s = run(myTurn(), { kind: "picked", team: MINE }, { kind: "reveal", team: MINE });
     expect(where(s)).toEqual({ view: "teams", focus: MINE, follow: true });
     // The turn moves on while it's burning: it waits
     const waiting = followDraft(s, { kind: "advance", clock: 1, mine: MINE });
@@ -20,7 +22,7 @@ describe("following the draft on a phone", () => {
   });
 
   it("their pick burns into their card in front, then on to the next team", () => {
-    const watching = run(following(MINE), { kind: "picked", team: MINE }, { kind: "settled" });
+    const watching = run(myTurn(), { kind: "picked", team: MINE }, { kind: "settled" });
     const s = run(watching, { kind: "reveal", team: 1 }, { kind: "advance", clock: 2, mine: MINE });
     expect(where(s).focus).toBe(1);
     expect(where(followDraft(s, { kind: "settled" })).focus).toBe(2);
@@ -28,7 +30,7 @@ describe("following the draft on a phone", () => {
 
   it("a burning pick blocks the move; another landing meanwhile waits its turn, the latest move winning", () => {
     const s = run(
-      { ...following(MINE), view: "teams" },
+      following(-1, MINE),
       { kind: "reveal", team: 1 },
       { kind: "advance", clock: 2, mine: MINE },
       // Team 2 picks while team 1's is still burning: nothing moves yet
@@ -44,7 +46,7 @@ describe("following the draft on a phone", () => {
 
   it("the turn reaching my team: back to the players, but only once the last pick's burnt in", () => {
     const s = run(
-      { ...following(MINE), view: "teams", focus: 1 },
+      following(1, MINE),
       { kind: "reveal", team: 1 },
       {
         kind: "advance",
@@ -56,20 +58,13 @@ describe("following the draft on a phone", () => {
     expect(where(followDraft(s, { kind: "settled" }))).toEqual({ view: "players", focus: MINE, follow: true });
   });
 
-  it("on the players before my first pick, I'm left there to plan, not pulled to the teams", () => {
-    const s = run(
-      following(MINE),
-      { kind: "reveal", team: 1 },
-      { kind: "advance", clock: 2, mine: MINE },
-      {
-        kind: "settled",
-      },
-    );
-    expect(where(s).view).toBe("players");
+  it("the room opens on the teams, the team on the clock in front; on the players if it's my turn", () => {
+    expect(where(following(2, MINE))).toEqual({ view: "teams", focus: 2, follow: true });
+    expect(where(following(MINE, MINE))).toEqual({ view: "players", focus: MINE, follow: true });
   });
 
   it("I take over (a tab, or moving the teams): it stops moving me with the draft", () => {
-    const watching: Follow = { ...following(1), view: "teams" };
+    const watching: Follow = following(1, MINE);
     const mine = followDraft(watching, { kind: "manual", view: "players" });
     expect(where(mine)).toEqual({ view: "players", focus: 1, follow: false });
     expect(followDraft(mine, { kind: "advance", clock: 2, mine: MINE })).toBe(mine);
@@ -77,7 +72,7 @@ describe("following the draft on a phone", () => {
   });
 
   it("and picks it up again at my next turn, or my next pick", () => {
-    const away: Follow = { ...following(1), view: "teams", follow: false };
+    const away: Follow = { ...following(1, MINE), follow: false };
     expect(where(followDraft(away, { kind: "advance", clock: MINE, mine: MINE }))).toEqual({
       view: "players",
       focus: MINE,
@@ -87,7 +82,7 @@ describe("following the draft on a phone", () => {
   });
 
   it("Follow the draft: back with it, wherever it's got to", () => {
-    const away: Follow = { ...following(1), follow: false };
+    const away: Follow = { ...following(1, MINE), view: "players" as const, follow: false };
     expect(where(followDraft(away, { kind: "resume", clock: 3, mine: MINE }))).toEqual({
       view: "teams",
       focus: 3,

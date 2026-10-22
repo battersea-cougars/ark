@@ -1,10 +1,8 @@
 // The draft room (ADR 0060): the draft as the whole screen, for its captains and whoever runs it, while it's open.
-// Nothing of the app around it (no rail, dock, tabs, header or track), the browser's full screen where it has one.
-// Who's let in, when it's offered, what its bar says, and where it lives; the page is pages/DraftRoom.svelte.
+// Nothing of the app around it (no rail, dock, tabs, header or track); the browser's full screen is the room's own
+// button. Who's let in, what the status shows where, what its bar says, and where it lives; the page is
+// pages/DraftRoom.svelte.
 import { draftTurn, onTheClock } from "./draft";
-
-/** A captain whose pick is this close (0: now) is offered the room. */
-export const ROOM_SOON = 2;
 
 /** Enough of a tournament to say who the room is for. */
 interface Drafting {
@@ -23,14 +21,17 @@ export function canEnterRoom(t: Drafting | undefined, me: number, runs: boolean)
   return runs || t.teams.some((x) => x.captainMemberId === me);
 }
 
-/** Offered, lit: a captain with players still to pick, their pick now or in ROOM_SOON. */
-export function roomOffered(t: Drafting | undefined, me: number): boolean {
-  if (!t || !canEnterRoom(t, me, false)) return false;
-  const { left, until } = draftTurn(
-    t,
-    t.teams.findIndex((x) => x.captainMemberId === me),
-  );
-  return left > 0 && until <= ROOM_SOON;
+/**
+ * What the draft's status shows (ADR 0060): the steps before it opens (the draw, opening it); while it's picked, on
+ * the Kumite's page a summary (who's picking, the last pick, the way into the room) and in the room the picking
+ * itself; once everyone's picked, or it's closed, the teams (and the pick log). The picking's only ever in the room.
+ */
+export type DraftShows = "steps" | "summary" | "picking" | "done";
+export function draftShows(t: Drafting, room: boolean): DraftShows {
+  if (t.draftState === "closed") return "done";
+  if (t.draftState !== "open") return "steps";
+  if (!draftTurn(t).left) return "done";
+  return room ? "picking" : "summary";
 }
 
 /**
@@ -55,16 +56,18 @@ export function roomTurn(
   };
 }
 
-/**
- * Into the room from a tap (the tap lets a page ask): the browser's full screen where it has one for a page (not an
- * iPhone's Safari, which keeps it for video: the room is still the whole page there), then the room's address.
- */
-export function enterRoom(slug: string, go: (path: string) => void) {
-  const root = document.documentElement;
-  if (root.requestFullscreen && !document.fullscreenElement)
-    root.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
-  go(roomPath(slug));
+/** The browser's full screen, on or off, from the room's own button (a tap, which lets a page ask). */
+export function toggleFullScreen() {
+  try {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+  } catch {
+    // Not here (an iPhone's Safari): the room's the whole page anyway
+  }
 }
+
+/** Whether this browser lets a page go full screen (an iPhone's Safari doesn't). */
+export const canFullScreen = () => typeof document !== "undefined" && !!document.documentElement.requestFullscreen;
 
 /** Out of the browser's full screen, if the room took it. */
 export function leaveFullScreen() {
