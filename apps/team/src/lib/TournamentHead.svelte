@@ -45,7 +45,8 @@
   // the fixtures out, KUMITE! on the day, done
   const stage = $derived(tournament ? stageBadge(tournament, type, londonToday()) : null);
   const when = $derived(tournament ? editionWhen(tournament) : null);
-  const place = $derived(tournament ? tournamentPlace(tournament)?.name : undefined);
+  // Where it is, opening the map (its venue's link, else a search for its name)
+  const place = $derived(tournament ? tournamentPlace(tournament) : null);
   // How long till the day, beside it: today, tomorrow, in N days. Only for a fixed day that's still to come
   const countdown = $derived.by(() => {
     if (!tournament || !when?.day || stage?.tone === "done") return "";
@@ -126,7 +127,18 @@
                   ><span class="dot" aria-hidden="true">·</span>{countdown}</span
                 >{/if}</span
             >
-            <span class="where">{[when.day ? when.season : "Day to be set", place].filter(Boolean).join(" · ")}</span>
+            <span class="where"
+              ><span class="season">{when.day ? when.season : "Day to be set"}</span>{#if place}<span
+                  class="dot"
+                  aria-hidden="true">·</span
+                >{#if place.mapUrl}<a
+                    class="place"
+                    href={place.mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="{place.name}, on the map"><Icon name="pin" size={14} /><span>{place.name}</span></a
+                  >{:else}<span class="place"><span>{place.name}</span></span>{/if}{/if}</span
+            >
           {:else}
             <span class="day-line"><span class="aside">No {type.shortName} scheduled yet.</span></span>
             <span class="where">&nbsp;</span>
@@ -281,6 +293,32 @@
   .where {
     align-items: center;
     color: var(--fg-muted);
+  }
+  .where .dot {
+    margin-inline: 0.45em;
+  }
+  .season {
+    flex: none;
+  }
+  /* The place, a quiet link to the map: a pin and its name, cut short before it ever wraps (the line's height is
+     fixed) */
+  .place {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+  }
+  .place span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  a.place:hover {
+    color: var(--fg);
+  }
+  .place :global(svg) {
+    flex: none;
   }
   .tools {
     display: grid;

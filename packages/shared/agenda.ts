@@ -4,7 +4,7 @@
 // The rules for each kind of row live here, once: where it is (its own place, else its series'), TBC and seasons,
 // what's public, what's cancelled, who sees it.
 import { all, batch, first, statement } from "./d1";
-import { placeOf, type OwnPlace, type Venue } from "./places";
+import { afterOf, placeOf, type After, type AfterMode, type OwnPlace, type Venue } from "./places";
 import { seasonLabel, type Season } from "./seasons";
 import { londonDay, londonISO } from "./london";
 
@@ -126,6 +126,13 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
         signupClosesOn: string | null;
         draftOn: string | null;
         draftState: string;
+        afterMode: AfterMode;
+        afterVenueId: number | null;
+        afterTime: string | null;
+        afterNote: string;
+        seriesAfterVenueId: number | null;
+        seriesAfterTime: string | null;
+        seriesAfterNote: string | null;
       }
   >(
     db,
@@ -133,7 +140,9 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
             y.venue_id seriesVenueId, COALESCE(y.location, '') seriesName, COALESCE(y.map_url, '') seriesMapUrl,
             t.held_on heldOn, t.start_time startTime, t.end_time endTime, t.season,
             t.public, t.status, t.kind, t.signup_closes_on signupClosesOn, t.draft_on draftOn,
-            t.draft_state draftState
+            t.draft_state draftState, t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime,
+            t.after_note afterNote, y.after_venue_id seriesAfterVenueId, y.after_time seriesAfterTime,
+            y.after_note seriesAfterNote
      FROM tournaments t LEFT JOIN tournament_types y ON y.id = t.type_id ${filter}`,
     params as never[],
   );
@@ -149,9 +158,17 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
       description: "",
       cancelled: false,
     };
+    // Where everyone goes afterwards (ADR 0074): its own, else its series', said on the day's entry
+    const after = afterOf(
+      t.afterMode,
+      { venueId: t.afterVenueId, time: t.afterTime, note: t.afterNote },
+      { venueId: t.seriesAfterVenueId, time: t.seriesAfterTime, note: t.seriesAfterNote ?? "" },
+      venues,
+    );
     items.push(
       item({
         ...base,
+        description: after ? afterwardsLine(after) : "",
         kind: "tournament",
         title: t.title,
         startsAt: londonISO(t.heldOn, t.startTime),
@@ -202,6 +219,16 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
       );
   }
   return { ids: rows.map((r) => r.id), items };
+}
+
+/** The day's entry says where everyone goes after: "Afterwards: The Anchor, from 9:45pm. Celebration and awards." */
+export function afterwardsLine(after: After) {
+  const [h, m] = (after.time ?? "").split(":").map(Number);
+  const at = after.time
+    ? `, from ${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`
+    : "";
+  const note = after.note && (/[.!?]$/.test(after.note) ? after.note : `${after.note}.`);
+  return `Afterwards: ${after.name}${at}.${note ? ` ${note}` : ""}`;
 }
 
 // ─── One-off events ───

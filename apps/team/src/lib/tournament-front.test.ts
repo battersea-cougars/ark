@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament, TournamentType } from "../demo/model";
-import { firstUpOf, frontOf, nextFightOf, nextOf, onTheDayOf, stageBadge, stepsOf } from "./tournament-front";
+import {
+  afterMomentOf,
+  afterNoteWords,
+  firstUpOf,
+  frontOf,
+  nextFightOf,
+  nextOf,
+  onTheDayOf,
+  stageBadge,
+  stepsOf,
+} from "./tournament-front";
 
 const ME = 7;
 const TODAY = "2026-10-21";
@@ -257,5 +267,40 @@ describe("stageBadge: the stamp says where it is", () => {
     expect(stageBadge(going, kumite, TODAY)).toEqual({ label: "On now", tone: "live" });
     const over = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
     expect(stageBadge(over, kumite, TODAY)).toEqual({ label: "Done", tone: "done" });
+  });
+});
+
+describe("afterwards on the front page (ADR 0074)", () => {
+  it("is a quiet line before the day, at every stage", () => {
+    expect(afterMomentOf(draft(), TODAY)).toBe("before");
+    expect(afterMomentOf(teamsSet(), TODAY)).toBe("before");
+    expect(afterMomentOf(fixtures({ heldOn: TODAY }), TODAY)).toBe("before");
+  });
+
+  it("isn't shown on the day while more than one match is left: the matches are", () => {
+    expect(
+      afterMomentOf(fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "live"), game(2, 2, 3)] as never }), TODAY),
+    ).toBe(null);
+  });
+
+  it("is what's next once the last match is on", () => {
+    const last = fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "done"), game(2, 2, 3, "live")] as never });
+    expect(afterMomentOf(last, TODAY)).toBe("next");
+    const upNext = fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "done"), game(2, 2, 3)] as never });
+    expect(afterMomentOf(upNext, TODAY)).toBe("next");
+  });
+
+  it("is what's on now once every match is played, that day only", () => {
+    const done = fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
+    expect(afterMomentOf(done, TODAY)).toBe("now");
+    expect(afterMomentOf(done, "2026-10-22")).toBe(null);
+    // Marked finished by an admin before the day (or just a season): nothing to go to now
+    expect(afterMomentOf(draft({ status: "finished", season: "autumn" }), TODAY)).toBe(null);
+  });
+
+  it("says what for in the flow of a line, lower case unless it's a name", () => {
+    expect(afterNoteWords("Celebration and awards")).toBe("celebration and awards");
+    expect(afterNoteWords("BBQ and awards")).toBe("BBQ and awards");
+    expect(afterNoteWords("  ")).toBe("");
   });
 });

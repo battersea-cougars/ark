@@ -28,7 +28,9 @@ INSERT OR IGNORE INTO role_actions (role_id, action) VALUES
 
 -- venues
 INSERT OR IGNORE INTO venues (id, name, address, map_url, active) VALUES
-  (1, 'Battersea Sports Centre', 'London SW11 3AB', 'https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6', 1);
+  (1, 'Battersea Sports Centre', 'London SW11 3AB', 'https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6', 1),
+  -- Where the Kumite goes afterwards (ADR 0074); its street address isn't known yet
+  (2, 'The Anchor', '', 'https://maps.app.goo.gl/GhKGiPB1vKnpV6HB7', 1);
 
 -- training_series
 INSERT OR IGNORE INTO training_series (id, slug, name, short_name, icon, tone, repeat_every, weekdays, starts_on, ends_on, start_time, end_time, venue_id, venue, capacity, goalie_capacity, signup_closes_mins, signup_opens_days, public, active) VALUES
@@ -78,8 +80,8 @@ INSERT OR IGNORE INTO training_sessions (id, series_id, held_on, moved_from, sta
   (40, 1, '2026-10-02', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- tournament_types
-INSERT OR IGNORE INTO tournament_types (id, slug, name, short_name, icon, tone, format, points_win, points_draw, points_loss, game_minutes, penalty_rule, default_penalty_minutes, periods, break_minutes, kind, active, default_fee_pence, awards, venue_id, location, default_start_time, default_end_time) VALUES
-  (1, 'kumite', 'The Cougars Kumite', 'Kumite', 'swords', 'red', 'round_robin', 3, 1, 0, 12, 'sit_out', 2, 1, 0, 'draft', 1, 0, '[{"name":"Champions","about":"The team on top of the table at the end of the day."},{"name":"Top scorer","about":"Most goals across every game."},{"name":"Best goalie","about":"Voted by the skaters they stopped."},{"name":"The Dim Mak","about":"Fastest goal from a faceoff. One touch. Lights out."}]', 1, '', '19:30', '21:30');
+INSERT OR IGNORE INTO tournament_types (id, slug, name, short_name, icon, tone, format, points_win, points_draw, points_loss, game_minutes, penalty_rule, default_penalty_minutes, periods, break_minutes, kind, active, default_fee_pence, awards, venue_id, location, default_start_time, default_end_time, after_venue_id, after_note) VALUES
+  (1, 'kumite', 'The Cougars Kumite', 'Kumite', 'swords', 'red', 'round_robin', 3, 1, 0, 12, 'sit_out', 2, 1, 0, 'draft', 1, 0, '[{"name":"Champions","about":"The team on top of the table at the end of the day."},{"name":"Top scorer","about":"Most goals across every game."},{"name":"Best goalie","about":"Voted by the skaters they stopped."},{"name":"The Dim Mak","about":"Fastest goal from a faceoff. One touch. Lights out."}]', 1, '', '19:30', '21:30', 2, 'Celebration and awards');
 
 -- quips
 INSERT OR IGNORE INTO quips (id, kind, text) VALUES

@@ -186,7 +186,12 @@ CREATE TABLE tournament_types (
   -- Its usual place (ADR 0030): a saved venue, else a name and map link
   venue_id INTEGER REFERENCES venues (id),
   location TEXT NOT NULL DEFAULT '',
-  map_url TEXT NOT NULL DEFAULT ''
+  map_url TEXT NOT NULL DEFAULT '',
+  -- Where everyone goes afterwards (ADR 0074), each of its tournaments' unless one says otherwise: a saved venue, an
+  -- optional time (HH:MM) and a few words on what for ("Celebration and awards"). No venue: nowhere
+  after_venue_id INTEGER REFERENCES venues (id),
+  after_time TEXT,
+  after_note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE tournaments (
@@ -230,7 +235,13 @@ CREATE TABLE tournaments (
   kind TEXT NOT NULL DEFAULT 'teams',
   awards TEXT NOT NULL DEFAULT '[]',
   -- The playoff games after the round robin, by table position: [{name, home, away}] (ADR 0061)
-  playoffs TEXT NOT NULL DEFAULT '[]'
+  playoffs TEXT NOT NULL DEFAULT '[]',
+  -- Where everyone goes afterwards (ADR 0074): usual (its series'), own (after_venue_id, after_time, after_note) or
+  -- none (not this time)
+  after_mode TEXT NOT NULL DEFAULT 'usual',
+  after_venue_id INTEGER REFERENCES venues (id),
+  after_time TEXT,
+  after_note TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX tournaments_held_on ON tournaments (held_on);

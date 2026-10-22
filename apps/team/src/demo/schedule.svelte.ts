@@ -6,7 +6,7 @@ import { clockRange, formatDayDate, formatTime, londonISO, londonToday } from ".
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
-import { placeOf, type Place } from "@cougars/shared/places";
+import { afterOf, placeOf, type Place } from "@cougars/shared/places";
 
 export const seriesById = (id: number) => db.series.find((s) => s.id === id);
 export const typeById = (id: number | null) => db.tournamentTypes.find((t) => t.id === id);
@@ -26,6 +26,19 @@ export const typePlace = (t: TournamentType | undefined) =>
   t ? placeOf({ venueId: t.venueId, name: t.location, mapUrl: t.mapUrl }, db.venues) : null;
 export const tournamentPlace = (t: Tournament) =>
   placeOf({ venueId: t.venueId, name: t.location, mapUrl: t.mapUrl }, db.venues, typePlace(typeById(t.typeId)));
+/** A series' afterwards (ADR 0074): where everyone goes after each of its dates, unless one says otherwise. */
+export const typeAfter = (t: TournamentType | undefined) =>
+  t ? afterOf("own", { venueId: t.afterVenueId, time: t.afterTime, note: t.afterNote }, null, db.venues) : null;
+/** Where everyone goes after this one (ADR 0074): its own, its series', or none this time. */
+export const tournamentAfter = (t: Tournament) => {
+  const type = typeById(t.typeId);
+  return afterOf(
+    t.afterMode ?? "usual",
+    { venueId: t.afterVenueId ?? null, time: t.afterTime ?? null, note: t.afterNote ?? "" },
+    type ? { venueId: type.afterVenueId, time: type.afterTime, note: type.afterNote } : null,
+    db.venues,
+  );
+};
 export const oneOffPlace = (o: OneOff) => placeOf({ venueId: o.venueId, name: o.venue, mapUrl: o.mapUrl }, db.venues);
 
 /** A Bookable's where: the name, the address and the map link. */

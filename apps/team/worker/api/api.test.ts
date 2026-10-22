@@ -62,6 +62,8 @@ describe("opening the app", () => {
     ]);
     expect(b.venues).toEqual([
       expect.objectContaining({ name: "Battersea Sports Centre", mapUrl: "https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6" }),
+      // Where the Kumite goes afterwards (ADR 0074)
+      expect.objectContaining({ name: "The Anchor", mapUrl: "https://maps.app.goo.gl/GhKGiPB1vKnpV6HB7" }),
     ]);
     const dates = ahead(b).map((s: { heldOn: string }) => s.heldOn);
     expect(dates[0]).toBe("2026-10-09");
@@ -175,6 +177,7 @@ describe("the schedule", () => {
     expect((await boot()).venues.map((v: { name: string }) => v.name)).toEqual([
       "Battersea Sports Centre",
       "Latchmere Leisure Centre",
+      "The Anchor",
     ]);
     // A link that isn't a web link never reaches a page
     const bad = { name: "Nowhere", mapUrl: "javascript:alert(1)" };

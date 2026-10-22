@@ -8,7 +8,8 @@ import type { Winner } from "./awards";
 import type { Game } from "./fixtures";
 import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
-import { placeFields } from "../settings/venues";
+import { afterFields, placeFields } from "../settings/venues";
+import { AFTER_MODES, type AfterMode } from "@cougars/shared/places";
 import { fillingUp } from "../entries/entries";
 
 interface TypeRow {
@@ -37,6 +38,9 @@ interface TypeRow {
   venue_id: number | null;
   location: string;
   map_url: string;
+  after_venue_id: number | null;
+  after_time: string | null;
+  after_note: string;
 }
 
 /** How a tournament makes its teams (ADR 0030): teams enter, or captains draft members. */
@@ -134,6 +138,9 @@ export function tournamentTypesFrom(rows: TypeRow[]) {
     venueId: t.venue_id,
     location: t.location,
     mapUrl: t.map_url,
+    afterVenueId: t.after_venue_id,
+    afterTime: t.after_time,
+    afterNote: t.after_note,
   }));
 }
 
@@ -159,6 +166,8 @@ async function typeFields(db: D1Database, o: Record<string, unknown>) {
     o.periods == null ? 1 : periodsOf(o),
     o.defaultPenaltyMinutes == null ? 2 : penaltyLengthOf(o),
     o.breakMinutes == null ? 2 : breakOf(o),
+    // Where its tournaments go afterwards, unless one says otherwise (ADR 0074)
+    ...(await afterFields(db, o)),
   ] as Param[];
 }
 
@@ -191,8 +200,9 @@ export async function createTournamentType(db: D1Database, o: Record<string, unk
     db,
     `INSERT INTO tournament_types (name, short_name, icon, tone, points_win, points_draw, points_loss, game_minutes,
        kind, active, default_fee_pence, default_start_time, default_end_time, awards, venue_id, location, map_url,
-       playoffs, penalty_rule, periods, default_penalty_minutes, break_minutes, slug)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       playoffs, penalty_rule, periods, default_penalty_minutes, break_minutes, after_venue_id, after_time, after_note,
+       slug)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [...f, slug],
   );
   return { id: Number(res.meta.last_row_id), slug };
@@ -205,7 +215,7 @@ export async function updateTournamentType(db: D1Database, id: number, o: Record
        points_loss = ?, game_minutes = ?, kind = ?, active = ?, default_fee_pence = ?, default_start_time = ?,
        default_end_time = ?, awards = ?, venue_id = ?,
        location = ?, map_url = ?, playoffs = ?, penalty_rule = ?, periods = ?, default_penalty_minutes = ?,
-       break_minutes = ?
+       break_minutes = ?, after_venue_id = ?, after_time = ?, after_note = ?
      WHERE id = ?`,
     [...(await typeFields(db, o)), id],
   );
@@ -250,6 +260,10 @@ export type TournamentListRow = {
   awards: string;
   playoffs: string;
   draftState: string;
+  afterMode: AfterMode;
+  afterVenueId: number | null;
+  afterTime: string | null;
+  afterNote: string;
 };
 export type TournamentTeamRow = {
   id: number;
@@ -341,6 +355,20 @@ async function tournamentFields(db: D1Database, o: Record<string, unknown>) {
     signupClosesOn,
     draftOn,
   ] as Param[];
+}
+
+/**
+ * Where a tournament goes afterwards (ADR 0074): its series' (usual), its own venue, time and note, or none this time.
+ * Left out of a save, it keeps what it had (a new one: its series'). As [after_mode, after_venue_id, after_time,
+ * after_note].
+ */
+async function tournamentAfterOf(db: D1Database, o: Record<string, unknown>, current?: Param[]): Promise<Param[]> {
+  if (o.afterMode == null) return current ?? ["usual", null, null, ""];
+  const mode = oneOf(o, "afterMode", AFTER_MODES);
+  if (mode !== "own") return [mode, null, null, ""];
+  const own = await afterFields(db, o);
+  if (own[0] == null) throw new HttpError(400, "Say where everyone goes afterwards, or leave it on the usual.");
+  return [mode, ...own];
 }
 
 /** A team as the app sends it (ADR 0030). */
@@ -599,15 +627,16 @@ export async function createTournament(db: D1Database, given: Record<string, unk
     ...Object.fromEntries(Object.entries(given).filter(([, v]) => v != null)),
   };
   const rules = rulesOf(o, series);
-  const fields = [...(await tournamentFields(db, o)), ...rules];
+  const fields = [...(await tournamentFields(db, o)), ...rules, ...(await tournamentAfterOf(db, o))];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
   const res = await run(
     db,
     `INSERT INTO tournaments (type_id, name, venue_id, location, map_url, held_on, start_time, end_time, capacity, status, fee_pence,
        season, public, signup_opens_on, signup_closes_on, draft_on, points_win, points_draw, points_loss,
-       game_minutes, kind, awards, playoffs, penalty_rule, periods, default_penalty_minutes, break_minutes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       game_minutes, kind, awards, playoffs, penalty_rule, periods, default_penalty_minutes, break_minutes, after_mode,
+       after_venue_id, after_time, after_note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [typeId, ...fields],
   );
   const id = Number(res.meta.last_row_id);
@@ -624,10 +653,18 @@ export async function updateTournament(
   now: string,
 ) {
   const { typeId } = await seriesOf(db, o);
-  const current = await first<Rules & { draft_state: string }>(
+  const current = await first<
+    Rules & {
+      draft_state: string;
+      after_mode: AfterMode;
+      after_venue_id: number | null;
+      after_time: string | null;
+      after_note: string;
+    }
+  >(
     db,
     `SELECT points_win, points_draw, points_loss, game_minutes, kind, awards, playoffs, penalty_rule, periods, default_penalty_minutes,
-       break_minutes, draft_state
+       break_minutes, draft_state, after_mode, after_venue_id, after_time, after_note
      FROM tournaments WHERE id = ?`,
     [id],
   );
@@ -635,7 +672,13 @@ export async function updateTournament(
   const rules = rulesOf(o, current);
   if (rules[4] !== current.kind && current.draft_state !== "none")
     throw new HttpError(409, "The draft has started: it stays a draft.");
-  const fields = [...(await tournamentFields(db, o)), ...rules];
+  const after = await tournamentAfterOf(db, o, [
+    current.after_mode,
+    current.after_venue_id,
+    current.after_time,
+    current.after_note,
+  ]);
+  const fields = [...(await tournamentFields(db, o)), ...rules, ...after];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
   // A limit raised moves the first waiting up into its room, in the same batch (ADR 0030)
@@ -645,7 +688,8 @@ export async function updateTournament(
       `UPDATE tournaments SET type_id = ?, name = ?, venue_id = ?, location = ?, map_url = ?, held_on = ?, start_time = ?, end_time = ?, capacity = ?,
          status = ?, fee_pence = ?, season = ?, public = ?, signup_opens_on = ?, signup_closes_on = ?, draft_on = ?,
          points_win = ?, points_draw = ?, points_loss = ?, game_minutes = ?, kind = ?, awards = ?, playoffs = ?,
-         penalty_rule = ?, periods = ?, default_penalty_minutes = ?, break_minutes = ?
+         penalty_rule = ?, periods = ?, default_penalty_minutes = ?, break_minutes = ?, after_mode = ?,
+         after_venue_id = ?, after_time = ?, after_note = ?
        WHERE id = ?`,
       [typeId, ...fields, id],
     ),

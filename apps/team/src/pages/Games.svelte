@@ -5,13 +5,15 @@
   //   Before the day: are you in; the draft; your team; the first match.
   //   On the day: your turn to keep score, the match on now and the next. Nothing else.
   // The teams, the board, the whole fight card and History are a quiet line of links at the foot (and their tabs).
+  // Afterwards (ADR 0074), where everyone goes (the Kumite: The Anchor, for the celebration and awards): a quiet line
+  // before the day, what's next once the last match is on, and where everyone is now once it's played, that evening.
   // Once the last game's played it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
   import { nameOfTeam } from "../lib/names";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { currentTournament, pastTournaments, typeById } from "../demo/schedule.svelte";
+  import { currentTournament, pastTournaments, tournamentAfter, typeById } from "../demo/schedule.svelte";
   import SignUpLine from "../lib/SignUpLine.svelte";
   import { editionState, stageOf } from "../lib/edition";
   import Kanji from "../lib/Kanji.svelte";
@@ -27,7 +29,8 @@
   import LiveNote from "../lib/LiveNote.svelte";
   import { clock, londonToday } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
-  import { firstUpOf, frontOf, myTeamIndex, onTheDayOf } from "../lib/tournament-front";
+  import { afterMomentOf, afterNoteWords, firstUpOf, frontOf, myTeamIndex, onTheDayOf } from "../lib/tournament-front";
+  import type { After } from "@cougars/shared/places";
   import FightCard from "../lib/FightCard.svelte";
   import StageTrack from "../lib/StageTrack.svelte";
   import YourTeam from "../lib/YourTeam.svelte";
@@ -82,6 +85,14 @@
   // Before the first match: the first, and yours if it's later. On the day: on now and next, yours a line
   const first = $derived(tournament ? firstUpOf(tournament, me().id) : undefined);
   const day = $derived(tournament ? onTheDayOf(tournament, me().id) : undefined);
+  // Where everyone goes afterwards, and whether it's for later, next or now (lib/tournament-front.ts). With nothing on,
+  // the one just played, the evening of its day
+  const after = $derived.by(() => {
+    const t = tournament ?? past[0];
+    const moment = t ? afterMomentOf(t, today) : null;
+    const place = t && moment ? tournamentAfter(t) : null;
+    return place && moment && (tournament || moment === "now") ? { place, moment } : null;
+  });
   // The quiet links at the foot: what has a page of its own once there's something on it
   const stage = $derived(tournament ? stageOf(tournament) : "signup");
   const links = $derived(
@@ -96,6 +107,38 @@
   );
 </script>
 
+<!-- Where everyone goes afterwards, before the day: one quiet line, the place opening the map -->
+{#snippet afterLine(a: After)}
+  <p class="after-line">
+    <Icon name="glass" size={16} /><span class="eyebrow">Afterwards</span><a
+      href={a.mapUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="{a.name}, on the map"><Icon name="pin" size={14} />{a.name}</a
+    >{#if a.time}<span class="sep" aria-hidden="true">·</span><span>from {clock(a.time)}</span>{/if}{#if a.note}<span
+        class="sep"
+        aria-hidden="true">·</span
+      ><span class="what">{afterNoteWords(a.note)}</span>{/if}
+  </p>
+{/snippet}
+
+<!-- On the day, once the last match is on (Then) or played (Now): where everyone goes, big, on the page -->
+{#snippet afterNow(a: After, now: boolean)}
+  <section class="part after-now">
+    <h2 class="section-title">{now ? "Now" : "Then"}<Kanji text={kanjiFor(type, "awards")} /></h2>
+    <div class="after-body">
+      <span class="after-place display"><Icon name="glass" size={22} />{a.name}</span>
+      <span class="after-sub"
+        >{[a.note, a.time && `from ${clock(a.time)}`].filter(Boolean).join(" · ") ||
+          (now ? "Everyone's there." : "After the last match.")}</span
+      >
+      <a class="btn sm outline" href={a.mapUrl} target="_blank" rel="noopener noreferrer"
+        ><Icon name="pin" size={16} />Map</a
+      >
+    </div>
+  </section>
+{/snippet}
+
 <div class="page">
   <TournamentHead
     {type}
@@ -106,6 +149,10 @@
   />
 
   {#if !tournament}
+    {#if after}
+      <!-- The evening it was played: everyone's gone on to the afterwards -->
+      {@render afterNow(after.place, true)}
+    {/if}
     <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
          stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, 0074) -->
     <section class="no-bout">
@@ -140,6 +187,7 @@
   {:else}
     <!-- Where it's got to, unmistakably: every stage, the one it's at lit, and what happens next -->
     <StageTrack {type} {tournament} {today} />
+    {#if after?.moment === "before"}{@render afterLine(after.place)}{/if}
     {#if mode === "during"}
       <!-- On the day: your team's turn to keep score (once you hold it, your game's card wears the whistle instead),
            then the match on now and the next. Nothing else competes -->
@@ -175,6 +223,9 @@
             <h2 class="section-title">{day.live ? "Next" : "After that"}</h2>
             <GameCard {tournament} game={day.after} />
           </section>
+        {:else if after?.moment === "next"}
+          <!-- The last match on: what comes after it is the afterwards -->
+          {@render afterNow(after.place, false)}
         {/if}
         {#if day.yours}
           <p class="yours">
@@ -184,6 +235,8 @@
             >
           </p>
         {/if}
+      {:else if after}
+        {@render afterNow(after.place, true)}
       {:else}
         <p class="note">Every match has been played. The final word's on <a href={board}>the board</a>.</p>
       {/if}
@@ -397,6 +450,58 @@
   }
   .more a:hover {
     color: var(--fg);
+  }
+  /* Afterwards, before the day: one quiet line under what's next, the place a link to the map */
+  .after-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1) var(--s-2);
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .after-line .eyebrow {
+    margin-right: var(--s-1);
+  }
+  .after-line a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .after-line .sep {
+    color: var(--fg-subtle);
+  }
+  /* On the day, Then or Now: the place big, what for under it, the map a button. On the page, no panel */
+  .after-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--s-1) var(--s-4);
+  }
+  .after-place {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+    color: var(--fg);
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
+    line-height: 1.05;
+  }
+  .after-place :global(svg) {
+    flex: none;
+    color: var(--fg-muted);
+  }
+  .after-sub {
+    grid-column: 1;
+    color: var(--fg-muted);
+  }
+  .after-body .btn {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    gap: var(--s-1);
   }
   /* The draft, done: one line on the page */
   .draft-done {

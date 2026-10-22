@@ -58,3 +58,40 @@ export function cleanMapUrl(value: string): string | null {
     return null;
   }
 }
+
+/**
+ * Where a tournament goes afterwards (ADR 0074): its series' ("usual", what every one gets without retyping), its own,
+ * or none this time.
+ */
+export const AFTER_MODES = ["usual", "own", "none"] as const;
+export type AfterMode = (typeof AFTER_MODES)[number];
+
+/** What a series or a tournament stores about its afterwards: a saved venue, an optional time, what it's for. */
+export interface OwnAfter {
+  venueId: number | null;
+  /** HH:MM, or null: no time said. */
+  time: string | null;
+  note: string;
+}
+
+/** Where everyone goes afterwards: the venue, and when and what for if said. */
+export interface After extends Place {
+  time: string | null;
+  note: string;
+}
+
+/**
+ * Its afterwards: its own, its series' (usual), or none. Only a saved venue counts (a pub the club goes to every
+ * time); a venue that's gone, or none picked, is nowhere.
+ */
+export function afterOf(
+  mode: AfterMode,
+  own: OwnAfter,
+  usual: OwnAfter | null,
+  venues: readonly Venue[],
+): After | null {
+  const chosen = mode === "none" ? null : mode === "own" ? own : usual;
+  const venue = chosen?.venueId == null ? undefined : venues.find((v) => v.id === chosen.venueId);
+  if (!chosen || !venue) return null;
+  return { ...toPlace(venue.name, venue.address, venue.mapUrl), time: chosen.time || null, note: chosen.note.trim() };
+}

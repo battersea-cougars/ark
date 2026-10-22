@@ -169,3 +169,29 @@ export function stageBadge(t: Tournament, type: Pick<TournamentType, "shortName"
       return badge("Fixtures out", "set");
   }
 }
+
+/** When the afterwards shows on the front page (ADR 0074). */
+export type AfterMoment =
+  /** Before the day: a quiet line under what's next. */
+  | "before"
+  /** On the day, the last match on (or up next): it's what comes after it. */
+  | "next"
+  /** The last match played, that day: it's where everyone is now. */
+  | "now";
+
+/**
+ * Where the afterwards goes on the front page: a quiet line before the day; nothing on the day while the matches are
+ * what matters, until the last one's on, when it's next; then, the day done, it's now (that day only).
+ */
+export function afterMomentOf(t: Tournament, today: string): AfterMoment | null {
+  const state = editionState(t);
+  if (state === "done") return !t.season && t.heldOn === today ? "now" : null;
+  if (state !== "live") return "before";
+  return (t.games ?? []).filter((g) => g.status !== "done").length <= 1 ? "next" : null;
+}
+
+/** What it's for, in the middle of a line: "celebration and awards", but "BBQ" stays a BBQ. */
+export function afterNoteWords(note: string) {
+  const n = note.trim();
+  return /^[A-Z][a-z]/.test(n) ? n[0].toLowerCase() + n.slice(1) : n;
+}

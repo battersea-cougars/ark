@@ -6,7 +6,7 @@ import type { IconName } from "../app/shell/icons";
 import type { DatedFee } from "../lib/dues";
 import type { Weekday } from "../lib/recurrence";
 import type { Season } from "@cougars/shared/seasons";
-import type { Venue } from "@cougars/shared/places";
+import type { AfterMode, Venue } from "@cougars/shared/places";
 
 export type { Venue };
 
@@ -125,6 +125,11 @@ export interface TournamentType {
   venueId: number | null;
   location: string;
   mapUrl: string;
+  /** Where everyone goes afterwards, every one of its dates unless one says otherwise (ADR 0074): a saved venue (none:
+   *  nowhere), an optional time and what for ("Celebration and awards"). */
+  afterVenueId: number | null;
+  afterTime: string | null;
+  afterNote: string;
 }
 
 export type TournamentStatus = "planned" | "open" | "live" | "finished";
@@ -213,6 +218,12 @@ export interface Tournament extends Entries {
   winners?: { award: string; teamId: number | null; memberId: number | null }[];
   /** Its teams: in pick order for a draft, else in the order they entered. */
   teams: TournamentTeam[];
+  /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own (the three below), or none this time.
+   *  Left out on a save, it keeps what it had. */
+  afterMode?: AfterMode;
+  afterVenueId?: number | null;
+  afterTime?: string | null;
+  afterNote?: string;
 }
 
 /** Anything else on the calendar: a social, a kit day. */

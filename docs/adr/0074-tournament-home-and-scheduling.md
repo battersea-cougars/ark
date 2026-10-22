@@ -156,6 +156,24 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 - **The draft has a day, not a time** (`draft_on`). It's a reminder for the captains, on their calendar as a day; an
   admin messages them when it opens (ADR [0060](0060-the-draft.md)).
 
+### Afterwards, and where it is
+
+- **The header's place opens the map**: on every page of the series, the place under the day is a pin and its name,
+  a link to its map (`placeOf`, ADR [0030](0030-training-and-tournament-schedule.md)), on the header's fixed second line.
+- **A series has an afterwards** (`tournament_types.after_venue_id`, `after_time`, `after_note`): a saved venue, an
+  optional time and what for. The Kumite's is The Anchor, for the celebration and awards (the seed), so every Kumite
+  has it without anyone retyping it. Set in the series' Defaults (Afterwards), beside its place and hours.
+- **A tournament follows it, or not** (`tournaments.after_mode`): `usual` (its series', the default), `own` (its own
+  `after_venue_id`, `after_time`, `after_note`) or `none` (not this time). Its editor's Details has Afterwards: Usual,
+  a venue, or None this time. A save that leaves it out keeps what it had. Only a saved venue counts, and the API
+  refuses one that doesn't exist. One rule, `afterOf` in `packages/shared/places.ts`, for the app and the agenda.
+- **The front page says it when it matters** (`afterMomentOf` in `lib/tournament-front.ts`): before the day, one quiet
+  line under the track's Next ("Afterwards · The Anchor · from 9:45pm · celebration and awards", the place a map link);
+  on the day nothing while the matches are what matters, until the last one's on, when it's Then (in the next match's
+  place); once it's played, that evening, it's Now, big, with a Map button, above the nothing-on page.
+- **The day's calendar entry says it** in its description ("Afterwards: The Anchor, from 9:45pm. Celebration and
+  awards."), so the website's What's on does too.
+
 ### Sign-up opens on a day
 
 - `tournaments.signup_opens_on`: from that day (London) members can say they're in, until the end of the closing day
@@ -232,3 +250,7 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   says "Fight card", not "Every fight".
 - 2026-10-22: Back a step, from any step, in Manage: one item, asking as much as it costs; one route that says the
   step it's leaving and is one batch.
+- 2026-10-22: The header's place is a map link. A series has an afterwards (a saved venue, an optional time, what
+  for), the Kumite's The Anchor for the celebration and awards; a tournament keeps its series', has its own, or none
+  this time. The front page says it before the day as a quiet line, as Then once the last match is on, and as Now
+  that evening; the day's calendar entry says it too.

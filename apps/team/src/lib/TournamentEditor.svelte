@@ -16,6 +16,7 @@
   import StylePicker from "./StylePicker.svelte";
   import FormSection from "./FormSection.svelte";
   import PlacePicker from "./PlacePicker.svelte";
+  import AfterFields from "./AfterFields.svelte";
 
   let { typeId, oncreated }: { typeId?: number; oncreated?: (id: number) => void } = $props();
 
@@ -46,6 +47,9 @@
     venueId: null,
     location: "",
     mapUrl: "",
+    afterVenueId: null,
+    afterTime: null,
+    afterNote: "",
     awards: [
       { name: "Champions", about: "The team on top of the table at the end of the day." },
       { name: "Top scorer", about: "Most goals across every game." },
@@ -166,6 +170,15 @@
                   />
                 </label>
               </div>
+            </FormSection>
+            <!-- Where everyone goes after (ADR 0074): every one in the series gets it without retyping -->
+            <FormSection title="Afterwards" description="Where everyone goes after, on every one in the series.">
+              <AfterFields
+                id="series-after"
+                bind:venueId={form.afterVenueId}
+                bind:time={form.afterTime}
+                bind:note={form.afterNote}
+              />
             </FormSection>
             <FormSection title="Rules" description="Round robin: every team plays every other once.">
               <div class="cols">

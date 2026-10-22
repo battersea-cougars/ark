@@ -2,7 +2,7 @@
 import { syncAll } from "@cougars/shared/agenda";
 import { first, run, type Param } from "@cougars/shared/d1";
 import { cleanMapUrl } from "@cougars/shared/places";
-import { HttpError, int, text } from "../api/api.http";
+import { HttpError, int, text, time } from "../api/api.http";
 
 /** Venues as read (api.club.ts). */
 export const venuesFrom = (rows: { id: number; name: string; address: string; mapUrl: string; active: number }[]) =>
@@ -45,4 +45,16 @@ export async function placeFields(db: D1Database, o: Record<string, unknown>, na
   if (venueId === null) return [null, text(o, nameKey, { optional: true, max: 120 }), mapUrlOf(o)];
   if (!(await first(db, "SELECT 1 FROM venues WHERE id = ?", [venueId]))) throw new HttpError(400, "No such venue.");
   return [venueId, "", ""];
+}
+
+/**
+ * Where everyone goes afterwards (ADR 0074): `afterVenueId`, a saved venue (none: nowhere), `afterTime` (HH:MM,
+ * optional) and `afterNote`, what for. As [after_venue_id, after_time, after_note].
+ */
+export async function afterFields(db: D1Database, o: Record<string, unknown>): Promise<Param[]> {
+  const venueId = int(o, "afterVenueId", { min: 1, nullable: true });
+  if (venueId === null) return [null, null, ""];
+  if (!(await first(db, "SELECT 1 FROM venues WHERE id = ?", [venueId]))) throw new HttpError(400, "No such venue.");
+  const at = o.afterTime == null || o.afterTime === "" ? null : time(o, "afterTime");
+  return [venueId, at, text(o, "afterNote", { optional: true, max: 80 }).trim()];
 }

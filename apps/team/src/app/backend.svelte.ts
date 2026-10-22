@@ -511,6 +511,9 @@ const typeBody = (t: TournamentType) => ({
   venueId: t.venueId,
   location: t.location,
   mapUrl: t.mapUrl,
+  afterVenueId: t.afterVenueId,
+  afterTime: t.afterTime,
+  afterNote: t.afterNote,
 });
 export const createTournamentType = (t: TournamentType) =>
   save(() => api<{ id: number; slug: string }>("POST", "/api/tournament-types", typeBody(t)), "Tournament added");
@@ -546,6 +549,10 @@ const tournamentBody = (t: Tournament) => ({
   awards: t.awards,
   playoffs: t.playoffs,
   teams: t.teams,
+  afterMode: t.afterMode,
+  afterVenueId: t.afterVenueId,
+  afterTime: t.afterTime,
+  afterNote: t.afterNote,
 });
 /** The captain on the clock (or whoever's running the draft) picks a member, for the turn after `turn` picks. */
 export const draftPick = (tournamentId: number, memberId: number, turn: number) =>

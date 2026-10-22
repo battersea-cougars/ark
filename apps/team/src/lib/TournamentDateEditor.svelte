@@ -35,6 +35,8 @@
   import Select from "./Select.svelte";
   import FormSection from "./FormSection.svelte";
   import PlacePicker from "./PlacePicker.svelte";
+  import AfterFields from "./AfterFields.svelte";
+  import type { AfterMode } from "@cougars/shared/places";
   import PersonPicker from "./PersonPicker.svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
@@ -42,7 +44,7 @@
   import { PERIOD_OPTIONS } from "./periods";
   import DateField from "../lib/DateField.svelte";
   import TeamCard from "./TeamCard.svelte";
-  import { typePlace } from "../demo/schedule.svelte";
+  import { typeAfter, typePlace } from "../demo/schedule.svelte";
   import { londonToday, pounds } from "./dates";
   import { navigate } from "../app/router.svelte";
   import { seriesToOpen } from "../pages/TournamentSeries.svelte";
@@ -82,6 +84,11 @@
     venueId: number | null;
     location: string;
     mapUrl: string;
+    /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own, or none this time */
+    afterMode: AfterMode;
+    afterVenueId: number | null;
+    afterTime: string | null;
+    afterNote: string;
     capacity: number | null;
     fee: string;
     status: TournamentStatus;
@@ -125,6 +132,10 @@
         venueId: t.venueId,
         location: t.location,
         mapUrl: t.mapUrl,
+        afterMode: t.afterMode ?? "usual",
+        afterVenueId: t.afterVenueId ?? null,
+        afterTime: t.afterTime ?? null,
+        afterNote: t.afterNote ?? "",
         capacity: t.capacity,
         fee: String(t.feePence / 100),
         status: t.status,
@@ -158,6 +169,10 @@
       venueId: null,
       location: "",
       mapUrl: "",
+      afterMode: "usual",
+      afterVenueId: null,
+      afterTime: null,
+      afterNote: "",
       capacity: 24,
       fee: "0",
       status: "planned",
@@ -349,6 +364,10 @@
     venueId: d.venueId,
     location: d.venueId ? "" : d.location.trim(),
     mapUrl: d.venueId ? "" : d.mapUrl.trim(),
+    afterMode: d.afterMode,
+    afterVenueId: d.afterMode === "own" ? d.afterVenueId : null,
+    afterTime: d.afterMode === "own" ? d.afterTime : null,
+    afterNote: d.afterMode === "own" ? d.afterNote.trim() : "",
     heldOn: dayOf(d),
     season: d.heldOn ? null : d.season,
     startTime: d.startTime,
@@ -497,6 +516,17 @@
               bind:name={date.location}
               bind:mapUrl={date.mapUrl}
               usual={type ? typePlace(type) : undefined}
+            />
+          </FormSection>
+          <!-- Where everyone goes after (ADR 0074): its series' unless this one says otherwise -->
+          <FormSection title="Afterwards">
+            <AfterFields
+              id="date-after"
+              bind:mode={date.afterMode}
+              bind:venueId={date.afterVenueId}
+              bind:time={date.afterTime}
+              bind:note={date.afterNote}
+              usual={type ? typeAfter(type) : null}
             />
           </FormSection>
         {:else if tab === "rules"}
