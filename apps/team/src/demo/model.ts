@@ -216,8 +216,11 @@ export interface Tournament extends Entries {
   /** Its playoffs (copied from its series, ADR 0061), and its games once the fixtures are made. */
   playoffs: Playoff[];
   games?: TournamentGame[];
-  /** Who won its awards (ADR 0044): a team or a player on one, by award name. */
+  /** Who won its awards (ADR 0044): a team or a player on one, by award name. A member is sent an award's winner on
+   *  its evening only once it's been revealed. */
   winners?: { award: string; teamId: number | null; memberId: number | null }[];
+  /** How many of its awards have been revealed at the after-party, in the order listed (ADR 0074). */
+  awardsRevealed?: number;
   /** Its teams: in pick order for a draft, else in the order they entered. */
   teams: TournamentTeam[];
   /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own (the three below), or none this time.

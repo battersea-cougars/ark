@@ -279,3 +279,37 @@ describe("the Kumite this Friday, the Friday's training off for it", () => {
     expect(feed({ upcoming: [], events: [on, theKumite({})] }).lead).toMatchObject({ key: "tournament:10" });
   });
 });
+
+describe("the evening a Kumite ends, its after-party leads (ADR 0074)", () => {
+  const played = kumite({
+    heldOn: TODAY,
+    games: [game(81, 1, 1, 3, "done"), game(82, 2, 1, 3, "done"), game(83, 3, 2, 3, "done")],
+  });
+  const tonight = ev(`tournament:${played.id}`, "2026-10-21T18:30:00Z", {
+    kind: "tournament",
+    filter: "type:1",
+    title: played.name,
+    standing: "in",
+    asking: false,
+    endsAt: "2026-10-21T21:00:00Z",
+  });
+  const friday = ev("session:5", "2026-10-23T18:30:00Z");
+
+  it("the hero is the after-party, ahead of the Kumite's own row and Friday's training", () => {
+    const f = feed({
+      tournaments: [played],
+      upcoming: [],
+      afters: [{ type, t: played }],
+      events: [tonight, friday],
+      now: "2026-10-21T20:40:00Z",
+    });
+    expect(f.lead).toMatchObject({ kind: "afters", key: "afters:10" });
+    // Friday's still coming up; the Kumite isn't listed again under its after-party
+    expect(f.upcoming.map((r) => r.key)).toEqual(["session:5"]);
+  });
+
+  it("no after-party: the next thing leads as before", () => {
+    const f = feed({ tournaments: [played], upcoming: [], events: [friday], now: "2026-10-21T21:40:00Z" });
+    expect(f.lead).toMatchObject({ kind: "event", key: "session:5" });
+  });
+});

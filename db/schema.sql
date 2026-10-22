@@ -247,7 +247,9 @@ CREATE TABLE tournaments (
   after_mode TEXT NOT NULL DEFAULT 'usual',
   after_venue_id INTEGER REFERENCES venues (id),
   after_time TEXT,
-  after_note TEXT NOT NULL DEFAULT ''
+  after_note TEXT NOT NULL DEFAULT '',
+  -- How many of its awards have been revealed at the after-party, in the order listed (ADR 0074): one more a tap
+  awards_revealed INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX tournaments_held_on ON tournaments (held_on);

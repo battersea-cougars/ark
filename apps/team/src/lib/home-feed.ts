@@ -97,6 +97,8 @@ export interface FeedInput {
   now?: string;
   /** The lead Home has shown this visit: it stays the lead while it's still on, so nothing jumps when you answer. */
   pinned?: string;
+  /** A tournament at its after-party (lib/edition.ts atAfters): the evening it ends, it's what's on now. */
+  afters?: { type: TournamentType; t: Tournament }[];
 }
 
 /** Your team's next game in a tournament on or coming up: Home's lead when it's your soonest thing. */
@@ -115,7 +117,9 @@ export type Role = "yours" | "notIn" | "out";
 export type Lead =
   | { kind: "event"; key: string; at: string; event: UpcomingEvent; role: Role }
   | { kind: "fight"; key: string; at: string; fight: Fight }
-  | { kind: "draft"; key: string; at: string; item: FeedItem };
+  | { kind: "draft"; key: string; at: string; item: FeedItem }
+  /** The evening a tournament ends: everyone at its afterwards, the awards being revealed (ADR 0074). */
+  | { kind: "afters"; key: string; at: string; type: TournamentType; t: Tournament };
 
 export interface Feed {
   /** Your next thing, or nothing at all on. */
@@ -203,7 +207,7 @@ const fightAt = ({ t, game }: Fight) => londonISO(t.heldOn, kickOff(t.startTime,
  * match for its tournament, a draft you're a captain in (open, with picks to make: now; else its day). Everything
  * else on the schedule is the event itself, yours to answer or not yours (the Kumite you're not in, a social with no
  * sign-up): it still leads, its card saying where you stand, and so does one you've said you're out of (its card shows
- * your Out, and In is still there). The soonest leads, and at the same moment a match, then a draft, then the
+ * your Out, and In is still there). The evening a tournament ends, its after-party: it's on now. The soonest leads, and at the same moment a match, then a draft, then the
  * schedule's order. A cancelled one, one with no day yet, or one that's over never does. The one Home pinned this
  * visit stays while it's still on, so nothing swaps under your thumb.
  */
@@ -216,7 +220,11 @@ export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lea
     next.push({ kind: "fight", key: `fight:${fight.t.id}`, at: fightAt(fight), fight });
   }
   for (const item of rows) if (item.captainAt) next.push({ kind: "draft", key: item.key, at: item.captainAt, item });
-  const fought = new Set(fights.map((f) => tournamentKey(f.t)));
+  // The after-party is on now: it leads, and its tournament's own row doesn't
+  const afters = input.afters ?? [];
+  for (const { type, t } of afters)
+    next.push({ kind: "afters", key: `afters:${t.id}`, at: new Date(nowMs).toISOString(), type, t });
+  const fought = new Set([...fights.map((f) => tournamentKey(f.t)), ...afters.map((a) => tournamentKey(a.t))]);
   for (const event of events) {
     if (event.cancelled || event.season || event.dateTbc || fought.has(event.key)) continue;
     if (Date.parse(event.endsAt) <= nowMs) continue;
@@ -240,7 +248,9 @@ function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, figh
       ? [lead.key]
       : lead.kind === "fight"
         ? [tournamentKey(lead.fight.t)]
-        : [];
+        : lead.kind === "afters"
+          ? [tournamentKey(lead.t)]
+          : [];
   const until = plusDays(today, AHEAD_DAYS);
   const seen = new Set<string>();
   const sorted = events

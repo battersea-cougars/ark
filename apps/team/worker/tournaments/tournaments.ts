@@ -271,6 +271,7 @@ export type TournamentListRow = {
   afterVenueId: number | null;
   afterTime: string | null;
   afterNote: string;
+  awardsRevealed: number;
 };
 export type TournamentTeamRow = {
   id: number;

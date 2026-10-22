@@ -76,3 +76,13 @@ export function londonISO(date: string, time: string): string {
 /** "19:30": the London wall-clock time of an instant, for a time input. */
 export const londonTime = (iso: string) => time.format(new Date(iso));
 export const londonToday = (now = new Date()) => londonDate(now);
+
+/**
+ * The evening a moment belongs to, as London's date (ADR 0074): from 06:00 it's that day's; before 06:00 it's still
+ * the night before's, so a Kumite's after-party runs past midnight till the morning.
+ */
+export function londonEvening(now = new Date()): string {
+  const day = londonDate(now);
+  if (now.getTime() >= Date.parse(londonISO(day, "06:00"))) return day;
+  return new Date(Date.parse(`${day}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+}

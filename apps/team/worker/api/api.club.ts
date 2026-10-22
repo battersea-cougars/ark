@@ -27,6 +27,10 @@ export interface Viewer {
   runsDraft: boolean;
   /** Everyone's charges and payments (ADR 0007): who sees Unpaid fees or records payments */
   seesDues: boolean;
+  /** Every award's winner as soon as it's confirmed: whoever runs tournaments (reveals them at the after-party) */
+  seesAwards: boolean;
+  /** London's evening now, its date (till 06:00, the night before's): the after-party's (ADR 0074) */
+  evening: string;
 }
 
 // The viewer's columns, in the order they're bound
@@ -42,6 +46,8 @@ const VIEWER = [
   "sees_contacts",
   "runs_draft",
   "sees_dues",
+  "sees_awards",
+  "evening",
 ] as const;
 
 const bound = (v: Viewer) => [
@@ -56,6 +62,8 @@ const bound = (v: Viewer) => [
   Number(v.seesContacts),
   Number(v.runsDraft),
   Number(v.seesDues),
+  Number(v.seesAwards),
+  v.evening,
 ];
 
 /** A query's rows as one JSON array of objects, keyed by the query's column names, in the query's order. */
@@ -173,14 +181,15 @@ const PARTS = {
   tournaments: rows(
     `id typeId name venueId location mapUrl heldOn startTime endTime capacity status champions feePence season
      public signupOpensOn signupClosesOn draftOn pointsWin pointsDraw pointsLoss gameMinutes penaltyRule defaultPenaltyMinutes periods breakMinutes kind awards
-     playoffs draftState afterMode afterVenueId afterTime afterNote`,
+     playoffs draftState afterMode afterVenueId afterTime afterNote awardsRevealed`,
     `SELECT t.id, t.type_id typeId, t.name, t.venue_id venueId, t.location, t.map_url mapUrl, t.held_on heldOn,
             t.start_time startTime, t.end_time endTime, t.capacity, t.status, t.champions, t.fee_pence feePence,
             t.season, t.public, t.signup_opens_on signupOpensOn,
             t.signup_closes_on signupClosesOn, t.draft_on draftOn, t.points_win pointsWin, t.points_draw pointsDraw,
             t.points_loss pointsLoss, t.game_minutes gameMinutes, t.penalty_rule penaltyRule,
             t.default_penalty_minutes defaultPenaltyMinutes, t.periods, t.break_minutes breakMinutes, t.kind, t.awards, t.playoffs, t.draft_state draftState,
-            t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime, t.after_note afterNote
+            t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime, t.after_note afterNote,
+            t.awards_revealed awardsRevealed
      FROM tournaments t ORDER BY t.held_on`,
   ),
   // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts)
@@ -216,10 +225,15 @@ const PARTS = {
             recorded_by recordedBy
      FROM tournament_penalties ORDER BY at_ms IS NULL, period, at_ms, id`,
   ),
+  // Who won each award (ADR 0044). On its evening an award's winner is a surprise until it's revealed at the
+  // after-party (ADR 0074): only whoever runs tournaments is sent it before then
   winners: rows(
     "tournamentId award teamId memberId",
-    `SELECT tournament_id tournamentId, award, team_id teamId, member_id memberId FROM tournament_award_winners
-     ORDER BY tournament_id, position`,
+    `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId
+     FROM viewer v CROSS JOIN tournament_award_winners w JOIN tournaments t ON t.id = w.tournament_id
+     WHERE v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening
+        OR (SELECT j.key FROM json_each(t.awards) j WHERE json_extract(j.value, '$.name') = w.award) < t.awards_revealed
+     ORDER BY w.tournament_id, w.position`,
   ),
   tournamentEntries: entries("tournament_entries", "tournament_id", "SELECT id FROM tournaments"),
   clubEvents: rows(

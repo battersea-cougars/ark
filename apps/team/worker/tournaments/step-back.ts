@@ -19,9 +19,11 @@ export async function whereItIs(db: D1Database, tournamentId: number, today: str
     draftState: string;
     status: string;
     signupClosesOn: string | null;
+    awardsRevealed: number;
   }>(
     db,
-    `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn FROM tournaments WHERE id = ?`,
+    `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, awards_revealed awardsRevealed
+     FROM tournaments WHERE id = ?`,
     [tournamentId],
   );
   if (!t) throw new HttpError(404, "No such tournament.");
@@ -50,6 +52,7 @@ export async function whereItIs(db: D1Database, tournamentId: number, today: str
     draftState: t.draftState,
     status: t.status,
     signupClosesOn: t.signupClosesOn,
+    awardsRevealed: t.awardsRevealed,
     drawn: teams.filter((x) => x.pick !== null).length,
     picks: picks?.n ?? 0,
     games: games.length,
@@ -66,6 +69,8 @@ const PLAYED =
 function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, D1PreparedStatement[]> {
   const games = "SELECT id FROM tournament_games WHERE tournament_id = ?";
   return {
+    // The after-party's awards face down again, the results and the winners kept: only while some are out
+    awards: [statement(db, "UPDATE tournaments SET awards_revealed = 0 WHERE id = ? AND awards_revealed > 0", [id])],
     // Every match as it was before it started: no score, clock, scoresheet or period; the playoffs wait for the table
     // again. Their goals and penalties go first; the reset is last, and finds nothing on a second tap
     results: [

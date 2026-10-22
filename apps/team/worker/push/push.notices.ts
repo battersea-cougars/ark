@@ -201,3 +201,35 @@ export const draftPaused: Notify<string | undefined> = {
     }));
   },
 };
+
+/**
+ * The awards at the after-party (ADR 0074): the first one revealed, everyone with the app hears it ("Awards at The
+ * Anchor"), so anyone not watching the page comes to it. Only the first: the rest they see on the page (topic
+ * `announcements`).
+ */
+export const awardsOut: Notify<number | undefined> = {
+  before: async (c) =>
+    (await first<{ n: number }>(c.env.DB, "SELECT awards_revealed n FROM tournaments WHERE id = ?", [id(c)]))?.n,
+  after: async (c, before) => {
+    if (before !== 0) return [];
+    const t = await first<{ name: string; slug: string | null; revealed: number; venue: string | null }>(
+      c.env.DB,
+      `SELECT t.name, ty.slug, t.awards_revealed revealed, v.name venue FROM tournaments t
+       LEFT JOIN tournament_types ty ON ty.id = t.type_id
+       LEFT JOIN venues v ON v.id = CASE t.after_mode WHEN 'none' THEN NULL WHEN 'own' THEN t.after_venue_id
+                                    ELSE ty.after_venue_id END
+       WHERE t.id = ?`,
+      [id(c)],
+    );
+    if (!t || t.revealed < 1) return [];
+    return [
+      {
+        to: "everyone",
+        topic: "announcements",
+        title: t.venue ? `Awards at ${t.venue}` : "The awards are on",
+        body: `${t.name}: the first one's out.`,
+        path: t.slug ? `/tournaments/${t.slug}` : "/",
+      },
+    ];
+  },
+};

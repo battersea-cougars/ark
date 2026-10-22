@@ -2,6 +2,7 @@
 // part as this member may see it.
 import { fromRow as agendaItem, ensureAgenda, type AgendaRow } from "@cougars/shared/agenda";
 import { can, type Action } from "../../src/access/actions";
+import { londonEvening } from "../../src/lib/dates";
 import { type Ctx } from "./api.route";
 import { readClub, type Part, type Parts, type Viewer } from "./api.club";
 import { chargesFrom } from "../dues/dues";
@@ -53,6 +54,9 @@ export const viewerOf = (c: Ctx): Viewer => ({
   // A draft night on the agenda: for whoever runs the draft, and that tournament's captains
   runsDraft: can(c.actions, "run:Draft"),
   seesDues: holdsAny(c, SEES_DUES),
+  // The awards' winners before they're revealed: whoever runs tournaments, who reveals them
+  seesAwards: holdsAny(c, ["manage:Tournament"]),
+  evening: londonEvening(new Date(c.now)),
 });
 
 /** Each part of the club: the rows it's made from (api.club.ts, read as this member may see them) and how. */

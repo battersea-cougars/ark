@@ -1,7 +1,7 @@
 # 0044. Awards are set in the team app; champions and winners come from the results, an admin confirms
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-22
 - **Merges:** 0073
 
 ## Context
@@ -41,6 +41,13 @@ who won most of them.
   of its own awards, the whole list set at once (`PUT /api/tournaments/:id/winners`, `manage:Tournament`). Everyone
   gets it with the tournament (`winners`).
 
+### Revealed at the after-party
+
+- The evening a tournament ends, whoever runs it reveals the confirmed winners one at a time, in the order listed,
+  at its after-party (ADR [0074](0074-tournament-home-and-scheduling.md)): `tournaments.awards_revealed` counts how
+  many are out, and until an award is out a member isn't sent its winner that evening (nor shown a provisional pick
+  in its place). From 06:00 the next morning every confirmed winner is everyone's again.
+
 ## Consequences
 
 - A change to the awards reaches the website at the next build (daily in production), like the roster.
@@ -56,3 +63,5 @@ who won most of them.
   stored in the app (was 0073).
 - 2026-10-09: The website reads champions and confirmed winners from D1 live, not Sanity `kumiteResult`
   ([0100](0100-website-reads-tournament-results.md)).
+- 2026-10-22: Revealed one at a time at the after-party ([0074](0074-tournament-home-and-scheduling.md)); a member
+  isn't sent a winner that evening before it's out.

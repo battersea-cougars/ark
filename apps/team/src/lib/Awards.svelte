@@ -15,7 +15,8 @@
   import TeamCrest from "./TeamCrest.svelte";
   import { teamTone } from "./team-tones";
   import { awardFromData } from "./awards";
-  import { editionState } from "./edition";
+  import { atAfters, editionState } from "./edition";
+  import { londonEvening } from "./dates";
 
   let { tournament }: { tournament: Tournament } = $props();
 
@@ -33,9 +34,15 @@
     teams.find((t) => t.captainMemberId === memberId || t.players.some((p) => p.memberId === memberId))?.id ?? null;
   // Confirmed, else (once it's done) what the data says, provisionally
   const done = $derived(editionState(tournament) === "done");
+  // Its evening, an award not yet revealed at the after-party is face down for everyone but whoever reveals it
+  // (ADR 0074): no provisional pick in its place
+  const tonight = $derived(atAfters(tournament, londonEvening()));
+  const faceDown = (award: string) =>
+    !admin && tonight && awards.findIndex((a) => a.name === award) >= (tournament.awardsRevealed ?? 0);
   const winnersOf = (award: string) => {
     const saved = (tournament.winners ?? []).filter((w) => w.award === award);
     if (saved.length) return { list: saved, provisional: false };
+    if (faceDown(award)) return { list: [], provisional: false, faceDown: true };
     const data = done ? awardFromData(award, tournament, { positionOf: (id) => byId(id)?.position }) : null;
     return { list: data?.winners ?? [], provisional: !!data };
   };
@@ -93,7 +100,7 @@
                   </span>
                 {/if}
               {:else}
-                <span class="hint">To be decided</span>
+                <span class="hint">{"faceDown" in w ? "Still face down" : "To be decided"}</span>
               {/each}
             {/if}
           </span>

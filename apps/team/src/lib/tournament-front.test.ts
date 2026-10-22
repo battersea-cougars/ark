@@ -234,19 +234,21 @@ describe("statusesOf: one page, by status (ADR 0074)", () => {
   // Completed, Fixtures Created, Kumite!" (the user, 2026-10-22)
   const now = (t: Tournament, today = TODAY) => statusesOf(t, kumite, today).find((s) => s.state === "now")?.status;
 
-  it("a draft: Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!; teams that enter skip the draft", () => {
-    expect(statusesOf(draft(), kumite, TODAY).map((s) => s.label)).toEqual([
+  it("a draft: Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, the afterwards; teams that enter skip the draft", () => {
+    expect(statusesOf(draft(), kumite, TODAY, "The Anchor").map((s) => s.label)).toEqual([
       "Sign-up open",
       "Draft open",
       "Teams set",
       "Fixtures set",
       "Kumite!",
+      "The Anchor",
     ]);
     expect(statusesOf(draft({ kind: "teams" }), cup, TODAY).map((s) => s.label)).toEqual([
       "Sign-up open",
       "Teams set",
       "Fixtures set",
       "Cup!",
+      "Afters",
     ]);
   });
 
@@ -263,25 +265,34 @@ describe("statusesOf: one page, by status (ADR 0074)", () => {
     expect(statusOf(draft({ kind: "teams", teams: [team(1, 2)] }), TODAY)).toBe("teams");
   });
 
-  it("those before it done, those after ahead; every match played, all done", () => {
+  it("those before it done, those after ahead; every match played, the after-party's where it is", () => {
     expect(statusesOf(teamsSet(), kumite, TODAY).map((s) => s.state)).toEqual([
       "done",
       "done",
       "now",
       "ahead",
       "ahead",
+      "ahead",
     ]);
     const over = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
-    expect(statusesOf(over, kumite, TODAY).every((s) => s.state === "done")).toBe(true);
+    expect(statusesOf(over, kumite, TODAY).map((s) => s.state)).toEqual([
+      "done",
+      "done",
+      "done",
+      "done",
+      "done",
+      "now",
+    ]);
   });
 
   it("short names for a phone's track", () => {
-    expect(statusesOf(draft(), kumite, TODAY).map((s) => s.short)).toEqual([
+    expect(statusesOf(draft(), kumite, TODAY, "The Anchor").map((s) => s.short)).toEqual([
       "Sign-up",
       "Draft",
       "Teams",
       "Fixtures",
       "Kumite!",
+      "Anchor",
     ]);
   });
 });

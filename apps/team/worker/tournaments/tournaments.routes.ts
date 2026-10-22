@@ -1,11 +1,11 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
-import { setWinners } from "./awards";
+import { revealAward, setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
-import { draftPaused } from "../push/push.notices";
+import { awardsOut, draftPaused } from "../push/push.notices";
 import { londonToday } from "../../src/lib/dates";
 import { body, json } from "../api/api.http";
 import {
@@ -99,6 +99,27 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments"],
     // { winners: [{ award, teamId | memberId }] }: who won the tournament's awards (ADR 0044)
     handle: async (c) => (await setWinners(c.env.DB, id(c), await body(c.request)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/awards\/reveal$/,
+    // How many are out, and the one just revealed
+    audit: {
+      event: "tournament.award_revealed",
+      subject: rowOf(
+        `SELECT id, name, awards_revealed revealed,
+                CASE WHEN awards_revealed > 0 THEN json_extract(awards, '$[' || (awards_revealed - 1) || '].name') END award
+         FROM tournaments WHERE id = ?`,
+      ),
+    },
+    action: "manage:Tournament",
+    // Everyone watching the after-party sees it turn over (ADR 0072)
+    changes: ["tournaments"],
+    calendar: false,
+    // The first one out: everyone hears the awards are on
+    notify: awardsOut,
+    // { next }: the award it reveals, by its place in the list, the one the tap saw face down (ADR 0074)
+    handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
   },
   {
     method: "POST",

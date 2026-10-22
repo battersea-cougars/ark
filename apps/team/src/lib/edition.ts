@@ -74,10 +74,22 @@ export function latestOf(editions: Tournament[], today: string): Tournament | un
 }
 
 /**
- * The one on or coming up, which a series' running pages show (its fight card, board, teams, draft): its latest, unless
- * that's been played. Then there's nothing on, and every one played is history, on the series' front page.
+ * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening of its day,
+ * which runs till 06:00 the next morning (`evening`, lib/dates.ts londonEvening). Results typed in on another day, or
+ * one with only a season, go straight to history.
  */
-export function currentOf(editions: Tournament[], today: string): Tournament | undefined {
+export const atAfters = (t: Tournament, evening: string) =>
+  editionState(t) === "done" && !t.season && t.heldOn === evening;
+
+/**
+ * The one on or coming up, which a series' running pages show (its fight card, board, teams, draft): its latest, unless
+ * that's been played. Then there's nothing on, and every one played is history, on the series' front page. The
+ * evening one's played, it's still on, at its after-party, till the morning (`evening`: London's evening now), even
+ * with the next one scheduled.
+ */
+export function currentOf(editions: Tournament[], today: string, evening?: string): Tournament | undefined {
+  const tonight = evening ? editions.find((t) => atAfters(t, evening)) : undefined;
+  if (tonight) return tonight;
   const latest = latestOf(editions, today);
   return latest && editionState(latest) !== "done" ? latest : undefined;
 }

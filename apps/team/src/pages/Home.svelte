@@ -33,15 +33,19 @@
   import { fill, slot } from "../lib/greetings";
   import {
     calendar,
+    currentTournament,
     latestTournament,
     nextSession,
     sessionBookable,
+    tournamentAfter,
     tournamentBookable,
   } from "../demo/schedule.svelte";
   import { pick, type Quip, type QuipKind } from "../lib/quips";
   import type { Bookable, TrainingSession, Tournament } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
-  import { editionState } from "../lib/edition";
+  import { atAfters, editionState } from "../lib/edition";
+  import { londonEvening } from "../lib/dates";
+  import { revealOf } from "../lib/afters";
   import { signupOpen, signupOver } from "../lib/signup";
   import { checkForUpdates } from "../lib/live-updates.svelte";
   import Sheet from "../lib/Sheet.svelte";
@@ -150,6 +154,15 @@
       }),
   );
 
+  // A series' one at its after-party, the evening it ends (lib/edition.ts atAfters): it's what's on now
+  const afters = $derived(
+    db.tournamentTypes
+      .filter((t) => t.active)
+      .flatMap((type) => {
+        const t = currentTournament(type.id);
+        return t && atAfters(t, londonEvening()) ? [{ type, t }] : [];
+      }),
+  );
   const typeOf = (t: Tournament) => db.tournamentTypes.find((x) => x.id === t.typeId);
   // Where you stand on an event: in, waiting, out, or not said
   const standingOn = (ev: Bookable) =>
@@ -212,6 +225,7 @@
       tournaments: db.tournaments,
       types: db.tournamentTypes,
       upcoming: tournaments,
+      afters,
       club,
       events,
       now: openedAt,
@@ -309,8 +323,33 @@
     };
     return { event, open, now: until === 0, turn: myTurnLine(place, until) };
   });
+  // The after-party, as the Kumite's card frames it (ADR 0074): where everyone is now, in place of its hours, and the
+  // awards as they stand in place of In and Out. The whole card opens the page
+  const leadAfters = $derived.by(() => {
+    if (lead?.kind !== "afters") return undefined;
+    const { type, t } = lead;
+    const place = tournamentAfter(t);
+    const r = revealOf(t);
+    const event: Bookable = {
+      ...tournamentBookable(t),
+      signup: false,
+      timeText: "Now",
+      venue: place?.name ?? "",
+      mapUrl: place?.mapUrl ?? "",
+      href: `/tournaments/${type.slug}`,
+    };
+    const awards = !r.awards.length
+      ? ""
+      : r.all
+        ? "every award out"
+        : r.revealed
+          ? `${r.revealed} of ${r.awards.length} awards out`
+          : "the awards to come";
+    return { event, at: place ? `At ${place.name}` : "Afters", awards };
+  });
   // What the lead's heading asks or says
   const leadTitle = (l: Lead) => {
+    if (l.kind === "afters") return `The ${l.type.shortName}'s done`;
     // Your pick now; the draft on, picks still to come; else its day ("The draft's today")
     if (l.kind === "draft")
       return leadDraft?.now
@@ -601,6 +640,20 @@
               </span>
               <span class="match-meta">
                 {#if live}<span class="match-live">Live</span>{/if}{m.game}
+              </span>
+            {/snippet}
+          </EventCard>
+        </div>
+      {:else if leadAfters}
+        {@const a = leadAfters}
+        <!-- The evening it ends: the Kumite's card, where everyone is and the awards, the whole card the way in -->
+        <div class="lead">
+          <EventCard event={a.event} feature glance link place={false}>
+            {#snippet links()}{@render placeLinks(a.event)}{/snippet}
+            {#snippet body()}
+              <span class="afters-line">
+                <span class="afters-at display"><Icon name="glass" size={20} />{a.at} · awards</span>
+                {#if a.awards}<span class="afters-sub">{a.awards}</span>{/if}
               </span>
             {/snippet}
           </EventCard>
@@ -994,6 +1047,25 @@
   }
   /* A draft's card: your place in the pick order, and Make your pick on its right while it's your pick (across, under
      your thumb, on a phone) */
+  /* The after-party's card: where everyone is, big, and the awards so far */
+  .afters-line {
+    display: grid;
+    gap: 0.2rem;
+  }
+  .afters-at {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    color: var(--fg);
+    font-size: 1.5rem;
+    line-height: 1.1;
+  }
+  .afters-at :global(svg) {
+    color: #d9a84e;
+  }
+  .afters-sub {
+    color: var(--fg-muted);
+  }
   .draft-turn {
     display: flex;
     flex-wrap: wrap;

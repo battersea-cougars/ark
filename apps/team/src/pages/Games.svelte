@@ -6,10 +6,12 @@
   // then what it's about. Sign-up: are you in, and who's in. Draft open: the draft, for its captains and whoever runs
   // it; everyone else is fighting blind. Teams set: every team, in full. Fixtures set: the matches, a list. KUMITE!:
   // your turn to keep score, the matches as a carousel with the one on now in front, where everyone goes after, the
-  // board. A status it's been through opens from the track, read-only, at its own address (/sign-up, /draft, /teams,
-  // /schedule); the page's own address is the status it's at. Moving between them the header and the track stay still
+  // board. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
+  // revealed one at a time, the final table, the results; at 06:00 the next morning it's history. A status it's been
+  // through opens from the track, read-only, at its own address (/sign-up, /draft, /teams, /schedule, /afters); the
+  // page's own address is the status it's at. Moving between them the header and the track stay still
   // and the view slides in from the way you went. History is a quiet link at the foot.
-  // Once the last game's played it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
+  // Once the after-party's over it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
   import { nameOfTeam } from "../lib/names";
   import { can } from "../access/actions";
@@ -33,6 +35,7 @@
   import BoardTable from "../lib/BoardTable.svelte";
   import WhosIn from "../lib/WhosIn.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
+  import AfterParty from "../lib/AfterParty.svelte";
   import Draft from "./Draft.svelte";
   import Schedule from "./Schedule.svelte";
   import TournamentTeams from "./TournamentTeams.svelte";
@@ -60,9 +63,11 @@
 
   const games = $derived(tournament?.games ?? []);
   // Everyone sees the score as it happens: on the day, until the last game's over, from the hub's stream, with a
-  // check on the admins' beat as the fallback (ADR 0061, 0072)
+  // check on the admins' beat as the fallback (ADR 0061, 0072); then the awards turned over at the after-party
   const following = $derived(
-    games.some((g) => g.status === "live") || (tournament?.heldOn === today && games.some((g) => g.status !== "done")),
+    games.some((g) => g.status === "live") ||
+      (tournament?.heldOn === today && games.some((g) => g.status !== "done")) ||
+      (!!tournament && statusOf(tournament, today) === "afters"),
   );
   $effect(() => {
     if (following) return checkForUpdates();
@@ -140,13 +145,12 @@
   });
   // On the day: the match on now (or up next) and the next; yours a line
   const day = $derived(tournament ? onTheDayOf(tournament, me().id) : undefined);
-  // Where everyone goes afterwards, and whether it's for later, next or now (lib/tournament-front.ts). With nothing on,
-  // the one just played, the evening of its day
+  // Where everyone goes afterwards, and whether it's for later or next (lib/tournament-front.ts); the evening's done,
+  // it's the after-party's own view
   const after = $derived.by(() => {
-    const t = tournament ?? past[0];
-    const moment = t ? afterMomentOf(t, today) : null;
-    const place = t && moment ? tournamentAfter(t) : null;
-    return place && moment && (tournament || moment === "now") ? { place, moment } : null;
+    const moment = tournament ? afterMomentOf(tournament, today) : null;
+    const place = tournament && moment ? tournamentAfter(tournament) : null;
+    return place && moment ? { place, moment } : null;
   });
   // History, the one quiet link at the foot while one's running
   const links = $derived(
@@ -186,10 +190,6 @@
   />
 
   {#if !tournament}
-    {#if after}
-      <!-- The evening it was played: everyone's gone on to the afterwards -->
-      {@render afterNow(after.place, true)}
-    {/if}
     <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
          stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, 0074) -->
     <section class="no-bout">
@@ -295,11 +295,8 @@
                 >
               </p>
             {/if}
-            <!-- The last match on, then where everyone goes; every one played, everyone's there -->
-            {#if after?.moment === "next" || after?.moment === "now"}{@render afterNow(
-                after.place,
-                after.moment === "now",
-              )}{/if}
+            <!-- The last match on, then where everyone goes (every one played, it's the after-party) -->
+            {#if after?.moment === "next"}{@render afterNow(after.place, false)}{/if}
             <!-- The table as it stands, under the matches (ADR 0074): no page of its own -->
             {#if games.some((g) => g.stage === "group" && g.status === "done")}
               <section class="part">
@@ -307,6 +304,9 @@
                 <BoardTable {type} {tournament} />
               </section>
             {/if}
+          {:else if pane === "afters"}
+            <!-- The evening it ends: everyone at the afterwards, the awards turned over one at a time -->
+            <AfterParty {type} {tournament} after={tournamentAfter(tournament)} {manage} />
           {/if}
         </div>
       {/key}

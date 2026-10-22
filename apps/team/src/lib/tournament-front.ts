@@ -24,7 +24,7 @@ export function nextFightOf(t: Tournament, me: number): TournamentGame | undefin
  * should really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). Its one
  * page shows the status it's at, or (from the track) one it's been through, read-only.
  */
-export type Status = "signup" | "draft" | "teams" | "fixtures" | "day";
+export type Status = "signup" | "draft" | "teams" | "fixtures" | "day" | "afters";
 
 /** Each status's address under the tournament's page; the one it's at is the page itself. Old pages' addresses. */
 export const STATUS_PATH: Record<Status, string> = {
@@ -33,15 +33,29 @@ export const STATUS_PATH: Record<Status, string> = {
   teams: "teams",
   fixtures: "schedule",
   day: "day",
+  afters: "afters",
 };
 
-/** The statuses it goes through, in order: a draft has the draft open; then, draft or not, the teams set. */
+/**
+ * The statuses it goes through, in order: a draft has the draft open; then, draft or not, the teams set; after the
+ * day, the after-party (ADR 0074).
+ */
 export function statusList(t: Pick<Tournament, "kind">): Status[] {
-  return t.kind === "draft" ? ["signup", "draft", "teams", "fixtures", "day"] : ["signup", "teams", "fixtures", "day"];
+  return t.kind === "draft"
+    ? ["signup", "draft", "teams", "fixtures", "day", "afters"]
+    : ["signup", "teams", "fixtures", "day", "afters"];
 }
 
-/** A status in words, as the track says it, and shorter for a phone's narrow track. */
-export function statusLabel(s: Status, t: Pick<Tournament, "kind">, type: Pick<TournamentType, "shortName">) {
+/**
+ * A status in words, as the track says it, and shorter for a phone's narrow track. The after-party is its afterwards'
+ * name ("The Anchor", "Anchor" on a phone), or Afters when it has none (`afterName`).
+ */
+export function statusLabel(
+  s: Status,
+  t: Pick<Tournament, "kind">,
+  type: Pick<TournamentType, "shortName">,
+  afterName?: string | null,
+) {
   switch (s) {
     case "signup":
       return { label: "Sign-up open", short: "Sign-up" };
@@ -54,14 +68,20 @@ export function statusLabel(s: Status, t: Pick<Tournament, "kind">, type: Pick<T
       return { label: "Fixtures set", short: "Fixtures" };
     case "day":
       return { label: `${type.shortName}!`, short: `${type.shortName}!` };
+    case "afters":
+      return afterName
+        ? { label: afterName, short: afterName.replace(/^the\s+/i, "") || afterName }
+        : { label: "Afters", short: "Afters" };
   }
 }
 
 /**
  * The status it's at: sign-up until the draft opens (or, teams that enter, a team's in); the draft open; complete
- * (closed, or the teams in); the fixtures out; then, on its day or once a match has started, the day itself.
+ * (closed, or the teams in); the fixtures out; then, on its day or once a match has started, the day itself; the last
+ * match played, the after-party (the page shows it that evening only: lib/edition.ts atAfters).
  */
 export function statusOf(t: Tournament, today: string): Status {
+  if (editionState(t) === "done") return "afters";
   const stage = stageOf(t);
   if (stage !== "fixtures") return stage;
   const state = editionState(t);
@@ -69,17 +89,21 @@ export function statusOf(t: Tournament, today: string): Status {
 }
 
 /**
- * The track: every status it goes through, each done, the one it's at now, or still ahead. Every match played, all
- * done. A status it's reached (done or now) can be looked at; one still ahead can't.
+ * The track: every status it goes through, each done, the one it's at now, or still ahead. A status it's reached
+ * (done or now) can be looked at; one still ahead can't. `afterName`: its afterwards' name, the last status's.
  */
-export function statusesOf(t: Tournament, type: Pick<TournamentType, "shortName">, today: string) {
+export function statusesOf(
+  t: Tournament,
+  type: Pick<TournamentType, "shortName">,
+  today: string,
+  afterName?: string | null,
+) {
   const list = statusList(t);
   const at = list.indexOf(statusOf(t, today));
-  const over = editionState(t) === "done";
   return list.map((status, i) => ({
     status,
-    ...statusLabel(status, t, type),
-    state: (over || i < at ? "done" : i === at ? "now" : "ahead") as "done" | "now" | "ahead",
+    ...statusLabel(status, t, type, afterName),
+    state: (i < at ? "done" : i === at ? "now" : "ahead") as "done" | "now" | "ahead",
   }));
 }
 
@@ -125,6 +149,7 @@ export function nextOf(t: Tournament, today: string): Next | undefined {
     ? { label: "First match", on: null, note: TBC }
     : { label: "First match", on: t.heldOn, at: t.startTime };
   const games = t.games ?? [];
+  if (editionState(t) === "done") return undefined;
   switch (stageOf(t)) {
     case "signup":
       if (t.status === "planned" && t.signupOpensOn && today < t.signupOpensOn)

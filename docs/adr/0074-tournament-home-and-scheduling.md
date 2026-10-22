@@ -45,8 +45,16 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   is one page, `/tournaments/:slug`: the header, the track of its statuses, then that status's view. Its draft, teams,
   fixtures and board are no longer pages of their own.
 - **The statuses** (`statusOf`, `statusesOf` in `lib/tournament-front.ts`): **Sign-up open** → **Draft open** →
-  **Teams set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started); teams
-  that enter skip the draft. "Teams set" for both, draft or not: "Teams finalised" didn't fit a phone's track.
+  **Teams set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started) →
+  **THE ANCHOR** (the after-party, named after its afterwards; **AFTERS** when it has none); teams that enter skip the
+  draft. "Teams set" for both, draft or not: "Teams finalised" didn't fit a phone's track.
+- **The after-party** ("The evening a Kumite ends: the last step should be the after party", the user, 2026-10-22)
+  starts when the last match is played (or an admin marks it finished) and lasts till 06:00 London the next morning
+  (`atAfters` in `lib/edition.ts`, `londonEvening` in `lib/dates.ts`: before 06:00 it's still the night before's
+  evening). All that time the series' page is still on it, even with the next one scheduled (`currentOf`); then it
+  moves on to the next one or "No Kumite yet", and it's in History. Results typed in on another day, or a tournament
+  with only a season, go straight to history. Home's hero is its card ("At The Anchor · awards", the awards so far),
+  ahead of everything else, as it's on now (`lib/home-feed.ts`, lead kind `afters`).
 - **The track** (`lib/StageTrack`) is a journey: one line through the statuses, filled to where it is and faint after,
   a node each (done: filled with a tick; where it is: a bigger bright node with a red NOW stamp over it, pulsing in
   red the whole time the Kumite's running on its day; ahead: hollow). Shape and fill say it without colour. A phone
@@ -70,6 +78,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   | Fixtures set | (made again from Manage)           | the matches, a plain list in order of play, each card opening its matchup                                                                |
   | KUMITE!      |                                    | your turn to keep score, the matches as a carousel (`lib/MatchCarousel`), then where everyone goes after, then the board                 |
 
+| THE ANCHOR | Reveal the next award | where everyone is (🍺 The Anchor · celebration and awards, Map), the awards face down or turned over, the final table, the results |
+
 - **Fighting blind**: a draft is its captains' and whoever runs it (ADR [0060](0060-the-draft.md)), so anyone else's
   Draft open view is a card with a blindfold, "Fighting blind" and a line from Settings → Quips ("Fighting blind", the
   first one: "Can't see the draft? Neither could Dux. He did all right."). The Worker never sends them the picks.
@@ -88,6 +98,26 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   last. A captain sees the gear for those even with nothing else in it. Back a step is the gear's alone, one on the
   page, for whoever runs the draft too (the draft's own steps). The draft room's gear has the same draft items and
   Back. A drawer opens only from a tap.
+- **The after-party's view** (`lib/AfterParty.svelte`) is the pub after the film's last fight: brass on the carbon
+  (a warm glow in place of the red, award names in brass), the motif kept (賞 beside the awards, a 賞 hanko on each
+  one turned over, 優勝 beside the final table). Whoever runs it (`manage:Tournament`) has one card, **Reveal the next
+  award**, saying which is next ("Next: Top scorer · 1 of 4 out"); before the awards are confirmed its button is
+  **Confirm the awards** (the drawer, ADR [0044](0044-champions-and-awards.md)). Each tap turns one award over for
+  everyone watching, in the order listed: an award still to come is a face-down card (a brass question mark, 賞 faint
+  behind it); turned over while you watch, it flips, the winner burns in (`lib/BurnReveal`, the draft's) and the hanko
+  comes down; opened later, what's out is just there. Face up or down, a card is the same size. After the last: "That's
+  the Kumite. See you at the next one." Then where everyone is, the final table (the champions first, then the final's
+  loser, then the table: `finalOrder` in `lib/afters.ts`), and the day's results, a line a match. The page follows the
+  live hub all evening, as it does a match (ADR [0072](0072-live-updates.md)).
+- **Revealing is the server's** (`tournaments.awards_revealed`, how many are out): `POST
+/api/tournaments/:id/awards/reveal { next }` names the award the tap saw face down, by its place in the list. Only
+  once the last match is played and the awards are confirmed (409 otherwise); one `UPDATE` guarded on the count the tap
+  saw, so a double tap or two phones at once reveal one, the second tap finding it out already and doing nothing (ADR
+  [0121](0121-load-and-concurrency.md)); a tap from a page further behind is refused. On the record as
+  `tournament.award_revealed` (how many out, which one). **A member isn't sent an award's winner on its evening until
+  it's revealed** (the club read's `viewer` has the evening and who runs tournaments, as the blind draft keeps its
+  picks); from 06:00 every winner is history. The first one out tells everyone with the app, once ("Awards at The
+  Anchor", topic `announcements`); the rest they see on the page.
 - **History** is a quiet link at the foot; so is, on the Kumite, "Don't get the references? You've got some training
   to do." (the film, "Required viewing").
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
@@ -126,6 +156,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 
   | It's at                      | Back to                     | What goes                                                           | Asked                   |
   | ---------------------------- | --------------------------- | ------------------------------------------------------------------- | ----------------------- |
+  | awards revealed (The Anchor) | before the awards           | the reveals: every award face down again (results, winners stay)    | no                      |
   | a match started or played    | the fight card, not started | results, goals, penalties, clocks, scoresheets; the playoffs' teams | red, counted            |
   | the fight card out           | the teams                   | the fixtures (made again the same)                                  | quietly                 |
   | a draft closed               | the draft, open             | nothing                                                             | no                      |
@@ -182,7 +213,8 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   a venue, or None this time. A save that leaves it out keeps what it had. Only a saved venue counts, and the API
   refuses one that doesn't exist. One rule, `afterOf` in `packages/shared/places.ts`, for the app and the agenda.
 - **The page says it in the header** before the day and on it; in the KUMITE! view, once the last match is on, it's
-  Then, and once every match is played that evening, Now (`afterMomentOf`), with a Map button.
+  Then (`afterMomentOf`), with a Map button; once every match is played it's the after-party's own status, its view
+  leading with it as Now.
 - **The day's calendar entry says it** in its description ("Afterwards: The Anchor, from 9:45pm. Celebration and
   awards."), so the website's What's on does too.
 
@@ -292,3 +324,11 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-22: "Why is add player behind the manage draft setting?" (the user): no Manage the draft drawer inside the
   gear. The draft's jobs are the gear's own rows (lib/draft-jobs.ts, done by lib/DraftJobs.svelte), the step's jobs
   first, then Back, Your team and Pick log, the settings last; Confirm the awards only once there are results.
+- 2026-10-22: "The evening a Kumite ends: the last step should be the after party. Something in theme with The Anchor
+  in mind. The admin reveals the award winners one at a time." (the user). A sixth status, the after-party (THE
+  ANCHOR, or AFTERS), from the last match played till 06:00 the next morning, the page and Home's hero holding it
+  meanwhile; its view in brass (where everyone is, the awards face down and turned over one at a time live, the final
+  table champions first, the results). Revealing is server state (`awards_revealed`), one guarded statement a tap,
+  audited; members aren't sent a winner before it's out; the first out is pushed once. Back a step from it turns every
+  award face down again and keeps the results: going back to KUMITE! itself would mean un-playing the last match, which
+  is the results step, still there once nothing's revealed.

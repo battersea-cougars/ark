@@ -1,8 +1,8 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
 import { nightOpen, nightOpensOn, opensWords, signupOpen } from "../lib/signup";
-import { currentOf, editionState, latestOf, previousOf } from "../lib/edition";
-import { clockRange, formatDayDate, formatTime, londonISO, londonToday } from "../lib/dates";
+import { atAfters, currentOf, editionState, latestOf, previousOf } from "../lib/edition";
+import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
@@ -129,16 +129,18 @@ export const latestTournament = (typeId: number, today = londonToday()) =>
   );
 
 /** What a series' pages show: the one on or coming up, else none (lib/edition.ts currentOf). */
-export const currentTournament = (typeId: number, today = londonToday()) =>
+export const currentTournament = (typeId: number, today = londonToday(), evening = londonEvening()) =>
   currentOf(
     db.tournaments.filter((t) => t.typeId === typeId),
     today,
+    evening,
   );
 
-/** Its past ones, played: newest first (History, or the front page when nothing's on). */
-export const pastTournaments = (typeId: number) =>
+/** Its past ones, played: newest first (History, or the front page when nothing's on). Not tonight's, at its
+ * after-party: it's still on, till the morning (lib/edition.ts atAfters). */
+export const pastTournaments = (typeId: number, evening = londonEvening()) =>
   db.tournaments
-    .filter((t) => t.typeId === typeId && editionState(t) === "done")
+    .filter((t) => t.typeId === typeId && editionState(t) === "done" && !atAfters(t, evening))
     .sort((a, b) => b.heldOn.localeCompare(a.heldOn));
 
 /** The last one played before this (lib/edition.ts previousOf). */

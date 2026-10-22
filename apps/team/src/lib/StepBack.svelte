@@ -58,6 +58,7 @@
   let busy = $state(false);
   // What it said it'd do, as the toast
   const DONE: Record<BackFrom, string> = {
+    awards: "Every award's face down again",
     results: "Back to the fight card",
     fixtures: "Back to the teams",
     teams: "The draft is open again",

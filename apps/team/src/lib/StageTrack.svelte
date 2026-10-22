@@ -2,8 +2,8 @@
   // Where a tournament is on its way (ADR 0074): its statuses along one line, like a progress bar, the line filled
   // from the start to the status it's at and faint after it. Each status a node on it (done: a tick; where it is: lit,
   // pulsing while the Kumite runs; ahead: hollow) with its name under it as a badge (done quiet, ahead faint). Fill,
-  // tick and size say it without the colour. Sign-up open, Draft
-  // open, Teams set, Fixtures set, KUMITE! (teams that enter skip the draft); which and where: lib/tournament-front.ts.
+  // tick and size say it without the colour. Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, then the
+  // after-party (The Anchor; teams that enter skip the draft); which and where: lib/tournament-front.ts.
   // It's the tournament page's navigation too: a status it's reached opens its view (the one it's at, the page
   // itself), and the one being looked at (`viewing`) has its badge brought forward, the header stamp's red, bigger
   // (transform only). Badge forward: what you're looking at; lit node and fill: where it is. Always the same size.
@@ -13,6 +13,7 @@
   import { statusHref, statusesOf, type Status } from "./tournament-front";
   import { editionState } from "./edition";
   import { londonISO } from "./dates";
+  import { tournamentAfter } from "../demo/schedule.svelte";
 
   let {
     type,
@@ -30,7 +31,8 @@
     links?: boolean;
   } = $props();
 
-  const steps = $derived(statusesOf(t, type, today));
+  // The last status is the after-party, named after where everyone goes (The Anchor), or Afters
+  const steps = $derived(statusesOf(t, type, today, tournamentAfter(t)?.name));
   const at = $derived.by(() => {
     const i = steps.findIndex((s) => s.state === "now");
     return i >= 0 ? i : steps.every((s) => s.state === "done") ? steps.length - 1 : 0;

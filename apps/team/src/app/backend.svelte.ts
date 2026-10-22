@@ -633,6 +633,9 @@ export const setWinners = (
   tournamentId: number,
   winners: { award: string; teamId: number | null; memberId: number | null }[],
 ) => save(() => api("PUT", `/api/tournaments/${tournamentId}/winners`, { winners }), "Awards saved");
+/** The next award revealed at the after-party (ADR 0074): `next`, its place in the list, the one shown face down. */
+export const revealAward = (tournamentId: number, next: number) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/awards/reveal`, { next }), "");
 /** The time left on the clock, by the scorekeeper's watch: paused, or running on from there. */
 export const setGameClock = (tournamentId: number, gameId: number, leftMs: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "set", leftMs }), "Clock set");

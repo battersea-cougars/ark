@@ -243,6 +243,8 @@
         return `${who} edited ${str(to?.name ?? from?.name)}`;
       case "tournament.winners":
         return `${who} set a tournament's winners`;
+      case "tournament.award_revealed":
+        return `${who} revealed ${str(to?.award)} at ${str(to?.name)}'s after-party: ${Number(to?.revealed ?? 0)} out`;
       case "fixtures.made":
         return `${who} made the fight card: ${Number(to?.games ?? 0)} games`;
       case "team.players":
