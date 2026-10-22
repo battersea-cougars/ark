@@ -43,8 +43,13 @@ export function dateBadge(iso: string) {
   return { weekday: get("weekday"), day: get("day"), month: get("month") };
 }
 
+/** Money: whole pounds short ("£10"), anything with pence in both digits of them ("£10.50", never "£10.5"). */
 export const pounds = (pence: number) =>
-  (pence / 100).toLocaleString("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: 0 });
+  (pence / 100).toLocaleString("en-GB", {
+    style: "currency",
+    currency: "GBP",
+    minimumFractionDigits: pence % 100 ? 2 : 0,
+  });
 
 /** The UTC instant of a London wall-clock time on a date: londonISO("2026-10-09", "19:30"). BST-safe. */
 export function londonISO(date: string, time: string): string {

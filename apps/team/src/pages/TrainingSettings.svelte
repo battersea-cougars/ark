@@ -27,7 +27,7 @@
         next: next ? formatDayDate(sessionBookable(next).startsAt) : "No sessions coming up",
         lines: [
           `${clockRange(s.startTime, s.endTime)} · ${seriesPlace(s)?.name ?? "No venue"}`,
-          `${pounds(feeOn(s.fees, londonToday())) || "Free"} a session`,
+          `${feeOn(s.fees, londonToday()) ? pounds(feeOn(s.fees, londonToday())) : "Free"} a session`,
           ...(next ? [`${next.going.length}${s.capacity ? ` / ${s.capacity}` : ""} in`] : []),
         ],
       };

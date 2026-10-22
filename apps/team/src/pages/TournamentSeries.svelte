@@ -32,7 +32,7 @@
         nextLabel: "At",
         lines: [
           `Win ${t.pointsWin} · Draw ${t.pointsDraw} · Loss ${t.pointsLoss} · ${gameLength(t)}`,
-          `${pounds(t.defaultFeePence) || "Free"} to enter · ${mine.length} ${mine.length === 1 ? "tournament" : "tournaments"}`,
+          `${t.defaultFeePence ? pounds(t.defaultFeePence) : "Free"} to enter · ${mine.length} ${mine.length === 1 ? "tournament" : "tournaments"}`,
         ],
       };
     }),
