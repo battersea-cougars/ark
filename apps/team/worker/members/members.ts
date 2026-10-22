@@ -144,6 +144,44 @@ export async function actionsOf(db: D1Database, memberId: number): Promise<Set<A
   return new Set(rows.map((r) => r.action).filter(isAction));
 }
 
+// ─── The club always keeps someone who can do everything (ADR 0024) ───
+
+/** A condition put on the end of a statement's `WHERE`, with its parameters. */
+export interface Guard {
+  sql: string;
+  params: Param[];
+}
+
+const DOES_EVERYTHING = `SELECT 1 FROM members m JOIN member_roles mr ON mr.member_id = m.id
+  JOIN role_actions ra ON ra.role_id = mr.role_id WHERE ra.action = 'manage:all' AND m.status = 'active'`;
+
+/**
+ * The last member who can do everything (`manage:all`, through Admin or any other role) can't lose it (#135, #136),
+ * as a condition on each statement of the change that might take it (ADR 0121): so two changes at once can't each
+ * see the other still there. A member's change goes while another active member can do everything, or while they
+ * can't now, or while the roles they're given (if they stay active) still can. A role's change goes while an
+ * active member can do everything through another role, or while this one can't now. Taking it away only makes it
+ * truer, so it holds for every statement of a batch that it held for the first.
+ */
+export function keepsSomeoneWhoCanDoEverything(
+  going: { member: number; keeping?: number[] } | { role: number },
+): Guard {
+  if ("role" in going)
+    return {
+      sql: `(EXISTS (${DOES_EVERYTHING} AND mr.role_id != ?)
+             OR NOT EXISTS (SELECT 1 FROM role_actions WHERE role_id = ? AND action = 'manage:all'))`,
+      params: [going.role, going.role],
+    };
+  return {
+    sql: `(EXISTS (${DOES_EVERYTHING} AND m.id != ?)
+           OR NOT EXISTS (SELECT 1 FROM member_roles mr JOIN role_actions ra ON ra.role_id = mr.role_id
+                          WHERE mr.member_id = ? AND ra.action = 'manage:all')
+           OR EXISTS (SELECT 1 FROM role_actions WHERE action = 'manage:all'
+                        AND role_id IN (SELECT value FROM json_each(?))))`,
+    params: [going.member, going.member, JSON.stringify(going.keeping ?? [])],
+  };
+}
+
 /** The first admin: the local stand-in for whoever is signed in, until sign-in arrives. */
 export async function firstAdmin(db: D1Database): Promise<number | null> {
   const row = await first<{ id: number }>(
@@ -220,30 +258,15 @@ export async function updateMember(
     )
       throw new HttpError(403, "You can't give someone a role that can do more than you.");
   }
-  // Never leave the club without an admin: neither by taking the role off the last one nor by making them inactive.
-  // Decided inside the statements that write it (ADR 0121): while it's taken off an admin, every statement goes only
-  // while another active admin's there, so two admins demoting each other at once can't both go (#135). The read
-  // before is for the refusal's words.
-  const admin = known.find((k) => k.name === "Admin");
-  let guard: { sql: string; params: Param[] } | null = null;
-  if (admin && (!ids.includes(admin.id) || status !== "active")) {
-    const was = await first<{ n: number }>(
-      db,
-      "SELECT count(*) n FROM member_roles WHERE role_id = ? AND member_id = ?",
-      [admin.id, id],
-    );
-    if (was?.n)
-      guard = {
-        sql: `EXISTS (SELECT 1 FROM member_roles mr JOIN members m ON m.id = mr.member_id
-                WHERE mr.role_id = ? AND mr.member_id != ? AND m.status = 'active')`,
-        params: [admin.id, id],
-      };
-  }
+  // Never leave the club without someone who can do everything: neither by taking their roles off the last one nor
+  // by making them inactive. Decided inside the statements that write it (ADR 0121), so two admins demoting each
+  // other at once can't both go (#135). The read before is for the refusal's words.
+  const guard = keepsSomeoneWhoCanDoEverything({ member: id, keeping: status === "active" ? ids : [] });
   const lastAdmin = "That's the last admin. Make someone else an admin first.";
-  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
-  // A statement written as `… WHERE …`, kept to while there's another admin when this one's going
+  if (!(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
+  // A statement written as `… WHERE …`, kept to while someone can still do everything
   const guarded = (sql: string, params: Param[]) =>
-    guard ? statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]) : statement(db, sql, params);
+    statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]);
   const statements = [
     guarded("UPDATE members SET name = ?, position = ?, rating = ?, cougar = ?, status = ? WHERE id = ?", [
       name,
@@ -311,11 +334,18 @@ export async function updateRole(db: D1Database, id: number, o: Record<string, u
     throw new HttpError(403, "A role can't do more than you can.");
   if (await first(db, "SELECT 1 FROM roles WHERE name = ? AND id != ?", [f.name, id]))
     throw new HttpError(409, "That name is taken.");
-  await batch(db, [
-    statement(db, "UPDATE roles SET name = ?, description = ? WHERE id = ?", [f.name, f.description, id]),
-    statement(db, "DELETE FROM role_actions WHERE role_id = ?", [id]),
-    ...f.actions.map((a) => statement(db, "INSERT INTO role_actions (role_id, action) VALUES (?, ?)", [id, a])),
+  // Never the last role anyone can do everything through, decided in its statements (ADR 0121, #136)
+  const lastOne = "Nobody else can do everything. Make someone else an admin first.";
+  const guard = f.actions.includes("manage:all") ? null : keepsSomeoneWhoCanDoEverything({ role: id });
+  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastOne);
+  const guarded = (sql: string, params: Param[]) =>
+    guard ? statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]) : statement(db, sql, params);
+  const [written] = await batch(db, [
+    guarded("UPDATE roles SET name = ?, description = ? WHERE id = ?", [f.name, f.description, id]),
+    guarded("DELETE FROM role_actions WHERE role_id = ?", [id]),
+    ...f.actions.map((a) => guarded("INSERT INTO role_actions (role_id, action) SELECT ?, ? WHERE 1", [id, a])),
   ]);
+  if (!written.meta.changes) throw new HttpError(409, lastOne);
 }
 
 /**

@@ -6,7 +6,7 @@
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fillingUp } from "../entries/entries";
 import { HttpError, json } from "../api/api.http";
-import { actionsOf } from "./members";
+import { keepsSomeoneWhoCanDoEverything } from "./members";
 import { prefsFrom } from "../push/push.prefs";
 import { carriedName } from "../tournaments/team-name";
 
@@ -20,19 +20,12 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     [id],
   );
   if (!m) throw new HttpError(404, "No such member.");
-  // Never the last admin, decided inside the batch that erases them (ADR 0121): while they can do everything, every
-  // statement goes only while someone else active can too, so two admins erasing themselves at once can't both go
-  // (#135). The read before is for the refusal's words.
+  // Never the last who can do everything, through any role, decided inside the batch that erases them (ADR 0121):
+  // every statement goes only while someone else active can too, so two admins erasing themselves at once can't both
+  // go (#135, #136). The read before is for the refusal's words.
   const lastAdmin = "You're the club's last admin: make someone else an admin first.";
-  const guard = (await actionsOf(db, id)).has("manage:all")
-    ? {
-        sql: `EXISTS (SELECT 1 FROM members m JOIN member_roles mr ON mr.member_id = m.id
-                JOIN role_actions ra ON ra.role_id = mr.role_id
-              WHERE ra.action = 'manage:all' AND m.status = 'active' AND m.id != ?)`,
-        params: [id],
-      }
-    : null;
-  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
+  const guard = keepsSomeoneWhoCanDoEverything({ member: id });
+  if (!(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
 
   // What they're signed up for still to come: a place they give up goes to the first waiting, in the same batch, as
   // when they say out (ADR 0030, 0121, #137)
@@ -64,7 +57,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
 
   // Each statement is written as `… WHERE …`, so the guard goes on the end
   const q = (sql: string, ...params: unknown[]) =>
-    guard ? db.prepare(`${sql} AND ${guard.sql}`).bind(...params, ...guard.params) : db.prepare(sql).bind(...params);
+    db.prepare(`${sql} AND ${guard.sql}`).bind(...params, ...guard.params);
   const scrubbed = "[erased]";
   const [erased] = await db.batch([
     q(

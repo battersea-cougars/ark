@@ -34,9 +34,10 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
     so full time never reads a goal without its score; an admin's typed-in result and its goals are one batch, each
     side's goals matched against the count inside its statement, so the same result saved twice adds them once (#124).
-  - Members: the last admin (ADR [0024](0024-action-based-authorization.md)) is kept inside the statements that take
-    Admin off, make inactive or erase: each goes only while another active admin's there, so two admins demoting or
-    erasing each other at once leave one, the other refused (#135).
+  - Members: the last who can do everything (`manage:all` through any role, ADR [0024](0024-action-based-authorization.md))
+    is kept inside the statements that change a member's roles, make them inactive, erase them or take `manage:all`
+    off a role: each goes only while someone else active can still do everything, so two admins demoting or erasing
+    each other at once, or a role and its holder changed at once, leave one, the other refused (#135, #136).
   - Dues: an allocation of credit goes in only while its payment and charge are as they were read; a charge marked
     paid is one payment only while what's left on it is as read, its allocation in the same batch (#119); a dues
     reminder is taken by the run that sends it (`dues_reminders.sending`).
@@ -115,3 +116,4 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   #131), and a limit raised moves the first waiting up in that batch (#127).
 - 2026-10-22: Marking a charge paid from two phones at once (or a double tap) recorded two payments for it; the
   payment now goes in only while the charge still has what was read left, with its allocation in one batch (#119).
+- 2026-10-22: The last-admin condition counts `manage:all` through any role, and guards role edits too (#136).

@@ -1,7 +1,7 @@
 # 0024. Permissions are actions; roles are data built from actions; admins can view as a member or run as less
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-20
+- **Date:** 2026-10-06 · updated 2026-10-22
 - **Merges:** 0029 (view as a member), 0037
 
 ## Context
@@ -43,7 +43,9 @@ taps to start and stop.
   ([0036](0036-api-security.md)).
 - The bootstrap returns the member's actions. Nav entries and buttons declare an action and hide when it's missing;
   the server still checks.
-- The last member holding `manage:all` can't lose it. Role and permission changes and refused requests go in
+- The last active member holding `manage:all`, through Admin or any other role, can't lose it: not by their roles
+  changing, being made inactive or pending, deleting their account, or `manage:all` coming off the role that gives
+  it; the change is refused (409) and the admin's told to make someone else an admin first. Role and permission changes and refused requests go in
   `audit_log` ([0095](0095-audit-log.md)).
 - Permissions are read with one indexed query per request. The first admin's email is a non-secret setting.
 
@@ -110,3 +112,7 @@ taps to start and stop.
   on the way, and the switch shows it. In your everyday role Settings keeps every row your account can open, the ones
   that role can't open quieter, and opening one switches you up.
 - 2026-10-21: View as a member is under Settings → System (was Security), first there ([0065](0065-page-frame-and-admin-actions.md)).
+- 2026-10-22: The last-admin rule is about whoever can do everything, through any role (#136): changing a member's
+  roles looked only at the role called Admin, and a role losing `manage:all` wasn't checked, so the last one holding
+  it through a role of their own could drop it. One condition (`keepsSomeoneWhoCanDoEverything`) now guards member
+  edits, account deletion and role edits, inside their statements ([0121](0121-load-and-concurrency.md)).
