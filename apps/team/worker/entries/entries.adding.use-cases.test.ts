@@ -50,8 +50,10 @@ async function fullFriday(day = NEXT_FRIDAY) {
   expect(put.status).toBe(200);
   expect((await dana.call("POST", `/api/members/${id.Quinn}/quarterly`, { quarterly: true })).status).toBe(200);
   const friday = (await dana.sees()).sessions.find((s: Json) => s.heldOn === day);
+  // Signed up the Monday before (a night that's over takes no answers, #128)
+  const before = { now: new Date(Date.parse(`${day}T12:00:00Z`) - 4 * 86_400_000) };
   for (const email of ["reg@example.com", "paul@example.com"]) {
-    const res = await (await as(email)).call("POST", `/api/sessions/${friday.id}/answer`, { answer: "in" });
+    const res = await (await as(email)).call("POST", `/api/sessions/${friday.id}/answer`, { answer: "in" }, before);
     expect(res.status).toBe(200);
   }
   /** The register's Add player (or a tick), on the night unless said */

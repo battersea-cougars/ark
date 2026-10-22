@@ -7,7 +7,7 @@
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
-import { londonToday } from "../../src/lib/dates";
+import { londonTime, londonToday } from "../../src/lib/dates";
 import { signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
 import { offTeams } from "../training/training.teams";
@@ -89,15 +89,30 @@ interface Places {
   limit: number | null;
   /** A keeper on a training (their places counted apart); always false elsewhere */
   keeper: boolean;
+  /** A training's day and when it ends (London), for whether it's over; null elsewhere */
+  night: { heldOn: string; endTime: string } | null;
 }
+
+/** A training's night is over once it has ended, London time. */
+const nightOver = (night: { heldOn: string; endTime: string }, now: string) => {
+  const today = londonToday(new Date(now));
+  return today > night.heldOn || (today === night.heldOn && londonTime(now) >= night.endTime);
+};
 
 /** Whether the event exists and takes sign-ups, and the places that count for this member. */
 async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: number): Promise<Places> {
   const row =
     kind === "session"
-      ? await first<{ capacity: number | null; cancelled: string | null; keeper: number }>(
+      ? await first<{
+          capacity: number | null;
+          cancelled: string | null;
+          keeper: number;
+          heldOn: string;
+          endTime: string;
+        }>(
           db,
-          `SELECT k.keeper, ${placesFor("k.keeper")} capacity, s.cancelled_at cancelled
+          `SELECT k.keeper, ${placesFor("k.keeper")} capacity, s.cancelled_at cancelled, s.held_on heldOn,
+             COALESCE(s.end_time, ts.end_time) endTime
            FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
              JOIN (SELECT COALESCE((SELECT position = 'G' FROM members WHERE id = ?), 0) keeper) k
            WHERE s.id = ?`,
@@ -117,7 +132,11 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
   if (!row) throw new HttpError(404, "No such event.");
   if (row.cancelled) throw new HttpError(409, "That session's cancelled.");
   if ("signup" in row && !row.signup) throw new HttpError(409, "That event doesn't take sign-ups.");
-  return { limit: row.capacity, keeper: "keeper" in row && Boolean(row.keeper) };
+  return {
+    limit: row.capacity,
+    keeper: "keeper" in row && Boolean(row.keeper),
+    night: "heldOn" in row ? { heldOn: row.heldOn, endTime: row.endTime } : null,
+  };
 }
 
 async function current(db: D1Database, kind: EntryKind, id: number, memberId: number) {
@@ -237,6 +256,10 @@ export function fillingUp(
 /** A member says in or out for themselves. In on a full event is the waitlist. */
 export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
   const places = await capacity(db, kind, id, memberId);
+  // A night that's over is the register's record (ADR 0007, 0030): who came, and what it charged, is the register's
+  // to change, not a member's own In or Out (#128)
+  if (places.night && nightOver(places.night, now))
+    throw new HttpError(409, "That night's over: the register says who came.");
   const was = await current(db, kind, id, memberId);
   if (a === "out") {
     if (was?.signup === "out") return;

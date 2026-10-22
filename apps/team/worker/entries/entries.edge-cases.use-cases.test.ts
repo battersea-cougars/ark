@@ -283,9 +283,9 @@ describe("a night that's called off", () => {
 
 describe("a night that's over", () => {
   // The register is the record of who came, and its charge stands (ADR 0007): after the night, a member's own Out
-  // takes them off it and their unpaid charge goes (known bug #128)
-  it.fails(
-    "a member who came can't say they're out of last Friday afterwards: they're still in, and still charged (known bug #128)",
+  // took them off it and their unpaid charge went (#128)
+  it(
+    "a member who came can't say they're out of last Friday afterwards: they're still in, and still charged (#128)",
     async () => {
       const f = await friday({ capacity: 5, day: LAST_FRIDAY });
       // Signed up before the night (the Monday before), and came
@@ -298,8 +298,8 @@ describe("a night that's over", () => {
     },
   );
 
-  it.fails(
-    "a member can't sign themselves up for last Friday after it: the register says who came (known bug #128)",
+  it(
+    "a member can't sign themselves up for last Friday after it: the register says who came (#128)",
     async () => {
       const f = await friday({ capacity: 5, day: LAST_FRIDAY });
       expect((await f.say("Reg", "in")).status).toBe(409);

@@ -77,7 +77,8 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   signed up (a Quarterly Member taking the last pay-as-you-go place; someone already waiting keeps their place in the
   queue). Only the team maker's Let in puts anyone over the limit. The reply says where they went (`signup`), and the
   register says so ("Full: Walt's on the waiting list", Waiting on their row) with Let in beside them for whoever
-  can. A night that's over is a record: someone ticked as there is in, whatever the places.
+  can. A night that's over is a record: someone ticked as there is in, whatever the places. Once it has ended (London
+  time) a member's own In or Out is refused (409): who came, and what it charged, is the register's to change.
 - **The places are the skaters'; keepers have their own**: a keeper is never on the waiting list because the skaters
   are full, and never takes a skater's place. A series' `goalie_capacity` is the keepers' limit (null: none), kept to
   the same way: over it a keeper waits. Places are counted a side at a time, so a place a keeper leaves goes to the
@@ -204,3 +205,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-22: A training's limit raised moves the first waiting up into the room it makes, in the same batch as the
   save, rather than leaving it to the next to sign up (#127); a training is saved with its fees all or nothing (#131),
   its dates real days and its times real times, ending after they start (#129).
+- 2026-10-22: A member can't say In or Out of a night that has ended (it had taken an Out after the night, and its
+  charge with it, #128); the register and admins still can.
