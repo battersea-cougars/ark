@@ -122,6 +122,38 @@ export async function moreSessions(db: D1Database, seriesId: number, today: stri
   await syncSeries(db, s.id);
 }
 
+/**
+ * One night a training's rule gives, made now if it isn't already (ADR 0122): a clash far ahead can be cancelled
+ * before the weeks ahead reach it. Made, it's like any other night: ensureSessions skips its date, cancelled or not.
+ */
+export async function nightOf(db: D1Database, seriesId: number, o: Record<string, unknown>, today: string) {
+  const heldOn = date(o, "heldOn")!;
+  const s = await first<SeriesRow>(db, "SELECT * FROM training_series WHERE id = ?", [seriesId]);
+  if (!s) throw new HttpError(404, "No such training.");
+  const existing = await all<{ id: number; heldOn: string; movedFrom: string | null }>(
+    db,
+    "SELECT id, held_on heldOn, moved_from movedFrom FROM training_sessions WHERE series_id = ? AND (held_on = ? OR moved_from = ?)",
+    [s.id, heldOn, heldOn],
+  );
+  const there = existing.find((x) => x.heldOn === heldOn);
+  if (there) return there.id;
+  const rule = {
+    repeatEvery: s.repeat_every,
+    weekdays: s.weekdays.split(",") as Weekday[],
+    startsOn: s.starts_on,
+    endsOn: s.ends_on,
+  };
+  if (!s.active || !datesToMake(rule, existing, today, addDays(today, 2 * 365)).includes(heldOn))
+    throw new HttpError(400, `${s.name} isn't on that day.`);
+  await run(db, INSERT_SESSIONS, [JSON.stringify([[s.id, heldOn]])]);
+  await syncSeries(db, s.id);
+  const made = await first<{ id: number }>(db, "SELECT id FROM training_sessions WHERE series_id = ? AND held_on = ?", [
+    s.id,
+    heldOn,
+  ]);
+  return made!.id;
+}
+
 /** A training session as read (api.club.ts), before its answers and teams. */
 export interface SessionRow {
   id: number;

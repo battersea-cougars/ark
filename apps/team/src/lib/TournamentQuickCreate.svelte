@@ -41,7 +41,9 @@
   // from the series; Advanced opens the full editor with these filled in.
   import TimeSelect from "./TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
-  import { createTournament, saving } from "../app/backend.svelte";
+  import { cancelClashes, createTournament, saving } from "../app/backend.svelte";
+  import ClashSheet from "./ClashSheet.svelte";
+  import { tournamentWindow } from "./clashes";
   import type { Tournament, TournamentType } from "../demo/model";
   import { db } from "../demo/store.svelte";
   import { typePlace } from "../demo/schedule.svelte";
@@ -201,11 +203,17 @@
       going: [],
       waitlist: [],
     };
+    // Over something already on (Friday Training)? Asked first; closing the question schedules nothing (ADR 0122)
+    const window = tournamentWindow(t);
+    const chosen = window ? await clashSheet?.ask(window, t.name) : [];
+    if (chosen === null) return void (creating = false);
     const created = await createTournament(t);
+    if (created) await cancelClashes(chosen ?? []);
     creating = false;
     if (created) oncreated(created.id);
     else failed = saving.message || "Couldn't schedule it. Try again?";
   }
+  let clashSheet = $state<ClashSheet | undefined>();
 </script>
 
 <Wizard
@@ -408,6 +416,8 @@
     >
   {/snippet}
 </Wizard>
+
+<ClashSheet bind:this={clashSheet} />
 
 <style>
   .q {

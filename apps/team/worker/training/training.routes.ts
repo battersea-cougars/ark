@@ -5,7 +5,7 @@ import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route"
 import { setSeriesFees } from "../dues/dues";
 import { letIn, mark } from "../entries/entries";
 import { HttpError, body, json } from "../api/api.http";
-import { createSeries, moreSessions, setSessionCancelled, updateSeries } from "./training";
+import { createSeries, moreSessions, nightOf, setSessionCancelled, updateSeries } from "./training";
 import { publishTeams, removeTeams, resetSession, sessionSignups } from "./training.teams";
 
 export const TRAINING_ROUTES: Route[] = [
@@ -65,6 +65,19 @@ export const TRAINING_ROUTES: Route[] = [
     action: "manage:Training",
     changes: ["sessions"],
     handle: async (c) => (await moreSessions(c.env.DB, id(c), c.today), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/series\/(\d+)\/sessions$/,
+    audit: {
+      event: "sessions.added",
+      subject: rowOf("SELECT COUNT(*) sessions, MAX(held_on) lastOn FROM training_sessions WHERE series_id = ?"),
+    },
+    action: "manage:Training",
+    changes: ["sessions"],
+    // { heldOn }: the one night the rule gives that day, made now (past the weeks ahead) so it can be cancelled
+    // before the rest are made (a clash, ADR 0122); { id }, the same night if it's made already
+    handle: async (c) => json({ id: await nightOf(c.env.DB, id(c), await body(c.request), c.today) }),
   },
   {
     method: "POST",

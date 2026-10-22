@@ -197,3 +197,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   `quarterly` flag is sent for those who said they're out, to whoever sees them.
 - 2026-10-21: Keepers don't count towards the places, which are the skaters'; a series' `goalie_capacity` is now
   enforced as the keepers' own limit (it had been stored but not enforced, and keepers had taken skaters' places).
+- 2026-10-22: A single night the rule gives can be made ahead of the weeks (`POST /api/series/:id/sessions`), so a
+  clash far off can be cancelled before the rest are made; made, it stays as it is ([0122](0122-asked-about-clashes.md)).

@@ -93,6 +93,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0076](0076-training-teams.md)                   | Training teams: a Session lead role, made by dragging, saved as you change them                                  |
 | [0102](0102-balanced-teams-by-swap-search.md)    | Friday teams are balanced by a greedy deal and a swap search in the browser, not a linear programme              |
 | [0007](0007-dues-and-payments.md)                | Dues are charges per session and tournament, paid by bank transfer with a name reference                         |
+| [0122](0122-asked-about-clashes.md)              | Scheduling over something already on asks whether that's off; each is cancelled by its own cancel                |
 
 ## Team app: tournaments
 

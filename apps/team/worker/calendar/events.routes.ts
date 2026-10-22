@@ -1,9 +1,22 @@
-// Club events: one-offs on the calendar (ADR 0042).
+// Club events: one-offs on the calendar (ADR 0042), and what's already on when something new would be (ADR 0122).
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
+import { findClashes } from "./clashes";
 import { createClubEvent, setClubEventCancelled, updateClubEvent } from "./events";
 
 export const EVENTS_ROUTES: Route[] = [
+  {
+    method: "GET",
+    path: /^\/api\/calendar\/clashes$/,
+    // What's on the calendar, which every member sees; whether it's theirs to cancel is in each answer
+    action: "read:Event",
+    // ?startsAt=&endsAt=[&except=tournament:5]: asked before a save, so the admin can say what's off (ADR 0122)
+    handle: async (c) => {
+      const q = new URL(c.request.url).searchParams;
+      const window = { startsAt: q.get("startsAt") ?? "", endsAt: q.get("endsAt") ?? "", except: q.get("except") };
+      return json({ clashes: await findClashes(c.env.DB, window, c.today, c.actions) });
+    },
+  },
   {
     method: "POST",
     path: /^\/api\/club-events$/,

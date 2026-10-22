@@ -18,7 +18,9 @@
   // then change for this one. The series' look (icon, colour) stays the series'.
   import TimeSelect from "./TimeSelect.svelte";
   import { tick } from "svelte";
-  import { createTournament, updateTournament } from "../app/backend.svelte";
+  import { cancelClashes, createTournament, updateTournament } from "../app/backend.svelte";
+  import ClashSheet from "./ClashSheet.svelte";
+  import { tournamentWindow } from "./clashes";
   import {
     TOURNAMENT_KINDS,
     type Playoff,
@@ -379,11 +381,24 @@
     if (!date.name) return showMissing("details");
     if (date.kind === "teams" && date.teams.some((t) => !t.name.trim())) return showMissing("teams");
     const t = toTournament(date);
-    if (date.id) return void (await updateTournament(t));
+    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
+    const window = tournamentWindow(
+      t,
+      db.tournaments.find((x) => x.id === t.id),
+    );
+    const chosen = window ? await clashSheet?.ask(window, t.name) : [];
+    if (chosen === null) return;
+    if (date.id) {
+      if ((await updateTournament(t)) !== null) await cancelClashes(chosen ?? []);
+      return;
+    }
     const created = await createTournament(t);
+    if (!created) return;
+    await cancelClashes(chosen ?? []);
     // The blank form gives way to the new date's editor, in the same panel
-    if (created) oncreated?.(created.id);
+    oncreated?.(created.id);
   }
+  let clashSheet = $state<ClashSheet | undefined>();
 </script>
 
 <div class="editor">
@@ -702,6 +717,7 @@
       </div>
     {/key}
   </form>
+  <ClashSheet bind:this={clashSheet} />
 </div>
 
 <style>

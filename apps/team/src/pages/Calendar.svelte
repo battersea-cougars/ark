@@ -7,7 +7,15 @@
   import DateField from "../lib/DateField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import Sheet from "../lib/Sheet.svelte";
-  import { createClubEvent, setClubEventCancelled, updateClubEvent, type ClubEventBody } from "../app/backend.svelte";
+  import {
+    cancelClashes,
+    createClubEvent,
+    setClubEventCancelled,
+    updateClubEvent,
+    type ClubEventBody,
+  } from "../app/backend.svelte";
+  import ClashSheet from "../lib/ClashSheet.svelte";
+  import { eventWindow } from "../lib/clashes";
   import { can } from "../access/actions";
   import type { IconName } from "../app/shell/icons";
   import Icon from "../app/shell/Icon.svelte";
@@ -152,10 +160,16 @@
       signup: draft.signup,
       capacity: editing?.capacity ?? null,
     };
+    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
+    const window = eventWindow({ id: editing?.id, startsAt, endsAt }, editing ?? undefined);
+    const chosen = window ? await clashSheet?.ask(window, draft.title) : [];
+    if (chosen === null) return;
     const done = editing ? await updateClubEvent(editing.id, body) : await createClubEvent(body);
     if (done === null) return;
     adding = false;
+    await cancelClashes(chosen ?? []);
   }
+  let clashSheet = $state<ClashSheet | undefined>();
   async function toggleCancelled() {
     if (!editing) return;
     if ((await setClubEventCancelled(editing.id, !editing.cancelledAt)) === null) return;
@@ -281,6 +295,8 @@
   <TrainingEditorPanel open="new" onclose={() => (newTraining = false)} oncreated={() => (newTraining = false)} />
 {/if}
 {#if can(perms, "manage:Tournament")}<TournamentEditorPanel closeOnCreate />{/if}
+<!-- A one-off over something already on: asked before it's saved (ADR 0122) -->
+<ClashSheet bind:this={clashSheet} />
 
 <style>
   /* A one-off's footer: its description, then (for whoever can change it) where it shows and Edit */

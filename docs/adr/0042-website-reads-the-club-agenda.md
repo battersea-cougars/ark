@@ -66,3 +66,5 @@ cut-off times, and neither showed a tournament's draft night or sign-up deadline
 - 2026-10-07: Caches run everywhere, not only in production ([ADR 0053](0053-live-reads-are-cached.md)).
 - 2026-10-21: Answers, picks and scoring no longer bring the agenda with them (`calendar: false`): they never push to
   it, and every live phone read it again for each (about 35 rows a read on a draft night; docs/load-testing.md).
+- 2026-10-22: The agenda also answers what clashes with a new time, before an editor saves it
+  ([0122](0122-asked-about-clashes.md)).

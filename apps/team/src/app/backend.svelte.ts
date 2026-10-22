@@ -664,3 +664,44 @@ export const createClubEvent = (e: ClubEventBody) =>
 export const updateClubEvent = (id: number, e: ClubEventBody) => save(() => api("PUT", `/api/club-events/${id}`, e));
 export const setClubEventCancelled = (id: number, cancelled: boolean) =>
   save(() => api("POST", `/api/club-events/${id}/cancelled`, { cancelled }), cancelled ? "Cancelled" : "Back on");
+
+// ─── Something already on then (ADR 0122) ───
+
+/** Something on the calendar a new time is over (worker/calendar/clashes.ts). */
+export interface Clash {
+  source: "session" | "tournament" | "club_event";
+  /** Null for a training night its rule gives that isn't made yet. */
+  id: number | null;
+  seriesId: number | null;
+  title: string;
+  day: string;
+  startsAt: string;
+  endsAt: string;
+  canCancel: boolean;
+  signedUp: number;
+}
+/** What's on between these two times; `except` is the thing being edited ("tournament:5"). */
+export async function findClashes(w: { startsAt: string; endsAt: string; except?: string }) {
+  const q = [`startsAt=${encodeURIComponent(w.startsAt)}`, `endsAt=${encodeURIComponent(w.endsAt)}`];
+  if (w.except) q.push(`except=${encodeURIComponent(w.except)}`);
+  return (await api<{ clashes: Clash[] }>("GET", `/api/calendar/clashes?${q.join("&")}`)).clashes;
+}
+/**
+ * Call off what the admin chose, after their save went in: each by its own cancel (the members told, nobody charged),
+ * a training night past the weeks made ahead made first. How many went off.
+ */
+export async function cancelClashes(chosen: Clash[]) {
+  let off = 0;
+  for (const c of chosen) {
+    if (c.source === "club_event" && c.id) {
+      if ((await setClubEventCancelled(c.id, true)) !== null) off++;
+    } else if (c.source === "session") {
+      const id =
+        c.id ??
+        (await save(() => api<{ id: number }>("POST", `/api/series/${c.seriesId}/sessions`, { heldOn: c.day }), ""))
+          ?.id;
+      if (id && (await setCancelled(id, true)) !== null) off++;
+    }
+  }
+  return off;
+}
