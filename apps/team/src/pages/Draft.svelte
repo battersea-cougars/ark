@@ -26,6 +26,7 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
+  import BurnReveal from "../lib/BurnReveal.svelte";
   import PickLog from "../lib/PickLog.svelte";
   import { canEnterRoom, enterRoom, roomOffered } from "../lib/draft-room";
   import { teamTone } from "../lib/team-tones";
@@ -394,6 +395,25 @@
   };
 
   const moveMs = prefersReducedMotion ? 0 : 360;
+  // A pick landing burns in on its team (lib/BurnReveal): the newest only, so a catch-up of several (after the
+  // connection's back) burns the last and the rest just appear. Not the picks already there when the page opens,
+  // nor one taken back. Less motion: a short glow instead
+  let burning = $state<number | null>(null);
+  let seen = -1;
+  let burnTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    const n = made;
+    const newest = picks.at(-1)?.memberId ?? null;
+    untrack(() => {
+      if (seen >= 0 && n > seen && newest !== null) {
+        burning = newest;
+        clearTimeout(burnTimer);
+        burnTimer = setTimeout(() => (burning = null), prefersReducedMotion ? 400 : 1400);
+      }
+      seen = n;
+    });
+  });
+
   // Opening it the first time takes enough to pick from: every team its captain and two more (lib/draft.ts)
   const needed = $derived(playersNeeded(teams.length));
   const short = $derived(!made && pool.length < needed);
@@ -479,8 +499,10 @@
         class="row"
         class:you={p.memberId === me().id}
         class:hit={!!query.trim() && !!m && matchesName(m, query)}
+        class:burning={p.memberId !== null && p.memberId === burning}
         animate:flip={{ duration: moveMs }}
       >
+        {#if p.memberId !== null && p.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
         <span class="n num">{n + 1}</span>
         <span class="name"
           >{goesByOf(m) || p.name}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
@@ -549,7 +571,9 @@
         {/each}
       </div>
       <div class="plist" aria-label="Players left">
-        {#each listed as p (p.id)}{@render playerRow(p, true)}{:else}<p class="hint none">No one matches.</p>{/each}
+        {#each listed as p (p.id)}<div class="pool-row" out:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+            {@render playerRow(p, true)}
+          </div>{:else}<p class="hint none">No one matches.</p>{/each}
       </div>
     {:else if open}
       <p class="hint">
@@ -576,7 +600,14 @@
   {@const t = teams[i]}
   {@const yours = i === myTeam}
   {@const picking = live && i === clock}
-  <section class="panel" class:picking class:quiet={live && !picking} aria-label={teamName(i)}>
+  <section
+    class="panel"
+    class:picking
+    class:mine={picking && yours}
+    class:quiet={live && !picking}
+    style:--team={teamTone(i)}
+    aria-label={teamName(i)}
+  >
     <header>
       <TeamCrest
         among={crestNames}
@@ -588,7 +619,7 @@
       <h3 class="display">{teamName(i)}</h3>
     </header>
     <div class="panel-badges">
-      {#if picking}<span class="badge red"><Icon name="clock" size={13} />Picking</span>{/if}
+      {#if picking}<span class="badge red"><i class="dot"></i>Picking</span>{/if}
       {#if yours && open && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span>{/if}
       {#if yours && !picking}<span class="badge">Your team</span>{/if}
     </div>
@@ -1643,11 +1674,62 @@
     grid-template-rows: repeat(var(--rows, 1), 2.5rem);
   }
   /* While a team picks, it's the one lit: the others' crests and names a little quieter. No box round it */
-  .panel header {
-    transition: opacity var(--t-slow) var(--ease);
+  /* The team picking: its card lifted and lit, as the carousel's card on the clock (the same glint across it, a lit top
+     edge), a touch larger (a transform: nothing moves), its crest glowing in its colour; every other team steps back.
+     Yours, on your pick: the club's red. The light passes to the next as the turn moves */
+  .panel {
+    transition:
+      opacity 300ms var(--ease),
+      transform 300ms var(--ease),
+      box-shadow 300ms var(--ease);
   }
-  .panel.quiet header {
+  .panel.quiet {
     opacity: 0.55;
+  }
+  .panel.picking {
+    z-index: 1;
+    transform: scale(1.03);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      0 0.75rem 2rem rgb(0 0 0 / 0.35),
+      0 0 1.75rem color-mix(in srgb, var(--team) 22%, transparent);
+  }
+  .panel.picking::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      color-mix(in srgb, var(--fg) 9%, transparent) 48%,
+      color-mix(in srgb, var(--fg) 3%, transparent) 54%,
+      transparent 65%
+    );
+    background-size: 250% 100%;
+    background-position: 120% 0;
+    animation: tick-glint 4.5s 300ms var(--ease-in-out) infinite;
+  }
+  .panel.picking header :global(.crest) {
+    filter: drop-shadow(0 0 0.6rem color-mix(in srgb, var(--team) 70%, transparent));
+  }
+  .panel.picking.mine {
+    background: color-mix(in srgb, var(--red-hot) 7%, var(--panel-bg));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--red-hot) 55%, transparent),
+      0 0.75rem 2rem rgb(0 0 0 / 0.35),
+      0 0 2rem color-mix(in srgb, var(--red-hot) 30%, transparent);
+  }
+  .panel.picking.mine header :global(.crest) {
+    filter: drop-shadow(0 0 0.6rem color-mix(in srgb, var(--red-hot) 70%, transparent));
+  }
+  .panel .badge .dot {
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-right: 0.15rem;
+    background: currentColor;
   }
   /* The header sits clear of the rows and the column's edges: the same inset as the rows, room above */
   .panel header {
@@ -1710,6 +1792,26 @@
   }
   .row:hover {
     background: var(--surface-2);
+  }
+  /* A pick just landed: the burn's laid over the row; the name glows hot as it's revealed, then cools */
+  .row.burning {
+    position: relative;
+  }
+  .row.burning .name {
+    animation: cool 1.4s ease-out both;
+  }
+  @keyframes cool {
+    0%,
+    45% {
+      color: #ffe2b0;
+      text-shadow:
+        0 0 6px #ff7a18,
+        0 0 14px color-mix(in srgb, #ff3b1f 60%, transparent);
+    }
+    100% {
+      color: var(--fg);
+      text-shadow: none;
+    }
   }
   /* A pick to come: a faint dashed line where its player will be */
   .row.slot .line {
@@ -1895,6 +1997,24 @@
     .dot {
       animation: none;
     }
+    .row.burning .name {
+      animation: none;
+    }
+    .row.burning {
+      animation: glow-fade 0.3s ease-out both;
+    }
+    @keyframes glow-fade {
+      from {
+        background: color-mix(in srgb, var(--tone-amber) 22%, transparent);
+      }
+    }
+    .panel.picking {
+      transform: none;
+    }
+    .panel.picking::after {
+      animation: none;
+      background-position: 50% 0;
+    }
     /* Still: the light resting across the middle of the card */
     .tick.now::after {
       animation: none;
@@ -1997,6 +2117,8 @@
   .lanes {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    /* Room for the team picking to lift (a touch larger) without its edges cut */
+    padding: var(--s-2) var(--s-2) 0;
     align-content: start;
     align-items: start;
     gap: var(--s-4);

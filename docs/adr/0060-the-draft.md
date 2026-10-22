@@ -284,3 +284,11 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   scrolling, never the room. The team picking is lit (the others' crests and names quieter) with the red Picking
   badge, no box round it; the only badges are Picking, No goalie and Your team (the order and In N are the
   carousel's). The same cards on the page's Teams tab and done view.
+- 2026-10-22: "The team that is picking needs to be much more obvious", "when they pick a player, that player
+  should appear in that list, like it should burn in", "is it possible to do a fire reveal?" (the user): the team
+  picking's card is lifted and lit (the carousel's glint across it, a lit top edge, a touch larger, its crest
+  glowing in its colour; yours in the club's red), every other card stepped back, the Picking badge's light
+  pulsing; the light passes to the next in 300ms. A pick landing burns in on its team (lib/BurnReveal): the row
+  under a charcoal sheet that a flame front burns away left to right, a ragged flickering edge and ember rim, a few
+  sparks, the name glowing hot and cooling, about 1.2s; the newest pick only, so a catch-up burns the last and the
+  rest just appear; the player leaves the pool with a quick fade. Less motion: a 300ms glow, no lift.
