@@ -2,7 +2,7 @@
 // teams that entered), an admin has the app make the fixtures: a round robin, every team playing every other once
 // (lib/fixtures.ts), then the playoff games its settings ask for, by table position. They can be made again until a
 // game has a result. When the last group game has its result, the playoffs get their teams from the table.
-import { all, batch, first, run, statement } from "@cougars/shared/d1";
+import { all, batch, first, statement } from "@cougars/shared/d1";
 import { roundRobin, scorekeepers, table } from "../../src/lib/fixtures";
 import { HttpError, int } from "../api/api.http";
 import type { Playoff } from "./tournaments";
@@ -236,43 +236,41 @@ export async function scoreGame(db: D1Database, tournamentId: number, gameId: nu
     throw new HttpError(409, `Game ${upNext?.position ?? ""} is up next: score that one.`);
   if (game.stage === "playoff" && homeGoals === awayGoals)
     throw new HttpError(400, "A playoff can't end level: the next goal won it.");
-  await run(db, "UPDATE tournament_games SET home_goals = ?, away_goals = ?, status = 'done' WHERE id = ?", [
-    homeGoals,
-    awayGoals,
-    gameId,
+  // The score and its goals in one batch, each side's goals matched against the count inside its statement (ADR 0121):
+  // the same result saved twice at once finds the goals the first put on and adds none
+  await batch(db, [
+    statement(db, "UPDATE tournament_games SET home_goals = ?, away_goals = ?, status = 'done' WHERE id = ?", [
+      homeGoals,
+      awayGoals,
+      gameId,
+    ]),
+    ...matchGoals(db, gameId, game.homeTeamId, homeGoals),
+    ...matchGoals(db, gameId, game.awayTeamId, awayGoals),
   ]);
-  await matchGoals(db, gameId, game.homeTeamId, homeGoals);
-  await matchGoals(db, gameId, game.awayTeamId, awayGoals);
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
 
-/** One side's goals made to match its score. */
-export async function matchGoals(db: D1Database, gameId: number, teamId: number, score: number) {
-  const have =
-    (
-      await first<{ n: number }>(db, "SELECT count(*) n FROM tournament_goals WHERE game_id = ? AND team_id = ?", [
-        gameId,
-        teamId,
-      ])
-    )?.n ?? 0;
-  const at = new Date().toISOString();
-  await batch(
-    db,
-    Array.from({ length: Math.max(0, score - have) }, () =>
-      statement(db, "INSERT INTO tournament_goals (game_id, team_id, at_ms, created_at) VALUES (?, ?, NULL, ?)", [
-        gameId,
-        teamId,
-        at,
-      ]),
+/**
+ * One side's goals made to match its score, as statements for the caller's batch. Each counts the goals as it runs:
+ * the missing ones go on, the extra ones come off (nobody-said-who first, then no time, then the latest).
+ */
+export function matchGoals(db: D1Database, gameId: number, teamId: number, score: number): D1PreparedStatement[] {
+  const have = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND team_id = ?)";
+  return [
+    statement(
+      db,
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+       INSERT INTO tournament_goals (game_id, team_id, at_ms, created_at)
+       SELECT ?, ?, NULL, ? FROM n WHERE i <= ? AND i > ${have}`,
+      [score, gameId, teamId, new Date().toISOString(), score, gameId, teamId],
     ),
-  );
-  if (have > score)
-    await run(
+    statement(
       db,
       `DELETE FROM tournament_goals WHERE id IN (SELECT id FROM tournament_goals WHERE game_id = ? AND team_id = ?
-         ORDER BY scorer_member_id IS NULL DESC, at_ms IS NULL DESC, at_ms DESC, id DESC LIMIT ?)`,
-      [gameId, teamId, have - score],
-    );
+         ORDER BY scorer_member_id IS NULL DESC, at_ms IS NULL DESC, at_ms DESC, id DESC LIMIT max(0, ${have} - ?))`,
+      [gameId, teamId, gameId, teamId, score],
+    ),
+  ];
 }
 
 export async function fillPlayoffs(db: D1Database, tournamentId: number, t: TournamentRow) {
@@ -283,13 +281,15 @@ export async function fillPlayoffs(db: D1Database, tournamentId: number, t: Tour
   await batch(
     db,
     games
-      .filter((g) => g.stage === "playoff" && g.status !== "done")
+      .filter((g) => g.stage === "playoff" && g.status === "next")
       .map((g) =>
-        statement(db, "UPDATE tournament_games SET home_team_id = ?, away_team_id = ? WHERE id = ?", [
-          rows[g.homeSeed! - 1]?.teamId ?? null,
-          rows[g.awaySeed! - 1]?.teamId ?? null,
-          g.id,
-        ]),
+        // Only while it's still to start, decided in the statement (#122): one being played keeps its teams and goals
+        statement(
+          db,
+          `UPDATE tournament_games SET home_team_id = ?, away_team_id = ? WHERE id = ? AND status = 'next'
+             AND NOT EXISTS (SELECT 1 FROM tournament_goals WHERE game_id = tournament_games.id)`,
+          [rows[g.homeSeed! - 1]?.teamId ?? null, rows[g.awaySeed! - 1]?.teamId ?? null, g.id],
+        ),
       ),
   );
 }

@@ -26,7 +26,9 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   a list of games by table position, each with a name, e.g. Final (1 v 2), or Final and 3rd place. None is fine.
 - `tournament_games` holds each game: stage (group / playoff), round, its place in the day's order, teams, the
   playoff's seeds, the score, status (next / live / done), the clock and who keeps score. When the last group game
-  has its result, the playoffs get their teams from the table (points, goal difference, goals for).
+  has its result, the playoffs get their teams from the table (points, goal difference, goals for). A group result
+  put right afterwards fills again only the playoffs still to start (status next, no goals): one being played or
+  over keeps its teams.
 - `lib/fixtures.ts` (round robin, table, scorekeepers, `startingNow`) is shared by the Worker and the app.
 
 ### One game on at a time
@@ -208,3 +210,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-21: Taps at once ([0121](0121-load-and-concurrency.md)): the end of a period sent by two phones moves on
   once; a goal, penalty or Undo landing as full time is called is refused, so the result is never changed after the
   whistle. The same goal from two phones is still two goals (#114).
+- 2026-10-22: A group result put right while a playoff's being played no longer changes that playoff's teams: only
+  one still to start takes them from the table, decided in its statement (#122).

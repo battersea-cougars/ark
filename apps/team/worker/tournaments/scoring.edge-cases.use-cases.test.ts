@@ -671,22 +671,19 @@ describe("playoffs, after the group", () => {
     expect([final.homeTeamId, final.awayTeamId]).toEqual([c.ants, c.cats]);
   });
 
-  // An admin's correction to a group game refills every playoff that isn't over, the Final being played included: its
-  // teams change mid-game, and the goals already logged are for a team no longer in it (known bug #122)
-  it.fails(
-    "an admin putting a group result right while the Final's being played doesn't change who's playing it (known bug #122)",
-    async () => {
-      const c = await groupPlayed();
-      const keeper = await c.keeperOf(c.final);
-      await c.clock(keeper, c.final.id, "start", at(0));
-      await c.goal(keeper, c.final.id, { teamId: c.bees }, at(1));
-      // Meanwhile, an admin puts Bees v Cats right: Cats won it, 3–0
-      await c.result(c.bees, c.cats, 0, 3);
-      const final = await c.game(c.final.id);
-      expect([final.homeTeamId, final.awayTeamId]).toEqual([c.ants, c.bees]);
-      expect(final).toMatchObject({ status: "live", awayGoals: 1 });
-    },
-  );
+  // An admin's correction to a group game refills only the playoffs still to start: one being played keeps its teams,
+  // and the goals already logged stay with them (#122)
+  it("an admin putting a group result right while the Final's being played doesn't change who's playing it", async () => {
+    const c = await groupPlayed();
+    const keeper = await c.keeperOf(c.final);
+    await c.clock(keeper, c.final.id, "start", at(0));
+    await c.goal(keeper, c.final.id, { teamId: c.bees }, at(1));
+    // Meanwhile, an admin puts Bees v Cats right: Cats won it, 3–0
+    await c.result(c.bees, c.cats, 0, 3);
+    const final = await c.game(c.final.id);
+    expect([final.homeTeamId, final.awayTeamId]).toEqual([c.ants, c.bees]);
+    expect(final).toMatchObject({ status: "live", awayGoals: 1 });
+  });
 
   it("a finished Final keeps its teams when a group result is put right after it", async () => {
     const c = await groupPlayed();
@@ -751,12 +748,11 @@ describe("taps at once, outside the live game (ADR 0121)", () => {
     },
   );
 
-  // matchGoals counts the goals in one statement and inserts the missing ones in the next: two saves of the same typed
-  // result at once (a double tap on Save, or two admins) both count none, both add them, and the game has twice the
-  // goals its score says (known bug #124). Seeds that show it, fixed (not `seeds()`: under INTERLEAVE_SEEDS a seed where
-  // one save lands first would pass, and an expected failure that passes fails the run)
-  it.fails.each([2, 3, 5])(
-    "an admin's typed-in result saved twice at once: the game has as many goals as its score (known bug #124) (seed %i)",
+  // A typed-in result, its goals made to match and the count they're matched against are one batch: two saves of the
+  // same result at once (a double tap on Save, or two admins) leave the game with as many goals as its score (#124).
+  // Seeds 2, 3 and 5 found it
+  it.each(seeds(5))(
+    "an admin's typed-in result saved twice at once: the game has as many goals as its score (seed %i)",
     async (seed) => {
       const c = await cup();
       w.db.interleave(seed);

@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ROUTES } from "./api";
 import { testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import type { Action } from "../../src/access/actions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -170,12 +171,10 @@ describe("routes that aren't there", () => {
 });
 
 describe("the club always has someone who can do everything", () => {
-  // https://github.com/battersea-cougars/ark/issues/135
-  // Known bug #135: the last-admin rule counts the other admins in one statement and writes the roles in
-  // the next (ADR 0121), so two admins demoting each other at once both see the other still there. The seeds that
-  // find it are its proof (seed 1 happens to land them one after the other).
-  it.fails.each([2, 3, 4, 5])(
-    "two admins taking Admin off each other at the same moment leave at least one admin (known bug #135, seed %i)",
+  // The last-admin rule is decided inside the statements that write the roles (ADR 0121), so two admins demoting each
+  // other at once can't both see the other still there (#135; seeds 2-5 found it)
+  it.each(seeds(5))(
+    "two admins taking Admin off each other at the same moment leave at least one admin, the other told (seed %i)",
     async (seed) => {
       const dana = await w.signedIn("dana@example.com");
       const ada = await w.signedIn("ada@example.com");
@@ -183,11 +182,12 @@ describe("the club always has someone who can do everything", () => {
       const danaRow = all.find((m) => m.name === "Dana Admin");
       const adaRow = all.find((m) => m.name === "Ada Admin");
       w.db.interleave(seed);
-      await Promise.all([
+      const replies = await Promise.all([
         dana.call("PUT", `/api/members/${adaRow.id}`, { ...adaRow, roles: ["Member"] }),
         ada.call("PUT", `/api/members/${danaRow.id}`, { ...danaRow, roles: ["Member"] }),
       ]);
       w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
       const admins = w.db.raw
         .prepare(
           `SELECT count(*) n FROM member_roles mr JOIN roles r ON r.id = mr.role_id JOIN members m ON m.id = mr.member_id
@@ -198,17 +198,17 @@ describe("the club always has someone who can do everything", () => {
     },
   );
 
-  // https://github.com/battersea-cougars/ark/issues/135
-  // Known bug #135: the same, deleting an account: the check for another admin and the erasing are
-  // separate statements
-  it.fails.each([3])(
-    "two admins deleting their own accounts at the same moment leave at least one admin (known bug #135, seed %i)",
+  // The same, deleting an account: the erasing happens only while another admin's there, in the same batch (#135;
+  // seed 3 found it)
+  it.each(seeds(5))(
+    "two admins deleting their own accounts at the same moment leave at least one admin, the other told (seed %i)",
     async (seed) => {
       const dana = await w.signedIn("dana@example.com");
       const ada = await w.signedIn("ada@example.com");
       w.db.interleave(seed);
-      await Promise.all([dana.call("DELETE", "/api/me"), ada.call("DELETE", "/api/me")]);
+      const replies = await Promise.all([dana.call("DELETE", "/api/me"), ada.call("DELETE", "/api/me")]);
       w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
       const admins = w.db.raw
         .prepare(
           `SELECT count(*) n FROM member_roles mr JOIN roles r ON r.id = mr.role_id JOIN members m ON m.id = mr.member_id

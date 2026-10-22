@@ -49,19 +49,21 @@ Trigger whole, as Cloudflare does.
 
 ### What they found
 
-| Race                                                                                         | Was                                                         | Now                                                                 |
-| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
-| A place freed (someone out) while others sign up                                             | A newcomer could take it ahead of the first waiting         | Out and the move up are one batch (an admin taking someone off too) |
-| A double tap (or two phones) on the last place                                               | The second tap counted their own place: they waited         | Joining never rewrites an answer already in or waiting              |
-| A drafted player says they're out as a captain picks them                                    | On a team, signed up as out                                 | Off their team in the same batch as their answer                    |
-| A captain's tap landing after the turn moved on (two phones; the snake gives them two turns) | Spent their next pick                                       | A pick says its turn (`turn`); a stale one is refused               |
-| An admin puts a goalie on a team as its captain picks the other                              | Two goalies                                                 | One goalie a team is inside the statements                          |
-| End of a period sent by both of the scorekeeper's phones                                     | Skipped a period (the 1st's end went to the 3rd)            | Moves on only from the period said                                  |
-| A goal, penalty or Undo landing as full time is called                                       | Changed the score after the result (and the playoffs)       | Lands only while the game's on and theirs                           |
-| A goal landing just before full time (seed 35)                                               | The result said 0–0, the game 1–0: its score came after     | The goal and its score are one batch (Undo too)                     |
-| Two runs working the charges out (late taps and the hourly cron)                             | A night paid twice from the same credit, until the next run | An allocation goes in only while payment and charge are as read     |
-| An admin's Send of reminders beside the five-minute cron                                     | Both emailed the same members                               | A run takes what it sends first (`dues_reminders.sending`)          |
-| A five-minute cron run with a club-wide send and reminders waiting                           | 95 subrequests (Cloudflare stops at 50)                     | 35 at most: drains 25, reminders 10, `tell` queues the phones       |
+| Race                                                                                         | Was                                                         | Now                                                                   |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| A place freed (someone out) while others sign up                                             | A newcomer could take it ahead of the first waiting         | Out and the move up are one batch (an admin taking someone off too)   |
+| A double tap (or two phones) on the last place                                               | The second tap counted their own place: they waited         | Joining never rewrites an answer already in or waiting                |
+| A drafted player says they're out as a captain picks them                                    | On a team, signed up as out                                 | Off their team in the same batch as their answer                      |
+| A captain's tap landing after the turn moved on (two phones; the snake gives them two turns) | Spent their next pick                                       | A pick says its turn (`turn`); a stale one is refused                 |
+| An admin puts a goalie on a team as its captain picks the other                              | Two goalies                                                 | One goalie a team is inside the statements                            |
+| End of a period sent by both of the scorekeeper's phones                                     | Skipped a period (the 1st's end went to the 3rd)            | Moves on only from the period said                                    |
+| A goal, penalty or Undo landing as full time is called                                       | Changed the score after the result (and the playoffs)       | Lands only while the game's on and theirs                             |
+| A goal landing just before full time (seed 35)                                               | The result said 0–0, the game 1–0: its score came after     | The goal and its score are one batch (Undo too)                       |
+| An admin's typed-in result saved twice at once (seeds 2, 3, 5; #124)                         | The score 2–1, the goals 4–2                                | The result and its goals one batch, matched to the count in-statement |
+| Two admins taking Admin off each other, or erasing themselves, at once (#135)                | No admin left                                               | Each goes only while another admin's there; the other gets a 409      |
+| Two runs working the charges out (late taps and the hourly cron)                             | A night paid twice from the same credit, until the next run | An allocation goes in only while payment and charge are as read       |
+| An admin's Send of reminders beside the five-minute cron                                     | Both emailed the same members                               | A run takes what it sends first (`dues_reminders.sending`)            |
+| A five-minute cron run with a club-wide send and reminders waiting                           | 95 subrequests (Cloudflare stops at 50)                     | 35 at most: drains 25, reminders 10, `tell` queues the phones         |
 
 Held already, now tested: a sign-up's place decided in its statement; picks guarded by the turn's count; the draw set
 once; the push outbox claimed before sending; charges unique.

@@ -1,6 +1,6 @@
 // Members and roles (ADR 0024). A member's permissions are the union of their roles' actions; actions no longer in
 // the catalog are ignored.
-import { all, batch, first, run, statement } from "@cougars/shared/d1";
+import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { ACTIONS, type Action } from "../../src/access/actions";
 import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
@@ -212,24 +212,32 @@ export async function updateMember(
     )
       throw new HttpError(403, "You can't give someone a role that can do more than you.");
   }
-  // Never leave the club without an admin: neither by taking the role off the last one nor by making them inactive
+  // Never leave the club without an admin: neither by taking the role off the last one nor by making them inactive.
+  // Decided inside the statements that write it (ADR 0121): while it's taken off an admin, every statement goes only
+  // while another active admin's there, so two admins demoting each other at once can't both go (#135). The read
+  // before is for the refusal's words.
   const admin = known.find((k) => k.name === "Admin");
+  let guard: { sql: string; params: Param[] } | null = null;
   if (admin && (!ids.includes(admin.id) || status !== "active")) {
-    const others = await first<{ n: number }>(
-      db,
-      `SELECT count(*) n FROM member_roles mr JOIN members m ON m.id = mr.member_id
-       WHERE mr.role_id = ? AND mr.member_id != ? AND m.status = 'active'`,
-      [admin.id, id],
-    );
     const was = await first<{ n: number }>(
       db,
       "SELECT count(*) n FROM member_roles WHERE role_id = ? AND member_id = ?",
       [admin.id, id],
     );
-    if (was?.n && !others?.n) throw new HttpError(409, "That's the last admin. Make someone else an admin first.");
+    if (was?.n)
+      guard = {
+        sql: `EXISTS (SELECT 1 FROM member_roles mr JOIN members m ON m.id = mr.member_id
+                WHERE mr.role_id = ? AND mr.member_id != ? AND m.status = 'active')`,
+        params: [admin.id, id],
+      };
   }
+  const lastAdmin = "That's the last admin. Make someone else an admin first.";
+  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
+  // A statement written as `… WHERE …`, kept to while there's another admin when this one's going
+  const guarded = (sql: string, params: Param[]) =>
+    guard ? statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]) : statement(db, sql, params);
   const statements = [
-    statement(db, "UPDATE members SET name = ?, position = ?, rating = ?, cougar = ?, status = ? WHERE id = ?", [
+    guarded("UPDATE members SET name = ?, position = ?, rating = ?, cougar = ?, status = ? WHERE id = ?", [
       name,
       position,
       rating,
@@ -241,12 +249,13 @@ export async function updateMember(
   // The name they go by (ADR 0043), when it's sent: an admin can set or clear it as they can on their profile
   if ("webName" in o) {
     const webName = o.webName === null ? "" : text(o, "webName", { optional: true, max: 40 }).trim();
-    statements.push(statement(db, "UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]));
+    statements.push(guarded("UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]));
   }
-  statements.push(statement(db, "DELETE FROM member_roles WHERE member_id = ?", [id]));
+  statements.push(guarded("DELETE FROM member_roles WHERE member_id = ?", [id]));
   for (const roleId of ids)
-    statements.push(statement(db, "INSERT INTO member_roles (member_id, role_id) VALUES (?, ?)", [id, roleId]));
-  await batch(db, statements);
+    statements.push(guarded("INSERT INTO member_roles (member_id, role_id) SELECT ?, ? WHERE 1", [id, roleId]));
+  const [written] = await batch(db, statements);
+  if (!written.meta.changes) throw new HttpError(409, lastAdmin);
   // Made inactive (or back to waiting): their sign-ins end, so letting them back in later opens none of them (#72)
   return { letIn: existing.status === "pending" && status === "active", shutOut: status !== "active" };
 }

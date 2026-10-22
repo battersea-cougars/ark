@@ -29,7 +29,11 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
     moved on is refused, not spent on the captain's next pick; one goalie a team is inside the statements.
   - Scoring: the end of a period moves on only from the period said; a goal, penalty or Undo lands only while the
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
-    so full time never reads a goal without its score.
+    so full time never reads a goal without its score; an admin's typed-in result and its goals are one batch, each
+    side's goals matched against the count inside its statement, so the same result saved twice adds them once (#124).
+  - Members: the last admin (ADR [0024](0024-action-based-authorization.md)) is kept inside the statements that take
+    Admin off, make inactive or erase: each goes only while another active admin's there, so two admins demoting or
+    erasing each other at once leave one, the other refused (#135).
   - Dues: an allocation of credit goes in only while its payment and charge are as they were read; a dues reminder
     is taken by the run that sends it (`dues_reminders.sending`).
 - **The fake D1 interleaves like D1** (`db.interleave(seed)`, `packages/shared/testing/d1-sqlite.ts`): each round trip
@@ -98,3 +102,6 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   own members with minted sign-ins, cleaned up after; Cloudflare's own CPU and D1 numbers for the run's window; a
   soak (`--minutes`) with a budget of the day's rows read; the per-address limits counted, not enforced, since dev
   can't. `--target local` runs the same path on your machine.
+- 2026-10-22: Two more checked-then-written rules decided in their statements: a typed-in result's goals (two saves
+  at once doubled them, #124) and the last admin (two admins demoting or erasing each other at once left none, #135),
+  with their seeds' tests.
