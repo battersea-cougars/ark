@@ -91,7 +91,7 @@ describe("Home's lead: your next thing, whatever it is", () => {
     const rows = feed({ events: [kumiteEvent(t), ev("session:1", "2026-10-23T18:30:00Z")] });
     expect(rows.lead).toMatchObject({ kind: "event", key: "session:1" });
     expect(rows.upcoming.map((r) => [r.key, r.sub])).toEqual([
-      ["tournament:10", "10 to 11:30am · Your fight at 10:34am"],
+      ["tournament:10", "10 to 11:30am · Your match at 10:34am"],
     ]);
   });
 

@@ -25,7 +25,7 @@
       const [us, them] = home ? [f.homeGoals, f.awayGoals] : [f.awayGoals, f.homeGoals];
       return `Beat ${nameOf(t, home ? f.awayTeamId : f.homeTeamId)} ${us}–${them} in the final`;
     }
-    return champ ? "Top of the table" : `${(t.games ?? []).length} games`;
+    return champ ? "Top of the table" : `${(t.games ?? []).length} matches`;
   };
 </script>
 

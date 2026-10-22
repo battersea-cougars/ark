@@ -225,7 +225,7 @@
     if (l.kind === "fight")
       return l.fight.game.status === "live"
         ? `You're on: the ${l.fight.type.shortName}`
-        : `Your next ${l.fight.type.shortName} fight`;
+        : `Your next ${l.fight.type.shortName} match`;
     const ev = l.event;
     const said = !!ev.standing;
     if (ev.kind === "training") {

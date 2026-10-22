@@ -245,7 +245,7 @@ function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingR
   const how = e.cancelled
     ? "Cancelled"
     : fight
-      ? `Your fight at ${fight}`
+      ? `Your match at ${fight}`
       : e.standing
         ? STANDING[e.standing]
         : opens
