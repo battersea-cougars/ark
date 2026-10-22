@@ -584,14 +584,14 @@ CREATE TABLE club_settings (
   bank_account TEXT
 );
 
--- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by) or the
--- hourly cron (stage), at most one per member a week. A row is claimed (queued) before it's sent, so two runs send one
+-- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by), at most
+-- one per member a week. A row is claimed (queued) before it's sent, so two runs send one
 -- email, and a run takes it to send (sending, sending_at) so two runs at once never both send it; a send that fails is
 -- deleted, so it's tried again. Admins see when someone was last reminded.
 CREATE TABLE dues_reminders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
-  -- minor, major or misconduct (the cron, by the age of their oldest charge), or by_hand
+  -- by_hand; minor, major and misconduct were the automatic reminders' stages, off until a configurable schedule (#143)
   stage TEXT NOT NULL CHECK (stage IN ('minor', 'major', 'misconduct', 'by_hand')),
   sent_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
   claimed_at TEXT NOT NULL,

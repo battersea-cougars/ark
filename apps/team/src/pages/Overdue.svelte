@@ -1,8 +1,9 @@
 <script lang="ts">
   // Unpaid fees, the aged-receivables report (ADR 0007): every unpaid charge, added up per member and by how
   // long it's been owed. Marking a charge paid on a member's profile takes it off here. A tap on someone opens their
-  // card over the page, as on Teammates: admins get the member sheet on its Dues tab. Manage (ADR 0065) holds the jobs:
-  // emailing members what they owe, after a preview, and the club's bank details those emails give.
+  // card over the page, as on Teammates: admins get the member sheet on its Dues tab. Send reminders is the page's one
+  // main button, for whoever records payments: it opens the preview (who gets one, who's held), then sends. Nothing
+  // sends them on its own (ADR 0007; a configurable schedule is #143). Manage (ADR 0065) keeps the bank details.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import MemberSheet from "../lib/MemberSheet.svelte";
@@ -46,7 +47,7 @@
 
   const perms = $derived(granted());
   const admin = $derived(can(perms, "manage:Member"));
-  // Manage (ADR 0065): whoever records payments emails reminders; whoever sets fees keeps the bank details
+  // Whoever records payments sends reminders (the main button); whoever sets fees keeps the bank details (Manage)
   const reminds = $derived(can(perms, "record:Payment"));
   const setsFees = $derived(can(perms, "manage:Fees"));
   let manageOpen = $state(false);
@@ -89,7 +90,13 @@
       {#if rows.length}
         <button class="btn sm outline" onclick={exportCsv}><Icon name="download" size={16} />Export CSV</button>
       {/if}
-      {#if reminds || setsFees}
+      {#if reminds}
+        <!-- The page's one main button: greyed while nobody owes, so nothing moves when someone does -->
+        <button class="btn sm primary" aria-haspopup="dialog" disabled={!rows.length} onclick={() => (reminding = true)}
+          ><Icon name="mail" size={16} />Send reminders</button
+        >
+      {/if}
+      {#if setsFees}
         <button
           class="btn sm ghost icon"
           aria-haspopup="dialog"
@@ -170,15 +177,6 @@
 
 {#snippet manageTools()}
   <div class="tools">
-    {#if reminds}
-      <button class="tool" onclick={() => go(() => (reminding = true))}>
-        <Icon name="mail" size={22} />
-        <span class="tool-text"
-          ><strong>Email what they owe</strong><span>Everyone who owes, with their reference. See it first.</span></span
-        >
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/if}
     {#if setsFees}
       <button class="tool" onclick={() => go(() => (banking = true))}>
         <Icon name="bank" size={22} />
@@ -202,12 +200,7 @@
 {/if}
 
 <!-- A list that grows with the club: a side drawer (full screen on a phone) -->
-<Drawer
-  bind:open={reminding}
-  wide
-  title="Email what they owe"
-  sub="Who gets one, and what it says, before anything goes"
->
+<Drawer bind:open={reminding} wide title="Send reminders" sub="Who gets one, and what it says, before anything goes">
   {#if reminding}
     <RemindReview
       onsent={() => (reminding = false)}

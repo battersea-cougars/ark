@@ -1,7 +1,7 @@
 <script lang="ts">
   // Email members what they owe (ADR 0007): who gets one, and what it says, before anything goes. Everyone who owes
-  // (Unpaid fees → Manage), or one member (their card's Dues tab). Anyone reminded in the last week is held back, and
-  // so is anyone with no email; the server checks both again. Opened in a drawer or a sheet by the page it's on.
+  // (Unpaid fees → Send reminders), or one member (their card's Dues tab). Anyone reminded in the last week is held
+  // back, and so is anyone with no email; the server checks both again. Opened in a drawer or a sheet by the page it's on.
   import Icon from "../app/shell/Icon.svelte";
   import { previewReminders, sendReminders, type ReminderPreview } from "../app/backend.svelte";
   import { BUCKETS } from "./dues";
@@ -89,7 +89,7 @@
         {#if !people.length}Nobody owes a penny.{:else}
           {held ? `${held} had one this week, so not again yet. ` : ""}{noEmail
             ? `${noEmail} with no email address. `
-            : ""}At most one a week each; the hourly reminders count too.
+            : ""}At most one a week each.
         {/if}
       </p>
     </section>

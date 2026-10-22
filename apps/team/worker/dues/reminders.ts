@@ -1,12 +1,13 @@
-// Reminders of what someone owes (ADR 0007). Whoever records payments emails members from Unpaid fees, after a
-// preview; the hourly Cron Trigger reminds them as their oldest charge ages. Either way it's at most one a week per
-// member, and each goes through `tell` (an email, and their phone if they have the store app).
+// Reminders of what someone owes (ADR 0007). Whoever records payments sends them from Unpaid fees (or a member's card),
+// after a preview; nothing sends them on a schedule yet (a configurable one is #143). It's at most one a week per
+// member, so a double tap or two admins at once send one, and each goes through `tell` (an email, and their phone if
+// they have the store app). How firm the letter is follows the age of their oldest charge (Unpaid fees' buckets).
 //
 // A reminder is claimed first (a queued row in dues_reminders, in one statement that checks the week), then sent a few
 // at a time: a Worker run makes at most 50 requests, and each email is one. What's left queued goes on the next run
 // (the five-minute cron), so a send to the whole club is done within minutes.
 import { all, batch, statement } from "@cougars/shared/d1";
-import { bucketOf, daysBetween } from "../../src/lib/dues";
+import { bucketOf } from "../../src/lib/dues";
 import { londonToday } from "../../src/lib/dates";
 import { HttpError } from "../api/api.http";
 import type { Env } from "../api/api.route";
@@ -17,28 +18,13 @@ import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("reminders");
 
-/**
- * The rules, all in one place (ADR 0007). By the age of a member's oldest unpaid charge (Unpaid fees' buckets): from a
- * fortnight, every four weeks while it's up to 30 days; every two weeks from 31 days; every week from 61 days. Over 90
- * days gets nothing automatic: that's an admin's call, and their own send still
- * works. Never more than one a week to anyone, an admin's send included.
- */
+/** The limits, in one place (ADR 0007). */
 export const REMINDERS = {
-  // The stored stage names (reminders.stage in D1) are the old keys; admins see Unpaid fees' plain buckets
-  stages: [
-    { stage: "minor", from: 14, every: 28 },
-    { stage: "major", from: 31, every: 14 },
-    { stage: "misconduct", from: 61, every: 7 },
-  ],
-  stopAfter: 90,
+  /** Never more than one a week to anyone. */
   weekDays: 7,
-  /** In London, from 10:00 until 20:00: nobody's woken by what they owe. */
-  hours: [10, 20],
   /** Emails per run, well under a Worker's 50 requests: the cron run that sends them also drains the push outbox
    * (DRAIN_AT_ONCE) and may ask for a website rebuild (docs/load-testing.md has the sums). */
   perRun: 10,
-  /** Members claimed by one cron run at most; the rest wait for the next hour. */
-  claimLimit: 100,
 } as const;
 
 const DAY = 86_400_000;
@@ -101,28 +87,22 @@ async function owers(db: D1Database, now: Date, memberIds: number[] | null = nul
       held: r.lastAt !== null && r.lastAt > week,
     }))
     .sort((a, b) => b.stage - a.stage || b.pence - a.pence || a.name.localeCompare(b.name));
-  return { people, bank: bankFrom(bank.results[0]), today };
+  return { people, bank: bankFrom(bank.results[0]) };
 }
 
 /**
- * Claim reminders: one queued row per member, unless they've had one since their `since` (a week, or longer for their
- * stage). One statement, so two runs at once claim each member once. Returns who was claimed.
+ * Claim reminders: one queued row per member, unless they've had one in the last week. One statement, so two sends at
+ * once (a double tap, two admins) claim each member once. Returns who was claimed.
  */
-async function claim(
-  db: D1Database,
-  wanted: { member: number; stage: string; since: string }[],
-  by: number | null,
-  now: Date,
-): Promise<number[]> {
-  if (!wanted.length) return [];
+async function claim(db: D1Database, memberIds: number[], by: number, now: Date): Promise<number[]> {
+  if (!memberIds.length) return [];
   const rows = await all<{ member_id: number }>(
     db,
     `INSERT INTO dues_reminders (member_id, stage, sent_by, claimed_at)
-     SELECT j.value ->> 'member', j.value ->> 'stage', ?, ? FROM json_each(?) j
-     WHERE NOT EXISTS (SELECT 1 FROM dues_reminders r WHERE r.member_id = j.value ->> 'member'
-       AND r.claimed_at > j.value ->> 'since')
+     SELECT j.value, 'by_hand', ?, ? FROM json_each(?) j
+     WHERE NOT EXISTS (SELECT 1 FROM dues_reminders r WHERE r.member_id = j.value AND r.claimed_at > ?)
      RETURNING member_id`,
-    [by, now.toISOString(), JSON.stringify(wanted)],
+    [by, now.toISOString(), JSON.stringify(memberIds), ago(now, REMINDERS.weekDays)],
   );
   return rows.map((r) => r.member_id);
 }
@@ -154,13 +134,8 @@ export async function sendReminders(env: Env, o: Record<string, unknown>, by: nu
   const { people, bank } = await owers(env.DB, now, (asked as number[] | undefined) ?? null);
   if (!bank) throw new HttpError(409, "Fill in the club's bank details first: the email says where to pay.");
   const reachable = people.filter((p) => p.email);
-  const since = ago(now, REMINDERS.weekDays);
-  const claimed = await claim(
-    env.DB,
-    reachable.map((p) => ({ member: p.memberId, stage: "by_hand", since })),
-    by,
-    now,
-  );
+  const memberIds = reachable.map((p) => p.memberId);
+  const claimed = await claim(env.DB, memberIds, by, now);
   return {
     memberIds: claimed,
     queued: claimed.length,
@@ -169,33 +144,7 @@ export async function sendReminders(env: Env, o: Record<string, unknown>, by: nu
   };
 }
 
-// ─── The cron's ───
-
-/** Whether it's the time of day reminders go out, in London. */
-function daytime(now: Date) {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(now),
-  );
-  return hour >= REMINDERS.hours[0] && hour < REMINDERS.hours[1];
-}
-
-/** The hourly run: claim whoever's due one by the rules, then send a few. */
-export async function remindDue(env: Env, now: Date) {
-  if (!daytime(now)) return;
-  const { people, bank, today } = await owers(env.DB, now);
-  if (!bank) return void log.info("reminders.no_bank", { owing: people.length });
-  const wanted = people
-    .filter((p) => p.email)
-    .flatMap((p) => {
-      const age = daysBetween(p.oldest, today);
-      const rule = [...REMINDERS.stages].reverse().find((s) => age >= s.from);
-      if (!rule || age > REMINDERS.stopAfter) return [];
-      return [{ member: p.memberId, stage: rule.stage, since: ago(now, Math.max(REMINDERS.weekDays, rule.every)) }];
-    })
-    .slice(0, REMINDERS.claimLimit);
-  await claim(env.DB, wanted, null, now);
-  await sendQueued(env, now);
-}
+// ─── Sending what's queued (the admin's send, then the five-minute cron) ───
 
 interface Queued {
   id: number;

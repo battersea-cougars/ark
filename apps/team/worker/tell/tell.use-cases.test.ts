@@ -1,12 +1,11 @@
 // Telling a member what's theirs to know (tell.ts): the email, then their phone. A member whose email didn't go isn't
 // told on their phone either, so they hear it once, when it's tried again; and with Firebase on, the phones wait for
-// the next push drain, since the emails took the invocation's requests. Driven through the dues reminders, the one
-// feature that tells, in the fake world (ADR 0031): Gmail is its outbox, which a test can make refuse one address.
+// the next push drain, since the emails took the invocation's requests. Driven through an admin's send of dues
+// reminders, the one feature that tells, in the fake world (ADR 0031): Gmail is its outbox, which a test can make refuse one address.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { outbox } from "@cougars/shared/email";
 import { captureLogs } from "@cougars/shared/testing/scribe";
 import { minutes, NOW, testWorld } from "../testing";
-import { remindDue } from "../dues/reminders";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -52,6 +51,9 @@ function refuse(address: string) {
   };
   return () => void (outbox.capture = deliver);
 }
+/** Dana sends reminders from Unpaid fees. */
+const send = async (now = NOW) =>
+  expect((await dana.call("POST", "/api/dues/reminders", {}, { now })).status).toBe(200);
 const mailedFor = () => w.mails.map((m) => m.subject.match(/for ([^\]]+)\]/)?.[1] ?? m.to.join(", "));
 
 describe("telling members what they owe", () => {
@@ -63,14 +65,14 @@ describe("telling members what they owe", () => {
     await phone("alt@example.com");
     const accept = refuse("reg@example.com");
 
-    await remindDue(w.env, NOW);
+    await send();
     expect(mailedFor()).toEqual(["alt@example.com"]);
     expect(w.pushes.map((p) => p.token)).toEqual(["phone-alt@example.com"]);
     expect(logs.messages()).toContain("tell.email_failed");
 
-    // Gmail takes it again: the next run tells Reg, once, both ways, and Alt nothing more
+    // Gmail takes it again: the next send tells Reg, once, both ways, and Alt nothing more
     accept();
-    await remindDue(w.env, minutes(60));
+    await send(minutes(60));
     expect(mailedFor()).toEqual(["alt@example.com", "reg@example.com"]);
     expect(w.pushes.map((p) => p.token)).toEqual(["phone-alt@example.com", "phone-reg@example.com"]);
   });
@@ -80,7 +82,7 @@ describe("telling members what they owe", () => {
     await owes("Reg Player", 1200);
     await phone("reg@example.com");
     refuse("reg@example.com");
-    await remindDue(w.env, NOW);
+    await send();
     expect(w.pushes).toEqual([]);
     expect(w.db.raw.prepare("SELECT count(*) n FROM push_outbox").get()).toEqual({ n: 0 });
   });
@@ -90,7 +92,7 @@ describe("telling members what they owe", () => {
     await owes("Reg Player", 1200);
     await phone("reg@example.com");
 
-    await remindDue(w.env, NOW);
+    await send();
     expect(mailedFor()).toEqual(["reg@example.com"]);
     expect(fcm.asked).toEqual([]);
     await w.cron(minutes(5));
@@ -103,7 +105,7 @@ describe("telling members what they owe", () => {
     const reg = await w.signedIn("reg@example.com");
     expect((await reg.call("PUT", "/api/me/notifications", { dues: false })).status).toBe(200);
 
-    await remindDue(w.env, NOW);
+    await send();
     expect(mailedFor()).toEqual(["reg@example.com"]);
     expect(w.pushes).toEqual([]);
   });

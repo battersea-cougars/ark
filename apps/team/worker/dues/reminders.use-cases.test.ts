@@ -1,11 +1,12 @@
 // Dues reminders (ADR 0007): whoever records payments emails members what they owe, from Unpaid fees, after seeing
-// who gets one and what it says; and the hourly Cron Trigger reminds members as a charge ages (up to 30 days,
-// 31 to 60, 61 to 90), never more than one a week. Each goes through the one "tell a member" seam: an email, and a
-// notification on their phone if they have the store app (ADR 0108). Driven through the real handlers in the fake world
-// (ADR 0031): mail is caught in its outbox, phones in its push outbox, and the cron is called as `scheduled` calls it.
+// who gets one and what it says, never more than one a week each. Nothing reminds anyone on its own: the hourly Cron
+// Trigger sends none (a configurable schedule is #143); the five-minute one only sends what an admin's send left
+// queued. Each goes through the one "tell a member" seam: an email, and a notification on their phone if they have the
+// store app (ADR 0108). Driven through the real handlers in the fake world (ADR 0031): mail is caught in its outbox,
+// phones in its push outbox, and the crons are run as Cloudflare runs them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
-import { REMINDERS, remindDue, sendQueued } from "./reminders";
+import { REMINDERS } from "./reminders";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -180,74 +181,41 @@ describe("at most one reminder a week", () => {
     expect(w.mails).toHaveLength(2);
   });
 
-  it("an admin's reminder counts: the cron doesn't send another that week", async () => {
+  it("a double tap, or two admins at once, sends one", async () => {
     await bank();
-    await owes("Reg Player", 1200, "2026-08-01");
-    await send();
-    await remindDue(w.env, later(1));
-    await remindDue(w.env, later(6));
-    expect(w.mails).toHaveLength(1);
+    await owes("Reg Player", 1200, "2026-09-20");
+    const ed = await w.signedIn("dana@example.com");
+    const [one, two] = await Promise.all([send(), send(undefined, ed)]);
+    expect(one.body.queued + two.body.queued).toBe(1);
+    expect(one.body.held + two.body.held).toBe(1);
+    expect(mailedFor()).toEqual(["reg@example.com"]);
   });
 });
 
-describe("the hourly reminders, as a charge ages", () => {
-  it("the thresholds live in one place: from 14 days, more often from 31 and 61, none over 90", () => {
-    expect(REMINDERS.stages.map((s) => [s.from, s.every])).toEqual([
-      [14, 28],
-      [31, 14],
-      [61, 7],
-    ]);
-    expect(REMINDERS.stopAfter).toBe(90);
-    expect(REMINDERS.weekDays).toBe(7);
-  });
-
-  it("reminds someone once their oldest charge is a fortnight old, and only once however often it runs", async () => {
-    await bank();
-    await owes("Reg Player", 1200, "2026-09-20"); // 16 days: up to 30
-    await owes("Mo Newbie", 1200, "2026-10-02"); // 4 days: too soon
-    await remindDue(w.env, NOW);
-    await remindDue(w.env, later(0, 1));
-    await Promise.all([remindDue(w.env, later(0, 2)), remindDue(w.env, later(0, 2))]);
-    expect(mailedFor()).toEqual(["reg@example.com"]);
-    expect(w.mails[0].text).toContain("COUGARS REG P");
-  });
-
-  it("every four weeks up to 30 days, every two to 60, every week to 90, and nothing over 90 days", async () => {
+describe("nothing goes on its own", () => {
+  it("the hourly cron reminds nobody, however old what they owe gets", async () => {
     await bank();
     await owes("Reg Player", 1200, "2026-09-22"); // 14 days old today
-    const days: number[] = [];
-    for (let d = 0; d <= 90; d++) {
-      const before = w.mails.length;
-      await remindDue(w.env, later(d));
-      if (w.mails.length > before) days.push(d + 14);
+    await owes("Alt Player", 1200, "2026-08-01"); // over 60
+    await owes("Mo Newbie", 1200, "2026-06-01"); // over 90
+    for (let d = 0; d <= 100; d += 1) {
+      await w.scheduled("7 * * * *", later(d));
+      await w.scheduled("*/5 * * * *", later(d, 0.1));
     }
-    // His oldest charge's age each time he heard: 14; 31, 45, 59 (a fortnight apart); then weekly
-    // from 61 (a week after the last), until it's over 90 at 91
-    expect(days).toEqual([14, 31, 45, 59, 66, 73, 80, 87]);
-    expect(w.mails[1].subject).toContain("£12.00");
+    expect(w.mails).toEqual([]);
+    expect(w.db.raw.prepare("SELECT COUNT(*) n FROM dues_reminders").get()).toEqual({ n: 0 });
   });
 
-  it("goes out in the day (10:00 to 20:00 in London), not in the night", async () => {
+  it("how firm the letter is still follows how long it's been: the admin's send reads the age", async () => {
     await bank();
-    await owes("Reg Player", 1200, "2026-09-20");
-    await remindDue(w.env, new Date("2026-10-06T02:00:00Z")); // 03:00 in London
-    expect(w.mails).toEqual([]);
-    await remindDue(w.env, new Date("2026-10-06T09:00:00Z")); // 10:00
-    expect(w.mails).toHaveLength(1);
+    await owes("Reg Player", 1200, "2026-09-20"); // up to 30 days
+    await owes("Mo Newbie", 1200, "2026-06-01"); // over 90
+    await send();
+    expect(w.mails.find((m) => m.subject.includes("reg@"))!.text).toContain("A friendly nudge");
+    expect(w.mails.find((m) => m.subject.includes("mo@"))!.text).toContain("A firm reminder");
   });
 
-  it("nobody without bank details, and nobody once they've paid", async () => {
-    await owes("Reg Player", 1200, "2026-09-20");
-    await remindDue(w.env, NOW);
-    expect(w.mails).toEqual([]);
-    await bank();
-    await dana.call("POST", `/api/members/${await idOf("Reg Player")}/payments`, { via: "transfer", pence: 1200 });
-    await remindDue(w.env, NOW);
-    expect(w.mails).toEqual([]);
-  });
-
-  it(`a few at a time: no run sends more than ${REMINDERS.perRun}, the five-minute runs send the rest`, async () => {
-    await bank();
+  it(`a few at a time: the send takes ${REMINDERS.perRun}, the five-minute runs send the rest`, async () => {
     const many = Array.from({ length: 40 }, (_, i) => ({
       name: `Player ${String(i).padStart(2, "0")} Many`,
       position: "F",
@@ -259,35 +227,35 @@ describe("the hourly reminders, as a charge ages", () => {
     await bank();
     w.db.raw.exec(`INSERT INTO charges (member_id, reason, amount_pence, due_on, created_at)
       SELECT id, 'Kit', 1000, '2026-09-01', '2026-09-01' FROM members WHERE email LIKE 'p%@example.com'`);
-    await remindDue(w.env, NOW);
+    expect((await send()).body).toMatchObject({ queued: 40 });
     expect(w.mails).toHaveLength(REMINDERS.perRun);
-    await sendQueued(w.env, later(0, 0.1));
+    await w.scheduled("*/5 * * * *", later(0, 0.1));
     expect(w.mails).toHaveLength(REMINDERS.perRun * 2);
-    await sendQueued(w.env, later(0, 0.2));
-    await sendQueued(w.env, later(0, 0.3));
+    await w.scheduled("*/5 * * * *", later(0, 0.2));
+    await w.scheduled("*/5 * * * *", later(0, 0.3));
     expect(w.mails).toHaveLength(40);
     expect(new Set(mailedFor()).size).toBe(40);
   });
 });
 
 describe("when the email can't go", () => {
-  it("a failed send doesn't count: it's tried again on the next run", async () => {
+  it("a failed send doesn't count: the admin can send it again", async () => {
     await bank();
     await owes("Reg Player", 1200, "2026-09-20");
     // Gmail is set up but down
     Object.assign(w.env, { GMAIL_CLIENT_ID: "id", GMAIL_CLIENT_SECRET: "secret", GMAIL_REFRESH_TOKEN: "token" });
     vi.stubGlobal("fetch", async () => new Response("down", { status: 503 }));
-    await remindDue(w.env, NOW);
+    expect((await send()).body).toMatchObject({ queued: 1 });
     vi.unstubAllGlobals();
     expect(w.mails).toEqual([]);
     expect(w.db.raw.prepare("SELECT COUNT(*) n FROM dues_reminders").get()).toEqual({ n: 0 });
-    // Back to logging mail (no Gmail): the next hour it goes
+    // Back to logging mail (no Gmail): sent again an hour on, it goes
     Object.assign(w.env, {
       GMAIL_CLIENT_ID: undefined,
       GMAIL_CLIENT_SECRET: undefined,
       GMAIL_REFRESH_TOKEN: undefined,
     });
-    await remindDue(w.env, later(0, 1));
+    expect((await send(undefined, dana, later(0, 1))).body).toMatchObject({ queued: 1 });
     expect(mailedFor()).toEqual(["reg@example.com"]);
   });
 });

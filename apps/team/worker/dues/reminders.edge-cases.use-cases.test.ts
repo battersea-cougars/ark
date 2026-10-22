@@ -1,10 +1,8 @@
 // Dues reminders at the edges (ADR 0007): who never gets one (credit, a member who's left, paid since it was queued),
-// what a long list of charges reads like, the exact ages and hours a reminder starts and stops, in GMT and BST, and
-// what an admin's send refuses. Driven through the real handlers in the fake world (ADR 0031): mail is caught in its
-// outbox, and the cron is called as `scheduled` calls it.
+// what a long list of charges reads like, and what an admin's send refuses. Driven through the real handlers in the
+// fake world (ADR 0031): mail is caught in its outbox, and the five-minute cron is run as Cloudflare runs it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
-import { remindDue, sendQueued } from "./reminders";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -12,7 +10,6 @@ const ROSTER = [
   { name: "Alt Player", position: "F", rating: 55, email: "alt@example.com" },
 ];
 const BANK = { name: "Battersea Cougars", sortCode: "12-34-56", account: "12345678" };
-const DAY = 86_400_000;
 
 let w: ReturnType<typeof testWorld>;
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
@@ -39,7 +36,6 @@ describe("who never gets one", () => {
     await owes("Reg Player", -1500, "2026-09-01", "Reffed");
     expect((await dana.call("GET", "/api/dues/reminders")).body.people).toEqual([]);
     expect((await send()).body).toMatchObject({ queued: 0 });
-    await remindDue(w.env, NOW);
     expect(w.mails).toEqual([]);
   });
 
@@ -48,7 +44,6 @@ describe("who never gets one", () => {
     w.db.raw.exec("UPDATE members SET status = 'inactive' WHERE name = 'Reg Player'");
     expect((await dana.call("GET", "/api/dues/reminders")).body.people).toEqual([]);
     expect((await send({ memberIds: [await idOf("Reg Player")] })).body).toMatchObject({ queued: 0 });
-    await remindDue(w.env, NOW);
     expect(w.mails).toEqual([]);
   });
 
@@ -65,14 +60,14 @@ describe("who never gets one", () => {
     await dana.call("PUT", "/api/settings/bank", BANK);
     w.db.raw.exec(`INSERT INTO charges (member_id, reason, amount_pence, due_on, created_at)
       SELECT id, 'Kit', 1000, '2026-09-01', '2026-09-01' FROM members WHERE email LIKE 'p%@example.com'`);
-    await remindDue(w.env, NOW);
+    expect((await send()).body).toMatchObject({ queued: 12 });
     expect(w.mails).toHaveLength(10);
     const waiting = (
       w.db.raw.prepare("SELECT member_id m FROM dues_reminders WHERE status = 'queued'").all() as { m: number }[]
     ).map((r) => r.m);
     expect(waiting).toHaveLength(2);
     for (const m of waiting) await dana.call("POST", `/api/members/${m}/payments`, { via: "transfer", pence: 1000 });
-    await sendQueued(w.env, new Date(NOW.getTime() + 5 * 60_000));
+    await w.scheduled("*/5 * * * *", new Date(NOW.getTime() + 5 * 60_000));
     expect(w.mails).toHaveLength(10);
     // Nothing of theirs is left queued or counted as sent: a new charge reminds them as anyone
     expect(w.db.raw.prepare("SELECT COUNT(*) n FROM dues_reminders WHERE member_id IN (?, ?)").get(...waiting)).toEqual(
@@ -111,46 +106,11 @@ describe("what it says", () => {
   });
 });
 
-describe("the exact edges of the hourly reminders", () => {
-  // NOW is Tuesday 6 October 2026, 12:00 in London (BST)
-  const at = (iso: string) => remindDue(w.env, new Date(iso));
-
-  it("thirteen days old is too soon; fourteen days old, it goes", async () => {
-    await owes("Reg Player", 1200, "2026-09-23"); // 13 days old today
-    await at("2026-10-06T11:00:00Z");
-    expect(w.mails).toEqual([]);
-    await at("2026-10-07T11:00:00Z");
-    expect(mailedFor()).toEqual(["reg@example.com"]);
-  });
-
-  it("ninety days old still gets one; ninety-one gets nothing automatic, though an admin can still send", async () => {
-    await owes("Reg Player", 1200, "2026-07-08"); // 90 days old today
+describe("however late", () => {
+  it("someone over 90 days late gets the admin's send like anyone", async () => {
     await owes("Alt Player", 1200, "2026-07-07"); // 91 days old
-    await at(NOW.toISOString());
-    expect(mailedFor()).toEqual(["reg@example.com"]);
-    // A week on, Reg's is over 90 too: nothing more goes by itself
-    await at(new Date(NOW.getTime() + 8 * DAY).toISOString());
-    expect(mailedFor()).toEqual(["reg@example.com"]);
     expect((await send({ memberIds: [await idOf("Alt Player")] })).body).toMatchObject({ queued: 1 });
-    expect(mailedFor()).toEqual(["reg@example.com", "alt@example.com"]);
-  });
-
-  it("in summer (BST) the day's window is 09:00 to 19:00 UTC: 09:59 London no, 10:00 yes, 20:00 no", async () => {
-    await owes("Reg Player", 1200, "2026-09-20");
-    await at("2026-10-06T08:59:00Z");
-    await at("2026-10-06T19:00:00Z"); // 20:00 in London
-    expect(w.mails).toEqual([]);
-    await at("2026-10-06T18:59:00Z"); // 19:59 in London
-    expect(w.mails).toHaveLength(1);
-  });
-
-  it("in winter (GMT) the same window is 10:00 to 20:00 UTC, the day after the clocks go back", async () => {
-    await owes("Reg Player", 1200, "2026-10-01");
-    // 26 October 2026, a Monday after the clocks went back on the 25th: 09:30 UTC is 09:30 in London
-    await at("2026-10-26T09:30:00Z");
-    expect(w.mails).toEqual([]);
-    await at("2026-10-26T10:00:00Z");
-    expect(w.mails).toHaveLength(1);
+    expect(mailedFor()).toEqual(["alt@example.com"]);
   });
 });
 

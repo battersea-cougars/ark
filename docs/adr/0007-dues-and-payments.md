@@ -130,31 +130,30 @@ session's fee.
   in by whoever sets fees (`manage:Fees`) from Unpaid fees → Manage → Bank details, and on the record
   (`settings.bank`). Every member sees them on their Dues page beside their reference; until they're in, it says to
   ask the treasurer, never sample numbers. Nothing is emailed without them.
-- **Whoever records payments (`record:Payment`) emails members what they owe**, from Unpaid fees → Manage → Email
-  what they owe (everyone who owes), or from a member's card (Dues tab → Email what they owe). First they see who
-  gets one (what each owes, how late, when they were last reminded, who's held back) and what one says; then they
-  send. It's on the record (`dues.reminded`).
+- **Whoever records payments (`record:Payment`) sends the reminders, by hand.** Unpaid fees has one main button,
+  **Send reminders** (everyone who owes), and a member's card has Dues tab → Email what they owe (just them). First
+  they see who gets one (what each owes, how late, when they were last reminded, who's held back) and what one says;
+  then they send. It's on the record (`dues.reminded`).
 - **The email** is the member's own: each unpaid charge (the day, what for, what's left on it), the total, their
   reference and the bank details. Plain text first, the same in the club's frame; firmer the longer it's been. With it, a notification on their phone if they have the store app
   ([0108](0108-store-apps.md)): the dues code tells a member through one call (`worker/tell/tell.ts`), which sends the
   email under the mail rules ([0027](0027-email-through-gmail-api.md)) and the notification through `notify`, so a
   new channel (web push, #24) doesn't touch the dues code.
-- **The hourly Cron Trigger reminds members as their oldest unpaid charge ages**, between 10:00 and 20:00 in London.
-  The rules live in one place (`REMINDERS` in `reminders.ts`):
-  - **Up to 30 days**: from 14 days, every 4 weeks.
-  - **31 to 60 days**: every 2 weeks.
-  - **61 to 90 days**: every week.
-  - **Over 90 days**: nothing automatic. That's an admin's call; their own send still works.
-- **At most one reminder a week to anyone**, an admin's send included: someone reminded by hand isn't reminded again
-  by the cron that week, and the other way round. A member with no email, or not active, gets none.
+- **Nothing reminds anyone on its own, for now.** No cron sends reminders: an admin decides when. A configurable
+  schedule (how often, by how late, at what time of day) is a later issue,
+  [#143](https://github.com/battersea-cougars/ark/issues/143). How firm the email is still follows the age of the
+  member's oldest unpaid charge (Unpaid fees' buckets).
+- **At most one reminder a week to anyone**: a double tap, or two admins sending at once, sends one, and someone
+  reminded this week is held back (the preview says so). A member with no email, or not active, gets none.
 - **Claimed, then sent a few at a time.** A reminder is claimed first, as a queued row in `dues_reminders`, in one
-  statement that checks the week, so two runs at once send one. A run then takes the next few to send (`sending`, in
-  the same round trip that reads them), so an admin's Send beside the cron, or two runs at once, never both email
-  someone; a run that died is overtaken after ten minutes. Each run sends at most 10 (a Worker run makes at most 50
-  requests, each email is one, and the same cron run also drains the push outbox: [0121](0121-load-and-concurrency.md)
-  has the sums); the phones hear it with the next push drain. The rest go on the next five-minute run, so a send to
-  the whole club is done within the hour. A send that fails is released and tried again; someone who has paid by the time it goes
-  gets nothing. Admins see when someone was last reminded.
+  statement that checks the week, so two sends at once claim one. The send itself sends the first few; then a run
+  takes the next few to send (`sending`, in the same round trip that reads them), so an admin's Send beside the
+  five-minute cron, or two runs at once, never both email someone; a run that died is overtaken after ten minutes.
+  Each run sends at most 10 (a Worker run makes at most 50 requests, each email is one, and the same cron run also
+  drains the push outbox: [0121](0121-load-and-concurrency.md) has the sums); the phones hear it with the next push
+  drain. The rest go on the next five-minute runs, so a send to the whole club is done within the hour. A send that
+  fails is released, so the admin can send it again; someone who has paid by the time it goes gets nothing. Admins see
+  when someone was last reminded.
 
 **What people see**
 
@@ -170,8 +169,8 @@ session's fee.
 - **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member and
   bucketed by each charge's age in plain words: **Up to 30 days**, **31 to 60 days**, **61 to 90 days**, **Over 90
   days** (ranges say "to", never a dash). The reminders' stored stages keep their old keys (`minor`, `major`,
-  `misconduct`); nobody sees them. Column totals, a drill-down to each member's charges, and CSV export. Its Manage button holds the
-  reminders and the bank details.
+  `misconduct`); nobody sees them. Column totals, a drill-down to each member's charges, and CSV export. Send reminders
+  is its main button; its Manage button holds the bank details.
 
 ## Consequences
 
@@ -243,3 +242,8 @@ session's fee.
 - 2026-10-21: Two runs sending reminders at once (an admin's Send and the five-minute cron) emailed someone twice: a
   run now takes what it sends first (`dues_reminders.sending`); 10 a run instead of 15, so a cron run keeps within 50
   subrequests with the push drain beside it ([0121](0121-load-and-concurrency.md)).
+- 2026-10-22: Automatic reminders are off until a configurable schedule ([#143](https://github.com/battersea-cougars/ark/issues/143)):
+  the hourly cron reminds nobody (`remindDue` and the age rules, the 10:00 to 20:00 window and the claim limit went);
+  an admin sends them with Send reminders, Unpaid fees' main button (was: under Manage), after the same preview. Still
+  at most one a week each; the five-minute cron still sends what a send left queued. "For now, let's just make it so
+  the admin sends out the reminders with a button push. Then later we can build some kind of configurable schedule."

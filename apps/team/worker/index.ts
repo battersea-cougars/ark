@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { handleApi, type Env } from "./api/api";
 import { chargeDue } from "./dues/dues";
-import { remindDue, sendQueued } from "./dues/reminders";
+import { sendQueued } from "./dues/reminders";
 import { forgetOld } from "./settings/retention";
 import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
@@ -83,19 +83,19 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
     // Every run, five-minutely and hourly: the next batch of notifications a club-wide send left waiting (ADR 0108)
     await task("push.drain", () => drainPush(env, now));
     // Every five minutes (wrangler.jsonc triggers): a wanted website rebuild, once it's quiet (ADR 0100)
-    // and the next few dues reminders still queued (ADR 0007), so a send to the whole club goes within minutes
+    // and the next few dues reminders an admin sent still queued (ADR 0007), so a send to the whole club goes within
+    // minutes
     if (controller.cron === "*/5 * * * *") {
       await task("website.rebuild", () => rebuildWebsite(env, now));
       await task("dues.remind.send", () => sendQueued(env, now));
     }
-    // Hourly: charge what a new day or quarter makes due and remind whoever's due one (ADR 0007), warn the admins
+    // Hourly: charge what a new day or quarter makes due (ADR 0007; no reminders: an admin sends them), warn the admins
     // before the free allowance runs out (ADR 0059), and forget old sign-in records (#30). Each on its own, so one
     // failing doesn't stop the rest. It checks in with Sentry's cron monitor (ADR 0111, scripts/sentry-setup.mjs), so
     // an hour it doesn't run is an alert; a job's failure is reported by its own log line. No Sentry here: just runs.
     else {
       await Sentry.withMonitor(HOURLY_MONITOR, async () => {
         await task("dues.charge", () => chargeDue(env, now));
-        await task("dues.remind", () => remindDue(env, now));
         await task("usage.check", () => checkUsage(env, now));
         await task("retention.forget", () => forgetOld(env.DB, now));
         await task("sanity.count", () => flushSanityRequests(env.DB, now));
