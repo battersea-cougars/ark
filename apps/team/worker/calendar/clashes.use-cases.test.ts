@@ -74,7 +74,12 @@ describe("scheduling over something already on", () => {
     const reg = await w.signedIn("reg@example.com");
     await reg.call("PUT", "/api/auth/device", { token: "reg-phone", platform: "ios" });
     const night = await sessionOn(dana, FRIDAY);
-    await reg.call("POST", `/api/sessions/${night.id}/answer`, { answer: "in" });
+    await reg.call(
+      "POST",
+      `/api/sessions/${night.id}/answer`,
+      { answer: "in" },
+      { now: new Date("2026-10-12T12:00:00Z") },
+    ); // the Monday: sign-up open (ADR 0030)
     const [clash] = (await ask(dana, at(FRIDAY, "18:00"), at(FRIDAY, "23:00"))).body.clashes;
     expect(clash.signedUp).toBe(1);
 
