@@ -53,7 +53,9 @@
                 logo={teams.find((t) => t.id === r.teamId)?.logo ?? null}
                 tone={teamTone(teams.findIndex((t) => t.id === r.teamId))}
                 size="2.75rem"
-              /><a class="team-link" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a></span
+              /><a class="team-link" href={teamHref(type.slug, r.teamId)}
+                >{teamName(r.teamId)}<Icon name="chevronRight" size={14} /></a
+              ></span
             >{#if r.teamId === champ}<span class="badge red champ-badge"><Icon name="trophy" size={13} />Champions</span
               >{/if}</td
           >
@@ -72,8 +74,16 @@
     margin-left: var(--s-3);
     vertical-align: middle;
   }
+  /* Plainly a way to the team, pointer or not: the name with a chevron */
   .team-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
     color: inherit;
+  }
+  .team-link :global(svg) {
+    flex: none;
+    color: var(--fg-subtle);
   }
   .team-link:hover {
     text-decoration: underline;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A captains' draft (ADR 0060), led one step at a time, one main button each for whoever runs it: Shuffle (the pick
+  // The Draft open view of a tournament's page (ADR 0074): a captains' draft (ADR 0060), led one step at a time, one main button each for whoever runs it: Shuffle (the pick
   // order, drawn at random on the server; DraftOrder shuffles the names into it for whoever's watching), Open draft
   // (each captain hears where they pick), the picking, then Close draft & make fixtures in one tap; closed, it says
   // so, and Reopen is in Manage. The captains take turns, in snake order, picking from the members who said they're in
@@ -28,14 +28,13 @@
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import StepBack from "../lib/StepBack.svelte";
-  import { BACK_SAYS, BACK_TO, backFrom } from "../lib/step-back";
+  import { BACK_SAYS, BACK_TO, backFrom, backTo } from "../lib/step-back";
   import Sheet from "../lib/Sheet.svelte";
   import { phone } from "../lib/viewport.svelte";
   import type { IconName } from "../app/shell/icons";
   import { teamTone } from "../lib/team-tones";
   import TeamLookSheet from "../lib/TeamLookSheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
-  import TournamentHead from "../lib/TournamentHead.svelte";
   import { editTournament } from "../lib/TournamentEditorPanel.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import {
@@ -64,9 +63,19 @@
     playersNeeded,
   } from "../lib/draft";
   import { teamsForPlayoffs } from "../lib/fixtures";
-  import { navigate } from "../app/router.svelte";
+  import { navigate, router } from "../app/router.svelte";
 
-  let { typeId }: { typeId: number } = $props();
+  let {
+    typeId,
+    onpicking,
+    onmanage,
+  }: {
+    typeId: number;
+    /** Told whether it's being picked (open, players left), so a phone's page makes room for it (ADR 0074). */
+    onpicking?: (picking: boolean) => void;
+    /** Told how to open its jobs (Manage the draft), or none, for the page header's Manage (ADR 0074). */
+    onmanage?: (open: (() => void) | null) => void;
+  } = $props();
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
@@ -114,6 +123,7 @@
   const viewsIn = { duration: prefersReducedMotion ? 0 : 300, delay: prefersReducedMotion ? 0 : 560 };
   const open = $derived(phase === "open");
   const live = $derived(open && pool.length > 0);
+  $effect(() => onpicking?.(live));
   // Everyone's picked, or closed: the picking's over, so the page is the teams (no ticker, no Next, no tabs), and it
   // scrolls as a page, not in a box
   const done = $derived((open && !pool.length) || phase === "closed");
@@ -327,19 +337,6 @@
   );
   // What just happened, for everyone on the page (the log's behind a button): the last pick, with its team
   const lastPick = $derived(log.at(-1) ?? null);
-  // In a drawer from the strip, by round
-  let logOpen = $state(false);
-  // The rules, in a drawer beside it
-  let rulesOpen = $state(false);
-  const rounds = $derived.by(() => {
-    const out: { round: number; picks: typeof log }[] = [];
-    for (const l of log) {
-      const r = Math.ceil(l.n / teams.length);
-      if (out.at(-1)?.round !== r) out.push({ round: r, picks: [] });
-      out.at(-1)!.picks.push(l);
-    }
-    return out;
-  });
   const tickMeta = (t: { n: number; team: number; took?: string; by?: string }) => {
     if (t.n <= made) return `${t.n} · ${t.by ? `${t.by} took ` : t.took ? "took " : "picked"}${t.took ?? ""}`;
     const k = t.n - made - 1;
@@ -426,20 +423,20 @@
   const makesFixtures = $derived(!games.length && !tooFew);
   const finishes = $derived(games.length > 0 || !tooFew);
   const finishLabel = $derived(makesFixtures ? "Close draft & make fixtures" : "Close the draft");
-  // Fixtures made, whoever made them goes on to the Fight Card (the next step); captains watching stay, and the closed
-  // page links them there
-  const fightCard = $derived(`/tournaments/${type.slug}/schedule`);
+  // Fixtures made, the tournament's page moves on to Fixtures set by itself (ADR 0074): its own address shows the
+  // status it's at, so whoever made them, from the draft's address, goes to it; captains watching stay where they are
+  const home = $derived(`/tournaments/${type.slug}`);
   const finish = (leaveOut = false) =>
     tournament &&
     job(async () => {
       const making = makesFixtures;
       const done = await (finishes ? finishDraft(tournament.id, leaveOut) : closeDraft(tournament.id, leaveOut));
-      if (done !== null && making) navigate(fightCard);
+      if (done !== null && making && router.path !== home) navigate(home);
     });
   const fixturesNow = () =>
     tournament &&
     job(async () => {
-      if ((await makeFixtures(tournament.id)) !== null) navigate(fightCard);
+      if ((await makeFixtures(tournament.id)) !== null && router.path !== home) navigate(home);
     });
   // Closing with members still to pick (Manage): say so, and ask before leaving them out
   let confirmLeaveOut = $state(false);
@@ -520,7 +517,7 @@
     if (running && (from === "draft" || from === "order"))
       list.push({
         icon: "undo",
-        label: BACK_TO[from],
+        label: tournament ? backTo(from, tournament.kind) : BACK_TO[from],
         sub: BACK_SAYS[from],
         run: () => ((manageOpen = false), stepper?.start()),
       });
@@ -554,6 +551,7 @@
       });
     return list;
   });
+  $effect(() => onmanage?.(tools.length ? () => (manageOpen = true) : null));
   $effect(() => {
     if (manageOpen) return;
     confirmLeaveOut = false;
@@ -747,11 +745,7 @@
 
 <!-- On a phone, once it's open, the page is the window's height and the players scroll inside it (.page.fit), so the
      list starts high and takes the rest -->
-<div class="page full draft" class:fit class:on={open} bind:clientWidth={pageW}>
-  {#if tournament}
-    <TournamentHead {type} {tournament} title="Draft" compact={phone.current && live} />
-  {/if}
-
+<div class="draft" class:fit class:on={open} bind:clientWidth={pageW}>
   {#if !tournament || tournament.kind !== "draft"}
     <p class="hint">No draft coming up.</p>
   {:else if teams.length < 2}
@@ -805,17 +799,8 @@
             ><Icon name={liveFeed.on ? "live" : "clock"} size={14} /><span class="lbl"><LiveNote /></span></span
           >
         {/if}
-        <button class="btn ghost sm" onclick={() => (rulesOpen = true)} aria-label="Rules"
-          ><Icon name="rules" size={16} /><span class="lbl">Rules</span></button
-        >
-        <button class="btn ghost sm" onclick={() => (logOpen = true)} aria-label="Pick log"
-          ><Icon name="list" size={16} /><span class="lbl">Pick log</span></button
-        >
-        {#if tools.length}
-          <button class="btn ghost sm" aria-haspopup="dialog" onclick={() => (manageOpen = true)} aria-label="Manage"
-            ><Icon name="settings" size={16} /><span class="lbl">Manage</span></button
-          >
-        {/if}
+        <!-- Rules and Manage are the page header's (ADR 0074): the draft's jobs are in its Manage, the rules in
+             Format & rules, the picks on the ticker and, once it's done, How the picks went -->
       </div>
     </div>
 
@@ -898,9 +883,7 @@
               >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
             >{/if}
         </p>
-        {#if games.length}
-          <a class="btn outline sm" href={fightCard}>Fight Card<Icon name="chevronRight" size={16} /></a>
-        {:else if running && !tooFew}
+        {#if running && !games.length && !tooFew}
           <button class="btn primary" disabled={busy} onclick={fixturesNow}>Make the fixtures</button>
         {/if}
       </div>
@@ -1055,68 +1038,6 @@
       >{forOther ? `Pick for ${forName}` : "End turn"}<Icon name="chevronRight" size={18} /></button
     >
   </div>
-{/if}
-
-{#if tournament}
-  <Drawer bind:open={rulesOpen} title="Draft rules" sub="{teams.length} captains · snake order">
-    <ol class="rules">
-      <li>
-        <strong>The order's drawn.</strong>
-        <span>Who picks first is drawn at random before it opens, not the order the captains were named in.</span>
-      </li>
-      <li>
-        <strong>Snake order.</strong>
-        <span
-          >Captains pick one at a time. Each round the order flips, so whoever picks last picks first next round.</span
-        >
-      </li>
-      <li>
-        <strong>Captains are already on their teams.</strong>
-        <span>Nobody can pick a captain. Everyone else who said they're in is up for grabs.</span>
-      </li>
-      <li>
-        <strong>One goalie a team.</strong>
-        <span>Once you've got one, the rest are off the menu. No hoarding.</span>
-      </li>
-      <li>
-        <strong>Pick, then end your turn.</strong>
-        <span>Tap Pick to choose; change your mind as often as you like. Nobody sees it until you press End turn.</span>
-      </li>
-      <li>
-        <strong>Whoever runs the draft can step in.</strong>
-        <span>They can pick for a captain who's gone quiet and undo the last pick if someone fat-fingers it.</span>
-      </li>
-      <li>
-        <strong>Nobody left behind.</strong>
-        <span>Anyone not picked when the draft closes stays signed up, and an admin can put them on a team.</span>
-      </li>
-    </ol>
-  </Drawer>
-
-  <Drawer bind:open={logOpen} title="Pick log" sub="{made} {made === 1 ? 'pick' : 'picks'} so far">
-    {#if rounds.length}
-      <div class="log">
-        {#each rounds as r (r.round)}
-          <section>
-            <h4 class="eyebrow">Round {r.round}</h4>
-            <ol>
-              {#each r.picks as l (l.n)}
-                <li>
-                  <span class="n num">{l.n}</span>
-                  <span class="lp"
-                    >{l.name}{#if l.you}<small>you</small>{/if}</span
-                  >
-                  <span class="lt">{l.by ? `${l.by} for ${teamName(l.team)}` : teamName(l.team)}</span>
-                </li>
-              {/each}
-            </ol>
-          </section>
-        {/each}
-      </div>
-    {:else}
-      <p class="hint">Nobody's picked yet. Brick not hit back.</p>
-    {/if}
-  </Drawer>
 {/if}
 
 <!-- Manage: whoever runs the draft's jobs, thumb-sized. Closing with players left, or a reset, asks here first -->
@@ -1481,9 +1402,23 @@
     padding-bottom: 5.5rem;
   }
   /* Never wider than the view: the shell clips sideways, so anything wider would be cut off, not scrolled */
+  /* A view of the tournament's page (ADR 0074): the page gives the frame, this its column */
   .draft {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-5);
     padding-bottom: 6rem;
+  }
+  /* While it's picked on a phone, the view is the window's height left under the track, and the players scroll
+     inside it */
+  .draft.fit {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .draft.fit > :global(*) {
+    flex-shrink: 0;
   }
   .ask {
     margin: 0 var(--s-2) 0 0;
@@ -1964,8 +1899,7 @@
     color: var(--fg-subtle);
     font-weight: 400;
   }
-  .name small,
-  .lp small {
+  .name small {
     margin-left: var(--s-2);
     color: var(--fg-subtle);
     font-size: var(--text-2xs);
@@ -2101,88 +2035,11 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-
-  /* The pick log, in its drawer: a round, then its picks, the player over the team */
-  .log {
-    display: grid;
-    gap: var(--s-6);
-  }
-  .log section {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .log h4 {
-    margin: 0;
-  }
-  .log ol {
-    display: grid;
-    gap: var(--s-1);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .log li {
-    display: grid;
-    grid-template-columns: 1.6rem minmax(0, 1fr);
-    column-gap: var(--s-3);
-    align-items: center;
-    padding: var(--s-2) 0;
-  }
-  .log .n {
-    grid-row: 1 / 3;
-    width: auto;
-    font-size: var(--text-sm);
-  }
-  .lp {
-    overflow: hidden;
-    color: var(--fg);
-    font-weight: 500;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  .lt {
-    overflow: hidden;
-    color: var(--fg-muted);
-    font-size: var(--text-xs);
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
   .tools {
     display: flex;
     flex-shrink: 0;
     gap: var(--s-1);
     margin-left: auto;
-  }
-  .rules {
-    display: grid;
-    gap: var(--s-4);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    counter-reset: rule;
-  }
-  .rules li {
-    display: grid;
-    grid-template-columns: 1.6rem minmax(0, 1fr);
-    gap: 0.15rem var(--s-3);
-    counter-increment: rule;
-  }
-  .rules li::before {
-    content: counter(rule);
-    grid-row: 1 / 3;
-    color: var(--red-hot);
-    font-family: var(--font-display);
-    font-size: 1.25rem;
-    line-height: 1.2;
-  }
-  .rules strong {
-    color: var(--fg);
-    font-weight: 600;
-  }
-  .rules span {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    line-height: 1.5;
   }
 
   @media (max-width: 900px) {

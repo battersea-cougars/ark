@@ -98,8 +98,8 @@
   {#if !tournament || !game}
     <p class="note">There's no such game.</p>
   {:else}
-    <a class="back" href="/tournaments/{type.slug}/{onNow ? 'schedule' : `history/${tournament.id}`}"
-      ><Icon name="chevronLeft" size={16} />{onNow ? "Fight card" : tournament.name}</a
+    <a class="back" href="/tournaments/{type.slug}{onNow ? '' : `/history/${tournament.id}`}"
+      ><Icon name="chevronLeft" size={16} />{onNow ? `The ${type.shortName}` : tournament.name}</a
     >
 
     <!-- The two teams, face to face: the score once it's played, else the kick-off -->
@@ -118,7 +118,10 @@
               tone={teamTone(s.i)}
               size="4.5rem"
             />{/if}
-          <span class="side-name display">{s.name}</span>
+          <!-- Plainly a way to the team, pointer or not: its name with a chevron -->
+          <span class="side-name display"
+            >{s.name}{#if s.team?.id}<Icon name="chevronRight" size={18} />{/if}</span
+          >
           {#if s.record}
             <span class="rec num" aria-label="{s.record.w} won, {s.record.d} drawn, {s.record.l} lost"
               >{s.record.w}W {s.record.d}D {s.record.l}L</span

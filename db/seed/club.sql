@@ -142,7 +142,13 @@ INSERT OR IGNORE INTO quips (id, kind, text) VALUES
   (75, 'empty', 'Empty. The slackers are still deciding.'),
   (76, 'empty', 'Not one. Slackers, the lot of them.'),
   (77, 'empty', 'Even Van Damme had to go first.'),
-  (78, 'empty', 'Zero in. Slackers, this is your call.');
+  (78, 'empty', 'Zero in. Slackers, this is your call.'),
+  -- A drafted tournament's Draft open, for a member who isn't a captain (ADR 0060): Chong Li's powder, Dux fighting
+  -- blind. The first is the line shown; the rest are alternates an admin can swap in (Settings → Quips)
+  (79, 'blind', 'Can''t see the draft? Neither could Dux. He did all right.'),
+  (80, 'blind', 'Chong Li threw the powder. You''ll see the teams when the draft''s done.'),
+  (81, 'blind', 'Blindfolded, like Tanaka taught you. Teams out soon.'),
+  (82, 'blind', 'Use your other senses. Teams out when the captains are done.');
 
 -- series_fees: Friday Training's pay-as-you-go fee per session (ADR 0007), for every night from a year before the
 -- app went live

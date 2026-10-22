@@ -6,19 +6,20 @@
   // With nothing on, Next Kumite is the front page's own button, not here (ADR 0074).
   import type { Tournament, TournamentType } from "../demo/model";
   import { can } from "../access/actions";
-  import { granted } from "../demo/session.svelte";
+  import { granted, me } from "../demo/session.svelte";
+  import TeamLookSheet from "./TeamLookSheet.svelte";
+  import PickLog from "./PickLog.svelte";
+  import { nameOfTeam } from "./names";
+  import { PLAYERS } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
-  import { tournamentPlace } from "../demo/schedule.svelte";
-  import { editionWhen } from "./edition";
-  import { pageStepOf, stageBadge, trackLinksOf } from "./tournament-front";
+  import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
+  import { countdownOf, editionWhen } from "./edition";
+  import { stageBadge, type Status } from "./tournament-front";
+  import { makeFixtures } from "../app/backend.svelte";
+  import { formatAndRules } from "./format-rules";
   import StageTrack from "./StageTrack.svelte";
-  import { me } from "../demo/session.svelte";
-  import { routes } from "../app/routes.svelte";
-  import { router } from "../app/router.svelte";
-  import { routeFor } from "../app/nav-routes";
-  import { onTrack } from "../app/mobile-nav";
   import AwardsDrawer, { enterAwards } from "./AwardsDrawer.svelte";
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
@@ -26,7 +27,7 @@
   import { londonToday } from "./dates";
   import type { IconName } from "../app/shell/icons";
   import StepBack from "./StepBack.svelte";
-  import { BACK_SAYS, BACK_TO, backFrom } from "./step-back";
+  import { BACK_SAYS, backFrom, backTo } from "./step-back";
 
   let {
     type,
@@ -35,6 +36,9 @@
     manage: offer = false,
     note,
     compact = false,
+    track = false,
+    viewing = null,
+    extra = [],
   }: {
     type: TournamentType;
     tournament?: Tournament;
@@ -43,8 +47,14 @@
     manage?: boolean;
     /** In place of the date line, for a page about the series rather than one of its dates (History). */
     note?: string;
-    /** A phone page that needs its room (the Draft page, once it's open): no header; the page's tabs say where. */
+    /** A phone view that needs its room (the draft, while it's picked): no header, just the track to say where. */
     compact?: boolean;
+    /** The track of its statuses under the header, the tournament page's navigation (ADR 0074). */
+    track?: boolean;
+    /** The status whose view the page is showing (the track's lit one); none on a page that isn't one (the board). */
+    viewing?: Status | null;
+    /** More jobs for Manage from the view showing (the draft's own, for whoever runs it). */
+    extra?: { icon: IconName; label: string; sub: string; run: () => void }[];
   } = $props();
 
   // Where it's got to, as the stamp says it (lib/tournament-front.ts): sign-up open, the draft live, the teams set,
@@ -53,22 +63,30 @@
   const when = $derived(tournament ? editionWhen(tournament) : null);
   // Where it is, opening the map (its venue's link, else a search for its name)
   const place = $derived(tournament ? tournamentPlace(tournament) : null);
-  // How long till the day, beside it: today, tomorrow, in N days. Only for a fixed day that's still to come
-  const countdown = $derived.by(() => {
-    if (!tournament || !when?.day || stage?.tone === "done") return "";
-    const days = Math.round((Date.parse(tournament.heldOn) - Date.parse(londonToday())) / 86_400_000);
-    return days < 0 ? "" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `in ${days} days`;
-  });
+  // How far off the day is (lib/edition.ts countdownOf): within a week it leads the line, big, in the club's red
+  // (Tomorrow · Fri 23 Oct · 7 to 9:30pm); further off, quiet after the date. Only for a fixed day still to come
+  const countdown = $derived(
+    tournament && when?.day && stage?.tone !== "done" ? countdownOf(tournament.heldOn, londonToday()) : null,
+  );
+  const lead = $derived(countdown && "lead" in countdown ? countdown.lead : "");
+  const quiet = $derived(countdown && "quiet" in countdown ? countdown.quiet : "");
+  // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
+  const after = $derived(tournament ? tournamentAfter(tournament) : null);
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
-  // The series' running pages are one template: this header, then its stage track, which is their navigation (ADR
-  // 0074): each step opens its page, the one you're on marked (lib/tournament-front.ts trackLinksOf, pageStepOf)
-  const route = $derived(routeFor(routes(), router.path));
-  const track = $derived.by(() => {
-    if (!tournament || note || compact || !route || !onTrack(route)) return null;
-    const t = tournament;
-    const canDraft = can(granted(), "run:Draft") || t.teams.some((x) => x.captainMemberId === me().id);
-    return { links: trackLinksOf(t, type.slug, canDraft), on: pageStepOf(route.page, t) };
-  });
+  // A captain looks after their own team from here (ADR 0060): its name and crest, as on its page (TeamLookSheet)
+  const myTeam = $derived(
+    offer && tournament ? tournament.teams.find((x) => x.id && x.captainMemberId === me().id) : undefined,
+  );
+  let lookOpen = $state(false);
+  // The pick log: its captains' and whoever runs the draft's, from the draft opening (ADR 0060)
+  const picksSeen = $derived(
+    offer &&
+      !!tournament &&
+      tournament.kind === "draft" &&
+      (tournament.draftState === "open" || tournament.draftState === "closed") &&
+      (can(granted(), "run:Draft") || tournament.teams.some((x) => x.captainMemberId === me().id)),
+  );
+  let logOpen = $state(false);
   interface Tool {
     icon: IconName;
     label: string;
@@ -76,6 +94,13 @@
     run: () => void;
   }
   let menuOpen = $state(false);
+  let rulesOpen = $state(false);
+  function jump(topic: string) {
+    document
+      .querySelector(`[data-topic="${CSS.escape(topic)}"]`)
+      ?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  const rules = $derived(tournament ? formatAndRules(tournament, type.houseRules) : []);
   let stepper = $state<ReturnType<typeof StepBack>>();
   // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
   // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
@@ -84,7 +109,18 @@
   const tools = $derived.by(() => {
     if (!tournament) return [] as Tool[];
     const t = tournament;
+    const yours: Tool[] = [
+      ...(myTeam
+        ? [{ icon: "teams" as const, label: "Your team", sub: "Its name and crest", run: () => (lookOpen = true) }]
+        : []),
+      ...(picksSeen
+        ? [{ icon: "list" as const, label: "Pick log", sub: "Every pick, round by round", run: () => (logOpen = true) }]
+        : []),
+    ];
+    if (!admin) return [...yours, ...extra];
     const list: Tool[] = [
+      ...yours,
+      ...extra,
       {
         icon: "settings",
         label: `${type.shortName} settings`,
@@ -97,7 +133,22 @@
     ];
     // Back a step (ADR 0074): one item, whatever step it's at, while there's one before it
     const from = backFrom(t, londonToday());
-    if (from) list.push({ icon: "undo", label: BACK_TO[from], sub: BACK_SAYS[from], run: () => stepper?.start() });
+    if (from)
+      list.push({
+        icon: "undo",
+        label: backTo(from, tournament.kind),
+        sub: BACK_SAYS[from],
+        run: () => stepper?.start(),
+      });
+    // The fixtures made, no match played: made again (a new order of play), here, not a button on the page
+    const games = t.games ?? [];
+    if (games.length && !games.some((g) => g.status !== "next" || g.homeGoals !== null))
+      list.push({
+        icon: "refresh",
+        label: "Make the fixtures again",
+        sub: "A new order of play, the same teams",
+        run: () => void makeFixtures(t.id),
+      });
     if (t.awards.length)
       list.push({
         icon: "medal",
@@ -115,7 +166,8 @@
 
 <!-- Compact (a phone page that needs its room): no header at all; the page's tabs say where you are -->
 {#if !compact}<div class="tone" style:--tone="var(--tone-{type.tone})">
-    <PageHeader {title} eyebrow={type.name} eyebrowIcon={type.icon}>
+    <!-- A phone's eyebrow is the series' short name, so it and its stamp and buttons stay one line -->
+    <PageHeader {title} eyebrow={phone.current ? type.shortName : type.name} eyebrowIcon={type.icon}>
       {#snippet badge()}
         {#if stage}
           <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red live (the
@@ -123,6 +175,28 @@
           <span class="stamp {stage.tone}">
             {stage.label}
           </span>
+        {/if}
+        {#if tournament && track}
+          <!-- Format & rules, for everyone (ADR 0074): how the day runs, the points, the penalties, the house rules -->
+          <button
+            class="btn sm ghost icon rules"
+            aria-haspopup="dialog"
+            aria-label="Rules"
+            title="Rules"
+            onclick={() => (rulesOpen = true)}><Icon name="rules" size={18} /></button
+          >
+        {/if}
+        {#if tools.length}
+          <!-- One quiet button on the series' front page (ADR 0065): what an admin does to the series, kept out of the
+               way of everyone else's view. At the end of the stamp's line, not a toolbar row of its own, so the header
+               and the track under it sit where they do on the series' other pages (ADR 0074) -->
+          <button
+            class="btn sm ghost icon manage"
+            aria-haspopup="dialog"
+            aria-label="Manage the {type.shortName}"
+            title="Manage"
+            onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
+          >
         {/if}
       {/snippet}
       {#snippet sub()}
@@ -135,24 +209,45 @@
           {:else if tournament && when}
             <!-- The date leads: the day, its hours and how far off (Sat 14 Nov · 7 to 9:30pm · in 24 days), the
                  season and the place under it. Just a season: the season, its day to be set -->
-            <span class="day-line"
-              ><span class="day display">{when.day ?? when.season}</span>{#if when.hours}<span class="more display"
-                  ><span class="dot" aria-hidden="true">·</span>{when.hours}</span
-                >{/if}{#if countdown}<span class="more display countdown" class:today={countdown === "Today"}
-                  ><span class="dot" aria-hidden="true">·</span>{countdown}</span
-                >{/if}</span
-            >
+            {#if lead}
+              <span class="day-line"
+                ><span class="day lead display">{lead}</span><span class="more display"
+                  ><span class="dot" aria-hidden="true">·</span>{when.day}</span
+                >{#if when.hours}<span class="more display hours"
+                    ><span class="dot" aria-hidden="true">·</span>{when.hours}</span
+                  >{/if}</span
+              >
+            {:else}
+              <span class="day-line"
+                ><span class="day display">{when.day ?? when.season}</span>{#if when.hours}<span class="more display"
+                    ><span class="dot" aria-hidden="true">·</span>{when.hours}</span
+                  >{/if}{#if quiet}<span class="more display"><span class="dot" aria-hidden="true">·</span>{quiet}</span
+                  >{/if}</span
+              >
+            {/if}
+            <!-- The place, on the map. With a day set the season goes without saying; just a season, the day's to set -->
             <span class="where"
-              ><span class="season">{when.day ? when.season : "Day to be set"}</span>{#if place}<span
-                  class="dot"
-                  aria-hidden="true">·</span
-                >{#if place.mapUrl}<a
+              >{#if !when.day}<span class="season">Day to be set</span>{/if}{#if place}{#if !when.day}<span
+                    class="dot"
+                    aria-hidden="true">·</span
+                  >{/if}{#if place.mapUrl}<a
                     class="place"
                     href={place.mapUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="{place.name}, on the map"><Icon name="pin" size={14} /><span>{place.name}</span></a
-                  >{:else}<span class="place"><span>{place.name}</span></span>{/if}{/if}</span
+                  >{:else}<span class="place"><span>{place.name}</span></span>{/if}{/if}{#if after}<span
+                  class="dot"
+                  aria-hidden="true">·</span
+                ><a
+                  class="place after"
+                  href={after.mapUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Afterwards: {after.name}{after.note ? `, ${after.note.toLowerCase()}` : ''}"
+                  aria-label="Afterwards: {after.name}{after.note ? `, ${after.note.toLowerCase()}` : ''}, on the map"
+                  ><Icon name="glass" size={14} /><span>{after.name}</span></a
+                >{/if}</span
             >
           {:else}
             <span class="day-line"><span class="aside">No {type.shortName} scheduled yet.</span></span>
@@ -160,24 +255,36 @@
           {/if}
         </span>
       {/snippet}
-      {#snippet actions()}
-        {#if admin && tools.length}
-          <!-- One quiet button on the series' front page (ADR 0065): what an admin does to the series, kept out of the
-             way of everyone else's view -->
-          <div class="manage">
-            <button
-              class="btn sm ghost icon"
-              aria-haspopup="dialog"
-              aria-label="Manage the {type.shortName}"
-              title="Manage"
-              onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
-            >
-          </div>
-        {/if}
-      {/snippet}
     </PageHeader>
   </div>{/if}
-{#if track && tournament}<StageTrack {type} {tournament} today={londonToday()} links={track.links} on={track.on} />{/if}
+<!-- The track stays when the header makes room (compact): it's the way back out of the view -->
+{#if track && tournament && !note}<StageTrack {type} {tournament} today={londonToday()} {viewing} />{/if}
+
+{#snippet rulesList()}
+  <div class="rules-list">
+    <!-- One Rules, a topic each (ADR 0074): a jump to each, then the topics -->
+    <nav class="topics" aria-label="Topics">
+      {#each rules as section (section.title)}
+        <button type="button" class="btn sm ghost" onclick={() => jump(section.title)}>{section.title}</button>
+      {/each}
+    </nav>
+    {#each rules as section (section.title)}
+      <section data-topic={section.title}>
+        <h3 class="eyebrow">{section.title}</h3>
+        <ul>
+          {#each section.lines as line, i (i)}<li>{line}</li>{/each}
+        </ul>
+      </section>
+    {/each}
+  </div>
+{/snippet}
+{#if tournament && track}
+  {#if phone.current}
+    <Sheet bind:open={rulesOpen} title="Rules">{@render rulesList()}</Sheet>
+  {:else}
+    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name}>{@render rulesList()}</Drawer>
+  {/if}
+{/if}
 
 {#snippet toolList()}
   <div class="tools">
@@ -191,7 +298,20 @@
   </div>
 {/snippet}
 
-{#if admin}
+{#if tournament && myTeam?.id}
+  <TeamLookSheet
+    tournamentId={tournament.id}
+    teamId={myTeam.id}
+    name={myTeam.name}
+    logo={myTeam.logo}
+    fallback={nameOfTeam({ ...myTeam, name: "" }, tournament.teams, (id) =>
+      id ? PLAYERS.find((p) => p.id === id) : undefined,
+    )}
+    bind:open={lookOpen}
+  />
+{/if}
+{#if picksSeen && tournament}<PickLog {tournament} bind:open={logOpen} />{/if}
+{#if tools.length}
   <!-- Every admin job for this one, thumb-sized: up from the bottom on a phone, a side drawer on a desktop -->
   {#if phone.current}
     <Sheet bind:open={menuOpen} title="Manage the {type.shortName}">{@render toolList()}</Sheet>
@@ -209,10 +329,38 @@
   .tone {
     display: contents;
   }
-  .manage {
-    position: relative;
+  /* The Manage gear: at the far end of the stamp's line, taking no more height than the line has */
+  .manage,
+  .rules {
+    margin-block: -0.5rem;
+  }
+  /* The first of the two buttons goes to the far end of the line */
+  .rules {
+    margin-left: auto;
+  }
+  .rules-list {
+    display: grid;
+    gap: var(--s-5);
+  }
+  .topics {
     display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-1);
+  }
+  .rules-list section {
+    scroll-margin-top: var(--s-4);
+    display: grid;
     gap: var(--s-2);
+  }
+  .rules-list h3 {
+    margin: 0;
+  }
+  .rules-list ul {
+    display: grid;
+    gap: var(--s-2);
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--fg-body, var(--fg));
   }
   .stamp {
     display: inline-flex;
@@ -289,8 +437,13 @@
     margin-inline: 0.4em;
     color: var(--fg-subtle);
   }
-  .countdown.today {
+  /* Within a week, how far off leads: big, in the club's red */
+  .lead {
     color: var(--red-hot);
+  }
+  /* The afterwards keeps its name whole; the place gives way first */
+  .place.after {
+    flex: none;
   }
   @media (max-width: 380px) {
     .day {
@@ -301,6 +454,12 @@
     }
     .dot {
       margin-inline: 0.3em;
+    }
+  }
+  /* A phone, with how far off leading: the hours go, so the line stays one row (they're in the Fixtures set view) */
+  @media (max-width: 440px) {
+    .hours {
+      display: none;
     }
   }
   .aside {

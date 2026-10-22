@@ -130,6 +130,8 @@ export interface TournamentType {
   afterVenueId: number | null;
   afterTime: string | null;
   afterNote: string;
+  /** Its house rules (ADR 0074), as an admin writes them, a rule a line: under Format & rules. */
+  houseRules: string;
 }
 
 export type TournamentStatus = "planned" | "open" | "live" | "finished";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Action } from "../access/actions";
-import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
+import { backFor, onTrack, stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
 import { buildRoutes, buildTabs, movedTo, routeFor, type NavConfig, type Stage } from "./nav-routes";
 
 const member = new Set<Action>(["read:Event", "signup:Event"]);
@@ -51,12 +51,8 @@ describe("buildRoutes", () => {
       "/training/friday",
       "/training/sunday",
     ]);
-    expect(routes.filter((r) => r.fold === "type:2").map((r) => r.name)).toEqual([
-      "The Cup",
-      "Fight card",
-      "The board",
-      "Teams",
-    ]);
+    // One page, by status, and its board (ADR 0074)
+    expect(routes.filter((r) => r.fold === "type:2").map((r) => r.name)).toEqual(["The Cup"]);
   });
 
   it("leaves out screens that run on demo data unless they're switched on (#63)", () => {
@@ -76,20 +72,12 @@ describe("buildRoutes", () => {
   });
 });
 
-describe("the Draft page", () => {
-  const CARA = 7;
-  const config = (me: number): NavConfig => ({
-    ...one,
-    types: [{ ...kumite, stage: "draft", captains: [CARA, 8] }],
-    me,
-  });
-  const draftFor = (me: number, perms: Set<Action>) =>
-    tabRoutes(buildRoutes(config(me)), "tournaments", perms).some((r) => r.page === "draft");
-
-  it("is there for the next tournament's captains and whoever runs the draft, and nobody else", () => {
-    expect(draftFor(CARA, member)).toBe(true);
-    expect(draftFor(99, admin)).toBe(true);
-    expect(draftFor(99, member)).toBe(false);
+describe("the draft, the teams and the fixtures: the tournament's page, at their own addresses (ADR 0074)", () => {
+  it("opens the one page for everyone, whatever the address an old link or a push has", () => {
+    const routes = buildRoutes({ ...one, types: [{ ...kumite, stage: "draft", captains: [7, 8] }], me: 99 });
+    for (const path of ["", "/draft", "/teams", "/schedule", "/sign-up"])
+      expect(routeFor(routes, `/tournaments/kumite${path}`)).toMatchObject({ id: "games:1", action: "read:Event" });
+    expect(routes.some((r) => ["draft", "schedule", "tournament-teams"].includes(r.page))).toBe(false);
   });
 });
 
@@ -186,97 +174,47 @@ describe("stripRoutes", () => {
   });
 });
 
-describe("a tournament's own pages follow where it's got to; the rest are a link away, with Back", () => {
-  const CARA = 7;
+describe("a tournament is one page; its teams and History are a link away, with Back", () => {
   const at = (stage: Stage, extra: Partial<NavConfig["types"][number]> = {}, me = 99) =>
-    buildRoutes({ ...one, types: [{ ...kumite, stage, captains: [CARA, 8], past: [5], ...extra }], me });
-  // Its own pages at this stage: the rail opens the first; any other is a link away, under one of these
-  const own = (routes: ReturnType<typeof buildRoutes>, granted: Set<Action>) =>
-    tabRoutes(routes, "tournaments", granted).filter((r) => r.fold === "type:1");
-  const strip = (routes: ReturnType<typeof buildRoutes>, granted: Set<Action>) => {
-    const list = own(routes, granted).map((r) => r.short ?? r.name);
-    return list.length > 1 ? list : [];
-  };
+    buildRoutes({ ...one, types: [{ ...kumite, stage, captains: [7, 8], past: [5], ...extra }], me });
 
-  it("the tabs say the short names: Kumite, Fight card, Board; the pages keep their full names", () => {
-    const routes = at("fixtures");
-    expect(strip(routes, member)).toEqual(["Kumite", "Fight card", "Board", "Teams"]);
-    expect(routeFor(routes, "/tournaments/kumite")?.name).toBe("The Kumite");
-    expect(routeFor(routes, "/tournaments/kumite/schedule")?.name).toBe("Fight card");
-    expect(routeFor(routes, "/tournaments/kumite/standings")?.name).toBe("The board");
-  });
-
-  it("sign-up open, before the draft: a member has just its front page; whoever runs the draft has the Draft too", () => {
-    const routes = at("signup");
-    expect(strip(routes, member)).toEqual([]);
-    expect(strip(routes, admin)).toEqual(["Kumite", "Draft"]);
-    // Its captains get the Draft, as they do while it's on
-    expect(strip(at("signup", {}, CARA), member)).toEqual(["Kumite", "Draft"]);
-  });
-
-  it("the draft on: the Draft for its captains and whoever runs it, the Teams for everyone", () => {
-    expect(strip(at("draft"), member)).toEqual(["Kumite", "Teams"]);
-    expect(strip(at("draft", {}, CARA), member)).toEqual(["Kumite", "Draft", "Teams"]);
-    expect(strip(at("draft"), admin)).toEqual(["Kumite", "Draft", "Teams"]);
-  });
-
-  it("the teams set, no fixtures yet: the Teams; the Draft stays for those who make the fixtures from it", () => {
-    expect(strip(at("teams"), member)).toEqual(["Kumite", "Teams"]);
-    expect(strip(at("teams"), admin)).toEqual(["Kumite", "Draft", "Teams"]);
-  });
-
-  it("the fixtures out: the fight card, the board and the teams, for admins too; no Draft, My team or History", () => {
-    const routes = at("fixtures", { onTeam: true }, CARA);
-    expect(strip(routes, member)).toEqual(["Kumite", "Fight card", "Board", "Teams"]);
-    expect(strip(at("fixtures"), admin)).toEqual(["Kumite", "Fight card", "Board", "Teams"]);
-  });
-
-  it("never more than four for a member, whatever the stage", () => {
+  it("whatever the status, the Kumite tab has the one page, named for it", () => {
     for (const stage of ["signup", "draft", "teams", "fixtures"] as const)
-      expect(strip(at(stage, { onTeam: true }, CARA), member).length).toBeLessThanOrEqual(4);
+      for (const who of [member, admin])
+        expect(tabRoutes(at(stage), "tournaments", who).map((r) => r.short ?? r.name)).toEqual(["Kumite"]);
+    expect(routeFor(at("fixtures"), "/tournaments/kumite")?.name).toBe("The Kumite");
   });
 
-  it("a page that's off the strip still opens by its link, with Back to the page it's under", () => {
-    const routes = at("signup");
-    for (const path of ["/tournaments/kumite/schedule", "/tournaments/kumite/standings", "/tournaments/kumite/teams"]) {
-      const r = routeFor(routes, path)!;
-      expect(r).toMatchObject({ hidden: true, under: "games:1" });
-      expect(backFor(routes, r, null)?.to.path).toBe("/tournaments/kumite");
-    }
-    const draft = routeFor(at("fixtures"), "/tournaments/kumite/draft")!;
-    expect(draft).toMatchObject({ page: "draft", hidden: true });
+  it("the board's old address opens the page, at the status it's at (the table's in the day's view)", () => {
+    expect(routeFor(at("fixtures"), "/tournaments/kumite/standings")?.id).toBe("games:1");
   });
 
-  it("My team isn't a tab: its link still works, under Teams, and your team's page is lit as Teams", () => {
-    const routes = at("fixtures", { onTeam: true, teams: [{ id: 71, mine: true }] }, CARA);
+  it("My team and a team's page: under the tournament's page", () => {
+    const routes = at("fixtures", { onTeam: true, teams: [{ id: 71, mine: true }] }, 7);
     expect(routeFor(routes, "/tournaments/kumite/my-team")).toMatchObject({
       page: "tournament-team",
-      hidden: true,
-      under: "teams:1",
+      under: "games:1",
     });
-    const tabs = own(routes, member);
-    expect(stripCurrent(routes, routeFor(routes, "/tournaments/kumite/my-team")!, tabs)).toBe("teams:1");
-    expect(stripCurrent(routes, routeFor(routes, "/tournaments/kumite/teams/71")!, tabs)).toBe("teams:1");
+    expect(routeFor(routes, "/tournaments/kumite/teams/71")).toMatchObject({
+      page: "tournament-team",
+      under: "games:1",
+    });
   });
 
-  it("History isn't a tab while one's running: it opens from the front page, and a past one lights the front page", () => {
+  it("History isn't a tab while one's running: it opens from the page, and a past one goes back to History", () => {
     const routes = at("fixtures");
     const history = routeFor(routes, "/tournaments/kumite/history")!;
     expect(history).toMatchObject({ page: "history", hidden: true, under: "games:1" });
     expect(backFor(routes, history, null)?.to.path).toBe("/tournaments/kumite");
     const past = routeFor(routes, "/tournaments/kumite/history/5")!;
     expect(backFor(routes, past, null)?.to.path).toBe("/tournaments/kumite/history");
-    const tabs = own(routes, member);
-    expect(stripCurrent(routes, past, tabs)).toBe("games:1");
   });
 });
 
 describe("tabHref", () => {
   it("returns to the last page used in the tab, unless it's gone", () => {
     const routes = buildRoutes(one);
-    expect(tabHref(routes, "tournaments", admin, { tournaments: "/tournaments/kumite/standings" })).toBe(
-      "/tournaments/kumite/standings",
-    );
+    expect(tabHref(routes, "tournaments", admin, { tournaments: "/tournaments/kumite" })).toBe("/tournaments/kumite");
     expect(tabHref(routes, "training", member, { training: "/training/sunday" })).toBe("/training/friday");
   });
 
@@ -384,7 +322,7 @@ describe("Back on a phone (backFor)", () => {
   });
 
   it("a tab's own pages have the tabs, not Back", () => {
-    for (const path of ["/", "/me", "/club", "/training/friday", "/tournaments/kumite/standings"])
+    for (const path of ["/", "/me", "/club", "/training/friday", "/tournaments/kumite", "/tournaments/kumite/draft"])
       expect(back(path, "/settings/overdue")).toBeNull();
   });
 });

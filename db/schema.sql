@@ -191,7 +191,9 @@ CREATE TABLE tournament_types (
   -- optional time (HH:MM) and a few words on what for ("Celebration and awards"). No venue: nowhere
   after_venue_id INTEGER REFERENCES venues (id),
   after_time TEXT,
-  after_note TEXT NOT NULL DEFAULT ''
+  after_note TEXT NOT NULL DEFAULT '',
+  -- Its house rules (ADR 0074), as an admin writes them: plain text, a rule a line; shown under Format & rules
+  house_rules TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE tournaments (

@@ -84,7 +84,11 @@
 
 {#snippet side(id: number | null, seed: number | null)}
   <span class="side">
-    {#if id}<a class="tn" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{teamName(id)}</a>
+    <!-- A team's name opens the team where there's a pointer to show it's a link; on a phone it's plain, the card one
+         tap to the match (whose page links both teams) -->
+    {#if id}<a class="tn linked" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{teamName(id)}</a><span
+        class="tn plain">{teamName(id)}</span
+      >
     {:else}<span class="tn">{nth(seed)}</span>{/if}
     {#if big && id}
       {@const r = recordOf(id)}
@@ -226,6 +230,17 @@
     color: inherit;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+  .tn.plain {
+    display: none;
+  }
+  @media not ((hover: hover) and (min-width: 601px)) {
+    .tn.linked {
+      display: none;
+    }
+    .tn.plain {
+      display: block;
+    }
   }
   a.tn:hover {
     text-decoration: underline;
@@ -384,33 +399,48 @@
       grid-template-columns: minmax(0, 1fr) 5.5rem minmax(0, 1fr);
       gap: var(--s-2);
     }
+    /* Both sides on the same rows, crest, name, record, from the top, so they line up whatever the names */
+    .fixture.big {
+      align-items: start;
+    }
     .big .team {
       flex-direction: column;
       align-items: flex-start;
       gap: var(--s-2);
     }
+    .big .mid {
+      align-self: center;
+    }
+    .big .side {
+      width: 100%;
+    }
     .big .team.right {
       flex-direction: column-reverse;
       align-items: flex-end;
     }
-    /* A name that doesn't fit its side takes a second line ("Team / Charlie"), never "Team Ch…"; only a third is cut */
-    .tn {
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      white-space: normal;
-      text-wrap: balance;
-      overflow-wrap: break-word;
-    }
-    .big .tn {
+    /* One line a name, a size down, so the sides line up; cut short only as a last resort. The score stays the
+       biggest thing on the card */
+    .big .tn,
+    .feature .tn {
+      max-width: 100%;
+      font-size: 1.05rem;
       line-height: 1.2;
+    }
+    .feature .score {
+      font-size: 2.4rem;
     }
   }
   /* A narrow phone: the middle gives the names a little more */
   @media (max-width: 380px) {
     .fixture.big {
-      grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr) 4rem minmax(0, 1fr);
+    }
+    .fixture.carded {
+      padding-inline: var(--s-3);
+    }
+    .big .tn,
+    .feature .tn {
+      font-size: 0.92rem;
     }
   }
 </style>

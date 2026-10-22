@@ -87,3 +87,20 @@ export const previousOf = (editions: Tournament[], t: Tournament) =>
   editions
     .filter((x) => x.id !== t.id && editionState(x) === "done")
     .sort((a, b) => b.heldOn.localeCompare(a.heldOn))[0];
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * How far off its day is, for the header (ADR 0074): within a week it leads the line, big ("Today", "Tomorrow", "This
+ * Friday", "In 7 days"), so nobody misses that it's tomorrow; further off it's a quiet "in 24 days" after the date.
+ * Both London dates (YYYY-MM-DD); a day gone by says nothing.
+ */
+export function countdownOf(day: string, today: string): { lead: string } | { quiet: string } | null {
+  const days = Math.round((Date.parse(day) - Date.parse(today)) / 86_400_000);
+  if (days < 0) return null;
+  if (days === 0) return { lead: "Today" };
+  if (days === 1) return { lead: "Tomorrow" };
+  if (days < 7) return { lead: `This ${WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()]}` };
+  if (days === 7) return { lead: "In 7 days" };
+  return { quiet: `in ${days} days` };
+}

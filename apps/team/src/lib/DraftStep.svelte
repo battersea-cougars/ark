@@ -11,6 +11,7 @@
   import { slide } from "svelte/transition";
   import { prefersReducedMotion } from "../app/motion";
   import Icon from "../app/shell/Icon.svelte";
+  import type { IconName } from "../app/shell/icons";
   import Kanji from "./Kanji.svelte";
   import { kanjiFor, type MotifKey } from "./motif";
   import type { TournamentType } from "../demo/model";
@@ -24,6 +25,7 @@
     body,
     children,
     action,
+    icon,
   }: {
     type: TournamentType;
     /** The step's kanji (draw, open, sealed). */
@@ -40,6 +42,8 @@
     children: Snippet;
     /** The one main button, for whoever runs the draft. */
     action?: Snippet;
+    /** In place of the mark: an icon (the closed draft's blindfold). */
+    icon?: IconName;
   } = $props();
 
   const kanji = $derived(kanjiFor(type, mark));
@@ -50,7 +54,8 @@
   {#if !quiet}
     <div class="head" out:slide={out}>
       <div class="mark">
-        {#if kanji && seal}<Kanji text={kanji} seal />
+        {#if icon}<span class="icon"><Icon name={icon} size={44} /></span>
+        {:else if kanji && seal}<Kanji text={kanji} seal />
         {:else if kanji}<span class="big" lang="ja" aria-hidden="true">{kanji}</span>
         {:else}<span class="icon"><Icon name={type.icon} size={34} /></span>{/if}
       </div>

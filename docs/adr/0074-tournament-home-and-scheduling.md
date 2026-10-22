@@ -25,9 +25,14 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 - **Its state comes from its games** (`lib/edition.ts`): under way once a game's being scored or has a result, done
   once every game's played (or an admin marked it finished). Before then, sign-up open or coming up. The day shows
   once it's confirmed or the games have been played; the season always.
-- **The header carries the when** on every tournament page (`TournamentHead.svelte`), the date leading: the day,
-  its hours and how far off on one line ("SAT 14 NOV · 7 to 9:30pm · in 24 days"; Tomorrow; Today in red), the
-  season and place under it. Just a season: the season, "Day to be set" and the place.
+- **The header carries the when and the where** on every tournament page (`TournamentHead.svelte`), two fixed lines.
+  The first: within a week, how far off leads, big, in the club's red ("TOMORROW · Fri 23 Oct · 7 to 9:30pm"; Today,
+  Tomorrow, This Friday, In 7 days; `countdownOf` in `lib/edition.ts`; a phone drops the hours to keep it one line);
+  further off, the date leads with "in 24 days" quiet after it. The second: the place on the map (pin) and, beside it,
+  where everyone goes after (a pint glass: "📍Battersea Sports Centre · 🍺The Anchor"); just a season, "Day to be set".
+  Its actions, the same on every status: **Rules** (one sheet, a topic each: Sign-up, The draft, Format, Points,
+  Penalties, House rules; `formatAndRules` in `lib/format-rules.ts`, from what's stored and enforced, nothing invented;
+  a series' house rules are plain text an admin writes, `tournament_types.house_rules`) and **Manage** (the gear).
 - **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date
   or just a season is enough). The series' other pages show the same one; there's no switcher. Once the last game's
   played it's history: nothing's on.
@@ -35,19 +40,52 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   that's running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down
   the side like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard."
   An admin's **Next Kumite** is on it. Under it, every past one, newest first.
-- **The track of its stages is the navigation** (`TournamentHead` with `lib/StageTrack`, `trackLinksOf` and
-  `pageStepOf` in `lib/tournament-front.ts`), not a strip of tabs: every running page of the series (the front page,
-  Draft, Teams, Fight card, The board; `onTrack` in `app/mobile-nav.ts`) is one template, the header then the track
-  with its Next line, so nothing moves from page to page, and on a phone there's no bar above the header. Each step
-  opens its page once it has one: **Sign-up** the front page, until the fight card's out; **Draft** the draft, for its
-  captains and whoever runs it (a plain step for everyone else); **Teams** the teams, once there are some; **Fight
-  card** the fight card, once it's made; then **KUMITE!** (the series' own name) the front page, which is the day's
-  (on now, next). So the front page is always one step, never two. **The board** isn't a step: it's a link at the foot
-  of the front page and beside the fight card; nor is **History**, a link at the foot of the front page. Two marks
-  that never mix: the stage it's at, in the club's red, italic with a slash; the page you're on, its name bright and
-  underlined, as a lit tab is (red and underlined when it's both). On a phone the fight card's step says Card. A team's,
-  a game's and History's pages keep their Back. The route tree still keeps the pages that matter at its stage as the
-  series' own (`nav-routes.ts`): the rest are under the front page, so Back and the rail go there.
+- **One page, by status** (`Games.svelte`): "Fight Card is confusing if we think of the kumite in stages. It should
+  really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). The tournament
+  is one page, `/tournaments/:slug`: the header, the track of its statuses, then that status's view. Its draft, teams,
+  fixtures and board are no longer pages of their own.
+- **The statuses** (`statusOf`, `statusesOf` in `lib/tournament-front.ts`): **Sign-up open** → **Draft open** →
+  **Teams set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started); teams
+  that enter skip the draft. "Teams set" for both, draft or not: "Teams finalised" didn't fit a phone's track.
+- **The track** (`lib/StageTrack`) is a journey: one line through the statuses, filled to where it is and faint after,
+  a node each (done: filled with a tick; where it is: a bigger bright node with a red NOW stamp over it, pulsing in
+  red the whole time the Kumite's running on its day; ahead: hollow). Shape and fill say it without colour. A phone
+  shows the short names (Sign-up, Draft, Teams, Fixtures, Kumite!). It's also the navigation: a status it's reached
+  opens its view, read-only if it's gone by, at its own address (`/sign-up`, `/draft`, `/teams`, `/schedule`;
+  `viewOf`, `statusHref`); the one being looked at has a solid red bar under it, as a lit tab. Red bar: what you're
+  looking at; node and NOW: where it is. One fixed height, no Next line under it.
+- **The view** has the same shape whatever the status: its one action card for whoever runs it (`lib/DraftStep`:
+  Shuffle, Open the draft, Seal the teams, Make the fixtures), members seeing the card without the button or nothing,
+  then what it's about. Every other admin job is in Manage. Moving between statuses (a tap on the track, or the status
+  moving on: the draft opened, closed, the fixtures made, the day starting) the header and the track stay still, the
+  track's marks slide, and the view slides in from the way you went (forward from the right), the one leaving the
+  other way, stacked in one cell so the area never collapses; less motion, at once. The draw's shuffle stays the draw
+  to open: the same view from sign-up through the picking, for those who run it.
+
+  | Status       | For whoever runs it                | What's on it                                                                                                                             |
+  | ------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+  | Sign-up open | the draw (its captains, run:Draft) | are you in (In / Out), then who's in, waiting and out (`lib/WhosIn`)                                                                     |
+  | Draft open   | Open the draft, Seal the teams     | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                          |
+  | Teams set    | Make the fixtures                  | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page |
+  | Fixtures set | (made again from Manage)           | the matches, a plain list in order of play, each card opening its matchup                                                                |
+  | KUMITE!      |                                    | your turn to keep score, the matches as a carousel (`lib/MatchCarousel`), then where everyone goes after, then the board                 |
+
+- **Fighting blind**: a draft is its captains' and whoever runs it (ADR [0060](0060-the-draft.md)), so anyone else's
+  Draft open view is a card with a blindfold, "Fighting blind" and a line from Settings → Quips ("Fighting blind", the
+  first one: "Can't see the draft? Neither could Dux. He did all right."). The Worker never sends them the picks.
+- **The KUMITE! carousel**: every match in order, the one that matters (`currentMatchOf`: on now, else up next, else
+  the last) near the top, brought forward (full size, bright, raised), a sliver of the one before over it and the ones
+  after below, smaller and dim, the depth following the scroll; a thumb scrolls it a match a snap, a desktop has
+  arrows, ↑/↓ and the wheel. It glides to the new current match unless someone's just been looking along it; Back to
+  now when the one in front isn't it; a tap on a peeking one brings it forward. On a phone a card's stamp (KUMITE!, You
+  are next!, a result) is a sticker on its top edge, so no card is taller for one; the names are one line, plain text
+  (the card opens the match, whose page links both teams, with a chevron); where a team is a link it looks like one.
+- **Manage** (the gear) holds every job: the settings, Back a step, Make the fixtures again, the awards, the draft's
+  own jobs while it's showing (undo a pick, add a player, close it, reset), and for a captain **Your team** (its name
+  and crest) and, with whoever runs the draft, the **Pick log** once the draft's open. A captain sees the gear for
+  those even with nothing else in it.
+- **History** is a quiet link at the foot; so is, on the Kumite, "Don't get the references? You've got some training
+  to do." (the film, "Required viewing").
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
   page itself when nothing's on): each
   with how it ended (the day, the champions, the final's score), each opening its own page
@@ -57,53 +95,20 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 - The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under
   Friday's; before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
 
-### The acts (`Games.svelte`)
-
-- **A track of its stages leads the page** (`stepsOf`, `nextOf` in `lib/tournament-front.ts`, `lib/StageTrack`):
-  Sign-up, Draft (a draft's only), Teams, Fight card, then the day (KUMITE!), a filled bar and a name each, the one
-  it's at in the club's red, italic with a slash, those done quiet, those ahead faint. The fixtures out, it's at the
-  fight card until the day (or a match starts), then at the day. Under it, one line: what's next and when (sign-up
-  opening or closing, the draft's day, the teams once the draft closes, the first match on the day at its start), or
-  on the day how many are played. Both lines keep their height whatever the stage, so nothing under them moves.
-- **Before: the page follows the stage**, each leading with one thing, the stage's main action (`frontOf`); what's
-  had its day goes from the page (History keeps it). The teams are never listed here: they're the Teams tab, and a
-  quiet line of links at the foot (Fight card, The board, Teams, History, as each has something on it).
-
-  | Stage            | Stamp                                                   | Leads with                                                          | Then                                                                         |
-  | ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-  | sign-up          | SIGN-UP OPEN (COMING UP before it opens)                | you're in, or In / Out, and the count                               | (the draft's day is the track's Next)                                        |
-  | the draft open   | DRAFT LIVE                                              | the draft: who's picking, Go to the draft (its captains, run:Draft) | your sign-up, one small line, no buttons                                     |
-  | the teams set    | TEAMS SET                                               | "You're on Team X": its crest, captain, teammates                   | "Draft done", one line, with Go to the draft; an admin's Make the fight card |
-  | the fixtures out | FIXTURES OUT; on the day KUMITE! (the series' own name) | First up: the first match (Up next), and yours if it's a later one  | Full fight card                                                              |
-
-  The fight card rows (`lib/FightCard.svelte`) are one compact row a game, the same at every stage of the game: the
-  time (Up next under the next one to be played, the chant on one being played, Final once done), the two teams one
-  over the other, a crest and a name each (yours in red) with the score once there is one, and the game's number (a
-  playoff's name). A tap opens the game. The whole card is its own page, the Fight card tab.
-  Teams that enter have no draft, so no draft step; while they're still taking sign-ups, the sign-up line sits under
-  your team. The draft's done is said once ("Draft done"), not a Closed stamp and a shout. The stamp in the header
-  is the stage (`stageBadge`), on every page of the series; under way on another day it's ON NOW, and DONE once every
-  game's played. Nothing else: no lede, no "not final" hint. The draft card leads with the draft's day or "Draft
-  date TBC", shows the captains as discs, or says "Captains to be named."
-
-- **Your next fight on Home** too: it's Home's lead card when it's your soonest thing (ADR 0118), the game as
-  `FightCard` shows it, with its day and pitch.
-- **During:** your turn to keep score, then the match on now (or, between matches, Up next) and the next one, a card
-  each (`onTheDayOf`); your next, when it's neither, one line under them. Nothing else competes: results are on the
-  board, a link at the foot.
+- **Your next match on Home** too: it's Home's lead card when it's your soonest thing (ADR 0118), with its day and
+  pitch.
 - **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first
   word ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the
   first keeps its own, a later one takes its next letters, never another team's own.
-- **After:** the champions (crest, name, how they won it), the final, every fight, the awards: on its own page in
-  History, with the front page back to nothing on.
-- **Fewer cards:** the champions, sign-up, keep-score duty and teams sit on the page, set apart by space, type and a
-  rule, not each in its own dark panel.
+- **After:** the champions (crest, name, how they won it), the final, every match, the awards: on its own page in
+  History, with the page back to nothing on.
 
 ### The Kumite's motif
 
 It's Bloodsport (`lib/motif.ts`): kanji beside its section headings (組手, 決勝, 試合, 闘, 賞), a red 優勝 hanko
-seal on the champions' crest, and a gong for its fight card. The kanji come from Noto Serif JP Black (SIL Open Font
-License) cut to just those characters (under 5 KB, self-hosted). Other series have no motif.
+seal on the champions' crest, and a gong for its matches. The kanji come from Noto Serif JP Black (SIL Open Font
+License) cut to just those characters (under 5 KB, self-hosted). Other series have no motif. Its draft for the
+uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends the newcomer to watch the film.
 
 ### An admin's jobs
 
@@ -164,8 +169,7 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
 
 ### Afterwards, and where it is
 
-- **The header's place opens the map**: on every page of the series, the place under the day is a pin and its name,
-  a link to its map (`placeOf`, ADR [0030](0030-training-and-tournament-schedule.md)), on the header's fixed second line.
+- **The header's place opens the map**, and beside it where everyone goes after (see the header above).
 - **A series has an afterwards** (`tournament_types.after_venue_id`, `after_time`, `after_note`): a saved venue, an
   optional time and what for. The Kumite's is The Anchor, for the celebration and awards (the seed), so every Kumite
   has it without anyone retyping it. Set in the series' Defaults (Afterwards), beside its place and hours.
@@ -173,10 +177,8 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   `after_venue_id`, `after_time`, `after_note`) or `none` (not this time). Its editor's Details has Afterwards: Usual,
   a venue, or None this time. A save that leaves it out keeps what it had. Only a saved venue counts, and the API
   refuses one that doesn't exist. One rule, `afterOf` in `packages/shared/places.ts`, for the app and the agenda.
-- **The front page says it when it matters** (`afterMomentOf` in `lib/tournament-front.ts`): before the day, one quiet
-  line under the track's Next ("Afterwards · The Anchor · from 9:45pm · celebration and awards", the place a map link);
-  on the day nothing while the matches are what matters, until the last one's on, when it's Then (in the next match's
-  place); once it's played, that evening, it's Now, big, with a Map button, above the nothing-on page.
+- **The page says it in the header** before the day and on it; in the KUMITE! view, once the last match is on, it's
+  Then, and once every match is played that evening, Now (`afterMomentOf`), with a Map button.
 - **The day's calendar entry says it** in its description ("Afterwards: The Anchor, from 9:45pm. Celebration and
   awards."), so the website's What's on does too.
 
@@ -264,3 +266,10 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   page (the front page, Draft, Teams, Fight card, The board): each step opens its page (Sign-up the front page till the
   fight card's out, then KUMITE! does), the page you're on marked apart from the stage it's at; no strip, and no bar
   above the header on a phone. The board and History are links from the front page (the board from the fight card too).
+- 2026-10-22: One page, by status ("It should really be a status: Draft Open, Draft Completed, Fixtures Created,
+  Kumite!", the user): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!. The draft, teams, fight card and
+  board pages go; their addresses show their status on the one page. The track is a journey with a NOW node (pulsing
+  while it runs) and the navigation (a red bar for the status you're looking at); views slide between statuses. The
+  header leads with how far off within a week and carries the afterwards beside the place; Rules (a topic each, with
+  house rules) and Manage are its only buttons, the draft's own Rules, Pick log and Manage going into them. Members
+  fight blind through the draft; the teams set are listed in full; the fixtures are a list, the day a carousel.

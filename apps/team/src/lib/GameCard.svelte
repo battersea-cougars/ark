@@ -81,8 +81,10 @@
 </div>
 
 <style>
+  /* A card: its own panel (the stamp may sit on its top edge, so nothing's clipped) */
   .game-card {
     position: relative;
+    overflow: visible;
     transition:
       background-color var(--t-fast) var(--ease-in-out),
       border-color var(--t-fast) var(--ease-in-out);
@@ -149,6 +151,27 @@
     border-radius: 50%;
     background: var(--red-hot);
     animation: pulse 1.4s var(--ease-in-out) infinite;
+  }
+  /* A phone: the stamp's a sticker on the card's edge, a size down; Live a compact pill, its hit area kept */
+  @media (max-width: 600px) {
+    .chant {
+      padding: 0.3rem 0.7rem 0.22rem;
+      font-size: 1.1rem;
+      background: var(--panel-bg, var(--surface-1));
+    }
+    .result {
+      font-size: 0.95rem;
+    }
+    .watch {
+      min-height: 1.75rem;
+      padding: 0 0.6rem;
+      font-size: var(--text-xs);
+    }
+    .watch::before {
+      content: "";
+      position: absolute;
+      inset: -0.5rem;
+    }
   }
   .game-card.done {
     background: color-mix(in srgb, var(--panel-bg) 45%, transparent);

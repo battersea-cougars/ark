@@ -1,6 +1,6 @@
 // Stepping a tournament back one step of its workflow (ADR 0074, 0060), shared by the app (what Manage offers, and
 // what it'll cost) and the Worker (which step it's at, so a tap from a page that's out of date is refused). The steps
-// are the front page's (sign-up, the draft, the teams, the fight card, the day) and the draft's own (the order drawn,
+// are the tournament's statuses (Sign-up open, Draft open, Teams set, Fixtures set, the day) and the draft's own (the order drawn,
 // the draft open); teams that enter skip the draft's. Each step back undoes the step before it, and no more.
 import { signupOver } from "./signup";
 
@@ -45,20 +45,26 @@ export function backFrom(t: Stepping, today: string): BackFrom | null {
   return signupOver(t, today) ? "signup" : null;
 }
 
-/** "Back to …": the step it goes back to, as Manage names it. */
+/**
+ * "Back to …": the status it goes back to, as the track names it (ADR 0074), and within a status the draft's own steps
+ * (the order drawn, before the draw).
+ */
 export const BACK_TO: Record<BackFrom, string> = {
-  results: "Back to the fight card, not started",
-  fixtures: "Back to the teams",
-  teams: "Back to the draft",
+  results: "Back to Fixtures set, unplayed",
+  fixtures: "Back to Teams set",
+  teams: "Back to Draft open",
   draft: "Back to the drawn order",
   order: "Back to before the draw",
-  signup: "Back to sign-up open",
+  signup: "Back to Sign-up open",
 };
+
+/** "Back to …" for this tournament (the same whether it's a draft or teams enter). */
+export const backTo = (from: BackFrom, _kind: string) => BACK_TO[from];
 
 /** What it does, under the Manage item. */
 export const BACK_SAYS: Record<BackFrom, string> = {
   results: "Every result and goal deleted, the matches kept",
-  fixtures: "The fight card comes off, to be made again",
+  fixtures: "The fixtures come off, to be made again",
   teams: "Open again, every pick kept",
   draft: "The picks so far come off; the order stays",
   order: "The order comes off; the next draw is new",

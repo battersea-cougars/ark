@@ -8,10 +8,10 @@ export const tabRoutes = (routes: Route[], tab: TabId, granted: ReadonlySet<Acti
   routes.filter((r) => r.tab === tab && !r.focus && !r.hidden && can(granted, r.action));
 
 /**
- * A tournament series' running pages (its front page, Draft, Teams, Fight card, The board): its stage track, under the
- * header, is their navigation (ADR 0074), so they have no strip and, on a phone, no bar above the header.
+ * A tournament's page (its statuses: sign-up, the draft, the teams, the fixtures, the day): the track of its statuses,
+ * under the header, is its navigation (ADR 0074), so it has no strip and, on a phone, no bar above the header.
  */
-export const TRACK_PAGES = ["games", "draft", "tournament-teams", "schedule", "standings"];
+export const TRACK_PAGES = ["games"];
 export const onTrack = (route: Route) => !!route.fold && TRACK_PAGES.includes(route.page);
 
 /**

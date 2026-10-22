@@ -165,7 +165,7 @@ const PARTS = {
   tournamentTypes: rows(
     `id slug name short_name icon tone format points_win points_draw points_loss game_minutes penalty_rule default_penalty_minutes periods break_minutes kind active
      default_fee_pence default_start_time default_end_time awards playoffs venue_id location map_url after_venue_id after_time
-     after_note`,
+     after_note house_rules`,
     "SELECT * FROM tournament_types ORDER BY id",
   ),
   tournaments: rows(

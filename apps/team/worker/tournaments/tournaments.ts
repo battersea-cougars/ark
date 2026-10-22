@@ -9,6 +9,7 @@ import type { Game } from "./fixtures";
 import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
 import { afterFields, placeFields } from "../settings/venues";
+import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
 import { AFTER_MODES, type AfterMode } from "@cougars/shared/places";
 import { fillingUp } from "../entries/entries";
 
@@ -41,6 +42,7 @@ interface TypeRow {
   after_venue_id: number | null;
   after_time: string | null;
   after_note: string;
+  house_rules: string;
 }
 
 /** How a tournament makes its teams (ADR 0030): teams enter, or captains draft members. */
@@ -141,6 +143,7 @@ export function tournamentTypesFrom(rows: TypeRow[]) {
     afterVenueId: t.after_venue_id,
     afterTime: t.after_time,
     afterNote: t.after_note,
+    houseRules: t.house_rules,
   }));
 }
 
@@ -168,6 +171,8 @@ async function typeFields(db: D1Database, o: Record<string, unknown>) {
     o.breakMinutes == null ? 2 : breakOf(o),
     // Where its tournaments go afterwards, unless one says otherwise (ADR 0074)
     ...(await afterFields(db, o)),
+    // Its house rules (ADR 0074): plain text, a screen of it at most
+    text(o, "houseRules", { optional: true, max: HOUSE_RULES_MAX }).trim(),
   ] as Param[];
 }
 
@@ -201,8 +206,8 @@ export async function createTournamentType(db: D1Database, o: Record<string, unk
     `INSERT INTO tournament_types (name, short_name, icon, tone, points_win, points_draw, points_loss, game_minutes,
        kind, active, default_fee_pence, default_start_time, default_end_time, awards, venue_id, location, map_url,
        playoffs, penalty_rule, periods, default_penalty_minutes, break_minutes, after_venue_id, after_time, after_note,
-       slug)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       house_rules, slug)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [...f, slug],
   );
   return { id: Number(res.meta.last_row_id), slug };
@@ -215,7 +220,7 @@ export async function updateTournamentType(db: D1Database, id: number, o: Record
        points_loss = ?, game_minutes = ?, kind = ?, active = ?, default_fee_pence = ?, default_start_time = ?,
        default_end_time = ?, awards = ?, venue_id = ?,
        location = ?, map_url = ?, playoffs = ?, penalty_rule = ?, periods = ?, default_penalty_minutes = ?,
-       break_minutes = ?, after_venue_id = ?, after_time = ?, after_note = ?
+       break_minutes = ?, after_venue_id = ?, after_time = ?, after_note = ?, house_rules = ?
      WHERE id = ?`,
     [...(await typeFields(db, o)), id],
   );

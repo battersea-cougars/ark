@@ -133,8 +133,13 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
 - Anyone else, while it's scheduled or open: the captains and no players.
 - Once it's closed: the teams with no pick numbers, each team's players in an order that says nothing (a hash of team
   and player, so it's the same each time and nothing moves on a refresh).
+- On the tournament's page (ADR [0074](0074-tournament-home-and-scheduling.md)), the Draft open view is the draft for
+  its captains and whoever runs it, and once it's done its teams and the pick log, round by round. Anyone else gets a
+  card instead, the Kumite's Dux fighting blind ("Fighting blind" and a line from Settings → Quips), before, during
+  and after: they see the teams under Teams set. Its jobs are in the page's Manage, the pick log there too for its
+  captains and whoever runs it, and a captain's own team (its name and crest).
 - Home tells members the draft is on (news, nothing to open) and, once it's closed, that the teams are out, linking to
-  the Teams page. Captains and whoever runs the draft keep their Home link to the Draft page.
+  the tournament's page at Teams set. Captains and whoever runs the draft keep their Home link to the draft.
 
 ### The draft and the fixtures are independent
 
@@ -208,3 +213,7 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   Players/Teams tabs (anyone left out when it closed listed under the teams), and the page itself scrolls, not a box
   in it. Making the fixtures, from the Seal the teams card or the closed page, takes whoever made them on to the
   Fight Card; captains watching stay, with Fight Card on the closed page.
+- 2026-10-22: The draft is a status of the tournament's one page (ADR 0074). Anyone who isn't a captain or running it
+  fights blind there ("no, they should not see the draft", the user), a card and a quip; the server already kept the
+  picks from them. Its Rules join the page's one Rules, its Manage and pick log the page's Manage; done, its captains
+  see the teams and the pick log together.

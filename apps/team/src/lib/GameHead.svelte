@@ -103,22 +103,20 @@
       gap: var(--s-2) var(--s-3);
       padding: var(--s-4) var(--s-4) var(--s-2);
     }
-    /* No room for three across: the stamp sits on the card's top right, over the space the chevron keeps, so a card
-       wearing it (You're next, a result) is no taller than one without */
+    /* No room for three across: the stamp (KUMITE!, You are next!, a result) is a sticker on the card's top edge,
+       half over it, centred, so a card wearing one is no taller than one without */
     .game-head {
       position: relative;
     }
     .centre {
       position: absolute;
-      top: var(--s-3);
-      right: var(--s-4);
-    }
-    /* The game on now has Live there: its chant takes its own line, top middle (it's the main draw, bigger anyway) */
-    .game-head:has(:global(.watch)) .centre {
-      position: static;
-      grid-row: 1;
       grid-column: 1 / -1;
-      justify-self: center;
+      grid-row: 1;
+      /* The card's top edge: up past the head's padding */
+      top: calc(-1 * var(--s-4));
+      left: 50%;
+      z-index: 2;
+      transform: translate(-50%, -55%);
     }
     .end {
       grid-column: 2;

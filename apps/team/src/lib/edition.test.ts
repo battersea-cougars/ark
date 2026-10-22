@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
-import { editionState, editionWhen, stageOf } from "./edition";
+import { countdownOf, editionState, editionWhen, stageOf } from "./edition";
 
 const game = (position: number, status: "next" | "live" | "done", home = 1, away = 2) => ({
   id: position,
@@ -69,5 +69,23 @@ describe("stageOf: which of its pages are tabs", () => {
     expect(stageOf(cup({ kind: "draft", draftState: "open" }))).toBe("draft");
     expect(stageOf(cup({ kind: "draft", draftState: "closed" }))).toBe("teams");
     expect(stageOf(cup({ kind: "draft", draftState: "closed", games: [game(1, "next")] as never }))).toBe("fixtures");
+  });
+});
+
+describe("countdownOf: how far off the day is, in the header (ADR 0074)", () => {
+  // Thursday 22 October 2026
+  const TODAY = "2026-10-22";
+  it("within a week it leads: today, tomorrow, this Saturday, in 7 days", () => {
+    expect(countdownOf("2026-10-22", TODAY)).toEqual({ lead: "Today" });
+    expect(countdownOf("2026-10-23", TODAY)).toEqual({ lead: "Tomorrow" });
+    expect(countdownOf("2026-10-24", TODAY)).toEqual({ lead: "This Saturday" });
+    expect(countdownOf("2026-10-28", TODAY)).toEqual({ lead: "This Wednesday" });
+    expect(countdownOf("2026-10-29", TODAY)).toEqual({ lead: "In 7 days" });
+  });
+  it("further off, a quiet count after the date; across the clocks going back it still counts whole days", () => {
+    expect(countdownOf("2026-11-13", TODAY)).toEqual({ quiet: "in 22 days" });
+  });
+  it("a day gone by: nothing", () => {
+    expect(countdownOf("2026-10-21", TODAY)).toBeNull();
   });
 });

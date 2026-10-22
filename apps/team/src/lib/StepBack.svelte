@@ -6,7 +6,7 @@
   // with the one red fill as the tap that does it. A sheet on a phone, a side drawer on a desktop.
   import type { Tournament, TournamentType } from "../demo/model";
   import { stepBack } from "../app/backend.svelte";
-  import { BACK_TO, backFrom, type BackFrom } from "./step-back";
+  import { backFrom, backTo, type BackFrom } from "./step-back";
   import { londonToday } from "./dates";
   import { phone } from "./viewport.svelte";
   import Sheet from "./Sheet.svelte";
@@ -89,7 +89,7 @@
         <button
           class="btn {cost.level === 'lost' ? 'delete' : 'outline'}"
           disabled={busy}
-          onclick={() => from && go(from)}>{BACK_TO[from]}</button
+          onclick={() => from && go(from)}>{backTo(from, tournament.kind)}</button
         >
       </div>
     </div>
@@ -97,9 +97,9 @@
 {/snippet}
 
 {#if phone.current}
-  <Sheet bind:open title={from ? BACK_TO[from] : ""}>{@render ask()}</Sheet>
+  <Sheet bind:open title={from ? backTo(from, tournament.kind) : ""}>{@render ask()}</Sheet>
 {:else}
-  <Drawer bind:open title={from ? BACK_TO[from] : ""} sub={`${type.shortName}: ${tournament.name}`}
+  <Drawer bind:open title={from ? backTo(from, tournament.kind) : ""} sub={`${type.shortName}: ${tournament.name}`}
     >{@render ask()}</Drawer
   >
 {/if}

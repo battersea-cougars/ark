@@ -6,23 +6,6 @@ import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { editionState, stageOf } from "./edition";
 import { signupOpen } from "./signup";
 
-/** One part of the front page, before the first game's started, in the order it's drawn. */
-export type FrontBlock =
-  /** Are you in, the count, In / Out. */
-  | "signup"
-  /** Your sign-up, one small line: no buttons. */
-  | "signup-line"
-  /** The draft card: its day and captains, or who's picking. */
-  | "draft"
-  /** The draft, done: one line. */
-  | "draft-done"
-  /** You're on Team X: its crest, captain and teammates. */
-  | "my-team"
-  /** The first match, and your first if it's another (firstUpOf). */
-  | "first-up"
-  /** An admin's note: the fight card's to make. */
-  | "make-fixtures";
-
 /** Your team in it, as its captain or a player: its place in the teams, or -1. */
 export const myTeamIndex = (t: Tournament, me: number) =>
   t.teams.findIndex((x) => x.captainMemberId === me || x.players.some((p) => p.memberId === me));
@@ -36,51 +19,90 @@ export function nextFightOf(t: Tournament, me: number): TournamentGame | undefin
     .find((g) => g.status !== "done" && (g.homeTeamId === id || g.awayTeamId === id));
 }
 
-/** What the front page shows before the first game's started, in order (the day itself has its own, live). */
-export function frontOf(t: Tournament, me: number, today: string): FrontBlock[] {
-  const draft = t.kind === "draft";
-  const mine = myTeamIndex(t, me) >= 0;
-  switch (stageOf(t)) {
+/**
+ * Where a tournament is, as a status (ADR 0074): "Fight Card is confusing if we think of the kumite in stages. It
+ * should really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). Its one
+ * page shows the status it's at, or (from the track) one it's been through, read-only.
+ */
+export type Status = "signup" | "draft" | "teams" | "fixtures" | "day";
+
+/** Each status's address under the tournament's page; the one it's at is the page itself. Old pages' addresses. */
+export const STATUS_PATH: Record<Status, string> = {
+  signup: "sign-up",
+  draft: "draft",
+  teams: "teams",
+  fixtures: "schedule",
+  day: "day",
+};
+
+/** The statuses it goes through, in order: a draft has the draft open; then, draft or not, the teams set. */
+export function statusList(t: Pick<Tournament, "kind">): Status[] {
+  return t.kind === "draft" ? ["signup", "draft", "teams", "fixtures", "day"] : ["signup", "teams", "fixtures", "day"];
+}
+
+/** A status in words, as the track says it, and shorter for a phone's narrow track. */
+export function statusLabel(s: Status, t: Pick<Tournament, "kind">, type: Pick<TournamentType, "shortName">) {
+  switch (s) {
     case "signup":
-      return ["signup"];
+      return { label: "Sign-up open", short: "Sign-up" };
     case "draft":
-      return ["draft", "signup-line"];
+      return { label: "Draft open", short: "Draft" };
     case "teams":
-      return [
-        ...(mine ? (["my-team"] as const) : []),
-        // A draft's done in a line; teams that enter may still be coming, while sign-up's open
-        ...(draft ? (["draft-done"] as const) : signupOpen(t, today) ? (["signup"] as const) : []),
-        "make-fixtures",
-      ];
+      // "Teams set", draft or not: it fits a phone's track whole (where "Teams finalised" wouldn't)
+      return { label: "Teams set", short: "Teams" };
     case "fixtures":
-      return ["first-up"];
+      return { label: "Fixtures set", short: "Fixtures" };
+    case "day":
+      return { label: `${type.shortName}!`, short: `${type.shortName}!` };
   }
 }
 
-/** The steps a tournament goes through, as the track at the top of its front page names them. */
-export type Step = "signup" | "draft" | "teams" | "fixtures" | "day";
+/**
+ * The status it's at: sign-up until the draft opens (or, teams that enter, a team's in); the draft open; complete
+ * (closed, or the teams in); the fixtures out; then, on its day or once a match has started, the day itself.
+ */
+export function statusOf(t: Tournament, today: string): Status {
+  const stage = stageOf(t);
+  if (stage !== "fixtures") return stage;
+  const state = editionState(t);
+  return state === "live" || state === "done" || (!t.season && t.heldOn === today) ? "day" : "fixtures";
+}
 
 /**
- * The track at the top of the front page: every step it goes through (no draft for teams that enter), each done, the
- * one it's at now, or still ahead. The fixtures out, it's at the fight card till the day; on the day (or once a game's
- * started), it's at the day, its own name shouted.
+ * The track: every status it goes through, each done, the one it's at now, or still ahead. Every match played, all
+ * done. A status it's reached (done or now) can be looked at; one still ahead can't.
  */
-export function stepsOf(t: Tournament, type: Pick<TournamentType, "shortName">, today: string) {
-  const steps: { step: Step; label: string }[] = [
-    { step: "signup", label: "Sign-up" },
-    ...(t.kind === "draft" ? [{ step: "draft" as const, label: "Draft" }] : []),
-    { step: "teams", label: "Teams" },
-    { step: "fixtures", label: "Fight card" },
-    { step: "day", label: `${type.shortName}!` },
-  ];
-  const stage = stageOf(t);
-  const state = editionState(t);
-  const onTheDay = stage === "fixtures" && (state === "live" || state === "done" || (!t.season && t.heldOn === today));
-  const at = steps.findIndex((s) => s.step === (onTheDay ? "day" : stage));
-  return steps.map((s, i) => ({
-    ...s,
-    state: (i < at || state === "done" ? "done" : i === at ? "now" : "ahead") as "done" | "now" | "ahead",
+export function statusesOf(t: Tournament, type: Pick<TournamentType, "shortName">, today: string) {
+  const list = statusList(t);
+  const at = list.indexOf(statusOf(t, today));
+  const over = editionState(t) === "done";
+  return list.map((status, i) => ({
+    status,
+    ...statusLabel(status, t, type),
+    state: (over || i < at ? "done" : i === at ? "now" : "ahead") as "done" | "now" | "ahead",
   }));
+}
+
+/** Whether it's been through this status (or is at it): only those can be looked at. */
+export function reached(t: Tournament, today: string, s: Status) {
+  const list = statusList(t);
+  const i = list.indexOf(s);
+  return i >= 0 && i <= list.indexOf(statusOf(t, today));
+}
+
+/**
+ * Which status the page shows for the address it's at (`/tournaments/kumite/draft` → the draft): that status if it's
+ * been reached, else (nothing after the page's address, an unknown one, or one still ahead) the status it's at.
+ */
+export function viewOf(t: Tournament, today: string, rest: string): Status {
+  const asked = (Object.keys(STATUS_PATH) as Status[]).find((s) => STATUS_PATH[s] === rest);
+  return asked && reached(t, today, asked) ? asked : statusOf(t, today);
+}
+
+/** The address that shows a status: the page itself for the one it's at, else the status's own. */
+export function statusHref(slug: string, t: Tournament, today: string, s: Status) {
+  const base = `/tournaments/${slug}`;
+  return s === statusOf(t, today) ? base : `${base}/${STATUS_PATH[s]}`;
 }
 
 /** What happens next, under the track: what, its day (a YYYY-MM-DD) and time, or in words when it has no day. */
@@ -123,15 +145,6 @@ export function nextOf(t: Tournament, today: string): Next | undefined {
 }
 
 /**
- * Before the first match: the match that opens the day, and yours if it's a later one (your team's first, marked).
- */
-export function firstUpOf(t: Tournament, me: number) {
-  const first = [...(t.games ?? [])].sort((a, b) => a.position - b.position).find((g) => g.status !== "done");
-  const yours = nextFightOf(t, me);
-  return { games: first ? (yours && yours !== first ? [first, yours] : [first]) : [], upNext: first };
-}
-
-/**
  * On the day: the match on now (or, between matches, the one up next) and the one after it. Your next, when it's
  * neither, is a line under them.
  */
@@ -166,7 +179,7 @@ export function stageBadge(t: Tournament, type: Pick<TournamentType, "shortName"
     case "fixtures":
       if (!t.season && t.heldOn === today) return badge(`${type.shortName}!`, "live");
       if (state === "live") return badge("On now", "live");
-      return badge("Fixtures out", "set");
+      return badge("Fixtures set", "set");
   }
 }
 
@@ -197,36 +210,10 @@ export function afterNoteWords(note: string) {
 }
 
 /**
- * The track is the series' navigation (ADR 0074): each step opens its page, once it has one. Sign-up opens the front
- * page until the fight card's out; then the day (KUMITE!) does, the front page being the day's (on now, next). The
- * draft opens for its captains and whoever runs it (`canDraft`); the teams once there are some to show; the fight card
- * once it's made. The board and History aren't steps: they're links from the front page (and the board from the
- * fight card).
+ * The match the matches' carousel brings forward (ADR 0074): the one on now, else the next to be played (in the day's
+ * order), else, every one played, the last (the final).
  */
-export function trackLinksOf(t: Tournament, slug: string, canDraft: boolean): Record<Step, string | null> {
-  const base = `/tournaments/${slug}`;
-  const card = !!t.games?.length;
-  return {
-    signup: card ? null : base,
-    draft: t.kind === "draft" && canDraft ? `${base}/draft` : null,
-    teams: stageOf(t) !== "signup" ? `${base}/teams` : null,
-    fixtures: card ? `${base}/schedule` : null,
-    day: card ? base : null,
-  };
-}
-
-/** Which step a page of the series is (the track marks it as the one you're on), or null for one that isn't a step. */
-export function pageStepOf(page: string, t: Tournament): Step | null {
-  switch (page) {
-    case "games":
-      return t.games?.length ? "day" : "signup";
-    case "draft":
-      return "draft";
-    case "tournament-teams":
-      return "teams";
-    case "schedule":
-      return "fixtures";
-    default:
-      return null;
-  }
+export function currentMatchOf<G extends Pick<TournamentGame, "status" | "position">>(games: readonly G[]) {
+  const ordered = [...games].sort((a, b) => a.position - b.position);
+  return ordered.find((g) => g.status === "live") ?? ordered.find((g) => g.status !== "done") ?? ordered.at(-1);
 }

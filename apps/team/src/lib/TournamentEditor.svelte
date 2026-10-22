@@ -17,6 +17,7 @@
   import FormSection from "./FormSection.svelte";
   import PlacePicker from "./PlacePicker.svelte";
   import AfterFields from "./AfterFields.svelte";
+  import { HOUSE_RULES_MAX } from "./format-rules";
 
   let { typeId, oncreated }: { typeId?: number; oncreated?: (id: number) => void } = $props();
 
@@ -50,6 +51,7 @@
     afterVenueId: null,
     afterTime: null,
     afterNote: "",
+    houseRules: "",
     awards: [
       { name: "Champions", about: "The team on top of the table at the end of the day." },
       { name: "Top scorer", about: "Most goals across every game." },
@@ -179,6 +181,18 @@
                 bind:time={form.afterTime}
                 bind:note={form.afterNote}
               />
+            </FormSection>
+            <!-- The series' own rules, as written (ADR 0074): everyone reads them under Format & rules -->
+            <FormSection title="House rules" description="A rule a line. Everyone sees them under Format & rules.">
+              <label class="field">
+                <span class="sr-only">House rules</span>
+                <textarea
+                  class="input"
+                  rows="5"
+                  maxlength={HOUSE_RULES_MAX}
+                  bind:value={form.houseRules}
+                  placeholder="e.g. No slapshots. Helmets on."></textarea>
+              </label>
             </FormSection>
             <FormSection title="Rules" description="Round robin: every team plays every other once.">
               <div class="cols">

@@ -3,7 +3,7 @@
 // once you've looked too often (lib/greetings.ts picks the set). Admins edit them in Settings → Quips; the
 // starting set is in db/seed/club.sql. Keep them short and cheeky, never needy, and never make one a club fact.
 
-export type ReplyKind = "ask" | "in" | "waitlist" | "out" | "empty";
+export type ReplyKind = "ask" | "in" | "waitlist" | "out" | "empty" | "blind";
 export type GreetingKind = "morning" | "afternoon" | "evening" | "late" | "training" | "nag";
 export type QuipKind = ReplyKind | GreetingKind;
 export type QuipGroup = "reply" | "greeting";
@@ -16,6 +16,8 @@ export interface Quip {
 
 /** Two lines of the Home message on a phone. */
 export const QUIP_MAX = 56;
+/** Two lines of the closed-draft card on a phone (lib/BlindDraft). */
+export const BLIND_MAX = 80;
 /** Two lines of Home's poster title on a phone, with a longish name. */
 export const GREETING_MAX = 40;
 
@@ -30,6 +32,13 @@ export const QUIP_KINDS: { kind: QuipKind; group: QuipGroup; label: string; hint
     label: "Nobody in",
     hint: "A training's Who's coming, before anyone's answered",
     max: QUIP_MAX,
+  },
+  {
+    kind: "blind",
+    group: "reply",
+    label: "Fighting blind",
+    hint: "The Kumite's Draft open, for members who aren't captains: the first one shows",
+    max: BLIND_MAX,
   },
   { kind: "morning", group: "greeting", label: "Morning", hint: "Home's title before noon", max: GREETING_MAX },
   { kind: "afternoon", group: "greeting", label: "Afternoon", hint: "Home's title from noon", max: GREETING_MAX },
@@ -52,3 +61,8 @@ export const QUIP_KINDS: { kind: QuipKind; group: QuipGroup; label: string; hint
 ];
 
 export const pick = <T>(list: T[]): T | undefined => list[Math.floor(Math.random() * list.length)];
+
+/** The closed draft's line (Settings → Quips, "Fighting blind"): the first there is, so the club chooses it. */
+export const BLIND_LINE = "Can't see the draft? Neither could Dux. He did all right.";
+export const blindLine = (quips: readonly Quip[]) =>
+  [...quips].sort((a, b) => a.id - b.id).find((q) => q.kind === "blind" && q.text.trim())?.text ?? BLIND_LINE;

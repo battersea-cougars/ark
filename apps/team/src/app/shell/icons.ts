@@ -72,6 +72,8 @@ export const ICONS = {
   medal: "M7 3h3l2 5 2-5h3l-3 7M12 21a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 14v4",
   flag: "M5 21V4M5 4h11l-2 4 2 4H5",
   glass: "M6.5 3h11l-1.6 17.1a1 1 0 0 1-1 .9H9.1a1 1 0 0 1-1-.9zM7.2 8.5h9.6",
+  // Fighting blind (the Kumite's closed draft): a blindfold across, its ends knotted and trailing
+  blindfold: "M2.5 9.5C8 8 15 8 20.5 9.5v4C15 12 8 12 2.5 13.5zM20.5 11.5l-1.5 7M20.5 11.5l2 6",
   signOut: "M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 16l4-4-4-4M14 12H4",
 } as const;
 
