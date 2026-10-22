@@ -204,3 +204,7 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-22: The draft's steps back ([0074](0074-tournament-home-and-scheduling.md)): open → the drawn order (the
   picks off, captains told it's paused) and drawn → before the draw, from the Draft page's Manage, for whoever runs
   it; closed → open is Reopen (Back to the draft).
+- 2026-10-22: Once everyone's picked, and once it's closed, the page is the teams: no ticker, no Next line, no
+  Players/Teams tabs (anyone left out when it closed listed under the teams), and the page itself scrolls, not a box
+  in it. Making the fixtures, from the Seal the teams card or the closed page, takes whoever made them on to the
+  Fight Card; captains watching stay, with Fight Card on the closed page.

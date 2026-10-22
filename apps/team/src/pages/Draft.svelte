@@ -64,6 +64,7 @@
     playersNeeded,
   } from "../lib/draft";
   import { teamsForPlayoffs } from "../lib/fixtures";
+  import { navigate } from "../app/router.svelte";
 
   let { typeId }: { typeId: number } = $props();
 
@@ -113,6 +114,9 @@
   const viewsIn = { duration: prefersReducedMotion ? 0 : 300, delay: prefersReducedMotion ? 0 : 560 };
   const open = $derived(phase === "open");
   const live = $derived(open && pool.length > 0);
+  // Everyone's picked, or closed: the picking's over, so the page is the teams (no ticker, no Next, no tabs), and it
+  // scrolls as a page, not in a box
+  const done = $derived((open && !pool.length) || phase === "closed");
   // The picks to come, one for each player left, as slots of the snake: the turn follows the pick numbers, so a pick
   // that came off (the player said they're out) is filled first, by its own team (#125). With no gaps, from `made`
   const slots = $derived(
@@ -182,7 +186,7 @@
   // so it scrolls but never grows; the one on the clock is kept in view
   const ticker = $derived.by(() => {
     // Not before it opens: the order's drawn then (DraftOrder), so there's no order to show
-    if (!teams.length || (phase !== "open" && phase !== "closed") || (phase === "closed" && !made)) return [];
+    if (!teams.length || (phase !== "open" && phase !== "closed") || done) return [];
     const out: { n: number; team: number; took?: string; by?: string }[] = [];
     // Nothing to show (nobody to pick, none picked): no ticker, not a row of empty places
     if (!made && !pool.length) return [];
@@ -391,7 +395,7 @@
   let pageW = $state(0);
   const columns = $derived(pageW >= 960);
   // (Not before the page's width is known: a desktop would start as a phone, and its ticker scroll to the wrong place)
-  const fit = $derived(pageW > 0 && !columns && open);
+  const fit = $derived(pageW > 0 && !columns && live);
   type View = "players" | "teams";
   let view = $state<View>("players");
   // Switching tabs slides the new view in from the side it's on (no slide out: the old one just goes, so the page
@@ -422,8 +426,21 @@
   const makesFixtures = $derived(!games.length && !tooFew);
   const finishes = $derived(games.length > 0 || !tooFew);
   const finishLabel = $derived(makesFixtures ? "Close draft & make fixtures" : "Close the draft");
+  // Fixtures made, whoever made them goes on to the Fight Card (the next step); captains watching stay, and the closed
+  // page links them there
+  const fightCard = $derived(`/tournaments/${type.slug}/schedule`);
   const finish = (leaveOut = false) =>
-    tournament && job(() => (finishes ? finishDraft(tournament.id, leaveOut) : closeDraft(tournament.id, leaveOut)));
+    tournament &&
+    job(async () => {
+      const making = makesFixtures;
+      const done = await (finishes ? finishDraft(tournament.id, leaveOut) : closeDraft(tournament.id, leaveOut));
+      if (done !== null && making) navigate(fightCard);
+    });
+  const fixturesNow = () =>
+    tournament &&
+    job(async () => {
+      if ((await makeFixtures(tournament.id)) !== null) navigate(fightCard);
+    });
   // Closing with members still to pick (Manage): say so, and ask before leaving them out
   let confirmLeaveOut = $state(false);
   async function close() {
@@ -732,7 +749,7 @@
      list starts high and takes the rest -->
 <div class="page full draft" class:fit class:on={open} bind:clientWidth={pageW}>
   {#if tournament}
-    <TournamentHead {type} {tournament} title="Draft" compact={phone.current && open} />
+    <TournamentHead {type} {tournament} title="Draft" compact={phone.current && live} />
   {/if}
 
   {#if !tournament || tournament.kind !== "draft"}
@@ -882,18 +899,16 @@
             >{/if}
         </p>
         {#if games.length}
-          <a class="btn outline sm" href="/tournaments/{type.slug}/schedule">See the fixtures</a>
+          <a class="btn outline sm" href={fightCard}>Fight Card<Icon name="chevronRight" size={16} /></a>
         {:else if running && !tooFew}
-          <button class="btn primary" disabled={busy} onclick={() => job(() => makeFixtures(tournament.id))}
-            >Make the fixtures</button
-          >
+          <button class="btn primary" disabled={busy} onclick={fixturesNow}>Make the fixtures</button>
         {/if}
       </div>
     {/if}
 
     <!-- Under the turn, one small line kept while it's on: who's next (and, on a phone, a captain's own place). The
          last pick is the ticker's newest chip, which lights up as it lands -->
-    {#if open}
+    {#if live}
       <dl class="lines">
         <dt>Next</dt>
         <dd>
@@ -988,6 +1003,12 @@
 
     {#if !settled && phase !== "open" && phase !== "closed"}
       <!-- The players and teams wait for the order: the first thing on the night is the draw -->
+    {:else if done}
+      <!-- The picking's over: the teams, the whole page scrolling down them; anyone left out when it closed under them -->
+      <div class="done-teams" in:fade={viewsIn}>
+        {@render teamsView()}
+        {#if leftOut.length}{@render playersView()}{/if}
+      </div>
     {:else if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
       <div class="tab-row" in:fade={viewsIn}>
@@ -1855,6 +1876,11 @@
     /* (the search's row and the chips', and the gaps after them) */
     padding-top: calc(2.5rem + 2.25rem + 2 * var(--s-3));
   }
+  .done-teams {
+    display: grid;
+    gap: var(--s-6);
+  }
+  .done-teams .teams,
   .views .teams {
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     align-items: start;
