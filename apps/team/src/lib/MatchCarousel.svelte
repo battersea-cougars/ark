@@ -26,6 +26,7 @@
   const items = () => [...(box?.querySelectorAll<HTMLElement>(":scope > .item") ?? [])];
   /** Where the one in front sits: near the band's top, a sliver of the one before showing over it. */
   const SLIVER = 40;
+  const still = prefersReducedMotion;
   /** Bring a match forward: scroll it to the front place (snap does the rest). */
   function bring(i: number, smooth = !prefersReducedMotion) {
     const el = items()[i];
@@ -38,14 +39,22 @@
     frame = 0;
     if (!box) return;
     const front = box.scrollTop + SLIVER;
+    const all = items();
     let best = 0;
     let bestD = Infinity;
-    items().forEach((el, i) => {
+    all.forEach((el, i) => {
       const d = (el.offsetTop - front) / el.offsetHeight;
+      const k = Math.abs(d);
       // 0 in front, 1 a neighbour, 2 the next ones: the depth follows the scroll, not just the snap
-      el.style.setProperty("--k", String(Math.min(2, Math.abs(d))));
-      // Shrinking toward the one in front, so the one before keeps its bottom edge in view as the sliver
+      el.style.setProperty("--k", String(Math.min(2, k)));
+      // Smaller, dimmer and further back the further from the front: a neighbour 0.82 and 0.45, the next 0.68 and
+      // 0.3, softly blurred; each shrinks toward the front, so the one before keeps its foot in view as the sliver
+      const near = Math.min(k, 1);
+      const far = Math.max(Math.min(k, 2) - 1, 0);
       el.style.transformOrigin = d < 0 ? "center bottom" : "center top";
+      el.style.transform = still ? "" : `scale(${1 - near * 0.18 - far * 0.14})`;
+      el.style.opacity = String(1 - near * 0.55 - far * 0.15);
+      el.style.filter = still ? "" : `brightness(${1 - near * 0.25}) blur(${far * 1.5}px)`;
       if (Math.abs(d) < bestD) {
         bestD = Math.abs(d);
         best = i;
@@ -176,26 +185,60 @@
     outline: 2px solid var(--fg-muted);
     outline-offset: 2px;
   }
-  /* Forward the nearer the middle: in front full size, bright and lifted; a neighbour smaller (0.85), dim and darker;
-     the next ones smaller again (0.72). Each a solid card, the same panel */
+  /* Forward the nearer the front: in front full size, bright and floating; the others smaller, dimmer and further
+     back the further they are (measure() sets them as it scrolls) */
   .item {
-    --s: calc(1 - min(var(--k, 0), 1) * 0.15 - max(var(--k, 0) - 1, 0) * 0.13);
     scroll-snap-align: start;
-    transform: scale(var(--s));
-    opacity: calc(1 - min(var(--k, 0), 1) * 0.5);
-    filter: brightness(calc(1 - min(var(--k, 0), 1) * 0.35));
   }
   .item :global(.game-card) {
     border-radius: var(--r-lg);
     background: var(--surface-1);
-    box-shadow: 0 calc(18px * (1 - min(var(--k, 0), 1))) calc(40px * (1 - min(var(--k, 0), 1))) -12px rgb(0 0 0 / 0.7);
+    backdrop-filter: none;
+    box-shadow: 0 calc(24px * (1 - min(var(--k, 0), 1))) calc(48px * (1 - min(var(--k, 0), 1))) -10px rgb(0 0 0 / 0.7);
+  }
+  /* The one in front catches the light, as a hovered event card does (EventCard): a sheen down from a lit top edge,
+     and every few seconds a soft light sweeps across it. Less motion: the sheen, still */
+  .item.front :global(.game-card) {
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.01) 55%, transparent), var(--surface-1);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      0 24px 48px -10px rgb(0 0 0 / 0.7);
+  }
+  .item.front :global(.game-card)::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.07) 50%, transparent 65%) no-repeat;
+    background-size: 250% 100%;
+    pointer-events: none;
+    animation: sweep 6s var(--ease-in-out) infinite;
+  }
+  @keyframes sweep {
+    0% {
+      background-position: 120% 0;
+    }
+    35%,
+    100% {
+      background-position: -120% 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .item.front :global(.game-card)::before {
+      display: none;
+    }
   }
   .item:not(.front) {
     cursor: pointer;
   }
   .still .item {
-    transform: none;
     filter: none;
+  }
+  .still .item:not(.front) {
+    opacity: 0.6;
   }
   .arrows {
     display: grid;

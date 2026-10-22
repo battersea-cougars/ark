@@ -32,7 +32,6 @@
   // 決勝 is the Final's own; any other playoff (a semi-final, 3rd place) gets the fights'
   const kanji = $derived(kanjiFor(type, playoff && /^(the )?final$/i.test(g.name.trim()) ? "final" : "fights"));
   const stage = $derived(playoff ? g.name : grouped ? "" : "Round robin");
-  const liveHref = $derived(`/tournaments/${type?.slug ?? ""}/games/${g.id}/live`);
   const place = $derived(`Game ${g.position} of ${count}`);
   const done = $derived(g.status === "done");
   // The next to be played: Chong Li's line for the Kumite ("You are next!", to Dux after he's beaten Jackson), plainly Up next for the rest
@@ -52,7 +51,7 @@
   });
 </script>
 
-<!-- On now, it's the main draw: bigger, and the one main button, to the live page -->
+<!-- On now, it's the main draw: bigger, its KUMITE! stamp pulsing, and the whole card opens the live page -->
 <div class="list game-card" class:live class:done>
   <GameHead {stage} {kanji} {playoff} {place} opens={!live && !keeping}>
     {#snippet centre()}
@@ -65,7 +64,6 @@
       {#if keeping}<span class="keeping" title="You're keeping score" aria-label="You're keeping score"
           ><Icon name="whistle" size={20} /></span
         >{/if}
-      {#if live}<a class="btn primary sm watch" href={liveHref}><i class="dot" aria-hidden="true"></i>Live</a>{/if}
     {/snippet}
   </GameHead>
   <FixtureRow
@@ -89,18 +87,18 @@
       background-color var(--t-fast) var(--ease-in-out),
       border-color var(--t-fast) var(--ease-in-out);
   }
-  /* The chant, top middle of the game on now: a stamp like the header's ON NOW, outlined in the club's red and a
-     little askew. It and Live both pulse: together they say it's on now */
+  /* The stamp, top right in the head row (no taller than it): on the game on now, KUMITE! outlined in the club's red,
+     a little askew, its dot pulsing, which says it's live */
   .chant {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 1rem 0.35rem;
+    gap: 0.45rem;
+    padding: 0.35rem 0.75rem 0.27rem;
     border: 2.5px solid currentColor;
     border-radius: 0.35rem;
     color: var(--red-hot);
     font-family: var(--font-display);
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     line-height: 1;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -120,7 +118,7 @@
      violet; red stays the live game's. The card steps back so what's to come leads */
   .result {
     color: var(--tone-amber);
-    font-size: 1.15rem;
+    font-size: 1rem;
     box-shadow: none;
   }
   .result::before {
@@ -138,39 +136,14 @@
     margin-left: var(--s-3);
     color: var(--red-hot);
   }
-  /* Live is above the card's click */
-  .watch {
-    position: relative;
-    z-index: 1;
-    margin-left: var(--s-3);
-    gap: var(--s-1);
-  }
-  .watch .dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--red-hot);
-    animation: pulse 1.4s var(--ease-in-out) infinite;
-  }
   /* A phone: the stamp's a sticker on the card's edge, a size down; Live a compact pill, its hit area kept */
   @media (max-width: 600px) {
     .chant {
-      padding: 0.3rem 0.7rem 0.22rem;
-      font-size: 1.1rem;
-      background: var(--panel-bg, var(--surface-1));
+      padding: 0.25rem 0.55rem 0.18rem;
+      font-size: 1rem;
     }
     .result {
-      font-size: 0.95rem;
-    }
-    .watch {
-      min-height: 1.75rem;
-      padding: 0 0.6rem;
-      font-size: var(--text-xs);
-    }
-    .watch::before {
-      content: "";
-      position: absolute;
-      inset: -0.5rem;
+      font-size: 0.85rem;
     }
   }
   .game-card.done {

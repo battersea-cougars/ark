@@ -1,8 +1,8 @@
 <script lang="ts">
   // Over a game in a list, the same two lines on every card so they line up: where it sits in the day (Game 1 of 7),
   // then its stage (the round robin, the Final) in the poster face with its kanji. A playoff is in the club's red,
-  // like the section titles; the round robin stays quiet. What's on now is the card's to say (its KUMITE! stamp, in
-  // the middle). On the right: the whistle, Live, or on hover (its card, lib/GameCard) a chevron as the stage lights.
+  // like the section titles; the round robin stays quiet. On the right, in the same row: its stamp (KUMITE! on now,
+  // You are next!, a result), the whistle, or on hover (its card, lib/GameCard) a chevron as the stage lights.
   import Kanji from "./Kanji.svelte";
   import type { Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -25,7 +25,7 @@
     opens?: boolean;
     /** A button on the right, after the place (Live, on the game on now). */
     action?: Snippet;
-    /** Top middle of the card (the Kumite! chant, on the game on now). */
+    /** The card's stamp, top right (KUMITE! on the game on now, You are next!, a result). */
     centre?: Snippet;
   } = $props();
 </script>
@@ -37,9 +37,11 @@
     <span class="place">{place}</span>
     {#if stage}<span class="stage">{stage}<Kanji text={kanji} /></span>{/if}
   </span>
-  {#if centre}<span class="centre">{@render centre()}</span>{/if}
+  <!-- On the right, inside the card in the same row as Game N of M: the stamp (KUMITE!, You are next!, a result),
+       then the whistle, or on hover the chevron. A card wearing a stamp is no taller than one without -->
   <span class="end"
-    >{#if opens}<span class="go" aria-hidden="true"><Icon name="chevronRight" size={16} /></span
+    >{#if centre}<span class="centre">{@render centre()}</span>{/if}{#if opens}<span class="go" aria-hidden="true"
+        ><Icon name="chevronRight" size={16} /></span
       >{/if}{@render action?.()}</span
   >
 </div>
@@ -48,7 +50,7 @@
   /* Three columns, so whatever's in the middle sits in the card's middle whatever's either side */
   .game-head {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--s-3);
     /* Lined up with its card's row (FixtureRow .carded): room round the corner's button */
@@ -86,12 +88,11 @@
     margin-left: 0;
   }
   .centre {
-    grid-column: 2;
     display: inline-flex;
   }
   /* The right: the whistle, Live, or the chevron on hover */
   .end {
-    grid-column: 3;
+    grid-column: 2;
     justify-self: end;
     display: inline-flex;
     align-items: center;
@@ -102,24 +103,6 @@
       grid-template-columns: minmax(0, 1fr) auto;
       gap: var(--s-2) var(--s-3);
       padding: var(--s-4) var(--s-4) var(--s-2);
-    }
-    /* No room for three across: the stamp (KUMITE!, You are next!, a result) is a sticker on the card's top edge,
-       half over it, centred, so a card wearing one is no taller than one without */
-    .game-head {
-      position: relative;
-    }
-    .centre {
-      position: absolute;
-      grid-column: 1 / -1;
-      grid-row: 1;
-      /* The card's top edge: up past the head's padding */
-      top: calc(-1 * var(--s-4));
-      left: 50%;
-      z-index: 2;
-      transform: translate(-50%, -55%);
-    }
-    .end {
-      grid-column: 2;
     }
   }
   .stage,
