@@ -49,6 +49,11 @@ export default defineConfig(({ command }) => ({
                 // started through env-pull, in memory
                 VAPID_PUBLIC_KEY,
                 VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? "",
+                // Reconnect email (ADR 0027) tried from your machine: the Web client and the sealing key, when started
+                // through env-pull, in memory. Never GMAIL_REFRESH_TOKEN: only a token reconnected here sends from here
+                GMAIL_WEB_CLIENT_ID: process.env.GMAIL_WEB_CLIENT_ID ?? "",
+                GMAIL_WEB_CLIENT_SECRET: process.env.GMAIL_WEB_CLIENT_SECRET ?? "",
+                GMAIL_TOKEN_KEY: process.env.GMAIL_TOKEN_KEY ?? "",
               },
             }
           : undefined,
