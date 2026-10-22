@@ -129,7 +129,7 @@ describe("Home's lead: your next thing, whatever it is", () => {
 
   it("a captain whose picks are done doesn't lead: the draft goes on without them", () => {
     // Two teams, one left to draft, and team 2 on the clock: team 1's captain has had their last pick
-    const picked = { ...team(1, ME), players: [{ memberId: 8, name: "", pick: 0 }] };
+    const picked = { ...team(1, ME), players: [{ memberId: 8, name: "", pick: 1 }] };
     const t = kumite({ draftState: "open", going: [ME, 4, 8, 9], teams: [picked, team(2, 4)], games: [] });
     const rows = feed({ tournaments: [t], upcoming: [{ type, t }], events: [ev("session:1", "2026-10-23T18:30:00Z")] });
     expect(rows.lead?.kind).not.toBe("draft");
