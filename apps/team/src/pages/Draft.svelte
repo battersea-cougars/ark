@@ -40,7 +40,6 @@
     MIN_TEAM_SIZE,
     myTurnLine,
     nextSlots,
-    nth,
     onTheClock,
     orderDrawn,
     picksUntil,
@@ -144,10 +143,10 @@
   const myTeam = $derived(teams.findIndex((_, i) => isMine(i)));
   // The teams in pick order, yours first
   const teamOrder = $derived([...(myTeam >= 0 ? [myTeam] : []), ...teams.map((_, i) => i).filter((i) => i !== myTeam)]);
-  // How many picks until a team's turn (0: now); never, once the pool runs out first
-  const turnIn = (i: number) => picksUntil(teams.length, slots, i);
   // A team's picks still to come, by their numbers in the whole draft (the draft room's empty rows)
   const laneSlots = (i: number) => slots.filter((slot) => onTheClock(teams.length, slot) === i).map((slot) => slot + 1);
+  // Every team card's rows: its captain and a row for each pick it'll have, the most any team will
+  const cardRows = $derived(1 + Math.max(0, ...teams.map((t, i) => t.players.length + laneSlots(i).length)));
   // Who picks after the one on the clock, and a captain's own place (round one's, from the order)
   const nextUp = $derived(teams.length && slots.length > 1 ? onTheClock(teams.length, slots[1]) : -1);
   // A captain's: their place and how soon they pick again (lib/draft.ts). Not for someone picked onto a team, nor an
@@ -157,7 +156,6 @@
     if (!t || t.captainMemberId !== me().id || typeof t.pick !== "number") return "";
     return myTurnLine(t.pick, picksUntil(teams.length, slots, myTeam));
   });
-  const untilMine = $derived(myTeam < 0 || turnIn(myTeam) === Infinity ? -1 : turnIn(myTeam));
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
   // The captains in the server's order: as named until the draft opens and draws it (ADR 0060)
   const order = $derived(
@@ -460,17 +458,8 @@
   const offered = $derived(enterable && roomOffered(tournament, me().id));
 </script>
 
-<!-- A team's turn, as a badge: Picking, Next, In N -->
-{#snippet turnBadge(i: number)}
-  {@const k = turnIn(i)}
-  {#if live && k === 0}<span class="badge red"><Icon name="clock" size={13} />Picking</span>
-  {:else if live && k === 1}<span class="badge">Up next</span>
-  {:else if live && k !== Infinity}<span class="badge num">In {k}</span>
-  {/if}
-{/snippet}
-
 <!-- A team's players as rows: the captain, then its picks in order; `next` draws your coming pick already -->
-{#snippet roster(i: number, next = false)}
+{#snippet roster(i: number)}
   {@const t = teams[i]}
   <ol class="rows">
     {#if t.captainMemberId}
@@ -502,21 +491,11 @@
         {#if m}<span class="pos" class:g={m.position === "G"}>{m.position}</span>{/if}
       </li>
     {/each}
-    {#if room}
-      <!-- The draft room: every pick still to come is its row already, so the team reads as a board and a pick
-           landing fills its row, moving nothing -->
-      {#each laneSlots(i) as pick, k (pick)}
-        <li class="row slot">
-          <span class="n num">{t.players.length + k + 1}</span>
-          <span class="name num">pick {pick}</span>
-        </li>
-      {/each}
-    {:else if next}
-      <li class="row slot">
-        <span class="n num">{t.players.length + 1}</span>
-        <span class="name num">pick {made + turnIn(i) + 1}</span>
-      </li>
-    {/if}
+    <!-- Every pick still to come is its row already, a faint line: the card is the team's full height from the start,
+         so a pick fills its row and nothing moves -->
+    {#each laneSlots(i) as pick (pick)}
+      <li class="row slot" aria-hidden="true"><span class="n"></span><span class="line"></span></li>
+    {/each}
   </ol>
 {/snippet}
 
@@ -590,41 +569,36 @@
   </div>
 {/snippet}
 
+<!-- A team, as a card: every team the same, the same height (its captain and a row for each pick it'll have), so a
+     full team fills it exactly. The team picking is lit (its crest and name; the others a little quieter while it
+     picks) with the one red Picking badge; yours says so, and warns while you've no goalie -->
+{#snippet teamCard(i: number)}
+  {@const t = teams[i]}
+  {@const yours = i === myTeam}
+  {@const picking = live && i === clock}
+  <section class="panel" class:picking class:quiet={live && !picking} aria-label={teamName(i)}>
+    <header>
+      <TeamCrest
+        among={crestNames}
+        name={teamName(i)}
+        logo={t.logo}
+        tone={teamTone(i)}
+        onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
+      />
+      <h3 class="display">{teamName(i)}</h3>
+    </header>
+    <div class="panel-badges">
+      {#if picking}<span class="badge red"><Icon name="clock" size={13} />Picking</span>{/if}
+      {#if yours && open && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span>{/if}
+      {#if yours && !picking}<span class="badge">Your team</span>{/if}
+    </div>
+    {@render roster(i)}
+  </section>
+{/snippet}
+
 {#snippet teamsView()}
-  <section class="teams" aria-label="Teams">
-    {#each teamOrder as i (teams[i].id ?? i)}
-      {@const t = teams[i]}
-      {@const yours = i === myTeam}
-      <div class="panel" aria-label={yours ? "Your team" : undefined}>
-        <header>
-          <TeamCrest
-            among={crestNames}
-            name={teamName(i)}
-            logo={t.logo}
-            tone={teamTone(i)}
-            onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
-          />
-          <h3 class="display">{teamName(i)}</h3>
-        </header>
-        <!-- Its badges on a line of their own under the name, the line always there so the cards line up and a name
-             never gives way to them: its place in round one's order (once drawn), and yours said in words, Picking
-             when it's your turn, a heads-up while you still need a goalie; another team's turn -->
-        <div class="panel-badges">
-          {#if typeof t.pick === "number" && phase !== "closed" && !yours}<span
-              class="pickno num"
-              title="Picks {nth(t.pick)} in round one">{nth(t.pick)}</span
-            >{/if}
-          {#if yours}
-            {#if open && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span>{/if}
-            {#if live && turnIn(i) === 0}<span class="badge red"><Icon name="clock" size={13} />Picking</span>
-            {:else}<span class="badge">Your team</span>{/if}
-          {:else}
-            {@render turnBadge(i)}
-          {/if}
-        </div>
-        {@render roster(i, yours && live && untilMine >= 0)}
-      </div>
-    {/each}
+  <section class="teams" aria-label="Teams" style:--rows={cardRows}>
+    {#each teamOrder as i (teams[i].id ?? i)}{@render teamCard(i)}{/each}
   </section>
 {/snippet}
 
@@ -914,35 +888,8 @@
       <div class="board" in:fade={viewsIn}>
         <div class="lane-pool">{@render playersView()}</div>
         <!-- The teams: a column each while they fit, wrapping into rows that share the height when they don't -->
-        <div class="lanes">
-          {#each teams as t, i (t.id ?? i)}
-            <section
-              class="lane"
-              class:on-clock={live && i === clock}
-              class:yours={i === myTeam}
-              aria-label={teamName(i)}
-            >
-              <header>
-                <TeamCrest
-                  among={crestNames}
-                  name={teamName(i)}
-                  logo={t.logo}
-                  tone={teamTone(i)}
-                  onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
-                />
-                <h3 class="display">{teamName(i)}</h3>
-              </header>
-              <!-- Its badges on a line of their own, always there, so a turn coming round moves nothing -->
-              <div class="lane-badges">
-                {#if i === myTeam}<span class="badge">Your team</span>{/if}
-                {#if i === myTeam && !haveGoalie}<span class="badge amber"
-                    ><Icon name="alert" size={13} />No goalie</span
-                  >{/if}
-                {@render turnBadge(i)}
-              </div>
-              <div class="lane-rows">{@render roster(i)}</div>
-            </section>
-          {/each}
+        <div class="lanes" style:--rows={cardRows}>
+          {#each teams as _, i (teams[i].id ?? i)}{@render teamCard(i)}{/each}
         </div>
       </div>
     {:else if !columns}
@@ -1020,15 +967,6 @@
 {/if}
 
 <style>
-  /* A team's place in the pick order, beside its name: small, in the numbers' face */
-  .pickno {
-    flex-shrink: 0;
-    color: var(--fg-muted);
-    font-size: var(--text-xs);
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
   /* A pick someone made for the captain: whose it was */
   .name small.by {
     color: var(--fg-subtle);
@@ -1667,7 +1605,7 @@
   .done-teams .teams,
   .views .teams {
     /* As many as fit the width there is, wrapping onto more rows; never one row for the sake of it */
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
     min-width: 0;
     align-items: start;
   }
@@ -1691,11 +1629,24 @@
     font-weight: 700;
   }
 
-  /* A team is its name and a list: no panel behind it (dark on dark said nothing). The row is what lights up */
+  /* A team is a card (the app's panel), every one the same and the same height: its header, its badges' line, and a
+     row for its captain and each pick it'll have (--rows, the most any team has), so a full team fills it exactly */
   .panel {
     display: grid;
-    gap: var(--s-2);
+    align-content: start;
+    gap: var(--s-1);
     min-width: 0;
+    padding: var(--s-1) var(--s-1) var(--s-2);
+  }
+  .panel .rows {
+    grid-template-rows: repeat(var(--rows, 1), 2.5rem);
+  }
+  /* While a team picks, it's the one lit: the others' crests and names a little quieter. No box round it */
+  .panel header {
+    transition: opacity var(--t-slow) var(--ease);
+  }
+  .panel.quiet header {
+    opacity: 0.55;
   }
   /* The header sits clear of the rows and the column's edges: the same inset as the rows, room above */
   .panel header {
@@ -1715,20 +1666,27 @@
     font-size: 1.25rem;
     overflow-wrap: anywhere;
   }
+  /* One line, always there, so every card's the same height: what doesn't fit goes, it never wraps */
   .panel-badges {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
     align-items: center;
     gap: var(--s-1);
     min-height: 1.6rem;
     padding: 0 var(--s-2);
   }
   .panel-badges .badge {
+    flex-shrink: 0;
     gap: 0.3rem;
+  }
+  /* The board's narrow cards: who picked for a captain is in the pick log, not squeezed beside the name */
+  .lanes .by {
+    display: none;
   }
   .teams {
     display: grid;
-    gap: var(--s-6);
+    gap: var(--s-4);
   }
 
   /* A team's players: compact rows */
@@ -1752,9 +1710,14 @@
   .row:hover {
     background: var(--surface-2);
   }
-  .row.slot .name {
-    color: var(--fg-subtle);
-    font-weight: 400;
+  /* A pick to come: a faint dashed line where its player will be */
+  .row.slot .line {
+    flex: 1;
+    height: 0;
+    border-bottom: 1px dashed color-mix(in srgb, var(--fg) 14%, transparent);
+  }
+  .row.slot:hover {
+    background: none;
   }
   .name small {
     margin-left: var(--s-2);
@@ -1975,8 +1938,8 @@
   .board {
     display: grid;
     flex: 1 1 auto;
-    grid-template-columns: minmax(25rem, 1fr) minmax(0, 2.6fr);
-    /* The window's height left, however many rows of teams: they share it and scroll inside */
+    /* The pool as narrow as it reads well, the teams the rest */
+    grid-template-columns: minmax(20rem, 26rem) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     gap: var(--s-4);
     min-height: 0;
@@ -2021,65 +1984,18 @@
     min-height: 3rem;
     font-size: var(--text-md);
   }
-  /* A column per team while each has 14rem; past that they wrap into rows, the rows sharing the height (each column
-     scrolling inside), and the board scrolls only if even that's too short */
+  /* The teams' cards, in pick order, as many to a row as have 12rem (six on a wide screen), packed from the top; the
+     board's right side scrolls if they're taller than the window, the room never does */
   .lanes {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-    grid-auto-rows: minmax(16rem, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    align-content: start;
+    align-items: start;
     gap: var(--s-4);
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-  }
-  .lane {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-    padding: var(--s-2);
-    border-radius: var(--r-lg);
-    transition: background-color var(--t-slow) var(--ease);
-  }
-  /* On the clock: its column lifted (a fill, not a colour), its badge the red */
-  .lane.on-clock {
-    background: var(--surface-2);
-  }
-  .lane header {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    min-width: 0;
-    min-height: 3rem;
-    padding: 0 var(--s-1);
-  }
-  .lane h3 {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    color: var(--fg);
-    font-size: 1.2rem;
-    overflow-wrap: anywhere;
-  }
-  .lane-badges {
-    display: flex;
-    flex-shrink: 0;
-    gap: var(--s-1);
-    min-height: 1.75rem;
-    padding: 0 var(--s-1) var(--s-2);
-    overflow: hidden;
-    white-space: nowrap;
-  }
-  .lane-badges .badge {
-    gap: 0.3rem;
-    flex-shrink: 0;
-  }
-  .lane-rows {
-    flex: 1 1 auto;
-    min-height: 0;
     padding-bottom: 6rem;
+    overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
   }

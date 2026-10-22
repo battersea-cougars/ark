@@ -64,13 +64,28 @@ describe("offering it to a captain", () => {
 
 describe("the room's bar", () => {
   it("says it's your pick, or whose it is and how long till yours", () => {
-    expect(roomTurn(draft(0), CARA, name)).toEqual({ said: "Your pick", you: true, inPicks: null });
-    expect(roomTurn(draft(0), COLE, name)).toEqual({ said: "Team Cara picking", you: false, inPicks: 1 });
+    expect(roomTurn(draft(0), CARA, name)).toEqual({ said: "Your pick", you: true, team: 0, inPicks: null });
+    expect(roomTurn(draft(0), COLE, name)).toEqual({
+      said: "Team Cara is picking",
+      you: false,
+      team: 0,
+      inPicks: 1,
+    });
     // Whoever runs it waits for nobody
-    expect(roomTurn(draft(1), REG, name)).toEqual({ said: "Team Cole picking", you: false, inPicks: null });
+    expect(roomTurn(draft(1), REG, name)).toEqual({
+      said: "Team Cole is picking",
+      you: false,
+      team: 1,
+      inPicks: null,
+    });
   });
 
   it("says everyone's picked once the pool's empty", () => {
-    expect(roomTurn(draft(6), CARA, name)).toEqual({ said: "Everyone's picked", you: false, inPicks: null });
+    expect(roomTurn(draft(6), CARA, name)).toEqual({
+      said: "Everyone's picked",
+      you: false,
+      team: null,
+      inPicks: null,
+    });
   });
 });

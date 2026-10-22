@@ -10,7 +10,9 @@
   import Kanji from "../lib/Kanji.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { kanjiFor } from "../lib/motif";
-  import { goesByOf, nameOfTeam } from "../lib/names";
+  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import TeamCrest from "../lib/TeamCrest.svelte";
+  import { teamTone } from "../lib/team-tones";
   import { draftJobsOf } from "../lib/draft-jobs";
   import { BACK_SAYS, backFrom, backTo } from "../lib/step-back";
   import { londonToday } from "../lib/dates";
@@ -35,9 +37,10 @@
   const inRoom = $derived(canEnterRoom(tournament, me().id, can(granted(), "run:Draft")));
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
-  const turn = $derived(
-    tournament && inRoom ? roomTurn(tournament, me().id, (i) => nameOfTeam(teams[i], teams, byId)) : null,
-  );
+  const nameOf = (i: number) => nameOfTeam(teams[i], teams, byId);
+  const turn = $derived(tournament && inRoom ? roomTurn(tournament, me().id, nameOf) : null);
+  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const crestNames = $derived(teamNamesOf(teams, byId));
   const seal = $derived(kanjiFor(type, "fist"));
 
   // Manage: the same items as the page's gear, for the draft (lib/draft-jobs.ts) and a step back, a row each
@@ -120,18 +123,25 @@
     <span class="mark" aria-hidden="true"
       >{#if seal}<Kanji text={seal} seal />{:else}<Icon name={type.icon} size={18} />{/if}</span
     >
-    <span class="titles">
-      <span class="eyebrow">{type.shortName}</span>
-      <strong class="display">Draft room</strong>
-    </span>
-    <!-- Whose turn: the one line that changes, in its own room, so nothing else in the bar moves on a pick -->
+    <!-- Where you are, small beside the seal: the bar's words are whose pick it is -->
+    <span class="titles eyebrow">{type.shortName} · Draft room</span>
+    <!-- Whose pick, big and plain: the team picking with its crest, or YOUR PICK in red with its light; then quietly
+         how long till yours. The one line that changes, in its own room, so nothing else in the bar moves on a pick -->
     <span class="turn" aria-live="polite">
       {#if turn}
-        <span class="badge" class:red={turn.you}
-          >{#if turn.you}<i class="dot"></i>{/if}{turn.said}{#if turn.inPicks !== null}<span class="num"
-              >{` · you in ${turn.inPicks}`}</span
-            >{/if}</span
+        {#if turn.team !== null && !turn.you}
+          <TeamCrest
+            among={crestNames}
+            name={nameOf(turn.team)}
+            logo={teams[turn.team].logo}
+            tone={teamTone(turn.team)}
+            size="2rem"
+          />
+        {/if}
+        <strong class="said display" class:you={turn.you}
+          >{#if turn.you}<i class="dot"></i>{/if}{turn.said}</strong
         >
+        {#if turn.inPicks !== null}<span class="soon num">you're in {turn.inPicks}</span>{/if}
       {/if}
     </span>
     <span class="keys">
@@ -190,37 +200,46 @@
     color: var(--tone, var(--red));
   }
   .titles {
-    display: grid;
     flex-shrink: 0;
-    line-height: 1.05;
-  }
-  .titles .eyebrow {
-    font-size: var(--text-xs);
-  }
-  .titles strong {
-    font-size: var(--text-lg);
-    text-transform: uppercase;
     white-space: nowrap;
   }
   .turn {
     display: flex;
     flex: 1 1 auto;
     align-items: center;
-    gap: var(--s-2);
+    gap: var(--s-3);
     min-width: 0;
     overflow: hidden;
   }
-  .turn .badge {
+  .turn :global(.crest) {
+    flex-shrink: 0;
+  }
+  /* The bar's main words: who's picking, in the display face */
+  .said {
     min-width: 0;
     overflow: hidden;
+    color: var(--fg);
+    font-size: clamp(1.15rem, 2.4vw, 1.75rem);
+    line-height: 1.1;
     text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .said.you {
+    color: var(--red-hot);
+  }
+  .soon {
+    flex-shrink: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
     white-space: nowrap;
   }
   .dot {
     display: inline-block;
-    width: 0.45rem;
-    height: 0.45rem;
-    margin-right: 0.35rem;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-right: 0.5rem;
+    vertical-align: 0.2em;
     border-radius: 50%;
     background: currentColor;
     animation: pulse 1.4s var(--ease-in-out) infinite;
@@ -265,17 +284,14 @@
     overflow-x: hidden;
   }
   @media (max-width: 640px) {
-    .live,
-    .titles .eyebrow {
+    .live {
       display: none;
     }
-    .titles strong {
-      font-size: var(--text-md);
-    }
   }
-  /* A phone: whose turn gets the room; the seal says where you are */
+  /* A phone: whose pick gets the room; the seal says where you are */
   @media (max-width: 480px) {
-    .titles {
+    .titles,
+    .turn :global(.crest) {
       display: none;
     }
   }

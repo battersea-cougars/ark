@@ -275,3 +275,12 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-22: The draft's jobs (undo the last pick, add a player, close it early, reset) are rows of the page's gear
   and the draft room's, not a Manage the draft drawer of their own (ADR 0074); closing it once everyone's picked is
   the Seal card's, and reopening a closed one is Back a step.
+- 2026-10-22: Simpler ("currently picking should be obvious, in the header"; "I don't like the grey box"; "each team
+  should probably just look like a fixed height card", the user): the room's bar says who's picking big, in the
+  display face ("TEAM CAL IS PICKING" by its crest, or YOUR PICK in red with its light), then quietly "you're in 9";
+  Kumite · Draft room is a small eyebrow by the seal. Every team is the same card (the app's panel), all the same
+  height, a row for its captain and each pick it'll have, a pick to come a faint dashed line; packed from the top,
+  on the board six to a row on a wide screen (the pool 20 to 26rem, a card 12rem at least), the board's side
+  scrolling, never the room. The team picking is lit (the others' crests and names quieter) with the red Picking
+  badge, no box round it; the only badges are Picking, No goalie and Your team (the order and In N are the
+  carousel's). The same cards on the page's Teams tab and done view.

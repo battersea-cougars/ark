@@ -34,20 +34,25 @@ export function roomOffered(t: Drafting | undefined, me: number): boolean {
 }
 
 /**
- * The room's bar: whose turn, as the page's strip says it (Your pick, Team picking, Everyone's picked), and, for a
+ * The room's bar: whose turn, big (Your pick, Team Cal is picking, Everyone's picked), the team picking, and, for a
  * captain waiting, how long till theirs. `name` is a team's name by its place in the pick order.
  */
 export function roomTurn(
   t: Drafting,
   me: number,
   name: (team: number) => string,
-): { said: string; you: boolean; inPicks: number | null } {
+): { said: string; you: boolean; team: number | null; inPicks: number | null } {
   const mine = t.teams.findIndex((x) => x.captainMemberId === me);
   const { left, slots, picks, until } = draftTurn(t, mine);
-  if (!left) return { said: "Everyone's picked", you: false, inPicks: null };
+  if (!left) return { said: "Everyone's picked", you: false, team: null, inPicks: null };
   const clock = onTheClock(t.teams.length, slots[0] ?? picks);
-  if (clock === mine) return { said: "Your pick", you: true, inPicks: null };
-  return { said: `${name(clock)} picking`, you: false, inPicks: mine >= 0 && until !== Infinity ? until : null };
+  if (clock === mine) return { said: "Your pick", you: true, team: clock, inPicks: null };
+  return {
+    said: `${name(clock)} is picking`,
+    you: false,
+    team: clock,
+    inPicks: mine >= 0 && until !== Infinity ? until : null,
+  };
 }
 
 /**
