@@ -39,7 +39,7 @@ only need that secret.
   replaces YouTube's, _Hide from the website_ drops it, _Show first_ pins it. A document whose video isn't in the
   source adds it. They don't change the label. Order: pinned first, then newest. The date is the London day.
 - `YOUTUBE_API_KEY` is a read-only Worker secret, pushed from Secrets Manager by `deploy.yml` on every deploy
-  ([README.md#secrets](../../README.md#secrets)). It never reaches the browser. Without it, the site shows the Sanity
+  ([docs/secrets.md#youtube](../secrets.md#youtube)). It never reaches the browser. Without it, the site shows the Sanity
   videos only.
 
 **Uploading videos happens on YouTube, not in the app.** The team app's Upload shows people with `upload:Video`

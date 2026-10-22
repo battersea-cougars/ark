@@ -8,8 +8,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-: "${CLOUDFLARE_API_TOKEN:?run through scripts/env-pull.mjs (README.md#secrets)}"
-: "${CLOUDFLARE_ACCOUNT_ID:?run through scripts/env-pull.mjs (README.md#secrets)}"
+: "${CLOUDFLARE_API_TOKEN:?run through scripts/env-pull.mjs (docs/secrets.md)}"
+: "${CLOUDFLARE_ACCOUNT_ID:?run through scripts/env-pull.mjs (docs/secrets.md)}"
 
 subdomain=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" |

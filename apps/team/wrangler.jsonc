@@ -23,10 +23,10 @@
   // triggers: 5 per account; the website has 1).
   "triggers": { "crons": ["7 * * * *", "*/5 * * * *", "* * * * *"] },
   "vars": {
-    // The club's GitHub App, which asks for website rebuilds (README#github_app_private_key). Not secret; its key is.
+    // The club's GitHub App, which asks for website rebuilds (docs/secrets.md#github_app_private_key). Not secret; its key is.
     "GITHUB_APP_CLIENT_ID": "Iv23liuUhxYcTesso0TW",
     "GITHUB_APP_INSTALLATION_ID": "169599165",
-    // Web Push's public key (README#web-push, scripts/webpush-setup.mjs), for the Worker's signature and the app's
+    // Web Push's public key (docs/secrets.md#web-push, scripts/webpush-setup.mjs), for the Worker's signature and the app's
     // subscriptions (vite.config.ts builds it in). Not secret; VAPID_PRIVATE_KEY is.
     "VAPID_PUBLIC_KEY": "BAbNPSsLBAU6J1q8lELDWYGUBw289EtNIThpgCI5TV1vQ1b5AE3Q_EX9zPnInSgf1NfEOIjHQbIEewYECJFP78M",
   },

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The club's VAPID key pair for Web Push (docs/adr/0108-store-apps.md, #24): what a browser's push service knows the
-// team Worker by. The private key goes straight into Secrets Manager (VAPID_PRIVATE_KEY, README.md#web-push), never
+// team Worker by. The private key goes straight into Secrets Manager (VAPID_PRIVATE_KEY, docs/secrets.md#web-push), never
 // printed or written to a file; the public key is no secret, and goes in apps/team/wrangler.jsonc's vars, where the
 // Worker and the app's build both read it. One pair serves dev and production: a subscription belongs to the origin
 // that made it, so the two never share one.

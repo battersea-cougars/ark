@@ -53,7 +53,7 @@ export default defineConfig({
       INSTAGRAM_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Which site this build is (deploy.yml sets it): production, or dev for everything else
       SITE_ENV: envField.enum({ values: ["production", "dev"], context: "server", access: "public", default: "dev" }),
-      // Enquiry emails through the Gmail API (packages/shared/email.ts, README.md#gmail). Worker secrets; without them the
+      // Enquiry emails through the Gmail API (packages/shared/email.ts, docs/secrets.md#gmail). Worker secrets; without them the
       // email is logged instead of sent.
       GMAIL_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
       GMAIL_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),

@@ -8,7 +8,7 @@ previews, your machine).
 
 All secrets go into **Bitwarden Secrets Manager** and nowhere else. **Name every token exactly like its
 secret**, for example a Cloudflare token called `CLOUDFLARE_API_TOKEN__PRODUCTION`. Each secret is described in
-[README.md#secrets](../README.md#secrets); the rules are in [ADR 0002](adr/0002-secrets-in-bitwarden.md).
+[secrets.md](secrets.md); the rules are in [ADR 0002](adr/0002-secrets-in-bitwarden.md).
 
 ## 1. Cloudflare: two accounts (hosting + database)
 
@@ -70,7 +70,7 @@ To set up a project from scratch (or check one):
 2. Create two projects: **`cougars`** (production values, `NAME__PRODUCTION`) and **`cougars-dev`** (dev values,
    `NAME__DEV`, and shared plain `NAME`s). Add the secrets from steps 1, 2 and 5 with exactly those names.
 3. **Machine accounts**, each with one access token (names and the matrix are in
-   [README.md#bitwarden-tokens](../README.md#bitwarden-tokens)):
+   [secrets.md#bitwarden-tokens](secrets.md#bitwarden-tokens)):
    - `cougars-ci`: `cougars` and `cougars-dev`. Token `BWS_ACCESS_TOKEN__PRODUCTION`, in GitHub environment `production`.
    - `cougars-ci-dev`: `cougars-dev` only. Token `BWS_ACCESS_TOKEN__DEV`, in GitHub environment `preview`.
    - `cougars-ci` and `cougars-ci-dev` get **Can read** only.
@@ -125,11 +125,11 @@ and keep two-factor login on the account, which controls the domain.
 Nothing is done by hand: `deploy.yml` sets production's `SITE_URL` to `https://batterseacougars.com`, and
 `scripts/ci/target.mjs` attaches it and `www.` to the `cougars` worker as custom domains, so the first `release`
 deploy creates the DNS records and certificates. That needs the zone permissions on
-[`CLOUDFLARE_API_TOKEN__PRODUCTION`](../README.md#cloudflare_api_token__production). Dev stays on workers.dev: it's a
+[`CLOUDFLARE_API_TOKEN__PRODUCTION`](secrets.md#cloudflare_api_token). Dev stays on workers.dev: it's a
 separate Cloudflare account, and a domain can only point at workers in its own.
 
 The form rate limit and the edge cache start working on the domain: Cloudflare's Cache API is disabled on
-`*.workers.dev`. At launch, switch the Google Auth Platform **Branding** URLs to the domain (README.md#gmail).
+`*.workers.dev`. At launch, switch the Google Auth Platform **Branding** URLs to the domain ([secrets.md#gmail](secrets.md#gmail)).
 
 **Before launch, behind Cloudflare Access**: `batterseacougars.com`, `www.` and `team.` ask for an email and a
 one-time code, and let in only the emails on the **Admins (production roster)** policy, plus CI's service token for the

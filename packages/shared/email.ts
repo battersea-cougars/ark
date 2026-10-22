@@ -1,6 +1,6 @@
 // Email through the Gmail API (HTTPS, not SMTP), for the website and the team app. Pattern from gwenda-hackney/ark
 // (packages/shared/gmail-send.js), with the club's consumer Gmail account: an OAuth refresh token (send-only) instead of a
-// Workspace service account. Setup: README.md#gmail. Decision: docs/adr/0027-email-through-gmail-api.md.
+// Workspace service account. Setup: docs/secrets.md#gmail. Decision: docs/adr/0027-email-through-gmail-api.md.
 //
 // Outside production nothing reaches a real person (sendMail always runs safeMail):
 //   - production means SITE_ENV is exactly "production"; anything else, including unset, is not;

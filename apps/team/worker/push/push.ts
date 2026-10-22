@@ -66,7 +66,7 @@ export interface PushEnv {
   /** The Google service account that sends through Firebase Cloud Messaging (JSON). Unset: logged, not sent. */
   FIREBASE_SERVICE_ACCOUNT?: string;
   /** The club's VAPID key pair for Web Push (base64url): the public key is a var (wrangler.jsonc), the private a
-   * secret (README#web-push). Either unset: a browser's notification is logged, not sent. */
+   * secret (docs/secrets.md#web-push). Either unset: a browser's notification is logged, not sent. */
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
 }

@@ -143,7 +143,7 @@
       <p><strong>Not set up yet.</strong></p>
       <p class="hint">
         The page reads Cloudflare's analytics with a read-only token. Create one in Cloudflare (Account Analytics:
-        Read), and store it in Secrets Manager as <code>CLOUDFLARE_ANALYTICS_TOKEN</code> (README, Secrets).
+        Read), and store it in Secrets Manager as <code>CLOUDFLARE_ANALYTICS_TOKEN</code> (docs/secrets.md).
       </p>
     </div>
   {:else if usage.unavailable}

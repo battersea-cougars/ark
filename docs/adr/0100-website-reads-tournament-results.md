@@ -42,7 +42,7 @@ Three ways were open:
   or after it (the last game scored, a goal corrected, awards confirmed, renamed, made private, deleted) marks a
   rebuild wanted (`website_rebuild`, `apps/team/worker/website/website.ts`). A cron every five minutes sends it once there's
   been no change for five minutes, so a results day is one rebuild. As the club's GitHub App, **Cougars rebuilds**,
-  owned by the organisation so it outlives any maintainer (README#github_app_private_key), it runs `deploy.yml` for
+  owned by the organisation so it outlives any maintainer ([docs/secrets.md#github_app_private_key](../secrets.md#github_app_private_key)), it runs `deploy.yml` for
   the website (`workflow_dispatch`, `apps: web`) from its environment's branch: `main` for dev, `release` for
   production. The App can start workflows and nothing else, and each token it takes asks for only that: a leaked key
   can't push code (#71). If GitHub can't be reached, the next check tries again. A laptop's server never asks.

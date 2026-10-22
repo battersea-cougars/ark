@@ -100,7 +100,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 ## Consequences
 
 - Two Cloudflare logins, two Sanity projects and their tokens to look after, documented in
-  [README.md#secrets](../../README.md#secrets). Webhooks, CORS origins, tokens and members are set up per Sanity
+  [docs/secrets.md](../secrets.md). Webhooks, CORS origins, tokens and members are set up per Sanity
   project ([setup.md](../setup.md#2-sanity-content-editing)); each counts against the free plan separately.
 - Each environment has its own database: a PR rebuilds dev, never production. Dev's data is rebuilt on each deploy
   from the schema and seed ([ADR 0050](0050-schema-and-seed-until-launch.md)).

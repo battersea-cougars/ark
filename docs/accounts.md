@@ -2,7 +2,7 @@
 
 Every outside service the club runs on: who owns it, what's in it, and which secrets it issues. The secrets themselves
 live only in Bitwarden Secrets Manager ([ADR 0002](adr/0002-secrets-in-bitwarden.md)); how each one is made, used
-and rotated is in [README#secrets](../README.md#secrets). One-time setup steps are in [setup.md](setup.md).
+and rotated is in [secrets.md](secrets.md). One-time setup steps are in [setup.md](setup.md).
 
 ## Who's who
 
@@ -24,7 +24,7 @@ Accounts are named here by role, never by address:
 | [Bitwarden](#bitwarden)       | The club's organisation (EU server); club account and a maintainer                                    | Secrets Manager: projects `cougars` and `cougars-dev`                    | The machine-account tokens `BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`, and the local one                                                                                    |
 | [Cloudflare](#cloudflare)     | Accounts **Cougars** and **Cougars Dev**; club account and a maintainer are Super Administrators      | Workers, D1, the domain, Access, Turnstile, Web Analytics, rate limiting | `CLOUDFLARE_API_TOKEN__*`, `CLOUDFLARE_ACCOUNT_ID__*`, `CLOUDFLARE_ANALYTICS_TOKEN__*`, `TURNSTILE_SECRET_KEY`(`__PRODUCTION`), `CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION` |
 | [Sanity](#sanity)             | Projects **Cougars** and **Cougars Dev**; club account and a maintainer are Administrators            | The website's editable content and photos                                | `SANITY_DEPLOY_TOKEN__PRODUCTION`                                                                                                                                        |
-| [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner                | The Gmail API app, YouTube API keys, Firebase (later)                    | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_SERVICE_ACCOUNT` (later)                                                                       |
+| [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner                | The Gmail API app, YouTube API keys, Firebase                            | `GMAIL_CLIENT_ID`/`_SECRET`, `GMAIL_WEB_CLIENT_ID`/`_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_*`                                                                         |
 | [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                            | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                                                    |
 | [YouTube](#youtube)           | The club account owns the channel; managers upload                                                    | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                                               |
 | [Instagram](#instagram)       | The club account owns @batterseacougarshockey (Professional); the developer account owns the Meta app | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN__PRODUCTION` (and our `INSTAGRAM_TOKEN_KEY__PRODUCTION`)                                                                                                |
@@ -86,16 +86,18 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
 - **Project** `battersea-cougars`, owned by the developer account, the club account a second Owner.
 - **Gmail API:** one OAuth app, "Battersea Cougars" (In production, unverified: only the developer account ever signs
   in), with a Desktop client `cougars-website`, scope `gmail.send` only. Its ID and secret are `GMAIL_CLIENT_ID` and
-  `GMAIL_CLIENT_SECRET`. A client can hold two secrets at once, so a rotation has no gap (README#gmail).
+  `GMAIL_CLIENT_SECRET`; a Web client, `GMAIL_WEB_CLIENT_ID` and `GMAIL_WEB_CLIENT_SECRET`, lets an admin reconnect
+  from the team app. A client can hold two secrets at once, so a rotation has no gap
+  ([secrets.md#gmail](secrets.md#gmail)).
 - **YouTube Data API:** two API keys, `YOUTUBE_API_KEY__PRODUCTION` and `__DEV`, each restricted to the YouTube Data
   API.
-- **Firebase** (later, with the store app): `FIREBASE_SERVICE_ACCOUNT` sends notifications.
+- **Firebase**, for the store app: `FIREBASE_SERVICE_ACCOUNT` sends notifications; `FIREBASE_IOS_CONFIG` goes into the iOS build.
 
 ## Gmail
 
 - **The developer account sends** every email: sign-in codes, enquiries, auto-replies, reminders. Its
   `GMAIL_REFRESH_TOKEN` (`scripts/gmail-auth.mjs`) is cancelled by a password change on that account: re-run the
-  script, then redeploy (README#gmail, #101).
+  script, then redeploy ([secrets.md#gmail](secrets.md#gmail), #101).
 - **Production reads as the club:** the developer account has the club's address as a "Send mail as" alias, so
   replies reach the club inbox.
 - **The club account receives** enquiries. Its address is set in the Studio (Club → Contact email), never in this repo.
@@ -113,7 +115,7 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
   posts can be read through Instagram's API. Admins post there; the website shows the newest
   ([ADR 0113](adr/0113-photos-from-instagram.md)).
 - **The Meta developer app** "Battersea Cougars website", owned by the developer account, with the club's Instagram
-  as its tester. It issues the read-only token `INSTAGRAM_TOKEN__PRODUCTION` (README#instagram). The website renews
+  as its tester. It issues the read-only token `INSTAGRAM_TOKEN__PRODUCTION` ([secrets.md#instagram](secrets.md#instagram)). The website renews
   it weekly and keeps the renewed one in D1, sealed with `INSTAGRAM_TOKEN_KEY__PRODUCTION`, which we make.
 
 ## Sentry
@@ -127,8 +129,9 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
 ## Apple
 
 - **Apple Developer membership:** a maintainer's for now; making it the club's is #103.
-- **Secrets,** when the store app is built: the App Store Connect API key and its IDs, `APPLE_TEAM_ID`, Firebase's iOS
-  config, and the App Review sign-in (README#store-app). None is in Bitwarden yet.
+- **Secrets:** the App Store Connect API key and its IDs, `APPLE_TEAM_ID`, Firebase's iOS
+  config, and the App Review sign-in ([secrets.md#apple](secrets.md#apple)). All are in Bitwarden but the App Review
+  pair, made when the app first goes to review.
 
 ## Not yet handed over
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Set up Firebase for the store app's notifications (docs/adr/0108-store-apps.md) in the club's Google Cloud project,
 // through Google's APIs: Firebase turned on, the iOS app, and the service account the team Worker sends with. What it
-// makes goes straight into Secrets Manager (FIREBASE_IOS_CONFIG, FIREBASE_SERVICE_ACCOUNT; README.md#store-app).
+// makes goes straight into Secrets Manager (FIREBASE_IOS_CONFIG, FIREBASE_SERVICE_ACCOUNT; docs/secrets.md#firebase).
 // Safe to run again: it changes nothing that's already right, and makes a new key only when Bitwarden has none.
 //   gcloud auth login   (an Owner of the project, once; the devcontainer keeps it)
 //   node scripts/firebase-setup.mjs

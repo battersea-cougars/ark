@@ -1,6 +1,6 @@
 // Bitwarden Secrets Manager is the single source of truth for secrets
 // (docs/adr/0002-secrets-in-bitwarden.md). Every secret is documented in
-// README.md#secrets.
+// docs/secrets.md.
 //
 // Naming rule (from gwenda-hackney/ark): NAME applies to both environments;
 // NAME__PRODUCTION / NAME__DEV override it for that one. Code only ever reads NAME.
@@ -69,7 +69,7 @@ export function ensureToken() {
   if (!token) {
     throw new Error(
       `No Bitwarden token. Run bw-unlock, and check your vault has the secure note ${VAULT_NOTE} ` +
-        "with a line COUGARS_LOCAL_BW_TOKEN=... (README.md#bitwarden-tokens).",
+        "with a line COUGARS_LOCAL_BW_TOKEN=... (docs/secrets.md#bitwarden-tokens).",
     );
   }
   process.env.COUGARS_LOCAL_BW_TOKEN = token;

@@ -4,7 +4,7 @@
 // (APPLE_TEAM_ID, not secret, but one copy: the Worker serves it to phones and store.yml signs with it) stored
 // straight in Secrets Manager. Safe to run again: it changes nothing that's already right.
 //   node scripts/env-pull.mjs -- node scripts/store-setup.mjs
-// Needs APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID and APP_STORE_CONNECT_KEY (README.md#secrets).
+// Needs APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID and APP_STORE_CONNECT_KEY (docs/secrets.md#app-store-connect-key).
 // The app's record (name, description, screenshots) is made in App Store Connect by hand: Apple's API can't.
 // The Play Store's setup joins this when the Android app comes (the ADR lists what it needs).
 import { createPrivateKey, sign } from "node:crypto";

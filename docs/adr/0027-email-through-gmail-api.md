@@ -22,7 +22,7 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 
 - Email is sent with the **Gmail API** over HTTPS (`packages/shared/email.ts`, for the website and the team app), authorised by
   an **OAuth refresh token** with the send-only scope, from the club's Google Cloud project _Battersea Cougars_ (owned
-  by the developer Gmail account). Setup and the four secrets: [README.md#gmail](../../README.md#gmail). Gmail
+  by the developer Gmail account). Setup and its secrets: [docs/secrets.md#gmail](../secrets.md#gmail). Gmail
   sits behind a circuit breaker ([0055](0055-degrade-instead-of-break.md)).
 - **One sending account, two faces.** Every environment sends from the developer Gmail account, with
   one token (`GMAIL_REFRESH_TOKEN`). Production's From is the club's address (the Studio's Club → Contact email), a verified

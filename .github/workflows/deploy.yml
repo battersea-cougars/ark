@@ -189,7 +189,7 @@ jobs:
       SITE_URL: ${{ github.ref == 'refs/heads/release' && 'https://batterseacougars.com' || '' }}
       # Dev: sample content where Sanity's dev dataset is empty, and noindex. Never on production.
       DEMO_CONTENT: ${{ github.ref == 'refs/heads/release' && 'false' || 'true' }}
-      # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, README#turnstile)
+      # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, docs/secrets.md#turnstile)
       TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
@@ -244,7 +244,7 @@ jobs:
           url=$(echo "$out" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)
           echo "url=${SITE_URL:-$url}" >> "$GITHUB_OUTPUT"
 
-      # Secrets the Worker reads at request time, from this environment's Secrets Manager project (README#secrets).
+      # Secrets the Worker reads at request time, from this environment's Secrets Manager project (docs/secrets.md).
       # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample
       # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies).
       - name: Worker secrets

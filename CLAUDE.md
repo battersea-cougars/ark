@@ -36,8 +36,9 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
   Never print secret values, never write them to files (`.env`, `.dev.vars`), never commit them. `.env` is for
   local non-secret overrides only. GitHub holds only the Bitwarden tokens (`BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`). Use
   `npm run secrets` to see what exists (names only).
-- **Every secret is documented in [README.md#secrets](README.md#secrets)**, and a provider token is named
-  exactly like its secret. Adding or renaming a secret means updating that section in the same change.
+- **Every secret is documented in [docs/secrets.md](docs/secrets.md)** (by system; README.md#secrets is the short
+  overview), and a provider token is named exactly like its secret. Adding or renaming a secret means updating its
+  entry and the Overview table there in the same change.
 - **Never deploy to production by hand.** Production deploys only from the `release` branch via
   `.github/workflows/deploy.yml`; `main` and PRs deploy dev ([ADR 0010](docs/adr/0010-environments-and-deploys.md)).
   Dev is a separate Cloudflare account (workers `web` and `team`, at `web.cougars-dev.workers.dev` and `team.cougars-dev.workers.dev`) ([ADR 0010](docs/adr/0010-environments-and-deploys.md)). Your machine is dev; production secrets are `NAME__PRODUCTION`.

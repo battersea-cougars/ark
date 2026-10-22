@@ -9,7 +9,7 @@ import { takeOverPort } from "../../scripts/lib/dev-server.mjs";
 const PORT = 4510;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
 const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
-// Web Push's public key (README#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
+// Web Push's public key (docs/secrets.md#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
 const VAPID_PUBLIC_KEY =
   readFileSync(new URL("wrangler.jsonc", import.meta.url), "utf8").match(/"VAPID_PUBLIC_KEY":\s*"([^"]*)"/)?.[1] ?? "";
 

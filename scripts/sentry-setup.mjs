@@ -3,7 +3,7 @@
 // that's already right.
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, DSNs into Secrets Manager
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs --uptime   also the uptime monitors (once /health is live)
-// Needs SENTRY_AUTH_TOKEN (README#secrets). The organisation is the developer account's, in the EU region.
+// Needs SENTRY_AUTH_TOKEN (docs/secrets.md#sentry_auth_token). The organisation is the developer account's, in the EU region.
 //
 // Each app is a project. Three alerts email: a new issue in production, a new issue in dev, and a spike in production.
 // The team Worker's hourly cron has a cron monitor. The DSNs go to Secrets Manager, not the repo; the deploy hands them

@@ -20,7 +20,7 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 1. **Bitwarden Secrets Manager is the only store for secrets.** CI and scripts load them at run time
    (`scripts/lib/bitwarden.mjs`, `scripts/env-pull.mjs`). It is also our recovery store: **every secret we make
    goes in**, including one that only a provider uses and no code of ours reads (the Apple push key, uploaded to
-   Firebase) and one a provider lets us download only once. Such a backup is documented in the README like any other,
+   Firebase) and one a provider lets us download only once. Such a backup is documented in docs/secrets.md like any other,
    its _Used by_ saying it's a backup.
 2. **Two projects, for every app:** `cougars` (production, `NAME__PRODUCTION`) and `cougars-dev` (dev `NAME__DEV`
    and shared plain `NAME` values). The production/dev split ([ADR 0010](0010-environments-and-deploys.md)) is the
@@ -44,9 +44,12 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
    a Bitwarden machine account), give it the exact Secrets Manager name, for example
    `CLOUDFLARE_API_TOKEN__PRODUCTION`. The provider's token list then maps one-to-one onto Secrets Manager, and
    revoking or rotating the right one is obvious.
-7. **Every secret is documented in the README** ([README.md#secrets](../../README.md#secrets)): why it exists, where
-   it was issued, its permissions, who uses it (the _Used by_ column records which app, since project names don't),
-   how it gets there, and how to rotate it. A secret that isn't in the README shouldn't exist.
+7. **Every secret is documented in [docs/secrets.md](../secrets.md)**, grouped by the system that issues it (as Ark's
+   `docs/env-reference.md`): why it exists (what breaks without it), its owner (where to revoke it), its Bitwarden
+   name and project, its permissions, who uses it (_Used by_ records which app, since project names don't), how it
+   gets there, whether it expires, and how to change it; then one Overview table of every name, and the values that
+   aren't secret under _Plain settings_. The README keeps a short overview
+   ([README.md#secrets](../../README.md#secrets)). A secret that isn't in docs/secrets.md shouldn't exist.
 8. **One exception: a token a Worker has to write.** A Worker can't write to Bitwarden, so a token that the app
    itself makes or renews is kept in D1 (`sealed_tokens`), sealed in the Worker (AES-GCM, `packages/shared/sealed-tokens.ts`)
    with a key of its own that is itself a Bitwarden secret. Its first value is in Bitwarden; if the sealed one won't
@@ -64,8 +67,8 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 
 - No secret files to leak. Running something that needs secrets locally is `node scripts/env-pull.mjs -- <command>`,
   which defaults to dev. `npm run secrets` lists what exists, names only.
-- Adding a secret is three steps, every time: create the token with the SM name, add it to SM, add its entry to the
-  README.
+- Adding a secret is three steps, every time: create the token with the SM name, add it to SM, add its entry to
+  docs/secrets.md.
 - Any CI job with the production token can read every app's production secrets, not just its own. Acceptable for a
   two-app club project.
 - Moving later (Teams plan) to Ark's per-app pairs is moving secrets between projects: the loader merges every project
@@ -83,3 +86,6 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   key Firebase holds), not only those our code reads.
 - 2026-10-22: The exception widens to one more token: Gmail's, reconnected by an admin in the team app and sealed in
   D1 with `GMAIL_TOKEN_KEY`, so email can be fixed without a terminal or a deploy (#101, [ADR 0027](0027-email-through-gmail-api.md)).
+- 2026-10-22: The documentation moves from the README to docs/secrets.md, grouped by system as Ark does it, each
+  entry with its owner and expiry, plus an Overview table and the not-secret values listed apart; the README keeps a
+  short overview.

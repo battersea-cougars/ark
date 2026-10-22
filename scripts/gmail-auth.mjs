@@ -4,7 +4,7 @@
 // SMTP, not a password). One token for both environments: production sends from the same account, as the club's
 // address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
 //   node scripts/gmail-auth.mjs              sign in as the developer account -> GMAIL_REFRESH_TOKEN
-// Needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Bitwarden (README.md#gmail). Opens Google's consent page, catches
+// Needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Bitwarden (docs/secrets.md#gmail). Opens Google's consent page, catches
 // the answer on http://localhost:4590, swaps it for a refresh token (send-only), and saves that straight to
 // Bitwarden. Nothing is printed or written to disk. When Google cancels the token (a password change), an admin
 // reconnects it in the team app instead (Settings → Email, ADR 0027), which needs no deploy; re-running this needs one,
@@ -41,7 +41,7 @@ const key = "GMAIL_REFRESH_TOKEN";
 ensureToken();
 const { GMAIL_CLIENT_ID: clientId, GMAIL_CLIENT_SECRET: clientSecret } = loadSecrets("dev");
 if (!clientId || !clientSecret) {
-  throw new Error("GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET aren't in Bitwarden yet (README.md#gmail).");
+  throw new Error("GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET aren't in Bitwarden yet (docs/secrets.md#gmail).");
 }
 
 const state = randomBytes(16).toString("hex");

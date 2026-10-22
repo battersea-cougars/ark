@@ -108,7 +108,10 @@ const callbackOf = (request: Request) => `${new URL(request.url).origin}${CALLBA
 /** "Reconnect email": Google's consent page to send the browser to, and the cookie that lets its answer back in. */
 export async function startReconnect(env: AuthEnv, request: Request): Promise<Response> {
   if (!canReconnect(env))
-    throw new HttpError(503, "Reconnecting isn't set up here yet: it needs the Web client and its key (README#gmail).");
+    throw new HttpError(
+      503,
+      "Reconnecting isn't set up here yet: it needs the Web client and its key (docs/secrets.md#gmail).",
+    );
   const state = randomUrlSafe(16);
   const verifier = randomUrlSafe(32);
   const { account } = await readMailHealth(env.DB);
