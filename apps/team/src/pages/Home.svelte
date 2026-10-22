@@ -41,6 +41,7 @@
   import type { Bookable, TrainingSession, Tournament } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
   import { editionState } from "../lib/edition";
+  import { signupOpen, signupOver } from "../lib/signup";
   import { checkForUpdates } from "../lib/live-updates.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import DateField from "../lib/DateField.svelte";
@@ -164,11 +165,16 @@
   // however far
   const upcomingEvent = (ev: Bookable): UpcomingEvent => {
     const standing = standingOn(ev);
+    const t = ev.kind === "tournament" ? (ev.entries as Tournament) : undefined;
     return {
       ...ev,
       standing,
-      asking: !standing && ev.signup && !ev.cancelled && can(perms, "signup:Event"),
-      signupOpensOn: ev.kind === "tournament" ? (ev.entries as Tournament).signupOpensOn : null,
+      // Only when you can answer now: the sign-up open (a training night's from its opening day, a tournament's by
+      // lib/signup.ts, both worked out on the schedule's Bookable), not one you're barred from
+      asking: !standing && ev.signup && !ev.opens && !ev.cancelled && can(perms, "signup:Event"),
+      signupOpensOn: t?.signupOpensOn ?? null,
+      // Over (past its last day, or under way): nobody's answering now. One still to open isn't closed
+      signupClosed: !!t && !signupOpen(t, today) && (signupOver(t, today) || t.status !== "planned"),
     };
   };
   const bookables = $derived.by(() => {
@@ -231,7 +237,7 @@
     return { ...ev, signup: false, href: slug && t.games?.length ? `/tournaments/${slug}/schedule` : ev.href };
   });
   // A tournament you're not in, its sign-up closed: the card says you're out, where In and Out would be
-  const outOfIt = $derived(notIn && leadEvent?.kind === "tournament");
+  const outOfIt = $derived(notIn && lead?.kind === "event" && !!lead.event.signupClosed);
   // A training night's lead: the locker room's word over it, and your team along its foot once the teams are out
   const session = $derived(
     leadEvent?.kind === "training" && !notIn ? (leadEvent.entries as TrainingSession) : undefined,
@@ -298,13 +304,14 @@
       const ahead =
         (Date.parse(`${londonToday(new Date(ev.startsAt))}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000;
       const when = ahead < 7 ? `this ${day}` : ahead < 14 ? `next ${day}` : `on ${formatDayDate(ev.startsAt)}`;
-      return answered ? when[0].toUpperCase() + when.slice(1) : `Are you in ${when}?`;
+      // Asked only when you can answer now (not before its sign-up opens)
+      return answered || !ev.asking ? when[0].toUpperCase() + when.slice(1) : `Are you in ${when}?`;
     }
     if (ev.kind === "tournament") {
       const name = typeOf(leadEvent?.entries as Tournament)?.shortName;
-      return name ? (said ? `The ${name}` : `Are you in for the ${name}?`) : said ? "Up next" : `Are you in?`;
+      return name ? (ev.asking ? `Are you in for the ${name}?` : `The ${name}`) : ev.asking ? "Are you in?" : "Up next";
     }
-    return said ? "Up next" : "Are you in?";
+    return ev.asking ? "Are you in?" : "Up next";
   };
 
   // Picked once per visit, from the time of day, a training night, or how often you've looked today. The count

@@ -174,6 +174,22 @@ describe("Home's hero: the club's next event, whatever it is", () => {
     expect(rows.upcoming.map((r) => r.key)).toEqual(["session:5"]);
   });
 
+  it("a night whose sign-up opens later is still yours (In comes on Monday), not one you're out of", () => {
+    const friday = ev("session:1", "2026-10-30T19:30:00Z", { asking: false, opens: "Mon" });
+    expect(feed({ upcoming: [], events: [friday] }).lead).toMatchObject({ key: "session:1", role: "yours" });
+    const kumite = ev("tournament:3", "2026-11-28T10:00:00Z", {
+      kind: "tournament",
+      filter: "type:1",
+      asking: false,
+      signupOpensOn: "2026-11-01",
+    });
+    expect(feed({ upcoming: [], events: [kumite] }).lead).toMatchObject({ role: "yours" });
+    // Closed and not in it: not yours
+    expect(feed({ upcoming: [], events: [{ ...kumite, signupOpensOn: null, signupClosed: true }] }).lead).toMatchObject(
+      { role: "notIn" },
+    );
+  });
+
   it("never a cancelled one, one with no day yet, or one that's over", () => {
     const events = [
       ev("session:1", "2026-10-22T18:30:00Z", { cancelled: true }),
@@ -219,6 +235,7 @@ describe("the Kumite this Friday, the Friday's training off for it", () => {
       title: t.name,
       href: "/tournaments/kumite/schedule",
       asking: false,
+      signupClosed: true,
       ...over,
     });
 

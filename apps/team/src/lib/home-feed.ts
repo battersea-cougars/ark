@@ -52,12 +52,15 @@ export interface UpcomingEvent extends Pick<
   | "dateTbc"
   | "season"
   | "timeText"
+  | "opens"
 > {
   standing: Standing | null;
-  /** Taking sign-ups now, and you may sign up. */
+  /** Taking sign-ups now, and you may sign up: only then does Home ask "Are you in?". */
   asking: boolean;
-  /** A tournament's sign-up, still to open. */
+  /** A tournament's sign-up, still to open. (A training night's: `opens`, its short weekday, "Mon".) */
   signupOpensOn?: string | null;
+  /** A tournament's sign-up is over (past its last day, or it's under way): nobody can answer now. */
+  signupClosed?: boolean;
 }
 
 /** A row of what's coming up: its date on the left (Fri / 30 / Oct, or Summer / TBC / 2027), then what and how. */
@@ -213,7 +216,9 @@ export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lea
   for (const event of events) {
     if (event.cancelled || event.season || event.dateTbc || fought.has(event.key)) continue;
     if (Date.parse(event.endsAt) <= nowMs) continue;
-    const role: Role = event.standing === "out" ? "out" : event.standing || event.asking ? "yours" : "notIn";
+    // A sign-up still to open is yours to answer when it does
+    const toCome = !!event.opens || (!!event.signupOpensOn && event.signupOpensOn > today);
+    const role: Role = event.standing === "out" ? "out" : event.standing || event.asking || toCome ? "yours" : "notIn";
     next.push({ kind: "event", key: event.key, at: event.startsAt, event, role });
   }
   const held = pinned && next.find((l) => l.key === pinned);
@@ -253,20 +258,27 @@ function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, figh
   return picked.slice(0, UPCOMING_MAX).map((e) => upcomingRow(e, today, fightTimes.get(e.key)));
 }
 
+// How you stand, or how its sign-up does: "Are you in?" only when you can answer now (the sign-up open, by the same
+// rules as the event's own page: lib/signup.ts, worked out as Home reads the schedule); else when it opens, that it's
+// closed, or just where
 function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingRow {
   const time = e.timeText || (e.season ? "" : timeRange(e.startsAt, e.endsAt));
-  const opens = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
+  const opensOn = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
   const how = e.cancelled
     ? "Cancelled"
     : fight
       ? `Your match at ${fight}`
       : e.standing
         ? STANDING[e.standing]
-        : opens
-          ? `Sign-up opens ${opens.day} ${opens.month}`
-          : e.asking
-            ? "Are you in?"
-            : e.venue;
+        : e.opens
+          ? `Sign-up opens ${e.opens}`
+          : opensOn
+            ? `Sign-up opens ${opensOn.day} ${opensOn.month}`
+            : e.signupClosed
+              ? "Sign-up closed"
+              : e.asking
+                ? "Are you in?"
+                : e.venue;
   const sub = [e.dateTbc ? "" : time, how].filter(Boolean).join(" · ");
   const on = { at: e.startsAt, season: e.season, tbc: e.dateTbc };
   return { key: e.key, href: e.href, icon: e.icon, on, text: e.title, sub };

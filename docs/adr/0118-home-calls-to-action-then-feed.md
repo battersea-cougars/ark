@@ -48,7 +48,12 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
    each with its date on the left (`lib/DateBlock`; Summer / TBC / 2027 with no day yet): each training's next
    session (a cancelled one says Cancelled, and the one after it shows too), each tournament series' next one however
    far off, the club's events in the next six weeks; at most seven, then "See the calendar". The calendar's reminders
-   (a draft night, a sign-up's last day) aren't events here.
+   (a draft night, a sign-up's last day) aren't events here. Each says where you stand
+   (You're in, You're out, You're on the waitlist), else how its sign-up stands: **"Are you in?" only when you can
+   answer now** (its sign-up open, by the same rules as its own page, `lib/signup.ts`; a full one counts, In joins the
+   waitlist), else "Sign-up opens Mon" / "Sign-up opens 1 May", "Sign-up closed", or just where (a social with no
+   sign-up). The hero's heading asks only then too ("This Friday" before Monday's opening).
+
 5. **What needs you**: your move first (an open draft, the draft being on, the teams being out unless you've a match
    coming, a captain's draft day, a sign-up closing for a tournament not already asked about), then the store app's
    notification ask ([0108](0108-store-apps.md)).
@@ -99,3 +104,6 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
 - 2026-10-22: A night you said you're out of is the hero when it's the club's next, showing your Out (In still there),
   not stepping aside for your next thing: the hero is always the club's next event (was: Out led only with nothing
   else coming).
+- 2026-10-22: Home asks "Are you in?" only when you can answer: "these teaser cards should respect if the signup for
+  that event is open. Don't ask 'are you in' if they can't answer." Before a night's or tournament's sign-up opens the
+  row says when it opens, after it closes "Sign-up closed"; a night still to open is yours, not one you're out of.

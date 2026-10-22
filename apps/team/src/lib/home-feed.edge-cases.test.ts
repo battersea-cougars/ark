@@ -117,6 +117,34 @@ describe("what's coming up, at the edges", () => {
     expect(row(t("2026-10-22"))?.sub).toBe("7pm · Sign-up opens 22 Oct");
   });
 
+  describe("asks Are you in? only when you can answer now; else says how its sign-up stands", () => {
+    const row = (over: Partial<UpcomingEvent>) => up([ev("x", day(3), over)])[0].sub;
+    it("open, and yours to answer (a full one too: In joins the waitlist)", () => {
+      expect(row({ asking: true })).toBe("8pm · Are you in?");
+    });
+    it("a training night before its sign-up opens says when, not Are you in?", () => {
+      expect(row({ kind: "training", filter: "series:1", asking: false, opens: "Mon" })).toBe(
+        "8pm · Sign-up opens Mon",
+      );
+    });
+    it("a tournament before its opening day says the day", () => {
+      expect(row({ kind: "tournament", filter: "type:1", signupOpensOn: "2026-10-23" })).toBe(
+        "8pm · Sign-up opens 23 Oct",
+      );
+    });
+    it("a tournament past its last day says Sign-up closed", () => {
+      expect(row({ kind: "tournament", filter: "type:1", signupClosed: true })).toBe("8pm · Sign-up closed");
+    });
+    it("in, out or waiting says so, whatever the sign-up", () => {
+      expect(row({ standing: "in", signupClosed: true })).toBe("8pm · You're in");
+      expect(row({ standing: "out", opens: "Mon" })).toBe("8pm · You're out");
+      expect(row({ standing: "waitlist" })).toBe("8pm · You're on the waitlist");
+    });
+    it("a social with no sign-up: just where", () => {
+      expect(row({ asking: false })).toBe("8pm · The Lock");
+    });
+  });
+
   it("a date still to be confirmed shows no time, only how it stands", () => {
     const rows = up([ev("tbc", day(5), { dateTbc: true, standing: "waitlist" })]);
     expect(rows[0].sub).toBe("You're on the waitlist");
