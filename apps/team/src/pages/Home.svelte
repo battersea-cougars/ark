@@ -4,7 +4,7 @@
   // captain in, a tournament asking), with its action; then the feed: what needs you now, what's coming up after the
   // lead, and for admins their own lines at the foot.
   import { untrack } from "svelte";
-  import { shortName, shortNameOf } from "../lib/names";
+  import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
   import { PLAYERS } from "../demo/data";
   import { chargesFor, owedBy } from "../demo/dues.svelte";
@@ -14,10 +14,12 @@
   import mark from "../assets/cougars-mark.webp";
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
-  import FightCard from "../lib/FightCard.svelte";
-  import { formatDayDate, londonToday } from "../lib/dates";
+  import TeamCrest from "../lib/TeamCrest.svelte";
+  import { clock, formatDayDate, londonToday } from "../lib/dates";
+  import { kickOff, slotMinutes } from "../lib/fixtures";
+  import { teamTone } from "../lib/team-tones";
   import { aged, leftOn } from "../lib/dues";
-  import { homeFeed, owedNotice, type Lead, type UpcomingEvent, type When } from "../lib/home-feed";
+  import { homeFeed, owedNotice, type Fight, type Lead, type UpcomingEvent, type When } from "../lib/home-feed";
   import DateBlock from "../lib/DateBlock.svelte";
   import { fill, slot } from "../lib/greetings";
   import {
@@ -219,6 +221,40 @@
   // Out since the teams were made: still on one until a team maker decides (ADR 0076), but not yours to play on
   const myTeam = $derived(isIn && session ? db.teams[session.id]?.find((t) => t.players.includes(who.id)) : undefined);
   const typeOf = (t: Tournament) => db.tournamentTypes.find((x) => x.id === t.typeId);
+  // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
+  // table fills it), which game, where
+  const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
+  function matchOf({ type, t, game, teamId }: Fight) {
+    const person = (id: number | null) => PLAYERS.find((p) => p.id === id);
+    const side = (id: number | null, seed: number | null) => {
+      const i = t.teams.findIndex((x) => x.id === id);
+      return {
+        id,
+        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : nth(seed),
+        logo: t.teams[i]?.logo ?? null,
+        tone: teamTone(i),
+      };
+    };
+    const home = side(game.homeTeamId, game.homeSeed);
+    const away = side(game.awayTeamId, game.awaySeed);
+    const where = tournamentBookable(t);
+    const live = game.status === "live";
+    const at = clock(kickOff(t.startTime, slotMinutes(t), game.position));
+    return {
+      // The tournament on the schedule, as the card frames it: the match's time (On now while it's played) for the
+      // night's, its page for the tournament's, and nothing to answer
+      event: {
+        ...where,
+        signup: false,
+        timeText: live ? "On now" : at,
+        href: `/tournaments/${type.slug}/games/${game.id}${live ? "/live" : ""}`,
+      },
+      ours: game.awayTeamId === teamId ? away : home,
+      them: game.awayTeamId === teamId ? home : away,
+      crests: teamNamesOf(t.teams, person),
+      game: game.name || `Game ${game.position}`,
+    };
+  }
   // What the lead's heading asks or says
   const leadTitle = (l: Lead) => {
     if (l.kind === "draft") return l.item.text;
@@ -469,28 +505,35 @@
           </EventCard>
         </div>
       {:else if lead.kind === "fight"}
-        {@const { t, game, teamId } = lead.fight}
-        {@const where = tournamentBookable(t)}
-        {@const live = game.status === "live"}
-        <!-- On a team with a fight to come: the game as the fight card has it (who, when, which game), the day and
-             the place under it, and the way to the game -->
-        <div class="lead lead-plain">
-          <FightCard tournament={t} games={[game]} upNext={live ? undefined : game} {teamId} />
-          <p class="lead-meta">
-            <span>{t.heldOn === today ? "Today" : formatDayDate(where.startsAt)}</span>
-            {#if where.venue}
-              {#if where.mapUrl}
-                <a href={where.mapUrl} target="_blank" rel="noopener noreferrer"
-                  ><Icon name="pin" size={16} />{where.venue}</a
-                >
-              {:else}<span><Icon name="pin" size={16} />{where.venue}</span>{/if}
-            {/if}
-          </p>
-          <div class="lead-actions">
-            <a class="btn primary" href="/tournaments/{lead.fight.type.slug}/games/{game.id}{live ? '/live' : ''}"
-              >{live ? "Watch it live" : "See the matchup"}</a
-            >
-          </div>
+        {@const live = lead.fight.game.status === "live"}
+        {@const m = matchOf(lead.fight)}
+        <!-- On a team with a match to come: the Friday card's frame (its date, the type's icon, the place), the match's
+             time in place of the night's, and you v them in place of In and Out. The whole card opens the match (on
+             now, its live page) -->
+        <div class="lead">
+          <EventCard event={m.event} feature glance link place={false}>
+            {#snippet links()}{@render placeLinks(m.event)}{/snippet}
+            {#snippet body()}
+              <span class="match-sides">
+                {#each [m.ours, m.them] as s, k (k)}
+                  {#if k === 1}<span class="match-v">v</span>{/if}
+                  <span class="match-side" class:ours={k === 0}>
+                    {#if s.id}<TeamCrest
+                        among={m.crests}
+                        name={s.name}
+                        logo={s.logo}
+                        tone={s.tone}
+                        size="1.75rem"
+                      />{/if}
+                    <span class="match-name display">{s.name}</span>
+                  </span>
+                {/each}
+              </span>
+              <span class="match-meta">
+                {#if live}<span class="match-live">Live</span>{/if}{m.game}
+              </span>
+            {/snippet}
+          </EventCard>
         </div>
       {:else if lead.kind === "draft"}
         {@const d = lead.item}
@@ -790,26 +833,62 @@
   .lead-plain::after {
     display: none;
   }
-  .lead-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--s-1) var(--s-4);
-    margin: 0 var(--s-2);
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-  }
-  .lead-meta > * {
+  /* Your next match, in the card: you v them, crests by the names, yours in the club's red (an accent, not a fill);
+     which game, quiet, a red Live before it while it's played */
+  .match-live {
     display: inline-flex;
     align-items: center;
     gap: var(--s-1);
+    margin-right: var(--s-3);
+    color: var(--red-hot);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .match-live::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 1.4s var(--ease-in-out) infinite;
+  }
+  /* You v them in a line, closing up from the left; a long name takes the next line whole, crest and all */
+  .match-sides {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2);
+  }
+  .match-side {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
     min-width: 0;
+    max-width: 100%;
   }
-  .lead-meta a {
-    color: var(--fg-body);
+  .match-name {
+    min-width: 0;
+    font-size: var(--text-md);
+    line-height: 1.1;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
   }
-  .lead-meta a:hover {
-    color: var(--fg);
+  .ours .match-name {
+    color: var(--red-hot);
+  }
+  .match-v {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    font-style: italic;
+  }
+  .match-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1) var(--s-3);
+    min-width: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
   }
   .lead-actions {
     display: flex;

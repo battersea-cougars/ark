@@ -33,6 +33,7 @@
     link = false,
     place = true,
     links,
+    body,
   }: {
     event: Bookable;
     canSignUp?: boolean;
@@ -57,6 +58,8 @@
     place?: boolean;
     /** Quiet links under the title (Home: the place, opening the map). */
     links?: Snippet;
+    /** In place of who's going and In and Out: the card's own body (Home's next match: you v them). */
+    body?: Snippet;
   } = $props();
 
   const KIND = { training: "Training", tournament: "Tournament", social: "Social" } as const;
@@ -290,7 +293,9 @@
     </div>
   </div>
 
-  {#if event.signup}
+  {#if body}
+    <div class="body">{@render body()}</div>
+  {:else if event.signup}
     <!-- Two rows at every width: who's going, then your answer -->
     <div class="going">
       {#if glance}
@@ -515,6 +520,11 @@
   }
   .reply {
     display: flex;
+  }
+  /* A body of the caller's own, in place of who's going (Home's next match) */
+  .body {
+    display: grid;
+    gap: var(--s-2);
   }
 
   /* ─── Who's going, and your answer at the end of the row ─── */

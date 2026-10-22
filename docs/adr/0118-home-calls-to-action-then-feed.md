@@ -25,9 +25,10 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
    "Everything from the locker room", Home's page of past announcements ([0107](0107-announcements.md)).
 3. **The lead: your next thing, whatever it is** (`lib/home-feed.ts` `leadOf`), one card with its action: a
    training night (its card with In and Out, the locker room's quip, your team along its foot once the teams are
-   out; "Are you in this Friday?", "next Friday" or its date when it's further off), your next fight in a tournament
-   you're on a team in once its fixtures are out (the game as the fight card has it, the day and the place, See the
-   matchup; Watch it live while it's on), a draft you're a captain in (on now with picks to make, or its day; Make
+   out; "Are you in this Friday?", "next Friday" or its date when it's further off), your next match in a tournament
+   you're on a team in once its fixtures are out ("Your next Kumite match": the training night's card, its date block,
+   the type's icon, the place, with the match's time, On now while it's played, and you v them with crests and which
+   game in place of In and Out; the whole card opens the match, its live page while it's on, with no button), a draft you're a captain in (on now with picks to make, or its day; Make
    your pick), or a tournament or social you're in or may sign up for now ("Are you in for the Kumite?", its card).
    The soonest leads (a fight's time is its kick-off on the day, in London); at the same moment a fight, then a
    draft, then the schedule's order. What you've said you're out of leads only when nothing else is yours; a
@@ -82,3 +83,8 @@ Home is, from the top (`apps/team/src/pages/Home.svelte`):
   thing, else it's a row in what's coming up; a tournament asking and your next fight are the lead when they're
   soonest, else rows ("Are you in?", "Your fight at 10:17am"). A captain's draft can lead too, and isn't then a row in
   what needs you now.
+- 2026-10-22: Your next match's lead is the training night's card (`EventCard` with a `body` in place of In and
+  Out): the same date block, frame, sheen and place link, the type's icon, the match's time (On now, and a red Live
+  before the game's number, while it's played), you v them with crests, yours in red. The whole card opens the match;
+  See the matchup and the grey Up next pill went ("whats the yellow button for??", "follow the pattern of the friday
+  card ... the only difference should be the icon and the copy").
