@@ -179,4 +179,22 @@ describe("Friday's sign-ups: Quarterly Members first", () => {
       await (await as(email)).call("POST", `/api/club-events/${eventId}/answer`, { answer: "in" });
     expect((await dana.sees()).clubEvents[0]).toMatchObject({ going: [id.Reg], waitlist: [id.Paul, id.Quinn] });
   });
+
+  it("an admin makes room for one more at a club event: the first waiting is in, the next still waits (ADR 0030)", async () => {
+    const { dana, id } = await fullFriday();
+    const curry = {
+      title: "Curry night",
+      startsAt: "2026-10-24T19:00:00.000Z",
+      endsAt: "2026-10-24T22:00:00.000Z",
+      venue: "",
+      signup: true,
+      capacity: 1,
+    };
+    const event = await dana.call("POST", "/api/club-events", curry);
+    const eventId = event.body.id ?? (await dana.sees()).clubEvents[0].id;
+    for (const email of ["reg@example.com", "paul@example.com", "quinn@example.com"])
+      await (await as(email)).call("POST", `/api/club-events/${eventId}/answer`, { answer: "in" });
+    expect((await dana.call("PUT", `/api/club-events/${eventId}`, { ...curry, capacity: 2 })).status).toBe(200);
+    expect((await dana.sees()).clubEvents[0]).toMatchObject({ going: [id.Reg, id.Paul], waitlist: [id.Quinn] });
+  });
 });

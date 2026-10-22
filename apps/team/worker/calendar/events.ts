@@ -1,6 +1,7 @@
 // Club events (ADR 0042): one-offs on the calendar.
 import { syncClubEvent } from "@cougars/shared/agenda";
-import { run, type Param } from "@cougars/shared/d1";
+import { batch, run, statement, type Param } from "@cougars/shared/d1";
+import { fillingUp } from "../entries/entries";
 import { HttpError, bool, int, text } from "../api/api.http";
 import { placeFields } from "../settings/venues";
 
@@ -52,13 +53,17 @@ export async function createClubEvent(db: D1Database, o: Record<string, unknown>
   return { id: Number(res.meta.last_row_id) };
 }
 
-export async function updateClubEvent(db: D1Database, id: number, o: Record<string, unknown>) {
-  const res = await run(
-    db,
-    `UPDATE club_events SET title = ?, starts_at = ?, ends_at = ?, venue_id = ?, venue = ?, map_url = ?, description = ?,
-       public = ?, signup_enabled = ?, capacity = ? WHERE id = ?`,
-    [...(await clubEventFields(db, o)), id],
-  );
+/** Change an event; a limit raised moves the first waiting up into its room, in the same batch (ADR 0030). */
+export async function updateClubEvent(db: D1Database, id: number, o: Record<string, unknown>, today: string, now: string) {
+  const [res] = await batch(db, [
+    statement(
+      db,
+      `UPDATE club_events SET title = ?, starts_at = ?, ends_at = ?, venue_id = ?, venue = ?, map_url = ?, description = ?,
+         public = ?, signup_enabled = ?, capacity = ? WHERE id = ?`,
+      [...(await clubEventFields(db, o)), id],
+    ),
+    fillingUp(db, "event", { sql: "t.id = ?", params: [id] }, today, now),
+  ]);
   if (!res.meta.changes) throw new HttpError(404, "No such event.");
   await syncClubEvent(db, id);
 }

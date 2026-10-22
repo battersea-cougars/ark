@@ -2,7 +2,7 @@
 import { places, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
-import { setSeriesFees } from "../dues/dues";
+import { seriesFeeChange } from "../dues/dues";
 import { letIn, mark } from "../entries/entries";
 import { HttpError, body, json } from "../api/api.http";
 import { createSeries, moreSessions, nightOf, setSessionCancelled, updateSeries } from "./training";
@@ -26,10 +26,9 @@ export const TRAINING_ROUTES: Route[] = [
     changes: ["series", "sessions", "charges", "credits", "payments"],
     handle: async (c) => {
       const b = await body(c.request);
-      const made = await createSeries(c.env.DB, b, c.today);
-      // A new training is free until whoever sets fees says otherwise
-      if (can(c.actions, "manage:Fees")) await setSeriesFees(c.env.DB, made.id, b.fees, c.actions);
-      return json(made, 201);
+      // A new training is free until whoever sets fees says otherwise; its fees go in with it, or neither (#131)
+      const fees = can(c.actions, "manage:Fees") ? await seriesFeeChange(c.env.DB, null, b.fees, c.actions) : undefined;
+      return json(await createSeries(c.env.DB, b, c.today, fees), 201);
     },
   },
   {
@@ -50,8 +49,8 @@ export const TRAINING_ROUTES: Route[] = [
     // Its fees too, for whoever sets fees (ADR 0007)
     handle: async (c) => {
       const b = await body(c.request);
-      await setSeriesFees(c.env.DB, id(c), b.fees, c.actions);
-      await updateSeries(c.env.DB, id(c), b, c.today);
+      const fees = await seriesFeeChange(c.env.DB, id(c), b.fees, c.actions);
+      await updateSeries(c.env.DB, id(c), b, c.today, c.now, fees);
       return ok();
     },
   },

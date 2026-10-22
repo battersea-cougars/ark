@@ -70,7 +70,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments", "charges", "credits", "payments"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
-    handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request)), ok()),
+    handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {
     method: "DELETE",

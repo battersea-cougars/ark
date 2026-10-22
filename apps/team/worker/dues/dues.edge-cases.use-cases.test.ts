@@ -218,10 +218,10 @@ describe("what an admin can't get wrong", () => {
     expect(w.db.raw.prepare("SELECT received_on d FROM payments").all()).toEqual([{ d: "2028-02-29" }]);
   });
 
-  // A day that isn't on the calendar is taken as written (Date.parse rolls 30 February on to 2 March), so the ledger,
-  // Unpaid fees' ages and the audit log show a day that never was (https://github.com/battersea-cougars/ark/issues/120)
-  it.fails(
-    "a payment dated a day that doesn't exist (30 February, 29 February 2027) is refused (known bug #120)",
+  // A day that wasn't on the calendar was taken as written (Date.parse rolls 30 February on to 2 March), so the
+  // ledger, Unpaid fees' ages and the audit log showed a day that never was (#120, fixed with #129's dates)
+  it(
+    "a payment dated a day that doesn't exist (30 February, 29 February 2027) is refused (#120)",
     async () => {
       const { reg, pay } = await came(800, []);
       expect((await pay(800, { receivedOn: "2026-02-30" })).status).toBe(400);

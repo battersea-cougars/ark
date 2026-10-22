@@ -83,6 +83,8 @@ export function text(o: Record<string, unknown>, key: string, { optional = false
     throw new HttpError(400, `${key} is needed.`);
   }
   if (typeof v !== "string" || v.length > max) throw new HttpError(400, `${key} should be text (up to ${max}).`);
+  // Only spaces is nothing (#129)
+  if (!v.trim() && !optional) throw new HttpError(400, `${key} is needed.`);
   return v.trim();
 }
 type IntRange = { min?: number; max?: number };
@@ -116,11 +118,19 @@ export function date(o: Record<string, unknown>, key: string, { nullable = false
     if (nullable) return null;
     throw new HttpError(400, `${key} is needed.`);
   }
-  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new HttpError(400, `${key} should be a date.`);
+  if (!isDay(v)) throw new HttpError(400, `${key} should be a date.`);
   return v;
+}
+/** A day on the calendar, "YYYY-MM-DD": never month 13 or 30 February, which JavaScript would roll on (#129). */
+export function isDay(v: unknown): v is string {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [y, m, d] = v.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 export function time(o: Record<string, unknown>, key: string): string {
   const v = o[key];
-  if (typeof v !== "string" || !/^\d{2}:\d{2}$/.test(v)) throw new HttpError(400, `${key} should be a time (HH:MM).`);
+  if (typeof v !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v))
+    throw new HttpError(400, `${key} should be a time (HH:MM).`);
   return v;
 }

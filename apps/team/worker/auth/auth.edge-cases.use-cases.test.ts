@@ -264,9 +264,9 @@ describe("asking to join, at the edges", () => {
   });
 
   // https://github.com/battersea-cougars/ark/issues/133
-  // Known bug #133: a name of only spaces passes the "name is needed" check (it's trimmed after), so a
-  // member with no name is made
-  it.fails("a name of only spaces is refused, like no name (known bug #133)", async () => {
+  // #133: a name of only spaces passed the "name is needed" check (it was trimmed after), so a member with no name
+  // was made
+  it("a name of only spaces is refused, like no name (#133)", async () => {
     const r = await ask({ name: "   ", email: "blank@example.com", position: "F" });
     expect(r.status).toBe(400);
     expect(asked("blank@example.com")).toBeUndefined();

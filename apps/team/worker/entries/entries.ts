@@ -6,7 +6,7 @@
 // session takes the place of the last one in who pays as they go. Adding someone to a training keeps to
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
-import { all, batch, first, run, statement } from "@cougars/shared/d1";
+import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { londonToday } from "../../src/lib/dates";
 import { signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
@@ -182,6 +182,55 @@ function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, n
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
        AND ${roomIn(kind, places.keeper)}`,
     kept ? [id, limit, id, limit] : [now, id, limit, id, limit],
+  );
+}
+
+const PARENTS = { session: "training_sessions", tournament: "tournaments", event: "club_events" } as const;
+
+/**
+ * Places came free on many events at once (a limit raised, someone's places given up): on each, as many of the first
+ * waiting move up as there's now room for, in the order `movingUp` keeps (a training's a side at a time, Quarterly
+ * Members first). `scope` picks the events, as SQL on `s` (the training session, with `ts` its series) or `t` (the
+ * tournament or club event). One statement, so the room is counted as it's taken (ADR 0121); send it in the batch
+ * that freed the places. A night that's over, or called off, is left as it is.
+ */
+export function fillingUp(
+  db: D1Database,
+  kind: EntryKind,
+  scope: { sql: string; params: Param[] },
+  today: string,
+  now: string,
+) {
+  const { table, key } = TABLES[kind];
+  if (kind === "session") {
+    const side = (x: string) => `COALESCE(${keeperRow(x)}, 0)`;
+    return statement(
+      db,
+      `UPDATE attendance SET signup = 'in' WHERE id IN (
+         SELECT id FROM (
+           SELECT e.id, ${placesFor(side("e"))} places,
+             ROW_NUMBER() OVER (PARTITION BY e.session_id, ${side("e")}
+                                ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id) rn,
+             (SELECT COUNT(*) FROM attendance x WHERE x.session_id = e.session_id AND x.signup = 'in'
+                AND ${side("x")} = ${side("e")}) taken
+           FROM attendance e JOIN training_sessions s ON s.id = e.session_id JOIN training_series ts ON ts.id = s.series_id
+           WHERE e.signup = 'waitlist' AND s.cancelled_at IS NULL AND s.held_on >= ? AND (${scope.sql}))
+         WHERE places IS NULL OR rn <= places - taken)`,
+      [today, ...scope.params],
+    );
+  }
+  const live = kind === "tournament" ? "t.held_on >= ?" : "t.cancelled_at IS NULL AND t.starts_at >= ?";
+  return statement(
+    db,
+    `UPDATE ${table} SET signup = 'in', signed_up_at = ? WHERE id IN (
+       SELECT id FROM (
+         SELECT e.id, t.capacity places,
+           ROW_NUMBER() OVER (PARTITION BY e.${key} ORDER BY e.signed_up_at, e.id) rn,
+           (SELECT COUNT(*) FROM ${table} x WHERE x.${key} = e.${key} AND x.signup = 'in') taken
+         FROM ${table} e JOIN ${PARENTS[kind]} t ON t.id = e.${key}
+         WHERE e.signup = 'waitlist' AND ${live} AND (${scope.sql}))
+       WHERE places IS NULL OR rn <= places - taken)`,
+    [now, kind === "tournament" ? today : now, ...scope.params],
   );
 }
 

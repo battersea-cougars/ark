@@ -137,10 +137,10 @@ describe("the first and the last place", () => {
 });
 
 describe("a limit changed while people wait", () => {
-  // Raising the limit doesn't move anyone up: the waiting stay waiting, and the next to say in takes the new place
-  // ahead of them (known bug #127)
-  it.fails(
-    "an admin makes room for one more: the first waiting is in, not the next to sign up (known bug #127)",
+  // Raising the limit moved nobody up: the waiting stayed waiting, and the next to say in took the new place ahead of
+  // them (#127). A limit raised is a place coming free (ADR 0030)
+  it(
+    "an admin makes room for one more: the first waiting is in, not the next to sign up (#127)",
     async () => {
       const f = await friday({ capacity: 2 });
       for (const p of ["Reg", "Paul", "Walt"]) await f.say(p, "in");

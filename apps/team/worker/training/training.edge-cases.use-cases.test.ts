@@ -79,11 +79,10 @@ describe("what an admin may set for a training", () => {
     expect((await dana.sees()).series).toHaveLength(1);
   });
 
-  // An impossible date passes the YYYY-MM-DD check; making its sessions then throws, the training is already saved,
-  // and every member's app fails to open from then on, since opening it makes each training's sessions (known bug
-  // #129)
-  it.fails(
-    "a first session in month 13 is refused, and the app still opens for everyone (known bug #129)",
+  // An impossible date passed the YYYY-MM-DD check; making its sessions then threw, the training was already saved,
+  // and every member's app failed to open from then on, since opening it makes each training's sessions (#129)
+  it(
+    "a first session in month 13 is refused, and the app still opens for everyone (#129)",
     async () => {
       const dana = await admin();
       expect((await dana.call("POST", "/api/series", { ...SUNDAYS, startsOn: "2026-13-01" })).status).toBe(400);
@@ -92,7 +91,19 @@ describe("what an admin may set for a training", () => {
     },
   );
 
-  it.fails("30 February, 25:99 and a training that ends before it starts are refused (known bug #129)", async () => {
+  it("a training already saved with an impossible first session is skipped, and the app still opens for everyone (#129)", async () => {
+    const dana = await admin();
+    expect((await dana.call("POST", "/api/series", SUNDAYS)).status).toBe(201);
+    // As from before dates were checked, or a row changed by hand
+    w.db.raw.prepare("UPDATE training_series SET starts_on = '2026-13-01' WHERE slug = 'sunday'").run();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const reg = await w.signedIn("reg@example.com");
+    expect((await reg.call("GET", "/api/bootstrap", undefined, { now: new Date("2027-02-01T12:00:00Z") })).status).toBe(
+      200,
+    );
+  });
+
+  it("30 February, 25:99 and a training that ends before it starts are refused (#129)", async () => {
     const dana = await admin();
     for (const change of [
       { startsOn: "2026-02-30" },
@@ -155,17 +166,16 @@ describe("what an admin may set for a training", () => {
     expect((await dana.call("POST", "/api/series/999/more", {})).status).toBe(404);
   });
 
-  // The fees are saved before the training is looked up, so a missing one fails on its foreign key (known bug
-  // #130)
-  it.fails("saving fees for a training that doesn't exist is a 404, not a server error (known bug #130)", async () => {
+  // The fees were saved before the training was looked up, so a missing one failed on its foreign key (#130)
+  it("saving fees for a training that doesn't exist is a 404, not a server error (#130)", async () => {
     const dana = await admin();
     expect((await dana.call("PUT", "/api/series/999", { ...dana.friday })).status).toBe(404);
   });
 
-  // The fees are written before the rest of the training is checked (and a new training before its fees are), so a
-  // refused save has already changed what members are charged (known bug #131)
-  it.fails(
-    "a save refused for a bad field changes nothing: not the training, and not its fee (known bug #131)",
+  // The fees were written before the rest of the training was checked (and a new training before its fees were), so
+  // a refused save had already changed what members are charged (#131)
+  it(
+    "a save refused for a bad field changes nothing: not the training, and not its fee (#131)",
     async () => {
       const dana = await admin();
       const fees = dana.friday.fees;
@@ -179,7 +189,7 @@ describe("what an admin may set for a training", () => {
     },
   );
 
-  it.fails("a new training refused for its fees isn't made at all (known bug #131)", async () => {
+  it("a new training refused for its fees isn't made at all (#131)", async () => {
     const dana = await admin();
     const res = await dana.call("POST", "/api/series", { ...SUNDAYS, fees: [{ pence: -5, from: "2026-01-01" }] });
     expect(res.status).toBe(400);

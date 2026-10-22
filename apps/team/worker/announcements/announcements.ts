@@ -3,9 +3,8 @@
 // two newest still on), not a feed. "Got it" is a member being done with one; all of them can be looked back over, a
 // page at a time, with whether you got each.
 import { all, first, run } from "@cougars/shared/d1";
-import { HttpError, text } from "../api/api.http";
+import { HttpError, isDay, text } from "../api/api.http";
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 export const PAST_PAGE = 20;
 const PAST_PAGE_MAX = 100;
 
@@ -26,7 +25,7 @@ export async function postAnnouncement(
   const link = text(o, "link", { optional: true, max: 300 }).trim() || null;
   // A link goes somewhere on the web, never a script (what an admin types is shown to everyone)
   if (link && !/^https:\/\/[^\s]+$/i.test(link)) throw new HttpError(400, "A link should start with https://.");
-  const endsOn = typeof o.endsOn === "string" && DAY.test(o.endsOn) ? o.endsOn : "";
+  const endsOn = isDay(o.endsOn) ? o.endsOn : "";
   if (!endsOn) throw new HttpError(400, "Say which day it ends.");
   if (endsOn < today) throw new HttpError(400, "That day's gone: pick today or later.");
   const res = await run(

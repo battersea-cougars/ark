@@ -95,8 +95,8 @@ describe("an admin adds a member, at the edges", () => {
   });
 
   // https://github.com/battersea-cougars/ark/issues/133
-  // Known bug #133: text() checks for an empty name before trimming it, so "   " goes through as ""
-  it.fails("a name of only spaces is refused, like no name (known bug #133)", async () => {
+  // #133: text() checked for an empty name before trimming it, so "   " went through as ""
+  it("a name of only spaces is refused, like no name (#133)", async () => {
     const dana = await admin();
     expect((await dana.add({ name: "   ", email: "blank@example.com" })).status).toBe(400);
   });

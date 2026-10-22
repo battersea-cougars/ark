@@ -9,6 +9,7 @@ import type { Game } from "./fixtures";
 import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
 import { placeFields } from "../settings/venues";
+import { fillingUp } from "../entries/entries";
 
 interface TypeRow {
   id: number;
@@ -615,7 +616,7 @@ export async function createTournament(db: D1Database, given: Record<string, unk
   return { id };
 }
 
-export async function updateTournament(db: D1Database, id: number, o: Record<string, unknown>) {
+export async function updateTournament(db: D1Database, id: number, o: Record<string, unknown>, today: string, now: string) {
   const { typeId } = await seriesOf(db, o);
   const current = await first<Rules & { draft_state: string }>(
     db,
@@ -631,15 +632,19 @@ export async function updateTournament(db: D1Database, id: number, o: Record<str
   const fields = [...(await tournamentFields(db, o)), ...rules];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
-  const res = await run(
-    db,
-    `UPDATE tournaments SET type_id = ?, name = ?, venue_id = ?, location = ?, map_url = ?, held_on = ?, start_time = ?, end_time = ?, capacity = ?,
-       status = ?, fee_pence = ?, season = ?, public = ?, signup_opens_on = ?, signup_closes_on = ?, draft_on = ?,
-       points_win = ?, points_draw = ?, points_loss = ?, game_minutes = ?, kind = ?, awards = ?, playoffs = ?,
-       penalty_rule = ?, periods = ?, default_penalty_minutes = ?, break_minutes = ?
-     WHERE id = ?`,
-    [typeId, ...fields, id],
-  );
+  // A limit raised moves the first waiting up into its room, in the same batch (ADR 0030)
+  const [res] = await batch(db, [
+    statement(
+      db,
+      `UPDATE tournaments SET type_id = ?, name = ?, venue_id = ?, location = ?, map_url = ?, held_on = ?, start_time = ?, end_time = ?, capacity = ?,
+         status = ?, fee_pence = ?, season = ?, public = ?, signup_opens_on = ?, signup_closes_on = ?, draft_on = ?,
+         points_win = ?, points_draw = ?, points_loss = ?, game_minutes = ?, kind = ?, awards = ?, playoffs = ?,
+         penalty_rule = ?, periods = ?, default_penalty_minutes = ?, break_minutes = ?
+       WHERE id = ?`,
+      [typeId, ...fields, id],
+    ),
+    fillingUp(db, "tournament", { sql: "t.id = ?", params: [id] }, today, now),
+  ]);
   if (!res.meta.changes) throw new HttpError(404, "No such tournament.");
   await setTeams(db, id, kind, teams);
   await syncTournament(db, id);

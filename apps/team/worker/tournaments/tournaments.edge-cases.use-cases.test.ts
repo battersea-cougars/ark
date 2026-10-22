@@ -82,9 +82,9 @@ describe("an admin names a tournament", () => {
     expect((await dana.tournament(res.body.id)).name).toBe("Winter Cup");
   });
 
-  // A name of spaces passes the "is it there" check, then is trimmed to nothing and saved: a tournament with no
+  // A name of spaces passed the "is it there" check, then was trimmed to nothing and saved: a tournament with no
   // name. https://github.com/battersea-cougars/ark/issues/133
-  it.fails("a name of only spaces is refused like no name at all (known bug #133)", async () => {
+  it("a name of only spaces is refused like no name at all (#133)", async () => {
     const dana = await admin();
     expect((await dana.create({ name: "   " })).status).toBe(400);
   });
@@ -123,10 +123,10 @@ describe("an admin gives a tournament its days", () => {
       expect((await dana.create(o)).status, JSON.stringify(o)).toBe(400);
   });
 
-  // The date and time checks look only at the shape (four digits, two, two), so 30 February and 25:99 go in, and the
-  // calendar and the website get a day that isn't one. https://github.com/battersea-cougars/ark/issues/133
-  it.fails(
-    "a day that doesn't exist (30 February, month 13) or a time past 23:59 is refused (known bug #133)",
+  // The date and time checks looked only at the shape (four digits, two, two), so 30 February and 25:99 went in, and
+  // the calendar and the website got a day that isn't one. https://github.com/battersea-cougars/ark/issues/133
+  it(
+    "a day that doesn't exist (30 February, month 13) or a time past 23:59 is refused (#133)",
     async () => {
       const dana = await admin();
       for (const o of [{ heldOn: "2027-02-30" }, { heldOn: "2026-13-01" }, { startTime: "25:99" }])

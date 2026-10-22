@@ -80,10 +80,10 @@ describe("what an announcement can say", () => {
   });
 
   // https://github.com/battersea-cougars/ark/issues/133
-  // Known bug #133: the end day is checked only for its shape (dddd-dd-dd), so a day that isn't on the
-  // calendar goes up, and shows until whenever that string sorts
-  it.fails.each(["2027-02-30", "2026-13-01", "2026-10-99"])(
-    "an end day that isn't on the calendar (%s) is refused (known bug #133)",
+  // #133: the end day was checked only for its shape (dddd-dd-dd), so a day that isn't on the calendar went up,
+  // and showed until whenever that string sorted
+  it.each(["2027-02-30", "2026-13-01", "2026-10-99"])(
+    "an end day that isn't on the calendar (%s) is refused (#133)",
     async (endsOn) => {
       const dana = await w.signedIn("dana@example.com");
       expect((await dana.call("POST", "/api/announcements", { ...HALL, endsOn })).status).toBe(400);

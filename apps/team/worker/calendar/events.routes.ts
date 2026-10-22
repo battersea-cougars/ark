@@ -41,7 +41,7 @@ export const EVENTS_ROUTES: Route[] = [
     },
     action: "update:Event",
     changes: ["clubEvents"],
-    handle: async (c) => (await updateClubEvent(c.env.DB, id(c), await body(c.request)), ok()),
+    handle: async (c) => (await updateClubEvent(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {
     method: "POST",

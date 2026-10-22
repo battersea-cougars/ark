@@ -66,7 +66,9 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - So a Quarterly Member signing up for a full session **takes the place of the last one in who pays as they go**, who
   waits at the top of their queue (their sign-up time is kept, so their place in the order holds). Only when every
   place is a Quarterly Member's does one wait, still above those paying as they go. When a place comes free the
-  first waiting in that order moves up. A walk-in isn't moved.
+  first waiting in that order moves up. A limit raised (or taken away) is places coming free: as many of the first
+  waiting move up as it makes room for, in the batch that saves it, before anyone else can sign up into it
+  (`fillingUp`). A walk-in isn't moved.
 - **The limit is what members see and what sign-up keeps to, not a wall**: the team maker can let someone waiting in
   over it ([0076](0076-training-teams.md)). They keep their sign-up time, so they take their place in the order; while
   more are in than the limit, nobody moves up when someone drops out, and the page says how many over it is.
@@ -199,3 +201,6 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   enforced as the keepers' own limit (it had been stored but not enforced, and keepers had taken skaters' places).
 - 2026-10-22: A single night the rule gives can be made ahead of the weeks (`POST /api/series/:id/sessions`), so a
   clash far off can be cancelled before the rest are made; made, it stays as it is ([0122](0122-asked-about-clashes.md)).
+- 2026-10-22: A training's limit raised moves the first waiting up into the room it makes, in the same batch as the
+  save, rather than leaving it to the next to sign up (#127); a training is saved with its fees all or nothing (#131),
+  its dates real days and its times real times, ending after they start (#129).

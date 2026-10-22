@@ -24,7 +24,8 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   it is only for the words of a refusal. As found (docs/load-testing.md has each, with its test):
   - Sign-ups: out and the first waiting moving up are one batch (an admin taking someone off too), so nobody
     signing up between takes the place; joining never rewrites an answer already in or waiting (a double tap kept
-    its place); a drafted player saying they're out comes off their team in the same batch.
+    its place); a drafted player saying they're out comes off their team in the same batch. A limit raised fills its
+    room in the batch that saves it (#127).
   - The draft: a pick says which turn it's for (`turn`, the slot the page saw on the clock), so a tap landing after
     the turn moved on is refused, not spent on the captain's next pick; the pick goes in only while that slot is
     still the first free pick number; one goalie a team is inside the statements. Close draft & make fixtures claims
@@ -109,3 +110,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   with their seeds' tests.
 - 2026-10-22: The draft's one-tap close and fixtures claims the close first; a pick's turn is its slot, the first
   free pick number (#125).
+- 2026-10-22: A training and its fees are one batch (a refused save had changed the fees, or made the training,
+  #131), and a limit raised moves the first waiting up in that batch (#127).

@@ -3,11 +3,11 @@
 // register, a sign-up, a cancellation) and each hour, when a new day makes another session due: whoever came and isn't
 // charged is, and an unpaid charge for someone who no longer counts goes. A paid one always stays. Quarterly Members
 // are charged the quarterly rate for each quarter a subscription covers; an admin can charge a quarter by hand.
-import { all, batch, changesOf, first, run, statement } from "@cougars/shared/d1";
+import { all, batch, changesOf, first, run, statement, type Param } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { QUARTER, feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } from "../../src/lib/dues";
 import { londonToday } from "../../src/lib/dates";
-import { HttpError } from "../api/api.http";
+import { HttpError, isDay } from "../api/api.http";
 import { bumpDataVersion } from "../api/api.version";
 
 // ─── Quarters ───
@@ -234,13 +234,12 @@ export async function chargeDue(env: { DB: D1Database }, now: Date) {
 
 // ─── Fees ───
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 function datedFees(v: unknown): DatedFee[] {
   if (!Array.isArray(v) || v.length > 100) throw new HttpError(400, "fees should be a list.");
   const fees = v.map((f: { pence?: unknown; from?: unknown }) => {
     if (!Number.isInteger(f?.pence) || (f.pence as number) < 0 || (f.pence as number) > 100_000)
       throw new HttpError(400, "A fee should be a whole number of pence.");
-    if (typeof f.from !== "string" || !DAY.test(f.from)) throw new HttpError(400, "A fee needs a date it's from.");
+    if (!isDay(f.from)) throw new HttpError(400, "A fee needs a date it's from.");
     return { pence: f.pence as number, from: f.from };
   });
   if (new Set(fees.map((f) => f.from)).size !== fees.length) throw new HttpError(400, "One fee per date.");
@@ -255,24 +254,39 @@ export const seriesFees = (db: D1Database, id: number) =>
     [id],
   );
 
+/** A training in SQL: `?` and its id, or a subquery for one not made yet (by its slug), so its fees can go in the batch
+ * that makes it. */
+export interface SeriesRef {
+  sql: string;
+  params: Param[];
+}
+
 /**
  * A training's fees, as its editor sends them: the whole list, each from a date. Only for whoever sets fees; anyone
- * else's save of the training leaves them as they are, and may not change them.
+ * else's save of the training leaves them as they are, and may not change them. Checked now, written later: the
+ * statements that write them (none if they're left out or as they were) go in the batch that saves the training, so a
+ * save refused for any field changes no fee, and a fee refused makes no training (#131). `id` null: a new training.
  */
-export async function setSeriesFees(db: D1Database, id: number, given: unknown, actions: ReadonlySet<Action>) {
-  if (given === undefined) return;
+export async function seriesFeeChange(
+  db: D1Database,
+  id: number | null,
+  given: unknown,
+  actions: ReadonlySet<Action>,
+): Promise<(series: SeriesRef) => D1PreparedStatement[]> {
+  const none = () => [];
+  if (given === undefined) return none;
   const fees = datedFees(given);
-  if (JSON.stringify(fees) === JSON.stringify(await seriesFees(db, id))) return;
+  if (JSON.stringify(fees) === JSON.stringify(id === null ? [] : await seriesFees(db, id))) return none;
   if (!can(actions, "manage:Fees")) throw new HttpError(403, "Your role can't set fees.");
-  await batch(db, [
-    statement(db, "DELETE FROM series_fees WHERE series_id = ?", [id]),
+  return (series) => [
+    statement(db, `DELETE FROM series_fees WHERE series_id = ${series.sql}`, series.params),
     statement(
       db,
       `INSERT INTO series_fees (series_id, effective_from, amount_pence)
-       SELECT ?, value ->> 'from', value ->> 'pence' FROM json_each(?)`,
-      [id, JSON.stringify(fees)],
+       SELECT ${series.sql}, value ->> 'from', value ->> 'pence' FROM json_each(?)`,
+      [...series.params, JSON.stringify(fees)],
     ),
-  ]);
+  ];
 }
 
 /** The quarterly rate's history, oldest first. */
@@ -429,7 +443,7 @@ export async function settle(db: D1Database, memberId?: number): Promise<number>
 function pastDay(v: unknown, now: string, field: string, future: string): string {
   const today = londonToday(new Date(now));
   const day = v == null || v === "" ? today : v;
-  if (typeof day !== "string" || !DAY.test(day) || Number.isNaN(Date.parse(day)))
+  if (!isDay(day))
     throw new HttpError(400, `${field} should be a day, like 2026-10-02.`);
   if (day > today) throw new HttpError(400, future);
   return day;
