@@ -197,7 +197,7 @@
     box-shadow: 0 calc(24px * (1 - min(var(--k, 0), 1))) calc(48px * (1 - min(var(--k, 0), 1))) -10px rgb(0 0 0 / 0.7);
   }
   /* The one in front catches the light, as a hovered event card does (EventCard): a sheen down from a lit top edge,
-     and every few seconds a soft light sweeps across it. Less motion: the sheen, still */
+     and a soft light sweeps across it once, as it comes to the front. Less motion: the sheen, still */
   .item.front :global(.game-card) {
     overflow: hidden;
     background:
@@ -215,7 +215,7 @@
     background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / 0.07) 50%, transparent 65%) no-repeat;
     background-size: 250% 100%;
     pointer-events: none;
-    animation: sweep 6s var(--ease-in-out) infinite;
+    animation: sweep 2.1s var(--ease-in-out) both;
   }
   @keyframes sweep {
     0% {
