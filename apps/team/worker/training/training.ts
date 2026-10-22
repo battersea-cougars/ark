@@ -29,6 +29,7 @@ interface SeriesRow {
   map_url: string;
   capacity: number | null;
   goalie_capacity: number | null;
+  signup_opens_days: number | null;
   public: number;
   active: number;
 }
@@ -51,6 +52,8 @@ const seriesJson = (s: SeriesRow, fees: { seriesId: number; pence: number; from:
   mapUrl: s.map_url,
   capacity: s.capacity,
   goalieCapacity: s.goalie_capacity,
+  // A night's sign-up opens this many days before it, at midnight London (lib/signup.ts); null: always open
+  signupOpensDays: s.signup_opens_days,
   public: Boolean(s.public),
   active: Boolean(s.active),
   // The fee per session, from each date (ADR 0007)
@@ -212,6 +215,7 @@ async function seriesFields(db: D1Database, o: Record<string, unknown>) {
     place: await placeFields(db, o, "venue"),
     capacity: int(o, "capacity", { min: 1, max: 500, nullable: true }),
     goalieCapacity: int(o, "goalieCapacity", { min: 0, max: 50, nullable: true }),
+    signupOpensDays: int(o, "signupOpensDays", { min: 0, max: 28, nullable: true }),
     public: bool(o, "public"),
     active: bool(o, "active"),
   };
@@ -231,6 +235,7 @@ const seriesParams = (f: Awaited<ReturnType<typeof seriesFields>>): Param[] => [
   ...f.place,
   f.capacity,
   f.goalieCapacity,
+  f.signupOpensDays,
   f.public ? 1 : 0,
   f.active ? 1 : 0,
 ];
@@ -244,8 +249,8 @@ export async function createSeries(db: D1Database, o: Record<string, unknown>, t
     statement(
       db,
       `INSERT INTO training_series (name, short_name, icon, tone, repeat_every, weekdays, starts_on, ends_on, start_time,
-         end_time, venue_id, venue, map_url, capacity, goalie_capacity, public, active, slug)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         end_time, venue_id, venue, map_url, capacity, goalie_capacity, signup_opens_days, public, active, slug)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [...seriesParams(f), slug],
     ),
     ...also({ sql: "(SELECT id FROM training_series WHERE slug = ?)", params: [slug] }),
@@ -278,7 +283,7 @@ export async function updateSeries(
       db,
       `UPDATE training_series SET name = ?, short_name = ?, icon = ?, tone = ?, repeat_every = ?, weekdays = ?,
          starts_on = ?, ends_on = ?, start_time = ?, end_time = ?, venue_id = ?, venue = ?, map_url = ?, capacity = ?, goalie_capacity = ?,
-         public = ?, active = ? WHERE id = ?`,
+         signup_opens_days = ?, public = ?, active = ? WHERE id = ?`,
       [...seriesParams(f), id],
     ),
     ...also({ sql: "?", params: [id] }),

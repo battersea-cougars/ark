@@ -27,6 +27,9 @@ async function as(email: string) {
   return { call: b.call, sees };
 }
 
+/** The Monday before a Friday, at noon: Friday Training's sign-up for it is open (ADR 0030) */
+const opens = (friday: string) => ({ now: new Date(Date.parse(`${friday}T12:00:00Z`) - 4 * 86_400_000) });
+
 const SUNDAYS = {
   name: "Sunday Skills",
   shortName: "Sunday",
@@ -197,7 +200,10 @@ describe("a rule changed with people signed up", () => {
     const fridays = (await dana.sees()).sessions.filter((s: Json) => s.heldOn >= "2026-10-06");
     const answered = fridays[2];
     const reg = await as("reg@example.com");
-    expect((await reg.call("POST", `/api/sessions/${answered.id}/answer`, { answer: "in" })).status).toBe(200);
+    // On its Monday, once its sign-up's open (ADR 0030)
+    expect(
+      (await reg.call("POST", `/api/sessions/${answered.id}/answer`, { answer: "in" }, opens(answered.heldOn))).status,
+    ).toBe(200);
     expect((await dana.call("PUT", `/api/series/${dana.friday.id}`, { ...dana.friday, active: false })).status).toBe(
       200,
     );
@@ -299,7 +305,7 @@ describe("the register either side of London midnight", () => {
     const s = (await dana.sees()).sessions.find((x: Json) => x.heldOn === day);
     expect(s).toBeTruthy();
     for (const e of ["reg@example.com", "paul@example.com"])
-      await (await as(e)).call("POST", `/api/sessions/${s.id}/answer`, { answer: "in" });
+      await (await as(e)).call("POST", `/api/sessions/${s.id}/answer`, { answer: "in" }, opens(day));
     const tess = await as("tess@example.com");
     const res = await tess.call(
       "POST",

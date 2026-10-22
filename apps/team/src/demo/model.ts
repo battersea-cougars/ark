@@ -52,6 +52,9 @@ export interface TrainingSeries {
   capacity: number | null;
   /** Places for goalies, counted apart from the skaters; null: no limit. */
   goalieCapacity?: number | null;
+  /** A night's sign-up opens this many days before it, at midnight London (lib/signup.ts; Friday: 4, the Monday);
+   * null or unset: always open. */
+  signupOpensDays?: number | null;
   /** Listed on the public website calendar. */
   public: boolean;
   active: boolean;
@@ -261,6 +264,9 @@ export interface Bookable {
   href?: string;
   /** Said instead of its times: a reminder's ("Last day to say you're in", "Time to be set"). */
   timeText?: string;
+  /** A training night whose sign-up isn't open yet: when it opens, short ("Mon", "Mon 19 Oct"), said where In would
+   * be. Unset: open. */
+  opens?: string;
   entries: Entries;
 }
 

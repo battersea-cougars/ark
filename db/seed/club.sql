@@ -31,8 +31,8 @@ INSERT OR IGNORE INTO venues (id, name, address, map_url, active) VALUES
   (1, 'Battersea Sports Centre', 'London SW11 3AB', 'https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6', 1);
 
 -- training_series
-INSERT OR IGNORE INTO training_series (id, slug, name, short_name, icon, tone, repeat_every, weekdays, starts_on, ends_on, start_time, end_time, venue_id, venue, capacity, goalie_capacity, signup_closes_mins, public, active) VALUES
-  (1, 'friday', 'Friday Training', 'Friday', 'stick', 'blue', 1, 'fri', '2026-01-02', NULL, '19:30', '21:30', 1, '', 21, 3, NULL, 1, 1);
+INSERT OR IGNORE INTO training_series (id, slug, name, short_name, icon, tone, repeat_every, weekdays, starts_on, ends_on, start_time, end_time, venue_id, venue, capacity, goalie_capacity, signup_closes_mins, signup_opens_days, public, active) VALUES
+  (1, 'friday', 'Friday Training', 'Friday', 'stick', 'blue', 1, 'fri', '2026-01-02', NULL, '19:30', '21:30', 1, '', 21, 3, NULL, 4, 1, 1);
 
 -- training_sessions
 INSERT OR IGNORE INTO training_sessions (id, series_id, held_on, moved_from, start_time, end_time, venue, capacity, goalie_capacity, note, cancelled_at, register_closed_at) VALUES

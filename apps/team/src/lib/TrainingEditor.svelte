@@ -12,6 +12,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import StylePicker from "./StylePicker.svelte";
   import PlacePicker from "./PlacePicker.svelte";
+  import Select from "./Select.svelte";
   import { clockRange, formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { feeOn } from "./dues";
   import { collectedFor } from "../demo/dues.svelte";
@@ -20,11 +21,41 @@
   import { WEEKDAYS, addDays, describeRule, weekdayOf } from "./recurrence";
 
   const DAY_NAMES = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+  const LONG_DAYS = {
+    mon: "Monday",
+    tue: "Tuesday",
+    wed: "Wednesday",
+    thu: "Thursday",
+    fri: "Friday",
+    sat: "Saturday",
+    sun: "Sunday",
+  };
 
   let { seriesId, oncreated }: { seriesId?: number; oncreated?: (id: number) => void } = $props();
 
   const selected = $derived<number | "new">(seriesId ?? "new");
   let form = $state<TrainingSeries | null>(null);
+
+  // When a night's sign-up opens (ADR 0030): days before it, at midnight; any time is always open, and nobody's told
+  const OPENS = [
+    { value: "", label: "Any time" },
+    { value: "0", label: "On the day" },
+    ...Array.from({ length: 14 }, (_, i) => ({ value: String(i + 1), label: `${i + 1} ${i ? "days" : "day"} before` })),
+  ];
+  const opensDays = $derived(form?.signupOpensDays ?? null);
+  /** "Friday's opens Monday, at midnight; members are told." */
+  const opensHint = $derived.by(() => {
+    if (!form || opensDays === null) return "Members can say they're in for any night, however far off.";
+    const nights = WEEKDAYS.filter((d) => form!.weekdays.includes(d));
+    const opensOn = (d: (typeof WEEKDAYS)[number]) => WEEKDAYS[(WEEKDAYS.indexOf(d) - (opensDays % 7) + 7) % 7];
+    const when =
+      opensDays === 0
+        ? "Each night's opens on the day"
+        : opensDays < 7 && nights.length
+          ? nights.map((d) => `${LONG_DAYS[d]}'s opens ${LONG_DAYS[opensOn(d)]}`).join(", ")
+          : `Each night's opens ${opensDays} days before`;
+    return `${when}, at midnight; members are told.`;
+  });
   // Upcoming sessions, 12 weeks a page; paging past the last one made asks the server to make the next 12
   const PAGE_DAYS = 12 * 7;
   let page = $state(0);
@@ -50,6 +81,7 @@
       mapUrl: "",
       capacity: 20,
       goalieCapacity: 2,
+      signupOpensDays: null,
       public: true,
       active: true,
       fees: [{ pence: 1000, from: today }],
@@ -299,6 +331,17 @@
               <div class="field span-3">
                 Ends <TimeSelect id="training-end" bind:value={form.endTime} aria-label="Ends" />
               </div>
+              <div class="field span-4">
+                Sign-up opens
+                <Select
+                  id="training-opens"
+                  aria-label="Sign-up opens"
+                  options={OPENS}
+                  value={opensDays === null ? "" : String(opensDays)}
+                  onchange={(v) => form && (form.signupOpensDays = v === "" ? null : Number(v))}
+                />
+              </div>
+              <p class="hint small span-12 tuck">{opensHint}</p>
               <p class="hint small span-12 tuck">
                 Leave Last session empty to keep going; sessions are made 12 weeks ahead.
               </p>

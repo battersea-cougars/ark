@@ -1,6 +1,6 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
-import { signupOpen } from "../lib/signup";
+import { nightOpen, nightOpensOn, opensWords, signupOpen } from "../lib/signup";
 import { currentOf, editionState, latestOf, previousOf } from "../lib/edition";
 import { clockRange, formatDayDate, formatTime, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
@@ -52,6 +52,11 @@ export function resolve(session: TrainingSession, series = seriesById(session.se
 
 export function sessionBookable(session: TrainingSession): Bookable {
   const r = resolve(session);
+  // Not open yet (ADR 0030): when it opens, where In would be
+  const today = londonToday();
+  const opensOn = nightOpensOn(r.heldOn, r.series.signupOpensDays);
+  const opens =
+    opensOn && !nightOpen(r.heldOn, r.series.signupOpensDays, today) ? opensWords(opensOn, today, true) : undefined;
   return {
     key: `session:${session.id}`,
     kind: "training",
@@ -67,6 +72,7 @@ export function sessionBookable(session: TrainingSession): Bookable {
     goalieCapacity: r.goalieCapacity,
     cancelled: r.cancelled,
     href: `/training/${r.series.slug}`,
+    opens,
     entries: session,
   };
 }

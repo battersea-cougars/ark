@@ -8,7 +8,7 @@
 // club event past its limit.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { londonTime, londonToday } from "../../src/lib/dates";
-import { signupOpen, signupOver } from "../../src/lib/signup";
+import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
 import { offTeams } from "../training/training.teams";
 import { joinDraft, leaveDraft } from "../tournaments/draft";
@@ -90,11 +90,18 @@ interface Places {
   /** A keeper on a training (their places counted apart); always false elsewhere */
   keeper: boolean;
   /** A training's day and when it ends (London), for whether it's over; null elsewhere */
-  night: { heldOn: string; endTime: string } | null;
+  night: Night | null;
+}
+
+/** A training's night: its day, when it ends, and how many days before it sign-up opens (null: always open). */
+interface Night {
+  heldOn: string;
+  endTime: string;
+  opensDays: number | null;
 }
 
 /** A training's night is over once it has ended, London time. */
-const nightOver = (night: { heldOn: string; endTime: string }, now: string) => {
+const nightOver = (night: Night, now: string) => {
   const today = londonToday(new Date(now));
   return today > night.heldOn || (today === night.heldOn && londonTime(now) >= night.endTime);
 };
@@ -109,10 +116,11 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
           keeper: number;
           heldOn: string;
           endTime: string;
+          opensDays: number | null;
         }>(
           db,
           `SELECT k.keeper, ${placesFor("k.keeper")} capacity, s.cancelled_at cancelled, s.held_on heldOn,
-             COALESCE(s.end_time, ts.end_time) endTime
+             COALESCE(s.end_time, ts.end_time) endTime, ts.signup_opens_days opensDays
            FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
              JOIN (SELECT COALESCE((SELECT position = 'G' FROM members WHERE id = ?), 0) keeper) k
            WHERE s.id = ?`,
@@ -135,7 +143,7 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
   return {
     limit: row.capacity,
     keeper: "keeper" in row && Boolean(row.keeper),
-    night: "heldOn" in row ? { heldOn: row.heldOn, endTime: row.endTime } : null,
+    night: "heldOn" in row ? { heldOn: row.heldOn, endTime: row.endTime, opensDays: row.opensDays } : null,
   };
 }
 
@@ -272,6 +280,13 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
     return;
   }
   if (was?.signup === "in" || was?.signup === "waitlist") return;
+  // A training's night takes sign-ups from its opening day (lib/signup.ts); saying you're out is always fine
+  if (places.night) {
+    const today = londonToday(new Date(now));
+    const opens = nightOpensOn(places.night.heldOn, places.night.opensDays);
+    if (opens && !nightOpen(places.night.heldOn, places.night.opensDays, today))
+      throw new HttpError(409, `Sign-up opens ${opensWords(opens, today)}.`);
+  }
   // A tournament takes sign-ups once an admin opens them or its opening day comes, until the end of the closing day
   // (London, lib/signup.ts); saying you're out is always fine
   if (kind === "tournament") {

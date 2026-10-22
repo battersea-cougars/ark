@@ -19,6 +19,9 @@ beforeEach(() => {
 });
 
 // The next Friday session, and two teams from whoever's on the roster
+/** The Monday before a Friday, at noon: Friday Training's sign-up for it is open (ADR 0030) */
+const opens = (friday: string) => ({ now: new Date(Date.parse(`${friday}T12:00:00Z`) - 4 * 86_400_000) });
+
 async function teamsFor(b: Awaited<ReturnType<typeof w.signedIn>>) {
   const boot = (await b.call("GET", "/api/bootstrap")).body;
   const session = boot.sessions.at(-1);
@@ -83,7 +86,7 @@ describe("starting a session again", () => {
   it("a team maker takes the teams down; the sign-ups stay", async () => {
     const tess = await w.signedIn("tess@example.com");
     const { session, teams } = await teamsFor(tess);
-    await tess.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    await tess.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" }, opens(session.heldOn));
     await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams });
     expect((await tess.call("DELETE", `/api/sessions/${session.id}/teams`)).status).toBe(200);
     const after = await fridayOf(tess, session.id);
@@ -133,7 +136,7 @@ describe("the team maker makes the teams, then clears them, with everyone watchi
   it("the team maker clears the teams: everyone's back to unassigned, it's on the record, and phones hear it", async () => {
     const tess = await w.signedIn("tess@example.com");
     const { session, teams } = await teamsFor(tess);
-    await tess.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
+    await tess.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" }, opens(session.heldOn));
     await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams });
     const moPhone = await w.listening("mo@example.com");
 

@@ -6,7 +6,7 @@ export const TOPICS = [
   {
     topic: "places",
     label: "Your place",
-    hint: "A place came up for you, or a Quarterly Member took yours and you're waiting.",
+    hint: "A night's sign-up is open, a place came up for you, or a Quarterly Member took yours and you're waiting.",
   },
   { topic: "sessionOff", label: "A session's off", hint: "A night you're in for, or waiting for, is cancelled." },
   { topic: "announcements", label: "Locker room", hint: "What the club posts on Home." },

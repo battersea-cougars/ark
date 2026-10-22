@@ -139,7 +139,7 @@ const PARTS = {
   ),
   series: rows(
     `id slug name short_name icon tone repeat_every weekdays starts_on ends_on start_time end_time venue_id venue
-     map_url capacity goalie_capacity signup_closes_mins public active`,
+     map_url capacity goalie_capacity signup_closes_mins signup_opens_days public active`,
     "SELECT * FROM training_series ORDER BY id",
   ),
   sessions: rows(

@@ -114,6 +114,9 @@ CREATE TABLE training_series (
   capacity INTEGER,
   goalie_capacity INTEGER,
   signup_closes_mins INTEGER,
+  -- A night's sign-up opens this many days before it, at midnight London time (Friday: 4, the Monday), and members
+  -- are told; null: always open, nothing told (ADR 0030)
+  signup_opens_days INTEGER,
   -- Listed on the website calendar
   public INTEGER NOT NULL DEFAULT 1,
   -- 0: paused, no new sessions
@@ -136,6 +139,8 @@ CREATE TABLE training_sessions (
   note TEXT,
   cancelled_at TEXT,
   register_closed_at TEXT,
+  -- When members were told its sign-up opened (ADR 0030, 0108): taken by the cron run that tells them, so it's once
+  signup_told_at TEXT,
   -- What a session costs (ADR 0007): the series' fee on its day, written when it first charges someone, so a later
   -- change to the fee never alters it
   fee_pence INTEGER,

@@ -132,7 +132,7 @@
   });
 
   // Not in yet, whether unanswered or out: In pulses once to ask, and again if you say out
-  const beckoning = $derived(beckon && canSignUp && event.signup && !inIt && !waiting && !locked);
+  const beckoning = $derived(beckon && canSignUp && event.signup && !event.opens && !inIt && !waiting && !locked);
 
   // Faces slide, never pop: each has a slot in its row (a translate, so the row's neighbours glide along when one
   // arrives), and yours travels from the in row to the out row and back when you change your answer. A face with
@@ -334,18 +334,23 @@
       <div class="reply">
         {#if canSignUp}
           <div class="answer" role="group" aria-label="Are you in?">
-            <button
-              class="yes"
-              class:beckon={beckoning && !out}
-              class:beckon-again={beckoning && out}
-              aria-pressed={inIt || waiting}
-              disabled={locked}
-              onclick={() => setIn(true)}
-            >
-              {#if inIt}<Icon name="check" size={glance ? 18 : 16} />{/if}
-              {#if glance}{inIt ? "I'm in" : waiting ? "On the waitlist" : full ? "Join waitlist" : "In"}
-              {:else}{waiting ? "Waitlist" : full && !inIt ? "Join waitlist" : "In"}{/if}
-            </button>
+            <!-- A night whose sign-up isn't open yet says when, in In's place (ADR 0030); an admin's put in still shows -->
+            {#if event.opens && !inIt && !waiting}
+              <button class="yes opens" disabled>Sign-up opens {event.opens}</button>
+            {:else}
+              <button
+                class="yes"
+                class:beckon={beckoning && !out}
+                class:beckon-again={beckoning && out}
+                aria-pressed={inIt || waiting}
+                disabled={locked}
+                onclick={() => setIn(true)}
+              >
+                {#if inIt}<Icon name="check" size={glance ? 18 : 16} />{/if}
+                {#if glance}{inIt ? "I'm in" : waiting ? "On the waitlist" : full ? "Join waitlist" : "In"}
+                {:else}{waiting ? "Waitlist" : full && !inIt ? "Join waitlist" : "In"}{/if}
+              </button>
+            {/if}
             <button class="no" aria-pressed={out} disabled={locked} onclick={() => setIn(false)}>
               {#if out}<Icon name="x" size={glance ? 18 : 16} />{/if}{glance && out ? "I'm out" : "Out"}
             </button>
@@ -720,6 +725,13 @@
   .answer > button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+  /* Not open yet: when it opens, in In's tile, two lines if need be, so the tile keeps its size */
+  .answer > .yes.opens {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.15;
+    font-size: var(--text-xs);
   }
   .answer > .yes[aria-pressed="true"] {
     background: color-mix(in srgb, var(--green) 18%, transparent);

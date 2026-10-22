@@ -2,7 +2,7 @@
 // no opening day, a tournament that's live or finished, and an admin's Open past its deadline. Days are London's
 // (lib/signup.ts takes London's today).
 import { describe, expect, it } from "vitest";
-import { signupOpen, signupOver } from "./signup";
+import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "./signup";
 import { londonToday } from "./dates";
 
 const planned = { status: "planned", signupOpensOn: "2026-10-10", signupClosesOn: "2026-10-20" };
@@ -50,5 +50,21 @@ describe("a tournament's sign-up window", () => {
     const late = { ...planned, signupClosesOn: "2026-10-30" };
     expect(signupOpen(late, londonToday(new Date("2026-10-30T23:59:00Z")))).toBe(true);
     expect(signupOpen(late, londonToday(new Date("2026-10-31T00:00:00Z")))).toBe(false);
+  });
+});
+
+describe("a training night's sign-up (ADR 0030)", () => {
+  // Friday 16 October 2026, opening 4 days before: Monday the 12th
+  it("opens at the start of its day, London's, and says when as the app shows it", () => {
+    expect(nightOpensOn("2026-10-16", 4)).toBe("2026-10-12");
+    expect(nightOpen("2026-10-16", 4, "2026-10-11")).toBe(false);
+    expect(nightOpen("2026-10-16", 4, "2026-10-12")).toBe(true);
+    expect(opensWords("2026-10-12", "2026-10-06", true)).toBe("Mon");
+    expect(opensWords("2026-10-19", "2026-10-06", true)).toBe("Mon 19 Oct");
+  });
+
+  it("left empty, always open", () => {
+    expect(nightOpensOn("2026-10-16", null)).toBeNull();
+    expect(nightOpen("2026-10-16", undefined, "2026-01-01")).toBe(true);
   });
 });

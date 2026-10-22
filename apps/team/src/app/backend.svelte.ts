@@ -418,6 +418,7 @@ const seriesBody = (s: TrainingSeries) => ({
   mapUrl: s.mapUrl,
   capacity: s.capacity,
   goalieCapacity: s.goalieCapacity ?? null,
+  signupOpensDays: s.signupOpensDays ?? null,
   public: s.public,
   active: s.active,
   fees: s.fees,

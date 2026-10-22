@@ -33,7 +33,8 @@ Three things shape it:
   iPhone", and falls back to the browser's way everywhere else):
   - **Notifications**: the night's teams are out (which team you're on), a place came up off the waitlist, a
     Quarterly Member took your place and you're waiting ([0030](0030-training-and-tournament-schedule.md), #97), a session
-    you're in is off, an announcement. A route says what's news with `notify` (`worker/push/push.notices.ts`), read
+    you're in is off, an announcement, a training night's sign-up is open (on its day, once a night, from the cron:
+    `worker/training/training.signup.ts`, topic `places`, queued for the push drain straight after it). A route says what's news with `notify` (`worker/push/push.notices.ts`), read
     before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
     (`waitUntil`), and a notification that can't be sent never fails the change. Home asks once, a row in its feed
     ([0118](0118-home-calls-to-action-then-feed.md)) saying what they're for, before the phone's own question; "Not now" is remembered. A reminder of what you owe
@@ -142,3 +143,6 @@ Three things shape it:
   Review's address skips the check.
 - 2026-10-22: The `draft` topic: opening a draft tells each captain, "<tournament> Draft Open", "You pick 2nd"
   ([0060](0060-the-draft.md)).
+- 2026-10-22: A training night's sign-up opening is a notification (topic `places`, to everyone with the app): the
+  cron takes each night that opens today in the statement that marks it told (`training_sessions.signup_told_at`),
+  so it goes once however many runs there are, and queues it for the drain (ADR 0030, 0121).

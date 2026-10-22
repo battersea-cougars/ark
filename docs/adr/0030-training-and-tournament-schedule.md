@@ -69,6 +69,15 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   first waiting in that order moves up. A limit raised (or taken away) is places coming free: as many of the first
   waiting move up as it makes room for, in the batch that saves it, before anyone else can sign up into it
   (`fillingUp`). A walk-in isn't moved.
+- **A training's nights can open for sign-up on a day** (`training_series.signup_opens_days`, set in the training's
+  editor beside its times): that many days before the night, at midnight London time (Friday Training: 4, the
+  Monday). Days before rather than a weekday and time, so it reads the same for a training on two weekdays and needs
+  no time zone of its own; empty is always open, as before. Until then a member's In is refused (409, "Sign-up opens
+  Monday.", with the date when it's more than a week off) and the app shows "Sign-up opens Mon" in In's place; Out
+  is always fine, and the register and admins put people in whenever. On the day members are told, once a night
+  (topic `places`, [0108](0108-store-apps.md)): the cron takes the night in the statement that marks it told
+  (`training_sessions.signup_told_at`, [0121](0121-load-and-concurrency.md)); a night already open when its training
+  was given an opening day isn't news, and isn't sent (`worker/training/training.signup.ts`, `lib/signup.ts`).
 - **The limit is what members see and what sign-up keeps to, not a wall**: the team maker can let someone waiting in
   over it ([0076](0076-training-teams.md)). They keep their sign-up time, so they take their place in the order; while
   more are in than the limit, nobody moves up when someone drops out, and the page says how many over it is.
@@ -209,3 +218,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   charge with it, #128); the register and admins still can.
 - 2026-10-22: Deleting an account (ADR 0029) frees its places for what's to come as saying out does: the first
   waiting move up, in the batch that erases it (#137).
+- 2026-10-22: A training's nights open for sign-up a number of days before (Friday Training: 4, the Monday), and
+  members are told on the day, once; empty is always open. The seed sets Friday's (dev and production need the same).
