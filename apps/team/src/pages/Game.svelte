@@ -400,7 +400,7 @@
 <!-- Keeping score: said in the bar, in red, and a tap opens the scorekeeper's tools, so the clock gets the screen -->
 {#snippet scoring_()}
   <button class="btn ghost sm keeping" aria-label="You're keeping score: tools" onclick={() => (toolsOpen = true)}
-    ><Icon name="whistle" size={18} />Scoring</button
+    ><Icon name="whistle" size={18} />You're scoring</button
   >
 {/snippet}
 
