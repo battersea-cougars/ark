@@ -216,14 +216,28 @@ export async function fixturesCanBeMade(db: D1Database, id: number) {
 }
 
 /**
- * An admin has the app make the fixtures: the round robin in its fair order, then the playoffs waiting on the table. Also the second
- * half of a draft's one-tap close (draft.ts finishDraft).
+ * An admin has the app make the fixtures: the round robin in its fair order (made again, another just as fair), then
+ * the playoffs waiting on the table. Also the second half of a draft's one-tap close (draft.ts finishDraft).
  */
-export async function makeFixtures(db: D1Database, id: number) {
+export async function makeFixtures(db: D1Database, id: number, seed?: number) {
   const { teams, playoffs } = await fixturesCanBeMade(db, id);
 
-  // The round robin in the fairest order for the breaks, each game its own round; the playoffs a round after
-  const group = fairFixtures(teams);
+  // The round robin in the fairest order for the breaks, each game its own round; the playoffs a round after. Made
+  // again, another order just as fair, never the one there is (`seed` for a test, else at random)
+  const before = JSON.stringify(
+    (
+      await all<{ home: number; away: number }>(
+        db,
+        `SELECT home_team_id home, away_team_id away FROM tournament_games WHERE tournament_id = ? AND stage = 'group'
+         ORDER BY position`,
+        [id],
+      )
+    ).map((g) => [g.home, g.away]),
+  );
+  let group = fairFixtures(teams);
+  if (before !== "[]")
+    for (let i = 0; i < 20 && (i === 0 || JSON.stringify(group) === before); i++)
+      group = fairFixtures(teams, seed === undefined ? crypto.getRandomValues(new Uint32Array(1))[0] : seed + i);
   const rows: (string | number | null)[][] = group.map(([home, away], i) => [
     id,
     "group",

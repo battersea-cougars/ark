@@ -2,7 +2,7 @@
 // teams allow, nobody plays twice running unless it can't be helped, and the short breaks are shared out. Checked
 // against every order there is, where that's quick enough.
 import { describe, expect, it } from "vitest";
-import { fairFixtures, fairOrder, rests, roundRobin } from "./fixtures";
+import { fairFixtures, fairness, fairOrder, rests, roundRobin } from "./fixtures";
 
 const teamsOf = (n: number) => Array.from({ length: n }, (_, i) => i + 1);
 const key = ([a, b]: [number, number]) => [a, b].sort((x, y) => x - y).join("-");
@@ -138,5 +138,39 @@ describe("making the fixtures uses the search's answer, inside the Worker's 10 m
     const order = fairFixtures(teamsOf(12));
     expect(performance.now() - started).toBeLessThan(10);
     expect(judged(order, teamsOf(12)).shortest).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("making them again: another order just as fair", () => {
+  const sides = (order: [number, number][], t: number) => order.filter(([h]) => h === t).length;
+
+  it.each([2, 3, 4, 5, 6, 7, 8, 10])(
+    "%i teams: every seed's order is as fair as the first, every pairing once",
+    (n) => {
+      const teams = teamsOf(n);
+      const fairest = fairness(fairFixtures(teams), teams);
+      for (let seed = 1; seed <= 40; seed++) {
+        const order = fairFixtures(teams, seed);
+        expect(fairness(order, teams)).toEqual(fairest);
+        expect(order).toHaveLength(games(n).length);
+        expect(new Set(order.map(key))).toEqual(new Set(games(n).map(key)));
+        for (const t of teams) expect(Math.abs(2 * sides(order, t) - (n - 1))).toBeLessThanOrEqual(1);
+      }
+    },
+  );
+
+  it.each([3, 4, 5, 6, 7, 8])("%i teams: two seeds give two different orders; the same seed, the same", (n) => {
+    const teams = teamsOf(n);
+    expect(fairFixtures(teams, 1)).not.toEqual(fairFixtures(teams, 2));
+    expect(fairFixtures(teams, 7)).toEqual(fairFixtures(teams, 7));
+    const seen = new Set(Array.from({ length: 20 }, (_, s) => JSON.stringify(fairFixtures(teams, s))));
+    expect(seen.size).toBeGreaterThan(5);
+  });
+
+  it("stays inside the Worker's 10 ms", () => {
+    fairFixtures(teamsOf(8), 1);
+    const started = performance.now();
+    fairFixtures(teamsOf(8), 2);
+    expect(performance.now() - started).toBeLessThan(10);
   });
 });

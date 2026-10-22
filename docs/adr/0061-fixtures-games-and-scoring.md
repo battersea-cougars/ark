@@ -36,7 +36,11 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   back-to-backs, two different teams); 5 or 6, everyone gets a game off; 7 or 8, two; in general (teams − 3) ÷ 2, rounded
   down (a longer break needs more teams than a run of games holds, or with an even number the same pairing again). Played round after round, 5 and 7 teams lost a game's break at each turn of a round; 4, 6 and 8 already had
   the longest break, but more teams got it short. Exact up to 7 teams (a branch-and-bound search, checked against
-  every order there is; 8 is the best of 200,000 steps) and the same every time for the same teams, so making them again gives the same order. The search takes
+  every order there is; 8 is the best of 200,000 steps) and the same every time for the same teams. **Made again, another order just as fair**: the
+  first Make is the fairest order itself; each Make again picks a different one, tied with it on every rule, never
+  the one there was: the table's order or one of its turns (backwards, or started part way round) that scores the
+  same (`fairness`), the teams dealt into its places at random (teams are alike to every rule), and maybe every side
+  swapped. No new search, so it stays inside the CPU budget; random from `crypto.getRandomValues`, a seed for tests. The search takes
   up to a fifth of a second, over the Worker's 10 ms ([0003](0003-free-tiers-only.md)), so its answers for 2 to 8
   teams are a table in `lib/fixtures.ts` (a test checks it against the search); more teams get a short search from
   the greedy order. Sides then take turns: a pairing keeps the circle method's home side unless swapping evens out
@@ -239,3 +243,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   shortest break, shared out, nobody waiting long to start, the last group game's teams rested. The user asked "does
   making the fixtures employ an algo that tries to make the fixtures fair? ... from a break perspective", and said
   yes to adding it. Each group game is now its own round.
+- 2026-10-22: Making the fixtures again shuffles between equally fair orders (the user's choice): the first Make is
+  the fairest order; each Make again another tied with it on every rule, never the one there was, from the table's
+  order by dealing the teams into its places, turning it round where that scores the same, and swapping sides.

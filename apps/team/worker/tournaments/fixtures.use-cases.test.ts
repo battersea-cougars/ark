@@ -3,7 +3,7 @@
 // playoff games its settings ask for (a Final of 1st v 2nd; maybe 3rd v 4th), filled in from the table once the last
 // group game has a result. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fairFixtures } from "../../src/lib/fixtures";
+import { fairFixtures, fairness } from "../../src/lib/fixtures";
 import { testWorld } from "../testing";
 
 const ROSTER = [
@@ -127,6 +127,34 @@ describe("fixtures", () => {
     const first = (await tournament()).games[0];
     await score(first.id, 1, 1);
     expect((await make()).status).toBe(409);
+  });
+
+  it("made again, the fixtures come in another order just as fair, never the one there was", async () => {
+    const { make, tournament } = await cup(["Ants", "Bees", "Cats", "Dogs", "Eels"]);
+    const order = async () =>
+      (await tournament()).games
+        .filter((g: Json) => g.stage === "group")
+        .map((g: Json) => [g.homeTeamId, g.awayTeamId] as [number, number]);
+    await make();
+    const teamIds = (await tournament()).teams.map((t: Json) => t.id);
+    const first = await order();
+    // The first time, the fairest order itself
+    expect(first).toEqual(fairFixtures(teamIds));
+    const seen = [first];
+    for (let i = 0; i < 3; i++) {
+      expect((await make()).status).toBe(200);
+      const again = await order();
+      expect(again).not.toEqual(seen.at(-1));
+      expect(fairness(again, teamIds)).toEqual(fairness(first, teamIds));
+      expect(new Set(again.map((g: [number, number]) => [...g].sort().join("-")))).toEqual(
+        new Set(first.map((g: [number, number]) => [...g].sort().join("-"))),
+      );
+      seen.push(again);
+    }
+    // The playoffs still wait at the end
+    expect((await tournament()).games.filter((g: Json) => g.stage === "playoff").map((g: Json) => g.round)).toEqual([
+      11, 11,
+    ]);
   });
 
   it("members can't make fixtures or enter results", async () => {

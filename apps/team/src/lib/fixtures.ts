@@ -41,6 +41,29 @@ export function rests(order: [number, number][], teamIds: number[]): Map<number,
   return out;
 }
 
+/**
+ * How fair a day's order is, fairOrder's rules in turn (lower is fairer, compared rule by rule): minus the shortest
+ * break, how often one team gets it and how often in all, the latest first game, the spread of teams' total rest,
+ * minus the last game's teams' rest before it, the sum of the breaks' squares.
+ */
+export function fairness(order: [number, number][], teamIds: number[]): number[] {
+  const byTeam = rests(order, teamIds);
+  const gaps = [...byTeam.values()];
+  const all = gaps.flat();
+  const min = all.length ? Math.min(...all) : order.length;
+  const short = gaps.map((g) => g.filter((r) => r === min).length);
+  const rest = gaps.map((g) => g.reduce((x, y) => x + y, 0));
+  return [
+    -min,
+    Math.max(...short),
+    short.reduce((x, y) => x + y, 0),
+    Math.max(...teamIds.map((t) => order.findIndex((g) => g.includes(t)))),
+    Math.max(...rest) - Math.min(...rest),
+    -Math.min(...(order.at(-1) ?? []).map((t) => byTeam.get(t)?.at(-1) ?? order.length)),
+    all.reduce((x, r) => x + r * r, 0),
+  ];
+}
+
 /** How hard fairOrder looks before it settles for the best order found so far (up to seven teams: every order). */
 const FAIR_ORDER_STEPS = 200_000;
 
@@ -82,12 +105,11 @@ export function fairOrder(
   const played = new Array<number>(n).fill(0);
   const gaps: number[][] = Array.from({ length: n }, () => []);
 
-  /** Lower is fairer, compared rule by rule. */
+  /** fairness, from the search's own state (cheaper: it's run at every end of the search). */
   const cost = (): number[] => {
     const all = gaps.flat();
     const min = all.length ? Math.min(...all) : m;
     const short = gaps.map((g) => g.filter((r) => r === min).length);
-    const end = -Math.min(...pairs[order[m - 1]].map((t) => gaps[t].at(-1) ?? m));
     const rest = gaps.map((g) => g.reduce((x, y) => x + y, 0));
     return [
       -min,
@@ -95,11 +117,10 @@ export function fairOrder(
       short.reduce((x, y) => x + y, 0),
       Math.max(...first),
       Math.max(...rest) - Math.min(...rest),
-      end,
-      squares(all),
+      -Math.min(...pairs[order[m - 1]].map((t) => gaps[t].at(-1) ?? m)),
+      all.reduce((x, r) => x + r * r, 0),
     ];
   };
-  const squares = (all: number[]) => all.reduce((x, r) => x + r * r, 0);
   const worse = (a: number[], b: number[]) => {
     for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i];
     return false;
@@ -269,11 +290,44 @@ const FAIR_ORDERS: Record<number, string> = {
 /** For more teams, a short look past the greedy order: a few milliseconds. */
 const QUICK_STEPS = 500;
 
-/** The round robin of these teams (in pick order) in the day's order: fairOrder's, from its table up to 8 teams. */
-export function fairFixtures(teamIds: number[]): [number, number][] {
+/** A run of numbers from a seed (mulberry32): the same seed, the same run. */
+function seeded(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The round robin of these teams (in pick order) in the day's order: fairOrder's, from its table up to 8 teams. With
+ * a `seed` (making them again), another order just as fair: the table's order or one of its turns (backwards,
+ * or started part way round) that scores the same on every rule, the teams dealt into its places at random, and
+ * maybe every side swapped. Teams are alike to every rule, so each of these is exactly as fair.
+ */
+export function fairFixtures(teamIds: number[], seed?: number): [number, number][] {
+  const places = teamIds.map((_, i) => i);
   const known = FAIR_ORDERS[teamIds.length];
-  if (known) return known.split(" ").map((g) => g.split("-").map((i) => teamIds[+i]) as [number, number]);
-  return fairOrder(roundRobin(teamIds).flat(), teamIds, { steps: QUICK_STEPS });
+  const best: [number, number][] = known
+    ? known.split(" ").map((g) => g.split("-").map(Number) as [number, number])
+    : fairOrder(roundRobin(places).flat(), places, { steps: QUICK_STEPS });
+  if (seed === undefined) return best.map(([h, a]) => [teamIds[h], teamIds[a]]);
+
+  const random = seeded(seed);
+  const score = fairness(best, places).join();
+  const turns = [best, [...best].reverse()]
+    .flatMap((o) => o.map((_, k) => [...o.slice(k), ...o.slice(0, k)]))
+    .filter((o) => fairness(o, places).join() === score);
+  const order = turns[Math.floor(random() * turns.length)];
+  const dealt = [...teamIds];
+  for (let i = dealt.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [dealt[i], dealt[j]] = [dealt[j], dealt[i]];
+  }
+  const swap = random() < 0.5;
+  return order.map(([h, a]) => (swap ? [dealt[a], dealt[h]] : [dealt[h], dealt[a]]));
 }
 
 /** The changeover between games, in minutes. */
