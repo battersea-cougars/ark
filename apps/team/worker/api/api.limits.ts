@@ -23,6 +23,8 @@ export const LIMITS = {
   passkey: { limit: 60, windowSeconds: 600 },
   /** The join form, from one address. */
   join: { limit: 5, windowSeconds: 3600 },
+  /** "Send a test email", by one admin (Settings → Email). */
+  testMail: { limit: 5, windowSeconds: 3600 },
 } satisfies Record<string, Limit>;
 
 export const addressOf = (request: Request) => request.headers.get("cf-connecting-ip") ?? "unknown";

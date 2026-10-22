@@ -51,6 +51,22 @@
   const label = (a: unknown) => (typeof a === "string" && a in ACTIONS ? ACTIONS[a as Action].name : String(a));
   const list = (v: unknown) => (Array.isArray(v) && v.length ? v.map(label).join(", ") : "nothing");
   const str = (v: unknown) => (typeof v === "string" && v ? v : "none");
+  // Why a reconnect didn't take (Settings → Email)
+  const RECONNECT_TRIED: Record<string, string> = {
+    denied: "Google's page was cancelled",
+    "no-send": '"Send email on your behalf" wasn\'t ticked',
+    club: "it was the club's own account",
+    expired: "it took too long, or came back to another browser",
+    failed: "Google gave no new token",
+  };
+  // Why a test email didn't go (Settings → Email)
+  const TEST_RESULT: Record<string, string> = {
+    logged: "no email is set up there, so it was logged",
+    cancelled: "Google had cancelled the token",
+    paused: "Gmail was busy",
+    failed: "Gmail didn't take it",
+    refused: "the app refused to send it",
+  };
   /** A count and its noun: 1 match, 2 matches. */
   const count = (n: unknown, one: string, many = `${one}s`) => `${Number(n ?? 0)} ${Number(n ?? 0) === 1 ? one : many}`;
   const num = (v: unknown) => (typeof v === "number" ? v : 0);
@@ -159,6 +175,14 @@
       // The club's email (ADR 0027): a new Gmail token, kept sealed in the database ({ account })
       case "mail.reconnected":
         return `${who} reconnected the club's email, sending as ${str(to?.account)}`;
+      // A trip through Google that didn't reconnect ({ outcome }: denied, no-send, club, expired, failed)
+      case "mail.reconnect_tried":
+        return `${who} tried to reconnect the club's email: ${RECONNECT_TRIED[str(to?.outcome)] ?? "it didn't work"}`;
+      // "Send a test email" ({ to, result: sent, logged, cancelled, paused, failed, refused })
+      case "mail.test_sent":
+        return to?.result === "sent"
+          ? `${who} sent a test email to ${str(to?.to)}`
+          : `${who} tried a test email to ${str(to?.to)}: ${TEST_RESULT[str(to?.result)] ?? "it didn't go"}`;
       case "tournament.deleted":
         return `${who} deleted the tournament ${str(from?.name)} (${str(from?.heldOn)})`;
       case "session.reset":
@@ -283,7 +307,7 @@
     if (/^(sign_in|sign_out|access|member|members|role|refused)\b/.test(action)) return "Members";
     if (/^(training|session|sessions|teams|register|signups)\./.test(action)) return "Training";
     if (/^(tournament|tournament_series|draft|game|fixtures|team)\./.test(action)) return "Kumite";
-    if (/^(venue|settings|quip|dev_mail|announcement|event)\./.test(action)) return "Settings";
+    if (/^(venue|settings|quip|dev_mail|mail|announcement|event)\./.test(action)) return "Settings";
     return null;
   }
   let area = $state<Area | null>(null);

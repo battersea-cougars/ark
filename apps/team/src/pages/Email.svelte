@@ -3,7 +3,8 @@
   // its access (a password change on the sending account, its access removed, or 6 months unused). Then nobody gets a
   // sign-in code, so the admins hear on Home and on their phones, and fix it here: "Reconnect email" opens Google's
   // consent page in this browser and comes back to this page, which says how it went. It works at once, no deploy.
-  // Busy or rate-limited Gmail (ADR 0055) is told apart: that one passes by itself.
+  // Busy or rate-limited Gmail (ADR 0055) is told apart: that one passes by itself. "Send a test email" sends one to the
+  // admin who presses it, and nobody else, the way every email goes, and says how it went.
   import { api } from "../app/api";
   import { inApp } from "../app/native";
   import Icon from "../app/shell/Icon.svelte";
@@ -21,6 +22,8 @@
     reconnectedAt: string | null;
     reconnectedBy: { id: number; name: string } | null;
     canReconnect: boolean;
+    /** How the last trip through Google ended, from the record: said here whatever this page's address says. */
+    lastAttempt: { outcome: string; at: string; by: { id: number; name: string } | null } | null;
   }
 
   // How the trip through Google ended (/api/mail/callback lands here with ?email=)
@@ -69,8 +72,57 @@
     }
   }
 
+  // "Send a test email": how it went, in words (POST /api/mail/test)
+  type Tested = {
+    result: "sent" | "logged" | "cancelled" | "paused" | "failed" | "refused";
+    to: string[];
+    refused?: string;
+  };
+  let testing = $state(false);
+  let tested = $state<{ ok: boolean; text: string } | null>(null);
+
+  function testSaid({ result, to, refused }: Tested) {
+    switch (result) {
+      case "sent":
+        return { ok: true, text: `Sent to ${to.join(", ")}. Check your inbox.` };
+      case "logged":
+        return { ok: false, text: "No email is set up here: it was written to the log, not sent." };
+      case "cancelled":
+        return { ok: false, text: "It didn't go: Google has cancelled the app's access. Reconnect email, below." };
+      case "paused":
+        return { ok: false, text: "It didn't go: Gmail is busy. It passes by itself; try again later." };
+      case "refused":
+        return { ok: false, text: `It didn't go: ${refused ?? "the app wouldn't send it here."}` };
+      default:
+        return { ok: false, text: "It didn't go: Gmail didn't take it. Try again in a minute." };
+    }
+  }
+
+  async function sendTest() {
+    testing = true;
+    tested = null;
+    try {
+      tested = testSaid(await api<Tested>("POST", "/api/mail/test", {}));
+      await load();
+    } catch (e) {
+      tested = { ok: false, text: e instanceof Error ? e.message : String(e) };
+    } finally {
+      testing = false;
+    }
+  }
+
   const when = (iso: string) => `${formatDayDate(iso)}, ${formatTime(iso)}`;
   const stopped = $derived(status?.failure === "cancelled");
+  // The last try, unless the address has just said it
+  const lastTry = $derived.by(() => {
+    const t = status?.lastAttempt;
+    if (!t || (back && said === t.outcome)) return null;
+    const by = t.by ? ` by ${t.by.name}` : "";
+    return {
+      ok: t.outcome === "reconnected",
+      text: `Last try, ${when(t.at)}${by}: ${BACK[t.outcome]?.text ?? t.outcome}`,
+    };
+  });
 </script>
 
 <div class="page">
@@ -138,12 +190,33 @@
     </dl>
 
     <section class="part">
+      <h2 class="section-title">Send a test email</h2>
+      <p class="hint">
+        One email to you, and only you, the way every email goes. It says which account sent it and with which token.
+      </p>
+      <div>
+        <button class="btn" onclick={sendTest} disabled={testing}>
+          <Icon name="mail" size={16} />{testing ? "Sending…" : "Send a test email"}
+        </button>
+      </div>
+      <!-- Room kept for the answer, so nothing moves when it comes -->
+      <p class="said tested" class:ok={tested?.ok} role="status">
+        {#if tested}<Icon name={tested.ok ? "check" : "alert"} size={18} />{tested.text}{/if}
+      </p>
+    </section>
+
+    <section class="part">
       <h2 class="section-title">Reconnect email</h2>
       <p class="hint">
         Google's page opens: sign in as the sending account ({status.account ?? "the developer one"}), never the club's
         own, choose "Advanced", then "Go to Battersea Cougars", and tick <strong>Send email on your behalf</strong>. You
         come back here.
       </p>
+      {#if lastTry}
+        <p class="said tried" class:ok={lastTry.ok}>
+          <Icon name={lastTry.ok ? "check" : "alert"} size={18} />{lastTry.text}
+        </p>
+      {/if}
       {#if inApp}
         <p class="hint">Google doesn't sign in inside the app: do this from the team app in a browser.</p>
       {:else if !status.canReconnect}
@@ -201,6 +274,13 @@
   }
   .said.ok {
     color: var(--fg);
+  }
+  .said.tried {
+    margin: 0;
+  }
+  .said.tested {
+    margin: 0;
+    min-height: 3em;
   }
   .btn {
     gap: var(--s-1);

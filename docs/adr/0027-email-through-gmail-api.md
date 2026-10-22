@@ -130,3 +130,9 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   whether it works (a cancelled token apart from Gmail being busy), the admins hear on Home and their phones, and
   "Reconnect email" keeps a new token sealed in D1, used at once by both Workers, with no deploy. Passkeys get an
   admin in while email is down; `gmail-auth.mjs` is for the first token and the terminal fallback (#101).
+- 2026-10-22: Settings → Email has "Send a test email": one email, the way every email goes (the reconnected token,
+  else the deployed one, with its outcome recorded), to the admin who pressed it and nobody else (outside production
+  their own address is let through for it), saying which account and token sent it and how production's From line
+  reads; 5 an hour per admin, each try on the record (`mail.test_sent`). Every reconnect try is on the record too
+  (`mail.reconnect_tried` with how it ended, never anything from Google's answer), and the page says the last one
+  from there, not only from its address.
