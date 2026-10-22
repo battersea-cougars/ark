@@ -80,8 +80,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   game's played. Nothing else: no lede, no "not final" hint. The draft card leads with the draft's day or "Draft
   date TBC", shows the captains as discs, or says "Captains to be named."
 
-- **Your next fight on Home** too, under the calls to action, while you're on a team with one coming (the same
-  `lib/NextFight`, with its day), in place of the feed's "The teams are out".
+- **Your next fight on Home** too: it's Home's lead card when it's your soonest thing (ADR 0118), the game as
+  `FightCard` shows it, with its day and pitch.
 - **During:** your turn to keep score, then the match on now (or, between matches, Up next) and the next one, a card
   each (`onTheDayOf`); your next, when it's neither, one line under them. Nothing else competes: results are on the
   board, a link at the foot.

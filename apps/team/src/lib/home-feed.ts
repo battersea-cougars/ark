@@ -92,7 +92,7 @@ export interface FeedInput {
   pinned?: string;
 }
 
-/** Your team's next game in a tournament on or coming up: a call to action of its own (lib/NextFight). */
+/** Your team's next game in a tournament on or coming up: Home's lead when it's your soonest thing. */
 export interface Fight {
   type: TournamentType;
   t: Tournament;
