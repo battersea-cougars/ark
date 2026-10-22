@@ -8,7 +8,9 @@ import {
   nextFightOf,
   nextOf,
   onTheDayOf,
+  pageStepOf,
   stageBadge,
+  trackLinksOf,
   stepsOf,
 } from "./tournament-front";
 
@@ -302,5 +304,45 @@ describe("afterwards on the front page (ADR 0074)", () => {
     expect(afterNoteWords("Celebration and awards")).toBe("celebration and awards");
     expect(afterNoteWords("BBQ and awards")).toBe("BBQ and awards");
     expect(afterNoteWords("  ")).toBe("");
+  });
+});
+
+describe("the track is the series' navigation (ADR 0074)", () => {
+  it("at sign-up, only Sign-up opens a page (the front page); the draft only for its captains and whoever runs it", () => {
+    expect(trackLinksOf(draft(), "kumite", false)).toEqual({
+      signup: "/tournaments/kumite",
+      draft: null,
+      teams: null,
+      fixtures: null,
+      day: null,
+    });
+    expect(trackLinksOf(draft(), "kumite", true).draft).toBe("/tournaments/kumite/draft");
+  });
+
+  it("the teams open once there are some; teams that enter have no draft step to open", () => {
+    expect(trackLinksOf(teamsSet(), "kumite", false).teams).toBe("/tournaments/kumite/teams");
+    expect(trackLinksOf(draft({ draftState: "open" }), "kumite", false).teams).toBe("/tournaments/kumite/teams");
+    expect(trackLinksOf(draft({ kind: "teams" }), "cup", true).draft).toBe(null);
+  });
+
+  it("the fight card out, the front page is the day's: Sign-up hands it to KUMITE!", () => {
+    const links = trackLinksOf(fixtures(), "kumite", true);
+    expect(links).toEqual({
+      signup: null,
+      draft: "/tournaments/kumite/draft",
+      teams: "/tournaments/kumite/teams",
+      fixtures: "/tournaments/kumite/schedule",
+      day: "/tournaments/kumite",
+    });
+  });
+
+  it("marks the page you're on as its step: the front page is Sign-up, then the day", () => {
+    expect(pageStepOf("games", draft())).toBe("signup");
+    expect(pageStepOf("games", fixtures())).toBe("day");
+    expect(pageStepOf("draft", fixtures())).toBe("draft");
+    expect(pageStepOf("tournament-teams", draft())).toBe("teams");
+    expect(pageStepOf("schedule", fixtures())).toBe("fixtures");
+    // The board isn't a step
+    expect(pageStepOf("standings", fixtures())).toBe(null);
   });
 });

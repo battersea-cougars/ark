@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Action } from "../access/actions";
-import { backFor, stripCurrent, stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
+import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "./mobile-nav";
 import { buildRoutes, buildTabs, movedTo, routeFor, type NavConfig, type Stage } from "./nav-routes";
 
 const member = new Set<Action>(["read:Event", "signup:Event"]);
@@ -164,23 +164,39 @@ describe("stripRoutes", () => {
     expect(buildRoutes(many).some((r) => r.name === "My team")).toBe(false);
   });
 
-  it("keeps a tournament's strip to its own pages", () => {
+  it("gives a tournament's pages no strip: its stage track is their navigation (ADR 0074)", () => {
     const routes = buildRoutes(many);
-    expect(stripRoutes(routes, routeFor(routes, "/tournaments/cup")!, member).map((r) => r.name)).toEqual([
-      "The Cup",
-      "Fight card",
-      "The board",
-      "Teams",
-    ]);
+    for (const path of ["/tournaments/cup", "/tournaments/cup/schedule", "/tournaments/cup/standings"]) {
+      expect(stripRoutes(routes, routeFor(routes, path)!, member)).toEqual([]);
+      expect(onTrack(routeFor(routes, path)!)).toBe(true);
+    }
+  });
+
+  it("the track is on the series' running pages, not a team's, a game's or History", () => {
+    const routes = buildRoutes({
+      ...one,
+      types: [{ ...kumite, stage: "fixtures", past: [5], teams: [{ id: 71, mine: false }], games: [9] }],
+    });
+    const on = (path: string) => onTrack(routeFor(routes, path)!);
+    for (const path of ["", "/draft", "/teams", "/schedule", "/standings"])
+      expect(on(`/tournaments/kumite${path}`)).toBe(true);
+    for (const path of ["/teams/71", "/games/9", "/history", "/history/5"])
+      expect(on(`/tournaments/kumite${path}`)).toBe(false);
+    expect(on("/training/friday")).toBe(false);
   });
 });
 
-describe("a tournament's pages follow where it's got to, so they fit a phone's strip", () => {
+describe("a tournament's own pages follow where it's got to; the rest are a link away, with Back", () => {
   const CARA = 7;
   const at = (stage: Stage, extra: Partial<NavConfig["types"][number]> = {}, me = 99) =>
     buildRoutes({ ...one, types: [{ ...kumite, stage, captains: [CARA, 8], past: [5], ...extra }], me });
-  const strip = (routes: ReturnType<typeof buildRoutes>, granted: Set<Action>) =>
-    stripRoutes(routes, routeFor(routes, "/tournaments/kumite")!, granted).map((r) => r.short ?? r.name);
+  // Its own pages at this stage: the rail opens the first; any other is a link away, under one of these
+  const own = (routes: ReturnType<typeof buildRoutes>, granted: Set<Action>) =>
+    tabRoutes(routes, "tournaments", granted).filter((r) => r.fold === "type:1");
+  const strip = (routes: ReturnType<typeof buildRoutes>, granted: Set<Action>) => {
+    const list = own(routes, granted).map((r) => r.short ?? r.name);
+    return list.length > 1 ? list : [];
+  };
 
   it("the tabs say the short names: Kumite, Fight card, Board; the pages keep their full names", () => {
     const routes = at("fixtures");
@@ -238,7 +254,7 @@ describe("a tournament's pages follow where it's got to, so they fit a phone's s
       hidden: true,
       under: "teams:1",
     });
-    const tabs = stripRoutes(routes, routeFor(routes, "/tournaments/kumite")!, member);
+    const tabs = own(routes, member);
     expect(stripCurrent(routes, routeFor(routes, "/tournaments/kumite/my-team")!, tabs)).toBe("teams:1");
     expect(stripCurrent(routes, routeFor(routes, "/tournaments/kumite/teams/71")!, tabs)).toBe("teams:1");
   });
@@ -250,7 +266,7 @@ describe("a tournament's pages follow where it's got to, so they fit a phone's s
     expect(backFor(routes, history, null)?.to.path).toBe("/tournaments/kumite");
     const past = routeFor(routes, "/tournaments/kumite/history/5")!;
     expect(backFor(routes, past, null)?.to.path).toBe("/tournaments/kumite/history");
-    const tabs = stripRoutes(routes, routeFor(routes, "/tournaments/kumite")!, member);
+    const tabs = own(routes, member);
     expect(stripCurrent(routes, past, tabs)).toBe("games:1");
   });
 });

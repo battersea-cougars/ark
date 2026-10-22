@@ -12,7 +12,13 @@
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
   import { tournamentPlace } from "../demo/schedule.svelte";
   import { editionWhen } from "./edition";
-  import { stageBadge } from "./tournament-front";
+  import { pageStepOf, stageBadge, trackLinksOf } from "./tournament-front";
+  import StageTrack from "./StageTrack.svelte";
+  import { me } from "../demo/session.svelte";
+  import { routes } from "../app/routes.svelte";
+  import { router } from "../app/router.svelte";
+  import { routeFor } from "../app/nav-routes";
+  import { onTrack } from "../app/mobile-nav";
   import AwardsDrawer, { enterAwards } from "./AwardsDrawer.svelte";
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
@@ -54,6 +60,15 @@
     return days < 0 ? "" : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `in ${days} days`;
   });
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
+  // The series' running pages are one template: this header, then its stage track, which is their navigation (ADR
+  // 0074): each step opens its page, the one you're on marked (lib/tournament-front.ts trackLinksOf, pageStepOf)
+  const route = $derived(routeFor(routes(), router.path));
+  const track = $derived.by(() => {
+    if (!tournament || note || compact || !route || !onTrack(route)) return null;
+    const t = tournament;
+    const canDraft = can(granted(), "run:Draft") || t.teams.some((x) => x.captainMemberId === me().id);
+    return { links: trackLinksOf(t, type.slug, canDraft), on: pageStepOf(route.page, t) };
+  });
   interface Tool {
     icon: IconName;
     label: string;
@@ -162,6 +177,7 @@
       {/snippet}
     </PageHeader>
   </div>{/if}
+{#if track && tournament}<StageTrack {type} {tournament} today={londonToday()} links={track.links} on={track.on} />{/if}
 
 {#snippet toolList()}
   <div class="tools">

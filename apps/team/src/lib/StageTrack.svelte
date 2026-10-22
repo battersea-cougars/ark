@@ -3,11 +3,30 @@
   // the draft, the teams, the fight card, the day), the one it's at lit in the club's red, italic with a slash, the ones
   // done filled in and quiet, the ones ahead fainter still. Under it, what happens next and when. The same two lines at every
   // stage, so nothing under them moves as it goes along. Which steps and which is now: lib/tournament-front.ts.
+  // It's also the series' navigation, on each of its pages under the header: a step opens its page once it has one
+  // (`links`), and the page you're on (`on`) is marked apart from the stage it's at: bright, with a bar under its name,
+  // as a lit tab is, where the stage it's at is the club's red, italic with a slash.
   import type { Tournament, TournamentType } from "../demo/model";
   import { clock, formatDayDate, londonISO } from "./dates";
-  import { nextOf, stepsOf } from "./tournament-front";
+  import { nextOf, stepsOf, type Step } from "./tournament-front";
 
-  let { type, tournament: t, today }: { type: TournamentType; tournament: Tournament; today: string } = $props();
+  let {
+    type,
+    tournament: t,
+    today,
+    links = {},
+    on = null,
+  }: {
+    type: TournamentType;
+    tournament: Tournament;
+    today: string;
+    /** The page each step opens; none: not a link (yet). */
+    links?: Partial<Record<Step, string | null>>;
+    /** The step whose page this is. */
+    on?: Step | null;
+  } = $props();
+  // On a phone, the fight card is the Card, so every name stays on one line, clear of the next
+  const SHORT: Partial<Record<Step, string>> = { fixtures: "Card" };
 
   const steps = $derived(stepsOf(t, type, today));
   const now = $derived(steps.findIndex((s) => s.state === "now"));
@@ -20,14 +39,25 @@
   });
 </script>
 
-<div class="track">
+<!-- stage-track: the shell keeps it in place between the series' pages, as it does the header -->
+<div class="track stage-track">
   <ol class="steps" aria-label="Where the {type.shortName} has got to">
     {#each steps as s (s.step)}
-      <li class="step {s.state}" aria-current={s.state === "now" ? "step" : undefined}>
-        <span class="bar" aria-hidden="true"></span>
-        <span class="label"
-          >{s.label}{#if s.state === "done"}<span class="sr-only">, done</span>{/if}</span
-        >
+      {@const href = links[s.step]}
+      <li class="step {s.state}" class:here={on === s.step} aria-current={s.state === "now" ? "step" : undefined}>
+        {#snippet inside()}
+          <span class="bar" aria-hidden="true"></span>
+          <span class="label"
+            ><span class="full">{s.label}</span>{#if SHORT[s.step]}<span class="short" aria-hidden="true"
+                >{SHORT[s.step]}</span
+              >{/if}{#if s.state === "done"}<span class="sr-only">, done</span>{/if}</span
+          >
+        {/snippet}
+        {#if href}
+          <a class="go" {href} aria-current={on === s.step ? "page" : undefined}>{@render inside()}</a>
+        {:else}
+          <span class="go">{@render inside()}</span>
+        {/if}
       </li>
     {/each}
   </ol>
@@ -57,10 +87,24 @@
   }
   .step {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: var(--s-2);
     min-width: 0;
     color: var(--fg-subtle);
+  }
+  /* The whole step is the link (bar and name), tall enough for a thumb */
+  .go {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: var(--s-2);
+    min-height: 2.75rem;
+    color: inherit;
+    text-decoration: none;
+  }
+  a.go:hover .label {
+    color: var(--fg);
   }
   /* A filled bar a step: done ones quiet, now the club's red, ahead barely there */
   .bar {
@@ -97,6 +141,21 @@
   .now .label::before {
     content: "/ ";
   }
+  /* The page you're on: its name bright, a bar under it, as a lit tab. Apart from the stage it's at (red, slashed),
+     which it may also be */
+  .here .label {
+    color: var(--fg);
+  }
+  .here.now .label {
+    color: var(--red-hot);
+  }
+  .here .label > span {
+    text-decoration: underline 2px;
+    text-underline-offset: 0.3em;
+  }
+  .short {
+    display: none;
+  }
   .next {
     display: flex;
     flex-wrap: wrap;
@@ -118,6 +177,14 @@
   @media (max-width: 380px) {
     .label {
       font-size: 0.8rem;
+    }
+  }
+  @media (max-width: 400px) {
+    .label .full:has(+ .short) {
+      display: none;
+    }
+    .short {
+      display: inline;
     }
   }
 </style>

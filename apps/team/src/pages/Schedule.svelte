@@ -11,6 +11,7 @@
   import { BREAK_MINUTES } from "../lib/fixtures";
   import { gameLength } from "../lib/periods";
   import TournamentHead from "../lib/TournamentHead.svelte";
+  import Icon from "../app/shell/Icon.svelte";
   import GameCard from "../lib/GameCard.svelte";
   import { listScroll } from "../lib/list-scroll";
 
@@ -59,9 +60,13 @@
       <p class="hint num">
         {gameLength(tournament)}, {BREAK_MINUTES} minutes between, from {clock(tournament.startTime)}
       </p>
-      {#if manage && !hasResult}
-        <button class="btn ghost sm" onclick={() => makeFixtures(tournament.id)}>Make them again</button>
-      {/if}
+      <span class="head-actions">
+        {#if manage && !hasResult}
+          <button class="btn ghost sm" onclick={() => makeFixtures(tournament.id)}>Make them again</button>
+        {/if}
+        <!-- The board isn't a step on the track (ADR 0074): it's a link from here and the front page -->
+        <a class="btn ghost sm" href="/tournaments/{type.slug}/standings"><Icon name="list" size={16} />The board</a>
+      </span>
     </div>
     <!-- Every game in the day's order, grouped by stage. One scroller, the page (lib/list-scroll.ts): it scrolls until
          the header reaches the top, then the cards pass in the box under it, never under a bar; the header names the
@@ -106,6 +111,14 @@
   }
   .head p {
     margin: 0;
+  }
+  .head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+  .head-actions .btn {
+    gap: var(--s-1);
   }
   /* The header of the stuck block (the table's own row, nothing passing behind it), then the groups in the box: a
      later group's heading scrolls up to meet it, and it takes that group's name (ADR 0065) */

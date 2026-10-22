@@ -8,11 +8,18 @@ export const tabRoutes = (routes: Route[], tab: TabId, granted: ReadonlySet<Acti
   routes.filter((r) => r.tab === tab && !r.focus && !r.hidden && can(granted, r.action));
 
 /**
- * The pages in the strip along the top of a phone screen: the current tab's, and within a tournament type only
- * that type's. Shown only when there's more than one. The More tab uses its own page.
+ * A tournament series' running pages (its front page, Draft, Teams, Fight card, The board): its stage track, under the
+ * header, is their navigation (ADR 0074), so they have no strip and, on a phone, no bar above the header.
+ */
+export const TRACK_PAGES = ["games", "draft", "tournament-teams", "schedule", "standings"];
+export const onTrack = (route: Route) => !!route.fold && TRACK_PAGES.includes(route.page);
+
+/**
+ * The pages in the strip along the top of a phone screen: the current tab's. Shown only when there's more than one.
+ * The More tab uses its own page; a tournament series' pages have its stage track instead (onTrack).
  */
 export function stripRoutes(routes: Route[], current: Route, granted: ReadonlySet<Action>): Route[] {
-  if (current.tab === "more") return [];
+  if (current.tab === "more" || current.fold) return [];
   const list = tabRoutes(routes, current.tab, granted).filter((r) => !current.fold || r.fold === current.fold);
   return list.length > 1 ? list : [];
 }

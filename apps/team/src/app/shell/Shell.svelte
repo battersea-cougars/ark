@@ -9,7 +9,7 @@
   import { initials } from "../../lib/initials";
   import { type Snippet } from "svelte";
   import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
-  import { backFor, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
+  import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
   import { railFoot, railItems, railOn } from "../rail";
   import type { Route, TabId } from "../nav-routes";
   import { folds, routes, stayIfAllowed, tabs } from "../routes.svelte";
@@ -83,7 +83,8 @@
   });
   // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
   const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
-  const showBar = $derived(!route.focus && route.id !== "home");
+  // A tournament series' pages have none: their stage track, under the header, is the way between them (ADR 0074)
+  const showBar = $derived(!route.focus && route.id !== "home" && !onTrack(route));
 
   // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
   // app or after a reload, back to the page it belongs under (mobile-nav.ts backFor)
@@ -155,7 +156,7 @@
   // blurring behind the glass cards inside it. Phones just fade in, briefly, so that pause in the blur goes unseen.
   //
   // Desktop, between the pages of one section (a tournament's home, Fight card, The board, Teams, Draft): the header and the
-  // strip stay exactly where they were, as tabs do. The new page goes in at once, at the same scroll (so a docked
+  // strip (a tournament's stage track) stay exactly where they were, as tabs do. The new page goes in at once, at the same scroll (so a docked
   // strip stays docked), and only what's under the strip slides across.
   // Where you start counts as where you came from: the first page shows without a transition (no intro), so it never
   // goes through enter, and the first move from it would otherwise look like arriving from somewhere else
@@ -209,7 +210,8 @@
   function enter(node: Element, { focus }: { focus?: boolean }) {
     const index = all.findIndex((r) => r.id === route.id);
     const sideways = prevTab === route.tab && strip.length > 1;
-    const within = !phone.current && !!route.fold && prevFold === route.fold && strip.length > 1;
+    // A tournament's pages: their stage track is their strip (ADR 0074)
+    const within = !phone.current && !!route.fold && prevFold === route.fold && (strip.length > 1 || onTrack(route));
     const dir = prevIndex < 0 ? 1 : Math.sign(index - prevIndex) || 1;
     prevIndex = index;
     prevTab = route.tab;
@@ -701,9 +703,9 @@
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  /* Between a section's pages: everything under the header and its strip slides in from the way you went (transform
+  /* Between a section's pages: everything under the header and its strip (a tournament's: its stage track) slides in from the way you went (transform
      only, so the glass behind cards still blurs) */
-  .view.swap :global(.page > :not(.page-header, .page-toolbar, .tone)) {
+  .view.swap :global(.page > :not(.page-header, .page-toolbar, .tone, .stage-track)) {
     animation: swap-in 420ms cubic-bezier(0.16, 1, 0.3, 1);
   }
   @keyframes swap-in {

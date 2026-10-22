@@ -32,7 +32,6 @@
   import { afterMomentOf, afterNoteWords, firstUpOf, frontOf, myTeamIndex, onTheDayOf } from "../lib/tournament-front";
   import type { After } from "@cougars/shared/places";
   import FightCard from "../lib/FightCard.svelte";
-  import StageTrack from "../lib/StageTrack.svelte";
   import YourTeam from "../lib/YourTeam.svelte";
 
   let { typeId }: { typeId: number } = $props();
@@ -95,15 +94,12 @@
   });
   // The quiet links at the foot: what has a page of its own once there's something on it
   const stage = $derived(tournament ? stageOf(tournament) : "signup");
+  // (the teams and the fight card are steps on the track; the board and History aren't)
   const links = $derived(
     [
-      // Before the day, First up has its own Full fight card
-      stage === "fixtures" &&
-        mode === "during" && { href: schedule, label: "Fight card", icon: kumite ? "gong" : "calendar" },
       stage === "fixtures" && { href: board, label: "The board", icon: "list" },
-      stage !== "signup" && { href: `/tournaments/${type.slug}/teams`, label: "Teams", icon: "teams" },
       earlier && { href: `/tournaments/${type.slug}/history`, label: "History", icon: "medal" },
-    ].filter((l) => !!l) as { href: string; label: string; icon: "gong" | "calendar" | "list" | "teams" | "medal" }[],
+    ].filter((l) => !!l) as { href: string; label: string; icon: "list" | "medal" }[],
   );
 </script>
 
@@ -185,8 +181,7 @@
       </section>
     {/if}
   {:else}
-    <!-- Where it's got to, unmistakably: every stage, the one it's at lit, and what happens next -->
-    <StageTrack {type} {tournament} {today} />
+    <!-- The track of its stages is the header's, on every page of the series (TournamentHead, ADR 0074) -->
     {#if after?.moment === "before"}{@render afterLine(after.place)}{/if}
     {#if mode === "during"}
       <!-- On the day: your team's turn to keep score (once you hold it, your game's card wears the whistle instead),

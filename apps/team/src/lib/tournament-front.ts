@@ -195,3 +195,38 @@ export function afterNoteWords(note: string) {
   const n = note.trim();
   return /^[A-Z][a-z]/.test(n) ? n[0].toLowerCase() + n.slice(1) : n;
 }
+
+/**
+ * The track is the series' navigation (ADR 0074): each step opens its page, once it has one. Sign-up opens the front
+ * page until the fight card's out; then the day (KUMITE!) does, the front page being the day's (on now, next). The
+ * draft opens for its captains and whoever runs it (`canDraft`); the teams once there are some to show; the fight card
+ * once it's made. The board and History aren't steps: they're links from the front page (and the board from the
+ * fight card).
+ */
+export function trackLinksOf(t: Tournament, slug: string, canDraft: boolean): Record<Step, string | null> {
+  const base = `/tournaments/${slug}`;
+  const card = !!t.games?.length;
+  return {
+    signup: card ? null : base,
+    draft: t.kind === "draft" && canDraft ? `${base}/draft` : null,
+    teams: stageOf(t) !== "signup" ? `${base}/teams` : null,
+    fixtures: card ? `${base}/schedule` : null,
+    day: card ? base : null,
+  };
+}
+
+/** Which step a page of the series is (the track marks it as the one you're on), or null for one that isn't a step. */
+export function pageStepOf(page: string, t: Tournament): Step | null {
+  switch (page) {
+    case "games":
+      return t.games?.length ? "day" : "signup";
+    case "draft":
+      return "draft";
+    case "tournament-teams":
+      return "teams";
+    case "schedule":
+      return "fixtures";
+    default:
+      return null;
+  }
+}

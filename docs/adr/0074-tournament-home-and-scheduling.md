@@ -35,13 +35,19 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   that's running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down
   the side like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard."
   An admin's **Next Kumite** is on it. Under it, every past one, newest first.
-- **The tabs are the pages that matter at its stage** (`stageOf` in `lib/edition.ts`, `nav-routes.ts`), short
-  (Kumite, Fight card, Board, Teams, Draft), so they fit an iPhone without scrolling, four at most for a member. Sign-up:
-  just the front page (a draft's teams are its captains, already on it; teams that enter: Teams). The draft open:
-  Kumite, Draft (its captains and whoever runs it), Teams. The teams set, no fixtures yet: Kumite, Teams, and the
-  Draft still for those who make the fixtures from it. The fixtures out: Kumite, Fight card, Board, Teams. The rest are
-  off the strip but a link away, under the front page (Back and the lit tab go there): My team is never a tab (Teams
-  has yours first, marked; `/my-team` is under Teams), nor is History while one's running.
+- **The track of its stages is the navigation** (`TournamentHead` with `lib/StageTrack`, `trackLinksOf` and
+  `pageStepOf` in `lib/tournament-front.ts`), not a strip of tabs: every running page of the series (the front page,
+  Draft, Teams, Fight card, The board; `onTrack` in `app/mobile-nav.ts`) is one template, the header then the track
+  with its Next line, so nothing moves from page to page, and on a phone there's no bar above the header. Each step
+  opens its page once it has one: **Sign-up** the front page, until the fight card's out; **Draft** the draft, for its
+  captains and whoever runs it (a plain step for everyone else); **Teams** the teams, once there are some; **Fight
+  card** the fight card, once it's made; then **KUMITE!** (the series' own name) the front page, which is the day's
+  (on now, next). So the front page is always one step, never two. **The board** isn't a step: it's a link at the foot
+  of the front page and beside the fight card; nor is **History**, a link at the foot of the front page. Two marks
+  that never mix: the stage it's at, in the club's red, italic with a slash; the page you're on, its name bright and
+  underlined, as a lit tab is (red and underlined when it's both). On a phone the fight card's step says Card. A team's,
+  a game's and History's pages keep their Back. The route tree still keeps the pages that matter at its stage as the
+  series' own (`nav-routes.ts`): the rest are under the front page, so Back and the rail go there.
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
   page itself when nothing's on): each
   with how it ended (the day, the champions, the final's score), each opening its own page
@@ -254,3 +260,7 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   for), the Kumite's The Anchor for the celebration and awards; a tournament keeps its series', has its own, or none
   this time. The front page says it before the day as a quiet line, as Then once the last match is on, and as Now
   that evening; the day's calendar entry says it too.
+- 2026-10-22: The track of its stages replaces the tabs as the series' navigation, under the header on every running
+  page (the front page, Draft, Teams, Fight card, The board): each step opens its page (Sign-up the front page till the
+  fight card's out, then KUMITE! does), the page you're on marked apart from the stage it's at; no strip, and no bar
+  above the header on a phone. The board and History are links from the front page (the board from the fight card too).
