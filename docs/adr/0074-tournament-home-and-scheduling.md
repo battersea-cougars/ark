@@ -36,10 +36,10 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   the side like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard."
   An admin's **Next Kumite** is on it. Under it, every past one, newest first.
 - **The tabs are the pages that matter at its stage** (`stageOf` in `lib/edition.ts`, `nav-routes.ts`), short
-  (Kumite, Fights, Board, Teams, Draft), so they fit an iPhone without scrolling, four at most for a member. Sign-up:
+  (Kumite, Fight card, Board, Teams, Draft), so they fit an iPhone without scrolling, four at most for a member. Sign-up:
   just the front page (a draft's teams are its captains, already on it; teams that enter: Teams). The draft open:
   Kumite, Draft (its captains and whoever runs it), Teams. The teams set, no fixtures yet: Kumite, Teams, and the
-  Draft still for those who make the fixtures from it. The fixtures out: Kumite, Fights, Board, Teams. The rest are
+  Draft still for those who make the fixtures from it. The fixtures out: Kumite, Fight card, Board, Teams. The rest are
   off the strip but a link away, under the front page (Back and the lit tab go there): My team is never a tab (Teams
   has yours first, marked; `/my-team` is under Teams), nor is History while one's running.
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
@@ -53,33 +53,38 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 
 ### The acts (`Games.svelte`)
 
-- **Before: the page follows the stage**, each leading with one thing (`frontOf` in `lib/tournament-front.ts`);
-  what's had its day goes from the page (History keeps it):
+- **A track of its stages leads the page** (`stepsOf`, `nextOf` in `lib/tournament-front.ts`, `lib/StageTrack`):
+  Sign-up, Draft (a draft's only), Teams, Fight card, then the day (KUMITE!), a filled bar and a name each, the one
+  it's at in the club's red, italic with a slash, those done quiet, those ahead faint. The fixtures out, it's at the
+  fight card until the day (or a match starts), then at the day. Under it, one line: what's next and when (sign-up
+  opening or closing, the draft's day, the teams once the draft closes, the first match on the day at its start), or
+  on the day how many are played. Both lines keep their height whatever the stage, so nothing under them moves.
+- **Before: the page follows the stage**, each leading with one thing, the stage's main action (`frontOf`); what's
+  had its day goes from the page (History keeps it). The teams are never listed here: they're the Teams tab, and a
+  quiet line of links at the foot (Fight card, The board, Teams, History, as each has something on it).
 
-  | Stage            | Stamp                                                   | Leads with                                                          | Then                                                                                                                                        |
-  | ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-  | sign-up          | SIGN-UP OPEN (COMING UP before it opens)                | you're in, or In / Out, and the count                               | a draft's day and captains                                                                                                                  |
-  | the draft open   | DRAFT LIVE                                              | the draft: who's picking, Go to the draft (its captains, run:Draft) | your sign-up, one small line, no buttons                                                                                                    |
-  | the teams set    | TEAMS SET                                               | "You're on Team X": its crest, captain, teammates                   | the other teams; "Draft done", one line, with Go to the draft for its captains and whoever runs it; an admin's "Make it" for the fight card |
-  | the fixtures out | FIXTURES OUT; on the day KUMITE! (the series' own name) | the fight card: every game in order of play, yours marked, Up next  | the teams, yours marked                                                                                                                     |
+  | Stage            | Stamp                                                   | Leads with                                                          | Then                                                                         |
+  | ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+  | sign-up          | SIGN-UP OPEN (COMING UP before it opens)                | you're in, or In / Out, and the count                               | (the draft's day is the track's Next)                                        |
+  | the draft open   | DRAFT LIVE                                              | the draft: who's picking, Go to the draft (its captains, run:Draft) | your sign-up, one small line, no buttons                                     |
+  | the teams set    | TEAMS SET                                               | "You're on Team X": its crest, captain, teammates                   | "Draft done", one line, with Go to the draft; an admin's Make the fight card |
+  | the fixtures out | FIXTURES OUT; on the day KUMITE! (the series' own name) | First up: the first match (Up next), and yours if it's a later one  | Full fight card                                                              |
 
-  The fight card (`fightCardOf`, `lib/FightCard.svelte`) is one compact row a game, the same at every stage of the
-  game: the time (Up next under the next one to be played, the chant on one being played, Final once done), the two
-  teams one over the other, a crest and a name each (yours in red) with the score once there is one, and the game's
-  number (a playoff's name). A tap opens the game. Six games or fewer: all of them; more, your games still to play,
-  the one on and the next, then Full fight card. The teams under it have no See all: every team's on the page.
-  Teams that enter have no draft, so no draft stage; while
-  they're still taking sign-ups, the sign-up line sits under the teams. The draft's done is said once ("Draft done"),
-  not a Closed stamp and a shout. The stamp in the header is the stage (`stageBadge`), on every page of the series;
-  under way on another day it's ON NOW, and DONE once every game's played. Nothing else: no lede, no "not final"
-  hint. The teams are "Teams", each with its crest and name, and a line under only when it adds something ("Your
-  team", in red, or its captain once the team has its own name). The draft card leads with the draft's day or "Draft
+  The fight card rows (`lib/FightCard.svelte`) are one compact row a game, the same at every stage of the game: the
+  time (Up next under the next one to be played, the chant on one being played, Final once done), the two teams one
+  over the other, a crest and a name each (yours in red) with the score once there is one, and the game's number (a
+  playoff's name). A tap opens the game. The whole card is its own page, the Fight card tab.
+  Teams that enter have no draft, so no draft step; while they're still taking sign-ups, the sign-up line sits under
+  your team. The draft's done is said once ("Draft done"), not a Closed stamp and a shout. The stamp in the header
+  is the stage (`stageBadge`), on every page of the series; under way on another day it's ON NOW, and DONE once every
+  game's played. Nothing else: no lede, no "not final" hint. The draft card leads with the draft's day or "Draft
   date TBC", shows the captains as discs, or says "Captains to be named."
 
 - **Your next fight on Home** too, under the calls to action, while you're on a team with one coming (the same
   `lib/NextFight`, with its day), in place of the feed's "The teams are out".
-- **During:** your turn to keep score, your next fight (unless it's on now or next, a fight card row), the fight on
-  now and the next, the latest results.
+- **During:** your turn to keep score, then the match on now (or, between matches, Up next) and the next one, a card
+  each (`onTheDayOf`); your next, when it's neither, one line under them. Nothing else competes: results are on the
+  board, a link at the foot.
 - **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first
   word ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the
   first keeps its own, a later one takes its next letters, never another team's own.
@@ -199,3 +204,8 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   card. It replaces "Your next fight" and "First up" there (Home keeps its own). The stamp says FIXTURES OUT until
   the day, then KUMITE!; no more Fight night. Crests skip a generic first word ("Team Charlie" CH) and never share
   initials within a tournament. The teams lose See all, every team being on the page.
+- 2026-10-22: Each stage is obvious: a track of the stages (Sign-up, Draft, Teams, Fight card, KUMITE!) leads the
+  front page with what's next under it. The teams are no longer listed on the front page (their tab, and a quiet
+  link at the foot); before the day it shows the first match (and yours), on the day only the match on now and the
+  next (no latest results, no separate Your next fight). The tab is "Fight card", not "Fights", and History's page
+  says "Fight card", not "Every fight".

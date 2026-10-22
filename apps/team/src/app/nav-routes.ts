@@ -448,7 +448,6 @@ export function buildRoutes(config: NavConfig): Route[] {
                 id: `schedule:${t.id}`,
                 path: `/tournaments/${t.slug}/schedule`,
                 name: "Fight card",
-                short: "Fights",
                 page: "schedule",
                 action: "read:Event",
                 // The Kumite's gong starts every fight (lib/motif.ts)

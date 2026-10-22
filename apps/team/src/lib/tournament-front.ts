@@ -1,11 +1,12 @@
-// A tournament's front page follows its stage (ADR 0074): each stage leads with one thing, and what's had its day goes
-// (it lives on in History). Sign-up: are you in. The draft on: the draft. The teams set: your team. The fixtures out:
-// the fight card. The page draws the blocks in this order; the stamp in its header says the stage.
+// A tournament's front page follows its stage (ADR 0074): a track at the top says which one it's at (sign-up, the
+// draft, the teams, the fight card, the day), what happens next under it, then that stage's one thing. Sign-up: are
+// you in. The draft on: the draft. The teams set: your team, and the fight card to come. The fixtures out: the first
+// match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { editionState, stageOf } from "./edition";
 import { signupOpen } from "./signup";
 
-/** One part of the front page, in the order it's drawn. */
+/** One part of the front page, before the first game's started, in the order it's drawn. */
 export type FrontBlock =
   /** Are you in, the count, In / Out. */
   | "signup"
@@ -17,10 +18,8 @@ export type FrontBlock =
   | "draft-done"
   /** You're on Team X: its crest, captain and teammates. */
   | "my-team"
-  /** The teams (the others, under yours). */
-  | "teams"
-  /** The fight card: the games in order of play, yours marked and the next one up (fightCardOf). */
-  | "fight-card"
+  /** The first match, and your first if it's another (firstUpOf). */
+  | "first-up"
   /** An admin's note: the fight card's to make. */
   | "make-fixtures";
 
@@ -43,43 +42,107 @@ export function frontOf(t: Tournament, me: number, today: string): FrontBlock[] 
   const mine = myTeamIndex(t, me) >= 0;
   switch (stageOf(t)) {
     case "signup":
-      return draft ? ["signup", "draft"] : ["signup"];
+      return ["signup"];
     case "draft":
       return ["draft", "signup-line"];
     case "teams":
       return [
         ...(mine ? (["my-team"] as const) : []),
-        "teams",
         // A draft's done in a line; teams that enter may still be coming, while sign-up's open
         ...(draft ? (["draft-done"] as const) : signupOpen(t, today) ? (["signup"] as const) : []),
         "make-fixtures",
       ];
     case "fixtures":
-      return ["fight-card", "teams"];
+      return ["first-up"];
   }
 }
 
-/** Up to this many games, the front page's fight card shows them all. */
-const WHOLE_CARD = 6;
+/** The steps a tournament goes through, as the track at the top of its front page names them. */
+export type Step = "signup" | "draft" | "teams" | "fixtures" | "day";
 
 /**
- * The fight card on the front page: every game in order of play while there are a few; more, and it's your team's games
- * still to play, the one on and the next, the rest on the full fight card. Up next: the first not yet started.
+ * The track at the top of the front page: every step it goes through (no draft for teams that enter), each done, the
+ * one it's at now, or still ahead. The fixtures out, it's at the fight card till the day; on the day (or once a game's
+ * started), it's at the day, its own name shouted.
  */
-export function fightCardOf(t: Tournament, me: number) {
+export function stepsOf(t: Tournament, type: Pick<TournamentType, "shortName">, today: string) {
+  const steps: { step: Step; label: string }[] = [
+    { step: "signup", label: "Sign-up" },
+    ...(t.kind === "draft" ? [{ step: "draft" as const, label: "Draft" }] : []),
+    { step: "teams", label: "Teams" },
+    { step: "fixtures", label: "Fight card" },
+    { step: "day", label: `${type.shortName}!` },
+  ];
+  const stage = stageOf(t);
+  const state = editionState(t);
+  const onTheDay = stage === "fixtures" && (state === "live" || state === "done" || (!t.season && t.heldOn === today));
+  const at = steps.findIndex((s) => s.step === (onTheDay ? "day" : stage));
+  return steps.map((s, i) => ({
+    ...s,
+    state: (i < at || state === "done" ? "done" : i === at ? "now" : "ahead") as "done" | "now" | "ahead",
+  }));
+}
+
+/** What happens next, under the track: what, its day (a YYYY-MM-DD) and time, or in words when it has no day. */
+export interface Next {
+  label: string;
+  on: string | null;
+  at?: string;
+  /** In place of a day: "date to be set", "once the draft closes". */
+  note?: string;
+}
+
+const TBC = "date to be set";
+
+/**
+ * The next thing to happen, before the day: sign-up opening, then closing; the draft's day; the fight card, still to
+ * come; then the first match, on the day at its start. On the day, how far it's got (the matches are the page's).
+ */
+export function nextOf(t: Tournament, today: string): Next | undefined {
+  const day: Next = t.season
+    ? { label: "First match", on: null, note: TBC }
+    : { label: "First match", on: t.heldOn, at: t.startTime };
+  const games = t.games ?? [];
+  switch (stageOf(t)) {
+    case "signup":
+      if (t.status === "planned" && t.signupOpensOn && today < t.signupOpensOn)
+        return { label: "Sign-up opens", on: t.signupOpensOn };
+      if (signupOpen(t, today) && t.signupClosesOn) return { label: "Sign-up closes", on: t.signupClosesOn };
+      if (t.kind !== "draft") return day;
+      return t.draftOn ? { label: "The draft", on: t.draftOn } : { label: "The draft", on: null, note: TBC };
+    case "draft":
+      return { label: "The teams", on: null, note: "once the draft closes" };
+    case "teams":
+      return day;
+    case "fixtures": {
+      const played = games.filter((g) => g.status === "done").length;
+      if (editionState(t) === "live") return { label: `${played} of ${games.length} played`, on: null };
+      return day;
+    }
+  }
+}
+
+/**
+ * Before the first match: the match that opens the day, and yours if it's a later one (your team's first, marked).
+ */
+export function firstUpOf(t: Tournament, me: number) {
+  const first = [...(t.games ?? [])].sort((a, b) => a.position - b.position).find((g) => g.status !== "done");
+  const yours = nextFightOf(t, me);
+  return { games: first ? (yours && yours !== first ? [first, yours] : [first]) : [], upNext: first };
+}
+
+/**
+ * On the day: the match on now (or, between matches, the one up next) and the one after it. Your next, when it's
+ * neither, is a line under them.
+ */
+export function onTheDayOf(t: Tournament, me: number) {
   const games = [...(t.games ?? [])].sort((a, b) => a.position - b.position);
-  const upNext = games.find((g) => g.status === "next");
-  const whole = games.length <= WHOLE_CARD;
-  const id = t.teams[myTeamIndex(t, me)]?.id;
-  const shown = whole
-    ? games
-    : games.filter(
-        (g) =>
-          g === upNext ||
-          g.status === "live" ||
-          (!!id && g.status !== "done" && (g.homeTeamId === id || g.awayTeamId === id)),
-      );
-  return { games: shown, upNext, whole };
+  const live = games.find((g) => g.status === "live");
+  const ahead = games.filter((g) => g.status === "next");
+  const now = live ?? ahead[0];
+  const after = live ? ahead[0] : ahead[1];
+  const yours = nextFightOf(t, me);
+  return { now, after, live: !!live, yours: yours && yours !== now && yours !== after ? yours : undefined };
 }
 
 export type BadgeTone = "open" | "live" | "set" | "done" | "quiet";

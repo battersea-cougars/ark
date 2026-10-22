@@ -1,6 +1,6 @@
 <script lang="ts">
   // One past tournament, in full (ADR 0074), reached from History (or from the series' front page when nothing's on):
-  // its day in the header, the champions, the final, every fight, the board, the awards. Back goes where the list is.
+  // its day in the header, the champions, the final, the fight card, the board, the awards. Back goes where the list is.
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
@@ -44,7 +44,7 @@
     {/if}
     {#if games.length}
       <section class="part">
-        <h2 class="section-title">Every fight<Kanji text={kanjiFor(type, "fights")} /></h2>
+        <h2 class="section-title">Fight card<Kanji text={kanjiFor(type, "fights")} /></h2>
         <div class="list">
           {#each games as g (g.id)}
             <FixtureRow {tournament} game={g} />

@@ -182,9 +182,9 @@ describe("a tournament's pages follow where it's got to, so they fit a phone's s
   const strip = (routes: ReturnType<typeof buildRoutes>, granted: Set<Action>) =>
     stripRoutes(routes, routeFor(routes, "/tournaments/kumite")!, granted).map((r) => r.short ?? r.name);
 
-  it("the tabs say the short names: Kumite, Fights, Board; the pages keep their full names", () => {
+  it("the tabs say the short names: Kumite, Fight card, Board; the pages keep their full names", () => {
     const routes = at("fixtures");
-    expect(strip(routes, member)).toEqual(["Kumite", "Fights", "Board", "Teams"]);
+    expect(strip(routes, member)).toEqual(["Kumite", "Fight card", "Board", "Teams"]);
     expect(routeFor(routes, "/tournaments/kumite")?.name).toBe("The Kumite");
     expect(routeFor(routes, "/tournaments/kumite/schedule")?.name).toBe("Fight card");
     expect(routeFor(routes, "/tournaments/kumite/standings")?.name).toBe("The board");
@@ -211,8 +211,8 @@ describe("a tournament's pages follow where it's got to, so they fit a phone's s
 
   it("the fixtures out: the fight card, the board and the teams, for admins too; no Draft, My team or History", () => {
     const routes = at("fixtures", { onTeam: true }, CARA);
-    expect(strip(routes, member)).toEqual(["Kumite", "Fights", "Board", "Teams"]);
-    expect(strip(at("fixtures"), admin)).toEqual(["Kumite", "Fights", "Board", "Teams"]);
+    expect(strip(routes, member)).toEqual(["Kumite", "Fight card", "Board", "Teams"]);
+    expect(strip(at("fixtures"), admin)).toEqual(["Kumite", "Fight card", "Board", "Teams"]);
   });
 
   it("never more than four for a member, whatever the stage", () => {

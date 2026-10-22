@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament, TournamentType } from "../demo/model";
-import { fightCardOf, frontOf, nextFightOf, stageBadge } from "./tournament-front";
+import { firstUpOf, frontOf, nextFightOf, nextOf, onTheDayOf, stageBadge, stepsOf } from "./tournament-front";
 
 const ME = 7;
 const TODAY = "2026-10-21";
@@ -77,9 +77,9 @@ describe("nextFightOf: your team's next game", () => {
   });
 });
 
-describe("frontOf: the page follows the stage, each leading with one thing", () => {
-  it("sign-up: are you in, then the draft (its day and captains); a team-entry one has no draft", () => {
-    expect(frontOf(draft(), ME, TODAY)).toEqual(["signup", "draft"]);
+describe("frontOf: the page follows the stage, each leading with one thing; the teams live on their tab", () => {
+  it("sign-up: are you in (the draft's day is the track's Next, not a card)", () => {
+    expect(frontOf(draft(), ME, TODAY)).toEqual(["signup"]);
     expect(frontOf(draft({ kind: "teams" }), ME, TODAY)).toEqual(["signup"]);
   });
 
@@ -87,67 +87,151 @@ describe("frontOf: the page follows the stage, each leading with one thing", () 
     expect(frontOf(draft({ draftState: "open" }), ME, TODAY)).toEqual(["draft", "signup-line"]);
   });
 
-  it("teams set: your team leads, then the others, the draft one line; off a team, the teams lead", () => {
-    expect(frontOf(teamsSet(), ME, TODAY)).toEqual(["my-team", "teams", "draft-done", "make-fixtures"]);
-    expect(frontOf(teamsSet(), 99, TODAY)).toEqual(["teams", "draft-done", "make-fixtures"]);
+  it("teams set: your team, the draft one line, the fight card to make; no list of the teams", () => {
+    expect(frontOf(teamsSet(), ME, TODAY)).toEqual(["my-team", "draft-done", "make-fixtures"]);
+    expect(frontOf(teamsSet(), 99, TODAY)).toEqual(["draft-done", "make-fixtures"]);
   });
 
-  it("teams that entered: no draft line; still taking sign-ups, it says so under the teams", () => {
+  it("teams that entered: no draft line; still taking sign-ups, it says so", () => {
     const entered = draft({ kind: "teams", draftState: undefined, teams: [team(1, 2), team(2, ME)] });
-    expect(frontOf(entered, ME, TODAY)).toEqual(["my-team", "teams", "signup", "make-fixtures"]);
-    expect(frontOf({ ...entered, status: "planned" }, ME, TODAY)).toEqual(["my-team", "teams", "make-fixtures"]);
+    expect(frontOf(entered, ME, TODAY)).toEqual(["my-team", "signup", "make-fixtures"]);
+    expect(frontOf({ ...entered, status: "planned" }, ME, TODAY)).toEqual(["my-team", "make-fixtures"]);
   });
 
-  it("fixtures out: the fight card leads, every game in one list, then the teams; sign-up and the draft go", () => {
-    expect(frontOf(fixtures(), ME, TODAY)).toEqual(["fight-card", "teams"]);
-    expect(frontOf(fixtures(), 99, TODAY)).toEqual(["fight-card", "teams"]);
+  it("fixtures out: the first match, nothing else; sign-up, the draft and the teams go", () => {
+    expect(frontOf(fixtures(), ME, TODAY)).toEqual(["first-up"]);
+    expect(frontOf(fixtures(), 99, TODAY)).toEqual(["first-up"]);
   });
 });
 
-describe("fightCardOf: the front page's fight card", () => {
-  const eight = (statuses: ("next" | "live" | "done")[] = []) =>
-    fixtures({
-      games: [
-        game(1, 1, 3),
-        game(2, 2, 3),
-        game(3, 1, 2),
-        game(4, 3, 1),
-        game(5, 3, 2),
-        game(6, 2, 1),
-        game(7, 1, 3),
-        game(8, 2, 3),
-      ].map((g, i) => ({
-        ...g,
-        ...(statuses[i] ? game(g.position, g.homeTeamId, g.awayTeamId, statuses[i]) : {}),
-      })) as never,
-    });
+describe("stepsOf: the track says which stage it's at", () => {
+  const now = (t: Tournament, today = TODAY) => stepsOf(t, kumite, today).find((s) => s.state === "now")?.step;
 
-  it("a few games (six or fewer): all of them, in order of play, the first marked up next", () => {
-    const card = fightCardOf(fixtures({ games: [game(2, 2, 3), game(1, 1, 3)] as never }), ME);
+  it("a draft goes sign-up, draft, teams, fight card, the day; teams that enter skip the draft", () => {
+    expect(stepsOf(draft(), kumite, TODAY).map((s) => s.label)).toEqual([
+      "Sign-up",
+      "Draft",
+      "Teams",
+      "Fight card",
+      "Kumite!",
+    ]);
+    expect(stepsOf(draft({ kind: "teams" }), cup, TODAY).map((s) => s.step)).toEqual([
+      "signup",
+      "teams",
+      "fixtures",
+      "day",
+    ]);
+  });
+
+  it("one step is now, those before it done, those after ahead", () => {
+    expect(stepsOf(teamsSet(), kumite, TODAY).map((s) => s.state)).toEqual(["done", "done", "now", "ahead", "ahead"]);
+    expect(now(draft())).toBe("signup");
+    expect(now(draft({ draftState: "open" }))).toBe("draft");
+    expect(now(fixtures())).toBe("fixtures");
+  });
+
+  it("the day: on its date before the first match, or once a match has started on any day", () => {
+    expect(now(fixtures({ heldOn: TODAY }))).toBe("day");
+    expect(now(fixtures({ games: [game(1, 1, 3, "live"), game(2, 2, 3)] as never }))).toBe("day");
+    // Just a season: no date to be on, so only a started match makes it the day
+    expect(now(fixtures({ heldOn: TODAY, season: "summer" as never }))).toBe("fixtures");
+  });
+
+  it("every match played: every step done", () => {
+    const over = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
+    expect(stepsOf(over, kumite, TODAY).every((s) => s.state === "done")).toBe(true);
+  });
+});
+
+describe("nextOf: what happens next, under the track", () => {
+  it("sign-up: it opening, then it closing, then the draft's day (or the first match, for teams that enter)", () => {
+    expect(nextOf(draft({ status: "planned", signupOpensOn: "2026-11-01" }), TODAY)).toEqual({
+      label: "Sign-up opens",
+      on: "2026-11-01",
+    });
+    expect(nextOf(draft({ signupClosesOn: "2026-11-07" }), TODAY)).toEqual({
+      label: "Sign-up closes",
+      on: "2026-11-07",
+    });
+    expect(nextOf(draft({ draftOn: "2026-11-08" }), TODAY)).toEqual({ label: "The draft", on: "2026-11-08" });
+    expect(nextOf(draft({ draftOn: null }), TODAY)).toEqual({ label: "The draft", on: null, note: "date to be set" });
+    expect(nextOf(draft({ kind: "teams", startTime: "19:00" }), TODAY)).toEqual({
+      label: "First match",
+      on: "2026-11-14",
+      at: "19:00",
+    });
+  });
+
+  it("past its closing day, sign-up's not next: the draft is", () => {
+    expect(nextOf(draft({ signupClosesOn: "2026-10-01", draftOn: "2026-11-08" }), TODAY)?.label).toBe("The draft");
+  });
+
+  it("the teams set or the fixtures out: the first match, on the day at its start; just a season, no day yet", () => {
+    expect(nextOf(teamsSet({ startTime: "19:00" }), TODAY)).toEqual({
+      label: "First match",
+      on: "2026-11-14",
+      at: "19:00",
+    });
+    expect(nextOf(fixtures({ season: "summer" as never }), TODAY)).toEqual({
+      label: "First match",
+      on: null,
+      note: "date to be set",
+    });
+  });
+
+  it("the draft on: the teams, once it closes", () => {
+    expect(nextOf(draft({ draftState: "open" }), TODAY)).toEqual({
+      label: "The teams",
+      on: null,
+      note: "once the draft closes",
+    });
+  });
+
+  it("under way: how far it's got", () => {
+    const going = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "live"), game(3, 1, 2)] as never });
+    expect(nextOf(going, TODAY)).toEqual({ label: "1 of 3 played", on: null });
+  });
+});
+
+describe("firstUpOf: before the day, the first match and yours", () => {
+  it("the first in order of play, marked up next; yours after it when it's a later one", () => {
+    const card = firstUpOf(fixtures({ games: [game(2, 2, 3), game(1, 1, 3)] as never }), ME);
     expect(card.games.map((g) => g.position)).toEqual([1, 2]);
     expect(card.upNext?.position).toBe(1);
-    expect(card.whole).toBe(true);
   });
 
-  it("more: your games and the next one, the rest on the full fight card", () => {
-    const card = fightCardOf(eight(), ME);
-    expect(card.games.map((g) => g.position)).toEqual([1, 2, 3, 5, 6, 8]);
-    expect(card.whole).toBe(false);
-    // Not on a team: just the next one
-    expect(fightCardOf(eight(), 99).games.map((g) => g.position)).toEqual([1]);
+  it("just the one when it's yours, or you're on no team", () => {
+    expect(firstUpOf(fixtures({ games: [game(1, 2, 3), game(2, 1, 3)] as never }), ME).games).toHaveLength(1);
+    expect(firstUpOf(fixtures(), 99).games.map((g) => g.position)).toEqual([1]);
+  });
+});
+
+describe("onTheDayOf: the match on now and the next, nothing else", () => {
+  const day = (statuses: ("next" | "live" | "done")[]) =>
+    fixtures({
+      games: [game(1, 1, 3), game(2, 1, 3), game(3, 3, 1), game(4, 2, 3)].map((g, i) =>
+        game(g.position, g.homeTeamId, g.awayTeamId, statuses[i]),
+      ) as never,
+    });
+
+  it("one on: it, and the first after it", () => {
+    const d = onTheDayOf(day(["done", "live", "next", "next"]), ME);
+    expect([d.now?.position, d.after?.position, d.live]).toEqual([2, 3, true]);
   });
 
-  it("under way: the game on is shown, the next after it is up next, and your played games drop off a long card", () => {
-    const card = fightCardOf(eight(["done", "done", "live"]), ME);
-    expect(card.upNext?.position).toBe(4);
-    expect(card.games.map((g) => g.position)).toEqual([3, 4, 5, 6, 8]);
-    expect(fightCardOf(fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3)] as never }), ME).upNext?.position).toBe(
-      2,
-    );
+  it("between matches: the next up, and the one after that", () => {
+    const d = onTheDayOf(day(["done", "done", "next", "next"]), ME);
+    expect([d.now?.position, d.after?.position, d.live]).toEqual([3, 4, false]);
   });
 
-  it("every game played: nothing's up next", () => {
-    expect(fightCardOf(fixtures({ games: [game(1, 1, 3, "done")] as never }), ME).upNext).toBeUndefined();
+  it("your next, only when it's neither of those", () => {
+    expect(onTheDayOf(day(["live", "next", "next", "next"]), ME).yours?.position).toBe(4);
+    expect(onTheDayOf(day(["done", "done", "live", "next"]), ME).yours).toBeUndefined();
+  });
+
+  it("all played: nothing on, nothing next", () => {
+    const d = onTheDayOf(day(["done", "done", "done", "done"]), ME);
+    expect([d.now, d.after, d.yours]).toEqual([undefined, undefined, undefined]);
   });
 });
 

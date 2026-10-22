@@ -1,9 +1,9 @@
 <script lang="ts">
-  // The fight card on a tournament's front page (ADR 0074): its games in order of play, one compact row each, the same
-  // whatever the game's got to. The time (Up next under the next one, Live on the one being played), the two teams one
+  // Fight card rows (ADR 0074): games in order of play, one compact row each, the same whatever the game's got to (the
+  // front page's first match, Home's next fight). The time (Up next under the next one, Live on the one being played), the two teams one
   // over the other, a crest and a name each (yours in the club's red) with the score once there is one, and the game's
   // number (a playoff's name, the Final). A tap opens the game: its matchup, or on now its live page. Which games:
-  // lib/tournament-front.ts fightCardOf.
+  // the caller's (lib/tournament-front.ts firstUpOf on the front page).
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { typeById } from "../demo/schedule.svelte";
@@ -105,7 +105,8 @@
   /* One row a game: when, the two teams one over the other, its number. On the page, no card: warmed under the pointer */
   .fight {
     display: grid;
-    grid-template-columns: 4.5rem minmax(0, 1fr) auto auto;
+    /* Room for the longest time, "10:17am", beside the crests */
+    grid-template-columns: 5.5rem minmax(0, 1fr) auto auto;
     align-items: center;
     gap: var(--s-3);
     padding: var(--s-2) var(--s-2) var(--s-2) 0;
@@ -126,6 +127,7 @@
   }
   .at {
     color: var(--fg);
+    white-space: nowrap;
     font-weight: 600;
   }
   .done .at {
@@ -181,8 +183,11 @@
   /* A narrow phone: the time's column and the gaps a little closer, so the names keep their room */
   @media (max-width: 380px) {
     .fight {
-      grid-template-columns: 4rem minmax(0, 1fr) auto auto;
+      grid-template-columns: 5rem minmax(0, 1fr) auto auto;
       gap: var(--s-2);
+    }
+    .when {
+      padding-left: var(--s-1);
     }
   }
 </style>

@@ -61,11 +61,13 @@
             : "Sign-up's closed"}</strong
       >
       <span class="hint"
-        >{#if t.going.length || !planned}{count}{/if}{#if t.waitlist.length}
-          · {t.waitlist.length} waiting{/if}{#if open && t.signupClosesOn}
-          · until
-          {t.signupClosesOn}{/if}{#if full}
-          · full{/if}</span
+        >{[
+          t.going.length || !planned ? count : "",
+          t.waitlist.length ? `${t.waitlist.length} waiting` : "",
+          full ? "full" : "",
+        ]
+          .filter(Boolean)
+          .join(" · ")}</span
       >
     </span>
     {#if open && canSignUp}
