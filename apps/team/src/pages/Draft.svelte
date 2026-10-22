@@ -1241,9 +1241,6 @@
      the list starts high. Room at its foot for the End turn bar */
   /* While it's on, the blocks under the tabs sit closer: the lines under the turn pull up into the page's gap (the
      header and its tabs stay where they are) */
-  .draft.on .ticker {
-    margin-top: calc(-1 * var(--s-2));
-  }
   .draft.fit {
     gap: var(--s-2);
     padding-bottom: var(--s-3);
