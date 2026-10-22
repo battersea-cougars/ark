@@ -38,6 +38,7 @@ export async function announceOpenSignups(env: PushEnv, now: Date) {
     opened.map((n) => ({
       to: "everyone" as const,
       topic: "places" as const,
+      key: `signup-open:${n.slug}:${n.heldOn}`,
       title: `${n.name}: sign-up's open`,
       body: `Say you're in for ${longDay(n.heldOn)}.`,
       path: `/training/${n.slug}`,

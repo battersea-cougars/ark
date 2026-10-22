@@ -364,7 +364,8 @@ describe("a club-wide send, within the free plan", () => {
   }
   const tokens = (fcm: { asked: { token: string }[] }) => fcm.asked.map((a) => a.token);
   const waiting = () =>
-    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE state IN ('queued', 'claimed')").get() as { n: number })
+      .n;
 
   it("an announcement to 120 phones reaches each exactly once, never more than SEND_AT_ONCE in one invocation", async () => {
     const { dana, fcm } = await clubWithPhones(120);

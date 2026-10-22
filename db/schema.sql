@@ -519,32 +519,60 @@ CREATE TABLE notification_prefs (
   PRIMARY KEY (member_id, topic)
 ) WITHOUT ROWID;
 
--- Notifications on their way (ADR 0108): one row per notice per phone, so a club-wide send can go out a batch at a
--- time within the free plan's 50 fetches an invocation (worker/push/push.ts). A row is claimed before it's sent, so
--- two drains at once never send it twice; a claim older than ten minutes was a drain that died, and is taken again.
--- A failed send is tried again later (due_at), a few times; a phone that's forgotten takes its rows with it. Sent
--- rows are kept a week, then pruned.
+-- Notifications on their way (ADR 0108, worker/push/push.ts; its numbers in push.rules.ts): one row per member per
+-- notice, sent to whichever devices they're signed in on when it goes, so a club-wide send can go out a batch at a
+-- time within the free plan's 50 fetches an invocation. A row waits until send_after: quiet hours (22:00 to 08:00
+-- London) hold what isn't live, and the debounce holds news about something (`key`) a member was told of moments ago.
+-- A newer notice with the same member and key replaces the one waiting (the latest wins; `replaced` counts them), and
+-- one that ends saying what they were last told (push_told) is dropped. A row is claimed before it's sent, so two
+-- drains at once never send it twice; a claim older than ten minutes was a drain that died, and is taken again. A
+-- failed send is tried again later on the devices it failed on (`tokens`), a few times. Sent and dropped rows are kept
+-- a week, then pruned.
 CREATE TABLE push_outbox (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  token TEXT NOT NULL REFERENCES push_devices (token) ON DELETE CASCADE,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  -- What it's about, the debounce's key with the member: "places:session:12", "teams:12", "announcement:7"
+  key TEXT NOT NULL,
+  topic TEXT NOT NULL,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
   path TEXT NOT NULL,
+  -- What it tells them, compared with what they were last told about the key ("in", "waitlist", a team's name)
+  says TEXT NOT NULL,
+  -- queued (waiting for send_after), claimed (a send has it), sent, dropped (nobody to send to, superseded, said
+  -- already, or given up)
+  state TEXT NOT NULL DEFAULT 'queued',
   created_at TEXT NOT NULL,
-  -- When it may be sent: at once, then later after each failed try
-  due_at TEXT NOT NULL,
+  -- When it may be sent: at once, after quiet hours or the debounce, then later after each failed try
+  send_after TEXT NOT NULL,
+  -- How many newer notices about the same thing took its place while it waited
+  replaced INTEGER NOT NULL DEFAULT 0,
   tries INTEGER NOT NULL DEFAULT 0,
+  -- A retry's devices, the ones it failed on (a JSON array of tokens); null: every device the member has
+  tokens TEXT,
   claim TEXT,
   claimed_at TEXT,
   sent_at TEXT
 );
 
-CREATE INDEX push_outbox_waiting ON push_outbox (sent_at, due_at);
+-- One waiting per member and thing: a newer one replaces it (ON CONFLICT ... DO UPDATE)
+CREATE UNIQUE INDEX push_outbox_waiting_key ON push_outbox (member_id, key) WHERE state = 'queued';
 
-CREATE INDEX push_outbox_token ON push_outbox (token);
+CREATE INDEX push_outbox_due ON push_outbox (state, send_after);
 
 CREATE INDEX push_outbox_created ON push_outbox (created_at);
+
+-- What each member was last told about each thing, and when (ADR 0108): the debounce's clock, and what a notice that
+-- waited is compared with. Pruned with the outbox.
+CREATE TABLE push_told (
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  says TEXT NOT NULL,
+  told_at TEXT NOT NULL,
+  PRIMARY KEY (member_id, key)
+) WITHOUT ROWID;
+
+CREATE INDEX push_told_at ON push_told (told_at);
 
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

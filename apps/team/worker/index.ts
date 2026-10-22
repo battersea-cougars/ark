@@ -7,7 +7,7 @@ import { sendQueued } from "./dues/reminders";
 import { forgetOld } from "./settings/retention";
 import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
-import { drainPush } from "./push/push";
+import { drainPush, SEND_AT_ONCE } from "./push/push";
 import { announceOpenSignups } from "./training/training.signup";
 import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
@@ -81,6 +81,13 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
   },
   async scheduled(controller: ScheduledController, env: Env) {
     const now = new Date(controller.scheduledTime);
+    // Every minute: the push drain alone, a whole batch, so a notification quiet hours or the debounce held goes
+    // within a minute of its time and a club-wide send held overnight is out by 08:03 (ADR 0108). On a five-minute
+    // minute that run drains instead
+    if (controller.cron === "* * * * *") {
+      if (now.getUTCMinutes() % 5) await task("push.drain", () => drainPush(env, now, SEND_AT_ONCE));
+      return;
+    }
     // Every run, five-minutely and hourly: a training night whose sign-up has opened is told to members once (ADR
     // 0030), queued for the drain straight after; then the next batch of notifications a club-wide send left waiting
     // (ADR 0108)

@@ -95,6 +95,8 @@ async function placesMoved(c: Ctx): Promise<Notice[]> {
       down.push({
         to: [m.memberId],
         topic: "places",
+        key: placeKey(m),
+        says: "waitlist",
         title: "On the waitlist",
         body: `You're on the waitlist for ${formatDayDate(m.heldOn!)}, ${place}: a Quarterly Member took the last place.`,
         path: m.path,
@@ -102,12 +104,23 @@ async function placesMoved(c: Ctx): Promise<Notice[]> {
       continue;
     }
     const key = `${m.kind} ${m.eventId} ${m.moved}`;
-    const notice = up.get(key) ?? { to: [], topic: "places", title: "You're in", body: youreIn(m), path: m.path };
+    const notice = up.get(key) ?? {
+      to: [],
+      topic: "places",
+      key: placeKey(m),
+      says: "in",
+      title: "You're in",
+      body: youreIn(m),
+      path: m.path,
+    };
     (notice.to as number[]).push(m.memberId);
     up.set(key, notice);
   }
   return [...up.values(), ...down];
 }
+
+/** A member's place on one event, for the debounce: in, bumped and in again within it is one thing, and nothing new. */
+const placeKey = (m: Moved) => `places:${m.kind}:${m.eventId}`;
 
 /** What "You're in" says: a training with its day, and a nudge; who let them in, if it was the team maker. */
 function youreIn(m: Moved) {
@@ -151,6 +164,8 @@ export const teamsOut: Notify<Map<number, string>> = {
     return [...byTeam].map(([team, to]) => ({
       to,
       topic: "teams" as const,
+      key: `teams:${id(c)}`,
+      says: team,
       title: out ? "Teams are out" : "Team change",
       body: out ? `${event.name}: you're on ${team}.` : `${event.name}: you're now on ${team}.`,
       path: event.path,
@@ -176,6 +191,7 @@ export const sessionOff: Notify<{ cancelled: string | null; who: number[] }> = {
           {
             to: before.who,
             topic: "sessionOff",
+            key: `session-off:${id(c)}`,
             title: `${event.name} is off`,
             body: "No training that night.",
             path: event.path,
@@ -189,14 +205,25 @@ export const sessionOff: Notify<{ cancelled: string | null; who: number[] }> = {
 export const announced: Notify = {
   after: async (c, _before, reply) => {
     const a = (await announcementSummary(c.env.DB, reply.id as number)) as { title: string; body: string } | null;
-    return a ? [{ to: "everyone", topic: "announcements", title: a.title, body: a.body.slice(0, 180), path: "/" }] : [];
+    return a
+      ? [
+          {
+            to: "everyone",
+            topic: "announcements",
+            key: `announcement:${reply.id}`,
+            title: a.title,
+            body: a.body.slice(0, 180),
+            path: "/",
+          },
+        ]
+      : [];
   },
 };
 
 /**
  * The draft's open (ADR 0060): each captain hears it on their phone, with their place in the order ("Winter Cup 2026
  * Draft Open", "You pick 2nd"), and a tap opens the Draft page. Only the first time: a closed draft reopening isn't
- * news (topic `draft`).
+ * news (topic `draft`). Live: the draft is on the night, so it goes in quiet hours too.
  */
 export const draftOpen: Notify<string | undefined> = {
   before: async (c) =>
@@ -214,6 +241,8 @@ export const draftOpen: Notify<string | undefined> = {
     return captains.map((x) => ({
       to: [x.memberId],
       topic: "draft" as const,
+      key: `draft:${id(c)}`,
+      live: true,
       title: `${x.name} Draft Open`,
       body: `You pick ${nth(x.pick)}`,
       path: x.slug ? `/tournaments/${x.slug}/draft` : "/",
@@ -223,7 +252,7 @@ export const draftOpen: Notify<string | undefined> = {
 
 /**
  * An open draft stepped back to its drawn order (ADR 0074): each captain hears it's paused, the picks so far off; they
- * hear it open again (draftOpen) when it does.
+ * hear it open again (draftOpen) when it does. Live, like the opening.
  */
 export const draftPaused: Notify<string | undefined> = {
   before: draftOpen.before,
@@ -239,6 +268,8 @@ export const draftPaused: Notify<string | undefined> = {
     return captains.map((x) => ({
       to: [x.memberId],
       topic: "draft" as const,
+      key: `draft:${id(c)}`,
+      live: true,
       title: `${x.name} Draft Paused`,
       body: "Back to the drawn order. You'll hear when it opens again.",
       path: x.slug ? `/tournaments/${x.slug}/draft` : "/",
@@ -249,7 +280,7 @@ export const draftPaused: Notify<string | undefined> = {
 /**
  * The awards at the after-party (ADR 0074): the first one revealed, everyone with the app hears it ("Awards at The
  * Anchor"), so anyone not watching the page comes to it. Only the first: the rest they see on the page (topic
- * `announcements`).
+ * `announcements`). Live: the party's now, past 22:00 as often as not.
  */
 export const awardsOut: Notify<number | undefined> = {
   before: async (c) =>
@@ -270,6 +301,8 @@ export const awardsOut: Notify<number | undefined> = {
       {
         to: "everyone",
         topic: "announcements",
+        key: `awards:${id(c)}`,
+        live: true,
         title: t.venue ? `Awards at ${t.venue}` : "The awards are on",
         body: `${t.name}: the first one's out.`,
         path: t.slug ? `/tournaments/${t.slug}` : "/",

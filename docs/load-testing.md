@@ -66,7 +66,8 @@ Trigger whole, as Cloudflare does.
 | A five-minute cron run with a club-wide send and reminders waiting                           | 95 subrequests (Cloudflare stops at 50)                     | 35 at most: drains 25, reminders 10, `tell` queues the phones         |
 
 Held already, now tested: a sign-up's place decided in its statement; picks guarded by the turn's count; the draw set
-once; the push outbox claimed before sending; charges unique.
+once; the push outbox claimed before sending (three drains at 08:00 at once, a club-wide send held overnight:
+`push.outbox.use-cases.test.ts`); charges unique.
 
 Still open: the same goal from two phones is two goals (#114, Undo takes one back; nothing retries on its own).
 

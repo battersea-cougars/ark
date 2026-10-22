@@ -52,8 +52,9 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - **A test's time limit is 30 s** (`vitest.config.ts`): it catches a hang, not a slow machine; the club-sized tests
   take 1–2.5 s on a quiet one and went past Vitest's 5 s with other suites running.
 - **A Worker invocation keeps to 50 subrequests**, counted by the fake world (fetches, emails, live hub calls): a
-  request's push send is 40 phones (`SEND_AT_ONCE`); a cron run drains 25 (`DRAIN_AT_ONCE`) and sends 10 reminder
-  emails (`REMINDERS.perRun`), whose phones wait for the next drain (`tell`). The worst five-minute run is about 35
+  request's push send is 40 phones (`SEND_AT_ONCE`); a five-minute cron run drains 25 (`DRAIN_AT_ONCE`) and sends 10
+  reminder emails (`REMINDERS.perRun`), whose phones wait for the next drain (`tell`); the run every minute between
+  does nothing but drain 40, with Google's token 41 ([0108](0108-store-apps.md)). The worst five-minute run is about 35
   (25 phones, 10 emails, Google's and Gmail's tokens, the club's address from Sanity, a website rebuild's 2).
 - **Load runs on your own machine, or on dev once the user's been told, never on production** (`npm run load`,
   docs/load-testing.md): locally, the built Worker under `wrangler dev` with its own D1 in a temp folder, 120 members
@@ -71,8 +72,8 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 ## Consequences
 
 - A rule that's checked and then written is a bug waiting for a busy Friday; review asks where the check is.
-- Pushes from a club-wide send reach the last of 200 phones in about 35 minutes (it was 20), and a reminder's phone
-  hears it with the next drain, up to five minutes after the email.
+- Pushes from a club-wide send reach the last of 200 phones in about five minutes (the minute drain; it was 35), and a
+  reminder's phone hears it with the next drain, within a minute of the email.
 - The load runs show that the Worker's CPU (1–3 ms a request) and requests (a few per cent of the day) have room,
   but **D1 rows read did not**: every live page reloaded the whole club on every change, so a draft night spent about
   87% of the free day's rows and a full Friday rush modelled at about 200% (#112). Live pages now read only the
@@ -117,3 +118,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-22: Marking a charge paid from two phones at once (or a double tap) recorded two payments for it; the
   payment now goes in only while the charge still has what was read left, with its allocation in one batch (#119).
 - 2026-10-22: The last-admin condition counts `manage:all` through any role, and guards role edits too (#136).
+- 2026-10-22: A push drain every minute between the five-minute runs, 40 phones and nothing else (41 subrequests), for
+  quiet hours and the debounce ([0108](0108-store-apps.md)): 200 phones in about five minutes, not 35.

@@ -346,13 +346,13 @@ export function testWorld(roster: object[]) {
     });
   }
 
-  /** The cron triggers' notification drain (index.ts `scheduled`, every five minutes and hourly), at this time. */
+  /** The cron triggers' notification drain (index.ts `scheduled`: a five-minute run's batch), at this time. */
   const cron = (now: Date) => invocation(() => drainPush(env, now));
   /**
    * One run of a Cron Trigger, whole, as Cloudflare runs it (index.ts `scheduled`, inside Sentry's wrapper, which
    * wants the execution context): every job it does, in one invocation, with what it left to waitUntil finished in it.
    */
-  const scheduled = (trigger: "*/5 * * * *" | "7 * * * *", now: Date) =>
+  const scheduled = (trigger: "* * * * *" | "*/5 * * * *" | "7 * * * *", now: Date) =>
     invocation(async () => {
       const after: Promise<unknown>[] = [];
       const ctx = { waitUntil: (p: Promise<unknown>) => void after.push(p), passThroughOnException() {} };

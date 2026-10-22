@@ -245,7 +245,8 @@ describe("what the club tells a browser, as it tells a phone", () => {
 
 describe("through the push service", () => {
   const waiting = () =>
-    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE state IN ('queued', 'claimed')").get() as { n: number })
+      .n;
 
   it("a browser the push service says is gone (410) is forgotten, with what was still waiting for it", async () => {
     const reg = await browser("reg@example.com");

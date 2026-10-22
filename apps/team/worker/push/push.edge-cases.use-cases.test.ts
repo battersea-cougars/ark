@@ -33,7 +33,8 @@ async function phone(email: string, token = `token-${email}`) {
   return b;
 }
 const waiting = () =>
-  (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+  (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE state IN ('queued', 'claimed')").get() as { n: number })
+    .n;
 const rows = () => (w.db.raw.prepare("SELECT count(*) n FROM push_outbox").get() as { n: number }).n;
 
 /** A club of `phones` members with the app (Dana's among them), Firebase on. */
@@ -156,7 +157,9 @@ describe("a send that died half way", () => {
     fcm.down = false;
     fcm.asked.length = 0;
     // A cron run takes it at 5 minutes and dies before it says what became of it (its claim is left behind)
-    w.db.raw.prepare("UPDATE push_outbox SET claim = 'died', claimed_at = ?").run(minutes(5).toISOString());
+    w.db.raw
+      .prepare("UPDATE push_outbox SET state = 'claimed', claim = 'died', claimed_at = ?")
+      .run(minutes(5).toISOString());
 
     await w.cron(minutes(15));
     expect(fcm.asked).toEqual([]);

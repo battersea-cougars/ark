@@ -66,18 +66,40 @@ Three things shape it:
   Firebase says is gone is forgotten. The phone registers at `PUT /api/auth/device`, beside sign-in and sign-out,
   not as a change to the club (no data version bump).
 - **Sending within the free plan.** Workers Free allows 50 subrequests (fetches) an invocation and FCM takes one
-  request per phone, so a send to every phone can't go out at once. Each notification is a row in `push_outbox` (one
-  per notice per phone), written in one statement with the first batch claimed in the same round trip. A batch is at
-  most `SEND_AT_ONCE` (40) phones: with Google's access token, the live hub and a Sentry report that leaves about ten
-  fetches to spare. The first batch goes right after the reply; the rest go a batch per cron run (`push.drain`, every
-  five minutes and hourly), of `DRAIN_AT_ONCE` (25), since the same run also sends dues reminders and may ask for a
-  website rebuild ([0121](0121-load-and-concurrency.md) has the sums), so 200 phones are told within about 35
-  minutes. A notification sent with an email (`tell`) is only queued, for the next drain: the emails have taken the
-  invocation's requests. Rows are claimed before sending (one
-  `UPDATE … RETURNING`), so two sends at once never send a phone twice, and what became of a batch is one round trip
-  after it. A failed send is tried again after 5, 10 and 20 minutes, then given up and logged (`push.gave_up`); what
-  was waiting for a phone that's gone or signed out isn't sent; sent rows are pruned after a week. Without
-  `FIREBASE_SERVICE_ACCOUNT` (your machine, tests) every row is caught or logged at once and nothing waits.
+  request per phone, so a send to every phone can't go out at once. Each notification is a row in `push_outbox`, **one
+  per member per notice**, sent to whichever devices they're signed in on when it goes (a phone registered overnight
+  hears the morning's news). The route's `waitUntil` writes the rows in one statement and, in the same round trip,
+  claims what's due and sends it. A batch is at most `SEND_AT_ONCE` (40) devices, a member's devices counted at the
+  claim: with Google's access token, the live hub and a Sentry report that leaves about ten fetches to spare. The rest
+  go from the cron (`push.drain`): **every minute** (`* * * * *`) a whole batch of 40, and on the five-minute run
+  `DRAIN_AT_ONCE` (25), since that run also sends dues reminders and may ask for a website rebuild
+  ([0121](0121-load-and-concurrency.md) has the sums); the minute run skips the minutes the five-minute one runs. A
+  third cron trigger is free (5 an account; the team Worker has 3, the website 1), and every five minutes wasn't
+  enough: a debounced notice would wait up to seven minutes, and 120 phones held overnight would take 25 minutes from
+  08:00; a minute's run makes them about three. A notification sent with an email (`tell`) is only queued, for the
+  next drain: the emails have taken the invocation's requests. Rows are claimed before sending (one
+  `UPDATE … RETURNING`, state `queued` → `claimed` → `sent` or `dropped`), so two sends at once never send a phone
+  twice, and what became of a batch is one round trip after it. A failed send is tried again after 5, 10 and 20
+  minutes on the devices it failed on, then given up and logged (`push.gave_up`); a row for a member with no device
+  left, or a topic turned off since, is dropped, not sent; a device Firebase or a push service says is gone is
+  forgotten; sent rows are pruned after a week. Without `FIREBASE_SERVICE_ACCOUNT` (your machine, tests) every row is
+  caught or logged at once and nothing waits: no quiet hours or debounce, as there's no cron to send it later.
+- **Quiet hours and the debounce decide when a row is due** (`worker/push/push.rules.ts`: every number in one place).
+  - **Quiet hours, 22:00 to 08:00 London** (`QUIET_HOURS`), on London's clock, so the night the clocks go back
+    08:00 is 08:00 GMT and the night they go forward 08:00 BST: a notice that comes in them waits for 08:00. A notice
+    about something happening now says `live` and goes anyway; the route marks it, never a guess by topic. Live: the
+    draft opening and pausing (on the night, `draftOpen`, `draftPaused`) and the first award at the after-party
+    (`awardsOut`). Not live: teams out, a place (in, let in, bumped), a night off, announcements, a training's sign-up
+    opening (at midnight, so heard at 08:00), dues. The draft's "your pick" and Chong Li's "You are next!" are on the
+    page, not sent; when they are, they'll be live.
+  - **The debounce, two minutes per member and thing** (`DEBOUNCE_MINUTES`; a notice's `key`, such as
+    `places:session:12` for their place that night, `teams:12`, `draft:3`, `announcement:7`). The first goes at once;
+    another on the same key within two minutes of the last one told waits out the rest, and a newer one still takes
+    its place (`ON CONFLICT … DO UPDATE` on the one waiting per member and key: the latest words win, sent at the
+    earlier of the two times). A row that was replaced and ends saying what the member was last told about the key
+    (`says`: "in", "waitlist", a team; `push_told` keeps the last per member and key, a week) is dropped: in, bumped,
+    in again within two minutes is one "You're in". Live notices are debounced too: open, pause, open within two
+    minutes is one "Draft Open".
 - **App Review signs in** with one member's email that takes a fixed code (`APP_REVIEW_EMAIL`/`APP_REVIEW_CODE`,
   production only): reviewers can't read our email. The nonce, tries and limits still apply
   ([0023](0023-sign-in-and-sessions.md)). Members already delete their own account in the app (Apple's 5.1.1(v)).
@@ -157,3 +179,8 @@ Three things shape it:
   skates on."), and "On the waitlist" whatever bumped them (signing up, or the register for a member's Fridays), each
   told once per move: the move marks the sign-up (`moved`) and the notification takes the mark, so a double tap or two
   requests at once no longer tell anyone twice (ADR 0121).
+- 2026-10-22: The outbox is a row per member per notice, sent to their devices as it goes, with a state (queued,
+  claimed, sent, dropped); quiet hours 22:00 to 08:00 London hold what isn't `live` (the draft and the awards are);
+  a two-minute debounce per member and `key` lets the latest win and drops a round trip back to what they were last
+  told (`push_told`); a drain every minute between the five-minute runs, 40 a run, so a club-wide send held overnight
+  is out by 08:03. The numbers are in `worker/push/push.rules.ts`.

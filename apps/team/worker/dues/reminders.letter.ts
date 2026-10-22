@@ -114,6 +114,7 @@ ${details.map(([k, v]) => `<tr><td style="${cell}padding-right:20px;">${k}</td><
 /** The line on their phone (ADR 0108): tapping it opens their Dues. */
 export const reminderNotice = (l: Letter): Omit<Notice, "to"> => ({
   topic: "dues",
+  key: "dues",
   title: "What you owe",
   body: `${money(l.charges.reduce((s, c) => s + c.left, 0))} to settle. Your reference: ${l.reference}`,
   path: "/me/tab",

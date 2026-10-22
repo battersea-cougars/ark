@@ -723,6 +723,24 @@ describe("a tournament, from setting it up to the draft", () => {
         ]);
       });
 
+      it("opened at 23:00 it still tells the captains at once: the draft is on the night, quiet hours or not", async () => {
+        const s = await signedUp(COLE_FIRST);
+        const fcm = await w.firebase();
+        try {
+          await withPhone(s.cara, "cara-phone");
+          await withPhone(s.cole, "cole-phone");
+          const late = { now: new Date("2026-12-08T23:00:00Z") };
+          expect((await s.dana.call("POST", `/api/tournaments/${s.id}/draft/draw`, {}, late)).status).toBe(200);
+          expect((await s.dana.call("POST", `/api/tournaments/${s.id}/draft/open`, {}, late)).status).toBe(200);
+          expect(fcm.asked.map((a) => `${a.token} ${a.body}`).sort()).toEqual([
+            "cara-phone You pick 2nd",
+            "cole-phone You pick 1st",
+          ]);
+        } finally {
+          vi.unstubAllGlobals();
+        }
+      });
+
       it("reopening a closed draft doesn't tell them again, and a captain who turned the draft off doesn't hear", async () => {
         const s = await signedUp();
         await withPhone(s.cara, "cara-phone");
