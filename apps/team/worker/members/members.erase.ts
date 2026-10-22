@@ -3,7 +3,8 @@
 // were: they become "Former member", with no email, phone, bio or bank reference, and no way back in. Their roles,
 // sessions, sign-in codes, notification choices and places for what's still to come go. Earlier audit entries stop
 // naming them.
-import { batch, first, statement } from "@cougars/shared/d1";
+import { all, batch, first, statement } from "@cougars/shared/d1";
+import { fillingUp } from "../entries/entries";
 import { HttpError, json } from "../api/api.http";
 import { actionsOf } from "./members";
 import { prefsFrom } from "../push/push.prefs";
@@ -31,6 +32,34 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
       }
     : null;
   if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
+
+  // What they're signed up for still to come: a place they give up goes to the first waiting, in the same batch, as
+  // when they say out (ADR 0030, 0121, #137)
+  const mine = await all<{ kind: "session" | "tournament" | "event"; id: number }>(
+    db,
+    `SELECT 'session' kind, session_id id FROM attendance
+       WHERE member_id = ? AND session_id IN (SELECT id FROM training_sessions WHERE held_on >= ?)
+     UNION ALL SELECT 'tournament', tournament_id FROM tournament_entries
+       WHERE member_id = ? AND tournament_id IN (SELECT id FROM tournaments WHERE held_on >= ?)
+     UNION ALL SELECT 'event', event_id FROM club_event_entries
+       WHERE member_id = ? AND event_id IN (SELECT id FROM club_events WHERE starts_at >= ?)`,
+    [id, today, id, today, id, now],
+  );
+  const freed = (["session", "tournament", "event"] as const)
+    .map((kind) => ({ kind, ids: mine.filter((m) => m.kind === kind).map((m) => m.id) }))
+    .filter((f) => f.ids.length)
+    .map(({ kind, ids }) =>
+      fillingUp(
+        db,
+        kind,
+        {
+          sql: `${kind === "session" ? "s" : "t"}.id IN (SELECT value FROM json_each(?))`,
+          params: [JSON.stringify(ids)],
+        },
+        today,
+        now,
+      ),
+    );
 
   // Each statement is written as `… WHERE …`, so the guard goes on the end
   const q = (sql: string, ...params: unknown[]) =>
@@ -64,6 +93,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
       now,
     ),
     q("DELETE FROM subscriptions WHERE member_id = ? AND starts_on > ?", id, today),
+    ...freed,
     // The record: their email wherever it's written; their name and phone in the entries about them
     ...(m.email
       ? [

@@ -207,3 +207,5 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   its dates real days and its times real times, ending after they start (#129).
 - 2026-10-22: A member can't say In or Out of a night that has ended (it had taken an Out after the night, and its
   charge with it, #128); the register and admins still can.
+- 2026-10-22: Deleting an account (ADR 0029) frees its places for what's to come as saying out does: the first
+  waiting move up, in the batch that erases it (#137).
