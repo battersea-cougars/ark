@@ -13,6 +13,7 @@ import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
 import { AFTER_MODES, type AfterMode } from "@cougars/shared/places";
 import { fillingUp } from "../entries/entries";
 import { carriedName, KUMITE, carriedNames, teamNameOf } from "./team-name";
+import { shortName } from "../../src/lib/names";
 
 interface TypeRow {
   id: number;
@@ -428,9 +429,19 @@ export async function setTeamLook(
   ]);
 }
 
-/** What a captain carries to their next Kumite team (team-name.ts): never for an erased member. */
-const carry = (db: D1Database, memberId: number, name: string) =>
-  statement(db, "UPDATE members SET kumite_team_name = ? WHERE id = ? AND status != 'erased'", [name, memberId]);
+/**
+ * What a captain carries to their next Kumite team (team-name.ts): never for an erased member. With `teamId`, only when
+ * that team is still theirs and is called something else as the statement runs (a rename, not a re-save).
+ */
+const carry = (db: D1Database, memberId: number, name: string, teamId?: number) =>
+  teamId === undefined
+    ? statement(db, "UPDATE members SET kumite_team_name = ? WHERE id = ? AND status != 'erased'", [name, memberId])
+    : statement(
+        db,
+        `UPDATE members SET kumite_team_name = ? WHERE id = ? AND status != 'erased'
+           AND EXISTS (SELECT 1 FROM tournament_teams WHERE id = ? AND captain_member_id = ? AND name IS NOT ?)`,
+        [name, memberId, teamId, memberId, name],
+      );
 
 /**
  * A tournament's teams, in order (a draft's as named: its pick order is drawn when it opens), at most 16 of up to 30 players. A draft's teams each have a
@@ -500,7 +511,8 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
     // The captains' default Kumite team names (team-name.ts), for the teams they're getting
     statement(
       db,
-      `SELECT m.id, ${carriedName("?")} name FROM members m WHERE m.id IN (SELECT value FROM json_each(?))`,
+      `SELECT m.id, m.name, m.web_name webName, ${carriedName("?")} carried FROM members m
+       WHERE m.id IN (SELECT value FROM json_each(?))`,
       [id, JSON.stringify(captains)],
     ),
   ]);
@@ -524,14 +536,28 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
     kept.add(found.id);
     return found;
   });
-  // A Kumite captain's new team, left unnamed, takes the name they carry (team-name.ts, ADR 0060). Two carrying the
-  // same: the first named keeps it, as does a team already called it, and the other has the automatic name
-  const carriedOf = (m: number | null) =>
-    (carriedRows.results as { id: number; name: string | null }[]).find((r) => r.id === m)?.name ?? null;
+  // A team sent with neither its id nor a name (an editor that hasn't seen what the server named it, matched by its
+  // captain) keeps the name it has: a stale editor never clears it
+  const unseen = teams.map((t, i) => !!rows[i] && t.id === null && !t.name);
+  // A Kumite captain's new team, left unnamed, takes the name they carry (team-name.ts, ADR 0060), unless another team
+  // goes by it, automatic names included: then it has the automatic name
+  const captainRows = carriedRows.results as {
+    id: number;
+    name: string;
+    webName: string | null;
+    carried: string | null;
+  }[];
+  const captainOf = (m: number | null) => captainRows.find((r) => r.id === m);
   const carrying = teams.map((t, i) => kumite && !rows[i] && !t.name && !t.logo && t.captainMemberId !== null);
   const carried = carriedNames(
-    teams.map((t, i) => (carrying[i] ? carriedOf(t.captainMemberId) : null)),
-    teams.filter((_, i) => !carrying[i]).map((t) => t.name),
+    teams.map((t, i) => {
+      const c = captainOf(t.captainMemberId);
+      return {
+        carried: carrying[i] ? (c?.carried ?? "") : null,
+        name: unseen[i] ? rows[i]!.name : t.name,
+        automatic: c ? `Team ${shortName(c)}` : null,
+      };
+    }),
   );
   // Every change goes in one batch. A team just added is the newest: ids only go up (AUTOINCREMENT), and a batch
   // runs in order, alone
@@ -539,11 +565,14 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   for (const [i, t] of teams.entries()) {
     const row = rows[i];
     if (carrying[i]) t.name = carried[i];
-    // A Kumite team renamed here, by its captain: the new name is what they carry next time. A new team counts when
-    // it's named other than what its captain carries already
-    const was = row ? (row.captain === t.captainMemberId ? row.name : t.name) : (carriedOf(t.captainMemberId) ?? "");
-    if (kumite && t.captainMemberId !== null && !carrying[i] && t.name !== was)
-      statements.push(carry(db, t.captainMemberId, t.name));
+    // A Kumite team renamed here: the new name is what its captain carries next time. Its row's compared as it is when
+    // the batch runs (ADR 0121), so a save sending the name it already has changes nothing; a new team counts when it's
+    // named other than what its captain carries already
+    if (kumite && t.captainMemberId !== null && !carrying[i] && !unseen[i]) {
+      if (row) statements.push(carry(db, t.captainMemberId, t.name, row.id));
+      else if (t.name !== (captainOf(t.captainMemberId)?.carried ?? ""))
+        statements.push(carry(db, t.captainMemberId, t.name));
+    }
     // A draft's pick order is drawn when it opens (draft.ts), never the editor's: the order they're named in means
     // nothing, so a save leaves it as it is (none yet, or the draw)
     const drawn = kind === "draft" ? 1 : 0;
@@ -555,10 +584,10 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
       statements.push(
         statement(
           db,
-          `UPDATE tournament_teams SET name = ?, logo = ?, captain_member_id = ?, captain_name = ?, contact = ?,
-             pick = CASE WHEN ? THEN pick END
+          `UPDATE tournament_teams SET name = CASE WHEN ? THEN name ELSE ? END, logo = ?, captain_member_id = ?,
+             captain_name = ?, contact = ?, pick = CASE WHEN ? THEN pick END
            WHERE id = ?`,
-          [t.name, t.logo, t.captainMemberId, t.captainName, t.contact, drawn, teamId],
+          [unseen[i] ? 1 : 0, t.name, t.logo, t.captainMemberId, t.captainName, t.contact, drawn, teamId],
         ),
       );
     } else {

@@ -23,15 +23,30 @@ export const carriedName = (except = "0") => `CASE WHEN m.status = 'erased' THEN
      WHERE tt.captain_member_id = m.id AND ty.slug = '${KUMITE}' AND t.id != ${except}
      ORDER BY t.held_on DESC, t.id DESC LIMIT 1)) END`;
 
+/** A team in a tournament as it's being named: what its captain carries (null: it isn't carrying, it keeps `name`). */
+export interface Naming {
+  carried: string | null;
+  name: string;
+  /** Its automatic name, "Team <captain's short name>", as the app shows it (names.ts); null: no captain. */
+  automatic: string | null;
+}
+
 /**
- * The names new captains' teams start with, in the order they're named: each their carried name, unless a team before
- * it (or one keeping its name, `taken`) already has it, case aside, when it's the automatic name ("").
+ * The names new captains' teams start with: each their carried name, unless another team in the tournament goes by it,
+ * case aside, when it's the automatic name (""). Going by it: a team keeping its name, or an unnamed one its automatic
+ * name; a team carrying a name before it, that name; and any other carrying team its automatic name, since it may end up
+ * with it.
  */
-export function carriedNames(carried: (string | null)[], taken: readonly string[]): string[] {
-  const used = new Set(taken.filter((n) => n).map((n) => n.toLowerCase()));
-  return carried.map((n) => {
-    if (!n || used.has(n.toLowerCase())) return "";
-    used.add(n.toLowerCase());
-    return n;
+export function carriedNames(teams: readonly Naming[]): string[] {
+  const key = (n: string | null) => n?.trim().toLowerCase() || "";
+  const kept = new Set(teams.filter((t) => t.carried === null).map((t) => key(t.name || t.automatic)));
+  const given = new Set<string>();
+  return teams.map((t, i) => {
+    if (t.carried === null) return t.name;
+    const k = key(t.carried);
+    const othersAutomatic = teams.some((o, j) => j !== i && o.carried !== null && key(o.automatic) === k);
+    if (!k || kept.has(k) || given.has(k) || othersAutomatic) return "";
+    given.add(k);
+    return t.carried;
   });
 }

@@ -142,6 +142,43 @@ describe("a captain carries their team name to the next Kumite", () => {
     expect(w.db.raw.prepare("SELECT kumite_team_name n FROM members WHERE id = ?").get(cara)).toEqual({ n: null });
   });
 
+  it("an admin's editor, still showing the teams as it sent them, saves again: the carried name stays, and so does the default", async () => {
+    const { dana, cara, cole } = await cast();
+    const caraRow = await dana.member("Cara Captain");
+    await dana.call("PUT", `/api/members/${cara}`, {
+      ...caraRow,
+      roles: ["Member"],
+      kumiteTeamName: "Dux's Disciples",
+    });
+    // The editor as it was sent: the captains, no ids, no names
+    const stale = [cara, cole].map((captainMemberId) => ({ name: "", logo: null, captainMemberId, players: [] }));
+    const id = await dana.schedule([cara, cole], "2026-12-04");
+    expect((await dana.teamNames(id))[cara]).toBe("Dux's Disciples");
+    const t = (await dana.sees()).tournaments.find((x: Json) => x.id === id);
+    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...t, teams: stale })).status).toBe(200);
+    expect(await dana.teamNames(id)).toEqual({ [cara]: "Dux's Disciples", [cole]: "" });
+    expect(w.db.raw.prepare("SELECT kumite_team_name n FROM members WHERE id = ?").get(cara)).toEqual({
+      n: "Dux's Disciples",
+    });
+    // A save sending the name the team already has isn't a rename either
+    const caraP = await person("cara@example.com");
+    await caraP.call("PUT", "/api/me", { position: "F", kumiteTeamName: "Next Time" });
+    const fresh = (await dana.sees()).tournaments.find((x: Json) => x.id === id);
+    expect((await dana.call("PUT", `/api/tournaments/${id}`, fresh)).status).toBe(200);
+    expect((await caraP.member("Cara Captain")).kumiteTeamName).toBe("Next Time");
+  });
+
+  it('a carried name another captain goes by automatically ("Team Cara") gives way: its carrier has their own automatic name', async () => {
+    const { dana, cara, cole } = await cast();
+    const coleRow = await dana.member("Cole Captain");
+    await dana.call("PUT", `/api/members/${cole}`, { ...coleRow, roles: ["Member"], kumiteTeamName: "team cara" });
+    const id = await dana.schedule([cole, cara], "2026-12-04");
+    expect(await dana.teamNames(id)).toEqual({ [cole]: "", [cara]: "" });
+    // Without Cara there, it's his
+    const other = await dana.schedule([cole, (await dana.member("Reg Player")).id], "2027-01-08");
+    expect((await dana.teamNames(other))[cole]).toBe("team cara");
+  });
+
   it("two captains carrying the same name: the first named keeps it, the other has the automatic name", async () => {
     const { dana, cara, cole, reg } = await cast();
     for (const [m, name] of [

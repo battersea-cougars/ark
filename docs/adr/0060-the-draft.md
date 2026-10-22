@@ -147,8 +147,12 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   them or an admin, or in the tournament's editor) the field becomes the new name, so it's always their latest; the
   Name and logo sheet says so. Only the name carries, not the crest.
 - Never set (captains from before it): their latest Kumite team's name, read from their history.
-- Two captains carrying the same name (case aside) into one Kumite: the first named keeps it, as does a team already
-  called it, and the other has the automatic name (and still carries theirs). An erased member's field is emptied and
+- A carried name another team in that Kumite goes by, case aside, gives way and its carrier has the automatic name
+  (and still carries theirs): a team already called it, one carrying it named before, or another captain's automatic
+  name ("Team Alex" carried by Bob, beside Alex's own).
+- The tournament editor renames a team (and so its captain's default) only when the name it sends differs from the
+  team's as the save runs (ADR 0121); a team it sends with neither its id nor a name, an editor that hasn't seen what
+  the server named it, keeps its name. An erased member's field is emptied and
   their history never read. Other series neither carry it nor change it.
 - Not recorded: like the team's look, it's the captain's own.
 
@@ -266,3 +270,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   from their history; then, as "the admin and player should be able to manage this on their profile" and "just make it
   one field - that changes every time - the default kumite team name or something", one field on the member, on You and
   in the member editor, overwritten by every rename, their history only while it's never been set.
+- 2026-10-22: A carried name gives way to any team's name in the Kumite, automatic ones included, and a stale
+  tournament editor's re-save neither clears a carried name nor counts as a rename.
