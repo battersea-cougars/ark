@@ -122,7 +122,10 @@ describe("Home's hero: the club's next event, whatever it is", () => {
       now: "2026-10-21T12:00:00Z",
       events: [ev("session:1", "2026-10-21T18:30:00Z")],
     });
-    expect(rows.lead).toMatchObject({ kind: "draft", item: { text: "It's your pick" } });
+    expect(rows.lead).toMatchObject({
+      kind: "draft",
+      item: { text: "It's your pick", draft: { tournamentId: t.id, place: 1, until: 0 } },
+    });
     expect(rows.now).toEqual([]);
     expect(rows.upcoming.map((r) => r.key)).toEqual(["session:1"]);
   });
@@ -162,7 +165,13 @@ describe("Home's hero: the club's next event, whatever it is", () => {
       agenda: [draft],
       events: [ev("session:1", "2026-10-23T18:30:00Z")],
     });
-    expect(without.lead).toMatchObject({ kind: "draft", key: "draft:10", at: "2026-10-22T23:00:00.000Z" });
+    expect(without.lead).toMatchObject({
+      kind: "draft",
+      key: "draft:10",
+      at: "2026-10-22T23:00:00.000Z",
+      // Its card: the tournament, you pick 1st, and no turn to count until it opens
+      item: { draft: { tournamentId: 10, place: 1, until: Infinity } },
+    });
     expect(without.now).toEqual([]);
   });
 

@@ -26,6 +26,9 @@ export interface FeedItem {
   on?: When;
   /** A captain's own draft, with picks still to make or its day to come: it may lead Home, as of this instant. */
   captainAt?: string;
+  /** That draft, for the hero's card: the tournament, your place in the pick order, and picks until your turn (0:
+   * now; Infinity: not open yet, or none left to you). */
+  draft?: { tournamentId: number; place: number; until: number };
 }
 
 /** A date to show as the stacked block (lib/DateBlock): the day, or a season, or not confirmed. */
@@ -328,6 +331,7 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
             hot: false,
             icon: "draft",
             captainAt: r.allDay ? londonISO(r.day, "00:00") : r.startsAt,
+            draft: { tournamentId: t.id, place: mine + 1, until: Infinity },
           },
         ];
       if (!runsDrafts) return [];
@@ -364,12 +368,17 @@ function liveDrafts({ upcoming, me, runsDrafts, now, today }: FeedInput): FeedIt
       return [{ ...row, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
     // Your pick now or close: straight into the draft room (ADR 0060), the whole screen for it
     const soon = { ...row, href: roomPath(type.slug) };
+    const draft = { tournamentId: t.id, place: mine + 1, until };
     if (until === 0)
-      return [{ ...soon, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt }];
+      return [
+        { ...soon, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt, draft },
+      ];
     if (until === Infinity)
       return [{ ...row, text: "The draft's open", sub: `${t.name} · your picks are done`, hot: false }];
     const near = until <= ROOM_SOON ? soon : row;
-    return [{ ...near, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt }];
+    return [
+      { ...near, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt, draft },
+    ];
   });
 }
 

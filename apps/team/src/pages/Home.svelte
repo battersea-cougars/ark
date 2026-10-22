@@ -15,7 +15,8 @@
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
-  import { clock, formatDayDate, londonToday, pounds } from "../lib/dates";
+  import { clock, formatDayDate, formatTime, londonToday, pounds } from "../lib/dates";
+  import { myTurnLine } from "../lib/draft";
   import { kickOff, slotMinutes } from "../lib/fixtures";
   import { teamTone } from "../lib/team-tones";
   import { aged, leftOn, overdue } from "../lib/dues";
@@ -284,9 +285,39 @@
       game: game.name || `Game ${game.position}`,
     };
   }
+  // A draft you're a captain in, as the Friday card frames it: the tournament's name and the draft's icon, the draft's
+  // day and time from the agenda (On now once it's open), your place in the pick order where In and Out would be. The
+  // whole card opens the draft (the draft room when your pick is close, as the feed decides)
+  const leadDraft = $derived.by(() => {
+    if (lead?.kind !== "draft" || !lead.item.draft) return undefined;
+    const { tournamentId, place, until } = lead.item.draft;
+    const t = db.tournaments.find((x) => x.id === tournamentId);
+    if (!t) return undefined;
+    const open = t.draftState === "open";
+    const night = db.agenda.find((r) => r.kind === "draft" && r.sourceId === t.id);
+    const at = night?.startsAt ?? lead.at;
+    const event: Bookable = {
+      ...tournamentBookable(t),
+      icon: "draft",
+      startsAt: at,
+      endsAt: at,
+      dateTbc: false,
+      season: undefined,
+      signup: false,
+      timeText: open ? "On now" : night && !night.allDay ? formatTime(night.startsAt) : "Draft day",
+      href: lead.item.href,
+    };
+    return { event, open, now: until === 0, turn: myTurnLine(place, until) };
+  });
   // What the lead's heading asks or says
   const leadTitle = (l: Lead) => {
-    if (l.kind === "draft") return l.item.text;
+    // Your pick now; the draft on, picks still to come; else its day ("The draft's today")
+    if (l.kind === "draft")
+      return leadDraft?.now
+        ? "It's your pick"
+        : leadDraft?.open
+          ? "The draft's on"
+          : `The draft's ${whenSaid(leadDraft?.event.startsAt ?? l.at, today)}`;
     if (l.kind === "fight")
       return l.fight.game.status === "live"
         ? `You're on: the ${l.fight.type.shortName}`
@@ -574,17 +605,19 @@
             {/snippet}
           </EventCard>
         </div>
-      {:else if lead.kind === "draft"}
-        {@const d = lead.item}
-        <!-- A draft you're a captain in: on now, or its day; the way into it -->
-        <div class="lead lead-plain lead-draft">
-          {#if d.on}<DateBlock at={d.on.at} />{:else}<span class="lead-icon"><Icon name="draft" size={28} /></span>{/if}
-          <p class="lead-line">
-            <strong>{d.sub.split(" · ")[0]}</strong><span>{d.sub.split(" · ").slice(1).join(" · ")}</span>
-          </p>
-          <div class="lead-actions">
-            <a class="btn primary" href={d.href}>{d.hot ? "Make your pick" : "Open the draft"}</a>
-          </div>
+      {:else if leadDraft}
+        {@const d = leadDraft}
+        <!-- A draft you're a captain in: the Friday card's frame, your place in the pick order in place of In and Out,
+             and Make your pick there only while it's your pick. Otherwise the card is the way in -->
+        <div class="lead">
+          <EventCard event={d.event} feature glance link place={false}>
+            {#snippet body()}
+              <span class="draft-turn">
+                <span class="draft-line"><strong>Draft</strong> · {d.turn}</span>
+                {#if d.now}<a class="btn primary" href={d.event.href}>Make your pick</a>{/if}
+              </span>
+            {/snippet}
+          </EventCard>
         </div>
       {/if}
     </section>
@@ -883,15 +916,6 @@
       background-position: -20% 0;
     }
   }
-  /* A lead that isn't an event's card (your fight, a draft): on the page, not a panel; it lands like the card, without
-     the glint, which is the card's */
-  .lead-plain {
-    display: grid;
-    gap: var(--s-3);
-  }
-  .lead-plain::after {
-    display: none;
-  }
   /* Not in it: You're out, where In and Out would be */
   .out-line {
     display: flex;
@@ -968,43 +992,30 @@
     color: var(--fg-muted);
     font-size: var(--text-sm);
   }
-  .lead-actions {
+  /* A draft's card: your place in the pick order, and Make your pick on its right while it's your pick (across, under
+     your thumb, on a phone) */
+  .draft-turn {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--s-2);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
   }
-  /* A phone: the main button across, under your thumb */
+  .draft-line {
+    color: var(--fg-muted);
+  }
+  .draft-line strong {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .draft-turn .btn {
+    position: relative;
+    z-index: 2;
+  }
   @media (max-width: 600px) {
-    .lead-actions .btn.primary {
+    .draft-turn .btn {
       flex: 1 1 12rem;
     }
-  }
-  .lead-draft {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: var(--s-4);
-  }
-  .lead-draft .lead-actions {
-    grid-column: 1 / -1;
-  }
-  .lead-icon {
-    display: grid;
-    place-items: center;
-    width: 3.25rem;
-    height: 3.25rem;
-    color: var(--red-hot);
-  }
-  .lead-line {
-    display: grid;
-    gap: 0.15rem;
-    margin: 0;
-    color: var(--fg-muted);
-    line-height: 1.3;
-  }
-  .lead-line strong {
-    color: var(--fg);
-    font-size: var(--text-lg);
-    font-weight: 600;
   }
   @media (prefers-reduced-motion: reduce) {
     .lead,

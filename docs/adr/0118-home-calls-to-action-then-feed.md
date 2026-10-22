@@ -109,3 +109,7 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
   row says when it opens, after it closes "Sign-up closed"; a night still to open is yours, not one you're out of.
 - 2026-10-22: The overdue icon is the pound with a small red dot, not a red pound with an "!" badge: "the exclamation
   for the payment is maybe too loud. Looks like an error."
+- 2026-10-22: A captain's draft leads as the same card as the rest ("why does this not look like the standard
+  card?"): the tournament's name with the draft's icon, the draft's day and time (On now once it's open), "Draft ·
+  You pick 1st" where In and Out would be, the whole card opening the draft; Make your pick inside it only while it's
+  your pick. No loose button under it.
