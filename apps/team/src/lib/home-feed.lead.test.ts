@@ -1,6 +1,6 @@
 // Home's hero (ADR 0118): the club's next event, whatever it is, with where you stand on it (playing, answering, or
 // not in it), the one card up top; what's coming up is everything after it. The tricky part is the ordering: a fight's time comes from its place in the day, in London's clock either side
-// of the clocks going back; a draft you're picking in is on now; what you're out of only leads with nothing else.
+// of the clocks going back; a draft you're picking in is on now; what you're out of leads all the same.
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
 import { homeFeed, type FeedInput, type UpcomingEvent } from "./home-feed";
@@ -166,11 +166,12 @@ describe("Home's hero: the club's next event, whatever it is", () => {
     expect(without.now).toEqual([]);
   });
 
-  it("what you've said you're out of steps aside for your next thing, but leads when there's nothing else", () => {
+  it("what you've said you're out of still leads when it's the club's next: its card shows your Out", () => {
     const out = ev("session:1", "2026-10-23T18:30:00Z", { standing: "out", asking: false });
     const later = ev("session:5", "2026-10-25T10:00:00Z", { filter: "series:2", standing: "in", asking: false });
-    expect(feed({ upcoming: [], events: [out, later] }).lead).toMatchObject({ key: "session:5" });
-    expect(feed({ upcoming: [], events: [out] }).lead).toMatchObject({ key: "session:1" });
+    const rows = feed({ upcoming: [], events: [out, later] });
+    expect(rows.lead).toMatchObject({ key: "session:1", role: "out" });
+    expect(rows.upcoming.map((r) => r.key)).toEqual(["session:5"]);
   });
 
   it("never a cancelled one, one with no day yet, or one that's over", () => {
@@ -192,11 +193,13 @@ describe("Home's hero: the club's next event, whatever it is", () => {
     expect(rows.upcoming.map((r) => r.key)).toEqual(["session:1"]);
   });
 
-  it("the lead Home showed stays this visit while it's still on: saying Out doesn't swap the card under your thumb", () => {
+  it("the hero Home showed stays this visit while it's still on: nothing swaps the card under your thumb", () => {
     const friday = ev("session:1", "2026-10-23T18:30:00Z", { standing: "out", asking: false });
     const sunday = ev("session:5", "2026-10-25T10:00:00Z", { filter: "series:2" });
-    expect(feed({ upcoming: [], events: [friday, sunday] }).lead?.key).toBe("session:5");
-    expect(feed({ upcoming: [], events: [friday, sunday], pinned: "session:1" }).lead?.key).toBe("session:1");
+    expect(feed({ upcoming: [], events: [friday, sunday] }).lead?.key).toBe("session:1");
+    // Something sooner added while Home's open doesn't take its place this visit
+    const sooner = ev("oneoff:1", "2026-10-22T19:00:00Z", { kind: "social", filter: "social" });
+    expect(feed({ upcoming: [], events: [sooner, friday, sunday], pinned: "session:1" }).lead?.key).toBe("session:1");
     // Gone (cancelled since): the next one leads
     const off = { ...friday, cancelled: true };
     expect(feed({ upcoming: [], events: [off, sunday], pinned: "session:1" }).lead?.key).toBe("session:5");

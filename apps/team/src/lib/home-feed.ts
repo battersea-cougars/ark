@@ -195,16 +195,15 @@ const fightAt = ({ t, game }: Fight) => londonISO(t.heldOn, kickOff(t.startTime,
  * The hero: the club's next event, whatever it is, with where you stand on it. Yours stand in for theirs: your next
  * match for its tournament, a draft you're a captain in (open, with picks to make: now; else its day). Everything
  * else on the schedule is the event itself, yours to answer or not yours (the Kumite you're not in, a social with no
- * sign-up): it still leads, its card saying where you stand. The soonest leads, and at the same moment a match, then a draft, then the schedule's order. What
- * you've said you're out of leads only when nothing else is coming (you may change your mind). A cancelled one, one
- * with no day yet, or one that's over never does. The one Home pinned this visit stays while it's still on, so
- * answering Out doesn't swap it under your thumb.
+ * sign-up): it still leads, its card saying where you stand, and so does one you've said you're out of (its card shows
+ * your Out, and In is still there). The soonest leads, and at the same moment a match, then a draft, then the
+ * schedule's order. A cancelled one, one with no day yet, or one that's over never does. The one Home pinned this
+ * visit stays while it's still on, so nothing swaps under your thumb.
  */
 export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lead | null {
   const { events = [], today, pinned } = input;
   const nowMs = Date.parse(input.now ?? londonISO(today, "00:00"));
   const next: Lead[] = [];
-  const outs: Lead[] = [];
   for (const fight of fights) {
     if (fight.t.season || fight.t.heldOn < today) continue;
     next.push({ kind: "fight", key: `fight:${fight.t.id}`, at: fightAt(fight), fight });
@@ -215,13 +214,12 @@ export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lea
     if (event.cancelled || event.season || event.dateTbc || fought.has(event.key)) continue;
     if (Date.parse(event.endsAt) <= nowMs) continue;
     const role: Role = event.standing === "out" ? "out" : event.standing || event.asking ? "yours" : "notIn";
-    (role === "out" ? outs : next).push({ kind: "event", key: event.key, at: event.startsAt, event, role });
+    next.push({ kind: "event", key: event.key, at: event.startsAt, event, role });
   }
-  const held = pinned && [...next, ...outs].find((l) => l.key === pinned);
+  const held = pinned && next.find((l) => l.key === pinned);
   if (held) return held;
   // Soonest first; a stable sort keeps a match, then a draft, then the schedule's order at the same moment
-  const soonest = (list: Lead[]) => [...list].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0] ?? null;
-  return soonest(next) ?? soonest(outs);
+  return [...next].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0] ?? null;
 }
 
 // Coming up: each training's and each tournament series' next one, the club's events in the next few weeks; the lead

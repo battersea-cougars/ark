@@ -40,8 +40,9 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
 
    The soonest leads (a match's time is its kick-off on the day, in London); at the same moment a match, then a draft,
    then the schedule's order. A cancelled night (Friday's training off for the Kumite), one with no day yet, or one
-   that's over never leads. One you said you're out of leads only when nothing else is coming. The hero picked when
-   you opened Home stays for the visit while it's still on, so answering Out doesn't swap it under your thumb.
+   that's over never leads. One you said you're out of leads like any other when it's soonest: its card shows your
+   Out, and In is still there to change your mind. The hero picked when you opened Home stays for the visit while
+   it's still on, so nothing swaps under your thumb.
 
 4. **Coming up**: the next things after the hero, never repeating it (for a match, its tournament), in date order,
    each with its date on the left (`lib/DateBlock`; Summer / TBC / 2027 with no day yet): each training's next
@@ -95,3 +96,6 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
   your next thing, so with the Kumite's sign-up closed a member not in it got next week's training up top.) What you
   owe left the locker room for the foot of Home, with an overdue icon in the hello; a cancelled night no longer
   hides the series' next one in Coming up; the calendar's reminders stopped showing there as events.
+- 2026-10-22: A night you said you're out of is the hero when it's the club's next, showing your Out (In still there),
+  not stepping aside for your next thing: the hero is always the club's next event (was: Out led only with nothing
+  else coming).
