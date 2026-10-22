@@ -162,6 +162,8 @@
   const teamOrder = $derived([...(myTeam >= 0 ? [myTeam] : []), ...teams.map((_, i) => i).filter((i) => i !== myTeam)]);
   // How many picks until a team's turn (0: now); never, once the pool runs out first
   const turnIn = (i: number) => picksUntil(teams.length, slots, i);
+  // A team's picks still to come, by their numbers in the whole draft (the draft room's empty rows)
+  const laneSlots = (i: number) => slots.filter((slot) => onTheClock(teams.length, slot) === i).map((slot) => slot + 1);
   // Who picks after the one on the clock, and a captain's own place (round one's, from the order)
   const nextUp = $derived(teams.length && slots.length > 1 ? onTheClock(teams.length, slots[1]) : -1);
   // A captain's: their place and how soon they pick again (lib/draft.ts). Not for someone picked onto a team, nor an
@@ -635,7 +637,16 @@
         {#if m}<span class="pos" class:g={m.position === "G"}>{m.position}</span>{/if}
       </li>
     {/each}
-    {#if next}
+    {#if room}
+      <!-- The draft room: every pick still to come is its row already, so the team reads as a board and a pick
+           landing fills its row, moving nothing -->
+      {#each laneSlots(i) as pick, k (pick)}
+        <li class="row slot">
+          <span class="n num">{t.players.length + k + 1}</span>
+          <span class="name num">pick {pick}</span>
+        </li>
+      {/each}
+    {:else if next}
       <li class="row slot">
         <span class="n num">{t.players.length + 1}</span>
         <span class="name num">pick {made + turnIn(i) + 1}</span>
@@ -752,7 +763,14 @@
 
 <!-- On a phone, once it's open, the page is the window's height and the players scroll inside it (.page.fit), so the
      list starts high and takes the rest -->
-<div class="draft" class:fit class:on={open} bind:clientWidth={pageW}>
+<div
+  class="draft"
+  class:fit
+  class:room
+  class:board-on={room && columns && live}
+  class:on={open}
+  bind:clientWidth={pageW}
+>
   {#if !tournament || tournament.kind !== "draft"}
     <p class="hint">No draft coming up.</p>
   {:else if teams.length < 2}
@@ -910,7 +928,7 @@
 
     <!-- Under the turn, one small line kept while it's on: who's next (and, on a phone, a captain's own place). The
          last pick is the ticker's newest chip, which lights up as it lands -->
-    {#if live}
+    {#if live && !room}
       <dl class="lines">
         <dt>Next</dt>
         <dd>
@@ -920,6 +938,8 @@
           {#if fit && myPlace}<span class="mine num">{myPlace}</span>{/if}
         </dd>
       </dl>
+    {/if}
+    {#if live}
       <!-- For a screen reader: each pick as it lands, said whole (the ticker shows it) -->
       <p class="sr-only" aria-live="polite">
         {#if lastPick}{lastPick.by || teamName(lastPick.team)} picked {lastPick.name}{lastPick.by
@@ -959,7 +979,7 @@
                 name={teamName(t.team)}
                 logo={teams[t.team].logo}
                 tone={teamTone(t.team)}
-                size={fit ? "1.75rem" : "2.25rem"}
+                size={fit ? "1.75rem" : room ? "2.75rem" : "2.25rem"}
               />
               <span class="who display"
                 >{#if t.team === myTeam}<Icon name="user" size={12} />You{:else}<span class="clip"
@@ -1010,6 +1030,39 @@
       <div class="done-teams" in:fade={viewsIn}>
         {@render teamsView()}
         {#if leftOut.length}{@render playersView()}{/if}
+      </div>
+    {:else if room && columns}
+      <!-- The draft room on a desktop: the window's height, the pool down the left and every team a column beside
+           it, in pick order; each scrolls inside itself. The team on the clock is lit, yours marked -->
+      <div class="board" in:fade={viewsIn} style:--lanes={teams.length}>
+        <div class="lane-pool">{@render playersView()}</div>
+        {#each teams as t, i (t.id ?? i)}
+          <section
+            class="lane"
+            class:on-clock={live && i === clock}
+            class:yours={i === myTeam}
+            aria-label={teamName(i)}
+          >
+            <header>
+              <TeamCrest
+                among={crestNames}
+                name={teamName(i)}
+                logo={t.logo}
+                tone={teamTone(i)}
+                onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
+              />
+              <h3 class="display">{teamName(i)}</h3>
+            </header>
+            <!-- Its badges on a line of their own, always there, so a turn coming round moves nothing -->
+            <div class="lane-badges">
+              {#if i === myTeam}<span class="badge">Your team</span>{/if}
+              {#if i === myTeam && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span
+                >{/if}
+              {@render turnBadge(i)}
+            </div>
+            <div class="lane-rows">{@render roster(i)}</div>
+          </section>
+        {/each}
       </div>
     {:else if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
@@ -2087,5 +2140,140 @@
     .dot {
       animation: none;
     }
+  }
+  /* The draft room (pages/DraftRoom): the window's height, nothing below it. Picked on a phone it's the page's fit
+     view, but the pool or the teams take every bit of height left; on a desktop it's the board */
+  .draft.room {
+    padding-bottom: 0;
+  }
+  .draft.room.fit,
+  .draft.board-on {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .draft.board-on > :global(*) {
+    flex-shrink: 0;
+  }
+  .draft.room.fit > .pane,
+  .draft.room.fit .players {
+    flex: 1 1 auto;
+  }
+  .draft.room.fit .plist,
+  .draft.room.fit .teams {
+    flex: 1 1 auto;
+    align-content: start;
+  }
+  /* The picks along the top, a size up: there's the room for it */
+  .draft.room:not(.fit) .ticker {
+    height: 7rem;
+    padding-inline: calc(50% - 7.5rem);
+  }
+  .draft.room:not(.fit) .tick {
+    width: 15rem;
+    height: 5.25rem;
+  }
+  .draft.room:not(.fit) .who {
+    font-size: 1.15rem;
+  }
+  /* The board: the pool down the left, then a column per team, each to the window's foot and scrolling inside */
+  .board {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(25rem, 1.4fr) repeat(var(--lanes), minmax(0, 1fr));
+    gap: var(--s-4);
+    min-height: 0;
+  }
+  .lane-pool {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  /* The search and the chips stay at the top of the pool; the players scroll under them */
+  .board .players {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .board .players > * {
+    flex-shrink: 0;
+  }
+  .board .plist {
+    flex: 1 1 auto;
+    align-content: start;
+    min-height: 0;
+    padding-bottom: 6rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* The four chips on one line, sharing the pool's width */
+  .board .filters {
+    flex-wrap: nowrap;
+    gap: var(--s-1);
+  }
+  .board .filter {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: var(--s-1);
+    padding: 0 var(--s-2);
+  }
+  /* Bigger rows: easy to hit on a laptop or a tablet held up in the room */
+  .board .prow {
+    min-height: 3rem;
+    font-size: var(--text-md);
+  }
+  .lane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: var(--s-2);
+    border-radius: var(--r-lg);
+    transition: background-color var(--t-slow) var(--ease);
+  }
+  /* On the clock: its column lifted (a fill, not a colour), its badge the red */
+  .lane.on-clock {
+    background: var(--surface-2);
+  }
+  .lane header {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+    min-height: 3rem;
+    padding: 0 var(--s-1);
+  }
+  .lane h3 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--fg);
+    font-size: 1.2rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .lane-badges {
+    display: flex;
+    flex-shrink: 0;
+    gap: var(--s-1);
+    min-height: 1.75rem;
+    padding: 0 var(--s-1) var(--s-2);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .lane-badges .badge {
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+  .lane-rows {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 6rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 </style>

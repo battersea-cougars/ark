@@ -93,9 +93,11 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   whole screen, for its captains and whoever runs it while it's open. A focus page (no rail, dock, tabs, header,
   track or footer), and the browser's full screen where it gives a page one (requestFullscreen on the root; an
   iPhone's Safari doesn't, and the room is the whole page there). A slim bar: the mark, Draft room, whose turn (and,
-  for a captain waiting, how long till theirs), Manage the draft for whoever runs it, and ✕. Under it the draft as on
-  the page: the ticker, then the players and the teams side by side on a desktop, a tab apart on a phone; Pick and End
-  turn as ever, live as ever. The way in is a quiet Draft room on the draft's strip, lit red (no bigger) when your
+  for a captain waiting, how long till theirs), Manage the draft for whoever runs it, and ✕. Under it, filling the
+  window to its foot: the picks a size up, then on a desktop a board, the pool down the left and every team a column
+  in pick order, each scrolling inside itself, the one on the clock lifted, each with a row for every pick to come
+  (so a pick fills its row and moves nothing); on a phone the pool and the teams a tab apart. Pick and End turn as
+  ever, live as ever. The way in is a quiet Draft room on the draft's strip, lit red (no bigger) when your
   pick's now or two away; Home's row for a captain whose pick is that close goes straight in. Out by ✕, Escape (or
   the full screen ending), or Back (it's an address of its own); shown out to the page, the teams set sliding in,
   once the draft closes, and likewise if it steps back or it isn't yours.
@@ -231,3 +233,9 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   much space as possible", the user): the draft alone on the screen, for its captains and whoever runs it, entered
   from the draft's strip (lit when your pick's close) or Home, left by ✕, Escape or Back, and by itself when the draft
   closes.
+- 2026-10-22: The draft room fills the window ("we have more space we could use in the draft room", the user): on a
+  desktop a board under the bar and the picks, the pool down the left (search and chips at its top, bigger rows) and
+  every team a column beside it in pick order, each to the window's foot and scrolling inside, the one on the clock
+  lifted, each with a row already for every pick still to come, so a pick fills its row and moves nothing. The bar's
+  turn says how long till yours ("Team Charlie picking · you in 1"); the Next line goes. A phone keeps the pool and
+  the teams a tab apart, filling the height, the teams with their rows to come too.

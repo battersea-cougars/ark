@@ -11,7 +11,6 @@
   import LiveNote from "../lib/LiveNote.svelte";
   import { kanjiFor } from "../lib/motif";
   import { nameOfTeam } from "../lib/names";
-  import { phone } from "../lib/viewport.svelte";
   import { canEnterRoom, leaveFullScreen, roomTurn } from "../lib/draft-room";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
@@ -34,8 +33,6 @@
 
   // The draft's jobs, for whoever runs it: Draft hands up how to open them (a block, never its answer: effects.test.ts)
   let manage = $state<(() => void) | null>(null);
-  // Being picked on a phone: the room is the window's height and the players scroll inside it, as on the page
-  let picking = $state(false);
 
   // Out: once (✕, Escape and the full screen ending can come together), back where you came from
   let leaving = false;
@@ -74,7 +71,8 @@
 <svelte:window {onkeydown} />
 <svelte:document {onfullscreenchange} />
 
-<div class="page full room" class:fit={phone.current && picking}>
+<!-- The room is the window: the bar, then the draft filling the rest (its columns scroll inside themselves) -->
+<div class="page full fit room">
   <header class="room-bar" style:--tone="var(--tone-{type.tone})">
     <span class="mark" aria-hidden="true"
       >{#if seal}<Kanji text={seal} seal />{:else}<Icon name={type.icon} size={18} />{/if}</span
@@ -87,9 +85,10 @@
     <span class="turn" aria-live="polite">
       {#if turn}
         <span class="badge" class:red={turn.you}
-          >{#if turn.you}<i class="dot"></i>{/if}{turn.said}</span
+          >{#if turn.you}<i class="dot"></i>{/if}{turn.said}{#if turn.inPicks !== null}<span class="num"
+              >{` · you in ${turn.inPicks}`}</span
+            >{/if}</span
         >
-        {#if turn.inPicks !== null}<span class="soon num">You in {turn.inPicks}</span>{/if}
       {/if}
     </span>
     <span class="keys">
@@ -105,13 +104,10 @@
     </span>
   </header>
   {#if tournament && inRoom}
-    <div class="body" class:fill={phone.current && picking}>
+    <div class="body">
       <Draft
         {typeId}
         room
-        onpicking={(v) => {
-          picking = v;
-        }}
         onmanage={(open) => {
           manage = open;
         }}
@@ -121,7 +117,9 @@
 </div>
 
 <style>
+  /* The whole window, past the page frame: it's a room */
   .room {
+    max-width: none;
     gap: var(--s-3);
     padding-top: max(var(--s-3), env(safe-area-inset-top));
   }
@@ -180,12 +178,6 @@
       opacity: 0.35;
     }
   }
-  .soon {
-    flex-shrink: 0;
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    white-space: nowrap;
-  }
   .keys {
     display: flex;
     flex-shrink: 0;
@@ -200,21 +192,18 @@
     font-size: var(--text-xs);
     white-space: nowrap;
   }
-  .body {
-    min-width: 0;
-  }
-  /* Being picked on a phone: the draft takes the height left under the bar */
-  .body.fill {
+  /* The rest of the window: the draft fills it, and scrolls here only when it isn't being picked (the seal) */
+  .room > .body {
     display: grid;
     flex: 1 1 auto;
     /* Never wider than the window: a grid column's own minimum is its content (the ticker, the chips) */
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
+    min-width: 0;
     min-height: 0;
+    overflow-y: auto;
   }
-  /* A phone: the line under the bar says how long till yours */
   @media (max-width: 640px) {
-    .soon,
     .live,
     .titles .eyebrow {
       display: none;
