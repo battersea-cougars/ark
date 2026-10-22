@@ -264,6 +264,7 @@
             >
               <Draft
                 {typeId}
+                signup={view === "signup"}
                 onpicking={(v) => {
                   picking = v;
                 }}

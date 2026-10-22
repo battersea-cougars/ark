@@ -69,12 +69,15 @@
   let {
     typeId,
     room = false,
+    signup = false,
     onpicking,
     onmanage,
   }: {
     typeId: number;
     /** In the draft room (pages/DraftRoom): its bar says whose turn, so the strip goes, and so does the way in. */
     room?: boolean;
+    /** Shown in the Kumite's sign-up view: its players and teams wait for the draft to open, Who's in being the list. */
+    signup?: boolean;
     /** Told whether it's being picked (open, players left), so a phone's page makes room for it (ADR 0074). */
     onpicking?: (picking: boolean) => void;
     /** Told how to open its jobs (Manage the draft), or none, for the page header's Manage (ADR 0074). */
@@ -1025,8 +1028,9 @@
       </div>
     {/if}
 
-    {#if !settled && phase !== "open" && phase !== "closed"}
-      <!-- The players and teams wait for the order: the first thing on the night is the draw -->
+    {#if (!settled || signup) && phase !== "open" && phase !== "closed"}
+      <!-- The players and teams wait for the order: the first thing on the night is the draw; at sign-up, Who's in is
+           the one list -->
     {:else if done}
       <!-- The picking's over: the teams, the whole page scrolling down them; anyone left out when it closed under them -->
       <!-- Two tabs once there are picks: the teams, and how the picks went (the pick log), one at a time; the page
