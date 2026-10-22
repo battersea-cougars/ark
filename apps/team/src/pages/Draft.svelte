@@ -418,10 +418,27 @@
   // never holds both and nothing below jumps)
   const ORDER: View[] = ["teams", "players"];
   let dir = $state(1);
+  const slideMs = prefersReducedMotion ? 0 : 320;
+  let sliding = $state(false);
   const show = (v: View) => {
     dir = ORDER.indexOf(v) >= ORDER.indexOf(view) ? 1 : -1;
+    // Before the slide, the list stops still: its own glide and its cards' light finish where they're going, so the
+    // pane moves as one piece and no card is caught half way
+    freezeTeams();
     view = v;
   };
+  function freezeTeams() {
+    const reel = teamsEl;
+    if (!reel) return;
+    reel.scrollTo({ top: reel.scrollTop, behavior: "auto" });
+    // Its finite ones (a light arriving, a lift): a light that pulses on and on is left to pulse
+    for (const a of reel.getAnimations({ subtree: true }))
+      try {
+        if (a.effect?.getComputedTiming().endTime !== Infinity) a.finish();
+      } catch {
+        // One that can't be finished: left as it is
+      }
+  }
   // A captain following the draft on a phone (lib/draft-follow.ts): your pick made, the teams, your team in front for
   // it to burn in, then the team on the clock; each pick burns into its team in front, held a moment with the name
   // cooled, and only then on to the next; your turn, back to the players. Never on while a pick's burning in. Touch a
@@ -747,7 +764,7 @@
   <section
     class="panel"
     class:picking
-    class:mine={picking && yours}
+    class:my-pick={picking && yours}
     class:quiet={live && !picking}
     data-team={i}
     style:--team={teamTone(i)}
@@ -1099,25 +1116,31 @@
           >
           <button role="tab" aria-selected={view === "players"} onclick={() => manual("players")}>Players</button>
         </div>
-        {#if phoneFollow && !fol.follow}
+        {#if phoneFollow && !fol.follow && !sliding}
           <!-- Left alone (you took over): one tap and it moves with the draft again -->
           <button class="btn sm follow" onclick={resume}><Icon name="live" size={14} />Follow the draft</button>
         {:else if searching}{@render finder()}{/if}
       </div>
-      {#key view}
-        <!-- The view slides in from its tab's side; moving the teams yourself stops it following -->
-        <div
-          class="pane"
-          role="tabpanel"
-          tabindex="-1"
-          in:fly={{ x: 56 * dir, duration: prefersReducedMotion ? 0 : 300, easing: easeOut, opacity: 0 }}
-          ontouchmove={view === "teams" && phoneFollow ? () => manual() : undefined}
-          onwheel={view === "teams" && phoneFollow ? () => manual() : undefined}
-        >
-          {#if view === "teams"}{@render teamsView()}
-          {:else}{@render playersView()}{/if}
-        </div>
-      {/key}
+      <!-- The views share one cell: switching, the whole of the old one slides out as the new one slides in from its
+           tab's side, one movement, nothing below jumping. Only a finger or the wheel on the teams stops it following -->
+      <div class="panes" class:sliding>
+        {#key view}
+          <div
+            class="pane"
+            role="tabpanel"
+            tabindex="-1"
+            in:fly={{ x: `${100 * dir}%`, duration: slideMs, easing: easeOut, opacity: 1 }}
+            out:fly={{ x: `${-100 * dir}%`, duration: slideMs, easing: easeOut, opacity: 1 }}
+            onintrostart={() => (sliding = true)}
+            onintroend={() => (sliding = false)}
+            ontouchmove={view === "teams" && phoneFollow ? () => manual() : undefined}
+            onwheel={view === "teams" && phoneFollow ? () => manual() : undefined}
+          >
+            {#if view === "teams"}{@render teamsView()}
+            {:else}{@render playersView()}{/if}
+          </div>
+        {/key}
+      </div>
     {/if}
   {/if}
 </div>
@@ -1302,9 +1325,36 @@
     height: 1.9rem;
     font-size: var(--text-xs);
   }
-  .draft.fit > .pane {
-    display: flex;
+  /* The views' one cell: the old and the new overlap as they slide, clipped to it */
+  .panes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, auto);
+    min-width: 0;
+  }
+  .panes.sliding {
+    overflow: hidden;
+  }
+  .panes > .pane {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+  /* While a view slides, its cards' own light and lift hold still (the slide's the one movement); and the list's
+     faded edges go for the moment (a mask over a lifted card left that card behind as the pane moved) */
+  .panes.sliding :global(.panel) {
+    transition: none;
+  }
+  .panes.sliding .teams {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .draft.fit > .panes {
     flex: 0 1 auto;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .draft.fit .panes > .pane {
+    display: flex;
     flex-direction: column;
     min-height: 0;
   }
@@ -2238,7 +2288,7 @@
   .draft.board-on > .board {
     flex: 1 1 0;
   }
-  .draft.room.fit > .pane,
+  .draft.room.fit > .panes,
   .draft.room.fit .players {
     flex: 1 1 auto;
   }
