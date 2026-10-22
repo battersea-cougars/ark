@@ -32,14 +32,15 @@ import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
-import { api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
+import type { ClashQuestion } from "../lib/clashes";
+import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
 import { ClubCopy } from "./catch-up";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
 
-/** The last save's outcome, shown briefly by the shell. */
-export const saving = $state({ busy: 0, message: "", failed: false });
+/** The last save's outcome, shown briefly by the shell; `refused`, how the Worker refused it (409: something changed). */
+export const saving = $state({ busy: 0, message: "", failed: false, refused: 0 });
 
 // Each slice of the club, copied into the store from demo/data.ts once it's in place there
 const COPY: Record<keyof Slices, () => void> = {
@@ -189,6 +190,7 @@ function say(message: string, failed: boolean) {
 export async function save<T>(change: () => Promise<T>, done = "Saved"): Promise<T | null> {
   // A new save: the last one's note gives way to this one's
   if (done) saving.message = "";
+  saving.refused = 0;
   saving.busy++;
   try {
     const result = await change();
@@ -200,6 +202,7 @@ export async function save<T>(change: () => Promise<T>, done = "Saved"): Promise
     if (done) say(done, false);
     return result;
   } catch (e) {
+    saving.refused = e instanceof ApiError ? e.status : 0;
     say(e instanceof Error ? e.message : "Couldn't save.", true);
     await refresh().catch(() => {});
     return null;
@@ -491,9 +494,11 @@ export const sendReminders = (memberIds?: number[]) =>
     "",
   );
 
-export const createSeries = (s: TrainingSeries) =>
-  save(() => api<{ id: number; slug: string }>("POST", "/api/series", seriesBody(s)), "Training added");
-export const updateSeries = (s: TrainingSeries) => save(() => api("PUT", `/api/series/${s.id}`, seriesBody(s)));
+/** `clashes`: what its editor asked about, held to the save (ADR 0122); something else on then refuses it (409). */
+export const createSeries = (s: TrainingSeries, clashes?: string[]) =>
+  save(() => api<{ id: number; slug: string }>("POST", "/api/series", { ...seriesBody(s), clashes }), "Training added");
+export const updateSeries = (s: TrainingSeries, clashes?: string[]) =>
+  save(() => api("PUT", `/api/series/${s.id}`, { ...seriesBody(s), clashes }));
 /** The next 12 weeks of a training's sessions, past the last one made. */
 export const moreSessions = (seriesId: number) => save(() => api("POST", `/api/series/${seriesId}/more`), "");
 export const setCancelled = (sessionId: number, cancelled: boolean) =>
@@ -727,6 +732,8 @@ export const setClubEventCancelled = (id: number, cancelled: boolean) =>
 
 /** Something on the calendar a new time is over (worker/calendar/clashes.ts). */
 export interface Clash {
+  /** Which it is ("session:12"), as a training's save says it was asked about. */
+  key: string;
   source: "session" | "tournament" | "club_event";
   /** Null for a training night its rule gives that isn't made yet. */
   id: number | null;
@@ -738,11 +745,25 @@ export interface Clash {
   canCancel: boolean;
   signedUp: number;
 }
-/** What's on between these two times; `except` is the thing being edited ("tournament:5"). */
-export async function findClashes(w: { startsAt: string; endsAt: string; except?: string }) {
-  const q = [`startsAt=${encodeURIComponent(w.startsAt)}`, `endsAt=${encodeURIComponent(w.endsAt)}`];
-  if (w.except) q.push(`except=${encodeURIComponent(w.except)}`);
-  return (await api<{ clashes: Clash[] }>("GET", `/api/calendar/clashes?${q.join("&")}`)).clashes;
+/**
+ * What's on between these two times (`except`: the thing being edited, "tournament:5"), or over the nights a
+ * training's save adds or moves (lib/clashes.ts).
+ */
+export async function findClashes(q: ClashQuestion) {
+  const params: Record<string, string> =
+    "weekdays" in q
+      ? {
+          ...(q.seriesId ? { series: String(q.seriesId) } : {}),
+          weekdays: q.weekdays.join(","),
+          repeatEvery: String(q.repeatEvery),
+          startsOn: q.startsOn,
+          endsOn: q.endsOn ?? "",
+          startTime: q.startTime,
+          endTime: q.endTime,
+        }
+      : { startsAt: q.startsAt, endsAt: q.endsAt, ...(q.except ? { except: q.except } : {}) };
+  const query = Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
+  return (await api<{ clashes: Clash[] }>("GET", `/api/calendar/clashes?${query.join("&")}`)).clashes;
 }
 /**
  * Call off what the admin chose, after their save went in: each by its own cancel (the members told, nobody charged),

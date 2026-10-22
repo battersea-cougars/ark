@@ -20,8 +20,13 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 - **Before an editor saves a new or moved time, the app asks the Worker what's on then**:
   `GET /api/calendar/clashes?startsAt=&endsAt=[&except=tournament:5]` (`worker/calendar/clashes.ts`, in
   `events.routes.ts`). The editors that ask: a tournament's editor (`TournamentDateEditor`), the next date's questions
-  (`TournamentQuickCreate`) and a one-off's sheet (Calendar). A save that doesn't move the day or hours doesn't ask
-  again (`lib/clashes.ts`), nor does one that's only a season so far.
+  (`TournamentQuickCreate`), a one-off's sheet (Calendar) and a training's editor (`TrainingEditor`, new or changed).
+  A save that doesn't move the day or hours doesn't ask again (`lib/clashes.ts`), nor does one that's only a season
+  so far, nor a paused training.
+- **A training asks with its rule** (`?weekdays=fri&repeatEvery=&startsOn=&endsOn=&startTime=&endTime=[&series=1]`):
+  the Worker works out the nights the save adds or moves over the 12 weeks its nights are made ahead
+  (`trainingNights`): every night the rule gives, less those the saved training already has at the same hours (asked
+  about when they were put on) and its nights already off. None of its own nights, made or not, is over it.
 - **A clash** is a training night, a tournament's day or a one-off on the agenda ([0042](0042-website-reads-the-club-agenda.md))
   whose time overlaps (one ending as the other starts doesn't), from today on, not cancelled already, not a paused
   training, not the thing being edited, and with a time: a sign-up deadline or a draft night (all day) never clashes.
@@ -30,12 +35,23 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
   Keep both; who's signed up is said ("14 signed up hear it's off if you cancel it"). Save stays off until each is
   chosen; Back, or closing it, returns to the editor with nothing saved. A tournament is listed, not cancellable here
   (it has no cancel; it moves on its own page), and so is anything the admin's roles can't cancel
-  (`manage:Training` for a night, `update:Event` for a one-off): the reply says `canCancel`.
+  (`manage:Training` for a night, `update:Event` for a one-off): the reply says `canCancel`. Once anything is chosen
+  to cancel, Save is the red-filled destructive confirm, "Save & cancel" (both words always there, one seen, so
+  nothing moves).
 - **What's chosen is cancelled by its own cancel, after the save is in**: the session's and the one-off's routes, as
   if from their own pages, so the record, the push and the charges are theirs and there's no second cancel. A night
   not made yet is made first (`POST /api/series/:id/sessions { heldOn }`, the one date the rule gives, the same night
   if it's made already); `ensureSessions` skips a date already made, cancelled or not, so it stays off when the weeks
   ahead reach it.
+- **A training's save holds to what was asked** ([0121](0121-load-and-concurrency.md)): it sends the keys of every
+  clash the sheet showed (`clashes: ["session:12", "tournament:5", "session:1@2027-03-12"]`). The Worker finds what's
+  on its new nights again and refuses (409) anything not among them, and the same condition goes on the end of every
+  statement in the batch that writes it (the training, its fees, the waiting moving up; `answeredGuard`): no
+  tournament, one-off or other training's night on then that wasn't asked about, read from each thing's own row (the
+  agenda is written after it), and the other trainings' rules as they were read (a night a rule gives isn't a row
+  yet). So something put on between the question and the answer, or between that read and the write, refuses the
+  save; the editor asks again, once. Two admins adding trainings on the same evening at once: one is saved, the other
+  asked (`training.clashes.concurrency.use-cases.test.ts`). A save that sends no `clashes` (not asked) isn't held.
 - **Not one request.** The save and the cancellations are separate requests in order, not one atomic request
   ([0121](0121-load-and-concurrency.md)): each route carries its own audit entry and push (the route wrapper does one of
   each per request), and folding a cancel into a tournament's save would mean a second cancel path with its own
@@ -48,8 +64,10 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 - The Kumite on a Friday is one decision, made where the admin is, not a second trip to the training night.
 - A save over something asks one extra read first (the agenda's day index, the active series, that day's nights).
   If the Worker can't be asked, the save goes ahead without asking: the question is a help, not a gate.
-- A training series' own editor doesn't ask: its rule makes nights for months, and a training over a one-off is
-  rare; it can follow the same sheet if wanted.
+- A training asks only about the 12 weeks its nights are made ahead: a Kumite further off was asked about from its
+  own editor if the training was there then; one set before a new training isn't asked about from the training's.
+  A training over another every week lists each night (up to 12), each to choose.
+- A tournament or one-off's save isn't held to its answer the same way yet: a clash put on in between saves anyway.
 - A night made ahead of the weeks (to cancel it) sits alone until they reach it; "More sessions" fills from today, so
   the gap fills as usual.
 
@@ -57,3 +75,6 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 
 - 2026-10-22: Asked before a tournament's or a one-off's save; cancelled through each thing's own cancel, a night
   past the weeks ahead made first.
+- 2026-10-22: A training's editor asks too (a new training, or one's days or hours moved), with its rule; its save
+  sends what it was asked about and is held to it in the statements that write it; Save is red-filled once it cancels
+  something.

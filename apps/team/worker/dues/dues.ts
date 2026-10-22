@@ -255,7 +255,7 @@ export const seriesFees = (db: D1Database, id: number) =>
   );
 
 /** A training in SQL: `?` and its id, or a subquery for one not made yet (by its slug), so its fees can go in the batch
- * that makes it. */
+ * that makes it. Null when the batch's write of it was refused (ADR 0122): its fees go nowhere. */
 export interface SeriesRef {
   sql: string;
   params: Param[];
@@ -283,8 +283,8 @@ export async function seriesFeeChange(
     statement(
       db,
       `INSERT INTO series_fees (series_id, effective_from, amount_pence)
-       SELECT ${series.sql}, value ->> 'from', value ->> 'pence' FROM json_each(?)`,
-      [...series.params, JSON.stringify(fees)],
+       SELECT ${series.sql}, value ->> 'from', value ->> 'pence' FROM json_each(?) WHERE ${series.sql} IS NOT NULL`,
+      [...series.params, JSON.stringify(fees), ...series.params],
     ),
   ];
 }

@@ -1,6 +1,6 @@
 // When an editor asks what's on (ADR 0122): only a new or moved time, never a season, past midnight the next day.
 import { describe, expect, it } from "vitest";
-import { eventWindow, tournamentWindow } from "./clashes";
+import { eventWindow, tournamentWindow, trainingQuestion } from "./clashes";
 
 const kumite = { id: 5, heldOn: "2026-11-13", season: null, startTime: "18:00", endTime: "23:00" };
 
@@ -33,5 +33,28 @@ describe("when a save asks what's on", () => {
       startsAt: quiz.startsAt,
       endsAt: quiz.endsAt,
     });
+  });
+
+  it("a training asks with its rule and hours, unless they haven't moved or it's paused", () => {
+    const friday = {
+      id: 1,
+      active: true,
+      repeatEvery: 1,
+      weekdays: ["fri", "sat"] as ("fri" | "sat")[],
+      startsOn: "2026-01-02",
+      endsOn: null,
+      startTime: "19:30",
+      endTime: "21:30",
+    };
+    expect(trainingQuestion({ ...friday, id: 0 })).toMatchObject({ seriesId: undefined, weekdays: ["fri", "sat"] });
+    expect(trainingQuestion(friday, friday)).toBeNull();
+    expect(trainingQuestion({ ...friday, weekdays: ["sat", "fri"] }, friday)).toBeNull();
+    expect(trainingQuestion({ ...friday, startTime: "19:00" }, friday)).toMatchObject({
+      seriesId: 1,
+      startTime: "19:00",
+    });
+    expect(trainingQuestion({ ...friday, active: false })).toBeNull();
+    // Back on after a pause: every night is new again
+    expect(trainingQuestion(friday, { ...friday, active: false })).toMatchObject({ seriesId: 1 });
   });
 });

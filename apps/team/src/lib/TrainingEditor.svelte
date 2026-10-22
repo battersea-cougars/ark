@@ -1,14 +1,17 @@
 <script lang="ts">
   // One training's editor, inside the panel a card opens (Settings → Training). A series is a rule (every N weeks on
   // some days, from a first date, optionally to a last one) plus what every session shares (ADR 0030). Saving makes
-  // its sessions; each one can then be cancelled on its own.
+  // its sessions; each one can then be cancelled on its own. A save that puts nights on over something already on (the
+  // Kumite, another training, a one-off) asks first whether that's off (ADR 0122, ClashSheet).
   import TimeSelect from "./TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
   import { tick } from "svelte";
   import type { TrainingSeries } from "../demo/model";
   import { resolve } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import { createSeries, moreSessions, setCancelled, updateSeries } from "../app/backend.svelte";
+  import { cancelClashes, createSeries, moreSessions, saving, setCancelled, updateSeries } from "../app/backend.svelte";
+  import ClashSheet from "./ClashSheet.svelte";
+  import { trainingQuestion } from "./clashes";
   import Icon from "../app/shell/Icon.svelte";
   import StylePicker from "./StylePicker.svelte";
   import PlacePicker from "./PlacePicker.svelte";
@@ -186,14 +189,28 @@
     if (!form.weekdays.length || !form.startsOn) return showMissing("schedule");
     if (!form.shortName) form.shortName = form.name.split(" ")[0];
     applyFee();
-    if (selected === "new") {
-      const created = await createSeries(form);
+    // Over something already on? Asked first; closing the question saves nothing. What was asked about goes with the
+    // save, which is refused if something else went on then since: asked again, once (ADR 0122)
+    const question = trainingQuestion(
+      form,
+      db.series.find((x) => x.id === form!.id),
+    );
+    for (let tries = 0; tries < 2; tries++) {
+      const chosen = question ? await clashSheet?.ask(question, form.name) : [];
+      if (chosen === null) return;
+      const asked = question ? (clashSheet?.asked() ?? []) : undefined;
+      const done = selected === "new" ? await createSeries(form, asked) : await updateSeries(form, asked);
+      if (done === null) {
+        if (saving.refused === 409 && question) continue;
+        return;
+      }
+      await cancelClashes(chosen ?? []);
       // The blank form gives way to the new training's editor, in the same panel
-      if (created) oncreated?.(created.id);
-    } else {
-      await updateSeries(form);
+      if (selected === "new") oncreated?.((done as { id: number }).id);
+      return;
     }
   }
+  let clashSheet = $state<ClashSheet | undefined>();
 
   // Cancelling keeps the session (a row in D1), so whoever signed up can be told.
   function toggleCancel(id: number) {
@@ -435,6 +452,7 @@
     </form>
   {/if}
 </div>
+<ClashSheet bind:this={clashSheet} />
 
 <style>
   .nights {

@@ -10,6 +10,7 @@ import { fillingUp } from "../entries/entries";
 import type { SeriesRef } from "../dues/dues";
 import { scribe } from "@cougars/shared/scribe";
 import { placeFields } from "../settings/venues";
+import { answeredGuard, trainingNights } from "../calendar/clashes";
 
 interface SeriesRow {
   id: number;
@@ -240,21 +241,34 @@ const seriesParams = (f: Awaited<ReturnType<typeof seriesFields>>): Param[] => [
   f.active ? 1 : 0,
 ];
 
+/** A save with nothing to keep to (ADR 0122): no condition. */
+const ANY = { sql: "1", params: [] as Param[] };
+const SOMETHING_NEW = "Something else is on then now. Have a look again.";
+const timesOf = (f: Awaited<ReturnType<typeof seriesFields>>) => ({
+  ...f,
+  weekdays: f.weekdays.split(",") as Weekday[],
+});
+
 /** A new training, with whatever goes with it (`also`) in the same batch: all of it checked first, so a refusal makes
  * nothing (#131). */
 export async function createSeries(db: D1Database, o: Record<string, unknown>, today: string, also: Also = () => []) {
   const f = await seriesFields(db, o);
   const slug = await freeSlug(db, "training_series", slugify(f.shortName || f.name));
+  // Over something already on (ADR 0122): what was asked about holds to the write, or nothing is made
+  const clear =
+    (await answeredGuard(db, await trainingNights(db, timesOf(f), null, today), o.clashes, null, today)) ?? ANY;
   const [res] = await batch(db, [
     statement(
       db,
       `INSERT INTO training_series (name, short_name, icon, tone, repeat_every, weekdays, starts_on, ends_on, start_time,
          end_time, venue_id, venue, map_url, capacity, goalie_capacity, signup_opens_days, public, active, slug)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [...seriesParams(f), slug],
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${clear.sql}`,
+      [...seriesParams(f), slug, ...clear.params],
     ),
+    // Not made, it has no id: its fees go nowhere
     ...also({ sql: "(SELECT id FROM training_series WHERE slug = ?)", params: [slug] }),
   ]);
+  if (!res.meta.changes) throw new HttpError(409, SOMETHING_NEW);
   await ensureSessions(db, today);
   await syncSeries(db, Number(res.meta.last_row_id));
   return { id: Number(res.meta.last_row_id), slug };
@@ -278,17 +292,20 @@ export async function updateSeries(
   if (!(await first(db, "SELECT 1 FROM training_series WHERE id = ?", [id])))
     throw new HttpError(404, "No such training.");
   const f = await seriesFields(db, o);
-  await batch(db, [
+  // Moved over something already on (ADR 0122): what was asked about holds to every statement, or nothing changes
+  const clear = (await answeredGuard(db, await trainingNights(db, timesOf(f), id, today), o.clashes, id, today)) ?? ANY;
+  const [res] = await batch(db, [
     statement(
       db,
       `UPDATE training_series SET name = ?, short_name = ?, icon = ?, tone = ?, repeat_every = ?, weekdays = ?,
          starts_on = ?, ends_on = ?, start_time = ?, end_time = ?, venue_id = ?, venue = ?, map_url = ?, capacity = ?, goalie_capacity = ?,
-         signup_opens_days = ?, public = ?, active = ? WHERE id = ?`,
-      [...seriesParams(f), id],
+         signup_opens_days = ?, public = ?, active = ? WHERE id = ? AND ${clear.sql}`,
+      [...seriesParams(f), id, ...clear.params],
     ),
-    ...also({ sql: "?", params: [id] }),
-    fillingUp(db, "session", { sql: "s.series_id = ?", params: [id] }, today, now),
+    ...also({ sql: `(SELECT ? WHERE ${clear.sql})`, params: [id, ...clear.params] }),
+    fillingUp(db, "session", { sql: `s.series_id = ? AND ${clear.sql}`, params: [id, ...clear.params] }, today, now),
   ]);
+  if (!res.meta.changes) throw new HttpError(409, SOMETHING_NEW);
   const keep = new Set(
     f.active
       ? datesToMake(
