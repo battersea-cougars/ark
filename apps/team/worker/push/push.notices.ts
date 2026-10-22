@@ -176,3 +176,28 @@ export const draftOpen: Notify<string | undefined> = {
     }));
   },
 };
+
+/**
+ * An open draft stepped back to its drawn order (ADR 0074): each captain hears it's paused, the picks so far off; they
+ * hear it open again (draftOpen) when it does.
+ */
+export const draftPaused: Notify<string | undefined> = {
+  before: draftOpen.before,
+  after: async (c, before) => {
+    if (before !== "open") return [];
+    const captains = await all<{ name: string; slug: string | null; memberId: number }>(
+      c.env.DB,
+      `SELECT t.name, ty.slug, tt.captain_member_id memberId FROM tournaments t
+       JOIN tournament_teams tt ON tt.tournament_id = t.id LEFT JOIN tournament_types ty ON ty.id = t.type_id
+       WHERE t.id = ? AND t.draft_state = 'none' AND tt.captain_member_id IS NOT NULL`,
+      [id(c)],
+    );
+    return captains.map((x) => ({
+      to: [x.memberId],
+      topic: "draft" as const,
+      title: `${x.name} Draft Paused`,
+      body: "Back to the drawn order. You'll hear when it opens again.",
+      path: x.slug ? `/tournaments/${x.slug}/draft` : "/",
+    }));
+  },
+};

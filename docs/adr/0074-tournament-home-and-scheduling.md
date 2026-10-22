@@ -1,7 +1,7 @@
 # 0074. A tournament's home follows the day in three acts, and the next one is scheduled from it in a few questions
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-21
+- **Date:** 2026-10-08 · updated 2026-10-22
 - **Merges:** 0086, 0087, 0088, 0089, 0091
 
 ## Context
@@ -105,6 +105,27 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   [0065](0065-page-frame-and-admin-actions.md)) holds what has no page of its own: the tournament's settings (day,
   sign-up, captains and draft day, rules, awards) and Confirm the awards. The draft is run on its own tab and the
   fight card made on its own, so neither is in the menu.
+- **An admin can always step it back one step** (Manage: one item, "Back to …", while there's a step before it).
+  The steps are the front page's track and the draft's own (`src/lib/step-back.ts`, the same for the app and the
+  Worker); teams that enter skip the draft's:
+
+  | It's at                      | Back to                     | What goes                                                           | Asked                   |
+  | ---------------------------- | --------------------------- | ------------------------------------------------------------------- | ----------------------- |
+  | a match started or played    | the fight card, not started | results, goals, penalties, clocks, scoresheets; the playoffs' teams | red, counted            |
+  | the fight card out           | the teams                   | the fixtures (made again the same)                                  | quietly                 |
+  | a draft closed               | the draft, open             | nothing                                                             | no                      |
+  | the draft open               | the drawn order             | the picks so far ("Draft paused" to its captains)                   | red, counted (none: no) |
+  | the order drawn              | before the draw             | the order                                                           | quietly                 |
+  | sign-up past its closing day | sign-up open                | the closing day                                                     | no                      |
+
+  `POST /api/tournaments/:id/step-back { from }` says which step it's leaving; it's refused (409) if the tournament
+  has moved on since, so a tap from a page that's out of date never takes a second step. Each is one batch whose
+  statements only do anything while it's still at that step, so two taps at once step back once
+  ([0121](0121-load-and-concurrency.md)). An admin (`manage:Tournament`) steps back any step; whoever runs the draft
+  (`run:Draft`) the draft's three, from the Draft page's Manage. It's on the record as `tournament.stepped_back`, with
+  the step and the picks, order, matches, results and goals before and after. Only an open draft stepped back is
+  news: each captain hears "<tournament> Draft Paused"; nothing else is sent. The awards an admin confirmed stay.
+
 - **When nothing's coming up** (the last one's been played, or there's never been one), an admin sees **Next
   Kumite** as the main button on the page, in the big "No Kumite yet". This is the one admin button on the page
   outside Manage.
@@ -209,3 +230,5 @@ License) cut to just those characters (under 5 KB, self-hosted). Other series ha
   link at the foot); before the day it shows the first match (and yours), on the day only the match on now and the
   next (no latest results, no separate Your next fight). The tab is "Fight card", not "Fights", and History's page
   says "Fight card", not "Every fight".
+- 2026-10-22: Back a step, from any step, in Manage: one item, asking as much as it costs; one route that says the
+  step it's leaving and is one batch.

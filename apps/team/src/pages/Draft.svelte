@@ -27,6 +27,8 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
+  import StepBack from "../lib/StepBack.svelte";
+  import { BACK_SAYS, BACK_TO, backFrom } from "../lib/step-back";
   import Sheet from "../lib/Sheet.svelte";
   import { phone } from "../lib/viewport.svelte";
   import type { IconName } from "../app/shell/icons";
@@ -469,6 +471,7 @@
     run: () => void;
   }
   let manageOpen = $state(false);
+  let stepper = $state<ReturnType<typeof StepBack>>();
   const tools = $derived.by(() => {
     if (!tournament) return [] as Tool[];
     const id = tournament.id;
@@ -478,7 +481,7 @@
       if (running && (!played || canClear))
         list.push({
           icon: "undo",
-          label: "Reopen the draft",
+          label: BACK_TO.teams,
           sub: !games.length
             ? "The captains carry on where they left off"
             : played
@@ -495,6 +498,15 @@
         });
       return list;
     }
+    // Back a step of the draft's own (ADR 0074): open, back to the drawn order; drawn, back to before the draw
+    const from = backFrom(tournament, londonToday());
+    if (running && (from === "draft" || from === "order"))
+      list.push({
+        icon: "undo",
+        label: BACK_TO[from],
+        sub: BACK_SAYS[from],
+        run: () => ((manageOpen = false), stepper?.start()),
+      });
     if (running && open && made)
       list.push({
         icon: "undo",
@@ -1152,6 +1164,7 @@
     </div>
   {/if}
 {/snippet}
+{#if running && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 {#if tools.length}
   {#if phone.current}
     <Sheet bind:open={manageOpen} title="Manage the draft">{@render jobList()}</Sheet>

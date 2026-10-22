@@ -4,6 +4,9 @@ import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route"
 import { setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
+import { backFromIn, stepBack, whereItIs } from "./step-back";
+import { draftPaused } from "../push/push.notices";
+import { londonToday } from "../../src/lib/dates";
 import { body, json } from "../api/api.http";
 import {
   createTournament,
@@ -108,6 +111,25 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments"],
     // The round robin and its playoffs, once the teams are set (ADR 0061)
     handle: async (c) => (await makeFixtures(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/step-back$/,
+    // Where it was and where it is: the step, and the picks, order, matches, results and goals each side
+    audit: {
+      event: "tournament.stepped_back",
+      subject: (c) => whereItIs(c.env.DB, id(c), londonToday(new Date(c.now))),
+    },
+    // An admin, or whoever runs the draft for the draft's own steps: step-back.ts decides
+    action: "authenticated",
+    changes: ["tournaments"],
+    // A draft that was open and isn't: its captains hear it's paused
+    notify: draftPaused,
+    // { from }: the step it's leaving (lib/step-back.ts), refused if it's moved on (ADR 0074)
+    handle: async (c) => {
+      await stepBack(c.env.DB, id(c), backFromIn(await body(c.request)), c, c.now);
+      return ok();
+    },
   },
   {
     method: "DELETE",

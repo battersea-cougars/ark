@@ -580,6 +580,9 @@ export const reopenDraft = (tournamentId: number, fixtures: "keep" | "clear") =>
     () => api("POST", `/api/tournaments/${tournamentId}/draft/reopen`, { fixtures }),
     fixtures === "clear" ? "The draft is open again, the fixtures cleared" : "The draft is open again",
   );
+/** One step of a tournament's workflow back, from the step it's at (lib/step-back.ts, ADR 0074). */
+export const stepBack = (tournamentId: number, from: string, said: string) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/step-back`, { from }), said);
 /** An admin clears the fixtures, results and all, to be made again (ADR 0061). */
 export const clearFixtures = (tournamentId: number) =>
   save(() => api("DELETE", `/api/tournaments/${tournamentId}/fixtures`), "Fixtures cleared");

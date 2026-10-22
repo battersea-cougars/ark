@@ -19,6 +19,8 @@
   import { phone } from "./viewport.svelte";
   import { londonToday } from "./dates";
   import type { IconName } from "../app/shell/icons";
+  import StepBack from "./StepBack.svelte";
+  import { BACK_SAYS, BACK_TO, backFrom } from "./step-back";
 
   let {
     type,
@@ -58,6 +60,7 @@
     run: () => void;
   }
   let menuOpen = $state(false);
+  let stepper = $state<ReturnType<typeof StepBack>>();
   // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
   // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
   // sheet on a phone (where it's mostly done, at the rink), a side drawer on a desktop. The next one isn't here: it's
@@ -76,6 +79,9 @@
         run: () => editTournament(t.id),
       },
     ];
+    // Back a step (ADR 0074): one item, whatever step it's at, while there's one before it
+    const from = backFrom(t, londonToday());
+    if (from) list.push({ icon: "undo", label: BACK_TO[from], sub: BACK_SAYS[from], run: () => stepper?.start() });
     if (t.awards.length)
       list.push({
         icon: "medal",
@@ -166,6 +172,7 @@
     >
   {/if}
 {/if}
+{#if admin && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 
 {#if can(granted(), "manage:Tournament")}<TournamentEditorPanel />{/if}
