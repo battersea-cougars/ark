@@ -22,7 +22,7 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     calendar: false,
     // Out of a full event: the first waiting is in, and hears it. A Quarterly Member in for a full training: the one
     // whose place they took is waiting now, and hears that
-    notify: places(kind),
+    notify: places,
     // You, in or out
     handle: async (c) => {
       const b = await body(c.request);
@@ -40,7 +40,7 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
         `SELECT member_id memberId, signup FROM ${TABLES[kind].table} WHERE ${TABLES[kind].key} = ? ORDER BY member_id`,
       ),
     },
-    notify: places(kind),
+    notify: places,
     action: "update:Event",
     // A past session's line-up is what a player's "played" counts
     changes:

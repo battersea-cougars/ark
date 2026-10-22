@@ -1,5 +1,5 @@
 // Training (ADR 0030, ADR 0076): series and their sessions, the register, and the night's teams.
-import { movedUp, places, sessionOff, teamsOut } from "../push/push.notices";
+import { places, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { seriesFeeChange } from "../dues/dues";
@@ -47,7 +47,7 @@ export const TRAINING_ROUTES: Route[] = [
     action: "manage:Training",
     changes: ["series", "sessions", "charges", "credits", "payments"],
     // A limit raised lets the first waiting in on each night, and they hear it
-    notify: movedUp,
+    notify: places,
     // Its fees too, for whoever sets fees (ADR 0007)
     handle: async (c) => {
       const b = await body(c.request);
@@ -137,7 +137,7 @@ export const TRAINING_ROUTES: Route[] = [
     // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
     action: "publish:Teams",
     changes: ["sessions", "charges", "credits", "payments"],
-    notify: movedUp,
+    notify: places,
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);
@@ -169,7 +169,7 @@ export const TRAINING_ROUTES: Route[] = [
     // Who came is who's charged (ADR 0007)
     changes: ["sessions", "members", "charges", "credits", "payments"],
     // A walk-in taken off frees a place
-    notify: places("session"),
+    notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team
     // maker's Let in (ADR 0030); the reply says where they went: { signup: "in" | "waitlist" | null }
     handle: async (c) => {

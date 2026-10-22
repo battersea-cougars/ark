@@ -285,14 +285,15 @@ CREATE TABLE attendance (
   walk_in INTEGER NOT NULL DEFAULT 0,
   recorded_by INTEGER REFERENCES members (id),
   recorded_at TEXT,
-  -- Moved up off the waiting list and not told yet (push.notices.ts movedUp): 'place' (a place came up) or 'let-in'
-  -- (the team maker). The notification takes it and clears it in one batch, so each move is told once
-  moved_up TEXT,
+  -- Moved and not told yet (push.notices.ts places): up off the waiting list, 'place' (a place came up) or 'let-in'
+  -- (the team maker); or 'bumped' down to it by a Quarterly Member. The notification takes it and clears it in one
+  -- batch, so each move is told once
+  moved TEXT,
   UNIQUE (session_id, member_id)
 );
 
 CREATE INDEX attendance_member ON attendance (member_id);
-CREATE INDEX attendance_moved_up ON attendance (id) WHERE moved_up IS NOT NULL;
+CREATE INDEX attendance_moved ON attendance (id) WHERE moved IS NOT NULL;
 
 CREATE TABLE tournament_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -302,13 +303,13 @@ CREATE TABLE tournament_entries (
   signup TEXT NOT NULL,
   signed_up_at TEXT NOT NULL,
   attended INTEGER,
-  -- Moved up off the waiting list and not told yet ('place'), as attendance.moved_up
-  moved_up TEXT,
+  -- Moved up off the waiting list and not told yet ('place'), as attendance.moved
+  moved TEXT,
   UNIQUE (tournament_id, member_id)
 );
 
 CREATE INDEX tournament_entries_member ON tournament_entries (member_id);
-CREATE INDEX tournament_entries_moved_up ON tournament_entries (id) WHERE moved_up IS NOT NULL;
+CREATE INDEX tournament_entries_moved ON tournament_entries (id) WHERE moved IS NOT NULL;
 
 CREATE TABLE club_event_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -317,13 +318,13 @@ CREATE TABLE club_event_entries (
   -- in / waitlist / out
   signup TEXT NOT NULL,
   signed_up_at TEXT NOT NULL,
-  -- Moved up off the waiting list and not told yet ('place'), as attendance.moved_up
-  moved_up TEXT,
+  -- Moved up off the waiting list and not told yet ('place'), as attendance.moved
+  moved TEXT,
   UNIQUE (event_id, member_id)
 );
 
 CREATE INDEX club_event_entries_member ON club_event_entries (member_id);
-CREATE INDEX club_event_entries_moved_up ON club_event_entries (id) WHERE moved_up IS NOT NULL;
+CREATE INDEX club_event_entries_moved ON club_event_entries (id) WHERE moved IS NOT NULL;
 
 CREATE TABLE session_teams (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

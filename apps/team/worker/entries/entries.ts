@@ -63,6 +63,7 @@ export const quarterlySkater = (kind: EntryKind) =>
 /**
  * A Quarterly skater waiting for a full training takes the place of the last skater in who pays as they go (not a
  * walk-in, never a keeper), who waits, at the top of their queue (their sign-up time is kept). One statement, so both move or neither.
+ * The one bumped is marked to be told (`moved`, push.notices.ts places), in the same statement, so they're told once.
  */
 const bumping = (db: D1Database, sessionId: number, memberId: number) =>
   statement(
@@ -76,7 +77,8 @@ const bumping = (db: D1Database, sessionId: number, memberId: number) =>
        SELECT e.id FROM attendance e
        WHERE e.session_id = ? AND e.member_id = ? AND e.signup = 'waitlist' AND ${SKATER}
          AND ${quarterlyOn("e.member_id", SESSION_DAY)})
-     UPDATE attendance SET signup = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN 'in' ELSE 'waitlist' END
+     UPDATE attendance SET signup = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN 'in' ELSE 'waitlist' END,
+       moved = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN NULL ELSE 'bumped' END
      WHERE EXISTS (SELECT 1 FROM bumped) AND EXISTS (SELECT 1 FROM waiting)
        AND attendance.id IN (SELECT id FROM bumped UNION ALL SELECT id FROM waiting)`,
     [sessionId, sessionId, memberId],
@@ -180,7 +182,7 @@ function putting(
 ) {
   const { table, key } = TABLES[kind];
   // A fresh answer clears what the register said about an old one, and a move up not told yet: it's old news
-  const reset = (kind === "session" ? ", attended = NULL, walk_in = 0" : "") + ", moved_up = NULL";
+  const reset = (kind === "session" ? ", attended = NULL, walk_in = 0" : "") + ", moved = NULL";
   const join = typeof signup === "object";
   return statement(
     db,
@@ -197,7 +199,7 @@ const put = (...args: Parameters<typeof putting>) => putting(...args).run();
  * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. On a
  * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. Sent in
  * the same batch as whatever freed the place, so nobody signing up in between can take it first. Whoever moves up is
- * marked to be told (`moved_up`, push.notices.ts movedUp). */
+ * marked to be told (`moved`, push.notices.ts places). */
 function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
   const { table, key } = TABLES[kind];
   const kept = kind === "session";
@@ -205,7 +207,7 @@ function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, n
   const { limit } = places;
   return statement(
     db,
-    `UPDATE ${table} SET signup = 'in', moved_up = 'place'${kept ? "" : ", signed_up_at = ?"}
+    `UPDATE ${table} SET signup = 'in', moved = 'place'${kept ? "" : ", signed_up_at = ?"}
      WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'${side}
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
        AND ${roomIn(kind, places.keeper)}`,
@@ -221,7 +223,7 @@ const PARENTS = { session: "training_sessions", tournament: "tournaments", event
  * Members first). `scope` picks the events, as SQL on `s` (the training session, with `ts` its series) or `t` (the
  * tournament or club event). One statement, so the room is counted as it's taken (ADR 0121); send it in the batch
  * that freed the places. A night that's over, or called off, is left as it is. Whoever moves up is marked to be told
- * (`moved_up`), as by `movingUp`.
+ * (`moved`), as by `movingUp`.
  */
 export function fillingUp(
   db: D1Database,
@@ -235,7 +237,7 @@ export function fillingUp(
     const side = (x: string) => `COALESCE(${keeperRow(x)}, 0)`;
     return statement(
       db,
-      `UPDATE attendance SET signup = 'in', moved_up = 'place' WHERE id IN (
+      `UPDATE attendance SET signup = 'in', moved = 'place' WHERE id IN (
          SELECT id FROM (
            SELECT e.id, ${placesFor(side("e"))} places,
              ROW_NUMBER() OVER (PARTITION BY e.session_id, ${side("e")}
@@ -251,7 +253,7 @@ export function fillingUp(
   const live = kind === "tournament" ? "t.held_on >= ?" : "t.cancelled_at IS NULL AND t.starts_at >= ?";
   return statement(
     db,
-    `UPDATE ${table} SET signup = 'in', moved_up = 'place', signed_up_at = ? WHERE id IN (
+    `UPDATE ${table} SET signup = 'in', moved = 'place', signed_up_at = ? WHERE id IN (
        SELECT id FROM (
          SELECT e.id, t.capacity places,
            ROW_NUMBER() OVER (PARTITION BY e.${key} ORDER BY e.signed_up_at, e.id) rn,
@@ -352,12 +354,12 @@ export async function setPlayer(
  * The team maker lets someone waiting for a training in, over its limit if need be (ADR 0076): the limit is what
  * members see and what sign-up keeps to, not a wall. They keep their sign-up time, so they take their place in the
  * one order. One statement: refused unless they're waiting and the session's on. They're marked to be told it was the
- * team maker (`moved_up`).
+ * team maker (`moved`).
  */
 export async function letIn(db: D1Database, sessionId: number, memberId: number) {
   const res = await run(
     db,
-    `UPDATE attendance SET signup = 'in', moved_up = 'let-in'
+    `UPDATE attendance SET signup = 'in', moved = 'let-in'
      WHERE session_id = ? AND member_id = ? AND signup = 'waitlist'
        AND EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND cancelled_at IS NULL)`,
     [sessionId, memberId, sessionId],
@@ -461,7 +463,7 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
     // moves up, where there's room, and is told
     statement(
       db,
-      `UPDATE attendance SET signup = 'in', moved_up = 'place'
+      `UPDATE attendance SET signup = 'in', moved = 'place'
        WHERE id IN (
          SELECT (SELECT e.id FROM attendance e WHERE e.session_id = s.id AND e.signup = 'waitlist'
                    AND ${keeperRow("e")} = ${keeper}

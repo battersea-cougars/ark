@@ -1,5 +1,5 @@
 // Club events: one-offs on the calendar (ADR 0042), and what's already on when something new would be (ADR 0122).
-import { movedUp } from "../push/push.notices";
+import { places } from "../push/push.notices";
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
 import { findClashes } from "./clashes";
@@ -43,7 +43,7 @@ export const EVENTS_ROUTES: Route[] = [
     action: "update:Event",
     changes: ["clubEvents"],
     // A limit raised lets the first waiting in, and they hear it
-    notify: movedUp,
+    notify: places,
     handle: async (c) => (await updateClubEvent(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {

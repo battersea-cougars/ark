@@ -8,42 +8,32 @@ import type { Notice } from "./push";
 import { announcementSummary } from "../announcements/announcements";
 import { nth } from "../../src/lib/draft";
 
-/** An event as a notification names it, and where it is in the app. */
-async function eventOf(db: D1Database, kind: EntryKind, eventId: number) {
-  if (kind === "session") {
-    const s = await first<{ heldOn: string; slug: string }>(
-      db,
-      `SELECT s.held_on heldOn, ts.slug FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
-       WHERE s.id = ?`,
-      [eventId],
-    );
-    return s && { name: formatDayDate(s.heldOn), path: `/training/${s.slug}` };
-  }
-  if (kind === "tournament") {
-    const t = await first<{ name: string; slug: string | null }>(
-      db,
-      `SELECT t.name, ty.slug FROM tournaments t LEFT JOIN tournament_types ty ON ty.id = t.type_id WHERE t.id = ?`,
-      [eventId],
-    );
-    return t && { name: t.name, path: t.slug ? `/tournaments/${t.slug}` : "/" };
-  }
-  const e = await first<{ title: string }>(db, "SELECT title FROM club_events WHERE id = ?", [eventId]);
-  return e && { name: e.title, path: "/calendar" };
+/** A training night as a notification names it (its day), and where it is in the app. */
+async function sessionOf(db: D1Database, sessionId: number) {
+  const s = await first<{ heldOn: string; slug: string }>(
+    db,
+    `SELECT s.held_on heldOn, ts.slug FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
+     WHERE s.id = ?`,
+    [sessionId],
+  );
+  return s && { name: formatDayDate(s.heldOn), path: `/training/${s.slug}` };
 }
 
-/** Who's in and who's waiting for an event (the route's first path number), in its one order (aheadIn). */
-const answers = (kind: EntryKind) => (c: Ctx) =>
+/** Who's in and who's waiting for an event, in its one order (aheadIn). */
+const answersTo = (db: D1Database, kind: EntryKind, eventId: number) =>
   all<{ memberId: number; signup: string }>(
-    c.env.DB,
+    db,
     `SELECT e.member_id memberId, e.signup FROM ${TABLES[kind].table} e WHERE e.${TABLES[kind].key} = ?
        AND e.signup IN ('in', 'waitlist') ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id`,
-    [id(c)],
+    [eventId],
   );
+/** The same, for the route's event (its first path number). */
+const answers = (kind: EntryKind) => (c: Ctx) => answersTo(c.env.DB, kind, id(c));
 
-/** One who moved up off a waiting list and hasn't been told yet (`moved_up`), with what they moved up into. */
-interface MovedUp {
+/** One whose place moved and who hasn't been told yet (`moved`), with the event it's on. */
+interface Moved {
   memberId: number;
-  why: "place" | "let-in";
+  moved: "place" | "let-in" | "bumped";
   kind: EntryKind;
   eventId: number;
   name: string;
@@ -52,88 +42,84 @@ interface MovedUp {
 }
 
 /**
- * Off the waiting list (topic `places`): everyone who moved up into a place and hasn't been told, wherever they moved
- * up (someone out, an admin taking someone off, a limit raised, an account deleted, the register, the team maker's
- * Let in). Each move marked itself (`moved_up`, entries.ts); here they're read and cleared in one batch, so however
- * many requests finish at once (a double tap, two leaving together) each move is told once, by whichever comes first
- * (ADR 0121). Only someone still in hears it.
+ * Places changed hands (topic `places`), however they did (someone out, an admin taking someone off, a limit raised,
+ * an account deleted, the register, the team maker's Let in, a Quarterly Member signing up for a full training):
+ * whoever moved up off the waiting list hears they're in; whoever a Quarterly Member bumped to it (ADR 0030, entries.ts
+ * bump) hears it, and where they are in line, before they turn up (#97). Each move marked itself (`moved`,
+ * entries.ts); here every mark is read and cleared in one batch, so however many requests finish at once (a double
+ * tap, two leaving or joining together) each move is told once, by whichever comes first (ADR 0121). Only someone
+ * still where the move put them hears it.
  */
-async function movedUpNotices(c: Ctx): Promise<Notice[]> {
+async function placesMoved(c: Ctx): Promise<Notice[]> {
   const db = c.env.DB;
-  const [taken] = await batch<MovedUp>(db, [
+  const where = `IS NOT NULL AND signup = CASE moved WHEN 'bumped' THEN 'waitlist' ELSE 'in' END`;
+  const [taken] = await batch<Moved>(db, [
     statement(
       db,
-      `SELECT a.member_id memberId, a.moved_up why, 'session' kind, s.id eventId, ts.name, s.held_on heldOn,
+      `SELECT a.member_id memberId, a.moved, 'session' kind, s.id eventId, ts.name, s.held_on heldOn,
          '/training/' || ts.slug path
        FROM attendance a JOIN training_sessions s ON s.id = a.session_id JOIN training_series ts ON ts.id = s.series_id
-       WHERE a.moved_up IS NOT NULL AND a.signup = 'in'
+       WHERE a.moved ${where}
        UNION ALL
-       SELECT e.member_id, e.moved_up, 'tournament', t.id, t.name, NULL, COALESCE('/tournaments/' || ty.slug, '/')
+       SELECT e.member_id, e.moved, 'tournament', t.id, t.name, NULL, COALESCE('/tournaments/' || ty.slug, '/')
        FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id
          LEFT JOIN tournament_types ty ON ty.id = t.type_id
-       WHERE e.moved_up IS NOT NULL AND e.signup = 'in'
+       WHERE e.moved ${where}
        UNION ALL
-       SELECT e.member_id, e.moved_up, 'event', t.id, t.title, NULL, '/calendar'
+       SELECT e.member_id, e.moved, 'event', t.id, t.title, NULL, '/calendar'
        FROM club_event_entries e JOIN club_events t ON t.id = e.event_id
-       WHERE e.moved_up IS NOT NULL AND e.signup = 'in'
-       ORDER BY kind, eventId, why, memberId`,
+       WHERE e.moved ${where}
+       ORDER BY kind, eventId, moved, memberId`,
       [],
     ),
     ...Object.values(TABLES).map((t) =>
-      statement(db, `UPDATE ${t.table} SET moved_up = NULL WHERE moved_up IS NOT NULL`, []),
+      statement(db, `UPDATE ${t.table} SET moved = NULL WHERE moved IS NOT NULL`, []),
     ),
   ]);
-  const told = new Map<string, Notice>();
+  const up = new Map<string, Notice>();
+  const down: Notice[] = [];
+  const lines = new Map<number, Promise<number[]>>();
   for (const m of taken.results) {
-    const key = `${m.kind} ${m.eventId} ${m.why}`;
-    const notice = told.get(key) ?? { to: [], topic: "places", title: "You're in", body: youreIn(m), path: m.path };
+    if (m.moved === "bumped") {
+      // Where they are in line now: the waiting list in its one order
+      if (!lines.has(m.eventId))
+        lines.set(
+          m.eventId,
+          answersTo(db, "session", m.eventId).then((a) =>
+            a.filter((x) => x.signup === "waitlist").map((x) => x.memberId),
+          ),
+        );
+      const waiting = await lines.get(m.eventId)!;
+      const n = waiting.indexOf(m.memberId);
+      const place = n <= 0 ? "first in line" : `number ${n + 1} in line`;
+      down.push({
+        to: [m.memberId],
+        topic: "places",
+        title: "On the waitlist",
+        body: `You're on the waitlist for ${formatDayDate(m.heldOn!)}, ${place}: a Quarterly Member took the last place.`,
+        path: m.path,
+      });
+      continue;
+    }
+    const key = `${m.kind} ${m.eventId} ${m.moved}`;
+    const notice = up.get(key) ?? { to: [], topic: "places", title: "You're in", body: youreIn(m), path: m.path };
     (notice.to as number[]).push(m.memberId);
-    told.set(key, notice);
+    up.set(key, notice);
   }
-  return [...told.values()];
+  return [...up.values(), ...down];
 }
 
 /** What "You're in" says: a training with its day, and a nudge; who let them in, if it was the team maker. */
-function youreIn(m: MovedUp) {
+function youreIn(m: Moved) {
   const what = m.heldOn ? `${m.name}, ${formatDayDate(m.heldOn)}` : m.name;
-  if (m.why === "let-in") return `The team maker let you into ${what}. Don't make them regret it.`;
+  if (m.moved === "let-in") return `The team maker let you into ${what}. Don't make them regret it.`;
   return m.heldOn
     ? `A place came up for ${what}. Off the bench, skates on.`
     : `A place came up for ${what}. It's yours.`;
 }
 
-/** A change that may move people up off a waiting list (a limit raised, an account deleted): they hear it. */
-export const movedUp: Notify = { after: movedUpNotices };
-
-/**
- * Places changed hands (topic `places`): whoever moved up off the waiting list hears they're in (movedUp). Whoever was
- * in and is waiting now had their place taken by a Quarterly Member signing up for a full training, the only thing
- * that does that (ADR 0030, entries.ts bump): they hear it, and where they are in line, before they turn up (#97).
- */
-export const places = (kind: EntryKind): Notify<{ memberId: number; signup: string }[]> => ({
-  before: answers(kind),
-  after: async (c, before) => {
-    const up = await movedUpNotices(c);
-    const was = new Map(before.map((a) => [a.memberId, a.signup]));
-    const waiting = (await answers(kind)(c)).filter((a) => a.signup === "waitlist").map((a) => a.memberId);
-    const down = waiting.filter((m) => was.get(m) === "in");
-    const event = down.length ? await eventOf(c.env.DB, kind, id(c)) : null;
-    if (!event) return up;
-    return [
-      ...up,
-      ...down.map((m): Notice => {
-        const place = waiting[0] === m ? "first in line" : `number ${waiting.indexOf(m) + 1} in line`;
-        return {
-          to: [m],
-          topic: "places",
-          title: "On the waitlist",
-          body: `You're on the waitlist for ${event.name}, ${place}: a Quarterly Member took the last place.`,
-          path: event.path,
-        };
-      }),
-    ];
-  },
-});
+/** Every route that can move someone's place (in, waiting, off) says `notify: places`. */
+export const places: Notify = { after: placesMoved };
 
 /** Each player's team on the night, by member id. */
 async function teamOf(c: Ctx) {
@@ -153,7 +139,7 @@ async function teamOf(c: Ctx) {
 export const teamsOut: Notify<Map<number, string>> = {
   before: teamOf,
   after: async (c, before) => {
-    const event = await eventOf(c.env.DB, "session", id(c));
+    const event = await sessionOf(c.env.DB, id(c));
     if (!event) return [];
     const now = await teamOf(c);
     const out = !before.size;
@@ -184,7 +170,7 @@ export const sessionOff: Notify<{ cancelled: string | null; who: number[] }> = {
   }),
   after: async (c, before) => {
     if (before.cancelled || !before.who.length || !(await cancelledAt(c))?.cancelled) return [];
-    const event = await eventOf(c.env.DB, "session", id(c));
+    const event = await sessionOf(c.env.DB, id(c));
     return event
       ? [
           {

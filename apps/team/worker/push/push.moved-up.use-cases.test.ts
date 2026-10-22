@@ -13,6 +13,8 @@ const ROSTER = [
   { name: "Mo Member", position: "F", rating: 55, email: "mo@example.com" },
   { name: "Wes Waiting", position: "F", rating: 50, email: "wes@example.com" },
   { name: "Val Waiting", position: "D", rating: 50, email: "val@example.com" },
+  { name: "Quinn Quarterly", position: "F", rating: 50, email: "quinn@example.com" },
+  { name: "Kit Quarterly", position: "F", rating: 50, email: "kit@example.com" },
 ];
 // NOW is Tuesday 6 October 2026: the next Friday is the 9th
 const NEXT_FRIDAY = "2026-10-09";
@@ -213,5 +215,60 @@ describe("moving up, at once (ADR 0121)", () => {
     expect((await f.night()).waitlist).toEqual([]);
     expect(w.pushes.map((p) => p.token).sort()).toEqual(["token-val@example.com", "token-wes@example.com"]);
     expect(w.pushes).toHaveLength(2);
+  });
+});
+
+// A Quarterly Member signing up for a full training takes the place of the last one in paying as they go (ADR 0030,
+// #97): that one hears they're on the waitlist, and where, once per bump however the requests interleave.
+describe("bumped to the waiting list", () => {
+  /** The full Friday, with Quinn and Kit made Quarterly Members (not signed up yet). */
+  async function withQuarterlies() {
+    const f = await fullFriday();
+    for (const name of ["Quinn Quarterly", "Kit Quarterly"])
+      expect((await f.dana.call("POST", `/api/members/${f.id(name)}/quarterly`, { quarterly: true })).status).toBe(200);
+    const quinn = await w.signedIn("quinn@example.com");
+    const kit = await w.signedIn("kit@example.com");
+    const signUp = (b: Browser) => b.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" }, tapAt());
+    return { ...f, quinn, kit, signUp };
+  }
+  const onTheWaitlist = (email: string) =>
+    expect.objectContaining({ token: `token-${email}`, title: "On the waitlist" });
+
+  it("the register for a member's Fridays puts a Quarterly walk-in in: the one bumped hears it", async () => {
+    const f = await withQuarterlies();
+    const res = await f.dana.call("PUT", `/api/members/${f.id("Quinn Quarterly")}/attendance`, {
+      marks: [{ sessionId: f.session.id, here: true }],
+    });
+    expect(res.status).toBe(200);
+    expect((await f.night()).waitlist).toEqual([f.id("Mo Member"), f.id("Wes Waiting"), f.id("Val Waiting")]);
+    expect(w.pushes).toEqual([
+      expect.objectContaining({
+        token: "token-mo@example.com",
+        title: "On the waitlist",
+        body: "You're on the waitlist for Fri 9 Oct, first in line: a Quarterly Member took the last place.",
+        path: "/training/friday",
+      }),
+    ]);
+  });
+
+  it.each(SEEDS)("a Quarterly Member's double tap bumps one, who hears it once (seed %i)", async (seed) => {
+    const f = await withQuarterlies();
+    w.db.interleave(seed);
+    await Promise.all([f.signUp(f.quinn), f.signUp(f.quinn)]);
+    w.db.interleave(null);
+    expect((await f.night()).waitlist[0]).toBe(f.id("Mo Member"));
+    expect(w.pushes).toEqual([onTheWaitlist("mo@example.com")]);
+  });
+
+  it.each(SEEDS)("two Quarterly Members at once bump both, and each hears it once (seed %i)", async (seed) => {
+    const f = await withQuarterlies();
+    w.db.interleave(seed);
+    await Promise.all([f.signUp(f.quinn), f.signUp(f.kit)]);
+    w.db.interleave(null);
+    expect((await f.night()).going.sort()).toEqual([f.id("Quinn Quarterly"), f.id("Kit Quarterly")].sort());
+    expect(w.pushes.map((p) => `${p.token} ${p.title}`).sort()).toEqual([
+      "token-mo@example.com On the waitlist",
+      "token-reg@example.com On the waitlist",
+    ]);
   });
 });
