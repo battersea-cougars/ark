@@ -239,3 +239,8 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   lifted, each with a row already for every pick still to come, so a pick fills its row and moves nothing. The bar's
   turn says how long till yours ("Team Charlie picking · you in 1"); the Next line goes. A phone keeps the pool and
   the teams a tab apart, filling the height, the teams with their rows to come too.
+- 2026-10-22: The teams wrap to the width there is ("we don't need to try to fit them all on one row mate", the user),
+  never past the page's edge, each team's badges (its place, yours, No goalie, Picking) on a line under its name so
+  a name is never cut; the room's teams wrap into rows sharing the height once a column would be under 14rem. The
+  step cards are their title and button ("superfluous", of "Who picks first is drawn at random, for everyone
+  watching"): only what stops a step, or that the draft isn't open yet, is said; how it runs is in Rules.

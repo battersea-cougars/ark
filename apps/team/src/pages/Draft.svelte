@@ -740,21 +740,23 @@
             onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
           />
           <h3 class="display">{teamName(i)}</h3>
-          <!-- Its place in the pick order (round one's), once drawn: the order lives here once the draft's open -->
+        </header>
+        <!-- Its badges on a line of their own under the name, the line always there so the cards line up and a name
+             never gives way to them: its place in round one's order (once drawn), and yours said in words, Picking
+             when it's your turn, a heads-up while you still need a goalie; another team's turn -->
+        <div class="panel-badges">
           {#if typeof t.pick === "number" && phase !== "closed" && !yours}<span
               class="pickno num"
               title="Picks {nth(t.pick)} in round one">{nth(t.pick)}</span
             >{/if}
           {#if yours}
-            <!-- Yours: said in words; Picking when it's your turn (the strip above says how long till then), and a
-                 heads-up while you still need a goalie -->
             {#if open && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span>{/if}
             {#if live && turnIn(i) === 0}<span class="badge red"><Icon name="clock" size={13} />Picking</span>
             {:else}<span class="badge">Your team</span>{/if}
           {:else}
             {@render turnBadge(i)}
           {/if}
-        </header>
+        </div>
         {@render roster(i, yours && live && untilMine >= 0)}
       </div>
     {/each}
@@ -853,9 +855,7 @@
           {#snippet body()}
             <DraftOrder {type} captains={order} {drawn} plain={!settled} onshown={() => (drawShown = true)} />
           {/snippet}
-          {#if drawn}Drawing the order…
-          {:else if running}Who picks first is drawn at random, for everyone watching.
-          {:else}<strong>Draft not open yet.</strong> The pick order's drawn first, for everyone watching.{/if}
+          {#if drawn}Drawing the order…{:else if !running}<strong>Draft not open yet.</strong>{/if}
           {#snippet action()}
             {#if running}
               <!-- Kept while the names shuffle, so nothing moves until the card lets go -->
@@ -869,14 +869,15 @@
         {#if settled}
           <div in:fly={{ y: 24, duration: prefersReducedMotion ? 0 : 360, delay: prefersReducedMotion ? 0 : 320 }}>
             <DraftStep {type} mark="open" title="Open the draft">
-              {#if !running}<strong>Draft not open yet.</strong> It opens when whoever runs it says go.
-              {:else if short}<span class="warn"
+              <!-- Just what someone needs: what stops it opening, or that it isn't open (how it runs is in Rules; a
+                   captain's place is on the order row above) -->
+              {#if running && short}<span class="warn"
                   >A team's at least {MIN_TEAM_SIZE}: needs {needed} signed up, {pool.length} so far.</span
                 >
-              {:else if tooFew}<span class="warn"
+              {:else if running && tooFew}<span class="warn"
                   >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
                 >
-              {:else}Opening it tells each captain where they pick. Round one in this order, snaking back each round.{/if}
+              {:else if !running}<strong>Draft not open yet.</strong>{/if}
               {#snippet action()}
                 {#if running}
                   <button
@@ -895,12 +896,10 @@
     <!-- The last step: everyone's picked, and one tap closes the draft and makes the fixtures -->
     {#if open && !pool.length}
       <DraftStep {type} mark="sealed" seal title="Seal the teams">
-        {#if !running}<strong>Everyone's picked.</strong> Whoever runs the draft closes it to set the teams.
-        {:else if tooFew && !games.length}<span class="warn"
+        {#if running && tooFew && !games.length}<span class="warn"
             >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
           >
-        {:else}<strong>Everyone's picked.</strong>
-          {makesFixtures ? "Close it to set the teams and make the fixtures." : "Close it to set the teams."}{/if}
+        {:else}<strong>Everyone's picked.</strong>{/if}
         {#snippet action()}
           {#if running}
             <button class="btn primary" disabled={busy} onclick={() => finish()}
@@ -1034,35 +1033,39 @@
     {:else if room && columns}
       <!-- The draft room on a desktop: the window's height, the pool down the left and every team a column beside
            it, in pick order; each scrolls inside itself. The team on the clock is lit, yours marked -->
-      <div class="board" in:fade={viewsIn} style:--lanes={teams.length}>
+      <div class="board" in:fade={viewsIn}>
         <div class="lane-pool">{@render playersView()}</div>
-        {#each teams as t, i (t.id ?? i)}
-          <section
-            class="lane"
-            class:on-clock={live && i === clock}
-            class:yours={i === myTeam}
-            aria-label={teamName(i)}
-          >
-            <header>
-              <TeamCrest
-                among={crestNames}
-                name={teamName(i)}
-                logo={t.logo}
-                tone={teamTone(i)}
-                onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
-              />
-              <h3 class="display">{teamName(i)}</h3>
-            </header>
-            <!-- Its badges on a line of their own, always there, so a turn coming round moves nothing -->
-            <div class="lane-badges">
-              {#if i === myTeam}<span class="badge">Your team</span>{/if}
-              {#if i === myTeam && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span
-                >{/if}
-              {@render turnBadge(i)}
-            </div>
-            <div class="lane-rows">{@render roster(i)}</div>
-          </section>
-        {/each}
+        <!-- The teams: a column each while they fit, wrapping into rows that share the height when they don't -->
+        <div class="lanes">
+          {#each teams as t, i (t.id ?? i)}
+            <section
+              class="lane"
+              class:on-clock={live && i === clock}
+              class:yours={i === myTeam}
+              aria-label={teamName(i)}
+            >
+              <header>
+                <TeamCrest
+                  among={crestNames}
+                  name={teamName(i)}
+                  logo={t.logo}
+                  tone={teamTone(i)}
+                  onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
+                />
+                <h3 class="display">{teamName(i)}</h3>
+              </header>
+              <!-- Its badges on a line of their own, always there, so a turn coming round moves nothing -->
+              <div class="lane-badges">
+                {#if i === myTeam}<span class="badge">Your team</span>{/if}
+                {#if i === myTeam && !haveGoalie}<span class="badge amber"
+                    ><Icon name="alert" size={13} />No goalie</span
+                  >{/if}
+                {@render turnBadge(i)}
+              </div>
+              <div class="lane-rows">{@render roster(i)}</div>
+            </section>
+          {/each}
+        </div>
       </div>
     {:else if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
@@ -1926,11 +1929,15 @@
   }
   .done-teams {
     display: grid;
+    /* Never wider than the page's column: a grid's own column would otherwise grow to its widest line */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--s-6);
   }
   .done-teams .teams,
   .views .teams {
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    /* As many as fit the width there is, wrapping onto more rows; never one row for the sake of it */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    min-width: 0;
     align-items: start;
   }
   .pane {
@@ -1968,19 +1975,25 @@
     min-height: 3rem;
     padding: var(--s-2) var(--s-2) var(--s-1);
   }
-  .panel header .badge {
-    gap: 0.3rem;
-    flex-shrink: 0;
-  }
+  /* The name in full: it wraps rather than cut, with nothing beside it but the crest */
   .panel h3 {
     flex: 1;
     min-width: 0;
     margin: 0;
-    overflow: hidden;
     color: var(--fg);
     font-size: 1.25rem;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+  }
+  .panel-badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-1);
+    min-height: 1.6rem;
+    padding: 0 var(--s-2);
+  }
+  .panel-badges .badge {
+    gap: 0.3rem;
   }
   .teams {
     display: grid;
@@ -2195,6 +2208,10 @@
   .draft.board-on > :global(*) {
     flex-shrink: 0;
   }
+  /* …but the board, which takes the height that's left and no more */
+  .draft.board-on > .board {
+    flex: 1 1 0;
+  }
   .draft.room.fit > .pane,
   .draft.room.fit .players {
     flex: 1 1 auto;
@@ -2220,7 +2237,9 @@
   .board {
     display: grid;
     flex: 1 1 auto;
-    grid-template-columns: minmax(25rem, 1.4fr) repeat(var(--lanes), minmax(0, 1fr));
+    grid-template-columns: minmax(25rem, 1fr) minmax(0, 2.6fr);
+    /* The window's height left, however many rows of teams: they share it and scroll inside */
+    grid-template-rows: minmax(0, 1fr);
     gap: var(--s-4);
     min-height: 0;
   }
@@ -2264,6 +2283,19 @@
     min-height: 3rem;
     font-size: var(--text-md);
   }
+  /* A column per team while each has 14rem; past that they wrap into rows, the rows sharing the height (each column
+     scrolling inside), and the board scrolls only if even that's too short */
+  .lanes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    grid-auto-rows: minmax(16rem, 1fr);
+    gap: var(--s-4);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
   .lane {
     display: flex;
     flex-direction: column;
@@ -2289,11 +2321,9 @@
     flex: 1;
     min-width: 0;
     margin: 0;
-    overflow: hidden;
     color: var(--fg);
     font-size: 1.2rem;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
   }
   .lane-badges {
     display: flex;
