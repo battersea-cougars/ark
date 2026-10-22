@@ -292,7 +292,6 @@
         ? `You're on: the ${l.fight.type.shortName}`
         : `Your next ${l.fight.type.shortName} match`;
     const ev = l.event;
-    const said = !!ev.standing;
     // Not yours: what's on and when, plainly ("The Kumite's this Friday")
     if (l.role === "notIn") {
       const t = ev.kind === "tournament" ? (leadEvent?.entries as Tournament) : undefined;
