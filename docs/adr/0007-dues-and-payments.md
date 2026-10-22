@@ -247,3 +247,6 @@ session's fee.
   an admin sends them with Send reminders, Unpaid fees' main button (was: under Manage), after the same preview. Still
   at most one a week each; the five-minute cron still sends what a send left queued. "For now, let's just make it so
   the admin sends out the reminders with a button push. Then later we can build some kind of configurable schedule."
+- 2026-10-22: On Home, what you owe is at the foot (Your tab, with how much is overdue), and while some of it is
+  overdue (a charge whose day has passed, `lib/dues.ts` `overdue`) a loud pound icon in Home's header opens your tab
+  ([0118](0118-home-calls-to-action-then-feed.md)).

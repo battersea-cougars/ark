@@ -1,8 +1,8 @@
 <script lang="ts">
-  // Home (ADR 0118): a slim hello with the Calendar's button, the locker room (the club's announcements, then what
-  // you owe), then the lead: your next thing, whatever it is (a training night, your next fight, a draft you're a
-  // captain in, a tournament asking), with its action; then the feed: what needs you now, what's coming up after the
-  // lead, and for admins their own lines at the foot.
+  // Home is a feed (ADR 0118): a slim hello (with a loud icon while you've something overdue), the locker room (the
+  // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
+  // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
+  // you owe at the foot.
   import { untrack } from "svelte";
   import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
@@ -15,11 +15,19 @@
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
-  import { clock, formatDayDate, londonToday } from "../lib/dates";
+  import { clock, formatDayDate, londonToday, pounds } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
   import { teamTone } from "../lib/team-tones";
-  import { aged, leftOn } from "../lib/dues";
-  import { homeFeed, owedNotice, type Fight, type Lead, type UpcomingEvent, type When } from "../lib/home-feed";
+  import { aged, leftOn, overdue } from "../lib/dues";
+  import {
+    homeFeed,
+    owedNotice,
+    whenSaid,
+    type Fight,
+    type Lead,
+    type UpcomingEvent,
+    type When,
+  } from "../lib/home-feed";
   import DateBlock from "../lib/DateBlock.svelte";
   import { fill, slot } from "../lib/greetings";
   import {
@@ -107,14 +115,16 @@
     askNotify = false;
   }
 
-  // What you owe (ADR 0007): a notice in the locker room, after the club's, with Settle up opening your tab; it
-  // stays while you owe anything, and there's none when you're square
+  // What you owe (ADR 0007): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
+  // (a charge whose day has passed, lib/dues.ts) is also a loud icon in the hello, opening the same tab
+  const late = $derived(overdue(db.charges, who.id, today));
   const owing = $derived(
     owedNotice({
       pence: owedBy(who.id),
       kinds: chargesFor(who.id)
         .filter((c) => leftOn(c) > 0)
         .map((c) => c.kind),
+      overdue: late,
     }),
   );
 
@@ -138,6 +148,7 @@
       }),
   );
 
+  const typeOf = (t: Tournament) => db.tournamentTypes.find((x) => x.id === t.typeId);
   // Where you stand on an event: in, waiting, out, or not said
   const standingOn = (ev: Bookable) =>
     ev.entries.going.includes(who.id)
@@ -161,7 +172,7 @@
     };
   };
   const bookables = $derived.by(() => {
-    const all = [...calendar(today).filter((ev) => /^(session|tournament|oneoff):/.test(ev.key))];
+    const all = [...calendar(today).filter((ev) => /^(session|tournament|oneoff):\d+$/.test(ev.key))];
     for (const { t } of tournaments) {
       const ev = tournamentBookable(t);
       if (!all.some((x) => x.key === ev.key)) all.push(ev);
@@ -208,10 +219,23 @@
     });
   });
   const lead = $derived(feed.lead);
-  // An event's lead: its card (EventCard) wants the whole of it
-  const leadEvent = $derived(lead?.kind === "event" ? bookables.find((b) => b.key === lead.key) : undefined);
+  const notIn = $derived(lead?.kind === "event" && lead.role === "notIn");
+  // An event's hero: its card (EventCard) wants the whole of it. One you're not in has nothing to answer; a
+  // tournament's opens its Fight Card once the matches are out
+  const leadEvent = $derived.by(() => {
+    if (lead?.kind !== "event") return undefined;
+    const ev = bookables.find((b) => b.key === lead.key);
+    if (!ev || !notIn) return ev;
+    const t = ev.kind === "tournament" ? (ev.entries as Tournament) : undefined;
+    const slug = t && typeOf(t)?.slug;
+    return { ...ev, signup: false, href: slug && t.games?.length ? `/tournaments/${slug}/schedule` : ev.href };
+  });
+  // A tournament you're not in, its sign-up closed: the card says you're out, where In and Out would be
+  const outOfIt = $derived(notIn && leadEvent?.kind === "tournament");
   // A training night's lead: the locker room's word over it, and your team along its foot once the teams are out
-  const session = $derived(leadEvent?.kind === "training" ? (leadEvent.entries as TrainingSession) : undefined);
+  const session = $derived(
+    leadEvent?.kind === "training" && !notIn ? (leadEvent.entries as TrainingSession) : undefined,
+  );
   const series = $derived(session && db.series.find((x) => x.id === session.seriesId));
   const day = $derived(series?.shortName ?? "week");
   const isIn = $derived(!!session?.going.includes(who.id));
@@ -220,7 +244,6 @@
   const answered = $derived(isIn || waiting || declined);
   // Out since the teams were made: still on one until a team maker decides (ADR 0076), but not yours to play on
   const myTeam = $derived(isIn && session ? db.teams[session.id]?.find((t) => t.players.includes(who.id)) : undefined);
-  const typeOf = (t: Tournament) => db.tournamentTypes.find((x) => x.id === t.typeId);
   // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
   // table fills it), which game, where
   const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
@@ -264,6 +287,12 @@
         : `Your next ${l.fight.type.shortName} match`;
     const ev = l.event;
     const said = !!ev.standing;
+    // Not yours: what's on and when, plainly ("The Kumite's this Friday")
+    if (l.role === "notIn") {
+      const t = ev.kind === "tournament" ? (leadEvent?.entries as Tournament) : undefined;
+      const name = (t && typeOf(t)?.shortName) ?? ev.title;
+      return `${t ? "The " : ""}${name}'s ${whenSaid(ev.startsAt, today)}`;
+    }
     if (ev.kind === "training") {
       // This Friday, next Friday (the one after one you're out of), or further off, its date
       const ahead =
@@ -361,6 +390,11 @@
   {/if}
 {/snippet}
 
+<!-- A tournament you're not in: you're out, as the card says it of a night you said Out of; nothing to answer -->
+{#snippet outBody()}
+  <span class="out-line"><span class="badge red">You're out</span></span>
+{/snippet}
+
 <!-- One line of the feed: an icon, a line, a sub-line, and a chevron when it opens something -->
 {#snippet item(o: { key?: string; href?: string; icon: IconName; text: string; sub: string; hot?: boolean; on?: When })}
   {#if o.href}
@@ -412,6 +446,16 @@
       <img class="mark" src={mark} alt="" width="40" height="40" />
       <h1 class="greeting">{hello}</h1>
       <div class="hello-side">
+        <!-- Something overdue: loud, in the club's red, opening your tab (what you owe is at the foot of Home) -->
+        {#if late > 0}
+          <a
+            class="btn ghost icon overdue"
+            href="/me/tab"
+            aria-label="{pounds(late)} overdue: your tab"
+            title="{pounds(late)} overdue"
+            ><Icon name="pound" size={20} /><span class="overdue-badge" aria-hidden="true">!</span></a
+          >
+        {/if}
         <!-- The Calendar: a phone's tabs have the Club in its place, so it's here (a desktop's rail has it too) -->
         <a class="btn ghost icon" href="/calendar" aria-label="Calendar" title="Calendar"
           ><Icon name="calendar" size={18} /></a
@@ -428,9 +472,8 @@
     </div>
   </header>
 
-  <!-- The locker room: the club's word (announcements), before anything else, until it ends or you're done with it;
-       then what you owe, until you've paid -->
-  {#if db.announcements.length || hadNotes || owing}
+  <!-- The locker room: the club's word (announcements), before anything else, until it ends or you're done with it -->
+  {#if db.announcements.length || hadNotes}
     <section class="notes" aria-labelledby="locker-room">
       <h2 class="feed-label room-label" id="locker-room">Locker room</h2>
       {#each db.announcements as a (a.id)}
@@ -456,25 +499,13 @@
           >
         </article>
       {/each}
-      {#if owing}
-        <!-- Yours alone, no Got it: Settle up, where Got it sits -->
-        <article class="note owing rise" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
-          <Icon name="pound" size={18} />
-          <div class="grow">
-            <h2 class="note-title">{owing.text}</h2>
-            <p class="note-body">{owing.sub}</p>
-          </div>
-          <a class="btn primary sm got-it" href={owing.href}>Settle up</a>
-        </article>
-      {/if}
-      {#if db.announcements.length || hadNotes}
-        <a class="past" href="/announcements">Everything from the locker room<Icon name="chevronRight" size={16} /></a>
-      {/if}
+      <a class="past" href="/announcements">Everything from the locker room<Icon name="chevronRight" size={16} /></a>
     </section>
   {/if}
 
-  <!-- The lead: your next thing, whatever it is, with its action. An event's card (In and Out; a training night with
-       the locker room's quip and your team along its foot), your next fight, or a draft you're a captain in -->
+  <!-- The hero: the club's next event, whatever it is, as the same card with only the icon and the words changing. An
+       event's card (In and Out; a training night with the locker room's quip and your team along its foot; or, not in
+       it, You're out in their place), your next match, or a draft you're a captain in -->
   {#if lead}
     <section aria-labelledby="lead-title">
       <h2 class="section-title" id="lead-title">{leadTitle(lead)}</h2>
@@ -500,6 +531,7 @@
             place={false}
             footer={myTeam ? teamLine : undefined}
             onanswer={session ? onanswer : undefined}
+            body={outOfIt ? outBody : undefined}
           >
             {#snippet links()}{@render placeLinks(leadEvent)}{/snippet}
           </EventCard>
@@ -551,44 +583,64 @@
     </section>
   {/if}
 
-  <!-- The feed: what needs you now (your move first, then what you owe), what's coming up with the calendar after it,
-       the store app's one ask, and for admins their own lines at the foot -->
-  <section class="feed" aria-label="What's going on">
-    {#each feed.now as n (n.key)}{@render item(n)}{/each}
+  <!-- Coming up: the next things after the hero, in date order, then the calendar -->
+  <section class="feed" aria-labelledby="coming-up">
     {#if feed.upcoming.length}
-      <h2 class="feed-label">Coming up</h2>
+      <h2 class="feed-label" id="coming-up">Coming up</h2>
       {#each feed.upcoming as r (r.key)}{@render upcomingItem(r)}{/each}
     {/if}
     <a class="past" href="/calendar">See the calendar<Icon name="chevronRight" size={16} /></a>
-    <!-- The one ask (ADR 0108): what notifications are for, then the phone's (or browser's) own question; on an iPhone
-         in a Safari tab, the way to them -->
-    {#if askNotify}
-      <div class="item ask-notify rise">
-        <span class="lead-col"><Icon name="bell" size={18} /></span>
-        <span class="grow">
-          <span class="item-text">Hear it first</span>
-          {#if askNotify === "homeScreen"}
-            <span class="item-sub"
-              >On iPhone, add the app to your Home Screen (Share, then Add to Home Screen) and turn them on there.</span
-            >
-            <span class="note-links"><button class="link" onclick={notNow}>Got it</button></span>
-          {:else}
-            <span class="item-sub">Teams out, a place coming up, a night off: a notification, as it happens.</span>
-            <span class="note-links">
-              <button class="btn primary sm" onclick={turnOnNotifications}>Turn on notifications</button>
-              <button class="link" onclick={notNow}>Not now</button>
-            </span>
-          {/if}
-        </span>
-      </div>
-    {/if}
   </section>
+
+  <!-- What needs you (your move first), and the store app's one ask -->
+  {#if feed.now.length || askNotify}
+    <section class="feed" aria-label="What needs you">
+      {#each feed.now as n (n.key)}{@render item(n)}{/each}
+      <!-- The one ask (ADR 0108): what notifications are for, then the phone's (or browser's) own question; on an iPhone
+         in a Safari tab, the way to them -->
+      {#if askNotify}
+        <div class="item ask-notify rise">
+          <span class="lead-col"><Icon name="bell" size={18} /></span>
+          <span class="grow">
+            <span class="item-text">Hear it first</span>
+            {#if askNotify === "homeScreen"}
+              <span class="item-sub"
+                >On iPhone, add the app to your Home Screen (Share, then Add to Home Screen) and turn them on there.</span
+              >
+              <span class="note-links"><button class="link" onclick={notNow}>Got it</button></span>
+            {:else}
+              <span class="item-sub">Teams out, a place coming up, a night off: a notification, as it happens.</span>
+              <span class="note-links">
+                <button class="btn primary sm" onclick={turnOnNotifications}>Turn on notifications</button>
+                <button class="link" onclick={notNow}>Not now</button>
+              </span>
+            {/if}
+          </span>
+        </div>
+      {/if}
+    </section>
+  {/if}
 
   <!-- For admins: what only they act on, out of everyone's way -->
   {#if feed.admin.length}
     <section class="feed" aria-labelledby="for-admins">
       <h2 class="feed-label" id="for-admins">For admins</h2>
       {#each feed.admin as n (n.key)}{@render item(n)}{/each}
+    </section>
+  {/if}
+
+  <!-- What you owe, at the foot while you owe anything: Settle up opens your tab -->
+  {#if owing}
+    <section class="notes" aria-labelledby="your-tab">
+      <h2 class="feed-label room-label" id="your-tab">Your tab</h2>
+      <article class="note owing rise">
+        <Icon name="pound" size={18} />
+        <div class="grow">
+          <h2 class="note-title">{owing.text}</h2>
+          <p class="note-body">{owing.sub}</p>
+        </div>
+        <a class="btn primary sm got-it" href={owing.href}>Settle up</a>
+      </article>
     </section>
   {/if}
 
@@ -832,6 +884,34 @@
   }
   .lead-plain::after {
     display: none;
+  }
+  /* Not in it: You're out, where In and Out would be */
+  .out-line {
+    display: flex;
+    align-items: center;
+  }
+  /* Overdue: the hello's loud icon, the pound in the club's red with a small red badge on its corner */
+  .overdue {
+    position: relative;
+    color: var(--red-hot);
+  }
+  .overdue:hover {
+    color: var(--red-hot);
+  }
+  .overdue-badge {
+    position: absolute;
+    top: 0.1rem;
+    right: 0.1rem;
+    display: grid;
+    place-items: center;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: var(--red-hot);
+    color: var(--primary);
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
   }
   /* Your next match, in the card: you v them, crests by the names, yours in the club's red (an accent, not a fill);
      which game, quiet, a red Live before it while it's played */

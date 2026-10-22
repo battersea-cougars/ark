@@ -162,7 +162,11 @@ describe("what's coming up", () => {
       filter: "series:1",
       title: "Friday Training",
     });
-  const up = (events: UpcomingEvent[]) => feed(kumite(), { events }).upcoming;
+  // The club's next event, on all day today, is the hero: what's under test is what comes after it
+  const hero = ev("hero", "2026-10-20T23:00:00Z", { endsAt: "2026-10-21T22:59:00Z" });
+  const up = (events: UpcomingEvent[]) => feed(kumite(), { events: [hero, ...events] }).upcoming;
+  // With no hero of its own: the first is
+  const after = (events: UpcomingEvent[]) => feed(kumite(), { events }).upcoming;
 
   it("is in date order, a date on the left of each", () => {
     const rows = up([ev("quiz", "2026-11-05T19:00:00Z"), ev("drinks", "2026-10-30T19:00:00Z")]);
@@ -172,12 +176,12 @@ describe("what's coming up", () => {
   });
 
   it("doesn't repeat the lead Friday: the row is the Friday after it, once", () => {
-    const rows = up([{ ...friday(0), asking: true }, friday(1)]);
+    const rows = after([{ ...friday(0), asking: true }, friday(1)]);
     expect(rows.map((r) => r.key)).toEqual(["session:1"]);
   });
 
   it("each training and tournament series once, its next; where you stand, or when sign-up opens", () => {
-    const rows = up([
+    const rows = after([
       { ...friday(0), asking: true },
       ev("tournament:2", "2027-06-30T10:00:00Z", {
         kind: "tournament",

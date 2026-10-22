@@ -1,5 +1,5 @@
-// Home's lead (ADR 0118): your next thing, whatever it is, the one card up top; what's coming up is everything after
-// it. The tricky part is the ordering: a fight's time comes from its place in the day, in London's clock either side
+// Home's hero (ADR 0118): the club's next event, whatever it is, with where you stand on it (playing, answering, or
+// not in it), the one card up top; what's coming up is everything after it. The tricky part is the ordering: a fight's time comes from its place in the day, in London's clock either side
 // of the clocks going back; a draft you're picking in is on now; what you're out of only leads with nothing else.
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
@@ -78,7 +78,7 @@ const feed = (over: Partial<FeedInput> = {}) => {
   });
 };
 
-describe("Home's lead: your next thing, whatever it is", () => {
+describe("Home's hero: the club's next event, whatever it is", () => {
   it("a Kumite fight before the next Friday leads, and Coming up has the Friday, not the Kumite again", () => {
     const t = kumite();
     const rows = feed({ events: [kumiteEvent(t), ev("session:2", "2026-11-06T19:00:00Z")] });
@@ -173,16 +173,23 @@ describe("Home's lead: your next thing, whatever it is", () => {
     expect(feed({ upcoming: [], events: [out] }).lead).toMatchObject({ key: "session:1" });
   });
 
-  it("never a cancelled one, one with no day yet, one with nothing to answer, or one that's over", () => {
+  it("never a cancelled one, one with no day yet, or one that's over", () => {
     const events = [
       ev("session:1", "2026-10-22T18:30:00Z", { cancelled: true }),
       ev("tournament:3", "2026-10-22T10:00:00Z", { kind: "tournament", dateTbc: true, filter: "type:3" }),
-      ev("oneoff:1", "2026-10-22T19:00:00Z", { kind: "social", filter: "social", asking: false }),
       ev("session:0", "2026-10-21T08:00:00Z", { filter: "series:3" }),
     ];
     expect(feed({ upcoming: [], now: "2026-10-21T12:00:00Z", events }).lead).toBeNull();
     // Still on at 09:00 (it ends at 09:30): it leads
     expect(feed({ upcoming: [], now: "2026-10-21T09:00:00Z", events }).lead).toMatchObject({ key: "session:0" });
+  });
+
+  it("one with nothing to answer still leads when it's the club's next: it's the club's, not yours", () => {
+    const quiz = ev("oneoff:1", "2026-10-22T19:00:00Z", { kind: "social", filter: "social", asking: false });
+    const friday = ev("session:1", "2026-10-23T18:30:00Z");
+    const rows = feed({ upcoming: [], events: [friday, quiz] });
+    expect(rows.lead).toMatchObject({ kind: "event", key: "oneoff:1", role: "notIn" });
+    expect(rows.upcoming.map((r) => r.key)).toEqual(["session:1"]);
   });
 
   it("the lead Home showed stays this visit while it's still on: saying Out doesn't swap the card under your thumb", () => {
@@ -193,5 +200,53 @@ describe("Home's lead: your next thing, whatever it is", () => {
     // Gone (cancelled since): the next one leads
     const off = { ...friday, cancelled: true };
     expect(feed({ upcoming: [], events: [off, sunday], pinned: "session:1" }).lead?.key).toBe("session:5");
+  });
+});
+
+describe("the Kumite this Friday, the Friday's training off for it", () => {
+  // Today's Wednesday 21 October; the Kumite's on Friday the 23rd at 10am, its sign-up closed. The night's training
+  // is cancelled for it; the one after is the 30th.
+  const t = kumite({ heldOn: "2026-10-23", games: [game(83, 1, 2, 3)] });
+  const off = ev("session:1", "2026-10-23T18:30:00Z", { cancelled: true });
+  const next = ev("session:2", "2026-10-30T19:30:00Z");
+  const theKumite = (over: Partial<UpcomingEvent>) =>
+    ev("tournament:10", "2026-10-23T09:00:00Z", {
+      kind: "tournament",
+      filter: "type:1",
+      title: t.name,
+      href: "/tournaments/kumite/schedule",
+      asking: false,
+      ...over,
+    });
+
+  it("a member not in it: the Kumite is still the hero (they're out of it), not next week's training", () => {
+    const notIn = kumite({ ...t, going: [4, 5], teams: [team(1, 2, [4]), team(2, 3, [5])] });
+    const rows = feed({ tournaments: [notIn], upcoming: [{ type, t: notIn }], events: [off, next, theKumite({})] });
+    expect(rows.lead).toMatchObject({ kind: "event", key: "tournament:10", role: "notIn" });
+    // Coming up: the night that's off says so, and the Friday after it shows too
+    expect(rows.upcoming.map((r) => [r.key, r.sub])).toEqual([
+      ["session:1", "7:30 to 9pm · Cancelled"],
+      ["session:2", "7:30 to 9pm · Are you in?"],
+    ]);
+  });
+
+  it("a member on a team plays: their match is the hero, its tournament not a row as well", () => {
+    const rows = feed({
+      tournaments: [t],
+      upcoming: [{ type, t }],
+      events: [off, next, theKumite({ standing: "in" })],
+    });
+    expect(rows.lead).toMatchObject({ kind: "fight", at: "2026-10-23T09:00:00.000Z", fight: { game: { id: 83 } } });
+    expect(rows.upcoming.map((r) => r.key)).toEqual(["session:1", "session:2"]);
+  });
+
+  it("the cancelled night never leads, even for someone who'd said they were in", () => {
+    const rows = feed({ upcoming: [], events: [{ ...off, standing: "in" }, next, theKumite({})] });
+    expect(rows.lead?.key).toBe("tournament:10");
+  });
+
+  it("with the training still on that evening, the Kumite's morning is still sooner: it's the hero", () => {
+    const on = ev("session:1", "2026-10-23T18:30:00Z", { standing: "in", asking: false });
+    expect(feed({ upcoming: [], events: [on, theKumite({})] }).lead).toMatchObject({ key: "tournament:10" });
   });
 });

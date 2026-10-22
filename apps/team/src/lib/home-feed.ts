@@ -1,11 +1,11 @@
-// Home's feed (ADR 0118). First the lead: your next thing, whatever it is (a training night, your next fight, a draft
-// you're a captain in, a tournament asking), the one card up top with its action. Then three groups. What needs you
-// now: a captain's draft, the draft being on, the teams being out, a sign-up closing you haven't answered. (What you
-// owe is a notice up top.) Then what's coming up after the lead, in date order and capped: each training's and each
-// tournament series' next one, the club's events, with "See the calendar" after them. Last, under "For admins", only
-// for whoever they're for: running the draft, and what the club is owed.
+// Home's feed (ADR 0118). Home is a feed: the club's next event is the hero, whatever kind it is, and your part in it
+// is shown on its card (playing in it: your match; in, waiting, or may sign up: In and Out; not in it: You're out). Then what's coming up
+// after it, in date order and capped, with "See the calendar". Then what needs you (a captain's draft, the draft
+// being on, the teams being out, a sign-up closing you haven't answered), and under "For admins", only for whoever
+// they're for, running the draft and what the club is owed. What you owe is Home's foot (owedNotice), and a loud icon
+// in its header while some of it is overdue (lib/dues.ts overdue).
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
-import { dateBadge, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
+import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
 import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
@@ -100,9 +100,13 @@ export interface Fight {
   teamId: number;
 }
 
-/** Home's one card up top: your next thing, as an event's card, your next fight, or a captain's draft. */
+/** Your part in the hero: on it (in, waiting, or may sign up), not in it (nothing to answer: the Kumite you're not in,
+ * a social with no sign-up), or said you're out. */
+export type Role = "yours" | "notIn" | "out";
+
+/** Home's hero: the club's next event, as its card (with your role on it), your next match, or a captain's draft. */
 export type Lead =
-  | { kind: "event"; key: string; at: string; event: UpcomingEvent }
+  | { kind: "event"; key: string; at: string; event: UpcomingEvent; role: Role }
   | { kind: "fight"; key: string; at: string; fight: Fight }
   | { kind: "draft"; key: string; at: string; item: FeedItem };
 
@@ -145,13 +149,14 @@ export function homeFeed(input: FeedInput): Feed {
   return { lead, now, upcoming: upcomingRows(input, lead, fights), admin };
 }
 
-/** What you owe, and what for: the kind of each charge with something left on it. */
+/** What you owe, and what for: the kind of each charge with something left on it; how much of it is overdue. */
 export interface Owes {
   pence: number;
   kinds: string[];
+  overdue?: number;
 }
 
-/** What you owe, as a notice in the locker room (Home's top, after the club's): none when you're square. */
+/** What you owe, at Home's foot: none when you're square. Overdue is also the loud icon in Home's header. */
 export function owedNotice(owes: Owes): { text: string; sub: string; href: string } | null {
   if (owes.pence <= 0) return null;
   const n = owes.kinds.length;
@@ -162,7 +167,18 @@ export function owedNotice(owes: Owes): { text: string; sub: string; href: strin
     : n === 1
       ? "charge"
       : "charges";
-  return { text: `${pounds(owes.pence)} to pay`, sub: n ? `Your tab · ${n} ${what}` : "Your tab", href: "/me/tab" };
+  const late = owes.overdue && owes.overdue > 0 ? ` · ${pounds(owes.overdue)} overdue` : "";
+  return { text: `${pounds(owes.pence)} to pay`, sub: `Your tab${n ? ` · ${n} ${what}` : ""}${late}`, href: "/me/tab" };
+}
+
+const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "long" });
+/** When it is, as the hero's heading says it: "today", "this Friday" within the week, else "on Fri 6 Nov". */
+export function whenSaid(startsAt: string, today: string): string {
+  const ahead = Math.round(
+    (Date.parse(`${dayOf(startsAt)}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000,
+  );
+  if (ahead <= 0) return "today";
+  return ahead < 7 ? `this ${weekday.format(new Date(startsAt))}` : `on ${formatDayDate(startsAt)}`;
 }
 
 const dayOf = (iso: string) => londonToday(new Date(iso));
@@ -176,36 +192,36 @@ const tournamentKey = (t: Tournament) => `tournament:${t.id}`;
 const fightAt = ({ t, game }: Fight) => londonISO(t.heldOn, kickOff(t.startTime, slotMinutes(t), game.position));
 
 /**
- * The lead: your next thing, whatever it is. Yours are your fights (in place of their tournament), a draft you're a
- * captain in (open, with picks to make: now; else its day), and any event you're in, waiting on, or may sign up for
- * now; the soonest of them leads, and at the same moment a fight, then a draft, then the schedule's order. With
- * nothing of yours, the next you've said you're out of (you may change your mind); an event with nothing to answer
- * (a social with no sign-up, a tournament not asking yet) never leads. Nor a cancelled one, one with no day yet, or
- * one that's over. The one Home pinned this visit stays while it's still on, so answering Out doesn't swap it.
+ * The hero: the club's next event, whatever it is, with where you stand on it. Yours stand in for theirs: your next
+ * match for its tournament, a draft you're a captain in (open, with picks to make: now; else its day). Everything
+ * else on the schedule is the event itself, yours to answer or not yours (the Kumite you're not in, a social with no
+ * sign-up): it still leads, its card saying where you stand. The soonest leads, and at the same moment a match, then a draft, then the schedule's order. What
+ * you've said you're out of leads only when nothing else is coming (you may change your mind). A cancelled one, one
+ * with no day yet, or one that's over never does. The one Home pinned this visit stays while it's still on, so
+ * answering Out doesn't swap it under your thumb.
  */
 export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lead | null {
   const { events = [], today, pinned } = input;
   const nowMs = Date.parse(input.now ?? londonISO(today, "00:00"));
-  const yours: Lead[] = [];
-  const others: Lead[] = [];
+  const next: Lead[] = [];
+  const outs: Lead[] = [];
   for (const fight of fights) {
     if (fight.t.season || fight.t.heldOn < today) continue;
-    yours.push({ kind: "fight", key: `fight:${fight.t.id}`, at: fightAt(fight), fight });
+    next.push({ kind: "fight", key: `fight:${fight.t.id}`, at: fightAt(fight), fight });
   }
-  for (const item of rows) if (item.captainAt) yours.push({ kind: "draft", key: item.key, at: item.captainAt, item });
+  for (const item of rows) if (item.captainAt) next.push({ kind: "draft", key: item.key, at: item.captainAt, item });
   const fought = new Set(fights.map((f) => tournamentKey(f.t)));
   for (const event of events) {
     if (event.cancelled || event.season || event.dateTbc || fought.has(event.key)) continue;
     if (Date.parse(event.endsAt) <= nowMs) continue;
-    const lead: Lead = { kind: "event", key: event.key, at: event.startsAt, event };
-    if (event.standing === "out") others.push(lead);
-    else if (event.standing || event.asking) yours.push(lead);
+    const role: Role = event.standing === "out" ? "out" : event.standing || event.asking ? "yours" : "notIn";
+    (role === "out" ? outs : next).push({ kind: "event", key: event.key, at: event.startsAt, event, role });
   }
-  const held = pinned && [...yours, ...others].find((l) => l.key === pinned);
+  const held = pinned && [...next, ...outs].find((l) => l.key === pinned);
   if (held) return held;
-  // Soonest first; a stable sort keeps a fight, then a draft, then the schedule's order at the same moment
+  // Soonest first; a stable sort keeps a match, then a draft, then the schedule's order at the same moment
   const soonest = (list: Lead[]) => [...list].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0] ?? null;
-  return soonest(yours) ?? soonest(others);
+  return soonest(next) ?? soonest(outs);
 }
 
 // Coming up: each training's and each tournament series' next one, the club's events in the next few weeks; the lead
@@ -227,10 +243,10 @@ function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, figh
   for (const e of sorted) {
     // A card up top already says it; the row for its series is then the one after
     if (shown.includes(e.key)) continue;
-    // A series' next one: only the first of each counts
+    // A series' next one: only the first of each counts, and a night that's off isn't it (the one after shows too)
     const series = e.kind === "social" ? null : e.filter;
     if (series && seen.has(series)) continue;
-    if (series) seen.add(series);
+    if (series && !e.cancelled) seen.add(series);
     if (e.kind !== "tournament" && dayOf(e.startsAt) > until) continue;
     picked.push(e);
   }

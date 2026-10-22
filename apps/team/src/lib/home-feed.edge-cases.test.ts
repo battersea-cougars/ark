@@ -2,7 +2,15 @@
 // yesterday in UTC, ties, cancellations, and what's owed in ones.
 import { describe, expect, it } from "vitest";
 import type { Tournament, TournamentType } from "../demo/model";
-import { AHEAD_DAYS, homeFeed, owedNotice, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
+import {
+  AHEAD_DAYS,
+  homeFeed,
+  owedNotice,
+  UPCOMING_MAX,
+  whenSaid,
+  type FeedInput,
+  type UpcomingEvent,
+} from "./home-feed";
 
 const type = { id: 1, slug: "kumite", name: "The Cougars Kumite", shortName: "Kumite" } as TournamentType;
 const TODAY = "2026-10-21";
@@ -31,7 +39,10 @@ const ev = (key: string, startsAt: string, over: Partial<UpcomingEvent> = {}): U
   asking: false,
   ...over,
 });
-const up = (events: UpcomingEvent[], over: Partial<FeedInput> = {}) => feed({ events, ...over }).upcoming;
+/** The club's next event, on all day today: the hero (Home's lead), so what's under test is what's coming up after it. */
+const HERO = ev("hero", "2026-10-20T23:00:00Z", { endsAt: "2026-10-21T22:59:00Z" });
+const up = (events: UpcomingEvent[], over: Partial<FeedInput> = {}) =>
+  feed({ events: [HERO, ...events], ...over }).upcoming;
 const day = (offset: number, time = "19:00:00Z") =>
   `${new Date(Date.parse(`${TODAY}T12:00:00Z`) + offset * 86_400_000).toISOString().slice(0, 10)}T${time}`;
 
@@ -66,7 +77,9 @@ describe("what's coming up, at the edges", () => {
   it("goes by London's date: 23:30 UTC on a summer night is tomorrow in London, so it still shows", () => {
     const summer = "2026-07-01";
     const late = ev("late", "2026-06-30T23:30:00Z");
-    expect(up([late], { today: summer }).map((r) => r.key)).toEqual(["late"]);
+    // The summer's hero: on from London's midnight
+    const hero = ev("hero", "2026-06-30T23:00:00Z", { endsAt: "2026-07-01T20:00:00Z" });
+    expect(feed({ today: summer, events: [hero, late] }).upcoming.map((r) => r.key)).toEqual(["late"]);
   });
 
   it("two at the same time keep the order they came in", () => {
@@ -110,7 +123,8 @@ describe("what's coming up, at the edges", () => {
   });
 
   it("the lead isn't a row as well, and nothing else is left out", () => {
-    expect(up([ev("a", day(1), { asking: true }), ev("b", day(2))]).map((r) => r.key)).toEqual(["b"]);
+    const rows = feed({ events: [ev("a", day(1), { asking: true }), ev("b", day(2))] }).upcoming;
+    expect(rows.map((r) => r.key)).toEqual(["b"]);
   });
 });
 
@@ -129,6 +143,13 @@ describe("what's owed", () => {
   it("a night and a quarter together are charges, not nights", () => {
     expect(owedNotice({ pence: 3000, kinds: ["session", "quarterly"] })?.sub).toBe("Your tab · 2 charges");
     expect(owedNotice({ pence: 1500, kinds: ["session"] })?.sub).toBe("Your tab · 1 night");
+  });
+
+  it("says how much of it is overdue, when some is", () => {
+    expect(owedNotice({ pence: 2400, kinds: ["session", "session"], overdue: 1600 })?.sub).toBe(
+      "Your tab · 2 nights · £16 overdue",
+    );
+    expect(owedNotice({ pence: 800, kinds: ["session"], overdue: 0 })?.sub).toBe("Your tab · 1 night");
   });
 
   it("owing with no charge named still opens the tab", () => {
@@ -166,5 +187,15 @@ describe("a draft with nobody left to pick", () => {
     const t = kumite({ teams: [team(7, [1]), team(2, [])] as never });
     const rows = feed({ tournaments: [t], upcoming: [{ type, t }] }).now;
     expect(rows.map((r) => [r.text, r.hot])).toEqual([["Everyone's picked", false]]);
+  });
+});
+
+describe("when the hero's heading says it is", () => {
+  it("today, this Friday within the week, else its date, by London's calendar", () => {
+    expect(whenSaid("2026-10-21T18:00:00Z", TODAY)).toBe("today");
+    // 23:30 UTC on the 21st is the 22nd in London (BST)
+    expect(whenSaid("2026-10-21T23:30:00Z", TODAY)).toBe("this Thursday");
+    expect(whenSaid("2026-10-23T09:00:00Z", TODAY)).toBe("this Friday");
+    expect(whenSaid("2026-10-28T19:00:00Z", TODAY)).toBe("on Wed 28 Oct");
   });
 });

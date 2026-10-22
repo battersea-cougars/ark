@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aged, bucketOf, collected, feeOn, ledger, owed, type Charge, type Payment } from "./dues";
+import { aged, bucketOf, collected, feeOn, ledger, overdue, owed, type Charge, type Payment } from "./dues";
 
 const charge = (over: Partial<Charge>): Charge => ({
   id: 1,
@@ -72,6 +72,20 @@ describe("aged", () => {
   });
   it("matches what each member owes", () => {
     for (const r of aged(charges, today)) expect(r.total).toBe(owed(charges, r.memberId));
+  });
+});
+
+describe("overdue", () => {
+  it("is what's left on charges whose day has passed: tonight's isn't late yet, a part paid one is what's to go", () => {
+    const charges = [
+      charge({ id: 1, dueOn: "2026-10-06" }),
+      charge({ id: 2, dueOn: "2026-10-05", paidPence: 400 }),
+      charge({ id: 3, dueOn: "2026-09-01", paidOn: "2026-09-02", paidVia: "cash" }),
+      charge({ id: 4, memberId: 2, dueOn: "2026-09-01" }),
+    ];
+    expect(overdue(charges, 1, "2026-10-06")).toBe(600);
+    expect(overdue(charges, 1, "2026-10-07")).toBe(1600);
+    expect(overdue([charges[0]], 1, "2026-10-06")).toBe(0);
   });
 });
 

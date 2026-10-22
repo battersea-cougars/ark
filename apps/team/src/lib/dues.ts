@@ -160,3 +160,8 @@ export function collected(charges: Charge[], kind: Charge["kind"], refId: number
     paidPeople: paid.length,
   };
 }
+
+/** What someone owes that's overdue: what's left on their charges whose day has passed (a night is due on the night,
+ * so paying on it is never late). Home's header shouts about it (ADR 0118). */
+export const overdue = (charges: Charge[], memberId: number, today: string) =>
+  charges.reduce((sum, c) => sum + (c.memberId === memberId && c.dueOn < today ? leftOn(c) : 0), 0);
