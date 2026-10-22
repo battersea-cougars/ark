@@ -443,8 +443,7 @@ export async function settle(db: D1Database, memberId?: number): Promise<number>
 function pastDay(v: unknown, now: string, field: string, future: string): string {
   const today = londonToday(new Date(now));
   const day = v == null || v === "" ? today : v;
-  if (!isDay(day))
-    throw new HttpError(400, `${field} should be a day, like 2026-10-02.`);
+  if (!isDay(day)) throw new HttpError(400, `${field} should be a day, like 2026-10-02.`);
   if (day > today) throw new HttpError(400, future);
   return day;
 }

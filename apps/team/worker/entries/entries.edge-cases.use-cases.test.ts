@@ -139,16 +139,13 @@ describe("the first and the last place", () => {
 describe("a limit changed while people wait", () => {
   // Raising the limit moved nobody up: the waiting stayed waiting, and the next to say in took the new place ahead of
   // them (#127). A limit raised is a place coming free (ADR 0030)
-  it(
-    "an admin makes room for one more: the first waiting is in, not the next to sign up (#127)",
-    async () => {
-      const f = await friday({ capacity: 2 });
-      for (const p of ["Reg", "Paul", "Walt"]) await f.say(p, "in");
-      expect((await f.setLimits(3)).status).toBe(200);
-      await f.say("Nina", "in");
-      expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul, f.id.Walt], waitlist: [f.id.Nina] });
-    },
-  );
+  it("an admin makes room for one more: the first waiting is in, not the next to sign up (#127)", async () => {
+    const f = await friday({ capacity: 2 });
+    for (const p of ["Reg", "Paul", "Walt"]) await f.say(p, "in");
+    expect((await f.setLimits(3)).status).toBe(200);
+    await f.say("Nina", "in");
+    expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul, f.id.Walt], waitlist: [f.id.Nina] });
+  });
 
   it("an admin lowers the limit below who's in: nobody's taken off, and nobody moves up until it's under again", async () => {
     const f = await friday({ capacity: 3 });
@@ -284,28 +281,22 @@ describe("a night that's called off", () => {
 describe("a night that's over", () => {
   // The register is the record of who came, and its charge stands (ADR 0007): after the night, a member's own Out
   // took them off it and their unpaid charge went (#128)
-  it(
-    "a member who came can't say they're out of last Friday afterwards: they're still in, and still charged (#128)",
-    async () => {
-      const f = await friday({ capacity: 5, day: LAST_FRIDAY });
-      // Signed up before the night (the Monday before), and came
-      const monday = new Date("2026-09-28T12:00:00Z");
-      expect((await f.say("Reg", "in", monday)).status).toBe(200);
-      expect(await f.charged()).toEqual([f.id.Reg]);
-      const res = await f.say("Reg", "out");
-      expect(res.status).toBe(409);
-      expect(await f.charged()).toEqual([f.id.Reg]);
-    },
-  );
+  it("a member who came can't say they're out of last Friday afterwards: they're still in, and still charged (#128)", async () => {
+    const f = await friday({ capacity: 5, day: LAST_FRIDAY });
+    // Signed up before the night (the Monday before), and came
+    const monday = new Date("2026-09-28T12:00:00Z");
+    expect((await f.say("Reg", "in", monday)).status).toBe(200);
+    expect(await f.charged()).toEqual([f.id.Reg]);
+    const res = await f.say("Reg", "out");
+    expect(res.status).toBe(409);
+    expect(await f.charged()).toEqual([f.id.Reg]);
+  });
 
-  it(
-    "a member can't sign themselves up for last Friday after it: the register says who came (#128)",
-    async () => {
-      const f = await friday({ capacity: 5, day: LAST_FRIDAY });
-      expect((await f.say("Reg", "in")).status).toBe(409);
-      expect((await f.seen()).going).toEqual([]);
-    },
-  );
+  it("a member can't sign themselves up for last Friday after it: the register says who came (#128)", async () => {
+    const f = await friday({ capacity: 5, day: LAST_FRIDAY });
+    expect((await f.say("Reg", "in")).status).toBe(409);
+    expect((await f.seen()).going).toEqual([]);
+  });
 });
 
 describe("who may do what (ADR 0024)", () => {

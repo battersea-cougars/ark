@@ -54,7 +54,13 @@ export async function createClubEvent(db: D1Database, o: Record<string, unknown>
 }
 
 /** Change an event; a limit raised moves the first waiting up into its room, in the same batch (ADR 0030). */
-export async function updateClubEvent(db: D1Database, id: number, o: Record<string, unknown>, today: string, now: string) {
+export async function updateClubEvent(
+  db: D1Database,
+  id: number,
+  o: Record<string, unknown>,
+  today: string,
+  now: string,
+) {
   const [res] = await batch(db, [
     statement(
       db,

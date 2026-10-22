@@ -81,15 +81,12 @@ describe("what an admin may set for a training", () => {
 
   // An impossible date passed the YYYY-MM-DD check; making its sessions then threw, the training was already saved,
   // and every member's app failed to open from then on, since opening it makes each training's sessions (#129)
-  it(
-    "a first session in month 13 is refused, and the app still opens for everyone (#129)",
-    async () => {
-      const dana = await admin();
-      expect((await dana.call("POST", "/api/series", { ...SUNDAYS, startsOn: "2026-13-01" })).status).toBe(400);
-      const reg = await w.signedIn("reg@example.com");
-      expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
-    },
-  );
+  it("a first session in month 13 is refused, and the app still opens for everyone (#129)", async () => {
+    const dana = await admin();
+    expect((await dana.call("POST", "/api/series", { ...SUNDAYS, startsOn: "2026-13-01" })).status).toBe(400);
+    const reg = await w.signedIn("reg@example.com");
+    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+  });
 
   it("a training already saved with an impossible first session is skipped, and the app still opens for everyone (#129)", async () => {
     const dana = await admin();
@@ -174,20 +171,17 @@ describe("what an admin may set for a training", () => {
 
   // The fees were written before the rest of the training was checked (and a new training before its fees were), so
   // a refused save had already changed what members are charged (#131)
-  it(
-    "a save refused for a bad field changes nothing: not the training, and not its fee (#131)",
-    async () => {
-      const dana = await admin();
-      const fees = dana.friday.fees;
-      const res = await dana.call("PUT", `/api/series/${dana.friday.id}`, {
-        ...dana.friday,
-        weekdays: [],
-        fees: [{ pence: 1, from: "2026-01-01" }],
-      });
-      expect(res.status).toBe(400);
-      expect((await dana.sees()).series[0].fees).toEqual(fees);
-    },
-  );
+  it("a save refused for a bad field changes nothing: not the training, and not its fee (#131)", async () => {
+    const dana = await admin();
+    const fees = dana.friday.fees;
+    const res = await dana.call("PUT", `/api/series/${dana.friday.id}`, {
+      ...dana.friday,
+      weekdays: [],
+      fees: [{ pence: 1, from: "2026-01-01" }],
+    });
+    expect(res.status).toBe(400);
+    expect((await dana.sees()).series[0].fees).toEqual(fees);
+  });
 
   it("a new training refused for its fees isn't made at all (#131)", async () => {
     const dana = await admin();

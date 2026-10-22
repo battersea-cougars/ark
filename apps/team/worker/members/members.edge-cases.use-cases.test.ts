@@ -214,27 +214,21 @@ describe("a member who goes while they still have places on what's to come", () 
   // https://github.com/battersea-cougars/ark/issues/137
   // #137: deleting an account deleted its places for what's to come straight from the table, without the move-up
   // that saying out does, so Friday had a free place and the first waiting still waited
-  it(
-    "a member in for a full Friday deletes their account, and the first one waiting moves up (#137)",
-    async () => {
-      const { signup } = await fullFriday();
-      const reg = await w.signedIn("reg@example.com");
-      expect((await reg.call("DELETE", "/api/me")).status).toBe(200);
-      expect(signup("Wes Waiting")).toBe("in");
-    },
-  );
+  it("a member in for a full Friday deletes their account, and the first one waiting moves up (#137)", async () => {
+    const { signup } = await fullFriday();
+    const reg = await w.signedIn("reg@example.com");
+    expect((await reg.call("DELETE", "/api/me")).status).toBe(200);
+    expect(signup("Wes Waiting")).toBe("in");
+  });
 
   // https://github.com/battersea-cougars/ark/issues/137
   // #137: the same when an admin deletes the account for them
-  it(
-    "an admin deletes the account of a member in for a full Friday, and the first one waiting moves up (#137)",
-    async () => {
-      const { dana, signup } = await fullFriday();
-      const reg = await dana.member("Reg Player");
-      expect((await dana.call("DELETE", `/api/members/${reg.id}`)).status).toBe(200);
-      expect(signup("Wes Waiting")).toBe("in");
-    },
-  );
+  it("an admin deletes the account of a member in for a full Friday, and the first one waiting moves up (#137)", async () => {
+    const { dana, signup } = await fullFriday();
+    const reg = await dana.member("Reg Player");
+    expect((await dana.call("DELETE", `/api/members/${reg.id}`)).status).toBe(200);
+    expect(signup("Wes Waiting")).toBe("in");
+  });
 
   // https://github.com/battersea-cougars/ark/issues/138
   // Known bug #138: their entry for a tournament still to come goes, but their place on its team stays, as

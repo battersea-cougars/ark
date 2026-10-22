@@ -125,14 +125,11 @@ describe("an admin gives a tournament its days", () => {
 
   // The date and time checks looked only at the shape (four digits, two, two), so 30 February and 25:99 went in, and
   // the calendar and the website got a day that isn't one. https://github.com/battersea-cougars/ark/issues/133
-  it(
-    "a day that doesn't exist (30 February, month 13) or a time past 23:59 is refused (#133)",
-    async () => {
-      const dana = await admin();
-      for (const o of [{ heldOn: "2027-02-30" }, { heldOn: "2026-13-01" }, { startTime: "25:99" }])
-        expect((await dana.create(o)).status, JSON.stringify(o)).toBe(400);
-    },
-  );
+  it("a day that doesn't exist (30 February, month 13) or a time past 23:59 is refused (#133)", async () => {
+    const dana = await admin();
+    for (const o of [{ heldOn: "2027-02-30" }, { heldOn: "2026-13-01" }, { startTime: "25:99" }])
+      expect((await dana.create(o)).status, JSON.stringify(o)).toBe(400);
+  });
 
   it("29 February is a day in a leap year (2028), and just a season's date is its last day", async () => {
     const dana = await admin();

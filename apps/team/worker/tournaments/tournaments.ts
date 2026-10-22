@@ -616,7 +616,13 @@ export async function createTournament(db: D1Database, given: Record<string, unk
   return { id };
 }
 
-export async function updateTournament(db: D1Database, id: number, o: Record<string, unknown>, today: string, now: string) {
+export async function updateTournament(
+  db: D1Database,
+  id: number,
+  o: Record<string, unknown>,
+  today: string,
+  now: string,
+) {
   const { typeId } = await seriesOf(db, o);
   const current = await first<Rules & { draft_state: string }>(
     db,
