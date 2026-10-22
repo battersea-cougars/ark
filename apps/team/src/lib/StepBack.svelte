@@ -14,7 +14,11 @@
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
 
-  const from = $derived(backFrom(tournament, londonToday()));
+  const now = $derived(backFrom(tournament, londonToday()));
+  // The step it asked about, kept while it's open and closing: the step back lands before the sheet's gone, and its
+  // title and words mustn't turn into the next step's as it leaves
+  let asked = $state<BackFrom | null>(null);
+  const from = $derived(asked ?? now);
   const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const games = $derived(tournament.games ?? []);
   const picks = $derived(tournament.teams.reduce((n, t) => n + t.players.length, 0));
@@ -74,8 +78,9 @@
 
   /** Manage's tap: at once when nothing's lost, else the question. */
   export function start() {
-    if (!from) return;
-    if (cost.level === "none") void go(from);
+    asked = now;
+    if (!asked) return;
+    if (cost.level === "none") void go(asked);
     else open = true;
   }
 </script>

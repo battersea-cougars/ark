@@ -73,6 +73,9 @@
   // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
   const after = $derived(tournament ? tournamentAfter(tournament) : null);
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
+  // Whoever runs the draft takes back the draft's own steps too (the drawn order, the picks): from here, the one
+  // Back on the page (lib/StepBack), not one of the draft's as well
+  const runner = $derived(offer && can(granted(), "run:Draft"));
   // A captain looks after their own team from here (ADR 0060): its name and crest, as on its page (TeamLookSheet)
   const myTeam = $derived(
     offer && tournament ? tournament.teams.find((x) => x.id && x.captainMemberId === me().id) : undefined,
@@ -117,7 +120,14 @@
         ? [{ icon: "list" as const, label: "Pick log", sub: "Every pick, round by round", run: () => (logOpen = true) }]
         : []),
     ];
-    if (!admin) return [...yours, ...extra];
+    // Back a step (ADR 0074): one item, whatever step it's at, while there's one before it; the draft's own steps
+    // for whoever runs it too
+    const from = backFrom(t, londonToday());
+    const back: Tool[] =
+      from && (admin || (runner && (from === "draft" || from === "order")))
+        ? [{ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() }]
+        : [];
+    if (!admin) return [...yours, ...extra, ...back];
     const list: Tool[] = [
       ...yours,
       ...extra,
@@ -131,15 +141,7 @@
         run: () => editTournament(t.id),
       },
     ];
-    // Back a step (ADR 0074): one item, whatever step it's at, while there's one before it
-    const from = backFrom(t, londonToday());
-    if (from)
-      list.push({
-        icon: "undo",
-        label: backTo(from, tournament.kind),
-        sub: BACK_SAYS[from],
-        run: () => stepper?.start(),
-      });
+    list.push(...back);
     // The fixtures made, no match played: made again (a new order of play), here, not a button on the page
     const games = t.games ?? [];
     if (games.length && !games.some((g) => g.status !== "next" || g.homeGoals !== null))
@@ -320,7 +322,8 @@
     >
   {/if}
 {/if}
-{#if admin && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
+<!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
+{#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 
 {#if can(granted(), "manage:Tournament")}<TournamentEditorPanel />{/if}

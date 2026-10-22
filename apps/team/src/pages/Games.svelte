@@ -236,7 +236,15 @@
             <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking.
                  While it's still sign-up, your answer first -->
             {#if view === "signup"}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} line />{/if}
-            <Draft {typeId} onpicking={(v) => (picking = v)} onmanage={(open) => (draftJobs = open)} />
+            <Draft
+              {typeId}
+              onpicking={(v) => {
+                picking = v;
+              }}
+              onmanage={(open) => {
+                draftJobs = open;
+              }}
+            />
             <!-- The draft done: how the picks went, round by round, under its teams -->
             {#if tournament.draftState === "closed" || (tournament.draftState === "open" && !picking)}
               <PickLog {tournament} inline />

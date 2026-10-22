@@ -83,7 +83,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 - **Manage** (the gear) holds every job: the settings, Back a step, Make the fixtures again, the awards, the draft's
   own jobs while it's showing (undo a pick, add a player, close it, reset), and for a captain **Your team** (its name
   and crest) and, with whoever runs the draft, the **Pick log** once the draft's open. A captain sees the gear for
-  those even with nothing else in it.
+  those even with nothing else in it. Back a step is the gear's alone, one on the page, for whoever runs the draft too
+  (the draft's own steps); the draft's Manage hasn't one. A drawer opens only from a tap.
 - **History** is a quiet link at the foot; so is, on the Kumite, "Don't get the references? You've got some training
   to do." (the film, "Required viewing").
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
@@ -273,3 +274,8 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   header leads with how far off within a week and carries the afterwards beside the place; Rules (a topic each, with
   house rules) and Manage are its only buttons, the draft's own Rules, Pick log and Manage going into them. Members
   fight blind through the draft; the teams set are listed in full; the fixtures are a list, the day a carousel.
+- 2026-10-22: "When undoing some of kumite steps as admin - the drawer keeps opening on its own" and "even when picking
+  a player during the draft - the drawer opened" (the user): the draft handed its Manage opener up from an effect that
+  returned it, so Svelte ran it as the effect's teardown on every change (a pick, a step back). The effect returns
+  nothing now (lib/effects.test.ts keeps it so), and Back a step is one, in the gear, for whoever runs the draft too;
+  its question keeps the step it asked about while it closes.

@@ -27,8 +27,7 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
-  import StepBack from "../lib/StepBack.svelte";
-  import { BACK_SAYS, BACK_TO, backFrom, backTo } from "../lib/step-back";
+  import { BACK_TO } from "../lib/step-back";
   import Sheet from "../lib/Sheet.svelte";
   import { phone } from "../lib/viewport.svelte";
   import type { IconName } from "../app/shell/icons";
@@ -123,7 +122,9 @@
   const viewsIn = { duration: prefersReducedMotion ? 0 : 300, delay: prefersReducedMotion ? 0 : 560 };
   const open = $derived(phase === "open");
   const live = $derived(open && pool.length > 0);
-  $effect(() => onpicking?.(live));
+  $effect(() => {
+    onpicking?.(live);
+  });
   // Everyone's picked, or closed: the picking's over, so the page is the teams (no ticker, no Next, no tabs), and it
   // scrolls as a page, not in a box
   const done = $derived((open && !pool.length) || phase === "closed");
@@ -485,7 +486,6 @@
     run: () => void;
   }
   let manageOpen = $state(false);
-  let stepper = $state<ReturnType<typeof StepBack>>();
   const tools = $derived.by(() => {
     if (!tournament) return [] as Tool[];
     const id = tournament.id;
@@ -512,15 +512,8 @@
         });
       return list;
     }
-    // Back a step of the draft's own (ADR 0074): open, back to the drawn order; drawn, back to before the draw
-    const from = backFrom(tournament, londonToday());
-    if (running && (from === "draft" || from === "order"))
-      list.push({
-        icon: "undo",
-        label: tournament ? backTo(from, tournament.kind) : BACK_TO[from],
-        sub: BACK_SAYS[from],
-        run: () => ((manageOpen = false), stepper?.start()),
-      });
+    // Back a step of the draft's own (to the drawn order, to before the draw) is the header's Manage, the page's one
+    // Back (lib/TournamentHead, ADR 0074), not one here as well
     if (running && open && made)
       list.push({
         icon: "undo",
@@ -551,7 +544,13 @@
       });
     return list;
   });
-  $effect(() => onmanage?.(tools.length ? () => (manageOpen = true) : null));
+  // Handed up to the header's Manage (Games). A block, not `() => onmanage?.(…)`: an effect that returns a function
+  // has it run as its teardown, and the parent's `(open) => (draftJobs = open)` returned the opener, so every change
+  // to the tools (a pick, a step back) opened this drawer by itself (lib/effects.test.ts)
+  const openManage = () => (manageOpen = true);
+  $effect(() => {
+    onmanage?.(tools.length ? openManage : null);
+  });
   $effect(() => {
     if (manageOpen) return;
     confirmLeaveOut = false;
@@ -1106,7 +1105,6 @@
     </div>
   {/if}
 {/snippet}
-{#if running && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 {#if tools.length}
   {#if phone.current}
     <Sheet bind:open={manageOpen} title="Manage the draft">{@render jobList()}</Sheet>
