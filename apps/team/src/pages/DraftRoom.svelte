@@ -39,6 +39,10 @@
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const nameOf = (i: number) => nameOfTeam(teams[i], teams, byId);
   const turn = $derived(tournament && inRoom ? roomTurn(tournament, me().id, nameOf) : null);
+  // A phone's: the name without its "Team", and just "picking" (CHARLIE B PICKING), so it's never cut
+  const short = $derived(
+    turn && turn.team !== null && !turn.you ? `${nameOf(turn.team).replace(/^team\s+/i, "")} picking` : "",
+  );
   // The tournament's team names, which its crests are told apart among (logo.ts)
   const crestNames = $derived(teamNamesOf(teams, byId));
   const seal = $derived(kanjiFor(type, "fist"));
@@ -142,7 +146,9 @@
           />
         {/if}
         <strong class="said display" class:you={turn.you}
-          >{#if turn.you}<i class="dot"></i>{/if}{turn.said}</strong
+          >{#if turn.you}<i class="dot"></i>{turn.said}{:else}<span class="long">{turn.said}</span><span class="short"
+              >{short}</span
+            >{/if}</strong
         >
         {#if turn.inPicks !== null}<span class="soon num">you're in {turn.inPicks}</span>{/if}
       {/if}
@@ -297,10 +303,27 @@
     }
   }
   /* A phone: whose pick gets the room; the seal says where you are */
-  @media (max-width: 480px) {
-    .titles,
-    .turn :global(.crest) {
+  .said .short {
+    display: none;
+  }
+  @media (max-width: 560px) {
+    .titles {
       display: none;
+    }
+  }
+  @media (max-width: 640px) {
+    .said .long {
+      display: none;
+    }
+    .said .short {
+      display: inline;
+    }
+    /* Never cut: a long name takes a second line */
+    .said {
+      font-size: clamp(1rem, 5.2vw, 1.4rem);
+      white-space: normal;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
     }
   }
 

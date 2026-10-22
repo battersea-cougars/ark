@@ -27,6 +27,7 @@
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import BurnReveal from "../lib/BurnReveal.svelte";
+  import { followDraft, following, type Follow, type FollowEvent } from "../lib/draft-follow";
   import PickLog from "../lib/PickLog.svelte";
   import { canEnterRoom, enterRoom, roomOffered } from "../lib/draft-room";
   import { teamTone } from "../lib/team-tones";
@@ -371,7 +372,10 @@
     ending = true;
     try {
       // The turn it's for: the slot on the clock as this page sees it (the server refuses it once that's moved on)
-      await draftPick(tournament.id, chosenPlayer.id, slot);
+      const own = !forOther;
+      const done = await draftPick(tournament.id, chosenPlayer.id, slot);
+      // Your own pick in, on a phone: over to the teams, the team now on the clock in front (lib/draft-follow.ts)
+      if (done !== null && own && phoneFollow) follow({ kind: "picked", team: captainIndex });
     } finally {
       ending = false;
     }
@@ -393,26 +397,109 @@
     dir = ORDER.indexOf(v) >= ORDER.indexOf(view) ? 1 : -1;
     view = v;
   };
+  // A captain following the draft on a phone (lib/draft-follow.ts): your pick made, the teams, your team in front for
+  // it to burn in, then the team on the clock; each pick burns into its team in front, held a moment with the name
+  // cooled, and only then on to the next; your turn, back to the players. Never on while a pick's burning in. Touch a
+  // tab or move the teams and it leaves you be until your next pick or turn; Follow the draft picks it up again
+  const captainIndex = $derived(teams.findIndex((t) => t.captainMemberId === me().id));
+  const phoneFollow = $derived(!columns && live && captainIndex >= 0);
+  let fol = $state<Follow>(following());
+  function follow(e: FollowEvent) {
+    const was = view;
+    const next = followDraft({ ...fol, view }, e);
+    fol = next;
+    if (next.view !== view) show(next.view);
+    // Your turn come round: a short buzz where the phone can (only once you've touched the page)
+    if (was === "teams" && next.view === "players" && next.focus === captainIndex)
+      try {
+        if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(60);
+      } catch {
+        // No vibration here: the bar says it
+      }
+  }
+  const manual = (v?: View) => follow({ kind: "manual", view: v });
+  const resume = () => follow({ kind: "resume", clock, mine: captainIndex });
+  // The team in front: following on a phone, the one it's on; on the board, the one burning in, else the one picking
+  let draftEl = $state<HTMLElement | undefined>();
+  const front = $derived(fol.focus);
+  // The teams on a phone: the one in front at the top of the list, whole; only that list scrolls
+  $effect(() => {
+    if (columns || view !== "teams" || front < 0) return;
+    const f = front;
+    requestAnimationFrame(() => {
+      const reel = draftEl?.querySelector<HTMLElement>(".pane .teams");
+      const card = reel?.querySelector<HTMLElement>(`[data-team="${f}"]`);
+      if (!reel || !card) return;
+      // Its whole card at the top, its glow too (the list's top padding): never a card cut through above it
+      reel.scrollTo({ top: Math.max(0, card.offsetTop - 14), behavior: prefersReducedMotion ? "auto" : "smooth" });
+    });
+  });
+  // A wide screen (the board): the team a pick's burning into, else the one picking, scrolled into view in the
+  // teams' area if it's out of it (only that area moves)
+  $effect(() => {
+    if (!columns || !live) return;
+    const c = burningTeam ?? clock;
+    requestAnimationFrame(() => {
+      const lanes = draftEl?.querySelector<HTMLElement>(".lanes");
+      const card = lanes?.querySelector<HTMLElement>(`[data-team="${c}"]`);
+      if (!lanes || !card) return;
+      const top = card.offsetTop - lanes.scrollTop;
+      if (top < 0 || top + card.offsetHeight > lanes.clientHeight)
+        lanes.scrollTo({ top: Math.max(0, card.offsetTop - 8), behavior: prefersReducedMotion ? "auto" : "smooth" });
+    });
+  });
 
-  const moveMs = prefersReducedMotion ? 0 : 360;
-  // A pick landing burns in on its team (lib/BurnReveal): the newest only, so a catch-up of several (after the
-  // connection's back) burns the last and the rest just appear. Not the picks already there when the page opens,
-  // nor one taken back. Less motion: a short glow instead
+  // A pick landing burns in on its team (lib/BurnReveal), one at a time, in order: the team in front, the burn to the
+  // end (about 1.2s), the cooled name held a second, and only then the next pick's, or the move to the next team. A
+  // catch-up of several (after the connection's back) burns the last; the rest just appear. Not the picks already
+  // there when the page opens, nor one taken back. A pick waiting its turn shows as the row it'll fill
+  const BURN_MS = prefersReducedMotion ? 300 : 1200;
+  const HOLD_MS = 1000;
   let burning = $state<number | null>(null);
+  let burningTeam = $state<number | null>(null);
+  let waitingBurns = $state<{ memberId: number; team: number }[]>([]);
   let seen = -1;
-  let burnTimer: ReturnType<typeof setTimeout> | undefined;
+  let burnRun = false;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  async function burnAll() {
+    if (burnRun) return;
+    burnRun = true;
+    try {
+      while (waitingBurns.length) {
+        const [next, ...rest] = waitingBurns;
+        follow({ kind: "reveal", team: next.team });
+        // The team brought in front first (a glide), then it burns
+        await sleep(view === "teams" && !prefersReducedMotion ? 350 : 0);
+        waitingBurns = rest;
+        burning = next.memberId;
+        burningTeam = next.team;
+        await sleep(BURN_MS + HOLD_MS);
+        burning = null;
+        burningTeam = null;
+      }
+    } finally {
+      burnRun = false;
+      follow({ kind: "settled" });
+    }
+  }
   $effect(() => {
     const n = made;
-    const newest = picks.at(-1)?.memberId ?? null;
+    const newest = picks.at(-1);
     untrack(() => {
-      if (seen >= 0 && n > seen && newest !== null) {
-        burning = newest;
-        clearTimeout(burnTimer);
-        burnTimer = setTimeout(() => (burning = null), prefersReducedMotion ? 400 : 1400);
+      if (seen >= 0 && n > seen && newest?.memberId) {
+        waitingBurns = [...waitingBurns, { memberId: newest.memberId, team: newest.team }];
+        void burnAll();
+        // The turn's moved: on to it once the burns are done
+        if (captainIndex >= 0) follow({ kind: "advance", clock, mine: captainIndex });
       }
+      // Taken back: nothing waits to burn that isn't on a team now
+      if (n < seen) waitingBurns = waitingBurns.filter((w) => picks.some((p) => p.memberId === w.memberId));
       seen = n;
     });
   });
+  const waitsToBurn = (id: number | null) => id !== null && waitingBurns.some((w) => w.memberId === id);
+
+  const moveMs = prefersReducedMotion ? 0 : 360;
 
   // Opening it the first time takes enough to pick from: every team its captain and two more (lib/draft.ts)
   const needed = $derived(playersNeeded(teams.length));
@@ -500,17 +587,23 @@
         class:you={p.memberId === me().id}
         class:hit={!!query.trim() && !!m && matchesName(m, query)}
         class:burning={p.memberId !== null && p.memberId === burning}
+        class:slot={waitsToBurn(p.memberId)}
         animate:flip={{ duration: moveMs }}
       >
-        {#if p.memberId !== null && p.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
-        <span class="n num">{n + 1}</span>
-        <span class="name"
-          >{goesByOf(m) || p.name}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
-              class="by"
-              title="{by} picked them for {teamName(i)}">{by}'s pick</small
-            >{/if}</span
-        >
-        {#if m}<span class="pos" class:g={m.position === "G"}>{m.position}</span>{/if}
+        {#if waitsToBurn(p.memberId)}
+          <!-- Picked, waiting its turn to burn in (the pick before it still is): the row it'll fill, as yet -->
+          <span class="n"></span><span class="line"></span>
+        {:else}
+          {#if p.memberId !== null && p.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
+          <span class="n num">{n + 1}</span>
+          <span class="name"
+            >{goesByOf(m) || p.name}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
+                class="by"
+                title="{by} picked them for {teamName(i)}">{by}'s pick</small
+              >{/if}</span
+          >
+          {#if m}<span class="pos" class:g={m.position === "G"}>{m.position}</span>{/if}
+        {/if}
       </li>
     {/each}
     <!-- Every pick still to come is its row already, a faint line: the card is the team's full height from the start,
@@ -605,6 +698,7 @@
     class:picking
     class:mine={picking && yours}
     class:quiet={live && !picking}
+    data-team={i}
     style:--team={teamTone(i)}
     aria-label={teamName(i)}
   >
@@ -629,13 +723,15 @@
 
 {#snippet teamsView()}
   <section class="teams" aria-label="Teams" style:--rows={cardRows}>
-    {#each teamOrder as i (teams[i].id ?? i)}{@render teamCard(i)}{/each}
+    <!-- On a phone while it's picked, in pick order, so following the turn runs down the list -->
+    {#each !columns && live ? teams.map((_, k) => k) : teamOrder as i (teams[i].id ?? i)}{@render teamCard(i)}{/each}
   </section>
 {/snippet}
 
 <!-- On a phone, once it's open, the page is the window's height and the players scroll inside it (.page.fit), so the
      list starts high and takes the rest -->
 <div
+  bind:this={draftEl}
   class="draft"
   class:fit
   class:room
@@ -926,18 +1022,29 @@
     {:else if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
       <div class="tab-row" in:fade={viewsIn}>
-        <div class="tablist" role="tablist" aria-label="Draft">
-          <button role="tab" aria-selected={view === "players"} onclick={() => show("players")}>Players</button>
-          <button role="tab" aria-selected={view === "teams"} onclick={() => show("teams")}
+        <div class="tablist" role="tablist" aria-label="Draft" style:--slide={dir}>
+          <button role="tab" aria-selected={view === "players"} onclick={() => manual("players")}>Players</button>
+          <button role="tab" aria-selected={view === "teams"} onclick={() => manual("teams")}
             >Teams{#if myTeam >= 0 && open && !haveGoalie}<span class="need" title="No goalie yet"
                 ><Icon name="alert" size={13} />G</span
               >{/if}</button
           >
         </div>
-        {#if searching}{@render finder()}{/if}
+        {#if phoneFollow && !fol.follow}
+          <!-- Left alone (you took over): one tap and it moves with the draft again -->
+          <button class="btn sm follow" onclick={resume}><Icon name="live" size={14} />Follow the draft</button>
+        {:else if searching}{@render finder()}{/if}
       </div>
       {#key view}
-        <div class="pane" in:fly={{ x: 32 * dir, duration: flyMs, easing: easeOut, opacity: 0 }}>
+        <!-- The view slides in from its tab's side; moving the teams yourself stops it following -->
+        <div
+          class="pane"
+          role="tabpanel"
+          tabindex="-1"
+          in:fly={{ x: 56 * dir, duration: prefersReducedMotion ? 0 : 300, easing: easeOut, opacity: 0 }}
+          ontouchmove={view === "teams" && phoneFollow ? () => manual() : undefined}
+          onwheel={view === "teams" && phoneFollow ? () => manual() : undefined}
+        >
           {#if view === "teams"}{@render teamsView()}
           {:else}{@render playersView()}{/if}
         </div>
@@ -1138,6 +1245,20 @@
     height: 3rem;
     padding: 0 var(--s-3) 0 var(--s-2);
     column-gap: var(--s-2);
+  }
+  /* A phone's picks: a long team name takes two lines, a size down, rather than an ellipsis */
+  .draft.fit .who {
+    font-size: 0.85rem;
+    line-height: 1.05;
+    white-space: normal;
+  }
+  .draft.fit .who .clip {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .draft.fit .tick.lift {
     scale: 1.08;
@@ -1792,6 +1913,41 @@
   }
   .row:hover {
     background: var(--surface-2);
+  }
+  /* The teams a scroller of their own on a phone (the cards' places measured from it, for following the turn) */
+  .teams {
+    position: relative;
+  }
+  /* A phone's teams while it's picked, a list of their own: room at the top and sides for the lit card's glow, and
+     its top and foot fading rather than cutting through a card that runs under them */
+  .draft.fit .pane .teams {
+    padding-top: 14px;
+    padding-inline: 8px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 2.5rem), transparent);
+  }
+  .follow {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    gap: var(--s-1);
+    translate: 0 -50%;
+    color: var(--red-hot);
+  }
+  /* A tab's focus ring inside it: outside, the tab row (a scroller) cut its top and bottom off, leaving two red bars
+     either side of the tab */
+  .tablist > button:focus-visible {
+    outline-offset: -3px;
+  }
+  /* The tab's slash slides over from the tab you were on */
+  .tablist > button[aria-selected="true"]::after {
+    animation: slash-in 300ms var(--ease) both;
+  }
+  @keyframes slash-in {
+    from {
+      opacity: 0;
+      translate: calc(var(--slide, 1) * -60%) 0;
+    }
   }
   /* A pick just landed: the burn's laid over the row; the name glows hot as it's revealed, then cools */
   .row.burning {

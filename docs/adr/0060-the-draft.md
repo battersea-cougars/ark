@@ -292,3 +292,12 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   under a charcoal sheet that a flame front burns away left to right, a ragged flickering edge and ember rim, a few
   sparks, the name glowing hot and cooling, about 1.2s; the newest pick only, so a catch-up burns the last and the
   rest just appear; the player leaves the pool with a quick fade. Less motion: a 300ms glow, no lift.
+- 2026-10-22: Following the draft on a phone ("when I make my pick, switch to Teams and bring that team forward into
+  view… when it's my turn, switch me back to the player list"; "the name should burn in, then move to the next one",
+  the user; lib/draft-follow.ts): your pick made, the Teams tab slides in, your team in front while it burns in, then
+  the team on the clock; each pick burns into its team in front, the cooled name held a second, and only then on to
+  the next team (a pick landing meanwhile waits its turn, shown as the row it'll fill); your turn, back to the
+  players, with a short buzz. Touch a tab or move the teams and it leaves you be until your next pick or turn;
+  Follow the draft picks it up again. The board scrolls the team burning in, else the one picking, into view in its
+  own area. A phone's teams list shows the card in front whole at its top, its top and foot fading, never cut ("why
+  do we keep cutting off the card at the top!"); the room's bar on a phone says CHARLIE B PICKING, never cut.
