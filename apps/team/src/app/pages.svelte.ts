@@ -28,6 +28,7 @@ const LOADERS: Record<string, () => Promise<{ default: Page }>> = {
   tab: () => import("../pages/MyTab.svelte"),
   roles: () => import("../pages/Roles.svelte"),
   usage: () => import("../pages/Usage.svelte"),
+  email: () => import("../pages/Email.svelte"),
   audit: () => import("../pages/AuditLog.svelte"),
   "dev-tools": () => import("../pages/DevTools.svelte"),
   "training-settings": () => import("../pages/TrainingSettings.svelte"),

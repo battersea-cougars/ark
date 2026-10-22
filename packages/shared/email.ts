@@ -11,8 +11,10 @@
 //   - without Gmail credentials (a laptop, tests) it logs the email instead of sending.
 //
 // Gmail is behind a circuit breaker (packages/shared/breaker.ts, ADR 0055): when it's down or has rate-limited the account,
-// sends fail at once for a while instead of each waiting for Google, and the sign-in page can say so up front.
-import { HttpFailure, QuotaError, guard, pausedUntil, retryAfter } from "./breaker";
+// sends fail at once for a while instead of each waiting for Google, and the sign-in page can say so up front. How
+// each send went is told to the config's `onOutcome` (mail-health.ts), which tells a cancelled token (Google's
+// invalid_grant: the account's password changed, its access was removed, or 6 months unused) from Gmail being busy.
+import { BreakerOpen, HttpFailure, QuotaError, guard, pausedUntil, retryAfter } from "./breaker";
 import { scribe } from "./scribe";
 
 const log = scribe.logger("mail");
@@ -62,6 +64,22 @@ export interface MailConfig {
    * never gets email. Null when unknown: production then sends as the account itself.
    */
   club?: string | null;
+  /** Told how each send through Gmail went (mail-health.ts): never one that's only logged or refused before Gmail. */
+  onOutcome?: (outcome: MailOutcome) => Promise<void>;
+}
+
+/** Why Gmail didn't take an email: its token was cancelled, Gmail is busy or rate-limited (paused), or anything else. */
+export type MailFailure = "cancelled" | "paused" | "failed";
+export type MailOutcome = { ok: true; account: string } | { ok: false; failure: MailFailure };
+
+/** Google refused the refresh token (invalid_grant): it was cancelled, and only signing in again makes a new one. */
+export class TokenCancelled extends HttpFailure {}
+
+/** What a failed send means for whoever looks after the email. */
+export function mailFailureOf(error: unknown): MailFailure {
+  if (error instanceof TokenCancelled) return "cancelled";
+  if (error instanceof BreakerOpen || error instanceof QuotaError) return "paused";
+  return "failed";
 }
 
 export type SendResult = { status: "sent"; id: string; to: string[] } | { status: "logged"; to: string[] };
@@ -139,6 +157,7 @@ export async function accessToken(
     error?: string;
   };
   // The error code only (e.g. invalid_grant: the token was revoked); never the response, which holds the token.
+  if (body.error === "invalid_grant") throw new TokenCancelled(`Gmail token: ${res.status} invalid_grant`, res.status);
   if (!res.ok || !body.access_token)
     throw gmailError(`Gmail token: ${res.status} ${body.error ?? "no access token"}`, res);
   const account = body.id_token ? accountOf(body.id_token) : "";
@@ -187,7 +206,31 @@ export async function sendMail(
     log.info("mail.logged", { to: safe.to, subject: hide(safe.subject), text: hide(safe.text), html: hide(safe.html) });
     return { status: "logged", to: safe.to };
   }
-  const gmail = config.gmail;
+  try {
+    const sent = await sendThroughGmail(mail, config, config.gmail, { fetch, now });
+    await told(config, { ok: true, account: sent.account });
+    return sent.result;
+  } catch (error) {
+    if (!(error instanceof MailRefused)) await told(config, { ok: false, failure: mailFailureOf(error) });
+    throw error;
+  }
+}
+
+/** Telling `onOutcome` never stops a send, or changes what it throws. */
+async function told(config: MailConfig, outcome: MailOutcome) {
+  try {
+    await config.onOutcome?.(outcome);
+  } catch (error) {
+    log.error("mail.outcome_unrecorded", error);
+  }
+}
+
+async function sendThroughGmail(
+  mail: Mail,
+  config: MailConfig,
+  gmail: GmailCredentials,
+  { fetch, now }: { fetch: typeof globalThis.fetch; now: () => number },
+): Promise<{ result: SendResult; account: string }> {
   const { token, account } = await guard("gmail", () => accessToken(gmail, { fetch, now }));
   const club = config.club?.trim().toLowerCase() || null;
   if (!isProduction(config.siteEnv) && account === club) {
@@ -201,13 +244,21 @@ export async function sendMail(
   if (safe.to !== mail.to) {
     log.info("mail.redirected", { to: safe.to, originalTo: mail.to });
   }
-  const id = await guard("gmail", async () => {
-    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+  const send = (bearer: string) =>
+    fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
       body: JSON.stringify({ raw: base64url(mime(safe, sender)) }),
       signal: AbortSignal.timeout(15_000),
     });
+  const id = await guard("gmail", async () => {
+    let res = await send(token);
+    // The access token kept from earlier died with its refresh token (cancelled, or replaced): ask Google again
+    // once, which says invalid_grant if the refresh token is gone too
+    if (res.status === 401) {
+      clearTokenCache();
+      res = await send((await accessToken(gmail, { fetch, now })).token);
+    }
     const body = (await res.json().catch(() => ({}))) as {
       id?: string;
       error?: { message?: string; errors?: { reason?: string }[] };
@@ -218,7 +269,7 @@ export async function sendMail(
     }
     return body.id;
   });
-  return { status: "sent", id, to: safe.to };
+  return { result: { status: "sent", id, to: safe.to }, account };
 }
 
 /**

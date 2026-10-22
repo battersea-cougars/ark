@@ -156,6 +156,9 @@
           .filter(Boolean)
           .join("; ");
       }
+      // The club's email (ADR 0027): a new Gmail token, kept sealed in the database ({ account })
+      case "mail.reconnected":
+        return `${who} reconnected the club's email, sending as ${str(to?.account)}`;
       case "tournament.deleted":
         return `${who} deleted the tournament ${str(from?.name)} (${str(from?.heldOn)})`;
       case "session.reset":

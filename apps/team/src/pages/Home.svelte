@@ -52,6 +52,7 @@
   import DateField from "../lib/DateField.svelte";
   import { dismissAnnouncement, postAnnouncement, removeAnnouncement } from "../app/backend.svelte";
   import { askToNotify, mayAskToNotify } from "../app/native";
+  import { api } from "../app/api";
   import { slide } from "svelte/transition";
 
   // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
@@ -212,6 +213,18 @@
       worst: rows.reduce((s, r) => s + r.amounts[3], 0),
     };
   });
+  // Whether Google has cancelled the club's email (ADR 0027, #101): asked once a visit, for whoever looks after it,
+  // so they hear before the members do. Its line goes under For admins, at the foot, so nothing above it moves
+  let emailStopped = $state(false);
+  const keepsEmail = $derived(can(perms, "manage:Settings"));
+  $effect(() => {
+    if (!keepsEmail) return;
+    untrack(() => {
+      api<{ failure: string | null }>("GET", "/api/mail")
+        .then((s) => (emailStopped = s.failure === "cancelled"))
+        .catch(() => {});
+    });
+  });
   // The lead is picked once a visit (lib/home-feed.ts leadOf) and stays while it's on: answering Out on it doesn't
   // swap the card under your thumb (no-layout-shift)
   let pinned = $state<string>();
@@ -228,6 +241,7 @@
       afters,
       club,
       events,
+      emailStopped: keepsEmail && emailStopped,
       now: openedAt,
       pinned,
     }),

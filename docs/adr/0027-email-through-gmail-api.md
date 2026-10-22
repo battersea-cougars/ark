@@ -1,7 +1,7 @@
 # 0027. Email goes through the Gmail API; outside production it reaches only the safe inbox, admins and a dev list
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-17
+- **Date:** 2026-10-06 · updated 2026-10-22
 - **Merges:** 0077
 
 ## Context
@@ -34,6 +34,33 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - The enquiry is saved first; the email goes out after the response (`waitUntil`). A failed email is logged and never
   loses the enquiry.
 
+**When Google cancels the token** (#101)
+
+- Google cancels the refresh token when the developer account's password changes, its access is removed, or it goes
+  unused for 6 months. Then every email fails, sign-in codes too. An admin fixes it from the team app, in a minute,
+  with no terminal, no Bitwarden and no deploy.
+- **Status: Settings → Email** (`manage:Settings`): the sending account, the From address (the club's alias in
+  production), how the token got there (at set-up, or reconnected when and by whom), and the last send or the first
+  failure since, with why. Both Workers write it as they send (`packages/shared/mail-health.ts`, one row,
+  `mail_health`; a working send at most every 5 minutes). A cancelled token (Google's `invalid_grant`) is told
+  apart from Gmail being busy or rate-limiting (the breaker, [0055](0055-degrade-instead-of-break.md)), which passes
+  by itself, and from any other failure.
+- **Telling the admins:** the send that first finds the token cancelled sends the holders of `manage:Settings` a
+  notification ([0108](0108-store-apps.md), topic `email`, shown only to them), and while it stays cancelled Home's
+  _For admins_ leads with "Email has stopped".
+- **Reconnect email**, on that page: OAuth's code flow with PKCE, for a _Web application_ client
+  (`GMAIL_WEB_CLIENT_ID`), whose redirect URIs are the team app's `/api/mail/callback` in production and dev. The
+  state and verifier go in a 10-minute cookie, so Google's answer counts only in the browser that asked, and once.
+  It must grant _Send email on your behalf_ and must not be the club's account; otherwise nothing is saved and the
+  page says why. The new token is kept in D1 (`sealed_tokens`, row `gmail`), sealed with `GMAIL_TOKEN_KEY`
+  ([0002](0002-secrets-in-bitwarden.md) point 8), and it wins over the deployed `GMAIL_REFRESH_TOKEN` in both
+  Workers from the next email (`packages/shared/gmail-token.ts`). If it won't open, the deployed one is used and an
+  error is logged. Each environment has its own D1 and key, so reconnecting dev can't touch production. On the audit
+  log as `mail.reconnected`. Google won't sign in inside the store app's web view, so it's done from a browser.
+- **Signing in while email is down:** passkeys are the way in (team/passkeys); the admin needs no code to reach
+  the button. With no admin able to sign in, `scripts/gmail-auth.mjs` is the terminal fallback, then a deploy.
+  `gmail-auth.mjs` and its _Desktop_ client otherwise stay only for the first token.
+
 **Who receives it** (`safeMail`, run on every send)
 
 - Production means `SITE_ENV` is exactly `production`, set only by `target.mjs` on `release`; `wrangler.jsonc`
@@ -63,8 +90,14 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - The app is unverified (Google warns on the consent screen), which is fine for one account. It must stay
   **In production** in Google Auth Platform: in Testing, tokens expire after 7 days.
 - A password change on the developer account, removing its access, or 6 months unused cancels the token: emails then fail
-  (logged, e.g. `enquiry.email_failed`) until `gmail-auth.mjs` is re-run. Enquiries are still saved. Sign-in stops
-  everywhere until then ([0023](0023-sign-in-and-sessions.md)). The club account's password can change freely.
+  (logged, e.g. `enquiry.email_failed`) until an admin reconnects (or `gmail-auth.mjs` is re-run and deployed).
+  Enquiries are still saved. Code sign-in stops until then ([0023](0023-sign-in-and-sessions.md)); the admins hear of
+  it from the app. The club account's password can change freely.
+- The token that sends as the developer account can live in D1, sealed. Someone with both the database and the
+  Worker's key could send mail as that account (not read it); revoking it is one click in the account's third-party
+  access, and the next reconnect replaces it.
+- Two OAuth clients: the Desktop one for `gmail-auth.mjs`, the Web one for reconnecting. A refresh token works only
+  with the client that made it, so each keeps its own credentials.
 - Production's mail depends on the developer account, so it's kept for sending only and the team account co-owns its
   Google Cloud project.
 - An admin on dev can make dev email a real person, by adding them. That's the point; it's limited to
@@ -93,3 +126,7 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - 2026-10-17: Every website deploy smoke-tests the form for real: an enquiry marked with that deploy's own key
   (`SMOKE_TOKEN`, made at random, spent after the test, never stored) is saved, both emails go to the sending account
   only (in production too), and the row is deleted; the deploy fails unless both sent.
+- 2026-10-22: An admin reconnects email from the team app when Google cancels the token: Settings → Email shows
+  whether it works (a cancelled token apart from Gmail being busy), the admins hear on Home and their phones, and
+  "Reconnect email" keeps a new token sealed in D1, used at once by both Workers, with no deploy. Passkeys get an
+  admin in while email is down; `gmail-auth.mjs` is for the first token and the terminal fallback (#101).

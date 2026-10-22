@@ -17,6 +17,7 @@ import { EVENTS_ROUTES } from "../calendar/events.routes";
 import { HttpError, json, sameOrigin, withinLimit } from "./api.http";
 import { LIMITS, addressOf, enforce } from "./api.limits";
 import { notifyLive } from "../live/live";
+import { MAIL_ROUTES } from "../mail/mail.routes";
 import { ME_ROUTES } from "../members/me.routes";
 import { MEMBERS_ROUTES } from "../members/members.routes";
 import { actionsOf, firstAdmin } from "../members/members";
@@ -66,6 +67,7 @@ export const ROUTES: Route[] = [
   // Everything else on the calendar, and the club's own settings
   ...EVENTS_ROUTES,
   ...SETTINGS_ROUTES,
+  ...MAIL_ROUTES,
 ];
 
 /** Who's asking: their session, or (on your own machine, when asked for) the first admin. */
@@ -233,6 +235,8 @@ export async function handleApi(
         const out = json({ ...reply, changed: await slices(now, changes) }, res.status);
         // Read after the version went up: the app's copy has this change's parts at least as new (src/app/catch-up.ts)
         out.headers.set(VERSION_HEADER, String(version));
+        // ...keeping any cookie the handler set (a Gmail reconnect's round trip, mail/mail.ts)
+        for (const set of res.headers.getSetCookie()) out.headers.append("set-cookie", set);
         if (who.setCookie) out.headers.append("set-cookie", who.setCookie);
         return out;
       }

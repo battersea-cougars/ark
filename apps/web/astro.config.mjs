@@ -58,6 +58,11 @@ export default defineConfig({
       GMAIL_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
       GMAIL_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
       GMAIL_REFRESH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
+      // The token an admin reconnects in the team app wins over the deployed one: kept in D1, sealed with
+      // GMAIL_TOKEN_KEY, for the Web client (packages/shared/gmail-token.ts, ADR 0027)
+      GMAIL_WEB_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
+      GMAIL_WEB_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
+      GMAIL_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Where every email goes outside production; unset, the sending account itself (the developer Gmail account).
       MAIL_SAFE_TO: envField.string({ context: "server", access: "public", optional: true }),
       // Cloudflare Turnstile on /join (packages/shared/turnstile.ts, ADR 0028). The site key is public, one per Cloudflare

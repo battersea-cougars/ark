@@ -2,7 +2,7 @@
 // is shown on its card (playing in it: your match; in, waiting, or may sign up: In and Out; not in it: You're out). Then what's coming up
 // after it, in date order and capped, with "See the calendar". Then what needs you (a captain's draft, the draft
 // being on, the teams being out, a sign-up closing you haven't answered), and under "For admins", only for whoever
-// they're for, running the draft and what the club is owed. What you owe is Home's foot (owedNotice), and a loud icon
+// they're for, the email having stopped, running the draft and what the club is owed. What you owe is Home's foot (owedNotice), and a loud icon
 // in its header while some of it is overdue (lib/dues.ts overdue).
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
@@ -12,7 +12,7 @@ import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
 
-export type FeedIcon = "draft" | "teams" | "pound";
+export type FeedIcon = "draft" | "teams" | "pound" | "mail";
 
 /** One row of the feed: a line, a sub-line, and where it opens (none: just news). `hot`: your move, now. */
 export interface FeedItem {
@@ -99,6 +99,8 @@ export interface FeedInput {
   pinned?: string;
   /** A tournament at its after-party (lib/edition.ts atAfters): the evening it ends, it's what's on now. */
   afters?: { type: TournamentType; t: Tournament }[];
+  /** Google cancelled the email's token (ADR 0027): for whoever looks after it (manage:Settings), nobody else. */
+  emailStopped?: boolean;
 }
 
 /** Your team's next game in a tournament on or coming up: Home's lead when it's your soonest thing. */
@@ -148,6 +150,16 @@ export function homeFeed(input: FeedInput): Feed {
   const now = rows.filter((r) => !forAdmins(r) && !(lead?.kind === "draft" && lead.key === r.key));
   const admin = rows.filter(forAdmins);
   const { club } = input;
+  // Nobody can sign in until it's reconnected: first, and hot
+  if (input.emailStopped)
+    admin.unshift({
+      key: "admin:email-stopped",
+      href: "/settings/email",
+      text: "Email has stopped",
+      sub: "Google cancelled its access: nobody gets a sign-in code. Reconnect it",
+      hot: true,
+      icon: "mail",
+    });
   if (club && club.total > 0)
     admin.push({
       key: "admin:club-dues",

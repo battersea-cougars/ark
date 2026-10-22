@@ -12,6 +12,8 @@ import { all, first, run } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import { isProduction, mailPausedUntil, sendMail, type MailConfig } from "@cougars/shared/email";
 import { clubContact } from "@cougars/shared/club-contact";
+import { gmailCredentials, type GmailEnv } from "@cougars/shared/gmail-token";
+import { mailOutcome } from "../mail/mail.health";
 import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
 import { londonToday } from "../../src/lib/dates";
@@ -27,14 +29,11 @@ import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
 
-export interface AuthEnv extends LiveEnv, TurnstileEnv {
+export interface AuthEnv extends LiveEnv, TurnstileEnv, GmailEnv {
   DB: D1Database;
   /** "local" only under `vite` on your machine: no email leaves it, even with Gmail set up; the code is shown on screen. */
   TEAM_ENV?: string;
   SITE_ENV?: string;
-  GMAIL_CLIENT_ID?: string;
-  GMAIL_CLIENT_SECRET?: string;
-  GMAIL_REFRESH_TOKEN?: string;
   MAIL_SAFE_TO?: string;
   /**
    * App Review's account in the store app (ADR 0108), production only: a reviewer can't read our email, so this one
@@ -117,10 +116,11 @@ export const localHere = (env: { TEAM_ENV?: string }, request: Request) =>
  * A cookie's name here. On https it carries the __Host- prefix: the browser then insists on Secure, Path=/ and no
  * Domain, so no sibling subdomain can set or shadow it. Plain http (a local server on the LAN) can't use it.
  */
-const cookieName = (request: Request, base: "session" | "nonce") =>
-  `${isHttps(request) ? "__Host-" : ""}cougars_${base}`;
+/** The app's cookies: the session, a sign-in's nonce, and a Gmail reconnect on its way through Google (mail/mail.ts). */
+type CookieBase = "session" | "nonce" | "gmail";
+export const cookieName = (request: Request, base: CookieBase) => `${isHttps(request) ? "__Host-" : ""}cougars_${base}`;
 
-function cookie(request: Request, name: string): string | null {
+export function cookie(request: Request, name: string): string | null {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [k, ...v] = part.trim().split("=");
     if (k === name) return v.join("=") || null;
@@ -128,7 +128,7 @@ function cookie(request: Request, name: string): string | null {
   return null;
 }
 /** A private cookie: not for scripts, not sent cross-site, Secure wherever the page is https. */
-function setCookie(request: Request, base: "session" | "nonce", value: string, maxAge: number): string {
+export function setCookie(request: Request, base: CookieBase, value: string, maxAge: number): string {
   const secure = isHttps(request) ? "; Secure" : "";
   return `${cookieName(request, base)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
@@ -137,13 +137,15 @@ const addMs = (now: Date, ms: number) => new Date(now.getTime() + ms).toISOStrin
 
 const TOO_MANY_TRIES = "Too many tries from here. Wait a few minutes.";
 
-export const mailConfig = (env: AuthEnv): MailConfig => ({
+/**
+ * The token (an admin's reconnected one in D1, else the deployed one, @cougars/shared/gmail-token), and how each send
+ * went written down for Settings → Email and the admins' Home (mail/mail.ts).
+ */
+export const mailConfig = async (env: AuthEnv): Promise<MailConfig> => ({
   siteEnv: env.SITE_ENV,
-  gmail:
-    env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET && env.GMAIL_REFRESH_TOKEN
-      ? { clientId: env.GMAIL_CLIENT_ID, clientSecret: env.GMAIL_CLIENT_SECRET, refreshToken: env.GMAIL_REFRESH_TOKEN }
-      : null,
+  gmail: (await gmailCredentials(env))?.gmail ?? null,
   safeTo: env.MAIL_SAFE_TO ?? null,
+  onOutcome: (outcome) => mailOutcome(env, outcome),
 });
 
 /**
@@ -151,7 +153,7 @@ export const mailConfig = (env: AuthEnv): MailConfig => ({
  * production who gets their own email (Dev tools, ADR 0027).
  */
 export async function mailSetup(env: AuthEnv): Promise<MailConfig> {
-  const config = { ...mailConfig(env), club: await clubContact(env.SITE_ENV) };
+  const config = { ...(await mailConfig(env)), club: await clubContact(env.SITE_ENV) };
   if (isProduction(env.SITE_ENV)) return config;
   // The admins always (so they can sign in here and open Dev tools), and whoever Dev tools lists
   const rows = await all<{ email: string }>(
@@ -315,7 +317,7 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   if (!isReview(env, address)) await mustBeHuman(env, request, sent, { action: "sign-in", local });
   // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now. The same for everyone,
   // member or not, so it gives nothing away.
-  if (!local && mailConfig(env).gmail && (await mailPausedUntil()))
+  if (!local && (await mailPausedUntil()) && (await mailConfig(env)).gmail)
     throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
   let nonce = cookie(request, cookieName(request, "nonce")) ?? token();
   const res = (devCode?: string) =>

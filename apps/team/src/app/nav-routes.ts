@@ -341,6 +341,19 @@ const STATIC_TAIL: Route[] = [
     section: "System",
     hint: "Today's use of the free plan",
   },
+  // The club's email (ADR 0027): whether it works, and reconnecting it when Google has cancelled its access (#101)
+  {
+    id: "email",
+    path: "/settings/email",
+    name: "Email",
+    tab: "more",
+    page: "email",
+    action: "manage:Settings",
+    icon: "mail",
+    group: "Settings",
+    section: "System",
+    hint: "Whether it sends; reconnect it",
+  },
 ];
 
 export function buildRoutes(config: NavConfig): Route[] {

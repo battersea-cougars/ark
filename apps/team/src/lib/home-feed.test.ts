@@ -145,6 +145,15 @@ describe("Home's feed", () => {
     expect(feed(kumite()).admin).toEqual([]);
     expect(feed(kumite(), { club: { total: 0, people: 0, worst: 0 } }).admin).toEqual([]);
   });
+
+  it("when Google has cancelled the email, it's the admins' first line, hot, until someone reconnects it (#101)", () => {
+    const rows = feed(kumite(), { club: { total: 9000, people: 3, worst: 0 }, emailStopped: true });
+    expect(rows.admin.map((r) => [r.text, r.href, r.hot])).toEqual([
+      ["Email has stopped", "/settings/email", true],
+      ["Owed to the club £90", "/settings/overdue", false],
+    ]);
+    expect(feed(kumite(), { emailStopped: false }).admin).toEqual([]);
+  });
 });
 
 describe("what you owe, in the locker room", () => {

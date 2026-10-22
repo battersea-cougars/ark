@@ -1,7 +1,7 @@
 # 0002. Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-21
+- **Date:** 2026-10-05 · updated 2026-10-22
 - **Merges:** 0012
 
 ## Context
@@ -47,10 +47,18 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 7. **Every secret is documented in the README** ([README.md#secrets](../../README.md#secrets)): why it exists, where
    it was issued, its permissions, who uses it (the _Used by_ column records which app, since project names don't),
    how it gets there, and how to rotate it. A secret that isn't in the README shouldn't exist.
-8. **One exception: a token that renews itself.** Instagram's lasts 60 days and must be swapped for a fresh one by
-   something that runs by itself, which can't write to Bitwarden. Its first value is in Bitwarden; the renewed one is
-   kept in D1, sealed in the Worker with a key that is itself a Bitwarden secret
-   ([ADR 0113](0113-photos-from-instagram.md)). Only a read-only token for public content may be kept this way.
+8. **One exception: a token a Worker has to write.** A Worker can't write to Bitwarden, so a token that the app
+   itself makes or renews is kept in D1 (`sealed_tokens`), sealed in the Worker (AES-GCM, `packages/shared/sealed-tokens.ts`)
+   with a key of its own that is itself a Bitwarden secret. Its first value is in Bitwarden; if the sealed one won't
+   open, the Worker falls back to that and logs an error. Two tokens, and only these, may be kept this way:
+   - Instagram's, which lasts 60 days and is swapped for a fresh one by the website's cron
+     ([ADR 0113](0113-photos-from-instagram.md)): read-only, for public content.
+   - Gmail's send-only token, which an admin reconnects in the team app when Google cancels it
+     ([ADR 0027](0027-email-through-gmail-api.md)). It can send mail as the developer account (not read it), so it
+     is the more powerful of the two; it's allowed because otherwise sign-in stops until a developer runs a script
+     and deploys. Bitwarden keeps the clients and the first token, which is how a developer gets back in.
+
+   Anything else a Worker would write stays out: ask first.
 
 ## Consequences
 
@@ -73,3 +81,5 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 - 2026-10-20: One exception: Instagram's self-renewing token is kept in D1, sealed with a Bitwarden key ([ADR 0113](0113-photos-from-instagram.md)).
 - 2026-10-21: Bitwarden is also the recovery store: every secret we make goes in, even one only a provider uses (the APNs
   key Firebase holds), not only those our code reads.
+- 2026-10-22: The exception widens to one more token: Gmail's, reconnected by an admin in the team app and sealed in
+  D1 with `GMAIL_TOKEN_KEY`, so email can be fixed without a terminal or a deploy (#101, [ADR 0027](0027-email-through-gmail-api.md)).

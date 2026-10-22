@@ -22,14 +22,27 @@ CREATE INDEX enquiries_auto_replied_at ON enquiries (auto_replied_at);
 
 CREATE INDEX enquiries_email ON enquiries (email);
 
--- Tokens the website renews by itself (apps/web/src/lib/server/instagram-token.ts, ADR 0113): Instagram's, for the
--- club's posts. Sealed in the Worker (AES-GCM, with a key only it has, the row's name bound in), so this table never
--- holds one anyone can read or move.
+-- Tokens a Worker writes, which can't go to Bitwarden (packages/shared/sealed-tokens.ts, ADR 0002): Instagram's, which
+-- the website renews by itself (ADR 0113), and Gmail's, which an admin reconnects in the team app (ADR 0027). Sealed
+-- in the Worker (AES-GCM, with a key only it has, the row's name bound in), so this table never holds one anyone can
+-- read or move.
 CREATE TABLE sealed_tokens (
-  name        TEXT PRIMARY KEY,   -- instagram
+  name        TEXT PRIMARY KEY,   -- instagram | gmail
   sealed      TEXT NOT NULL,      -- base64: 12-byte IV, then the ciphertext
-  expires_at  TEXT NOT NULL,
+  expires_at  TEXT,               -- null: until it's cancelled (gmail)
   renewed_at  TEXT NOT NULL
+);
+
+-- Whether the club's email works (packages/shared/mail-health.ts, ADR 0027): one row, written by both Workers as they
+-- send. Settings → Email and the admins' Home read it.
+CREATE TABLE mail_health (
+  id              INTEGER PRIMARY KEY CHECK (id = 1),
+  account         TEXT,           -- the address the token sends as, as Google last said
+  last_sent_at    TEXT,           -- the last email Gmail took (written at most every few minutes)
+  failed_at       TEXT,           -- the first failure since then; null while it works
+  failure         TEXT CHECK (failure IN ('cancelled', 'paused', 'failed')),
+  reconnected_at  TEXT,
+  reconnected_by  INTEGER REFERENCES members(id) ON DELETE SET NULL
 );
 
 CREATE TABLE members (

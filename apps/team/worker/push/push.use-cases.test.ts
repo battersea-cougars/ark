@@ -201,7 +201,15 @@ describe("what a member chooses to hear", () => {
 
   it("hears everything until they say otherwise", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const all = { teams: true, places: true, sessionOff: true, announcements: true, dues: true, draft: true };
+    const all = {
+      teams: true,
+      places: true,
+      sessionOff: true,
+      announcements: true,
+      dues: true,
+      draft: true,
+      email: true,
+    };
     expect(await prefs(reg)).toEqual(all);
     expect((await boot(reg)).notifications).toEqual(all);
   });

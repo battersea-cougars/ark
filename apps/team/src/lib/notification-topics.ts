@@ -12,6 +12,13 @@ export const TOPICS = [
   { topic: "announcements", label: "Locker room", hint: "What the club posts on Home." },
   { topic: "dues", label: "Dues", hint: "What you owe the club, when it's due." },
   { topic: "draft", label: "The draft", hint: "A draft you captain is open, and where you pick." },
+  // Only for whoever looks after the club's email (ADR 0027): the You page shows it to them alone
+  {
+    topic: "email",
+    label: "Email has stopped",
+    hint: "Google cancelled the app's access to send email, so nobody gets a sign-in code until it's reconnected.",
+    action: "manage:Settings",
+  },
 ] as const;
 
 export type Topic = (typeof TOPICS)[number]["topic"];

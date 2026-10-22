@@ -79,7 +79,7 @@ async function emailAfterEnquiry(
   { smoke = false } = {},
 ): Promise<{ autoReply: Sent; club: Sent }> {
   const club = await clubInbox();
-  const config = smoke ? smokeMailConfig(mailConfig(club)) : mailConfig(club);
+  const config = smoke ? smokeMailConfig(await mailConfig(club)) : await mailConfig(club);
   const sent: { autoReply: Sent; club: Sent } = { autoReply: "skipped", club: "skipped" };
   let autoReply = "No automatic reply was sent: the form wasn't verified as sent by a person.";
   if (verified && !smoke && !(await autoReplyAllowed(env.DB, enquiry.email))) {

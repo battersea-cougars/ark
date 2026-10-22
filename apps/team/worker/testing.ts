@@ -13,6 +13,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { drainPush, pushOutbox, type Sent } from "./push/push";
 import {
   createDecipheriv,
+  createHash,
   createPublicKey,
   diffieHellman,
   generateKeyPairSync,
@@ -160,7 +161,8 @@ export function testWorld(roster: object[]) {
       invocations: [] as number[],
     };
     world.invocations = serve((url: string, init: RequestInit) => {
-      if (url === "https://oauth2.googleapis.com/token") {
+      // Google's token endpoint, for the service account's signed assertion (Gmail's refresh tokens are gmail()'s)
+      if (url === "https://oauth2.googleapis.com/token" && String(init.body).includes("jwt-bearer")) {
         world.fetches++;
         return Response.json({ access_token: "access", expires_in: 3600 });
       }
@@ -294,6 +296,152 @@ export function testWorld(roster: object[]) {
       if (answer === "failed") return new Response("busy", { status: 503 });
       pushes.push({ token: url, title: opened.title, body: opened.body, path: opened.path, memberId: memberOf(url) });
       return new Response(null, { status: 201 });
+    });
+    return world;
+  }
+
+  /**
+   * Gmail on (ADR 0027): the deployed Desktop client and its refresh token (from Bitwarden), the Web client an admin
+   * reconnects with, and the key a reconnected token is sealed with; then Google's token endpoint, its consent page
+   * and Gmail's send. Google knows each refresh token's client and account; `cancel()` cancels them (a password
+   * change), with their access tokens. `busy`: Gmail rate-limits every send. Each email Gmail took is in `sent`, with
+   * the refresh token it went with. Every world has fresh tokens, so email.ts's cached access token never carries over.
+   */
+  function gmail({ account = "dev@example.com" } = {}) {
+    const deployed = `deployed-${randomUUID()}`;
+    const web = { id: `web-${randomUUID()}.apps.googleusercontent.com`, secret: `web-secret-${randomUUID()}` };
+    Object.assign(env, {
+      GMAIL_CLIENT_ID: "desktop.apps.googleusercontent.com",
+      GMAIL_CLIENT_SECRET: "desktop-secret",
+      GMAIL_REFRESH_TOKEN: deployed,
+      GMAIL_WEB_CLIENT_ID: web.id,
+      GMAIL_WEB_CLIENT_SECRET: web.secret,
+      GMAIL_TOKEN_KEY: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64"),
+    });
+    const SEND = "https://www.googleapis.com/auth/gmail.send";
+    const refreshTokens = new Map<string, { client: string; account: string }>([
+      [deployed, { client: env.GMAIL_CLIENT_ID!, account }],
+    ]);
+    const accessTokens = new Map<string, string>();
+    const codes = new Map<
+      string,
+      { account: string; scope: string; redirect: string; challenge: string; client: string }
+    >();
+    const idToken = (email: string) =>
+      `x.${Buffer.from(JSON.stringify({ email, email_verified: true })).toString("base64url")}.x`;
+    const header = (raw: string, name: string) => {
+      const line = raw.split("\r\n").find((l) => l.toLowerCase().startsWith(`${name.toLowerCase()}: `));
+      const value = line?.slice(name.length + 2) ?? "";
+      const encoded = /^=\?UTF-8\?B\?(.*)\?=$/.exec(value);
+      return encoded ? Buffer.from(encoded[1], "base64").toString() : value;
+    };
+    const world = {
+      account,
+      deployed,
+      web,
+      /** Each email Gmail took: who it was from and to, its subject, and the refresh token behind it. */
+      sent: [] as { from: string; to: string[]; subject: string; token: string }[],
+      busy: false,
+      /** Google cancels these refresh tokens (all of them, if none named), and their access tokens with them. */
+      cancel(...tokens: string[]) {
+        for (const t of tokens.length ? tokens : [...refreshTokens.keys()]) {
+          refreshTokens.delete(t);
+          for (const [access, of] of accessTokens) if (of === t) accessTokens.delete(access);
+        }
+      },
+      /** The refresh tokens Google would still take. */
+      live: () => [...refreshTokens.keys()],
+      /**
+       * Google's consent page, as the admin goes through it from the app's link: they sign in as `as`, and tick
+       * "Send email on your behalf" (`send`) or not, or press Cancel (`deny`). Where Google sends the browser back.
+       */
+      consent(link: string, { as = account, send = true, deny = false } = {}): string {
+        const u = new URL(link);
+        if (u.origin + u.pathname !== "https://accounts.google.com/o/oauth2/v2/auth")
+          throw new Error(`Not Google: ${link}`);
+        const q = u.searchParams;
+        if (q.get("client_id") !== web.id) throw new Error(`Not the Web client: ${q.get("client_id")}`);
+        const back = new URL(q.get("redirect_uri")!);
+        back.searchParams.set("state", q.get("state") ?? "");
+        if (deny) {
+          back.searchParams.set("error", "access_denied");
+          return back.pathname + back.search;
+        }
+        const asked = (q.get("scope") ?? "").split(" ");
+        const scope = asked.filter((s) => s !== SEND || send).join(" ");
+        const code = `code-${randomUUID()}`;
+        codes.set(code, {
+          account: as,
+          scope,
+          redirect: q.get("redirect_uri")!,
+          challenge: q.get("code_challenge") ?? "",
+          client: web.id,
+        });
+        back.searchParams.set("code", code);
+        back.searchParams.set("scope", scope);
+        return back.pathname + back.search;
+      },
+    };
+    serve((url, init) => {
+      if (url === "https://oauth2.googleapis.com/token") {
+        const p = new URLSearchParams(String(init.body));
+        if (p.get("grant_type") === "refresh_token") {
+          const known = refreshTokens.get(p.get("refresh_token") ?? "");
+          const secret = p.get("client_id") === web.id ? web.secret : env.GMAIL_CLIENT_SECRET;
+          if (!known || known.client !== p.get("client_id") || p.get("client_secret") !== secret)
+            return Response.json(
+              { error: "invalid_grant", error_description: "Token has been expired or revoked." },
+              { status: 400 },
+            );
+          const access = `access-${randomUUID()}`;
+          accessTokens.set(access, p.get("refresh_token")!);
+          return Response.json({ access_token: access, expires_in: 3599, id_token: idToken(known.account) });
+        }
+        if (p.get("grant_type") === "authorization_code") {
+          const c = codes.get(p.get("code") ?? "");
+          codes.delete(p.get("code") ?? "");
+          const verifier = createHash("sha256")
+            .update(p.get("code_verifier") ?? "")
+            .digest("base64url");
+          if (
+            !c ||
+            p.get("client_id") !== c.client ||
+            p.get("client_secret") !== web.secret ||
+            p.get("redirect_uri") !== c.redirect ||
+            verifier !== c.challenge
+          )
+            return Response.json({ error: "invalid_grant" }, { status: 400 });
+          const refresh = `reconnected-${randomUUID()}`;
+          refreshTokens.set(refresh, { client: c.client, account: c.account });
+          const access = `access-${randomUUID()}`;
+          accessTokens.set(access, refresh);
+          return Response.json({
+            access_token: access,
+            expires_in: 3599,
+            refresh_token: refresh,
+            scope: c.scope,
+            id_token: idToken(c.account),
+          });
+        }
+        return null;
+      }
+      if (url !== "https://gmail.googleapis.com/gmail/v1/users/me/messages/send") return null;
+      const bearer = new Headers(init.headers).get("authorization")?.replace(/^Bearer /, "") ?? "";
+      const token = accessTokens.get(bearer);
+      if (!token) return Response.json({ error: { code: 401, message: "Invalid Credentials" } }, { status: 401 });
+      if (world.busy)
+        return Response.json(
+          { error: { message: "User-rate limit exceeded", errors: [{ reason: "rateLimitExceeded" }] } },
+          { status: 429 },
+        );
+      const raw = Buffer.from(JSON.parse(String(init.body)).raw, "base64url").toString();
+      world.sent.push({
+        from: header(raw, "From"),
+        to: header(raw, "To").split(", "),
+        subject: header(raw, "Subject"),
+        token,
+      });
+      return Response.json({ id: `msg-${world.sent.length}` });
     });
     return world;
   }
@@ -477,6 +625,7 @@ export function testWorld(roster: object[]) {
     mails,
     pushes,
     firebase,
+    gmail,
     webPush,
     turnstile,
     cron,

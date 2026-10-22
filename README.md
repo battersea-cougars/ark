@@ -84,6 +84,10 @@ Rules ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/00
 | [`GMAIL_CLIENT_ID`](#gmail)                                               | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
 | [`GMAIL_CLIENT_SECRET`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both)                  |
 | [`GMAIL_REFRESH_TOKEN`](#gmail)                                           | `cougars-dev` | Google, developer Gmail     | Website, team app (both)                  |
+| [`GMAIL_WEB_CLIENT_ID`](#gmail)                                           | `cougars-dev` | Google Cloud                | Website, team app (both): reconnect       |
+| [`GMAIL_WEB_CLIENT_SECRET`](#gmail)                                       | `cougars-dev` | Google Cloud                | Website, team app (both): reconnect       |
+| [`GMAIL_TOKEN_KEY__PRODUCTION`](#gmail)                                   | `cougars`     | Made by us                  | Website, team app (production)            |
+| [`GMAIL_TOKEN_KEY`](#gmail)                                               | `cougars-dev` | Made by us                  | Website, team app (dev)                   |
 | [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile)                          | `cougars`     | Cloudflare, Cougars         | Website, team app (production)            |
 | [`TURNSTILE_SECRET_KEY`](#turnstile)                                      | `cougars-dev` | Cloudflare, Cougars Dev     | Website, team app (dev)                   |
 | [`SMOKE_TOKEN`](#smoke_token)                                             | (none)        | Made by each deploy         | Deploy smoke test of the form (both)      |
@@ -275,9 +279,17 @@ D1, sealed (the one exception to Bitwarden-only, [ADR 0002](docs/adr/0002-secret
 
 ### Gmail
 
-Lets the website email the club inbox about each enquiry, and auto-reply to the enquirer, through the Gmail API
-(HTTPS, not SMTP; no password is stored anywhere). Outside production every email is redirected to one safe
-inbox, and dev can only ever send from its own test account, never the club's.
+Lets the website email the club inbox about each enquiry, and auto-reply to the enquirer, and the team app send
+sign-in codes and notices, through the Gmail API (HTTPS, not SMTP; no password is stored anywhere). Outside
+production every email is redirected to one safe inbox, and dev can only ever send from its own test account, never
+the club's.
+
+**When Google cancels the token** (see _Expires_), an admin fixes it in the team app: **Settings → Email →
+Reconnect email**. Google's consent page opens in the browser; they sign in as the developer account and tick _Send
+email on your behalf_, and the app keeps the new token in D1, sealed with `GMAIL_TOKEN_KEY` (ADR 0002 point 8,
+`packages/shared/gmail-token.ts`). It works at once in both Workers, with no deploy; each environment keeps its own.
+The admins hear about it on Home and on their phones. Settings → Email also shows the sending account, the From
+address and the last send or failure.
 
 - **Issued by:**
   - `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET`: Google Cloud console, signed in as the developer account (the dev
@@ -297,10 +309,20 @@ inbox, and dev can only ever send from its own test account, never the club's.
        It stays unverified (Google warns on the consent screen, which is fine: only the developer account ever
        signs in).
     6. **Clients → Create client → Desktop app**, named `cougars-website`. Save both values:
-       `npm run secret:set GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET` (shared by both environments).
-  - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs`, signed in as the developer Gmail account. One token for both
-    environments: production sends from this account too, so resetting the club account's password breaks nothing
-    (ADR 0027). It refuses the club's account.
+       `npm run secret:set GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET` (shared by both environments). It's only for
+       `gmail-auth.mjs`, the first token.
+    7. **Clients → Create client → Web application**, named `GMAIL_WEB_CLIENT_ID`, for reconnecting from the team
+       app. **Authorised redirect URIs:** `https://team.batterseacougars.com/api/mail/callback` and
+       `https://team.cougars-dev.workers.dev/api/mail/callback` (no JavaScript origins needed). Create, then save
+       both values: `npm run secret:set GMAIL_WEB_CLIENT_ID`, then `GMAIL_WEB_CLIENT_SECRET` (shared by both
+       environments). A token made with one client only works with that client, so each keeps its own.
+  - `GMAIL_REFRESH_TOKEN`: `node scripts/gmail-auth.mjs`, signed in as the developer Gmail account: first-time setup,
+    and the way back in from a terminal if no admin can sign in. One token for both environments: production sends
+    from this account too, so resetting the club account's password breaks nothing (ADR 0027). It refuses the club's
+    account. Once an admin has reconnected, that environment's D1 token wins over it.
+  - `GMAIL_TOKEN_KEY` (dev) and `GMAIL_TOKEN_KEY__PRODUCTION`: the key a reconnected token is sealed with in D1
+    (AES-GCM). Made by us: `openssl rand -base64 32 | npm run secret:set GMAIL_TOKEN_KEY__PRODUCTION` (32 random
+    bytes, base64), and the same for `GMAIL_TOKEN_KEY`. One job each: never `BACKUP_KEY` or `INSTAGRAM_TOKEN_KEY`.
   - **The club's address as the sender:** in the developer account's Gmail, **Settings → Accounts and Import → Send mail as →
     Add another email address**: name _Battersea Cougars_, address: the club's Gmail address, **Treat as an alias**
     ticked. Gmail emails the club account a confirmation link; open it there. Production then sends as
@@ -312,13 +334,17 @@ inbox, and dev can only ever send from its own test account, never the club's.
 
 - **Used by:** the website's enquiry form (Worker) and the team app's sign-in codes and notices, to send mail. The refresh token can send mail as its account
   and nothing else: it can't read the mailbox.
-- **Gets there by:** CI pull from Secrets Manager (both environments read the same three), then `deploy.yml` pushes all three to the Worker as secrets on every deploy. Locally,
+- **Gets there by:** CI pull from Secrets Manager (both environments read the same clients and token; the sealing key
+  is each environment's own), then `deploy.yml` pushes them to both Workers as secrets on every deploy. Locally,
   `node scripts/env-pull.mjs -- npm run dev` (dev account). Without them, emails are logged, not sent
   ([ADR 0027](docs/adr/0027-email-through-gmail-api.md)).
 - **Expires:** no, but Google cancels a refresh token when the account's password changes, access is removed in
   [the account's third-party access](https://myaccount.google.com/connections), or it's unused for 6 months.
-- **Rotate:** re-run `gmail-auth.mjs`, then deploy both environments. Client secret: **Clients → the client →
-  Add secret**, update Secrets Manager, delete the old one.
+- **Rotate:** an admin presses **Settings → Email → Reconnect email** in each environment; no deploy. From a
+  terminal instead: re-run `gmail-auth.mjs`, then deploy both environments (only used while no reconnected token is
+  in D1). Client secret: **Clients → the client → Add secret**, update Secrets Manager, delete the old one, deploy.
+  `GMAIL_TOKEN_KEY`: set a new value and deploy; the sealed token then won't open, the Worker falls back to
+  `GMAIL_REFRESH_TOKEN` (an error says so), and an admin reconnects to seal a fresh one.
 
 ### Turnstile
 

@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-// One-time: let the website and the team app send email as the developer Gmail account, through the Gmail API (not
+// First-time setup, and the terminal fallback when no admin can sign in: let the website and the team app send email
+// as the developer Gmail account, through the Gmail API (not
 // SMTP, not a password). One token for both environments: production sends from the same account, as the club's
 // address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
 //   node scripts/gmail-auth.mjs              sign in as the developer account -> GMAIL_REFRESH_TOKEN
 // Needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Bitwarden (README.md#gmail). Opens Google's consent page, catches
 // the answer on http://localhost:4590, swaps it for a refresh token (send-only), and saves that straight to
-// Bitwarden. Nothing is printed or written to disk. Re-run it to replace a token (e.g. after a password change).
+// Bitwarden. Nothing is printed or written to disk. When Google cancels the token (a password change), an admin
+// reconnects it in the team app instead (Settings → Email, ADR 0027), which needs no deploy; re-running this needs one,
+// and only counts in an environment with no reconnected token in D1.
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { ensureToken, loadSecrets, setSecret } from "./lib/bitwarden.mjs";

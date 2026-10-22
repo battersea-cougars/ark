@@ -349,7 +349,8 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
 
   it("puts every change made with more than being signed in on the record, but for the few that say why (ADR 0095)", () => {
     // The only opt-outs beyond being signed in: a member's own sign-up (it needs signup:Event, and the sign-ups are
-    // their own record). Anything an admin, a team maker, a scorer or a treasurer does is on it
+    // their own record), and the way to Google's page to reconnect the email (the reconnect itself is on the record,
+    // mail.reconnected, once Google sends the admin back). Anything an admin, a team maker, a scorer or a treasurer does is on it
     const optedOut = ROUTES.filter((r) => r.action !== "authenticated" && r.audit && "none" in r.audit).map(
       (r) => `${r.method} ${r.path}`,
     );
@@ -357,6 +358,7 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
       "POST /^\\/api\\/sessions\\/(\\d+)\\/answer$/",
       "POST /^\\/api\\/tournaments\\/(\\d+)\\/answer$/",
       "POST /^\\/api\\/club-events\\/(\\d+)\\/answer$/",
+      "POST /^\\/api\\/mail\\/reconnect$/",
     ]);
   });
 

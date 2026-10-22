@@ -3,12 +3,13 @@
 // website's daily cron renews it once a week and keeps the new one in D1 (sealed_tokens), the one exception to
 // secrets living only in Bitwarden (ADR 0002): nothing that runs by itself can write there.
 //
-// Sealed in the Worker before it's written: AES-GCM with INSTAGRAM_TOKEN_KEY (a Worker secret, 32 bytes, base64),
-// the row's name bound in as associated data. So someone with the database (the dashboard, an export, a backup) can't
-// read it, change it unnoticed, or move a sealed value to another row. If it won't open, the Bitwarden token is used,
-// and an error says so. Never logged.
+// Sealed in the Worker before it's written, with INSTAGRAM_TOKEN_KEY (@cougars/shared/sealed-tokens). If it won't
+// open, the Bitwarden token is used, and an error says so. Never logged.
 import { first, run } from "@cougars/shared/d1";
 import { scribe } from "@cougars/shared/scribe";
+import { seal, unseal } from "@cougars/shared/sealed-tokens";
+
+export { seal };
 
 const log = scribe.logger("instagram");
 
@@ -27,32 +28,6 @@ interface Row {
   sealed: string;
   expires_at: string;
   renewed_at: string;
-}
-
-const utf8 = new TextEncoder();
-const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
-const fromBase64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
-const associated = (name: string) => utf8.encode(`sealed_tokens:${name}`);
-
-async function aesKey(base64: string): Promise<CryptoKey> {
-  const raw = fromBase64(base64);
-  if (raw.length !== 32) throw new Error("INSTAGRAM_TOKEN_KEY must be 32 bytes, base64");
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-
-/** The token sealed for the row `name`: base64 of a random 12-byte IV, then the ciphertext and its tag. */
-export async function seal(token: string, key: string, name: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const params = { name: "AES-GCM", iv, additionalData: associated(name) };
-  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(params, await aesKey(key), utf8.encode(token)));
-  return toBase64(new Uint8Array([...iv, ...ciphertext]));
-}
-
-/** The token, or a throw if the key is wrong, the value was changed, or it was sealed for another row. */
-async function unseal(sealed: string, key: string, name: string): Promise<string> {
-  const bytes = fromBase64(sealed);
-  const params = { name: "AES-GCM", iv: bytes.slice(0, 12), additionalData: associated(name) };
-  return new TextDecoder().decode(await crypto.subtle.decrypt(params, await aesKey(key), bytes.slice(12)));
 }
 
 const stored = (db: D1Database) =>
