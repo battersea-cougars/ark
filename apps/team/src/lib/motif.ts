@@ -16,6 +16,10 @@ export const KUMITE_KANJI = {
   awards: "賞",
   /** Victory, the champions. */
   champions: "優勝",
+  /** The draft's steps (its step card): lots, drawn for the order; open, the gong; decided, the teams sealed. */
+  draw: "籤",
+  open: "開",
+  sealed: "決",
   /** Blood, martial, fist: kept for the draft and the board. */
   blood: "血",
   martial: "武",

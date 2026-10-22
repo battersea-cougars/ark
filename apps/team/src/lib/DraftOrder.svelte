@@ -17,12 +17,18 @@
     type,
     captains,
     drawn,
+    plain = false,
+    onshown,
   }: {
     type: TournamentType;
     /** The captains, in the order the server has them: drawn, once it's been drawn. */
     captains: { id: number; name: string; you: boolean }[];
     /** The order's drawn, and fixed. */
     drawn: boolean;
+    /** Just the names, no heading: inside the Draw the order card (lib/DraftStep), where the draw is the moment. */
+    plain?: boolean;
+    /** The order's showing, settled: at once when there's nothing to watch, or once the shuffle's stamped on. */
+    onshown?: () => void;
   } = $props();
 
   const seal = $derived(kanjiFor(type, "blood"));
@@ -55,7 +61,10 @@
       shuffling = null;
       stamping = true;
     });
-    later(120 + SWAPS * SWAP_MS + STAMP_MS, () => (stamping = false));
+    later(120 + SWAPS * SWAP_MS + STAMP_MS, () => {
+      stamping = false;
+      onshown?.();
+    });
   }
 
   // The order arriving while the page is open: shuffle from the order shown before it. Opened already when the page
@@ -69,11 +78,11 @@
       wasDrawn = false;
       return;
     }
-    if (!wasDrawn && !prefersReducedMotion) {
+    if (!wasDrawn && !prefersReducedMotion && ids.length > 1) {
       // The same captains, from where they were (one added at the last moment goes on the end)
       const from = [...before.filter((id) => ids.includes(id)), ...ids.filter((id) => !before.includes(id))];
       untrack(() => shuffle(from));
-    }
+    } else if (!shuffling && !stamping) untrack(() => onshown?.());
     wasDrawn = true;
   });
 
@@ -84,22 +93,22 @@
 </script>
 
 <section class="order" class:shuffling={!!shuffling} aria-label="Pick order">
-  <header>
-    <!-- The Kumite's seal: faint until the order's drawn, then stamped on it -->
-    {#if seal}
-      <span class="seal-slot" class:unsealed={!numbered} aria-hidden="true">
-        {#key numbered}<span class="sealed" class:stamp={stamping}><Kanji text={seal} seal /></span>{/key}
-      </span>
-    {/if}
-    <h2 class="eyebrow">Pick order</h2>
-    <!-- One line, the same whatever it says, so the draw arriving moves nothing -->
-    <p class="hint" aria-live="polite">
-      {#if !drawn}Waiting for the order.
-      {:else if shuffling}Setting the order…
-      {:else if mine >= 0}Order set: <strong>you pick {nth(mine + 1)}</strong>.
-      {:else}Order set.{/if}
-    </p>
-  </header>
+  {#if !plain}<header>
+      <!-- The Kumite's seal: faint until the order's drawn, then stamped on it -->
+      {#if seal}
+        <span class="seal-slot" class:unsealed={!numbered} aria-hidden="true">
+          {#key numbered}<span class="sealed" class:stamp={stamping}><Kanji text={seal} seal /></span>{/key}
+        </span>
+      {/if}
+      <h2 class="eyebrow">Pick order</h2>
+      <!-- One line, the same whatever it says, so the draw arriving moves nothing -->
+      <p class="hint" aria-live="polite">
+        {#if !drawn}Waiting for the order.
+        {:else if shuffling}Setting the order…
+        {:else if mine >= 0}<strong>You pick {nth(mine + 1)}</strong>.
+        {/if}
+      </p>
+    </header>{/if}
   <ol class="names">
     {#each shown as c, i (c.id)}
       <li class="cap" class:you={c.you} animate:flip={{ duration: MOVE_MS, easing: cubicInOut }}>

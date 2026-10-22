@@ -51,6 +51,8 @@
   const label = (a: unknown) => (typeof a === "string" && a in ACTIONS ? ACTIONS[a as Action].name : String(a));
   const list = (v: unknown) => (Array.isArray(v) && v.length ? v.map(label).join(", ") : "nothing");
   const str = (v: unknown) => (typeof v === "string" && v ? v : "none");
+  /** A count and its noun: 1 match, 2 matches. */
+  const count = (n: unknown, one: string, many = `${one}s`) => `${Number(n ?? 0)} ${Number(n ?? 0) === 1 ? one : many}`;
   const num = (v: unknown) => (typeof v === "number" ? v : 0);
   const pence = (v: unknown) => (typeof v === "number" ? pounds(v) : "?");
   const rates = (v: unknown) =>
@@ -222,13 +224,13 @@
         const went = Number(from?.games ?? 0) - Number(to?.games ?? 0);
         const results = Number(from?.results ?? 0) - Number(to?.results ?? 0);
         return went > 0
-          ? `${who} reopened the draft for ${str(to?.name)}, clearing ${went} matches${results ? ` and ${results} results` : ""}`
+          ? `${who} reopened the draft for ${str(to?.name)}, clearing ${count(went, "match", "matches")}${results ? ` and ${count(results, "result")}` : ""}`
           : `${who} reopened the draft for ${str(to?.name)}`;
       }
       case "fixtures.cleared":
-        return `${who} cleared the Fight Card for ${str(from?.name)}: ${Number(from?.games ?? 0)} matches, ${Number(from?.results ?? 0)} results`;
+        return `${who} cleared the Fight Card for ${str(from?.name)}: ${count(from?.games, "match", "matches")}, ${count(from?.results, "result")}`;
       case "draft.finished":
-        return `${who} closed the draft for ${str(to?.name)}: ${Number(to?.games ?? 0)} matches on the Fight Card`;
+        return `${who} closed the draft for ${str(to?.name)}: ${count(to?.games, "match", "matches")} on the Fight Card`;
       case "game.scored":
         return `${who} recorded a result: ${Number(to?.homeGoals ?? 0)}–${Number(to?.awayGoals ?? 0)}`;
       case "tournament_series.created":

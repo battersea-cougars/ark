@@ -20,7 +20,13 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   runs the draft (`run:Draft`) opens and closes it; nothing happens on its own.
 - **The night is led one step at a time**, one main (sticker-yellow) button for whoever runs it at each: **Shuffle**,
   then **Open draft**, then the picking, then **Close draft & make fixtures**; closed, the page says so and Reopen is
-  in Manage. Everyone else sees the same step in words ("Draft not open yet").
+  in Manage. Each step is **one card in the middle of the page** (`lib/DraftStep.svelte`): the series' motif for the
+  step as its mark (on the Kumite 籤 for the draw, 開 to open, the 決 hanko to seal the teams; other series their icon),
+  its name ("Draw the order", "Open the draft", "Seal the teams"), one line and the button. Everyone else sees the
+  same card without the button ("Draft not open yet"). **The draw is a moment**: before it there's only the card, the
+  captains in it; the shuffle plays there, for whoever pressed it and every captain watching; once the order's stamped
+  on, the card lets go, the order stays as the page's order row, and the Open the draft card, the players and the
+  teams come in under it. With less motion, or opened after, it's just there.
 - **Two steps before it opens: shuffle the order, then open the draft.** The pick order is never the order the
   captains were named in, which means nothing: being named first mustn't mean picking first. Before it opens, whoever
   runs the draft taps **Shuffle** (`POST …/draft/draw`, `run:Draft`): the server draws it, a Fisher-Yates shuffle on
@@ -193,3 +199,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-22: Reopening asks what becomes of the fixtures: keep them (no match started) or clear them, results and
   all, which is the only way once a match has started, said plainly first; one batch with the reopen. An admin can
   clear them without reopening too (0061).
+- 2026-10-22: Each step a card in the middle, themed by the motif (籤, 開, the 決 seal; two characters added to the
+  Kumite's font); the draw plays in its card and hands over to the next step, the players and teams coming in after.

@@ -20,11 +20,13 @@
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { flip } from "svelte/animate";
+  import { untrack } from "svelte";
   import { easeOut, fadeMs, flyMs, prefersReducedMotion } from "../app/motion";
   import { fade, fly, slide } from "svelte/transition";
   import TournamentPlayersDrawer from "../lib/TournamentPlayersDrawer.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
+  import DraftStep from "../lib/DraftStep.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import { phone } from "../lib/viewport.svelte";
   import type { IconName } from "../app/shell/icons";
@@ -92,6 +94,21 @@
   const phase = $derived(tournament?.draftState ?? "none");
   // Step 1 done: the pick order's drawn (ADR 0060)
   const drawn = $derived(orderDrawn(teams));
+  // The draw as a moment (ADR 0060): before it, only the Draw the order card, the captains in it. A page that sees the
+  // order arrive (whoever pressed Shuffle, and every captain watching, via the live updates) shuffles the names in the
+  // card (DraftOrder); once they're stamped into place the card lets go, leaving the order as the page's order row,
+  // and the Open the draft card, the players and the teams come in under it. A page opened after, or asking for less
+  // motion, starts there. Back to undrawn (a reset), it waits for the next draw again
+  let watchingDraw = $state(untrack(() => !orderDrawn(currentTournament(typeId)?.teams ?? [])));
+  let drawShown = $state(false);
+  $effect(() => {
+    if (drawn) return;
+    watchingDraw = true;
+    drawShown = false;
+  });
+  const settled = $derived(drawn && (!watchingDraw || drawShown || prefersReducedMotion));
+  // The players and teams come in last, after the card's let go and the next step's in
+  const viewsIn = { duration: prefersReducedMotion ? 0 : 300, delay: prefersReducedMotion ? 0 : 560 };
   const open = $derived(phase === "open");
   const live = $derived(open && pool.length > 0);
   // The picks to come, one for each player left, as slots of the snake: the turn follows the pick numbers, so a pick
@@ -742,7 +759,7 @@
         >
       {:else if open}
         <span class="turn done">Everyone's picked</span>
-      {:else if drawn}
+      {:else if settled}
         <span class="turn">Order set</span>
       {:else}
         <span class="turn">{whenSaid ? `Draft ${whenSaid}` : "Draft date TBC"}</span>
@@ -779,56 +796,68 @@
          the draft, and the order's on the team cards -->
     {#if phase !== "open" && phase !== "closed"}
       <div class="before" out:slide={{ duration: prefersReducedMotion ? 0 : 280 }}>
-        <DraftOrder {type} captains={order} {drawn} />
-        <!-- The step: one line and its button, the same block whichever step, so the draw arriving moves nothing -->
-        <div class="step" class:member={!running}>
-          {#if !running}
-            <p class="ask">
-              <strong>Draft not open yet.</strong>
-              {drawn
-                ? "It opens when whoever runs it says go."
-                : "The pick order's drawn first, for everyone watching."}
-            </p>
-          {:else if !drawn}
-            <p class="ask">Who picks first is drawn at random, for everyone watching.</p>
-            <button class="btn primary" disabled={busy} onclick={() => job(() => drawOrder(tournament.id))}
-              >Shuffle</button
-            >
-          {:else}
-            {#if short}
-              <p class="ask">A team's at least {MIN_TEAM_SIZE}: needs {needed} signed up, {pool.length} so far</p>
-            {:else if tooFew}
-              <p class="ask warn">
-                The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings
-              </p>
-            {:else}
-              <p class="ask">
-                Opening it tells each captain where they pick. They pick in this order, snaking back each round.
-              </p>
+        <!-- Step 1, Draw the order: a card in the middle with the captains in it, where the shuffle plays. Settled, the
+             card lets go and the order stays put as the page's order row (lib/DraftStep quiet) -->
+        <DraftStep {type} mark="draw" title="Draw the order" quiet={settled}>
+          {#snippet body()}
+            <DraftOrder {type} captains={order} {drawn} plain={!settled} onshown={() => (drawShown = true)} />
+          {/snippet}
+          {#if drawn}Drawing the order…
+          {:else if running}Who picks first is drawn at random, for everyone watching.
+          {:else}<strong>Draft not open yet.</strong> The pick order's drawn first, for everyone watching.{/if}
+          {#snippet action()}
+            {#if running}
+              <!-- Kept while the names shuffle, so nothing moves until the card lets go -->
+              <button class="btn primary" disabled={busy || drawn} onclick={() => job(() => drawOrder(tournament.id))}
+                >{drawn ? "Shuffling…" : "Shuffle"}</button
+              >
             {/if}
-            <button class="btn primary" disabled={short || busy} onclick={() => job(() => openDraft(tournament.id))}
-              ><Icon name="gong" size={18} />Open draft</button
-            >
-          {/if}
-        </div>
+          {/snippet}
+        </DraftStep>
+        <!-- Step 2, Open the draft: in under the order once the draw has settled -->
+        {#if settled}
+          <div in:fly={{ y: 24, duration: prefersReducedMotion ? 0 : 360, delay: prefersReducedMotion ? 0 : 320 }}>
+            <DraftStep {type} mark="open" title="Open the draft">
+              {#if !running}<strong>Draft not open yet.</strong> It opens when whoever runs it says go.
+              {:else if short}<span class="warn"
+                  >A team's at least {MIN_TEAM_SIZE}: needs {needed} signed up, {pool.length} so far.</span
+                >
+              {:else if tooFew}<span class="warn"
+                  >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
+                >
+              {:else}Opening it tells each captain where they pick. Round one in this order, snaking back each round.{/if}
+              {#snippet action()}
+                {#if running}
+                  <button
+                    class="btn primary"
+                    disabled={short || busy}
+                    onclick={() => job(() => openDraft(tournament.id))}><Icon name="gong" size={18} />Open draft</button
+                  >
+                {/if}
+              {/snippet}
+            </DraftStep>
+          </div>
+        {/if}
       </div>
     {/if}
 
     <!-- The last step: everyone's picked, and one tap closes the draft and makes the fixtures -->
-    {#if open && running && !pool.length}
-      <div class="step">
-        {#if tooFew && !games.length}
-          <p class="ask warn">The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings</p>
-        {:else}
-          <p class="ask">
-            <strong>Everyone's picked.</strong>
-            {makesFixtures ? "Close it to set the teams and make the fixtures." : "Close it to set the teams."}
-          </p>
-        {/if}
-        <button class="btn primary" disabled={busy} onclick={() => finish()}
-          ><Icon name="check" size={18} />{finishLabel}</button
-        >
-      </div>
+    {#if open && !pool.length}
+      <DraftStep {type} mark="sealed" seal title="Seal the teams">
+        {#if !running}<strong>Everyone's picked.</strong> Whoever runs the draft closes it to set the teams.
+        {:else if tooFew && !games.length}<span class="warn"
+            >The playoffs need {playoffTeams} teams: choose fewer in the {type.shortName} settings.</span
+          >
+        {:else}<strong>Everyone's picked.</strong>
+          {makesFixtures ? "Close it to set the teams and make the fixtures." : "Close it to set the teams."}{/if}
+        {#snippet action()}
+          {#if running}
+            <button class="btn primary" disabled={busy} onclick={() => finish()}
+              ><Icon name="check" size={18} />{finishLabel}</button
+            >
+          {/if}
+        {/snippet}
+      </DraftStep>
     {/if}
 
     <!-- Closed: the teams are set. Fixtures not made yet (the playoffs needed more teams): that's the one step left -->
@@ -945,11 +974,11 @@
       </div>
     {/if}
 
-    {#if !drawn && phase !== "open" && phase !== "closed"}
+    {#if !settled && phase !== "open" && phase !== "closed"}
       <!-- The players and teams wait for the order: the first thing on the night is the draw -->
     {:else if !columns}
       <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
-      <div class="tab-row">
+      <div class="tab-row" in:fade={viewsIn}>
         <div class="tablist" role="tablist" aria-label="Draft">
           <button role="tab" aria-selected={view === "players"} onclick={() => show("players")}>Players</button>
           <button role="tab" aria-selected={view === "teams"} onclick={() => show("teams")}
@@ -967,7 +996,7 @@
         </div>
       {/key}
     {:else}
-      <div class="views" class:filtered={phase !== "closed" && pool.length > 0}>
+      <div class="views" in:fade={viewsIn} class:filtered={phase !== "closed" && pool.length > 0}>
         <div class="col pool">{@render playersView()}</div>
         <div class="col side">{@render teamsView()}</div>
       </div>
@@ -1292,8 +1321,10 @@
     gap: var(--s-3);
     min-width: 0;
   }
-  /* A step of the night: what's next in a line, and its one main button. Side by side on a desktop; on a phone the
-     button takes the width under the line, where a thumb is */
+  /* A step of the night (ADR 0060). For whoever runs it, Shuffle, Open draft and Close draft & make fixtures are the
+     moment: the line and the one main button centred in the page column, stacked, with room round them, the order
+     above and the players below. Two lines are kept for the text, so the step changing moves nothing. Everyone
+     else's step (and a closed draft's See the fixtures) is a line with what's next beside it */
   .step {
     display: flex;
     align-items: center;
@@ -1305,19 +1336,31 @@
     flex: 1;
     min-width: 0;
   }
-  .step .ask strong {
-    color: var(--fg);
-  }
   .step .warn {
     color: var(--tone-amber);
   }
+  .step:not(.member) {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--s-4);
+    padding-block: var(--s-6) var(--s-8);
+    text-align: center;
+  }
+  .step:not(.member) .ask {
+    flex: none;
+    max-width: 34rem;
+    min-height: 2lh;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .step:not(.member) .btn {
+    min-width: 16rem;
+  }
   @media (max-width: 599px) {
-    .step:not(.member) {
-      flex-direction: column;
-      align-items: stretch;
-    }
     .step:not(.member) .btn {
       width: 100%;
+      max-width: 24rem;
+      min-width: 0;
     }
   }
 
@@ -1412,9 +1455,6 @@
     margin: 0 var(--s-2) 0 0;
     color: var(--fg-body);
     font-size: var(--text-sm);
-  }
-  .ask.warn {
-    color: var(--tone-amber);
   }
   .hint {
     margin: 0;
