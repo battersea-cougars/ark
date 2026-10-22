@@ -1006,23 +1006,26 @@
             </div>
           {/each}
         </div>
-        <!-- A pointer's way along: a chevron over each edge while there's more that way (not on a phone: swipe), one
+        <!-- A pointer's way along (a wide screen; a phone swipes, and its card in front is never under an arrow): a
+             chevron over each edge while there's more that way, one
              pick a click either way. With the current pick out of view, a red dot by the chevron on its side says
              which way it is -->
-        {#each [-1, 1] as const as side (side)}
-          {@const toNow = nowSide === side}
-          <button
-            class="edge"
-            class:left={side < 0}
-            class:right={side > 0}
-            class:to-now={toNow}
-            class:gone={!(side < 0 ? canLeft : canRight)}
-            tabindex="-1"
-            aria-label={side < 0 ? "Earlier picks" : "Picks to come"}
-            title={toNow ? "The current pick is this way" : undefined}
-            onclick={() => page(side)}><Icon name={side < 0 ? "chevronLeft" : "chevronRight"} size={22} /></button
-          >
-        {/each}
+        {#if columns}
+          {#each [-1, 1] as const as side (side)}
+            {@const toNow = nowSide === side}
+            <button
+              class="edge"
+              class:left={side < 0}
+              class:right={side > 0}
+              class:to-now={toNow}
+              class:gone={!(side < 0 ? canLeft : canRight)}
+              tabindex="-1"
+              aria-label={side < 0 ? "Earlier picks" : "Picks to come"}
+              title={toNow ? "The current pick is this way" : undefined}
+              onclick={() => page(side)}><Icon name={side < 0 ? "chevronLeft" : "chevronRight"} size={22} /></button
+            >
+          {/each}
+        {/if}
         <!-- A phone's way back to the current pick: a small round arrow in the edge's fade, on its side -->
         {#if nowSide}
           <button

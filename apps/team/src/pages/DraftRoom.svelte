@@ -54,9 +54,32 @@
       : dataTurn,
   );
   // A phone's: the name without its "Team", and just "picking" (CHARLIE B PICKING), so it's never cut
-  const short = $derived(
-    turn && turn.team !== null && !turn.you ? `${nameOf(turn.team).replace(/^team\s+/i, "")} picking` : "",
+  // The team picking, as the bar says it: on a phone without its "Team"
+  const teamShown = $derived(
+    turn && turn.team !== null && !turn.you
+      ? phone.current
+        ? nameOf(turn.team).replace(/^team\s+/i, "")
+        : nameOf(turn.team)
+      : "",
   );
+  /** A line of text sized down until it fits its line (an ellipsis only past the smallest), as the name or the room
+   * changes. */
+  function fitLine(node: HTMLElement, _text: string) {
+    const MAX = 1.75;
+    const MIN = 0.95;
+    const fit = () => {
+      let size = MAX;
+      node.style.fontSize = `${size}rem`;
+      while (size > MIN && node.scrollWidth > node.clientWidth + 0.5) {
+        size = Math.max(MIN, size - 0.05);
+        node.style.fontSize = `${size}rem`;
+      }
+    };
+    const ro = new ResizeObserver(fit);
+    ro.observe(node.parentElement ?? node);
+    fit();
+    return { update: () => requestAnimationFrame(fit), destroy: () => ro.disconnect() };
+  }
   // The tournament's team names, which its crests are told apart among (logo.ts)
   const crestNames = $derived(teamNamesOf(teams, byId));
   const seal = $derived(kanjiFor(type, "fist"));
@@ -153,11 +176,17 @@
         {/if}
         {#if turn.you}
           <!-- Yours: the one red, a badge with its light (colour's an accent, ADR 0084) -->
-          <span class="badge red yours"><i class="dot"></i>{turn.said}</span>
+          <span class="said"><span class="badge red yours"><i class="dot"></i>{turn.said}</span></span>
         {:else}
-          <strong class="said display"><span class="long">{turn.said}</span><span class="short">{short}</span></strong>
+          <!-- Two lines, never more, the bar one height whatever the name: the team in the display face, sized down
+               to fit its line; under it, small, that they're picking and how long till you -->
+          <span class="said">
+            <strong class="name display" use:fitLine={teamShown}>{teamShown}</strong>
+            <span class="sub"
+              >picking{#if turn.inPicks !== null}<span class="num"> · you're in {turn.inPicks}</span>{/if}</span
+            >
+          </span>
         {/if}
-        {#if turn.inPicks !== null}<span class="soon num">you're in {turn.inPicks}</span>{/if}
       {/if}
     </span>
     <span class="keys">
@@ -245,16 +274,36 @@
   .turn :global(.crest) {
     flex-shrink: 0;
   }
-  /* The bar's main words: who's picking, in the display face */
+  /* The bar's words: two lines, always the same height, whatever the name */
   .said {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-rows: 1.85rem 1rem;
+    align-content: center;
+    min-width: 0;
+    height: 2.85rem;
+  }
+  .said .name {
     min-width: 0;
     overflow: hidden;
     color: var(--fg);
-    font-size: clamp(1.15rem, 2.4vw, 1.75rem);
-    line-height: 1.1;
+    font-size: 1.75rem;
+    line-height: 1.85rem;
     text-overflow: ellipsis;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+  .said .sub {
+    overflow: hidden;
+    color: var(--fg-muted);
+    font-size: var(--text-xs);
+    line-height: 1rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .said:has(.yours) {
+    grid-template-rows: 1fr;
+    justify-items: start;
   }
   .yours {
     flex: none;
@@ -263,12 +312,6 @@
     font-size: var(--text-md);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-  }
-  .soon {
-    flex-shrink: 0;
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    white-space: nowrap;
   }
   .dot {
     display: inline-block;
@@ -330,27 +373,9 @@
     }
   }
   /* A phone: whose pick gets the room; the seal says where you are */
-  .said .short {
-    display: none;
-  }
   @media (max-width: 560px) {
     .titles {
       display: none;
-    }
-  }
-  @media (max-width: 640px) {
-    .said .long {
-      display: none;
-    }
-    .said .short {
-      display: inline;
-    }
-    /* Never cut: a long name takes a second line */
-    .said {
-      font-size: clamp(1rem, 5.2vw, 1.4rem);
-      white-space: normal;
-      text-overflow: clip;
-      overflow-wrap: anywhere;
     }
   }
 
