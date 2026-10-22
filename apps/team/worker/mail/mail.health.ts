@@ -25,6 +25,9 @@ export async function mailOutcome(env: PushEnv, outcome: MailOutcome, now = new 
       {
         to: await mailKeepers(env.DB),
         topic: "email",
+        // Nobody can get a code until it's fixed, so it can't wait for the morning
+        key: "email:stopped",
+        live: true,
         title: "Email has stopped",
         body: "Google cancelled the app's access, so nobody gets a sign-in code. Reconnect it in Settings → Email.",
         path: "/settings/email",

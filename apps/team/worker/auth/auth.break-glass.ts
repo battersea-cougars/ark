@@ -61,7 +61,18 @@ export async function brokeGlass(env: AuthEnv, now: Date, memberId: number, sess
   const body = `${who} signed in with a break-glass code. Not them? Sign it out on Home.`;
   const pushed = notify(
     env,
-    [{ to: everyone.map((a) => a.id), topic: "security", title: "Break-glass sign-in", body, path: "/" }],
+    [
+      {
+        to: everyone.map((a) => a.id),
+        topic: "security",
+        // Each break-glass sign-in is news of its own, and can't wait for the morning
+        key: `break-glass:${sessionId}`,
+        live: true,
+        title: "Break-glass sign-in",
+        body,
+        path: "/",
+      },
+    ],
     now,
   ).catch((e) => log.error("push.failed", e));
   const to = everyone.map((a) => a.email).filter((e): e is string => !!e);

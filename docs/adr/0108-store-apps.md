@@ -188,3 +188,5 @@ Three things shape it:
 - 2026-10-22: Passkeys in the app ([0023](0023-sign-in-and-sessions.md)): its entitlements add `webcredentials:` for
   both team domains, which `apple-app-site-association` already names it for; and the `security` topic (a break-glass
   sign-in, admins only).
+- 2026-10-22: "Email has stopped" and a break-glass sign-in are `live` too: nobody can get a code, or someone got in
+  by the back door, so neither waits for the morning.
