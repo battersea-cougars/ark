@@ -34,6 +34,9 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
     so full time never reads a goal without its score; an admin's typed-in result and its goals are one batch, each
     side's goals matched against the count inside its statement, so the same result saved twice adds them once (#124).
+    An admin's take-over (or freeing) of the scoresheet goes only while it's still held by whoever their page saw
+    and the game isn't over, so two admins at once leave one scorekeeper; every scorekeeper's write, the clock's
+    included, goes only while they still hold the sheet, so the old phone's tap is refused after a take-over (#116).
   - Members: the last who can do everything (`manage:all` through any role, ADR [0024](0024-action-based-authorization.md))
     is kept inside the statements that change a member's roles, make them inactive, erase them or take `manage:all`
     off a role: each goes only while someone else active can still do everything, so two admins demoting or erasing
@@ -120,3 +123,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-22: The last-admin condition counts `manage:all` through any role, and guards role edits too (#136).
 - 2026-10-22: A push drain every minute between the five-minute runs, 40 phones and nothing else (41 subrequests), for
   quiet hours and the debounce ([0108](0108-store-apps.md)): 200 phones in about five minutes, not 35.
+- 2026-10-22: Taking over a scoresheet decided in its statement (two admins at once: one scorekeeper), and the clock's
+  writes, like goals', only while the tapper holds the sheet (#116), with their seeds' tests.

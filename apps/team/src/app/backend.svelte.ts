@@ -628,6 +628,20 @@ export const holdScoresheet = (tournamentId: number, gameId: number, action: "cl
     () => api("POST", `${gamePath(tournamentId, gameId)}/scorer`, { action }),
     action === "claim" ? "You're keeping score" : "Scoresheet's free",
   );
+/**
+ * An admin's say over someone's scoresheet (#116): take it over (theirs from where the game is), or free it, from
+ * whoever their page saw holding it.
+ */
+export const overrideScoresheet = (
+  tournamentId: number,
+  gameId: number,
+  action: "takeover" | "free",
+  from: number | null,
+) =>
+  save(
+    () => api("POST", `${gamePath(tournamentId, gameId)}/scorer/admin`, { action, from }),
+    action === "takeover" ? "It's yours: you're scoring" : "Scoresheet's free",
+  );
 /** The clock: start (or start again), pause, or full time (the score's the result). */
 export const clockGame = (tournamentId: number, gameId: number, action: "start" | "pause" | "end") =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action }), action === "end" ? "Full time" : "");

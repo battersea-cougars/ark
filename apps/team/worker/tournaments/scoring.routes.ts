@@ -7,6 +7,7 @@ import {
   addPenalty,
   clockGame,
   holdScoresheet,
+  overrideScoresheet,
   removeGoal,
   removePenalty,
   undoGoal,
@@ -52,6 +53,27 @@ export const SCORING_ROUTES: Route[] = [
     calendar: false,
     // { action: "claim" | "release" }: Start scoring, or let it go
     handle: async (c) => (await holdScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c), ok()),
+  },
+  // An admin's say over someone's scoresheet (#116): take it over, or free it. On the record, unlike holding your own
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/scorer\/admin$/,
+    audit: {
+      event: "game.keeper_changed",
+      subject: rowOf(
+        `SELECT g.position game, m.name keeper FROM tournament_games g
+         LEFT JOIN members m ON m.id = g.keeper_member_id WHERE g.id = ?`,
+        game,
+      ),
+    },
+    action: "manage:Tournament",
+    changes: ["tournaments"],
+    calendar: false,
+    // { action: "takeover" | "free", from: the keeper the admin's page saw, or null }
+    handle: async (c) => (
+      await overrideScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c),
+      ok()
+    ),
   },
   {
     method: "POST",

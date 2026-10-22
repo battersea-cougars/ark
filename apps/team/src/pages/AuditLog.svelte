@@ -231,6 +231,11 @@
         return `${who} cleared the Fight Card for ${str(from?.name)}: ${count(from?.games, "match", "matches")}, ${count(from?.results, "result")}`;
       case "draft.finished":
         return `${who} closed the draft for ${str(to?.name)}: ${count(to?.games, "match", "matches")} on the Fight Card`;
+      case "game.keeper_changed":
+        // An admin's say over someone's scoresheet (#116): taken over, or freed
+        return to?.keeper
+          ? `${who} took over scoring Game ${Number(to.game)}${from?.keeper ? ` from ${str(from.keeper)}` : ""}`
+          : `${who} freed Game ${Number(from?.game)}'s scoresheet${from?.keeper ? ` from ${str(from.keeper)}` : ""}`;
       case "game.scored":
         return `${who} recorded a result: ${Number(to?.homeGoals ?? 0)}–${Number(to?.awayGoals ?? 0)}`;
       case "tournament_series.created":

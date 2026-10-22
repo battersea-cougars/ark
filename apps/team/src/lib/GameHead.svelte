@@ -12,6 +12,7 @@
     kanji = "",
     playoff = false,
     place,
+    scorer = "",
     opens = false,
     action,
     centre,
@@ -21,6 +22,8 @@
     kanji?: string;
     playoff?: boolean;
     place: string;
+    /** Who's keeping score, while someone is (#116): said after the place, so an admin sees it down the list. */
+    scorer?: string;
     /** Its card opens the game: a chevron shows on hover, in space kept for it so nothing moves. */
     opens?: boolean;
     /** A button on the right, after the place (Live, on the game on now). */
@@ -34,7 +37,12 @@
   <!-- The same two lines on every card, so they line up down a list: what it is to you and where it sits in the
        day, then the stage -->
   <span class="titles">
-    <span class="place">{place}</span>
+    <!-- Who's scoring, after the place: the line's always there, so nothing moves when someone takes it on -->
+    <span class="place"
+      >{place}{#if scorer}<span class="scorer"
+          ><Icon name="whistle" size={13} /><span class="who">Scored by {scorer}</span></span
+        >{/if}</span
+    >
     {#if stage}<span class="stage">{stage}<Kanji text={kanji} /></span>{/if}
   </span>
   <!-- On the right, inside the card in the same row as Game N of M: the stamp (KUMITE!, You are next!, a result),
@@ -69,6 +77,28 @@
     font-weight: 700;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
+  }
+  .place {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-width: 0;
+    white-space: nowrap;
+  }
+  /* The whistle in the club's red, the words as the place's (colour is the accent, not a fill) */
+  .scorer {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    min-width: 0;
+  }
+  .scorer :global(svg) {
+    flex-shrink: 0;
+    color: var(--red-hot);
+  }
+  .scorer .who {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .stage {
     display: inline-flex;

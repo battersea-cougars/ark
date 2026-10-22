@@ -9,7 +9,7 @@
   import { kanjiFor } from "./motif";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { nameOfTeam } from "./names";
+  import { goesBy, nameOfTeam } from "./names";
   import Icon from "../app/shell/Icon.svelte";
 
   let {
@@ -27,6 +27,13 @@
   const live = $derived(g.status === "live");
   // You hold its scoresheet: a whistle in the header says so, and the card opens the scoresheet
   const keeping = $derived(g.status !== "done" && g.keeperId === me().id);
+  // Who's scoring it, until it's over (#116): you, or whoever holds the sheet
+  const scorer = $derived.by(() => {
+    if (g.status === "done" || !g.keeperId) return "";
+    if (keeping) return "you";
+    const p = PLAYERS.find((x) => x.id === g.keeperId);
+    return p ? goesBy(p) : "";
+  });
   const playoff = $derived(g.stage === "playoff");
   const count = $derived(tournament.games?.length ?? 0);
   // 決勝 is the Final's own; any other playoff (a semi-final, 3rd place) gets the fights'
@@ -53,7 +60,7 @@
 
 <!-- On now, it's the main draw: bigger, its KUMITE! stamp pulsing, and the whole card opens the live page -->
 <div class="list game-card" class:live class:done>
-  <GameHead {stage} {kanji} {playoff} {place} opens={!live && !keeping}>
+  <GameHead {stage} {kanji} {playoff} {place} {scorer} opens={!live && !keeping}>
     {#snippet centre()}
       {#if live}<span class="chant">{type?.shortName ?? "Live"}!</span>
       {:else if upNext}<span class="chant result next">{type?.slug === "kumite" ? "You are next!" : "Up next"}</span>

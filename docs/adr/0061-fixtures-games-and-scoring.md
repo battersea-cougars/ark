@@ -69,7 +69,20 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   playing in it, turns spread evenly. It's a suggestion, shown on the fight card, the tournament's home and the game.
 - **One person holds the scoresheet** (`keeper_member_id`): only they run the clock and log goals (403 for anyone
   else). Anyone can take it on while nobody has, for the game up next or on now. They let go with **Hand over**, under
-  Scoring in the top bar; an admin can make them let go. They're done with a game at full time.
+  Scoring in the top bar. They're done with a game at full time.
+- **An admin takes over, or frees it** (#116), behind the game page's Manage (`POST …/scorer/admin`,
+  `manage:Tournament`): **Take over scoring** makes them the scorekeeper in one tap, from where the game is (the
+  scorekeeper's phone died, or they had to go); **Free the scoresheet** lets it go for anyone to take on (an admin
+  not at the rink). Each asks first, the yes in red. The request says who the admin's page saw holding it, and the
+  statement changes it only while it's still theirs and the game isn't over, so two admins at once leave one
+  scorekeeper and the other is told who has it ([0121](0121-load-and-concurrency.md)). On the record as
+  `game.keeper_changed`, from whom to whom; holding your own sheet stays off it.
+- **The old scorekeeper's phone hears it live** ([0072](0072-live-updates.md)): its tools and pickers close, it buzzes,
+  and the line under the clock says who's taken over ("You're off the clock"). Every write a scorekeeper sends (the
+  clock, goals, penalties, Undo) lands only while they still hold the sheet, decided in its statement, so a tap from
+  the old phone is refused (403, "Someone else is keeping score"), never landed after the take-over.
+- **The Fight card says who's scoring** each game until it's over ("Scored by Dan", a red whistle, after Game N of M
+  on lib/GameCard), the tournament's home and the day's carousel too, so an admin sees it without opening each game.
 
 ### A game's pages
 
@@ -246,3 +259,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-22: Making the fixtures again shuffles between equally fair orders (the user's choice): the first Make is
   the fairest order; each Make again another tied with it on every rule, never the one there was, from the table's
   order by dealing the teams into its places, turning it round where that scores the same, and swapping sides.
+- 2026-10-22: An admin takes over a game's scoresheet in one tap, or frees it, behind the game's Manage, decided in
+  one statement from who their page saw holding it, on the record; the old scorekeeper's phone hears it live and its
+  writes (the clock's too, now) go only while it holds the sheet; the Fight card says who's scoring each game.
+  The Let it go button under the clock went (#116).

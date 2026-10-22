@@ -21,6 +21,7 @@
   import BackBar from "../app/shell/BackBar.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import Sheet from "../lib/Sheet.svelte";
+  import ManageList, { type ManageItem } from "../lib/ManageList.svelte";
   import { phone } from "../lib/viewport.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
@@ -35,6 +36,7 @@
     clockGame,
     nextPeriod,
     holdScoresheet,
+    overrideScoresheet,
     removeGoal,
     removePenalty,
     undoPenalty,
@@ -161,7 +163,71 @@
     }
   }
   const take = () => tournament && game && act(() => holdScoresheet(tournament.id, game.id, "claim"));
-  const letGo = () => tournament && game && act(() => holdScoresheet(tournament.id, game.id, "release"));
+  const letGo = () => {
+    handingOver = true;
+    if (tournament && game) act(() => holdScoresheet(tournament.id, game.id, "release"));
+  };
+
+  // An admin's say over someone else's scoresheet (#116), behind Manage in the bar (ADR 0065): take it over (their
+  // phone died, they've gone) or free it (for an admin who isn't at the rink). Each asks first, the yes in red. Sent
+  // with who the page saw holding it: if it's changed hands since, the Worker says who has it now
+  const manageable = $derived(admin && !!game && !over && !keeper && !!holder);
+  let manageOpen = $state(false);
+  let asking = $state<"takeover" | "free" | null>(null);
+  const manageItems = $derived.by((): ManageItem[] => {
+    if (!holder) return [];
+    const name = goesBy(holder);
+    return [
+      {
+        icon: "whistle",
+        label: "Take over scoring",
+        sub: `${name}'s phone stops scoring and yours starts, from where the game is.`,
+        run: () => (asking = "takeover"),
+      },
+      {
+        icon: "signOut",
+        label: "Free the scoresheet",
+        sub: `${name}'s off it, and anyone can take it on. For when you're not at the rink.`,
+        run: () => (asking = "free"),
+      },
+    ];
+  });
+  function manage(run: () => void) {
+    manageOpen = false;
+    run();
+  }
+  function override() {
+    const action = asking;
+    asking = null;
+    if (action && tournament && game)
+      act(() => overrideScoresheet(tournament.id, game.id, action, game.keeperId ?? null));
+  }
+  // Remembered while the sheet goes: who it was taken from, for the question's words as it slides away
+  let askedOf = $state("");
+  $effect(() => {
+    if (asking && holder) askedOf = goesBy(holder);
+  });
+
+  // This phone was the scoresheet and isn't any more, not by its own Hand over: an admin took it over or freed it.
+  // The page hears it live (ADR 0072); its tools and pickers close, the phone buzzes, and the line under the clock
+  // says so, until the sheet's this phone's again
+  let handingOver = false;
+  let wasKeeper = false;
+  let lost = $state<{ to: string | null } | null>(null);
+  $effect(() => {
+    const now = keeper;
+    if (now) lost = null;
+    else if (wasKeeper && !over && !handingOver) {
+      lost = { to: holder ? goesBy(holder) : null };
+      toolsOpen = false;
+      picking = null;
+      calling = null;
+      setting = false;
+      buzz([120, 60, 120]);
+    }
+    if (!now) handingOver = false;
+    wasKeeper = now;
+  });
   const games = $derived(`/tournaments/${type.slug}`);
   // Back where you came from (the Fight card, a team, the home page), named for it; else the tournament's home
   const back = $derived.by(() => {
@@ -395,8 +461,18 @@
           ? "Break"
           : "Paused"
       : "Not started"}
-  action={keeper && !over ? scoring_ : undefined}
+  action={keeper && !over ? scoring_ : manageable ? manage_ : undefined}
 />
+<!-- An admin's tools for someone else's scoresheet: the page's one Manage (ADR 0065) -->
+{#snippet manage_()}
+  <button
+    class="btn sm ghost icon"
+    aria-haspopup="dialog"
+    aria-label="Manage the scoresheet"
+    title="Manage"
+    onclick={() => (manageOpen = true)}><Icon name="settings" size={18} /></button
+  >
+{/snippet}
 <!-- Keeping score: said in the bar, in red, and a tap opens the scorekeeper's tools, so the clock gets the screen -->
 {#snippet scoring_()}
   <button class="btn ghost sm keeping" aria-label="You're keeping score: tools" onclick={() => (toolsOpen = true)}
@@ -450,12 +526,18 @@
       <!-- Who's keeping score, for everyone following: taken on here, on purpose, never by the big button (someone
            watching from home shouldn't take it by accident). One person holds it until they hand it over -->
       <div class="keep-line">
-        {#if holder}
+        {#if lost?.to && holder}
+          <!-- This phone's sheet was taken over: said here, where the big button was -->
+          <span class="hint lost"
+            ><Icon name="whistle" size={16} />{goesBy(holder)}'s taken over scoring. You're off the clock.</span
+          >
+        {:else if holder}
           <span class="hint"><i class="rec" aria-hidden="true"></i>Score kept by {goesBy(holder)}</span>
-          {#if admin}<button class="btn ghost sm" disabled={busy} onclick={letGo}>Let it go</button>{/if}
         {:else if upNext && game.homeTeamId && game.awayTeamId}
-          <span class="hint"
-            >Nobody's keeping score{game.scoringTeamId ? ` · ${teamName(game.scoringTeamId)}'s turn` : ""}</span
+          <span class="hint" class:lost={lost && !lost.to}
+            >{lost && !lost.to
+              ? "An admin freed your scoresheet. Keep score to take it back"
+              : `Nobody's keeping score${game.scoringTeamId ? ` · ${teamName(game.scoringTeamId)}'s turn` : ""}`}</span
           >
           <button class="btn outline sm" disabled={busy} onclick={take}
             ><Icon name="whistle" size={16} />Keep score</button
@@ -699,6 +781,37 @@
   {:else}
     <Drawer bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Drawer>
   {/if}
+
+  <!-- An admin's Manage: a sheet on a phone, a side drawer on a desktop (ADR 0103) -->
+  {#snippet manageList()}<ManageList items={manageItems} go={manage} />{/snippet}
+  {#if phone.current}
+    <Sheet bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}">{@render manageList()}</Sheet
+    >
+  {:else}
+    <Drawer bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}"
+      >{@render manageList()}</Drawer
+    >
+  {/if}
+
+  <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0084) -->
+  <Sheet
+    bind:open={() => !!asking, (v) => !v && (asking = null)}
+    title={asking === "free" ? "Free the scoresheet?" : `Take over Game ${game.position}?`}
+  >
+    <p class="ask">
+      {#if asking === "free"}
+        {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
+      {:else}
+        {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
+      {/if}
+    </p>
+    {#snippet footer()}
+      <button class="btn ghost" type="button" onclick={() => (asking = null)}>Leave it</button>
+      <button class="btn yes" type="button" disabled={busy} onclick={override}
+        >{asking === "free" ? "Free it" : "Take over"}</button
+      >
+    {/snippet}
+  </Sheet>
 
   <!-- Set the score, in a sheet (a short form, ADR 0103): each side's goals, up and down -->
   <Sheet bind:open={scoring} title="Set the score">
@@ -1136,6 +1249,23 @@
   }
   .keep-line .btn {
     gap: var(--s-1);
+  }
+  /* This phone lost the sheet: the words in the club's red, the whistle with them */
+  .keep-line .lost {
+    color: var(--red-hot);
+  }
+  .ask {
+    margin: 0;
+    color: var(--fg-muted);
+    line-height: 1.5;
+  }
+  /* The armed "are you sure": the one red fill (ADR 0084) */
+  .yes {
+    background: var(--red);
+    color: var(--on-red);
+  }
+  .yes:hover:not(:disabled) {
+    background: var(--red-hot);
   }
   .rec {
     width: 0.5rem;
