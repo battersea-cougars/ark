@@ -105,20 +105,6 @@
   });
   // The draft being picked, on a phone: the header makes room, the track stays, the players scroll inside
   let picking = $state(false);
-  // The draft's own jobs (undo a pick, add a player, close or reset it), in the header's Manage while it's showing
-  let draftJobs = $state<(() => void) | null>(null);
-  const extra = $derived(
-    pane === "draft" && draftJobs
-      ? [
-          {
-            icon: "draft" as const,
-            label: "Manage the draft",
-            sub: "Undo a pick, add a player, close it or start again",
-            run: draftJobs,
-          },
-        ]
-      : [],
-  );
   const compact = $derived(phone.current && pane === "draft" && picking);
   // Moving between statuses: the view slides in from the way you went (forward from the right), the one leaving the
   // other way; the header and the track stay still. Stacked in one cell, so the area never collapses between them
@@ -195,7 +181,6 @@
     manage
     note={tournament ? undefined : "Between bouts."}
     track
-    {extra}
     viewing={view}
     {compact}
   />
@@ -267,9 +252,6 @@
                 signup={view === "signup"}
                 onpicking={(v) => {
                   picking = v;
-                }}
-                onmanage={(open) => {
-                  draftJobs = open;
                 }}
               />
             </div>

@@ -272,3 +272,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   in the member editor, overwritten by every rename, their history only while it's never been set.
 - 2026-10-22: A carried name gives way to any team's name in the Kumite, automatic ones included, and a stale
   tournament editor's re-save neither clears a carried name nor counts as a rename.
+- 2026-10-22: The draft's jobs (undo the last pick, add a player, close it early, reset) are rows of the page's gear
+  and the draft room's, not a Manage the draft drawer of their own (ADR 0074); closing it once everyone's picked is
+  the Seal card's, and reopening a closed one is Back a step.

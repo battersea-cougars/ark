@@ -80,11 +80,14 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   now when the one in front isn't it; a tap on a peeking one brings it forward. On a phone a card's stamp (KUMITE!, You
   are next!, a result) is a sticker on its top edge, so no card is taller for one; the names are one line, plain text
   (the card opens the match, whose page links both teams, with a chevron); where a team is a link it looks like one.
-- **Manage** (the gear) holds every job: the settings, Back a step, Make the fixtures again, the awards, the draft's
-  own jobs while it's showing (undo a pick, add a player, close it, reset), and for a captain **Your team** (its name
-  and crest) and, with whoever runs the draft, the **Pick log** once the draft's open. A captain sees the gear for
-  those even with nothing else in it. Back a step is the gear's alone, one on the page, for whoever runs the draft too
-  (the draft's own steps); the draft's Manage hasn't one. A drawer opens only from a tap.
+- **Manage** (the gear) holds every job, a row each, never a menu inside the menu, in the order they're needed: the
+  step it's at first (at the draft: Undo the last pick, naming it; Add a player; Close it now, only to close early
+  leaving the rest out, the Seal card closing it once everyone's picked; Reset the draft, in red words; then Make the
+  fixtures again while none's played, and Confirm the awards once there are results), then Back a step, then for a
+  captain **Your team** (its name and crest) and, with whoever runs the draft, the **Pick log**, and the settings
+  last. A captain sees the gear for those even with nothing else in it. Back a step is the gear's alone, one on the
+  page, for whoever runs the draft too (the draft's own steps). The draft room's gear has the same draft items and
+  Back. A drawer opens only from a tap.
 - **History** is a quiet link at the foot; so is, on the Kumite, "Don't get the references? You've got some training
   to do." (the film, "Required viewing").
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
@@ -286,3 +289,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   means for your team; the In/Out card is only for those who haven't answered. A match card's stamp sits inside it, top
   right, and the live card has no Live button (the card opens the live page). The KUMITE! carousel has more depth and a
   sheen on the match in front. The fixtures made while you watch are dealt in, the status's badge stamped in.
+- 2026-10-22: "Why is add player behind the manage draft setting?" (the user): no Manage the draft drawer inside the
+  gear. The draft's jobs are the gear's own rows (lib/draft-jobs.ts, done by lib/DraftJobs.svelte), the step's jobs
+  first, then Back, Your team and Pick log, the settings last; Confirm the awards only once there are results.

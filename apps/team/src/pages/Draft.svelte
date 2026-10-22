@@ -23,33 +23,16 @@
   import { untrack } from "svelte";
   import { easeOut, fadeMs, flyMs, prefersReducedMotion } from "../app/motion";
   import { fade, fly, slide } from "svelte/transition";
-  import TournamentPlayersDrawer from "../lib/TournamentPlayersDrawer.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import PickLog from "../lib/PickLog.svelte";
-  import { BACK_TO } from "../lib/step-back";
   import { canEnterRoom, enterRoom, roomOffered } from "../lib/draft-room";
-  import Sheet from "../lib/Sheet.svelte";
-  import { phone } from "../lib/viewport.svelte";
-  import type { IconName } from "../app/shell/icons";
   import { teamTone } from "../lib/team-tones";
   import TeamLookSheet from "../lib/TeamLookSheet.svelte";
-  import Drawer from "../lib/Drawer.svelte";
   import { editTournament } from "../lib/TournamentEditorPanel.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
-  import {
-    closeDraft,
-    draftPick,
-    drawOrder,
-    finishDraft,
-    makeFixtures,
-    clearFixtures,
-    openDraft,
-    reopenDraft,
-    resetDraft,
-    undoDraftPick,
-  } from "../app/backend.svelte";
+  import { draftPick, drawOrder, closeDraft, finishDraft, makeFixtures, openDraft } from "../app/backend.svelte";
   import { checkForUpdates, everyHowOften, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { formatDayDate, londonISO, londonToday } from "../lib/dates";
@@ -71,7 +54,6 @@
     room = false,
     signup = false,
     onpicking,
-    onmanage,
   }: {
     typeId: number;
     /** In the draft room (pages/DraftRoom): its bar says whose turn, so the strip goes, and so does the way in. */
@@ -80,8 +62,6 @@
     signup?: boolean;
     /** Told whether it's being picked (open, players left), so a phone's page makes room for it (ADR 0074). */
     onpicking?: (picking: boolean) => void;
-    /** Told how to open its jobs (Manage the draft), or none, for the page header's Manage (ADR 0074). */
-    onmanage?: (open: (() => void) | null) => void;
   } = $props();
 
   const perms = $derived(granted());
@@ -152,8 +132,6 @@
   const mine = $derived(clock >= 0 && teams[clock].captainMemberId === me().id);
   const canPick = $derived(open && (running || mine));
   // An admin puts in someone who didn't sign up (sign-up shut or not), until the draft closes and the teams are set
-  const adding = $derived(can(perms, "update:Event") && phase !== "closed");
-  let addingOpen = $state(false);
   // A team's name and logo: its captain or an admin, from its crest
   let lookOpen = $state(false);
   let lookIndex = $state(0);
@@ -428,9 +406,8 @@
   // The strip says "today" on the day, rather than the date
   const whenSaid = $derived(tournament?.draftOn === londonToday() ? "today" : when);
 
-  // The fixtures, and whether any game's started or has a result: then the teams are set and it can't reopen
+  // The fixtures, if made
   const games = $derived(tournament?.games ?? []);
-  const played = $derived(games.some((g) => g.status !== "next" || g.homeGoals !== null));
   // The last step (ADR 0060): one tap closes the draft and makes the fixtures (fixtures already made are kept, as
   // they're between the same teams). Without enough teams for the playoffs, and none made, it can only close
   const makesFixtures = $derived(!games.length && !tooFew);
@@ -451,124 +428,6 @@
     job(async () => {
       if ((await makeFixtures(tournament.id)) !== null && router.path !== home) navigate(home);
     });
-  // Closing with members still to pick (Manage): say so, and ask before leaving them out
-  let confirmLeaveOut = $state(false);
-  async function close() {
-    if (!tournament) return;
-    if (pool.length && !confirmLeaveOut) return void (confirmLeaveOut = true);
-    await finish(pool.length > 0);
-    confirmLeaveOut = false;
-    manageOpen = false;
-  }
-  // Start again: once there's a pick to take back. The fixtures stay (ADR 0060). Asked first, as it can't be undone
-  const resettable = $derived(made > 0);
-  let confirmReset = $state(false);
-  async function reset() {
-    if (!tournament) return;
-    if (!confirmReset) return void (confirmReset = true);
-    await resetDraft(tournament.id);
-    confirmReset = false;
-    manageOpen = false;
-  }
-  // Reopening a closed draft with fixtures asks what becomes of them (ADR 0060): kept (no match started), or cleared,
-  // results and all, which is the only way once a match has started, and takes someone who edits the tournament. An
-  // admin can also clear them without reopening. What's lost is counted from the matches the server sent
-  let asking = $state<null | "reopen" | "clear">(null);
-  const canClear = $derived(can(perms, "manage:Tournament"));
-  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-  const lost = $derived.by(() => {
-    const results = games.filter((g) => g.homeGoals !== null).length;
-    const goals = games.reduce((n, g) => n + (g.goals?.length ?? 0), 0);
-    const counts = [results && plural(results, "result"), goals && plural(goals, "goal")].filter(Boolean);
-    if (counts.length) return `${counts.join(" and ")} will be deleted.`;
-    if (played) return "The match under way will be deleted, with its scoresheet.";
-    return `${plural(games.length, "match", "matches")} will be deleted, none of them started.`;
-  });
-  const reopenWith = (fixtures: "keep" | "clear") =>
-    tournament && job(() => reopenDraft(tournament.id, fixtures)).then(() => ((asking = null), (manageOpen = false)));
-  const clearThem = () =>
-    tournament && job(() => clearFixtures(tournament.id)).then(() => ((asking = null), (manageOpen = false)));
-  // Whoever runs the draft, and admins adding players: their jobs behind one Manage button, a bottom sheet on a
-  // phone and a side drawer on a desktop (the admin controls pattern). Closing with players left, or a reset, asks
-  // there first
-  interface Tool {
-    icon: IconName;
-    label: string;
-    sub: string;
-    run: () => void;
-  }
-  let manageOpen = $state(false);
-  const tools = $derived.by(() => {
-    if (!tournament) return [] as Tool[];
-    const id = tournament.id;
-    const list: Tool[] = [];
-    // Closed: the quiet way back, asking about the fixtures when there are some; and clearing the fixtures alone
-    if (phase === "closed") {
-      if (running && (!played || canClear))
-        list.push({
-          icon: "undo",
-          label: BACK_TO.teams,
-          sub: !games.length
-            ? "The captains carry on where they left off"
-            : played
-              ? "A match has started: reopening clears the fixtures"
-              : "The captains carry on; keep the fixtures or clear them",
-          run: () => (games.length ? (asking = "reopen") : void reopenWith("keep")),
-        });
-      if (canClear && games.length)
-        list.push({
-          icon: "x",
-          label: "Clear the fixtures",
-          sub: played ? "Results and all: make them again after" : "Make them again after",
-          run: () => (asking = "clear"),
-        });
-      return list;
-    }
-    // Back a step of the draft's own (to the drawn order, to before the draw) is the header's Manage, the page's one
-    // Back (lib/TournamentHead, ADR 0074), not one here as well
-    if (running && open && made)
-      list.push({
-        icon: "undo",
-        label: "Undo the last pick",
-        sub: lastPick ? `${lastPick.name} goes back to the pool` : "",
-        run: () => void undoDraftPick(id).then(() => (manageOpen = false)),
-      });
-    if (adding)
-      list.push({
-        icon: "userPlus",
-        label: "Add player",
-        sub: "Put in someone who didn't sign up",
-        run: () => ((manageOpen = false), (addingOpen = true)),
-      });
-    if (running && open)
-      list.push({
-        icon: "check",
-        label: finishLabel,
-        sub: pool.length ? `${pool.length} still to pick` : "Everyone's picked: set the teams",
-        run: () => void close(),
-      });
-    if (running && resettable)
-      list.push({
-        icon: "x",
-        label: "Reset the draft",
-        sub: "Every pick comes off, and the order",
-        run: () => void reset(),
-      });
-    return list;
-  });
-  // Handed up to the header's Manage (Games). A block, not `() => onmanage?.(…)`: an effect that returns a function
-  // has it run as its teardown, and the parent's `(open) => (draftJobs = open)` returned the opener, so every change
-  // to the tools (a pick, a step back) opened this drawer by itself (lib/effects.test.ts)
-  const openManage = () => (manageOpen = true);
-  $effect(() => {
-    onmanage?.(tools.length ? openManage : null);
-  });
-  $effect(() => {
-    if (manageOpen) return;
-    confirmLeaveOut = false;
-    confirmReset = false;
-    asking = null;
-  });
 
   // Setting the order, starting the draft: one at a time
   let busy = $state(false);
@@ -1134,80 +993,6 @@
   </div>
 {/if}
 
-<!-- Manage: whoever runs the draft's jobs, thumb-sized. Closing with players left, or a reset, asks here first -->
-{#snippet jobList()}
-  {#if asking === "reopen" && !played}
-    <!-- No match started: keeping the fixtures is the default; clearing them is there for whoever edits it -->
-    <div class="confirm" role="alert">
-      <p>
-        Reopen the draft? The captains carry on where they left off. The fixtures are between the same teams, so they
-        can stay.
-      </p>
-      <div class="confirm-keys">
-        <button class="btn ghost" onclick={() => (asking = null)}>Not now</button>
-        {#if canClear}
-          <button class="btn ghost danger" disabled={busy} onclick={() => reopenWith("clear")}
-            >Clear the fixtures</button
-          >
-        {/if}
-        <button class="btn primary" disabled={busy} onclick={() => reopenWith("keep")}>Keep the fixtures</button>
-      </div>
-    </div>
-  {:else if asking}
-    <!-- A match has started (reopening clears them), or clearing them alone: what goes, said plainly first -->
-    <div class="confirm" role="alert">
-      <p>
-        {#if asking === "reopen"}A match has started, so reopening the draft clears the fixtures. <strong>{lost}</strong
-          > To change a team without that, use the Teams page.
-        {:else}Clear the fixtures? <strong>{lost}</strong> You can make them again after.{/if}
-      </p>
-      <div class="confirm-keys">
-        <button class="btn ghost" onclick={() => (asking = null)}
-          >{asking === "reopen" ? "Keep it closed" : "Keep them"}</button
-        >
-        <button
-          class="btn delete"
-          disabled={busy}
-          onclick={() => (asking === "reopen" ? reopenWith("clear") : clearThem())}
-          >{asking === "reopen" ? "Clear the fixtures and reopen" : "Clear the fixtures"}</button
-        >
-      </div>
-    </div>
-  {:else if confirmLeaveOut || confirmReset}
-    <div class="confirm" role="alert">
-      <p>
-        {#if confirmLeaveOut}{pool.length} still to pick. Close it and leave them out? They stay signed up.
-        {:else}Start again? Every pick comes off, and the order's drawn again.{/if}
-      </p>
-      <div class="confirm-keys">
-        <button class="btn ghost" onclick={() => ((confirmLeaveOut = false), (confirmReset = false))}
-          >{confirmLeaveOut ? "Keep picking" : "Keep it"}</button
-        >
-        <button class="btn primary" onclick={confirmLeaveOut ? close : reset}
-          >{confirmLeaveOut ? "Close it" : "Reset the draft"}</button
-        >
-      </div>
-    </div>
-  {:else}
-    <div class="jobs">
-      {#each tools as tool (tool.label)}
-        <button class="job" onclick={tool.run}>
-          <Icon name={tool.icon} size={22} />
-          <span class="job-text"><strong>{tool.label}</strong><span>{tool.sub}</span></span>
-          <Icon name="chevronRight" size={18} />
-        </button>
-      {/each}
-    </div>
-  {/if}
-{/snippet}
-{#if tools.length}
-  {#if phone.current}
-    <Sheet bind:open={manageOpen} title="Manage the draft">{@render jobList()}</Sheet>
-  {:else}
-    <Drawer bind:open={manageOpen} title="Manage the draft" sub={tournament?.name}>{@render jobList()}</Drawer>
-  {/if}
-{/if}
-
 {#if lifted}
   {@const p = byId(lifted.id)}
   {#if p}
@@ -1234,80 +1019,7 @@
   />
 {/if}
 
-{#if tournament && adding}
-  <TournamentPlayersDrawer
-    tournamentId={tournament.id}
-    going={tournament.going ?? []}
-    {captains}
-    sub="{tournament.name}{when ? ` · draft ${when}` : ''}"
-    bind:open={addingOpen}
-  />
-{/if}
-
 <style>
-  /* Manage's jobs: a row each, filled, no lines */
-  .jobs {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .job {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.25rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .job:hover,
-  .job:active {
-    background: var(--surface-3);
-  }
-  .job-text {
-    display: grid;
-    flex: 1;
-    gap: 0.15rem;
-    min-width: 0;
-  }
-  .job-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .job-text span {
-    font-size: var(--text-sm);
-  }
-  .confirm {
-    display: grid;
-    gap: var(--s-4);
-  }
-  /* Clearing what can't come back: red words to offer it, and the one red fill is the tap that does it (as deleting a
-     tournament or an account) */
-  .danger {
-    color: var(--red-hot);
-  }
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
-  }
-  .confirm p {
-    margin: 0;
-    color: var(--fg-body);
-  }
-  .confirm-keys {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: var(--s-3);
-  }
   /* A team's place in the pick order, beside its name: small, in the numbers' face */
   .pickno {
     flex-shrink: 0;

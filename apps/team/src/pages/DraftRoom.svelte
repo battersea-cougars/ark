@@ -10,7 +10,16 @@
   import Kanji from "../lib/Kanji.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { kanjiFor } from "../lib/motif";
-  import { nameOfTeam } from "../lib/names";
+  import { goesByOf, nameOfTeam } from "../lib/names";
+  import { draftJobsOf } from "../lib/draft-jobs";
+  import { BACK_SAYS, backFrom, backTo } from "../lib/step-back";
+  import { londonToday } from "../lib/dates";
+  import { phone } from "../lib/viewport.svelte";
+  import DraftJobs from "../lib/DraftJobs.svelte";
+  import StepBack from "../lib/StepBack.svelte";
+  import ManageList, { type ManageItem } from "../lib/ManageList.svelte";
+  import Sheet from "../lib/Sheet.svelte";
+  import Drawer from "../lib/Drawer.svelte";
   import { canEnterRoom, leaveFullScreen, roomTurn } from "../lib/draft-room";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
@@ -31,8 +40,30 @@
   );
   const seal = $derived(kanjiFor(type, "fist"));
 
-  // The draft's jobs, for whoever runs it: Draft hands up how to open them (a block, never its answer: effects.test.ts)
-  let manage = $state<(() => void) | null>(null);
+  // Manage: the same items as the page's gear, for the draft (lib/draft-jobs.ts) and a step back, a row each
+  const runs = $derived(can(granted(), "run:Draft"));
+  const adds = $derived(can(granted(), "update:Event"));
+  let drafter = $state<ReturnType<typeof DraftJobs>>();
+  let stepper = $state<ReturnType<typeof StepBack>>();
+  let menuOpen = $state(false);
+  const items = $derived.by((): ManageItem[] => {
+    if (!tournament) return [];
+    const t = tournament;
+    const jobs: ManageItem[] = draftJobsOf(
+      t,
+      { runs, adds },
+      { player: (id, name) => goesByOf(byId(id)) || name || "", team: (i) => nameOfTeam(t.teams[i], t.teams, byId) },
+    ).map((j) => ({ ...j, run: () => drafter?.run(j.job) }));
+    const from = backFrom(t, londonToday());
+    const admin = can(granted(), "manage:Tournament");
+    if (from && (admin || (runs && (from === "draft" || from === "order"))))
+      jobs.push({ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() });
+    return jobs;
+  });
+  function go(run: () => void) {
+    menuOpen = false;
+    run();
+  }
 
   // Out: once (✕, Escape and the full screen ending can come together), back where you came from
   let leaving = false;
@@ -105,9 +136,12 @@
     </span>
     <span class="keys">
       <span class="live hint" title="Picks show up as they're made"><Icon name="live" size={14} /><LiveNote /></span>
-      {#if manage}
-        <button class="btn sm ghost icon" aria-haspopup="dialog" aria-label="Manage the draft" onclick={manage}
-          ><Icon name="settings" size={18} /></button
+      {#if items.length}
+        <button
+          class="btn sm ghost icon"
+          aria-haspopup="dialog"
+          aria-label="Manage the draft"
+          onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
         >
       {/if}
       <button class="btn sm ghost icon" aria-label="Leave the draft room" title="Leave (Esc)" onclick={exit}
@@ -117,16 +151,19 @@
   </header>
   {#if tournament && inRoom}
     <div class="body">
-      <Draft
-        {typeId}
-        room
-        onmanage={(open) => {
-          manage = open;
-        }}
-      />
+      <Draft {typeId} room />
     </div>
   {/if}
 </div>
+{#if tournament && items.length}
+  {#if phone.current}
+    <Sheet bind:open={menuOpen} title="Manage the draft"><ManageList {items} {go} /></Sheet>
+  {:else}
+    <Drawer bind:open={menuOpen} title="Manage the draft" sub={tournament.name}><ManageList {items} {go} /></Drawer>
+  {/if}
+{/if}
+{#if tournament && (runs || adds)}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
+{#if tournament && runs}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 
 <style>
   /* The whole window, past the page frame: it's a room */

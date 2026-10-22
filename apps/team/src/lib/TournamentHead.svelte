@@ -10,7 +10,7 @@
   import TeamLookSheet from "./TeamLookSheet.svelte";
   import PickLog from "./PickLog.svelte";
   import AnswerMenu from "./AnswerMenu.svelte";
-  import { nameOfTeam } from "./names";
+  import { goesByOf, nameOfTeam } from "./names";
   import { PLAYERS } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
@@ -26,8 +26,10 @@
   import Drawer from "./Drawer.svelte";
   import { phone } from "./viewport.svelte";
   import { londonToday } from "./dates";
-  import type { IconName } from "../app/shell/icons";
   import StepBack from "./StepBack.svelte";
+  import DraftJobs from "./DraftJobs.svelte";
+  import ManageList, { type ManageItem } from "./ManageList.svelte";
+  import { draftJobsOf } from "./draft-jobs";
   import { BACK_SAYS, backFrom, backTo } from "./step-back";
 
   let {
@@ -39,7 +41,6 @@
     compact = false,
     track = false,
     viewing = null,
-    extra = [],
   }: {
     type: TournamentType;
     tournament?: Tournament;
@@ -54,8 +55,6 @@
     track?: boolean;
     /** The status whose view the page is showing (the track's lit one); none on a page that isn't one (the board). */
     viewing?: Status | null;
-    /** More jobs for Manage from the view showing (the draft's own, for whoever runs it). */
-    extra?: { icon: IconName; label: string; sub: string; run: () => void }[];
   } = $props();
 
   // Where it's got to, as the stamp says it (lib/tournament-front.ts): sign-up open, the draft live, the teams set,
@@ -91,12 +90,6 @@
       (can(granted(), "run:Draft") || tournament.teams.some((x) => x.captainMemberId === me().id)),
   );
   let logOpen = $state(false);
-  interface Tool {
-    icon: IconName;
-    label: string;
-    sub: string;
-    run: () => void;
-  }
   let menuOpen = $state(false);
   let rulesOpen = $state(false);
   // Your answer, as a badge in the header once you've given it (ADR 0074): in, waiting or out
@@ -121,10 +114,47 @@
   // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
   // sheet on a phone (where it's mostly done, at the rink), a side drawer on a desktop. The next one isn't here: it's
   // the front page's own button once nothing's on (ADR 0074)
+  // The draft's own jobs (lib/draft-jobs.ts): items here, not a menu inside the menu
+  const adds = $derived(offer && can(granted(), "update:Event"));
+  let drafter = $state<ReturnType<typeof DraftJobs>>();
+  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const tools = $derived.by(() => {
-    if (!tournament) return [] as Tool[];
+    if (!tournament) return [] as ManageItem[];
     const t = tournament;
-    const yours: Tool[] = [
+    // What the step it's at needs, first: the draft's jobs; the fixtures made again (none played); the awards, once
+    // there are results
+    const now: ManageItem[] = draftJobsOf(
+      t,
+      { runs: runner, adds },
+      {
+        player: (id, name) => goesByOf(byId(id)) || name || "",
+        team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
+      },
+    ).map((j) => ({ ...j, run: () => drafter?.run(j.job) }));
+    const games = t.games ?? [];
+    if (admin && games.length && !games.some((g) => g.status !== "next" || g.homeGoals !== null))
+      now.push({
+        icon: "refresh",
+        label: "Make the fixtures again",
+        sub: "A new order of play, the same teams",
+        run: () => void makeFixtures(t.id),
+      });
+    if (admin && t.awards.length && games.some((g) => g.homeGoals !== null))
+      now.push({
+        icon: "medal",
+        label: "Confirm the awards",
+        sub: "From the results; the Dim Mak's a draw",
+        run: () => enterAwards(t.id),
+      });
+    // Then back a step (ADR 0074): one item, whatever step it's at, while there's one before it; the draft's own
+    // steps for whoever runs it too
+    const from = backFrom(t, londonToday());
+    const back: ManageItem[] =
+      from && (admin || (runner && (from === "draft" || from === "order")))
+        ? [{ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() }]
+        : [];
+    // Then yours: your team, the pick log; the settings last
+    const yours: ManageItem[] = [
       ...(myTeam
         ? [{ icon: "teams" as const, label: "Your team", sub: "Its name and crest", run: () => (lookOpen = true) }]
         : []),
@@ -132,45 +162,20 @@
         ? [{ icon: "list" as const, label: "Pick log", sub: "Every pick, round by round", run: () => (logOpen = true) }]
         : []),
     ];
-    // Back a step (ADR 0074): one item, whatever step it's at, while there's one before it; the draft's own steps
-    // for whoever runs it too
-    const from = backFrom(t, londonToday());
-    const back: Tool[] =
-      from && (admin || (runner && (from === "draft" || from === "order")))
-        ? [{ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() }]
-        : [];
-    if (!admin) return [...yours, ...extra, ...back];
-    const list: Tool[] = [
-      ...yours,
-      ...extra,
-      {
-        icon: "settings",
-        label: `${type.shortName} settings`,
-        sub:
-          t.kind === "draft"
-            ? "Day, sign-up, captains and draft day, rules, awards"
-            : "Day, sign-up, teams, rules, awards",
-        run: () => editTournament(t.id),
-      },
-    ];
-    list.push(...back);
-    // The fixtures made, no match played: made again (a new order of play), here, not a button on the page
-    const games = t.games ?? [];
-    if (games.length && !games.some((g) => g.status !== "next" || g.homeGoals !== null))
-      list.push({
-        icon: "refresh",
-        label: "Make the fixtures again",
-        sub: "A new order of play, the same teams",
-        run: () => void makeFixtures(t.id),
-      });
-    if (t.awards.length)
-      list.push({
-        icon: "medal",
-        label: "Confirm the awards",
-        sub: "From the results; the Dim Mak's a draw",
-        run: () => enterAwards(t.id),
-      });
-    return list;
+    const settings: ManageItem[] = admin
+      ? [
+          {
+            icon: "settings",
+            label: `${type.shortName} settings`,
+            sub:
+              t.kind === "draft"
+                ? "Day, sign-up, captains and draft day, rules, awards"
+                : "Day, sign-up, teams, rules, awards",
+            run: () => editTournament(t.id),
+          },
+        ]
+      : [];
+    return [...now, ...back, ...yours, ...settings];
   });
   function go(action: () => void) {
     menuOpen = false;
@@ -337,17 +342,7 @@
   {/if}
 {/if}
 
-{#snippet toolList()}
-  <div class="tools">
-    {#each tools as tool (tool.label)}
-      <button class="tool" onclick={() => go(tool.run)}>
-        <Icon name={tool.icon} size={22} />
-        <span class="tool-text"><strong>{tool.label}</strong><span>{tool.sub}</span></span>
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/each}
-  </div>
-{/snippet}
+{#snippet toolList()}<ManageList items={tools} {go} />{/snippet}
 
 {#if tournament && myTeam?.id}
   <TeamLookSheet
@@ -373,6 +368,7 @@
 {/if}
 <!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
+{#if (runner || adds) && tournament?.kind === "draft"}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 
 {#if can(granted(), "manage:Tournament")}<TournamentEditorPanel />{/if}
@@ -610,39 +606,5 @@
   }
   .place :global(svg) {
     flex: none;
-  }
-  .tools {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.25rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    font: inherit;
-    text-align: left;
-  }
-  .tool:active {
-    background: var(--surface-3);
-  }
-  .tool-text {
-    display: grid;
-    flex: 1;
-    gap: 0.15rem;
-    min-width: 0;
-  }
-  .tool-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .tool-text span {
-    font-size: var(--text-sm);
   }
 </style>
