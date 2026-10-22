@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Home is a feed (ADR 0118): a slim hello (with a loud icon while you've something overdue), the locker room (the
+  // Home is a feed (ADR 0118): a slim hello (a pound with a red dot while you've something overdue), the locker room (the
   // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
   // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
   // you owe at the foot.
@@ -452,14 +452,15 @@
       <img class="mark" src={mark} alt="" width="40" height="40" />
       <h1 class="greeting">{hello}</h1>
       <div class="hello-side">
-        <!-- Something overdue: loud, in the club's red, opening your tab (what you owe is at the foot of Home) -->
+        <!-- Something overdue: the pound with a red dot, as a phone marks something waiting (not an error), opening your
+             tab (what you owe is at the foot of Home) -->
         {#if late > 0}
           <a
             class="btn ghost icon overdue"
             href="/me/tab"
             aria-label="{pounds(late)} overdue: your tab"
             title="{pounds(late)} overdue"
-            ><Icon name="pound" size={20} /><span class="overdue-badge" aria-hidden="true">!</span></a
+            ><Icon name="pound" size={20} /><span class="overdue-dot" aria-hidden="true"></span></a
           >
         {/if}
         <!-- The Calendar: a phone's tabs have the Club in its place, so it's here (a desktop's rail has it too) -->
@@ -896,28 +897,19 @@
     display: flex;
     align-items: center;
   }
-  /* Overdue: the hello's loud icon, the pound in the club's red with a small red badge on its corner */
+  /* Overdue: the hello's pound, in the icons' own colour, with a small red dot on its corner: something waiting for
+     you, not an error */
   .overdue {
     position: relative;
-    color: var(--red-hot);
   }
-  .overdue:hover {
-    color: var(--red-hot);
-  }
-  .overdue-badge {
+  .overdue-dot {
     position: absolute;
-    top: 0.1rem;
-    right: 0.1rem;
-    display: grid;
-    place-items: center;
-    width: 1rem;
-    height: 1rem;
+    top: 0.45rem;
+    right: 0.45rem;
+    width: 0.5rem;
+    height: 0.5rem;
     border-radius: 50%;
     background: var(--red-hot);
-    color: var(--primary);
-    font-size: 0.7rem;
-    font-weight: 800;
-    line-height: 1;
   }
   /* Your next match, in the card: you v them, crests by the names, yours in the club's red (an accent, not a fill);
      which game, quiet, a red Live before it while it's played */

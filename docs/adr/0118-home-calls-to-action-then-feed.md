@@ -20,8 +20,8 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
 1. **A slim hello**: one line of greeting (the display face, not a poster; the kicker above it on a desktop only, so
    the title sits on every page's line, [0065](0065-page-frame-and-admin-actions.md)). On its right a **Calendar**
    button (a phone's tabs have the Club in its place, [0022](0022-team-app-svelte-pwa.md)), a megaphone for whoever may
-   post an announcement, and, **while you owe something overdue, a loud icon**: the pound in the club's red with a
-   small red badge, opening your tab. Overdue is what's left on a charge whose day has passed (`lib/dues.ts`
+   post an announcement, and, **while you owe something overdue, the pound with a small red dot** (as a phone marks
+   something waiting; an "!" read as an error), opening your tab. Overdue is what's left on a charge whose day has passed (`lib/dues.ts`
    `overdue`; a night is due on the night, so paying on it is never late). Nothing when nothing's overdue. Not a strip.
 2. **The locker room**: the club's announcements only (compact: icon, title, a line, Got it on the right), then
    "Everything from the locker room" ([0107](0107-announcements.md)). The top strip is for announcements, nothing else.
@@ -107,3 +107,5 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
 - 2026-10-22: Home asks "Are you in?" only when you can answer: "these teaser cards should respect if the signup for
   that event is open. Don't ask 'are you in' if they can't answer." Before a night's or tournament's sign-up opens the
   row says when it opens, after it closes "Sign-up closed"; a night still to open is yours, not one you're out of.
+- 2026-10-22: The overdue icon is the pound with a small red dot, not a red pound with an "!" badge: "the exclamation
+  for the payment is maybe too loud. Looks like an error."
