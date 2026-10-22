@@ -661,6 +661,31 @@ export const setWinners = (
 /** The next award revealed at the after-party (ADR 0074): `next`, its place in the list, the one shown face down. */
 export const revealAward = (tournamentId: number, next: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/awards/reveal`, { next }), "");
+/** A simulation running (ADR 0123): its tournament, so a second tap doesn't start another. */
+export const simulating = $state({ id: 0 });
+/**
+ * Dev only (ADR 0123): the Kumite played on to its after-party, a few moves a request, a request a second (a member's
+ * changes are 60 a minute, api.limits.ts), each move said as it goes and the page moving with it. Stops at the first
+ * refusal (too few signed up, the minute's changes used up), saying why: tapped again, it carries on from there.
+ */
+export async function simulateRest(tournamentId: number) {
+  if (simulating.id) return;
+  simulating.id = tournamentId;
+  try {
+    for (let i = 0; i < 500; i++) {
+      const r = await save(
+        () => api<{ done: boolean; said: string }>("POST", `/api/tournaments/${tournamentId}/simulate`, {}),
+        "",
+      );
+      if (!r) return;
+      say(r.said, false);
+      if (r.done) return;
+      await new Promise((go) => setTimeout(go, 1000));
+    }
+  } finally {
+    simulating.id = 0;
+  }
+}
 /** The time left on the clock, by the scorekeeper's watch: paused, or running on from there. */
 export const setGameClock = (tournamentId: number, gameId: number, leftMs: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "set", leftMs }), "Clock set");

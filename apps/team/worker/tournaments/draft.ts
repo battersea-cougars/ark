@@ -58,7 +58,7 @@ const POOL = `SELECT e.member_id FROM tournament_entries e
                                         WHERE t.tournament_id = ? AND p.member_id IS NOT NULL)`;
 
 /** A whole number from 0 to `below` - 1, every one equally likely (no modulo bias), from the Worker's crypto. */
-function randomBelow(below: number): number {
+export function randomBelow(below: number): number {
   const buf = new Uint32Array(1);
   const limit = 2 ** 32 - (2 ** 32 % below);
   let n: number;

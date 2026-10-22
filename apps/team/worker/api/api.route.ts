@@ -45,6 +45,11 @@ export interface Route {
   /** The action this route needs; "authenticated" for any signed-in member. */
   action: Action | "authenticated";
   /**
+   * Only on a Worker whose environment this says yes to (a dev-only tool, ADR 0123): anywhere else the route isn't
+   * there at all, so it answers 404 whoever asks, before anything else is read.
+   */
+  only?: (env: Env) => boolean;
+  /**
    * A change: the parts of the club it can touch. They come back with the reply, as `changed`, so the app puts them
    * in place without reloading the whole club. Every route that isn't a GET says.
    */

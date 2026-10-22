@@ -332,3 +332,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   audited; members aren't sent a winner before it's out; the first out is pushed once. Back a step from it turns every
   award face down again and keeps the results: going back to KUMITE! itself would mean un-playing the last match, which
   is the results step, still there once nothing's revealed.
+- 2026-10-22: On dev and locally, Manage → Play out the Kumite plays the rest at random through the real draft and
+  scoring, to the after-party with the awards provisional, to try it without scoring every match
+  ([0123](0123-dev-only-tools.md)).

@@ -38,6 +38,8 @@ export let REAL_ID = 0;
 export let DEV_TOOLS = false;
 /** Screens still on demo data (Upload) are shown: dev and local only (#63). */
 export let UNFINISHED = false;
+/** The Kumite simulator is here, for you (dev and your own machine, whoever runs tournaments; ADR 0123). */
+export let SIMULATOR = false;
 /** The role you run the app as day to day, if not your full one (ADR 0024). Read once by session.svelte.ts startSession. */
 export let EVERYDAY_ROLE: number | null = null;
 
@@ -126,6 +128,8 @@ export interface Bootstrap {
   devTools?: boolean;
   /** Screens still on demo data (Upload) are shown: not in production (#63). */
   unfinished?: boolean;
+  /** The Kumite simulator is here, and yours to use (ADR 0123): dev and your own machine only. */
+  simulator?: boolean;
   /** The role the app opens as, when it isn't your full one (ADR 0024). */
   everydayRole: number | null;
   members: {
@@ -187,7 +191,7 @@ export const TEAMS: Record<number, Team[]> = {};
 const fill = <T>(list: T[], items: T[]) => list.splice(0, list.length, ...items);
 
 /** The parts of the club's data that a change sends back (worker/api/api.ts SLICES): all of it but who you are. */
-export type Slices = Partial<Omit<Bootstrap, "me" | "actions" | "devTools" | "unfinished">>;
+export type Slices = Partial<Omit<Bootstrap, "me" | "actions" | "devTools" | "unfinished" | "simulator">>;
 
 /** Put the club's data in place (app/backend.svelte.ts copies it into the store). Runs before the app mounts, and again
  * whenever the whole club is reloaded. */
@@ -195,6 +199,7 @@ export function hydrate(b: Bootstrap) {
   REAL_ID = b.me;
   DEV_TOOLS = !!b.devTools;
   UNFINISHED = !!b.unfinished;
+  SIMULATOR = !!b.simulator;
   applySlices(b);
 }
 

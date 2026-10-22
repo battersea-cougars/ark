@@ -23,6 +23,7 @@ import { actionsOf, firstAdmin } from "../members/members";
 import { ROLES_ROUTES } from "../members/roles.routes";
 import { SCORING_ROUTES } from "../tournaments/scoring.routes";
 import { SETTINGS_ROUTES } from "../settings/settings.routes";
+import { SIMULATE_ROUTES } from "../tournaments/simulate.routes";
 import { TOURNAMENTS_ROUTES } from "../tournaments/tournaments.routes";
 import { TRAINING_ROUTES } from "../training/training.routes";
 import { notify } from "../push/push";
@@ -60,6 +61,8 @@ export const ROUTES: Route[] = [
   ...TOURNAMENTS_ROUTES,
   ...DRAFT_ROUTES,
   ...SCORING_ROUTES,
+  // Dev only (ADR 0123): the Kumite played on to its after-party
+  ...SIMULATE_ROUTES,
   // Everything else on the calendar, and the club's own settings
   ...EVENTS_ROUTES,
   ...SETTINGS_ROUTES,
@@ -106,7 +109,10 @@ export async function handleApi(
   // Up means it can read the database: a deploy whose D1 binding is broken fails its smoke test (ADR 0010)
   if (url.pathname === "/api/health") return health(env);
   if (!sameOrigin(request)) return json({ error: "That came from somewhere else." }, 403);
-  const match = ROUTES.map((r) => ({ r, m: url.pathname.match(r.path) })).filter((x) => x.m);
+  // A route that's only on some Workers (a dev-only tool) isn't there at all on the rest: a 404
+  const match = ROUTES.filter((r) => !r.only || r.only(env))
+    .map((r) => ({ r, m: url.pathname.match(r.path) }))
+    .filter((x) => x.m);
   const hit = match.find((x) => x.r.method === request.method);
   try {
     // A generous limit per address (ADR 0055); sign-in and changes have tighter ones of their own

@@ -104,3 +104,4 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0061](0061-fixtures-games-and-scoring.md)     | The app makes a tournament's fixtures, and each game is scored live by one person on its own page           |
 | [0044](0044-champions-and-awards.md)           | Awards are set in the team app; champions and winners come from the results, an admin confirms              |
 | [0119](0119-tournament-leaderboards.md)        | Leaderboards (points, goals, assists, PIM) are worked out in the app, a tab each, under the table           |
+| [0123](0123-dev-only-tools.md)                 | A dev-only tool (the Kumite simulator) exists only where the environment says dev or local; else a 404      |

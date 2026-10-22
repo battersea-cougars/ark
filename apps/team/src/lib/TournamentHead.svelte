@@ -16,7 +16,7 @@
   import PageHeader from "./PageHeader.svelte";
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
-  import { countdownOf, editionWhen } from "./edition";
+  import { countdownOf, editionState, editionWhen } from "./edition";
   import { stageBadge, type Status } from "./tournament-front";
   import { makeFixtures } from "../app/backend.svelte";
   import { formatAndRules } from "./format-rules";
@@ -27,6 +27,9 @@
   import { phone } from "./viewport.svelte";
   import { londonToday } from "./dates";
   import StepBack from "./StepBack.svelte";
+  import SimulateRest from "./SimulateRest.svelte";
+  import { SIMULATOR } from "../demo/data";
+  import { simulating } from "../app/backend.svelte";
   import DraftJobs from "./DraftJobs.svelte";
   import ManageList, { type ManageItem } from "./ManageList.svelte";
   import { draftJobsOf } from "./draft-jobs";
@@ -110,6 +113,7 @@
   }
   const rules = $derived(tournament ? formatAndRules(tournament, type.houseRules) : []);
   let stepper = $state<ReturnType<typeof StepBack>>();
+  let simulator = $state<ReturnType<typeof SimulateRest>>();
   // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
   // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
   // sheet on a phone (where it's mostly done, at the rink), a side drawer on a desktop. The next one isn't here: it's
@@ -145,6 +149,14 @@
         label: "Confirm the awards",
         sub: "From the results; the Dim Mak's a draw",
         run: () => enterAwards(t.id),
+      });
+    // Dev only (ADR 0123): the rest played out at random, to the after-party, while there's something left to play
+    if (admin && SIMULATOR && editionState(t) !== "done" && simulating.id !== t.id)
+      now.push({
+        icon: "play",
+        label: `Play out the ${type.shortName}`,
+        sub: "Dev only: the rest at random, to the after-party",
+        run: () => simulator?.start(),
       });
     // Then back a step (ADR 0074): one item, whatever step it's at, while there's one before it; the draft's own
     // steps for whoever runs it too
@@ -368,6 +380,7 @@
 {/if}
 <!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
+{#if admin && SIMULATOR && tournament}<SimulateRest bind:this={simulator} {type} {tournament} />{/if}
 {#if (runner || adds) && tournament?.kind === "draft"}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 

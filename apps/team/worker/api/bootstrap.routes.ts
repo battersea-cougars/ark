@@ -3,6 +3,7 @@
 import { type Route } from "./api.route";
 import { SLICES, slices, type Slice } from "./api.slices";
 import { devToolsHere } from "../settings/devtools";
+import { simulatorHere } from "../tournaments/simulate";
 import { chargeDue } from "../dues/dues";
 import { HttpError, json } from "./api.http";
 import { sameTag } from "../../src/app/club-tag";
@@ -46,6 +47,8 @@ export const CLUB_ROUTES: Route[] = [
         devTools: devToolsHere(c.env) && (c.actions.has("manage:all") || c.actions.has("manage:Settings")),
         // Screens on demo data (Upload): on dev and locally to try, never in production (#63)
         unfinished: devToolsHere(c.env),
+        // The Kumite simulator (ADR 0123): on dev and your own machine only, for whoever runs tournaments
+        simulator: simulatorHere(c.env) && (c.actions.has("manage:all") || c.actions.has("manage:Tournament")),
         ...(await slices(c, Object.keys(SLICES) as Slice[])),
       });
       return tagged(reply, tag, version);
