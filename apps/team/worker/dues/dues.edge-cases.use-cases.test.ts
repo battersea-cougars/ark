@@ -440,11 +440,11 @@ describe("who may touch money (ADR 0024)", () => {
 });
 
 describe("taps at once", () => {
-  // The same night marked paid from two phones (or a double tap): each reads what's left, then writes a payment for it
-  // in a statement of its own, so both go in and the night is paid twice (£8 recorded as £16): https://github.com/battersea-cougars/ark/issues/119
+  // The same night marked paid from two phones (or a double tap): each read what's left, then wrote a payment for it
+  // in a statement of its own, so both went in and the night was paid twice (£8 recorded as £16): https://github.com/battersea-cougars/ark/issues/119
   // Seeds that land the two reads before either write (any seed may; these do, run after run)
-  it.fails.each([2, 3, 5])(
-    "an admin double-taps Paid on a night: one payment is recorded, not two (known bug #119, seed %i)",
+  it.each([2, 3, 5])(
+    "an admin double-taps Paid on a night: one payment is recorded, not two (#119, seed %i)",
     async (seed) => {
       const { dana, reg } = await came(800, [FRIDAYS[2]]);
       const [night] = await chargesOf(dana, reg);

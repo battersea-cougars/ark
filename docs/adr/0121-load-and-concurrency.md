@@ -37,8 +37,9 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   - Members: the last admin (ADR [0024](0024-action-based-authorization.md)) is kept inside the statements that take
     Admin off, make inactive or erase: each goes only while another active admin's there, so two admins demoting or
     erasing each other at once leave one, the other refused (#135).
-  - Dues: an allocation of credit goes in only while its payment and charge are as they were read; a dues reminder
-    is taken by the run that sends it (`dues_reminders.sending`).
+  - Dues: an allocation of credit goes in only while its payment and charge are as they were read; a charge marked
+    paid is one payment only while what's left on it is as read, its allocation in the same batch (#119); a dues
+    reminder is taken by the run that sends it (`dues_reminders.sending`).
 - **The fake D1 interleaves like D1** (`db.interleave(seed)`, `packages/shared/testing/d1-sqlite.ts`): each round trip
   lands a few turns of the event loop after it's sent, atomic, and answers a few turns after that (mostly none to two,
   now and then many: D1's latency has a tail). Concurrency tests (`*.concurrency.use-cases.test.ts`) fire requests
@@ -112,3 +113,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   free pick number (#125).
 - 2026-10-22: A training and its fees are one batch (a refused save had changed the fees, or made the training,
   #131), and a limit raised moves the first waiting up in that batch (#127).
+- 2026-10-22: Marking a charge paid from two phones at once (or a double tap) recorded two payments for it; the
+  payment now goes in only while the charge still has what was read left, with its allocation in one batch (#119).

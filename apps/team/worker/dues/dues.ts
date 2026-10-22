@@ -506,7 +506,11 @@ export async function recordPayment(
   await settle(db, memberId);
 }
 
-/** One payment, received today, for what's left of each of these charges. */
+/**
+ * One payment, received today, for what's left of each of these charges. The payment goes in only while every charge
+ * still has just that left, and its allocations only with it: one batch, the check inside it (ADR 0121), so a double
+ * tap, or two admins at once, record it once (#119). The second finds it paid and writes nothing.
+ */
 async function pay(
   db: D1Database,
   memberId: number,
@@ -517,17 +521,27 @@ async function pay(
 ) {
   const total = charges.reduce((s, c) => s + c.left, 0);
   if (!charges.length) return;
-  const res = await run(
-    db,
-    `INSERT INTO payments (member_id, amount_pence, received_on, via, recorded_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-    [memberId, total, londonToday(new Date(now)), how, by, now],
-  );
-  await run(
-    db,
-    `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence)
-     SELECT ?, value ->> 'id', value ->> 'left' FROM json_each(?)`,
-    [Number(res.meta.last_row_id), JSON.stringify(charges.map(({ id, left }) => ({ id, left })))],
-  );
+  const list = JSON.stringify(charges.map(({ id, left }) => ({ id, left })));
+  await batch(db, [
+    statement(
+      db,
+      `INSERT INTO payments (member_id, amount_pence, received_on, via, recorded_by, created_at)
+       SELECT ?, ?, ?, ?, ?, ?
+       WHERE NOT EXISTS (
+         SELECT 1 FROM json_each(?) j JOIN charges c ON c.id = j.value ->> 'id'
+         WHERE c.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
+                 WHERE pa.charge_id = c.id), 0) <> j.value ->> 'left')
+         AND (SELECT COUNT(*) FROM charges WHERE id IN (SELECT value ->> 'id' FROM json_each(?))) = ?`,
+      [memberId, total, londonToday(new Date(now)), how, by, now, list, list, charges.length],
+    ),
+    // Only if the payment just went in (changes() is the statement before's, in this batch)
+    statement(
+      db,
+      `INSERT INTO payment_allocations (payment_id, charge_id, amount_pence)
+       SELECT last_insert_rowid(), value ->> 'id', value ->> 'left' FROM json_each(?) WHERE changes() = 1`,
+      [list],
+    ),
+  ]);
 }
 
 /** What's left to pay on each of a member's charges (or one charge), where anything is. */
