@@ -1,7 +1,8 @@
 // A tournament's format and rules, in words, for its one Rules sheet (ADR 0074), a topic each: sign-up (places,
-// when it opens and closes, the fee), the draft (what the draft enforces), the format (playoffs, game length, periods
-// and breaks, the gap between matches, the first match), points and how the table's ranked, penalties, then the
-// series' own house rules as an admin wrote them. Only what it stores or the code enforces: nothing invented.
+// when it opens and closes, the fee), the draft (what the draft enforces), the format (playoffs, the order's breaks,
+// game length, periods and breaks, the gap between matches, the first match), points and how the table's ranked,
+// penalties, then the series' own house rules as an admin wrote them. Only what it stores or the code enforces:
+// nothing invented.
 import type { Tournament } from "../demo/model";
 import { BREAK_MINUTES } from "./fixtures";
 import { clock, formatDayDate, londonISO } from "./dates";
@@ -66,6 +67,8 @@ export function formatAndRules(
       : [];
   const format = [
     `A round robin: every team plays every other once${playoffs.length ? `, then ${playoffs.map((p) => `the ${p.name} (${p.home}${ordinal(p.home)} v ${p.away}${ordinal(p.away)})`).join(" and ")}` : ""}.`,
+    // The order makeFixtures plays them in (lib/fixtures.ts fairOrder)
+    "The order gives everyone the longest break it can: nobody plays twice running unless it can't be helped.",
     `${capital(gameLength(t))}, ${BREAK_MINUTES} minutes between matches.`,
     ...(t.season ? [] : [`The first match at ${clock(t.startTime)}.`]),
   ];

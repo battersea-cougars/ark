@@ -15,7 +15,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 ### Fixtures and playoffs
 
 - **Fixtures need two teams, nothing more**: a draft's captains ([0060](0060-the-draft.md)) or the teams that entered.
-  An admin has the app make them: a round robin by the circle method (every team plays every other once, in rounds),
+  An admin has the app make them: a round robin (every team plays every other once, paired by the circle method),
   then the playoff games the tournament's settings ask for. They can be made again until a game has a result; then
   they're set (409). A captains' draft makes them as it closes, in the same tap (Close draft & make fixtures,
   [0060](0060-the-draft.md)), unless they're already made. **An admin can clear them** (`DELETE …/fixtures`,
@@ -24,8 +24,25 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   `fixtures.cleared`, with what there was.
 - **The Fight card is every game in the day's order**, each the same card as on the tournament's home
   (lib/GameCard), grouped under a header: Round robin, then Playoffs. One scroller (lib/list-scroll.ts): the page scrolls until the header reaches the top, then the cards pass in a box under it, never under a bar, and the header takes the name of the group in view. Each team's record under its name reads as a league writes it: 1-1-0 · 2 pts. A round robin
-  card doesn't say its stage again; a playoff's keeps its name (Semi-final, Final). The teams, the score, Game N of M. The rounds only
-  order the round robin's games (nobody plays twice running); players never see them.
+  card doesn't say its stage again; a playoff's keeps its name (Semi-final, Final). The teams, the score, Game N of M.
+  Players never see rounds.
+- **The round robin is played in the order fairest to everyone's breaks** (`fairOrder`, one pitch, every pairing
+  once, any game anywhere in the day, not round by round), judged rule by rule: (1) the shortest break anyone gets
+  (games in between) as long as it can be; (2) that shortest break as few times for any one team, then as few in
+  all; (3) nobody waiting long for a first game, then everyone's breaks adding up to about the same; (4) the last
+  group game's two teams coming into it as rested as can be, since one of them may well go straight into the first
+  playoff (who's in the playoffs depends on results, so that's all that's knowable); (5) breaks as even as can be.
+  The best there is: 3 or 4 teams, someone has to play twice running (3: never the same team twice; 4: two
+  back-to-backs, two different teams); 5 or 6, everyone gets a game off; 7 or 8, two; in general (teams − 3) ÷ 2, rounded
+  down (a longer break needs more teams than a run of games holds, or with an even number the same pairing again). Played round after round, 5 and 7 teams lost a game's break at each turn of a round; 4, 6 and 8 already had
+  the longest break, but more teams got it short. Exact up to 7 teams (a branch-and-bound search, checked against
+  every order there is; 8 is the best of 200,000 steps) and the same every time for the same teams, so making them again gives the same order. The search takes
+  up to a fifth of a second, over the Worker's 10 ms ([0003](0003-free-tiers-only.md)), so its answers for 2 to 8
+  teams are a table in `lib/fixtures.ts` (a test checks it against the search); more teams get a short search from
+  the greedy order. Sides then take turns: a pairing keeps the circle method's home side unless swapping evens out
+  home and away (within one for everyone). Each group game is its own round, in the day's order; the playoffs a round
+  after. The Rules sheet's Format says so: "The order gives everyone the longest break it can: nobody plays twice
+  running unless it can't be helped."
 - **Playoffs** are a setting copied from the series like the rules ([0030](0030-training-and-tournament-schedule.md)):
   a list of games by table position, each with a name, e.g. Final (1 v 2), or Final and 3rd place. None is fine.
 - `tournament_games` holds each game: stage (group / playoff), round, its place in the day's order, teams, the
@@ -218,3 +235,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   one still to start takes them from the table, decided in its statement (#122).
 - 2026-10-22: A draft's close makes the fixtures in the same request, keeping any already made ([0060](0060-the-draft.md)).
 - 2026-10-22: An admin clears the fixtures, results and all, to make them again: alone, or as a draft reopens (0060).
+- 2026-10-22: The round robin's order is fair to everyone's breaks (`fairOrder`), not round after round: the longest
+  shortest break, shared out, nobody waiting long to start, the last group game's teams rested. The user asked "does
+  making the fixtures employ an algo that tries to make the fixtures fair? ... from a break perspective", and said
+  yes to adding it. Each group game is now its own round.

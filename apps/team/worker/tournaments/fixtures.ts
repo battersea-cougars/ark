@@ -1,9 +1,10 @@
 // A tournament's fixtures, results and playoffs (ADR 0061). Once it has two teams (a captains' draft's captains, or the
-// teams that entered), an admin has the app make the fixtures: a round robin, every team playing every other once
-// (lib/fixtures.ts), then the playoff games its settings ask for, by table position. They can be made again until a
-// game has a result. When the last group game has its result, the playoffs get their teams from the table.
+// teams that entered), an admin has the app make the fixtures: a round robin, every team playing every other once,
+// in the order that gives everyone the longest break (lib/fixtures.ts fairFixtures), then the playoff games its
+// settings ask for, by table position. They can be made again until a game has a result. When the last group game has
+// its result, the playoffs get their teams from the table.
 import { all, batch, first, statement } from "@cougars/shared/d1";
-import { roundRobin, scorekeepers, table } from "../../src/lib/fixtures";
+import { fairFixtures, scorekeepers, table } from "../../src/lib/fixtures";
 import { HttpError, int } from "../api/api.http";
 import type { Playoff } from "./tournaments";
 
@@ -215,19 +216,27 @@ export async function fixturesCanBeMade(db: D1Database, id: number) {
 }
 
 /**
- * An admin has the app make the fixtures: the round robin, then the playoffs waiting on the table. Also the second
+ * An admin has the app make the fixtures: the round robin in its fair order, then the playoffs waiting on the table. Also the second
  * half of a draft's one-tap close (draft.ts finishDraft).
  */
 export async function makeFixtures(db: D1Database, id: number) {
   const { teams, playoffs } = await fixturesCanBeMade(db, id);
 
-  const rounds = roundRobin(teams);
-  const rows: (string | number | null)[][] = [];
-  rounds.forEach((games, r) =>
-    games.forEach(([home, away]) => rows.push([id, "group", r + 1, rows.length + 1, "", home, away, null, null])),
-  );
+  // The round robin in the fairest order for the breaks, each game its own round; the playoffs a round after
+  const group = fairFixtures(teams);
+  const rows: (string | number | null)[][] = group.map(([home, away], i) => [
+    id,
+    "group",
+    i + 1,
+    i + 1,
+    "",
+    home,
+    away,
+    null,
+    null,
+  ]);
   for (const p of playoffs)
-    rows.push([id, "playoff", rounds.length + 1, rows.length + 1, p.name, null, null, p.home, p.away]);
+    rows.push([id, "playoff", group.length + 1, rows.length + 1, p.name, null, null, p.home, p.away]);
   await batch(db, [
     ...clearingFixtures(db, id),
     // Every game in one statement: a JSON list of rows (ADR 0059)

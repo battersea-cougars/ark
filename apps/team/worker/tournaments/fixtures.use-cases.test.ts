@@ -3,6 +3,7 @@
 // playoff games its settings ask for (a Final of 1st v 2nd; maybe 3rd v 4th), filled in from the table once the last
 // group game has a result. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fairFixtures } from "../../src/lib/fixtures";
 import { testWorld } from "../testing";
 
 const ROSTER = [
@@ -33,8 +34,8 @@ async function people() {
   return { dana, reg, sees, idOf };
 }
 
-/** A cup that four teams entered, with a Final and a 3rd-place game. */
-async function cup() {
+/** A cup that four teams entered (or the names given), with a Final and a 3rd-place game. */
+async function cup(names = ["Ants", "Bees", "Cats", "Dogs"]) {
   const p = await people();
   const res = await p.dana.call("POST", "/api/tournaments", {
     name: "Summer Cup",
@@ -46,7 +47,7 @@ async function cup() {
     feePence: 0,
     kind: "teams",
     playoffs: FINAL_AND_THIRD,
-    teams: ["Ants", "Bees", "Cats", "Dogs"].map((name) => ({ name, logo: null, captainMemberId: null, players: [] })),
+    teams: names.map((name) => ({ name, logo: null, captainMemberId: null, players: [] })),
   });
   expect(res.status).toBe(201);
   const id = res.body.id as number;
@@ -67,17 +68,32 @@ describe("fixtures", () => {
     expect(group).toHaveLength(6);
     const pairs = new Set(group.map((g: Json) => [g.homeTeamId, g.awayTeamId].sort().join("-")));
     expect(pairs.size).toBe(6);
-    // In rounds: nobody plays twice in a round
-    for (const round of [1, 2, 3]) {
-      const playing = group.filter((g: Json) => g.round === round).flatMap((g: Json) => [g.homeTeamId, g.awayTeamId]);
-      expect(new Set(playing).size).toBe(playing.length);
-    }
+    // Each game its own round, in the day's order
+    expect(group.map((g: Json) => g.round)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(teams.every((t: Json) => group.some((g: Json) => [g.homeTeamId, g.awayTeamId].includes(t.id)))).toBe(true);
     // The playoffs wait for the table
     expect(games.filter((g: Json) => g.stage === "playoff")).toEqual([
       expect.objectContaining({ name: "Final", homeSeed: 1, awaySeed: 2, homeTeamId: null, awayTeamId: null }),
       expect.objectContaining({ name: "3rd place", homeSeed: 3, awaySeed: 4, homeTeamId: null, awayTeamId: null }),
     ]);
+  });
+
+  it("the order gives everyone the longest break it can: with five teams, nobody plays twice running", async () => {
+    // In rounds, one after another, a team would play the last game of a round and the first of the next
+    const { make, tournament } = await cup(["Ants", "Bees", "Cats", "Dogs", "Eels"]);
+    expect((await make()).status).toBe(200);
+    const { games, teams } = await tournament();
+    const group = games.filter((g: Json) => g.stage === "group");
+    expect(group).toHaveLength(10);
+    const teamIds = teams.map((t: Json) => t.id);
+    expect(group.map((g: Json) => [g.homeTeamId, g.awayTeamId])).toEqual(fairFixtures(teamIds));
+    group.slice(1).forEach((g: Json, i: number) => {
+      const before = [group[i].homeTeamId, group[i].awayTeamId];
+      expect(before).not.toContain(g.homeTeamId);
+      expect(before).not.toContain(g.awayTeamId);
+    });
+    // The playoffs after, a round of their own
+    expect(games.filter((g: Json) => g.stage === "playoff").map((g: Json) => g.round)).toEqual([11, 11]);
   });
 
   it("the last group result fills the playoffs from the table", async () => {

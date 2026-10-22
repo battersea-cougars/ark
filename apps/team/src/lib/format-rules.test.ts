@@ -50,11 +50,12 @@ describe("formatAndRules: a tournament's format and rules, from what it stores",
     expect(formatAndRules({ ...kumite, kind: "teams" }).map((s) => s.title)).not.toContain("The draft");
   });
 
-  it("the format: the draft, the round robin and its final, the match length and gap, the first match", () => {
+  it("the format: the draft, the round robin and its final, its fair order, the match length and gap, the first match", () => {
     expect(formatAndRules(kumite).find((x) => x.title === "Format")).toEqual({
       title: "Format",
       lines: [
         "A round robin: every team plays every other once, then the Final (1st v 2nd).",
+        "The order gives everyone the longest break it can: nobody plays twice running unless it can't be helped.",
         "12-minute games, 5 minutes between matches.",
         "The first match at 7:30pm.",
       ],
@@ -72,6 +73,7 @@ describe("formatAndRules: a tournament's format and rules, from what it stores",
     }).find((x) => x.title === "Format")!;
     expect(format.lines).toEqual([
       "A round robin: every team plays every other once.",
+      "The order gives everyone the longest break it can: nobody plays twice running unless it can't be helped.",
       "Games of 3 × 12-minute periods, 2-minute breaks, 5 minutes between matches.",
     ]);
   });
