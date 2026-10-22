@@ -9,6 +9,7 @@
   import { granted, me } from "../demo/session.svelte";
   import TeamLookSheet from "./TeamLookSheet.svelte";
   import PickLog from "./PickLog.svelte";
+  import AnswerMenu from "./AnswerMenu.svelte";
   import { nameOfTeam } from "./names";
   import { PLAYERS } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
@@ -98,6 +99,17 @@
   }
   let menuOpen = $state(false);
   let rulesOpen = $state(false);
+  // Your answer, as a badge in the header once you've given it (ADR 0074): in, waiting or out
+  const answered = $derived.by(() => {
+    if (!tournament || !track) return null;
+    const id = me().id;
+    if (tournament.going.includes(id)) return { label: "You're in", tone: "in", going: true };
+    if (tournament.waitlist.includes(id)) return { label: "Waiting", tone: "wait", going: true };
+    if (tournament.out?.includes(id)) return { label: "You're out", tone: "out", going: false };
+    return null;
+  });
+  let answerOpen = $state(false);
+  let answerAt = $state<HTMLElement | undefined>();
   function jump(topic: string) {
     document
       .querySelector(`[data-topic="${CSS.escape(topic)}"]`)
@@ -174,8 +186,30 @@
         {#if stage}
           <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red live (the
                draft, the day), green open, the teams and fixtures set plain -->
-          <span class="stamp {stage.tone}">
+          <span class="stamp {stage.tone}" class:on-track={track}>
             {stage.label}
+          </span>
+        {/if}
+        {#if answered}
+          <!-- Your answer, once you've given it (ADR 0074): a sticker that opens a small sheet to change it -->
+          <span class="answer-at" bind:this={answerAt}>
+            <button
+              class="answered {answered.tone}"
+              aria-haspopup="dialog"
+              aria-expanded={answerOpen}
+              aria-label="{answered.label}: change it"
+              onclick={() => (answerOpen = !answerOpen)}>{answered.label}<Icon name="chevronDown" size={14} /></button
+            >
+            {#if answerOpen && !phone.current && tournament}
+              <!-- A desktop: a small popover under the badge, pointing at it -->
+              <div class="popover" role="dialog" aria-label="Your answer">
+                <AnswerMenu
+                  {tournament}
+                  canSignUp={can(granted(), "signup:Event")}
+                  ondone={() => (answerOpen = false)}
+                />
+              </div>
+            {/if}
           </span>
         {/if}
         {#if tournament && track}
@@ -261,6 +295,21 @@
   </div>{/if}
 <!-- The track stays when the header makes room (compact): it's the way back out of the view -->
 {#if track && tournament && !note}<StageTrack {type} {tournament} today={londonToday()} {viewing} />{/if}
+
+{#if answered && tournament && phone.current}
+  <!-- A phone: a short bottom sheet, the same as the desktop's popover -->
+  <Sheet bind:open={answerOpen} title="Your answer">
+    <AnswerMenu {tournament} canSignUp={can(granted(), "signup:Event")} ondone={() => (answerOpen = false)} />
+  </Sheet>
+{/if}
+<svelte:window
+  onclick={(e) => {
+    if (answerOpen && !phone.current && answerAt && !answerAt.contains(e.target as Node)) answerOpen = false;
+  }}
+  onkeydown={(e) => {
+    if (e.key === "Escape" && answerOpen && !phone.current) answerOpen = false;
+  }}
+/>
 
 {#snippet rulesList()}
   <div class="rules-list">
@@ -392,6 +441,70 @@
   }
   .stamp.set {
     color: var(--fg);
+  }
+  /* A phone: the track under the header says the status, so the stamp makes way for your answer */
+  @media (max-width: 600px) {
+    .stamp.on-track {
+      display: none;
+    }
+  }
+  .answer-at {
+    position: relative;
+    display: inline-flex;
+  }
+  /* The desktop's popover: under the badge, an arrow at it, a panel like Manage's */
+  .popover {
+    position: absolute;
+    top: calc(100% + 0.75rem);
+    left: -0.5rem;
+    z-index: 20;
+    width: 18rem;
+    padding: var(--s-4);
+    border-radius: var(--r-lg);
+    background: var(--surface-1);
+    box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.75);
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+  }
+  .popover::before {
+    content: "";
+    position: absolute;
+    top: -0.4rem;
+    left: 1.6rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    background: var(--surface-1);
+    transform: rotate(45deg);
+  }
+  /* Your answer: a sticker, like the stamp but filled and quieter, a caret saying it opens */
+  .answered {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-height: 1.75rem;
+    padding: 0.1rem 0.45rem 0.05rem 0.55rem;
+    border: 0;
+    border-radius: 0.3rem;
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transform: rotate(-3deg);
+  }
+  .answered.in {
+    background: color-mix(in srgb, var(--green-ink) 22%, transparent);
+    color: var(--green-ink);
+  }
+  .answered.wait {
+    background: color-mix(in srgb, var(--tone-amber) 20%, transparent);
+    color: var(--tone-amber);
+  }
+  .answered.out {
+    background: var(--surface-2);
+    color: var(--fg-muted);
   }
   /* On a phone it sits in the eyebrow line: no taller than the line, so the header's height never changes */
   @media (max-width: 900px) {

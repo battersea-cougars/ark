@@ -10,16 +10,29 @@
   import { gameLength } from "../lib/periods";
   import MatchCarousel from "../lib/MatchCarousel.svelte";
   import GameCard from "../lib/GameCard.svelte";
+  import { prefersReducedMotion } from "../app/motion";
+  import { backOut } from "svelte/easing";
   import DraftStep from "../lib/DraftStep.svelte";
 
   let {
     typeId,
     carousel = false,
+    deal = false,
   }: {
     typeId: number;
     /** The day, while it runs: the matches as a carousel, the one on now in front; before then, a plain list. */
     carousel?: boolean;
+    /** The fixtures just made while watching: the cards are dealt in, one by one, in order. */
+    deal?: boolean;
   } = $props();
+  // Dealt in: each a little after the last, up a touch and fading in, a tiny settle. In place from the start (no
+  // shift), only the look moves; less motion, or opened later, they're just there
+  const dealIn = (_node: Element, { i }: { i: number }) => ({
+    delay: deal && !prefersReducedMotion ? 300 + i * 70 : 0,
+    duration: deal && !prefersReducedMotion ? 380 : 0,
+    easing: backOut,
+    css: (t: number, u: number) => `transform: translateY(${u * 14}px); opacity: ${Math.min(1, t * 1.4)}`,
+  });
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
@@ -42,7 +55,9 @@
     {:else}
       <!-- Before the day: a plain list in the order of play, the first wearing You are next! -->
       <div class="cards">
-        {#each [...games].sort((a, b) => a.position - b.position) as g (g.id)}<GameCard {tournament} game={g} />{/each}
+        {#each [...games].sort((a, b) => a.position - b.position) as g, i (g.id)}<div in:dealIn|global={{ i }}>
+            <GameCard {tournament} game={g} />
+          </div>{/each}
       </div>
     {/if}
   </div>

@@ -1,14 +1,15 @@
 <script lang="ts">
-  // Where a tournament is on its way (ADR 0074): its statuses along one line, like a progress bar. The line is filled
-  // from the start to the status it's at and faint after it, so how far along it is shows at a glance. Each status a
-  // node on it: done ones filled with a tick, the one it's at a bigger solid bright node with a NOW stamp over it and
-  // its name bright, those ahead hollow and faint. Shape and fill say it without the colour. Sign-up open, Draft
+  // Where a tournament is on its way (ADR 0074): its statuses along one line, like a progress bar, the line filled
+  // from the start to the status it's at and faint after it. Each status a node on it (done: a tick; where it is: lit,
+  // pulsing while the Kumite runs; ahead: hollow) with its name under it as a badge (done quiet, ahead faint). Fill,
+  // tick and size say it without the colour. Sign-up open, Draft
   // open, Teams set, Fixtures set, KUMITE! (teams that enter skip the draft); which and where: lib/tournament-front.ts.
   // It's the tournament page's navigation too: a status it's reached opens its view (the one it's at, the page
-  // itself), and the one being looked at (`viewing`) gets a solid red bar under it, as a lit tab, that slides to the
-  // next one looked at. Red bar: what you're looking at; node and NOW stamp: where it is. Always the same height.
+  // itself), and the one being looked at (`viewing`) has its badge brought forward, the header stamp's red, bigger
+  // (transform only). Badge forward: what you're looking at; lit node and fill: where it is. Always the same size.
   import type { Tournament, TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
+  import { untrack } from "svelte";
   import { statusHref, statusesOf, type Status } from "./tournament-front";
   import { editionState } from "./edition";
   import { londonISO } from "./dates";
@@ -35,8 +36,22 @@
     return i >= 0 ? i : steps.every((s) => s.state === "done") ? steps.length - 1 : 0;
   });
   const here = $derived(viewing ? steps.findIndex((s) => s.status === viewing) : -1);
-  // The Kumite running, on its day from its start (or the first match started) till the last match is played: the NOW
-  // node pulses in the club's red, as the Live dot does, between matches too
+  // The status moving on while you watch (the fixtures made, the draft opened): its badge stamps in, like a hanko.
+  // Opened later, it's just lit
+  let stamped = $state<Status | null>(null);
+  let lastNow: Status | undefined;
+  $effect.pre(() => {
+    const at = steps.find((s) => s.state === "now")?.status;
+    untrack(() => {
+      if (lastNow !== undefined && at && at !== lastNow) {
+        stamped = at;
+        setTimeout(() => (stamped = null), 700);
+      }
+      lastNow = at;
+    });
+  });
+  // The Kumite running, on its day from its start (or the first match started) till the last match is played: its node
+  // pulses, as the Live dot does, between matches too
   const live = $derived(
     steps.some((s) => s.status === "day" && s.state === "now") &&
       (editionState(t) === "live" || Date.now() >= Date.parse(londonISO(t.heldOn, t.startTime))),
@@ -54,14 +69,16 @@
         class="step {s.state}"
         class:live={live && s.state === "now"}
         class:here={here >= 0 && steps[here] === s}
+        class:stamped={stamped === s.status}
         aria-current={s.state === "now" ? "step" : undefined}
       >
         {#snippet inside()}
-          {#if s.state === "now"}<span class="stamp" aria-hidden="true">Now</span>{/if}
+          <!-- A node on the line (done: a tick; where it is: lit, pulsing while the Kumite runs; ahead: hollow), and
+               the status's name under it as a badge (done quiet, ahead faint, the one looked at brought forward) -->
           <span class="node" aria-hidden="true"
-            >{#if s.state === "done"}<Icon name="check" size={10} />{/if}</span
+            >{#if s.state === "done"}<Icon name="check" size={12} />{/if}</span
           >
-          <span class="label"
+          <span class="badge-s"
             ><span class="full">{s.label}</span><span class="short" aria-hidden="true">{s.short}</span
             >{#if s.state === "done"}<span class="sr-only">, done</span>{:else if s.state === "now"}<span
                 class="sr-only">, where it is now</span
@@ -80,19 +97,21 @@
       </li>
     {/each}
   </ol>
-  {#if here >= 0}<span class="lit" aria-hidden="true"></span>{/if}
 </div>
 
 <style>
-  /* One fixed height: the NOW stamp's room, the nodes on the line, a line of label, the viewing bar */
+  /* One fixed size whatever's viewed or current: equal columns, the nodes on the line, the badges under them */
   .track {
-    --node: 0.75rem;
     --gap: var(--s-1);
-    /* Where the line runs: through the nodes' middles */
-    --line-y: calc(1.1rem + var(--node) / 2);
+    --node: 1.15rem;
     position: relative;
     max-width: 44rem;
-    height: 4.6rem;
+    height: 3.9rem;
+  }
+  /* The same width on every view, whether the page is the usual frame or the draft's full one (app.css .page) */
+  :global(.page) > .track.stage-track {
+    width: 100%;
+    max-width: 44rem;
   }
   .steps {
     display: grid;
@@ -108,30 +127,60 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
-    color: var(--fg-subtle);
   }
   .go {
     display: grid;
-    grid-template-rows: 1.1rem var(--node) auto;
     justify-items: center;
     align-content: start;
-    row-gap: 0;
+    gap: var(--s-2);
     min-height: 2.75rem;
+    padding-top: 0.2rem;
     color: inherit;
-    text-align: center;
     text-decoration: none;
   }
-  a.go:hover .label {
-    color: var(--fg);
+  /* A node a status: hollow ahead; done, bone with a carbon tick, crisp at any density; where it is, lit red */
+  .node {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: var(--node);
+    height: var(--node);
+    border: 2px solid var(--surface-3);
+    border-radius: 50%;
+    background: var(--bg);
+    color: var(--bg);
+    transition:
+      background-color var(--t-slow) var(--ease-in-out),
+      border-color var(--t-slow) var(--ease-in-out);
   }
-  /* The line, from the first node's middle to the last's, filled to the one it's at */
+  .node :global(svg) {
+    display: block;
+  }
+  .node :global(svg path) {
+    stroke-width: 3.4;
+  }
+  .done .node {
+    border-color: var(--fg-muted);
+    background: var(--fg-muted);
+  }
+  .now .node {
+    border-color: var(--red-hot);
+    background: var(--red-hot);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--red-hot) 25%, transparent);
+  }
+  /* The Kumite running on its day: the node pulses, as the Live dot does */
+  .live .node {
+    animation: pulse 1.4s var(--ease-in-out) infinite;
+  }
+  /* The line, from the first badge's middle to the last's, through them, filled to where it is */
   .rail {
     position: absolute;
-    top: calc(var(--line-y) - 1.5px);
+    top: calc(0.2rem + var(--node) / 2 - 1px);
     left: calc(100% / var(--n) / 2);
     right: calc(100% / var(--n) / 2);
-    height: 3px;
-    border-radius: 2px;
+    height: 2px;
+    border-radius: 1px;
     background: var(--surface-3);
   }
   .fill {
@@ -142,111 +191,84 @@
     background: var(--fg-muted);
     transition: width var(--t-slow) var(--ease-in-out);
   }
-  /* A node a status: hollow ahead, filled with a tick done, solid and bigger where it's at */
-  .node {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    place-items: center;
-    grid-row: 2;
-    width: var(--node);
-    height: var(--node);
+  /* A status's name, as a badge: italic display caps */
+  .badge-s {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    max-width: 100%;
+    height: 1.6rem;
+    padding: 0 0.55rem;
     border: 2px solid var(--surface-3);
-    border-radius: 50%;
+    border-radius: 0.3rem;
     background: var(--bg);
-    color: var(--bg);
+    color: var(--fg-subtle);
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-style: italic;
+    letter-spacing: 0.03em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
     transition:
-      background-color var(--t-slow) var(--ease-in-out),
+      color var(--t-slow) var(--ease-in-out),
       border-color var(--t-slow) var(--ease-in-out),
       transform var(--t-slow) var(--ease-in-out);
   }
-  .done .node {
-    border-color: var(--fg-muted);
-    background: var(--fg-muted);
-  }
-  .now .node {
-    border-color: var(--fg);
-    background: var(--fg);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 25%, transparent);
-    transform: scale(1.45);
-  }
-  /* A match on: the node pulses in the club's red */
-  .live .node {
-    border-color: var(--red-hot);
-    background: var(--red-hot);
-    animation: pulse 1.4s var(--ease-in-out) infinite;
-  }
-  /* NOW, stamped over where it is, in the club's red */
-  .stamp {
-    grid-row: 1;
-    align-self: start;
-    padding: 0 0.3rem;
-    border: 1.5px solid currentColor;
-    border-radius: 0.2rem;
-    color: var(--red-hot);
-    font-family: var(--font-display);
-    font-size: 0.62rem;
-    line-height: 1.2;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    transform: rotate(-4deg);
-  }
-  .label {
-    grid-row: 3;
-    margin-top: var(--s-2);
-    font-family: var(--font-display);
-    font-size: 0.9rem;
-    line-height: 1.1;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    transition: color var(--t-slow) var(--ease-in-out);
-  }
-  .done {
+  /* Done: quiet */
+  .done .badge-s {
+    border-color: transparent;
+    background: var(--surface-2);
     color: var(--fg-muted);
   }
-  /* Where it is: its name bright and the club's italic */
-  .now {
+  /* The one being looked at, brought forward: the header stamp's red outline, bigger and a little askew (transform
+     only, so nothing moves). Where the Kumite is stays the line's: its lit node and the fill reaching it */
+  .here .badge-s {
+    border-color: currentColor;
+    background: var(--bg);
+    color: var(--red-hot);
+    transform: scale(1.12) rotate(-3deg);
+  }
+  a.go:hover .badge-s {
     color: var(--fg);
   }
-  .now .label {
-    font-style: italic;
+  .here a.go:hover .badge-s {
+    color: var(--red-hot);
   }
   .short {
     display: none;
   }
-  /* The one being looked at: a solid bar in the club's red under it, as a lit tab, sliding to the next one looked at.
-     Where it is stays the node and the NOW stamp, so the two never look alike */
-  .lit {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: calc((100% - (var(--n) - 1) * var(--gap)) / var(--n));
-    height: 4px;
-    border-radius: 2px;
-    background: var(--red-hot);
-    transform: translateX(calc(var(--i) * (100% + var(--gap))));
-    transition: transform var(--t-slow) var(--ease-in-out);
+  /* Stamped in: down from big and askew onto its place, as a hanko comes down */
+  .stamped .badge-s {
+    animation: stamp 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) 0.15s both;
   }
-  .here .label {
-    color: var(--fg);
+  @keyframes stamp {
+    from {
+      opacity: 0;
+      transform: scale(1.8) rotate(-10deg);
+    }
   }
   @media (prefers-reduced-motion: reduce) {
+    .stamped .badge-s {
+      animation: none;
+    }
     .live .node {
       animation: none;
     }
     .fill,
     .node,
-    .label,
-    .lit {
+    .badge-s {
       transition: none;
     }
   }
-  /* A phone: the short names, so five fit 320px */
+  /* A phone: the short names, a size down, so five fit 320px */
   @media (max-width: 440px) {
-    .label {
-      font-size: 0.8rem;
+    .badge-s {
+      gap: 0.2rem;
+      padding: 0 0.3rem;
+      font-size: 0.72rem;
     }
-    .label .full {
+    .full {
       display: none;
     }
     .short {

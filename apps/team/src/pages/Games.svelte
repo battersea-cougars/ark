@@ -32,7 +32,6 @@
   import YourTeam from "../lib/YourTeam.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
   import WhosIn from "../lib/WhosIn.svelte";
-  import PickLog from "../lib/PickLog.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import Draft from "./Draft.svelte";
   import Schedule from "./Schedule.svelte";
@@ -91,6 +90,10 @@
   const status = $derived(tournament ? statusOf(tournament, today) : "signup");
   const view = $derived(tournament ? viewOf(tournament, today, rest) : "signup");
   const drafted = $derived(tournament?.kind === "draft");
+  // You've answered: in, waiting or out (the header carries it, ADR 0074)
+  const answered = $derived(
+    !!tournament && [tournament.going, tournament.waitlist, tournament.out ?? []].some((l) => l.includes(me().id)),
+  );
   // The draft is its captains' and whoever runs it (ADR 0060): everyone else fights blind until it's done
   const inDraft = $derived(teams.some((t) => t.captainMemberId === me().id) || can(perms, "run:Draft"));
   // Which view's in the pane. One Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
@@ -138,6 +141,17 @@
     duration: prefersReducedMotion ? 0 : 220,
     css: (t: number, u: number) => `transform: translateX(${-u * 32 * dir}px); opacity: ${t}`,
   });
+  // The fixtures made while you're watching (or by you): the matches are dealt in, one by one; opened later, they're
+  // just there
+  let dealing = $state(false);
+  let lastStatus: string | undefined;
+  $effect.pre(() => {
+    const s = status;
+    untrack(() => {
+      if (lastStatus !== undefined && s !== lastStatus && s === "fixtures") dealing = true;
+      lastStatus = s;
+    });
+  });
   // On the day: the match on now (or up next) and the next; yours a line
   const day = $derived(tournament ? onTheDayOf(tournament, me().id) : undefined);
   // Where everyone goes afterwards, and whether it's for later, next or now (lib/tournament-front.ts). With nothing on,
@@ -171,7 +185,9 @@
   </section>
 {/snippet}
 
-<div class="page" class:full={drafted && pane === "draft"} class:fit={compact}>
+<!-- Running, the page is the full frame whatever the status (the draft needs it), so moving between statuses never
+     changes its width; the other views keep the usual reading width themselves -->
+<div class="page" class:full={!!tournament} class:fit={compact}>
   <TournamentHead
     {type}
     {tournament}
@@ -223,39 +239,46 @@
   {:else}
     <div class="views" class:fill={compact}>
       {#key pane}
-        <div class="pane" in:paneIn out:paneOut>
+        <div
+          class="pane"
+          class:wide={pane === "draft" && (tournament.draftState === "open" || tournament.draftState === "closed")}
+          in:paneIn
+          out:paneOut
+        >
           {#if pane === "signup"}
             <!-- Sign-up: are you in, and who's coming (a status gone by: your answer, one line) -->
-            <SignUpLine
-              {tournament}
-              canSignUp={status === "signup" && can(perms, "signup:Event")}
-              line={status !== "signup"}
-            />
+            <!-- Not answered yet, sign-up open: are you in, the view's one action. Answered: it's the header's badge -->
+            {#if !answered && status === "signup"}<SignUpLine
+                {tournament}
+                canSignUp={can(perms, "signup:Event")}
+              />{/if}
             <WhosIn {tournament} />
           {:else if pane === "draft"}
             <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking.
                  While it's still sign-up, your answer first -->
-            {#if view === "signup"}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} line />{/if}
-            <Draft
-              {typeId}
-              onpicking={(v) => {
-                picking = v;
-              }}
-              onmanage={(open) => {
-                draftJobs = open;
-              }}
-            />
-            <!-- The draft done: how the picks went, round by round, under its teams -->
-            {#if tournament.draftState === "closed" || (tournament.draftState === "open" && !picking)}
-              <PickLog {tournament} inline />
-            {/if}
+            {#if view === "signup" && !answered}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
+            <!-- Before it opens, the draw's card says it all: no line of its own over it ("Draft today") -->
+            <div
+              class="draft-at"
+              class:before-open={tournament.draftState !== "open" && tournament.draftState !== "closed"}
+            >
+              <Draft
+                {typeId}
+                onpicking={(v) => {
+                  picking = v;
+                }}
+                onmanage={(open) => {
+                  draftJobs = open;
+                }}
+              />
+            </div>
+            <!-- The draft done: its teams and how the picks went are Draft's two tabs -->
             {#if view === "signup"}<WhosIn {tournament} />{/if}
           {:else if pane === "blind"}
             <!-- Everyone else: the draft's the captains' (ADR 0060). Chong Li's powder; Dux fought blind -->
             <DraftStep {type} mark="open" icon="blindfold" title="Fighting blind">
               {blindLine(db.quips)}
             </DraftStep>
-            <SignUpLine {tournament} canSignUp={false} line />
           {:else if pane === "teams"}
             <!-- Teams set: yours first, then the teams; the next step's card for whoever runs it -->
             {#if mine >= 0}<YourTeam {type} {tournament} index={mine} />{/if}
@@ -263,7 +286,7 @@
             {#if !games.length}<Schedule {typeId} />{/if}
             <TournamentTeams {typeId} />
           {:else if pane === "fixtures"}
-            <Schedule {typeId} />
+            <Schedule {typeId} deal={dealing} />
           {:else if pane === "day"}
             <!-- The day: your team's turn to keep score (once you hold it, your game's card wears the whistle
                  instead), the match on now and the next, then every match -->
@@ -351,6 +374,22 @@
   .views.fill .pane {
     grid-template-rows: minmax(0, 1fr);
     min-height: 0;
+  }
+  /* The usual reading width for every view but the draft's, as a page that isn't .full has (app.css) */
+  @media (min-width: 901px) {
+    .pane:not(.wide) {
+      max-width: 52rem;
+    }
+  }
+  /* The draft's own foot room is the page's here: no gap under it before what follows */
+  .draft-at :global(.draft:not(.fit)) {
+    padding-bottom: 0;
+  }
+  .draft-at {
+    display: contents;
+  }
+  .before-open :global(.draft > .strip) {
+    display: none;
   }
   .homework {
     margin: 0;

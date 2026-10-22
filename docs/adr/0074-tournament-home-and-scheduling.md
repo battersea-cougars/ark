@@ -279,3 +279,10 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   returned it, so Svelte ran it as the effect's teardown on every change (a pick, a step back). The effect returns
   nothing now (lib/effects.test.ts keeps it so), and Back a step is one, in the gear, for whoever runs the draft too;
   its question keeps the step it asked about while it closes.
+- 2026-10-22: The track keeps its nodes (done: a crisp tick; where it is: lit, pulsing while the Kumite runs) with each
+  status's name a badge under it; the badge of the status you're looking at comes forward (red, bigger, transform
+  only), no NOW stamp and no red bar, and the track measures the same on every view. Your answer is a badge in the
+  header (You're in, Waiting, You're out) opening a popover (a sheet on a phone) with Can't make it, saying what it
+  means for your team; the In/Out card is only for those who haven't answered. A match card's stamp sits inside it, top
+  right, and the live card has no Live button (the card opens the live page). The KUMITE! carousel has more depth and a
+  sheen on the match in front. The fixtures made while you watch are dealt in, the status's badge stamped in.
