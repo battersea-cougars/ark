@@ -40,6 +40,8 @@ export const ICONS = {
   pause: "M7 4h3v16H7zM14 4h3v16h-3z",
   search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4",
   x: "M6 6l12 12M18 6 6 18",
+  // The whole screen (the draft room): four corners out
+  expand: "M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5",
   // An announcement (#85): a loudhailer, its sound in two arcs
   megaphone: "M4 10v4h3l6 4V6l-6 4H4zM16.5 9.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10",
   // Notifications on your phone (ADR 0108): a bell

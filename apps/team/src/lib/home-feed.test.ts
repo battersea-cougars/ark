@@ -56,7 +56,11 @@ describe("Home's feed", () => {
       ],
     });
     const rows = feed(t, { club: { total: 9000, people: 3, worst: 0 } });
-    expect(rows.lead).toMatchObject({ kind: "draft", item: { text: "It's your pick", hot: true } });
+    // Straight into the draft room (ADR 0060), the whole screen for the pick
+    expect(rows.lead).toMatchObject({
+      kind: "draft",
+      item: { text: "It's your pick", hot: true, href: "/tournaments/kumite/draft/room" },
+    });
     expect(rows.now).toEqual([]);
     expect(rows.admin.map((r) => [r.text, r.href])).toEqual([["Owed to the club £90", "/settings/overdue"]]);
   });

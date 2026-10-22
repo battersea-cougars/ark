@@ -89,6 +89,16 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   same way. Picking out of turn, or someone no longer in the pool, is a 409. A pick says which turn it's for (`turn`,
   the slot the page saw on the clock: the picks it had seen, with no gaps): one landing after the turn moved on (a second phone, the captain whose snake turn
   comes twice running) is refused, never spent on their next pick ([0121](0121-load-and-concurrency.md)).
+- **The draft room** (`/tournaments/{slug}/draft/room`, lib/draft-room.ts, pages/DraftRoom.svelte): the draft as the
+  whole screen, for its captains and whoever runs it while it's open. A focus page (no rail, dock, tabs, header,
+  track or footer), and the browser's full screen where it gives a page one (requestFullscreen on the root; an
+  iPhone's Safari doesn't, and the room is the whole page there). A slim bar: the mark, Draft room, whose turn (and,
+  for a captain waiting, how long till theirs), Manage the draft for whoever runs it, and ✕. Under it the draft as on
+  the page: the ticker, then the players and the teams side by side on a desktop, a tab apart on a phone; Pick and End
+  turn as ever, live as ever. The way in is a quiet Draft room on the draft's strip, lit red (no bigger) when your
+  pick's now or two away; Home's row for a captain whose pick is that close goes straight in. Out by ✕, Escape (or
+  the full screen ending), or Back (it's an address of its own); shown out to the page, the teams set sliding in,
+  once the draft closes, and likewise if it steps back or it isn't yours.
 - **A pick made for a captain says so.** Each pick records who made it (`tournament_team_players.picked_by`). When
   that isn't the team's captain, the app says it as theirs, for that team: "Dana picked Reg for Team Cara" on the
   last-pick line, "Dana took Reg" on the ticker, "Dana for Team Cara" in the pick log, "Dana's pick" on the team card,
@@ -217,3 +227,7 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   fights blind there ("no, they should not see the draft", the user), a card and a quip; the server already kept the
   picks from them. Its Rules join the page's one Rules, its Manage and pick log the page's Manage; done, its captains
   see the teams and the pick log together.
+- 2026-10-22: The draft room ("can we create a full page draft mode? It would help to enter/exit this mode and get as
+  much space as possible", the user): the draft alone on the screen, for its captains and whoever runs it, entered
+  from the draft's strip (lit when your pick's close) or Home, left by ✕, Escape or Back, and by itself when the draft
+  closes.

@@ -7,6 +7,7 @@
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
+import { ROOM_SOON, roomPath } from "./draft-room";
 import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
@@ -361,11 +362,14 @@ function liveDrafts({ upcoming, me, runsDrafts, now, today }: FeedInput): FeedIt
       return [{ ...row, text: "Everyone's picked", sub: `${t.name} · the draft closes to set the teams`, hot: false }];
     if (mine < 0)
       return [{ ...row, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
+    // Your pick now or close: straight into the draft room (ADR 0060), the whole screen for it
+    const soon = { ...row, href: roomPath(type.slug) };
     if (until === 0)
-      return [{ ...row, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt }];
+      return [{ ...soon, text: "It's your pick", sub: `${t.name} draft · you're on the clock`, hot: true, captainAt }];
     if (until === Infinity)
       return [{ ...row, text: "The draft's open", sub: `${t.name} · your picks are done`, hot: false }];
-    return [{ ...row, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt }];
+    const near = until <= ROOM_SOON ? soon : row;
+    return [{ ...near, text: "The draft's open", sub: `${t.name} · you pick in ${until}`, hot: false, captainAt }];
   });
 }
 

@@ -28,6 +28,7 @@
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import { BACK_TO } from "../lib/step-back";
+  import { canEnterRoom, enterRoom, roomOffered } from "../lib/draft-room";
   import Sheet from "../lib/Sheet.svelte";
   import { phone } from "../lib/viewport.svelte";
   import type { IconName } from "../app/shell/icons";
@@ -66,10 +67,13 @@
 
   let {
     typeId,
+    room = false,
     onpicking,
     onmanage,
   }: {
     typeId: number;
+    /** In the draft room (pages/DraftRoom): its bar says whose turn, so the strip goes, and so does the way in. */
+    room?: boolean;
     /** Told whether it's being picked (open, players left), so a phone's page makes room for it (ADR 0074). */
     onpicking?: (picking: boolean) => void;
     /** Told how to open its jobs (Manage the draft), or none, for the page header's Manage (ADR 0074). */
@@ -583,6 +587,10 @@
   });
   // The tournament's team names, which its crests are told apart among (logo.ts)
   const crestNames = $derived(teamNamesOf(teams, (id) => (id ? byId(id) : undefined)));
+  // The draft room (ADR 0060): the way in for its captains and whoever runs it while it's open, lit for a captain
+  // whose pick is now or close (lib/draft-room.ts)
+  const enterable = $derived(!room && canEnterRoom(tournament, me().id, running));
+  const offered = $derived(enterable && roomOffered(tournament, me().id));
 </script>
 
 <!-- A team's turn, as a badge: Picking, Next, In N -->
@@ -762,46 +770,58 @@
       {/snippet}
     </EmptyState>
   {:else}
-    <!-- Where you stand, as one badge, and the tools. Always the same height. How to pick is in Rules, not here -->
-    <div class="strip">
-      {#if phase === "closed"}
-        <span class="turn done">Draft closed</span>
-      {:else if live}
-        <!-- Who's picking, said plainly (an admin picking for them sees "Pick for …" on the button, not here); a tap
+    <!-- Where you stand, as one badge, and the tools. Always the same height. How to pick is in Rules, not here. In
+         the draft room its bar says it -->
+    {#if !room}<div class="strip">
+        {#if phase === "closed"}
+          <span class="turn done">Draft closed</span>
+        {:else if live}
+          <!-- Who's picking, said plainly (an admin picking for them sees "Pick for …" on the button, not here); a tap
              brings the ticker back to their card -->
-        <button
-          type="button"
-          class="turn as-btn"
-          class:now={mine || canPick}
-          title="Show in the ticker"
-          onclick={backToNow}
-          >{#if mine || canPick}<i class="dot"></i>{/if}{#if mine}Your pick{:else}<span class="clip"
-              >{teamName(clock)} picking</span
-            >{/if}</button
-        >
-      {:else if open}
-        <span class="turn done">Everyone's picked</span>
-      {:else if settled}
-        <span class="turn">Order set</span>
-      {:else}
-        <span class="turn">{whenSaid ? `Draft ${whenSaid}` : "Draft date TBC"}</span>
-      {/if}
-      <div class="tools">
-        {#if open && !fit && myPlace}<span class="mine num">{myPlace}</span>{/if}
-        {#if open}
-          <!-- Picks show up as they're made while the hub's stream is open; else on the admins' beat (ADR 0072) -->
-          <span
-            class="updates hint"
-            title={liveFeed.on
-              ? "Other captains' picks show up as they're made"
-              : `Other captains' picks show up ${everyHowOften()}, to keep the club on the free plan`}
-            ><Icon name={liveFeed.on ? "live" : "clock"} size={14} /><span class="lbl"><LiveNote /></span></span
+          <button
+            type="button"
+            class="turn as-btn"
+            class:now={mine || canPick}
+            title="Show in the ticker"
+            onclick={backToNow}
+            >{#if mine || canPick}<i class="dot"></i>{/if}{#if mine}Your pick{:else}<span class="clip"
+                >{teamName(clock)} picking</span
+              >{/if}</button
           >
+        {:else if open}
+          <span class="turn done">Everyone's picked</span>
+        {:else if settled}
+          <span class="turn">Order set</span>
+        {:else}
+          <span class="turn">{whenSaid ? `Draft ${whenSaid}` : "Draft date TBC"}</span>
         {/if}
-        <!-- Rules and Manage are the page header's (ADR 0074): the draft's jobs are in its Manage, the rules in
+        <div class="tools">
+          {#if open && !fit && myPlace}<span class="mine num">{myPlace}</span>{/if}
+          {#if open}
+            <!-- Picks show up as they're made while the hub's stream is open; else on the admins' beat (ADR 0072) -->
+            <span
+              class="updates hint"
+              title={liveFeed.on
+                ? "Other captains' picks show up as they're made"
+                : `Other captains' picks show up ${everyHowOften()}, to keep the club on the free plan`}
+              ><Icon name={liveFeed.on ? "live" : "clock"} size={14} /><span class="lbl"><LiveNote /></span></span
+            >
+          {/if}
+          <!-- Rules and Manage are the page header's (ADR 0074): the draft's jobs are in its Manage, the rules in
              Format & rules, the picks on the ticker and, once it's done, How the picks went -->
-      </div>
-    </div>
+          {#if enterable}
+            <!-- Into the draft room: the whole screen for the draft. Quiet, lit (no bigger) when your pick's close -->
+            <button
+              class="btn sm ghost room-in"
+              class:soon={offered}
+              aria-label="Enter the draft room"
+              title="Enter the draft room: the whole screen"
+              onclick={() => enterRoom(type.slug, navigate)}
+              ><Icon name="expand" size={16} /><span class="lbl">Draft room</span></button
+            >
+          {/if}
+        </div>
+      </div>{/if}
 
     <!-- Before it starts: the captains, no numbers until the order's drawn, then shuffled into it for everyone on the
          page. The page leads whoever runs it one step at a time, one main button each (ADR 0060): Shuffle, then Open
@@ -1428,6 +1448,14 @@
   }
 
   /* The strip: the big badge; on your turn, who you've picked and End turn at the end. Fixed height */
+  .room-in {
+    gap: var(--s-1);
+    color: var(--fg-muted);
+  }
+  /* Your pick's close: the way in lit, the one red, no bigger */
+  .room-in.soon {
+    color: var(--red);
+  }
   .updates {
     display: inline-flex;
     align-items: center;

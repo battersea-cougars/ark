@@ -53,6 +53,12 @@ describe("buildRoutes", () => {
     ]);
     // One page, by status, and its board (ADR 0074)
     expect(routes.filter((r) => r.fold === "type:2").map((r) => r.name)).toEqual(["The Cup"]);
+    // A draft's has its draft room too, full screen and off every menu (ADR 0060)
+    expect(routes.find((r) => r.path === "/tournaments/kumite/draft/room")).toMatchObject({
+      page: "draft-room",
+      focus: true,
+      hidden: true,
+    });
   });
 
   it("leaves out screens that run on demo data unless they're switched on (#63)", () => {

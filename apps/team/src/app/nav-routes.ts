@@ -418,6 +418,23 @@ export function buildRoutes(config: NavConfig): Route[] {
           action: "read:Event",
           icon: "trophy",
         },
+        // The draft room (ADR 0060): the draft, the whole screen, for its captains and whoever runs it while it's
+        // open; anyone else, or once it closes, is shown out to the page (pages/DraftRoom.svelte)
+        ...(running && t.kind === "draft"
+          ? [
+              {
+                ...base,
+                id: `draft-room:${t.id}`,
+                path: `/tournaments/${t.slug}/draft/room`,
+                name: "Draft room",
+                page: "draft-room",
+                action: "read:Event" as const,
+                icon: "draft" as const,
+                focus: true,
+                hidden: true,
+              },
+            ]
+          : []),
         // Its draft, teams, fixtures and board aren't pages of their own: they're its statuses, shown on its one page
         // (ADR 0074). /tournaments/kumite/draft, /teams, /schedule show those, as the page's own address does the one
         // it's at; /standings (the board's old address) the one it's at, where the table is on the day
