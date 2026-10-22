@@ -27,6 +27,7 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import DraftOrder from "../lib/DraftOrder.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
+  import PickLog from "../lib/PickLog.svelte";
   import { BACK_TO } from "../lib/step-back";
   import { canEnterRoom, enterRoom, roomOffered } from "../lib/draft-room";
   import Sheet from "../lib/Sheet.svelte";
@@ -132,6 +133,8 @@
   // Everyone's picked, or closed: the picking's over, so the page is the teams (no ticker, no Next, no tabs), and it
   // scrolls as a page, not in a box
   const done = $derived((open && !pool.length) || phase === "closed");
+  // Done: the teams, or the pick log (its tab)
+  let doneView = $state<"teams" | "log">("teams");
   // The picks to come, one for each player left, as slots of the snake: the turn follows the pick numbers, so a pick
   // that came off (the player said they're out) is filled first, by its own team (#125). With no gaps, from `made`
   const slots = $derived(
@@ -1026,9 +1029,21 @@
       <!-- The players and teams wait for the order: the first thing on the night is the draw -->
     {:else if done}
       <!-- The picking's over: the teams, the whole page scrolling down them; anyone left out when it closed under them -->
+      <!-- Two tabs once there are picks: the teams, and how the picks went (the pick log), one at a time; the page
+           scrolls on under the tabs, so changing tab moves nothing above them -->
       <div class="done-teams" in:fade={viewsIn}>
-        {@render teamsView()}
-        {#if leftOut.length}{@render playersView()}{/if}
+        {#if made}
+          <div class="tablist" role="tablist" aria-label="The draft done">
+            <button role="tab" aria-selected={doneView === "teams"} onclick={() => (doneView = "teams")}>Teams</button>
+            <button role="tab" aria-selected={doneView === "log"} onclick={() => (doneView = "log")}>Pick log</button>
+          </div>
+        {/if}
+        {#if doneView === "log" && made}
+          <PickLog {tournament} inline />
+        {:else}
+          {@render teamsView()}
+          {#if leftOut.length}{@render playersView()}{/if}
+        {/if}
       </div>
     {:else if room && columns}
       <!-- The draft room on a desktop: the window's height, the pool down the left and every team a column beside

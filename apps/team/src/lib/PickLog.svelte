@@ -17,7 +17,7 @@
   }: {
     tournament: Tournament;
     open?: boolean;
-    /** On the page (the draft done, for its captains and whoever runs it), not in a sheet. */
+    /** On the page (the draft done, for its captains and whoever runs it: Draft's Pick log tab, which names it). */
     inline?: boolean;
   } = $props();
 
@@ -74,10 +74,7 @@
 
 {#if inline}
   {#if log.length}
-    <section class="inline">
-      <h2 class="section-title">Pick log</h2>
-      {@render list()}
-    </section>
+    <section class="inline" aria-label="Pick log">{@render list()}</section>
   {/if}
 {:else if phone.current}
   <Sheet bind:open title="Pick log"
@@ -93,9 +90,6 @@
   .inline {
     display: grid;
     gap: var(--s-3);
-  }
-  .inline .section-title {
-    margin: 0;
   }
   .log {
     display: grid;

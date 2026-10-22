@@ -244,3 +244,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   a name is never cut; the room's teams wrap into rows sharing the height once a column would be under 14rem. The
   step cards are their title and button ("superfluous", of "Who picks first is drawn at random, for everyone
   watching"): only what stops a step, or that the draft isn't open yet, is said; how it runs is in Rules.
+- 2026-10-22: Done (everyone picked, or closed), the draft view for its captains and whoever runs it is two tabs,
+  Teams (first) and Pick log, rather than the two stacked; the page scrolls on under them. The header gear's Pick log
+  stays, for the draft while it's live and the statuses after it.
