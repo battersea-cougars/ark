@@ -12,6 +12,7 @@ import { afterFields, placeFields } from "../settings/venues";
 import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
 import { AFTER_MODES, type AfterMode } from "@cougars/shared/places";
 import { fillingUp } from "../entries/entries";
+import { carriedName, KUMITE, carriedNames, teamNameOf } from "./team-name";
 
 interface TypeRow {
   id: number;
@@ -409,16 +410,27 @@ export async function setTeamLook(
   by: { memberId: number; admin: boolean },
   o: Record<string, unknown>,
 ) {
-  const team = await first<{ captain: number | null }>(
+  const team = await first<{ captain: number | null; kumite: number | null }>(
     db,
-    "SELECT captain_member_id captain FROM tournament_teams WHERE id = ? AND tournament_id = ?",
+    `SELECT tt.captain_member_id captain, ty.slug = '${KUMITE}' kumite FROM tournament_teams tt
+     JOIN tournaments t ON t.id = tt.tournament_id LEFT JOIN tournament_types ty ON ty.id = t.type_id
+     WHERE tt.id = ? AND tt.tournament_id = ?`,
     [teamId, tournamentId],
   );
   if (!team) throw new HttpError(404, "No such team.");
   if (!by.admin && team.captain !== by.memberId) throw new HttpError(403, "Only its captain or an admin.");
-  const name = text(o, "name", { optional: true, max: 40 }).trim();
-  await run(db, "UPDATE tournament_teams SET name = ?, logo = ? WHERE id = ?", [name, logoOf(o), teamId]);
+  const name = teamNameOf(o);
+  const logo = logoOf(o);
+  await batch(db, [
+    statement(db, "UPDATE tournament_teams SET name = ?, logo = ? WHERE id = ?", [name, logo, teamId]),
+    // A Kumite team's name is its captain's to carry to the next one (ADR 0060): every rename, the latest
+    ...(team.kumite && team.captain !== null ? [carry(db, team.captain, name)] : []),
+  ]);
 }
+
+/** What a captain carries to their next Kumite team (team-name.ts): never for an erased member. */
+const carry = (db: D1Database, memberId: number, name: string) =>
+  statement(db, "UPDATE members SET kumite_team_name = ? WHERE id = ? AND status != 'erased'", [name, memberId]);
 
 /**
  * A tournament's teams, in order (a draft's as named: its pick order is drawn when it opens), at most 16 of up to 30 players. A draft's teams each have a
@@ -434,7 +446,7 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
     if (!Array.isArray(list) || list.length > 30) throw new HttpError(400, "Up to 30 players a team.");
     const team = {
       id: int(t, "id", { min: 1, nullable: true }),
-      name: text(t, "name", { optional: true, max: 40 }).trim(),
+      name: teamNameOf(t),
       logo,
       captainMemberId: int(t, "captainMemberId", { min: 1, nullable: true }),
       captainName: text(t, "captainName", { optional: true, max: 60 }).trim(),
@@ -469,20 +481,34 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   const named = [...new Set(teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]))].filter(
     (m) => m !== null,
   );
-  const [known, teamRows, draft] = await batch(db, [
+  const captains = teams.map((t) => t.captainMemberId).filter((m) => m !== null);
+  const [known, teamRows, draft, carriedRows] = await batch(db, [
     statement(db, "SELECT count(*) n FROM members WHERE id IN (SELECT value FROM json_each(?))", [
       JSON.stringify(named),
     ]),
     statement(
       db,
-      "SELECT id, captain_member_id captain FROM tournament_teams WHERE tournament_id = ? ORDER BY coalesce(pick, 1000), id",
+      "SELECT id, captain_member_id captain, name FROM tournament_teams WHERE tournament_id = ? ORDER BY coalesce(pick, 1000), id",
       [id],
     ),
-    statement(db, "SELECT draft_state s FROM tournaments WHERE id = ?", [id]),
+    statement(
+      db,
+      `SELECT t.draft_state s, ty.slug = '${KUMITE}' kumite FROM tournaments t
+       LEFT JOIN tournament_types ty ON ty.id = t.type_id WHERE t.id = ?`,
+      [id],
+    ),
+    // The captains' default Kumite team names (team-name.ts), for the teams they're getting
+    statement(
+      db,
+      `SELECT m.id, ${carriedName("?")} name FROM members m WHERE m.id IN (SELECT value FROM json_each(?))`,
+      [id, JSON.stringify(captains)],
+    ),
   ]);
   if ((known.results[0] as { n: number }).n !== named.length) throw new HttpError(400, "No such member.");
-  const existing = teamRows.results as { id: number; captain: number | null }[];
-  const state = (draft.results[0] as { s: string } | undefined)?.s;
+  const existing = teamRows.results as { id: number; captain: number | null; name: string }[];
+  const tournament = draft.results[0] as { s: string; kumite: number | null } | undefined;
+  const state = tournament?.s;
+  const kumite = !!tournament?.kumite;
   if (kind === "draft" && (state === "open" || state === "closed")) {
     const same = teams.length === existing.length && teams.every((t, i) => t.captainMemberId === existing[i].captain);
     if (!same) throw new HttpError(409, "The draft has started: the captains and their order are set.");
@@ -490,20 +516,41 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   const match = (t: TeamIn) =>
     existing.find((e) => e.id === t.id) ??
     (kind === "draft" ? existing.find((e) => e.captain !== null && e.captain === t.captainMemberId) : undefined);
+  // Which row each team is (none: it's new), each row once
   const kept = new Set<number>();
+  const rows = teams.map((t) => {
+    const found = match(t);
+    if (!found || kept.has(found.id)) return undefined;
+    kept.add(found.id);
+    return found;
+  });
+  // A Kumite captain's new team, left unnamed, takes the name they carry (team-name.ts, ADR 0060). Two carrying the
+  // same: the first named keeps it, as does a team already called it, and the other has the automatic name
+  const carriedOf = (m: number | null) =>
+    (carriedRows.results as { id: number; name: string | null }[]).find((r) => r.id === m)?.name ?? null;
+  const carrying = teams.map((t, i) => kumite && !rows[i] && !t.name && !t.logo && t.captainMemberId !== null);
+  const carried = carriedNames(
+    teams.map((t, i) => (carrying[i] ? carriedOf(t.captainMemberId) : null)),
+    teams.filter((_, i) => !carrying[i]).map((t) => t.name),
+  );
   // Every change goes in one batch. A team just added is the newest: ids only go up (AUTOINCREMENT), and a batch
   // runs in order, alone
   const statements: D1PreparedStatement[] = [];
-  for (const t of teams) {
+  for (const [i, t] of teams.entries()) {
+    const row = rows[i];
+    if (carrying[i]) t.name = carried[i];
+    // A Kumite team renamed here, by its captain: the new name is what they carry next time. A new team counts when
+    // it's named other than what its captain carries already
+    const was = row ? (row.captain === t.captainMemberId ? row.name : t.name) : (carriedOf(t.captainMemberId) ?? "");
+    if (kumite && t.captainMemberId !== null && !carrying[i] && t.name !== was)
+      statements.push(carry(db, t.captainMemberId, t.name));
     // A draft's pick order is drawn when it opens (draft.ts), never the editor's: the order they're named in means
     // nothing, so a save leaves it as it is (none yet, or the draw)
     const drawn = kind === "draft" ? 1 : 0;
-    const found = match(t);
     let teamId: Param;
     let team: string;
-    if (found && !kept.has(found.id)) {
-      kept.add(found.id);
-      teamId = found.id;
+    if (row) {
+      teamId = row.id;
       team = "?";
       statements.push(
         statement(

@@ -4,6 +4,7 @@
 // (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
 import { quarterlyOn } from "../entries/entries";
+import { carriedName } from "../tournaments/team-name";
 
 /** Who's asking, and what changes what they see. */
 export interface Viewer {
@@ -109,7 +110,7 @@ const mine = "(v.sees_private OR m.id = v.member_id)";
 const PARTS = {
   everydayRole: "json_array((SELECT m.everyday_role_id FROM members m, viewer v WHERE m.id = v.member_id))",
   members: rows(
-    "id name email position rating cougar status payment_reference roles bio web_name phone played quarterly quarterlyNext everyday_role_id",
+    "id name email position rating cougar status payment_reference roles bio web_name phone kumite_team_name played quarterly quarterlyNext everyday_role_id",
     `SELECT m.id, m.name, CASE WHEN ${mine} THEN m.email END email, m.position,
             CASE WHEN v.sees_ratings THEN m.rating ELSE 0 END rating, m.cougar, m.status,
             CASE WHEN ${mine} THEN m.payment_reference END payment_reference,
@@ -117,6 +118,7 @@ const PARTS = {
               (SELECT group_concat(name) FROM (SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                 WHERE mr.member_id = m.id ORDER BY r.is_system DESC, r.id DESC)) END roles,
             m.bio, m.web_name, CASE WHEN ${mine} THEN m.phone END phone,
+            CASE WHEN ${mine} THEN ${carriedName()} END kumite_team_name,
             (SELECT COUNT(*) FROM attendance a JOIN training_sessions s ON s.id = a.session_id
               WHERE a.member_id = m.id AND a.signup = 'in' AND COALESCE(a.attended, 1) = 1
                 AND s.held_on < v.today AND s.cancelled_at IS NULL) played,

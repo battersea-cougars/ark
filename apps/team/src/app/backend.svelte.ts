@@ -245,9 +245,15 @@ export const resetSession = (sessionId: number) =>
 /** One kind of notification on or off, for you (ADR 0108). Quiet: the switch is its own answer. */
 export const chooseNotification = (topic: Topic, on: boolean) =>
   save(() => api("PUT", "/api/me/notifications", { [topic]: on }), "");
-/** Your own phone, position and bio. */
-export const saveProfile = (p: { position: Position; phone: string; bio: string; webName: string }) =>
-  save(() => api("PUT", "/api/me", p));
+/** Your own phone, position, bio, the name you go by and your default Kumite team name. */
+export const saveProfile = (p: {
+  position: Position;
+  phone: string;
+  bio: string;
+  webName: string;
+  /** Left out: as it is */
+  kumiteTeamName?: string;
+}) => save(() => api("PUT", "/api/me", p));
 /** The role the app opens as (ADR 0024); null for your full role. */
 export const saveEverydayRole = (roleId: number | null) => save(() => api("PUT", "/api/me/everyday-role", { roleId }));
 /** Another member's everyday role, or null for their full role (ADR 0024). */
@@ -368,6 +374,8 @@ export const saveMember = (m: MemberRow) =>
     api("PUT", `/api/members/${m.player.id}`, {
       name: m.player.name,
       webName: m.player.webName ?? "",
+      // Only once there's one to say: left out, it stays as it is
+      ...(m.player.kumiteTeamName != null && { kumiteTeamName: m.player.kumiteTeamName }),
       position: m.player.position,
       rating: m.player.rating,
       cougar: m.player.cougar,

@@ -5,6 +5,7 @@
   import TeamCrest from "./TeamCrest.svelte";
   import { shrinkLogo } from "./logo";
   import { setTeamLook } from "../app/backend.svelte";
+  import { db } from "../demo/store.svelte";
 
   let {
     tournamentId,
@@ -28,6 +29,11 @@
 
   // svelte-ignore state_referenced_locally
   let form = $state({ name, logo });
+  // A Kumite team's name is its captain's to carry to the next one (ADR 0060): saved on their profile too
+  const kumite = $derived(
+    db.tournamentTypes.find((ty) => ty.id === db.tournaments.find((x) => x.id === tournamentId)?.typeId)?.slug ===
+      "kumite",
+  );
   let error = $state("");
   let file = $state<HTMLInputElement | undefined>();
 
@@ -52,7 +58,10 @@
       <span>Team name</span>
       <!-- svelte-ignore a11y_autofocus -->
       <input class="input" maxlength="40" placeholder={fallback} autofocus={focus === "name"} bind:value={form.name} />
-      <span class="hint">Leave it empty and you're {fallback}.</span>
+      <span class="hint"
+        >Leave it empty and you're {fallback}.{#if kumite}
+          Saved as the captain's team name for next time.{/if}</span
+      >
     </label>
     <div class="look">
       <TeamCrest name={form.name.trim() || fallback} logo={form.logo} size="6rem" onclick={() => file?.click()} />

@@ -138,6 +138,20 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   can't change the captains once the draft is open. A save without some rules keeps the tournament's own, not the
   series'.
 
+### A captain carries their team name
+
+- A member has one **default Kumite team name** (`members.kumite_team_name`, `worker/tournaments/team-name.ts`):
+  theirs to set on You, an admin's (`manage:Member`) in their editor, up to 40 characters like any team name, and seen
+  only by themselves and those who see members' private details. When they're named a Kumite's captain, their new team
+  takes it; empty, it's the automatic "Team <first name>". Whenever their Kumite team is renamed (Name and logo, by
+  them or an admin, or in the tournament's editor) the field becomes the new name, so it's always their latest; the
+  Name and logo sheet says so. Only the name carries, not the crest.
+- Never set (captains from before it): their latest Kumite team's name, read from their history.
+- Two captains carrying the same name (case aside) into one Kumite: the first named keeps it, as does a team already
+  called it, and the other has the automatic name (and still carries theirs). An erased member's field is emptied and
+  their history never read. Other series neither carry it nor change it.
+- Not recorded: like the team's look, it's the captain's own.
+
 ### Who sees what
 
 - The server decides, in the `tournaments` slice (`draftSeenBy` in `worker/api/api.slices.ts`). A draft's captains, whoever runs
@@ -247,3 +261,8 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-22: Done (everyone picked, or closed), the draft view for its captains and whoever runs it is two tabs,
   Teams (first) and Pick log, rather than the two stacked; the page scrolls on under them. The header gear's Pick log
   stays, for the draft while it's live and the statuses after it.
+- 2026-10-22: A captain carries their team name to the next Kumite ("A team captain usually carries a team name with
+  them. If I was in a Kumite and set my team name, I want that to be my default team name next time"), first derived
+  from their history; then, as "the admin and player should be able to manage this on their profile" and "just make it
+  one field - that changes every time - the default kumite team name or something", one field on the member, on You and
+  in the member editor, overwritten by every rename, their history only while it's never been set.

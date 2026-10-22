@@ -35,10 +35,10 @@ export const ME_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/me$/,
-    audit: { none: "a member's own profile (position, phone, bio): theirs to change" },
+    audit: { none: "a member's own profile (position, phone, bio, default Kumite team name): theirs to change" },
     action: "authenticated",
     changes: ["members"],
-    // Your own phone, position and bio
+    // Your own phone, position, bio, the name you go by and your default Kumite team name
     handle: async (c) => (await updateProfile(c.env.DB, c.memberId, await body(c.request)), ok()),
   },
   {

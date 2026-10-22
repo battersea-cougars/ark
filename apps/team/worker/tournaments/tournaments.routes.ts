@@ -55,7 +55,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       ),
     },
     action: "manage:Tournament",
-    changes: ["tournaments", "charges", "credits", "payments"],
+    // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
+    changes: ["tournaments", "charges", "credits", "payments", "members"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     handle: async (c) => json(await createTournament(c.env.DB, await body(c.request)), 201),
@@ -70,7 +71,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       ),
     },
     action: "manage:Tournament",
-    changes: ["tournaments", "charges", "credits", "payments"],
+    // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
+    changes: ["tournaments", "charges", "credits", "payments", "members"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
@@ -150,7 +152,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     audit: { none: "a team's look (its name, colour and crest), its captain's to change; an admin may too" },
     // Its captain or an admin: setTeamLook decides
     action: "authenticated",
-    changes: ["tournaments"],
+    // A Kumite team's name is its captain's default for the next one too (team-name.ts)
+    changes: ["tournaments", "members"],
     handle: async (c) => {
       const admin = can(c.actions, "manage:Tournament");
       await setTeamLook(c.env.DB, id(c), Number(c.params[1]), { memberId: c.memberId, admin }, await body(c.request));

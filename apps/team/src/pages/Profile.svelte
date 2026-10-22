@@ -1,6 +1,6 @@
 <script lang="ts">
   // You (ADR 0022): only your own things. Your card (name, position, roles), the switch between your everyday role and
-  // your full one, your details (phone, position, bio, the name you go by: name and email are an admin's to change,
+  // your full one, your details (phone, position, bio, the name you go by, your default Kumite team name: name and email are an admin's to change,
   // since sign-in and the roster go by them), notifications, your dues, your data, and sign out. The phone's last tab
   // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton)
   // and at the foot of a desktop's dock, never listed here.
@@ -25,6 +25,10 @@
 
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
+  // The name your team takes when you're a Kumite captain (ADR 0060): empty, "Team" and your name. Renaming your team
+  // in a Kumite changes it too, so it's always your latest
+  const teamNameWas = who.kumiteTeamName ?? "";
+  let teamName = $state(teamNameWas);
 
   // The name you go by, in the app and on the website (ADR 0043): ready-made forms of your name, or a nickname. Saved as the text itself;
   // the default (first name and initial) is saved as nothing, so it follows a change to your name.
@@ -78,7 +82,14 @@
   }
   function save(e: SubmitEvent) {
     e.preventDefault();
-    saveProfile({ ...form, phone: form.phone.trim(), bio: form.bio.trim(), webName });
+    const kumiteTeamName = teamName.trim().replace(/\s+/g, " ");
+    saveProfile({
+      ...form,
+      phone: form.phone.trim(),
+      bio: form.bio.trim(),
+      webName,
+      ...(kumiteTeamName !== teamNameWas && { kumiteTeamName }),
+    });
   }
 </script>
 
@@ -141,6 +152,10 @@
           maxlength={BIO_MAX}
           placeholder="Shoots left. Blames the wheels."
           bind:value={form.bio}></textarea>
+      </label>
+      <label class="field">
+        <span>Default Kumite team name <span class="hint">· your team's when you captain one</span></span>
+        <input class="input" maxlength="40" placeholder={`Team ${shortName(who)}`} bind:value={teamName} />
       </label>
       <button class="btn primary">Save</button>
     </fieldset>

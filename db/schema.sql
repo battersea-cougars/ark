@@ -52,7 +52,11 @@ CREATE TABLE members (
   created_at TEXT NOT NULL,
   bio TEXT NOT NULL DEFAULT '',
   everyday_role_id INTEGER REFERENCES roles (id) ON DELETE SET NULL,
-  web_name TEXT
+  web_name TEXT,
+  -- The name their team takes when they're named a Kumite captain (ADR 0060, worker/tournaments/team-name.ts): set on
+  -- their profile or by an admin, and overwritten whenever their Kumite team's renamed. Empty: the automatic "Team
+  -- <first name>"; null (never set): their latest Kumite team's name
+  kumite_team_name TEXT
 );
 
 CREATE INDEX members_status ON members (status);
@@ -543,6 +547,8 @@ CREATE TABLE tournament_teams (
 -- In the order the club read lists them (pick order, else the order they entered), so it reads them unsorted: a
 -- sort's rows count again as D1 counts rows read (docs/load-testing.md)
 CREATE INDEX tournament_teams_tournament ON tournament_teams (tournament_id, coalesce(pick, 1000), id);
+-- A captain's teams: the name their latest Kumite team had (team-name.ts), and a member's going
+CREATE INDEX tournament_teams_captain ON tournament_teams (captain_member_id);
 
 CREATE TABLE tournament_team_players (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

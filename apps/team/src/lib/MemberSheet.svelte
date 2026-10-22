@@ -73,6 +73,8 @@
   const current = () => ({
     name: member.player.name,
     webName: member.player.webName ?? "",
+    // The name their team takes as a Kumite captain (ADR 0060); empty: "Team" and their name
+    kumiteTeamName: member.player.kumiteTeamName ?? "",
     role: member.roles[0] ?? "Member",
     // The role their app opens as: "full", or a role's id
     everyday: member.everydayRoleId == null ? "full" : String(member.everydayRoleId),
@@ -123,6 +125,7 @@
         ...draft,
         name: tidyName(draft.name),
         webName: tidyName(draft.webName),
+        kumiteTeamName: tidyName(draft.kumiteTeamName),
         email: draft.email.trim(),
         phone: draft.phone.trim(),
       };
@@ -130,6 +133,7 @@
       if (
         d.name !== saved.name ||
         d.webName !== saved.webName ||
+        d.kumiteTeamName !== saved.kumiteTeamName ||
         d.role !== saved.role ||
         d.position !== saved.position ||
         d.rating !== saved.rating ||
@@ -138,6 +142,8 @@
         Object.assign(member.player, {
           name: d.name,
           webName: d.webName || null,
+          // Sent only once it's been changed or there was one (backend saveMember)
+          kumiteTeamName: d.kumiteTeamName !== saved.kumiteTeamName ? d.kumiteTeamName : member.player.kumiteTeamName,
           position: d.position,
           rating: d.rating,
           cougar: d.cougar,
@@ -564,7 +570,7 @@
                 <div class="group">
                   <i class="ph line"></i>
                   <div class="fields {g}">
-                    {#each g === "contact" ? [1, 2, 3] : [1, 2, 3, 4, 5] as n (n)}<i class="ph field-ph"></i>{/each}
+                    {#each g === "contact" ? [1, 2, 3] : [1, 2, 3, 4, 5, 6] as n (n)}<i class="ph field-ph"></i>{/each}
                   </div>
                 </div>
               {/each}
@@ -683,6 +689,16 @@
                       <span>{draft.cougar ? "On the Cougars" : "Not on it"}</span>
                     </button>
                   </div>
+                  <label class="field">
+                    Default Kumite team name
+                    <input
+                      class="input"
+                      maxlength="40"
+                      autocomplete="off"
+                      placeholder={`Team ${shortName(member.player)}`}
+                      bind:value={draft.kumiteTeamName}
+                    />
+                  </label>
                 </div>
               </div>
               {#if member.player.id !== me().id}
