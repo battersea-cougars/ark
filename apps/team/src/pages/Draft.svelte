@@ -1850,6 +1850,40 @@
     border-radius: 50%;
     background: var(--red-hot);
   }
+  /* On the clock: a faint lit edge, and now and then Home's lead glint (a breath of rink light) crosses it, so the
+     eye finds it along the row. Only this card; under reduced motion just the edge and a still light */
+  .tick.now {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.12),
+      0 0 0 1px color-mix(in srgb, var(--fg) 14%, transparent);
+  }
+  .tick.now::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      color-mix(in srgb, var(--fg) 9%, transparent) 48%,
+      color-mix(in srgb, var(--fg) 3%, transparent) 54%,
+      transparent 65%
+    );
+    background-size: 250% 100%;
+    background-position: 120% 0;
+    animation: tick-glint 4.5s 600ms var(--ease-in-out) infinite;
+  }
+  /* The glint crosses in the first second, then the card rests till the next */
+  @keyframes tick-glint {
+    0% {
+      background-position: 120% 0;
+    }
+    22%,
+    100% {
+      background-position: -20% 0;
+    }
+  }
   /* Your turn: the REC light. The card's edge and the word You go red and the badge pulses; another team's turn
      stays neutral, so yours is never taken for theirs at a glance */
   .tick.now.me {
@@ -2139,6 +2173,11 @@
   @media (prefers-reduced-motion: reduce) {
     .dot {
       animation: none;
+    }
+    /* Still: the light resting across the middle of the card */
+    .tick.now::after {
+      animation: none;
+      background-position: 50% 0;
     }
   }
   /* The draft room (pages/DraftRoom): the window's height, nothing below it. Picked on a phone it's the page's fit
