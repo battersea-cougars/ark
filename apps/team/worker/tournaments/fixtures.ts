@@ -168,6 +168,31 @@ const teamIdsOf = async (db: D1Database, id: number) =>
   ).map((t) => t.id);
 
 /**
+ * The statements that take a tournament's fixtures away: its matches and their goals and penalties, whatever
+ * makeFixtures makes (a match's scoresheet, clock and result are on its row). `when`, if given, is SQL that must
+ * hold for each to run, with its params: a batch that clears only if it's still the moment to (ADR 0121).
+ */
+export function clearingFixtures(db: D1Database, id: number, when = "1", whenArgs: number[] = []) {
+  const games = "SELECT id FROM tournament_games WHERE tournament_id = ?";
+  return [
+    statement(db, `DELETE FROM tournament_goals WHERE game_id IN (${games}) AND (${when})`, [id, ...whenArgs]),
+    statement(db, `DELETE FROM tournament_penalties WHERE game_id IN (${games}) AND (${when})`, [id, ...whenArgs]),
+    statement(db, `DELETE FROM tournament_games WHERE tournament_id = ? AND (${when})`, [id, ...whenArgs]),
+  ];
+}
+
+/** An admin clears the fixtures, results and all, in one batch: they can be made again. Twice is the same as once. */
+export async function clearFixtures(db: D1Database, id: number) {
+  await tournamentOf(db, id);
+  await batch(db, clearingFixtures(db, id));
+}
+
+/** What the fixtures hold, for the record: matches, results and goals (one param: the tournament). */
+export const FIXTURES_TALLY = `(SELECT COUNT(*) FROM tournament_games WHERE tournament_id = t.id) games,
+  (SELECT COUNT(*) FROM tournament_games WHERE tournament_id = t.id AND home_goals IS NOT NULL) results,
+  (SELECT COUNT(*) FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = t.id)) goals`;
+
+/**
  * Whether the app can make the fixtures now, refused in words if not: two teams or more, no game played, and enough
  * teams for the playoffs. Its tournament, teams and playoffs, for making them.
  */
@@ -204,17 +229,7 @@ export async function makeFixtures(db: D1Database, id: number) {
   for (const p of playoffs)
     rows.push([id, "playoff", rounds.length + 1, rows.length + 1, p.name, null, null, p.home, p.away]);
   await batch(db, [
-    statement(
-      db,
-      "DELETE FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)",
-      [id],
-    ),
-    statement(
-      db,
-      "DELETE FROM tournament_penalties WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)",
-      [id],
-    ),
-    statement(db, "DELETE FROM tournament_games WHERE tournament_id = ?", [id]),
+    ...clearingFixtures(db, id),
     // Every game in one statement: a JSON list of rows (ADR 0059)
     statement(
       db,

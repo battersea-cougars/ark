@@ -51,11 +51,18 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   double tap closes once and makes one set. Fixtures already made (before the draft, or before a reopen) are kept:
   they're between the same teams. With too few teams for the playoffs and none made, the page offers a plain close
   (`…/draft/close`) and says to change the playoffs; Make the fixtures follows on the closed page.
-- **A closed draft reopens** (Reopen, in Manage), keeping its picks: the captain on the clock is whoever's next, as if
-  it had never closed. Its fixtures stay as they are, being between the same teams, and closing again keeps them. **Not
-  once a game has started or has a result** (409, "A game's been played: the teams are set. Change a team on the
-  Teams page."): from then on a change is a team edit, so a result is never left behind by teams that moved under it.
-  Adding a player to a closed draft is refused (409): reopen it first.
+- **A closed draft reopens** (Reopen, in Manage; `POST …/draft/reopen`, `{ fixtures: "keep" | "clear" }`), keeping its
+  picks: the captain on the clock is whoever's next, as if it had never closed. With fixtures made, the app asks what
+  becomes of them. **Keep** (the default) while no match has started: they're between the same teams, and closing
+  again keeps them. **Clear** deletes the matches with their results, goals, penalties and scoresheets, and needs
+  someone who edits the tournament (`manage:Tournament`) as well. Once a match has started or has a result, clearing
+  is the only way to reopen ("keep" is a 409, "A match has started: clear the fixtures to reopen the draft."), and the
+  app says first what will go ("1 result and 3 goals will be deleted", counted from the matches the server sent), with
+  a red "Clear the fixtures and reopen"; a team can still be changed on the Teams page without that. The clear and the
+  reopen are one batch, each statement running only while the draft is still closed (and keeping only while nothing's
+  been played), so a double tap reopens and clears once and the second is refused ([0121](0121-load-and-concurrency.md)).
+  The record has `draft.reopened` with the matches, results and goals before and after. Adding a player to a closed
+  draft is refused (409): reopen it first.
 - **Reset** (`run:Draft`, open or closed) takes every pick off and sets `draft_state` back to none. Sign-ups, captains
   (and admin-added players, who are sign-ups) and the fixtures stay. It's allowed after games have results; the app
   asks first, since it can't be undone.
@@ -105,7 +112,8 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   a size smaller, and the players scroll inside the window's height (`.page.fit`), starting about a third of the way
   down. Once everyone's picked, whoever runs it has **Close draft & make fixtures** over the players and
   teams (one request: closed, then the fixtures). A closed draft says so on the page ("Draft closed", the teams set,
-  See the fixtures); Reopen is in Manage, and Make the fixtures is on the page only when none were made.
+  See the fixtures); Reopen and Clear the fixtures (the same question, without reopening) are in Manage, and
+  Make the fixtures is on the page only when none are made.
 - Teams are edited on the **Teams page** (`/tournaments/:slug/teams`): every team and its players, Edit opening the
   team drawer over it (`manage:Tournament`). The page itself is everyone's (`read:Event`).
 - The tournament editor changes teams **in place** (by id), never writes a draft's players or its pick order, and
@@ -182,3 +190,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   fixtures already made are kept). Closed says so, Reopen moves into Manage and keeps the fixtures, and is refused
   once a game has started or has a result. The turn follows the pick numbers, not the count: a pick that came off is
   filled first by its own team (#125).
+- 2026-10-22: Reopening asks what becomes of the fixtures: keep them (no match started) or clear them, results and
+  all, which is the only way once a match has started, said plainly first; one batch with the reopen. An admin can
+  clear them without reopening too (0061).

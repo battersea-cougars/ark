@@ -40,7 +40,9 @@
     drawOrder,
     finishDraft,
     makeFixtures,
+    clearFixtures,
     openDraft,
+    reopenDraft,
     resetDraft,
     undoDraftPick,
   } from "../app/backend.svelte";
@@ -422,6 +424,24 @@
     confirmReset = false;
     manageOpen = false;
   }
+  // Reopening a closed draft with fixtures asks what becomes of them (ADR 0060): kept (no match started), or cleared,
+  // results and all, which is the only way once a match has started, and takes someone who edits the tournament. An
+  // admin can also clear them without reopening. What's lost is counted from the matches the server sent
+  let asking = $state<null | "reopen" | "clear">(null);
+  const canClear = $derived(can(perms, "manage:Tournament"));
+  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  const lost = $derived.by(() => {
+    const results = games.filter((g) => g.homeGoals !== null).length;
+    const goals = games.reduce((n, g) => n + (g.goals?.length ?? 0), 0);
+    const counts = [results && plural(results, "result"), goals && plural(goals, "goal")].filter(Boolean);
+    if (counts.length) return `${counts.join(" and ")} will be deleted.`;
+    if (played) return "The match under way will be deleted, with its scoresheet.";
+    return `${plural(games.length, "match", "matches")} will be deleted, none of them started.`;
+  });
+  const reopenWith = (fixtures: "keep" | "clear") =>
+    tournament && job(() => reopenDraft(tournament.id, fixtures)).then(() => ((asking = null), (manageOpen = false)));
+  const clearThem = () =>
+    tournament && job(() => clearFixtures(tournament.id)).then(() => ((asking = null), (manageOpen = false)));
   // Whoever runs the draft, and admins adding players: their jobs behind one Manage button, a bottom sheet on a
   // phone and a side drawer on a desktop (the admin controls pattern). Closing with players left, or a reset, asks
   // there first
@@ -436,14 +456,25 @@
     if (!tournament) return [] as Tool[];
     const id = tournament.id;
     const list: Tool[] = [];
-    // Closed: the quiet way back, until a game's been played and the teams are set (the Teams page changes them then)
+    // Closed: the quiet way back, asking about the fixtures when there are some; and clearing the fixtures alone
     if (phase === "closed") {
-      if (running && !played)
+      if (running && (!played || canClear))
         list.push({
           icon: "undo",
           label: "Reopen the draft",
-          sub: "The captains carry on where they left off; the fixtures stay",
-          run: () => void job(() => openDraft(id)).then(() => (manageOpen = false)),
+          sub: !games.length
+            ? "The captains carry on where they left off"
+            : played
+              ? "A match has started: reopening clears the fixtures"
+              : "The captains carry on; keep the fixtures or clear them",
+          run: () => (games.length ? (asking = "reopen") : void reopenWith("keep")),
+        });
+      if (canClear && games.length)
+        list.push({
+          icon: "x",
+          label: "Clear the fixtures",
+          sub: played ? "Results and all: make them again after" : "Make them again after",
+          run: () => (asking = "clear"),
         });
       return list;
     }
@@ -481,6 +512,7 @@
     if (manageOpen) return;
     confirmLeaveOut = false;
     confirmReset = false;
+    asking = null;
   });
 
   // Setting the order, starting the draft: one at a time
@@ -1027,7 +1059,44 @@
 
 <!-- Manage: whoever runs the draft's jobs, thumb-sized. Closing with players left, or a reset, asks here first -->
 {#snippet jobList()}
-  {#if confirmLeaveOut || confirmReset}
+  {#if asking === "reopen" && !played}
+    <!-- No match started: keeping the fixtures is the default; clearing them is there for whoever edits it -->
+    <div class="confirm" role="alert">
+      <p>
+        Reopen the draft? The captains carry on where they left off. The fixtures are between the same teams, so they
+        can stay.
+      </p>
+      <div class="confirm-keys">
+        <button class="btn ghost" onclick={() => (asking = null)}>Not now</button>
+        {#if canClear}
+          <button class="btn ghost danger" disabled={busy} onclick={() => reopenWith("clear")}
+            >Clear the fixtures</button
+          >
+        {/if}
+        <button class="btn primary" disabled={busy} onclick={() => reopenWith("keep")}>Keep the fixtures</button>
+      </div>
+    </div>
+  {:else if asking}
+    <!-- A match has started (reopening clears them), or clearing them alone: what goes, said plainly first -->
+    <div class="confirm" role="alert">
+      <p>
+        {#if asking === "reopen"}A match has started, so reopening the draft clears the fixtures. <strong>{lost}</strong
+          > To change a team without that, use the Teams page.
+        {:else}Clear the fixtures? <strong>{lost}</strong> You can make them again after.{/if}
+      </p>
+      <div class="confirm-keys">
+        <button class="btn ghost" onclick={() => (asking = null)}
+          >{asking === "reopen" ? "Keep it closed" : "Keep them"}</button
+        >
+        <button
+          class="btn delete"
+          disabled={busy}
+          onclick={() => (asking === "reopen" ? reopenWith("clear") : clearThem())}
+          >{asking === "reopen" ? "Clear the fixtures and reopen" : "Clear the fixtures"}</button
+        >
+      </div>
+    </div>
+  {:else if confirmLeaveOut || confirmReset}
     <div class="confirm" role="alert">
       <p>
         {#if confirmLeaveOut}{pool.length} still to pick. Close it and leave them out? They stay signed up.
@@ -1140,12 +1209,25 @@
     display: grid;
     gap: var(--s-4);
   }
+  /* Clearing what can't come back: red words to offer it, and the one red fill is the tap that does it (as deleting a
+     tournament or an account) */
+  .danger {
+    color: var(--red-hot);
+  }
+  .delete {
+    background: var(--red);
+    color: var(--on-red);
+  }
+  .delete:hover:not(:disabled) {
+    background: var(--red-hot);
+  }
   .confirm p {
     margin: 0;
     color: var(--fg-body);
   }
   .confirm-keys {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: var(--s-3);
   }

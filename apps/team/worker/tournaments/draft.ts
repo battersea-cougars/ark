@@ -7,7 +7,7 @@ import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { MIN_TEAM_SIZE, onTheClock, playersNeeded } from "../../src/lib/draft";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
-import { fixturesCanBeMade, makeFixtures } from "./fixtures";
+import { clearingFixtures, fixturesCanBeMade, makeFixtures } from "./fixtures";
 import { can, type Action } from "../../src/access/actions";
 
 interface DraftTeam {
@@ -112,22 +112,21 @@ export async function drawOrder(db: D1Database, tournamentId: number) {
   );
 }
 
-/** Whether a game of the tournament has started or has a result: then its teams are set. */
-const played = (db: D1Database, tournamentId: number) =>
-  first(db, "SELECT 1 FROM tournament_games WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next')", [
-    tournamentId,
-  ]);
+/** SQL: a match of the tournament has started or has a result (one param: the tournament). */
+const PLAYED =
+  "SELECT 1 FROM tournament_games WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next')";
+/** Whether a match of the tournament has started or has a result: then its teams are set. */
+const played = (db: D1Database, tournamentId: number) => first(db, PLAYED, [tournamentId]);
+const PLAYED_SAID = "A match has started: clear the fixtures to reopen the draft.";
 
 /**
  * Step 2: an admin opens the draft, once the order's drawn: the captains can pick (and each hears it, with their
  * place: push.notices.ts draftOpen). A closed one reopens with its picks and its order, where it left off (0066),
- * and its fixtures, which are between the same teams; not once a game's started or has a result, when the teams are
- * set and a change is the Teams page's.
+ * keeping its fixtures, which are between the same teams; not once a match has started (reopenDraft clears them).
  */
 export async function openDraft(db: D1Database, tournamentId: number) {
   const t = await tournamentOf(db, tournamentId);
-  if (t.state === "closed" && (await played(db, tournamentId)))
-    throw new HttpError(409, "A game's been played: the teams are set. Change a team on the Teams page.");
+  if (t.state === "closed" && (await played(db, tournamentId))) throw new HttpError(409, PLAYED_SAID);
   const captains = (await teamsOf(db, tournamentId)).length;
   if (captains < 2) throw new HttpError(409, "A draft needs at least two captains.");
   if (!(await isDrawn(db, tournamentId))) throw new HttpError(409, "Set the order first.");
@@ -163,6 +162,38 @@ export async function closeDraft(db: D1Database, tournamentId: number, leaveOut:
     throw new HttpError(409, `${left.n} still to pick. Pick them, or close it leaving them out.`);
   await run(db, "UPDATE tournaments SET draft_state = 'closed' WHERE id = ?", [tournamentId]);
   // Its draft night leaves the agenda
+  await syncTournament(db, tournamentId);
+}
+
+/**
+ * Whoever runs the draft reopens a closed one (Reopen, ADR 0060), saying what becomes of the fixtures: kept (they're
+ * between the same teams), only while no match has started; or cleared, matches, results and goals, which needs
+ * someone who edits the tournament (checked by the route). One batch: the clear and the reopen run only while it's
+ * still closed, and keeping only while nothing's been played, so a double tap reopens and clears once, and a result
+ * landing between the check and the batch isn't left behind (ADR 0121). The picks and the order stay.
+ */
+export async function reopenDraft(db: D1Database, tournamentId: number, fixtures: "keep" | "clear") {
+  const t = await tournamentOf(db, tournamentId);
+  if (t.state !== "closed")
+    throw new HttpError(409, t.state === "open" ? "The draft is open already." : "The draft isn't closed.");
+  if (fixtures === "keep" && (await played(db, tournamentId))) throw new HttpError(409, PLAYED_SAID);
+  const reopen = "UPDATE tournaments SET draft_state = 'open' WHERE id = ? AND draft_state = 'closed'";
+  const results = await batch(
+    db,
+    fixtures === "clear"
+      ? [
+          ...clearingFixtures(db, tournamentId, "(SELECT draft_state FROM tournaments WHERE id = ?) = 'closed'", [
+            tournamentId,
+          ]),
+          statement(db, reopen, [tournamentId]),
+        ]
+      : [statement(db, `${reopen} AND NOT EXISTS (${PLAYED})`, [tournamentId, tournamentId])],
+  );
+  if (!results.at(-1)?.meta.changes) {
+    if (fixtures === "keep" && (await played(db, tournamentId))) throw new HttpError(409, PLAYED_SAID);
+    throw new HttpError(409, "The draft is open already.");
+  }
+  // Its draft night comes back to the agenda
   await syncTournament(db, tournamentId);
 }
 

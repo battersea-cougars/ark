@@ -3,7 +3,7 @@ import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
-import { makeFixtures } from "./fixtures";
+import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { body, json } from "../api/api.http";
 import {
   createTournament,
@@ -108,6 +108,19 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments"],
     // The round robin and its playoffs, once the teams are set (ADR 0061)
     handle: async (c) => (await makeFixtures(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "DELETE",
+    path: /^\/api\/tournaments\/(\d+)\/fixtures$/,
+    // What went: the matches, results and goals before (and none after)
+    audit: {
+      event: "fixtures.cleared",
+      subject: rowOf(`SELECT t.id, t.name, ${FIXTURES_TALLY} FROM tournaments t WHERE t.id = ?`),
+    },
+    action: "manage:Tournament",
+    changes: ["tournaments"],
+    // The fixtures, results and all, cleared to be made again (ADR 0061); the draft stays as it is
+    handle: async (c) => (await clearFixtures(c.env.DB, id(c)), ok()),
   },
   {
     method: "PUT",

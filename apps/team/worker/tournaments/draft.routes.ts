@@ -8,11 +8,14 @@ import {
   lastPickedFor,
   openDraft,
   pick,
+  reopenDraft,
   resetDraft,
   undoPick,
 } from "./draft";
 import { HttpError, body, json } from "../api/api.http";
 import { draftOpen } from "../push/push.notices";
+import { FIXTURES_TALLY } from "./fixtures";
+import { can } from "../../src/access/actions";
 
 export const DRAFT_ROUTES: Route[] = [
   {
@@ -86,6 +89,28 @@ export const DRAFT_ROUTES: Route[] = [
     // Step 2, once the order's drawn: the captains can pick (ADR 0060), and each hears it, with their place
     notify: draftOpen,
     handle: async (c) => (await openDraft(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/draft\/reopen$/,
+    // Reopened, and what went with it: the matches, results and goals before and after (cleared, or kept)
+    audit: {
+      event: "draft.reopened",
+      subject: rowOf(
+        `SELECT t.id, t.name, t.draft_state draftState, ${FIXTURES_TALLY} FROM tournaments t WHERE t.id = ?`,
+      ),
+    },
+    action: "run:Draft",
+    changes: ["tournaments"],
+    // { fixtures: "keep" | "clear" } (ADR 0060): clearing takes someone who edits the tournament too
+    handle: async (c) => {
+      const fixtures = (await body(c.request)).fixtures ?? "keep";
+      if (fixtures !== "keep" && fixtures !== "clear") throw new HttpError(400, "fixtures should be keep or clear.");
+      if (fixtures === "clear" && !can(c.actions, "manage:Tournament"))
+        throw new HttpError(403, "Clearing the fixtures takes someone who edits the tournament.");
+      await reopenDraft(c.env.DB, id(c), fixtures);
+      return ok();
+    },
   },
   {
     method: "POST",

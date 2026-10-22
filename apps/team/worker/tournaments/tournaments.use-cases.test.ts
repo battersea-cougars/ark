@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { whatsOn } from "../../../web/src/lib/server/whats-on";
 import { NOW, testWorld } from "../testing";
+import { seeds } from "@cougars/shared/testing/d1-sqlite";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -784,29 +785,119 @@ describe("a tournament, from setting it up to the draft", () => {
         expect((await tournament()).games).toEqual([]);
       });
 
-      it("reopened before any game's played, the fixtures stay (they're between the same teams); closing again keeps them", async () => {
-        const { dana, draft, tournament } = await allPicked();
+      const reopen = (as: { call: (...a: Json[]) => Promise<Json> }, id: number, fixtures?: "keep" | "clear") =>
+        as.call("POST", `/api/tournaments/${id}/draft/reopen`, fixtures ? { fixtures } : {}, { now: DRAFT_DAY });
+      /** What's left of the fixtures in the database: games, goals and penalties. */
+      const left = (id: number) =>
+        w.db.raw
+          .prepare(
+            `SELECT (SELECT COUNT(*) FROM tournament_games WHERE tournament_id = ?) games,
+                    (SELECT COUNT(*) FROM tournament_goals WHERE game_id IN
+                       (SELECT id FROM tournament_games WHERE tournament_id = ?)) goals`,
+          )
+          .get(id, id);
+      /** Closed with its fixtures, and the first match's result in (2–1: three goals). */
+      async function withAResult() {
+        const s = await allPicked();
+        expect((await s.draft(s.dana, "finish")).status).toBe(200);
+        const game = (await s.tournament()).games[0];
+        expect(
+          (await s.dana.call("PUT", `/api/tournaments/${s.id}/games/${game.id}`, { homeGoals: 2, awayGoals: 1 }))
+            .status,
+        ).toBe(200);
+        return s;
+      }
+
+      it("reopened before any match's started, the fixtures stay by default (they're between the same teams)", async () => {
+        const { dana, id, draft, tournament } = await allPicked();
         expect((await draft(dana, "finish")).status).toBe(200);
         const games = (await tournament()).games.map((g: Json) => g.id);
-        expect((await draft(dana, "open")).status).toBe(200);
+        expect((await reopen(dana, id)).status).toBe(200);
+        expect((await tournament()).draftState).toBe("open");
         expect((await tournament()).games.map((g: Json) => g.id)).toEqual(games);
+        // Closing again keeps them too
         expect((await draft(dana, "finish")).status).toBe(200);
         expect((await tournament()).games.map((g: Json) => g.id)).toEqual(games);
       });
 
-      it("once a game has a result the draft can't reopen: the teams are set (change one on the Teams page)", async () => {
+      it("or the admin clears them as it reopens, and closing again makes them afresh", async () => {
         const { dana, id, draft, tournament } = await allPicked();
         expect((await draft(dana, "finish")).status).toBe(200);
-        const game = (await tournament()).games[0];
-        expect(
-          (await dana.call("PUT", `/api/tournaments/${id}/games/${game.id}`, { homeGoals: 2, awayGoals: 1 })).status,
-        ).toBe(200);
-        const res = await draft(dana, "open");
-        expect([res.status, res.body.error]).toEqual([
-          409,
-          "A game's been played: the teams are set. Change a team on the Teams page.",
-        ]);
+        const games = (await tournament()).games.map((g: Json) => g.id);
+        expect((await reopen(dana, id, "clear")).status).toBe(200);
+        expect((await tournament()).draftState).toBe("open");
+        expect((await tournament()).games).toEqual([]);
+        expect((await draft(dana, "finish")).status).toBe(200);
+        const again = (await tournament()).games.map((g: Json) => g.id);
+        expect(again).toHaveLength(1);
+        expect(again).not.toEqual(games);
+      });
+
+      it("once a match has a result, keeping the fixtures is refused: nothing changes", async () => {
+        const { dana, id, tournament } = await withAResult();
+        for (const fixtures of [undefined, "keep"] as const) {
+          const res = await reopen(dana, id, fixtures);
+          expect([res.status, res.body.error]).toEqual([
+            409,
+            "A match has started: clear the fixtures to reopen the draft.",
+          ]);
+        }
         expect((await tournament()).draftState).toBe("closed");
+        expect(left(id)).toEqual({ games: 1, goals: 3 });
+      });
+
+      it("cleared, every match, result and goal goes and the draft's open: the Fight Card and the table are empty", async () => {
+        const { dana, id, tournament, cara } = await withAResult();
+        expect((await reopen(dana, id, "clear")).status).toBe(200);
+        const t = await tournament();
+        expect(t.draftState).toBe("open");
+        expect(t.games).toEqual([]);
+        expect(left(id)).toEqual({ games: 0, goals: 0 });
+        // A captain sees the same
+        expect((await cara.sees(DRAFT_DAY)).tournaments.find((x: Json) => x.id === id).games).toEqual([]);
+        // It's on the record: reopened, and what went with it
+        const entry = w.db.raw
+          .prepare("SELECT detail FROM audit_log WHERE action = 'draft.reopened' ORDER BY id DESC LIMIT 1")
+          .get() as { detail: string };
+        const { from, to } = JSON.parse(entry.detail);
+        expect(from).toMatchObject({ draftState: "closed", games: 1, results: 1, goals: 3 });
+        expect(to).toMatchObject({ draftState: "open", games: 0, results: 0, goals: 0 });
+      });
+
+      it("clearing takes someone who edits the tournament: someone who only runs the draft can reopen, keeping them", async () => {
+        const { dana, id, draft, tournament } = await allPicked();
+        expect((await draft(dana, "finish")).status).toBe(200);
+        const cara = await member("cara@example.com");
+        expect((await reopen(cara, id, "clear")).status).toBe(403);
+        expect((await reopen(dana, id, "sideways" as "keep")).status).toBe(400);
+        expect((await tournament()).games).toHaveLength(1);
+      });
+
+      it.each(seeds(5))(
+        "Reopen tapped twice with clear: reopened once, cleared once, the second refused (seed %i)",
+        async (seed) => {
+          const { dana, id, tournament } = await withAResult();
+          w.db.interleave(seed);
+          const [a, b] = await Promise.all([reopen(dana, id, "clear"), reopen(dana, id, "clear")]);
+          w.db.interleave(null);
+          expect([a.status, b.status].sort()).toEqual([200, 409]);
+          expect((await tournament()).draftState).toBe("open");
+          expect(left(id)).toEqual({ games: 0, goals: 0 });
+        },
+      );
+
+      it("an admin clears the fixtures of a closed draft without reopening it; then they can be made again", async () => {
+        const { dana, id, tournament, cara } = await withAResult();
+        const clear = (as: { call: (...a: Json[]) => Promise<Json> }) =>
+          as.call("DELETE", `/api/tournaments/${id}/fixtures`, undefined, { now: DRAFT_DAY });
+        expect((await clear(cara)).status).toBe(403);
+        expect((await clear(dana)).status).toBe(200);
+        expect((await tournament()).draftState).toBe("closed");
+        expect(left(id)).toEqual({ games: 0, goals: 0 });
+        // Twice is the same as once
+        expect((await clear(dana)).status).toBe(200);
+        expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
+        expect((await tournament()).games).toHaveLength(1);
       });
     });
 

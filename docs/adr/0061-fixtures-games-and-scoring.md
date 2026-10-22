@@ -18,7 +18,10 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   An admin has the app make them: a round robin by the circle method (every team plays every other once, in rounds),
   then the playoff games the tournament's settings ask for. They can be made again until a game has a result; then
   they're set (409). A captains' draft makes them as it closes, in the same tap (Close draft & make fixtures,
-  [0060](0060-the-draft.md)), unless they're already made.
+  [0060](0060-the-draft.md)), unless they're already made. **An admin can clear them** (`DELETE …/fixtures`,
+  `manage:Tournament`): every match, its result, goals, penalties and scoresheet, in one batch, to be made again; the
+  app says first how many results and goals go. Reopening a draft can clear them the same way (0060). On the record as
+  `fixtures.cleared`, with what there was.
 - **The Fight card is every game in the day's order**, each the same card as on the tournament's home
   (lib/GameCard), grouped under a header: Round robin, then Playoffs. One scroller (lib/list-scroll.ts): the page scrolls until the header reaches the top, then the cards pass in a box under it, never under a bar, and the header takes the name of the group in view. Each team's record under its name reads as a league writes it: 1-1-0 · 2 pts. A round robin
   card doesn't say its stage again; a playoff's keeps its name (Semi-final, Final). The teams, the score, Game N of M. The rounds only
@@ -214,3 +217,4 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-22: A group result put right while a playoff's being played no longer changes that playoff's teams: only
   one still to start takes them from the table, decided in its statement (#122).
 - 2026-10-22: A draft's close makes the fixtures in the same request, keeping any already made ([0060](0060-the-draft.md)).
+- 2026-10-22: An admin clears the fixtures, results and all, to make them again: alone, or as a draft reopens (0060).

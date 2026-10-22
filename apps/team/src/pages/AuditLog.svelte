@@ -217,6 +217,16 @@
         return `${who} opened the draft for ${str(to?.name)}`;
       case "draft.closed":
         return `${who} closed the draft for ${str(to?.name)}`;
+      case "draft.reopened": {
+        // Reopened, keeping the fixtures or clearing them: what went, from the counts before and after
+        const went = Number(from?.games ?? 0) - Number(to?.games ?? 0);
+        const results = Number(from?.results ?? 0) - Number(to?.results ?? 0);
+        return went > 0
+          ? `${who} reopened the draft for ${str(to?.name)}, clearing ${went} matches${results ? ` and ${results} results` : ""}`
+          : `${who} reopened the draft for ${str(to?.name)}`;
+      }
+      case "fixtures.cleared":
+        return `${who} cleared the Fight Card for ${str(from?.name)}: ${Number(from?.games ?? 0)} matches, ${Number(from?.results ?? 0)} results`;
       case "draft.finished":
         return `${who} closed the draft for ${str(to?.name)}: ${Number(to?.games ?? 0)} matches on the Fight Card`;
       case "game.scored":
