@@ -1,4 +1,5 @@
 // Members (ADR 0024, ADR 0069): adding, importing, editing and erasing them, their contact, roles and attendance.
+import { movedUp } from "../push/push.notices";
 import { id, ok, theMember, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
 import { checkImport, importMembers } from "./members.import";
@@ -76,6 +77,8 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007)
     changes: ["sessions", "members", "charges", "credits", "payments"],
+    // A walk-in taken off frees a place: whoever moves up hears it
+    notify: movedUp,
     // { marks: [{ sessionId, here }] }: each Friday ticked or unticked, in one go
     handle: async (c) => {
       const marks = await marksIn(c.request);
@@ -194,6 +197,8 @@ export const MEMBERS_ROUTES: Route[] = [
     },
     action: "manage:Member",
     changes: ["members"],
+    // The places they gave up go to whoever's waiting, who hear it
+    notify: movedUp,
     // A member who asked the club, by email, to delete their account (#30): as if they'd done it themselves
     handle: async (c) => {
       await eraseMember(c.env.DB, id(c), c.today, c.now);

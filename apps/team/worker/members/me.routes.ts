@@ -1,5 +1,6 @@
 // You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, ADR 0007), and
 // your data: download it, or delete your account (#30).
+import { movedUp } from "../push/push.notices";
 import { ok, type Route } from "../api/api.route";
 import { body } from "../api/api.http";
 import { choosePlan, memberEmail, memberStanding, planNext, setEverydayRole, updateProfile } from "./members";
@@ -26,6 +27,8 @@ export const ME_ROUTES: Route[] = [
     },
     action: "authenticated",
     changes: ["members"],
+    // The places you gave up go to whoever's waiting, who hear it
+    notify: movedUp,
     // Delete your account: you're signed out everywhere, and the club keeps only what it must, about nobody
     handle: async (c) => {
       await eraseMember(c.env.DB, c.memberId, c.today, c.now);

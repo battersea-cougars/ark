@@ -1,4 +1,5 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
+import { movedUp } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { revealAward, setWinners } from "./awards";
@@ -75,6 +76,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments", "charges", "credits", "payments", "members"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
+    // A limit raised lets the first waiting in, and they hear it
+    notify: movedUp,
     handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {

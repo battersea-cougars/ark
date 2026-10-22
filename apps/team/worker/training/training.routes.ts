@@ -1,5 +1,5 @@
 // Training (ADR 0030, ADR 0076): series and their sessions, the register, and the night's teams.
-import { places, sessionOff, teamsOut } from "../push/push.notices";
+import { movedUp, places, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { seriesFeeChange } from "../dues/dues";
@@ -46,6 +46,8 @@ export const TRAINING_ROUTES: Route[] = [
     },
     action: "manage:Training",
     changes: ["series", "sessions", "charges", "credits", "payments"],
+    // A limit raised lets the first waiting in on each night, and they hear it
+    notify: movedUp,
     // Its fees too, for whoever sets fees (ADR 0007)
     handle: async (c) => {
       const b = await body(c.request);
@@ -135,7 +137,7 @@ export const TRAINING_ROUTES: Route[] = [
     // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
     action: "publish:Teams",
     changes: ["sessions", "charges", "credits", "payments"],
-    notify: places("session", "You've been let in"),
+    notify: movedUp,
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);

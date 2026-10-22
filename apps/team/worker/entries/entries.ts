@@ -179,8 +179,8 @@ function putting(
   now: string,
 ) {
   const { table, key } = TABLES[kind];
-  // A fresh answer clears what the register said about an old one
-  const reset = kind === "session" ? ", attended = NULL, walk_in = 0" : "";
+  // A fresh answer clears what the register said about an old one, and a move up not told yet: it's old news
+  const reset = (kind === "session" ? ", attended = NULL, walk_in = 0" : "") + ", moved_up = NULL";
   const join = typeof signup === "object";
   return statement(
     db,
@@ -196,7 +196,8 @@ const put = (...args: Parameters<typeof putting>) => putting(...args).run();
 /** A place came free: the first on the waitlist (a training's Quarterly Members first) moves up, if there's still
  * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. On a
  * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. Sent in
- * the same batch as whatever freed the place, so nobody signing up in between can take it first. */
+ * the same batch as whatever freed the place, so nobody signing up in between can take it first. Whoever moves up is
+ * marked to be told (`moved_up`, push.notices.ts movedUp). */
 function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
   const { table, key } = TABLES[kind];
   const kept = kind === "session";
@@ -204,7 +205,7 @@ function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, n
   const { limit } = places;
   return statement(
     db,
-    `UPDATE ${table} SET signup = 'in'${kept ? "" : ", signed_up_at = ?"}
+    `UPDATE ${table} SET signup = 'in', moved_up = 'place'${kept ? "" : ", signed_up_at = ?"}
      WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'${side}
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
        AND ${roomIn(kind, places.keeper)}`,
@@ -219,7 +220,8 @@ const PARENTS = { session: "training_sessions", tournament: "tournaments", event
  * waiting move up as there's now room for, in the order `movingUp` keeps (a training's a side at a time, Quarterly
  * Members first). `scope` picks the events, as SQL on `s` (the training session, with `ts` its series) or `t` (the
  * tournament or club event). One statement, so the room is counted as it's taken (ADR 0121); send it in the batch
- * that freed the places. A night that's over, or called off, is left as it is.
+ * that freed the places. A night that's over, or called off, is left as it is. Whoever moves up is marked to be told
+ * (`moved_up`), as by `movingUp`.
  */
 export function fillingUp(
   db: D1Database,
@@ -233,7 +235,7 @@ export function fillingUp(
     const side = (x: string) => `COALESCE(${keeperRow(x)}, 0)`;
     return statement(
       db,
-      `UPDATE attendance SET signup = 'in' WHERE id IN (
+      `UPDATE attendance SET signup = 'in', moved_up = 'place' WHERE id IN (
          SELECT id FROM (
            SELECT e.id, ${placesFor(side("e"))} places,
              ROW_NUMBER() OVER (PARTITION BY e.session_id, ${side("e")}
@@ -249,7 +251,7 @@ export function fillingUp(
   const live = kind === "tournament" ? "t.held_on >= ?" : "t.cancelled_at IS NULL AND t.starts_at >= ?";
   return statement(
     db,
-    `UPDATE ${table} SET signup = 'in', signed_up_at = ? WHERE id IN (
+    `UPDATE ${table} SET signup = 'in', moved_up = 'place', signed_up_at = ? WHERE id IN (
        SELECT id FROM (
          SELECT e.id, t.capacity places,
            ROW_NUMBER() OVER (PARTITION BY e.${key} ORDER BY e.signed_up_at, e.id) rn,
@@ -349,12 +351,13 @@ export async function setPlayer(
 /**
  * The team maker lets someone waiting for a training in, over its limit if need be (ADR 0076): the limit is what
  * members see and what sign-up keeps to, not a wall. They keep their sign-up time, so they take their place in the
- * one order. One statement: refused unless they're waiting and the session's on.
+ * one order. One statement: refused unless they're waiting and the session's on. They're marked to be told it was the
+ * team maker (`moved_up`).
  */
 export async function letIn(db: D1Database, sessionId: number, memberId: number) {
   const res = await run(
     db,
-    `UPDATE attendance SET signup = 'in'
+    `UPDATE attendance SET signup = 'in', moved_up = 'let-in'
      WHERE session_id = ? AND member_id = ? AND signup = 'waitlist'
        AND EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND cancelled_at IS NULL)`,
     [sessionId, memberId, sessionId],
@@ -455,10 +458,10 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
       [memberId, list(off)],
     ),
     // A place came free on each of those nights (a keeper's or a skater's, as theirs was): the first waiting for one
-    // moves up, where there's room
+    // moves up, where there's room, and is told
     statement(
       db,
-      `UPDATE attendance SET signup = 'in'
+      `UPDATE attendance SET signup = 'in', moved_up = 'place'
        WHERE id IN (
          SELECT (SELECT e.id FROM attendance e WHERE e.session_id = s.id AND e.signup = 'waitlist'
                    AND ${keeperRow("e")} = ${keeper}

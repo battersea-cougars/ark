@@ -1,6 +1,6 @@
 // What's news to whom (ADR 0108): each route that makes news says so with one of these (Route.notify). Read before
 // the change where it needs to compare, and after it, never in the way of the change itself.
-import { all, first } from "@cougars/shared/d1";
+import { all, batch, first, statement } from "@cougars/shared/d1";
 import { formatDayDate } from "../../src/lib/dates";
 import { id, type Ctx, type Notify } from "../api/api.route";
 import { TABLES, aheadIn, type EntryKind } from "../entries/entries";
@@ -20,10 +20,12 @@ async function eventOf(db: D1Database, kind: EntryKind, eventId: number) {
     return s && { name: formatDayDate(s.heldOn), path: `/training/${s.slug}` };
   }
   if (kind === "tournament") {
-    const t = await first<{ name: string; slug: string }>(db, "SELECT name, slug FROM tournaments WHERE id = ?", [
-      eventId,
-    ]);
-    return t && { name: t.name, path: `/tournaments/${t.slug}` };
+    const t = await first<{ name: string; slug: string | null }>(
+      db,
+      `SELECT t.name, ty.slug FROM tournaments t LEFT JOIN tournament_types ty ON ty.id = t.type_id WHERE t.id = ?`,
+      [eventId],
+    );
+    return t && { name: t.name, path: t.slug ? `/tournaments/${t.slug}` : "/" };
   }
   const e = await first<{ title: string }>(db, "SELECT title FROM club_events WHERE id = ?", [eventId]);
   return e && { name: e.title, path: "/calendar" };
@@ -38,42 +40,98 @@ const answers = (kind: EntryKind) => (c: Ctx) =>
     [id(c)],
   );
 
+/** One who moved up off a waiting list and hasn't been told yet (`moved_up`), with what they moved up into. */
+interface MovedUp {
+  memberId: number;
+  why: "place" | "let-in";
+  kind: EntryKind;
+  eventId: number;
+  name: string;
+  heldOn: string | null;
+  path: string;
+}
+
 /**
- * Places changed hands (topic `places`): whoever was waiting and is in now hears a place came up (or that the team
- * maker let them in). Whoever was in and is waiting now had their place taken by a Quarterly Member signing up for a
- * full training, the only thing that does that (ADR 0030, entries.ts bump): they hear it, and where they are in line,
- * before they turn up (#97).
+ * Off the waiting list (topic `places`): everyone who moved up into a place and hasn't been told, wherever they moved
+ * up (someone out, an admin taking someone off, a limit raised, an account deleted, the register, the team maker's
+ * Let in). Each move marked itself (`moved_up`, entries.ts); here they're read and cleared in one batch, so however
+ * many requests finish at once (a double tap, two leaving together) each move is told once, by whichever comes first
+ * (ADR 0121). Only someone still in hears it.
  */
-export const places = (kind: EntryKind, why = "A place came up"): Notify<{ memberId: number; signup: string }[]> => ({
+async function movedUpNotices(c: Ctx): Promise<Notice[]> {
+  const db = c.env.DB;
+  const [taken] = await batch<MovedUp>(db, [
+    statement(
+      db,
+      `SELECT a.member_id memberId, a.moved_up why, 'session' kind, s.id eventId, ts.name, s.held_on heldOn,
+         '/training/' || ts.slug path
+       FROM attendance a JOIN training_sessions s ON s.id = a.session_id JOIN training_series ts ON ts.id = s.series_id
+       WHERE a.moved_up IS NOT NULL AND a.signup = 'in'
+       UNION ALL
+       SELECT e.member_id, e.moved_up, 'tournament', t.id, t.name, NULL, COALESCE('/tournaments/' || ty.slug, '/')
+       FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id
+         LEFT JOIN tournament_types ty ON ty.id = t.type_id
+       WHERE e.moved_up IS NOT NULL AND e.signup = 'in'
+       UNION ALL
+       SELECT e.member_id, e.moved_up, 'event', t.id, t.title, NULL, '/calendar'
+       FROM club_event_entries e JOIN club_events t ON t.id = e.event_id
+       WHERE e.moved_up IS NOT NULL AND e.signup = 'in'
+       ORDER BY kind, eventId, why, memberId`,
+      [],
+    ),
+    ...Object.values(TABLES).map((t) =>
+      statement(db, `UPDATE ${t.table} SET moved_up = NULL WHERE moved_up IS NOT NULL`, []),
+    ),
+  ]);
+  const told = new Map<string, Notice>();
+  for (const m of taken.results) {
+    const key = `${m.kind} ${m.eventId} ${m.why}`;
+    const notice = told.get(key) ?? { to: [], topic: "places", title: "You're in", body: youreIn(m), path: m.path };
+    (notice.to as number[]).push(m.memberId);
+    told.set(key, notice);
+  }
+  return [...told.values()];
+}
+
+/** What "You're in" says: a training with its day, and a nudge; who let them in, if it was the team maker. */
+function youreIn(m: MovedUp) {
+  const what = m.heldOn ? `${m.name}, ${formatDayDate(m.heldOn)}` : m.name;
+  if (m.why === "let-in") return `The team maker let you into ${what}. Don't make them regret it.`;
+  return m.heldOn
+    ? `A place came up for ${what}. Off the bench, skates on.`
+    : `A place came up for ${what}. It's yours.`;
+}
+
+/** A change that may move people up off a waiting list (a limit raised, an account deleted): they hear it. */
+export const movedUp: Notify = { after: movedUpNotices };
+
+/**
+ * Places changed hands (topic `places`): whoever moved up off the waiting list hears they're in (movedUp). Whoever was
+ * in and is waiting now had their place taken by a Quarterly Member signing up for a full training, the only thing
+ * that does that (ADR 0030, entries.ts bump): they hear it, and where they are in line, before they turn up (#97).
+ */
+export const places = (kind: EntryKind): Notify<{ memberId: number; signup: string }[]> => ({
   before: answers(kind),
   after: async (c, before) => {
+    const up = await movedUpNotices(c);
     const was = new Map(before.map((a) => [a.memberId, a.signup]));
-    const now = await answers(kind)(c);
-    const up = now.filter((a) => a.signup === "in" && was.get(a.memberId) === "waitlist").map((a) => a.memberId);
-    const waiting = now.filter((a) => a.signup === "waitlist").map((a) => a.memberId);
+    const waiting = (await answers(kind)(c)).filter((a) => a.signup === "waitlist").map((a) => a.memberId);
     const down = waiting.filter((m) => was.get(m) === "in");
-    const event = up.length || down.length ? await eventOf(c.env.DB, kind, id(c)) : null;
-    if (!event) return [];
-    const notices: Notice[] = [];
-    if (up.length)
-      notices.push({
-        to: up,
-        topic: "places",
-        title: "You're in",
-        body: `${why}: you're in for ${event.name}.`,
-        path: event.path,
-      });
-    for (const m of down) {
-      const place = waiting[0] === m ? "first in line" : `number ${waiting.indexOf(m) + 1} in line`;
-      notices.push({
-        to: [m],
-        topic: "places",
-        title: "On the waitlist",
-        body: `You're on the waitlist for ${event.name}, ${place}: a Quarterly Member took the last place.`,
-        path: event.path,
-      });
-    }
-    return notices;
+    const event = down.length ? await eventOf(c.env.DB, kind, id(c)) : null;
+    if (!event) return up;
+    return [
+      ...up,
+      ...down.map((m): Notice => {
+        const place = waiting[0] === m ? "first in line" : `number ${waiting.indexOf(m) + 1} in line`;
+        return {
+          to: [m],
+          topic: "places",
+          title: "On the waitlist",
+          body: `You're on the waitlist for ${event.name}, ${place}: a Quarterly Member took the last place.`,
+          path: event.path,
+        };
+      }),
+    ];
   },
 });
 

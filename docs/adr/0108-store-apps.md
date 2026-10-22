@@ -36,7 +36,13 @@ Three things shape it:
     you're in is off, an announcement, a training night's sign-up is open (on its day, once a night, from the cron:
     `worker/training/training.signup.ts`, topic `places`, queued for the push drain straight after it). A route says what's news with `notify` (`worker/push/push.notices.ts`), read
     before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
-    (`waitUntil`), and a notification that can't be sent never fails the change. Home asks once, a row in its feed
+    (`waitUntil`), and a notification that can't be sent never fails the change. Moving up off a waiting list isn't
+    worked out from before and after (two requests at once would both see it): the statement that moves someone up
+    marks their sign-up (`moved_up`: a place came up, or the team maker's Let in), and `movedUp` reads and clears every
+    mark in one batch, so each move is told once whichever request gets there first
+    ([0121](0121-load-and-concurrency.md)). Every route that can move someone up says `notify: movedUp` (or `places`,
+    which includes it): an answer, an admin taking someone off, Let in, the register, a limit raised (a training, a
+    tournament, a club event), an account deleted. Home asks once, a row in its feed
     ([0118](0118-home-calls-to-action-then-feed.md)) saying what they're for, before the phone's own question; "Not now" is remembered. A reminder of what you owe
     ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
@@ -146,3 +152,7 @@ Three things shape it:
 - 2026-10-22: A training night's sign-up opening is a notification (topic `places`, to everyone with the app): the
   cron takes each night that opens today in the statement that marks it told (`training_sessions.signup_told_at`),
   so it goes once however many runs there are, and queues it for the drain (ADR 0030, 0121).
+- 2026-10-22: "You're in" whatever moved them up (someone out, an admin, a limit raised, an account deleted, the
+  register, Let in), with the training and its day ("A place came up for Friday Training, Fri 9 Oct. Off the bench,
+  skates on."), told once per move: the move marks the sign-up (`moved_up`) and the notification takes the mark, so a
+  double tap or two leaving at once no longer tell anyone twice (ADR 0121). The bumped half of #97 was already done.
