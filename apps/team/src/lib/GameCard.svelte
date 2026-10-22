@@ -35,7 +35,7 @@
   const liveHref = $derived(`/tournaments/${type?.slug ?? ""}/games/${g.id}/live`);
   const place = $derived(`Game ${g.position} of ${count}`);
   const done = $derived(g.status === "done");
-  // The next to be played: Chong Li's line for the Kumite ("You're next, Dux"), plainly Up next for the rest
+  // The next to be played: Chong Li's line for the Kumite ("You are next!", to Dux after he's beaten Jackson), plainly Up next for the rest
   const upNext = $derived(
     g.status === "next" && !(tournament.games ?? []).some((x) => x.status === "next" && x.position < g.position),
   );
@@ -57,7 +57,7 @@
   <GameHead {stage} {kanji} {playoff} {place} opens={!live && !keeping}>
     {#snippet centre()}
       {#if live}<span class="chant">{type?.shortName ?? "Live"}!</span>
-      {:else if upNext}<span class="chant result next">{type?.slug === "kumite" ? "You're next, Dux" : "Up next"}</span>
+      {:else if upNext}<span class="chant result next">{type?.slug === "kumite" ? "You are next!" : "Up next"}</span>
       {:else if done && winner}<span class="chant result">{winner} wins</span>
       {:else if done}<span class="chant result draw">Draw</span>{/if}
     {/snippet}
