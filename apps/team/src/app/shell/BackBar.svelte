@@ -64,4 +64,8 @@
     justify-content: flex-end;
     text-align: right;
   }
+  /* Back keeps its one line ("The Kumite"); what's on the right makes room for it (Game.svelte) */
+  .back {
+    white-space: nowrap;
+  }
 </style>

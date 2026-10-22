@@ -1409,6 +1409,12 @@
     gap: var(--s-1);
     color: var(--red-hot);
   }
+  /* A narrow phone: the words, not the whistle, so the bar's Back keeps its line */
+  @media (max-width: 360px) {
+    .keeping :global(svg) {
+      display: none;
+    }
+  }
   .tools-note {
     margin: 0 0 var(--s-2);
   }
