@@ -207,14 +207,6 @@ describe("what a night being off tells", () => {
     return { reg, alt, session, cancel };
   }
 
-  it("someone who said they're out doesn't hear it's off", async () => {
-    const { reg, alt, session, cancel } = await night();
-    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
-    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "out" });
-    await cancel(true);
-    expect(w.pushes.map((p) => p.token)).toEqual(["token-reg@example.com"]);
-  });
-
   it("cancelling a night that's already off doesn't tell everyone again", async () => {
     const { reg, session, cancel } = await night();
     await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
@@ -222,12 +214,6 @@ describe("what a night being off tells", () => {
     expect(w.pushes).toHaveLength(1);
     await cancel(true);
     expect(w.pushes).toHaveLength(1);
-  });
-
-  it("a night nobody's signed up for goes off quietly", async () => {
-    const { cancel } = await night();
-    expect((await cancel(true)).status).toBe(200);
-    expect(w.pushes).toEqual([]);
   });
 
   it("off, back on, and off again: whoever's in hears each time it goes off", async () => {

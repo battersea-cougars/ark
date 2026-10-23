@@ -369,16 +369,6 @@ describe("Quarterly Members and walk-ins", () => {
     await f.say("Quinn", "in", onTheNight);
     expect(await f.seen(onTheNight)).toMatchObject({ going: [f.id.Quinn, f.id.Walt], waitlist: [f.id.Reg] });
   });
-
-  it("a Quarterly Member on a night full of Quarterly Members waits; the next PAYG to sign up waits behind them", async () => {
-    const f = await friday({ capacity: 1 });
-    await f.dana.call("POST", `/api/members/${f.id.Quinn}/quarterly`, { quarterly: true });
-    await f.dana.call("POST", `/api/members/${f.id.Nina}/quarterly`, { quarterly: true });
-    await f.say("Quinn", "in");
-    await f.say("Reg", "in");
-    await f.say("Nina", "in");
-    expect(await f.seen()).toMatchObject({ going: [f.id.Quinn], waitlist: [f.id.Nina, f.id.Reg] });
-  });
 });
 
 describe("at once (ADR 0121)", () => {

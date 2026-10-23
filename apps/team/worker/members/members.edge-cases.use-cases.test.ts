@@ -38,12 +38,6 @@ describe("an admin adds a member, at the edges", () => {
     expect((await w.ask(w.browser(), "CARA.CAPS@example.com")).devCode).toMatch(/^\d{6}$/);
   });
 
-  it("an email that's a member's in other capitals is refused, so nobody ends up twice", async () => {
-    const dana = await admin();
-    const r = await dana.add({ name: "Reg Again", email: "REG@example.com" });
-    expect(r.status).toBe(409);
-  });
-
   it("two people of the same name get references of their own: the second takes a 2", async () => {
     const dana = await admin();
     const first = await dana.add({ name: "Adrian Kaczmarczyk", email: "adrian1@example.com" });

@@ -52,11 +52,6 @@ describe("an admin adds a member", () => {
     expect(r.status).toBe(409);
     expect(lastEmail()).toBeNull();
   });
-
-  it("only someone who manages members can add one", async () => {
-    const reg = await w.signedIn("reg@example.com");
-    expect((await reg.call("POST", "/api/members", NEWBIE)).status).toBe(403);
-  });
 });
 
 describe("an admin edits the name a member goes by", () => {

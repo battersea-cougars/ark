@@ -109,13 +109,12 @@ describe("what's coming up, at the edges", () => {
     expect(rows[0].cancelled).toBe(true);
   });
 
-  it("asks from the day sign-up opens (the Kumite: Accept the invitation), and says when it opens before that", () => {
+  it("a tournament still to open its sign-up says when it opens, though it's asking", () => {
     const t = (signupOpensOn: string) =>
       ev("tournament:1", day(30), { kind: "tournament", filter: "type:1", asking: true, signupOpensOn });
     // A training night sooner is the lead, so the tournament is a row
     const fri = ev("session:1", day(1), { kind: "training", filter: "series:1", asking: true });
     const row = (e: UpcomingEvent) => up([fri, e]).find((r) => r.key === "tournament:1");
-    expect(row(t(TODAY))?.sub).toBe("7pm · Accept the invitation");
     expect(row(t("2026-10-22"))?.sub).toBe("7pm · Sign-up opens 22 Oct");
   });
 

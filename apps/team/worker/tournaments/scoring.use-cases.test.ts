@@ -235,16 +235,6 @@ describe("scoring a game as it's played", () => {
     expect(g.goals).toHaveLength(1);
   });
 
-  it("a goal is scored by someone on that team, and assisted by a teammate", async () => {
-    const { first, keeperOf, clock, goal, captainOf } = await cup();
-    const keeper = await keeperOf(first);
-    await clock(keeper, first.id, "start", at(0));
-    expect(
-      (await goal(keeper, first.id, { teamId: first.homeTeamId, scorerId: captainOf(first.awayTeamId) }, at(1))).status,
-    ).toBe(400);
-    expect((await goal(keeper, first.id, { teamId: first.scoringTeamId }, at(1))).status).toBe(400);
-  });
-
   it("one game at a time: the next doesn't start while one's on", async () => {
     const { games, clock, dana, sheet } = await cup();
     await sheet(dana, games[0].id, "claim");

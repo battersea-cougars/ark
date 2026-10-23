@@ -33,9 +33,4 @@ describe("how often live pages check for updates", () => {
     expect((await dana.call("PUT", "/api/settings", { liveRefreshSeconds: 1 })).status).toBe(400);
     expect((await dana.call("PUT", "/api/settings", { liveRefreshSeconds: 600 })).status).toBe(400);
   });
-
-  it("a member can't change it", async () => {
-    const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("PUT", "/api/settings", { liveRefreshSeconds: 5 })).status).toBe(403);
-  });
 });

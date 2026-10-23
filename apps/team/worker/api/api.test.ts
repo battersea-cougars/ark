@@ -527,14 +527,6 @@ describe("members and roles", () => {
     expect(after.roles.sort()).toEqual(["Member", "Session lead"]);
   });
 
-  it("won't take Admin from the last admin", async () => {
-    const dana = (await boot()).members.find((m: { name: string }) => m.name === "Dana Admin");
-    expect(await call("PUT", `/api/members/${dana.id}`, { ...dana, roles: ["Member"] })).toEqual({
-      status: 409,
-      body: { error: "That's the last admin. Make someone else an admin first." },
-    });
-  });
-
   it("an admin adds a role with its actions; the Admin role itself can't be changed", async () => {
     const created = await call("POST", "/api/roles", { name: "Coach", description: "", actions: ["generate:Teams"] });
     expect(created.status).toBe(201);
@@ -767,10 +759,6 @@ describe("is it up", () => {
 });
 
 describe("access", () => {
-  it("answers nobody who isn't signed in", async () => {
-    expect((await call("GET", "/api/bootstrap", undefined, { DB: env.DB })).status).toBe(401);
-  });
-
   it("every route declares an action from the catalog", () => {
     for (const r of ROUTES) expect(r.action === "authenticated" || r.action in ACTIONS).toBe(true);
   });

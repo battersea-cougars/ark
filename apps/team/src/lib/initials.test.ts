@@ -7,6 +7,7 @@ describe("a member's initials", () => {
     expect(initials("Sam Jones")).toBe("SJ");
     expect(initials("Mary Ann Smith")).toBe("MA");
     expect(initials("Cher")).toBe("C");
+    expect(initials("Mary-Jane Watson")).toBe("MW");
   });
 
   it("keep accented letters, and don't mind extra spaces", () => {

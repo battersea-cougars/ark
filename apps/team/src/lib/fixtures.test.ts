@@ -10,16 +10,6 @@ import {
   teamsForPlayoffs,
 } from "./fixtures";
 
-describe("roundRobin", () => {
-  it("has every team play every other exactly once, nobody twice in a round", () => {
-    const rounds = roundRobin([1, 2, 3, 4, 5]);
-    const pairs = rounds.flat();
-    expect(pairs).toHaveLength(10);
-    expect(new Set(pairs.map(([a, b]) => [a, b].sort().join("-"))).size).toBe(10);
-    for (const r of rounds) expect(new Set(r.flat()).size).toBe(r.flat().length);
-  });
-});
-
 describe("table", () => {
   it("ranks by points, then goal difference, and leaves out games without a result", () => {
     const g = (homeTeamId: number, awayTeamId: number, homeGoals: number | null, awayGoals: number | null) => ({

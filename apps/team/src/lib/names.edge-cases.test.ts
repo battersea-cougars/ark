@@ -3,23 +3,9 @@
 import { describe, expect, it } from "vitest";
 import { initials } from "./initials";
 import { goesBy, matchesName, nameOfTeam, shortName } from "./names";
-import { findPeople } from "./person-search";
 import { teamInitials } from "./logo";
 
 describe("a member's initials, on their avatar", () => {
-  it.each([
-    ["Jo Bloggs", "JB"],
-    ["Jo  Bloggs", "JB"],
-    ["Jean Paul Sartre", "JP"],
-    ["Mary-Jane Watson", "MW"],
-    ["Émile Zola", "ÉZ"],
-    ["Cher", "C"],
-    [" Jo", "J"],
-    ["", ""],
-  ])("%j is %j", (name, expected) => {
-    expect(initials(name)).toBe(expected);
-  });
-
   // https://github.com/battersea-cougars/ark/issues/140
   // Known bug #140: the first character is taken as one UTF-16 unit, so an emoji (two) is cut in half
   // and the avatar shows a broken character
@@ -74,37 +60,6 @@ describe("a team named for its captain", () => {
 
   it("a captain who's left the club (not found) leaves the team as Team", () => {
     expect(nameOfTeam({ captainMemberId: 99, name: null }, [], person)).toBe("Team");
-  });
-});
-
-describe("finding someone by typing", () => {
-  const pool = [
-    { id: 1, name: "Zed Adams" },
-    { id: 2, name: "Adam Zed" },
-    { id: 3, name: "Madam X" },
-    { id: 4, name: "Bob" },
-  ];
-
-  it("names that start with it first, then a word that does, then any that has it", () => {
-    expect(findPeople(pool, "adam").map((p) => p.id)).toEqual([2, 1, 3]);
-  });
-
-  it("typing in capitals or with spaces round it finds the same", () => {
-    expect(findPeople(pool, "  ADAM ").map((p) => p.id)).toEqual([2, 1, 3]);
-  });
-
-  it("nothing typed is everyone, up to the limit; nothing matching is nobody", () => {
-    expect(findPeople(pool, "")).toHaveLength(4);
-    expect(findPeople(pool, "", 2)).toHaveLength(2);
-    expect(findPeople(pool, "zz")).toEqual([]);
-  });
-
-  it("the limit keeps the best matches", () => {
-    expect(findPeople(pool, "adam", 1).map((p) => p.id)).toEqual([2]);
-  });
-
-  it("an empty club finds nobody", () => {
-    expect(findPeople([], "jo")).toEqual([]);
   });
 });
 

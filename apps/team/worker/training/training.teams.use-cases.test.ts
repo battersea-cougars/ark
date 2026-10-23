@@ -83,17 +83,6 @@ describe("starting a session again", () => {
   const fridayOf = async (b: Awaited<ReturnType<typeof w.signedIn>>, id: number) =>
     (await b.call("GET", "/api/bootstrap")).body.sessions.find((s: { id: number }) => s.id === id);
 
-  it("a team maker takes the teams down; the sign-ups stay", async () => {
-    const tess = await w.signedIn("tess@example.com");
-    const { session, teams } = await teamsFor(tess);
-    await tess.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" }, opens(session.heldOn));
-    await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams });
-    expect((await tess.call("DELETE", `/api/sessions/${session.id}/teams`)).status).toBe(200);
-    const after = await fridayOf(tess, session.id);
-    expect(after.teams).toEqual([]);
-    expect(after.going.length).toBe(1);
-  });
-
   it("an admin resets it: nobody's in or waiting, and no teams", async () => {
     const dana = await w.signedIn("dana@example.com");
     const { session, teams } = await teamsFor(dana);

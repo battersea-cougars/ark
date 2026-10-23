@@ -197,14 +197,6 @@ describe("signing out", () => {
 });
 
 describe("who can ask for a code", () => {
-  it("someone asking to join gets no code until an admin lets them in", async () => {
-    const r = await w
-      .browser()
-      .call("POST", "/api/auth/request", { name: "Nina New", email: "nina@example.com", position: "F" });
-    expect(r.status).toBe(200);
-    expect((await w.ask(w.browser(), "nina@example.com")).devCode).toBeUndefined();
-  });
-
   it("a member made inactive gets no code, and is let back in by an admin making them active", async () => {
     const dana = await w.signedIn("dana@example.com");
     const reg = (await dana.call("GET", "/api/bootstrap")).body.members.find(

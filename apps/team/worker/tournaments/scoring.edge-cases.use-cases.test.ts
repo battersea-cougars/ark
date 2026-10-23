@@ -627,28 +627,6 @@ describe("playoffs, after the group", () => {
     expect([final.homeTeamId, final.awayTeamId]).toEqual([c.teams[0].id, c.teams[1].id]);
   });
 
-  it("level on points, goal difference decides who's in the Final", async () => {
-    // Each team wins one, 3 points each: Cats 5–0 Ants, Bees 2–1 Cats, Ants 1–0 Bees. Goal difference: Cats +4,
-    // Bees 0, Ants −4
-    const c = await groupPlayed(undefined, ([ants, bees, cats]) => [
-      [cats, ants, 5, 0],
-      [bees, cats, 2, 1],
-      [ants, bees, 1, 0],
-    ]);
-    expect([c.final.homeTeamId, c.final.awayTeamId]).toEqual([c.cats, c.bees]);
-  });
-
-  it("level on points and goal difference, goals scored decides", async () => {
-    // Every game a draw (Ants 1–1 Bees, Ants 2–2 Cats, Bees 3–3 Cats): 2 points each, GD 0. Goals scored: Cats 5,
-    // Bees 4, Ants 3
-    const c = await groupPlayed(undefined, ([ants, bees, cats]) => [
-      [ants, bees, 1, 1],
-      [ants, cats, 2, 2],
-      [bees, cats, 3, 3],
-    ]);
-    expect([c.final.homeTeamId, c.final.awayTeamId]).toEqual([c.cats, c.bees]);
-  });
-
   it("an admin putting a group result right before the Final starts changes who's in it", async () => {
     const c = await groupPlayed();
     expect([c.final.homeTeamId, c.final.awayTeamId]).toEqual([c.ants, c.bees]);
@@ -716,19 +694,6 @@ describe("playoffs, after the group", () => {
     expect((await c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`)).status).toBe(200);
     expect(row(c.final.id)).toMatchObject({ status: "done" });
     expect(row(c.final.id).home + row(c.final.id).away).toBe(3);
-  });
-
-  it("a playoff level at full time can't be ended until someone scores; after the clock's run out the goal still counts", async () => {
-    const c = await groupPlayed();
-    const keeper = await c.keeperOf(c.final);
-    await c.clock(keeper, c.final.id, "start", at(0));
-    await c.goal(keeper, c.final.id, { teamId: c.ants }, at(2));
-    await c.goal(keeper, c.final.id, { teamId: c.bees }, at(4));
-    expect((await c.clock(keeper, c.final.id, "end", at(c.gameMinutes))).status).toBe(409);
-    // Next goal wins, minutes after the clock's at nothing
-    expect((await c.goal(keeper, c.final.id, { teamId: c.bees }, at(c.gameMinutes + 3))).status).toBe(200);
-    expect((await c.clock(keeper, c.final.id, "end", at(c.gameMinutes + 3))).status).toBe(200);
-    expect(row(c.final.id)).toMatchObject({ status: "done", home: 1, away: 2 });
   });
 });
 

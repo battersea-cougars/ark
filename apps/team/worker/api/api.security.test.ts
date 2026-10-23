@@ -378,7 +378,10 @@ describe("the last admin", () => {
     const dana = await w.signedIn("dana@example.com");
     const b = (await dana.call("GET", "/api/bootstrap")).body;
     const me = b.members.find((m: { id: number }) => m.id === b.me);
-    expect((await dana.call("PUT", `/api/members/${me.id}`, { ...me, roles: ["Member"] })).status).toBe(409);
+    expect(await dana.call("PUT", `/api/members/${me.id}`, { ...me, roles: ["Member"] })).toMatchObject({
+      status: 409,
+      body: { error: "That's the last admin. Make someone else an admin first." },
+    });
     expect((await dana.call("PUT", `/api/members/${me.id}`, { ...me, status: "inactive" })).status).toBe(409);
     expect((await dana.call("GET", "/api/bootstrap")).status).toBe(200);
   });

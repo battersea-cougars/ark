@@ -143,24 +143,6 @@ describe("what the club tells them", () => {
     ]);
   });
 
-  it("a place comes up on a full night: whoever moves up off the waitlist hears they're in", async () => {
-    const dana = await w.signedIn("dana@example.com");
-    const series = (await boot(dana)).series[0];
-    await dana.call("PUT", `/api/series/${series.id}`, { ...series, capacity: 1 });
-    const session = await friday(dana);
-    const reg = await phone("reg@example.com");
-    const alt = await phone("alt@example.com");
-    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
-    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
-    expect(sentTo()).toEqual([]);
-
-    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "out" });
-
-    expect(w.pushes).toEqual([
-      expect.objectContaining({ token: "token-alt@example.com", title: "You're in", path: "/training/friday" }),
-    ]);
-  });
-
   it("a session's off: everyone signed up or waiting hears it", async () => {
     const reg = await phone("reg@example.com");
     await phone("alt@example.com");

@@ -33,6 +33,7 @@ describe("finding someone by typing", () => {
 
   it("finds nobody when nobody matches, rather than everyone", () => {
     expect(ids("zzz")).toEqual([]);
+    expect(findPeople([], "jo")).toEqual([]);
   });
 
   it("finds a name with an accent typed with it", () => {

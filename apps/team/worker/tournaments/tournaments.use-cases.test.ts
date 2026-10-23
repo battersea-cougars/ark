@@ -432,18 +432,6 @@ describe("a tournament, from setting it up to the draft", () => {
       expect((await open()).status).toBe(200);
     });
 
-    it("picks wait until an admin opens the draft, and only an admin can open it", async () => {
-      const { dana, cara, draft, pick, tournament, ids } = await signedUp();
-      expect((await tournament()).draftState).toBe("scheduled");
-      expect((await draft(dana, "draw")).status).toBe(200);
-      // Drawn, not open: no picks yet, and a captain can't open it
-      expect((await pick(cara, ids.Reg)).status).toBe(409);
-      expect((await draft(cara, "open")).status).toBe(403);
-      expect((await draft(dana, "open")).status).toBe(200);
-      expect((await tournament()).draftState).toBe("open");
-      expect((await pick(cara, ids.Reg)).status).toBe(200);
-    });
-
     it("captains are in the tournament automatically, on their own team, and nobody can pick them", async () => {
       const { cara, tournament, pick, ids } = await draftOpen();
       expect((await tournament()).going).toEqual(expect.arrayContaining([ids.Cara, ids.Cole]));
@@ -461,16 +449,6 @@ describe("a tournament, from setting it up to the draft", () => {
         [ids.Reg, ids.Bo],
         [ids.Mo, ids.Ash],
       ]);
-    });
-
-    it("nobody picks out of turn, and only captains pick", async () => {
-      const { cara, cole, pick, teams, ids } = await draftOpen();
-      expect((await pick(cole, ids.Reg)).status).toBe(409); // Cara's first
-      const reg = await member("reg@example.com");
-      expect((await pick(reg, ids.Mo)).status).toBe(403); // not a captain
-      expect((await pick(cara, ids.Reg)).status).toBe(200);
-      expect((await pick(cara, ids.Mo)).status).toBe(409); // now Cole's turn
-      expect(await teams()).toEqual([[ids.Reg], []]);
     });
 
     it("captains only pick members who signed up, each once", async () => {

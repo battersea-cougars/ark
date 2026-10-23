@@ -105,8 +105,9 @@ describe("signing yourself out", () => {
     const phone = await w.signedIn("reg@example.com");
     const laptop = await w.signedIn("reg@example.com");
     await phone.call("PUT", "/api/auth/device", { token: "regs-iphone", platform: "ios" });
-    await phone.call("POST", "/api/auth/sign-out");
+    expect((await phone.call("POST", "/api/auth/sign-out")).status).toBe(200);
     expect(phones()).toEqual([]);
+    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
     expect((await laptop.call("GET", "/api/bootstrap")).status).toBe(200);
   });
 

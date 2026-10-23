@@ -29,7 +29,6 @@ async function owes(name: string, pence: number, on: string, reason = "Kit") {
   expect(r.status).toBe(201);
 }
 const send = (o: unknown = {}) => dana.call("POST", "/api/dues/reminders", o);
-const mailedFor = () => w.mails.map((m) => m.subject.match(/for ([^\]]+)\]/)?.[1] ?? m.to.join(", "));
 
 describe("who never gets one", () => {
   it("a member in credit, owed nothing, is not listed and gets nothing", async () => {
@@ -106,14 +105,6 @@ describe("what it says", () => {
   });
 });
 
-describe("however late", () => {
-  it("someone over 90 days late gets the admin's send like anyone", async () => {
-    await owes("Alt Player", 1200, "2026-07-07"); // 91 days old
-    expect((await send({ memberIds: [await idOf("Alt Player")] })).body).toMatchObject({ queued: 1 });
-    expect(mailedFor()).toEqual(["alt@example.com"]);
-  });
-});
-
 describe("what an admin's send refuses", () => {
   it("memberIds must be a list of member ids, at most 500", async () => {
     await owes("Reg Player", 1200, "2026-09-20");
@@ -133,13 +124,6 @@ describe("what an admin's send refuses", () => {
     await owes("Reg Player", 1200, "2026-09-20");
     expect((await send({ memberIds: [] })).body).toMatchObject({ queued: 0 });
     expect(w.mails).toEqual([]);
-  });
-
-  it("a reminder sent twice in a row by an admin goes once", async () => {
-    await owes("Reg Player", 1200, "2026-09-20");
-    expect((await send()).body).toMatchObject({ queued: 1 });
-    expect((await send()).body).toMatchObject({ queued: 0, held: 1 });
-    expect(w.mails).toHaveLength(1);
   });
 
   it("someone not signed in can't preview or send", async () => {

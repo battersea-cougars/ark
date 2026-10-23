@@ -211,23 +211,6 @@ describe("one member a browser at a time (ADR 0023)", () => {
 });
 
 describe("signing out and being let go", () => {
-  it("signs this browser out and no other", async () => {
-    const phone = await w.signedIn("reg@example.com");
-    const laptop = await w.signedIn("reg@example.com");
-    expect((await phone.call("POST", "/api/auth/sign-out")).status).toBe(200);
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
-    expect((await laptop.call("GET", "/api/bootstrap")).status).toBe(200);
-  });
-
-  it("shuts out a member an admin makes inactive", async () => {
-    const admin = await w.signedIn("dana@example.com");
-    const reg = await w.signedIn("reg@example.com");
-    const b = (await admin.call("GET", "/api/bootstrap")).body;
-    const m = b.members.find((x: { name: string }) => x.name === "Reg Player");
-    await admin.call("PUT", `/api/members/${m.id}`, { ...m, status: "inactive", roles: ["Member"] });
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(401);
-  });
-
   it("answers no one without a session, unless a local server is asked to be the first admin", async () => {
     expect((await w.browser().call("GET", "/api/bootstrap")).status).toBe(401);
     env.TEAM_AUTO_ADMIN = "1";

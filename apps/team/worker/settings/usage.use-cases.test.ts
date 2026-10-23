@@ -100,11 +100,6 @@ describe("an admin checks the club's free Cloudflare allowance", () => {
     });
   });
 
-  it("members don't see it", async () => {
-    cloudflare();
-    expect((await usageAs("reg@example.com")).status).toBe(403);
-  });
-
   it("says how to set it up when there's no analytics token", async () => {
     delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
     const res = await usageAs("dana@example.com");

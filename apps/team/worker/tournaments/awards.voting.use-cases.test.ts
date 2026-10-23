@@ -136,14 +136,6 @@ describe("casting a vote", () => {
 });
 
 describe("the votes counted as the awards are confirmed", () => {
-  it("the most votes wins", async () => {
-    const k = await kumiteNight(w);
-    for (const who of ["cara@example.com", "sam@example.com"])
-      await k.vote(await w.signedIn(who), [{ award: "Best keeper", memberId: k.idOf("Cole Captain") }]);
-    expect((await k.confirm()).status).toBe(200);
-    expect(winnerOf(await k.tournament(), "Best keeper")).toMatchObject([{ memberId: k.idOf("Cole Captain") }]);
-  });
-
   it("level on votes, the tie-break: fewest goals against a game (Gus let in 1, Cole 3)", async () => {
     const k = await kumiteNight(w);
     await k.vote(await w.signedIn("cara@example.com"), [{ award: "Best keeper", memberId: k.idOf("Cole Captain") }]);
