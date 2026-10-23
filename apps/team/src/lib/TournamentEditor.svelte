@@ -66,7 +66,7 @@
     awards: [
       {
         name: "Champions",
-        about: "Last team standing. Win the final, take the night. Champions buy the first round.",
+        about: "Last team standing.",
         decidedBy: { kind: "stat", stat: "table" },
       },
       { name: "Top scorer", about: "Most goals across every game.", decidedBy: { kind: "stat", stat: "goals" } },
