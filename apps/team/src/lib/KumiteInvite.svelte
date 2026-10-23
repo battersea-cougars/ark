@@ -44,7 +44,7 @@
     left
       ? `ok, tell your mates. We need ${left} more.`
       : left === 0
-        ? "ok, tell your physio. That knee's dodgy."
+        ? "maybe tell your physio. That knee's dodgy."
         : "ok, tell your mates.",
   );
   const tally = $derived(

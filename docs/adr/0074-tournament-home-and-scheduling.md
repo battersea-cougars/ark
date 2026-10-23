@@ -507,3 +507,4 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: A sealed award card says which award it is, big, for everyone (the brass capitals the face-up card has,
   in the same place); the question mark is who took it, and the admin's cue is just "Tap to reveal".
 - 2026-10-23: One machine: the sealed card rolls down and away on the same drum as the face-up one rolls in.
+- 2026-10-23: Full, the switch is "maybe tell your physio. That knee's dodgy."
