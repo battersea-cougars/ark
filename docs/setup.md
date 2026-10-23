@@ -57,8 +57,6 @@ To set up a project from scratch (or check one):
    npm run seed -w @cougars/studio                                    # Cougars Dev
    SANITY_STUDIO_SITE_ENV=production npm run seed -w @cougars/studio  # Cougars
    ```
-   A project that still has the old `siteSettings` document is migrated instead: run
-   `npm run migrate-settings -w @cougars/studio` (a dry run), then again with `-- --commit`.
 5. **Members**: invite the club's editors to **Cougars** with the _Editor_ role (the Free plan includes 20
    seats), and to **Cougars Dev** if they want somewhere to practise. Vision, the query tool, only appears for
    administrators.

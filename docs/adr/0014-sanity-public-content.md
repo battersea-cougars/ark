@@ -1,7 +1,7 @@
 # 0014. Sanity holds the site's editable content; only club facts are editable
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-20
+- **Date:** 2026-10-05 · updated 2026-10-23
 - **Builds on:** [0004](0004-astro-workers-sanity-d1.md)
 
 ## Context
@@ -42,7 +42,6 @@ any fact, one in Sanity and one in D1, would drift.
 - Facts live in one place. A Studio change reaches the prerendered pages at the daily rebuild
   ([ADR 0004](0004-astro-workers-sanity-d1.md)).
 - The Studio's required fields and the website's list of optional fields (`merge.ts`) must be kept in step.
-- Moving off `siteSettings` needs a one-off migration per dataset (`apps/studio/migrate-settings.ts`).
 
 ## History
 
@@ -54,3 +53,5 @@ any fact, one in Sanity and one in D1, would drift.
 - 2026-10-18: Events, Players and Videos are off the Studio's sidebar and its "New document" menu: the first two are
   the team app's data, and videos come from the YouTube playlists. The types stay so the website's queries still read.
 - 2026-10-20: The `album` type is gone: the website's photos are the club's Instagram ([ADR 0113](0113-photos-from-instagram.md)).
+- 2026-10-23: Both projects are off `siteSettings` (neither has the document), so its one-off migration,
+  `apps/studio/migrate-settings.ts`, is gone (#148).
