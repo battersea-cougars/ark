@@ -32,7 +32,7 @@ export async function askToChangeEmail(c: Ctx): Promise<Response> {
   const me = await first<{ email: string | null }>(c.env.DB, "SELECT email FROM members WHERE id = ?", [c.memberId]);
   if (me?.email?.toLowerCase() === address) throw new HttpError(400, "That's already your email.");
   const local = localHere(c.env, c.request);
-  if (!local && mailConfig(c.env).gmail && (await mailPausedUntil()))
+  if (!local && (await mailPausedUntil()) && (await mailConfig(c.env)).gmail)
     throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
   const counts = await first<{ hour: number; day: number }>(
     c.env.DB,
