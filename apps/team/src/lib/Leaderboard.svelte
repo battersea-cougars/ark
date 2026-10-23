@@ -138,8 +138,9 @@
     color: var(--fg-subtle);
     font-weight: 400;
   }
+  /* The leader's place in bone, bold, as the board's (BoardTable): the club's red is for what's on now */
   .top .pos {
-    color: var(--red-hot);
+    color: var(--fg);
     font-weight: 700;
   }
   .who {

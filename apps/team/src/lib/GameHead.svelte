@@ -85,7 +85,7 @@
     min-width: 0;
     white-space: nowrap;
   }
-  /* The whistle in the club's red, the words as the place's (colour is the accent, not a fill) */
+  /* The whistle and the words as the place's: who's scoring is a fact, not a status, so no colour of its own */
   .scorer {
     display: inline-flex;
     align-items: center;
@@ -94,7 +94,7 @@
   }
   .scorer :global(svg) {
     flex-shrink: 0;
-    color: var(--red-hot);
+    color: var(--fg-muted);
   }
   .scorer .who {
     overflow: hidden;

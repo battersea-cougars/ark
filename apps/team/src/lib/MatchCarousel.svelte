@@ -47,14 +47,15 @@
       const k = Math.abs(d);
       // 0 in front, 1 a neighbour, 2 the next ones: the depth follows the scroll, not just the snap
       el.style.setProperty("--k", String(Math.min(2, k)));
-      // Smaller, dimmer and further back the further from the front: a neighbour 0.82 and 0.45, the next 0.68 and
-      // 0.3, softly blurred; each shrinks toward the front, so the one before keeps its foot in view as the sliver
+      // Smaller, dimmer and further back the further from the front: a neighbour 0.82 and 0.8, the next 0.68 and
+      // 0.5, softly blurred; each shrinks toward the front, so the one before keeps its foot in view as the sliver.
+      // Dimmed by brightness more than see-through, so a neighbour still reads as a card on a phone's carbon
       const near = Math.min(k, 1);
       const far = Math.max(Math.min(k, 2) - 1, 0);
       el.style.transformOrigin = d < 0 ? "center bottom" : "center top";
       el.style.transform = still ? "" : `scale(${1 - near * 0.18 - far * 0.14})`;
-      el.style.opacity = String(1 - near * 0.55 - far * 0.15);
-      el.style.filter = still ? "" : `brightness(${1 - near * 0.25}) blur(${far * 1.5}px)`;
+      el.style.opacity = String(1 - near * 0.2 - far * 0.3);
+      el.style.filter = still ? "" : `brightness(${1 - near * 0.35}) blur(${far * 1.5}px)`;
       if (Math.abs(d) < bestD) {
         bestD = Math.abs(d);
         best = i;
@@ -192,7 +193,6 @@
   }
   .item :global(.game-card) {
     border-radius: var(--r-lg);
-    background: var(--surface-1);
     backdrop-filter: none;
     box-shadow: 0 calc(24px * (1 - min(var(--k, 0), 1))) calc(48px * (1 - min(var(--k, 0), 1))) -10px rgb(0 0 0 / 0.7);
   }
@@ -201,7 +201,8 @@
   .item.front :global(.game-card) {
     overflow: hidden;
     background:
-      linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.01) 55%, transparent), var(--surface-1);
+      linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.01) 55%, transparent),
+      var(--card-fill, var(--surface-1));
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.12),
       0 24px 48px -10px rgb(0 0 0 / 0.7);

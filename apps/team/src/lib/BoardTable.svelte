@@ -56,7 +56,7 @@
               /><a class="team-link" href={teamHref(type.slug, r.teamId)}
                 >{teamName(r.teamId)}<Icon name="chevronRight" size={14} /></a
               ></span
-            >{#if r.teamId === champ}<span class="badge red champ-badge"><Icon name="trophy" size={13} />Champions</span
+            >{#if r.teamId === champ}<span class="badge champ-badge"><Icon name="trophy" size={13} />Champions</span
               >{/if}</td
           >
           <td>{r.p}</td><td>{r.w}</td><td>{r.d}</td><td>{r.l}</td>
@@ -134,8 +134,9 @@
     color: var(--fg-subtle);
     font-weight: 400;
   }
+  /* The leaders' places in bone, bold: the table's colour is the words, the club's red kept for what's on now */
   .top .pos {
-    color: var(--red-hot);
+    color: var(--fg);
     font-weight: 700;
   }
   .pts {

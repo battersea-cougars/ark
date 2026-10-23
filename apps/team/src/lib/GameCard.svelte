@@ -11,6 +11,7 @@
   import { PLAYERS } from "../demo/data";
   import { goesBy, nameOfTeam } from "./names";
   import Icon from "../app/shell/Icon.svelte";
+  import { myTeamIndex } from "./tournament-front";
 
   let {
     tournament,
@@ -45,6 +46,11 @@
   const upNext = $derived(
     g.status === "next" && !(tournament.games ?? []).some((x) => x.status === "next" && x.position < g.position),
   );
+  // Your team's in it: its You are next! is the club's red, the one other accent on the card than the match on now
+  const yours = $derived.by(() => {
+    const id = tournament.teams[myTeamIndex(tournament, me().id)]?.id;
+    return !!id && (g.homeTeamId === id || g.awayTeamId === id);
+  });
   // Played: who won it, for the stamp in the middle (a draw says so)
   const winner = $derived.by(() => {
     if (!done || g.homeGoals === null || g.awayGoals === null || g.homeGoals === g.awayGoals) return null;
@@ -63,9 +69,11 @@
   <GameHead {stage} {kanji} {playoff} {place} {scorer} opens={!live && !keeping}>
     {#snippet centre()}
       {#if live}<span class="chant">{type?.shortName ?? "Live"}!</span>
-      {:else if upNext}<span class="chant result next">{type?.slug === "kumite" ? "You are next!" : "Up next"}</span>
-      {:else if done && winner}<span class="chant result">{winner} wins</span>
-      {:else if done}<span class="chant result draw">Draw</span>{/if}
+      {:else if upNext}<span class="badge" class:red={yours}
+          >{#if yours}<Icon name="user" size={12} />{/if}{type?.slug === "kumite" ? "You are next!" : "Up next"}</span
+        >
+      {:else if done && winner}<span class="badge result"><Icon name="trophy" size={12} />{winner} wins</span>
+      {:else if done}<span class="badge result">Draw</span>{/if}
     {/snippet}
     {#snippet action()}
       {#if keeping}<span class="keeping" title="You're keeping score" aria-label="You're keeping score"
@@ -121,22 +129,16 @@
     background: currentColor;
     animation: pulse 1.4s var(--ease-in-out) infinite;
   }
-  /* Played: the result, the same stamp, still (no pulse), each in its accent: the winner in amber (gold), a draw in
-     violet; red stays the live game's. The card steps back so what's to come leads */
-  .result {
-    color: var(--tone-amber);
-    font-size: 1rem;
-    box-shadow: none;
+  /* Up next and the results: the app's quiet badge, words and an icon, no colour of their own (ADR 0084: colour is an
+     accent). The club's red is the match on now's, and your team's You are next! */
+  .badge {
+    gap: 0.3rem;
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .result::before {
-    display: none;
-  }
-  .result.draw {
-    color: var(--tone-violet);
-  }
-  /* The next to be played, in blue: not live yet, so still */
-  .result.next {
-    color: var(--tone-blue);
+  .badge.result {
+    color: var(--fg-body);
   }
   .keeping {
     display: inline-flex;
@@ -149,12 +151,30 @@
       padding: 0.25rem 0.55rem 0.18rem;
       font-size: 1rem;
     }
-    .result {
-      font-size: 0.85rem;
+    .badge {
+      max-width: 9.5rem;
+    }
+  }
+  /* A card reads as a card on any screen: its own fill, the page's carbon shut out (no see-through glass, which a
+     phone's frost tint left near the page's own black), a lit top edge, no border. Played, a step quieter, still
+     solid */
+  .game-card {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015) 60%, transparent), var(--card-fill);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
+    --card-fill: var(--surface-1);
+  }
+  /* A touch screen (a phone outdoors, at the rink): a step lighter, so the edge holds against the carbon */
+  @media (pointer: coarse) {
+    .game-card {
+      --card-fill: color-mix(in srgb, var(--surface-2) 70%, var(--surface-1));
     }
   }
   .game-card.done {
-    background: color-mix(in srgb, var(--panel-bg) 45%, transparent);
+    background: var(--card-fill);
+    box-shadow: none;
   }
   @media (hover: hover) {
     .game-card:hover {
