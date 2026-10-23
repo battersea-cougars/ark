@@ -10,7 +10,7 @@
   aria-label="{w} won, {d} drawn, {l} lost{pts === undefined ? '' : `, ${pts} ${pts === 1 ? 'point' : 'points'}`}"
   ><span aria-hidden="true"
     >{w}<abbr>W</abbr>&#8201;{d}<abbr>D</abbr>&#8201;{l}<abbr>L</abbr>{#if pts !== undefined}<span class="sep">·</span
-      ><b>{pts}</b><abbr>Pts</abbr>{/if}</span
+      ><span class="pts"><b>{pts}</b><abbr>Pts</abbr></span>{/if}</span
   ></span
 >
 
@@ -40,14 +40,18 @@
     color: var(--fg);
     font-weight: 700;
   }
-  /* A phone: a match card's side is narrow, so the letters sit closer and the line keeps its points */
+  /* A phone: a match card's side is too narrow for the whole line, so the points go under the record, on every card
+     alike (never cut off) */
   @media (max-width: 600px) {
     abbr {
       margin-left: 0.05em;
       letter-spacing: 0.02em;
     }
     .sep {
-      padding: 0 0.25em;
+      display: none;
+    }
+    .pts {
+      display: block;
     }
   }
 </style>
