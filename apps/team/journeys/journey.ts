@@ -6,13 +6,16 @@
 // every broken check, not just the first. A known bug is `knownBug`: it should fail, and says so when it doesn't.
 // journeys.report.ts turns the failures into one summary for the run.
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import AxeBuilder from "@axe-core/playwright";
 import { test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 
 const root = join(import.meta.dirname, "../../..");
 const out = process.env.JOURNEY_OUT ?? join(root, ".journeys");
 const port = process.env.JOURNEY_PORT;
+/** `npm run journeys -- --a11y`: axe looks at every person's page at the end of every stage (a11y.md). */
+const a11y = process.env.JOURNEY_A11Y === "1";
 
 /** Someone in the story: who they are in it, signed in in a browser of their own. */
 export interface Person {
@@ -35,8 +38,13 @@ export async function signIn(browser: Browser, role: string, name: string, email
   });
   const context = await browser.newContext({ storageState: state });
   const page = await context.newPage();
-  return { role: `${role} (${name.split(" ")[0]})`, name, email, context, page };
+  const person = { role: `${role} (${name.split(" ")[0]})`, name, email, context, page };
+  people.push(person);
+  return person;
 }
+
+/** Everyone signed in so far, for the accessibility look (their page may have closed since). */
+const people: Person[] = [];
 
 /**
  * The API as a member, without a browser: only to get the story to a step that isn't the one under test (the other
@@ -67,7 +75,34 @@ export function asMember(email: string) {
 const failed: string[] = [];
 
 /** A stage of the story ("Sign-up opens"), its steps under it. */
-export const stage = (title: string, body: () => Promise<void>) => test.step(title, body);
+export const stage = (title: string, body: () => Promise<void>) =>
+  test.step(title, async () => {
+    await body();
+    if (a11y) await lookForBarriers(title);
+  });
+
+/** Axe over each person's open page, the WCAG 2.1 AA rules: what it finds goes in a11y.md, never fails the run. */
+async function lookForBarriers(stageTitle: string) {
+  for (const who of people) {
+    if (who.page.isClosed()) continue;
+    const { violations } = await new AxeBuilder({ page: who.page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .analyze()
+      .catch(() => ({ violations: [] }));
+    const path = new URL(who.page.url()).pathname;
+    const found = violations.map(
+      (v) =>
+        `  - ${v.id} (${v.impact}, ${v.nodes.length}): ${v.nodes
+          .map((n) => n.target.join(" "))
+          .slice(0, 3)
+          .join("; ")}`,
+    );
+    appendFileSync(
+      join(out, "a11y.md"),
+      `- ${stageTitle} · ${who.role} on ${path}: ${found.length ? `\n${found.join("\n")}` : "nothing found"}\n`,
+    );
+  }
+}
 
 /** Something a person does that the story needs: if it fails, the journey stops here. */
 export const does = (who: Person, what: string, body: () => Promise<void>) => test.step(`${who.role}: ${what}`, body);

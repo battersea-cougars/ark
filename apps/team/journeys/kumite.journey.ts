@@ -59,7 +59,7 @@ test("The Kumite night", async ({ browser }) => {
         await open(ada);
         const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
         await ada.page.getByRole("button", { name: "Next Kumite" }).click();
-        await wizard.getByRole("button", { name: "Day", exact: true }).click();
+        await wizard.getByRole("button", { name: /^Day:/ }).click();
         await ada.page.getByRole("button", { name: todayLabel() }).click();
         await wizard.getByRole("button", { name: "Next · Sign-up" }).click();
         await expect(wizard.getByRole("button", { name: "Sign-up opens" })).toHaveText(todayLabel());

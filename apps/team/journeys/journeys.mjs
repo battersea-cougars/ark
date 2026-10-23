@@ -4,6 +4,7 @@
 //   npm run journeys                     fresh D1, the team app started privately, every journey, the app stopped
 //   npm run journeys -- --file-issue     the same, and a run with failures files one GitHub issue (CI always does)
 //   npm run journeys -- --keep           leave the app running after (prints its port), to look around
+//   npm run journeys -- --a11y           axe over everyone's page at the end of each stage, into .journeys/a11y.md
 //   npm run journeys -- --headed         anything else goes to Playwright (--headed, --debug, --ui)
 //
 // The database is this checkout's own (`npm run app -- --own-db`), wiped and made again from db/schema.sql, the club
@@ -24,6 +25,7 @@ const argv = process.argv.slice(2);
 const own = (flag) => (argv.includes(flag) ? (argv.splice(argv.indexOf(flag), 1), true) : false);
 const fileIssue = own("--file-issue") || ci;
 const keep = own("--keep");
+const a11y = own("--a11y");
 const out = join(root, ".journeys");
 const summary = join(out, "summary.md");
 
@@ -94,13 +96,15 @@ console.log(`journeys: the team app on http://localhost:${port}/`);
 // 3. The journeys
 mkdirSync(out, { recursive: true });
 rmSync(summary, { force: true });
+rmSync(join(out, "a11y.md"), { force: true });
 const t1 = Date.now();
 const pw = run("npx", ["playwright", "test", "-c", join(import.meta.dirname, "journeys.config.ts"), ...argv], {
   stdio: "inherit",
   mayFail: true,
-  env: { ...process.env, JOURNEY_PORT: port, JOURNEY_OUT: out },
+  env: { ...process.env, JOURNEY_PORT: port, JOURNEY_OUT: out, JOURNEY_A11Y: a11y ? "1" : "" },
 });
 console.log(`journeys: ran in ${secs(t1)} (exit ${pw.status})`);
+if (a11y) console.log(`journeys: what axe found, stage by stage: ${join(out, "a11y.md")}`);
 
 // 4. Stopped, unless asked to keep it; in CI the switch it started goes too
 if (keep) console.log(`journeys: the team app stays up on http://localhost:${port}/ (npm run app stop team)`);
