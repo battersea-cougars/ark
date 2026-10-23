@@ -54,6 +54,21 @@ describe("who gets their own email outside production", () => {
     expect((await mailSetup({ ...w.env, SITE_ENV: "production" })).allow).toBeUndefined();
   });
 
+  // The admins were found by the role's name, so a custom role that can do everything, or a renamed Admin, got
+  // nothing here and couldn't sign in by email code (#44)
+  it("anyone whose role can do everything gets their own email here, whatever the role is called (#44)", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const env = { ...w.env, SITE_ENV: "dev" };
+    expect(
+      (await dana.call("POST", "/api/roles", { name: "Boss", description: "", actions: ["manage:all"] })).status,
+    ).toBe(201);
+    const mo = (await dana.call("GET", "/api/bootstrap")).body.members.find(
+      (m: { name: string }) => m.name === "Mo Member",
+    );
+    expect((await dana.call("PUT", `/api/members/${mo.id}`, { ...mo, roles: ["Boss", "Member"] })).status).toBe(200);
+    expect([...((await mailSetup(env)).allow ?? [])].sort()).toEqual(["dana@example.com", "mo@example.com"]);
+  });
+
   it("doesn't exist in production", async () => {
     const dana = await w.signedIn("dana@example.com");
     w.env.SITE_ENV = "production";

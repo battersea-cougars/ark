@@ -159,12 +159,13 @@ export const mailConfig = async (env: AuthEnv): Promise<MailConfig> => ({
 export async function mailSetup(env: AuthEnv): Promise<MailConfig> {
   const config = { ...(await mailConfig(env)), club: await clubContact(env.SITE_ENV) };
   if (isProduction(env.SITE_ENV)) return config;
-  // The admins always (so they can sign in here and open Dev tools), and whoever Dev tools lists
+  // Whoever can do everything always (so they can sign in here and open Dev tools), by what their roles hold, not
+  // what they're called (ADR 0024); and whoever Dev tools lists
   const rows = await all<{ email: string }>(
     env.DB,
     `SELECT lower(m.email) AS email FROM members m
-       JOIN member_roles mr ON mr.member_id = m.id JOIN roles r ON r.id = mr.role_id
-      WHERE r.name = 'Admin' AND m.status = 'active' AND m.email IS NOT NULL
+       JOIN member_roles mr ON mr.member_id = m.id JOIN role_actions ra ON ra.role_id = mr.role_id
+      WHERE ra.action = 'manage:all' AND m.status = 'active' AND m.email IS NOT NULL
      UNION SELECT email FROM dev_mail_recipients`,
   );
   return { ...config, allow: rows.map((r) => r.email) };

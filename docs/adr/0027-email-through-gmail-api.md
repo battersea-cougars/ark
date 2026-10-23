@@ -73,8 +73,9 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - Anywhere else, an email goes to its real recipients only when **every one** of them is allowed. Otherwise the whole
   email goes to one safe address: `MAIL_SAFE_TO`, or the sending account itself (dev sends to the developer account). Either way
   the subject names the environment and the real recipients, and `X-Cougars-Original-To` carries them.
-- Allowed outside production, for the team app's emails only: every active Admin (so they can sign in and get to Dev
-  tools), plus the addresses in `dev_mail_recipients`. The website's emails still go to the safe inbox only.
+- Allowed outside production, for the team app's emails only: everyone active who can do everything (a role holding
+  `manage:all`, whatever it's called, ADR 0024; so they can sign in and get to Dev tools), plus the addresses in
+  `dev_mail_recipients`. The website's emails still go to the safe inbox only.
 - A sign-in code that goes to its member outside production also goes to the safe inbox as a copy, just in case
   (one already sent there isn't sent twice).
 - The club's inbox is never allowed, and is refused as the safe address and as the sending account outside
@@ -148,3 +149,5 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   `GMAIL_CLIENT_SECRET`). The deployed token is made again with the Web client before the Desktop one is deleted.
 - 2026-10-23: Home's "Email has stopped" comes with the club's first read instead of a request after Home opens, so
   nothing moves when it arrives (#148); recording a change to the failure, or a reconnect, moves the data version on.
+- 2026-10-23: Outside production, "the admins" who get their own email are everyone whose roles hold `manage:all`,
+  not members of the role named Admin, so a custom or renamed role that can do everything can sign in on dev too (#44).
