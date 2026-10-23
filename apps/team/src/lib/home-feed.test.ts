@@ -131,7 +131,7 @@ describe("Home's feed", () => {
     expect(feed(t, { agenda: [closes] }).now).toEqual([]);
     // A one-off tournament (not the next of a series Home asks about) still gets its reminder
     expect(feed(t, { agenda: [closes], upcoming: [] }).now).toMatchObject([
-      { text: "Sign-up for The Cougars Kumite closes", sub: "Are you in?", on: { at: closes.startsAt } },
+      { text: "Sign-up for The Cougars Kumite closes", sub: "Accept the invitation", on: { at: closes.startsAt } },
     ]);
   });
 
@@ -269,9 +269,9 @@ describe("what's coming up", () => {
       expect(row(oneOff({ standing: "waitlist" })).standing).toEqual({ is: "waitlist" });
     });
 
-    it("not answered yet: still asked, and still counted", () => {
+    it("not answered yet: still asked (the Kumite: to accept its invitation), and still counted", () => {
       const r = row(tournament({ asking: true }));
-      expect(r.sub).toBe("10am · Are you in?");
+      expect(r.sub).toBe("10am · Accept the invitation");
       expect(r.standing).toBeUndefined();
       expect(r.count).toEqual({ going: 16 });
     });

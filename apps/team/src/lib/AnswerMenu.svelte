@@ -15,6 +15,9 @@
   import { nameOfTeam } from "./names";
   import { pick } from "./quips";
   import { untrack } from "svelte";
+  import { invitationOnly } from "./motif";
+  import { fighterLabel, fighterOf } from "./fighters";
+  import { typeById } from "../demo/schedule.svelte";
 
   let {
     tournament: t,
@@ -26,7 +29,17 @@
   const inIt = $derived(t.going.includes(id) || t.waitlist.includes(id));
   const open = $derived(signupOpen(t, londonToday()));
   const full = $derived(t.capacity != null && t.going.length >= t.capacity);
-  const label = $derived(t.going.includes(id) ? "You're in" : t.waitlist.includes(id) ? "Waiting" : "You're out");
+  // The Kumite's by invitation: your fighter's number, a reserve's, or Declined, as the header's badge says it
+  const fighter = $derived(invitationOnly(typeById(t.typeId)) ? fighterOf(t, id) : null);
+  const label = $derived(
+    fighter
+      ? fighterLabel(fighter)
+      : t.going.includes(id)
+        ? "You're in"
+        : t.waitlist.includes(id)
+          ? "Waiting"
+          : "You're out",
+  );
   // A line for it, picked once (Settings → Quips: In or Out)
   const quip = untrack(() => pick(db.quips.filter((q) => q.kind === (inIt ? "in" : "out") && q.text.trim()))?.text);
   // Your team, if you're on one: off it while the draft's open; after that (or a captain), it's an admin's to change

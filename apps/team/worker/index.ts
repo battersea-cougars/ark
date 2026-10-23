@@ -9,6 +9,7 @@ import { checkUsage } from "./settings/usage";
 import { rebuildWebsite } from "./website/website";
 import { drainPush, SEND_AT_ONCE } from "./push/push";
 import { announceOpenSignups } from "./training/training.signup";
+import { announceOpenTournaments } from "./tournaments/signup";
 import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
 import { flushSanityRequests, hasPendingSanityRequests } from "@cougars/shared/sanity-requests";
@@ -88,10 +89,11 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
       if (now.getUTCMinutes() % 5) await task("push.drain", () => drainPush(env, now, SEND_AT_ONCE));
       return;
     }
-    // Every run, five-minutely and hourly: a training night whose sign-up has opened is told to members once (ADR
-    // 0030), queued for the drain straight after; then the next batch of notifications a club-wide send left waiting
+    // Every run, five-minutely and hourly: a training night or a tournament whose sign-up has opened today is told to
+    // members once (ADR 0030, 0074), queued for the drain straight after; then the next batch of notifications a club-wide send left waiting
     // (ADR 0108)
     await task("signup.open", () => announceOpenSignups(env, now));
+    await task("signup.open.tournament", () => announceOpenTournaments(env, now));
     await task("push.drain", () => drainPush(env, now));
     // Every five minutes (wrangler.jsonc triggers): a wanted website rebuild, once it's quiet (ADR 0100)
     // and the next few dues reminders an admin sent still queued (ADR 0007), so a send to the whole club goes within

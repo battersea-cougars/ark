@@ -1,5 +1,4 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
-import { places } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { revealAward, setWinners } from "./awards";
@@ -7,7 +6,7 @@ import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
 import { closeSignup } from "./signup";
-import { awardsOut, draftPaused } from "../push/push.notices";
+import { awardsOut, draftPaused, tournamentMade, tournamentSaved } from "../push/push.notices";
 import { londonToday } from "../../src/lib/dates";
 import { body, json } from "../api/api.http";
 import {
@@ -61,6 +60,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments", "charges", "credits", "payments", "members"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
+    // Made with its sign-up open: everyone hears it
+    notify: tournamentMade,
     handle: async (c) => json(await createTournament(c.env.DB, await body(c.request)), 201),
   },
   {
@@ -77,8 +78,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments", "charges", "credits", "payments", "members"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
-    // A limit raised lets the first waiting in, and they hear it
-    notify: places,
+    // A limit raised lets the first waiting in, and they hear it; a sign-up opened by hand is told to everyone
+    notify: tournamentSaved,
     handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {

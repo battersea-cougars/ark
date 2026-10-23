@@ -360,3 +360,13 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   opened, and every later save of the tournament (starting a match moves it to now) was refused. An early close is now
   its own record, `signup_closed_at`, the dates left alone; Back to Sign-up open clears it; and a save checks the
   sign-up dates against each other only when it changes them, so a tournament already stored that way still saves.
+- 2026-10-23: The Kumite's sign-up is an invitation, as an object (Bloodsport's Kumite is invitation-only): a dark card
+  sealed with the club's red wax (招), "You've been invited to the Kumite", the day, time and place, Accept or Decline
+  (the same calls as In and Out). Accepting breaks the seal and the card becomes your fighter's pass: Fighter No. 07
+  (your place in the sign-up order), your name in the poster type, 組手, the day, Withdraw with a confirm; on the
+  waitlist a reserve's pass; declined, a quiet line and Accept. Every face takes the same space. Who's in is The
+  fighters, numbered, with Reserves and Declined; the header's answer says Fighter No. 7, Reserve No. 3 or Declined;
+  Home asks "You've been invited to the Kumite" / "Accept the invitation". A tournament's sign-up opening is now told
+  to members once (topic `places`): on its opening day by the cron, or as an admin opens it by hand (or makes it open),
+  marked `signup_told_at`; the Kumite's reads "An invitation has arrived", "The Cougars Kumite, Fri 23 Oct.". Only the
+  Kumite (lib/motif.ts invitationOnly); every other tournament and Friday stay plain.

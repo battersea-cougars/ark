@@ -18,7 +18,8 @@
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
   import { countdownOf, editionState, editionWhen } from "./edition";
   import { stageBadge, statusOf, type Status } from "./tournament-front";
-  import { kanjiFor, type MotifKey } from "./motif";
+  import { invitationOnly, kanjiFor, type MotifKey } from "./motif";
+  import { fighterLabel, fighterOf } from "./fighters";
   import Kanji from "./Kanji.svelte";
   import type { IconName } from "../app/shell/icons";
   import type { RulesTopic } from "./format-rules";
@@ -115,6 +116,13 @@
   const answered = $derived.by(() => {
     if (!tournament || !track || signingUp) return null;
     const id = me().id;
+    // The Kumite's by invitation: your fighter's number, a reserve's, or Declined (lib/fighters.ts)
+    const f = invitationOnly(type) ? fighterOf(tournament, id) : null;
+    if (f?.is === "fighter")
+      return { label: fighterLabel(f), short: `No. ${f.no}`, tone: "in", icon: "check" as const };
+    if (f?.is === "reserve")
+      return { label: fighterLabel(f), short: `Res. ${f.no}`, tone: "wait", icon: "clock" as const };
+    if (f) return { label: "Declined", short: "Declined", tone: "out", icon: "x" as const };
     if (tournament.going.includes(id)) return { label: "You're in", short: "In", tone: "in", icon: "check" as const };
     if (tournament.waitlist.includes(id))
       return { label: "Waiting", short: "Waiting", tone: "wait", icon: "clock" as const };

@@ -237,6 +237,8 @@ CREATE TABLE tournaments (
   -- An admin closed sign-up early (ADR 0074): when, its dates left as they were; null until then, and again once it's
   -- stepped back to Sign-up open
   signup_closed_at TEXT,
+  -- When members were told its sign-up opened (ADR 0108): once, on its day or when an admin opened it by hand
+  signup_told_at TEXT,
   draft_on TEXT,
   -- The captains' draft (ADR 0060): none until an admin opens it, then open, then closed (teams locked)
   draft_state TEXT NOT NULL DEFAULT 'none',

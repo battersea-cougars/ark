@@ -10,6 +10,7 @@ import { draftTurn } from "./draft";
 import { roomPath } from "./draft-room";
 import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
+import { invitationOnly } from "./motif";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
 
 export type FeedIcon = "draft" | "teams" | "pound" | "mail";
@@ -151,6 +152,19 @@ export const UPCOMING_MAX = 7;
 const nth = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
 
 /** The feed: what needs you now (your move first), what's coming up, then the admins' lines. */
+/** Asking you to answer: the Kumite's an invitation to accept (invitationOnly), the rest ask plainly. */
+const asked = (invited: boolean) => (invited ? "Accept the invitation" : "Are you in?");
+
+/** The hero's heading for a tournament: while it's yours to answer, the Kumite says you've been invited ("You've been
+ * invited to the Kumite"), another asks ("Are you in for the Cup?"); else just its name. */
+export function tournamentTitle(type: Pick<TournamentType, "slug" | "shortName"> | undefined, asking: boolean) {
+  if (!type) return asking ? "Are you in?" : "Up next";
+  if (!asking) return `The ${type.shortName}`;
+  return invitationOnly(type)
+    ? `You've been invited to the ${type.shortName}`
+    : `Are you in for the ${type.shortName}?`;
+}
+
 export function homeFeed(input: FeedInput): Feed {
   const rows = [...liveDrafts(input), ...draftNews(input), ...agendaNudges(input)].sort(
     (a, b) => Number(b.hot) - Number(a.hot),
@@ -264,7 +278,7 @@ export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lea
 
 // Coming up: each training's and each tournament series' next one, the club's events in the next few weeks; the lead
 // isn't repeated (for a fight, its tournament). Dated ones by date, a season-only tournament after them; capped
-function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, fights: Fight[]): UpcomingRow[] {
+function upcomingRows({ events = [], today, types }: FeedInput, lead: Lead | null, fights: Fight[]): UpcomingRow[] {
   const shown = !lead
     ? []
     : lead.kind === "event"
@@ -292,13 +306,16 @@ function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, figh
   }
   // A tournament you've a fight in says when it is
   const fightTimes = new Map(fights.map((f) => [tournamentKey(f.t), formatTime(fightAt(f))]));
-  return picked.slice(0, UPCOMING_MAX).map((e) => upcomingRow(e, today, fightTimes.get(e.key)));
+  const invited = (e: UpcomingEvent) =>
+    e.kind === "tournament" && invitationOnly(types.find((y) => e.filter === `type:${y.id}`));
+  return picked.slice(0, UPCOMING_MAX).map((e) => upcomingRow(e, today, fightTimes.get(e.key), invited(e)));
 }
 
 // How its sign-up stands: "Are you in?" only when you can answer now (the sign-up open, by the same rules as the
 // event's own page: lib/signup.ts, worked out as Home reads the schedule); else when it opens, that it's closed, or
-// just where. Where you stand is a status of its own, and how many are in, on any that takes sign-ups
-function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingRow {
+// just where. The Kumite's is an invitation to accept (lib/motif.ts invitationOnly). Where you stand is a status of its
+// own, and how many are in, on any that takes sign-ups
+function upcomingRow(e: UpcomingEvent, today: string, fight?: string, invited = false): UpcomingRow {
   const time = e.timeText || (e.season ? "" : timeRange(e.startsAt, e.endsAt));
   const opensOn = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
   const stands = !e.cancelled && !fight && e.standing;
@@ -315,7 +332,7 @@ function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingR
             : e.signupClosed
               ? "Sign-up closed"
               : e.asking
-                ? "Are you in?"
+                ? asked(invited)
                 : e.venue;
   const sub = [e.dateTbc ? "" : time, how].filter(Boolean).join(" · ");
   const on = { at: e.startsAt, season: e.season, tbc: e.dateTbc };
@@ -349,7 +366,7 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
             href: `/tournaments/${type.slug}`,
             text: `Sign-up for ${t.name} closes`,
             on,
-            sub: "Are you in?",
+            sub: asked(invitationOnly(type)),
             hot: false,
             icon: "draft",
           },

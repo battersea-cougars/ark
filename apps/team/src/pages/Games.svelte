@@ -3,8 +3,9 @@
   // The header (its day, its place on the map, where everyone goes after), then the track of its statuses (Sign-up
   // open, Draft open, Teams set, Fixtures set, KUMITE!; teams that enter skip the draft), then the status's view, each
   // the same shape: its one action card for whoever runs it (members see the card without the button, or nothing),
-  // then what it's about. Sign-up: are you in, and who's in. Draft open: the draft, for its captains and whoever runs
-  // it; everyone else is fighting blind. Teams set: every team, in full. Fixtures set: the matches, a list. KUMITE!:
+  // then what it's about. Sign-up: are you in (the Kumite's an invitation, then your fighter's pass), and who's in (the
+  // Kumite's fighters). Draft open: the draft, for its captains and whoever runs it; everyone else is fighting blind.
+  // Teams set: every team, in full. Fixtures set: the matches, a list. KUMITE!:
   // your turn to keep score, the matches as a carousel with the one on now in front, where everyone goes after, the
   // board. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
   // revealed one at a time, the final table, the results; at 06:00 the next morning it's history. A status it's been
@@ -26,6 +27,7 @@
   } from "../demo/schedule.svelte";
   import SignUpLine from "../lib/SignUpLine.svelte";
   import EventCard from "../lib/EventCard.svelte";
+  import KumiteInvite from "../lib/KumiteInvite.svelte";
   import { closeSignup } from "../app/backend.svelte";
   import { signupOpen } from "../lib/signup";
   import Kanji from "../lib/Kanji.svelte";
@@ -104,7 +106,8 @@
   const status = $derived(tournament ? statusOf(tournament, today) : "signup");
   const view = $derived(tournament ? viewOf(tournament, today, rest) : "signup");
   const drafted = $derived(tournament?.kind === "draft");
-  // Sign-up open now: the Friday card's question, Are you in? (lib/EventCard), and an admin's Close sign-up
+  // Sign-up open now: the Friday card's question, Are you in? (lib/EventCard), or the Kumite's invitation to accept
+  // (lib/KumiteInvite), and an admin's Close sign-up
   const open = $derived(!!tournament && status === "signup" && signupOpen(tournament, today));
   let closing = $state(false);
   async function close() {
@@ -250,7 +253,10 @@
           {#if pane === "signup"}
             <!-- Sign-up open, as Friday's training says it (lib/EventCard): are you in or out, your place, then who's
                  in. Not open yet, or a status gone by: a line. Then who's in -->
-            {#if open}
+            {#if open && kumite && can(perms, "signup:Event")}
+              <!-- The Kumite's is an invitation (lib/KumiteInvite): sealed till you answer, then your fighter's pass -->
+              <KumiteInvite {tournament} {type} />
+            {:else if open}
               <EventCard
                 event={tournamentBookable(tournament)}
                 canSignUp={can(perms, "signup:Event")}

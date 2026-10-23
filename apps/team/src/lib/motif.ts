@@ -20,6 +20,8 @@ export const KUMITE_KANJI = {
   draw: "籤",
   open: "開",
   sealed: "決",
+  /** The invitation's wax seal: "invite". Its sign-up is an invitation (invitationOnly). */
+  invite: "招",
   /** Blood, martial, fist: kept for the draft and the board. */
   blood: "血",
   martial: "武",
@@ -31,3 +33,7 @@ export type MotifKey = keyof typeof KUMITE_KANJI;
 /** The kanji for this series and part of the page, or nothing for a series without the motif. */
 export const kanjiFor = (type: Pick<TournamentType, "slug"> | undefined, key: MotifKey) =>
   type?.slug === "kumite" ? KUMITE_KANJI[key] : "";
+
+/** The Kumite is invitation-only, as in Bloodsport: its sign-up is an invitation you accept or decline, its players
+ * are fighters with a number (lib/KumiteInvite), and Home and its notification say so. Every other series asks plainly. */
+export const invitationOnly = (type: Pick<TournamentType, "slug"> | undefined) => type?.slug === "kumite";

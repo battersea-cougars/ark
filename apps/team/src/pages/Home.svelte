@@ -23,6 +23,7 @@
   import {
     homeFeed,
     owedNotice,
+    tournamentTitle,
     whenSaid,
     type Fight,
     type Lead,
@@ -444,10 +445,7 @@
       // Asked only when you can answer now (not before its sign-up opens)
       return answered || !ev.asking ? when[0].toUpperCase() + when.slice(1) : `Are you in ${when}?`;
     }
-    if (ev.kind === "tournament") {
-      const name = typeOf(leadEvent?.entries as Tournament)?.shortName;
-      return name ? (ev.asking ? `Are you in for the ${name}?` : `The ${name}`) : ev.asking ? "Are you in?" : "Up next";
-    }
+    if (ev.kind === "tournament") return tournamentTitle(typeOf(leadEvent?.entries as Tournament), ev.asking);
     return ev.asking ? "Are you in?" : "Up next";
   };
 

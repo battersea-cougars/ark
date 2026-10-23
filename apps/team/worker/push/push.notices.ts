@@ -7,6 +7,7 @@ import { TABLES, aheadIn, type EntryKind } from "../entries/entries";
 import type { Notice } from "./push";
 import { announcementSummary } from "../announcements/announcements";
 import { nth } from "../../src/lib/draft";
+import { markTold, signupOpenNotice } from "../tournaments/signup";
 
 /** A training night as a notification names it (its day), and where it is in the app. */
 async function sessionOf(db: D1Database, sessionId: number) {
@@ -310,3 +311,26 @@ export const awardsOut: Notify<number | undefined> = {
     ];
   },
 };
+
+/**
+ * A tournament saved (its editor's Save): a limit raised lets the first waiting in, and they hear it (places); and a
+ * sign-up an admin has just opened by hand (status planned to open) is told to everyone, the Kumite's as an invitation
+ * (tournaments/signup.ts signupOpenNotice). Only the first time it opens: whichever tells it first, this or the cron on
+ * its opening day, marks it told.
+ */
+export const tournamentSaved: Notify<string | undefined> = {
+  before: async (c) =>
+    (await first<{ status: string }>(c.env.DB, "SELECT status FROM tournaments WHERE id = ?", [id(c)]))?.status,
+  after: async (c, before, reply) => [
+    ...(await places.after(c, undefined, reply)),
+    ...(before === "planned" ? await openedByHand(c, id(c)) : []),
+  ],
+};
+
+/** A tournament made with its sign-up open: news, the same as one opened by hand. */
+export const tournamentMade: Notify = {
+  after: async (c, _, reply) => (typeof reply.id === "number" ? openedByHand(c, reply.id) : []),
+};
+
+const openedByHand = async (c: Ctx, tournamentId: number) =>
+  (await markTold(c.env.DB, "id = ? AND status = 'open'", [tournamentId], new Date(c.now))).map(signupOpenNotice);
