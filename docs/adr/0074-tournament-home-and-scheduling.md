@@ -98,13 +98,31 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   everyone goes after stay put; the one coming in slides from its side (less motion: at once). The choice holds while
   the app's open, never stored. Everyone sees it, once there are matches.
 - **Manage** (the gear) holds every job, a row each, never a menu inside the menu, in the order they're needed: the
-  step it's at first (at the draft: Undo the last pick, naming it; Add a player; Close it now, only to close early
-  leaving the rest out, the Seal card closing it once everyone's picked; Reset the draft, in red words; then Make the
-  fixtures again while none's played, and Confirm the awards once there are results), then Back a step, then for a
-  captain **Your team** (its name and crest) and, with whoever runs the draft, the **Pick log**, and the settings
-  last. A captain sees the gear for those even with nothing else in it. Back a step is the gear's alone, one on the
-  page, for whoever runs the draft too (the draft's own steps). The draft room's gear has the same draft items and
-  Back. A drawer opens only from a tap.
+  step it's at first, then Back a step and Move to…, then a captain's own, the settings last. Which jobs it offers
+  follow where the tournament stands, so nothing's there that makes no sense for it (`src/lib/manage.ts
+manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The day is split at the first match
+  started: before it, the fixtures; after it, live.
+
+  | Job                                    | Sign-up | Draft (order drawn, open) | Teams set | Fixtures | Live | After-party     | Who                           |
+  | -------------------------------------- | ------- | ------------------------- | --------- | -------- | ---- | --------------- | ----------------------------- |
+  | The draft's jobs (`lib/draft-jobs.ts`) | Add     | all                       |           |          |      |                 | as each job says              |
+  | Make the fixtures again                |         |                           |           | yes      |      |                 | admin                         |
+  | Confirm the awards / Change the awards |         |                           |           |          |      | till the reveal | admin, awards listed          |
+  | Play out the Kumite (dev only)         | yes     | yes                       | yes       | yes      | yes  |                 | admin                         |
+  | Back to …                              | closed  | yes                       | yes       | yes      | yes  | yes             | admin; runner the draft's     |
+  | Move to… (a captains' draft)           | yes     | yes                       | yes       | yes      | yes  | yes             | admin                         |
+  | Your team (its name and crest)         |         | yes                       | yes       | yes      |      |                 | its captain                   |
+  | Pick log (a captains' draft)           |         | open                      | yes       | yes      |      |                 | whoever runs it, or a captain |
+  | Settings                               | yes     | yes                       | yes       | yes      | yes  | yes             | admin                         |
+
+  The draft's jobs: Undo the last pick, naming it; Add a player; Close it now, only to close early leaving the rest
+  out, the Seal card closing it once everyone's picked; Reset the draft, in red words. The awards are confirmed once
+  every match is played, never before (Confirm till they're confirmed, then Change, till the reveal starts, which the
+  Worker refuses after). Your team and the Pick log are the draft's: once a match is on they go, the pick log staying
+  on the draft's own page (the track's Draft open). A captain sees the gear for those even with nothing else in it.
+  Back a step is the gear's alone, one on the page, for whoever runs the draft too (the draft's three steps). The
+  draft room's gear has the same draft items and Back. A drawer opens only from a tap.
+
 - **The after-party's view** (`lib/AfterParty.svelte`) is the pub after the film's last match: brass on the carbon
   (a warm glow in place of the red, award names in brass), the motif kept (賞 beside the awards, 優勝 beside the final
   table). **Two steps** (ADR [0044](0044-champions-and-awards.md)). First the awards are confirmed: everyone who played
@@ -562,3 +580,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   `lib/awards.ts`, the Worker's count and the page's alike; everyone's sent which awards were given, never who to).
 - 2026-10-23: The board is a switch above the fight card (Fight card / The board), in the cards' place, so there's
   one scroll; the ghost "The board" link under the carousel and the board under it are gone.
+- 2026-10-23: Manage follows the stage (`lib/manage.ts`, the table above, tested stage by stage and role by role):
+  live, it offered Confirm the awards (once any match had a result), Your team and the Pick log; now the awards are
+  the after-party's alone (Change the awards once confirmed, till the reveal), and Your team and the Pick log end when
+  the first match starts. Whoever runs the draft gets Back to Draft open from Teams set too, as the Worker allows.

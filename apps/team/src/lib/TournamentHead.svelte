@@ -16,7 +16,7 @@
   import PageHeader from "./PageHeader.svelte";
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
-  import { countdownOf, editionState, editionWhen, hasStarted } from "./edition";
+  import { countdownOf, editionWhen, hasStarted } from "./edition";
   import { stageBadge, statusOf, type Status } from "./tournament-front";
   import { invitationOnly, kanjiFor, type MotifKey } from "./motif";
   import { fighterLabel, fighterOf } from "./fighters";
@@ -41,8 +41,7 @@
   import { simulating } from "../app/backend.svelte";
   import DraftJobs from "./DraftJobs.svelte";
   import ManageList, { type ManageItem } from "./ManageList.svelte";
-  import { draftJobsOf } from "./draft-jobs";
-  import { BACK_SAYS, backFrom, backTo } from "./step-back";
+  import { manageItemsOf, type ManageEntry, type ManageKey } from "./manage";
   import InkStamp, { type InkTone } from "./InkStamp.svelte";
 
   let {
@@ -202,88 +201,43 @@
   let stepper = $state<ReturnType<typeof StepBack>>();
   let mover = $state<ReturnType<typeof MoveTo>>();
   let simulator = $state<ReturnType<typeof SimulateRest>>();
-  // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
-  // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
-  // sheet on a phone (where it's mostly done, at the rink), a side drawer on a desktop. The next one isn't here: it's
-  // the front page's own button once nothing's on (ADR 0074)
-  // The draft's own jobs (lib/draft-jobs.ts): items here, not a menu inside the menu
+  // What an admin does to this edition that has no tab of its own (ADR 0074), and a captain's own: which, by where
+  // it stands, is lib/manage.ts; here, what each does. A bottom sheet on a phone (where it's mostly done, at the
+  // rink), a side drawer on a desktop. The next one isn't here: it's the front page's own button once nothing's on
   const adds = $derived(offer && can(granted(), "update:Event"));
   let drafter = $state<ReturnType<typeof DraftJobs>>();
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const tools = $derived.by(() => {
-    if (!tournament) return [] as ManageItem[];
+    if (!tournament || !offer) return [] as ManageItem[];
     const t = tournament;
-    // What the step it's at needs, first: the draft's jobs; the fixtures made again (none played); the awards, once
-    // there are results
-    const now: ManageItem[] = draftJobsOf(
+    const entries = manageItemsOf(
       t,
-      { runs: runner, adds },
+      type,
+      { admin, runsDraft: runner, adds, me: me().id, simulator: SIMULATOR && simulating.id !== t.id },
+      londonToday(),
       {
         player: (id, name) => goesByOf(byId(id)) || name || "",
         team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
       },
-    ).map((j) => ({ ...j, run: () => drafter?.run(j.job) }));
-    const games = t.games ?? [];
-    if (admin && games.length && !games.some((g) => g.status !== "next" || g.homeGoals !== null))
-      now.push({
-        icon: "refresh",
-        label: "Make the fixtures again",
-        sub: "A new order of play, the same teams",
-        run: () => void makeFixtures(t.id),
-      });
-    if (admin && t.awards.length && games.some((g) => g.homeGoals !== null))
-      now.push({
-        icon: "medal",
-        label: "Confirm the awards",
-        sub: "The stats, the votes, the judges' call; then the reveal",
-        run: () => enterAwards(t.id),
-      });
-    // Dev only (ADR 0123): the rest played out at random, to the after-party, while there's something left to play
-    if (admin && SIMULATOR && editionState(t) !== "done" && simulating.id !== t.id)
-      now.push({
-        icon: "play",
-        label: `Play out the ${type.shortName}`,
-        sub: "Dev only: the rest at random, to the after-party",
-        run: () => simulator?.start(),
-      });
-    // Then back a step (ADR 0074): one item, whatever step it's at, while there's one before it; the draft's own
-    // steps for whoever runs it too
-    const from = backFrom(t, londonToday());
-    const back: ManageItem[] =
-      from && (admin || (runner && (from === "draft" || from === "order")))
-        ? [{ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() }]
-        : [];
-    // Or any status at once, back or on (lib/move-to.ts): the steps between done in one go; a captains' draft's
-    if (admin && t.kind === "draft")
-      back.push({
-        icon: "flag",
-        label: "Move to…",
-        sub: "Any status, back or on: the steps between done for you",
-        run: () => mover?.start(),
-      });
-    // Then yours: your team, the pick log; the settings last
-    const yours: ManageItem[] = [
-      ...(myTeam
-        ? [{ icon: "teams" as const, label: "Your team", sub: "Its name and crest", run: () => (lookOpen = true) }]
-        : []),
-      ...(picksSeen
-        ? [{ icon: "list" as const, label: "Pick log", sub: "Every pick, round by round", run: () => (logOpen = true) }]
-        : []),
-    ];
-    const settings: ManageItem[] = admin
-      ? [
-          {
-            icon: "settings",
-            label: `${type.shortName} settings`,
-            sub:
-              t.kind === "draft"
-                ? "Day, sign-up, captains and draft day, rules, awards"
-                : "Day, sign-up, teams, rules, awards",
-            run: () => editTournament(t.id),
-          },
-        ]
-      : [];
-    return [...now, ...back, ...yours, ...settings];
+    );
+    const RUN: Record<ManageKey, (e: ManageEntry) => void> = {
+      draftJob: (e) => e.job && drafter?.run(e.job),
+      remake: () => void makeFixtures(t.id),
+      awards: () => enterAwards(t.id),
+      simulate: () => simulator?.start(),
+      back: () => stepper?.start(),
+      move: () => mover?.start(),
+      team: () => (lookOpen = true),
+      log: () => (logOpen = true),
+      settings: () => editTournament(t.id),
+    };
+    return entries.map((e): ManageItem => ({
+      icon: e.icon,
+      label: e.label,
+      sub: e.sub,
+      danger: e.danger,
+      run: () => RUN[e.key](e),
+    }));
   });
   function go(action: () => void) {
     menuOpen = false;
