@@ -4,7 +4,7 @@
   // day, the time and the place, and Accept or Decline (the same calls as Friday's In and Out). Accepting breaks the
   // seal (the halves crack apart and fall; reduced motion: at once) and the card becomes your fighter's pass: your
   // number (your place in the sign-up order, lib/fighters.ts), your name on it like a poster, the Kumite's kanji, the
-  // day, and Withdraw (with a confirm). On the waitlist it's a reserve's pass; declined, a quiet line and Accept.
+  // day, Tell no one. across its middle, and Punk out on its stub (with a confirm). On the waitlist it's a reserve's pass; declined, a quiet line and Accept.
   // Every face is stacked in the one cell, so the card is always the size of the biggest and nothing moves.
   import type { Tournament, TournamentType } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
@@ -26,7 +26,7 @@
   // Viewing as someone is read-only (ADR 0024): their card, without the buttons doing anything
   const locked = $derived(impersonating());
   const fighter = $derived(fighterOf(t, id));
-  // Started (ADR 0074): your place is an admin's to change, so no Withdraw (the server refuses it too)
+  // Started (ADR 0074): your place is an admin's to change, so no Punk out (the server refuses it too)
   const started = $derived(hasStarted(t));
   const face = $derived(!fighter ? "sealed" : fighter.is === "declined" ? "declined" : "pass");
   const name = $derived(PLAYERS.find((p) => p.id === id)?.name ?? "");
@@ -106,7 +106,7 @@
   </div>
 
   <!-- The pass (or a reserve's): stamped ADMITTED as it turns over, the number, the name like a poster, the day;
-       Withdraw, with a confirm -->
+       Punk out on the stub, with a confirm -->
   <div class="face pass-face" class:on={face === "pass"} inert={face !== "pass"}>
     <span class="watermark" lang="ja" aria-hidden="true">{kanjiFor(type, "onTheMat")}</span>
     <div class="pass-top" bind:this={passAt} tabindex="-1">
@@ -135,16 +135,22 @@
           ><Icon name="pin" size={14} />{event.venue}</span
         >{/if}
     </p>
-    <div class="answers">
+    <!-- The middle of the pass: the one rule, as a poster -->
+    <div class="hush">
+      <strong class="hush-line">Tell no one.</strong>
+      <span class="hush-small">Not your mates. Not your mum. No one.</span>
+    </div>
+    <!-- Torn off along the dashes, like a ticket's stub: your way out -->
+    <div class="answers stub">
       {#if started}
         <span class="ask quiet">On the card. Ask an admin to change it.</span>
       {:else if confirming}
         <span class="ask">Give up your place?</span>
-        <button class="btn sm outline leave" disabled={locked} onclick={() => answer(false)}>Withdraw</button>
+        <button class="btn sm outline leave" disabled={locked} onclick={() => answer(false)}>Punk out</button>
         <button class="btn sm ghost" onclick={() => (confirming = false)}>Keep it</button>
       {:else}
-        <span class="ask quiet">{fighter?.is === "reserve" ? "A place comes up, it's yours." : "Tell no one."}</span>
-        <button class="btn sm ghost" disabled={locked} onclick={() => (confirming = true)}>Withdraw</button>
+        <span class="ask quiet">{fighter?.is === "reserve" ? "A place comes up, it's yours." : "Can't make it?"}</span>
+        <button class="btn sm ghost" disabled={locked} onclick={() => (confirming = true)}>Punk out</button>
       {/if}
     </div>
   </div>
@@ -265,6 +271,45 @@
   }
 
   /* ─── The pass ─── */
+  /* The one rule, filling the pass's middle: poster capitals, the ink a little worn (InkStamp's noise), askew */
+  .hush {
+    display: grid;
+    gap: var(--s-1);
+    margin-block: auto;
+    padding-block: var(--s-4);
+  }
+  .hush-line {
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 11vw, 4.25rem);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 0.9;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    transform: rotate(-2deg);
+    transform-origin: left center;
+    opacity: 0.92;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .hush-small {
+    color: var(--fg-subtle);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+  .reserve .hush-line {
+    color: var(--fg-muted);
+  }
+  /* The stub: torn off along a dashed line, the way out on it */
+  .stub {
+    align-self: stretch;
+    margin-top: 0;
+    padding-top: var(--s-3);
+    border-top: 1.5px dashed rgb(255 255 255 / 0.14);
+  }
   .pass-top {
     display: grid;
     gap: var(--s-1);
