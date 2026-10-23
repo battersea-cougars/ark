@@ -13,7 +13,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { londonToday, timeRange } from "./dates";
+  import { londonTime, londonToday, timeRange } from "./dates";
   import DateBlock from "./DateBlock.svelte";
   import { initials } from "./initials";
   import { phone } from "./viewport.svelte";
@@ -122,14 +122,20 @@
       .join(" · "),
   );
 
-  // How soon, in days on London's calendar: Today, Tomorrow, In 3 days, In 2 weeks
+  // How soon, in days on London's calendar: Today (Tonight, from 5pm), Tomorrow, In 3 days, In 2 weeks. Today's the
+  // loud one: the poster face in the club's red, never lost beside the time
   const soon = $derived.by(() => {
     if (event.dateTbc || event.cancelled) return "";
+    // On now, or Now (the after-party): that already says when
+    if (/\bnow$/i.test(event.timeText ?? "")) return "";
     const day = (iso: string) => Date.parse(`${iso}T12:00:00Z`) / 86_400_000;
     const n = Math.round(day(londonToday(new Date(event.startsAt))) - day(londonToday()));
     if (n < 0) return "";
-    return n === 0 ? "Today" : n === 1 ? "Tomorrow" : n < 14 ? `In ${n} days` : `In ${Math.floor(n / 7)} weeks`;
+    if (n === 0) return Number(londonTime(event.startsAt).slice(0, 2)) >= 17 ? "Tonight" : "Today";
+    return n === 1 ? "Tomorrow" : n < 14 ? `In ${n} days` : `In ${Math.floor(n / 7)} weeks`;
   });
+
+  const isToday = $derived(soon === "Today" || soon === "Tonight");
 
   // Not in yet, whether unanswered or out: In pulses once to ask, and again if you say out
   const beckoning = $derived(
@@ -269,14 +275,14 @@
       {#if glance}
         <!-- A phone: when goes under the title, so the card has no row just for it -->
         <p class="when phone-when">
-          <span class="time num">{hours}</span>{#if soon}<span class="soon">{soon}</span>{/if}
+          <span class="time num">{hours}</span>{#if soon}<span class="soon" class:now={isToday}>{soon}</span>{/if}
           {#if links}<span class="links">{@render links()}</span>{/if}
         </p>
       {:else}
         <p class="when">
           <span class="time num">{hours}</span>
           {#if place && event.venue}<span class="venue"><Icon name="pin" size={13} />{event.venue}</span>{/if}
-          {#if soon}<span class="soon">{soon}</span>{/if}
+          {#if soon}<span class="soon" class:now={isToday}>{soon}</span>{/if}
         </p>
       {/if}
     </div>
@@ -289,7 +295,7 @@
       {:else if glance}
         <!-- Home's lead: when, on the right (under the title on a phone) -->
         <span class="time num">{hours}</span>
-        {#if soon}<span class="soon">{soon}</span>{/if}
+        {#if soon}<span class="soon" class:now={isToday}>{soon}</span>{/if}
       {:else if event.signup}
         {#if inIt}<span class="badge green num">You're in · number {queue(entries.going).indexOf(id) + 1}</span>
         {:else if waiting}<span class="badge amber num"
@@ -543,6 +549,16 @@
     font-size: var(--text-md);
     font-weight: 500;
     white-space: nowrap;
+  }
+  /* Today: the poster's italic capitals in the club's red, the loudest word on the card */
+  .soon.now {
+    color: var(--red);
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-style: italic;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
   }
   .reply {
     display: flex;
@@ -857,8 +873,8 @@
     .glance .phone-when .time {
       font-size: var(--text-sm);
     }
-    /* No room for how soon beside the icons: the date says it */
-    .glance .phone-when .soon {
+    /* No room for how soon beside the icons: the date says it; but not today's, which always shows */
+    .glance .phone-when .soon:not(.now) {
       display: none;
     }
     .glance .phone-when .links {
