@@ -3,6 +3,7 @@
   // captain and every player with their position (the pick quietly beside them), a team with no goalie said so, and
   // its record once there are results; yours first and marked. Each a card that opens its own page (TournamentTeam),
   // where its captain (or an admin) edits it.
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
@@ -55,7 +56,7 @@
               key: `c${t.captainMemberId ?? t.captainName}`,
               id: t.captainMemberId,
               name: cap ? goesByOf(cap) : t.captainName,
-              position: cap?.position ?? "",
+              position: cap?.position,
               captain: true,
               pick: null as number | null,
             },
@@ -67,7 +68,7 @@
           key: `p${p.memberId ?? p.name}${k}`,
           id: p.memberId,
           name: m ? goesByOf(m) : p.name,
-          position: m?.position ?? "",
+          position: m?.position,
           captain: false,
           pick: typeof p.pick === "number" ? p.pick : null,
         };
@@ -131,7 +132,7 @@
               <span class="who"
                 >{p.name}{#if p.id === me().id}<small>you</small>{/if}</span
               >
-              <span class="pos" class:g={p.position === "G"}>{p.position}</span>
+              <span class="pos" class:g={p.position === "G"}>{#if p.position}<PositionIcon position={p.position} />{/if}</span>
             </li>
           {/each}
         </ol>

@@ -3,6 +3,7 @@
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { clock } from "../lib/dates";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
@@ -185,7 +186,7 @@
                   <span class="name"
                     >{goesByOf(s.captain)}{#if s.captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
                   >
-                  <span class="pos-badge">{s.captain.position}</span>
+                  <span class="pos-badge"><PositionIcon position={s.captain.position} /></span>
                 </li>
               {/if}
               {#each s.players as p (p.memberId ?? p.name)}
@@ -195,7 +196,7 @@
                   <span class="name"
                     >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
                   >
-                  {#if m}<span class="pos-badge">{m.position}</span>{/if}
+                  {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
                 </li>
               {/each}
             </ol>

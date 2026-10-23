@@ -6,6 +6,7 @@
   // invitationOnly): its players are The fighters, each with their fighter's number (lib/fighters.ts), whoever's
   // waiting the Reserves, numbered too, and who said out Declined. A row turns the player's card over (PlayerCardZoom),
   // as Friday's does.
+  import PositionIcon from "./PositionIcon.svelte";
   import { PLAYERS, type Player } from "../demo/data";
   import type { Tournament } from "../demo/model";
   import { granted, me } from "../demo/session.svelte";
@@ -63,7 +64,7 @@
         <Person player={p} bare />
         {#if captains.has(p.id)}<span class="captain-mark"><span class="c" aria-hidden="true">C</span>Captain</span
           >{/if}
-        <span class="pos" class:g={p.position === "G"}>{p.position}</span>
+        <span class="pos" class:g={p.position === "G"}><PositionIcon position={p.position} /></span>
       </button>
     {/each}
   </div>

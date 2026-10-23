@@ -12,6 +12,7 @@
   // the page and the players open in a drawer from the button at its foot (Your pick, on your turn). The players are
   // a plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
   // first of the teams, marked Yours, with their coming pick drawn in.
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
@@ -747,7 +748,7 @@
         <span class="name"
           >{goesByOf(c)}{#if t.captainMemberId === me().id}<small>you</small>{/if}</span
         >
-        {#if c}<span class="pos" class:g={c.position === "G"}>{c.position}</span>{/if}
+        {#if c}<span class="pos" class:g={c.position === "G"}><PositionIcon position={c.position} /></span>{/if}
       </li>
     {/if}
     {#each t.players as p, n (p.memberId ?? p.name)}
@@ -773,7 +774,7 @@
                 title="{by} chose them for {teamName(i)}">{by}'s choice</small
               >{/if}</span
           >
-          {#if m}<span class="pos" class:g={m.position === "G"}>{m.position}</span>{/if}
+          {#if m}<span class="pos" class:g={m.position === "G"}><PositionIcon position={m.position} /></span>{/if}
         {/if}
       </li>
     {/each}
@@ -791,7 +792,7 @@
     <button class="nm" onclick={(e) => (lifted = { id: p.id, el: e.currentTarget })}>
       {goesBy(p)}{#if p.cougar}<small>Cougar</small>{/if}
     </button>
-    <span class="ps" class:g={p.position === "G"}>{p.position}</span>
+    <span class="ps" class:g={p.position === "G"}><PositionIcon position={p.position} /></span>
     <!-- Room for Choose is always kept, so the rows don't change when your turn comes -->
     <span class="act">
       {#if action && pickable(p)}
@@ -835,7 +836,7 @@
     >
     <span class="chosen-name" class:empty={!chosenPlayer}
       >{#if chosenPlayer}{goesBy(chosenPlayer)}{#if forOther}<span class="for"> for {forName}</span>{/if}<small
-          >{chosenPlayer.position}</small
+          ><PositionIcon position={chosenPlayer.position} /></small
         >{:else}Tap Choose on a player{/if}</span
     >
   </div>

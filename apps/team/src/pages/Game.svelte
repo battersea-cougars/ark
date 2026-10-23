@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
   // One game, full screen (ADR 0061). For everyone, the live scoreboard: the clock, the score, each goal as it went
   // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
@@ -650,7 +651,7 @@
                     <span class="pname">{goesBy(p)}</span>
                     {#if scored}<span class="badge">{scored > 1 ? `${scored} goals` : "Goal"}</span>{/if}
                     {#if pim}<span class="badge">PIM {pim}</span>{/if}
-                    <span class="pos">{p.position}</span>
+                    <span class="pos"><PositionIcon position={p.position} /></span>
                   </li>
                 {/each}
               </ol>
@@ -906,7 +907,7 @@
       <div class="names">
         {#each roster(picking.team).filter((p) => p.id !== picking?.scorer) as p (p.id)}
           <button class="name-pick" onclick={() => choose(p.id)}
-            ><span>{goesBy(p)}</span><small>{p.position}</small></button
+            ><span>{goesBy(p)}</span><small><PositionIcon position={p.position} size={12} /></small></button
           >
         {/each}
       </div>

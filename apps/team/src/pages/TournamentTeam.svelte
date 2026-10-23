@@ -3,6 +3,7 @@
   // the team's shown, with a way back to them all; yours is also My team (no teamId: the one you're on). Its captain
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
   // initials). A draft's players only show once it's closed, to anyone outside it (ADR 0060).
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
@@ -109,7 +110,7 @@
             <span class="name"
               >{captain.name}{#if captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
             >
-            <span class="pos-badge">{captain.position}</span>
+            <span class="pos-badge"><PositionIcon position={captain.position} /></span>
           </li>
         {/if}
         {#each team.players as p (p.memberId ?? p.name)}
@@ -119,7 +120,7 @@
             <span class="name"
               >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
             >
-            {#if m}<span class="pos-badge">{m.position}</span>{/if}
+            {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
           </li>
         {/each}
         {#if drafting}
