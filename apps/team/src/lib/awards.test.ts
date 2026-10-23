@@ -5,7 +5,9 @@ import {
   awardFromData,
   awardsToReveal,
   countVotes,
+  decidedByHint,
   decidedByOf,
+  decidedByTag,
   fromKey,
   keyOf,
   withDecidedBy,
@@ -247,5 +249,28 @@ describe("the awards revealed: a judges' call left out isn't one", () => {
       "Most penalty minutes",
       "Champions",
     ]);
+  });
+});
+
+describe("how an award's decided, in its row's words", () => {
+  it("says a stat, the judges' call and a draw in a few words", () => {
+    expect(decidedByTag({ kind: "stat", stat: "goals" })).toBe("Most goals");
+    expect(decidedByTag({ kind: "stat", stat: "table" })).toBe("The champions");
+    expect(decidedByTag({ kind: "live", options: ["Best Celly"] })).toBe("The judges' call");
+    expect(decidedByTag({ kind: "random" })).toBe("Drawn at random");
+  });
+
+  it("says who votes, and the tie-break when there is one", () => {
+    expect(decidedByTag({ kind: "vote", voters: "skaters", tieBreak: "goalsAgainst" })).toBe(
+      "Vote · skaters for a keeper · ties: fewest goals against",
+    );
+    expect(decidedByTag({ kind: "vote", voters: "players" })).toBe("Vote · everyone who played");
+  });
+
+  it("explains the judges' call with the names it offers, or just your own", () => {
+    expect(decidedByHint({ kind: "live", options: ["Best Celly", "Most Crossbars", "Loudest Stick Tap"] })).toBe(
+      "At the reveal you name it (Best Celly, Most Crossbars… or your own) and choose who.",
+    );
+    expect(decidedByHint({ kind: "live", options: [] })).toBe("At the reveal you name it and choose who.");
   });
 });

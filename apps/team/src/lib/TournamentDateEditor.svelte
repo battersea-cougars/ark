@@ -3,6 +3,9 @@
   import type { TournamentStatus } from "../demo/model";
   import type { QuickValues } from "./TournamentQuickCreate.svelte";
 
+  /** A sheet the editor's rows open: a team's or an award's, by its place in the list. */
+  export type EditorSheet = { team: number } | { award: number };
+
   export const STATUSES: { id: TournamentStatus; label: string }[] = [
     { id: "planned", label: "Coming up" },
     { id: "open", label: "Sign-up open" },
@@ -37,13 +40,12 @@
   import PlacePicker from "./PlacePicker.svelte";
   import AfterFields from "./AfterFields.svelte";
   import type { AfterMode } from "@cougars/shared/places";
-  import PersonPicker from "./PersonPicker.svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
   import { PENALTY_LENGTH_OPTIONS, PENALTY_RULE_OPTIONS, type PenaltyRule } from "./penalties";
   import { PERIOD_OPTIONS } from "./periods";
   import DateField from "../lib/DateField.svelte";
-  import TeamCard from "./TeamCard.svelte";
+  import TeamsField from "./TeamsField.svelte";
   import { broughtTeam } from "./brought-team";
   import { typeAfter, typePlace } from "../demo/schedule.svelte";
   import { londonToday, pounds } from "./dates";
@@ -61,6 +63,7 @@
     start = $bindable(),
     edits,
     oncreated,
+    sheet = $bindable(null),
   }: {
     dateId?: number;
     /** A new date in this series, its defaults copied in (from the series' own page) */
@@ -73,6 +76,9 @@
     /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
     edits?: Edits;
     oncreated?: (id: number) => void;
+    /** The row's sheet open over the editor, if any: a team or an award, by its place in the list. One value, so a
+     *  page address could open it. */
+    sheet?: EditorSheet | null;
   } = $props();
 
   interface DateForm {
@@ -336,20 +342,6 @@
     })),
   );
 
-  // Teams (ADR 0030): nobody on two of them. A draft's are in no order till it opens and draws one (ADR 0060), and
-  // then they're shown in it
-  const MAX_TEAMS = 16;
-  const taken = $derived(
-    new Set(
-      date.teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]).filter((m) => m !== null),
-    ),
-  );
-  function addTeam() {
-    date.teams.push({ name: "", logo: null, captainMemberId: null, captainName: "", contact: "", players: [] });
-  }
-  function addCaptain(memberId: number) {
-    date.teams.push({ name: "", logo: null, captainMemberId: memberId, captainName: "", contact: "", players: [] });
-  }
   const drawn = $derived.by(() => {
     const state = dateId ? db.tournaments.find((x) => x.id === dateId)?.draftState : undefined;
     return state === "open" || state === "closed";
@@ -415,7 +407,9 @@
   async function save(e: SubmitEvent) {
     e.preventDefault();
     if (!date.name) return showMissing("details");
-    if (date.kind === "teams" && date.teams.some((t) => !t.name.trim())) return showMissing("teams");
+    // A team that entered needs a name: its sheet opens on it
+    const unnamed = date.kind === "teams" ? date.teams.findIndex((t) => !t.name.trim()) : -1;
+    if (unnamed >= 0) return void ((tab = "teams"), (sheet = { team: unnamed }));
     const t = toTournament(date);
     // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
     const window = tournamentWindow(
@@ -528,7 +522,8 @@
               <div class="field">Ends <TimeSelect id="date-end" bind:value={date.endTime} aria-label="Ends" /></div>
             </div>
           </FormSection>
-          <FormSection title="Where">
+          <!-- Where it is and where everyone goes after (ADR 0074): one section, each field saying which -->
+          <FormSection title="Venue">
             <PlacePicker
               id="date-place"
               bind:venueId={date.venueId}
@@ -536,9 +531,6 @@
               bind:mapUrl={date.mapUrl}
               usual={type ? typePlace(type) : undefined}
             />
-          </FormSection>
-          <!-- Where everyone goes after (ADR 0074): its series' unless this one says otherwise -->
-          <FormSection title="Afterwards">
             <AfterFields
               id="date-after"
               bind:mode={date.afterMode}
@@ -566,7 +558,15 @@
               </label>
               <label class="field">
                 Break between periods
-                <input class="input num" type="number" min="0" max="15" bind:value={date.breakMinutes} />
+                <!-- One period: no break to have -->
+                <input
+                  class="input num"
+                  type="number"
+                  min="0"
+                  max="15"
+                  disabled={date.periods === 1}
+                  bind:value={date.breakMinutes}
+                />
               </label>
             </div>
             <div class="field">
@@ -594,14 +594,21 @@
             <PlayoffsField bind:playoffs={date.playoffs} teams={date.teams.length} />
           </FormSection>
           <FormSection title="Awards" description="Handed out on the day, and shown on the website.">
-            <AwardsField bind:awards={date.awards} />
+            <AwardsField
+              bind:awards={date.awards}
+              bind:open={
+                () => (sheet && "award" in sheet ? sheet.award : null),
+                (i) => (sheet = i === null ? null : { award: i })
+              }
+            />
           </FormSection>
         {:else if tab === "signup"}
           <FormSection
             title="Sign-up"
-            description="Members say they're in from the day sign-up opens (or once it's set to Sign-up open), until it closes (empty: up to the day)."
+            description="Members say they're in from the day it opens till it closes (empty: up to the day)."
           >
-            <div class="cols">
+            <!-- Two to a row, in pairs: its status and the website, opens and closes, places and fee -->
+            <div class="cols pairs">
               <div class="field">
                 Status
                 <Select
@@ -648,13 +655,8 @@
                 >Places <input class="input num" type="number" min="0" bind:value={date.capacity} /></label
               >
               <label class="field"
-                >Fee (£) <input
-                  class="input num"
-                  inputmode="decimal"
-                  bind:value={date.fee}
-                  disabled={charged}
-                  title={charged ? "Already charged: the fee is fixed" : undefined}
-                /></label
+                >Fee (£) <input class="input num" inputmode="decimal" bind:value={date.fee} disabled={charged} />
+                {#if charged}<span class="hint small">Already charged: the fee is fixed.</span>{/if}</label
               >
             </div>
             {#if collected?.people}
@@ -665,7 +667,7 @@
           {#if date.kind === "draft"}
             <FormSection
               title="Draft"
-              description="Captains pick members in snake order, on the Draft page. The day is a reminder for them; you say when it opens."
+              description="Captains choose in snake order on the Draft page. The day's a reminder for them; you open it on the night."
             >
               <div class="cols">
                 <div class="field">
@@ -687,43 +689,16 @@
               : "Each team that's entered: its name, logo, captain and players."}
             stacked={date.kind === "draft"}
           >
-            <div class="teams" class:draft={date.kind === "draft"}>
-              {#each date.teams as _, i (i)}
-                <TeamCard
-                  bind:team={date.teams[i]}
-                  kind={date.kind}
-                  place={i + 1}
-                  pick={drawn ? i + 1 : null}
-                  members={memberList}
-                  {taken}
-                  onremove={() => date.teams.splice(i, 1)}
-                />
-              {:else}
-                {#if date.kind !== "draft"}<p class="hint">No teams yet.</p>{/if}
-              {/each}
-              {#if date.kind === "draft" && date.teams.length < MAX_TEAMS}
-                <!-- The next captain's row, lined up with theirs: find a member and they're one -->
-                <div class="add-captain" class:drawn>
-                  {#if drawn}<span aria-hidden="true"></span>{/if}
-                  <span class="slot" aria-hidden="true"><Icon name="plus" size={18} /></span>
-                  <PersonPicker
-                    id="add-captain"
-                    members={memberList}
-                    exclude={taken}
-                    clearOnPick
-                    quiet
-                    placeholder="Add a captain…"
-                    aria-label="Add a captain"
-                    onpick={addCaptain}
-                  />
-                </div>
-              {/if}
-            </div>
-            {#if date.kind !== "draft" && date.teams.length < MAX_TEAMS}
-              <button type="button" class="btn sm add-award" onclick={addTeam}>
-                <Icon name="plus" size={16} />Team
-              </button>
-            {/if}
+            <TeamsField
+              bind:teams={date.teams}
+              kind={date.kind}
+              {drawn}
+              inSeries={date.typeId !== null}
+              members={memberList}
+              bind:open={
+                () => (sheet && "team" in sheet ? sheet.team : null), (i) => (sheet = i === null ? null : { team: i })
+              }
+            />
             {#if date.teams.length && date.teams.length < teamsForPlayoffs(date.playoffs)}
               <p class="hint warn">
                 <Icon name="alert" size={16} />The playoffs need {teamsForPlayoffs(date.playoffs)} teams: add {date.kind ===
@@ -754,22 +729,21 @@
     gap: var(--s-5) var(--s-4);
     align-items: start;
   }
-  .cols.when {
+  .cols.when,
+  .cols.pairs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   @container (max-width: 30rem) {
     .cols {
       grid-template-columns: minmax(0, 1fr);
     }
-    .cols.when {
+    .cols.when,
+    .cols.pairs {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .cols.when > :nth-child(-n + 2) {
       grid-column: 1 / -1;
     }
-  }
-  .add-award {
-    justify-self: start;
   }
   .link {
     padding: 0;
@@ -783,34 +757,5 @@
   }
   .kind {
     justify-self: start;
-  }
-  .teams {
-    display: grid;
-    gap: var(--s-3);
-  }
-  .teams.draft {
-    gap: var(--s-2);
-  }
-  /* A row like the captains' above: the crest's square (and the pick's column once drawn), then the search where
-     their names are */
-  .add-captain {
-    display: grid;
-    grid-template-columns: var(--control-h) minmax(0, 1fr);
-    gap: var(--s-3);
-    align-items: center;
-    height: var(--control-h);
-    /* Ends where the captains' names do, before their ✕ */
-    max-width: calc(30rem - var(--control-h-sm) - var(--s-3));
-  }
-  .add-captain.drawn {
-    grid-template-columns: 1.5rem var(--control-h) minmax(0, 1fr);
-  }
-  .add-captain .slot {
-    display: grid;
-    place-items: center;
-    height: var(--control-h);
-    border-radius: var(--r-md);
-    background: var(--field-bg);
-    color: var(--fg-muted);
   }
 </style>

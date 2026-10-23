@@ -242,3 +242,13 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   the push on monday right?", the user): a pressed Out taps off (`answer: "clear"`, one guarded delete of your own
   Out), for training nights, tournaments and club events, refused once a night's over or a tournament's started; and
   "sign-up's open" goes only to those who haven't answered (a night's or a tournament's).
+- 2026-10-23: The tournament editor's teams and awards are rows that read as text and open a sheet, not walls of
+  inline inputs ("I don't like how you made these fields editable. We have an edit UI for the teams"; "This form is a
+  mess", the user). A team's row: its crest, its captain, what it's called (or will be: the team the captain brings,
+  else "Team Dan"), its pick once drawn and who's picked; its sheet (lib/TeamSheet) has the captain and the team page's
+  own name-and-logo fields (lib/TeamLookFields, shared with lib/TeamLookSheet), and a team that entered its players.
+  An award's row: its name, its line and how it's decided as a quiet tag ("Vote · skaters for a keeper · ties: fewest
+  goals against", `decidedByTag`); its sheet (lib/AwardSheet) has the fields and what that means on the night. Both
+  sheets change the editor's form and are saved with its Save; Done closes, Remove asks once. Which sheet is open is
+  one value the editor holds (`sheet`), for a page address to open later. A team that entered with no name opens its
+  sheet on Save. The team page's Edit the team still saves on its own, for its captain.

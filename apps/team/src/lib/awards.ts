@@ -268,7 +268,7 @@ export function countVotes(
 
 /** In the editors: how an award's decided, as one choice (lib/Select's value), and back. */
 export const DECIDED_BY_OPTIONS = [
-  { value: "stat:table", label: "The champions (a team: the final's winner, else top of the table)" },
+  { value: "stat:table", label: "The champions (a team)" },
   { value: "stat:goals", label: "Most goals" },
   { value: "stat:assists", label: "Most assists" },
   { value: "stat:points", label: "Most points (goals + assists)" },
@@ -276,12 +276,12 @@ export const DECIDED_BY_OPTIONS = [
   { value: "stat:penaltyMinutes", label: "Most penalty minutes" },
   { value: "vote:players", label: "A vote: everyone who played" },
   { value: "vote:skaters", label: "A vote: the skaters, for a keeper" },
-  { value: "live", label: "The judges' call (the admin's, on the night)" },
+  { value: "live", label: "The judges' call (yours, on the night)" },
   { value: "random", label: "Drawn at random" },
 ] as const;
 export type DecidedByKey = (typeof DECIDED_BY_OPTIONS)[number]["value"];
 export const TIE_BREAK_OPTIONS = [
-  { value: "", label: "None: the admin chooses" },
+  { value: "", label: "Nobody: you choose" },
   { value: "goals", label: "Most goals" },
   { value: "assists", label: "Most assists" },
   { value: "points", label: "Most points" },
@@ -302,4 +302,47 @@ export function fromKey(key: DecidedByKey, was?: DecidedBy): DecidedBy {
   }
   if (key === "live") return { kind: "live", options: was?.kind === "live" ? was.options : [...LIVE_OPTIONS] };
   return { kind: "random" };
+}
+
+/** How an award's decided, in a few words, as its row in the editor says it ("Most goals", "The judges' call"). */
+const STAT_TAGS: Record<Stat, string> = {
+  table: "The champions",
+  goals: "Most goals",
+  assists: "Most assists",
+  points: "Most points",
+  goalsAgainst: "Fewest goals against",
+  penaltyMinutes: "Most penalty minutes",
+};
+const TIE_BREAK_TAGS: Record<PlayerStat, string> = {
+  goals: "most goals",
+  assists: "most assists",
+  points: "most points",
+  goalsAgainst: "fewest goals against",
+  penaltyMinutes: "most penalty minutes",
+};
+
+/** "Vote · skaters for a keeper · ties: fewest goals against". */
+export function decidedByTag(how: DecidedBy): string {
+  if (how.kind === "stat") return STAT_TAGS[how.stat];
+  if (how.kind === "live") return "The judges' call";
+  if (how.kind === "random") return "Drawn at random";
+  const vote = how.voters === "skaters" ? "Vote · skaters for a keeper" : "Vote · everyone who played";
+  return how.tieBreak ? `${vote} · ties: ${TIE_BREAK_TAGS[how.tieBreak]}` : vote;
+}
+
+/** What happens on the night, said under the choice in an award's sheet. */
+export function decidedByHint(how: DecidedBy): string {
+  if (how.kind === "stat")
+    return how.stat === "table"
+      ? "A team: the final's winner, else the top of the table. You check it as you confirm."
+      : "Worked out from the results. Still level: joint winners. You check it as you confirm.";
+  if (how.kind === "random") return "Drawn from everyone who played. You can draw again as you confirm.";
+  if (how.kind === "live") {
+    const examples = how.options.slice(0, 2).join(", ");
+    return examples
+      ? `At the reveal you name it (${examples}… or your own) and choose who.`
+      : "At the reveal you name it and choose who.";
+  }
+  const who = how.voters === "skaters" ? "The skaters who played vote for a keeper" : "Everyone who played votes";
+  return `${who}, from the last match till it's revealed. One each, secret, never for yourself.`;
 }
