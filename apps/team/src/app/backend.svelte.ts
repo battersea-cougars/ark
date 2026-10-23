@@ -610,6 +610,9 @@ export const reopenDraft = (tournamentId: number, fixtures: "keep" | "clear") =>
 /** One step of a tournament's workflow back, from the step it's at (lib/step-back.ts, ADR 0074). */
 export const stepBack = (tournamentId: number, from: string, said: string) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/step-back`, { from }), said);
+/** Moves a captains' draft to any of its statuses at once, from the one the page saw (lib/move-to.ts, ADR 0074). */
+export const moveTournament = (tournamentId: number, from: string, to: string, said: string) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/move`, { from, to }), said);
 /** An admin closes sign-up now, not on its closing day: a draft moves on to Draft open (ADR 0074). */
 export const closeSignup = (tournamentId: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/signup/close`), "Sign-up closed");

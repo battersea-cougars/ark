@@ -180,6 +180,34 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   the step and the picks, order, matches, results and goals before and after. Only an open draft stepped back is
   news: each captain hears "<tournament> Draft Paused"; nothing else is sent. The awards an admin confirmed stay.
 
+- **An admin can move a captains' draft to any status at once** (Manage: "Move to…", beside the step back): a sheet
+  on a phone, a side drawer on a desktop, listing its six statuses (Sign-up open, Draft open, Teams set, Fixtures set,
+  KUMITE!, The Anchor), the one it's at marked, each saying what moving there will do or why it can't. A tap asks
+  first, listing every step in order. The plan is `src/lib/move-to.ts planMove`, the same for the app and the Worker:
+  - **Back** any number of statuses is the steps back above, in order, in one batch: "3 results and 11 goals deleted,
+    the fixtures cleared, the draft reopened"; its confirm's tap is the red-filled "Move back". Off the day (KUMITE!
+    or The Anchor) the status goes back to open; The Anchor back to KUMITE! is "the day under way again" (marked
+    finished undone; every match played, their results go too). On its day, Fixtures set is KUMITE!, so it isn't one
+    to move back to.
+  - **Forward** is the jobs in between, as an admin would do them: sign-up closed (if open), the order drawn, then
+    the draft opened (Draft open); or, for Teams set and on, **everyone still to pick chosen at random** (the user,
+    2026-10-23: in production too), for the team on the clock in snake order, a goalie first while the team has none,
+    never a second (one a team), captains on their own teams, a goalie no team can take left out
+    (`draft.ts setTeamsAtRandom`, the simulator's choosing as a real use case), each pick naming the admin, and the
+    draft closed; the fixtures made in a fair order (Fixtures set); marked under way, status `live`, so the first
+    match can start (KUMITE!); marked finished, status `finished` (The Anchor; matches not played stay unplayed; the
+    awards are still confirmed and revealed by hand). Refused before anything changes when it can't be done (too few
+    signed up for the draft, too few teams for the playoffs).
+
+  `POST /api/tournaments/:id/move { from, to }` (manage:Tournament) sends the status the admin's page saw; it's
+  refused (409) if the tournament has moved on since, so of two admins at once one moves and the other is told to
+  look again. Back is one batch whose every statement only does anything while it's at that step; a step that finds
+  nothing to do means someone got there first, and it's a 409 (ADR [0121](0121-load-and-concurrency.md)); forward is
+  the jobs' own use cases in turn, each with its own guards, the random picks and the close one batch. One entry on
+  the record, `tournament.moved`: the status and the picks, matches, results and goals before and after, and what was
+  done, in words. Live to every open page; captains hear a draft opened or paused as they would from the Draft page,
+  and "<tournament> Teams Set: the draft's closed, the rest were chosen at random" when it was.
+
 - **When nothing's coming up** (the last one's been played, or there's never been one), an admin sees **Next
   Kumite** as the main button on the page, in the big "No Kumite yet". This is the one admin button on the page
   outside Manage.
@@ -377,3 +405,8 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   rows are each a link to the team, the chevron at the row's end, a long name cut short. A page under the series' front
   page (a team, a match, History, an edition) has its way back as the header's eyebrow, "‹ The Cougars Kumite", a
   quiet button top left over the title, in place of a link under the header.
+- 2026-10-23: An admin can move a captains' draft to any status at once (Manage, Move to…): back any number of
+  statuses is the steps back in order, in one batch, its confirm listing what's undone with a red-filled Move back;
+  forward does the jobs in between, and Teams set chooses everyone still to pick at random, in production too (one
+  goalie a team, captains told). `POST /api/tournaments/:id/move { from, to }`, refused with a 409 when the page is out
+  of date, audited `tournament.moved` (from, to, what was done).

@@ -279,6 +279,38 @@ export const draftPaused: Notify<string | undefined> = {
 };
 
 /**
+ * A draft moved to another status in one go (Move to…, ADR 0074): opened, its captains hear it as they would from the
+ * Draft page (draftOpen); paused, the same (draftPaused); its teams set with the rest chosen at random, each captain
+ * hears so ("the rest were chosen at random"), so nobody thinks their captain picked them. Live, like the rest.
+ */
+export const movedTo: Notify<string | undefined> = {
+  before: draftOpen.before,
+  after: async (c, before, reply) => {
+    const told = [...(await draftOpen.after(c, before, reply)), ...(await draftPaused.after(c, before, reply))];
+    if (!Number(reply.chosen)) return told;
+    const captains = await all<{ name: string; slug: string | null; memberId: number }>(
+      c.env.DB,
+      `SELECT t.name, ty.slug, tt.captain_member_id memberId FROM tournaments t
+       JOIN tournament_teams tt ON tt.tournament_id = t.id LEFT JOIN tournament_types ty ON ty.id = t.type_id
+       WHERE t.id = ? AND t.draft_state = 'closed' AND tt.captain_member_id IS NOT NULL`,
+      [id(c)],
+    );
+    return [
+      ...told,
+      ...captains.map((x) => ({
+        to: [x.memberId],
+        topic: "draft" as const,
+        key: `draft:${id(c)}`,
+        live: true,
+        title: `${x.name} Teams Set`,
+        body: "The draft's closed: the rest were chosen at random.",
+        path: x.slug ? `/tournaments/${x.slug}/teams` : "/",
+      })),
+    ];
+  },
+};
+
+/**
  * The awards at the after-party (ADR 0074): the first one revealed, everyone with the app hears it ("Awards at The
  * Anchor"), so anyone not watching the page comes to it. Only the first: the rest they see on the page (topic
  * `announcements`). Live: the party's now, past 22:00 as often as not.

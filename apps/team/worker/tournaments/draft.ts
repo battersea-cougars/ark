@@ -4,7 +4,7 @@
 // once everyone's picked, or leaving the rest out on purpose, and then the teams are locked. Someone running the draft
 // (run:Draft) can pick for the captain on the clock, and undo the last pick.
 import { all, batch, first, run, statement } from "@cougars/shared/d1";
-import { MIN_TEAM_SIZE, onTheClock, playersNeeded } from "../../src/lib/draft";
+import { MIN_TEAM_SIZE, nextSlots, onTheClock, playersNeeded } from "../../src/lib/draft";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
 import { clearingFixtures, fixturesCanBeMade, makeFixtures } from "./fixtures";
@@ -76,6 +76,12 @@ export function shuffled<T>(items: readonly T[]): T[] {
   }
   return out;
 }
+
+/** Who's left to pick, every goalie first (every team wants one), each lot in a fair random order. */
+export const goaliesFirst = <T extends { goalie: number | boolean }>(pool: readonly T[]) => [
+  ...shuffled(pool.filter((p) => p.goalie)),
+  ...shuffled(pool.filter((p) => !p.goalie)),
+];
 
 /** Whether the pick order's been drawn: every captain has their number (the editor undraws it if they change). */
 export async function isDrawn(db: D1Database, tournamentId: number) {
@@ -495,3 +501,89 @@ export const draftProgress = (db: D1Database, tournamentId: number) =>
     `SELECT draft_state state, (${PICKS}) picks FROM tournaments WHERE id = ?`,
     [tournamentId, tournamentId],
   );
+
+/**
+ * Teams set, the rest at random (Move to…, ADR 0074): an admin moves the draft on to Teams set, and everyone still to
+ * pick is chosen at random for the team on the clock, in snake order from the drawn order, as the simulator picks (ADR
+ * 0123): a goalie first while there's one and the team has none, never a second goalie (one a team, ADR 0067); the
+ * captains are on their teams already. Someone no team can take (a goalie too many) is left out. Then the draft's closed.
+ * One batch: the draft opened if it wasn't, each pick only while that member's still in the pool and that pick still the
+ * one on the clock (draft.ts pick's own guards), and the close only while it's open, so a second admin a moment later
+ * changes nothing and is refused (ADR 0121). Each pick names the admin (`by`) as who picked. How many were chosen, and
+ * how many left out.
+ */
+export async function setTeamsAtRandom(db: D1Database, tournamentId: number, by: number) {
+  const t = await tournamentOf(db, tournamentId);
+  if (t.state === "closed") throw new HttpError(409, "The draft is closed.");
+  const [teams, taken, pool] = await Promise.all([
+    all<{ id: number; goalie: number }>(
+      db,
+      `SELECT t.id, EXISTS (SELECT 1 FROM members m WHERE m.position = 'G' AND (m.id = t.captain_member_id
+         OR m.id IN (SELECT member_id FROM tournament_team_players WHERE team_id = t.id))) goalie
+       FROM tournament_teams t WHERE t.tournament_id = ? ORDER BY t.pick, t.id`,
+      [tournamentId],
+    ),
+    all<{ n: number }>(
+      db,
+      `SELECT p.pick_number n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+       WHERE t.tournament_id = ? AND p.pick_number IS NOT NULL`,
+      [tournamentId],
+    ),
+    all<{ id: number; goalie: number }>(
+      db,
+      `SELECT e.member_id id, EXISTS (SELECT 1 FROM members m WHERE m.id = e.member_id AND m.position = 'G') goalie
+       FROM (${POOL}) e ORDER BY e.member_id`,
+      [tournamentId, tournamentId, tournamentId],
+    ),
+  ]);
+  if (teams.length < 2) throw new HttpError(409, "A draft needs at least two captains.");
+  const numbers = new Set(taken.map((x) => x.n));
+  const left = [...pool];
+  const picks: D1PreparedStatement[] = [];
+  while (left.length) {
+    const [slot] = nextSlots(numbers, 1);
+    const team = teams[onTheClock(teams.length, slot)];
+    const chosen = goaliesFirst(left).find((p) => !(p.goalie && team.goalie));
+    // The team on the clock can take nobody left (goalies, and it has one): the rest are left out
+    if (!chosen) break;
+    picks.push(
+      statement(
+        db,
+        `INSERT INTO tournament_team_players (team_id, member_id, name, position, pick_number, picked_by)
+         SELECT ?, ?, '', (SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?), ?, ?
+         WHERE ? IN (${POOL}) AND (${NEXT_SLOT}) = ? AND ${NOT_A_SECOND_GOALIE}`,
+        [
+          team.id,
+          chosen.id,
+          team.id,
+          slot + 1,
+          by,
+          chosen.id,
+          tournamentId,
+          tournamentId,
+          tournamentId,
+          tournamentId,
+          slot,
+          chosen.id,
+          chosen.id,
+          team.id,
+          team.id,
+        ],
+      ),
+    );
+    numbers.add(slot + 1);
+    if (chosen.goalie) team.goalie = 1;
+    left.splice(left.indexOf(chosen), 1);
+  }
+  const results = await batch(db, [
+    statement(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ? AND draft_state = 'none'", [tournamentId]),
+    ...picks,
+    statement(db, "UPDATE tournaments SET draft_state = 'closed' WHERE id = ? AND draft_state = 'open'", [
+      tournamentId,
+    ]),
+  ]);
+  if (!results.at(-1)?.meta.changes) throw new HttpError(409, "It's moved on since: have another look.");
+  // Its draft night leaves the agenda
+  await syncTournament(db, tournamentId);
+  return { chosen: picks.length, leftOut: left.length };
+}

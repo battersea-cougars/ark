@@ -277,6 +277,19 @@
         return `${who} set a tournament's winners`;
       case "tournament.award_revealed":
         return `${who} revealed ${str(to?.award)} at ${str(to?.name)}'s after-party: ${Number(to?.revealed ?? 0)} out`;
+      case "tournament.moved": {
+        // Move to… (ADR 0074): from one status to another in one go, and what it did on the way
+        const STAGE: Record<string, string> = {
+          signup: "Sign-up open",
+          draft: "Draft open",
+          teams: "Teams set",
+          fixtures: "Fixtures set",
+          day: "the day",
+          afters: "the after-party",
+        };
+        const done = Array.isArray(d.done) ? (d.done as string[]).join(", ") : "";
+        return `${who} moved ${str(to?.name ?? from?.name)} from ${STAGE[str(from?.stage)] ?? str(from?.stage)} to ${STAGE[str(to?.stage)] ?? str(to?.stage)}${done ? `: ${done}` : ""}`;
+      }
       case "tournament.simulated":
         return `${who} played ${str(to?.name)} on at random (dev only): ${Number(to?.played ?? 0)} of ${Number(to?.games ?? 0)} matches played`;
       case "fixtures.made":

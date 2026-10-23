@@ -35,6 +35,7 @@
   import { phone } from "./viewport.svelte";
   import { londonToday } from "./dates";
   import StepBack from "./StepBack.svelte";
+  import MoveTo from "./MoveTo.svelte";
   import SimulateRest from "./SimulateRest.svelte";
   import { SIMULATOR } from "../demo/data";
   import { simulating } from "../app/backend.svelte";
@@ -199,6 +200,7 @@
   const figures = (text: string) =>
     text.split(/(£?\d+(?:[.:]\d+)?(?:am|pm|st|nd|rd|th)?(?:-minute)?(?: × \d+-minute)?)/);
   let stepper = $state<ReturnType<typeof StepBack>>();
+  let mover = $state<ReturnType<typeof MoveTo>>();
   let simulator = $state<ReturnType<typeof SimulateRest>>();
   // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
   // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
@@ -251,6 +253,14 @@
       from && (admin || (runner && (from === "draft" || from === "order")))
         ? [{ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() }]
         : [];
+    // Or any status at once, back or on (lib/move-to.ts): the steps between done in one go; a captains' draft's
+    if (admin && t.kind === "draft")
+      back.push({
+        icon: "flag",
+        label: "Move to…",
+        sub: "Any status, back or on: the steps between done for you",
+        run: () => mover?.start(),
+      });
     // Then yours: your team, the pick log; the settings last
     const yours: ManageItem[] = [
       ...(myTeam
@@ -524,6 +534,7 @@
 {/if}
 <!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
+{#if admin && tournament?.kind === "draft"}<MoveTo bind:this={mover} {type} {tournament} afterName={after?.name} />{/if}
 {#if admin && SIMULATOR && tournament}<SimulateRest bind:this={simulator} {type} {tournament} />{/if}
 {#if (runner || adds) && tournament?.kind === "draft"}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}

@@ -17,7 +17,7 @@ import type { Action } from "../../src/access/actions";
 import type { MoveKind } from "../../src/lib/simulation";
 import { INFRACTIONS } from "../../src/lib/penalties";
 import { HttpError } from "../api/api.http";
-import { drawOrder, finishDraft, isDrawn, openDraft, pick, randomBelow, shuffled } from "./draft";
+import { drawOrder, finishDraft, goaliesFirst, isDrawn, openDraft, pick, randomBelow, shuffled } from "./draft";
 import { listGames, makeFixtures, tournamentOf, type Game } from "./fixtures";
 import { addGoal, addPenalty, clockGame, holdScoresheet } from "./scoring";
 
@@ -96,8 +96,7 @@ async function draftMove(db: D1Database, tournamentId: number, state: string, wh
     tournamentId,
     tournamentId,
   ]);
-  const goaliesFirst = [...shuffled(pool.filter((p) => p.goalie)), ...shuffled(pool.filter((p) => !p.goalie))];
-  for (const { id, name } of goaliesFirst) {
+  for (const { id, name } of goaliesFirst(pool)) {
     try {
       await pick(db, tournamentId, id, who);
       return { done: false, move: "pick", said: `Picked: ${name}` };

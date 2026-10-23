@@ -5,8 +5,9 @@ import { revealAward, setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
+import { moveIn, moveTo, whereItStands } from "./move-to";
 import { closeSignup } from "./signup";
-import { awardsOut, draftPaused, tournamentMade, tournamentSaved } from "../push/push.notices";
+import { awardsOut, draftPaused, movedTo, tournamentMade, tournamentSaved } from "../push/push.notices";
 import { londonToday } from "../../src/lib/dates";
 import { body, json } from "../api/api.http";
 import {
@@ -173,6 +174,25 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       await stepBack(c.env.DB, id(c), backFromIn(await body(c.request)), c, c.now);
       return ok();
     },
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/move$/,
+    // One entry: the status and the picks, matches, results and goals each side, and what the move did, in words
+    audit: {
+      event: "tournament.moved",
+      subject: async (c) => {
+        const { moving: _m, counts: _c, ...it } = await whereItStands(c.env.DB, id(c), londonToday(new Date(c.now)));
+        return it;
+      },
+      about: (_c, reply) => ({ done: reply.done, leftOut: reply.leftOut }),
+    },
+    action: "manage:Tournament",
+    changes: ["tournaments"],
+    // A draft opened, paused, or its teams set at random: its captains hear it
+    notify: movedTo,
+    // { from, to }: the status the admin's page saw, and the one to move to (lib/move-to.ts), refused if it's moved on
+    handle: async (c) => json(await moveTo(c.env.DB, id(c), moveIn(await body(c.request)), c, c.now)),
   },
   {
     method: "DELETE",

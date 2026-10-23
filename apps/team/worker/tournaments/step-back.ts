@@ -69,7 +69,7 @@ const PLAYED =
   "SELECT 1 FROM tournament_games WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next')";
 
 /** Each step back, as the statements that take it: the last one's changes say whether it was still there to take. */
-function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, D1PreparedStatement[]> {
+export function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, D1PreparedStatement[]> {
   const games = "SELECT id FROM tournament_games WHERE tournament_id = ?";
   return {
     // The after-party's awards face down again, the results and the winners kept: only while some are out
