@@ -437,3 +437,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   name), on the board and the after-party's final table, in place of the trophy badge; on the final table the points
   keep their own last column, so the champions' stamp never pushes theirs out of line, and they read Pts as
   everywhere else.
+- 2026-10-23: The pass speaks for a secret, invitation-only night, not a real fight (it's a hockey tournament
+  playing at being the Kumite): "Admission", "Admitted · No. 02" (the header's answer "Admitted · No. 2"), signed off
+  "Tell no one." in place of "See you on the mat."; the number a size smaller, so it no longer dwarfs the name.

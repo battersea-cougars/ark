@@ -109,10 +109,10 @@
   <div class="face pass-face" class:on={face === "pass"} inert={face !== "pass"}>
     <span class="watermark" lang="ja" aria-hidden="true">{kanjiFor(type, "onTheMat")}</span>
     <div class="pass-top" bind:this={passAt} tabindex="-1">
-      <span class="eyebrow">{fighter?.is === "reserve" ? "Reserve's pass" : "Your pass"}</span>
+      <span class="eyebrow">{fighter?.is === "reserve" ? "Reserve's pass" : "Admission"}</span>
       <span class="sr-only">{fighterLabel(fighter)}</span>
       <span class="number" aria-hidden="true"
-        ><span class="no-label">{fighter?.is === "reserve" ? "Reserve No." : "You're in · No."}</span><span
+        ><span class="no-label">{fighter?.is === "reserve" ? "Reserve No." : "Admitted · No."}</span><span
           class="no display num">{fighter && fighter.is !== "declined" ? fighterNo(fighter.no) : "00"}</span
         ></span
       >
@@ -132,9 +132,7 @@
         <button class="btn sm outline leave" disabled={locked} onclick={() => answer(false)}>Withdraw</button>
         <button class="btn sm ghost" onclick={() => (confirming = false)}>Keep it</button>
       {:else}
-        <span class="ask quiet"
-          >{fighter?.is === "reserve" ? "A place comes up, it's yours." : "See you on the mat."}</span
-        >
+        <span class="ask quiet">{fighter?.is === "reserve" ? "A place comes up, it's yours." : "Tell no one."}</span>
         <button class="btn sm ghost" disabled={locked} onclick={() => (confirming = true)}>Withdraw</button>
       {/if}
     </div>
@@ -279,7 +277,7 @@
   }
   .no {
     color: var(--fg);
-    font-size: clamp(3.75rem, 14vw, 5rem);
+    font-size: clamp(2.5rem, 9vw, 3.25rem);
     line-height: 0.85;
   }
   .reserve .no,
