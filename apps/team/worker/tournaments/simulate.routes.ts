@@ -23,8 +23,8 @@ export const SIMULATE_ROUTES: Route[] = [
       ),
     },
     changes: ["tournaments"],
-    // The draft closing takes its night off the agenda, so the agenda comes too
-    // A few moves on towards the after-party, and whether there's more: the app asks again till it's done
+    // One move on towards the after-party, what it was, and whether there's more: the app asks again, paced to watch
+    // (lib/simulation.ts), till it's done
     handle: async (c) => {
       // The router leaves it out elsewhere; and should it ever be mounted without that, it still isn't there
       if (!simulatorHere(c.env)) throw new HttpError(404, "Not found.");

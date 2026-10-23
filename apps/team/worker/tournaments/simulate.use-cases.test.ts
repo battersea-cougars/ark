@@ -1,6 +1,7 @@
 // The Kumite simulator (ADR 0123): on dev, an admin plays a Kumite on from wherever it is to its after-party with
-// one tap, so the after-party can be tried without scoring every match by hand. It goes through the app's own use
-// cases (the draft, the scoresheet, the clock, goals and penalties), stops with the awards provisional, carries on
+// one tap, so the after-party can be tried without scoring every match by hand. A request makes one move you'd see
+// (a pick, a goal, a period's end), says which, and whether that's all, so the app can pace it to watch. It goes
+// through the app's own use cases (the draft, the scoresheet, the clock, goals and penalties), stops with the awards provisional, carries on
 // where it stopped when asked again, and isn't there at all in production or wherever the environment doesn't say
 // it's dev or your own machine. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -77,13 +78,13 @@ async function kumite({ signed = PLAYERS, seed = 7 } = {}) {
     ((await as.call("GET", "/api/bootstrap", undefined, EVENING)).body as Json).tournaments.find(
       (t: Json) => t.id === id,
     );
-  /** One tap's request: a few moves on. */
+  /** One request: one move on. */
   const simulate = (as: Phone = dana) => as.call("POST", `/api/tournaments/${id}/simulate`, {}, EVENING);
   /** As the app does it: ask again till it says it's done. */
   const playOn = async () => {
     /** The most D1 round trips a request made: the free plan stops an invocation at 50 queries. */
     let most = 0;
-    for (let i = 0; i < 400; i++) {
+    for (let i = 0; i < 1000; i++) {
       const before = w.db.roundTrips;
       const res = await simulate();
       most = Math.max(most, w.db.roundTrips - before);
@@ -102,8 +103,8 @@ describe("simulating the rest of a Kumite, on dev", () => {
     expect(res.body.said).toMatch(/after-party/);
     // Each request well inside an invocation's 50 D1 queries (Workers Free), the wrapper's own reads included
     expect(most).toBeLessThan(50);
-    // A request at a time, each a few moves: more than one, so the page moves as it plays
-    expect(requests).toBeGreaterThan(5);
+    // A move a request: every pick and every goal its own, so the page moves as it plays
+    expect(requests).toBeGreaterThan(60);
 
     const t = await k.tournament();
     // The draft drawn, every one of them picked (a goalie a team: four goalies, four teams), closed
@@ -172,10 +173,9 @@ describe("simulating the rest of a Kumite, on dev", () => {
 
   it("run again, it says there's nothing left; stopped part way, it carries on from there", async () => {
     const k = await kumite();
-    // A few taps' worth, then someone scores a match by hand meanwhile
-    for (let i = 0; i < 6; i++) expect((await k.simulate()).status).toBe(200);
-    const before = await k.tournament();
-    expect(before.draftState).toBe("closed");
+    // Stopped once the draft's closed: run again, it carries on with the matches
+    while ((await k.tournament()).draftState !== "closed") expect((await k.simulate()).status).toBe(200);
+    expect((await k.tournament()).games.every((g: Json) => g.status === "next")).toBe(true);
     const { res } = await k.playOn();
     expect(res.body.done).toBe(true);
     const again = await k.simulate();
@@ -218,6 +218,8 @@ describe("simulating the rest of a Kumite, on dev", () => {
 
   it("too few signed up: it says so, and signs nobody up", async () => {
     const k = await kumite({ signed: 5 });
+    // The order's drawn (that's one move, whoever's signed up), then opening it is refused
+    expect((await k.simulate()).body).toMatchObject({ done: false, move: "order" });
     const res = await k.simulate();
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/Not enough players/);
@@ -225,6 +227,81 @@ describe("simulating the rest of a Kumite, on dev", () => {
     expect(rows("SELECT COUNT(*) n FROM tournament_entries WHERE tournament_id = ?", k.id)[0].n).toBe(9);
     // Nothing moved on but the order, which is drawn either way
     expect((await k.tournament()).draftState).toBe("none");
+  });
+});
+
+/** What's been done so far, counted: a move changes one of these (and what that one change carries with it). */
+function progress(id: number) {
+  const [t] = rows(
+    `SELECT draft_state draft,
+            (SELECT COUNT(pick) FROM tournament_teams WHERE tournament_id = t.id) "order",
+            (SELECT COUNT(*) FROM tournament_team_players p JOIN tournament_teams x ON x.id = p.team_id
+             WHERE x.tournament_id = t.id AND p.pick_number IS NOT NULL) picks
+     FROM tournaments t WHERE t.id = ?`,
+    id,
+  );
+  const [g] = rows(
+    `SELECT COUNT(*) fixtures, COUNT(keeper_member_id) keepers, COUNT(clock_started_at) running,
+            COALESCE(SUM(period), 0) periods, COUNT(home_team_id) + COUNT(away_team_id) filled,
+            SUM(status = 'done') played,
+            (SELECT COUNT(*) FROM tournament_goals WHERE game_id IN
+              (SELECT id FROM tournament_games WHERE tournament_id = ?)) goals,
+            (SELECT COUNT(*) FROM tournament_penalties WHERE game_id IN
+              (SELECT id FROM tournament_games WHERE tournament_id = ?)) penalties
+     FROM tournament_games WHERE tournament_id = ?`,
+    id,
+    id,
+    id,
+  );
+  return { ...t, ...g, played: g.played ?? 0 } as Record<string, string | number>;
+}
+
+/** Each move: what it must change, and what else may change with it (full time frees the clock, fills the playoffs). */
+const MOVES: Record<string, { changes: string; with?: string[] }> = {
+  order: { changes: "order" },
+  open: { changes: "draft" },
+  pick: { changes: "picks" },
+  close: { changes: "draft", with: ["fixtures", "filled", "periods"] },
+  fixtures: { changes: "fixtures", with: ["filled", "periods"] },
+  scoresheet: { changes: "keepers" },
+  clock: { changes: "running" },
+  goal: { changes: "goals" },
+  penalty: { changes: "penalties" },
+  period: { changes: "periods", with: ["running"] },
+  fulltime: { changes: "played", with: ["running", "keepers", "filled"] },
+};
+
+describe("one move a request, to watch", () => {
+  it("each request makes exactly one move you'd see, says which, and says when that's all", async () => {
+    const k = await kumite();
+    const seen = new Set<string>();
+    for (let i = 0; ; i++) {
+      expect(i).toBeLessThan(1000);
+      const before = progress(k.id);
+      const res = await k.simulate();
+      expect(res.status).toBe(200);
+      const after = progress(k.id);
+      const changed = Object.keys(after).filter((key) => after[key] !== before[key]);
+      if (res.body.done) {
+        expect(res.body).toMatchObject({ move: "done", said: expect.stringMatching(/after-party/) });
+        expect(changed).toEqual([]);
+        break;
+      }
+      const rule = MOVES[res.body.move];
+      expect(rule, `a move it knows: ${res.body.move}`).toBeDefined();
+      expect(res.body.said).toBeTruthy();
+      // The one thing it said it did, and nothing more than goes with it
+      expect(changed, `${res.body.move}: ${res.body.said}`).toContain(rule.changes);
+      for (const key of changed) expect([rule.changes, ...(rule.with ?? [])]).toContain(key);
+      // A goal or a pick is one, not two
+      if (rule.changes === "goals" || rule.changes === "picks" || rule.changes === "penalties")
+        expect(Number(after[rule.changes]) - Number(before[rule.changes])).toBe(1);
+      seen.add(res.body.move);
+    }
+    // The whole evening, a move at a time
+    expect([...seen].sort()).toEqual(
+      ["clock", "close", "fulltime", "goal", "open", "order", "penalty", "period", "pick", "scoresheet"].sort(),
+    );
   });
 });
 

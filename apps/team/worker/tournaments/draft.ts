@@ -78,7 +78,7 @@ export function shuffled<T>(items: readonly T[]): T[] {
 }
 
 /** Whether the pick order's been drawn: every captain has their number (the editor undraws it if they change). */
-async function isDrawn(db: D1Database, tournamentId: number) {
+export async function isDrawn(db: D1Database, tournamentId: number) {
   const n = await first<{ teams: number; drawn: number }>(
     db,
     "SELECT COUNT(*) teams, COUNT(pick) drawn FROM tournament_teams WHERE tournament_id = ?",

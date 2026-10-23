@@ -9,6 +9,7 @@
   import NotAllowed from "./pages/NotAllowed.svelte";
   import { loadedPage, loadPage, preloadPages } from "./app/pages.svelte";
   import { enterSettings } from "./app/settings-entry.svelte";
+  import SimulationControl from "./lib/SimulationControl.svelte";
 
   const all = $derived(routes());
   const route = $derived(routeFor(all, router.path) ?? routeFor(all, "/")!);
@@ -52,3 +53,5 @@
     {#if v.Page}<v.Page {...v.params} />{/if}
   {/each}
 </Shell>
+<!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page -->
+<SimulationControl focus={!!route.focus} />

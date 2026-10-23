@@ -1,10 +1,10 @@
 <script lang="ts">
   // Dev only (ADR 0123): the rest of a tournament played out at random, from Manage, so its after-party can be tried
-  // without scoring every match by hand. One question, then it plays (app/backend.svelte.ts simulateRest), saying each
-  // move as it goes. The bootstrap says whether it's here (`simulator`): never in production. A sheet on a phone, a side
-  // drawer on a desktop.
+  // without scoring every match by hand. One question, then it plays (lib/simulation.ts), a move at a time, paced to
+  // watch, paused or stopped from its floating control (lib/SimulationControl). The bootstrap says whether it's here
+  // (`simulator`): never in production. A sheet on a phone, a side drawer on a desktop.
   import type { Tournament, TournamentType } from "../demo/model";
-  import { simulateRest } from "../app/backend.svelte";
+  import { simulation } from "../app/backend.svelte";
   import { formatDayDate, londonEvening, londonISO } from "./dates";
   import { phone } from "./viewport.svelte";
   import Sheet from "./Sheet.svelte";
@@ -22,7 +22,7 @@
   }
   function go() {
     open = false;
-    void simulateRest(tournament.id);
+    void simulation.start(tournament.id);
   }
 </script>
 
@@ -33,6 +33,7 @@
       clock, goals and the odd penalty, the playoffs too. It stops at the after-party, the awards for you to confirm and
       reveal.
     </p>
+    <p>A move at a time, slow enough to follow: pause it, speed it up or stop it from the bar it shows.</p>
     {#if notTonight}
       <p>
         Its after-party shows on its own evening, {formatDayDate(londonISO(tournament.heldOn, "12:00"))}: set its day to
