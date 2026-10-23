@@ -1,0 +1,52 @@
+name: Journeys
+
+# The team app's journeys (docs/adr/0124-test-levels.md): whole workflows by role, in Chromium, against a fresh local
+# database and the app started on the runner. By hand, and on a push to `release` beside the deploy. Never required,
+# never blocking: a run with failures opens one issue (label `regression`) listing every failing step.
+# No secrets: the app runs locally without any, and the issue is filed with GITHUB_TOKEN.
+on:
+  workflow_dispatch:
+  push:
+    branches: [release]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: journeys-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      # Chromium's headless shell only, cached by Playwright's version; its system libraries each run (apt, not cached)
+      - id: playwright
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+      - id: browsers
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps --only-shell chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      # Failures don't fail this step: they're the issue it files (--file-issue is the default in CI)
+      - name: The journeys
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: npm run journeys
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: journeys
+          path: |
+            .journeys/summary.md
+            .journeys/run/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,14 @@
+[
+  { "name": "Ada Admin", "position": "D", "rating": 72, "email": "admin@example.com", "roles": ["Admin"] },
+  { "name": "Fay Forward", "position": "F", "rating": 81, "email": "fay@example.com" },
+  { "name": "Nell Nonplayer", "position": "F", "rating": 50, "email": "nell@example.com" },
+  { "name": "Cara Captain", "position": "F", "rating": 70, "email": "cara@example.com" },
+  { "name": "Cole Captain", "position": "D", "rating": 68, "email": "cole@example.com" },
+  { "name": "Cass Captain", "position": "F", "rating": 66, "email": "cass@example.com" },
+  { "name": "Gus Goalie", "position": "G", "rating": 70, "email": "gus@example.com" },
+  { "name": "Gwen Glove", "position": "G", "rating": 60, "email": "gwen@example.com" },
+  { "name": "Gil Pads", "position": "G", "rating": 55, "email": "gil@example.com" },
+  { "name": "Sam Skater", "position": "D", "rating": 62, "email": "sam@example.com" },
+  { "name": "Dee Defence", "position": "D", "rating": 77, "email": "dee@example.com" },
+  { "name": "Bo Backhand", "position": "F", "rating": 58, "email": "bo@example.com" }
+]

@@ -106,6 +106,26 @@ Two requests' statements interleave on D1 between their awaits; the fake D1 does
 seeds. Load runs against a Worker of your own (`npm run load -- friday-rush`, never dev or production). How, and what
 they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-concurrency.md)).
 
+## Journeys
+
+Use cases stop at the API; **journeys** drive the real team app in a browser (Playwright, Chromium) through a whole
+workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
+mustn't ([ADR 0124](adr/0124-test-levels.md): which check goes at which level). They live in `apps/team/journeys/`,
+one `{workflow}.journey.ts` each; the first is the Kumite night (`kumite.journey.ts`: an admin, a player and a member
+who isn't in it, from sign-up to the last award).
+
+```sh
+npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
+npm run journeys -- --file-issue    # and a run with failures files one GitHub issue (label regression)
+npm run journeys -- --keep          # leave the app up after, to look around (npm run app stop team)
+```
+
+It takes the checkout's own local D1 (`--own-db`) and starts it afresh every run, so it refuses the main checkout.
+Failures don't stop the run: each failing step is in `.journeys/summary.md` (stage, role, expected and what
+happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`,
+by hand and on a push to `release`) a failing run opens one issue. A step that fails because of a known bug is
+`knownBug(…)`, as `it.fails` is below.
+
 ## Known bugs
 
 A use case that finds a real bug stays in the suite, written as `it.fails("… (known bug #N)", …)` with a comment

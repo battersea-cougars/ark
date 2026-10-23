@@ -27,6 +27,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0022](0022-team-app-svelte-pwa.md)           | The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front        |
 | [0108](0108-store-apps.md)                    | The team app in the app stores: a native shell loading the live app, with notifications; iOS first, Android-ready |
 | [0031](0031-use-case-tests.md)                | Tests describe what people do, against a fake world                                                               |
+| [0124](0124-test-levels.md)                   | Three test levels: unit for tricky logic, use cases for rules and routes, journeys for whole workflows by role    |
 | [0110](0110-structured-logging.md)            | The apps log through scribe: one JSON line per event, nothing private in it, every error reported                 |
 
 ## Data, privacy and staying free
