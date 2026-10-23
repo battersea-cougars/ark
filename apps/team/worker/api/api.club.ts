@@ -115,6 +115,14 @@ const EVENTS_SHOWN = "SELECT ce.id FROM viewer v CROSS JOIN club_events ce WHERE
 /** Your own, or anyone's for who may see them. */
 const mine = "(v.sees_private OR m.id = v.member_id)";
 
+/**
+ * Whose dues are shown (ADR 0007): your own, and everyone's for who sees Unpaid fees. As a list, so a member's charges
+ * and payments are found by index (theirs only), not picked out of every one there has ever been (ADR 0003). The
+ * viewer first: for anyone else the members aren't read at all.
+ */
+const DUES_SHOWN = `SELECT v.member_id FROM viewer v
+  UNION ALL SELECT m.id FROM viewer v CROSS JOIN members m WHERE v.sees_dues AND m.id <> v.member_id`;
+
 const PARTS = {
   everydayRole: "json_array((SELECT m.everyday_role_id FROM members m, viewer v WHERE m.id = v.member_id))",
   members: rows(
@@ -269,22 +277,24 @@ const PARTS = {
             CASE WHEN paid.total >= c.amount_pence THEN paid.last_on END paidOn,
             CASE WHEN paid.total >= c.amount_pence THEN paid.via END paidVia, COALESCE(paid.total, 0) paidPence,
             c.created_by IS NOT NULL byHand
-     FROM charges c, viewer v
+     FROM charges c
        LEFT JOIN training_sessions s ON s.id = c.session_id LEFT JOIN training_series ts ON ts.id = s.series_id
        LEFT JOIN tournaments t ON t.id = c.tournament_id
        LEFT JOIN (SELECT pa.charge_id, SUM(pa.amount_pence) total, MAX(p.received_on) last_on,
                          (SELECT p2.via FROM payment_allocations pa2 JOIN payments p2 ON p2.id = pa2.payment_id
                            WHERE pa2.charge_id = pa.charge_id ORDER BY p2.id DESC LIMIT 1) via
-                  FROM payment_allocations pa JOIN payments p ON p.id = pa.payment_id GROUP BY pa.charge_id) paid
+                  FROM payment_allocations pa JOIN payments p ON p.id = pa.payment_id
+                  WHERE pa.charge_id IN (SELECT id FROM charges WHERE member_id IN (${DUES_SHOWN}))
+                  GROUP BY pa.charge_id) paid
          ON paid.charge_id = c.id
-     WHERE v.sees_dues OR c.member_id = v.member_id
+     WHERE c.member_id IN (${DUES_SHOWN})
      ORDER BY c.due_on DESC, c.id DESC`,
   ),
   // Each payment, for the dues ledger: your own, or everyone's for who sees Unpaid fees
   payments: rows(
     "id memberId pence receivedOn via reason",
     `SELECT p.id, p.member_id memberId, p.amount_pence pence, p.received_on receivedOn, p.via, p.reason
-     FROM payments p, viewer v WHERE v.sees_dues OR p.member_id = v.member_id
+     FROM payments p WHERE p.member_id IN (${DUES_SHOWN})
      ORDER BY p.member_id, p.received_on DESC, p.id DESC`,
   ),
   // Money paid in and not yet spent on a charge: it pays the next one (dues.ts settle)
@@ -292,7 +302,7 @@ const PARTS = {
     "memberId pence",
     `SELECT p.member_id memberId, SUM(p.amount_pence) - COALESCE((SELECT SUM(pa.amount_pence)
               FROM payment_allocations pa JOIN payments p2 ON p2.id = pa.payment_id WHERE p2.member_id = p.member_id), 0) pence
-     FROM payments p, viewer v WHERE v.sees_dues OR p.member_id = v.member_id
+     FROM payments p WHERE p.member_id IN (${DUES_SHOWN})
      GROUP BY p.member_id HAVING pence > 0 ORDER BY p.member_id`,
   ),
   subscriptionFees: rows(
