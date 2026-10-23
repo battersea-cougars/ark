@@ -135,10 +135,11 @@ describe("what's coming up, at the edges", () => {
     it("a tournament past its last day says Sign-up closed", () => {
       expect(row({ kind: "tournament", filter: "type:1", signupClosed: true })).toBe("8pm · Sign-up closed");
     });
-    it("in, out or waiting says so, whatever the sign-up", () => {
-      expect(row({ standing: "in", signupClosed: true })).toBe("8pm · You're in");
-      expect(row({ standing: "out", opens: "Mon" })).toBe("8pm · You're out");
-      expect(row({ standing: "waitlist" })).toBe("8pm · You're on the waitlist");
+    it("in, out or waiting says so (as its standing, after the time), whatever the sign-up", () => {
+      const stands = (over: Partial<UpcomingEvent>) => up([ev("x", day(3), over)])[0];
+      expect(stands({ standing: "in", signupClosed: true })).toMatchObject({ sub: "8pm", standing: { is: "in" } });
+      expect(stands({ standing: "out", opens: "Mon" })).toMatchObject({ sub: "8pm", standing: { is: "out" } });
+      expect(stands({ standing: "waitlist" })).toMatchObject({ sub: "8pm", standing: { is: "waitlist" } });
     });
     it("a social with no sign-up: just where", () => {
       expect(row({ asking: false })).toBe("8pm · The Lock");
@@ -147,7 +148,7 @@ describe("what's coming up, at the edges", () => {
 
   it("a date still to be confirmed shows no time, only how it stands", () => {
     const rows = up([ev("tbc", day(5), { dateTbc: true, standing: "waitlist" })]);
-    expect(rows[0].sub).toBe("You're on the waitlist");
+    expect(rows[0]).toMatchObject({ sub: "", standing: { is: "waitlist" } });
   });
 
   it("the lead isn't a row as well, and nothing else is left out", () => {

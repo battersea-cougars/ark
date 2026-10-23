@@ -47,6 +47,7 @@
   import { londonEvening } from "../lib/dates";
   import { revealOf } from "../lib/afters";
   import { signupOpen, signupOver } from "../lib/signup";
+  import { keeps, onSide } from "../lib/places";
   import { checkForUpdates } from "../lib/live-updates.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import DateField from "../lib/DateField.svelte";
@@ -225,9 +226,18 @@
   const upcomingEvent = (ev: Bookable): UpcomingEvent => {
     const standing = standingOn(ev);
     const t = ev.kind === "tournament" ? (ev.entries as Tournament) : undefined;
+    const { going, waitlist } = ev.entries;
+    // A training's places are the skaters' (lib/places.ts): with a limit, the count is theirs, as its card says, and
+    // a keeper's number in the queue is among the keepers
+    const training = ev.kind === "training";
+    const limit = ev.capacity ?? null;
+    const queue = training ? onSide(waitlist, keeps(who.id)) : waitlist;
     return {
       ...ev,
       standing,
+      going: ev.signup ? (training && limit ? onSide(going, false).length : going.length) : undefined,
+      limit,
+      place: standing === "waitlist" ? queue.indexOf(who.id) + 1 || undefined : undefined,
       // Only when you can answer now: the sign-up open (a training night's from its opening day, a tournament's by
       // lib/signup.ts, both worked out on the schedule's Bookable), not one you're barred from
       asking: !standing && ev.signup && !ev.opens && !ev.cancelled && can(perms, "signup:Event"),
@@ -565,8 +575,27 @@
             ? "Date to be confirmed"
             : formatDayDate(r.on.at)}:</span
       >
-      <span class="item-text">{r.text}</span><span class="item-sub">{r.sub}</span>
+      <span class="item-text">{r.text}</span>
+      <!-- When, then where you stand as a status (in: a tick in red; waiting: your number, as its card says it; out:
+           quiet), on one line that never wraps: the time gives way first, so every answer keeps the row's height -->
+      <span class="item-sub up-sub">
+        {#if r.sub}<span class="up-when">{r.sub}</span>{/if}
+        {#if r.standing}
+          {#if r.sub}<span class="up-dot" aria-hidden="true">·</span>{/if}
+          <span class="up-stand {r.standing.is}">
+            {#if r.standing.is === "in"}<Icon name="check" size={14} />You're in
+            {:else if r.standing.is === "waitlist"}<Icon name="clock" size={14} />{r.standing.place
+                ? `Waitlist · number ${r.standing.place}`
+                : "On the waitlist"}
+            {:else}You're out{/if}
+          </span>
+        {/if}
+      </span>
     </span>
+    <!-- How many are in, on a row taking sign-ups, whether or not you are: the same words as its sign-up line -->
+    {#if r.count}
+      <span class="up-count num"><strong>{r.count.going}</strong>{r.count.limit ? ` of ${r.count.limit}` : ""} in</span>
+    {/if}
     <Icon name="chevronRight" size={16} />
   </a>
 {/snippet}
@@ -1391,6 +1420,44 @@
   .item-sub {
     color: var(--fg-muted);
     font-size: var(--text-sm);
+  }
+  /* What's coming up: one line, whatever the answer; the time gives way before your standing does */
+  .up-sub {
+    display: flex;
+    align-items: center;
+    gap: 0.35em;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .up-when {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .up-stand {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.25em;
+  }
+  /* Colour is an accent: your In is the tick and the word in the club red, never a fill */
+  .up-stand.in {
+    color: var(--red-hot);
+    font-weight: 600;
+  }
+  .up-stand.waitlist {
+    color: var(--fg-body);
+  }
+  .up-count {
+    flex-shrink: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+  }
+  .up-count strong {
+    color: var(--fg);
+    font-weight: 600;
   }
   .ask-notify {
     align-items: flex-start;

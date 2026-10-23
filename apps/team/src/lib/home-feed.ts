@@ -65,6 +65,13 @@ export interface UpcomingEvent extends Pick<
   signupOpensOn?: string | null;
   /** A tournament's sign-up is over (past its last day, or it's under way): nobody can answer now. */
   signupClosed?: boolean;
+  /** How many are in (a training's: its skaters, when it has places, as its card counts them). Unset: it takes no
+   * sign-ups. */
+  going?: number;
+  /** Its places (a training's: the skaters'); null or unset: no limit. */
+  limit?: number | null;
+  /** On the waitlist: your number in it (a training's keepers are numbered on their own). */
+  place?: number;
 }
 
 /** A row of what's coming up: its date on the left (Fri / 30 / Oct, or Summer / TBC / 2027), then what and how. */
@@ -74,7 +81,12 @@ export interface UpcomingRow {
   icon: Bookable["icon"];
   on: When;
   text: string;
+  /** When, then how its sign-up stands or where, muted: "7pm · Are you in?". Not where you stand: that's `standing`. */
   sub: string;
+  /** Where you stand, said as a status after `sub`: in (a tick, in red), waiting (your number, if known), out. */
+  standing?: { is: Standing; place?: number };
+  /** How many are in, and its places: on a row taking sign-ups, not cancelled nor still to open. */
+  count?: { going: number; limit?: number };
 }
 
 export interface FeedInput {
@@ -207,7 +219,6 @@ export function whenSaid(startsAt: string, today: string): string {
 const dayOf = (iso: string) => londonToday(new Date(iso));
 const plusDays = (day: string, n: number) =>
   new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
-const STANDING: Record<Standing, string> = { in: "You're in", waitlist: "You're on the waitlist", out: "You're out" };
 
 /** A tournament's own key on the schedule (lib/schedule tournamentBookable): its fight stands in for it. */
 const tournamentKey = (t: Tournament) => `tournament:${t.id}`;
@@ -284,18 +295,19 @@ function upcomingRows({ events = [], today }: FeedInput, lead: Lead | null, figh
   return picked.slice(0, UPCOMING_MAX).map((e) => upcomingRow(e, today, fightTimes.get(e.key)));
 }
 
-// How you stand, or how its sign-up does: "Are you in?" only when you can answer now (the sign-up open, by the same
-// rules as the event's own page: lib/signup.ts, worked out as Home reads the schedule); else when it opens, that it's
-// closed, or just where
+// How its sign-up stands: "Are you in?" only when you can answer now (the sign-up open, by the same rules as the
+// event's own page: lib/signup.ts, worked out as Home reads the schedule); else when it opens, that it's closed, or
+// just where. Where you stand is a status of its own, and how many are in, on any that takes sign-ups
 function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingRow {
   const time = e.timeText || (e.season ? "" : timeRange(e.startsAt, e.endsAt));
   const opensOn = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
+  const stands = !e.cancelled && !fight && e.standing;
   const how = e.cancelled
     ? "Cancelled"
     : fight
       ? `Your match at ${fight}`
-      : e.standing
-        ? STANDING[e.standing]
+      : stands
+        ? ""
         : e.opens
           ? `Sign-up opens ${e.opens}`
           : opensOn
@@ -307,7 +319,12 @@ function upcomingRow(e: UpcomingEvent, today: string, fight?: string): UpcomingR
                 : e.venue;
   const sub = [e.dateTbc ? "" : time, how].filter(Boolean).join(" · ");
   const on = { at: e.startsAt, season: e.season, tbc: e.dateTbc };
-  return { key: e.key, href: e.href, icon: e.icon, on, text: e.title, sub };
+  const row: UpcomingRow = { key: e.key, href: e.href, icon: e.icon, on, text: e.title, sub };
+  if (stands) row.standing = e.standing === "waitlist" && e.place ? { is: "waitlist", place: e.place } : { is: stands };
+  // Nobody's in one still to open, and a cancelled one has nobody going
+  if (e.going !== undefined && !e.cancelled && !e.opens && !opensOn)
+    row.count = e.limit ? { going: e.going, limit: e.limit } : { going: e.going };
+  return row;
 }
 
 // From the agenda (ADR 0060, 0042): a captain's draft day, the draft an admin runs, a sign-up about to close (for a

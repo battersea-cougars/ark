@@ -223,9 +223,9 @@ describe("what's coming up", () => {
       }),
       ev("tournament:1", "2026-11-14T10:00:00Z", { kind: "tournament", filter: "type:2", standing: "in" }),
     ]);
-    expect(rows.map((r) => [r.key, r.sub])).toEqual([
-      ["tournament:1", "10am · You're in"],
-      ["tournament:2", "Sign-up opens 1 May"],
+    expect(rows.map((r) => [r.key, r.sub, r.standing])).toEqual([
+      ["tournament:1", "10am", { is: "in" }],
+      ["tournament:2", "Sign-up opens 1 May", undefined],
     ]);
     expect(rows[1].on).toMatchObject({ season: { name: "summer", year: 2027 }, tbc: true });
   });
@@ -237,5 +237,79 @@ describe("what's coming up", () => {
     expect(up(many)).toHaveLength(UPCOMING_MAX);
     expect(up([ev("far", "2027-03-01T19:00:00Z")])).toEqual([]);
     expect(up([ev("past", "2026-10-20T19:00:00Z")])).toEqual([]);
+  });
+
+  describe("where you stand, as a status, and how many are in, on every row that takes sign-ups", () => {
+    // The lead's a social with no sign-up today, so each row under test is a row
+    const row = (e: UpcomingEvent) => up([e])[0];
+    const training = (over: Partial<UpcomingEvent> = {}) =>
+      ev("session:1", "2026-10-23T18:30:00Z", {
+        kind: "training",
+        filter: "series:1",
+        title: "Friday Training",
+        endsAt: "2026-10-23T20:00:00Z",
+        going: 12,
+        limit: 20,
+        ...over,
+      });
+    const tournament = (over: Partial<UpcomingEvent> = {}) =>
+      ev("tournament:1", "2026-11-14T10:00:00Z", { kind: "tournament", filter: "type:1", going: 16, ...over });
+    const oneOff = (over: Partial<UpcomingEvent> = {}) =>
+      ev("oneoff:1", "2026-10-30T19:00:00Z", { going: 9, limit: 24, ...over });
+
+    it("you're in: a status of its own, not the muted line, and the count beside it", () => {
+      const r = row(training({ standing: "in" }));
+      expect(r.sub).toBe("7:30 to 9pm");
+      expect(r.standing).toEqual({ is: "in" });
+      expect(r.count).toEqual({ going: 12, limit: 20 });
+    });
+
+    it("on the waitlist: your place in it, when it's known", () => {
+      expect(row(training({ standing: "waitlist", place: 3 })).standing).toEqual({ is: "waitlist", place: 3 });
+      expect(row(oneOff({ standing: "waitlist" })).standing).toEqual({ is: "waitlist" });
+    });
+
+    it("not answered yet: still asked, and still counted", () => {
+      const r = row(tournament({ asking: true }));
+      expect(r.sub).toBe("10am · Are you in?");
+      expect(r.standing).toBeUndefined();
+      expect(r.count).toEqual({ going: 16 });
+    });
+
+    it("out: said as a status too (the snippet keeps it quiet), and counted", () => {
+      const r = row(oneOff({ standing: "out" }));
+      expect(r.sub).toBe("7pm");
+      expect(r.standing).toEqual({ is: "out" });
+      expect(r.count).toEqual({ going: 9, limit: 24 });
+    });
+
+    it("each kind counts its own: a training's places, a tournament with no limit, a one-off's", () => {
+      expect(row(training()).count).toEqual({ going: 12, limit: 20 });
+      expect(row(tournament()).count).toEqual({ going: 16 });
+      expect(row(oneOff({ going: 0 })).count).toEqual({ going: 0, limit: 24 });
+    });
+
+    it("a sign-up that's over still says how many are in", () => {
+      expect(row(tournament({ signupClosed: true, standing: "in" })).count).toEqual({ going: 16 });
+    });
+
+    it("a cancelled one: no count and no standing, just Cancelled", () => {
+      const r = row(training({ cancelled: true, standing: "in" }));
+      expect(r.sub).toBe("7:30 to 9pm · Cancelled");
+      expect(r.standing).toBeUndefined();
+      expect(r.count).toBeUndefined();
+    });
+
+    it("a sign-up still to open: when it opens, and no count yet", () => {
+      expect(row(training({ opens: "Mon", going: 0 }))).toMatchObject({ sub: "7:30 to 9pm · Sign-up opens Mon" });
+      expect(row(training({ opens: "Mon", going: 0 })).count).toBeUndefined();
+      expect(row(tournament({ signupOpensOn: "2026-11-01", going: 0 })).count).toBeUndefined();
+    });
+
+    it("nothing to sign up for: no count, just where", () => {
+      const r = row(ev("drinks", "2026-10-30T19:00:00Z"));
+      expect(r.sub).toBe("7pm · The Lock");
+      expect(r.count).toBeUndefined();
+    });
   });
 });
