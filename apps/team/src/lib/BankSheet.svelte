@@ -65,7 +65,7 @@
           required
           inputmode="numeric"
           autocomplete="off"
-          pattern="\d{8}"
+          pattern={"\\d{8}"}
           placeholder="8 digits"
           bind:value={account}
         />
