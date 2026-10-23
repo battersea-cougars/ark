@@ -317,7 +317,9 @@
   const members = $derived(
     db.members.filter((m) => m.status === "active").sort((a, b) => goesBy(a.player).localeCompare(goesBy(b.player))),
   );
-  const memberList = $derived(members.map((m) => ({ id: m.player.id, name: goesBy(m.player) })));
+  const memberList = $derived(
+    members.map((m) => ({ id: m.player.id, name: goesBy(m.player), carries: m.player.kumiteTeamName })),
+  );
 
   // Teams (ADR 0030): nobody on two of them. A draft's are in no order till it opens and draws one (ADR 0060), and
   // then they're shown in it
@@ -694,8 +696,9 @@
           <FormSection
             title={date.kind === "draft" ? "Captains" : "Teams"}
             description={date.kind === "draft"
-              ? "The captains, in any order: the pick order's drawn when the draft opens. Their players come from the draft."
+              ? "Any order: the draft draws who picks first."
               : "Each team that's entered: its name, logo, captain and players."}
+            stacked={date.kind === "draft"}
           >
             <div class="teams" class:draft={date.kind === "draft"}>
               {#each date.teams as _, i (i)}
@@ -711,28 +714,28 @@
               {:else}
                 {#if date.kind !== "draft"}<p class="hint">No teams yet.</p>{/if}
               {/each}
-            </div>
-            {#if date.teams.length < MAX_TEAMS}
-              {#if date.kind === "draft"}
-                <!-- The next captain's slot: find a member and they're one -->
-                <div class="add-captain">
-                  <span class="next num" aria-hidden="true"></span>
-                  <span class="slot" aria-hidden="true"><Icon name="plus" size={16} /></span>
+              {#if date.kind === "draft" && date.teams.length < MAX_TEAMS}
+                <!-- The next captain's row, lined up with theirs: find a member and they're one -->
+                <div class="add-captain" class:drawn>
+                  {#if drawn}<span aria-hidden="true"></span>{/if}
+                  <span class="slot" aria-hidden="true"><Icon name="plus" size={18} /></span>
                   <PersonPicker
                     id="add-captain"
                     members={memberList}
                     exclude={taken}
                     clearOnPick
-                    placeholder="Add a captain: type a name…"
+                    quiet
+                    placeholder="Add a captain…"
                     aria-label="Add a captain"
                     onpick={addCaptain}
                   />
                 </div>
-              {:else}
-                <button type="button" class="btn sm add-award" onclick={addTeam}>
-                  <Icon name="plus" size={16} />Team
-                </button>
               {/if}
+            </div>
+            {#if date.kind !== "draft" && date.teams.length < MAX_TEAMS}
+              <button type="button" class="btn sm add-award" onclick={addTeam}>
+                <Icon name="plus" size={16} />Team
+              </button>
             {/if}
             {#if date.teams.length && date.teams.length < teamsForPlayoffs(date.playoffs)}
               <p class="hint warn">
@@ -807,24 +810,26 @@
   .teams.draft {
     gap: var(--s-2);
   }
-  /* Lines up with the captains above: pick number, logo square, then the search */
+  /* A row like the captains' above: the crest's square (and the pick's column once drawn), then the search where
+     their names are */
   .add-captain {
     display: grid;
-    grid-template-columns: 1.5rem var(--control-h) minmax(0, 22rem);
-    gap: var(--s-2);
+    grid-template-columns: var(--control-h) minmax(0, 1fr);
+    gap: var(--s-3);
     align-items: center;
+    height: var(--control-h);
+    /* Ends where the captains' names do, before their ✕ */
+    max-width: calc(30rem - var(--control-h-sm) - var(--s-3));
   }
-  .add-captain .next {
-    color: var(--fg-subtle);
-    font-weight: 600;
-    text-align: center;
+  .add-captain.drawn {
+    grid-template-columns: 1.5rem var(--control-h) minmax(0, 1fr);
   }
   .add-captain .slot {
     display: grid;
     place-items: center;
     height: var(--control-h);
-    border: 1px dashed var(--border-strong);
     border-radius: var(--r-md);
-    color: var(--fg-subtle);
+    background: var(--field-bg);
+    color: var(--fg-muted);
   }
 </style>

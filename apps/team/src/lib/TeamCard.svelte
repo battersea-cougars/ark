@@ -24,14 +24,17 @@
     place: number;
     /** Its place in the draft's pick order, from 1, once the draft's opened and drawn it; null till then. */
     pick?: number | null;
-    members: { id: number; name: string }[];
+    /** `carries`: the team name a captain carries from Kumite to Kumite (team-name.ts), if they've one. */
+    members: { id: number; name: string; carries?: string | null }[];
     /** Members already on a team (this one's included), who can't be added again. */
     taken: Set<number>;
     onremove: () => void;
   } = $props();
 
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
-  const label = $derived(team.name || nameOf(team.captainMemberId) || team.captainName || "New team");
+  /** What the team's called if its name's left empty: the name its captain carries, when they've one. */
+  const carried = $derived(members.find((m) => m.id === team.captainMemberId)?.carries ?? "");
+  const label = $derived(team.name || carried || nameOf(team.captainMemberId) || team.captainName || "New team");
   const initials = $derived(teamInitials(label));
 
   // A logo: shrunk in the browser so it's small enough to keep in the database (logo.ts)
@@ -45,6 +48,16 @@
     } catch {
       logoError = "That image couldn't be read. Try a PNG or JPEG.";
     }
+  }
+
+  /** Removing a captain loses nothing till they've a name, a logo or players: then it takes a second tap. */
+  let sure = $state(false);
+  function remove() {
+    if (!sure && (team.name.trim() || team.logo || team.players.length)) {
+      sure = true;
+      return;
+    }
+    onremove();
   }
 
   /** Changing a draft captain: the name gives way to a search box. */
@@ -84,42 +97,53 @@
 {/snippet}
 
 {#if kind === "draft"}
-  <!-- A captain; the number is their pick, once the draft's drawn the order (the column's kept either way) -->
-  <div class="captain">
-    <span class="pick num" title={pick ? "Pick order, drawn as the draft opened" : undefined}>{pick ?? ""}</span>
+  <!-- A captain: their crest, their name, and under it their team's name, quiet till it's used. The pick number shows
+       once the draft's drawn the order -->
+  <div class="captain" class:drawn={pick !== null}>
+    {#if pick !== null}<span class="pick num" title="Pick order, drawn as the draft opened">{pick}</span>{/if}
     {@render logo()}
-    {#if changing || !team.captainMemberId}
-      <PersonPicker
-        id="captain-{place}"
-        {members}
-        value={team.captainMemberId}
-        exclude={taken}
-        autofocus={changing}
-        aria-label={pick ? `Captain, pick ${pick}` : "Captain"}
-        onpick={(id) => (pickCaptain(id), (changing = false))}
-        ondone={() => (changing = false)}
+    <div class="lines">
+      {#if changing || !team.captainMemberId}
+        <PersonPicker
+          id="captain-{place}"
+          {members}
+          value={team.captainMemberId}
+          exclude={taken}
+          autofocus={changing}
+          quiet
+          aria-label={pick ? `Captain, pick ${pick}` : "Captain"}
+          onpick={(id) => (pickCaptain(id), (changing = false))}
+          ondone={() => (changing = false)}
+        />
+      {:else}
+        <!-- Who it is, as a name; click to change them -->
+        <button type="button" class="who" title="Change the captain" onclick={() => (changing = true)}>
+          {nameOf(team.captainMemberId)}
+        </button>
+      {/if}
+      <input
+        class="team-name"
+        bind:value={team.name}
+        placeholder={carried || "Team name"}
+        maxlength="40"
+        aria-label="Team name"
+        title={carried ? `Left empty, it's ${carried}, the name they carry` : undefined}
       />
-    {:else}
-      <!-- Who it is, as a name; click to change them -->
-      <button type="button" class="who" title="Change the captain" onclick={() => (changing = true)}>
-        <span class="who-name">{nameOf(team.captainMemberId)}</span>
-      </button>
-    {/if}
-    <input
-      class="input"
-      bind:value={team.name}
-      placeholder="Team name (optional)"
-      maxlength="40"
-      aria-label="Team name"
-    />
-    <div class="actions">
-      <button type="button" class="btn sm ghost icon" aria-label="Remove {label}" onclick={onremove}>
-        <Icon name="x" size={16} />
-      </button>
     </div>
+    <button
+      type="button"
+      class="btn sm ghost icon remove"
+      class:sure
+      aria-label={sure ? `Sure? Remove ${label}` : `Remove ${label}`}
+      title={sure ? "Tap again to remove them" : "Remove"}
+      onclick={remove}
+      onblur={() => (sure = false)}
+    >
+      <Icon name={sure ? "check" : "x"} size={16} />
+    </button>
   </div>
   {#if team.players.length}
-    <p class="picked hint small">
+    <p class="picked hint small" class:drawn={pick !== null}>
       Picked: {team.players.map((p) => (p.memberId ? nameOf(p.memberId).split(" ")[0] : p.name)).join(", ")}
     </p>
   {/if}
@@ -227,37 +251,70 @@
 {/if}
 
 <style>
-  /* A draft captain (not `.row`, the app's list row with lines): one line, everything the height of a field */
+  /* A draft captain (not `.row`, the app's list row with lines): the crest, then two lines the height of the crest,
+     their name over their team's name, then the remove button */
   .captain {
     display: grid;
-    grid-template-columns: 1.5rem var(--control-h) minmax(0, 1fr) minmax(8rem, 15rem) auto;
-    gap: var(--s-2);
+    grid-template-columns: var(--control-h) minmax(0, 1fr) auto;
+    gap: var(--s-3);
     align-items: center;
+    /* Short, so the ✕ stays by the name it removes, not across a wide panel */
+    max-width: 30rem;
   }
-  /* The captain, as a person: their name; click it to change them */
-  .who {
+  .captain.drawn {
+    grid-template-columns: 1.5rem var(--control-h) minmax(0, 1fr) auto;
+  }
+  .lines {
     display: grid;
-    justify-items: start;
-    align-items: center;
+    grid-template-rows: 1fr 1fr;
     height: var(--control-h);
     min-width: 0;
+  }
+  /* The name and the team name: text that's a field when touched. Each pads out to the left into the gap, so the
+     words line up with the column and a hover or focus fill sits round them */
+  .who,
+  .team-name {
+    min-width: 0;
+    margin-left: calc(-1 * var(--s-2));
     padding: 0 var(--s-2);
     border: 0;
-    border-radius: var(--r-md);
+    border-radius: var(--r-sm);
     background: none;
     text-align: left;
-    cursor: pointer;
+    transition: background-color var(--t-fast) var(--ease-in-out);
   }
-  .who:hover {
-    background: var(--surface-2);
-  }
-  .who-name {
-    max-width: 100%;
+  .who {
     overflow: hidden;
     color: var(--fg);
     font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
+  }
+  .team-name {
+    width: calc(100% + var(--s-2));
+    color: var(--fg-body);
+    font-size: var(--text-sm);
+  }
+  .team-name::placeholder {
+    color: var(--fg-subtle);
+  }
+  .who:hover,
+  .team-name:hover,
+  .team-name:focus {
+    background: var(--field-bg);
+  }
+  .team-name:focus-visible {
+    outline-offset: 0;
+  }
+  /* A phone zooms into a field under 16px */
+  @media (pointer: coarse) {
+    .team-name {
+      font-size: var(--text-base);
+    }
+  }
+  .remove.sure {
+    color: var(--red-hot);
   }
   .pick {
     color: var(--fg-muted);
@@ -265,29 +322,10 @@
     text-align: center;
   }
   .picked {
-    margin: calc(-1 * var(--s-1)) 0 0 calc(1.5rem + var(--control-h) + 2 * var(--s-2));
+    margin: calc(-1 * var(--s-1)) 0 0 calc(var(--control-h) + var(--s-3));
   }
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-  @container (max-width: 34rem) {
-    .captain {
-      grid-template-columns: 1.5rem var(--control-h) minmax(0, 1fr) auto;
-    }
-    /* The name field takes a line of its own under the name; the ✕ stays up on the name's line, not alone below */
-    .captain > .input {
-      grid-row: 2;
-      grid-column: 3 / -1;
-    }
-    .captain > .actions {
-      grid-row: 1;
-      grid-column: 4;
-    }
-    .picked {
-      margin-left: 0;
-    }
+  .picked.drawn {
+    margin-left: calc(1.5rem + var(--control-h) + 2 * var(--s-3));
   }
 
   /* A team that entered: a quiet card */

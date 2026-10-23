@@ -16,6 +16,7 @@
     id = "person",
     "aria-label": ariaLabel,
     autofocus = false,
+    quiet = false,
     onpick,
     ondone,
   }: {
@@ -29,6 +30,8 @@
     "aria-label"?: string;
     /** Focus it as soon as it shows (changing who's picked). */
     autofocus?: boolean;
+    /** Text in a list row, not a boxed field: no edge and no glass, a fill only when it's touched. */
+    quiet?: boolean;
     onpick: (id: number) => void;
     /** Escape, or focus left without a pick. */
     ondone?: () => void;
@@ -134,8 +137,8 @@
   });
 </script>
 
-<div class="wrap" class:open>
-  <span class="glass" aria-hidden="true"><Icon name="search" size={16} /></span>
+<div class="wrap" class:open class:quiet>
+  {#if !quiet}<span class="glass" aria-hidden="true"><Icon name="search" size={16} /></span>{/if}
   <input
     bind:this={input}
     bind:value={query}
@@ -201,6 +204,30 @@
   .input {
     width: 100%;
     padding-left: calc(var(--s-3) + 16px + var(--s-2));
+  }
+  /* Quiet: the words line up with the column, the padding reaching out into the gap to its left */
+  .quiet {
+    height: 100%;
+    margin-left: calc(-1 * var(--s-2));
+  }
+  .quiet .input {
+    height: 100%;
+    padding: 0 var(--s-2);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .quiet .input:hover,
+  .quiet .input:focus {
+    background: var(--field-bg);
+  }
+  .quiet .input:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 0;
+    box-shadow: none;
   }
   .menu {
     position: fixed;
