@@ -587,7 +587,8 @@
       >
       <span class="item-text">{r.text}</span>
       <!-- When, then where you stand as a status (in: a tick in red; waiting: your number, as its card says it; out:
-           quiet), on one line that never wraps: the time gives way first, so every answer keeps the row's height -->
+           quiet). On a narrow phone it takes a second line rather than cutting the time short; the standing never
+           breaks, and you answer on its own page, so nothing here moves as you tap -->
       <span class="item-sub up-sub">
         {#if r.sub}<span class="up-when">{r.sub}</span>{/if}
         {#if r.standing}
@@ -601,6 +602,12 @@
           </span>
         {/if}
       </span>
+      <!-- A narrow phone: how many are in, a line of its own under the rest, so the words beside the date keep their room -->
+      {#if r.count}
+        <span class="item-sub up-count-line num"
+          ><strong>{r.count.going}</strong>{r.count.limit ? ` of ${r.count.limit}` : ""} in</span
+        >
+      {/if}
     </span>
     <!-- Called off: a badge where the count would be, the row quieter -->
     {#if r.cancelled}<span class="badge off"><Icon name="x" size={12} />Cancelled</span>{/if}
@@ -948,19 +955,15 @@
     min-width: 0;
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(1.35rem, 5.5vw, 2rem);
+    font-size: clamp(1.2rem, 5.5vw, 2rem);
     font-style: italic;
     font-weight: 400;
     letter-spacing: 0.01em;
     line-height: 1.05;
     text-transform: uppercase;
     color: var(--fg);
-    /* A long hello on a narrow phone takes a second line (the row's as tall as two, beside the mark), never "…" */
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
+    /* A long hello on a narrow phone takes a second line, or a third on the narrowest, beside the mark; never "…" */
+    overflow-wrap: anywhere;
     text-wrap: balance;
   }
   .hello-side {
@@ -1319,10 +1322,11 @@
       color var(--t-fast) var(--ease-in-out),
       background-color var(--t-fast) var(--ease-in-out);
   }
+  /* Your team and three of its players: a second line on a phone rather than names cut short */
   .status .grow {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    padding-block: var(--s-2);
   }
   .status strong {
     color: var(--fg);
@@ -1433,25 +1437,16 @@
     color: var(--fg-muted);
     font-size: var(--text-sm);
   }
-  /* What's coming up: one line, whatever the answer; the time gives way before your standing does */
-  .up-sub {
-    display: flex;
-    align-items: center;
-    gap: 0.35em;
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-  .up-when {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  /* What's coming up: when, then your standing, wrapping onto a second line where a phone is narrow, never "…" */
+  .up-dot {
+    margin: 0 0.35em;
   }
   .up-stand {
     display: inline-flex;
-    flex-shrink: 0;
     align-items: center;
     gap: 0.25em;
+    vertical-align: bottom;
+    white-space: nowrap;
   }
   /* Colour is an accent: your In is the tick and the word in the club red, never a fill */
   .up-stand.in {
@@ -1475,6 +1470,30 @@
     color: var(--fg-muted);
     font-size: var(--text-sm);
     white-space: nowrap;
+  }
+  .up-count-line {
+    display: none;
+  }
+  .up-count-line strong {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  @media (max-width: 480px) {
+    .up-count {
+      display: none;
+    }
+    .up-count-line {
+      display: block;
+    }
+    /* Your tab: Settle up under the words, so the amount and the beers have the card's width */
+    .note.owing {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+    .note.owing .got-it {
+      grid-column: 2;
+      justify-self: start;
+      margin-top: var(--s-1);
+    }
   }
   .up-count strong {
     color: var(--fg);
