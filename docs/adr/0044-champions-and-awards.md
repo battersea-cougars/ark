@@ -112,3 +112,5 @@ who won most of them.
   are confirmed, before the reveal, one guarded batch.
 - 2026-10-23: The judges' call's sheet has a Random on either half: a name from its list, or a winner from who
   played, another each press, the admin's to change.
+- 2026-10-23: The judges' call is optional: confirming doesn't wait for it, and one not made (or left out) isn't
+  revealed. Its names take in the ref too: "Most Calls Missed (the ref)", "Blindest Whistle (the ref)".

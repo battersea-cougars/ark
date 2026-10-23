@@ -40,6 +40,8 @@ export const LIVE_OPTIONS = [
   "Best Celly",
   "Most Dramatic Fall",
   "Loudest Stick Tap",
+  "Most Calls Missed (the ref)",
+  "Blindest Whistle (the ref)",
 ];
 
 /**
