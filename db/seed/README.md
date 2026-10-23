@@ -7,7 +7,7 @@ people (roles, Friday Training, the Kumite). Anything personal comes from here, 
 ## The team roster
 
 The club's starting players. Production's admins live in Secrets Manager as `TEAM_ROSTER__PRODUCTION`
-([docs/secrets.md#team-roster](../../docs/secrets.md#team-roster)); a local roster lives on your machine as
+([docs/secrets.md#team_roster__production](../../docs/secrets.md#team_roster__production)); a local roster lives on your machine as
 `db/seed/roster.local.json`, which git ignores (`db/seed/*.local.*`). Without one, local seeds the made-up club in
 `db/seed/roster.example.json` (committed: nobody real in it), its admin Ada Admin (admin@example.com). Dev has none: its database already holds its
 people.
@@ -43,7 +43,7 @@ none, and roles are added, never removed. So what admins change in the app alway
   (`scripts/lib/anonymize.mjs`, ADR 0029). To swap who's already in a database the same way:
   `node scripts/anonymize-members.mjs --local` (or `--remote -c <dev config>`).
 
-Changing production's admins: the command in [docs/secrets.md#team-roster](../../docs/secrets.md#team-roster). Production's roster (`TEAM_ROSTER__PRODUCTION`) is only its
+Changing production's admins: the command in [docs/secrets.md#team_roster__production](../../docs/secrets.md#team_roster__production). Production's roster (`TEAM_ROSTER__PRODUCTION`) is only its
 admins; everyone else comes in through **Members → Manage → Import members** in the team app, which takes a CSV
 (the club's columns `name`, `position`, `subx`, `email`, `role`, `is Cougars`, with `rating` optional; the drawer has a template) or this same JSON
 ([ADR 0069](../../docs/adr/0069-members.md)). After that, add and edit members in the app.

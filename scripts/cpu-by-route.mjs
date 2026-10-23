@@ -2,7 +2,7 @@
 // CPU time per route, from Workers Logs, for finding what makes the Usage page's CPU figures high (ADR 0059), and for
 // a load run against dev (scripts/load/load.analytics.mjs, the run's window).
 //   node scripts/env-pull.mjs -- node scripts/cpu-by-route.mjs [hours]      (dev; default the last 24 hours)
-// Needs Workers Observability Read on CLOUDFLARE_ANALYTICS_TOKEN (docs/secrets.md#cloudflare_analytics_token; dev only).
+// Needs Workers Observability Read on CLOUDFLARE_ANALYTICS_TOKEN (docs/secrets.md#cloudflare_analytics_token__dev; dev only).
 // On a quiet Worker most requests start it cold, so expect higher figures than a busy one gives. Workers Logs gives
 // at most 2,000 invocations a query: a busy window's figures are a sample of it.
 import { pathToFileURL } from "node:url";

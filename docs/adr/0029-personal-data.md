@@ -24,7 +24,7 @@ emailed to the club inbox ([ADR 0027](0027-email-through-gmail-api.md)). The clu
 - The club's seed (`db/seed/club.sql`, [ADR 0050](0050-schema-and-seed-until-launch.md)) holds only what isn't about
   people: roles and their actions, Friday Training, the Kumite.
 - **The roster** is one line of JSON. In Bitwarden only production's admins are kept, as
-  `TEAM_ROSTER__PRODUCTION`, the same as a secret ([docs/secrets.md#team-roster](../../docs/secrets.md#team-roster)); the club's
+  `TEAM_ROSTER__PRODUCTION`, the same as a secret ([docs/secrets.md#team_roster__production](../../docs/secrets.md#team_roster__production)); the club's
   full list isn't kept there (dev's database holds it anonymized). On a laptop it's `db/seed/roster.local.json`,
   which git ignores.
 - **`scripts/seed-roster.mjs` only adds:** players not yet in `members` (matched by name, any case), an email where

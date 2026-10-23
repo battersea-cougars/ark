@@ -23,7 +23,7 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
   encrypts it with the environment's `BACKUP_KEY` (AES-256-GCM, the key stretched with scrypt and a fresh salt each
   time: `scripts/lib/backup.mjs`), so the artifact is useless without the key, and a changed byte is refused. The plain
   export never leaves a private temp folder.
-- **One key per environment**, random, in Bitwarden only ([docs/secrets.md#backup_key](../secrets.md#backup_key)): a dev key can't open production's
+- **One key per environment**, random, in Bitwarden only ([docs/secrets.md#our-own-keys](../secrets.md#our-own-keys)): a dev key can't open production's
   backups.
 - **When:** nightly at 03:15 UTC (`.github/workflows/backup.yml`; production's run starts on `release`, as the
   website's rebuilds do), and in `deploy.yml`'s `database` job before every rebuild or migration. A backup that fails

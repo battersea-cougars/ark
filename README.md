@@ -34,7 +34,7 @@ To preview the design with sample events, videos, photos and players: `DEMO_CONT
 The site builds and runs **without Sanity**: until a Sanity project is configured, it uses the club copy in
 `apps/web/src/lib/sanity/fallback.ts` and shows empty states for videos, photos and events.
 
-With secrets (run `bw-unlock` first, see [Bitwarden tokens](docs/secrets.md#bitwarden-tokens)):
+With secrets (run `bw-unlock` first, see [Bitwarden](docs/secrets.md#bitwarden)):
 
 ```sh
 npm run secrets                             # list secret names (never values)
@@ -44,25 +44,21 @@ npm run app restart                         # the apps pick up dev secrets once 
 ## Secrets
 
 Passwords, keys and tokens the apps need: to deploy, send email, read YouTube and Instagram, send notifications, seal
-backups. **Each one is described in [docs/secrets.md](docs/secrets.md)**: why it exists, whose account it comes from,
-who reads it, how it gets there, and how to change it. Which outside service each comes from:
-[docs/accounts.md](docs/accounts.md).
-
-How they work ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/0010-environments-and-deploys.md)):
+backups. How they work ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md), [ADR 0010](docs/adr/0010-environments-and-deploys.md)):
 
 - **They live in Bitwarden Secrets Manager, and nowhere else.** Not in files, not in GitHub (bar the two tokens that
   open Bitwarden), not in this public repo. `.env` is for your own non-secret settings only ([.env.example](.env.example)).
 - **Two environments, two projects.** Production (Cloudflare account **Cougars**) reads the project `cougars`; dev
-  (account **Cougars Dev**: your machine, PR previews, `main`, `scripts/deploy-dev.sh`) reads `cougars-dev`. The dev token can't see
-  `cougars` at all.
+  (account **Cougars Dev**: your machine, PR previews, `main`, `scripts/deploy-dev.sh`) reads `cougars-dev`. The dev
+  token can't see `cougars` at all.
 - **One naming rule.** A plain `NAME` is shared by both environments (it sits in `cougars-dev`); `NAME__PRODUCTION`
   or `NAME__DEV` is that environment's own value. The code always reads plain `NAME`.
 - **A token is named exactly like its secret** at the provider that issued it, so the two lists match.
 - **Never in this repo:** a value, or anyone's email address or phone number; name accounts by role ("the club
   account", "the developer account"). What's safe to write: [docs/accounts.md](docs/accounts.md#writing-about-accounts-in-this-repo).
 
-**On your machine:** run `bw-unlock` once per container start (your master password), and the scripts find their
-token themselves ([Bitwarden tokens](docs/secrets.md#bitwarden-tokens)).
+**Loading them on your machine:** run `bw-unlock` once per container start (your master password), and the scripts
+find their token themselves ([Bitwarden](docs/secrets.md#bitwarden)).
 
 ```sh
 npm run secrets                                  # the names in dev (never values); add -- --environment production
@@ -70,15 +66,17 @@ node scripts/env-pull.mjs -- <command>           # run a command with dev's secr
 npm run secret:set NAME                          # add or change one (hidden prompt; picks the project from the name)
 ```
 
-**Adding one:** create the token with the secret's name, `npm run secret:set NAME`, and add its entry to
-[docs/secrets.md](docs/secrets.md) in the same change.
+**Adding one:** create the token at its provider with the secret's name, `npm run secret:set NAME`, and add its entry
+to [docs/secrets.md](docs/secrets.md), under its system and environment, in the same change.
 
-By system: [Bitwarden](docs/secrets.md#bitwarden) · [Cloudflare](docs/secrets.md#cloudflare) ·
-[Google](docs/secrets.md#google) (Gmail, YouTube, Firebase) · [Apple](docs/secrets.md#apple) ·
-[Sanity](docs/secrets.md#sanity) · [GitHub](docs/secrets.md#github) · [Sentry](docs/secrets.md#sentry) ·
-[Instagram](docs/secrets.md#instagram) · [Web Push](docs/secrets.md#web-push) ·
-[Our own keys](docs/secrets.md#our-own-keys) · [Club data](docs/secrets.md#club-data) ·
-[Plain settings](docs/secrets.md#plain-settings) · [Everything in one table](docs/secrets.md#overview)
+**Each secret, by system** (what it's for, where it comes from, who reads it, how to change it):
+[Bitwarden](docs/secrets.md#bitwarden) · [Cloudflare](docs/secrets.md#cloudflare) ·
+[Google](docs/secrets.md#google) · [Apple](docs/secrets.md#apple) · [Sentry](docs/secrets.md#sentry) ·
+[Sanity](docs/secrets.md#sanity) · [GitHub](docs/secrets.md#github) · [Instagram](docs/secrets.md#instagram) ·
+[Web Push](docs/secrets.md#web-push) · [Our own keys](docs/secrets.md#our-own-keys) ·
+[Club data](docs/secrets.md#club-data) · [Plain settings](docs/secrets.md#plain-settings) ·
+[Everything in one table](docs/secrets.md#overview). Which outside service each comes from:
+[docs/accounts.md](docs/accounts.md).
 
 ## Locked out
 
@@ -100,7 +98,7 @@ passkey on the You page, and let others in the usual ways.
 ## Docs
 
 - [docs/accounts.md](docs/accounts.md): every outside service, who owns it, and which secrets come from it
-- [docs/secrets.md](docs/secrets.md): every secret, by system: why, owner, used by, how to change it
+- [docs/secrets.md](docs/secrets.md): every secret, by system and environment: why, where it comes from, used by, how to change it
 - [docs/setup.md](docs/setup.md): one-time account setup (Cloudflare, Sanity, Bitwarden, GitHub)
 - [docs/testing.md](docs/testing.md): how we test (use cases first, the fake world)
 - [docs/editing.md](docs/editing.md): guide for club editors (no coding)

@@ -70,7 +70,7 @@ To set up a project from scratch (or check one):
 2. Create two projects: **`cougars`** (production values, `NAME__PRODUCTION`) and **`cougars-dev`** (dev values,
    `NAME__DEV`, and shared plain `NAME`s). Add the secrets from steps 1, 2 and 5 with exactly those names.
 3. **Machine accounts**, each with one access token (names and the matrix are in
-   [secrets.md#bitwarden-tokens](secrets.md#bitwarden-tokens)):
+   [secrets.md#bitwarden](secrets.md#bitwarden)):
    - `cougars-ci`: `cougars` and `cougars-dev`. Token `BWS_ACCESS_TOKEN__PRODUCTION`, in GitHub environment `production`.
    - `cougars-ci-dev`: `cougars-dev` only. Token `BWS_ACCESS_TOKEN__DEV`, in GitHub environment `preview`.
    - `cougars-ci` and `cougars-ci-dev` get **Can read** only.
@@ -125,7 +125,7 @@ and keep two-factor login on the account, which controls the domain.
 Nothing is done by hand: `deploy.yml` sets production's `SITE_URL` to `https://batterseacougars.com`, and
 `scripts/ci/target.mjs` attaches it and `www.` to the `cougars` worker as custom domains, so the first `release`
 deploy creates the DNS records and certificates. That needs the zone permissions on
-[`CLOUDFLARE_API_TOKEN__PRODUCTION`](secrets.md#cloudflare_api_token). Dev stays on workers.dev: it's a
+[`CLOUDFLARE_API_TOKEN__PRODUCTION`](secrets.md#cloudflare_api_token__production). Dev stays on workers.dev: it's a
 separate Cloudflare account, and a domain can only point at workers in its own.
 
 The form rate limit and the edge cache start working on the domain: Cloudflare's Cache API is disabled on

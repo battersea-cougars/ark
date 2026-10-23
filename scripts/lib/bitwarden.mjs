@@ -69,7 +69,7 @@ export function ensureToken() {
   if (!token) {
     throw new Error(
       `No Bitwarden token. Run bw-unlock, and check your vault has the secure note ${VAULT_NOTE} ` +
-        "with a line COUGARS_LOCAL_BW_TOKEN=... (docs/secrets.md#bitwarden-tokens).",
+        "with a line COUGARS_LOCAL_BW_TOKEN=... (docs/secrets.md#bitwarden).",
     );
   }
   process.env.COUGARS_LOCAL_BW_TOKEN = token;

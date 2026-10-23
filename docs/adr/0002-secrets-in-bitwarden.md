@@ -1,7 +1,7 @@
 # 0002. Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-22
+- **Date:** 2026-10-05 · updated 2026-10-23
 - **Merges:** 0012
 
 ## Context
@@ -44,12 +44,13 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
    a Bitwarden machine account), give it the exact Secrets Manager name, for example
    `CLOUDFLARE_API_TOKEN__PRODUCTION`. The provider's token list then maps one-to-one onto Secrets Manager, and
    revoking or rotating the right one is obvious.
-7. **Every secret is documented in [docs/secrets.md](../secrets.md)**, grouped by the system that issues it (as Ark's
-   `docs/env-reference.md`): why it exists (what breaks without it), its owner (where to revoke it), its Bitwarden
-   name and project, its permissions, who uses it (_Used by_ records which app, since project names don't), how it
-   gets there, whether it expires, and how to change it; then one Overview table of every name, and the values that
-   aren't secret under _Plain settings_. The README keeps a short overview
-   ([README.md#secrets](../../README.md#secrets)). A secret that isn't in docs/secrets.md shouldn't exist.
+7. **Every secret is documented in [docs/secrets.md](../secrets.md)**, by system (as Ark's
+   `docs/env-reference.md`), and within each system by environment (production, dev, both): why it exists (what
+   breaks without it), where it comes from (the provider and the account or page it's made or found in; "we make it"
+   for our own keys), its permissions, who uses it (_Used by_ records which app, since project names don't), how it
+   gets there, whether it expires, and how to change it; then one Overview table of every name. The README says only
+   how secrets work ([README.md#secrets](../../README.md#secrets)). A secret that isn't in docs/secrets.md shouldn't
+   exist.
 8. **One exception: a token a Worker has to write.** A Worker can't write to Bitwarden, so a token that the app
    itself makes or renews is kept in D1 (`sealed_tokens`), sealed in the Worker (AES-GCM, `packages/shared/sealed-tokens.ts`)
    with a key of its own that is itself a Bitwarden secret. Its first value is in Bitwarden; if the sealed one won't
@@ -89,3 +90,5 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 - 2026-10-22: The documentation moves from the README to docs/secrets.md, grouped by system as Ark does it, each
   entry with its owner and expiry, plus an Overview table and the not-secret values listed apart; the README keeps a
   short overview.
+- 2026-10-23: docs/secrets.md is laid out by system, then by environment, each entry saying where it comes from
+  (not an "owner"); the README keeps only how secrets work and a link per system.
