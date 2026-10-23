@@ -370,9 +370,9 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   to members once (topic `places`): on its opening day by the cron, or as an admin opens it by hand (or makes it open),
   marked `signup_told_at`; the Kumite's reads "An invitation has arrived", "The Cougars Kumite, Fri 23 Oct.". Only the
   Kumite (lib/motif.ts invitationOnly); every other tournament and Friday stay plain.
-- 2026-10-23: One ink stamp (lib/InkStamp) for the status and the match cards: You are next! a red stamp with 次,
-  stamped down as it shows; a win bone with 勝, a draw and Up next faint with 分 and 次 (red stays for yours and what's
-  on). One vocabulary for a record: the table's columns, W D L then Pts, the same letters and figures under a team on
+- 2026-10-23: One ink stamp (lib/InkStamp) for the status and the match cards: a Kumite's match up next always
+  says You are next! (Chong Li's line, the club's joke, never "Up next"), a red stamp with 次 stamped down as it shows
+  when it's your team's, faint otherwise; a win bone with 勝, a draw faint with 分 (red stays for yours and what's on). One vocabulary for a record: the table's columns, W D L then Pts, the same letters and figures under a team on
   a card and its matchup (lib/TeamRecord: 1W 0D 0L · 3 Pts), never "1-0-0" or "1W 0D 0L" without points. The board's
   rows are each a link to the team, the chevron at the row's end, a long name cut short. A page under the series' front
   page (a team, a match, History, an edition) has its way back as the header's eyebrow, "‹ The Cougars Kumite", a

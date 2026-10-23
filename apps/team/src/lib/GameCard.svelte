@@ -47,7 +47,8 @@
   const upNext = $derived(
     g.status === "next" && !(tournament.games ?? []).some((x) => x.status === "next" && x.position < g.position),
   );
-  // Your team's in it: its You are next! is the club's red, the one other accent on the card than the match on now
+  // Your team's in it: its stamp is the club's red, the one other accent on the card than the match on now. Every
+  // Kumite match up next still says You are next!, the line from the film, whoever's playing
   const yours = $derived.by(() => {
     const id = tournament.teams[myTeamIndex(tournament, me().id)]?.id;
     return !!id && (g.homeTeamId === id || g.awayTeamId === id);
@@ -76,7 +77,7 @@
             tone={yours ? "red" : "faint"}
             kanji={kanjiFor(type, "next")}
             icon={yours ? "user" : undefined}
-            text={yours && type?.slug === "kumite" ? "You are next!" : "Up next"}
+            text={type?.slug === "kumite" ? "You are next!" : "Up next"}
             tilt={yours ? -5 : -3}
             land={yours}
           /></span
