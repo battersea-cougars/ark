@@ -624,9 +624,10 @@ h3 {
   .view > .page.fill {
     padding-right: 0;
   }
-  /* (not a sheet declared in the page: lib/Sheet sizes its own dialog) */
-  .page:not(.full) > :not(.tone, dialog),
-  .page:not(.full) > .tone > :not(dialog) {
+  /* (not a sheet declared in the page: lib/Sheet sizes its own dialog; nor inside an editor drawer, .drawer.page,
+     which a pop-over moves into: a day picker's month stretched to the frame's width, its days 115px) */
+  .page:not(.full, dialog) > :not(.tone, dialog),
+  .page:not(.full, dialog) > .tone > :not(dialog) {
     width: 100%;
     max-width: 52rem;
   }
