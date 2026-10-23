@@ -9,14 +9,21 @@
   import { createVenue, updateVenue } from "../app/backend.svelte";
   import type { Venue } from "../demo/model";
   import { cleanMapUrl, placeOf } from "@cougars/shared/places";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
 
   const blank = (): Venue => ({ id: 0, name: "", address: "", mapUrl: "", active: true });
   let open = $state(false);
   let draft = $state<Venue>(blank());
   let problem = $state("");
+  // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => draft);
 
   function edit(v?: Venue) {
     draft = v ? { ...$state.snapshot(v) } : blank();
+    edits.reset();
+    edits.fresh = !v;
     problem = "";
     open = true;
   }
@@ -37,7 +44,8 @@
     const mapUrl = cleanMapUrl(draft.mapUrl);
     if (mapUrl === null) return void (problem = "That map link isn't a web link. In Google Maps: Share → Copy link.");
     const v = { ...draft, name: draft.name.trim(), address: draft.address.trim(), mapUrl };
-    if ((v.id ? await updateVenue(v) : await createVenue(v)) !== null) open = false;
+    // Saved, it closes; the shell says so
+    if ((await edits.run(() => (v.id ? updateVenue(v) : createVenue(v)))) !== null) open = false;
   }
 </script>
 
@@ -82,8 +90,8 @@
   {/if}
 </div>
 
-<Sheet bind:open title={draft.id ? "Edit venue" : "Add a venue"}>
-  <form class="form" onsubmit={save}>
+<Sheet bind:open title={draft.id ? "Edit venue" : "Add a venue"} {edits}>
+  <form class="form" id="venue-form" onsubmit={save}>
     <label class="field"
       >Name <input
         class="input"
@@ -116,8 +124,8 @@
     </label>
     <label class="check"><input type="checkbox" bind:checked={draft.active} /> Offer it when picking a place</label>
     {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
-    <button class="btn primary">{draft.id ? "Save" : "Add venue"}</button>
   </form>
+  {#snippet footer()}<SaveBar {edits} form="venue-form" label={draft.id ? "Save" : "Add venue"} />{/snippet}
 </Sheet>
 
 <style>

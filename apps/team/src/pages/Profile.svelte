@@ -24,6 +24,8 @@
   import PageHeader from "../lib/PageHeader.svelte";
   import { APP_BUILD, APP_VERSION } from "../app/build";
   import SettingsButton from "../lib/SettingsButton.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
 
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
@@ -56,6 +58,9 @@
         : (NAME_FORMS.find((f) => f.id === nameForm)?.label ?? ""),
   );
   const locked = impersonating();
+  // Your details' unsaved changes: Save lights up, and leaving the page asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => ({ form, teamName, nameForm, nickname }));
   const BIO_MAX = 160;
 
   // Your everyday role (ADR 0024): anyone with more than Member can open the app as a lesser role, so ratings and admin
@@ -85,13 +90,15 @@
   function save(e: SubmitEvent) {
     e.preventDefault();
     const kumiteTeamName = teamName.trim().replace(/\s+/g, " ");
-    saveProfile({
-      ...form,
-      phone: form.phone.trim(),
-      bio: form.bio.trim(),
-      webName,
-      ...(kumiteTeamName !== teamNameWas && { kumiteTeamName }),
-    });
+    edits.run(() =>
+      saveProfile({
+        ...form,
+        phone: form.phone.trim(),
+        bio: form.bio.trim(),
+        webName,
+        ...(kumiteTeamName !== teamNameWas && { kumiteTeamName }),
+      }),
+    );
   }
 </script>
 
@@ -156,7 +163,7 @@
         <span>Default Kumite team name <span class="hint">· your team's when you captain one</span></span>
         <input class="input" maxlength="40" placeholder={`Team ${shortName(who)}`} bind:value={teamName} />
       </label>
-      <button class="btn primary">Save</button>
+      <SaveBar {edits} />
     </fieldset>
     {#if locked}<p class="hint">Read-only while you're viewing as {shortName(who)}.</p>{/if}
   </form>

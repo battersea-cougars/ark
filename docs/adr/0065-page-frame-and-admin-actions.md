@@ -1,7 +1,7 @@
 # 0065. One page frame; admin actions live on the thing's own page, not under Settings
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-20
+- **Date:** 2026-10-07 · updated 2026-10-23
 - **Merges:** 0078
 
 ## Context
@@ -36,6 +36,35 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   open, so there's one editor per thing.
 - Members see the same pages without the admin actions; nothing about the page changes shape for them.
 - New features are designed from the page out: where is the admin when they need this? Put it there first.
+
+**One drawer, one sheet, one close contract**
+
+- **One side drawer for the app: `lib/Drawer`** (desktop and tablet, from the right; 26rem, or `wide` 36rem). An editor
+  (`lib/EditorPanel`) is the same drawer in its `page` placement, in the page's column (below). On a phone each is
+  the one bottom sheet, `lib/Sheet` (ADR 0103), unless it's `side` (the draft room's players, worked beside the page:
+  from the right on a phone too, leaving a strip of page to tap off on). Same header everywhere: the title, an
+  optional line under it, the ×.
+- **They keep one close contract (`lib/overlay.ts`)**: a native modal dialog, so focus stays in it and goes back to
+  what opened it, the page under it is inert and doesn't scroll (a desktop's scrollbar keeps its room, so nothing
+  moves), and Escape closes the top one only. A click on the dimmed page closes it only when it was pressed and let
+  go there: a drag that starts inside (selecting a field's text) and ends outside doesn't. Every way out (×, Escape,
+  the backdrop, a swipe, a phone's back) goes through one `requestClose`, which a form's unsaved changes can hold.
+- Not drawers: a player's card (`MemberSheet`, `PlayerCardZoom`) turns over into its panel; it keeps its own layer,
+  with the same unsaved-changes footer.
+
+**Save forms say where they stand**
+
+- **Every Save form shows unsaved and saved the same way** (`lib/SaveBar` in its footer, `lib/dirty.svelte.ts`): it
+  compares what's on screen with what it loaded (typing back to the original is clean again). Unsaved: a small dot
+  and "Unsaved changes" beside Save, and Save is the main button; clean, Save is quiet and off and the footer says
+  "No changes", or "Saved ✓ · just now" (then the time) once saved, in place, the line's room always kept. A failed
+  save stays unsaved and says what went wrong there. A new one can be saved from the start.
+- **Leaving with unsaved changes asks first**, in the footer: "Discard your changes?", Keep editing or Discard (the
+  one red fill). Closing the overlay any way, or going to another page in the app (a link, Back, a phone's swipe
+  back), asks; closing the tab gets the browser's own question (`beforeunload`).
+- A short sheet that closes once saved (the bank details, a venue, an event, a team's look) shows unsaved changes and
+  asks the same way; its "Saved" is the shell's note as it closes. Taps that save at once (switches, sign-ups,
+  notification topics) have nothing unsaved, so no footer.
 
 **One page frame**
 
@@ -162,3 +191,13 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   pages. The order lives in one place (`SECTIONS` and the routes' order in `nav-routes.ts`), so the phone's Settings
   page and a desktop's settings list agree; `settings-list.test.ts` pins it. "Make sure the order of all the admin
   pages makes sense."
+- 2026-10-23: One side drawer and one bottom sheet with one close contract: Escape closes the top one, a click on the
+  dimmed page closes only when pressed and let go there, × closes, focus stays in it and goes back to its opener,
+  the page under it doesn't scroll, and every way out goes through one `requestClose` (`lib/overlay.ts`). The editor
+  panel became the drawer's `page` placement (still in the page's column) and takes its header; `side` keeps a
+  drawer from the right on a phone. "One side drawer component for the app. They all need to follow the same rules:
+  Esc closes, click off screen closes (make sure it's a full click, down and up)."
+- 2026-10-23: Save forms show unsaved changes (a dot, "Unsaved changes", Save lit) and their saves ("Saved ✓ · just
+  now") in one footer (`lib/SaveBar`), and leaving with unsaved changes asks "Discard your changes?". "When we have
+  Save buttons like this form, we should also have dirty indicators and saved indicators so the user knows the
+  changes have been committed."

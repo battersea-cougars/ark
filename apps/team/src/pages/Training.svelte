@@ -17,9 +17,11 @@
   import PlayerCard from "../lib/PlayerCard.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import RegisterDrawer from "../lib/RegisterDrawer.svelte";
-  import { letIn, publishTeams, removeTeams, resetSession, saving, setPlayer } from "../app/backend.svelte";
+  import { letIn, publishTeams, removeTeams, resetSession, setPlayer } from "../app/backend.svelte";
   import EditorPanel from "../lib/EditorPanel.svelte";
   import TrainingEditor from "../lib/TrainingEditor.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import { listScroll } from "../lib/list-scroll";
@@ -408,6 +410,8 @@
   );
   // The training's own settings (days, times, place, fee), opened over this page (ADR 0065)
   let settingsOpen = $state(false);
+  // What's unsaved in the training's editor, and when it was saved (lib/dirty.svelte.ts)
+  const settingsEdits = new Edits();
   // A tool that opens something else, or runs at once: the sheet gets out of the way first
   function go(run: () => void) {
     manageOpen = false;
@@ -1035,10 +1039,11 @@
     icon={series.icon}
     tone={series.tone}
     onclose={() => (settingsOpen = false)}
+    edits={settingsEdits}
   >
-    <TrainingEditor seriesId={series.id} />
+    <TrainingEditor seriesId={series.id} edits={settingsEdits} />
     {#snippet footer()}
-      <button class="btn primary" type="submit" form="training-form" disabled={saving.busy > 0}>Save</button>
+      <SaveBar edits={settingsEdits} form="training-form" />
     {/snippet}
   </EditorPanel>
 {/if}

@@ -4,12 +4,17 @@
   import Sheet from "./Sheet.svelte";
   import { saveBank } from "../app/backend.svelte";
   import { db } from "../demo/store.svelte";
+  import { Edits } from "./dirty.svelte";
+  import SaveBar from "./SaveBar.svelte";
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
   let name = $state("");
   let sortCode = $state("");
   let account = $state("");
+  // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => ({ name, sortCode, account }));
   // Each time it opens: what's saved now
   $effect(() => {
     if (!open) return;
@@ -17,16 +22,18 @@
     name = b?.name ?? "";
     sortCode = b?.sortCode ?? "";
     account = b?.account ?? "";
+    edits.reset();
   });
 
+  // Saved, it closes; the shell says so
   async function save(e: SubmitEvent) {
     e.preventDefault();
-    if (await saveBank({ name, sortCode, account })) open = false;
+    if (await edits.run(() => saveBank({ name, sortCode, account }))) open = false;
   }
 </script>
 
-<Sheet bind:open title="The club's bank details">
-  <form class="form" onsubmit={save}>
+<Sheet bind:open title="The club's bank details" {edits}>
+  <form class="form" id="bank-form" onsubmit={save}>
     <label class="field">
       Account name
       <input
@@ -68,6 +75,6 @@
       Every member sees these on their Dues page, with their own reference, and every reminder says them. It's on the
       record when they change.
     </p>
-    <button class="btn primary">Save</button>
   </form>
+  {#snippet footer()}<SaveBar {edits} form="bank-form" />{/snippet}
 </Sheet>

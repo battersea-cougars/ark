@@ -28,6 +28,9 @@
 
 <script lang="ts">
   import { deleteTournament, saving } from "../app/backend.svelte";
+  import { untrack } from "svelte";
+  import { Edits } from "./dirty.svelte";
+  import SaveBar from "./SaveBar.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import EditorPanel from "./EditorPanel.svelte";
   import TournamentDateEditor from "./TournamentDateEditor.svelte";
@@ -50,6 +53,8 @@
   // Deleting one: asked in the footer first, in so many words
   let asking = $state(false);
   let editor = $state<EditorPanel | undefined>();
+  // What's unsaved in the date's editor, and when it was saved (lib/dirty.svelte.ts)
+  const edits = new Edits();
   async function remove() {
     if (!date) return;
     // Closed first, so the panel never shows it gone; a failure says so in the save note
@@ -59,7 +64,8 @@
   }
   $effect(() => {
     if (tournamentPanel.open === "new") answers = blankQuick(typeById(tournamentPanel.typeId ?? null));
-    void tournamentPanel.open;
+    // Shut without its own way out (deleted): the next one opens with nothing to say
+    if (tournamentPanel.open === null) untrack(() => edits.closed());
     asking = false;
   });
 </script>
@@ -75,6 +81,7 @@
       tone={type?.tone}
       onclose={() => (tournamentPanel.open = null)}
       footer={quick ? undefined : footer}
+      {edits}
     >
       {#if quick && type}
         <!-- Scheduled: the panel closes on the page, which now shows the new one -->
@@ -92,6 +99,7 @@
           typeId={tournamentPanel.typeId}
           startTab={tournamentPanel.tab}
           bind:start={answers}
+          {edits}
           oncreated={(id) => (tournamentPanel.open = closeOnCreate ? null : id)}
         />
       {/if}
@@ -101,22 +109,22 @@
 
 <!-- The editor's footer. The questions have none here: the wizard keeps its own (Back, Next, Schedule it) -->
 {#snippet footer()}
-  {#if tournamentPanel.open === "new" && type}
-    <!-- Advanced on a new one: back to the three questions, with what's been filled in here -->
-    <button class="btn ghost back" type="button" onclick={() => (tournamentPanel.advanced = false)}
-      ><Icon name="chevronLeft" size={16} />Back to the questions</button
-    >
-    <button class="btn primary" type="submit" form="date-form" disabled={saving.busy > 0}>Schedule it</button>
-  {:else if date && asking}
+  {#if date && asking}
     <p class="ask" role="alert">Delete it? Its teams, sign-ups and results go too.</p>
     <button class="btn ghost" type="button" onclick={() => (asking = false)}>Keep it</button>
     <button class="btn delete" type="button" disabled={saving.busy > 0} onclick={remove}>Delete</button>
   {:else}
-    {#if date}
-      <button class="btn ghost danger" type="button" onclick={() => (asking = true)}>Delete</button>
-    {/if}
-    <button class="btn primary" type="submit" form="date-form" disabled={saving.busy > 0}
-      >{date ? "Save" : "Schedule it"}</button
+    <SaveBar {edits} form="date-form" label={date ? "Save" : "Schedule it"} start={date ? deleteIt : backIt} />
+  {/if}
+{/snippet}
+{#snippet deleteIt()}
+  <button class="btn ghost danger" type="button" onclick={() => (asking = true)}>Delete</button>
+{/snippet}
+{#snippet backIt()}
+  {#if type}
+    <!-- Advanced on a new one: back to the three questions, with what's been filled in here -->
+    <button class="btn ghost back" type="button" onclick={() => (tournamentPanel.advanced = false)}
+      ><Icon name="chevronLeft" size={16} />Back to the questions</button
     >
   {/if}
 {/snippet}
@@ -124,11 +132,7 @@
 <style>
   /* Delete sits apart, at the start of the footer, in red words; asked, the question takes its place */
   .danger {
-    margin-right: auto;
     color: var(--red-hot);
-  }
-  .back {
-    margin-right: auto;
   }
   .ask {
     flex: 1;

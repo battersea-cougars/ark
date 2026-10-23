@@ -6,6 +6,8 @@
   import { shrinkLogo } from "./logo";
   import { setTeamLook } from "../app/backend.svelte";
   import { db } from "../demo/store.svelte";
+  import { Edits } from "./dirty.svelte";
+  import SaveBar from "./SaveBar.svelte";
 
   let {
     tournamentId,
@@ -29,6 +31,9 @@
 
   // svelte-ignore state_referenced_locally
   let form = $state({ name, logo });
+  // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => form);
   // A Kumite team's name is its captain's to carry to the next one (ADR 0060): saved on their profile too
   const kumite = $derived(
     db.tournamentTypes.find((ty) => ty.id === db.tournaments.find((x) => x.id === tournamentId)?.typeId)?.slug ===
@@ -48,11 +53,11 @@
   }
   async function save(e: SubmitEvent) {
     e.preventDefault();
-    if (await setTeamLook(tournamentId, teamId, form.name.trim(), form.logo)) open = false;
+    if (await edits.run(() => setTeamLook(tournamentId, teamId, form.name.trim(), form.logo))) open = false;
   }
 </script>
 
-<Sheet bind:open title="Name and logo">
+<Sheet bind:open title="Name and logo" {edits}>
   <form id="team-look" class="form" onsubmit={save}>
     <label class="field">
       <span>Team name</span>
@@ -84,7 +89,7 @@
     {#if error}<p class="error small">{error}</p>{/if}
   </form>
   {#snippet footer()}
-    <button class="btn primary" type="submit" form="team-look">Save</button>
+    <SaveBar {edits} form="team-look" />
   {/snippet}
 </Sheet>
 

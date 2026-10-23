@@ -18,8 +18,18 @@
   import PlacePicker from "./PlacePicker.svelte";
   import AfterFields from "./AfterFields.svelte";
   import { HOUSE_RULES_MAX } from "./format-rules";
+  import type { Edits } from "./dirty.svelte";
 
-  let { typeId, oncreated }: { typeId?: number; oncreated?: (id: number) => void } = $props();
+  let {
+    typeId,
+    edits,
+    oncreated,
+  }: {
+    typeId?: number;
+    /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
+    edits?: Edits;
+    oncreated?: (id: number) => void;
+  } = $props();
 
   const selected = $derived<number | "new">(typeId ?? "new");
   let form = $state<TournamentType | null>(null);
@@ -63,7 +73,11 @@
   $effect(() => {
     const t = selected === "new" ? blank() : db.tournamentTypes.find((x) => x.id === selected);
     form = t ? structuredClone($state.snapshot(t)) : null;
+    // Loaded (or loaded again, after a save): what's on screen now is what's saved
+    edits?.reset();
   });
+  // svelte-ignore state_referenced_locally
+  edits?.watch(() => form, { fresh: !typeId });
 
   // Two tabs: the series itself and its look, then the defaults each new tournament in it copies
   type Tab = "series" | "defaults";
@@ -85,11 +99,13 @@
     }
     if (!form.shortName) form.shortName = form.name.replace(/^The\s+/i, "").split(" ")[0];
     if (selected === "new") {
-      const created = await createTournamentType(form);
+      const f = form;
+      const created = await (edits ? edits.run(() => createTournamentType(f)) : createTournamentType(f));
       // The blank form gives way to the new series' defaults, in the same panel
       if (created) oncreated?.(created.id);
     } else {
-      await updateTournamentType(form);
+      const f = form;
+      await (edits ? edits.run(() => updateTournamentType(f)) : updateTournamentType(f));
     }
   }
 </script>

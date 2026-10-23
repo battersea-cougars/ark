@@ -33,6 +33,8 @@
   import { newEventKinds, type NewEventKind } from "../lib/new-event";
   import { phone } from "../lib/viewport.svelte";
   import { switchUpFor } from "../app/settings-entry.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
 
   const perms = $derived(granted());
 
@@ -117,10 +119,15 @@
   /** The one-off being edited; null while adding a new one. */
   let editing = $state<OneOff | null>(null);
   let draft = $state(blank());
+  // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => draft);
 
   function startAdding() {
     editing = null;
     draft = blank();
+    edits.reset();
+    edits.fresh = true;
     adding = true;
   }
   function startEditing(o: OneOff) {
@@ -137,6 +144,8 @@
       public: o.public,
       signup: o.signup,
     };
+    edits.reset();
+    edits.fresh = false;
     adding = true;
   }
   const oneOff = (event: Bookable) => (event.kind === "social" ? (event.entries as OneOff) : null);
@@ -164,7 +173,9 @@
     const window = eventWindow({ id: editing?.id, startsAt, endsAt }, editing ?? undefined);
     const chosen = window ? await clashSheet?.ask(window, draft.title) : [];
     if (chosen === null) return;
-    const done = editing ? await updateClubEvent(editing.id, body) : await createClubEvent(body);
+    const id = editing?.id;
+    // Saved, it closes; the shell says so
+    const done = await edits.run(() => (id ? updateClubEvent(id, body) : createClubEvent(body)));
     if (done === null) return;
     adding = false;
     await cancelClashes(chosen ?? []);
@@ -237,8 +248,8 @@
     <p class="hint">Nothing coming up{filter === "all" ? "" : " for this one"}.</p>
   {/each}
   <!-- A one-off event, in a sheet (a modal on desktop): the list stays where it is -->
-  <Sheet bind:open={adding} title={editing ? "Edit event" : "Add an event"}>
-    <form class="form" onsubmit={save}>
+  <Sheet bind:open={adding} title={editing ? "Edit event" : "Add an event"} {edits}>
+    <form class="form" id="event-form" onsubmit={save}>
       {#if !editing}
         <p class="hint">A one-off: a social, a kit day. One date, on the calendar and, if you like, the website.</p>
       {/if}
@@ -261,13 +272,15 @@
       >
       <label class="check"><input type="checkbox" bind:checked={draft.public} /> Show on the website</label>
       <label class="check"><input type="checkbox" bind:checked={draft.signup} /> Members say in or out</label>
-      <button class="btn primary">{editing ? "Save" : "Add to calendar"}</button>
       {#if editing}
         <button type="button" class="btn" onclick={toggleCancelled}>
           {editing.cancelledAt ? "It's back on" : "Cancel this event"}
         </button>
       {/if}
     </form>
+    {#snippet footer()}
+      <SaveBar {edits} form="event-form" label={editing ? "Save" : "Add to calendar"} />
+    {/snippet}
   </Sheet>
 </div>
 

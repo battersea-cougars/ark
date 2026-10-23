@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { Edits } from "./dirty.svelte";
+  import SaveBar from "./SaveBar.svelte";
+  import { requestClose } from "./overlay";
   import { goesBy, shortName } from "./names";
   // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
   // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
@@ -107,17 +110,18 @@
   // Attendance taps, held until Save too: a session's id → whether they came
   let marks = $state<Record<number, boolean>>({});
   const ratingOk = $derived(Number.isInteger(draft.rating) && draft.rating >= 0 && draft.rating <= 100);
-  const changed = $derived(
-    tidyName(draft.name) !== saved.name ||
-      (Object.keys(saved) as (keyof typeof saved)[]).some(
-        (k) => k !== "name" && String(draft[k]).trim() !== String(saved[k]),
-      ) ||
-      Object.keys(marks).length > 0,
-  );
+  // Unsaved changes (lib/dirty.svelte.ts): their details as they'd be saved (names tidied, spaces trimmed) and the
+  // Fridays tapped, against what they were when it opened or last saved. Closing with some asks first, in the footer
+  const edits = new Edits();
+  edits.watch(() => ({
+    details: Object.fromEntries(
+      Object.entries(draft).map(([k, v]) => [k, k === "name" ? tidyName(String(v)) : String(v).trim()]),
+    ),
+    marks,
+  }));
+  const changed = $derived(edits.dirty);
   let busy = $state(false);
   const canSave = $derived(changed && ratingOk && !!tidyName(draft.name) && !busy);
-  // Closing with changes: the footer asks, Save or Discard
-  let asking = $state(false);
 
   // Only what changed goes to the server (app/backend.svelte.ts). A member has one role of their own, plus Member.
   async function saveDetails(): Promise<boolean> {
@@ -191,11 +195,12 @@
       busy = false;
     }
   }
+  /** Back to what's saved, without closing. */
   function discard() {
     draft = { ...saved };
     marks = {};
-    asking = false;
   }
+  const saveIt = () => canSave && edits.run(saveDetails);
 
   // Their attendance, a quarter at a time (Jan–Mar, Apr–Jun…), from the first quarter any training ran to this one.
   // Tap a Friday to say whether they came; it shows at once and is sent with Save.
@@ -471,17 +476,9 @@
     removingPasskeys = false;
   }
 
-  // Closing with changes asks first (the footer); Discard or Save goes on to close
+  // Closing with changes asks first (the footer, lib/SaveBar); Discard goes on to close
   function close() {
-    if (changed) return void (asking = true);
-    shut();
-  }
-  async function saveAndClose() {
-    if (await saveDetails()) shut();
-  }
-  function discardAndClose() {
-    discard();
-    shut();
+    requestClose(shut, edits.guard);
   }
 
   async function shut() {
@@ -1005,20 +1002,18 @@
     </div>
 
     <!-- Always at the bottom: Save and Discard for their details; closing with changes asks here -->
-    <footer class="panel-foot" class:asking>
-      <p class="foot-note hint" role="status">
-        {#if asking}Save your changes to {shortName(member.player)}?{:else if !ratingOk}A rating is a whole number, 0 to
-          100{:else if changed}Unsaved changes{/if}
-      </p>
-      {#if asking}
-        <button class="btn ghost" onclick={() => (asking = false)}>Keep editing</button>
-        <button class="btn" onclick={discardAndClose}>Discard</button>
-        <button class="btn primary" disabled={!canSave} onclick={saveAndClose}>Save</button>
-      {:else}
-        <button class="btn ghost" disabled={!changed || busy} onclick={discard}>Discard</button>
-        <button class="btn primary" disabled={!canSave} onclick={saveDetails}>Save</button>
-      {/if}
+    <footer class="panel-foot">
+      <SaveBar
+        {edits}
+        onsave={saveIt}
+        ready={ratingOk && !!tidyName(draft.name)}
+        problem={ratingOk ? "" : "A rating is a whole number, 0 to 100"}
+        start={changed ? undo : undefined}
+      />
     </footer>
+    {#snippet undo()}
+      <button class="btn ghost" disabled={busy} onclick={discard}>Undo changes</button>
+    {/snippet}
   </div>
 </div>
 
@@ -1225,12 +1220,6 @@
     padding-bottom: max(var(--s-3), env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
     background: var(--surface-1);
-  }
-  .foot-note {
-    margin: 0 auto 0 0;
-  }
-  .asking .foot-note {
-    color: var(--fg);
   }
   @media (max-width: 600px) {
     .body {

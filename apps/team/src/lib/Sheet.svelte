@@ -4,13 +4,16 @@
    * job (Filters, + Event) is sized to what's in it; a `tall` one (a drawer's list, an editor) rises near the top and
    * scrolls inside, its header and footer staying put. lib/Drawer and lib/EditorPanel are drawn as this on a phone.
    * On a desktop it's a centred modal. A native modal dialog, so it sits above everything, traps focus and closes on
-   * Escape (and Android's back); a tap on the dimmed page closes it too. Nothing on the page moves when it opens.
+   * Escape (and Android's back); a full click on the dimmed page closes it too. Nothing on the page moves when it opens.
+   * Every way out asks first when its form has unsaved changes (`edits`), as lib/Drawer does (lib/overlay.ts).
    */
   import type { Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { EASE_IN, prefersReducedMotion } from "../app/motion";
   import { phone } from "./viewport.svelte";
   import { swipeCloses } from "./sheet";
+  import { backdropClicks, lockScroll, outside, rememberFocus, requestClose } from "./overlay";
+  import type { Edits } from "./dirty.svelte";
 
   let {
     open = $bindable(false),
@@ -24,6 +27,7 @@
     tall = false,
     fill = false,
     lazy = false,
+    edits,
   }: {
     open?: boolean;
     title: string;
@@ -43,7 +47,21 @@
     fill?: boolean;
     /** Its contents exist only while it's open (a drawer's, which expect to start afresh each time). */
     lazy?: boolean;
+    /** Its form's unsaved changes (lib/dirty.svelte.ts): closing with some asks first, in its footer (lib/SaveBar). */
+    edits?: Edits;
   } = $props();
+
+  /** The one way out: asks first if there are unsaved changes. */
+  export function close() {
+    requestClose(() => (open = false), edits?.guard);
+  }
+  // While it's open: the page under it stays put, and focus goes back where it was once it's closed
+  let unlock: (() => void) | undefined;
+  let refocus: (() => void) | undefined;
+  function shown() {
+    unlock = lockScroll();
+    refocus = rememberFocus();
+  }
 
   let dialog = $state<HTMLDialogElement | undefined>();
   // Sliding away: still open (and its contents still there) until the motion ends
@@ -53,8 +71,10 @@
 
   $effect(() => {
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    else if (open && leaving) stay();
+    if (open && !dialog.open) {
+      shown();
+      dialog.showModal();
+    } else if (open && leaving) stay();
     else if (!open && dialog.open) leave();
   });
 
@@ -83,12 +103,22 @@
     if (dialog) dialog.style.translate = "";
   }
 
-  // A tap on the dimmed page closes it: pressed and let go there. Selecting a field's text and letting go outside the
-  // sheet is a click on the dialog too, and mustn't close it.
-  let downOutside = false;
+  // A click on the dimmed page closes it: pressed and let go there. Selecting a field's text and letting go outside
+  // the sheet is a click on the dialog too, and mustn't close it.
+  const backdrop = backdropClicks();
+  const onBackdrop = (e: MouseEvent) =>
+    !!dialog && e.detail > 0 && outside(dialog.getBoundingClientRect(), e.clientX, e.clientY);
   function closed() {
+    // Closed by the browser without asking (a second Escape straight after the first): still open if it should ask
+    if (open && !leaving && edits?.dirty && dialog) {
+      dialog.showModal();
+      return void close();
+    }
     stay();
     open = false;
+    unlock?.();
+    refocus?.();
+    edits?.closed();
     onclose?.();
   }
 
@@ -114,7 +144,7 @@
       if (!drag || e.pointerId !== drag.id || !dialog) return;
       const ms = e.timeStamp - drag.t;
       drag = undefined;
-      if (swipeCloses(pulled, ms, dialog.offsetHeight)) return void (open = false);
+      if (swipeCloses(pulled, ms, dialog.offsetHeight) && requestClose(() => (open = false), edits?.guard)) return;
       if (pulled > 0 && !prefersReducedMotion)
         dialog.animate([{ translate: `0 ${pulled}px` }, { translate: "0 0" }], { duration: 200, easing: "ease-out" });
       dialog.style.translate = "";
@@ -140,12 +170,11 @@
   oncancel={(e) => {
     // Escape or Android's back: out with the same motion as the close button
     e.preventDefault();
-    open = false;
+    close();
   }}
-  onpointerdown={(e) => (downOutside = e.target === dialog)}
+  onpointerdown={(e) => backdrop.press(e.target === dialog && onBackdrop(e))}
   onclick={(e) => {
-    if (e.target === dialog && downOutside) open = false;
-    downOutside = false;
+    if (backdrop.release(e.target === dialog && onBackdrop(e))) close();
   }}
 >
   {#if !lazy || open || leaving}
@@ -156,9 +185,7 @@
         {#if sub}<p class="hint">{sub}</p>{/if}
       </div>
       {@render head?.()}
-      <button class="btn ghost icon close-x" aria-label="Close" onclick={() => (open = false)}
-        ><Icon name="x" size={18} /></button
-      >
+      <button class="btn ghost icon close-x" aria-label="Close" onclick={close}><Icon name="x" size={18} /></button>
     </div>
     {#if top}<div class="top">{@render top()}</div>{/if}
     <div class="body" class:fill>{@render children()}</div>

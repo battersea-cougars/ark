@@ -8,7 +8,8 @@
   // Its defaults (rules, fee, location, awards, look) are set once here; a new tournament that picks the series
   // starts from them (Settings → Tournaments). A series gets its own section in the menu.
   import { gameLength } from "../lib/periods";
-  import { saving } from "../app/backend.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
   import { kindLabel } from "../demo/model";
   import PageHeader from "../lib/PageHeader.svelte";
   import ScheduleCards, { type ScheduleCard } from "../lib/ScheduleCards.svelte";
@@ -42,6 +43,8 @@
   let open = $state<number | "new" | null>(seriesToOpen.id);
   seriesToOpen.id = null;
   const editing = $derived(typeof open === "number" ? db.tournamentTypes.find((t) => t.id === open) : undefined);
+  // What's unsaved in the series' editor, and when it was saved (lib/dirty.svelte.ts)
+  const edits = new Edits();
 </script>
 
 <div class="page">
@@ -64,12 +67,11 @@
       icon={editing?.icon}
       tone={editing?.tone}
       onclose={() => (open = null)}
+      {edits}
     >
-      <TournamentEditor typeId={editing?.id} oncreated={(id) => (open = id)} />
+      <TournamentEditor typeId={editing?.id} {edits} oncreated={(id) => (open = id)} />
       {#snippet footer()}
-        <button class="btn primary" type="submit" form="tournament-form" disabled={saving.busy > 0}
-          >{editing ? "Save" : "Add series"}</button
-        >
+        <SaveBar {edits} form="tournament-form" label={editing ? "Save" : "Add series"} />
       {/snippet}
     </EditorPanel>
   {/key}

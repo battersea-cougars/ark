@@ -49,12 +49,14 @@
   import { navigate } from "../app/router.svelte";
   import { seriesToOpen } from "../pages/TournamentSeries.svelte";
   import { seasonEnd, seasonLabel, seasonOf, seasonsFrom, seasonYear, type Season } from "@cougars/shared/seasons";
+  import type { Edits } from "./dirty.svelte";
 
   let {
     dateId,
     typeId,
     startTab = "details",
     start = $bindable(),
+    edits,
     oncreated,
   }: {
     dateId?: number;
@@ -65,6 +67,8 @@
     /** A new date's answers from the quick questions (Advanced): its day, draft and captains, kept up to date here so
      *  going back to the questions keeps what was changed */
     start?: QuickValues;
+    /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
+    edits?: Edits;
     oncreated?: (id: number) => void;
   } = $props();
 
@@ -259,6 +263,9 @@
       players: [],
     }));
   }
+  // What it starts as is what's saved: changes from here are unsaved until Save
+  // svelte-ignore state_referenced_locally
+  edits?.watch(() => date, { fresh: !dateId });
   // …and changes here go back to them, for Back to the questions
   $effect(() => {
     if (dateId || !start) return;
@@ -410,10 +417,11 @@
     const chosen = window ? await clashSheet?.ask(window, t.name) : [];
     if (chosen === null) return;
     if (date.id) {
-      if ((await updateTournament(t)) !== null) await cancelClashes(chosen ?? []);
+      if ((await (edits ? edits.run(() => updateTournament(t)) : updateTournament(t))) !== null)
+        await cancelClashes(chosen ?? []);
       return;
     }
-    const created = await createTournament(t);
+    const created = await (edits ? edits.run(() => createTournament(t)) : createTournament(t));
     if (!created) return;
     await cancelClashes(chosen ?? []);
     // The blank form gives way to the new date's editor, in the same panel

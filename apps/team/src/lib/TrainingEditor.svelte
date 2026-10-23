@@ -3,6 +3,7 @@
   // some days, from a first date, optionally to a last one) plus what every session shares (ADR 0030). Saving makes
   // its sessions; each one can then be cancelled on its own. A save that puts nights on over something already on (the
   // Kumite, another training, a one-off) asks first whether that's off (ADR 0122, ClashSheet).
+  import type { Edits } from "./dirty.svelte";
   import TimeSelect from "./TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
   import { tick } from "svelte";
@@ -42,7 +43,16 @@
     sun: "Sunday",
   };
 
-  let { seriesId, oncreated }: { seriesId?: number; oncreated?: (id: number) => void } = $props();
+  let {
+    seriesId,
+    edits,
+    oncreated,
+  }: {
+    seriesId?: number;
+    /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
+    edits?: Edits;
+    oncreated?: (id: number) => void;
+  } = $props();
 
   const selected = $derived<number | "new">(seriesId ?? "new");
   let form = $state<TrainingSeries | null>(null);
@@ -115,7 +125,11 @@
   $effect(() => {
     feeAmount = form ? String(feeOn(form.fees, londonToday()) / 100) : "";
     feeFrom = londonToday();
+    // Loaded (or loaded again, after a save): what's on screen now is what's saved
+    edits?.reset();
   });
+  // svelte-ignore state_referenced_locally
+  edits?.watch(() => ({ form, feeAmount, feeFrom }), { fresh: !seriesId });
   function applyFee() {
     if (!form) return;
     const pence = Math.round(Number(feeAmount) * 100);
@@ -207,7 +221,9 @@
       const chosen = question ? await clashSheet?.ask(question, form.name, form.shortName) : [];
       if (chosen === null) return;
       const asked = question ? (clashSheet?.asked() ?? []) : undefined;
-      const done = selected === "new" ? await createSeries(form, asked) : await updateSeries(form, asked);
+      const f = form;
+      const change = () => (selected === "new" ? createSeries(f, asked) : updateSeries(f, asked));
+      const done = await (edits ? edits.run(change) : change());
       if (done === null) {
         if (saving.refused === 409 && question) continue;
         return;
