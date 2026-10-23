@@ -28,7 +28,13 @@ const words = args.filter((a) => !a.startsWith("--"));
 const COMMANDS = ["main", "status", "restart", "stop", "logs", "down", "dev"];
 const sub = COMMANDS.includes(words[0]) ? words[0] : "show";
 const services = words.filter((w) => w in SERVICES);
-const unknown = words.filter((w) => !(w in SERVICES) && !COMMANDS.includes(w));
+// Asking for help, or a flag it doesn't know, never shows anything: `npm run app -- --help` once switched 4510 over
+if (args.some((a) => ["--help", "-h", "help"].includes(a))) usage("what it does", 0);
+const FLAGS = ["--private", "--own-db", "--shared-db", "--follow"];
+const unknown = [
+  ...words.filter((w) => !(w in SERVICES) && !COMMANDS.includes(w)),
+  ...args.filter((a) => a.startsWith("--") && !FLAGS.includes(a)),
+];
 if (unknown.length) usage(`unknown: ${unknown.join(" ")}`);
 
 const main = mainCheckout();
@@ -190,7 +196,7 @@ switch (sub) {
   }
 }
 
-function usage(why) {
+function usage(why, code = 2) {
   console.error(`app: ${why}`);
   console.error(
     "Usage: npm run app [-- [web|team|studio…] [--private] [--own-db|--shared-db]]\n" +
@@ -198,5 +204,5 @@ function usage(why) {
       "       npm run app restart|stop [web|team|studio]\n" +
       "       npm run app logs <web|team|studio> [--follow]",
   );
-  process.exit(2);
+  process.exit(code);
 }
