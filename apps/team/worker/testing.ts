@@ -47,8 +47,26 @@ const liveNamespace = (hub: LiveHub, counted: () => void) =>
 export const NOW = new Date("2026-10-06T11:00:00Z");
 export const minutes = (n: number) => new Date(NOW.getTime() + n * 60_000);
 
+/** What one Worker invocation spent: its subrequests (fetches, emails, live hub calls) and its D1 calls. */
+interface Spent {
+  fetches: number;
+  d1: D1Spent;
+}
+/** D1 calls: round trips (a batch is one, as Workers counts its 50 queries, ADR 0123) and the statements in them. */
+export interface D1Spent {
+  roundTrips: number;
+  statements: number;
+  /** Each round trip's statements, in order, the start of each: what to look at when a count goes up. */
+  sql: string[][];
+}
+const fresh = (): Spent => ({ fetches: 0, d1: { roundTrips: 0, statements: 0, sql: [] } });
+/** The D1 calls each reply's request made, everything it awaited included (ADR 0003). */
+const spentBy = new WeakMap<Response, D1Spent>();
+
 export interface Reply {
   status: number;
+  /** The D1 calls the request made, start to finish: the tests have no waitUntil, so work after the reply counts too. */
+  d1: D1Spent;
   // The tests read whatever the API sent back; its shapes are checked by the assertions themselves.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   body: any;
@@ -66,11 +84,18 @@ export function testWorld(roster: object[]) {
   db.raw.exec(FIRST_KUMITE_SQL);
   // The live hub (ADR 0072) as the Worker reaches it: one object, behind a namespace that always finds it
   const live = new LiveHub();
-  /** The subrequests of the invocation running, however many run at once (each its own count, ADR 0003). */
-  const running = new AsyncLocalStorage<{ fetches: number }>();
+  /** The subrequests and D1 calls of the invocation running, however many run at once (each its own count, ADR 0003). */
+  const running = new AsyncLocalStorage<Spent>();
   const counted = () => {
     const mine = running.getStore();
     if (mine) mine.fetches++;
+  };
+  db.onRoundTrip = (sql) => {
+    const mine = running.getStore();
+    if (!mine) return;
+    mine.d1.roundTrips++;
+    mine.d1.statements += sql.length;
+    mine.d1.sql.push(sql.map((s) => s.replace(/\s+/g, " ").trim().slice(0, 120)));
   };
   const env: Env = { DB: db, TEAM_ENV: "local", LIVE: liveNamespace(live, counted) };
   // The club's email, faked: each one the app would have sent, whole, in order (packages/shared/email.ts outbox).
@@ -89,15 +114,13 @@ export function testWorld(roster: object[]) {
   let invocations: number[] | null = null;
   /**
    * Run one Worker invocation, counting its subrequests (the free plan allows 50, ADR 0003): fetches, emails and calls
-   * to the live hub. Counted once a push service is on (`invocations`).
+   * to the live hub, listed once a push service is on (`invocations`); and its D1 calls, always (`spent.d1`).
    */
-  async function invocation<T>(run: () => Promise<T>): Promise<T> {
-    if (!invocations) return run();
-    const mine = { fetches: 0 };
+  async function invocation<T>(run: () => Promise<T>, spent: Spent = fresh()): Promise<T> {
     try {
-      return await running.run(mine, run);
+      return await running.run(spent, run);
     } finally {
-      invocations.push(mine.fetches);
+      invocations?.push(spent.fetches);
     }
   }
 
@@ -535,17 +558,21 @@ export function testWorld(roster: object[]) {
         ...(method === "GET" || method === "HEAD" ? {} : { origin: new URL(host).origin }),
         ...headers,
       };
-      const res = await invocation(() =>
-        handleApi(
-          new Request(`${host}${path}`, {
-            method,
-            headers: Object.entries(sent).filter((e): e is [string, string] => e[1] !== null),
-            body: payload === undefined ? undefined : JSON.stringify(payload),
-          }),
-          env,
-          now,
-        ),
+      const spent = fresh();
+      const res = await invocation(
+        () =>
+          handleApi(
+            new Request(`${host}${path}`, {
+              method,
+              headers: Object.entries(sent).filter((e): e is [string, string] => e[1] !== null),
+              body: payload === undefined ? undefined : JSON.stringify(payload),
+            }),
+            env,
+            now,
+          ),
+        spent,
       );
+      spentBy.set(res, spent.d1);
       for (const c of res.headers.getSetCookie()) {
         const [pair, ...attrs] = c.split("; ");
         const [k, v] = pair.split("=");
@@ -557,7 +584,7 @@ export function testWorld(roster: object[]) {
     async function call(method: string, path: string, payload?: unknown, options: Options = {}): Promise<Reply> {
       const res = await open(method, path, options, payload);
       const isJson = res.headers.get("content-type")?.includes("json");
-      return { status: res.status, body: isJson ? await res.json() : {}, headers: res.headers };
+      return { status: res.status, body: isJson ? await res.json() : {}, headers: res.headers, d1: spentBy.get(res)! };
     }
     return { call, open, jar };
   }

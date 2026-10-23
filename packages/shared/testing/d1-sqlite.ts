@@ -19,6 +19,13 @@ export interface TestD1 {
   raw: Database.Database;
   /** Round trips to D1 so far (a batch is one): each costs the Worker CPU time (ADR 0059). */
   roundTrips: number;
+  /** Statements sent so far, each statement of a batch counted: what D1 reads and bills, however they travel. */
+  statements: number;
+  /**
+   * Told of every round trip as it's sent, with the statements it carries: the fake world counts them against the
+   * request (or cron run) that sent it, however many run at once (ADR 0003's per-request budget).
+   */
+  onRoundTrip: ((sql: string[]) => void) | null;
   /** Time spent inside SQLite so far, in ms: D1's own work, which isn't the Worker's CPU time. */
   sqlMs: number;
   /**
@@ -55,7 +62,7 @@ function seeded(seed: number) {
 export function createTestD1(): D1Database & TestD1 {
   const sqlite = new Database(":memory:");
   for (const file of sources()) sqlite.exec(readFileSync(file, "utf8"));
-  const d1 = { roundTrips: 0, sqlMs: 0 } as D1Database & TestD1;
+  const d1 = { roundTrips: 0, statements: 0, sqlMs: 0, onRoundTrip: null } as D1Database & TestD1;
   let luck: (() => number) | null = null;
   /**
    * On the way to D1, or back, when interleaving: a few turns of the event loop, mostly none to two but now and then
@@ -67,8 +74,10 @@ export function createTestD1(): D1Database & TestD1 {
       await new Promise((r) => setImmediate(r));
   };
   /** One round trip: there, the work done in one go (atomic), and back. */
-  const roundTrip = async <T>(work: () => T): Promise<T> => {
+  const roundTrip = async <T>(work: () => T, sql: string[]): Promise<T> => {
     d1.roundTrips++;
+    d1.statements += sql.length;
+    d1.onRoundTrip?.(sql);
     if (luck) await travel();
     const t = performance.now();
     let out: T;
@@ -100,21 +109,25 @@ export function createTestD1(): D1Database & TestD1 {
         return stmt;
       },
       all() {
-        return roundTrip(() => ({ results: sqlite.prepare(sql).all(...params), success: true, meta: {} }));
+        return roundTrip(() => ({ results: sqlite.prepare(sql).all(...params), success: true, meta: {} }), [sql]);
       },
       first() {
-        return roundTrip(() => sqlite.prepare(sql).get(...params) ?? null);
+        return roundTrip(() => sqlite.prepare(sql).get(...params) ?? null, [sql]);
       },
       run() {
-        return roundTrip(runNow);
+        return roundTrip(runNow, [sql]);
       },
       runNow,
+      sql,
     };
     return stmt;
   };
   // As D1's: in order, in one transaction, all or nothing
-  const batch = (stmts: { runNow: () => unknown }[]) =>
-    roundTrip(() => sqlite.transaction(() => stmts.map((s) => s.runNow()))());
+  const batch = (stmts: { runNow: () => unknown; sql: string }[]) =>
+    roundTrip(
+      () => sqlite.transaction(() => stmts.map((s) => s.runNow()))(),
+      stmts.map((s) => s.sql),
+    );
   const interleave = (seed: number | null) => void (luck = seed === null ? null : seeded(seed));
 
   return Object.assign(d1, { prepare, batch, interleave, raw: sqlite });
