@@ -9,6 +9,7 @@ import { endSessions, liveSessions } from "../auth/auth.sessions";
 import { endLive } from "../live/live";
 import { markAll, type Mark } from "../entries/entries";
 import { memberExists } from "../dues/dues";
+import { photoOf } from "./members.photo";
 import {
   addMember,
   attendanceOf,
@@ -47,6 +48,17 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members", "everydayRole"],
     // { roleId: number | null }: the role another member's app opens as (an admin who runs it as a member)
     handle: async (c) => (await setMemberEverydayRole(c.env.DB, id(c), await body(c.request), c), ok()),
+  },
+  {
+    method: "GET",
+    path: /^\/api\/members\/(\d+)\/photo$/,
+    action: "authenticated",
+    // Their profile photo (ADR 0123), for anyone who may see them; ?v= is when it was set, so it's kept until it changes
+    handle: async (c) =>
+      photoOf(c.env.DB, id(c), {
+        memberId: c.memberId,
+        seesAll: c.actions.has("manage:all") || c.actions.has("manage:Member"),
+      }),
   },
   {
     method: "GET",

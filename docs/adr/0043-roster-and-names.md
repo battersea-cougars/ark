@@ -1,7 +1,7 @@
 # 0043. The roster is a build-time snapshot of the club's members, and members go by their chosen name everywhere
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-23
 - **Merges:** 0085
 
 ## Context
@@ -50,7 +50,8 @@ the website was "Sam Jones" in the app.
 - New screens show a person with `goesBy` or `shortName`, never `player.name`, unless it's one of the full-name
   places above.
 - A long nickname on a trading card shrinks to fit the name band.
-- Photos and shirt numbers aren't in D1 yet, so roster cards show the club logo and no number.
+- Shirt numbers aren't in D1 yet, so roster cards show no number. Members' photos are, in the team app only
+  ([0123](0123-member-photos.md)): the website's cards keep the club logo until members can choose to show theirs.
 
 ## History
 
@@ -59,3 +60,5 @@ the website was "Sam Jones" in the app.
 - 2026-10-08: The chosen name is used everywhere in the team app too, with the full name kept for sign-in, payments
   and admins (was 0085).
 - 2026-10-09: Goals, assists and titles join the stats, from published tournaments (0100).
+- 2026-10-23: Members' photos are in D1 for the team app ([0123](0123-member-photos.md)); the website still shows the
+  logo.

@@ -31,6 +31,8 @@ export interface MemberJson {
    * automatic "Team <first name>". Your own, or anyone's for those who manage members; null otherwise.
    */
   kumiteTeamName: string | null;
+  /** When their photo was set (ADR 0123): it's at /api/members/<id>/photo?v=<this>. Null: none, their initials show. */
+  photoAt: string | null;
   /** Training sessions they came to: in, not a no-show, held before today and not cancelled. */
   played: number;
   /** A Quarterly Member today: a subscription covers it (ADR 0007). Only your own, unless you manage members. */
@@ -84,6 +86,7 @@ export function membersFrom(
     web_name: string | null;
     phone: string | null;
     kumite_team_name: string | null;
+    photo_at: string | null;
     played: number;
     quarterly: number;
     quarterlyNext: number;
@@ -105,6 +108,7 @@ export function membersFrom(
     webName: m.web_name,
     phone: m.phone,
     kumiteTeamName: m.kumite_team_name,
+    photoAt: m.photo_at,
     played: m.played,
     quarterly: Boolean(m.quarterly),
     quarterlyNext: Boolean(m.quarterlyNext),

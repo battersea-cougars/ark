@@ -6,7 +6,7 @@
   // section's strip of pages), its actions, and its filters: inline when they fit, otherwise a Filters button that
   // opens them in a sheet. Home has neither: it starts with the greeting.
   import { goesBy, shortName } from "../../lib/names";
-  import { initials } from "../../lib/initials";
+  import Avatar from "../../lib/Avatar.svelte";
   import { type Snippet } from "svelte";
   import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
   import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
@@ -396,7 +396,7 @@
               aria-current={route.id === "profile" ? "page" : undefined}
               title="You"
             >
-              <span class="avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
+              <Avatar player={me()} />
             </a>
           </div>
         </div>
@@ -474,7 +474,7 @@
           <span class="tab-icon">
             {#if tab.id === "more"}
               <!-- You: your initials, as a desktop's avatar shows them -->
-              <span class="avatar tab-avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
+              <Avatar player={me()} extra="tab-avatar" />
             {:else}
               <Icon name={tab.icon} size={22} />
             {/if}
@@ -1022,7 +1022,7 @@
   .you-tile:hover {
     background: color-mix(in srgb, var(--surface-3) 90%, transparent);
   }
-  .you-tile .avatar {
+  .you-tile :global(.avatar) {
     width: 1.75rem;
     height: 1.75rem;
     background: var(--red-wash-strong);
@@ -1030,11 +1030,11 @@
     font-size: 0.65rem;
   }
   /* On your You page: lit, as the gear is in Settings */
-  .you-tile.on .avatar {
+  .you-tile.on :global(.avatar) {
     box-shadow: 0 0 0 2px var(--red-hot);
   }
   /* Viewing as a member: their initials, in the banner's amber */
-  .you-tile.as .avatar {
+  .you-tile.as :global(.avatar) {
     background: var(--caution-wash);
     color: var(--caution);
   }
@@ -1252,7 +1252,7 @@
     }
     /* The same 22px as the icons beside it, so the row lines up */
     /* You: teal initials on the plain disc, so it reads as you; lit, the disc fills teal */
-    .tab-avatar {
+    .tab-icon :global(.tab-avatar) {
       width: 22px;
       height: 22px;
       font-size: 0.55rem;
@@ -1261,7 +1261,7 @@
       line-height: 1;
       letter-spacing: 0;
     }
-    .tab.on .tab-avatar {
+    .tab.on :global(.tab-avatar) {
       background: var(--tone-teal);
       color: var(--bg);
     }

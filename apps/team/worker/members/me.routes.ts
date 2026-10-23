@@ -6,6 +6,7 @@ import { choosePlan, memberEmail, memberStanding, planNext, setEverydayRole, upd
 import { askToChangeEmail, confirmEmailChange } from "./members.email";
 import { eraseMember, memberData } from "./members.erase";
 import { endLive } from "../live/live";
+import { MAX_PHOTO_BODY, setPhoto } from "./members.photo";
 
 export const ME_ROUTES: Route[] = [
   {
@@ -65,6 +66,16 @@ export const ME_ROUTES: Route[] = [
     changes: ["members"],
     // { code }: the new address is their sign-in email; their other sign-ins end
     handle: confirmEmailChange,
+  },
+  {
+    method: "PUT",
+    path: /^\/api\/me\/photo$/,
+    audit: { none: "a member's own profile photo: theirs to change" },
+    action: "authenticated",
+    changes: ["members"],
+    maxBody: MAX_PHOTO_BODY,
+    // { photo: "data:image/jpeg;base64,…" | null }: your profile photo, shrunk on your phone (ADR 0123); null takes it down
+    handle: async (c) => (await setPhoto(c.env.DB, c.memberId, await body(c.request), c.now), ok()),
   },
   {
     method: "PUT",

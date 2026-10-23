@@ -11,7 +11,7 @@
   import { EASE_OUT, prefersReducedMotion } from "../app/motion";
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCard from "./PlayerCard.svelte";
-  import { initials } from "./initials";
+  import Avatar from "./Avatar.svelte";
   import { portal } from "./portal";
 
   let {
@@ -150,7 +150,7 @@
             </div>
           </header>
           <div class="who">
-            <span class="avatar">{initials(goesBy(player))}</span>
+            <Avatar {player} />
             <div>
               <h2>{goesBy(player)}</h2>
               <p class="pos">
@@ -306,7 +306,7 @@
     gap: 4cqw;
     padding: 5cqw 5cqw 3cqw;
   }
-  .avatar {
+  .who :global(.avatar) {
     display: grid;
     place-items: center;
     flex-shrink: 0;

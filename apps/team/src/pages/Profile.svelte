@@ -1,5 +1,5 @@
 <script lang="ts">
-  // You (ADR 0022): only your own things. Your card (name, position, roles), the switch between your everyday role and
+  // You (ADR 0022): only your own things. Your card (photo, name, position, roles), the switch between your everyday role and
   // your full one, your details (your sign-in email, changed with a code to the new address; phone, position, bio, the
   // name you go by, your default Kumite team name: your name is an admin's to change, since the roster goes by it), notifications, your dues, your data, and sign out. The phone's last tab
   // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton)
@@ -13,8 +13,9 @@
   import { api } from "../app/api";
   import { db } from "../demo/store.svelte";
   import Choice from "../lib/Choice.svelte";
-  import { initials } from "../lib/initials";
-  import { saveEverydayRole, saveProfile } from "../app/backend.svelte";
+  import Avatar from "../lib/Avatar.svelte";
+  import { shrinkPhoto } from "../lib/photo";
+  import { saveEverydayRole, savePhoto, saveProfile } from "../app/backend.svelte";
   import RoleSwitch from "../lib/RoleSwitch.svelte";
   import YourData from "../lib/YourData.svelte";
   import ChangeEmail from "../lib/ChangeEmail.svelte";
@@ -76,6 +77,32 @@
     saveEverydayRole(id);
   }
   const owed = $derived(owedBy(who.id));
+
+  // Your photo (ADR 0123): from the phone's camera or its photos (a plain file picker offers both), shrunk here to a
+  // small square and saved at once, apart from the details' Save. It's in the club's copy, so it shows everywhere.
+  const hasPhoto = $derived(!!db.members.find((m) => m.player.id === who.id)?.player.photoAt);
+  let photoFile = $state<HTMLInputElement | undefined>();
+  let photoBusy = $state(false);
+  let photoError = $state("");
+  async function pickPhoto(input: HTMLInputElement) {
+    const f = input.files?.[0];
+    input.value = "";
+    photoError = "";
+    if (!f) return;
+    photoBusy = true;
+    try {
+      await savePhoto(await shrinkPhoto(f));
+    } catch {
+      photoError = "That picture couldn't be read. Try a JPEG or PNG.";
+    } finally {
+      photoBusy = false;
+    }
+  }
+  async function removePhoto() {
+    photoBusy = true;
+    await savePhoto(null);
+    photoBusy = false;
+  }
   // Off this device, or every browser and phone you're signed in on (#72); the app reloads to the sign-in screen
   async function signOut(everywhere = false) {
     await api("POST", everywhere ? "/api/auth/sign-out-everywhere" : "/api/auth/sign-out").catch(() => {});
@@ -98,14 +125,46 @@
   <!-- A phone's gear: top right in this page's bar (a desktop's sits beside your avatar, Shell) -->
   {#snippet gear()}<SettingsButton />{/snippet}
   <PageHeader title="You" actions={phone.current ? gear : undefined} />
-  <!-- Your card: who you are, plain words, not a button -->
+  <!-- Your card: who you are, plain words; your photo is a button that changes it -->
   <header class="card">
-    <span class="avatar big" aria-hidden="true">{initials(goesBy(who))}</span>
+    {#if locked}
+      <Avatar player={who} big />
+    {:else}
+      <button
+        type="button"
+        class="photo-btn"
+        aria-label={hasPhoto ? "Change your photo" : "Add a photo"}
+        disabled={photoBusy}
+        onclick={() => photoFile?.click()}
+      >
+        <Avatar player={who} big />
+        <span class="photo-badge" aria-hidden="true"><Icon name={hasPhoto ? "refresh" : "plus"} size={12} /></span>
+      </button>
+    {/if}
     <div class="who">
       <p class="name">{goesBy(who)}</p>
       <p class="hint">{POSITIONS[who.position]} · {shownRoles(who.id).join(" · ")}</p>
+      {#if !locked}
+        <div class="photo-run">
+          <button type="button" class="btn sm outline" disabled={photoBusy} onclick={() => photoFile?.click()}
+            >{photoBusy ? "Saving…" : hasPhoto ? "Change photo" : "Add a photo"}</button
+          >
+          {#if hasPhoto}
+            <button type="button" class="btn sm ghost" disabled={photoBusy} onclick={removePhoto}>Remove</button>
+          {/if}
+        </div>
+      {/if}
     </div>
+    <!-- No `capture`: a phone offers the camera, its photos or its files -->
+    <input
+      class="photo-file"
+      type="file"
+      accept="image/*"
+      bind:this={photoFile}
+      onchange={(e) => pickPhoto(e.currentTarget)}
+    />
   </header>
+  {#if photoError}<p class="error small">{photoError}</p>{/if}
   {#if !locked}<RoleSwitch />{/if}
 
   <h2 class="section-title">Your details</h2>
@@ -219,6 +278,42 @@
     display: grid;
     gap: var(--s-1);
     min-width: 0;
+  }
+  /* Your photo, as a button: a small badge in its corner says it changes */
+  .photo-btn {
+    position: relative;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
+  }
+  .photo-badge {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--fg);
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+  .photo-run {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    margin-top: var(--s-1);
+  }
+  .photo-file {
+    display: none;
+  }
+  .error {
+    margin: 0;
+    color: var(--red-hot);
   }
   .who p {
     margin: 0;
