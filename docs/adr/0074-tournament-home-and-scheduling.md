@@ -152,8 +152,13 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
   keeps their order, the Kumite's champions last) are the finale: a bigger card, ringed in brass, the crest and name
   a size up; its button says **The champions**, and on it the page darkens round the card and one gong ring of brass
   goes out from it, "And your Kumite champions…" holds over the "?" a moment longer, the crest and name roll in,
-  heavier, 優勝 slams down, and the dark eases out to a warm brass glow. After the last the champions stay up, **The
-  winners** under them (each award and who took it home) and a link to The final table. Every beat plays from the
+  heavier, 優勝 slams down, and the dark eases out to a warm brass glow. **After the last**, once its beat's landed (the
+  button's place coming back says so), the end: the champions the hero, on the stage as their finale left them
+  (wherever they're listed; the last out, if it wasn't them, dissolving as they come back up; no champions award, no
+  hero); every other award under them a smaller card (`AwardStage` `small`, one card look) in a grid, face up, in the
+  admin's order, a big tie's names in full; then the final table and the day's results, as the after-party has them
+  (`lib/FinalResults`, shared). Live, these fade in after the beat, nothing scrolled to; opened late or reloaded,
+  it's all there at once. The same for everyone. Every beat plays from the
   change of state (`beatOf`: sealed to face up is the reveal, face up to the next sealed is Next award), so every
   phone sees the same moments; opened late, reloaded, or a step missed, it's just where it is, nothing replayed; the
   button comes back once the beat's landed. Every beat's timing is one block (`lib/award-reveal.css`: keyframes and
@@ -584,3 +589,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   live, it offered Confirm the awards (once any match had a result), Your team and the Pick log; now the awards are
   the after-party's alone (Change the awards once confirmed, till the reveal), and Your team and the Pick log end when
   the first match starts. Whoever runs the draft gets Back to Draft open from Teams set too, as the Worker allows.
+- 2026-10-23: The awards page's end, as the user asked: the champions the hero, up on the stage; every other award
+  a smaller card in a grid under them, face up; then the final table and the results (`lib/FinalResults`, the
+  after-party's too). The winners list and its link are gone.

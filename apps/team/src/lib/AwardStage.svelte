@@ -5,7 +5,7 @@
   // then the 賞 hanko lands. The champions' card (the award the table decides) is the finale's: bigger, ringed in
   // brass, the crest and name a size up, 優勝 slammed down, the page darkened round it while it's revealed. `beat` is
   // what's playing (the page's, from the change of state, lib/afters beatOf); none, it's just as it is. The timing is
-  // lib/award-reveal.css.
+  // lib/award-reveal.css. `small`: the same card a size down, its height its own, for the grid after the last.
   import type { Tournament, TournamentType } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import type { revealOf } from "./afters";
@@ -28,6 +28,7 @@
     finale,
     beat = null,
     leaving = false,
+    small = false,
     onreveal,
   }: {
     type: TournamentType;
@@ -43,6 +44,8 @@
     beat?: "reveal" | "next" | null;
     /** The last card, dissolving as the next comes in. */
     leaving?: boolean;
+    /** A size down, for the grid of every award once they're all out: face up, still. */
+    small?: boolean;
     /** Whoever runs it: a tap on the sealed card reveals it, as the button under it does. */
     onreveal?: () => void;
   } = $props();
@@ -62,13 +65,18 @@
   const name = $derived(award.title ?? award.name);
   const about = $derived(award.title ? `${award.name}${award.about ? `: ${award.about}` : ""}` : award.about);
   const sizes = $derived(
-    finale ? { name: "2.3rem", who: "2.9rem", crest: "4.75rem" } : { name: "1.7rem", who: "2.1rem", crest: "2.9rem" },
+    finale
+      ? { name: "2.3rem", who: "2.9rem", crest: "4.75rem" }
+      : small
+        ? { name: "1.25rem", who: "1.5rem", crest: "2.25rem" }
+        : { name: "1.7rem", who: "2.1rem", crest: "2.9rem" },
   );
 </script>
 
 <div
   class="award-card"
   class:finale
+  class:small
   class:up={face === "up"}
   class:revealing
   class:entering={beat === "next" && !leaving}
@@ -319,6 +327,35 @@
   }
   .award-card:has(.tap) {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 30%, transparent);
+  }
+
+  /* A size down, for the grid: its height its own (a big tie's names in full), the hanko and kanji smaller */
+  .small {
+    grid-template-rows: auto auto auto 1fr;
+    width: 100%;
+    height: auto;
+    min-height: 11rem;
+    padding: var(--s-3) var(--s-4) var(--s-4);
+  }
+  .small .about {
+    min-height: 2.6em;
+  }
+  .small .winner-area {
+    height: auto;
+    min-height: 3.5rem;
+    margin-top: var(--s-2);
+  }
+  .small .winner {
+    padding-right: 3.5rem;
+  }
+  .small .ghost {
+    font-size: 4.5rem;
+  }
+  .small .stamp {
+    right: var(--s-3);
+    bottom: var(--s-3);
+    scale: 0.75;
+    transform-origin: bottom right;
   }
 
   /* The beats (their timing: lib/award-reveal.css). Next award: the last dissolving, this one zooming in */
