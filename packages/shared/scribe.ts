@@ -121,8 +121,11 @@ export function serialise(error: unknown, depth = 0): unknown {
   return out;
 }
 
-// Never in a log: decohere's secret keys, ours, and a phone number. Matched without case, at any depth.
-const HIDDEN = new Set(["password", "secret", "token", "otp", "pw", "code", "authorization", "cookie", "phone"]);
+// Never in a log: decohere's secret keys, ours, and a phone number. Matched without case, at any depth: these whole
+// keys, and any key with a secret's word in it (refresh_token, client_secret, apiKey, set-cookie).
+const HIDDEN = new Set(["otp", "pw", "code", "phone"]);
+const SECRET_WORD = /token|secret|password|passwd|authorization|cookie|api[-_]?key|private[-_]?key/i;
+const hidden = (key: string) => HIDDEN.has(key.toLowerCase()) || SECRET_WORD.test(key);
 const EMAIL = /([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
 
 /** An address with only its first letter and its domain left: "a…@club.org". */
@@ -133,7 +136,5 @@ export function clean(value: unknown, depth = 0): unknown {
   if (typeof value === "string") return mask(value);
   if (depth > 6 || value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map((v) => clean(v, depth + 1));
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, HIDDEN.has(k.toLowerCase()) ? "[redacted]" : clean(v, depth + 1)]),
-  );
+  return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, hidden(k) ? "[redacted]" : clean(v, depth + 1)]));
 }

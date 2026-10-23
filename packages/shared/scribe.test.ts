@@ -107,6 +107,29 @@ describe("nothing private in the log", () => {
     });
   });
 
+  it("hides a secret whatever its key is called around the word: a refresh token, a client secret, an API key", () => {
+    const logs = captureLogs();
+    scribe.logger("mail").info("mail.token", {
+      refresh_token: "1//abc",
+      accessToken: "ya29",
+      client_secret: "s",
+      apiKey: "k",
+      "set-cookie": "__Host-cougars_session=x",
+      Authorization: "Bearer y",
+      codes: ["timeout-or-duplicate"],
+    });
+    expect(logs.entries[0].fields).toEqual({
+      refresh_token: "[redacted]",
+      accessToken: "[redacted]",
+      client_secret: "[redacted]",
+      apiKey: "[redacted]",
+      "set-cookie": "[redacted]",
+      Authorization: "[redacted]",
+      // Turnstile's error codes aren't a code anyone could use
+      codes: ["timeout-or-duplicate"],
+    });
+  });
+
   it("masks an email address wherever it appears, keeping its domain", () => {
     const logs = captureLogs();
     scribe.logger("mail").info("mail.redirected", { to: ["player.one@example.com"], note: "for ada@club.org" });
