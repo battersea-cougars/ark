@@ -10,5 +10,14 @@
   { "name": "Gil Pads", "position": "G", "rating": 55, "email": "gil@example.com" },
   { "name": "Sam Skater", "position": "D", "rating": 62, "email": "sam@example.com" },
   { "name": "Dee Defence", "position": "D", "rating": 77, "email": "dee@example.com" },
-  { "name": "Bo Backhand", "position": "F", "rating": 58, "email": "bo@example.com" }
+  { "name": "Bo Backhand", "position": "F", "rating": 58, "email": "bo@example.com" },
+  { "name": "Wes Waiting", "position": "F", "rating": 57, "email": "wes@example.com" },
+  { "name": "Pia Payer", "position": "D", "rating": 61, "email": "pia@example.com" },
+  { "name": "Quin Quarterly", "position": "F", "rating": 64, "email": "quin@example.com" },
+  { "name": "Kit Keeper", "position": "G", "rating": 59, "email": "kit@example.com" },
+  { "name": "Tam Tardy", "position": "F", "rating": 54, "email": "tam@example.com" },
+  { "name": "Mo Moved", "position": "F", "rating": 63, "email": "mo@example.com" },
+  { "name": "Rae Retiring", "position": "D", "rating": 52, "email": "rae@example.com" },
+  { "name": "Ivy Invite", "position": "F", "rating": 56, "email": "ivy@example.com" },
+  { "name": "Hal Holiday", "position": "D", "rating": 53, "email": "hal@example.com" }
 ]

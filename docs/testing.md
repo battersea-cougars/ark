@@ -120,11 +120,31 @@ they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-con
 Use cases stop at the API; **journeys** drive the real team app in a browser (Playwright, Chromium) through a whole
 workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
 mustn't ([ADR 0124](adr/0124-test-levels.md): which check goes at which level). They live in `apps/team/journeys/`,
-one `{workflow}.journey.ts` each; the first is the Kumite night (`kumite.journey.ts`: an admin, a player and a member
-who isn't in it, from sign-up to the morning after), then Every page opens clean (`pages.journey.ts`: each of them
-opens every page in their menus, the admin each editor, shut unsaved). Any error in a person's browser (uncaught, a
-console error, a Svelte warning that means a bug) fails the step it happened in; the allowlist, each with its reason,
-is in `journey.ts`.
+one `{workflow}.journey.ts` each, run in this order on one fresh database (which workflow each covers, and what's left
+to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
+
+| Journey                          | The story                                                                                                 | Time   |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
+| `calendar.journey.ts`            | A one-off on the calendar, the clash prompt, called off; the locker room; notification switches; how soon | ~45 s  |
+| `fridays.journey.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
+| `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
+| `kumite.on-the-clock.journey.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
+| `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, an account deleted                    | ~15 s  |
+| `pages.journey.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
+| `sign-in.journey.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
+
+Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
+screen) fails the step it happened in; the allowlist, each with its reason, is in `journey.ts`. A step refused on
+purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error.
+
+**Both clocks move.** `at(person, when)` puts someone at a moment: their browser's clock (Playwright's) and the
+server's for every request they make (the `x-dev-now` header, `worker/api/api.dev-clock.ts`: on your own machine and
+dev only, as the simulator is; who's signed in stays on the real clock). `london("2026-10-25T01:30")` is a London wall
+time as an instant, BST or GMT as it was. `cron(when)` runs the Worker's hourly (or five-minute) job at a moment
+through the dev server's own trigger: that's what charges a night's sign-ups the next day and a quarter on its first
+day. A journey moves forward only: a page opened at an earlier moment than one already used works the charges out
+for that day again. Never run the hourly cron far into the future while anyone's signed in: it forgets sessions older
+than the retention allows (`retention.forget`), and everyone's signed out.
 
 ```sh
 npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
@@ -137,6 +157,12 @@ Failures don't stop the run: each failing step is in `.journeys/summary.md` (sta
 happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`,
 by hand and on a push to `release`) a failing run opens one issue. A step that fails because of a known bug is
 `knownBug(…)`, as `it.fails` is below.
+
+**How long.** The whole run is 9½ to 12½ minutes (23 October 2026, the machine shared), most of it the simulator's
+pacing (1.25 s a request) in the Kumite's two journeys: about ten, so it's time to split it. Proposed: a **core** run
+(`calendar`, `fridays`, `kumite`, `members`, `pages`, `sign-in`: about 5 minutes) by hand and before a release, and
+the **full** run with `kumite.on-the-clock` (its three played-out Kumites) nightly or on a push to `release`, e.g.
+`npm run journeys -- --grep-invert "on the clock"` for the core.
 
 ## Known bugs
 

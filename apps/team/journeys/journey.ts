@@ -18,6 +18,8 @@ const out = process.env.JOURNEY_OUT ?? join(root, ".journeys");
 const port = process.env.JOURNEY_PORT;
 /** `npm run journeys -- --a11y`: axe looks at every person's page at the end of every stage (a11y.md). */
 const a11y = process.env.JOURNEY_A11Y === "1";
+/** The header that moves the server's clock for one request (worker/api/api.dev-clock.ts): dev and local only. */
+const DEV_NOW = "x-dev-now";
 
 /** Someone in the story: who they are in it, signed in in a browser of their own. */
 export interface Person {
@@ -49,6 +51,22 @@ export async function signIn(browser: Browser, role: string, name: string, email
   return person;
 }
 
+/**
+ * Someone with no account, in a browser no one's signed in on: listened to like everyone else. Their browser says it's
+ * on an address of its own (CF-Connecting-IP, as Cloudflare's edge sets it): the sign-in and join limits count per
+ * address (api.limits.ts), and a journey isn't testing them.
+ */
+export async function stranger(browser: Browser, role: string, name: string, email: string): Promise<Person> {
+  freshFor(test.info().testId);
+  const address = `10.${(Date.now() >> 16) & 255}.${(Date.now() >> 8) & 255}.${Date.now() & 255}`;
+  const context = await browser.newContext({ extraHTTPHeaders: { "cf-connecting-ip": address } });
+  const person = { role: `${role} (${name.split(" ")[0]})`, name, email, context } as Person;
+  context.on("page", (p) => listen(person, p));
+  person.page = await context.newPage();
+  people.push(person);
+  return person;
+}
+
 /** Everyone signed in so far, for the accessibility look (their page may have closed since). */
 const people: Person[] = [];
 
@@ -71,11 +89,36 @@ const SVELTE_BUGS = [
   "select_multiple_invalid_value",
 ];
 
+/** The refusals the step under way taps for on purpose (`expectRefusal`): cleared when it ends. */
+const refusalsExpected = new Set<number>();
+
+/**
+ * The step under way is refused on purpose, with this status (the last admin's 409, a signed-out page's 401): Chrome
+ * logs every such reply as a console error ("Failed to load resource"), and that one isn't a bug. Only for this step,
+ * and only that status: any other error still fails it.
+ */
+export function expectRefusal(status: number) {
+  refusalsExpected.add(status);
+}
+
 /** Console errors that aren't the app's bugs, each with why. Keep it short: an entry here hides a real message. */
 const HARMLESS: { why: string; is: (m: ConsoleMessage) => boolean }[] = [
   {
     why: "the browser asking for /favicon.ico on its own: the app's icon is in its manifest",
     is: (m) => /\/favicon\.ico$/.test(m.location().url),
+  },
+  {
+    why: "a signed-out page finding out it's signed out: the app's first ask (the bootstrap) gets a 401, by design",
+    is: (m) =>
+      m.text().startsWith("Failed to load resource: the server responded with a status of 401 ") &&
+      new URL(m.location().url || "http://x/").pathname === "/api/bootstrap",
+  },
+  {
+    why: "Chrome's own line for a reply the step was refused on purpose (expectRefusal), not the app's",
+    is: (m) =>
+      [...refusalsExpected].some((status) =>
+        m.text().startsWith(`Failed to load resource: the server responded with a status of ${status} `),
+      ),
   },
 ];
 
@@ -93,11 +136,35 @@ function listen(who: Person, page: Page) {
   });
 }
 
+/** The error screen each page was last seen on (brokenScreens). */
+const screensSeen = new WeakMap<Page, string>();
+
+/**
+ * The app's own "it broke" screen (main.ts showError: "Can't reach the club's data" and why) on anyone's open page. An
+ * error the app catches while it starts never reaches the console, so it's looked for: one per page it's on.
+ */
+async function brokenScreens() {
+  for (const who of people)
+    for (const page of who.context.pages()) {
+      const screen = page.locator(".boot-error");
+      if (page.isClosed() || !(await screen.count().catch(() => 0))) continue;
+      const said = (await screen.innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+      const where = new URL(page.url() || "about:blank", "http://x").pathname;
+      const line = `${who.role} on ${where}: the app's error screen: ${said}`;
+      // Once for each time it breaks: a page left on it isn't a new error at every step after
+      if (screensSeen.get(page) === line) continue;
+      screensSeen.set(page, line);
+      browserErrors.push(line);
+    }
+}
+
 /**
  * The browser errors since the last step took them, failing a step of their own under the one they happened in (so
  * the summary has them, under it) and noted as a failed check: the journey goes on.
  */
 async function noBrowserErrors(title: string) {
+  refusalsExpected.clear();
+  await brokenScreens();
   if (!browserErrors.length) return;
   const errors = browserErrors.splice(0);
   try {
@@ -113,7 +180,7 @@ async function noBrowserErrors(title: string) {
  * The API as a member, without a browser: only to get the story to a step that isn't the one under test (the other
  * players saying they're in, say), each such use saying so where it's called. Same session as `signIn` makes.
  */
-export function asMember(email: string) {
+export function asMember(email: string, opts: { at?: Date | string } = {}) {
   const state = join(out, "auth", `${email}.api.json`);
   execFileSync("node", [join(root, "scripts/dev-sign-in.mjs"), email, "--port", String(port), "--out", state], {
     stdio: ["ignore", "ignore", "inherit"],
@@ -126,12 +193,64 @@ export function asMember(email: string) {
     const res = await fetch(`${origin}${path}`, {
       method,
       // The API takes a change only from its own page (api/api.http.ts sameOrigin)
-      headers: { cookie, origin, ...(body && { "content-type": "application/json" }) },
+      headers: {
+        cookie,
+        origin,
+        ...(body && { "content-type": "application/json" }),
+        ...(opts.at && { [DEV_NOW]: new Date(opts.at).toISOString() }),
+      },
       body: body && JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`${email}: ${method} ${path} → ${res.status} ${await res.text()}`);
     return res.headers.get("content-type")?.includes("json") ? res.json() : null;
   };
+}
+
+/**
+ * Puts someone at a moment: their browser's clock (Playwright's clock, for every page of theirs, fixed there) and the
+ * server's for every request their pages make (worker/api/api.dev-clock.ts). Both, so the app's own reckoning ("Tonight",
+ * "In 3 days") and the server's (what's open, what's refused, what's charged) agree. Their next page load sees it.
+ */
+export async function at(who: Person, when: Date | string) {
+  const moment = new Date(when);
+  await who.context.clock.setFixedTime(moment);
+  await who.context.setExtraHTTPHeaders({ [DEV_NOW]: moment.toISOString() });
+}
+
+/**
+ * The Worker's cron run at a moment (wrangler.jsonc triggers), as Cloudflare would: "hourly" charges what a new day or
+ * quarter makes due (dues.charge), "five" sends queued reminders and tells members a sign-up has opened. The local dev
+ * server's own trigger (`/cdn-cgi/local/scheduled`), so only a local server runs it.
+ */
+export async function cron(when: Date | string, run: "hourly" | "five" = "hourly") {
+  const schedule = run === "hourly" ? "0 * * * *" : "*/5 * * * *";
+  const url = new URL("/cdn-cgi/local/scheduled", `http://localhost:${port}`);
+  url.searchParams.set("cron", schedule);
+  url.searchParams.set("time", String(new Date(when).getTime()));
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`cron ${schedule} at ${new Date(when).toISOString()}: ${res.status}`);
+}
+
+/** A London wall-clock time as an instant: `london("2026-10-25T01:30")`, BST or GMT as London had it then. */
+export function london(wall: string): Date {
+  const [day, time = "12:00"] = wall.split("T");
+  const guess = new Date(`${day}T${time}:00Z`);
+  // London is UTC or UTC+1: try both, keep the one London reads back as the wall time asked for
+  for (const offset of [0, 1]) {
+    const t = new Date(guess.getTime() - offset * 3_600_000);
+    const read = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Europe/London",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+      .format(t)
+      .replace(" ", "T");
+    if (read === `${day}T${time}`) return t;
+  }
+  throw new Error(`${wall} never happened in London (the clocks went forward over it)`);
 }
 
 /** The checks that failed, so the test fails at the end once every stage has run. */

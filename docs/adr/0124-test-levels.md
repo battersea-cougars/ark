@@ -35,9 +35,13 @@ browser, through a whole workflow as each person in it (#154).
 - **Its own fresh database every run**: `npm run journeys` wipes the checkout's own local D1 (`--own-db`), rebuilds it
   from `db/schema.sql`, the club seed and a made-up roster (`journeys.roster.json`), starts the team app on a private
   port (`npm run app -- --private --own-db team`), runs, and stops it. It refuses to run in the main checkout, whose
-  D1 is everyone's; it never touches 4500/4510/4520. The real clock: the Kumite is scheduled by season only (the
-  wizard's default) and played tonight, so it's the evening a match kicked off, not its date, that counts; the morning
-  after is the browser's clock a day on (Playwright's `page.clock`). Being on its day is a unit test's.
+  D1 is everyone's; it never touches 4500/4510/4520. The Kumite night runs on the real clock: scheduled by season
+  only (the wizard's default) and played tonight, so it's the evening a match kicked off, not its date, that counts.
+- **Both clocks move where a day is under test**: `at(person, when)` sets their browser's clock (Playwright's) and the
+  server's for their requests (`x-dev-now`, `worker/api/api.dev-clock.ts`: only where the simulator is, so never in
+  production; who's signed in stays on the real clock), and `cron(when)` runs the Worker's hourly job at a moment
+  through the local dev server's own trigger. The days that matter (London midnight, 17:00, 06:00, the clocks
+  changing, 29 February) are each walked once (`kumite.on-the-clock`, `fridays`); a journey only moves forward.
 - **The browser is listened to**: every person's pages (`journey.ts`) report an uncaught error, a console error or a
   Svelte dev warning that means a bug (a named list), and it fails the step it happened in, noted like a check. Noise
   that isn't the app's goes on an allowlist, each entry with its reason. **Every page opens clean**
@@ -54,8 +58,11 @@ browser, through a whole workflow as each person in it (#154).
 
 - A broken flow shows up as a step with a role and an expected/actual, before a release, without holding it up.
 - A journey run is minutes, not seconds, so it never runs on every push; the use cases stay the everyday net.
-- Journeys meet the real clock: a check that depends on the day handles it, or moves the browser's clock (the app
-  reckons the evening in the browser); the server's clock can't be moved.
+- Journeys meet the real clock unless they move both: a dev-only header the Worker reads, so the API has a way in
+  that production fails closed on (`api.dev-clock.use-cases`). A journey that moves the clock leaves what it made
+  then (sessions a year on, say) for the journeys after it: they're written to cope, and that's how the calendar's
+  two Marches were found.
+- A run is 9½ to 12½ minutes: a core run and a full one are proposed (testing.md).
 - Overlap between levels is to be taken out as it's found (#154): the same check twice is twice the upkeep.
 - The checkout's own D1 (`--own-db`) is the journeys': a branch that needs its own D1 for its own work loses it to a run.
 
@@ -66,3 +73,7 @@ browser, through a whole workflow as each person in it (#154).
 - 2026-10-23: The Kumite night is scheduled by season only, not for today, as one played on another day than its date
   missed The Anchor unseen; the captains named after (No captains yet, Name the captains), Done that evening and
   history the morning after (`page.clock`). Browser errors fail the step they happened in; Every page opens clean.
+- 2026-10-23: Journeys for the whole app (sign-in and joining, members, the calendar and news, Fridays and dues, the
+  Kumite on the clock), mapped workflow by workflow (testing-map.md, Journeys). The server's clock can be moved per
+  request on dev and local (`x-dev-now`), and the cron run at a moment, so the date edges are walked end to end; the
+  app's error screen and a stranger's pages count as the browser's errors; a refusal on purpose says so.

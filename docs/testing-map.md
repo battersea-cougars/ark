@@ -92,3 +92,66 @@ Close, but each still checks something of its own, or moving it is more than rem
   is `tournament-front.test`'s only. Its other checks that units also hold: No captains yet for whoever runs the draft
   (`tournament-front.test` paneOf), Done that evening and history the morning after (`edition.edge-cases`). Every page
   opens clean (`pages.journey.ts`) is the only check that the pages render without browser errors.
+
+## Journeys
+
+Every workflow someone does in the team app, by role, and which journey covers it, or why none does (23 October
+2026). One journey covers each workflow once; a rule's every case stays in its use case or unit test, and a journey
+taps it once (ADR 0124). The people: **Ada** an admin, **players** in the Kumite (Fay, the captains), members not in
+it (Nell, Ivy, Hal, Pia, Wes, Tam, Quin, Kit the keeper), **Mo** made a Session lead, **Jo** new and asking to join.
+
+| Who                | Workflow                                                                                          | Journey › stage                                      | Or why not                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| New                | Asks to join, waits; no code before she's let in                                                  | sign-in › 1                                          |                                                                                           |
+| Admin              | Lets someone in (The club, Approve); a member can't                                               | sign-in › 1                                          | Home doesn't tell the admin someone's asking (only The club): a decision                  |
+| Member             | Signs in with a code; a wrong code refused                                                        | sign-in › 2                                          | Five wrong codes, 15 minutes, the limits: `auth.edge-cases`, `auth.test`                  |
+| Member             | Adds a passkey, signs out, signs in with it                                                       | sign-in › 3                                          | Chrome's virtual authenticator; other devices' passkeys: `auth.passkeys.use-cases`        |
+| Member             | Signs out; a page needing sign-in goes to Sign in                                                 | sign-in › 3                                          | Sign out everywhere: `auth.sessions`                                                      |
+| Admin              | Adds a member; changes a name, email, position                                                    | members › 1                                          | Import members (CSV): `members.use-cases` only                                            |
+| Admin              | Gives a role (Session lead), the member gets its jobs, takes it away                              | members › 2                                          | Editing a role's actions, the everyday role (Opens as): use cases                         |
+| Admin              | Can't take the last admin's Admin role                                                            | members › 2                                          |                                                                                           |
+| Member             | Can't open Settings → Members; Roles shows a role's actions                                       | members › 2                                          | The door for every route: `api.security`                                                  |
+| Member             | Deletes their own account; can't sign in after; gone from lists                                   | members › 3                                          | An admin deleting someone: `members.erase`                                                |
+| Everyone           | Home: the next night's hero, Coming up, the locker room, owed or not                              | calendar › 1, 4, 6; fridays › 7                      |                                                                                           |
+| Everyone           | Today, Tonight, Tomorrow, In N days, In N weeks on the right London days                          | calendar › 6; fridays › 2–4, 10–12; kumite clock › 4 | Only check of EventCard's `soon` (inline in the component: worth a unit test)             |
+| Admin              | Sets up a training (Settings → Training), pauses it                                               | fridays › 1, 13                                      |                                                                                           |
+| Member             | A night's In/Out, from the page and Home; the waiting list and moving up; the keepers' own places | fridays › 3                                          | Every order and race: `entries`, `entries.concurrency`; who's told: `push.moved-up`       |
+| Member             | Sign-up opening N days before at London midnight; refused before                                  | fridays › 2, 4, 11, 12                               | `lib/signup` units                                                                        |
+| Session lead/Admin | The register on the night: a no-show, Add player, Let in                                          | fridays › 5                                          | Every register rule: `training` use cases                                                 |
+| Member             | Their own In/Out refused once the night's over                                                    | fridays › 5, 11                                      | Locked once it **starts** (asked) vs **ends** (ADR 0030): a failing check, to decide      |
+| Admin              | The register locked the next morning                                                              | fridays › 6                                          | #11, not built: a failing check                                                           |
+| Admin              | Fees: charged on the night (the register) and by the next day's cron (sign-ups nobody ticked)     | fridays › 5, 6                                       | `dues` use cases own every charge rule                                                    |
+| Admin              | Unpaid fees, a payment, an adjustment, reminders sent by hand                                     | fridays › 7                                          | Who's reminded and when: `reminders` use cases                                            |
+| Member             | Their tab, Home's owed row; dues ageing past a month                                              | fridays › 7, 9                                       | Buckets: `lib/dues`                                                                       |
+| Member             | Quarterly: chosen for next quarter, charged on its first day, nights then free                    | fridays › 10                                         | `dues` use cases                                                                          |
+| Admin              | Cancels a training night; who was in sees it off                                                  | fridays › 8                                          | Who hears it: `training.cancel-night`                                                     |
+| Admin              | A one-off club event; members In/Out; cancelled                                                   | calendar › 1, 3                                      | A one-off's limit and waiting list: its sheet has no places field (use cases only)        |
+| Admin              | The clash prompt (a one-off over training): Close, Keep both                                      | calendar › 2                                         | Every clash: `calendar/clashes.use-cases`                                                 |
+| Admin/Member       | The locker room: posted, Got it, gone after its last day; a member can't post                     | calendar › 4                                         | `announcements` use cases own the last day                                                |
+| Member             | Notification switches kept                                                                        | calendar › 5                                         | No push leaves a local server: who hears what is `push.use-cases`                         |
+| Admin              | Settings, one job each: Venues, Quips, Tournament series, Audit log                               | calendar › 7                                         | Email, Usage, Errors need real tokens: opened only (pages)                                |
+| Everyone           | Every page and editor opens clean                                                                 | pages                                                |                                                                                           |
+| Admin/Player       | The Kumite night, sign-up to the morning after                                                    | kumite › 1–10                                        |                                                                                           |
+| Everyone           | The Kumite's sign-up opening and closing at London midnight; refused by the server                | kumite clock › 1, 2                                  | `signup.edge-cases`, `edition.edge-cases`                                                 |
+| Admin              | The draft's day on the agenda, only for whoever runs it                                           | kumite clock › 3                                     | `home-feed` units, agenda use cases                                                       |
+| Everyone           | Its day (Today, Tonight), the day after unplayed, played on another evening                       | kumite clock › 4–6                                   | `edition.edge-cases` (playedOn, atAfters), `tournament-front`                             |
+| Everyone           | The final over midnight; The Anchor till 06:00, history at 06:01                                  | kumite clock › 6, 8, 9                               | `dates` londonEvening units; the Kumite night's morning after (kumite › 10) stays its end |
+| Everyone           | A season-only Kumite; a past Kumite (history, never coming up)                                    | kumite clock › 7, 10                                 | `latestOf` units                                                                          |
+| Everyone           | The clocks going back (25 Oct 2026) and forward (28 Mar 2027): times, the evening, In/Out         | fridays › 4, 11; kumite clock › 8, 9                 | `londonISO` units                                                                         |
+| Everyone           | 29 February 2028                                                                                  | fridays › 12                                         |                                                                                           |
+| Captain            | The draft room, choosing                                                                          | kumite › 4                                           |                                                                                           |
+| Scorekeeper        | Keeps score live; full time                                                                       | kumite › 6                                           | Every scoring rule: `scoring` use cases                                                   |
+| Admin              | Import members, Sign out everywhere, View as, Upload, Email reconnect, Usage                      | none                                                 | Use cases; Email and Usage need real tokens; Upload is still demo data (#63)              |
+| Admin              | Recording a Kumite from before the app (ADR 0126), a tournament other than the Kumite             | none                                                 | `past.use-cases`; only the Kumite is set up                                               |
+
+**What the journeys make redundant** (listed, nothing deleted: each lower test still checks every case of its rule,
+and a journey taps one):
+
+- `kumite.journey.ts` stage 10's morning after is checked at its boundary (05:59 / 06:01) by `kumite.on-the-clock`;
+  it stays as that story's end.
+- `home-feed.edge-cases`' three "Sign-up opens" rows and `edition.edge-cases`' second London deadline (in "Left"
+  above) are now walked end to end too: the first to remove when that list is taken up.
+- No use case or unit test is a pure copy of a journey step: none removed.
+
+**Known gaps**: a stranger's sign-in pages are listened to like everyone's (`stranger`); the app's error screen counts
+as a browser error. A one-off's places, real push, and a register opened for a past night aren't driveable.

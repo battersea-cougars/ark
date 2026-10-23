@@ -9,10 +9,16 @@ const FLOOR_MS = 1250;
 
 /**
  * As the admin `email`, a Kumite of series `typeId` on `heldOn` (YYYY-MM-DD, before today), played out to its last
- * award a few moves a request (Spin kick). Its id.
+ * award a few moves a request (Spin kick). Its id. `at`: the server's clock for it (journey.ts at), so a day still to
+ * come on the real clock (the day the clocks change) can be one gone by.
  */
-export async function kumiteOnAPastDay(email: string, heldOn: string, typeId = 1): Promise<number> {
-  const api = asMember(email);
+export async function kumiteOnAPastDay(
+  email: string,
+  heldOn: string,
+  typeId = 1,
+  opts: { at?: Date | string } = {},
+): Promise<number> {
+  const api = asMember(email, opts);
   const { id } = (await api("POST", "/api/tournaments/past-day", { typeId, heldOn })) as { id: number };
   for (let i = 0; i < 400; i++) {
     const began = Date.now();
