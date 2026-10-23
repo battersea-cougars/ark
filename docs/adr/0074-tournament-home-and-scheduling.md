@@ -474,3 +474,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   phrases land about 1.4s apart, the switch 2s after the last.
 - 2026-10-23: The bait's phrases in the club's red (said in earnest); the switch an aside, small italic in the body
   face, quiet grey, fading in after them, no stamp.
+- 2026-10-23: The switch drops its "…OK": "Unless they can skate. We need 6 more.", or, full, "Except your mum. She
+  can watch."
