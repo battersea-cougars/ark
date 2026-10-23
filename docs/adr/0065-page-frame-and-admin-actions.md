@@ -205,3 +205,8 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   night that's off, the same words as a one-off's; it had been only in the training editor's list of nights.
 - 2026-10-23: A page under its section's front page says its way back once: on a phone the app bar's ‹ (Shell), so the
   header's eyebrow button shows on a desktop only (the header's badge stays).
+- 2026-10-23: An overlay's save state has one owner at a time: the form showing in it, which loads its values and
+  their baseline together (lib/dirty.svelte.ts `#load`), on opening and on saving, and which form that is is kept
+  out of reactive state (lib/dirty.ts `FormOwner`). A Kumite scheduled from the full editor gives way to its saved
+  editor in the same panel; the old form's teardown read reactive state as it was before the swap, thought it still
+  owned the footer and cleared the new one's, so adding a captain never lit Save up ("Save is not available").

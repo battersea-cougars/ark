@@ -61,3 +61,29 @@ export function footNote(s: SaveState, now: number): FootNote {
 export function canSave(s: SaveState): boolean {
   return !s.busy && (s.dirty || s.fresh);
 }
+
+/**
+ * Which form an overlay's save state belongs to now (lib/dirty.svelte.ts). One overlay can show one form after
+ * another (a new tournament's editor gives way to the saved one's in the same panel), and the old form lets go only
+ * after the new one has taken over, so letting go must never undo the new one's claim. Kept in a plain field, never
+ * in reactive state: a Svelte teardown reads state as it was before the flush that tore it down, so a teardown that
+ * asked reactive state "is it still mine?" was told yes by the old form and wiped the new one's (Save stayed off
+ * after a Kumite was scheduled and a captain added).
+ */
+export class FormOwner<T> {
+  #current: T | null = null;
+
+  get current(): T | null {
+    return this.#current;
+  }
+
+  /** `form` is the one now; the returned function lets go, and does nothing once another form has claimed it. */
+  claim(form: T): () => boolean {
+    this.#current = form;
+    return () => {
+      if (this.#current !== form) return false;
+      this.#current = null;
+      return true;
+    };
+  }
+}

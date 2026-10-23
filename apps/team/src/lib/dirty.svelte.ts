@@ -12,7 +12,7 @@
 import { untrack } from "svelte";
 import { saving } from "../app/backend.svelte";
 import { holdLeaving } from "../app/router.svelte";
-import { fingerprint, type SaveState } from "./dirty";
+import { FormOwner, fingerprint, type SaveState } from "./dirty";
 
 // Read only on a way out (beforeunload, a move), never drawn: a plain set, not a reactive one
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -35,6 +35,8 @@ if (typeof window !== "undefined") {
 export class Edits {
   /** What the form's values are now; null until a form is watched. */
   #read = $state.raw<(() => unknown) | null>(null);
+  /** Which form that is, kept out of reactive state so a teardown sees the truth (lib/dirty.ts FormOwner). */
+  #owner = new FormOwner<() => unknown>();
   #now = $derived(this.#read ? fingerprint(this.#read()) : "");
   #base = $state("");
   #then: (() => void) | null = null;
@@ -63,16 +65,23 @@ export class Edits {
 
   /**
    * Called as the form starts (in its component's setup): `read` gives its values, and what they are now is clean.
-   * Done when the form goes. `fresh`: a new one, not saved yet.
+   * Done when the form goes, unless another form has taken over by then (lib/dirty.ts FormOwner). `fresh`: a new one,
+   * not saved yet.
    */
   watch(read: () => unknown, { fresh = false }: { fresh?: boolean } = {}) {
+    const release = this.#owner.claim(read);
+    this.#load(read, fresh);
+    $effect(() => () => {
+      if (release()) this.#load(null, false);
+    });
+  }
+
+  /** The one place the form and its baseline change: together, so what's loaded is what's clean. */
+  #load(read: (() => unknown) | null, fresh: boolean) {
     this.#read = read;
     this.fresh = fresh;
     this.problem = "";
     this.reset();
-    $effect(() => () => {
-      if (this.#read === read) this.#read = null;
-    });
   }
 
   /** What's on screen now is what's saved (after a save, or a form loaded afresh). */

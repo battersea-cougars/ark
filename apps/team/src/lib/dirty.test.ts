@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSave, fingerprint, footNote, savedWhen, type SaveState } from "./dirty";
+import { FormOwner, canSave, fingerprint, footNote, savedWhen, type SaveState } from "./dirty";
 
 const sources = import.meta.glob<string>("../**/*.svelte", { query: "?raw", import: "default", eager: true });
 
@@ -17,6 +17,18 @@ describe("whether a form has unsaved changes", () => {
 
   it("counts a list's order (teams, awards)", () => {
     expect(fingerprint([1, 2])).not.toBe(fingerprint([2, 1]));
+  });
+});
+
+describe("which form a Save footer belongs to", () => {
+  it("stays the new form's when the old one lets go after it took over (a Kumite scheduled, then its editor)", () => {
+    const owner = new FormOwner<string>();
+    const releaseNew = owner.claim("the new tournament's form");
+    const releaseSaved = owner.claim("the saved tournament's editor");
+    expect(releaseNew()).toBe(false);
+    expect(owner.current).toBe("the saved tournament's editor");
+    expect(releaseSaved()).toBe(true);
+    expect(owner.current).toBeNull();
   });
 });
 
