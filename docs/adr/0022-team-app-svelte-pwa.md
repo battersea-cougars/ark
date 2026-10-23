@@ -41,7 +41,12 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   You). Phones keep chrome slim: a 40px top bar, an opaque tab bar,
   no page subtitles.
 - **A PWA**: manifest, icons and a service worker that caches the app shell. Screens that must work offline (the game
-  clock) keep their data in IndexedDB and sync when there's signal.
+  clock) keep their data in IndexedDB and sync when there's signal. Opening the app (`public/sw.js`) asks the
+  network for the newest shell but waits at most 1.5 s before opening the one kept from last time, so poor signal at
+  the rink opens it at once; whenever the network's arrives it's kept for the next opening, with every built file it
+  names (or not at all), so a deploy reaches a phone on the next open at the latest and the open app offers a reload
+  sooner ([0104](0104-app-versions-and-updates.md)). Not stale-while-revalidate: on a good signal every opening is the newest
+  build, not one behind. API calls are never cached by it.
 - A store app, if we want one, wraps the same build with Capacitor (#26).
 - CLAUDE.md's Astro rules apply to the website only. Shared rules (D1 through `packages/shared/d1.ts`, Europe/London dates,
   tests) apply to both.
@@ -103,3 +108,5 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   add a club icon to see the club."
 - 2026-10-21: How fast Home first paints (the app imported up front beside the data, a 100 kB JavaScript budget
   for it, hashed files kept a year) is its own record, [0120](0120-team-app-first-paint.md).
+- 2026-10-23: Opening the app waits at most 1.5 s on the network before the kept shell, and the network's shell is
+  kept, with its files, whenever it arrives (#115).
