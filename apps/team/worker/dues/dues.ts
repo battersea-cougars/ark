@@ -327,14 +327,17 @@ export async function addQuarterCharge(
     throw new HttpError(400, "How much? There's no quarterly membership price set for then.");
   if (await first(db, "SELECT 1 FROM charges WHERE member_id = ? AND quarter = ?", [memberId, o.quarter]))
     throw new HttpError(409, "They're already charged for that quarter.");
-  const res = await run(
+  // Two admins at once both pass the check above: the index lets one in and the other is told it's there
+  const added = await first<{ id: number }>(
     db,
-    `INSERT INTO charges (member_id, quarter, amount_pence, due_on, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO charges (member_id, quarter, amount_pence, due_on, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (quarter, member_id) WHERE quarter IS NOT NULL DO NOTHING RETURNING id`,
     [memberId, o.quarter, pence as number, dueOn, now, by],
   );
+  if (!added) throw new HttpError(409, "They're already charged for that quarter.");
   // Its training nights are paid for now
   await chargeAttendance(db, londonToday(new Date(now)), now);
-  return { id: Number(res.meta.last_row_id) };
+  return { id: added.id };
 }
 
 /**

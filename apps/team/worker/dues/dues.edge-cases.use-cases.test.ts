@@ -456,10 +456,10 @@ describe("taps at once", () => {
     },
   );
 
-  // The second insert meets the UNIQUE index (charges_quarter) after the check before it passed, and the admin is told
+  // The second insert met the UNIQUE index (charges_quarter) after the check before it passed, and the admin was told
   // something went wrong (a 500) rather than that it's already charged: https://github.com/battersea-cougars/ark/issues/121
-  it.fails.each([2, 5])(
-    "two admins charge the same quarter at once: one is charged, the other told it's there (known bug #121, seed %i)",
+  it.each([2, 5])(
+    "two admins charge the same quarter at once: one is charged, the other told it's there (#121, seed %i)",
     async (seed) => {
       const { dana, reg } = await came(800, []);
       const tess = await w.signedIn("tess@example.com");
