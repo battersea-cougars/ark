@@ -24,6 +24,10 @@ export const KUMITE_KANJI = {
   invite: "招",
   /** Choose: the seal on your turn's button in the draft room. Yes, the pick decided, reuses 決. */
   choose: "選",
+  /** A match card's stamps (lib/GameCard): next, You are next!; victory, a win; parted, a draw. */
+  next: "次",
+  won: "勝",
+  drawn: "分",
   /** Blood, martial, fist: kept for the draft and the board. */
   blood: "血",
   martial: "武",

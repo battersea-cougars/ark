@@ -13,6 +13,7 @@
   import { typeById } from "../demo/schedule.svelte";
   import { leftOf, mmss, ticking } from "./game-clock.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import TeamRecord from "./TeamRecord.svelte";
 
   let {
     tournament,
@@ -93,10 +94,8 @@
     {#if big && id}
       {@const r = recordOf(id)}
       {#if r}
-        <!-- Won-drawn-lost and points, as a league writes it: 1-1-0 · 2 pts -->
-        <span class="rec num" aria-label="{r.w} won, {r.d} drawn, {r.l} lost, {r.pts} points"
-          >{r.w}-{r.d}-{r.l} · {r.pts} {r.pts === 1 ? "pt" : "pts"}</span
-        >
+        <!-- Won, drawn, lost and points, in the table's words (lib/TeamRecord): 1W 0D 0L · 3 Pts -->
+        <span class="rec"><TeamRecord w={r.w} d={r.d} l={r.l} pts={r.pts} /></span>
       {/if}
     {/if}
   </span>
@@ -251,10 +250,11 @@
   }
   /* The record: one quiet line under the name */
   .rec {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
+    display: block;
+    overflow: hidden;
     font-weight: 400;
     white-space: nowrap;
+    text-overflow: ellipsis;
   }
   .fixture.done .team.won .tn {
     font-weight: 700;

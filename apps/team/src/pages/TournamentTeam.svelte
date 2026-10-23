@@ -57,7 +57,12 @@
 </script>
 
 <div class="page">
-  <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} />
+  <TournamentHead
+    {type}
+    {tournament}
+    title={mine || !teamId ? "My team" : "Team"}
+    back={{ href: `/tournaments/${type.slug}` }}
+  />
 
   {#if !tournament || !team}
     <EmptyState icon="teams" title={teamId ? "Not found" : "No team yet"}>
@@ -69,7 +74,6 @@
       {/snippet}
     </EmptyState>
   {:else}
-    <a class="back" href="/tournaments/{type.slug}/teams"><Icon name="chevronLeft" size={16} />All teams</a>
     <section class="hero">
       <TeamCrest
         among={crestNames}
@@ -164,19 +168,6 @@
 {/if}
 
 <style>
-  .back {
-    display: inline-flex;
-    justify-self: start;
-    align-items: center;
-    gap: var(--s-1);
-    margin-bottom: calc(-1 * var(--s-2));
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-  }
-  .back:hover {
-    color: var(--fg);
-  }
   .edit {
     display: flex;
     flex-wrap: wrap;

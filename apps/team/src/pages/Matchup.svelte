@@ -10,6 +10,7 @@
   import { me } from "../demo/session.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import TeamRecord from "../lib/TeamRecord.svelte";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamHref, teamTone } from "../lib/team-tones";
@@ -93,15 +94,18 @@
 </script>
 
 <div class="page">
-  <TournamentHead {type} {tournament} title="Matchup" />
+  <TournamentHead
+    {type}
+    {tournament}
+    title="Matchup"
+    back={onNow || !tournament
+      ? { href: `/tournaments/${type.slug}` }
+      : { href: `/tournaments/${type.slug}/history/${tournament.id}`, label: tournament.name }}
+  />
 
   {#if !tournament || !game}
     <p class="note">There's no such game.</p>
   {:else}
-    <a class="back" href="/tournaments/{type.slug}{onNow ? '' : `/history/${tournament.id}`}"
-      ><Icon name="chevronLeft" size={16} />{onNow ? `The ${type.shortName}` : tournament.name}</a
-    >
-
     <!-- The two teams, face to face: the score once it's played, else the kick-off -->
     <section class="face">
       {#each sides as s, k (k)}
@@ -118,15 +122,14 @@
               tone={teamTone(s.i)}
               size="4.5rem"
             />{/if}
-          <!-- Plainly a way to the team, pointer or not: its name with a chevron -->
-          <span class="side-name display"
-            >{s.name}{#if s.team?.id}<Icon name="chevronRight" size={18} />{/if}</span
+          <!-- Plainly a way to the team, pointer or not: its name with a chevron beside it (never under it) -->
+          <span class="side-line"
+            ><span class="side-name display">{s.name}</span>{#if s.team?.id}<Icon
+                name="chevronRight"
+                size={18}
+              />{/if}</span
           >
-          {#if s.record}
-            <span class="rec num" aria-label="{s.record.w} won, {s.record.d} drawn, {s.record.l} lost"
-              >{s.record.w}W {s.record.d}D {s.record.l}L</span
-            >
-          {/if}
+          {#if s.record}<TeamRecord w={s.record.w} d={s.record.d} l={s.record.l} pts={s.record.pts} />{/if}
         </a>
         {#if k === 0}
           <div class="mid">
@@ -235,19 +238,6 @@
 </div>
 
 <style>
-  .back {
-    display: inline-flex;
-    justify-self: start;
-    align-items: center;
-    gap: var(--s-1);
-    margin-bottom: calc(-1 * var(--s-2));
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-  }
-  .back:hover {
-    color: var(--fg);
-  }
   /* Face to face: home, the score (or vs and the kick-off), away */
   .face {
     display: grid;
@@ -268,6 +258,7 @@
   }
   /* A name that doesn't fit its side takes a second line ("Team / Charlie" on a phone), never "Team C…" */
   .side-name {
+    min-width: 0;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -279,9 +270,17 @@
     overflow-wrap: break-word;
     text-wrap: balance;
   }
-  .rec {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
+  /* The name and its chevron on one line: the name takes two lines before the chevron would drop under it */
+  .side-line {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    max-width: 100%;
+    min-width: 0;
+  }
+  .side-line :global(svg) {
+    flex: none;
+    color: var(--fg-subtle);
   }
   .mid {
     display: grid;

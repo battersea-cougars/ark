@@ -42,6 +42,7 @@
   import ManageList, { type ManageItem } from "./ManageList.svelte";
   import { draftJobsOf } from "./draft-jobs";
   import { BACK_SAYS, backFrom, backTo } from "./step-back";
+  import InkStamp, { type InkTone } from "./InkStamp.svelte";
 
   let {
     type,
@@ -52,6 +53,7 @@
     compact = false,
     track = false,
     viewing = null,
+    back,
   }: {
     type: TournamentType;
     tournament?: Tournament;
@@ -66,6 +68,9 @@
     track?: boolean;
     /** The status whose view the page is showing (the track's lit one); none on a page that isn't one (the board). */
     viewing?: Status | null;
+    /** A page under the series' front page (a team, a match, History): the eyebrow is the way back, "‹ The Cougars
+     *  Kumite", top left over the title on every screen. Its label when it isn't the series (an edition's page). */
+    back?: { href: string; label?: string };
   } = $props();
 
   const when = $derived(tournament ? editionWhen(tournament) : null);
@@ -75,6 +80,8 @@
   // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor
   const stage = $derived(tournament ? stageBadge(tournament, type, londonToday(), after?.name) : null);
   const mark = $derived(stage ? kanjiFor(type, stage.mark) : "");
+  // The status's ink (lib/InkStamp): the club's red, Coming up faint, KUMITE! a block of red, the after-party and Done bone
+  const INK = { on: "red", quiet: "faint", live: "live", done: "bone" } as const satisfies Record<string, InkTone>;
   // Where it is, opening the map (its venue's link, else a search for its name)
   const place = $derived(tournament ? tournamentPlace(tournament) : null);
   // How far off the day is (lib/edition.ts countdownOf): within a week it leads the line, big, in the club's red
@@ -277,18 +284,19 @@
 <!-- Compact (a phone page that needs its room): no header at all; the page's tabs say where you are -->
 {#if !compact}<div class="tone" style:--tone="var(--tone-{type.tone})">
     <!-- A phone's eyebrow is the series' short name, so it and its stamp and buttons stay one line -->
-    <PageHeader {title} eyebrow={phone.current ? type.shortName : type.name} eyebrowIcon={type.icon}>
+    <PageHeader
+      {title}
+      eyebrow={back?.label ?? (phone.current ? type.shortName : type.name)}
+      eyebrowIcon={type.icon}
+      eyebrowHref={back?.href}
+    >
       {#snippet badge()}
         {#if stage}
           <!-- Where it stands, as an ink stamp in the club's red (the Kumite's hanko: its kanji pressed in a block,
                the word beside it, the ink a little patchy, the edge uneven, askew). Every status the same stamp;
                Coming up faint; KUMITE! the loudest, the block of ink filled; the evening's after-party and Done
                in bone -->
-          <span class="stamp {stage.tone}" role="status" aria-label="Status: {stage.label}"
-            >{#if mark}<span class="stamp-mark" lang="ja" aria-hidden="true">{mark}</span>{/if}<span class="stamp-word"
-              >{stage.label}</span
-            ></span
-          >
+          <InkStamp text={stage.label} kanji={mark} tone={INK[stage.tone]} label="Status: {stage.label}" />
         {/if}
         {#if answered}
           <!-- Your answer, once you've given it (ADR 0074): a sticker that opens a small sheet to change it -->
@@ -641,65 +649,6 @@
     margin-left: auto;
   }
 
-  /* ─── The status: an ink stamp ─── */
-  /* The Kumite's hanko, in the club's red: the status's kanji pressed in a block of ink, the word beside it in the
-     display face, the ink a little patchy (a noise mask), the edge uneven, askew. Every status the same stamp, so
-     they read as a family; only its words change */
-  .stamp {
-    --ink: var(--red-hot);
-    display: inline-flex;
-    align-items: stretch;
-    align-self: center;
-    flex: none;
-    overflow: hidden;
-    border: 2px solid var(--ink);
-    border-radius: 0.45rem 0.25rem 0.5rem 0.3rem / 0.3rem 0.5rem 0.25rem 0.45rem;
-    color: var(--ink);
-    font-family: var(--font-display);
-    font-size: 1.2rem;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    transform: rotate(-3deg);
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    -webkit-mask-size: 140px 70px;
-    mask-size: 140px 70px;
-  }
-  .stamp-mark {
-    display: inline-grid;
-    place-items: center;
-    padding: 0 0.3rem;
-    background: var(--ink);
-    color: var(--bg);
-    font-family: var(--font-kanji);
-    font-size: 0.9em;
-    font-weight: 900;
-    letter-spacing: 0;
-  }
-  .stamp-word {
-    padding: 0.22rem 0.55rem 0.14rem;
-  }
-  /* Before sign-up opens: the same stamp, faint */
-  .stamp.quiet {
-    --ink: var(--fg-muted);
-  }
-  /* KUMITE!: the loudest, the whole stamp a block of ink, the kanji knocked out of it */
-  .stamp.live {
-    --ink: var(--red);
-    background: var(--red);
-    color: var(--on-red);
-    box-shadow: 0 0 22px -6px color-mix(in srgb, var(--red) 70%, transparent);
-  }
-  .stamp.live .stamp-mark {
-    background: color-mix(in srgb, var(--bg) 82%, var(--red));
-    color: var(--red-hot);
-  }
-  /* The after-party and done: bone, the club's red put away */
-  .stamp.done {
-    --ink: var(--primary);
-  }
   .answer-at {
     position: relative;
     display: inline-flex;
@@ -776,16 +725,6 @@
   /* On a phone the stamp sits in the eyebrow line: no taller than the line, so the header's height never changes,
      and your answer says it in a word */
   @media (max-width: 900px) {
-    .stamp {
-      border-width: 1.5px;
-      font-size: 0.8rem;
-    }
-    .stamp-word {
-      padding: 0.12rem 0.4rem 0.06rem;
-    }
-    .stamp-mark {
-      padding: 0 0.22rem;
-    }
     .answered {
       min-height: 1.5rem;
       font-size: var(--text-xs);

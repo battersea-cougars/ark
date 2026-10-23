@@ -21,6 +21,7 @@
     sub,
     eyebrow,
     eyebrowIcon,
+    eyebrowHref,
     badge,
     actions,
     toolbar,
@@ -36,6 +37,8 @@
     /** Above the title: the section this page belongs to. Coloured with --tone, when the page sets one. */
     eyebrow?: string;
     eyebrowIcon?: IconName;
+    /** A page under its section's front page: the eyebrow is the way back to it, a chevron and the section's name. */
+    eyebrowHref?: string;
     /** Beside the title: a status. */
     badge?: Snippet;
     actions?: Snippet;
@@ -128,7 +131,10 @@
     <!-- On a desktop the eyebrow's line is kept even when there's none, so every title sits at the same height -->
     {#if eyebrow}
       <p class="eyebrow-line">
-        {#if eyebrowIcon}<Icon name={eyebrowIcon} size={14} />{/if}{eyebrow}
+        {#if eyebrowHref}<a class="eyebrow-back" href={eyebrowHref}
+            ><Icon name="chevronLeft" size={16} /><span>{eyebrow}</span></a
+          >
+        {:else}{#if eyebrowIcon}<Icon name={eyebrowIcon} size={14} />{/if}{eyebrow}{/if}
         {#if badge && phone.current}{@render badge()}{/if}
       </p>
     {:else if !phone.current}
@@ -176,6 +182,34 @@
     font-weight: 700;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
+  }
+  /* The way back (a page under its section's front page): the eyebrow as a quiet button, top left over the title on
+     every screen. A faint fill says it's a button; under the pointer or focus, a firmer one. It overhangs the line
+     rather than growing it, so the title sits where every page's does */
+  .eyebrow-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    min-width: 0;
+    height: 1.875rem;
+    margin: -0.1875rem 0 -0.1875rem calc(-1 * var(--s-2));
+    padding: 0 var(--s-3) 0 var(--s-1);
+    border-radius: var(--r-md);
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+    color: inherit;
+    transition: background-color var(--t-fast) var(--ease-in-out);
+  }
+  .eyebrow-back span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .eyebrow-back :global(svg) {
+    flex: none;
+  }
+  .eyebrow-back:hover,
+  .eyebrow-back:focus-visible {
+    background: color-mix(in srgb, var(--fg) 12%, transparent);
   }
   .eyebrow-line :global(.badge) {
     letter-spacing: normal;

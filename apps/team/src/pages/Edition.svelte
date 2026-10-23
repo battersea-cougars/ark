@@ -4,7 +4,6 @@
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
-  import Icon from "../app/shell/Icon.svelte";
   import Awards from "../lib/Awards.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
   import Leaderboard from "../lib/Leaderboard.svelte";
@@ -29,8 +28,7 @@
 </script>
 
 <div class="page">
-  <TournamentHead {type} {tournament} title="History" />
-  <a class="back" href={back}><Icon name="chevronLeft" size={16} />All {type.shortName}s</a>
+  <TournamentHead {type} {tournament} title="History" back={{ href: back, label: `All ${type.shortName}s` }} />
 
   {#if !tournament}
     <EmptyState icon="alert" title="Not found">There's no such {type.shortName}. Try the list of them all.</EmptyState>
@@ -65,19 +63,6 @@
 </div>
 
 <style>
-  .back {
-    display: inline-flex;
-    justify-self: start;
-    align-items: center;
-    gap: var(--s-1);
-    margin-bottom: calc(-1 * var(--s-2));
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-  }
-  .back:hover {
-    color: var(--fg);
-  }
   .part {
     display: grid;
     gap: var(--s-3);

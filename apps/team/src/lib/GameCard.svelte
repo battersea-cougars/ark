@@ -11,6 +11,7 @@
   import { PLAYERS } from "../demo/data";
   import { goesBy, nameOfTeam } from "./names";
   import Icon from "../app/shell/Icon.svelte";
+  import InkStamp from "./InkStamp.svelte";
   import { myTeamIndex } from "./tournament-front";
 
   let {
@@ -69,11 +70,23 @@
   <GameHead {stage} {kanji} {playoff} {place} {scorer} opens={!live && !keeping}>
     {#snippet centre()}
       {#if live}<span class="chant">{type?.shortName ?? "Live"}!</span>
-      {:else if upNext}<span class="badge" class:red={yours}
-          >{#if yours}<Icon name="user" size={12} />{/if}{type?.slug === "kumite" ? "You are next!" : "Up next"}</span
+      {:else if upNext}<span class="stamp-at"
+          ><InkStamp
+            size="card"
+            tone={yours ? "red" : "faint"}
+            kanji={kanjiFor(type, "next")}
+            icon={yours ? "user" : undefined}
+            text={yours && type?.slug === "kumite" ? "You are next!" : "Up next"}
+            tilt={yours ? -5 : -3}
+            land={yours}
+          /></span
         >
-      {:else if done && winner}<span class="badge result"><Icon name="trophy" size={12} />{winner} wins</span>
-      {:else if done}<span class="badge result">Draw</span>{/if}
+      {:else if done && winner}<span class="stamp-at"
+          ><InkStamp size="card" tone="bone" kanji={kanjiFor(type, "won")} icon="trophy" text="{winner} wins" /></span
+        >
+      {:else if done}<span class="stamp-at"
+          ><InkStamp size="card" tone="faint" kanji={kanjiFor(type, "drawn")} text="Draw" /></span
+        >{/if}
     {/snippet}
     {#snippet action()}
       {#if keeping}<span class="keeping" title="You're keeping score" aria-label="You're keeping score"
@@ -129,16 +142,13 @@
     background: currentColor;
     animation: pulse 1.4s var(--ease-in-out) infinite;
   }
-  /* Up next and the results: the app's quiet badge, words and an icon, no colour of their own (ADR 0084: colour is an
-     accent). The club's red is the match on now's, and your team's You are next! */
-  .badge {
-    gap: 0.3rem;
-    max-width: 14rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .badge.result {
-    color: var(--fg-body);
+  /* Up next and the results: ink stamps (lib/InkStamp), as the page's status is. The club's red is your team's You are
+     next! (stamped down as it shows) and the match on now's; a win in bone, a draw and Up next faint (ADR 0084: colour
+     is an accent). A long winner's name is cut short; the stamp's size is the same on every card */
+  .stamp-at {
+    display: inline-flex;
+    max-width: 15rem;
+    min-width: 0;
   }
   .keeping {
     display: inline-flex;
@@ -151,8 +161,8 @@
       padding: 0.25rem 0.55rem 0.18rem;
       font-size: 1rem;
     }
-    .badge {
-      max-width: 9.5rem;
+    .stamp-at {
+      max-width: 10.5rem;
     }
   }
   /* A card reads as a card on any screen: its own fill, the page's carbon shut out (no see-through glass, which a

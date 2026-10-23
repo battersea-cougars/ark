@@ -18,7 +18,12 @@
 </script>
 
 <div class="page">
-  <TournamentHead {type} title="History" note="Every {type.shortName} so far, and who won it." />
+  <TournamentHead
+    {type}
+    title="History"
+    note="Every {type.shortName} so far, and who won it."
+    back={{ href: `/tournaments/${type.slug}` }}
+  />
 
   {#if !past.length}
     <EmptyState icon="swords" title="No history yet">The first one's history in the making.</EmptyState>

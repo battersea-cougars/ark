@@ -21,7 +21,7 @@
   src: url("./assets/fonts/Anton.woff2") format("woff2");
   font-display: swap;
 }
-/* The Kumite's kanji (Bloodsport): Noto Serif JP Black, cut to the sixteen characters the motif uses (lib/motif.ts),
+/* The Kumite's kanji (Bloodsport): Noto Serif JP Black, cut to the eighteen characters the motif uses (lib/motif.ts),
    about 5 KB. Add a character there, cut the font again with it (Google Fonts' text= subset) */
 @font-face {
   font-family: "Kumite Kanji";
@@ -29,8 +29,8 @@
   font-weight: 900;
   font-display: swap;
   unicode-range:
-    U+512a, U+52dd, U+5408, U+624b, U+62db, U+62f3, U+6b66, U+6c7a, U+7c64, U+7d44, U+8840, U+8a66, U+8cde, U+9078,
-    U+958b, U+95d8;
+    U+512a, U+5206, U+52dd, U+5408, U+624b, U+62db, U+62f3, U+6b21, U+6b66, U+6c7a, U+7c64, U+7d44, U+8840, U+8a66,
+    U+8cde, U+9078, U+958b, U+95d8;
 }
 
 :root {
