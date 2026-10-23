@@ -42,8 +42,17 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   An admin's **Next Kumite** is on it. Under it, every past one, newest first.
 - **One page, by status** (`Games.svelte`): "Fight Card is confusing if we think of the kumite in stages. It should
   really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). The tournament
-  is one page, `/tournaments/:slug`: the header, the track of its statuses, then that status's view. Its draft, teams,
-  fixtures and board are no longer pages of their own.
+  is one page: the header, the track of its statuses, then that status's view. Its draft, teams, fixtures and board
+  are no longer pages of their own.
+- **Every edition has its own address** ("this page is the layout for that specific kumite — the url should reflect
+  that", the user, 2026-10-23): `/tournaments/:slug/:id`, its statuses under it (`/:id/sign-up`, `/draft`, `/teams`,
+  `/schedule`, `/day`, `/afters`; `lib/edition-address.ts`). The id decides what everything on the page shows: the page
+  hands its edition to each status's view (the draft, the teams, the fixtures) rather than each looking up the one on.
+  The series' address, `/tournaments/:slug`, is its front door: with one on it's replaced by that one's address, and
+  so are its old status addresses (`/tournaments/kumite/draft` → `/tournaments/kumite/12/draft`), so the pushes,
+  Home's cards and emails that use them keep working and the address always says which one (`frontDoorTo`,
+  `App.svelte`); with nothing on, it stays No Kumite yet. An edition that's gone goes back to the front door. Not a
+  tab of its own: the Kumite tab opens the front door, so it never sticks on last week's.
 - **The statuses** (`statusOf`, `statusesOf` in `lib/tournament-front.ts`): **Sign-up open** → **Draft open** →
   **Teams set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started) →
   **THE ANCHOR** (the after-party, named after its afterwards; **AFTERS** when it has none); teams that enter skip the
@@ -61,8 +70,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   a node each (done: filled with a tick; where it is: a bigger bright node with a red NOW stamp over it, pulsing in
   red the whole time the Kumite's running on its day; ahead: hollow). Shape and fill say it without colour. A phone
   shows the short names (Sign-up, Draft, Teams, Fixtures, Kumite!). It's also the navigation: a status it's reached
-  opens its view, read-only if it's gone by, at its own address (`/sign-up`, `/draft`, `/teams`, `/schedule`;
-  `viewOf`, `statusHref`); the one being looked at has a solid red bar under it, as a lit tab. Red bar: what you're
+  opens its view, read-only if it's gone by, at its own address under the edition's (`/sign-up`, `/draft`, `/teams`,
+  `/schedule`, `/day`, `/afters`; `viewOf`, `statusHref`); the one being looked at has a solid red bar under it, as a lit tab. Red bar: what you're
   looking at; node and NOW: where it is. One fixed height, no Next line under it.
 - **The view** has the same shape whatever the status: its one action card for whoever runs it (`lib/DraftStep`:
   Shuffle, Open the draft, Seal the teams, Make the fixtures), members seeing the card without the button or nothing,
@@ -183,10 +192,12 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
   to do." (the film, "Required viewing").
 - **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
   page itself when nothing's on): each
-  with how it ended (the day, the champions, the final's score), each opening its own page
-  (`/tournaments/:slug/history/:id`: the champions, the final, every fight, the board, the awards), back to the list.
-  Its teams' and games' pages work from there too; a past game's matchup goes back to its own page, not today's fight
-  card.
+  with how it ended (the day, the champions, the final's score), each opening its own page (`/tournaments/:slug/:id`;
+  History's old `/history/:id` goes there): the same page as the one on, its header and its track, every status it
+  reached a tap away and read-only where it's over, its eyebrow the way back to the list ("‹ All Kumites"). Its
+  after-party's view, any day after its evening, is its results (`lib/EditionResults`: the champions, the final, every
+  fight, the board, the leaders, the awards); its draft, once it's all played, is everyone's to look back on, not just
+  its captains'. Its teams' and games' pages work from there too and go back to its page, not today's.
 - The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under
   Friday's; before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
 - **Once it's started, who's in is an admin's to change**: "once the kumite goes live, the player cannot remove
@@ -207,8 +218,8 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
 - **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first
   word ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the
   first keeps its own, a later one takes its next letters, never another team's own.
-- **After:** the champions (crest, name, how they won it), the final, every match, the awards: on its own page in
-  History, with the page back to nothing on.
+- **After:** the champions (crest, name, how they won it), the final, every match, the awards: its own page's after
+  view, reached from Past Kumites, with the series' page back to nothing on.
 
 ### The Kumite's motif
 
@@ -619,3 +630,10 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The last award revealed, it's Done (the stamp), but its page stays its results, the track and every
   status to look back through, till the morning after its evening (lib/edition.ts atAfters); then the series' page
   is back to Nothing on the card with Next Kumite, and it's first in Past Kumites.
+- 2026-10-23: Every edition has its own address, `/tournaments/:slug/:id`, its statuses under it ("I should always be
+  able to enter prior kumite and see that timeline", the user): the one page, its track and every status it reached,
+  for the one on or any past one, the id deciding what each view shows. The series' address (and its old status
+  addresses) is replaced by the one on's; with nothing on it's No Kumite yet. Past Kumites and History open a past
+  one's page; `/history/:id` goes there, and the separate History page per edition (`pages/Edition`) is gone: its
+  results are the after view's once the evening's over (`lib/EditionResults`). A past one's draft is everyone's. Its
+  teams', matchups' and games' ways back go to their own edition's page; their addresses stay as they were.

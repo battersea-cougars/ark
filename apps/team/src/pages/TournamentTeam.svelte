@@ -11,6 +11,7 @@
   import { granted, me } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import Icon from "../app/shell/Icon.svelte";
   import FixtureRow from "../lib/FixtureRow.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
@@ -26,6 +27,8 @@
   const tournament = $derived(
     (teamId && db.tournaments.find((t) => t.teams.some((x) => x.id === teamId))) || currentTournament(typeId),
   );
+  // Its edition's page (lib/edition-address.ts): the way back, all its teams, its fight card
+  const edition = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const teams = $derived(tournament?.teams ?? []);
   const isMine = (t: (typeof teams)[number]) =>
     t.captainMemberId === me().id || t.players.some((p) => p.memberId === me().id);
@@ -58,12 +61,7 @@
 </script>
 
 <div class="page">
-  <TournamentHead
-    {type}
-    {tournament}
-    title={mine || !teamId ? "My team" : "Team"}
-    back={{ href: `/tournaments/${type.slug}` }}
-  />
+  <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} back={{ href: edition }} />
 
   {#if !tournament || !team}
     <EmptyState icon="teams" title={teamId ? "Not found" : "No team yet"}>
@@ -71,7 +69,7 @@
         ? "There's no such team in this one."
         : "You're not on a team in this one. Captains pick theirs on draft night."}
       {#snippet action()}
-        <a class="btn outline" href="/tournaments/{type.slug}/teams"><Icon name="teams" size={18} />All teams</a>
+        <a class="btn outline" href="{edition}/teams"><Icon name="teams" size={18} />All teams</a>
       {/snippet}
     </EmptyState>
   {:else}
@@ -136,9 +134,7 @@
     <section class="part">
       <div class="part-head">
         <h2 class="section-title">{mine ? "Your games" : "Their games"}</h2>
-        <a class="btn ghost sm" href="/tournaments/{type.slug}/schedule"
-          >Full fight card<Icon name="chevronRight" size={16} /></a
-        >
+        <a class="btn ghost sm" href="{edition}/schedule">Full fight card<Icon name="chevronRight" size={16} /></a>
       </div>
       {#if games.length}
         <div class="list">

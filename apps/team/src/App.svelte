@@ -3,14 +3,20 @@
   import { can } from "./access/actions";
   import { granted } from "./demo/session.svelte";
   import { routeFor } from "./app/nav-routes";
-  import { routes } from "./app/routes.svelte";
-  import { interceptLinks, remember, router } from "./app/router.svelte";
+  import { editionAddressOf, routes } from "./app/routes.svelte";
+  import { interceptLinks, navigate, remember, router } from "./app/router.svelte";
   import Shell from "./app/shell/Shell.svelte";
   import NotAllowed from "./pages/NotAllowed.svelte";
   import { loadedPage, loadPage, preloadPages } from "./app/pages.svelte";
   import { enterSettings } from "./app/settings-entry.svelte";
   import SimulationControl from "./lib/SimulationControl.svelte";
 
+  // A series' address with one on is that one's own (ADR 0074): replaced before the page shows, and again when the
+  // one on changes under it (the next one scheduled from No Kumite yet)
+  $effect.pre(() => {
+    const to = editionAddressOf(router.path);
+    if (to) navigate(to, { replace: true });
+  });
   const all = $derived(routes());
   const route = $derived(routeFor(all, router.path) ?? routeFor(all, "/")!);
   const allowed = $derived(can(granted(), route.action));

@@ -4,6 +4,7 @@
 // two can't drift apart. Each route declares the action it needs (ADR 0024).
 import type { Requirement } from "../access/actions";
 import type { IconName } from "./shell/icons";
+import { historyMovedTo } from "../lib/edition-address";
 
 export type TabId = "home" | "training" | "club" | "tournaments" | "more";
 
@@ -79,8 +80,10 @@ export interface NavConfig {
     games?: number[];
     /** Its tournaments' teams, the past ones' too, each with a page of its own; `mine`: you're on it. */
     teams?: { id: number; mine: boolean }[];
-    /** Its past tournaments (played), newest first: History, and a page each. */
+    /** Its past tournaments (played), newest first: History. */
     past?: number[];
+    /** Every one of its tournaments, the one on and the past ones too: each its own page (ADR 0074). */
+    editions?: number[];
     /** Nothing on or coming up: just its front page (the past ones on it), none of the pages for a running one. */
     idle?: boolean;
     /** Where its next one has got to: its tabs are the pages that matter then; left out, the fixtures are out. */
@@ -479,8 +482,8 @@ export function buildRoutes(config: NavConfig): Route[] {
             ]
           : []),
         // Its draft, teams, fixtures and board aren't pages of their own: they're its statuses, shown on its one page
-        // (ADR 0074). /tournaments/kumite/draft, /teams, /schedule show those, as the page's own address does the one
-        // it's at; /standings (the board's old address) the one it's at, where the table is on the day
+        // (ADR 0074), under each edition's address (/tournaments/kumite/12/draft). The series' /draft, /teams,
+        // /schedule, /standings are replaced by the one on's (App.svelte, lib/edition-address.ts)
         // Each team's page, reached from wherever the team's shown, under Teams
         ...(t.teams ?? []).map((team): Route => ({
           ...base,
@@ -511,38 +514,37 @@ export function buildRoutes(config: NavConfig): Route[] {
               },
             ]
           : []),
-        // History: every past one with its result, and each one's page (the champions, every fight, the board, the
-        // awards), back to the list (ADR 0074). Not a tab: the front page links to it. With nothing on, the list is
-        // the front page
-        ...(t.past?.length
+        // Every edition its own page, at its own address (/tournaments/kumite/12, its statuses under it): the series'
+        // page, by status, for that one (ADR 0074). Not a tab: the series' address opens the one on; a past one is
+        // under History while one's running, else under the front page, which lists them
+        ...(t.editions ?? []).map((tournamentId): Route => ({
+          ...base,
+          id: `edition:${t.id}:${tournamentId}`,
+          path: `/tournaments/${t.slug}/${tournamentId}`,
+          name: `The ${t.shortName}`,
+          short: t.shortName,
+          page: "games",
+          params: { typeId: t.id, tournamentId },
+          action: "read:Event",
+          icon: "trophy",
+          hidden: true,
+          under: running && t.past?.includes(tournamentId) ? `history:${t.id}` : home,
+        })),
+        // History: every past one with its result, each opening its own page, back to the list (ADR 0074). Not a tab:
+        // the front page links to it. With nothing on, the list is the front page
+        ...(running && t.past?.length
           ? [
-              ...(running
-                ? [
-                    {
-                      ...base,
-                      id: `history:${t.id}`,
-                      path: `/tournaments/${t.slug}/history`,
-                      name: "History",
-                      page: "history",
-                      action: "read:Event" as const,
-                      icon: "medal" as const,
-                      hidden: true,
-                      under: home,
-                    },
-                  ]
-                : []),
-              ...t.past.map((tournamentId): Route => ({
+              {
                 ...base,
-                id: `edition:${t.id}:${tournamentId}`,
-                path: `/tournaments/${t.slug}/history/${tournamentId}`,
+                id: `history:${t.id}`,
+                path: `/tournaments/${t.slug}/history`,
                 name: "History",
-                page: "edition",
-                params: { typeId: t.id, tournamentId },
-                action: "read:Event",
-                icon: "medal",
+                page: "history",
+                action: "read:Event" as const,
+                icon: "medal" as const,
                 hidden: true,
-                under: running ? `history:${t.id}` : home,
-              })),
+                under: home,
+              },
             ]
           : []),
         // Each game's matchup (ADR 0061): both squads, the result, when the captains' sides last met. Under the
@@ -622,11 +624,22 @@ const MOVED: [from: string, to: string][] = [
   ["/more/announcements", "/announcements"],
 ];
 
-/** Where an old link goes now (Teammates became the club), or null when it's where it should be. */
+/**
+ * Where an old link goes now (Teammates became the club, a past one's History page its own), or null when it's where
+ * it should be.
+ */
 export function movedTo(path: string): string | null {
   const hit = MOVED.find(([from]) => path === from || path.startsWith(from + "/"));
-  return hit ? hit[1] + path.slice(hit[0].length) : null;
+  return hit ? hit[1] + path.slice(hit[0].length) : historyMovedTo(path);
 }
 
-export const routeFor = (routes: Route[], path: string): Route | undefined =>
-  routes.find((r) => r.path === path) ?? routes.find((r) => r.path !== "/" && path.startsWith(r.path + "/"));
+/** The page at an address: its own, else the deepest one it's under (`/tournaments/kumite/12/draft`: edition 12's). */
+export function routeFor(routes: Route[], path: string): Route | undefined {
+  const exact = routes.find((r) => r.path === path);
+  if (exact) return exact;
+  const under = routes.filter((r) => r.path !== "/" && path.startsWith(r.path + "/"));
+  return under.reduce<Route | undefined>(
+    (deepest, r) => (!deepest || r.path.length > deepest.path.length ? r : deepest),
+    undefined,
+  );
+}

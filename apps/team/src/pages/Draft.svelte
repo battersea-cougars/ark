@@ -36,7 +36,9 @@
   import { teamTone } from "../lib/team-tones";
   import TeamLookSheet from "../lib/TeamLookSheet.svelte";
   import { editTournament } from "../lib/tournament-panel.svelte";
-  import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { typeById } from "../demo/schedule.svelte";
+  import type { Tournament } from "../demo/model";
+  import { editionPath } from "../lib/edition-address";
   import { draftPick, drawOrder, closeDraft, finishDraft, makeFixtures, openDraft, tell } from "../app/backend.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import Kanji from "../lib/Kanji.svelte";
@@ -58,12 +60,15 @@
 
   let {
     typeId,
+    tournament,
     room = false,
     onshown,
     signup = false,
     onpicking,
   }: {
     typeId: number;
+    /** The edition its page is for (pages/Games), or the one on, in the draft room. */
+    tournament: Tournament | undefined;
     /** In the draft room (pages/DraftRoom): its bar says whose turn, so the strip goes, and so does the way in. */
     room?: boolean;
     /** Shown in the Kumite's sign-up view: its players and teams wait for the draft to open, Who's in being the list. */
@@ -76,7 +81,6 @@
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
-  const tournament = $derived(currentTournament(typeId));
   const byId = (id: number) => PLAYERS.find((p) => p.id === id);
   const firstName = (id: number | null) => (id ? shortNameOf(byId(id)) : "");
   const ratings = $derived(can(perms, "read:Rating"));
@@ -108,7 +112,7 @@
   // card (DraftOrder); once they're stamped into place the card lets go, leaving the order as the page's order row,
   // and the Open the draft card, the players and the teams come in under it. A page opened after, or asking for less
   // motion, starts there. Back to undrawn (a reset), it waits for the next draw again
-  let watchingDraw = $state(untrack(() => !orderDrawn(currentTournament(typeId)?.teams ?? [])));
+  let watchingDraw = $state(untrack(() => !orderDrawn(tournament?.teams ?? [])));
   let drawShown = $state(false);
   $effect(() => {
     if (drawn) return;
@@ -673,7 +677,7 @@
   const finishLabel = $derived(makesFixtures ? "Close draft & make fixtures" : "Close the draft");
   // Fixtures made, the tournament's page moves on to Fixtures set by itself (ADR 0074): its own address shows the
   // status it's at, so whoever made them, from the draft's address, goes to it; captains watching stay where they are
-  const home = $derived(`/tournaments/${type.slug}`);
+  const home = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const finish = (leaveOut = false) =>
     tournament &&
     job(async () => {

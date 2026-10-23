@@ -32,6 +32,7 @@
   import { granted, me } from "../demo/session.svelte";
   import { goBack, navigate, router } from "../app/router.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import {
     addGoal,
     addPenalty,
@@ -230,8 +231,8 @@
     if (!now) handingOver = false;
     wasKeeper = now;
   });
-  const games = $derived(`/tournaments/${type.slug}`);
-  // Back is always to the tournament's own page (the Fight card), wherever the game was opened from (a matchup, a
+  const games = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
+  // Back is always to its edition's own page (the Fight card), wherever the game was opened from (a matchup, a
   // team, the home page, a push): a history step when that's where it came from, so the page is as it was left
   const back = $derived({ href: games, label: `The ${type.shortName}` });
   const toGames = () => (router.from === games ? goBack(games) : navigate(games));

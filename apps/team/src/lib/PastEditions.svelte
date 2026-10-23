@@ -1,6 +1,7 @@
 <script lang="ts">
   // A series' past ones (ADR 0074), newest first, each with how it ended: the day, the champions, the final's score.
-  // Each opens its own page (Edition). On History, and on the series' front page when nothing's on.
+  // Each opens its own page (lib/edition-address.ts), its track and every status it went through. On History, and on
+  // the series' front page when nothing's on.
   import { nameOfTeam } from "./names";
   import { PLAYERS } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
@@ -8,6 +9,7 @@
   import TeamCrest from "./TeamCrest.svelte";
   import { championOf, editionWhen } from "./edition";
   import { teamTone } from "./team-tones";
+  import { editionPath } from "./edition-address";
 
   let { type, past }: { type: TournamentType; past: Tournament[] } = $props();
 
@@ -35,7 +37,7 @@
     {@const ci = t.teams.findIndex((x) => x.id === champ)}
     {@const w = editionWhen(t)}
     <li>
-      <a class="edition" href="/tournaments/{type.slug}/history/{t.id}">
+      <a class="edition" href={editionPath(type.slug, t.id)}>
         {#if ci >= 0}
           <TeamCrest
             among={t.teams.map((x) => nameOf(t, x.id ?? null))}

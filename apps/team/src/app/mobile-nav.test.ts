@@ -169,20 +169,21 @@ describe("stripRoutes", () => {
   it("the track is on the series' running pages, not a team's, a game's or History", () => {
     const routes = buildRoutes({
       ...one,
-      types: [{ ...kumite, stage: "fixtures", past: [5], teams: [{ id: 71, mine: false }], games: [9] }],
+      types: [
+        { ...kumite, stage: "fixtures", past: [5], editions: [5, 12], teams: [{ id: 71, mine: false }], games: [9] },
+      ],
     });
     const on = (path: string) => onTrack(routeFor(routes, path)!);
-    for (const path of ["", "/draft", "/teams", "/schedule", "/standings"])
+    for (const path of ["", "/draft", "/teams", "/schedule", "/standings", "/12", "/12/draft", "/5", "/5/afters"])
       expect(on(`/tournaments/kumite${path}`)).toBe(true);
-    for (const path of ["/teams/71", "/games/9", "/history", "/history/5"])
-      expect(on(`/tournaments/kumite${path}`)).toBe(false);
+    for (const path of ["/teams/71", "/games/9", "/history"]) expect(on(`/tournaments/kumite${path}`)).toBe(false);
     expect(on("/training/friday")).toBe(false);
   });
 });
 
 describe("a tournament is one page; its teams and History are a link away, with Back", () => {
   const at = (stage: Stage, extra: Partial<NavConfig["types"][number]> = {}, me = 99) =>
-    buildRoutes({ ...one, types: [{ ...kumite, stage, captains: [7, 8], past: [5], ...extra }], me });
+    buildRoutes({ ...one, types: [{ ...kumite, stage, captains: [7, 8], past: [5], editions: [5], ...extra }], me });
 
   it("whatever the status, the Kumite tab has the one page, named for it", () => {
     for (const stage of ["signup", "draft", "teams", "fixtures"] as const)
@@ -222,8 +223,52 @@ describe("a tournament is one page; its teams and History are a link away, with 
     const history = routeFor(routes, "/tournaments/kumite/history")!;
     expect(history).toMatchObject({ page: "history", hidden: true, under: "games:1" });
     expect(backFor(routes, history, null)?.to.path).toBe("/tournaments/kumite");
-    const past = routeFor(routes, "/tournaments/kumite/history/5")!;
+    const past = routeFor(routes, "/tournaments/kumite/5")!;
     expect(backFor(routes, past, null)?.to.path).toBe("/tournaments/kumite/history");
+  });
+});
+
+describe("every edition is its own page, at its own address (ADR 0074)", () => {
+  // "I should always be able to enter prior kumite and see that timeline" (the user, 2026-10-23)
+  const routes = buildRoutes({ ...one, types: [{ ...kumite, stage: "fixtures", past: [5], editions: [5, 12] }] });
+
+  it("the one on and every past one: the series' page, by status, for that edition", () => {
+    for (const id of [5, 12]) {
+      expect(routeFor(routes, `/tournaments/kumite/${id}`)).toMatchObject({
+        page: "games",
+        params: { typeId: 1, tournamentId: id },
+        fold: "type:1",
+        tab: "tournaments",
+      });
+      for (const status of ["/sign-up", "/draft", "/teams", "/schedule", "/day", "/afters"])
+        expect(routeFor(routes, `/tournaments/kumite/${id}${status}`)?.params).toEqual({ typeId: 1, tournamentId: id });
+    }
+  });
+
+  it("isn't a tab of its own: the Kumite tab still opens the series' address, which opens the one on", () => {
+    expect(tabRoutes(routes, "tournaments", admin).map((r) => r.path)).toEqual(["/tournaments/kumite"]);
+    expect(tabHref(routes, "tournaments", admin, { tournaments: "/tournaments/kumite/12" })).toBe(
+      "/tournaments/kumite",
+    );
+  });
+
+  it("the series' other pages are still theirs, not an edition's", () => {
+    const more = buildRoutes({
+      ...one,
+      types: [
+        { ...kumite, stage: "fixtures", past: [5], editions: [5, 12], games: [9], teams: [{ id: 71, mine: false }] },
+      ],
+    });
+    expect(routeFor(more, "/tournaments/kumite/games/9")?.page).toBe("matchup");
+    expect(routeFor(more, "/tournaments/kumite/teams/71")?.page).toBe("tournament-team");
+    expect(routeFor(more, "/tournaments/kumite/history")?.page).toBe("history");
+    expect(routeFor(more, "/tournaments/kumite/draft/room")?.page).toBe("draft-room");
+    expect(routeFor(more, "/tournaments/kumite/teams")?.id).toBe("games:1");
+  });
+
+  it("History's old address for a past one goes to its own page", () => {
+    expect(movedTo("/tournaments/kumite/history/5")).toBe("/tournaments/kumite/5");
+    expect(movedTo("/tournaments/kumite/history")).toBeNull();
   });
 });
 
@@ -243,10 +288,10 @@ describe("tabHref", () => {
 
 describe("a series' history", () => {
   it("a History page once one's been played, and a page for each past one under it", () => {
-    const routes = buildRoutes({ series: [friday], types: [{ ...kumite, past: [7, 5] }] });
+    const routes = buildRoutes({ series: [friday], types: [{ ...kumite, past: [7, 5], editions: [5, 7] }] });
     expect(routeFor(routes, "/tournaments/kumite/history")?.page).toBe("history");
-    const past = routeFor(routes, "/tournaments/kumite/history/5");
-    expect(past).toMatchObject({ page: "edition", params: { typeId: 1, tournamentId: 5 }, under: "history:1" });
+    const past = routeFor(routes, "/tournaments/kumite/5");
+    expect(past).toMatchObject({ page: "games", params: { typeId: 1, tournamentId: 5 }, under: "history:1" });
     expect(past?.hidden).toBe(true);
   });
 
@@ -258,7 +303,17 @@ describe("a series' history", () => {
 describe("a series with nothing on or coming up", () => {
   const idle: NavConfig = {
     ...one,
-    types: [{ ...kumite, idle: true, past: [7, 5], games: [70], teams: [{ id: 71, mine: false }], captains: [8] }],
+    types: [
+      {
+        ...kumite,
+        idle: true,
+        past: [7, 5],
+        editions: [5, 7],
+        games: [70],
+        teams: [{ id: 71, mine: false }],
+        captains: [8],
+      },
+    ],
     me: 8,
   };
 
@@ -270,7 +325,7 @@ describe("a series with nothing on or coming up", () => {
 
   it("still opens each past one, its games and its teams, from the front page", () => {
     const routes = buildRoutes(idle);
-    expect(routeFor(routes, "/tournaments/kumite/history/5")).toMatchObject({ page: "edition", under: "games:1" });
+    expect(routeFor(routes, "/tournaments/kumite/5")).toMatchObject({ page: "games", under: "games:1" });
     expect(routeFor(routes, "/tournaments/kumite/games/70")).toMatchObject({ page: "matchup", under: "games:1" });
     expect(routeFor(routes, "/tournaments/kumite/teams/71")).toMatchObject({
       page: "tournament-team",

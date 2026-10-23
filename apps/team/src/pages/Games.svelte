@@ -4,7 +4,9 @@
 </script>
 
 <script lang="ts">
-  // A tournament series' page (ADR 0074): one page for the one on or coming up (lib/edition.ts currentOf), by status.
+  // A tournament's page (ADR 0074): one page for one edition, by status, at its own address (/tournaments/kumite/12,
+  // lib/edition-address.ts), the one on or a past one. The series' own address shows the one on (lib/edition.ts
+  // currentOf) and is replaced by its address (App.svelte), so the address always says which one.
   // The header (its day, its place on the map, where everyone goes after), then the track of its statuses (Sign-up
   // open, Draft open, Teams set, Fixtures set, KUMITE!; teams that enter skip the draft), then the status's view, each
   // the same shape: its one action card for whoever runs it (members see the card without the button, or nothing),
@@ -14,8 +16,9 @@
   // your turn to keep score, the matches as a carousel with the one on now in front (or the board in its place, a
   // switch over them), where everyone goes after. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
   // revealed one at a time, the final table, the results; at 06:00 the next morning it's history. A status it's been
-  // through opens from the track, read-only, at its own address (/sign-up, /draft, /teams, /schedule, /afters); the
-  // page's own address is the status it's at. Moving between them the header and the track stay still
+  // through opens from the track, read-only, at its own address (/12/sign-up, /12/draft, /12/teams, /12/schedule,
+  // /12/day, /12/afters); the edition's own address is the status it's at. A past one's the same page, every status it
+  // reached a tap away, its after-party's view its results (lib/EditionResults), its way back the list of them. Moving between them the header and the track stay still
   // and the view slides in from the way you went. History is a quiet link at the foot.
   // Once the after-party's over it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
@@ -43,15 +46,26 @@
   import { editTournament } from "../lib/tournament-panel.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkForUpdates } from "../lib/live-updates.svelte";
-  import { clock, londonToday } from "../lib/dates";
+  import { clock, londonEvening, londonToday } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
-  import { afterMomentOf, myTeamIndex, onTheDayOf, paneOf, statusList, statusOf, viewOf } from "../lib/tournament-front";
+  import {
+    afterMomentOf,
+    myTeamIndex,
+    onTheDayOf,
+    paneOf,
+    statusList,
+    statusOf,
+    viewOf,
+  } from "../lib/tournament-front";
   import type { After } from "@cougars/shared/places";
   import YourTeam from "../lib/YourTeam.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
   import WhosIn from "../lib/WhosIn.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import AfterParty from "../lib/AfterParty.svelte";
+  import EditionResults from "../lib/EditionResults.svelte";
+  import { atAfters } from "../lib/edition";
+  import { editionPath, editionRest } from "../lib/edition-address";
   import Draft from "./Draft.svelte";
   import Schedule from "./Schedule.svelte";
   import TournamentTeams from "./TournamentTeams.svelte";
@@ -63,14 +77,28 @@
   import { untrack } from "svelte";
   import { cubicOut } from "svelte/easing";
 
-  let { typeId }: { typeId: number } = $props();
+  // `tournamentId`: the edition its address names; none, the series' address, which shows the one on
+  let { typeId, tournamentId }: { typeId: number; tournamentId?: number } = $props();
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
-  const tournament = $derived(currentTournament(typeId));
+  const current = $derived(currentTournament(typeId));
+  const tournament = $derived(
+    tournamentId === undefined ? current : db.tournaments.find((t) => t.id === tournamentId && t.typeId === typeId),
+  );
   const past = $derived(tournament ? [] : pastTournaments(typeId));
   // While one's on, the past ones are History: not a tab, a link at the foot here
-  const earlier = $derived(tournament ? pastTournaments(typeId).length : 0);
+  const earlier = $derived(current ? pastTournaments(typeId).length : 0);
+  // A past one (or one still to come after the one on): its way back is the list of them all, History while one's
+  // on, else the front page
+  const elsewhere = $derived(!!tournament && tournament.id !== current?.id);
+  const back = $derived(
+    elsewhere
+      ? { href: `/tournaments/${type.slug}${current ? "/history" : ""}`, label: `All ${type.shortName}s` }
+      : undefined,
+  );
+  // Its after-party's evening (lib/edition.ts atAfters): The Anchor; any other day, a past one's results
+  const tonight = $derived(!!tournament && atAfters(tournament, londonEvening()));
   const kumite = $derived(!!kanjiFor(type, "onTheMat"));
   const teams = $derived(tournament?.teams ?? []);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
@@ -83,7 +111,7 @@
   const following = $derived(
     games.some((g) => g.status === "live") ||
       (tournament?.heldOn === today && games.some((g) => g.status !== "done")) ||
-      (!!tournament && statusOf(tournament, today) === "afters"),
+      tonight,
   );
   $effect(() => {
     if (following) return checkForUpdates();
@@ -104,10 +132,10 @@
   const at = (position: number) =>
     tournament ? clock(kickOff(tournament.startTime, slotMinutes(tournament), position)) : "";
 
-  // The status it's at, and the one showing: the page's own address shows the one it's at; /draft, /teams,
-  // /schedule, /sign-up one it's been through (lib/tournament-front.ts viewOf)
-  const base = $derived(`/tournaments/${type.slug}`);
-  const rest = $derived(router.path.startsWith(base + "/") ? router.path.slice(base.length + 1) : "");
+  // The status it's at, and the one showing: the edition's own address shows the one it's at; /draft, /teams,
+  // /schedule, /sign-up under it one it's been through (lib/tournament-front.ts viewOf)
+  const base = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
+  const rest = $derived(editionRest(router.path, base));
   const status = $derived(tournament ? statusOf(tournament, today) : "signup");
   const view = $derived(tournament ? viewOf(tournament, today, rest) : "signup");
   const drafted = $derived(tournament?.kind === "draft");
@@ -219,6 +247,7 @@
     title="The {type.shortName}"
     manage
     note={tournament ? undefined : "Between bouts."}
+    {back}
     track
     viewing={view}
     {compact}
@@ -309,6 +338,7 @@
             >
               <Draft
                 {typeId}
+                {tournament}
                 onpicking={(v) => {
                   picking = v;
                 }}
@@ -324,10 +354,10 @@
             <!-- Teams set: yours first, then the teams; the next step's card for whoever runs it -->
             {#if mine >= 0}<YourTeam {type} {tournament} index={mine} />{/if}
             <!-- The next step's card (Make the fixtures) for whoever runs it, then every team, a card each to open -->
-            {#if !games.length}<Schedule {typeId} />{/if}
-            <TournamentTeams {typeId} />
+            {#if !games.length}<Schedule {typeId} {tournament} />{/if}
+            <TournamentTeams {typeId} {tournament} />
           {:else if pane === "fixtures"}
-            <Schedule {typeId} deal={dealing} />
+            <Schedule {typeId} {tournament} deal={dealing} />
           {:else if pane === "day"}
             <!-- The day: your team's turn to keep score (once you hold it, your game's card wears the whistle
                  instead), the match on now and the next, then every match -->
@@ -376,7 +406,7 @@
                   {#if dayView.board && games.length}
                     <BoardTable {type} {tournament} />
                   {:else}
-                    <Schedule {typeId} carousel />
+                    <Schedule {typeId} {tournament} carousel />
                   {/if}
                 </div>
               {/key}
@@ -391,9 +421,12 @@
             {/if}
             <!-- The last match on, then where everyone goes (every one played, it's the after-party) -->
             {#if after?.moment === "next"}{@render afterNow(after.place, false)}{/if}
-          {:else if pane === "afters"}
+          {:else if pane === "afters" && tonight}
             <!-- The evening it ends: everyone at the afterwards, the awards turned over one at a time -->
             <AfterParty {type} {tournament} after={tournamentAfter(tournament)} {manage} />
+          {:else if pane === "afters"}
+            <!-- Any day after: what it came to, the champions, the final, every match, the board, the awards -->
+            <EditionResults {type} {tournament} />
           {/if}
         </div>
       {/key}

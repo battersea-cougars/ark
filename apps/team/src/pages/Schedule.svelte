@@ -5,7 +5,8 @@
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
-  import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { typeById } from "../demo/schedule.svelte";
+  import type { Tournament } from "../demo/model";
   import { makeFixtures } from "../app/backend.svelte";
   import { gameLength } from "../lib/periods";
   import MatchCarousel from "../lib/MatchCarousel.svelte";
@@ -16,10 +17,13 @@
 
   let {
     typeId,
+    tournament,
     carousel = false,
     deal = false,
   }: {
     typeId: number;
+    /** The edition its page is for (pages/Games). */
+    tournament: Tournament | undefined;
     /** The day, while it runs: the matches as a carousel, the one on now in front; before then, a plain list. */
     carousel?: boolean;
     /** The fixtures just made while watching: the cards are dealt in, one by one, in order. */
@@ -36,7 +40,6 @@
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
-  const tournament = $derived(currentTournament(typeId));
   const teams = $derived(tournament?.teams ?? []);
   const games = $derived(tournament?.games ?? []);
   // Two teams are enough to make the fixtures: a draft's captains are its teams before anyone's picked (ADR 0060)

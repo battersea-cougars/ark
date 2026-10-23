@@ -7,7 +7,8 @@
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { typeById } from "../demo/schedule.svelte";
+  import type { Tournament } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import TeamRecord from "../lib/TeamRecord.svelte";
@@ -19,10 +20,10 @@
   import { granted } from "../demo/session.svelte";
   import { formatDayDate, londonISO } from "../lib/dates";
 
-  let { typeId }: { typeId: number } = $props();
+  // `tournament`: the edition its page is for (pages/Games)
+  let { typeId, tournament }: { typeId: number; tournament: Tournament | undefined } = $props();
 
   const type = $derived(typeById(typeId)!);
-  const tournament = $derived(currentTournament(typeId));
   const teams = $derived(tournament?.teams ?? []);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
   const isMine = (i: number) =>
@@ -132,7 +133,9 @@
               <span class="who"
                 >{p.name}{#if p.id === me().id}<small>you</small>{/if}</span
               >
-              <span class="pos" class:g={p.position === "G"}>{#if p.position}<PositionIcon position={p.position} />{/if}</span>
+              <span class="pos" class:g={p.position === "G"}
+                >{#if p.position}<PositionIcon position={p.position} />{/if}</span
+              >
             </li>
           {/each}
         </ol>

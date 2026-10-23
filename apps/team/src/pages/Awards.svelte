@@ -16,6 +16,7 @@
   import { granted } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import { isDone } from "@cougars/shared/results";
   import { checkForUpdates } from "../lib/live-updates.svelte";
   import { enterAwards } from "../lib/AwardsDrawer.svelte";
@@ -35,7 +36,7 @@
   const done = $derived(!!t && isDone(t.status, t.games ?? []));
   const reveal = $derived(t ? revealOf(t) : null);
   const cue = $derived(reveal && done ? cueOf(reveal, manage) : null);
-  const back = $derived({ href: `/tournaments/${type.slug}` });
+  const back = $derived({ href: t ? editionPath(type.slug, t.id) : `/tournaments/${type.slug}` });
 
   // Everyone follows the reveal as it happens (ADR 0072)
   $effect(() => {

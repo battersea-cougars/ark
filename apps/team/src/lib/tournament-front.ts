@@ -29,7 +29,7 @@ export function nextFightOf(t: Tournament, me: number): TournamentGame | undefin
  */
 export type Status = "signup" | "draft" | "teams" | "fixtures" | "day" | "afters";
 
-/** Each status's address under the tournament's page; the one it's at is the page itself. Old pages' addresses. */
+/** Each status's address under its edition's page (lib/edition-address.ts); the one it's at is the page itself. */
 export const STATUS_PATH: Record<Status, string> = {
   signup: "sign-up",
   draft: "draft",
@@ -131,16 +131,12 @@ export function viewOf(t: Tournament, today: string, rest: string): Status {
 /**
  * What the page's pane shows for a status: the draft is its captains' and whoever runs it (ADR 0060), everyone else
  * fights blind until it's done. Whoever runs it sees the draft before there are captains too: it asks them to name them.
+ * Once it's all played, its draft is everyone's to look back on.
  */
 export function paneOf(t: Tournament, view: Status, me: number, runsDraft: boolean): Status | "blind" {
   if (view !== "draft" || t.kind !== "draft") return view === "draft" ? "blind" : view;
+  if (editionState(t) === "done") return "draft";
   return runsDraft || t.teams.some((x) => x.captainMemberId === me) ? "draft" : "blind";
-}
-
-/** The address that shows a status: the page itself for the one it's at, else the status's own. */
-export function statusHref(slug: string, t: Tournament, today: string, s: Status) {
-  const base = `/tournaments/${slug}`;
-  return s === statusOf(t, today) ? base : `${base}/${STATUS_PATH[s]}`;
 }
 
 /** What happens next, under the track: what, its day (a YYYY-MM-DD) and time, or in words when it has no day. */

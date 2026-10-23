@@ -28,13 +28,15 @@
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import { goBack, navigate } from "../app/router.svelte";
 
   let { typeId }: { typeId: number } = $props();
 
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(currentTournament(typeId));
-  const base = $derived(`/tournaments/${type.slug}`);
+  // Its edition's page (lib/edition-address.ts), which the room leaves for
+  const base = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const inRoom = $derived(canEnterRoom(tournament, me().id, can(granted(), "run:Draft")));
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
@@ -236,6 +238,7 @@
     <div class="body">
       <Draft
         {typeId}
+        {tournament}
         room
         onshown={(c) => {
           shownClock = c;

@@ -11,7 +11,6 @@ import {
   reached,
   stageBadge,
   statusesOf,
-  statusHref,
   statusOf,
   viewOf,
 } from "./tournament-front";
@@ -314,12 +313,6 @@ describe("viewOf: which status the page shows for its address", () => {
     expect(viewOf(teamsSet(), TODAY, "schedule")).toBe("teams");
     expect(viewOf(teamsSet(), TODAY, "nonsense")).toBe("teams");
   });
-
-  it("the track's links: the status it's at is the page itself; one gone by, its own address", () => {
-    expect(statusHref("kumite", fixtures(), TODAY, "fixtures")).toBe("/tournaments/kumite");
-    expect(statusHref("kumite", fixtures(), TODAY, "draft")).toBe("/tournaments/kumite/draft");
-    expect(statusHref("kumite", fixtures(), TODAY, "signup")).toBe("/tournaments/kumite/sign-up");
-  });
 });
 
 describe("currentMatchOf: the match the carousel brings forward", () => {
@@ -349,6 +342,12 @@ describe("paneOf: the draft is its captains' and whoever runs it (ADR 0060)", ()
     const captainless = draft({ draftState: "none", teams: [] });
     expect(paneOf(captainless, "draft", ME, true)).toBe("draft");
     expect(paneOf(captainless, "draft", ME, false)).toBe("blind");
+  });
+
+  it("once it's all played, a past one's draft is everyone's to look back on: the order, the picks, the teams", () => {
+    const played = teamsSet({ status: "finished", games: [game(1, "done", 1, 2)] as never });
+    expect(paneOf(played, "draft", ME, false)).toBe("draft");
+    expect(paneOf(teamsSet(), "draft", ME, false)).toBe("blind");
   });
 
   it("any other status is everyone's", () => {

@@ -10,7 +10,8 @@
   import type { Tournament, TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import { untrack } from "svelte";
-  import { statusHref, statusesOf, type Status } from "./tournament-front";
+  import { statusesOf, type Status } from "./tournament-front";
+  import { statusHref } from "./edition-address";
   import { editionState } from "./edition";
   import { londonISO } from "./dates";
   import { tournamentAfter } from "../demo/schedule.svelte";

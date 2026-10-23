@@ -1,6 +1,6 @@
 <script lang="ts">
   // A series' past ones (ADR 0074), newest first, while the next one's on or coming up; with nothing on, they're on the
-  // series' front page instead. Each opens its own page (Edition): the champions, every fight, the board, the awards.
+  // series' front page instead. Each opens its own page (its track, every status it went through, its results).
   // Under them, the all-time leaderboards over every edition played (#47).
   import EmptyState from "../lib/EmptyState.svelte";
   import { pastTournaments, typeById } from "../demo/schedule.svelte";

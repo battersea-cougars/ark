@@ -8,6 +8,7 @@ import { buildFolds, buildRoutes, buildTabs, routeFor, type NavConfig } from "./
 import { navigate, router } from "./router.svelte";
 import { goesBy } from "../lib/names";
 import { stageOf } from "../lib/edition";
+import { frontDoorTo } from "../lib/edition-address";
 
 const config = (): NavConfig => ({
   series: db.series,
@@ -22,6 +23,7 @@ const config = (): NavConfig => ({
       // Every edition's games and teams, so a past one's links work too
       games: db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
       past: pastTournaments(t.id).map((x) => x.id),
+      editions: db.tournaments.filter((x) => x.typeId === t.id).map((x) => x.id),
       idle: !next,
       stage: next && stageOf(next),
       teams: db.tournaments
@@ -54,4 +56,18 @@ export const folds = () => buildFolds(config());
 export function stayIfAllowed() {
   const here = routeFor(routes(), router.path);
   if (!here || !can(granted(), here.action)) navigate("/", { replace: true });
+}
+
+/**
+ * Where a series' address goes now (lib/edition-address.ts): with one on, its front door (and its old status
+ * addresses: pushes, Home's cards, emails) opens that one's own address, so the address always says which one; an
+ * edition that's gone, the front door. Null: stay.
+ */
+export function editionAddressOf(path: string): string | null {
+  for (const type of db.tournamentTypes) {
+    const editions = db.tournaments.filter((t) => t.typeId === type.id).map((t) => t.id);
+    const to = frontDoorTo(path, type.slug, currentTournament(type.id)?.id, editions);
+    if (to) return to;
+  }
+  return null;
 }

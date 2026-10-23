@@ -10,6 +10,7 @@
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import Icon from "../app/shell/Icon.svelte";
   import TeamRecord from "../lib/TeamRecord.svelte";
   import TournamentHead from "../lib/TournamentHead.svelte";
@@ -28,7 +29,7 @@
     db.tournaments.find((t) => t.games?.some((g) => g.id === gameId)) ?? currentTournament(typeId),
   );
   const game = $derived(tournament?.games?.find((g) => g.id === gameId));
-  // Back to its fight card: the one on now's, else the past one's own page (its every fight)
+  // Back to its edition's page (lib/edition-address.ts): the one on now's, else the past one's, named
   const onNow = $derived(!!tournament && tournament.id === currentTournament(typeId)?.id);
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
@@ -99,9 +100,9 @@
     {type}
     {tournament}
     title="Matchup"
-    back={onNow || !tournament
+    back={!tournament
       ? { href: `/tournaments/${type.slug}` }
-      : { href: `/tournaments/${type.slug}/history/${tournament.id}`, label: tournament.name }}
+      : { href: editionPath(type.slug, tournament.id), label: onNow ? undefined : tournament.name }}
   />
 
   {#if !tournament || !game}
