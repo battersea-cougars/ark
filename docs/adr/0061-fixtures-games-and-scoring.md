@@ -93,7 +93,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   **when the captains' sides last met** in past tournaments of the series (`lib/matchups.ts`: games with one on each
   side, as captain or player; teams are drafted afresh, so it's the people who carry over).
 - **Live is the same page for everyone** (`/games/:id/live`, Game.svelte), from each fight card row still to be played
-  and from the matchup: the clock, the score and the goals as they go in. Its back link returns to where it was opened.
+  and from the matchup: the clock, the score and the goals as they go in. Its back link always returns to the tournament's page (the Fight card), wherever it was opened from.
 - Under the clock it says who's keeping score, or "Nobody's keeping score" with a **Keep score** button. Taking it on
   is never the page's big button, so someone following from home can't take it by accident.
 
@@ -277,3 +277,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-23: A tournament's hours stay as an admin set them: starting the first match on another day moves only its
   day to today (`startingToday`, was `startingNow`, which shifted its hours so that match kicked off now). Each match
   keeps when it actually kicked off (`started_at`, the first Start of its clock), and the card shows it once it's on.
+- 2026-10-23: The game's page (the clock, Scoring) goes back to the tournament's page, not to where it was opened
+  from: from a matchup, a team or a push, the way back to the Kumite was two steps or none.

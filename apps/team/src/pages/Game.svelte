@@ -27,8 +27,7 @@
   import RollNumber from "../lib/RollNumber.svelte";
   import { PLAYERS, type Player } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
-  import { goBack, router } from "../app/router.svelte";
-  import { routes } from "../app/routes.svelte";
+  import { goBack, navigate, router } from "../app/router.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import {
     addGoal,
@@ -229,11 +228,10 @@
     wasKeeper = now;
   });
   const games = $derived(`/tournaments/${type.slug}`);
-  // Back where you came from (the Fight card, a team, the home page), named for it; else the tournament's home
-  const back = $derived.by(() => {
-    const from = router.from ? routes().find((r) => r.path === router.from) : undefined;
-    return from ? { href: from.path, label: from.name } : { href: games, label: `The ${type.shortName}` };
-  });
+  // Back is always to the tournament's own page (the Fight card), wherever the game was opened from (a matchup, a
+  // team, the home page, a push): a history step when that's where it came from, so the page is as it was left
+  const back = $derived({ href: games, label: `The ${type.shortName}` });
+  const toGames = () => (router.from === games ? goBack(games) : navigate(games));
   // When it's set to kick off on the day: the card's time until it starts (lib/fixtures.ts kickOff)
   const setFor = $derived(
     tournament && game ? kickOff(tournament.startTime, slotMinutes(tournament), game.position) : "",
@@ -449,7 +447,7 @@
 <BackBar
   href={back.href}
   label={back.label}
-  onclick={() => goBack(games)}
+  onclick={toGames}
   title={game ? `Game ${game.position}` : "Game"}
   right={over
     ? "Full time"
