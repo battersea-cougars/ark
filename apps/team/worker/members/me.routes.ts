@@ -1,8 +1,9 @@
-// You: your own profile, next quarter's plan, the role the app opens as (ADR 0024, ADR 0007), and your data: download
-// it, or delete your account (#30).
+// You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, ADR 0007), and
+// your data: download it, or delete your account (#30).
 import { ok, type Route } from "../api/api.route";
 import { body } from "../api/api.http";
-import { choosePlan, memberStanding, planNext, setEverydayRole, updateProfile } from "./members";
+import { choosePlan, memberEmail, memberStanding, planNext, setEverydayRole, updateProfile } from "./members";
+import { askToChangeEmail, confirmEmailChange } from "./members.email";
 import { eraseMember, memberData } from "./members.erase";
 import { endLive } from "../live/live";
 import { MAX_PHOTO_BODY, setPhoto } from "./members.photo";
@@ -41,6 +42,30 @@ export const ME_ROUTES: Route[] = [
     changes: ["members"],
     // Your own phone, position, bio, the name you go by and your default Kumite team name
     handle: async (c) => (await updateProfile(c.env.DB, c.memberId, await body(c.request)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/me\/email$/,
+    audit: { none: "a code to the new address: nothing changes until it's typed" },
+    action: "authenticated",
+    // Nothing the app shows changes yet: the smallest part, as every change says one
+    changes: ["everydayRole"],
+    // { email }: a code to the new address (members.email.ts)
+    handle: askToChangeEmail,
+  },
+  {
+    method: "POST",
+    path: /^\/api\/me\/email\/confirm$/,
+    // Their sign-in email, changed by them: on the record as an admin's change is
+    audit: {
+      event: "member.email",
+      subject: (c) => memberEmail(c.env.DB, c.memberId),
+      about: (c) => ({ memberId: c.memberId }),
+    },
+    action: "authenticated",
+    changes: ["members"],
+    // { code }: the new address is their sign-in email; their other sign-ins end
+    handle: confirmEmailChange,
   },
   {
     method: "PUT",

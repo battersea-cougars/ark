@@ -1,7 +1,7 @@
 <script lang="ts">
   // You (ADR 0022): only your own things. Your card (photo, name, position, roles), the switch between your everyday role and
-  // your full one, your details (phone, position, bio, the name you go by, your default Kumite team name: name and email are an admin's to change,
-  // since sign-in and the roster go by them), notifications, your dues, your data, and sign out. The phone's last tab
+  // your full one, your details (your sign-in email, changed with a code to the new address; phone, position, bio, the
+  // name you go by, your default Kumite team name: your name is an admin's to change, since the roster goes by it), notifications, your dues, your data, and sign out. The phone's last tab
   // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton)
   // and at the foot of a desktop's dock, never listed here.
   import Icon from "../app/shell/Icon.svelte";
@@ -18,6 +18,7 @@
   import { saveEverydayRole, savePhoto, saveProfile } from "../app/backend.svelte";
   import RoleSwitch from "../lib/RoleSwitch.svelte";
   import YourData from "../lib/YourData.svelte";
+  import ChangeEmail from "../lib/ChangeEmail.svelte";
   import NotificationPrefs from "../lib/NotificationPrefs.svelte";
   import { phone } from "../lib/viewport.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -167,12 +168,9 @@
   {#if !locked}<RoleSwitch />{/if}
 
   <h2 class="section-title">Your details</h2>
+  <ChangeEmail email={emailFor(who)} disabled={locked} />
   <form class="form" onsubmit={save}>
     <fieldset disabled={locked}>
-      <label class="field">
-        <span>Email <span class="hint">· ask an admin to change it</span></span>
-        <input class="input" type="email" value={emailFor(who)} readonly />
-      </label>
       <label class="field">Phone <input class="input" type="tel" maxlength="30" bind:value={form.phone} /></label>
       <div class="field">
         <span id="position">Position</span>
