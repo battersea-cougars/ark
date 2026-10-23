@@ -66,10 +66,12 @@ export async function tooMany(cache: CacheLike | null, ip: string, now = Date.no
   const { allowed } = await rateLimit(cache, "live", ip, { ...LIVE_LIMIT, now });
   if (allowed) return null;
   log.warn("rate_limit.live", { ip });
-  return new Response("Too many requests from here. Wait a minute and try again.", {
-    status: 429,
-    headers: { "Retry-After": String(LIVE_LIMIT.windowSeconds), "Cache-Control": "no-store" },
-  });
+  return secured(
+    new Response("Too many requests from here. Wait a minute and try again.", {
+      status: 429,
+      headers: { "Retry-After": String(LIVE_LIMIT.windowSeconds), "Cache-Control": "no-store" },
+    }),
+  );
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {

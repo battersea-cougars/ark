@@ -23,6 +23,8 @@ describe("live routes", () => {
     const refused = await tooMany(cache, "1.2.3.4", now);
     expect(refused?.status).toBe(429);
     expect(refused?.headers.get("Retry-After")).toBe("60");
+    // A refusal is a live response like any other: the same security headers (ADR 0036)
+    expect(Object.fromEntries(refused!.headers)).toMatchObject(SITE_HEADERS);
     expect(await tooMany(cache, "5.6.7.8", now)).toBeNull();
     expect(await tooMany(cache, "1.2.3.4", now + 60_000)).toBeNull();
   });
