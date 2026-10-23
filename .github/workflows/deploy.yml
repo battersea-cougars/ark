@@ -64,9 +64,9 @@ jobs:
   # count for every app). A manual run: the `apps` input, and `all` also rebuilds the database (say, to seed a roster
   # change).
   changes:
-    # Forks don't get secrets; their PRs are covered by pr.yml. The schedule only starts `rebuild`.
+    # Forks and Dependabot don't get secrets; their PRs are covered by pr.yml. The schedule only starts `rebuild`.
     if: >-
-      github.event_name != 'schedule' &&
+      github.event_name != 'schedule' && github.actor != 'dependabot[bot]' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
