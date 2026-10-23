@@ -412,3 +412,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   of date, audited `tournament.moved` (from, to, what was done).
 - 2026-10-23: The KUMITE! carousel goes back to the current match by itself, 8 seconds after it was last touched,
   scrolled or hovered, so a phone left on an old match catches up.
+- 2026-10-23: The match being played wears the status's live ink stamp (組手 KUMITE!, the block of red) in place of
+  the outlined badge with a dot, and it breathes, its glow swelling and fading, for as long as the match is on.

@@ -69,7 +69,16 @@
 <div class="list game-card" class:live class:done>
   <GameHead {stage} {kanji} {playoff} {place} {scorer} opens={!live && !keeping}>
     {#snippet centre()}
-      {#if live}<span class="chant">{type?.shortName ?? "Live"}!</span>
+      {#if live}<span class="stamp-at"
+          ><InkStamp
+            size="card"
+            tone="live"
+            kanji={kanjiFor(type, "onTheMat")}
+            icon="swords"
+            text="{type?.shortName ?? 'Live'}!"
+            pulse
+          /></span
+        >
       {:else if upNext}<span class="stamp-at"
           ><InkStamp
             size="card"
@@ -117,32 +126,7 @@
   }
   /* The stamp, top right in the head row (no taller than it): on the game on now, KUMITE! outlined in the club's red,
      a little askew, its dot pulsing, which says it's live */
-  .chant {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.35rem 0.75rem 0.27rem;
-    border: 2.5px solid currentColor;
-    border-radius: 0.35rem;
-    color: var(--red-hot);
-    font-family: var(--font-display);
-    font-size: 1.2rem;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    transform: rotate(-4deg);
-    box-shadow: 0 0 18px -6px color-mix(in srgb, var(--red-hot) 60%, transparent);
-  }
-  .chant::before {
-    content: "";
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 50%;
-    background: currentColor;
-    animation: pulse 1.4s var(--ease-in-out) infinite;
-  }
-  /* Up next and the results: ink stamps (lib/InkStamp), as the page's status is. The club's red is your team's You are
+  /* The match on now, Up next and the results: ink stamps (lib/InkStamp), as the page's status is. The club's red is your team's You are
      next! (stamped down as it shows) and the match on now's; a win in bone, a draw and Up next faint (ADR 0084: colour
      is an accent). A long winner's name is cut short; the stamp's size is the same on every card */
   .stamp-at {
@@ -157,10 +141,6 @@
   }
   /* A phone: the stamp's a sticker on the card's edge, a size down; Live a compact pill, its hit area kept */
   @media (max-width: 600px) {
-    .chant {
-      padding: 0.25rem 0.55rem 0.18rem;
-      font-size: 1rem;
-    }
     .stamp-at {
       max-width: 10.5rem;
     }

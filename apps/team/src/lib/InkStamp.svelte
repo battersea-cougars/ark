@@ -7,7 +7,7 @@
   // face, the ink a little patchy (a noise mask), the edge uneven, askew. One look for every stamp, so they read as a
   // family: a tournament's status (lib/TournamentHead), and on its match cards You are next! and the results
   // (lib/GameCard). Only the ink changes: the club's red for what's yours or on now, bone for what's done, faint for
-  // what's quiet; live, the whole stamp a block of red. A series without the motif gets an icon in the block instead.
+  // what's quiet; live, the whole stamp a block of red, breathing while it's being played. A series without the motif gets an icon in the block instead.
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
 
@@ -19,6 +19,7 @@
     size = "head",
     tilt = -3,
     land = false,
+    pulse = false,
     label,
   }: {
     text: string;
@@ -33,6 +34,8 @@
     tilt?: number;
     /** Stamped down as it first shows (none with reduced motion). */
     land?: boolean;
+    /** Breathing while it's happening (a match being played): the ink's glow swells and fades. */
+    pulse?: boolean;
     /** Said for it; a status says "Status: …". */
     label?: string;
   } = $props();
@@ -41,6 +44,7 @@
 <span
   class="ink {tone} {size}"
   class:land
+  class:pulse
   style:--tilt="{tilt}deg"
   role={label ? "status" : undefined}
   aria-label={label}
@@ -128,6 +132,18 @@
   @media (prefers-reduced-motion: no-preference) {
     .land {
       animation: land 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+    }
+  }
+  /* Being played: the stamp stays put, its glow breathes (none with reduced motion) */
+  @media (prefers-reduced-motion: no-preference) {
+    .pulse {
+      animation: breathe 1.6s var(--ease-in-out) infinite;
+    }
+  }
+  @keyframes breathe {
+    50% {
+      box-shadow: 0 0 30px -2px color-mix(in srgb, var(--ink) 85%, transparent);
+      filter: brightness(1.18);
     }
   }
   @keyframes land {
