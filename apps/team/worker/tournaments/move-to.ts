@@ -6,7 +6,7 @@
 // order, each with its own guards: sign-up closed, the order drawn, the draft opened, or the rest chosen at random and
 // the draft closed (draft.ts setTeamsAtRandom), the fixtures made, the day under way, then finished. Checked first, so a
 // move that can't be made changes nothing.
-import { all, batch, first, run, statement } from "@cougars/shared/d1";
+import { batch, run, statement } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
 import { londonToday } from "../../src/lib/dates";
@@ -23,24 +23,18 @@ const MOVED_ON = "It's moved on since: have another look.";
 
 /** The tournament as a move reads it, and what there is to count: for the plan, the check and the record. */
 export async function whereItStands(db: D1Database, tournamentId: number, today: string) {
-  const t = await first<Omit<Moving, "teams" | "games"> & { name: string }>(
-    db,
-    `SELECT name, kind, status, draft_state draftState, held_on heldOn, season, signup_opens_on signupOpensOn,
-       signup_closes_on signupClosesOn, signup_closed_at signupClosedAt, awards_revealed awardsRevealed
-     FROM tournaments WHERE id = ?`,
-    [tournamentId],
-  );
-  if (!t) throw new HttpError(404, "No such tournament.");
-  const [teams, games, n] = await Promise.all([
-    all<{ pick: number | null }>(db, "SELECT pick FROM tournament_teams WHERE tournament_id = ? ORDER BY pick, id", [
-      tournamentId,
-    ]),
-    all<{ status: string; homeGoals: number | null }>(
+  // One round trip, read together (ADR 0003)
+  const [tournament, teamRows, gameRows, tally] = await batch(db, [
+    statement(
       db,
-      "SELECT status, home_goals homeGoals FROM tournament_games WHERE tournament_id = ?",
+      `SELECT name, kind, status, draft_state draftState, held_on heldOn, season, signup_opens_on signupOpensOn,
+         signup_closes_on signupClosesOn, signup_closed_at signupClosedAt, awards_revealed awardsRevealed
+       FROM tournaments WHERE id = ?`,
       [tournamentId],
     ),
-    first<{ picks: number; results: number; goals: number; pool: number }>(
+    statement(db, "SELECT pick FROM tournament_teams WHERE tournament_id = ? ORDER BY pick, id", [tournamentId]),
+    statement(db, "SELECT status, home_goals homeGoals FROM tournament_games WHERE tournament_id = ?", [tournamentId]),
+    statement(
       db,
       `SELECT
          (SELECT COUNT(*) FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
@@ -56,6 +50,11 @@ export async function whereItStands(db: D1Database, tournamentId: number, today:
       Array(6).fill(tournamentId),
     ),
   ]);
+  const t = tournament.results[0] as (Omit<Moving, "teams" | "games"> & { name: string }) | undefined;
+  if (!t) throw new HttpError(404, "No such tournament.");
+  const teams = teamRows.results as { pick: number | null }[];
+  const games = gameRows.results as { status: string; homeGoals: number | null }[];
+  const n = tally.results[0] as { picks: number; results: number; goals: number; pool: number } | undefined;
   const moving: Moving = { ...t, teams, games };
   const counts = n ?? { picks: 0, results: 0, goals: 0, pool: 0 };
   return {

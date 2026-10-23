@@ -3,7 +3,7 @@
 // since, so a tap from a page that's out of date never takes a second step. Each step back is one batch whose
 // statements only do anything while the tournament is still at that step, so two taps at once step back once
 // (ADR 0121). The draft's own steps are for whoever runs the draft too; the rest are an admin's.
-import { all, batch, first, statement } from "@cougars/shared/d1";
+import { batch, statement } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
 import { can, type Action } from "../../src/access/actions";
@@ -13,41 +13,45 @@ import { clearingFixtures } from "./fixtures";
 
 /** The tournament as the steps read it, and what each step back would take: for the check and the record. */
 export async function whereItIs(db: D1Database, tournamentId: number, today: string) {
-  const t = await first<{
-    name: string;
-    kind: string;
-    draftState: string;
-    status: string;
-    signupClosesOn: string | null;
-    signupClosedAt: string | null;
-    awardsRevealed: number;
-  }>(
-    db,
-    `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt,
-       awards_revealed awardsRevealed
-     FROM tournaments WHERE id = ?`,
-    [tournamentId],
-  );
-  if (!t) throw new HttpError(404, "No such tournament.");
-  const [teams, games, goals] = await Promise.all([
-    all<{ pick: number | null }>(db, "SELECT pick FROM tournament_teams WHERE tournament_id = ?", [tournamentId]),
-    all<{ status: string; homeGoals: number | null }>(
+  // One round trip, read together (ADR 0003)
+  const [tournament, teamRows, gameRows, goalCount, pickCount] = await batch(db, [
+    statement(
       db,
-      "SELECT status, home_goals homeGoals FROM tournament_games WHERE tournament_id = ?",
+      `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt,
+         awards_revealed awardsRevealed
+       FROM tournaments WHERE id = ?`,
       [tournamentId],
     ),
-    first<{ n: number }>(
+    statement(db, "SELECT pick FROM tournament_teams WHERE tournament_id = ?", [tournamentId]),
+    statement(db, "SELECT status, home_goals homeGoals FROM tournament_games WHERE tournament_id = ?", [tournamentId]),
+    statement(
       db,
       `SELECT COUNT(*) n FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)`,
       [tournamentId],
     ),
+    statement(
+      db,
+      `SELECT COUNT(*) n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+       WHERE t.tournament_id = ?`,
+      [tournamentId],
+    ),
   ]);
-  const picks = await first<{ n: number }>(
-    db,
-    `SELECT COUNT(*) n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
-     WHERE t.tournament_id = ?`,
-    [tournamentId],
-  );
+  const t = tournament.results[0] as
+    | {
+        name: string;
+        kind: string;
+        draftState: string;
+        status: string;
+        signupClosesOn: string | null;
+        signupClosedAt: string | null;
+        awardsRevealed: number;
+      }
+    | undefined;
+  if (!t) throw new HttpError(404, "No such tournament.");
+  const teams = teamRows.results as { pick: number | null }[];
+  const games = gameRows.results as { status: string; homeGoals: number | null }[];
+  const goals = goalCount.results[0] as { n: number } | undefined;
+  const picks = pickCount.results[0] as { n: number } | undefined;
   return {
     name: t.name,
     step: backFrom({ ...t, teams, games }, today),
