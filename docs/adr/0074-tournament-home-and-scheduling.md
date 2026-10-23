@@ -453,4 +453,4 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   in's rows turn the player's card over (PlayerCardZoom), as Friday's do.
 - 2026-10-23: The pass's middle is its one rule as a poster: TELL NO ONE. in worn italic capitals, "Not your mates.
   Not your mum. No one." under it; its foot is a stub torn off along a dashed line, with "Can't make it?" and Punk out
-  (in place of Withdraw; the confirm too).
+  (in place of Withdraw), whose confirm asks "Punk out? Tanaka will be disappointed." (Dux's master in the film).

@@ -145,7 +145,7 @@
       {#if started}
         <span class="ask quiet">On the card. Ask an admin to change it.</span>
       {:else if confirming}
-        <span class="ask">Give up your place?</span>
+        <span class="ask">Punk out? Tanaka will be disappointed.</span>
         <button class="btn sm outline leave" disabled={locked} onclick={() => answer(false)}>Punk out</button>
         <button class="btn sm ghost" onclick={() => (confirming = false)}>Keep it</button>
       {:else}
