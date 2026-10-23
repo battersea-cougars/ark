@@ -10,6 +10,7 @@ import { sendMail, type Mail } from "@cougars/shared/email";
 import { mailSetup } from "../auth/auth";
 import type { Env } from "../api/api";
 import { scribe } from "@cougars/shared/scribe";
+import { saveLevels } from "./usage.levels";
 import { runsOutAt, sanityUsageQuery, type SanityUsage } from "./usage.sanity";
 
 const log = scribe.logger("usage");
@@ -165,8 +166,9 @@ export async function readUsage(env: Env, now: Date): Promise<Usage> {
 const SANITY_WARN_AT = [0.5, 0.8];
 
 /**
- * The hourly check: one email to the admins per metric per day, once it passes 80%; for Sanity's monthly quotas, one
- * per month at 50% and at 80%, and one when the month's pace would run out before the 1st.
+ * The hourly check: each limit's level for the admins' Home (70% and 90%), then one email to the admins per metric
+ * per day, once it passes 80%; for Sanity's monthly quotas, one per month at 50% and at 80%, and one when the month's
+ * pace would run out before the 1st.
  */
 export async function checkUsage(
   env: Env,
@@ -179,6 +181,8 @@ export async function checkUsage(
   }: { send?: (m: Mail) => Promise<void> } = {},
 ) {
   const usage = await readUsage(env, now);
+  // Each limit at 70% or more, for the admins' Home (usage.levels.ts)
+  await saveLevels(env.DB, usage);
   const over = usage.metrics.filter((m) => m.used >= m.limit * WARN_AT);
   const stopped = (usage.cpu?.workers ?? []).filter((w) => w.stopped);
   const { sanity } = usage;

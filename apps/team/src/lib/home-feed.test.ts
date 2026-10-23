@@ -154,6 +154,46 @@ describe("Home's feed", () => {
     ]);
     expect(feed(kumite(), { emailStopped: false }).admin).toEqual([]);
   });
+
+  // The hourly check keeps the free limits at 70% or more (ADR 0059, #148); Home asks for them only for whoever sees
+  // Usage, and says the nearest in one line, last, opening the Usage page
+  const level = (id: string, label: string, percent: number, period: "day" | "month" = "day") => ({
+    id,
+    label,
+    percent,
+    period,
+    resetsAt: period === "day" ? "2026-10-22T00:00:00.000Z" : "2026-11-01T00:00:00.000Z",
+  });
+
+  it("a free limit past 70% is one line for the admins, last, opening Usage, with when it resets in London", () => {
+    const rows = feed(kumite(), {
+      club: { total: 9000, people: 3, worst: 0 },
+      usage: [level("rowsRead", "Database rows read", 74), level("sanity-cdn", "Sanity API CDN requests", 71, "month")],
+    });
+    expect(rows.admin.map((r) => [r.text, r.sub, r.href, r.hot])).toEqual([
+      ["Owed to the club £90", "3 people", "/settings/overdue", false],
+      ["Database rows read at 74% of today's free limit", "Resets at 1am · 1 more past 70%", "/settings/usage", false],
+    ]);
+  });
+
+  it("past 90% it says so, hot", () => {
+    const [row] = feed(kumite(), { usage: [level("requests", "Worker requests", 93)] }).admin;
+    expect([row.text, row.sub, row.hot]).toEqual([
+      "Worker requests at 93% of today's free limit",
+      "Nearly spent · resets at 1am",
+      true,
+    ]);
+    const [cpu] = feed(kumite(), { usage: [level("cpu", "Requests stopped for CPU time", 100)] }).admin;
+    expect([cpu.text, cpu.hot]).toEqual(["Requests stopped for CPU time today", true]);
+    const [month] = feed(kumite(), { usage: [level("sanity-api", "Sanity API requests", 90, "month")] }).admin;
+    expect(month.text).toBe("Sanity API requests at 90% of this month's free limit");
+    expect(month.sub).toBe("Nearly spent · resets Sun 1 Nov");
+  });
+
+  it("all fine, or nobody who sees Usage, there's no line", () => {
+    expect(feed(kumite(), { usage: [] }).admin).toEqual([]);
+    expect(feed(kumite()).admin).toEqual([]);
+  });
 });
 
 describe("what you owe, in the locker room", () => {

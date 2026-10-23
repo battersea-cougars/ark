@@ -1,7 +1,7 @@
 # 0059. Admins see the free Cloudflare allowance and CPU time, and are emailed at 80% or a stopped request
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-20
+- **Date:** 2026-10-07 · updated 2026-10-23
 - **Merges:** 0063
 
 ## Context
@@ -29,6 +29,15 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
   one passes 80%, and once a day (metric `cpu`) when any request was stopped, with the count per Worker. It goes
   through the usual mail rules (outside production, only to the safe address). `usage_warnings` remembers what was
   sent each day, claimed before sending so two runs send one email.
+- **Admins see it on Home before it runs out** (#148). Each hourly check also keeps, in `usage_levels`, every limit
+  it read that's at 70% or more, and only those (`apps/team/worker/settings/usage.levels.ts`): today's Worker
+  requests, D1 rows read and written, the live hub's requests and time, a request stopped for its CPU time (the 10 ms
+  limit spent), and this month's Sanity API and CDN requests. One round trip, a delete of what it read and an insert
+  of what's near; a limit back under 70% goes, and when Cloudflare can't be read its rows stay as last found. Home's
+  For admins (`GET /api/usage/levels`, `read:Usage`, asked once a visit) says the nearest in one line, last, opening
+  the Usage page: "Database rows read at 74% of today's free limit", with when it resets and how many more are past
+  70%; at 90% it says "Nearly spent" and its icon is red. All fine, no line. A row from a day or month that's over
+  isn't shown. Pushing and emailing admins at these levels is #157.
 - Both read Cloudflare's GraphQL analytics in one query (`apps/team/worker/settings/usage.ts`): `workersInvocationsAdaptive`
   sums and quantiles, the same dataset filtered to `status: "exceededResources"`, and the Durable Object datasets.
   They use a **read-only token**, `CLOUDFLARE_ANALYTICS_TOKEN` (Account Analytics Read), never the deploy token,
@@ -48,7 +57,8 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
 
 - Admins hear about a runaway or a scraper with a fifth of the day left, not when the app stops.
 - A slow route shows up as a rising p99 before it fails, and a failure is an email, not a member's report.
-- The check costs 24 Worker requests and two small queries a day; CPU time comes from the same query.
+- The check costs 24 Worker requests and three small round trips an hour (the levels one of them, writing only rows
+  at 70% or more); CPU time comes from the same query.
 - On a quiet Worker most requests start it cold, and starting up costs CPU: on 2026-10-10 dev's web Worker showed
   26 ms typical over 31 requests a day, but 4.4 ms typical (20 ms at p90) once warm. Read dev's figures with that in
   mind; `scripts/cpu-by-route.mjs` gives CPU time per route from Workers Logs (dev token only) to find a slow one.
@@ -70,3 +80,6 @@ error 1102. The same applies to a cron run. Raising the limit needs Workers Paid
   Quarterly Member's quarter) to about 15, whatever the club's size; a member's attendance saves in one request.
 - 2026-10-20: Sanity's month on the page and in the hourly check, from our own count (ADR 0116); the page's reads are
   one round trip.
+- 2026-10-23: Each limit's level (70%, 90%) kept by the hourly check and said on the admins' Home, one line for the
+  nearest (#148); push and email at those levels are #157. D1 storage and Gmail sends aren't counted yet, so they
+  aren't among them.

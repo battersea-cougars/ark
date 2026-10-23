@@ -803,6 +803,16 @@ CREATE TABLE usage_warnings (
   PRIMARY KEY (day, metric)
 );
 
+-- How near each free limit is (apps/team/worker/settings/usage.levels.ts, ADR 0059, #148): the hourly check keeps a
+-- row for each limit at 70% or more, and only those, for the admins' Home. `period` is the UTC day it's for, or for
+-- Sanity's monthly quotas the month; a row from a day that's over is ignored.
+CREATE TABLE usage_levels (
+  metric TEXT PRIMARY KEY,
+  period TEXT NOT NULL,
+  label TEXT NOT NULL,
+  percent INTEGER NOT NULL
+);
+
 -- Our own count of requests to Sanity (packages/shared/sanity-requests.ts, ADR 0116): Sanity has no usage API. One row
 -- per UTC day, project (production's or dev's) and quota (`api` or its `cdn`), added to after each request that read
 -- Sanity, and by each build. The team app's Usage page and hourly check read this month's.

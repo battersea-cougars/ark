@@ -150,6 +150,7 @@ reads and bills, however it travels.
 | `GET /api/me/notifications`                            |        3 |          3 |
 | `GET /api/break-glass`                                 |        3 |          3 |
 | `GET /api/usage`                                       |        3 |          4 |
+| `GET /api/usage/levels`                                |        3 |          3 |
 | `GET /api/audit`                                       |        3 |          3 |
 | `GET /api/dev/mail`                                    |        3 |          3 |
 | `GET /api/mail/callback`                               |        3 |          3 |

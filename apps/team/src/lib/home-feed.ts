@@ -2,8 +2,9 @@
 // is shown on its card (playing in it: your match; in, waiting, or may sign up: In and Out; not in it: You're out). Then what's coming up
 // after it, in date order and capped, with "See the calendar". Then what needs you (a captain's draft, the draft
 // being on, the teams being out, a sign-up closing you haven't answered), and under "For admins", only for whoever
-// they're for, the email having stopped, running the draft and what the club is owed. What you owe is Home's foot (owedNotice), and a loud icon
-// in its header while some of it is overdue (lib/dues.ts overdue).
+// they're for, the email having stopped, running the draft, what the club is owed and a free limit getting close
+// (lib/usage-near.ts). What you owe is Home's foot (owedNotice), and a loud icon in its header while some of it is
+// overdue (lib/dues.ts overdue).
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
@@ -12,8 +13,9 @@ import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
 import { invitationOnly } from "./motif";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
+import { usageRow, type UsageLevel } from "./usage-near";
 
-export type FeedIcon = "draft" | "teams" | "pound" | "mail";
+export type FeedIcon = "draft" | "teams" | "pound" | "mail" | "alert";
 
 /** One row of the feed: a line, a sub-line, and where it opens (none: just news). `hot`: your move, now. */
 export interface FeedItem {
@@ -116,6 +118,8 @@ export interface FeedInput {
   afters?: { type: TournamentType; t: Tournament }[];
   /** Google cancelled the email's token (ADR 0027): for whoever looks after it (manage:Settings), nobody else. */
   emailStopped?: boolean;
+  /** The free limits at 70% or more, nearest first (lib/usage-near.ts): for whoever sees Usage, nobody else. */
+  usage?: UsageLevel[];
 }
 
 /** Your team's next game in a tournament on or coming up: Home's lead when it's your soonest thing. */
@@ -197,6 +201,9 @@ export function homeFeed(input: FeedInput): Feed {
       hot: false,
       icon: "pound",
     });
+  // Last: it's asked for after Home opens, so nothing above it moves when it comes
+  const usage = usageRow(input.usage);
+  if (usage) admin.push(usage);
   return { lead, now, upcoming: upcomingRows(input, lead, fights), admin };
 }
 
