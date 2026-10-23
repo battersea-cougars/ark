@@ -1,29 +1,31 @@
 <script lang="ts">
   // The after-party (ADR 0074): the evening a tournament ends, its last status. Everyone's at the afterwards (the
   // Kumite's The Anchor), so the page is the pub after the film's last match: warm brass on the carbon, the Kumite's
-  // motif kept. The awards come up one at a time, in the order listed: what's out face up, then the next one sealed
-  // (a card with a question mark), the rest not yet there (their room kept, so nothing moves). Whoever runs it taps the
-  // sealed card to reveal it (Confirm the awards first, if they aren't yet); for everyone else it waits. Each tap turns
-  // ONE award over for everyone watching (the live hub): the face-up card, a dark board like the old
-  // scoreboards with its words on tiles (lib/BoardWords), rolls down over the sealed one in one roll, then a 賞 hanko
-  // comes down; the page brings it into view, and the next sealed card rises in under it. Opened later, what's
-  // out is just there. Then where everyone is, the final table (the champions first) and the day's results, one line
-  // each.
+  // motif kept. Two steps (ADR 0044). First the awards are confirmed: everyone who played votes (Cast your vote),
+  // whoever runs it checks the stats and draws and makes the judges' call (Confirm the awards), which closes voting.
+  // Then the reveal, on one card, a drum like the old scoreboards': sealed, the award's name big and a question mark;
+  // a tap (whoever runs it) rolls the face up in as the sealed face rolls away, one machine, then the hanko lands;
+  // Next award rolls it on to the next, sealed. Everyone's phone follows each roll live (the live hub), so everyone
+  // sees the same card. The champions (the award the table decides) are the finale: their card is the bigger one,
+  // its roll heavier, its hanko bigger; the drum's room is the finale's from the start, so nothing ever moves, and
+  // nothing scrolls. Under it, the winners so far, a line each as they come. Opened later, it's just where it is.
+  // Then where everyone is, the final table (the champions first) and the day's results, one line each.
   import type { Tournament, TournamentType } from "../demo/model";
   import type { After } from "@cougars/shared/places";
   import { PLAYERS } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
-  import { revealAward } from "../app/backend.svelte";
-  import { prefersReducedMotion } from "../app/motion";
+  import { nextAward, revealAward } from "../app/backend.svelte";
   import { untrack } from "svelte";
   import { enterAwards } from "./AwardsDrawer.svelte";
   import DraftStep from "./DraftStep.svelte";
   import Kanji from "./Kanji.svelte";
   import BoardWords from "./BoardWords.svelte";
+  import BoardTable from "./BoardTable.svelte";
+  import CastYourVote from "./CastYourVote.svelte";
+  import { votersOf } from "./awards";
   import TeamCrest from "./TeamCrest.svelte";
-  import { finalOrder, revealOf } from "./afters";
+  import { finalOrder, isFinale, revealOf } from "./afters";
   import { kanjiFor } from "./motif";
-  import InkStamp from "./InkStamp.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
   import { afterNoteWords } from "./tournament-front";
@@ -63,48 +65,65 @@
     if (won.length > 2) return [`Shared by ${won.length}`];
     return won.map((w) => (w.teamId ? teamName(w.teamId) : goesByOf(byId(w.memberId))));
   };
-  // A reveal's beats, ms after the tap lands: the face-up card rolls down over the sealed one in one roll, like a
-  // scoreboard's drum turning over (slow to start, quicker, then a knock as it stops), then the hanko comes down
+  // A roll's beats: the drum turns over in one roll (slow to start, quicker, a knock as it stops), then the hanko
+  // comes down. The finale's drum is heavier: a slower roll, a bigger hanko
   const ROLL_MS = 750;
-  const boardOf = () => ({ stamp: ROLL_MS + 150 });
+  const FINALE_ROLL_MS = 1200;
+  const finale = (i: number) => !!reveal.awards[i] && isFinale(reveal.awards[i]);
+  const rollOf = (i: number) => (finale(i) ? FINALE_ROLL_MS : ROLL_MS);
+  const hasFinale = $derived(reveal.awards.some((a) => isFinale(a)));
 
-  // An award turned over while you watch: the face-up card rolls down over it (with reduced motion, it fades in), the page brings it into view, and once the hanko's down the next
-  // sealed card rises in. Opened later (or after a step back), they're just as they are
-  let seen = untrack(() => reveal.revealed);
-  let turning = $state<number[]>([]);
-  let rising = $state(-1);
-  const cards: HTMLElement[] = $state([]);
+  // The drum: the card showing (which award, which face), and while it rolls the one rolling away. A change from
+  // the server (this tap, or another phone's) rolls it; opened later, it's just where it is
+  type Card = { at: number; face: "sealed" | "up" };
+  let shown = $state<Card>(untrack(() => reveal.drum));
+  let leaving = $state<Card | null>(null);
+  let timer: ReturnType<typeof setTimeout> | undefined;
   $effect.pre(() => {
-    const n = reveal.revealed;
+    const d = reveal.drum;
     untrack(() => {
-      if (n > seen) {
-        const fresh = Array.from({ length: n - seen }, (_, k) => seen + k);
-        const done = boardOf().stamp + 700;
-        turning = [...turning, ...fresh];
-        rising = n;
-        setTimeout(() => (turning = turning.filter((i) => !fresh.includes(i))), done);
-        setTimeout(() => {
-          if (rising === n) rising = -1;
-        }, done + 400);
-        requestAnimationFrame(() =>
-          cards[n - 1]?.scrollIntoView({ block: "center", behavior: prefersReducedMotion ? "auto" : "smooth" }),
-        );
-      }
-      seen = n;
+      if (d.at === shown.at && d.face === shown.face) return;
+      leaving = shown;
+      shown = d;
+      clearTimeout(timer);
+      timer = setTimeout(() => (leaving = null), rollOf(d.at) + 900);
     });
   });
+  $effect(() => () => clearTimeout(timer));
 
-  // One tap, one award: the tap says which it saw face down, so a double tap (or a second phone) reveals one
+  // The confirm stage, for whoever runs it: how many have voted for each voted award (never who for), and what's
+  // still to choose (the judges' call)
+  const positionOf = (id: number) => byId(id)?.position;
+  const voteLines = $derived(
+    reveal.awards
+      .filter((a) => a.how.kind === "vote")
+      .map(
+        (a) =>
+          `${a.name}: ${t.votes?.find((v) => v.award === a.name)?.cast ?? 0} of ${votersOf(a, t, { positionOf }).length} voted`,
+      ),
+  );
+  const toChoose = $derived(reveal.awards.filter((a) => a.how.kind === "live").map((a) => a.name));
+
+  // One tap, one roll: the tap says where it saw the drum, so a double tap (or a second phone) rolls it once. Every
+  // winner's set when the awards are confirmed, so the reveal only turns them over
   let busy = $state(false);
-  async function next() {
-    if (busy || !reveal.next) return;
+  const canTap = $derived(
+    manage && reveal.confirmed && !leaving && (shown.face === "sealed" || shown.at < reveal.awards.length - 1),
+  );
+  async function tap() {
+    if (busy || !canTap) return;
     busy = true;
     try {
-      await revealAward(t.id, reveal.revealed);
+      if (shown.face === "sealed") await revealAward(t.id, reveal.revealed);
+      else await nextAward(t.id, reveal.revealed);
     } finally {
       busy = false;
     }
   }
+  // What it's called tonight: the judges' call's name, once confirmed
+  const nameOf = (i: number) => reveal.awards[i]?.title ?? reveal.awards[i]?.name ?? "";
+  // The winners so far, a line each as they come, the room for every one kept
+  const sofar = $derived(reveal.awards.map((a, i) => ({ a, i, out: a.revealed && !(leaving && shown.at === i) })));
   const sub = $derived(
     after
       ? [afterNoteWords(after.note) || "celebration and awards", after.time && `from ${clock(after.time)}`]
@@ -114,11 +133,87 @@
   );
 </script>
 
+{#snippet face(c: { at: number; face: "sealed" | "up" })}
+  {@const a = reveal.awards[c.at]}
+  {@const won = winnersOf(a.name)}
+  {@const big = finale(c.at)}
+  {#if c.face === "sealed"}
+    <!-- Sealed: the award's name, big, for everyone (what's coming isn't the secret: who took it is), a question mark
+         where the winner will be, its place in the order -->
+    <div class="face back">
+      <span class="order num">{c.at + 1} of {reveal.awards.length}</span>
+      <span class="back-name"><BoardWords text={nameOf(c.at)} size={big ? "1.8rem" : "1.35rem"} /></span>
+      <span class="mystery display">?</span>
+      {#if kumite}<span class="back-kanji" lang="ja" aria-hidden="true"
+          >{kanjiFor(type, big ? "champions" : "awards")}</span
+        >{/if}
+      <span class="cue" class:go={manage && reveal.confirmed}>
+        {#if manage && reveal.confirmed}<Icon name="medal" size={16} />Tap to reveal
+        {:else if manage}Confirm the awards to reveal
+        {:else}Waiting for the reveal{/if}
+      </span>
+    </div>
+  {:else}
+    <!-- Face up: the award in brass, what it's for, who took it home in bone; the hanko last -->
+    <div class="face front">
+      <span class="award-name"><BoardWords text={nameOf(c.at)} size={big ? "1.8rem" : "1.35rem"} /></span>
+      {#if a.title}<span class="about">{a.name}{a.about ? `: ${a.about}` : ""}</span>
+      {:else if a.about}<span class="about">{a.about}</span>{/if}
+      <span class="won">
+        {#if !won.length || won.length > 2}
+          <span class="who" class:none={!won.length}
+            ><BoardWords text={wonWords(a.name)[0]} size={big ? "2.4rem" : "1.65rem"} /><span
+              class="hint"
+              aria-hidden="true">&nbsp;</span
+            ></span
+          >
+        {:else}
+          {#each won as w, k (k)}
+            {#if w.teamId}
+              <a class="who who-team" href={teamHref(type.slug, w.teamId)}>
+                <span class="crest"
+                  ><TeamCrest
+                    among={crestNames}
+                    name={teamName(w.teamId)}
+                    logo={teams[teamIndex(w.teamId)]?.logo ?? null}
+                    tone={teamTone(teamIndex(w.teamId))}
+                    size={big ? "4rem" : "2.25rem"}
+                  /></span
+                >
+                <span class="who-name"
+                  ><BoardWords
+                    text={teamName(w.teamId)}
+                    size={big ? "2.4rem" : "1.65rem"}
+                    lines={won.length > 1 ? 1 : 2}
+                  /><span class="hint" aria-hidden="true">&nbsp;</span></span
+                >
+              </a>
+            {:else}
+              <span class="who who-player">
+                <BoardWords text={goesByOf(byId(w.memberId))} size="1.65rem" lines={won.length > 1 ? 1 : 2} />
+                <!-- Always a line under the name, so the winner sits on the same line on every card -->
+                <span class="hint">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : "\u00a0"}</span>
+              </span>
+            {/if}
+          {/each}
+        {/if}
+      </span>
+      {#if kumite}<span class="stamp"><Kanji text={kanjiFor(type, big ? "champions" : "awards")} seal /></span>{/if}
+      {#if manage && c.at < reveal.awards.length - 1}<span class="cue go next"
+          ><Icon name="chevronRight" size={16} />Next award</span
+        >{/if}
+    </div>
+  {/if}
+{/snippet}
+
 <div class="afters">
+  <!-- The first step, before the reveal: voting open till the awards are confirmed. Everyone who played votes; whoever
+       runs it confirms (making the judges' call); then the second, the reveal, one card at a time -->
+  <CastYourVote {type} tournament={t} />
   {#if manage && reveal.awards.length && !reveal.confirmed}
-    <!-- Whoever runs it confirms the awards first; then they tap each card to reveal it -->
     <DraftStep {type} mark="awards" title="Confirm the awards">
-      Confirm the awards first, then tap each card to call them out one at a time.
+      {[...voteLines, toChoose.length ? `Still to choose: ${toChoose.join(", ")}` : ""].filter(Boolean).join(" · ") ||
+        "Check them"}. Confirming closes voting; then the reveal, a tap a card.
       {#snippet action()}
         <button class="btn primary" onclick={() => enterAwards(t.id)}>Confirm the awards</button>
       {/snippet}
@@ -144,140 +239,57 @@
   {#if reveal.awards.length}
     <section class="part" aria-labelledby="awards-title">
       <h2 class="section-title" id="awards-title">The awards<Kanji text={kanjiFor(type, "awards")} /></h2>
-      <ol class="awards">
-        {#each reveal.awards as a, i (a.name)}
-          {@const won = winnersOf(a.name)}
-          {@const sealed = i === reveal.revealed}
-          {@const tap = manage && sealed && reveal.confirmed}
-          {@const times = boardOf()}
-          {@const playing = turning.includes(i)}
-          <li
-            class="award"
-            class:up={a.revealed}
-            class:sealed
-            class:later={i > reveal.revealed}
-            class:turning={playing}
-            class:rising={rising === i}
-            style:--rise-at={rising === i && i > 0 ? `${boardOf().stamp + 200}ms` : null}
-            aria-hidden={i > reveal.revealed}
-            bind:this={cards[i]}
+      <!-- The drum: one card, the finale's room from the start. The card rolling away and the one rolling in share it -->
+      <div class="drum" class:tall={hasFinale} aria-live="polite">
+        {#if leaving}
+          <div
+            class="card out"
+            class:finale={finale(leaving.at)}
+            style:--roll="{rollOf(shown.at)}ms"
+            aria-hidden="true"
           >
-            <!-- Face down: the award's name, big, for everyone (what's coming isn't the secret: who took it is), a
-                 question mark where the winner will be, its place in the order; for whoever runs it, the card to tap.
-                 Kept under the face-up card while it rolls in -->
-            {#if !a.revealed || playing}
-              <div class="face back" aria-hidden={a.revealed}>
-                <span class="order num">{i + 1}</span>
-                <span class="back-name"><BoardWords text={a.name} size="1.35rem" /></span>
-                <span class="mystery display">?</span>
-                {#if kumite}<span class="back-kanji" lang="ja" aria-hidden="true">{kanjiFor(type, "awards")}</span>{/if}
-                {#if sealed}
-                  <span class="cue" class:go={tap}>
-                    {#if tap}<Icon name="medal" size={16} />Tap to reveal
-                    {:else if manage}Confirm the awards to reveal
-                    {:else}Waiting for the reveal{/if}
-                  </span>
-                {/if}
-                {#if tap}
-                  <button
-                    class="tap"
-                    type="button"
-                    disabled={busy}
-                    aria-label="Reveal award {i + 1}: {a.name}"
-                    onclick={next}
-                  ></button>
-                {:else if !a.revealed}
-                  <span class="sr-only">Award {i + 1}, still face down</span>
-                {/if}
-              </div>
+            {@render face(leaving)}
+          </div>
+        {/if}
+        {#key `${shown.at}:${shown.face}`}
+          <div
+            class="card in"
+            class:rolling={!!leaving}
+            class:finale={finale(shown.at)}
+            style:--roll="{rollOf(shown.at)}ms"
+            style:--stamp-at="{rollOf(shown.at) + 150}ms"
+          >
+            {@render face(shown)}
+            {#if canTap}
+              <button
+                class="tap"
+                type="button"
+                disabled={busy}
+                aria-label={shown.face === "sealed" ? `Reveal ${nameOf(shown.at)}` : "Next award"}
+                onclick={tap}
+              ></button>
             {/if}
-            <!-- Face up: a dark board, the award and who took it home on its tiles, what it's for; the hanko last -->
-            {#if a.revealed}
-              <div class="face front" style:--roll="{ROLL_MS}ms" style:--stamp-at="{times.stamp}ms">
-                <span class="award-name"><BoardWords text={a.name} size="1.35rem" /></span>
-                {#if a.about}<span class="about">{a.about}</span>{/if}
-                <span class="won">
-                  {#if !won.length || won.length > 2}
-                    <span class="who" class:none={!won.length}
-                      ><BoardWords text={wonWords(a.name)[0]} size="1.65rem" /><span class="hint" aria-hidden="true"
-                        >&nbsp;</span
-                      ></span
-                    >
-                  {:else}
-                    {#each won as w, k (k)}
-                      {#if w.teamId}
-                        <a class="who who-team" href={teamHref(type.slug, w.teamId)}>
-                          <span class="crest"
-                            ><TeamCrest
-                              among={crestNames}
-                              name={teamName(w.teamId)}
-                              logo={teams[teamIndex(w.teamId)]?.logo ?? null}
-                              tone={teamTone(teamIndex(w.teamId))}
-                              size="2.25rem"
-                            /></span
-                          >
-                          <span class="who-name"
-                            ><BoardWords text={teamName(w.teamId)} size="1.65rem" lines={won.length > 1 ? 1 : 2} /><span
-                              class="hint"
-                              aria-hidden="true">&nbsp;</span
-                            ></span
-                          >
-                        </a>
-                      {:else}
-                        <span class="who who-player">
-                          <BoardWords text={goesByOf(byId(w.memberId))} size="1.65rem" lines={won.length > 1 ? 1 : 2} />
-                          <!-- Always a line under the name, so every card's winner sits on the same line -->
-                          <span class="hint">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : "\u00a0"}</span>
-                        </span>
-                      {/if}
-                    {/each}
-                  {/if}
-                </span>
-                {#if kumite}<span class="stamp"><Kanji text={kanjiFor(type, "awards")} seal /></span>{/if}
-              </div>
-            {/if}
+          </div>
+        {/key}
+      </div>
+      <!-- The winners so far, a line each as they're revealed; every line's room kept, so nothing under moves -->
+      <ol class="sofar" aria-label="The winners so far">
+        {#each sofar as { a, i, out } (a.name)}
+          <li class:out>
+            {#if out}<span class="sofar-award">{nameOf(i)}</span><span class="sofar-who"
+                >{wonWords(a.name).join(" & ")}</span
+              >{/if}
           </li>
         {/each}
       </ol>
-      <!-- Room kept for the line under the cards (members only, till the last is out), so nothing moves when it goes -->
-      <p class="closing" aria-live="polite">
-        {#if !reveal.all && !manage}
-          {reveal.revealed
-            ? `${reveal.revealed} of ${reveal.awards.length} out. Stay for the rest.`
-            : "Face down till they're called. Stay put."}
-        {/if}
-      </p>
     </section>
   {/if}
 
   {#if standings.length}
+    <!-- The table with the stats we track (played, won, drawn, lost, goal difference, points), the champions first -->
     <section class="part">
       <h2 class="section-title">The final table<Kanji text={kanjiFor(type, "champions")} /></h2>
-      <ol class="standings">
-        {#each standings as r, i (r.teamId)}
-          <li class="standing" class:champs={r.champions}>
-            <span class="pos num">{i + 1}</span>
-            <TeamCrest
-              among={crestNames}
-              name={teamName(r.teamId)}
-              logo={teams[teamIndex(r.teamId)]?.logo ?? null}
-              tone={teamTone(teamIndex(r.teamId))}
-              size={r.champions ? "2.5rem" : "2rem"}
-            />
-            <a class="team display" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a>
-            {#if r.champions}<span class="champ"
-                ><InkStamp
-                  size="card"
-                  tone="bone"
-                  kanji={kanjiFor(type, "champions")}
-                  icon="trophy"
-                  text="{type.shortName} Champions"
-                /></span
-              >{/if}
-            <span class="pts num">{r.pts}<span class="unit">Pts</span></span>
-          </li>
-        {/each}
-      </ol>
+      <BoardTable {type} tournament={t} order={standings} />
     </section>
   {/if}
 
@@ -378,18 +390,20 @@
     gap: var(--s-1);
   }
 
-  /* The awards: a card each, face down till it's called. One size face up or down, so nothing moves */
-  .awards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-    gap: var(--s-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .award {
+  /* The drum: one card for the awards, its room fixed (the finale's, if there is one, from the start), so nothing
+     below it ever moves; the cards rolling in and away share it and it clips them */
+  .drum {
     position: relative;
-    height: 10.5rem;
+    height: 11rem;
+    overflow: clip;
+    border-radius: var(--r-lg);
+  }
+  .drum.tall {
+    height: 15.5rem;
+  }
+  .card {
+    position: absolute;
+    inset: 0;
   }
   .face {
     position: absolute;
@@ -398,17 +412,16 @@
     overflow: hidden;
     border-radius: var(--r-lg);
   }
-  /* Face down: carbon, a brass question mark, the kanji faint behind it */
+  /* Sealed: carbon, the award's name in brass, a brass question mark, the kanji faint behind it */
   .back {
     place-items: center;
     background:
       repeating-linear-gradient(135deg, rgb(255 255 255 / 0.018) 0 6px, transparent 6px 12px), var(--surface-1);
   }
-  /* The award's name where the face-up card has it, as big, in the same brass */
   .back-name {
     position: absolute;
     top: var(--s-3);
-    right: 3rem;
+    right: 5rem;
     left: var(--s-4);
     color: var(--brass-ink);
   }
@@ -416,6 +429,9 @@
     color: color-mix(in srgb, var(--brass) 70%, transparent);
     font-size: 3.4rem;
     line-height: 1;
+  }
+  .finale .mystery {
+    font-size: 5rem;
   }
   .back-kanji {
     position: absolute;
@@ -427,7 +443,18 @@
     font-weight: 900;
     line-height: 1;
   }
-  /* The sealed card's line: what it's waiting for, or (whoever runs it) the tap that reveals it */
+  .finale .back-kanji {
+    font-size: 8rem;
+  }
+  .order {
+    position: absolute;
+    top: var(--s-3);
+    right: var(--s-4);
+    color: var(--fg-subtle);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+  /* The card's line: what it's waiting for, or (whoever runs it) the tap: Tap to reveal, then Next award */
   .cue {
     position: absolute;
     right: var(--s-3);
@@ -447,15 +474,19 @@
     color: var(--brass-ink);
     font-weight: 600;
   }
-  /* The whole sealed card is the button, for whoever runs it (Enter or Space too): a brass glow says it's live */
+  .cue.next {
+    right: var(--s-4);
+    left: auto;
+  }
+  /* The whole card is the button, for whoever runs it (Enter or Space too): a brass glow says it's live */
   .tap {
     position: absolute;
     inset: 0;
-    z-index: 1;
+    z-index: 2;
     margin: 0;
     padding: 0;
     border: 0;
-    border-radius: inherit;
+    border-radius: var(--r-lg);
     background: none;
     cursor: pointer;
   }
@@ -464,63 +495,33 @@
   }
   .tap:focus-visible {
     outline: 2px solid var(--brass-ink);
-    outline-offset: 2px;
+    outline-offset: -2px;
   }
-  .sealed .back:has(.tap) {
+  .card:has(.tap) .face {
     box-shadow:
       inset 0 0 0 1px color-mix(in srgb, var(--brass) 35%, transparent),
       0 0 1.5rem color-mix(in srgb, var(--brass) 14%, transparent);
-    transition: box-shadow var(--dur, 200ms) ease;
   }
   @media (hover: hover) {
-    .sealed .back:has(.tap:hover) {
-      box-shadow:
-        inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent),
-        0 0 2rem color-mix(in srgb, var(--brass) 24%, transparent);
+    .card:has(.tap:hover) .face {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent);
     }
-  }
-  .sealed .back:has(.tap:active) .mystery {
-    transform: scale(0.94);
-  }
-  /* Not up yet, after the sealed one: an empty slot, just its number, its room kept so nothing moves as they come */
-  .later .back {
-    background: color-mix(in srgb, var(--surface-1) 70%, transparent);
-  }
-  .later .mystery,
-  .later .back-kanji {
-    visibility: hidden;
-  }
-  .later .order {
-    opacity: 0.6;
-  }
-  /* The next card comes up once the last one's over: it rises into its slot, from just below it and a little dim,
-     never gone in the meantime */
-  .rising {
-    animation: rise 0.6s var(--rise-at, 0.85s) cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-  @keyframes rise {
-    from {
-      transform: translateY(0.75rem) scale(0.98);
-      filter: brightness(0.6);
-    }
-  }
-  .order {
-    position: absolute;
-    top: var(--s-3);
-    right: var(--s-4);
-    color: var(--fg-subtle);
-    font-size: var(--text-xs);
-    font-weight: 600;
   }
   /* Face up: a dark board: the award in brass poster capitals, what for, who took it home in bone
      (lib/BoardWords); the hanko in the corner */
   .front {
-    z-index: 1;
     grid-template-rows: auto auto 1fr;
     align-content: start;
     gap: 0.35rem;
-    padding: var(--s-3) var(--s-4);
+    padding: var(--s-3) var(--s-4) var(--s-4);
     background: color-mix(in srgb, var(--bg) 72%, black);
+  }
+  /* The finale: the champions, bigger, ringed in brass, the crest and the name a size up */
+  .finale .front {
+    padding: var(--s-4) var(--s-5) var(--s-5);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--brass) 45%, transparent),
+      inset 0 0 3rem color-mix(in srgb, var(--brass) 10%, transparent);
   }
   .award-name {
     padding-right: 3rem;
@@ -537,8 +538,7 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
   }
-  /* The winner at the card's foot, its name on the same line on every card: a line under it is always kept (the
-     player's team, or kept empty), and a team's crest sits level with the name */
+  /* The winner at the card's foot, a line under the name always kept (the player's team, or empty) */
   .won {
     display: flex;
     flex-wrap: wrap;
@@ -546,24 +546,22 @@
     align-self: end;
     gap: var(--s-2) var(--s-4);
     min-width: 0;
+    padding-right: 6rem;
   }
   .who {
+    display: grid;
     flex: 1 1 9rem;
+    row-gap: 0.15rem;
     min-width: 0;
     color: var(--fg);
   }
   .who.none {
     color: var(--fg-muted);
   }
-  /* Name over its line, as a player's: the crest beside the name, level with it */
-  .who {
-    display: grid;
-    row-gap: 0.15rem;
-  }
   .who-team {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    column-gap: var(--s-2);
+    column-gap: var(--s-3);
   }
   .who-name {
     display: contents;
@@ -587,21 +585,21 @@
     transform: scale(0.72);
     transform-origin: top right;
   }
-  /* Turned over while you watch: the face-up card rolls down into view as the sealed one rolls down and away, one
-     drum, in one roll (the card clips them), then the hanko comes down */
-  .turning {
-    overflow: clip;
-    border-radius: var(--r-lg);
+  .finale .stamp {
+    top: auto;
+    bottom: var(--s-4);
+    right: var(--s-4);
+    transform: scale(1.15);
+    transform-origin: bottom right;
   }
-  .turning .front {
+  /* One roll, one machine: the card coming in rolls down into view as the one before rolls down and away, slow to
+     start (the drum's weight), quicker, then a knock as it stops, a touch past and back. Then the hanko lands */
+  .rolling {
     animation: roll-in var(--roll) both;
   }
-  /* One machine: the sealed card rolls down and away on the same drum, just ahead of the face coming in */
-  .turning .back {
+  .out {
     animation: roll-out var(--roll) both;
   }
-  /* One roll, like a scoreboard's drum: slow to start (the drum's weight to get over), quicker and quicker, then a
-     knock as it stops, a touch past and back */
   @keyframes roll-out {
     0% {
       transform: none;
@@ -636,78 +634,56 @@
       transform: none;
     }
   }
-  .turning .stamp {
+  .rolling .stamp {
     animation: stamp 0.45s var(--stamp-at) cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  }
+  .rolling.finale .stamp {
+    animation-duration: 0.6s;
   }
   @keyframes stamp {
     from {
       opacity: 0;
-      transform: scale(1.6) rotate(-12deg);
+      scale: 1.6;
+      rotate: -12deg;
     }
   }
 
-  .closing {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
-    min-height: 1.6rem;
-    margin: 0;
-    color: var(--fg-muted);
-  }
-
-  /* The final table: a line each, the champions first and a size up */
-  .standings,
-  .results {
+  /* The winners so far: a line each, the award quiet and the winner bright; each line's room kept from the start */
+  .sofar {
     display: grid;
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .standing {
-    display: grid;
-    grid-template-columns: 1.25rem auto minmax(0, 1fr) auto auto;
-    align-items: center;
+  .sofar li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     gap: var(--s-3);
-    min-height: 3.25rem;
+    min-height: 2.25rem;
     padding-block: var(--s-1);
   }
-  .standing + .standing {
+  .sofar li.out + li.out {
     border-top: 1px solid var(--border);
   }
-  .pos {
-    color: var(--fg-subtle);
+  .sofar-award {
+    color: var(--brass-ink);
+    font-size: var(--text-sm);
     font-weight: 600;
   }
-  .team {
+  .sofar-who {
     overflow: hidden;
     color: var(--fg);
-    font-size: 1.15rem;
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .champs .team {
-    font-size: 1.45rem;
-  }
-  .champs .pos {
-    color: var(--brass);
-  }
-  /* The champions' stamp, as the match cards' (lib/InkStamp): bone, the win's ink */
-  .champ {
-    grid-column: 4;
-    display: inline-flex;
-  }
-  /* Always the last column, so the champions' badge never pushes their points out of line with the rest */
-  .pts {
-    grid-column: 5;
-    justify-self: end;
-    color: var(--fg-muted);
-    font-weight: 600;
-  }
-  .unit {
-    margin-left: 0.2rem;
-    color: var(--fg-subtle);
-    font-size: var(--text-xs);
-    font-weight: 500;
+
+  .results {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   /* The day's results: one line a match, the score in the middle */
@@ -747,28 +723,23 @@
       color: var(--brass-ink);
     }
   }
-  /* A phone: the champions' stamp goes (the trophy and the size say it) */
+  /* A phone: the results' columns closer */
   @media (max-width: 440px) {
-    .champ {
-      display: none;
-    }
     .result {
       grid-template-columns: 3.25rem minmax(0, 1fr) auto minmax(0, 1fr);
       gap: var(--s-2);
     }
   }
-  /* Reduced motion: no roll, no hanko coming down and no rise; the face-up card and
-     the next card fade in */
+  /* Reduced motion: no roll and no hanko coming down: the card coming in crossfades over the one going */
   @media (prefers-reduced-motion: reduce) {
-    .turning .stamp,
-    .turning .back {
+    .rolling .stamp {
       animation: none;
     }
-    .turning .front {
+    .rolling {
       animation: fade 0.4s ease both;
     }
-    .rising {
-      animation: none;
+    .out {
+      animation: fade 0.4s ease reverse both;
     }
   }
   @keyframes fade {

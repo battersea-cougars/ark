@@ -125,20 +125,37 @@ describe("the schedule", () => {
 
   it("an admin sets a tournament's awards, a fun one included", async () => {
     const kumite = (await boot()).tournamentTypes[0];
-    // The Kumite starts with the usual three and The Dim Mak
-    expect(kumite.awards.map((a: { name: string }) => a.name)).toEqual([
-      "Champions",
-      "Top scorer",
-      "Best goalie",
-      "The Dim Mak",
-    ]);
+    // The Kumite starts with the joke and builds to the champions, the finale, each saying how it's decided
+    expect(kumite.awards.map((a: { name: string; decidedBy: { kind: string } }) => [a.name, a.decidedBy.kind])).toEqual(
+      [
+        ["The Judges' Call", "live"],
+        ["Top scorer", "stat"],
+        ["Best goalie", "vote"],
+        ["Champions", "stat"],
+      ],
+    );
     const awards = [
       { name: "Champions", about: "Top of the table." },
       { name: "The Slapshot Sensei", about: "Fastest shot from a faceoff." },
       { name: "  ", about: "an empty row is dropped" },
     ];
     expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards })).status).toBe(200);
-    expect((await boot()).tournamentTypes[0].awards).toEqual(awards.slice(0, 2));
+    // Saved without saying how each is decided: the old guess from its name is written in, once (ADR 0044)
+    expect((await boot()).tournamentTypes[0].awards).toEqual([
+      { ...awards[0], decidedBy: { kind: "stat", stat: "table" } },
+      { ...awards[1], decidedBy: { kind: "live", options: [] } },
+    ]);
+    // Said how, it's kept as said; a stat we don't track is refused
+    const voted = [{ name: "MVP", about: "", decidedBy: { kind: "vote", voters: "players", tieBreak: "points" } }];
+    expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: voted })).status).toBe(200);
+    expect((await boot()).tournamentTypes[0].awards).toEqual(voted);
+    const unknown = [{ name: "Best hair", about: "", decidedBy: { kind: "stat", stat: "hair" } }];
+    expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: unknown })).status).toBe(400);
+    const twins = [
+      { name: "MVP", about: "" },
+      { name: "mvp", about: "" },
+    ];
+    expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: twins })).status).toBe(400);
     const tooMany = Array.from({ length: 9 }, (_, i) => ({ name: `Award ${i}`, about: "" }));
     expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: tooMany })).status).toBe(400);
   });

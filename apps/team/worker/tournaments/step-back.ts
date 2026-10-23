@@ -73,7 +73,13 @@ export function stepsBack(db: D1Database, id: number, today: string): Record<Bac
   const games = "SELECT id FROM tournament_games WHERE tournament_id = ?";
   return {
     // The after-party's awards face down again, the results and the winners kept: only while some are out
-    awards: [statement(db, "UPDATE tournaments SET awards_revealed = 0 WHERE id = ? AND awards_revealed > 0", [id])],
+    awards: [
+      statement(
+        db,
+        "UPDATE tournaments SET awards_revealed = 0, awards_next = 0 WHERE id = ? AND awards_revealed > 0",
+        [id],
+      ),
+    ],
     // Every match as it was before it started: no score, clock, scoresheet or period; the playoffs wait for the table
     // again. Their goals and penalties go first; the reset is last, and finds nothing on a second tap
     results: [

@@ -179,7 +179,7 @@ const PARTS = {
   tournaments: rows(
     `id typeId name venueId location mapUrl heldOn startTime endTime capacity status champions feePence season
      public signupOpensOn signupClosesOn signupClosedAt draftOn pointsWin pointsDraw pointsLoss gameMinutes penaltyRule defaultPenaltyMinutes periods breakMinutes kind awards
-     playoffs draftState afterMode afterVenueId afterTime afterNote awardsRevealed`,
+     playoffs draftState afterMode afterVenueId afterTime afterNote awardsRevealed awardsNext awardsConfirmedAt`,
     `SELECT t.id, t.type_id typeId, t.name, t.venue_id venueId, t.location, t.map_url mapUrl, t.held_on heldOn,
             t.start_time startTime, t.end_time endTime, t.capacity, t.status, t.champions, t.fee_pence feePence,
             t.season, t.public, t.signup_opens_on signupOpensOn,
@@ -187,7 +187,7 @@ const PARTS = {
             t.points_loss pointsLoss, t.game_minutes gameMinutes, t.penalty_rule penaltyRule,
             t.default_penalty_minutes defaultPenaltyMinutes, t.periods, t.break_minutes breakMinutes, t.kind, t.awards, t.playoffs, t.draft_state draftState,
             t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime, t.after_note afterNote,
-            t.awards_revealed awardsRevealed
+            t.awards_revealed awardsRevealed, t.awards_next awardsNext, t.awards_confirmed_at awardsConfirmedAt
      FROM tournaments t ORDER BY t.held_on`,
   ),
   // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts)
@@ -226,12 +226,25 @@ const PARTS = {
   // Who won each award (ADR 0044). On its evening an award's winner is a surprise until it's revealed at the
   // after-party (ADR 0074): only whoever runs tournaments is sent it before then
   winners: rows(
-    "tournamentId award teamId memberId",
-    `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId
+    "tournamentId award teamId memberId title",
+    `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId, w.title
      FROM viewer v CROSS JOIN tournament_award_winners w JOIN tournaments t ON t.id = w.tournament_id
      WHERE v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening
         OR (SELECT j.key FROM json_each(t.awards) j WHERE json_extract(j.value, '$.name') = w.award) < t.awards_revealed
      ORDER BY w.tournament_id, w.position`,
+  ),
+  // The judges' call's name tonight (ADR 0044): everyone's once the awards are confirmed, before it's revealed (the
+  // sealed card says it); who won it waits for the reveal
+  awardTitles: rows(
+    "tournamentId award title",
+    `SELECT DISTINCT tournament_id tournamentId, award, title FROM tournament_award_winners WHERE title IS NOT NULL`,
+  ),
+  // A voted award's votes (ADR 0044): how many are in, and the one this member cast. Who voted for whom is never sent
+  votes: rows(
+    "tournamentId award cast mine",
+    `SELECT x.tournament_id tournamentId, x.award, COUNT(*) "cast",
+            MAX(CASE WHEN x.voter_member_id = v.member_id THEN x.candidate_member_id END) mine
+     FROM viewer v CROSS JOIN tournament_award_votes x GROUP BY x.tournament_id, x.award`,
   ),
   tournamentEntries: entries("tournament_entries", "tournament_id", "SELECT id FROM tournaments"),
   clubEvents: rows(

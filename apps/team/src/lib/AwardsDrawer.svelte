@@ -7,16 +7,20 @@
 </script>
 
 <script lang="ts">
-  // Confirming a tournament's awards (ADR 0044), usually on a phone straight after the final. The data decides them
-  // (lib/awards.ts): the champions, the top scorer, the best goalie; the Dim Mak is drawn at random (Draw again for
-  // another). The admin checks and confirms; only an award the data can't decide asks them to pick someone.
+  // Confirming a tournament's awards (ADR 0044), the after-party's first step, before the reveal: usually on a phone
+  // straight after the final. Each is decided as it says (lib/awards.ts): a stat's from the results (the champions,
+  // the top scorer), a draw at random (Draw again for another), for the admin to check (or choose someone else); a
+  // vote's counted by the Worker as they confirm (how many have voted shows here, never who for), and where it's
+  // level after its tie-break, the reply says who's level and the admin chooses; the judges' call they make here,
+  // naming it tonight and choosing who. Confirming closes voting and sets every winner; then it's the reveal.
   import { PLAYERS } from "../demo/data";
   import { db } from "../demo/store.svelte";
   import { setWinners } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import Drawer from "./Drawer.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { awardFromData, type AwardWinner } from "./awards";
+  import AwardCallSheet from "./AwardCallSheet.svelte";
+  import { awardFromData, decidedByOf, playersOf, votersOf, type Award, type AwardWinner } from "./awards";
   import { teamTone } from "./team-tones";
 
   const tournament = $derived(db.tournaments.find((t) => t.id === editing.id));
@@ -37,12 +41,24 @@
       .sort((a, b) => goesBy(a).localeCompare(goesBy(b))),
   );
 
-  // Each award's winners as they'll be confirmed: what's saved, else what the data says
-  let draft = $state<Record<string, { winners: AwardWinner[]; why: string; random?: boolean; seed: number }>>({});
+  // Each award's winners as they'll be confirmed: what's saved, else what the data says. A vote's is the count's
+  // (none here) unless it came back level (`tied`) and the admin chose; the judges' call is the admin's, with its name
+  type Draft = { winners: AwardWinner[]; why: string; random?: boolean; seed: number; title?: string; tied?: number[] };
+  let draft = $state<Record<string, Draft>>({});
   let choosing = $state<string | null>(null);
   let filledFor = $state<number | null>(null);
-  const fromData = (award: string, seed: number) =>
-    tournament ? awardFromData(award, tournament, { positionOf: (id) => byId(id)?.position, seed }) : null;
+  const positionOf = (id: number) => byId(id)?.position;
+  const kindOf = (a: Award) => decidedByOf(a).kind;
+  const fromData = (award: string, seed: number) => {
+    const a = awards.find((x) => x.name === award);
+    return tournament && a ? awardFromData(a, tournament, { positionOf, seed }) : null;
+  };
+  // A vote: how many are in, of how many can (never who for)
+  const votedWords = (a: Award) => {
+    const cast = tournament?.votes?.find((v) => v.award === a.name)?.cast ?? 0;
+    const can = tournament ? votersOf(a, tournament, { positionOf }).length : 0;
+    return `${cast} of ${can} voted · counted when you confirm`;
+  };
   $effect(() => {
     if (!tournament || filledFor === tournament.id) return;
     filledFor = tournament.id;
@@ -50,6 +66,7 @@
       awards.map((a) => {
         const saved = (tournament.winners ?? []).filter((w) => w.award === a.name);
         const data = fromData(a.name, tournament.id);
+        const title = saved.find((w) => w.title)?.title ?? undefined;
         return [
           a.name,
           saved.length
@@ -58,6 +75,7 @@
                 why: "Confirmed",
                 random: data?.random,
                 seed: tournament.id,
+                title,
               }
             : { winners: data?.winners ?? [], why: data?.why ?? "", random: data?.random, seed: tournament.id },
         ];
@@ -70,18 +88,59 @@
     if (data) draft[award] = { ...data, seed };
   }
   function pick(award: string, memberId: number) {
-    draft[award] = { ...draft[award], winners: [{ teamId: null, memberId }], why: "Picked" };
+    draft[award] = { ...draft[award], winners: [{ teamId: null, memberId }], why: "Your choice" };
     choosing = null;
   }
+  // The judges' call, or a vote that's level: made in a sheet over the drawer
+  let calling = $state<Award | null>(null);
+  const callNames = (a: Award) => {
+    const how = decidedByOf(a);
+    return how.kind === "live" ? how.options : [];
+  };
+  async function called(c: { title?: string; memberId: number }) {
+    if (!calling) return;
+    const d = draft[calling.name];
+    draft[calling.name] = {
+      ...d,
+      winners: [{ teamId: null, memberId: c.memberId }],
+      title: c.title,
+      why: d.tied ? "Level on votes: your call" : "Your call",
+    };
+  }
+  // What's still to be chosen before it can be confirmed: the judges' call, and a vote that came back level
+  const pending = $derived(
+    awards.filter(
+      (a) =>
+        (kindOf(a) === "live" && !draft[a.name]?.winners.length) ||
+        (kindOf(a) === "vote" && draft[a.name]?.tied && !draft[a.name].winners.length),
+    ),
+  );
   function close() {
     editing.id = null;
     filledFor = null;
     choosing = null;
+    calling = null;
   }
+  let busy = $state(false);
   async function confirm() {
-    if (!tournament) return;
-    const winners = awards.flatMap((a) => (draft[a.name]?.winners ?? []).map((w) => ({ award: a.name, ...w })));
-    if (await setWinners(tournament.id, winners)) close();
+    if (!tournament || busy || pending.length) return;
+    // A vote's winner is the Worker's count: only one the admin settled goes with the rest
+    const winners = awards
+      .filter((a) => kindOf(a) !== "vote" || draft[a.name]?.tied)
+      .flatMap((a) =>
+        (draft[a.name]?.winners ?? []).map((w) => ({ award: a.name, ...w, title: draft[a.name]?.title })),
+      );
+    busy = true;
+    try {
+      const r = await setWinners(tournament.id, winners);
+      if (!r) return;
+      if (!r.tied) return close();
+      // Level after the tie-break: who's level, for the admin to choose among
+      for (const [name, ids] of Object.entries(r.tied))
+        draft[name] = { ...draft[name], winners: [], tied: ids, why: "Level on votes" };
+    } finally {
+      busy = false;
+    }
   }
   // The tournament's team names, which its crests are told apart among (logo.ts)
   const crestNames = $derived(teamNamesOf(teams, byId));
@@ -112,19 +171,25 @@
 
 <Drawer
   bind:open={() => !!tournament, (v) => !v && close()}
-  title="The awards"
-  sub="From the results: check them, then confirm."
+  title="Confirm the awards"
+  sub="Check the stats, make the judges' call. Confirming counts the votes and closes voting; then the reveal."
 >
   {#if tournament}
     <ol class="awards">
       {#each awards as a (a.name)}
         {@const d = draft[a.name]}
+        {@const kind = kindOf(a)}
         <li class="award">
           <div class="head">
             <span class="award-name">{a.name}</span>
             {#if d?.why}<span class="hint">{d.why}</span>{/if}
           </div>
-          {#if d?.winners.length}
+          {#if d?.title}<p class="called">Tonight: <b>{d.title}</b></p>{/if}
+          {#if kind === "vote" && !d?.winners.length}
+            <p class="hint">
+              {d?.tied ? `Level between ${d.tied.length} after the tie-break: you choose.` : votedWords(a)}
+            </p>
+          {:else if d?.winners.length}
             {#if d.winners.length > 2}
               <!-- A big tie: one line; "Someone else" settles it -->
               <span class="who-text"
@@ -137,18 +202,36 @@
             {:else}
               {#each d.winners as w, i (i)}{@render winner(w)}{/each}
             {/if}
+          {:else if kind === "live"}
+            <p class="hint">The judges' call: name it tonight and choose who.</p>
           {:else}
             <p class="hint">The results don't decide this one.</p>
           {/if}
           <div class="row-actions">
-            {#if d?.random}
+            {#if kind === "live"}
+              <button
+                class="btn sm"
+                class:primary={!d?.winners.length}
+                class:outline={!!d?.winners.length}
+                onclick={() => (calling = a)}
+                ><Icon name="medal" size={15} />{d?.winners.length ? "Change the call" : "Make the call"}</button
+              >
+            {:else if kind === "vote"}
+              {#if d?.tied}
+                <button
+                  class="btn sm"
+                  class:primary={!d.winners.length}
+                  class:outline={!!d.winners.length}
+                  onclick={() => (calling = a)}>{d.winners.length ? "Change" : "Choose among them"}</button
+                >
+              {/if}
+            {:else if d?.random}
               <button class="btn outline sm" onclick={() => again(a.name)}
                 ><Icon name="undo" size={15} />Draw again</button
               >
-            {/if}
-            {#if !d?.random}
+            {:else}
               <button class="btn ghost sm" onclick={() => (choosing = choosing === a.name ? null : a.name)}
-                >{d?.winners.length ? "Someone else" : "Pick someone"}</button
+                >{d?.winners.length ? "Someone else" : "Choose someone"}</button
               >
             {/if}
           </div>
@@ -166,9 +249,26 @@
       {/each}
     </ol>
     {#if !awards.length}<p class="hint">This one has no awards. Add them under Edit this tournament.</p>{/if}
+    {#if calling}
+      <AwardCallSheet
+        bind:open={() => !!calling, (v) => !v && (calling = null)}
+        {tournament}
+        award={calling.name}
+        names={draft[calling.name]?.tied ? [] : callNames(calling)}
+        people={draft[calling.name]?.tied ?? playersOf(tournament)}
+        tie={!!draft[calling.name]?.tied}
+        onchoose={called}
+      />
+    {/if}
   {/if}
   {#snippet footer()}
-    <button class="btn primary confirm" onclick={confirm}><Icon name="check" size={18} />Confirm the awards</button>
+    <!-- Room for the line kept, so the button doesn't move as the calls are made -->
+    <p class="still hint" aria-live="polite">
+      {pending.length ? `Still to choose: ${pending.map((a) => a.name).join(", ")}` : "Voting closes as you confirm."}
+    </p>
+    <button class="btn primary confirm" disabled={busy || !!pending.length} onclick={confirm}
+      ><Icon name="check" size={18} />Confirm the awards</button
+    >
   {/snippet}
 </Drawer>
 
@@ -242,6 +342,18 @@
   }
   .pick-row:hover {
     background: var(--surface-2);
+  }
+  .called {
+    margin: 0;
+    color: var(--fg-muted);
+  }
+  .called b {
+    color: var(--fg);
+  }
+  .still {
+    min-height: 1.4rem;
+    margin: 0 0 var(--s-2);
+    text-align: center;
   }
   .confirm {
     width: 100%;

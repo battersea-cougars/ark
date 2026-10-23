@@ -126,7 +126,9 @@ describe("a tournament, from setting it up to the draft", () => {
     const t = seen.tournaments.find((x: Json) => x.id === id);
     // It copied the series' rules and awards, and has its captains, with no pick order till the draft draws one
     expect(t).toMatchObject({ heldOn: "2026-12-12", kind: "draft", gameMinutes: 12, feePence: 1000 });
-    expect(t.awards).toEqual([{ name: "Champions", about: "Top of the table." }]);
+    expect(t.awards).toEqual([
+      { name: "Champions", about: "Top of the table.", decidedBy: { kind: "stat", stat: "table" } },
+    ]);
     expect(t.teams.map((team: Json) => [team.captainMemberId, team.pick])).toEqual([
       [captains[0], null],
       [captains[1], null],
@@ -159,7 +161,9 @@ describe("a tournament, from setting it up to the draft", () => {
       status: "planned",
     });
     expect(t.teams).toEqual([]);
-    expect(t.awards).toEqual([{ name: "Champions", about: "Top of the table." }]);
+    expect(t.awards).toEqual([
+      { name: "Champions", about: "Top of the table.", decidedBy: { kind: "stat", stat: "table" } },
+    ]);
   });
 
   it("an admin deletes one: it's gone from the app and What's on, with its teams and sign-ups; a member can't", async () => {

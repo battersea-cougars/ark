@@ -661,13 +661,31 @@ export const clockGame = (tournamentId: number, gameId: number, action: "start" 
 export const nextPeriod = (tournamentId: number, gameId: number, period: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "period", period }), "");
 /** Who won a tournament's awards, the whole list (ADR 0044). */
-export const setWinners = (
+/**
+ * Confirming the awards (ADR 0044): every winner (a vote's the Worker counts), voting closed with it. A vote that's
+ * level after its tie-break comes back as `tied`, nothing saved, for the admin to choose among.
+ */
+export async function setWinners(
   tournamentId: number,
-  winners: { award: string; teamId: number | null; memberId: number | null }[],
-) => save(() => api("PUT", `/api/tournaments/${tournamentId}/winners`, { winners }), "Awards saved");
+  winners: { award: string; teamId: number | null; memberId: number | null; title?: string }[],
+) {
+  const r = await save(
+    () => api<{ tied?: Record<string, number[]> }>("PUT", `/api/tournaments/${tournamentId}/winners`, { winners }),
+    "",
+  );
+  if (r && !r.tied) say("Awards confirmed. On to the reveal.", false);
+  if (r?.tied) say("Level on votes: choose among them, then confirm.", false);
+  return r;
+}
 /** The next award revealed at the after-party (ADR 0074): `next`, its place in the list, the one shown face down. */
 export const revealAward = (tournamentId: number, next: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/awards/reveal`, { next }), "");
+/** Next award (ADR 0074): the drum rolls on from the one just revealed to the next, sealed; `at`, how many are out. */
+export const nextAward = (tournamentId: number, at: number) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/awards/next`, { at }), "");
+/** A member's votes for the after-party's voted awards (ADR 0044): one an award, secret, till they're confirmed. */
+export const castVotes = (tournamentId: number, votes: { award: string; memberId: number }[]) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/votes`, { votes }), "Votes in. The judges thank you.");
 /**
  * The Kumite simulation (ADR 0123, dev only): which tournament, running or paused, its speed and its last move. A
  * store, so the floating control (lib/SimulationControl) keeps it across the Kumite's views and the draft room; a

@@ -131,6 +131,8 @@ export interface ResultRows {
     teamId: number | null;
     memberName: string | null;
     memberWebName: string | null;
+    /** The judges' call's name on the night (ADR 0044); null for every other award. */
+    title?: string | null;
   }[];
 }
 
@@ -176,10 +178,21 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
 
     // The champions: as confirmed, else worked out from the games
     const winners = rows.winners.filter((w) => w.tournamentId === t.id);
-    const confirmed = winners.find((w) => w.award === "Champions" && w.teamId)?.teamId ?? null;
+    const list = JSON.parse(t.awards) as {
+      name: string;
+      about?: string;
+      decidedBy?: { kind: string; stat?: string };
+    }[];
+    // The champions' award: the one the table decides (ADR 0044), else (saved before it said how) by its name
+    const champs =
+      list.find((a) => a.decidedBy?.kind === "stat" && a.decidedBy.stat === "table")?.name ??
+      list.find((a) => !a.decidedBy && /champion/i.test(a.name))?.name ??
+      "Champions";
+    const confirmed = winners.find((w) => w.award === champs && w.teamId)?.teamId ?? null;
     const championId = confirmed ?? champion(teamIds, games, points);
-    const awards = (JSON.parse(t.awards) as { name: string; about?: string }[]).map((a) => ({
-      name: a.name,
+    const awards = list.map((a) => ({
+      // The judges' call goes by the name it was given on the night
+      name: winners.find((w) => w.award === a.name && w.title)?.title ?? a.name,
       about: a.about ?? "",
       winners: winners
         .filter((w) => w.award === a.name)

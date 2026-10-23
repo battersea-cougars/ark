@@ -5,6 +5,7 @@ import { batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { isSeason, seasonEnd, seasonYear, type Season } from "@cougars/shared/seasons";
 import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
 import type { Winner } from "./awards";
+import { STATS, decidedByOf, type Award, type DecidedBy, type PlayerStat } from "../../src/lib/awards";
 import type { Game } from "./fixtures";
 import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
@@ -51,13 +52,10 @@ interface TypeRow {
 export const KINDS = ["teams", "draft"] as const;
 type Kind = (typeof KINDS)[number];
 
-/** A tournament type's award (ADR 0044): what it's called and a line on what it's for. */
-export interface Award {
-  name: string;
-  about: string;
-}
+/** A tournament type's award (ADR 0044): what it's called, a line on what it's for, and how it's decided. */
+export type { Award };
 
-const parseAwards = (json: string): Award[] => {
+export const parseAwards = (json: string): Award[] => {
   try {
     const list = JSON.parse(json);
     return Array.isArray(list) ? list : [];
@@ -66,7 +64,36 @@ const parseAwards = (json: string): Award[] => {
   }
 };
 
-/** Up to 8 awards, each with a name; empty rows are dropped. */
+/** How an award's decided, checked (lib/awards.ts); left out, guessed from its name as it used to be, once. */
+function decidedByIn(a: Record<string, unknown>, name: string): DecidedBy {
+  const d = a.decidedBy;
+  if (d == null) return decidedByOf({ name });
+  if (typeof d !== "object") throw new HttpError(400, "decidedBy should say how it's decided.");
+  const o = d as Record<string, unknown>;
+  const kind = oneOf(o, "kind", ["stat", "vote", "live", "random"] as const);
+  if (kind === "stat") return { kind, stat: oneOf(o, "stat", STATS) };
+  if (kind === "vote") {
+    const voters = oneOf(o, "voters", ["players", "skaters"] as const);
+    if (o.tieBreak == null || o.tieBreak === "") return { kind, voters };
+    return {
+      kind,
+      voters,
+      tieBreak: oneOf(
+        o,
+        "tieBreak",
+        STATS.filter((s): s is PlayerStat => s !== "table"),
+      ),
+    };
+  }
+  if (kind === "live") {
+    const options = o.options ?? [];
+    if (!Array.isArray(options) || options.length > 12) throw new HttpError(400, "Up to 12 names for a live call.");
+    return { kind, options: options.map((name) => text({ name }, "name", { max: 40 })) };
+  }
+  return { kind };
+}
+
+/** Up to 8 awards, each with a name (no two the same) and how it's decided; empty rows are dropped. */
 function awardsOf(o: Record<string, unknown>): string {
   const list = o.awards ?? [];
   if (!Array.isArray(list)) throw new HttpError(400, "awards should be a list.");
@@ -74,9 +101,13 @@ function awardsOf(o: Record<string, unknown>): string {
     .map((a: Record<string, unknown>) => ({
       name: text(a, "name", { optional: true, max: 40 }).trim(),
       about: text(a, "about", { optional: true, max: 120 }).trim(),
+      a,
     }))
-    .filter((a) => a.name);
+    .filter((a) => a.name)
+    .map(({ name, about, a }) => ({ name, about, decidedBy: decidedByIn(a, name) }));
   if (awards.length > 8) throw new HttpError(400, "Up to 8 awards.");
+  if (new Set(awards.map((a) => a.name.toLowerCase())).size < awards.length)
+    throw new HttpError(400, "Two awards can't share a name.");
   return JSON.stringify(awards);
 }
 
@@ -272,6 +303,8 @@ export type TournamentListRow = {
   afterTime: string | null;
   afterNote: string;
   awardsRevealed: number;
+  awardsNext: number;
+  awardsConfirmedAt: string | null;
 };
 export type TournamentTeamRow = {
   id: number;
@@ -299,6 +332,8 @@ export function tournamentsFrom(
   players: TournamentPlayerRow[],
   games: Game[],
   winners: (Winner & { tournamentId: number })[],
+  votes: { tournamentId: number; award: string; cast: number; mine: number | null }[] = [],
+  titles: { tournamentId: number; award: string; title: string }[] = [],
 ) {
   return rows.map((t) => ({
     ...t,
@@ -307,10 +342,13 @@ export function tournamentsFrom(
       teams.some((team) => team.tournamentId === t.id),
     ),
     public: Boolean(t.public),
+    awardsNext: Boolean(t.awardsNext),
     awards: parseAwards(t.awards),
     playoffs: parsePlayoffs(t.playoffs),
     games: games.filter((g) => g.tournamentId === t.id).map(({ tournamentId: _, ...g }) => g),
     winners: winners.filter((x) => x.tournamentId === t.id).map(({ tournamentId: _, ...x }) => x),
+    votes: votes.filter((x) => x.tournamentId === t.id).map(({ tournamentId: _, ...x }) => x),
+    titles: titles.filter((x) => x.tournamentId === t.id).map(({ tournamentId: _, ...x }) => x),
     teams: teams
       .filter((team) => team.tournamentId === t.id)
       .map(({ tournamentId: _, ...team }) => ({

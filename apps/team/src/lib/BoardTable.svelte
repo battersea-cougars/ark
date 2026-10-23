@@ -1,7 +1,7 @@
 <script lang="ts">
   // A tournament's table (ADR 0061): its group games with a result, points, then goal difference, then goals for, with
-  // its own points for a win, draw and loss; the champions marked once it's decided. On the board, and on a past
-  // one's page (History).
+  // its own points for a win, draw and loss; the champions marked once it's decided. On the board, on a past one's
+  // page (History), and at the after-party in its final order.
   import { nameOfTeam, teamNamesOf } from "./names";
   import { PLAYERS } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
@@ -10,20 +10,30 @@
   import Icon from "../app/shell/Icon.svelte";
   import InkStamp from "./InkStamp.svelte";
   import { kanjiFor } from "./motif";
-  import { champion, table } from "./fixtures";
+  import { champion, table, type TableRow } from "./fixtures";
 
-  let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
+  let {
+    type,
+    tournament,
+    order,
+  }: {
+    type: TournamentType;
+    tournament: Tournament;
+    /** The rows in another order: the after-party's, the champions first (lib/afters.ts finalOrder). */
+    order?: TableRow[];
+  } = $props();
 
   // This tournament's own points (ADR 0030)
   const points = $derived({ win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss });
   const teams = $derived(tournament.teams);
   const group = $derived((tournament.games ?? []).filter((g) => g.stage === "group"));
   const rows = $derived(
-    table(
-      teams.flatMap((t) => (t.id ? [t.id] : [])),
-      group,
-      points,
-    ),
+    order ??
+      table(
+        teams.flatMap((t) => (t.id ? [t.id] : [])),
+        group,
+        points,
+      ),
   );
   // Who won, once it's decided: the final's winner, else the top of the table (lib/fixtures.ts)
   const champ = $derived(

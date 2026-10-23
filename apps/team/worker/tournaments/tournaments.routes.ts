@@ -1,7 +1,7 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
-import { revealAward, setWinners } from "./awards";
+import { castVotes, nextAward, revealAward, setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
@@ -98,13 +98,14 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     audit: {
       event: "tournament.winners",
       subject: rowsOf(
-        "SELECT award, team_id teamId, member_id memberId, position FROM tournament_award_winners WHERE tournament_id = ? ORDER BY award, position",
+        "SELECT award, team_id teamId, member_id memberId, position, title FROM tournament_award_winners WHERE tournament_id = ? ORDER BY award, position",
       ),
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
-    // { winners: [{ award, teamId | memberId }] }: who won the tournament's awards (ADR 0044)
-    handle: async (c) => (await setWinners(c.env.DB, id(c), await body(c.request)), ok()),
+    // { winners: [{ award, teamId | memberId, title? }] }: confirming the awards (ADR 0044), voting closed with it; a
+    // vote level after its tie-break comes back as `tied`, nothing saved, for the admin to choose
+    handle: async (c) => json({ ok: true, ...(await setWinners(c.env.DB, id(c), await body(c.request), c.now)) }),
   },
   {
     method: "POST",
@@ -126,6 +127,34 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     notify: awardsOut,
     // { next }: the award it reveals, by its place in the list, the one the tap saw face down (ADR 0074)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/awards\/next$/,
+    // Where the after-party's drum is: the award just out, or rolled on to the next, sealed
+    audit: {
+      event: "tournament.award_next",
+      subject: rowOf("SELECT id, name, awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?"),
+    },
+    action: "manage:Tournament",
+    // Everyone watching sees the drum roll on (ADR 0072)
+    changes: ["tournaments"],
+    calendar: false,
+    // { at }: how many were out when the tap saw it, so a double tap rolls it once (ADR 0074)
+    handle: async (c) => (await nextAward(c.env.DB, id(c), await body(c.request)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/votes$/,
+    // A secret ballot: the record says a vote was cast, never for whom (ADR 0044)
+    audit: { none: "a member's own vote, secret" },
+    // Whoever played (worker/tournaments/awards.ts castVotes decides)
+    action: "authenticated",
+    // The admin's count of votes in moves for everyone watching (ADR 0072)
+    changes: ["tournaments"],
+    calendar: false,
+    // { votes: [{ award, memberId }] }: one an award, never for yourself, till the awards are confirmed
+    handle: async (c) => (await castVotes(c.env.DB, id(c), c.memberId, await body(c.request), c.now), ok()),
   },
   {
     method: "POST",

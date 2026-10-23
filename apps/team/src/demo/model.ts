@@ -1,6 +1,7 @@
 // The team app's schedule model (ADR 0030). These are the shapes the D1 tables will have; the demo keeps them in
 // memory. Training repeats (series → sessions); tournaments are scheduled one by one under a type; anything else
 // is a one-off event. The calendar is all three together.
+import type { Award } from "../lib/awards";
 import type { PenaltyRule } from "../lib/penalties";
 import type { IconName } from "../app/shell/icons";
 import type { DatedFee } from "../lib/dues";
@@ -117,8 +118,8 @@ export interface TournamentType {
   /** Its usual hours, copied onto each new edition (ADR 0074). */
   defaultStartTime: string;
   defaultEndTime: string;
-  /** What's handed out at each edition (ADR 0044), shown on the website. */
-  awards: { name: string; about: string }[];
+  /** What's handed out at each edition (ADR 0044), shown on the website, each saying how it's decided. */
+  awards: Award[];
   /** The playoff games after the round robin, by table position (ADR 0061). */
   playoffs: Playoff[];
   /** Where its dates are, unless a date says otherwise (ADR 0030): a saved venue, else a name and map link. */
@@ -210,7 +211,7 @@ export interface Tournament extends Entries {
   breakMinutes?: number;
   /** How it makes teams (ADR 0030): teams enter, or captains draft members. */
   kind: TournamentKind;
-  awards: { name: string; about: string }[];
+  awards: Award[];
   /** The captains' draft, for a drafted one. */
   draftOn: string | null;
   /** Where its draft is (ADR 0060): none, scheduled (a day and captains), open (captains pick), closed (locked). */
@@ -220,9 +221,18 @@ export interface Tournament extends Entries {
   games?: TournamentGame[];
   /** Who won its awards (ADR 0044): a team or a player on one, by award name. A member is sent an award's winner on
    *  its evening only once it's been revealed. */
-  winners?: { award: string; teamId: number | null; memberId: number | null }[];
+  winners?: { award: string; teamId: number | null; memberId: number | null; title?: string | null }[];
   /** How many of its awards have been revealed at the after-party, in the order listed (ADR 0074). */
   awardsRevealed?: number;
+  /** The after-party's one card, a drum (ADR 0074): rolled on from the last one revealed to the next, sealed. */
+  awardsNext?: boolean;
+  /** When an admin confirmed the awards the data decides (ADR 0044); null: not yet. */
+  awardsConfirmedAt?: string | null;
+  /** Each voted award's votes (ADR 0044), cast till the awards are confirmed: how many are in, and the one you cast
+   *  (never anyone else's). */
+  votes?: { award: string; cast: number; mine: number | null }[];
+  /** The judges' call's name tonight, once the awards are confirmed (ADR 0044): everyone's, before it's revealed. */
+  titles?: { award: string; title: string }[];
   /** Its teams: in pick order for a draft, else in the order they entered. */
   teams: TournamentTeam[];
   /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own (the three below), or none this time.

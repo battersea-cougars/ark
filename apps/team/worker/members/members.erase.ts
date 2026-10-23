@@ -1,7 +1,7 @@
 // A member's right to go, and to see what's held about them (#30, ADR 0029). Erasing keeps the member's row, so the
 // club's records still add up (a payment, last Friday's numbers, a goal), but empties everything that says who they
 // were: they become "Former member", with no email, phone, bio or bank reference, and no way back in. Their roles,
-// sessions, sign-in codes, notification choices and places for what's still to come go. Earlier audit entries stop
+// sessions, sign-in codes, notification choices, award votes and places for what's still to come go. Earlier audit entries stop
 // naming them.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fillingUp } from "../entries/entries";
@@ -71,6 +71,8 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     q("DELETE FROM email_changes WHERE member_id = ?", id),
     q("DELETE FROM passkeys WHERE member_id = ?", id),
     q("DELETE FROM notification_prefs WHERE member_id = ?", id),
+    // The votes they cast for an award (ADR 0044): theirs, secret, so they go
+    q("DELETE FROM tournament_award_votes WHERE voter_member_id = ?", id),
     // Places for what's still to come are given up; what's been played stays, about nobody
     q(
       "DELETE FROM attendance WHERE member_id = ? AND session_id IN (SELECT id FROM training_sessions WHERE held_on >= ?)",
@@ -176,6 +178,14 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       ),
       statement(db, "SELECT at, action FROM audit_log WHERE member_id = ? ORDER BY id", [id]),
       statement(db, "SELECT topic, enabled FROM notification_prefs WHERE member_id = ? ORDER BY topic", [id]),
+      // The votes you cast for an award (ADR 0044): secret from everyone else, yours to see
+      statement(
+        db,
+        `SELECT t.name tournament, v.award, c.name votedFor, v.cast_at castAt FROM tournament_award_votes v
+         JOIN tournaments t ON t.id = v.tournament_id JOIN members c ON c.id = v.candidate_member_id
+         WHERE v.voter_member_id = ? ORDER BY v.cast_at`,
+        [id],
+      ),
       // Your passkeys (ADR 0023): what each is called and when; the public key is no use to anyone, so it isn't here
       statement(
         db,
@@ -184,8 +194,20 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       ),
     ])
   ).map((r) => r.results);
-  const [roles, training, tournaments, events, plans, charges, payments, devices, record, notifications, passkeys] =
-    rows;
+  const [
+    roles,
+    training,
+    tournaments,
+    events,
+    plans,
+    charges,
+    payments,
+    devices,
+    record,
+    notifications,
+    votes,
+    passkeys,
+  ] = rows;
   const data = {
     about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
     downloadedOn: today,
@@ -193,6 +215,7 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
     roles: (roles as { name: string }[]).map((r) => r.name),
     training,
     tournaments,
+    votes,
     events,
     plans,
     charges,

@@ -163,15 +163,20 @@ describe("simulating the rest of a Kumite, on dev", () => {
     // At its after-party that evening, the awards provisional: from the data, nothing confirmed or revealed
     expect(atAfters(t, londonEvening(EVENING.now))).toBe(true);
     const positionOf = (m: number) => ROSTER.find((r) => k.idOf(r.name) === m)?.position;
-    expect(awardFromData("Champions", t, { positionOf })?.winners).toHaveLength(1);
-    expect(awardFromData("Top scorer", t, { positionOf })?.winners.length).toBeGreaterThan(0);
+    const award = (name: string) => t.awards.find((a: Json) => a.name === name);
+    expect(awardFromData(award("Champions"), t, { positionOf })?.winners).toHaveLength(1);
+    expect(awardFromData(award("Top scorer"), t, { positionOf })?.winners.length).toBeGreaterThan(0);
     expect(t.winners).toEqual([]);
     expect(t.awardsRevealed).toBe(0);
     // ...so the admin confirms them and reveals them by hand, as on the night
     const confirmed = await k.dana.call(
       "PUT",
       `/api/tournaments/${k.id}/winners`,
-      { winners: [{ award: "Champions", teamId: awardFromData("Champions", t, { positionOf })!.winners[0].teamId }] },
+      {
+        winners: [
+          { award: "Champions", teamId: awardFromData(award("Champions"), t, { positionOf })!.winners[0].teamId },
+        ],
+      },
       EVENING,
     );
     expect(confirmed.status).toBe(200);

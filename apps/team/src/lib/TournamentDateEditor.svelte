@@ -51,6 +51,8 @@
   import { seriesToOpen } from "../pages/TournamentSeries.svelte";
   import { seasonEnd, seasonLabel, seasonOf, seasonsFrom, seasonYear, type Season } from "@cougars/shared/seasons";
   import type { Edits } from "./dirty.svelte";
+  import AwardsField from "./AwardsField.svelte";
+  import { withDecidedBy, type Award } from "./awards";
 
   let {
     dateId,
@@ -110,11 +112,10 @@
     defaultPenaltyMinutes: number;
     breakMinutes: number;
     kind: TournamentKind;
-    awards: { name: string; about: string }[];
+    awards: Award[];
     playoffs: Playoff[];
     teams: TournamentTeam[];
   }
-  const MAX_AWARDS = 8;
 
   // A new date's season: next summer, unless this one is still to come
   const thisYear = Number(londonToday().slice(0, 4));
@@ -157,7 +158,7 @@
         defaultPenaltyMinutes: t.defaultPenaltyMinutes ?? 2,
         breakMinutes: t.breakMinutes ?? 2,
         kind: t.kind,
-        awards: t.awards.map((a) => ({ ...a })),
+        awards: withDecidedBy(t.awards),
         playoffs: (t.playoffs ?? []).map((g) => ({ ...g })),
         teams: t.teams.map((team) => ({ ...team, players: team.players.map((p) => ({ ...p })) })),
       };
@@ -239,7 +240,7 @@
     date.defaultPenaltyMinutes = t.defaultPenaltyMinutes;
     date.breakMinutes = t.breakMinutes;
     date.kind = t.kind;
-    date.awards = t.awards.map((a) => ({ ...a }));
+    date.awards = withDecidedBy(t.awards);
     date.playoffs = (t.playoffs ?? []).map((g) => ({ ...g }));
   }
 
@@ -592,37 +593,7 @@
             <PlayoffsField bind:playoffs={date.playoffs} teams={date.teams.length} />
           </FormSection>
           <FormSection title="Awards" description="Handed out on the day, and shown on the website.">
-            {#each date.awards as award, i (i)}
-              <div class="award">
-                <input
-                  class="input"
-                  aria-label="Award"
-                  placeholder="e.g. The Dim Mak"
-                  maxlength="40"
-                  bind:value={award.name}
-                />
-                <input
-                  class="input"
-                  aria-label="What it's for"
-                  placeholder="e.g. Fastest goal from a faceoff"
-                  maxlength="120"
-                  bind:value={award.about}
-                />
-                <button
-                  type="button"
-                  class="btn sm ghost"
-                  aria-label="Remove {award.name || 'this award'}"
-                  onclick={() => date.awards.splice(i, 1)}
-                >
-                  <Icon name="x" size={16} />
-                </button>
-              </div>
-            {/each}
-            {#if date.awards.length < MAX_AWARDS}
-              <button type="button" class="btn sm add-award" onclick={() => date.awards.push({ name: "", about: "" })}>
-                <Icon name="plus" size={16} />Award
-              </button>
-            {/if}
+            <AwardsField bind:awards={date.awards} />
           </FormSection>
         {:else if tab === "signup"}
           <FormSection
@@ -787,23 +758,8 @@
       grid-template-columns: minmax(0, 1fr);
     }
   }
-  /* An award: its name, then what it's for (wider), and remove */
-  .award {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
-    gap: var(--s-2);
-    align-items: center;
-  }
   .add-award {
     justify-self: start;
-  }
-  @container (max-width: 34rem) {
-    .award {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-    .award > input:nth-child(2) {
-      grid-row: 2;
-    }
   }
   .link {
     padding: 0;

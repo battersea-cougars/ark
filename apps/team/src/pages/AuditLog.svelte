@@ -274,7 +274,9 @@
       case "tournament.updated":
         return `${who} edited ${str(to?.name ?? from?.name)}`;
       case "tournament.winners":
-        return `${who} set a tournament's winners`;
+        return `${who} confirmed a tournament's awards`;
+      case "tournament.award_next":
+        return `${who} rolled ${str(to?.name)}'s after-party on to the next award`;
       case "tournament.award_revealed":
         return `${who} revealed ${str(to?.award)} at ${str(to?.name)}'s after-party: ${Number(to?.revealed ?? 0)} out`;
       case "tournament.moved": {

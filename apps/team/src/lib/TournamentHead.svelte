@@ -235,7 +235,7 @@
       now.push({
         icon: "medal",
         label: "Confirm the awards",
-        sub: "From the results; the Dim Mak's a draw",
+        sub: "The stats, the votes, the judges' call; then the reveal",
         run: () => enterAwards(t.id),
       });
     // Dev only (ADR 0123): the rest played out at random, to the after-party, while there's something left to play

@@ -94,6 +94,8 @@ export const SLICES = {
       "goals",
       "penalties",
       "winners",
+      "votes",
+      "awardTitles",
       "tournamentEntries",
     ],
     shape: (c: Ctx, p: Parts) =>
@@ -106,6 +108,8 @@ export const SLICES = {
             p.tournamentPlayers,
             gamesFrom(p.games, p.goals, p.tournamentTeams, p.penalties),
             p.winners,
+            p.votes,
+            p.awardTitles,
           ),
           p.tournamentEntries,
         ),

@@ -12,11 +12,12 @@
   import { createTournamentType, updateTournamentType } from "../app/backend.svelte";
   import { TOURNAMENT_KINDS, type TournamentType } from "../demo/model";
   import { db } from "../demo/store.svelte";
-  import Icon from "../app/shell/Icon.svelte";
   import StylePicker from "./StylePicker.svelte";
   import FormSection from "./FormSection.svelte";
   import PlacePicker from "./PlacePicker.svelte";
   import AfterFields from "./AfterFields.svelte";
+  import AwardsField from "./AwardsField.svelte";
+  import { withDecidedBy } from "./awards";
   import { HOUSE_RULES_MAX } from "./format-rules";
   import type { Edits } from "./dirty.svelte";
 
@@ -63,16 +64,21 @@
     afterNote: "",
     houseRules: "",
     awards: [
-      { name: "Champions", about: "The team on top of the table at the end of the day." },
-      { name: "Top scorer", about: "Most goals across every game." },
+      {
+        name: "Champions",
+        about: "The team on top of the table at the end of the day.",
+        decidedBy: { kind: "stat", stat: "table" },
+      },
+      { name: "Top scorer", about: "Most goals across every game.", decidedBy: { kind: "stat", stat: "goals" } },
     ],
     playoffs: [{ name: "Final", home: 1, away: 2 }],
   });
-  const MAX_AWARDS = 8;
 
   $effect(() => {
     const t = selected === "new" ? blank() : db.tournamentTypes.find((x) => x.id === selected);
     form = t ? structuredClone($state.snapshot(t)) : null;
+    // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
+    if (form) form.awards = withDecidedBy(form.awards);
     // Loaded (or loaded again, after a save): what's on screen now is what's saved
     edits?.reset();
   });
@@ -263,41 +269,7 @@
             </FormSection>
             <!-- What's handed out on the day, shown on the website. A fun one is half the point. -->
             <FormSection title="Awards" description="Handed out on the day, and shown on the website.">
-              {#each form.awards as award, i (i)}
-                <div class="award">
-                  <input
-                    class="input"
-                    aria-label="Award"
-                    placeholder="e.g. The Dim Mak"
-                    maxlength="40"
-                    bind:value={award.name}
-                  />
-                  <input
-                    class="input"
-                    aria-label="What it's for"
-                    placeholder="e.g. Fastest goal from a faceoff"
-                    maxlength="120"
-                    bind:value={award.about}
-                  />
-                  <button
-                    type="button"
-                    class="btn sm ghost"
-                    aria-label="Remove {award.name || 'this award'}"
-                    onclick={() => form?.awards.splice(i, 1)}
-                  >
-                    <Icon name="x" size={16} />
-                  </button>
-                </div>
-              {/each}
-              {#if form.awards.length < MAX_AWARDS}
-                <button
-                  type="button"
-                  class="btn sm add-award"
-                  onclick={() => form?.awards.push({ name: "", about: "" })}
-                >
-                  <Icon name="plus" size={16} />Award
-                </button>
-              {/if}
+              <AwardsField bind:awards={form.awards} />
             </FormSection>
           {/if}
         </div>
@@ -339,23 +311,5 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--s-5) var(--s-8);
-  }
-  /* An award: its name, then what it's for (wider), and remove */
-  .award {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
-    gap: var(--s-2);
-    align-items: center;
-  }
-  .add-award {
-    justify-self: start;
-  }
-  @container (max-width: 34rem) {
-    .award {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-    .award > input:nth-child(2) {
-      grid-row: 2;
-    }
   }
 </style>

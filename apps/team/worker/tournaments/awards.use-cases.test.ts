@@ -66,8 +66,8 @@ describe("who won the awards", () => {
     ).toBe(200);
     const mo = await w.signedIn("mo@example.com");
     expect((await tournament(mo)).winners).toEqual([
-      { award: "Champions", teamId: ants, memberId: null },
-      { award: "Top scorer", teamId: null, memberId: idOf("Cole Captain") },
+      { award: "Champions", teamId: ants, memberId: null, title: null },
+      { award: "Top scorer", teamId: null, memberId: idOf("Cole Captain"), title: null },
     ]);
     // Changed their mind: the list is the whole list
     await winners(dana, [{ award: "Champions", teamId: ants }]);

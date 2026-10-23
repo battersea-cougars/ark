@@ -263,7 +263,13 @@ CREATE TABLE tournaments (
   after_time TEXT,
   after_note TEXT NOT NULL DEFAULT '',
   -- How many of its awards have been revealed at the after-party, in the order listed (ADR 0074): one more a tap
-  awards_revealed INTEGER NOT NULL DEFAULT 0
+  awards_revealed INTEGER NOT NULL DEFAULT 0,
+  -- The after-party's one card (ADR 0074), a drum: 0 shows the last one revealed (or the first, sealed, before any);
+  -- 1, rolled on to the next one, sealed. Each tap moves it one
+  awards_next INTEGER NOT NULL DEFAULT 0,
+  -- When an admin confirmed the awards the data decides (ADR 0044): a stat's or a draw's. Voted and live awards are
+  -- decided at the reveal, so a tournament with only those needs no confirming
+  awards_confirmed_at TEXT
 );
 
 CREATE INDEX tournaments_held_on ON tournaments (held_on);
@@ -709,15 +715,29 @@ CREATE TABLE website_rebuild (
   wanted_at TEXT NOT NULL
 );
 
--- Who won a tournament's awards (apps/team/worker/awards.ts, ADR 0044): a team (Champions) or a player on one of its
--- teams (Top scorer). The award is one of the tournament's own, by name (tournaments.awards).
+-- Who won a tournament's awards (apps/team/worker/tournaments/awards.ts, ADR 0044): a team (Champions) or a player on
+-- one of its teams (Top scorer). The award is one of the tournament's own, by name (tournaments.awards). An admin's
+-- live call is named on the night: `title` is the name they chose ("Most Dramatic Fall"); null for every other award.
 CREATE TABLE tournament_award_winners (
   tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
   award TEXT NOT NULL,
   team_id INTEGER REFERENCES tournament_teams (id) ON DELETE CASCADE,
   member_id INTEGER REFERENCES members (id) ON DELETE CASCADE,
   position INTEGER NOT NULL DEFAULT 0,
+  title TEXT,
   PRIMARY KEY (tournament_id, award, position)
+);
+
+-- The votes for a voted award (ADR 0044): one a voter an award, secret (nobody's sent who voted for whom but the voter),
+-- never for themselves. Cast once the last match is played, until the award's revealed; the reveal counts them.
+CREATE TABLE tournament_award_votes (
+  tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
+  award TEXT NOT NULL,
+  voter_member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  candidate_member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  cast_at TEXT NOT NULL,
+  PRIMARY KEY (tournament_id, award, voter_member_id),
+  CHECK (voter_member_id <> candidate_member_id)
 );
 
 -- The club's settings for the team app (apps/team/worker/settings.ts, ADR 0072): one row, made on the first save.
