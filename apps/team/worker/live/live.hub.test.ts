@@ -128,15 +128,18 @@ describe("the live hub", () => {
     await phone.close();
   });
 
-  it("keeps the connection warm every 30 seconds while someone's listening", async () => {
+  it("pings as a stream opens and every 30 seconds after, as an event the page hears", async () => {
     const hub = new LiveHub();
     const res = await hub.fetch(new Request("https://live/subscribe"));
     expect(res.headers.get("content-type")).toBe("text/event-stream");
     const reader = res.body!.getReader();
-    const first = new TextDecoder().decode((await reader.read()).value);
-    expect(first).toContain("retry: 10000");
+    const read = async () => new TextDecoder().decode((await reader.read()).value);
+    expect(await read()).toBe("retry: 10000\n\n");
+    expect(await read()).toBe("event: ping\ndata: {}\n\n");
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(new TextDecoder().decode((await reader.read()).value)).toBe(": ping\n\n");
+    expect(await read()).toBe("event: ping\ndata: {}\n\n");
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(await read()).toBe("event: ping\ndata: {}\n\n");
     await reader.cancel();
   });
 

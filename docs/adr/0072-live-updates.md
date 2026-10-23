@@ -28,8 +28,11 @@ The club may one day pay for hosting, when checking more often costs next to not
   fan-out object is fine.
 - **`GET /api/live` is a Server-Sent Events stream** for any signed-in member. Its events are only the names of the
   club's parts that changed ([0057](0057-team-app-loading-and-changes.md)'s slices), never data; what a member sees
-  still comes from their own bootstrap. A server without a hub answers 503. The hub sends a comment every 30 seconds
-  so dead phones are dropped.
+  still comes from their own bootstrap. A server without a hub answers 503. The hub sends a `ping` event every 30 seconds
+  and one as each stream opens (`HEARTBEAT_MS`, in `src/lib/live-stream.ts`), so dead phones are dropped, and a page
+  that hears nothing for a beat and a half (`SILENCE_MS`, 45 seconds) knows its stream is dead even when the browser
+  never says so: it stops saying "Live", closes it, and reconnects on the usual backoff, reading what it missed. No
+  watch while the page is out of view (its stream is closed then).
 - **Each stream is a member's and a sign-in's.** One member holds at most three (`STREAMS_PER_MEMBER`); a fourth
   closes their oldest, so a stale one never shuts out the page in front of them and nobody holds dozens (#73). Ending
   a sign-in (signing out, an admin's Sign out everywhere, a new email, being made inactive, deleting the account)
@@ -112,3 +115,7 @@ The club may one day pay for hosting, when checking more often costs next to not
   read doesn't check again (#112). Before, every event was a whole-club reload on every phone.
 - 2026-10-21: A member holds at most three streams (a fourth closes their oldest), and a stream closes when its sign-in
   ends; the hub knows each stream's member and session (#72, #73).
+- 2026-10-23: The heartbeat is a `ping` event, not an SSE comment (which a browser never passes to the page), sent as
+  each stream opens and every 30 seconds; a page that hears nothing for 45 seconds treats its stream as dead (not
+  "Live", closed, reconnected with the backoff and a catch-up). Before, a silently dead connection (a phone that
+  changed networks, a proxy holding the socket) could say "Live" for minutes after updates stopped.

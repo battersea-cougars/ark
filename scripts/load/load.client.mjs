@@ -161,6 +161,8 @@ export async function phone(target, email, stats, { address } = {}) {
         for (let at = buffered.indexOf("\n\n"); at >= 0; at = buffered.indexOf("\n\n")) {
           const block = buffered.slice(0, at);
           buffered = buffered.slice(at + 2);
+          // The hub's heartbeat (a ping every 30 seconds) says nothing changed
+          if (!block.split("\n").includes("event: changed")) continue;
           const data = block
             .split("\n")
             .find((l) => l.startsWith("data:"))

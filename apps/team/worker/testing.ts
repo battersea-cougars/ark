@@ -585,7 +585,7 @@ export function testWorld(roster: object[]) {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
     let buffered = "";
-    /** The next event (not a comment), as {event, data}. */
+    /** The next event (not a comment, nor the hub's heartbeat), as {event, data}. */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async function next(): Promise<{ event: string; data: any }> {
       for (;;) {
@@ -601,8 +601,9 @@ export function testWorld(roster: object[]) {
               ?.slice(name.length + 1)
               .trim();
           const data = field("data");
-          if (data === undefined) continue;
-          return { event: field("event") ?? "message", data: JSON.parse(data) };
+          const event = field("event") ?? "message";
+          if (data === undefined || event === "ping") continue;
+          return { event, data: JSON.parse(data) };
         }
         const { value, done } = await reader.read();
         if (done) throw new Error("the stream ended");

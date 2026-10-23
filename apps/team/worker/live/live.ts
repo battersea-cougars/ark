@@ -7,11 +7,10 @@
 // sign-in's: three a member at most, and closed when its sign-in ends (#72, #73). Written in the classic Durable
 // Object shape, with no runtime imports, so the tests hold a real one.
 import { scribe } from "@cougars/shared/scribe";
+import { HEARTBEAT_MS } from "../../src/lib/live-stream";
 
 const log = scribe.logger("live");
 
-/** How often a comment goes down every stream, so a phone that's gone is dropped and the connection stays warm. */
-const HEARTBEAT_MS = 30_000;
 /** What a browser waits before reconnecting on its own; the app closes and reconnects through its brake instead. */
 const RETRY_MS = 10_000;
 
@@ -23,6 +22,12 @@ const SSE_HEADERS = {
 
 const encoder = new TextEncoder();
 const frame = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+/**
+ * Down every stream every beat (HEARTBEAT_MS), and as each opens: a phone that's gone is dropped, the connection stays
+ * warm, and the page hears the hub's there, so it can tell a dead stream from a quiet one (lib/live-stream.ts). An
+ * event, not a comment: a browser never passes a comment on to the page.
+ */
+const PING = frame("ping", {});
 
 /** At most one event this often: the changes in between go out together, at the end of it. */
 const EVENT_EVERY_MS = 1000;
@@ -124,8 +129,9 @@ export class LiveHub {
       start: (c) => {
         controller = c;
         this.streams.set(c, who);
-        c.enqueue(encoder.encode(`retry: ${RETRY_MS}\n: hello\n\n`));
-        this.heartbeat ??= setInterval(() => this.send(encoder.encode(": ping\n\n")), HEARTBEAT_MS);
+        c.enqueue(encoder.encode(`retry: ${RETRY_MS}\n\n`));
+        c.enqueue(PING);
+        this.heartbeat ??= setInterval(() => this.send(PING), HEARTBEAT_MS);
       },
       // The page closed it, or the connection went
       cancel: () => this.drop(controller),

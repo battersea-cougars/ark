@@ -1,7 +1,8 @@
 // Live pages follow along (ADR 0072): a game being scored, the tournament's home while a game's on, the draft room
 // while it's open. The page holds one stream from the club's live hub, which says which parts of the club changed
 // the moment they do; the app then reads just those parts (one read at a time, after a short random wait, so a burst
-// is one read: app/catch-up.ts, #112). While the stream's open the page still checks every minute, as a safety net
+// is one read: app/catch-up.ts, #112). The stream itself, and the hub's heartbeat that tells a dead one from a quiet
+// one, are lib/live-stream.ts. While the stream's open the page still checks every minute, as a safety net
 // (a 304 when the copy has every change); when it's down (a dropped connection, a server
 // without a hub), it checks on the admins' beat instead (ADR 0072), and says so. Only while the page is in view; the
 // brake (ADR 0055) still has the last word: a connect is one of the tab's calls, and nothing goes out while it rests.
@@ -9,6 +10,7 @@ import { brake } from "../app/api";
 import { checked, copy, refreshIfChanged } from "../app/backend.svelte";
 import type { Heard } from "../app/catch-up";
 import { db } from "../demo/store.svelte";
+import { keepStream } from "./live-stream";
 
 /** Seconds between checks, as the admins set it: the pace when there's no stream. */
 export const liveRefreshSeconds = () => db.settings.liveRefreshSeconds;
@@ -24,9 +26,6 @@ export const liveFeed = $state({ on: false });
 
 /** While the stream's open, a check this often anyway. */
 const SAFETY_MS = 60_000;
-/** Reconnecting after the stream drops: this long, doubling each time, up to five minutes. */
-const FIRST_RETRY_MS = 10_000;
-const MAX_RETRY_MS = 5 * 60_000;
 
 /** The club read this recently (the app just opened): a page opening now doesn't check again. */
 const FRESH_MS = 10_000;
@@ -53,75 +52,45 @@ function whatChanged(data: string, follow: readonly string[]): Pick<Heard, "chan
  * stream across the whole club doesn't spend the day's requests.
  */
 export function checkForUpdates(follow: readonly string[] = ["tournaments"], { steady = false } = {}) {
-  let source: EventSource | null = null;
   let beat: ReturnType<typeof setInterval> | undefined;
-  let retry: ReturnType<typeof setTimeout> | undefined;
-  let wait = FIRST_RETRY_MS;
-  let stopped = false;
+  let streaming = false;
 
   const check = () => {
     if (document.visibilityState === "visible") refreshIfChanged().catch(() => {});
   };
   const onBeat = () => {
     clearInterval(beat);
-    beat = setInterval(check, source || steady ? SAFETY_MS : liveRefreshSeconds() * 1000);
+    beat = setInterval(check, streaming || steady ? SAFETY_MS : liveRefreshSeconds() * 1000);
   };
   const opened = (on: boolean) => {
+    streaming = on;
     streams += on ? 1 : -1;
     liveFeed.on = streams > 0;
-  };
-
-  /** Open the stream, if the page's in view and the brake allows; `catchUp` reads what happened meanwhile. */
-  const connect = (catchUp: boolean) => {
-    clearTimeout(retry);
-    if (stopped || source || document.visibilityState !== "visible") return;
-    if (!brake.mayCheck() || brake.take()) return later();
-    const es = new EventSource("/api/live");
-    source = es;
-    es.onopen = () => {
-      wait = FIRST_RETRY_MS;
-      opened(true);
-      onBeat();
-      if (catchUp) check();
-    };
-    // The app's copy reads what it lacks, if this page (or another open) follows any of it
-    es.addEventListener("changed", (e: MessageEvent<string>) => copy.hear(whatChanged(e.data, follow)));
-    // Dropped, refused (a server without a hub answers 503), or the day's allowance is spent: the browser would try
-    // again in a few seconds forever; the app waits longer each time, and checks on the admins' beat meanwhile
-    es.onerror = () => drop(true);
-  };
-  const drop = (andRetry: boolean) => {
-    if (!source) return;
-    source.close();
-    source = null;
-    opened(false);
     onBeat();
-    if (andRetry) later();
-  };
-  const later = () => {
-    clearTimeout(retry);
-    retry = setTimeout(() => connect(true), wait);
-    wait = Math.min(wait * 2, MAX_RETRY_MS);
-  };
-  // Out of view: the stream closes (nothing to show, and the hub's time isn't spent on it). Back in view: it reopens;
-  // what happened meanwhile is read by the app itself (backend.svelte.ts)
-  const onVisible = () => {
-    if (document.visibilityState === "visible") connect(false);
-    else drop(false);
   };
 
-  document.addEventListener("visibilitychange", onVisible);
   const unfollow = copy.follow(follow);
   // Opened just after the app read the club (Home, as the app opens): nothing to check yet (ADR 0120)
   if (Date.now() - checked.at > FRESH_MS) check();
+  const stream = keepStream({
+    open: () => new EventSource("/api/live"),
+    visible: () => document.visibilityState === "visible",
+    mayConnect: () => brake.mayCheck() && !brake.take(),
+    opened: (catchUp) => {
+      opened(true);
+      if (catchUp) check();
+    },
+    closed: () => opened(false),
+    // The app's copy reads what it lacks, if this page (or another open) follows any of it
+    changed: (data) => copy.hear(whatChanged(data, follow)),
+  });
+  const onVisible = () => stream.visibilityChanged();
+  document.addEventListener("visibilitychange", onVisible);
   onBeat();
-  connect(false);
   return () => {
-    stopped = true;
     unfollow();
     document.removeEventListener("visibilitychange", onVisible);
+    stream.stop();
     clearInterval(beat);
-    clearTimeout(retry);
-    drop(false);
   };
 }
