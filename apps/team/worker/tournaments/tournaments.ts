@@ -515,6 +515,15 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
   return teams;
 }
 
+/** Every member the teams name (captains and players), once each. */
+const namedIn = (teams: TeamIn[]) =>
+  [...new Set(teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]))].filter(
+    (m) => m !== null,
+  );
+
+/** SQL: how many of these members (a JSON list) there are, to see that every one the teams name is a member. */
+const KNOWN = "SELECT count(*) n FROM members WHERE id IN (SELECT value FROM json_each(?))";
+
 /**
  * Save a tournament's teams as the editor sends them (ADR 0060): each one changed in place (by its id, or in a draft
  * by its captain), new ones added, missing ones removed. A draft's picks and pick order are never touched here (the
@@ -523,14 +532,10 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
 async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] | null, now = new Date()) {
   if (!teams) return;
   // What it's checked against, in one round trip
-  const named = [...new Set(teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]))].filter(
-    (m) => m !== null,
-  );
+  const named = namedIn(teams);
   const captains = teams.map((t) => t.captainMemberId).filter((m) => m !== null);
   const [known, teamRows, draft, carriedRows] = await batch(db, [
-    statement(db, "SELECT count(*) n FROM members WHERE id IN (SELECT value FROM json_each(?))", [
-      JSON.stringify(named),
-    ]),
+    statement(db, KNOWN, [JSON.stringify(named)]),
     statement(
       db,
       "SELECT id, captain_member_id captain, name FROM tournament_teams WHERE tournament_id = ? ORDER BY coalesce(pick, 1000), id",
@@ -761,6 +766,10 @@ export async function createTournament(db: D1Database, given: Record<string, unk
   const fields = [...(await tournamentFields(db, o)), ...rules, ...(await tournamentAfterOf(db, o))];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
+  // Its teams' members checked before it goes in, as every other refusal is (#132): a refused create makes nothing
+  const named = teams ? namedIn(teams) : [];
+  if (named.length && (await first<{ n: number }>(db, KNOWN, [JSON.stringify(named)]))?.n !== named.length)
+    throw new HttpError(400, "No such member.");
   const res = await run(
     db,
     `INSERT INTO tournaments (type_id, name, venue_id, location, map_url, held_on, start_time, end_time, capacity, status, fee_pence,

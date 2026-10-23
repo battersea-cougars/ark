@@ -172,9 +172,8 @@ describe("an admin sets a tournament's teams", () => {
     expect((await dana.boot()).tournaments.filter((t: Json) => t.name === "Winter Cup")).toEqual([]);
   });
 
-  // The tournament goes in before its teams are checked against the members, so a refusal there leaves it behind,
-  // with no teams. https://github.com/battersea-cougars/ark/issues/132
-  it.fails("a create refused for a captain who isn't a member leaves nothing behind (known bug #132)", async () => {
+  // Its teams are checked against the members before it goes in (#132: a refusal there left it behind, with no teams)
+  it("a create refused for a captain who isn't a member leaves nothing behind", async () => {
     const dana = await admin();
     const cara = await dana.idOf("Cara Captain");
     const nobody = await dana.create({
