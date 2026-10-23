@@ -56,6 +56,20 @@ describe("a journey moving the club's clock", () => {
     expect((await answer("next Monday")).status).toBe(409);
   });
 
+  it("on dev, only an admin (manage:all) moves the clock: a member saying the time is on the real one", async () => {
+    w.env.SITE_ENV = "dev";
+    const mia = await fridayFor("mia@example.com");
+    expect((await mia.answer(MONDAY_MORNING)).status).toBe(409);
+    const dana = await fridayFor("dana@example.com");
+    expect((await dana.answer(MONDAY_MORNING)).status).toBe(200);
+  });
+
+  it("only a whole ISO time in UTC moves it: a loose one ('1', a year past 9999, no zone) is the real clock's", async () => {
+    const { answer } = await fridayFor("mia@example.com");
+    for (const loose of ["1", "+275760-09-13T00:00:00Z", "2026-10-12T08:00:00", "2026-10-12"])
+      expect((await answer(loose)).status).toBe(409);
+  });
+
   it("who's signed in keeps the real clock: a year on, her session still counts", async () => {
     const { answer } = await fridayFor("mia@example.com");
     // A year and a day after NOW is past any session's lifetime: moved, it would be signed out

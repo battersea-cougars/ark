@@ -168,10 +168,8 @@ export async function handleApi(
     }
   }
   if (!hit) return json({ error: match.length ? "Method not allowed." : "Not found." }, match.length ? 405 : 404);
-  // A journey may move the club's clock, on dev or your own machine only (api.dev-clock.ts); who's signed in is the
-  // real clock's
+  // Who's signed in is the real clock's, whatever a journey says (below)
   const signedInAt = now;
-  now = devClock(request, env) ?? now;
   // Who it was, for the log if it fails: their number only, never their name or email (ADR 0110)
   let member: number | undefined;
   // A renewed session's cookie goes back on a refusal too, or the member is signed out once the old one's grace ends
@@ -195,6 +193,8 @@ export async function handleApi(
         "That's a lot of changes at once. Wait a minute.",
       );
     const actions = await actionsOf(env.DB, memberId);
+    // A journey may move the club's clock, on dev (an admin) or your own machine only (api.dev-clock.ts)
+    now = devClock(request, env, actions) ?? now;
     const { action } = hit.r;
     if (action !== "authenticated" && !actions.has("manage:all") && !actions.has(action)) {
       // Refused for want of an action: on the record (ADR 0024), so poking at admin routes is seen, once a minute at

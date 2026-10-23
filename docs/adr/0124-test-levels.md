@@ -39,7 +39,8 @@ browser, through a whole workflow as each person in it (#154).
   only (the wizard's default) and played tonight, so it's the evening a match kicked off, not its date, that counts.
 - **Both clocks move where a day is under test**: `at(person, when)` sets their browser's clock (Playwright's) and the
   server's for their requests (`x-dev-now`, `worker/api/api.dev-clock.ts`: only where the simulator is, so never in
-  production; who's signed in stays on the real clock), and `cron(when)` runs the Worker's hourly job at a moment
+  production, and on dev only for an admin; a whole ISO time in UTC, nothing looser; who's signed in stays on the
+  real clock), and `cron(when)` runs the Worker's hourly job at a moment
   through the local dev server's own trigger. The days that matter (London midnight, 17:00, 06:00, the clocks
   changing, 29 February) are each walked once (`kumite.on-the-clock`, `fridays`); a journey only moves forward.
 - **The browser is listened to**: every person's pages (`journey.ts`) report an uncaught error, a console error or a
@@ -77,3 +78,6 @@ browser, through a whole workflow as each person in it (#154).
   Kumite on the clock), mapped workflow by workflow (testing-map.md, Journeys). The server's clock can be moved per
   request on dev and local (`x-dev-now`), and the cron run at a moment, so the date edges are walked end to end; the
   app's error screen and a stranger's pages count as the browser's errors; a refusal on purpose says so.
+- 2026-10-23: On dev the clock moves only for an admin (manage:all): any member's `x-dev-now` moved charges, the
+  day's sessions and the record on dev's whole-club D1. Your own machine, where the journeys run, still moves it for
+  anyone; a loose time ("1", no zone) is ignored (#148).
