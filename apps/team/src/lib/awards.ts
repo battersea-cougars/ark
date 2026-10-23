@@ -69,9 +69,14 @@ export const awardsToReveal = <A extends { name: string; decidedBy?: DecidedBy |
   given: string[],
 ) => awards.filter((a) => decidedByOf(a).kind !== "live" || given.includes(a.name));
 
-/** Awards as an editor loads them: each saying how it's decided, the old guess written in for one that didn't. */
+/**
+ * Awards as an editor loads them: each saying how it's decided, the old guess written in for one that didn't. Each a
+ * plain copy, never the store's: a series' awards are the store's reactive proxies, which `structuredClone` refuses.
+ */
 export const withDecidedBy = (awards: Award[]): Award[] =>
-  awards.map((a) => ({ ...a, decidedBy: structuredClone(decidedByOf(a)) }));
+  awards.map((a) => ({ ...a, decidedBy: copyOf(decidedByOf(a)) }));
+
+const copyOf = (d: DecidedBy): DecidedBy => (d.kind === "live" ? { ...d, options: [...d.options] } : { ...d });
 
 export interface AwardWinner {
   teamId: number | null;

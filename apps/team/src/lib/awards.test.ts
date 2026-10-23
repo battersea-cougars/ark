@@ -210,6 +210,16 @@ describe("awards saved before they said how: the old guess from the name, once",
     expect(said.decidedBy).toEqual({ kind: "stat", stat: "points" });
   });
 
+  it("an editor loads a series' awards from the store, its reactive proxies, as plain copies of its own", () => {
+    const live = { kind: "live" as const, options: ["Best Celly"] };
+    const store: Award[] = [{ name: "Best Celly", about: "", decidedBy: new Proxy(live, {}) }];
+    const [loaded] = withDecidedBy(store);
+    expect(loaded.decidedBy).toEqual(live);
+    expect(() => structuredClone(loaded)).not.toThrow();
+    (loaded.decidedBy as { options: string[] }).options.push("Most Crossbars");
+    expect(live.options).toEqual(["Best Celly"]);
+  });
+
   it("the editor's one choice and back keeps a vote's tie-break", () => {
     const was = { kind: "vote", voters: "players", tieBreak: "points" } as const;
     expect(keyOf(was)).toBe("vote:players");
