@@ -123,6 +123,22 @@ describe("an admin erases a member who asked", () => {
     expect(one("SELECT status FROM members WHERE id = ?", idOf("Reg Player"))).toEqual({ status: "active" });
   });
 
+  it("a member manager can't erase an admin: they can do things the manager can't", async () => {
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (9, 'Helper', 'Members', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (9, 'manage:Member');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'gil@example.com';
+      INSERT INTO member_roles (member_id, role_id) SELECT m.id, r.id FROM members m, roles r
+        WHERE email = 'reg@example.com' AND r.name = 'Admin';`);
+    const gil = await w.signedIn("gil@example.com");
+    // Two admins, so the last-admin rule isn't what stops it
+    expect((await gil.call("DELETE", `/api/members/${idOf("Dana Admin")}`)).status).toBe(403);
+    expect(one("SELECT status FROM members WHERE id = ?", idOf("Dana Admin"))).toEqual({ status: "active" });
+    // ...while someone who can do no more than them is theirs to erase
+    w.db.raw.exec(`DELETE FROM member_roles WHERE member_id = (SELECT id FROM members WHERE email = 'reg@example.com')
+      AND role_id = (SELECT id FROM roles WHERE name = 'Admin')`);
+    expect((await gil.call("DELETE", `/api/members/${idOf("Reg Player")}`)).status).toBe(200);
+  });
+
   it("someone already erased stays as they are", async () => {
     const dana = await w.signedIn("dana@example.com");
     const id = idOf("Reg Player");

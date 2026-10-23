@@ -210,6 +210,8 @@ export const MEMBERS_ROUTES: Route[] = [
     notify: places,
     // A member who asked the club, by email, to delete their account (#30): as if they'd done it themselves
     handle: async (c) => {
+      // Never someone who can do more than the one erasing them (ADR 0036), as for any other change to a member
+      await mayChange(c.env.DB, c.actions, id(c));
       await eraseMember(c.env.DB, id(c), c.today, c.now);
       await endLive(c.env, { memberId: id(c) });
       return ok();
