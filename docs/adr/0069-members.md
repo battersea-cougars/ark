@@ -104,7 +104,7 @@ live at once.
 ## Consequences
 
 - Adding a member needs no new secret or service: the same Gmail sender, inside its free quota.
-- Approving someone who asked to join still sends nothing; it could send the same email.
+- Letting in someone who asked to join emails them the same "You're in" (since 2026-10-10).
 - Production starts with only its admins and is filled by an import ([0050](0050-schema-and-seed-until-launch.md)).
   Someone imported without an email can't sign in until an admin adds one.
 - An admin's table has the room it needs and its header never scrolls away; members never see a toggle they can't use.
@@ -133,3 +133,4 @@ live at once.
 - 2026-10-23: Adding a member can leave the email off (a switch, on by default; the button says Add or Add and email
   them), and the member's card has Send them the app link for later; the record says whether they were emailed. Import
   still sends nothing (#164).
+- 2026-10-23: Consequences corrected: letting in someone who asked to join has emailed them since 2026-10-10.
