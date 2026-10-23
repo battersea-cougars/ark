@@ -45,6 +45,8 @@ export default defineConfig(({ command }) => ({
                 // The Usage page (ADR 0059), when started through env-pull: in memory, never in a file
                 CLOUDFLARE_ANALYTICS_TOKEN: process.env.CLOUDFLARE_ANALYTICS_TOKEN ?? "",
                 CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+                // Settings → Errors (ADR 0111), the same way: Sentry's read-only token, in memory
+                SENTRY_ISSUES_TOKEN: process.env.SENTRY_ISSUES_TOKEN ?? "",
                 // Web Push from your machine to your own browser (localhost may subscribe): the private key only when
                 // started through env-pull, in memory
                 VAPID_PUBLIC_KEY,

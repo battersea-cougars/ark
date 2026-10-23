@@ -632,6 +632,25 @@ Sets Sentry up and uploads source maps, so error reports show our code, not mini
 - **Expires:** no.
 - **Changing it:** make a new one, set it, revoke the old.
 
+#### `SENTRY_ISSUES_TOKEN`
+
+Lets the team app's Worker read the open issues in both projects for Settings → Errors
+([ADR 0111](adr/0111-errors-and-uptime.md)). **Read-only**, so a leak shows our error titles and nothing more: never
+the deploy's `SENTRY_AUTH_TOKEN`. Without it the page says it isn't set up; errors still go to Sentry and the alerts
+still email.
+
+- **Comes from:** Sentry: the developer account's User settings → Personal Tokens → Create New Token, named
+  `SENTRY_ISSUES_TOKEN`, with one scope, **Issue & Event: Read** (`event:read`), and every other permission left at
+  No Access. (An organisation token can't read issues.)
+- **Used by:** the team Worker (`apps/team/worker/settings/errors.ts`), asking `de.sentry.io` at most every five
+  minutes, whoever opens the page.
+- **Gets there by:** CI pull; `deploy.yml` puts it on the team Worker as a secret (one value, so dev and production
+  read the same organisation and each shows its own environment's issues). On your machine, a team app started
+  through `env-pull.mjs` has it in memory (`vite.config.ts`).
+- **Expires:** no.
+- **Changing it:** make a new one with the same name and scope, `npm run secret:set SENTRY_ISSUES_TOKEN`, deploy (or
+  re-run the team job), then revoke the old one. Until the deploy, the page says Sentry didn't accept the token.
+
 #### `SENTRY_DSN_WEB`
 
 Where the website sends its errors. **Not really secret**, but none of it reaches a browser, so it's kept out of this
@@ -964,7 +983,8 @@ Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names
 6. **Sanity:** [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production).
 7. **GitHub:** the Cougars rebuilds App and its [key](#github_app_private_key).
 8. **Sentry:** [`SENTRY_AUTH_TOKEN`](#sentry_auth_token), then `sentry-setup.mjs`, which stores the website's DSN and
-   says the team app's, for [`settings.mjs`](#plain-settings).
+   says the team app's, for [`settings.mjs`](#plain-settings); then the read-only
+   [`SENTRY_ISSUES_TOKEN`](#sentry_issues_token).
 9. **Web Push:** `webpush-setup.mjs` ([Web Push](#web-push)).
 10. **Instagram**, production only: [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production).
 11. **Apple**, when the store app is built: the [App Store Connect key](#app_store_connect_key) (its IDs into
@@ -1015,6 +1035,7 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`APPLE_TEAM_ID`](#apple_team_id)                                                                             | Apple      | both | no (`settings.mjs`)              | `store.yml`, team app: app links          |
 | [Apple push key](#apple-push-key-recovery-copy) (the `.p8` and its Key ID)                                    | Apple      | both | yes (vault, not Secrets Manager) | Nothing: recovery copy of Firebase's      |
 | [`SENTRY_AUTH_TOKEN`](#sentry_auth_token)                                                                     | Sentry     | both | yes                              | Deploys (source maps), `sentry-setup.mjs` |
+| [`SENTRY_ISSUES_TOKEN`](#sentry_issues_token) (not set yet)                                                   | Sentry     | both | yes                              | Team app: Settings → Errors               |
 | [`SENTRY_DSN_WEB`](#sentry_dsn_web)                                                                           | Sentry     | both | no                               | Website Worker                            |
 | [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |

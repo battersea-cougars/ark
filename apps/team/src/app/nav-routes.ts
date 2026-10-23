@@ -341,6 +341,19 @@ const STATIC_TAIL: Route[] = [
     section: "System",
     hint: "Today's use of the free plan",
   },
+  // The apps' recent errors, from Sentry (ADR 0111): here, not in Dev tools, which production doesn't have
+  {
+    id: "errors",
+    path: "/settings/errors",
+    name: "Errors",
+    tab: "more",
+    page: "errors",
+    action: "read:Errors",
+    icon: "alert",
+    group: "Settings",
+    section: "System",
+    hint: "What's gone wrong lately, from Sentry",
+  },
   // The club's email (ADR 0027): whether it works, and reconnecting it when Google has cancelled its access (#101)
   {
     id: "email",

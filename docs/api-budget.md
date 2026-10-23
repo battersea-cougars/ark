@@ -145,6 +145,7 @@ reads and bills, however it travels.
 | `POST /api/auth/sign-out`                              |        4 |          4 |
 | `POST /api/auth/sign-out-everywhere`                   |        4 |          4 |
 | `GET /api/dues/reminders`                              |        4 |          5 |
+| `GET /api/sentry/issues`                               |        4 |          4 |
 | `GET /api/announcements`                               |        3 |          3 |
 | `GET /api/me/data`                                     |        3 |         15 |
 | `GET /api/me/notifications`                            |        3 |          3 |

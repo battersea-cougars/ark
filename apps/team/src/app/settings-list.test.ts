@@ -22,7 +22,7 @@ describe("the Settings page", () => {
       { section: "Club", rows: ["Members", "Unpaid fees", "Membership", "Roles"] },
       { section: "Schedule", rows: ["Training", "Tournaments", "Tournament Series", "Venues"] },
       { section: "Content", rows: ["Quips"] },
-      { section: "System", rows: ["View as a member", "Audit log", "Usage", "Email", "Dev tools"] },
+      { section: "System", rows: ["View as a member", "Audit log", "Usage", "Errors", "Email", "Dev tools"] },
     ]);
   });
 

@@ -336,6 +336,10 @@ async function walk() {
   // The club's own settings
   Object.assign(w.env, { CLOUDFLARE_ANALYTICS_TOKEN: undefined });
   await hit(dana, "GET", "/api/usage");
+  // The apps' open issues: Sentry asked (two subrequests), the answer kept for the next few minutes
+  const sentry = w.sentry();
+  sentry.issues.team.push(sentry.issue({ title: "TypeError: x is undefined" }));
+  await hit(dana, "GET", "/api/sentry/issues");
   await hit(dana, "GET", "/api/audit");
   await hit(dana, "PUT", "/api/settings", { liveRefreshSeconds: 10 });
   await hit(dana, "PUT", "/api/settings/bank", { name: "Cougars", sortCode: "12-34-56", account: "12345678" });

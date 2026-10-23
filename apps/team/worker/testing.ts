@@ -25,6 +25,22 @@ import type { KeyObject } from "node:crypto";
 import { SITEVERIFY } from "@cougars/shared/turnstile";
 import { authenticator } from "./testing.authenticator";
 
+/** An issue as Sentry's API lists it, with the environment and status the fake filters by. */
+export interface SentryIssue {
+  id: string;
+  shortId: string;
+  title: string;
+  culprit: string | null;
+  count: string;
+  userCount: number;
+  level: string;
+  status: "unresolved" | "resolved" | "ignored";
+  environment: string;
+  firstSeen: string;
+  lastSeen: string;
+  permalink: string;
+}
+
 /** The token a person's Turnstile widget gives, rendered for this form (testWorld's turnstile()). */
 export const humanToken = (action: string) => `person:${action}`;
 
@@ -490,6 +506,60 @@ export function testWorld(roster: object[]) {
   }
 
   /**
+   * Sentry's API on (ADR 0111): the read-only token, and each project's issues as Sentry lists them
+   * (`GET /api/0/projects/battersea-cougars/{project}/issues/`), the open ones in the environment asked for. A test
+   * puts issues in `issues.team` or `issues.web` (`issue()` makes one), and says `down` (no answer) or `refuses` (the
+   * token isn't let in). `asked`: each request's project and query, as Sentry got them.
+   */
+  function sentry() {
+    env.SENTRY_ISSUES_TOKEN = "sentry-issues-test-token";
+    const world = {
+      issues: { team: [] as SentryIssue[], web: [] as SentryIssue[] },
+      asked: [] as { project: string; query: string; statsPeriod: string | null }[],
+      down: false,
+      refuses: false,
+    };
+    serve((url, init) => {
+      const m = /^https:\/\/de\.sentry\.io\/api\/0\/projects\/battersea-cougars\/(team|web)\/issues\/(\?.*)?$/.exec(
+        url,
+      );
+      if (!m) return null;
+      const q = new URL(url).searchParams;
+      world.asked.push({ project: m[1], query: q.get("query") ?? "", statsPeriod: q.get("statsPeriod") });
+      if (world.down) throw new Error("connect ETIMEDOUT");
+      const auth = new Headers(init.headers).get("authorization");
+      if (world.refuses || auth !== `Bearer ${env.SENTRY_ISSUES_TOKEN}`)
+        return Response.json({ detail: "Invalid token" }, { status: 401 });
+      const environment = /environment:(\S+)/.exec(q.get("query") ?? "")?.[1];
+      const open = world.issues[m[1] as "team" | "web"].filter(
+        (i) => i.status === "unresolved" && (!environment || i.environment === environment),
+      );
+      // Sentry gives its fields, not the environment it was filtered by
+      return Response.json(open.map(({ environment: _e, ...i }) => i));
+    });
+    let n = 0;
+    /** An issue as Sentry has it: `count` a string, as Sentry gives it. */
+    const issue = (o: Partial<SentryIssue> & { title: string }): SentryIssue => {
+      n++;
+      return {
+        id: String(4000 + n),
+        shortId: `TEAM-${n}`,
+        culprit: "GET /api/bootstrap",
+        count: "1",
+        userCount: 1,
+        level: "error",
+        status: "unresolved",
+        environment: "dev",
+        firstSeen: NOW.toISOString(),
+        lastSeen: NOW.toISOString(),
+        permalink: `https://battersea-cougars.sentry.io/issues/${4000 + n}/`,
+        ...o,
+      };
+    };
+    return Object.assign(world, { issue });
+  }
+
+  /**
    * Luck, seeded: from here on every `crypto.getRandomValues` (the draft's draw, sign-in codes, tokens) comes from a
    * small seeded generator (mulberry32), so a draw comes out the same each run. Unseeded, it's the real thing.
    */
@@ -654,6 +724,7 @@ export function testWorld(roster: object[]) {
     gmail,
     webPush,
     turnstile,
+    sentry,
     /** A device's passkeys (testing.authenticator.ts): real keys, real signatures. */
     authenticator,
     cron,

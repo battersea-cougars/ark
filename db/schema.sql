@@ -824,6 +824,16 @@ CREATE TABLE sanity_requests (
   PRIMARY KEY (day, project, kind)
 );
 
+-- What Sentry last said about the apps' open issues (apps/team/worker/settings/errors.ts, ADR 0111): one row, so
+-- Settings → Errors asks Sentry at most every few minutes, whoever opens it. A failure keeps the last answer.
+CREATE TABLE sentry_issues (
+  id        INTEGER PRIMARY KEY CHECK (id = 1),
+  tried_at  TEXT NOT NULL,                                -- when Sentry was last asked, answered or not
+  read_at   TEXT,                                         -- when it last answered; null till it has
+  body      TEXT,                                         -- that answer: each project's issues, JSON
+  failure   TEXT CHECK (failure IN ('down', 'refused'))   -- the last ask's failure; null when it answered
+);
+
 -- Backups of this database (scripts/db-backup.mjs, ADR 0106): when, why (nightly, before a deploy changes the schema)
 -- and how big, sealed. The file itself is a CI artifact; this is so the Usage page can say when the last one was.
 CREATE TABLE backups (

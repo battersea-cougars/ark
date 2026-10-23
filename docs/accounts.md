@@ -28,7 +28,7 @@ Accounts are named here by role, never by address:
 | [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                            | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                        |
 | [YouTube](#youtube)           | The club account owns the channel; managers upload                                                    | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                   |
 | [Instagram](#instagram)       | The club account owns @batterseacougarshockey (Professional); the developer account owns the Meta app | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN__PRODUCTION` (and our `INSTAGRAM_TOKEN_KEY__PRODUCTION`)                                                                    |
-| [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                          | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_DSN_WEB`                                                                                                        |
+| [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                          | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_ISSUES_TOKEN`, `SENTRY_DSN_WEB`                                                                                 |
 | [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                                   | The store app (iOS)                                                      | `APP_STORE_CONNECT_KEY`, `FIREBASE_IOS_CONFIG`, `APP_REVIEW_*__PRODUCTION` (when the store app ships)                                        |
 
 Made by us, from no service: `BACKUP_KEY` (`__PRODUCTION`) seals the database backups; `TEAM_ROSTER__PRODUCTION` is
@@ -123,8 +123,8 @@ entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is
 - **Organisation** `battersea-cougars`, EU region, free Developer plan (one user: the developer account, which forwards
   the alert emails). Projects `web` and `team`; alerts on a new issue (production, dev) and a spike (production), and a cron
   monitor on the team Worker's hourly run ([ADR 0111](adr/0111-errors-and-uptime.md)).
-- **Secrets:** `SENTRY_AUTH_TOKEN` (the developer account's personal token: setup and source maps), and the two DSNs,
-  made by `scripts/sentry-setup.mjs`.
+- **Secrets:** `SENTRY_AUTH_TOKEN` (the developer account's personal token: setup and source maps),
+  `SENTRY_ISSUES_TOKEN` (another, read-only: Settings → Errors), and the two DSNs, made by `scripts/sentry-setup.mjs`.
 
 ## Apple
 
