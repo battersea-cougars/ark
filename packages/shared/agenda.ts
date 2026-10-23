@@ -3,7 +3,7 @@
 // a one-off event (syncClubEvent). The website's What's on and the app's calendar read it, so they can't disagree.
 // The rules for each kind of row live here, once: where it is (its own place, else its series'), TBC and seasons,
 // what's public, what's cancelled, who sees it.
-import { all, batch, first, statement } from "./d1";
+import { all, batch, first, statement, type Param } from "./d1";
 import { afterOf, placeOf, type After, type AfterMode, type OwnPlace, type Venue } from "./places";
 import { seasonLabel, type Season } from "./seasons";
 import { londonDay, londonISO } from "./london";
@@ -37,7 +37,7 @@ export interface AgendaItem {
 
 type SeriesPlace = { seriesVenueId: number | null; seriesName: string; seriesMapUrl: string };
 
-const venuesOf = (db: D1Database) => all<Venue>(db, "SELECT id, name, address, map_url mapUrl, active FROM venues");
+const VENUES = "SELECT id, name, address, map_url mapUrl, active FROM venues";
 
 /** Its own place wins, else its series' (ADR 0030). */
 function where(own: OwnPlace, venues: Venue[], series?: SeriesPlace) {
@@ -52,32 +52,29 @@ const item = (i: Omit<AgendaItem, "key">): AgendaItem => ({ ...i, key: `${i.sour
 
 // ─── Training sessions ───
 
-async function sessionItems(db: D1Database, filter: string, params: unknown[]) {
-  const venues = await venuesOf(db);
-  const rows = await all<
-    OwnPlace &
-      SeriesPlace & {
-        id: number;
-        seriesId: number;
-        title: string;
-        heldOn: string;
-        startTime: string;
-        endTime: string;
-        note: string | null;
-        cancelledAt: string | null;
-        public: number;
-        active: number;
-      }
-  >(
-    db,
-    // A session's own time and place, where it differs from its series
-    `SELECT s.id, s.series_id seriesId, r.name title, s.held_on heldOn, COALESCE(s.start_time, r.start_time) startTime,
-            COALESCE(s.end_time, r.end_time) endTime, s.venue_id venueId, COALESCE(s.venue, '') name,
-            COALESCE(s.map_url, '') mapUrl, r.venue_id seriesVenueId, r.venue seriesName, r.map_url seriesMapUrl,
-            s.note, s.cancelled_at cancelledAt, r.public, r.active
-     FROM training_sessions s JOIN training_series r ON r.id = s.series_id ${filter}`,
-    params as never[],
-  );
+type SessionRow = OwnPlace &
+  SeriesPlace & {
+    id: number;
+    seriesId: number;
+    title: string;
+    heldOn: string;
+    startTime: string;
+    endTime: string;
+    note: string | null;
+    cancelledAt: string | null;
+    public: number;
+    active: number;
+  };
+
+// A session's own time and place, where it differs from its series
+const sessionRows = (filter: string) =>
+  `SELECT s.id, s.series_id seriesId, r.name title, s.held_on heldOn, COALESCE(s.start_time, r.start_time) startTime,
+          COALESCE(s.end_time, r.end_time) endTime, s.venue_id venueId, COALESCE(s.venue, '') name,
+          COALESCE(s.map_url, '') mapUrl, r.venue_id seriesVenueId, r.venue seriesName, r.map_url seriesMapUrl,
+          s.note, s.cancelled_at cancelledAt, r.public, r.active
+   FROM training_sessions s JOIN training_series r ON r.id = s.series_id ${filter}`;
+
+function sessionItems(rows: SessionRow[], venues: Venue[]) {
   return {
     ids: rows.map((r) => r.id),
     items: rows
@@ -108,45 +105,42 @@ async function sessionItems(db: D1Database, filter: string, params: unknown[]) {
 
 // ─── Tournaments: the day, the draft night, the sign-up deadline ───
 
-async function tournamentItems(db: D1Database, filter: string, params: unknown[]) {
-  const venues = await venuesOf(db);
-  const rows = await all<
-    OwnPlace &
-      SeriesPlace & {
-        id: number;
-        typeId: number | null;
-        title: string;
-        heldOn: string;
-        startTime: string;
-        endTime: string;
-        season: Season | null;
-        public: number;
-        status: string;
-        kind: string;
-        signupClosesOn: string | null;
-        signupClosedAt: string | null;
-        draftOn: string | null;
-        draftState: string;
-        afterMode: AfterMode;
-        afterVenueId: number | null;
-        afterTime: string | null;
-        afterNote: string;
-        seriesAfterVenueId: number | null;
-        seriesAfterTime: string | null;
-        seriesAfterNote: string | null;
-      }
-  >(
-    db,
-    `SELECT t.id, t.type_id typeId, t.name title, t.venue_id venueId, t.location name, t.map_url mapUrl,
-            y.venue_id seriesVenueId, COALESCE(y.location, '') seriesName, COALESCE(y.map_url, '') seriesMapUrl,
-            t.held_on heldOn, t.start_time startTime, t.end_time endTime, t.season,
-            t.public, t.status, t.kind, t.signup_closes_on signupClosesOn, t.signup_closed_at signupClosedAt, t.draft_on draftOn,
-            t.draft_state draftState, t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime,
-            t.after_note afterNote, y.after_venue_id seriesAfterVenueId, y.after_time seriesAfterTime,
-            y.after_note seriesAfterNote
-     FROM tournaments t LEFT JOIN tournament_types y ON y.id = t.type_id ${filter}`,
-    params as never[],
-  );
+type TournamentRow = OwnPlace &
+  SeriesPlace & {
+    id: number;
+    typeId: number | null;
+    title: string;
+    heldOn: string;
+    startTime: string;
+    endTime: string;
+    season: Season | null;
+    public: number;
+    status: string;
+    kind: string;
+    signupClosesOn: string | null;
+    signupClosedAt: string | null;
+    draftOn: string | null;
+    draftState: string;
+    afterMode: AfterMode;
+    afterVenueId: number | null;
+    afterTime: string | null;
+    afterNote: string;
+    seriesAfterVenueId: number | null;
+    seriesAfterTime: string | null;
+    seriesAfterNote: string | null;
+  };
+
+const tournamentRows = (filter: string) =>
+  `SELECT t.id, t.type_id typeId, t.name title, t.venue_id venueId, t.location name, t.map_url mapUrl,
+          y.venue_id seriesVenueId, COALESCE(y.location, '') seriesName, COALESCE(y.map_url, '') seriesMapUrl,
+          t.held_on heldOn, t.start_time startTime, t.end_time endTime, t.season,
+          t.public, t.status, t.kind, t.signup_closes_on signupClosesOn, t.signup_closed_at signupClosedAt, t.draft_on draftOn,
+          t.draft_state draftState, t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime,
+          t.after_note afterNote, y.after_venue_id seriesAfterVenueId, y.after_time seriesAfterTime,
+          y.after_note seriesAfterNote
+   FROM tournaments t LEFT JOIN tournament_types y ON y.id = t.type_id ${filter}`;
+
+function tournamentItems(rows: TournamentRow[], venues: Venue[]) {
   const items: AgendaItem[] = [];
   for (const t of rows) {
     // A finished tournament is history, not what's on
@@ -234,25 +228,22 @@ export function afterwardsLine(after: After) {
 
 // ─── One-off events ───
 
-async function eventItems(db: D1Database, filter: string, params: unknown[]) {
-  const venues = await venuesOf(db);
-  const rows = await all<
-    OwnPlace & {
-      id: number;
-      title: string;
-      startsAt: string;
-      endsAt: string;
-      description: string;
-      public: number;
-      cancelledAt: string | null;
-    }
-  >(
-    db,
-    `SELECT id, title, starts_at startsAt, ends_at endsAt, venue_id venueId, venue name, map_url mapUrl, description,
-            public, cancelled_at cancelledAt
-     FROM club_events ${filter}`,
-    params as never[],
-  );
+type EventRow = OwnPlace & {
+  id: number;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  description: string;
+  public: number;
+  cancelledAt: string | null;
+};
+
+const eventRows = (filter: string) =>
+  `SELECT id, title, starts_at startsAt, ends_at endsAt, venue_id venueId, venue name, map_url mapUrl, description,
+          public, cancelled_at cancelledAt
+   FROM club_events ${filter}`;
+
+function eventItems(rows: EventRow[], venues: Venue[]) {
   return {
     ids: rows.map((r) => r.id),
     items: rows.map((e) =>
@@ -339,11 +330,30 @@ function writes(db: D1Database, source: Source, ids: number[], items: AgendaItem
   ];
 }
 
-/** A training's sessions, after the series or one of them changed. */
-export async function syncSeries(db: D1Database, seriesId: number) {
-  // An empty agenda (a fresh database) is filled whole, which covers this one too
-  if (await filledFromScratch(db)) return;
-  const { ids, items } = await sessionItems(db, "WHERE s.series_id = ?", [seriesId]);
+/**
+ * What a sync reads, in one round trip: whether the agenda has anything yet, the venues, and the rows it's about. Null
+ * when the agenda was empty (a fresh database): it's been filled whole, which covers what was asked for too.
+ */
+async function readForSync<T>(db: D1Database, sql: string, params: Param[]) {
+  const [filled, venues, rows] = await batch(db, [
+    statement(db, "SELECT 1 FROM agenda LIMIT 1"),
+    statement(db, VENUES),
+    statement(db, sql, params),
+  ]);
+  if (!filled.results.length) {
+    await syncAll(db);
+    return null;
+  }
+  return { venues: venues.results as Venue[], rows: rows.results as T[] };
+}
+
+/** Trainings' sessions, after the series (one or several) or one of their sessions changed: two round trips. */
+export async function syncSeries(db: D1Database, ...seriesIds: number[]) {
+  const read = await readForSync<SessionRow>(db, sessionRows("WHERE s.series_id IN (SELECT value FROM json_each(?))"), [
+    JSON.stringify(seriesIds),
+  ]);
+  if (!read) return;
+  const { ids, items } = sessionItems(read.rows, read.venues);
   await batch(db, [
     // Sessions the series no longer has (a weekday dropped) go too
     statement(
@@ -356,32 +366,37 @@ export async function syncSeries(db: D1Database, seriesId: number) {
 
 /** A tournament's rows: its day, its draft night, its sign-up deadline. */
 export async function syncTournament(db: D1Database, id: number) {
-  // An empty agenda (a fresh database) is filled whole, which covers this one too
-  if (await filledFromScratch(db)) return;
-  const { items } = await tournamentItems(db, "WHERE t.id = ?", [id]);
-  await batch(db, writes(db, "tournament", [id], items));
+  const read = await readForSync<TournamentRow>(db, tournamentRows("WHERE t.id = ?"), [id]);
+  if (!read) return;
+  await batch(db, writes(db, "tournament", [id], tournamentItems(read.rows, read.venues).items));
 }
 
 /** Every tournament in a series: its place is their fallback. */
 export async function syncTournamentsOf(db: D1Database, typeId: number) {
-  // An empty agenda (a fresh database) is filled whole, which covers this one too
-  if (await filledFromScratch(db)) return;
-  const { ids, items } = await tournamentItems(db, "WHERE t.type_id = ?", [typeId]);
+  const read = await readForSync<TournamentRow>(db, tournamentRows("WHERE t.type_id = ?"), [typeId]);
+  if (!read) return;
+  const { ids, items } = tournamentItems(read.rows, read.venues);
   await batch(db, writes(db, "tournament", ids, items));
 }
 
 export async function syncClubEvent(db: D1Database, id: number) {
-  // An empty agenda (a fresh database) is filled whole, which covers this one too
-  if (await filledFromScratch(db)) return;
-  const { items } = await eventItems(db, "WHERE id = ?", [id]);
-  await batch(db, writes(db, "club_event", [id], items));
+  const read = await readForSync<EventRow>(db, eventRows("WHERE id = ?"), [id]);
+  if (!read) return;
+  await batch(db, writes(db, "club_event", [id], eventItems(read.rows, read.venues).items));
 }
 
-/** Everything, from scratch: after a venue changes (it's everyone's place), or on an empty agenda. */
+/** Everything, from scratch: after a venue changes (it's everyone's place), or on an empty agenda. Two round trips. */
 export async function syncAll(db: D1Database) {
-  const sessions = await sessionItems(db, "", []);
-  const tournaments = await tournamentItems(db, "", []);
-  const events = await eventItems(db, "", []);
+  const [venueRows, sessionRead, tournamentRead, eventRead] = await batch(db, [
+    statement(db, VENUES),
+    statement(db, sessionRows("")),
+    statement(db, tournamentRows("")),
+    statement(db, eventRows("")),
+  ]);
+  const venues = venueRows.results as Venue[];
+  const sessions = sessionItems(sessionRead.results as SessionRow[], venues);
+  const tournaments = tournamentItems(tournamentRead.results as TournamentRow[], venues);
+  const events = eventItems(eventRead.results as EventRow[], venues);
   await batch(db, [
     statement(db, "DELETE FROM agenda"),
     ...writes(db, "session", [], sessions.items),
