@@ -48,6 +48,10 @@
   );
   // Your team's in it: its stamp is the club's red, the one other accent on the card than the match on now. Every
   // Kumite match up next still says You are next!, the line from the film, whoever's playing
+  // A stamp that takes over from another while the card's on screen (You are next! to KUMITE! to the result) flies in
+  // and lands; one already there when the page opens just sits. Read as each stamp is made, so it's that moment's
+  const born = Date.now();
+  const arriving = () => Date.now() - born > 800;
   const yours = $derived.by(() => {
     const id = tournament.teams[myTeamIndex(tournament, me().id)]?.id;
     return !!id && (g.homeTeamId === id || g.awayTeamId === id);
@@ -65,18 +69,18 @@
   });
 </script>
 
-<!-- On now, it's the main draw: bigger, its KUMITE! stamp pulsing, and the whole card opens the live page -->
+<!-- On now, it's the main draw: bigger, its KUMITE! stamp glowing, and the whole card opens the live page -->
 <div class="list game-card" class:live class:done>
   <GameHead {stage} {kanji} {playoff} {place} {scorer} opens={!live && !keeping}>
     {#snippet centre()}
-      {#if live}<span class="stamp-at"
+      {#if live}<span class="stamp-at glowing"
           ><InkStamp
             size="card"
-            tone="live"
+            tone="red"
             kanji={kanjiFor(type, "onTheMat")}
             icon="swords"
             text="{type?.shortName ?? 'Live'}!"
-            pulse
+            land={arriving()}
           /></span
         >
       {:else if upNext}<span class="stamp-at"
@@ -87,14 +91,21 @@
             icon={yours ? "user" : undefined}
             text={type?.slug === "kumite" ? "You are next!" : "Up next"}
             tilt={yours ? -5 : -3}
-            land={yours}
+            land={yours || arriving()}
           /></span
         >
       {:else if done && winner}<span class="stamp-at"
-          ><InkStamp size="card" tone="bone" kanji={kanjiFor(type, "won")} icon="trophy" text="{winner} wins" /></span
+          ><InkStamp
+            size="card"
+            tone="bone"
+            kanji={kanjiFor(type, "won")}
+            icon="trophy"
+            text="{winner} wins"
+            land={arriving()}
+          /></span
         >
       {:else if done}<span class="stamp-at"
-          ><InkStamp size="card" tone="faint" kanji={kanjiFor(type, "drawn")} text="Draw" /></span
+          ><InkStamp size="card" tone="faint" kanji={kanjiFor(type, "drawn")} text="Draw" land={arriving()} /></span
         >{/if}
     {/snippet}
     {#snippet action()}
@@ -129,10 +140,30 @@
   /* The match on now, Up next and the results: ink stamps (lib/InkStamp), as the page's status is. The club's red is your team's You are
      next! (stamped down as it shows) and the match on now's; a win in bone, a draw and Up next faint (ADR 0084: colour
      is an accent). A long winner's name is cut short; the stamp's size is the same on every card */
+  /* One box whichever stamp it holds (KUMITE!, You are next!, a result), so the head never shifts as one gives way to
+     the next */
   .stamp-at {
     display: inline-flex;
-    max-width: 15rem;
+    justify-content: flex-end;
+    align-items: center;
+    width: 15rem;
+    height: 2.25rem;
     min-width: 0;
+  }
+  /* The match being played: a stamp like the rest, glowing (on the box: the stamp's worn-ink mask would clip its own
+     glow), breathing while it's on */
+  .glowing {
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red-hot) 55%, transparent));
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .glowing {
+      animation: glow 1.6s var(--ease-in-out) infinite;
+    }
+  }
+  @keyframes glow {
+    50% {
+      filter: drop-shadow(0 0 14px color-mix(in srgb, var(--red-hot) 90%, transparent)) brightness(1.15);
+    }
   }
   .keeping {
     display: inline-flex;
@@ -142,7 +173,8 @@
   /* A phone: the stamp's a sticker on the card's edge, a size down; Live a compact pill, its hit area kept */
   @media (max-width: 600px) {
     .stamp-at {
-      max-width: 10.5rem;
+      width: 10.5rem;
+      height: 2rem;
     }
   }
   /* A card reads as a card on any screen: its own fill, the page's carbon shut out (no see-through glass, which a

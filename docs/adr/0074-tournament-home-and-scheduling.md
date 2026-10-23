@@ -480,3 +480,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: Back to "ok", lower case, no ellipsis: "ok, tell your mates. We need 6 more.", or, full, "ok, tell your
   physio. That knee's dodgy."
 - 2026-10-23: "No one…" trails off into the switch, and the three land a second apart.
+- 2026-10-23: The match being played wears a stamp like the rest (組手 KUMITE!, red outline, worn ink), glowing and
+  breathing, not a filled block. A card's stamp sits in one fixed box whichever it is, so nothing shifts as one gives
+  way to the next, and the one taking over flies in and lands (one already there when the page opens just sits).
