@@ -253,9 +253,9 @@ describe("the Kumite this Friday, the Friday's training off for it", () => {
     const rows = feed({ tournaments: [notIn], upcoming: [{ type, t: notIn }], events: [off, next, theKumite({})] });
     expect(rows.lead).toMatchObject({ kind: "event", key: "tournament:10", role: "notIn" });
     // Coming up: the night that's off says so, and the Friday after it shows too
-    expect(rows.upcoming.map((r) => [r.key, r.sub])).toEqual([
-      ["session:1", "7:30 to 9pm · Cancelled"],
-      ["session:2", "7:30 to 9pm · Are you in?"],
+    expect(rows.upcoming.map((r) => [r.key, r.sub, r.cancelled])).toEqual([
+      ["session:1", "7:30 to 9pm", true],
+      ["session:2", "7:30 to 9pm · Are you in?", undefined],
     ]);
   });
 
