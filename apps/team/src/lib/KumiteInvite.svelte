@@ -149,11 +149,11 @@
       <strong class="hush-line slam" style:--at="0.4s">Tell no one.</strong>
       <span class="beats">
         <span class="bait">
-          <span class="slam" style:--at="1.9s">Not your mates.</span>
-          <span class="slam" style:--at="3.3s">Not your mum.</span>
-          <span class="slam" style:--at="4.7s">No one.</span>
+          <span class="slam" style:--at="1.6s">Not your mates.</span>
+          <span class="slam" style:--at="2.6s">Not your mum.</span>
+          <span class="slam" style:--at="3.6s">No one…</span>
         </span>
-        <span class="switch" style:--at="6.9s">{tellAfterAll}</span>
+        <span class="switch" style:--at="5.4s">{tellAfterAll}</span>
       </span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
