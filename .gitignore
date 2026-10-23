@@ -30,3 +30,6 @@ backups/
 
 # The native shell's server address, written by native/sync.mjs (ADR 0108)
 apps/team/native/server.js
+
+# Screenshots taken for testing (agents, Playwright checks): here and nowhere else, never committed (#148)
+.shots/
