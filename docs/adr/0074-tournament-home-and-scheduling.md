@@ -138,11 +138,13 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
 - **The awards' page** (`/tournaments/:slug/awards`, `pages/Awards.svelte`; its way back the Kumite) is a stage ("lets
   do a full page for the awards", the user, 2026-10-23): **one card, centred, big** (`lib/AwardStage`), the award now,
   its size fixed, in a room the finale's size from the start, so nothing round it moves and nothing scrolls. Sealed:
-  the award's confirmed name big in brass (the judges' call's name tonight included), what it's for, and "?" in the
-  winner's area. Under the card, whoever runs it has one button (`cueOf` in `lib/afters.ts`): Confirm the awards
+  the award's confirmed name big in brass (the judges' call's name tonight included), what it's for, and over the
+  winner's area the 封 ("sealed") hanko, big, red, worn ink, askew (a series without the motif: a "?"). Under the card, whoever runs it has one button (`cueOf` in `lib/afters.ts`): Confirm the awards
   (the same drawer) till they're confirmed, then **Reveal** (a tap on the sealed card too), **Next award** once it's
   out, nothing after the last; everyone else's place says **Waiting for the reveal**, with Cast your vote under it
-  till they're confirmed. **The reveal:** the "?" beats like a heart, twice, and fades; then the winner (a team's crest
+  till they're confirmed. **The reveal:** the seal beats like a heart, twice, then breaks: it cracks
+  down a jagged line and its two halves drop and turn away, short and heavy (the "?" fades in its place); then the
+  winner (a team's crest
   and name, or a player's name and their team) rolls into the winner's area alone, clipped to it, a short motor's roll
   (slow to start, quicker, a knock as it stops), the award's name staying put; then the 賞 hanko lands
   (`lib/HankoPress`, the draft's seal with its ink specks). **Next award** dissolves the card (fading, a touch of blur)
@@ -151,7 +153,8 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
   counted: the reveal is the awards given, in order (`awardsToReveal`). **The champions** (the award the table decides, by `decidedBy`, wherever the admin lists it: the reveal
   keeps their order, the Kumite's champions last) are the finale: a bigger card, ringed in brass, the crest and name
   a size up; its button says **The champions**, and on it the page darkens round the card and one gong ring of brass
-  goes out from it, "And your Kumite champions…" holds over the "?" a moment longer, the crest and name roll in,
+  goes out from it, a bigger, heavier seal beats twice and breaks, "And your Kumite champions…" holds over the winner's
+  area a moment longer, the crest and name roll in,
   heavier, 優勝 slams down, and the dark eases out to a warm brass glow. **After the last**, once its beat's landed (the
   button's place coming back says so), the end: the champions the hero, on the stage as their finale left them
   (wherever they're listed; the last out, if it wasn't them, dissolving as they come back up; no champions award, no
@@ -599,3 +602,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   page's end has the way back to the Kumite's page in its button's place.
 - 2026-10-23: After Next award the button wakes once the card's landed (`--next-beat-ms`, under a second), not after a
   reveal's full wait.
+- 2026-10-23: The sealed award card's "?" is the 封 hanko (`awardSealed` in `lib/motif.ts`, added to the kanji
+  subset): stamped over the winner's area, it keeps the heartbeat, then breaks in two down a jagged crack and the halves
+  fall away (`--break-ms`, in place of the fade, `lib/award-reveal.css`); the champions' bigger and heavier. Less motion,
+  a crossfade; a series without the motif keeps the "?"; the grid's cards, face up, never show it.

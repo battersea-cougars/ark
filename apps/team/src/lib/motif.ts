@@ -16,6 +16,8 @@ export const KUMITE_KANJI = {
   awards: "賞",
   /** Victory, the champions. */
   champions: "優勝",
+  /** Sealed: an award not yet revealed, its winner under a seal that breaks on Reveal (lib/AwardStage). */
+  awardSealed: "封",
   /** The draft's steps (its step card): lots, drawn for the order; open, the gong; decided, the teams sealed. */
   draw: "籤",
   open: "開",

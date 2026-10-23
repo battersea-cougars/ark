@@ -4,10 +4,12 @@
  * under it (pages/Awards) use these. Each beat plays from the change of state, so every phone sees the same moments.
  *
  *   Next award: the last card dissolves while the next zooms in, lands with a little overshoot, its name a beat after.
- *   Reveal: the "?" beats like a heart, fades, then the winner rolls into the winner's area (slow start, quicker, a
- *   knock as it stops), then the hanko lands.
- *   The champions: the page darkens round the card and a gong ring goes out from it; "And your … champions…" holds over
- *   the "?"; the crest and name roll in, heavier; 優勝 slams down; the dark eases out to a warm brass glow.
+ *   Reveal: the 封 seal over the winner's area beats like a heart, then breaks (a jagged crack, its two halves dropping
+ *   and turning away; a series without the motif, a "?" that fades in the break's time), then the winner rolls into
+ *   the winner's area (slow start, quicker, a knock as it stops), then the hanko lands.
+ *   The champions: the page darkens round the card and a gong ring goes out from it; a bigger, heavier seal beats and
+ *   breaks; "And your … champions…" holds where it was; the crest and name roll in, heavier; 優勝 slams down; the dark
+ *   eases out to a warm brass glow. Less motion: no heartbeat, no break, the seal crossfades.
  */
 .award-reveal {
   /* Next award */
@@ -15,11 +17,12 @@
   --enter-ms: 620ms;
   --enter-ease: cubic-bezier(0.3, 1.45, 0.55, 1);
   --enter-name-delay: 220ms;
-  /* Reveal: the heartbeat, the "?" fading, then (after it) the roll */
+  /* Reveal: the seal's heartbeat, its break (the halves' drop, how far they fall), then (after it) the roll */
   --pulse-ms: 1000ms;
-  --fade-ms: 280ms;
+  --break-ms: 400ms;
+  --break-drop: 2.6rem;
   --line-ms: 0ms;
-  --roll-delay: calc(var(--pulse-ms) + var(--fade-ms) + var(--line-ms));
+  --roll-delay: calc(var(--pulse-ms) + var(--break-ms) + var(--line-ms));
   --roll-ms: 650ms;
   --stamp-delay: calc(var(--roll-delay) + var(--roll-ms) + 60ms);
   /* The button under the card wakes (lit, tappable) once it's all landed: after a reveal, the hanko; after Next
@@ -34,6 +37,8 @@
 }
 .award-reveal.finale {
   --pulse-ms: 1300ms;
+  --break-ms: 450ms;
+  --break-drop: 3.4rem;
   --line-ms: 1700ms;
   --roll-ms: 1050ms;
   --beat-ms: calc(var(--spot-out-delay) + 400ms);
@@ -56,6 +61,39 @@
   }
   60% {
     scale: 1;
+  }
+}
+/* The seal breaking: a jolt as it cracks, then each half (--side -1 left, 1 right) parts along the crack and drops,
+   turning away, heavy */
+@keyframes award-seal-crack {
+  0%,
+  100% {
+    scale: 1;
+  }
+  20% {
+    scale: 1.05;
+  }
+}
+@keyframes award-seal-break {
+  0% {
+    translate: 0 0;
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  18% {
+    translate: calc(var(--side) * 0.2rem) 0.05rem;
+    rotate: calc(var(--side) * 3deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.45);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    translate: calc(var(--side) * 1.3rem) var(--break-drop);
+    rotate: calc(var(--side) * 24deg);
+    opacity: 0;
+    visibility: hidden;
   }
 }
 @keyframes award-fade-out {

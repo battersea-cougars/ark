@@ -1,6 +1,7 @@
 <script lang="ts">
   // One award on the awards page's stage (ADR 0074): a card, its size fixed, so nothing round it moves. The award's
-  // name big in brass stays put; under it the winner's area, a "?" while it's sealed. Revealed, the "?" goes and the
+  // name big in brass stays put; under it the winner's area, the Kumite's 封 seal stamped over it while it's sealed (a
+  // "?" for a series without the motif). Revealed, the seal beats and breaks (the "?" fades) and the
   // winner (a team's crest and name, or a player's name and their team) rolls into that area alone, clipped to it,
   // then the 賞 hanko lands. The champions' card (the award the table decides) is the finale's: bigger, ringed in
   // brass, the crest and name a size up, 優勝 slammed down, the page darkened round it while it's revealed. `beat` is
@@ -65,6 +66,9 @@
   const kumite = $derived(!!kanjiFor(type, "awards"));
   const mark = $derived(kanjiFor(type, finale ? "champions" : "awards"));
   const revealing = $derived(beat === "reveal" && face === "up");
+  const sealMark = $derived(kanjiFor(type, "awardSealed"));
+  // The seal (or "?") is on the card while it's sealed and while it breaks; never on the grid's cards, face up
+  const sealed = $derived(!small && (face === "sealed" || revealing));
   // What it's called tonight (the judges' call's name, once confirmed), and what it's for
   const name = $derived(award.title ?? award.name);
   const about = $derived(award.title ? `${award.name}${award.about ? `: ${award.about}` : ""}` : award.about);
@@ -92,9 +96,9 @@
   <div class="name"><BoardWords text={name} size={sizes.name} /></div>
   <p class="about">{about || " "}</p>
 
-  <!-- Who took it: a "?" till it's revealed, then the winner rolling in, here and nowhere else -->
+  <!-- Who took it: sealed till it's revealed, then the winner rolling in, here and nowhere else -->
   <div class="winner-area" aria-live={leaving ? undefined : "polite"}>
-    {#if face === "sealed" || revealing}
+    {#if sealed && !sealMark}
       <span class="mystery display" aria-hidden={face === "up" || undefined}>?</span>
     {/if}
     {#if finale && revealing}
@@ -134,6 +138,25 @@
       </div>
     {/if}
   </div>
+
+  <!-- The 封 seal stamped over the winner's area, outside its clip so the halves can fall clear: two copies of it, each
+       cut to one side of a jagged crack -->
+  {#if sealed && sealMark}
+    <span
+      class="seal-spot"
+      role={face === "sealed" ? "img" : undefined}
+      aria-label={face === "sealed" ? "Sealed" : undefined}
+      aria-hidden={face === "up" || undefined}
+    >
+      <span class="seal">
+        {#each [-1, 1] as side (side)}
+          <span class="seal-half" class:left={side < 0} style:--side={side}
+            ><span class="seal-face" lang="ja">{sealMark}</span></span
+          >
+        {/each}
+      </span>
+    </span>
+  {/if}
 
   {#if kumite && face === "up"}
     <span class="stamp"><HankoPress text={mark} drop pressed={revealing} delay="var(--stamp-delay)" /></span>
@@ -224,6 +247,8 @@
   .winner-area {
     position: relative;
     display: grid;
+    grid-row: 4;
+    grid-column: 1;
     align-self: end;
     height: 6rem;
     overflow: clip;
@@ -243,6 +268,90 @@
   }
   .finale .mystery {
     font-size: 6rem;
+  }
+  /* The 封 seal: over the winner's area (its row, its height), centred, a little askew; the hanko's red, worn ink */
+  .seal-spot {
+    z-index: 1;
+    display: grid;
+    grid-row: 4;
+    grid-column: 1;
+    align-self: end;
+    place-items: center;
+    height: 6rem;
+    pointer-events: none;
+  }
+  .finale .seal-spot {
+    height: 8.5rem;
+  }
+  .seal {
+    display: grid;
+    width: 5.25rem;
+    height: 5.25rem;
+    rotate: -7deg;
+  }
+  .finale .seal {
+    width: 7.5rem;
+    height: 7.5rem;
+    rotate: 6deg;
+  }
+  .seal-half {
+    grid-area: 1 / 1;
+    display: grid;
+    clip-path: polygon(
+      53% -10%,
+      110% -10%,
+      110% 110%,
+      51% 110%,
+      51% 100%,
+      45% 83%,
+      56% 66%,
+      46% 50%,
+      55% 33%,
+      47% 16%,
+      53% 0
+    );
+    transform-origin: 70% 100%;
+  }
+  .seal-half.left {
+    clip-path: polygon(
+      -10% -10%,
+      53% -10%,
+      53% 0,
+      47% 16%,
+      55% 33%,
+      46% 50%,
+      56% 66%,
+      45% 83%,
+      51% 100%,
+      51% 110%,
+      -10% 110%
+    );
+    transform-origin: 30% 100%;
+  }
+  .seal-face {
+    display: grid;
+    place-items: center;
+    border-radius: 0.45rem 0.3rem 0.5rem 0.35rem / 0.35rem 0.5rem 0.3rem 0.45rem;
+    background: var(--red);
+    color: var(--primary);
+    font-family: var(--font-kanji);
+    font-size: 3.4rem;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow:
+      inset 0 0 0 0.3rem var(--red),
+      inset 0 0 0 calc(0.3rem + 2px) color-mix(in srgb, var(--primary) 55%, transparent);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    -webkit-mask-size: 140px 70px;
+    mask-size: 140px 70px;
+    filter: drop-shadow(0 0.15rem 0.3rem rgb(0 0 0 / 0.4));
+  }
+  .finale .seal-face {
+    font-size: 5rem;
+    box-shadow:
+      inset 0 0 0 0.4rem var(--red),
+      inset 0 0 0 calc(0.4rem + 3px) color-mix(in srgb, var(--primary) 55%, transparent);
   }
   .finale-line {
     align-self: center;
@@ -376,14 +485,23 @@
   .entering .name {
     animation: award-settle 380ms var(--enter-name-delay) ease-out both;
   }
-  /* The reveal: the "?" beats, fades; the winner rolls in after; the hanko lands */
+  /* The reveal: the seal beats, cracks and its halves drop away (the "?" beats, fades); the winner rolls in after;
+     the hanko lands */
   .revealing .mystery {
     animation:
       award-heartbeat var(--pulse-ms) ease-in-out,
-      award-fade-out var(--fade-ms) var(--pulse-ms) ease-in forwards;
+      award-fade-out var(--break-ms) var(--pulse-ms) ease-in forwards;
+  }
+  .revealing .seal {
+    animation:
+      award-heartbeat var(--pulse-ms) ease-in-out,
+      award-seal-crack 120ms var(--pulse-ms) ease-out;
+  }
+  .revealing .seal-half {
+    animation: award-seal-break var(--break-ms) var(--pulse-ms) both;
   }
   .revealing .finale-line {
-    animation: award-line var(--line-ms) calc(var(--pulse-ms) + var(--fade-ms)) ease both;
+    animation: award-line var(--line-ms) calc(var(--pulse-ms) + var(--break-ms)) ease both;
   }
   .revealing .winner {
     animation: award-roll-in var(--roll-ms) var(--roll-delay) both;
@@ -412,14 +530,19 @@
     .gong {
       display: none;
     }
-    .revealing .mystery {
-      animation: award-fade-out var(--fade-ms) ease forwards;
+    .revealing .mystery,
+    .revealing .seal-spot {
+      animation: award-fade-out var(--break-ms) ease forwards;
+    }
+    .revealing .seal,
+    .revealing .seal-half {
+      animation: none;
     }
     .revealing .finale-line {
-      animation: award-line var(--line-ms) var(--fade-ms) ease both;
+      animation: award-line var(--line-ms) var(--break-ms) ease both;
     }
     .revealing .winner {
-      animation: award-fade-in 400ms calc(var(--fade-ms) + var(--line-ms)) ease both;
+      animation: award-fade-in 400ms calc(var(--break-ms) + var(--line-ms)) ease both;
     }
   }
 </style>
