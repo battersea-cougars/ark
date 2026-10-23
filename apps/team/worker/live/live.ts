@@ -203,7 +203,8 @@ export async function endLive(env: LiveEnv, which: { memberId: number } | { sess
       body: JSON.stringify(which),
     });
   } catch (e) {
-    // The session is ended all the same: its stream hears nothing it shouldn't for long (the next request is a 401)
+    // A warning, not reported: the session is ended all the same, and its stream hears nothing it shouldn't for long
+    // (the next request is a 401)
     log.warn("live.end.failed", { error: String(e) });
   }
 }

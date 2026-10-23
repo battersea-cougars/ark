@@ -76,6 +76,7 @@ export async function cached<T>(
     } catch (error) {
       const last = [hit, shared].filter((e): e is Entry<T> => !!e).sort((a, b) => b.at - a.at)[0];
       if (last && now() - last.at < ttlMs + staleMs) {
+        // A warning, not reported: the last good copy is served. Once that's too old the caller reports the failure.
         // A paused source (circuit breaker) was logged once when it paused
         if ((error as Error)?.name !== "BreakerOpen") log.warn("cache.stale", error, { key });
         return last.value;

@@ -10,7 +10,7 @@
 //
 // The open state is kept in this isolate's memory and in the Workers Cache API, so every isolate in a data centre
 // sees it. Like packages/shared/rate-limit.ts, best effort: the Cache API only works on a custom domain.
-import { scribe } from "./scribe";
+import { scribe, type Logger } from "./scribe";
 
 const log = scribe.logger("breaker");
 
@@ -95,6 +95,16 @@ export async function pausedUntil(
   return null;
 }
 
+/**
+ * A call that failed, logged for what it means (ADR 0110, 0111): an error, so Sentry hears, unless it failed only
+ * because the service is paused. That's a warning: the failures that paused it were errors already, and the pause was
+ * logged once (`breaker.open`), so a page read while it's paused doesn't send Sentry one event a visitor.
+ */
+export function logFailure(log: Logger, event: string, error: unknown, fields?: Record<string, unknown>) {
+  if (error instanceof BreakerOpen) log.warn(event, error, fields);
+  else log.error(event, error, fields);
+}
+
 /** Run `call` unless the service is paused; throws BreakerOpen if it is. Records the outcome. */
 export async function guard<T>(service: string, call: () => Promise<T>, deps: BreakerDeps = {}): Promise<T> {
   const { now = Date.now, edge = defaultEdge() } = deps;
@@ -124,6 +134,7 @@ const tripped = (s: State) => s.cooldownMs > FIRST_COOLDOWN_MS;
 async function open(service: string, s: State, until: number, edge: EdgeCache | null, now: () => number, why: string) {
   s.openUntil = until;
   s.failures = 0;
+  // A warning, not reported: the failures that tripped it are their callers' to report, and the pause is ADR 0055 working
   log.warn("breaker.open", { service, until: new Date(until).toISOString(), error: why });
   if (!edge) return;
   const maxAge = Math.max(1, Math.ceil((until - now()) / 1000));

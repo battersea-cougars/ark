@@ -39,6 +39,8 @@ export async function mustBeHuman(
   const token = typeof body.turnstile === "string" ? body.turnstile : null;
   const ip = request.headers.get("cf-connecting-ip") ?? undefined;
   if (await verifyTurnstile(token, env.TURNSTILE_SECRET_KEY, ip, { action })) return;
+  // A warning, not reported: a bot, or a widget left open too long, refused is Turnstile working. Cloudflare failing to
+  // answer is an error, in verifyTurnstile (turnstile.error)
   log.warn("turnstile.refused", { action, token: !!token });
   throw new HttpError(403, NOT_CHECKED);
 }

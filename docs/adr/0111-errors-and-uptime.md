@@ -1,7 +1,7 @@
 # 0111. Errors and down alerts go to Sentry, with nothing about a person in them
 
 - **Status:** Accepted
-- **Date:** 2026-10-18 · updated 2026-10-21
+- **Date:** 2026-10-18 · updated 2026-10-23
 
 ## Context
 
@@ -56,6 +56,22 @@ smaller (5k errors a month, one user) but plain about it.
   form), cookies, headers, query strings (the team app's `?email=`), SQL values or stack variables, no user. Every event
   is cleaned by `beforeSend` the same way as a log line: secrets and phones by key, email addresses masked anywhere.
   No tracing, no session replay.
+- **Seen in the app, too: Settings → Errors** (`read:Errors`; admins through `manage:all`), in System beside Usage,
+  not in Dev tools, which production doesn't have (ADR 0123). For each project, team app and website, the open issues
+  in this environment from the last 14 days, newest first, ten at most: the title, how often and to how many, when
+  last, where (Sentry's culprit: the route or function), each a link to it in Sentry. The team Worker reads them
+  (`settings/errors.ts`, `GET /api/sentry/issues`) with a read-only token, `SENTRY_ISSUES_TOKEN` (Issue & Event: Read),
+  never the deploy's. Sentry is asked at most every five minutes, whoever opens the page: its answer, or that it
+  failed, is kept in one D1 row (`sentry_issues`), so a page opened costs about 4 D1 calls and, every five minutes,
+  two subrequests. Down or refusing, the page says so calmly and keeps the last answer on show (ADR 0055); that's a
+  warning in the log, as an error would go to the Sentry that just didn't answer. Titles are masked again on the way.
+  A push to admins on a new issue or a spike belongs with the admins' usage pushes
+  ([#157](https://github.com/battersea-cougars/ark/issues/157)); until then the alerts email.
+- **Every caught failure is an error or deliberately not** (ADR 0110): an error line is reported; a warning says why
+  it isn't where that's not plain (a limit or a check working, a stale copy served, an event Sentry gets by itself).
+  A read through a circuit breaker logs with `logFailure` (`packages/shared/breaker.ts`): an error, but a warning when
+  it failed only because the service is paused, since the failures that paused it were reported and the pause was
+  logged once; the website's Sanity, YouTube and Instagram reads no longer send an event per visitor while paused.
 - **Readable stacks:** both builds write hidden source maps; the deploy uploads them for the build's release
   (`sentry-cli`, `SENTRY_AUTH_TOKEN`) and deletes every `.map` before the files go live. A PR preview only deletes them.
 - **Down alerts:** Sentry uptime monitors, every 10 minutes, on the website's `/health` and the team app's `/api/health`
@@ -81,3 +97,8 @@ smaller (5k errors a month, one user) but plain about it.
   Safari-only failure on Home had shown "Can't reach the club's data" and told nobody. Two more alerts: a new issue in
   dev, and a spike in production; a cron monitor on the team Worker's hourly run (#32). The live hub's failure and an
   unreadable allowance are errors now; a 500 names its route and member (#75).
+- 2026-10-23: Settings → Errors: each project's open issues for admins, read with a read-only token
+  (`SENTRY_ISSUES_TOKEN`) at most every five minutes, the last answer kept in D1 and shown when Sentry is down. Every
+  warn and error log line checked (#148): warnings say why they aren't reported; a circuit-breaker read reports its
+  failure but not each read while paused (`logFailure`); YouTube's failure is an error now (a broken key had gone
+  unheard); a training's unreadable rule is `training.rule_unreadable`. New-issue and spike pushes wait for #157.

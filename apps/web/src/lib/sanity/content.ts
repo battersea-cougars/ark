@@ -14,6 +14,7 @@ import { crestFiles, editionsFrom, type ResultRows } from "../results";
 import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } from "./merge";
 import type { ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
 import { scribe } from "@cougars/shared/scribe";
+import { logFailure } from "@cougars/shared/breaker";
 
 const log = scribe.logger("content");
 
@@ -42,7 +43,7 @@ async function fetchOr<T>(query: string, fallback: T): Promise<T> {
     // the fallback rather than an error page (ADR 0055): degraded, not broken.
     if (!onWorker && !import.meta.env.DEV) throw error;
     if (import.meta.env.DEV) devSanity.problem = String(error);
-    log.error("content.sanity_error", error);
+    logFailure(log, "content.sanity_error", error);
     return ((lastGood.get(query) as T | null | undefined) ?? fallback) as T;
   }
 }

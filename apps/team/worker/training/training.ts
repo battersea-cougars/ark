@@ -107,7 +107,8 @@ export async function ensureSessions(db: D1Database, today: string) {
         ),
       };
     } catch (error) {
-      log.error("A training's rule makes no dates: skipped", error, { seriesId: s.id, rule });
+      // Reported: that training gets no new nights till its rule's fixed. The other trainings go on
+      log.error("training.rule_unreadable", error, { seriesId: s.id, rule });
       return { id: s.id, dates: [] };
     }
   });

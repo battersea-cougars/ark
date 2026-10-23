@@ -65,6 +65,7 @@ export async function tooMany(cache: CacheLike | null, ip: string, now = Date.no
   if (!cache) return null;
   const { allowed } = await rateLimit(cache, "live", ip, { ...LIVE_LIMIT, now });
   if (allowed) return null;
+  // A warning, not reported (ADR 0110): the limit working, and a flood would spend Sentry's 5k a month
   log.warn("rate_limit.live", { ip });
   return secured(
     new Response("Too many requests from here. Wait a minute and try again.", {
@@ -108,6 +109,7 @@ async function flushCounts() {
     const { env } = await import("cloudflare:workers");
     await flushSanityRequests(env.DB);
   } catch (error) {
+    // A warning, not reported: the count stays in memory and goes with the next flush; the Usage page is a little behind
     log.warn("sanity.count_failed", error);
   }
 }

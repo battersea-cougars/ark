@@ -35,7 +35,8 @@ adapter deciding where lines go. Its packages need Node (Pino), so the Workers c
   domain (`a…@club.org`). The mail module still redacts a mail's own secrets (a sign-in code) before it logs a mail.
 - **Every error or fatal line is also reported** to the reporter (Sentry, ADR 0111), with the Error it carries, if
   any, and its fields. Warnings aren't: they're the expected, degraded paths (a stale cache, a paused source,
-  ADR 0055).
+  ADR 0055). A warning that's a failure says why it isn't reported, where that isn't plain; a read behind a circuit
+  breaker logs through `logFailure` (ADR 0111), a warning only while the service is paused.
 - **`no-console` is an error** in `apps/web/src`, `apps/team/src`, `apps/team/worker` and `packages/shared`.
   The scripts under `scripts/` print plain text: that's a person reading a terminal.
 - **In a test**, `captureLogs()` (`packages/shared/testing/scribe.ts`) keeps the lines as entries and prints nothing.
@@ -52,3 +53,5 @@ adapter deciding where lines go. Its packages need Node (Pino), so the Workers c
 
 - 2026-10-17: Scribe, in decohere's shape, made for Workers; every `console.*` in the apps moved to it. The same day,
   the JSON console logger moved out of the facade into `scribe.console.ts`.
+- 2026-10-23: Every warn and error line checked (#148, ADR 0111): reasons beside the warnings, `logFailure` for reads
+  behind a breaker.

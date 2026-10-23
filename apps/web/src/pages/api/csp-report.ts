@@ -32,6 +32,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return done;
   }
   for (const v of cspViolations(report, site)) {
+    // The log's copy; Sentry gets its own event below, as a warning
     log.warn("browser.csp_violation", { ...v });
     // A plain event, like a browser error's: captureMessage adds a stack of our own code, and Sentry names the issue
     // after it

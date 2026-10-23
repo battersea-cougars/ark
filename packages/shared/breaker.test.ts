@@ -4,11 +4,14 @@ import {
   HttpFailure,
   QuotaError,
   guard,
+  logFailure,
   nextMidnight,
   pausedUntil,
   resetBreakers,
   retryAfter,
 } from "./breaker";
+import { scribe } from "./scribe";
+import { captureLogs } from "./testing/scribe";
 
 let t = 0;
 const now = () => t;
@@ -82,5 +85,20 @@ describe("nextMidnight", () => {
     expect(new Date(nextMidnight("America/Los_Angeles", Date.parse("2026-10-07T15:30:00Z"))).toISOString()).toBe(
       "2026-10-08T07:00:00.000Z",
     );
+  });
+});
+
+describe("logFailure", () => {
+  it("reports a read that failed, but only warns of one refused while the service is paused (reported when it paused)", () => {
+    const reported: string[] = [];
+    const logs = captureLogs({ report: (_e, entry) => void reported.push(entry.msg) });
+    const log = scribe.logger("videos");
+    logFailure(log, "videos.youtube_error", new Error("quotaExceeded"), { source: "UC1" });
+    logFailure(log, "videos.youtube_error", new BreakerOpen("youtube", 1000), { source: "UC1" });
+    expect(logs.entries.map((e) => [e.level, e.msg, e.fields.source])).toEqual([
+      ["error", "videos.youtube_error", "UC1"],
+      ["warn", "videos.youtube_error", "UC1"],
+    ]);
+    expect(reported).toEqual(["videos.youtube_error"]);
   });
 });

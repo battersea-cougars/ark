@@ -3,7 +3,7 @@
 // breaker (ADR 0055) and cached (ADR 0053): fresh for ten minutes, the last good copy for three days if Instagram
 // fails. Pictures are served through our own Worker (/api/photos/<id>): Instagram's addresses expire, and visitors'
 // browsers never contact Meta. Before the club connects its account, a sample feed stands in outside production.
-import { HttpFailure, QuotaError, guard } from "@cougars/shared/breaker";
+import { HttpFailure, QuotaError, guard, logFailure } from "@cougars/shared/breaker";
 import { scribe } from "@cougars/shared/scribe";
 import { cached, type CacheDeps, type CacheOptions } from "./cache";
 import { FAKE_POSTS } from "./instagram.fake";
@@ -127,7 +127,7 @@ export async function latestPosts(config: InstagramConfig, deps: Deps = {}, limi
   try {
     return { data: (await feed(token, deps)).posts.slice(0, limit), unavailable: false };
   } catch (error) {
-    log.error("instagram.feed_error", error);
+    logFailure(log, "instagram.feed_error", error);
     return { data: [], unavailable: true };
   }
 }
@@ -147,6 +147,7 @@ export async function postImage(config: InstagramConfig, id: string, deps: Deps 
   try {
     address = (await feed(token, deps)).pictures[id];
   } catch (error) {
+    // Warnings, not reported, here and below: one picture missing; the feed's own failure is reported by latestPosts
     log.warn("instagram.picture_feed_error", error, { id });
     return new Response(null, { status: 503 });
   }

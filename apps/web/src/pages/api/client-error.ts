@@ -33,6 +33,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   }
   const event = browserErrorEvent(report, site);
   if (!event) return done;
+  // The log's copy is a warning: the event goes to Sentry itself, just below, so an error line would send it twice
   log.warn("browser.error", { page: event.tags.page, error: event.exception.values[0].value });
   Sentry.captureEvent(event);
   return done;

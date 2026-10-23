@@ -235,6 +235,7 @@ export async function register(
       supportedAlgorithmIDs: ALGORITHMS,
     });
   } catch (e) {
+    // A warning, not reported: a device's answer that doesn't check out is the check working, not our fault
     log.warn("passkey.register_refused", { member: mine.memberId, why: e instanceof Error ? e.message : String(e) });
     throw new HttpError(400, "Your device's passkey didn't check out. Try again.");
   }
@@ -335,7 +336,8 @@ export async function signIn(request: Request, env: AuthEnv, now: Date) {
     });
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
-    // A counter that's gone backwards: a copy of the key. On the record for an admin to see
+    // A counter that's gone backwards: a copy of the key. On the record for an admin to see. Either way a warning, not
+    // reported: refusing a key that doesn't check out is the check working
     if (/counter/i.test(why)) await audit(env.DB, now, key.member_id, "sign_in.passkey_cloned", { passkeyId: key.id });
     log.warn("passkey.sign_in_refused", { member: key.member_id, why });
     throw new HttpError(400, NOT_THAT);

@@ -12,6 +12,7 @@ import { DEMO_VIDEOS } from "../sanity/demo";
 import * as q from "../sanity/queries";
 import type { Club, Video, VideoOverride } from "../sanity/types";
 import { scribe } from "@cougars/shared/scribe";
+import { logFailure } from "@cougars/shared/breaker";
 
 const log = scribe.logger("videos");
 
@@ -49,7 +50,7 @@ export async function liveVideos(
         cacheDeps,
       );
     } catch (error) {
-      log.error("videos.sanity_error", error);
+      logFailure(log, "videos.sanity_error", error);
       unavailable = true;
     }
   }
@@ -72,8 +73,9 @@ async function youtubeVideos(
   try {
     return await cached(`youtube:${sourceKey(source)}`, options, () => fetchSourceVideos(source, key, { fetch }), deps);
   } catch (error) {
-    // Message never contains the key (lib/youtube.ts). The Sanity videos still show.
-    log.warn("videos.youtube_error", error, { source: sourceKey(source) });
+    // Message never contains the key (lib/youtube.ts). The Sanity videos still show, but the channel's are gone from
+    // the page (no copy left within the cache's stale time): an error, so a broken key or a dead channel is heard of
+    logFailure(log, "videos.youtube_error", error, { source: sourceKey(source) });
     return [];
   }
 }

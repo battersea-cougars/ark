@@ -34,6 +34,8 @@ export async function enforce(bucket: string, key: string, { limit, windowSecond
   if (typeof caches === "undefined") return;
   const { allowed } = await rateLimit(await caches.open("team-rate-limit"), bucket, key, { limit, windowSeconds });
   if (allowed) return;
+  // A warning, not reported (ADR 0110): someone going too fast is the limit working, and a flood of them would spend
+  // Sentry's 5k a month
   log.warn("rate_limit", { bucket, key });
   throw new HttpError(429, message);
 }
