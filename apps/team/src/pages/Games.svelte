@@ -246,7 +246,6 @@
     {tournament}
     title="The {type.shortName}"
     manage
-    note={tournament ? undefined : "Between bouts."}
     {back}
     track
     viewing={view}
