@@ -201,3 +201,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   now") in one footer (`lib/SaveBar`), and leaving with unsaved changes asks "Discard your changes?". "When we have
   Save buttons like this form, we should also have dirty indicators and saved indicators so the user knows the
   changes have been committed."
+- 2026-10-23: A training's Manage has Cancel this night (a confirm sheet saying who hears it) and It's back on for a
+  night that's off, the same words as a one-off's; it had been only in the training editor's list of nights.

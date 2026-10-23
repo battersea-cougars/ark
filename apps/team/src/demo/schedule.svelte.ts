@@ -5,6 +5,7 @@ import { atAfters, currentOf, editionState, latestOf, previousOf } from "../lib/
 import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
+import { trainingNights } from "../lib/night-off";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
 import { afterOf, placeOf, type Place } from "@cougars/shared/places";
 
@@ -116,10 +117,12 @@ export function tournamentBookable(t: Tournament): Bookable {
 export const signupClosed = (t: Tournament, today = londonToday()) => signupOver(t, today);
 
 /** The next session of a series that isn't cancelled (or the next at all, if they all are). */
-export function nextSession(series: TrainingSeries, today = londonToday()): TrainingSession | undefined {
-  const future = db.sessions.filter((s) => s.seriesId === series.id && s.heldOn >= today);
-  return future.find((s) => !s.cancelledAt) ?? future[0];
-}
+export const nextSession = (series: TrainingSeries, today = londonToday()): TrainingSession | undefined =>
+  trainingNights(db.sessions, series.id, today).shown;
+
+/** A training's page: its next night that's on, and those off from today to it (lib/night-off.ts). */
+export const seriesNights = (series: TrainingSeries, today = londonToday()) =>
+  trainingNights(db.sessions, series.id, today);
 
 /** A series' latest (lib/edition.ts latestOf): what the app's Home teases. */
 export const latestTournament = (typeId: number, today = londonToday()) =>

@@ -13,6 +13,7 @@
   import { findClashes, type Clash } from "../app/backend.svelte";
   import { db } from "../demo/store.svelte";
   import { formatDayDate, timeRange } from "./dates";
+  import { offWords } from "./night-off";
   import {
     answerAll,
     answerOfAll,
@@ -102,8 +103,7 @@
   function lineOf(c: Clash) {
     if (c.source === "tournament") return "A tournament: it stays on. Move it from its own page.";
     if (!c.canCancel) return "It stays on: calling it off is for whoever runs it.";
-    if (!c.signedUp) return "Nobody's signed up yet.";
-    return `${c.signedUp} signed up ${c.signedUp === 1 ? "hears" : "hear"} it's off if you cancel it.`;
+    return offWords(c.signedUp);
   }
 </script>
 

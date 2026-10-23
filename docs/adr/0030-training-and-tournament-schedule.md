@@ -226,3 +226,8 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   members are told on the day, once; empty is always open. The seed sets Friday's (dev and production need the same).
 - 2026-10-22: Who's coming with nobody answered is a line and a quip about slackers (a new quip kind, "Nobody in"),
   or when sign-up opens, instead of an empty table.
+- 2026-10-23: A night is cancelled, and put back on, from its training's own page (Manage → Cancel this night / It's
+  back on), not only from the editor's list of nights: a confirm first says how many signed up hear it's off (the clash
+  sheet's words), then the night's own cancel (`manage:Training`). A training's page is still its next night that's on,
+  and any night off from today to it shows above it, struck through and Cancelled, so a Friday off for the Kumite
+  doesn't just vanish from the page (`lib/night-off.ts`).

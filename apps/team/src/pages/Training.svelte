@@ -17,7 +17,7 @@
   import PlayerCard from "../lib/PlayerCard.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import RegisterDrawer from "../lib/RegisterDrawer.svelte";
-  import { letIn, publishTeams, removeTeams, resetSession, setPlayer } from "../app/backend.svelte";
+  import { letIn, publishTeams, removeTeams, resetSession, setCancelled, setPlayer } from "../app/backend.svelte";
   import EditorPanel from "../lib/EditorPanel.svelte";
   import TrainingEditor from "../lib/TrainingEditor.svelte";
   import { Edits } from "../lib/dirty.svelte";
@@ -40,7 +40,8 @@
   import { pick } from "../lib/quips";
   import { londonToday } from "../lib/dates";
   import { fade } from "svelte/transition";
-  import { nextSession, resolve, seriesById, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
+  import { resolve, seriesById, seriesNights, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
+  import { offWords, signedUp } from "../lib/night-off";
 
   let { seriesId }: { seriesId: number } = $props();
 
@@ -48,7 +49,10 @@
   // The last series found: while this page slides out, the next page's params (no seriesId) arrive here too
   const last: { series?: ReturnType<typeof seriesById> } = {};
   const series = $derived((last.series = seriesById(seriesId) ?? last.series)!);
-  const session = $derived(nextSession(series));
+  // The next night that's on, and those off from today to it: struck through above it, never just gone
+  const nights = $derived(seriesNights(series));
+  const session = $derived(nights.shown);
+  const offBefore = $derived(nights.off.filter((n) => n !== session));
   const info = $derived(session && resolve(session, series));
   const usual = $derived(seriesPlace(series));
   const who = $derived(me());
@@ -428,6 +432,14 @@
     manageOpen = false;
     run();
   }
+  // Cancel this night (ADR 0065): asked first, saying who hears it's off; then the night's own cancel, as the
+  // training editor's (ADR 0030). The page moves on to the next night, this one struck through above it.
+  let cancelAsk = $state(false);
+  const cancelDay = $derived(session ? formatDayDate(sessionBookable(session).startsAt) : "");
+  function callOff() {
+    cancelAsk = false;
+    if (session) void setCancelled(session.id, true);
+  }
   // Taking the teams away: each team falls away in turn before Who's in rises in their place; then it's saved
   let clearing = $state(false);
   async function clearTeams() {
@@ -766,6 +778,10 @@
       An admin sets the dates under Settings → Training.
     </EmptyState>
   {:else}
+    {#each offBefore as night (night.id)}
+      <!-- A night off before this one (a Kumite Friday): struck through, Cancelled, so it never just vanishes -->
+      <EventCard event={{ ...sessionBookable(night), href: undefined }} compact roster={false} place={false} />
+    {/each}
     {#if info && (info.place?.name !== usual?.name || info.startTime !== series.startTime)}
       <p class="note">
         This week: {formatDayDate(sessionBookable(session).startsAt)}, {clock(info.startTime)} at {info.place?.name ??
@@ -938,6 +954,27 @@
         <Icon name="chevronRight" size={18} />
       </button>
     {/if}
+    {#if can(perms, "manage:Training")}
+      {#if session && !session.cancelledAt}
+        <button class="tool" aria-haspopup="dialog" onclick={() => go(() => (cancelAsk = true))}>
+          <Icon name="x" size={22} />
+          <span class="tool-text"
+            ><strong>Cancel this night</strong><span>{cancelDay}: whoever's in or waiting hears it's off.</span></span
+          >
+          <Icon name="chevronRight" size={18} />
+        </button>
+      {/if}
+      {#each nights.off as night (night.id)}
+        <button class="tool" onclick={() => go(() => void setCancelled(night.id, false))}>
+          <Icon name="refresh" size={22} />
+          <span class="tool-text"
+            ><strong>It's back on</strong><span
+              >{formatDayDate(sessionBookable(night).startsAt)}: on again, sign-ups as they were.</span
+            ></span
+          >
+        </button>
+      {/each}
+    {/if}
     {#if session && can(perms, "update:Event")}
       <button class="tool" class:armed={confirming === "reset"} onclick={() => twice("reset", reset)}>
         <Icon name="undo" size={22} />
@@ -972,6 +1009,16 @@
     {/if}
     {@render makeButton("")}
   </div>
+{/if}
+
+{#if session && !session.cancelledAt && can(perms, "manage:Training")}
+  <Sheet bind:open={cancelAsk} title="Cancel {cancelDay}?">
+    <p class="ask">{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p>
+    {#snippet footer()}
+      <button class="btn ghost" type="button" onclick={() => (cancelAsk = false)}>Keep it on</button>
+      <button class="btn clear-yes" type="button" onclick={callOff}>Cancel this night</button>
+    {/snippet}
+  </Sheet>
 {/if}
 
 {#if maker && teams}
