@@ -136,17 +136,12 @@ export const seriesNights = (series: TrainingSeries, today = londonToday(), on?:
   trainingNights(db.sessions, series.id, today, on);
 
 /** A series' latest (lib/edition.ts latestOf): what the app's Home teases. */
-export const latestTournament = (typeId: number, today = londonToday()) =>
-  latestOf(
-    db.tournaments.filter((t) => t.typeId === typeId),
-    today,
-  );
+export const latestTournament = (typeId: number) => latestOf(db.tournaments.filter((t) => t.typeId === typeId));
 
 /** What a series' pages show: the one on or coming up, else none (lib/edition.ts currentOf). */
-export const currentTournament = (typeId: number, today = londonToday(), evening = londonEvening()) =>
+export const currentTournament = (typeId: number, evening = londonEvening()) =>
   currentOf(
     db.tournaments.filter((t) => t.typeId === typeId),
-    today,
     evening,
   );
 

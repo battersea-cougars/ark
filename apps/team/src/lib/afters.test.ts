@@ -90,13 +90,13 @@ describe("currentOf: the series' page holds the after-party, then moves on", () 
   const tonight = kumiteOn(["done", "done"]);
 
   it("the evening it ends, the one just played is still the page's, even with the next one scheduled", () => {
-    expect(currentOf([tonight, next], "2026-10-23", "2026-10-23")?.id).toBe(10);
-    expect(currentOf([tonight], "2026-10-24", "2026-10-23")?.id).toBe(10);
+    expect(currentOf([tonight, next], "2026-10-23")?.id).toBe(10);
+    expect(currentOf([tonight], "2026-10-23")?.id).toBe(10);
   });
 
   it("from 06:00 the next morning: the next one, or nothing on", () => {
-    expect(currentOf([tonight, next], "2026-10-24", "2026-10-24")?.id).toBe(11);
-    expect(currentOf([tonight], "2026-10-24", "2026-10-24")).toBeUndefined();
+    expect(currentOf([tonight, next], "2026-10-24")?.id).toBe(11);
+    expect(currentOf([tonight], "2026-10-24")).toBeUndefined();
   });
 });
 

@@ -114,27 +114,36 @@ describe("stageOf: games come first", () => {
 });
 
 describe("which edition a series opens on, at the edges", () => {
-  it("one on today, not yet played, is the next one; the day after, unplayed, it isn't", () => {
+  it("one on today, not yet played, is the next one; the day after, unplayed, it still is (#169)", () => {
     at("2026-10-06T11:00:00Z");
     const old = cup({ id: 1, heldOn: "2026-06-01", status: "finished" });
     const today = cup({ id: 2, heldOn: "2026-10-06" });
-    expect(latestOf([old, today], "2026-10-06")?.id).toBe(2);
-    expect(currentOf([old, today], "2026-10-06")?.id).toBe(2);
-    expect(latestOf([old, today], "2026-10-07")?.id).toBe(1);
-    expect(currentOf([old, today], "2026-10-07")).toBeUndefined();
+    expect(latestOf([old, today])?.id).toBe(2);
+    expect(currentOf([old, today])?.id).toBe(2);
+    expect(latestOf([old, today])?.id).toBe(2);
+    expect(currentOf([old, today])?.id).toBe(2);
+  });
+
+  it("one played earlier, then one whose Saturday passed unplayed: the unplayed one is on (#169)", () => {
+    at("2026-11-15T11:00:00Z");
+    const tonight = cup({ id: 1, heldOn: "2026-10-23", status: "finished" });
+    const missed = cup({ id: 2, heldOn: "2026-11-14" });
+    const next = cup({ id: 3, heldOn: "2027-03-13" });
+    expect(currentOf([tonight, missed], "2026-11-15")?.id).toBe(2);
+    expect(currentOf([tonight, missed, next], "2026-11-15")?.id).toBe(2);
   });
 
   it("only one that came and went unplayed, and none played: that one, the last there is", () => {
     at("2026-10-06T11:00:00Z");
     const missed = cup({ id: 3, heldOn: "2026-09-01" });
-    expect(latestOf([missed], "2026-10-06")?.id).toBe(3);
+    expect(latestOf([missed])?.id).toBe(3);
   });
 
   it("two under way at once: the earlier", () => {
     at("2026-10-06T11:00:00Z");
     const a = cup({ id: 1, heldOn: "2026-10-10", status: "live" });
     const b = cup({ id: 2, heldOn: "2026-10-03", games: [game(1, "live")] as never });
-    expect(latestOf([a, b], "2026-10-06")?.id).toBe(2);
+    expect(latestOf([a, b])?.id).toBe(2);
   });
 });
 
@@ -151,7 +160,7 @@ describe("the after-party is the evening it was played, whatever its date says (
       heldOn: "2027-08-31",
     });
     expect(atAfters(t, "2026-10-23")).toBe(true);
-    expect(currentOf([t], "2026-10-23", "2026-10-23")?.id).toBe(1);
+    expect(currentOf([t], "2026-10-23")?.id).toBe(1);
     expect(atAfters(t, "2026-10-24")).toBe(false);
   });
 
@@ -177,7 +186,7 @@ describe("every award revealed: done, its results on its page that evening, then
   const kumite = { shortName: "Kumite" } as never;
 
   it("an award still to reveal: at The Anchor", () => {
-    expect(currentOf([night(1)], "2026-11-14", "2026-11-14")?.id).toBe(1);
+    expect(currentOf([night(1)], "2026-11-14")?.id).toBe(1);
     expect(stageBadge(night(1), kumite, "2026-11-14", "The Anchor").label).toBe("The Anchor");
   });
 
@@ -188,11 +197,11 @@ describe("every award revealed: done, its results on its page that evening, then
   });
 
   it("the last one revealed: still its page that evening, its results, the stamp Done", () => {
-    expect(currentOf([night(2)], "2026-11-14", "2026-11-14")?.id).toBe(1);
+    expect(currentOf([night(2)], "2026-11-14")?.id).toBe(1);
     expect(stageBadge(night(2), kumite, "2026-11-14", "The Anchor").label).toBe("Done");
   });
 
   it("the morning after: history, nothing on", () => {
-    expect(currentOf([night(2)], "2026-11-15", "2026-11-15")).toBeUndefined();
+    expect(currentOf([night(2)], "2026-11-15")).toBeUndefined();
   });
 });

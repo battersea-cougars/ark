@@ -67,16 +67,15 @@ export function editionWhen(t: Tournament) {
 }
 
 /**
- * Which edition of a series to open on, by what's happened rather than the dates: the one under way, else the next one
- * that isn't done (just a season is enough; one whose fixed day passed unplayed isn't), else the
- * last one played.
+ * Which edition of a series to open on, by what's happened rather than the dates: the one under way, else the first
+ * that isn't done (just a season is enough; one whose fixed day passed unplayed still is, until an admin plays it,
+ * moves it or deletes it, #169), else the last one played.
  */
-export function latestOf(editions: Tournament[], today: string): Tournament | undefined {
+export function latestOf(editions: Tournament[]): Tournament | undefined {
   const mine = [...editions].sort((a, b) => a.heldOn.localeCompare(b.heldOn));
-  const ahead = (t: Tournament) => editionState(t) !== "done" && (!!t.season || t.heldOn >= today);
   return (
     mine.find((t) => editionState(t) === "live") ??
-    mine.find(ahead) ??
+    mine.find((t) => editionState(t) !== "done") ??
     mine.findLast((t) => editionState(t) === "done") ??
     mine.at(-1)
   );
@@ -109,10 +108,10 @@ export const atAfters = (t: Tournament, evening: string) => editionState(t) === 
  * evening one's played, it's still on, at its after-party, till the morning (`evening`: London's evening now), even
  * with the next one scheduled.
  */
-export function currentOf(editions: Tournament[], today: string, evening?: string): Tournament | undefined {
+export function currentOf(editions: Tournament[], evening?: string): Tournament | undefined {
   const tonight = evening ? editions.find((t) => atAfters(t, evening)) : undefined;
   if (tonight) return tonight;
-  const latest = latestOf(editions, today);
+  const latest = latestOf(editions);
   return latest && editionState(latest) !== "done" ? latest : undefined;
 }
 

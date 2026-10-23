@@ -34,7 +34,8 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   Penalties, House rules; `formatAndRules` in `lib/format-rules.ts`, from what's stored and enforced, nothing invented;
   a series' house rules are plain text an admin writes, `tournament_types.house_rules`) and **Manage** (the gear).
 - **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date
-  or just a season is enough). The series' other pages show the same one; there's no switcher. Once the last game's
+  or just a season is enough). One whose day passed unplayed is still the one, until an admin plays it, moves it or
+  deletes it. The series' other pages show the same one; there's no switcher. Once the last game's
   played it's history: nothing's on.
 - **With nothing on, the series is one page.** No Fight card, The board, Teams, Draft or History (they're for one
   that's running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down
@@ -637,3 +638,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   one's page; `/history/:id` goes there, and the separate History page per edition (`pages/Edition`) is gone: its
   results are the after view's once the evening's over (`lib/EditionResults`). A past one's draft is everyone's. Its
   teams', matchups' and games' ways back go to their own edition's page; their addresses stay as they were.
+- 2026-10-23: A Kumite whose day passed unplayed stays the one its pages are on until an admin plays, moves or deletes
+  it; it had vanished ("No Kumite yet") once an earlier one was done (#169).
