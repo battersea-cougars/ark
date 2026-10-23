@@ -162,16 +162,18 @@
             aria-hidden={i > reveal.revealed}
             bind:this={cards[i]}
           >
-            <!-- Face down: a question mark, the award's place in the order; for whoever runs it, the card to tap. Kept
-                 under the board while it comes on -->
+            <!-- Face down: the award's name, big, for everyone (what's coming isn't the secret: who took it is), a
+                 question mark where the winner will be, its place in the order; for whoever runs it, the card to tap.
+                 Kept under the face-up card while it rolls in -->
             {#if !a.revealed || playing}
               <div class="face back" aria-hidden={a.revealed}>
                 <span class="order num">{i + 1}</span>
+                <span class="back-name"><BoardWords text={a.name} size="1.35rem" /></span>
                 <span class="mystery display">?</span>
                 {#if kumite}<span class="back-kanji" lang="ja" aria-hidden="true">{kanjiFor(type, "awards")}</span>{/if}
                 {#if sealed}
                   <span class="cue" class:go={tap}>
-                    {#if tap}<Icon name="medal" size={16} />Tap to reveal: {a.name}
+                    {#if tap}<Icon name="medal" size={16} />Tap to reveal
                     {:else if manage}Confirm the awards to reveal
                     {:else}Waiting for the reveal{/if}
                   </span>
@@ -402,6 +404,14 @@
     background:
       repeating-linear-gradient(135deg, rgb(255 255 255 / 0.018) 0 6px, transparent 6px 12px), var(--surface-1);
   }
+  /* The award's name where the face-up card has it, as big, in the same brass */
+  .back-name {
+    position: absolute;
+    top: var(--s-3);
+    right: 3rem;
+    left: var(--s-4);
+    color: var(--brass-ink);
+  }
   .mystery {
     color: color-mix(in srgb, var(--brass) 70%, transparent);
     font-size: 3.4rem;
@@ -495,8 +505,8 @@
   }
   .order {
     position: absolute;
-    top: var(--s-2);
-    left: var(--s-3);
+    top: var(--s-3);
+    right: var(--s-4);
     color: var(--fg-subtle);
     font-size: var(--text-xs);
     font-weight: 600;

@@ -504,3 +504,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   it always kept), a team's crest level with its name.
 - 2026-10-23: The awards' words drop the clock-like tiles: the poster's italic capitals (the award in brass, the
   winner bone), fitting the card.
+- 2026-10-23: A sealed award card says which award it is, big, for everyone (the brass capitals the face-up card has,
+  in the same place); the question mark is who took it, and the admin's cue is just "Tap to reveal".
