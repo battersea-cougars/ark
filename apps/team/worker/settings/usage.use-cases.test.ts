@@ -185,19 +185,19 @@ describe("the hourly check", () => {
 });
 
 // Before any limit runs out, the admins see it on Home (#148): each hourly check keeps the limits at 70% or more, and
-// Home asks for them (GET /api/usage/levels) and says the nearest in one row (lib/home-feed.ts). Push and email at
-// these levels are #157's.
+// they come with the club (the bootstrap's forAdmins) to whoever sees Usage, so Home's For admins says the nearest in
+// one line from first paint (lib/usage-near.ts). Push and email at these levels are #157's.
 describe("the admins' Home says when a free limit is getting close", () => {
   const check = (now = NOW) => checkUsage(w.env, now, { send: async () => {} });
-  const levelsAs = async (email: string, now = NOW) =>
-    (await w.signedIn(email)).call("GET", "/api/usage/levels", undefined, { now });
+  /** Home's For admins, as the app reads it when it opens. */
+  const homeAs = async (email: string, now = NOW) =>
+    (await w.signedIn(email)).call("GET", "/api/bootstrap", undefined, { now });
+  const levelsAs = async (email: string, now = NOW) => (await homeAs(email, now)).body.forAdmins.usage;
 
-  it("an admin sees a limit past 70%, with today's reset; a member can't ask", async () => {
+  it("an admin sees a limit past 70%, with today's reset; a member sees none", async () => {
     cloudflare({ rowsRead: 3_700_000 });
     await check();
-    const res = await levelsAs("dana@example.com");
-    expect(res.status).toBe(200);
-    expect(res.body.levels).toEqual([
+    expect(await levelsAs("dana@example.com")).toEqual([
       {
         id: "rowsRead",
         label: "Database rows read",
@@ -206,13 +206,13 @@ describe("the admins' Home says when a free limit is getting close", () => {
         resetsAt: "2026-10-07T00:00:00.000Z",
       },
     ]);
-    expect((await levelsAs("reg@example.com")).status).toBe(403);
+    expect(await levelsAs("reg@example.com")).toEqual([]);
   });
 
   it("all fine, there's nothing to say", async () => {
     cloudflare({ requests: [69_000], rowsRead: 3_000_000 });
     await check();
-    expect((await levelsAs("dana@example.com")).body.levels).toEqual([]);
+    expect(await levelsAs("dana@example.com")).toEqual([]);
   });
 
   it("past 90% says so, nearest first, with Sanity's month and a request stopped for its CPU time", async () => {
@@ -221,7 +221,7 @@ describe("the admins' Home says when a free limit is getting close", () => {
       `INSERT INTO sanity_requests (day, project, kind, count) VALUES ('2026-10-02', 'zmg6rbe3', 'cdn', 800000)`,
     );
     await check();
-    const { levels } = (await levelsAs("dana@example.com")).body;
+    const levels = await levelsAs("dana@example.com");
     expect(levels.map((l: Json) => [l.id, l.percent, l.period])).toEqual([
       ["cpu", 100, "day"],
       ["requests", 93, "day"],
@@ -231,15 +231,33 @@ describe("the admins' Home says when a free limit is getting close", () => {
     expect(levels[2]).toMatchObject({ label: "Sanity API CDN requests", resetsAt: "2026-11-01T00:00:00.000Z" });
   });
 
+  it("an admin who opened the app before the check gets the new line on their next open, not an unchanged reply", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const before = await dana.call("GET", "/api/bootstrap");
+    expect(before.body.forAdmins.usage).toEqual([]);
+    cloudflare({ requests: [75_000] });
+    await check();
+    const again = await dana.call("GET", "/api/bootstrap", undefined, {
+      headers: { "if-none-match": before.headers.get("etag") },
+    });
+    expect(again.status).toBe(200);
+    expect(again.body.forAdmins.usage.map((l: Json) => l.id)).toEqual(["requests"]);
+    // An hour later, the same: nothing new, so the app's copy stands
+    const version = again.headers.get("etag");
+    await check(new Date(NOW.getTime() + 3_600_000));
+    const unchanged = await dana.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": version } });
+    expect(unchanged.status).toBe(304);
+  });
+
   it("a limit back under 70% goes at the next check, and yesterday's isn't today's", async () => {
     cloudflare({ requests: [75_000] });
     await check();
     cloudflare({ requests: [40_000] });
     await check(new Date(NOW.getTime() + 3_600_000));
-    expect((await levelsAs("dana@example.com")).body.levels).toEqual([]);
+    expect(await levelsAs("dana@example.com")).toEqual([]);
     cloudflare({ requests: [75_000] });
     await check();
-    expect((await levelsAs("dana@example.com", new Date("2026-10-07T00:30:00Z"))).body.levels).toEqual([]);
+    expect(await levelsAs("dana@example.com", new Date("2026-10-07T00:30:00Z"))).toEqual([]);
   });
 
   it("when Cloudflare can't be read, keeps what the last check found rather than saying all's fine", async () => {
@@ -247,7 +265,7 @@ describe("the admins' Home says when a free limit is getting close", () => {
     await check();
     cloudflare({ ok: false });
     await check(new Date(NOW.getTime() + 3_600_000));
-    expect((await levelsAs("dana@example.com")).body.levels.map((l: Json) => l.id)).toEqual(["requests"]);
+    expect((await levelsAs("dana@example.com")).map((l: Json) => l.id)).toEqual(["requests"]);
   });
 });
 

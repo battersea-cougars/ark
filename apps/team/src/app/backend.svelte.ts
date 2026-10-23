@@ -27,6 +27,7 @@ import {
   PAYMENTS,
   REMINDERS,
   SUBSCRIPTION_FEES,
+  FOR_ADMINS,
 } from "../demo/data";
 import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
@@ -97,6 +98,9 @@ const COPY: Record<keyof Slices, () => void> = {
   },
   notifications: () => {
     db.notifications = structuredClone(NOTIFICATIONS);
+  },
+  forAdmins: () => {
+    db.forAdmins = structuredClone(FOR_ADMINS);
   },
   // Only when it's changed: live pages' checks follow it, and would otherwise start again after every refresh
   settings: () => {

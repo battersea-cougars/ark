@@ -150,7 +150,6 @@ reads and bills, however it travels.
 | `GET /api/me/notifications`                            |        3 |          3 |
 | `GET /api/break-glass`                                 |        3 |          3 |
 | `GET /api/usage`                                       |        3 |          4 |
-| `GET /api/usage/levels`                                |        3 |          3 |
 | `GET /api/audit`                                       |        3 |          3 |
 | `GET /api/dev/mail`                                    |        3 |          3 |
 | `GET /api/mail/callback`                               |        3 |          3 |
@@ -159,6 +158,9 @@ reads and bills, however it travels.
 | `PUT /api/auth/device`                                 |        2 |          2 |
 | `DELETE /api/auth/device`                              |        2 |          2 |
 | `POST /api/auth/passkeys/sign-in-options`              |        1 |          1 |
+
+Home's For admins (the free limits getting close, ADR 0059) is a part of the bootstrap's one club read, not a call of
+its own: the bootstrap stays at 16 calls and 43 statements (23 October 2026, `team/usage-check`).
 
 ## What was fixed (23 October 2026)
 

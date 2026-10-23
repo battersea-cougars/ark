@@ -1,6 +1,6 @@
 // The admins' one line about the club's free limits (ADR 0059, #148): when the hourly check found any at 70% or more
-// (GET /api/usage/levels), Home's For admins says the nearest, opening the Usage page; 90% and over is hot (its icon
-// in red, colour as an accent). All fine, nothing.
+// (they come with the club, the bootstrap's forAdmins), Home's For admins says the nearest, opening the Usage page;
+// 90% and over is hot (its icon in red, colour as an accent). All fine, nothing.
 import { formatDayDate, formatTime } from "./dates";
 import type { FeedItem } from "./home-feed";
 

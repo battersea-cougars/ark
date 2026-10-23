@@ -7,6 +7,7 @@ import type { AgendaRow, OneOff, Tournament, TournamentType, TrainingSeries, Tra
 import type { Quip } from "../lib/quips";
 import type { Team } from "../lib/balance";
 import type { Charge, DatedFee, Payment } from "../lib/dues";
+import type { UsageLevel } from "../lib/usage-near";
 
 export type Position = "F" | "D" | "G";
 export const POSITIONS: Record<Position, string> = { F: "Forward", D: "Defence", G: "Keeper" };
@@ -168,7 +169,16 @@ export interface Bootstrap {
   subscriptionFees: DatedFee[];
   /** Your own notifications, a choice per topic (ADR 0108). */
   notifications: NotificationPrefs;
+  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0059), for whoever sees Usage. */
+  forAdmins: ForAdmins;
 }
+
+/** Home's For admins, from the server with the club, so its lines are there on first paint. */
+export interface ForAdmins {
+  /** The free limits at 70% or more, nearest first (lib/usage-near.ts); none for anyone who doesn't see Usage. */
+  usage: UsageLevel[];
+}
+export const FOR_ADMINS: ForAdmins = { usage: [] };
 
 /** Home's lines, from D1. */
 export const QUIPS: Quip[] = [];
@@ -251,6 +261,7 @@ export function applySlices(b: Slices) {
   if (b.payments) fill(PAYMENTS, b.payments);
   if (b.subscriptionFees) fill(SUBSCRIPTION_FEES, b.subscriptionFees);
   if (b.notifications) Object.assign(NOTIFICATIONS, b.notifications);
+  if (b.forAdmins) Object.assign(FOR_ADMINS, b.forAdmins);
 }
 
 /** The old app's names: the Cougar players' team is "Cougars", the rest are colours. */

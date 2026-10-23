@@ -7,7 +7,6 @@ import { createQuip, deleteQuip, updateQuip } from "./quips";
 import { createVenue, updateVenue } from "./venues";
 import { saveBank, saveSettings } from "./settings";
 import { readUsage } from "./usage";
-import { readLevels } from "./usage.levels";
 
 export const SETTINGS_ROUTES: Route[] = [
   {
@@ -38,13 +37,6 @@ export const SETTINGS_ROUTES: Route[] = [
     action: "read:Usage",
     // Today's use of the club's free Cloudflare allowance (ADR 0059)
     handle: async (c) => json(await readUsage(c.env, new Date(c.now))),
-  },
-  {
-    method: "GET",
-    path: /^\/api\/usage\/levels$/,
-    action: "read:Usage",
-    // The free limits at 70% or more, as the last hourly check found them, for the admins' Home (#148)
-    handle: async (c) => json({ levels: await readLevels(c.env.DB, new Date(c.now)) }),
   },
   {
     method: "GET",

@@ -31,7 +31,6 @@
     type UpcomingEvent,
     type When,
   } from "../lib/home-feed";
-  import type { UsageLevel } from "../lib/usage-near";
   import DateBlock from "../lib/DateBlock.svelte";
   import { fill, slot } from "../lib/greetings";
   import {
@@ -293,18 +292,9 @@
         .catch(() => {});
     });
   });
-  // The free limits at 70% or more, as the hourly check found them (ADR 0059, #148): asked once a visit, for whoever
-  // sees Usage. Its one line goes last under For admins, so nothing above it moves when it comes
-  let usage = $state<UsageLevel[]>([]);
+  // The free limits at 70% or more, as the hourly check found them (ADR 0059, #148): with the club, so the line is
+  // there on first paint; only for whoever sees Usage (the server sends nobody else any)
   const seesUsage = $derived(can(perms, "read:Usage"));
-  $effect(() => {
-    if (!seesUsage) return;
-    untrack(() => {
-      api<{ levels: UsageLevel[] }>("GET", "/api/usage/levels")
-        .then((r) => (usage = r.levels))
-        .catch(() => {});
-    });
-  });
   // The lead is picked once a visit (lib/home-feed.ts leadOf) and stays while it's on: answering Out on it doesn't
   // swap the card under your thumb (no-layout-shift)
   let pinned = $state<string>();
@@ -322,7 +312,7 @@
       club,
       events,
       emailStopped: keepsEmail && emailStopped,
-      usage: seesUsage ? usage : [],
+      usage: seesUsage ? db.forAdmins.usage : [],
       now: openedAt,
       pinned,
     }),

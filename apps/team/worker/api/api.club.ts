@@ -29,6 +29,8 @@ export interface Viewer {
   seesDues: boolean;
   /** Every award's winner as soon as it's confirmed: whoever runs tournaments (reveals them at the after-party) */
   seesAwards: boolean;
+  /** The free limits getting close, for Home's For admins (ADR 0059): whoever sees Usage */
+  seesUsage: boolean;
   /** London's evening now, its date (till 06:00, the night before's): the after-party's (ADR 0074) */
   evening: string;
 }
@@ -47,6 +49,7 @@ const VIEWER = [
   "runs_draft",
   "sees_dues",
   "sees_awards",
+  "sees_usage",
   "evening",
 ] as const;
 
@@ -63,6 +66,7 @@ const bound = (v: Viewer) => [
   Number(v.runsDraft),
   Number(v.seesDues),
   Number(v.seesAwards),
+  Number(v.seesUsage),
   v.evening,
 ];
 
@@ -332,6 +336,12 @@ const PARTS = {
     "memberId at",
     `SELECT r.member_id memberId, MAX(COALESCE(r.sent_at, r.claimed_at)) at FROM dues_reminders r, viewer v
      WHERE v.sees_dues GROUP BY r.member_id`,
+  ),
+  // The free limits at 70% or more as the hourly check found them (usage.levels.ts), for whoever sees Usage
+  usageLevels: rows(
+    "id period label percent",
+    `SELECT u.metric id, u.period, u.label, u.percent FROM usage_levels u, viewer v WHERE v.sees_usage
+     ORDER BY u.percent DESC, u.metric`,
   ),
   // What's on from today (ADR 0042). A draft night is for whoever runs the draft and that tournament's captains.
   agenda: rows(

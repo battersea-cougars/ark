@@ -22,6 +22,7 @@ import {
   TOURNAMENTS,
   TOURNAMENT_TYPES,
   VENUES,
+  FOR_ADMINS,
 } from "./data";
 
 export const db = $state({
@@ -53,4 +54,6 @@ export const db = $state({
   notifications: structuredClone(NOTIFICATIONS),
   /** When each member was last reminded of what they owe (ADR 0007). */
   reminders: structuredClone(REMINDERS),
+  /** Home's For admins: the free limits getting close (ADR 0059). */
+  forAdmins: structuredClone(FOR_ADMINS),
 });

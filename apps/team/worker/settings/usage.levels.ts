@@ -1,9 +1,11 @@
 // How near the club is to each free limit (ADR 0059, #148): each hourly check keeps, in usage_levels, every limit it
-// read that's at 70% or more, and only those; the admins' Home asks for them and says the nearest in one row. Today's
-// Cloudflare limits are the UTC day's, Sanity's the month's; a row from a day or month that's over isn't shown. Push
-// and email at these levels are #157's.
+// read that's at 70% or more, and only those. They go out with the club (the bootstrap's forAdmins, api.slices.ts) to
+// whoever sees Usage, so Home's For admins has its line on first paint; a change to them is a new data version, so
+// the next open reads them afresh (ADR 0053). Today's Cloudflare limits are the UTC day's, Sanity's the month's; a row
+// from a day or month that's over isn't shown. Push and email at these levels are #157's.
 import { all, batch, statement } from "@cougars/shared/d1";
 import { nextMonth } from "@cougars/shared/sanity-requests";
+import { bumpDataVersion } from "../api/api.version";
 import type { Usage } from "./usage";
 
 /** From here a limit is worth saying (Home says 90% and over louder). */
@@ -18,16 +20,18 @@ export interface Level {
   resetsAt: string;
 }
 
-/** What one check found: the limits it could read, and those of them at 70% or more. */
-interface Found {
-  read: string[];
-  near: { id: string; period: string; label: string; percent: number }[];
+/** A limit as stored: the day (or month) it's for. */
+interface Kept {
+  id: string;
+  period: string;
+  label: string;
+  percent: number;
 }
 
 const percentOf = (used: number, limit: number) => Math.floor((used / limit) * 100);
 
 /** Each limit the check read, as a level: Cloudflare's only when it could be read, Sanity's (ours) always. */
-function levelsOf(usage: Usage): Found {
+function levelsOf(usage: Usage): Kept[] {
   const cloudflare = usage.configured && !usage.unavailable;
   const day = cloudflare
     ? usage.metrics.map((m) => ({ id: m.id, period: usage.day, label: m.label, percent: percentOf(m.used, m.limit) }))
@@ -43,15 +47,34 @@ function levelsOf(usage: Usage): Found {
     label: `Sanity ${q.label}`,
     percent: percentOf(q.used, q.limit),
   }));
-  const limits = [...day, ...cpu, ...month];
-  return { read: limits.map((l) => l.id), near: limits.filter((l) => l.percent >= NEAR_AT) };
+  return [...day, ...cpu, ...month];
 }
 
-/** Replace what this check read with what it found, in one round trip: a limit back under 70% goes. */
+const sameLevels = (a: Kept[], b: Kept[]) => {
+  const key = (rows: Kept[]) =>
+    rows
+      .map((l) => `${l.id} ${l.period} ${l.percent}`)
+      .sort()
+      .join("\n");
+  return key(a) === key(b);
+};
+
+/**
+ * Replace what this check read with what it found: a limit back under 70% goes. Only when something changed, and
+ * then the data version moves on, so the admins' next open of the app reads the new line rather than a 304.
+ */
 export async function saveLevels(db: D1Database, usage: Usage) {
-  const { read, near } = levelsOf(usage);
+  const limits = levelsOf(usage);
+  const read = JSON.stringify(limits.map((l) => l.id));
+  const near = limits.filter((l) => l.percent >= NEAR_AT);
+  const kept = await all<Kept>(
+    db,
+    "SELECT metric id, period, label, percent FROM usage_levels WHERE metric IN (SELECT value FROM json_each(?))",
+    [read],
+  );
+  if (sameLevels(kept, near)) return;
   await batch(db, [
-    statement(db, "DELETE FROM usage_levels WHERE metric IN (SELECT value FROM json_each(?))", [JSON.stringify(read)]),
+    statement(db, "DELETE FROM usage_levels WHERE metric IN (SELECT value FROM json_each(?))", [read]),
     statement(
       db,
       `INSERT INTO usage_levels (metric, period, label, percent)
@@ -59,28 +82,25 @@ export async function saveLevels(db: D1Database, usage: Usage) {
       [JSON.stringify(near)],
     ),
   ]);
+  await bumpDataVersion(db);
 }
 
-/** The limits at 70% or more now, nearest first: today's and this month's, not a day's that's over. */
-export async function readLevels(db: D1Database, now: Date): Promise<Level[]> {
+/** The kept levels as Home says them, nearest first (the club read's order): today's and this month's only. */
+export function levelsFrom(rows: Kept[], now: Date): Level[] {
   const day = now.toISOString().slice(0, 10);
   const month = day.slice(0, 7);
-  const rows = await all<{ id: string; period: string; label: string; percent: number }>(
-    db,
-    `SELECT metric id, period, label, percent FROM usage_levels WHERE period IN (?, ?)
-     ORDER BY percent DESC, metric`,
-    [day, month],
-  );
   const tomorrow = new Date(Date.parse(day) + 86_400_000).toISOString();
   const monthAfter = new Date(nextMonth(now)).toISOString();
-  return rows.map((row) => {
-    const daily = row.period === day;
-    return {
-      id: row.id,
-      label: row.label,
-      percent: row.percent,
-      period: daily ? "day" : "month",
-      resetsAt: daily ? tomorrow : monthAfter,
-    };
-  });
+  return rows
+    .filter((row) => row.period === day || row.period === month)
+    .map((row) => {
+      const daily = row.period === day;
+      return {
+        id: row.id,
+        label: row.label,
+        percent: row.percent,
+        period: daily ? "day" : "month",
+        resetsAt: daily ? tomorrow : monthAfter,
+      };
+    });
 }
