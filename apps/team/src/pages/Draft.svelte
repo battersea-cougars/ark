@@ -730,7 +730,7 @@
   // page has a summary of it (who's picking, the last pick, the way in)
   const shows = $derived(tournament ? draftShows(tournament, room) : "steps");
   const lastPicked = $derived(picks.at(-1) ?? null);
-  // The Kumite's marks on its actions (lib/motif.ts): 選 (choose) on the champion button and a chosen player, 決
+  // The Kumite's marks on its actions (lib/motif.ts): 選 (choose) on the champion button, 決
   // (decided) on Yes. A series without the motif: plain
   const chooseMark = $derived(kanjiFor(type, "choose"));
   const decideMark = $derived(kanjiFor(type, "sealed"));
@@ -791,10 +791,6 @@
     <button class="nm" onclick={(e) => (lifted = { id: p.id, el: e.currentTarget })}>
       {goesBy(p)}{#if p.cougar}<small>Cougar</small>{/if}
     </button>
-    <!-- The one chosen: a small red seal beside the name, stamped on (its room always kept, so nothing moves) -->
-    <span class="chosen-seal" aria-hidden="true"
-      >{#if on}{#if chooseMark}<Kanji text={chooseMark} seal />{:else}<Icon name="check" size={16} />{/if}{/if}</span
-    >
     <span class="ps" class:g={p.position === "G"}>{p.position}</span>
     <!-- Room for Choose is always kept, so the rows don't change when your turn comes -->
     <span class="act">
@@ -2857,7 +2853,7 @@
   }
   .prow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 1.6rem 1.6rem 5.5rem;
+    grid-template-columns: minmax(0, 1fr) 1.6rem 5.5rem;
     align-items: center;
     gap: var(--s-3);
     min-height: 2.25rem;
@@ -2941,27 +2937,6 @@
   .pick:focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
-  }
-  .chosen-seal {
-    display: grid;
-    place-items: center;
-    width: 1.6rem;
-    height: 1.6rem;
-    color: var(--red-hot);
-  }
-  .chosen-seal :global(.seal) {
-    width: 1.5rem;
-    height: 1.5rem;
-    padding: 0.1rem;
-    font-size: 0.95rem;
-    border-radius: 0.2rem;
-    box-shadow: none;
-    animation: seal-on 300ms cubic-bezier(0.55, 0, 0.75, 0.2) both;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .chosen-seal :global(.seal) {
-      animation: none;
-    }
   }
   .tools {
     display: flex;
