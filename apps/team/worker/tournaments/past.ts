@@ -6,7 +6,7 @@
 // (lib/edition.ts playedOn); a goal with nobody said counts in the score only, a named scorer in the all-time leaders.
 import { batch, first, statement } from "@cougars/shared/d1";
 import { awardsToReveal, decidedByOf } from "../../src/lib/awards";
-import { HttpError, date, int, text } from "../api/api.http";
+import { HttpError, date, int, objectsIn, text } from "../api/api.http";
 import { createTournament, parseAwards } from "./tournaments";
 
 /** A team as it played: its name, its captain and its players, all members. */
@@ -39,7 +39,7 @@ interface PastWinner {
 const listOf = (o: Record<string, unknown>, key: string, most: number) => {
   const v = o[key] ?? [];
   if (!Array.isArray(v) || v.length > most) throw new HttpError(400, `${key} should be a list of up to ${most}.`);
-  return v as Record<string, unknown>[];
+  return objectsIn(v, key);
 };
 
 function teamsIn(o: Record<string, unknown>): PastTeam[] {

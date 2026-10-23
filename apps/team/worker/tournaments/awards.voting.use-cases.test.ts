@@ -305,3 +305,16 @@ describe("a member's votes are theirs", () => {
     expect((w.db.raw.prepare("SELECT COUNT(*) n FROM tournament_award_votes").get() as Json).n).toBe(0);
   });
 });
+
+describe("a vote or the awards sent wrong", () => {
+  it("a list of votes or winners holding a null, a number or a list is refused, not a server error", async () => {
+    const k = await kumiteNight(w);
+    const cara = await w.signedIn("cara@example.com");
+    for (const bad of [null, 1, "Best keeper", []]) {
+      const vote = await cara.call("POST", `/api/tournaments/${k.id}/votes`, { votes: [bad] }, EVENING);
+      expect([vote.status, typeof vote.body.error]).toEqual([400, "string"]);
+      const winners = await k.dana.call("PUT", `/api/tournaments/${k.id}/winners`, { winners: [bad] }, EVENING);
+      expect([winners.status, typeof winners.body.error]).toEqual([400, "string"]);
+    }
+  });
+});

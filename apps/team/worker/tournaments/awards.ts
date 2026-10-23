@@ -6,7 +6,7 @@
 // closes voting and sets every winner at once. Then the reveal: one award at a time, in the order listed.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
-import { HttpError, int, text } from "../api/api.http";
+import { HttpError, int, objectsIn, text } from "../api/api.http";
 import {
   awardsToReveal,
   candidatesOf,
@@ -164,7 +164,7 @@ export async function setWinners(
     if (revealed > 0) throw new HttpError(409, "The reveal's started: step back to change the awards.");
     const teams = new Set(data.teams.flatMap((x) => (x.id ? [x.id] : [])));
     const players = new Set(playersOf(data));
-    const given = list.map((w: Record<string, unknown>) => {
+    const given = objectsIn(list, "winners").map((w) => {
       const name = text(w, "award", { max: 40 });
       const award = awards.find((a) => a.name === name);
       if (!award) throw new HttpError(400, `"${name}" isn't one of this tournament's awards.`);
@@ -308,7 +308,7 @@ export async function castVotes(
       )
     ).map((v) => [v.award, v.id]),
   );
-  const votes = list.map((v: Record<string, unknown>) => {
+  const votes = objectsIn(list, "votes").map((v) => {
     const name = text(v, "award", { max: 40 });
     const award = awards.find((a) => a.name === name);
     if (!award || decidedByOf(award).kind !== "vote") throw new HttpError(400, `"${name}" isn't voted for.`);

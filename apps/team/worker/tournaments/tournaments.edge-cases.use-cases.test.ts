@@ -224,6 +224,27 @@ describe("an admin sets a tournament's teams", () => {
     expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, capacity: 30 })).status).toBe(200);
   });
 
+  it("a list holding a null, a number or a list where a team, player, award or playoff goes is refused, not a server error", async () => {
+    const dana = await admin();
+    const cara = await dana.idOf("Cara Captain");
+    for (const bad of [null, 1, "Ants", []]) {
+      for (const o of [
+        { kind: "teams", teams: [bad] },
+        { kind: "teams", teams: [{ name: "Ants", captainMemberId: cara, players: [bad] }] },
+        { awards: [bad] },
+        { playoffs: [bad] },
+      ]) {
+        const res = await dana.create(o);
+        expect([res.status, typeof res.body.error]).toEqual([400, "string"]);
+      }
+      for (const o of [{ awards: [bad] }, { playoffs: [bad] }]) {
+        const res = await dana.series(o);
+        expect([res.status, typeof res.body.error]).toEqual([400, "string"]);
+      }
+    }
+    expect((await dana.boot()).tournaments.filter((t: Json) => t.name === "Winter Cup")).toEqual([]);
+  });
+
   it("a change to a tournament that isn't there is a 404", async () => {
     const dana = await admin();
     expect((await dana.call("PUT", "/api/tournaments/9999", dana.cup())).status).toBe(404);

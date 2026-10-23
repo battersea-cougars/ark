@@ -134,6 +134,22 @@ describe("an admin records a past Kumite", () => {
     expect(rows("SELECT COUNT(*) n FROM tournaments WHERE name = 'Kumite Spring 2026'")[0].n).toBe(0);
   });
 
+  it("a list holding a null, a number or a list where a team, match or winner goes is refused, not a server error", async () => {
+    const a = await admin();
+    const spring = lastSpring(a.idOf);
+    for (const bad of [null, 1, "Shidoshi", []]) {
+      for (const body of [
+        { ...spring, teams: [bad, bad] },
+        { ...spring, games: [bad] },
+        { ...spring, winners: [bad] },
+      ]) {
+        const res = await a.dana.call("POST", "/api/tournaments/past", body);
+        expect([res.status, typeof res.body.error]).toEqual([400, "string"]);
+      }
+    }
+    expect(rows("SELECT COUNT(*) n FROM tournaments WHERE name = 'Kumite Spring 2026'")[0].n).toBe(0);
+  });
+
   it("a member who doesn't run tournaments can't record one", async () => {
     const a = await admin();
     const ash = await w.signedIn("ash@example.com");

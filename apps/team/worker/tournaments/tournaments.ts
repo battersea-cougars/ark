@@ -7,7 +7,7 @@ import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
 import type { Winner } from "./awards";
 import { STATS, decidedByOf, type Award, type DecidedBy, type PlayerStat } from "../../src/lib/awards";
 import type { Game } from "./fixtures";
-import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
+import { HttpError, bool, date, int, objectsIn, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
 import { afterFields, placeFields } from "../settings/venues";
 import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
@@ -97,8 +97,8 @@ function decidedByIn(a: Record<string, unknown>, name: string): DecidedBy {
 function awardsOf(o: Record<string, unknown>): string {
   const list = o.awards ?? [];
   if (!Array.isArray(list)) throw new HttpError(400, "awards should be a list.");
-  const awards = list
-    .map((a: Record<string, unknown>) => ({
+  const awards = objectsIn(list, "awards")
+    .map((a) => ({
       name: text(a, "name", { optional: true, max: 40 }).trim(),
       about: text(a, "about", { optional: true, max: 120 }).trim(),
       a,
@@ -132,7 +132,7 @@ function playoffsOf(o: Record<string, unknown>): string {
   const list = o.playoffs ?? [];
   if (!Array.isArray(list)) throw new HttpError(400, "playoffs should be a list.");
   if (list.length > 8) throw new HttpError(400, "Up to 8 playoff games.");
-  const games = list.map((g: Record<string, unknown>) => {
+  const games = objectsIn(list, "playoffs").map((g) => {
     const game = {
       name: text(g, "name", { max: 40 }).trim(),
       home: int(g, "home", { min: 1, max: 16 }),
@@ -483,7 +483,7 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
   if (o.teams == null) return null;
   if (!Array.isArray(o.teams)) throw new HttpError(400, "teams should be a list.");
   if (o.teams.length > 16) throw new HttpError(400, "Up to 16 teams.");
-  const teams = o.teams.map((t: Record<string, unknown>): TeamIn => {
+  const teams = objectsIn(o.teams, "teams").map((t): TeamIn => {
     const logo = logoOf(t);
     const list = t.players ?? [];
     if (!Array.isArray(list) || list.length > 30) throw new HttpError(400, "Up to 30 players a team.");
@@ -496,8 +496,8 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
       captainMemberId: int(t, "captainMemberId", { min: 1, nullable: true }),
       captainName: text(t, "captainName", { optional: true, max: 60 }).trim(),
       contact: text(t, "contact", { optional: true, max: 120 }).trim(),
-      players: list
-        .map((p: Record<string, unknown>) => ({
+      players: objectsIn(list, "players")
+        .map((p) => ({
           memberId: int(p, "memberId", { min: 1, nullable: true }),
           name: text(p, "name", { optional: true, max: 60 }).trim(),
         }))
