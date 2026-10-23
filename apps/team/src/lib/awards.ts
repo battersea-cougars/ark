@@ -1,6 +1,6 @@
 // A tournament's awards and how each is decided (ADR 0044). Every award says how (`decidedBy`), chosen by an admin
 // in the series' editor or the tournament's own:
-//   A stat we track, from the results: top of the table (the champions, a team); most goals (then most assists);
+//   A stat we track, from the results: the champions (a team: the final's winner, else the top of the table); most goals (then most assists);
 //     most assists (then most goals); most points, goals and assists (then most goals); fewest goals against a game
 //     (a goalie, position G, by their team's games); most penalty minutes. Still level: joint winners.
 //   A vote, at the after-party: everyone who played votes for anyone who played, or the skaters vote for a keeper,
@@ -212,7 +212,8 @@ export function awardFromData(
   if (how.stat === "table") {
     const teamIds = t.teams.flatMap((x) => (x.id ? [x.id] : []));
     const id = champion(teamIds, t.games ?? [], { win: t.pointsWin, draw: t.pointsDraw, loss: t.pointsLoss });
-    return id ? { winners: [{ teamId: id, memberId: null }], why: "From the results" } : null;
+    const final = (t.games ?? []).some((g) => g.stage === "playoff");
+    return id ? { winners: [{ teamId: id, memberId: null }], why: final ? "Won the final" : "Top of the table" } : null;
   }
   const best = bestAt(how.stat, t, { positionOf });
   return best ? { winners: best.ids.map((memberId) => ({ teamId: null, memberId })), why: best.why } : null;
@@ -262,7 +263,7 @@ export function countVotes(
 
 /** In the editors: how an award's decided, as one choice (lib/Select's value), and back. */
 export const DECIDED_BY_OPTIONS = [
-  { value: "stat:table", label: "Top of the table (a team)" },
+  { value: "stat:table", label: "The champions (a team: the final's winner, else top of the table)" },
   { value: "stat:goals", label: "Most goals" },
   { value: "stat:assists", label: "Most assists" },
   { value: "stat:points", label: "Most points (goals + assists)" },

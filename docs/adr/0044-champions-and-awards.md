@@ -117,3 +117,5 @@ who won most of them.
 - 2026-10-23: Nobody voted: the admin chooses among everyone eligible, as on a tie, not the tie-break on its own (one
   eligible, they win it). "Keeper", as the club says it, in every word members read: the seed's Best keeper, One
   keeper a team, No keeper yet; the position was already Keeper.
+- 2026-10-23: The champions' award says what it is: the final's winner (else the top of the table), "Last team standing.
+  Win the final, take the night."; its reason reads Won the final or Top of the table, not From the results.

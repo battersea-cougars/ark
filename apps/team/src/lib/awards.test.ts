@@ -56,8 +56,15 @@ const stat = (s: Stat, name = "Award"): Award => ({ name, about: "", decidedBy: 
 const ids = (r: ReturnType<typeof awardFromData>) => r?.winners.map((w) => w.memberId).sort();
 
 describe("a stat we track", () => {
-  it("top of the table: the champion team", () => {
-    expect(awardFromData(stat("table"), t, ctx)).toMatchObject({ winners: [{ teamId: 1 }], why: "From the results" });
+  it("no final: the top of the table are the champions", () => {
+    expect(awardFromData(stat("table"), t, ctx)).toMatchObject({ winners: [{ teamId: 1 }], why: "Top of the table" });
+  });
+
+  it("with a final, the champions are its winner, even from second place", () => {
+    // Ants top the table on the round robin; Bees win the final
+    const final = { ...game(1, 2, [goal(1, 10), goal(2, 21), goal(2, 21)]), stage: "playoff" as const, position: 2 };
+    const g = { ...t, games: [...t.games, final] };
+    expect(awardFromData(stat("table"), g, ctx)).toMatchObject({ winners: [{ teamId: 2 }], why: "Won the final" });
   });
 
   it("most goals, and joint winners on a tie", () => {

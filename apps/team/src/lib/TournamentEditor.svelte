@@ -66,7 +66,7 @@
     awards: [
       {
         name: "Champions",
-        about: "The team on top of the table at the end of the day.",
+        about: "Last team standing. Win the final, take the night.",
         decidedBy: { kind: "stat", stat: "table" },
       },
       { name: "Top scorer", about: "Most goals across every game.", decidedBy: { kind: "stat", stat: "goals" } },
