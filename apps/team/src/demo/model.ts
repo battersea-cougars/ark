@@ -193,6 +193,8 @@ export interface Tournament extends Entries {
   /** Sign-up opens by itself on this day (ADR 0074), unless opened by hand. */
   signupOpensOn: string | null;
   signupClosesOn: string | null;
+  /** When an admin closed sign-up early (ADR 0074), its dates left as they were; null: they haven't. */
+  signupClosedAt?: string | null;
   /** Its own rules and awards, copied from its series and changed for it if need be (ADR 0030). */
   pointsWin: number;
   pointsDraw: number;

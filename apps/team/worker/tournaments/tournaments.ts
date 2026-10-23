@@ -330,7 +330,16 @@ export function draftStateOf(t: { kind: string; draftOn: string | null; draftSta
   return t.draftOn && hasTeams ? "scheduled" : "none";
 }
 
-async function tournamentFields(db: D1Database, o: Record<string, unknown>) {
+/**
+ * A tournament's own fields, checked. `stored`: its sign-up dates as they are (a save): dates left as they were aren't
+ * checked against each other, so one stored closing before it opens (as the first Close sign-up left them) never
+ * stops an unrelated save; dates changed are.
+ */
+async function tournamentFields(
+  db: D1Database,
+  o: Record<string, unknown>,
+  stored?: { opensOn: string | null; closesOn: string | null },
+) {
   const heldOn = date(o, "heldOn")!;
   // Just a season so far (ADR 0030): its day is the season's last; otherwise the day is the day
   const season = o.season == null || o.season === "" ? null : o.season;
@@ -341,7 +350,8 @@ async function tournamentFields(db: D1Database, o: Record<string, unknown>) {
   const signupOpensOn = date(o, "signupOpensOn", { nullable: true });
   if (signupOpensOn && signupOpensOn > heldOn) throw new HttpError(400, "Sign-up has to open before the day.");
   const signupClosesOn = date(o, "signupClosesOn", { nullable: true });
-  if (signupOpensOn && signupClosesOn && signupClosesOn < signupOpensOn)
+  const unchanged = stored && stored.opensOn === signupOpensOn && stored.closesOn === signupClosesOn;
+  if (signupOpensOn && signupClosesOn && signupClosesOn < signupOpensOn && !unchanged)
     throw new HttpError(400, "Sign-up can't close before it opens.");
   if (signupClosesOn && signupClosesOn > heldOn) throw new HttpError(400, "Sign-up can't close after the day.");
   const draftOn = date(o, "draftOn", { nullable: true });
@@ -742,11 +752,13 @@ export async function updateTournament(
       after_venue_id: number | null;
       after_time: string | null;
       after_note: string;
+      signup_opens_on: string | null;
+      signup_closes_on: string | null;
     }
   >(
     db,
     `SELECT points_win, points_draw, points_loss, game_minutes, kind, awards, playoffs, penalty_rule, periods, default_penalty_minutes,
-       break_minutes, draft_state, after_mode, after_venue_id, after_time, after_note
+       break_minutes, draft_state, after_mode, after_venue_id, after_time, after_note, signup_opens_on, signup_closes_on
      FROM tournaments WHERE id = ?`,
     [id],
   );
@@ -760,7 +772,8 @@ export async function updateTournament(
     current.after_time,
     current.after_note,
   ]);
-  const fields = [...(await tournamentFields(db, o)), ...rules, ...after];
+  const stored = { opensOn: current.signup_opens_on, closesOn: current.signup_closes_on };
+  const fields = [...(await tournamentFields(db, o, stored)), ...rules, ...after];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
   // A limit raised moves the first waiting up into its room, in the same batch (ADR 0030)

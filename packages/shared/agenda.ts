@@ -124,6 +124,7 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
         status: string;
         kind: string;
         signupClosesOn: string | null;
+        signupClosedAt: string | null;
         draftOn: string | null;
         draftState: string;
         afterMode: AfterMode;
@@ -139,7 +140,7 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
     `SELECT t.id, t.type_id typeId, t.name title, t.venue_id venueId, t.location name, t.map_url mapUrl,
             y.venue_id seriesVenueId, COALESCE(y.location, '') seriesName, COALESCE(y.map_url, '') seriesMapUrl,
             t.held_on heldOn, t.start_time startTime, t.end_time endTime, t.season,
-            t.public, t.status, t.kind, t.signup_closes_on signupClosesOn, t.draft_on draftOn,
+            t.public, t.status, t.kind, t.signup_closes_on signupClosesOn, t.signup_closed_at signupClosedAt, t.draft_on draftOn,
             t.draft_state draftState, t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime,
             t.after_note afterNote, y.after_venue_id seriesAfterVenueId, y.after_time seriesAfterTime,
             y.after_note seriesAfterNote
@@ -182,8 +183,8 @@ async function tournamentItems(db: D1Database, filter: string, params: unknown[]
         audience: "everyone",
       }),
     );
-    // The last day to say you're in: for members, not the website
-    if (t.signupClosesOn && (t.status === "planned" || t.status === "open"))
+    // The last day to say you're in: for members, not the website (none once an admin's closed it)
+    if (t.signupClosesOn && !t.signupClosedAt && (t.status === "planned" || t.status === "open"))
       items.push(
         item({
           ...base,

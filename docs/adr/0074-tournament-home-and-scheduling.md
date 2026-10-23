@@ -164,11 +164,13 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   | a draft closed               | the draft, open             | nothing                                                             | no                      |
   | the draft open               | the drawn order             | the picks so far ("Draft paused" to its captains)                   | red, counted (none: no) |
   | the order drawn              | before the draw             | the order                                                           | quietly                 |
-  | sign-up past its closing day | sign-up open                | the closing day                                                     | no                      |
+  | sign-up closed               | sign-up open                | the admin's close, and a closing day gone by                        | no                      |
 
   **Close sign-up** (`POST /api/tournaments/:id/signup/close`, manage:Tournament, audited `tournament.signup_closed`)
-  sets the closing day to yesterday, so it's past it as if the day had come: one guarded statement, only while sign-up
-  is open with nothing drawn or made (ADR 0121); Back to Sign-up open undoes it.
+  records when, on its own (`signup_closed_at`), its dates left as they were; sign-up is over once that's set or its
+  closing day's gone by (`lib/signup.ts signupOver`, the app and the Worker alike): one guarded statement, only while
+  sign-up is open with nothing drawn or made (ADR 0121); Back to Sign-up open clears it. A save checks the sign-up
+  dates against each other only when they change, so dates already stored closing before they open never stop one.
 
   `POST /api/tournaments/:id/step-back { from }` says which step it's leaving; it's refused (409) if the tournament
   has moved on since, so a tap from a page that's out of date never takes a second step. Each is one batch whose
@@ -354,3 +356,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   a tick (red) or a cross, plain words, a caret; it steps aside while the sign-up card is on the page. Rules is a
   topic a page ("Pages would be better" than scrolling to it): the tabs, a swipe on a phone, the topics either side at
   the foot; it opens on the status's topic; each rule leads with its fact in bold, its figures standing out.
+- 2026-10-23: Close sign-up moved the closing day to yesterday, so sign-up that opened today then closed before it
+  opened, and every later save of the tournament (starting a match moves it to now) was refused. An early close is now
+  its own record, `signup_closed_at`, the dates left alone; Back to Sign-up open clears it; and a save checks the
+  sign-up dates against each other only when it changes them, so a tournament already stored that way still saves.

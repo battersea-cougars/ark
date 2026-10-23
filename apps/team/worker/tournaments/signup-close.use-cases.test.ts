@@ -1,12 +1,14 @@
 // An admin closes a tournament's sign-up now (ADR 0074), from its page while sign-up's open, without waiting for its
 // closing day: members can't say they're in any more, and a captains' draft moves on to Draft open, where the order's
-// drawn. It's one guarded statement, so two taps at once close it once (ADR 0121); it's on the record; and Back to
-// Sign-up open (lib/step-back.ts) opens it again. Driven through the real Worker handlers in the fake world, each
+// drawn. It's recorded on its own (when it closed), its dates left as they were, so a later save of the tournament
+// never finds it closing before it opens. It's one guarded statement, so two taps at once close it once (ADR 0121);
+// it's on the record; and Back to Sign-up open (lib/step-back.ts) opens it again. Driven through the real Worker handlers in the fake world, each
 // person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";
 import { statusOf } from "../../src/lib/tournament-front";
+import { startingNow } from "../../src/lib/fixtures";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -65,8 +67,8 @@ describe("an admin closes sign-up now", () => {
     const k = await kumite();
     expect((await k.close()).status).toBe(200);
     const t = await k.tournament();
-    // Its closing day is yesterday, so today's past it: the same as a closing day that's gone by
-    expect(t.signupClosesOn).toBe("2026-11-23");
+    // Closed now, on its own: its closing day (none) is left as it was
+    expect([t.signupClosesOn, t.signupClosedAt]).toEqual([null, NOW.toISOString()]);
     expect(statusOf(t, "2026-11-24")).toBe("draft");
     const late = await k.mo.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at);
     expect(late.status).toBe(409);
@@ -83,7 +85,7 @@ describe("an admin closes sign-up now", () => {
   it("is an admin's: a member is refused, and sign-up stays open", async () => {
     const k = await kumite();
     expect((await k.close(k.reg)).status).toBe(403);
-    expect((await k.tournament()).signupClosesOn).toBe(null);
+    expect((await k.tournament()).signupClosedAt).toBe(null);
   });
 
   it("only while it's open: closed already, or not open yet, is refused and changes nothing", async () => {
@@ -91,10 +93,10 @@ describe("an admin closes sign-up now", () => {
     expect((await k.close()).status).toBe(200);
     const again = await k.close();
     expect([again.status, again.body.error]).toEqual([409, "Sign-up isn't open."]);
-    expect((await k.tournament()).signupClosesOn).toBe("2026-11-23");
+    expect((await k.tournament()).signupClosedAt).toBe(NOW.toISOString());
     const planned = await kumite({ status: "planned", signupOpensOn: "2026-11-30" });
     expect((await planned.close()).status).toBe(409);
-    expect((await planned.tournament()).signupClosesOn).toBe(null);
+    expect((await planned.tournament()).signupClosedAt).toBe(null);
   });
 
   it("Back to Sign-up open opens it again, and a member can say they're in", async () => {
@@ -103,7 +105,7 @@ describe("an admin closes sign-up now", () => {
     const back = await k.dana.call("POST", `/api/tournaments/${k.id}/step-back`, { from: "signup" }, at);
     expect(back.status).toBe(200);
     const t = await k.tournament();
-    expect([t.status, t.signupClosesOn]).toEqual(["open", null]);
+    expect([t.status, t.signupClosesOn, t.signupClosedAt]).toEqual(["open", null, null]);
     expect(statusOf(t, "2026-11-24")).toBe("signup");
     expect((await k.mo.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at)).status).toBe(200);
   });
@@ -120,14 +122,66 @@ describe("an admin closes sign-up now", () => {
     expect(n.n).toBe(1);
   });
 
-  it("it's on the record, with the closing day before and after", async () => {
+  it("it's on the record, with when it closed before and after", async () => {
     const k = await kumite();
     expect((await k.close()).status).toBe(200);
     const entry = w.db.raw
       .prepare("SELECT detail FROM audit_log WHERE action = 'tournament.signup_closed' ORDER BY id DESC LIMIT 1")
       .get() as { detail: string };
     const { from, to } = JSON.parse(entry.detail);
-    expect(from).toMatchObject({ signupClosesOn: null });
-    expect(to).toMatchObject({ signupClosesOn: "2026-11-23" });
+    expect(from).toMatchObject({ signupClosesOn: null, signupClosedAt: null });
+    expect(to).toMatchObject({ signupClosesOn: null, signupClosedAt: NOW.toISOString() });
+  });
+});
+
+describe("sign-up that opened today, closed today", () => {
+  /** Sign-up opened by itself today, and an admin closes it the same day. */
+  async function closedToday() {
+    const k = await kumite({ status: "planned", signupOpensOn: "2026-11-24" });
+    expect((await k.reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at)).status).toBe(200);
+    expect((await k.close()).status).toBe(200);
+    return k;
+  }
+
+  it("is past sign-up, its dates as they were: it still opens today and has no closing day", async () => {
+    const k = await closedToday();
+    const t = await k.tournament();
+    expect([t.signupOpensOn, t.signupClosesOn]).toEqual(["2026-11-24", null]);
+    expect(statusOf(t, "2026-11-24")).toBe("draft");
+    expect((await k.mo.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at)).status).toBe(409);
+  });
+
+  it("the tournament still saves: as it is, and moved to now to start a match", async () => {
+    const k = await closedToday();
+    const t = await k.tournament();
+    expect((await k.dana.call("PUT", `/api/tournaments/${k.id}`, t, at)).status).toBe(200);
+    const moved = startingNow(t, 1, "2026-11-24", "19:30");
+    const saved = await k.dana.call("PUT", `/api/tournaments/${k.id}`, moved, at);
+    expect([saved.status, saved.body.error]).toEqual([200, undefined]);
+    // Saving it doesn't open it again
+    expect((await k.tournament()).signupClosedAt).toBe(NOW.toISOString());
+  });
+
+  it("Back to Sign-up open opens it again", async () => {
+    const k = await closedToday();
+    const back = await k.dana.call("POST", `/api/tournaments/${k.id}/step-back`, { from: "signup" }, at);
+    expect(back.status).toBe(200);
+    const t = await k.tournament();
+    expect(t.signupClosedAt).toBe(null);
+    expect(statusOf(t, "2026-11-24")).toBe("signup");
+    expect((await k.mo.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at)).status).toBe(200);
+  });
+});
+
+describe("a tournament already stored closing before it opens", () => {
+  it("still saves, its dates unchanged, so it can't be locked; changing them to that is still refused", async () => {
+    const k = await kumite({ status: "planned", signupOpensOn: "2026-11-24" });
+    // As the first Close sign-up left it: its closing day moved to the day before it opened
+    w.db.raw.prepare("UPDATE tournaments SET signup_closes_on = '2026-11-23' WHERE id = ?").run(k.id);
+    const t = await k.tournament();
+    const saved = await k.dana.call("PUT", `/api/tournaments/${k.id}`, startingNow(t, 1, "2026-11-24", "19:30"), at);
+    expect([saved.status, saved.body.error]).toEqual([200, undefined]);
+    const wrong = await k.dana.call("PUT", `/api/tournaments/${k.id}`, { ...t, signupClosesOn: "2026-11-20" }, at);
+    expect([wrong.status, wrong.body.error]).toEqual([400, "Sign-up can't close before it opens."]);
   });
 });

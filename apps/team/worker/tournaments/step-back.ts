@@ -19,10 +19,12 @@ export async function whereItIs(db: D1Database, tournamentId: number, today: str
     draftState: string;
     status: string;
     signupClosesOn: string | null;
+    signupClosedAt: string | null;
     awardsRevealed: number;
   }>(
     db,
-    `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, awards_revealed awardsRevealed
+    `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt,
+       awards_revealed awardsRevealed
      FROM tournaments WHERE id = ?`,
     [tournamentId],
   );
@@ -52,6 +54,7 @@ export async function whereItIs(db: D1Database, tournamentId: number, today: str
     draftState: t.draftState,
     status: t.status,
     signupClosesOn: t.signupClosesOn,
+    signupClosedAt: t.signupClosedAt,
     awardsRevealed: t.awardsRevealed,
     drawn: teams.filter((x) => x.pick !== null).length,
     picks: picks?.n ?? 0,
@@ -117,15 +120,18 @@ function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, 
         [id, id],
       ),
     ],
-    // Sign-up open again, with no closing day (set one in its settings): only while it's past it and nothing's drawn
+    // Sign-up open again: an admin's close undone, and a closing day gone by gone (set one in its settings); only while
+    // it's closed and nothing's drawn
     signup: [
       statement(
         db,
-        `UPDATE tournaments SET status = 'open', signup_closes_on = NULL
-         WHERE id = ? AND signup_closes_on < ? AND NOT EXISTS (SELECT 1 FROM tournament_games WHERE tournament_id = ?)
+        `UPDATE tournaments SET status = 'open', signup_closed_at = NULL,
+           signup_closes_on = CASE WHEN signup_closes_on < ? THEN NULL ELSE signup_closes_on END
+         WHERE id = ? AND (signup_closed_at IS NOT NULL OR signup_closes_on < ?)
+           AND NOT EXISTS (SELECT 1 FROM tournament_games WHERE tournament_id = ?)
            AND (kind <> 'draft' OR (draft_state = 'none'
              AND NOT EXISTS (SELECT 1 FROM tournament_teams WHERE tournament_id = ? AND pick IS NOT NULL)))`,
-        [id, today, id, id],
+        [today, id, today, id, id],
       ),
     ],
   };

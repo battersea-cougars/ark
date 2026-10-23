@@ -1,6 +1,6 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
-import { nightOpen, nightOpensOn, opensWords, signupOpen } from "../lib/signup";
+import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../lib/signup";
 import { atAfters, currentOf, editionState, latestOf, previousOf } from "../lib/edition";
 import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
@@ -112,8 +112,8 @@ export function tournamentBookable(t: Tournament): Bookable {
   };
 }
 
-/** Past the last day to say you're in (London), for a tournament with one. */
-export const signupClosed = (t: Tournament, today = londonToday()) => !!t.signupClosesOn && today > t.signupClosesOn;
+/** Past the last day to say you're in (London), for a tournament with one, or an admin closed it. */
+export const signupClosed = (t: Tournament, today = londonToday()) => signupOver(t, today);
 
 /** The next session of a series that isn't cancelled (or the next at all, if they all are). */
 export function nextSession(series: TrainingSeries, today = londonToday()): TrainingSession | undefined {

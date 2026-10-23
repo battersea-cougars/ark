@@ -142,15 +142,17 @@ export const TOURNAMENTS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/signup\/close$/,
-    // Its closing day before and after (null, then yesterday)
+    // When it closed, before and after (null, then now), and its closing day, left as it was
     audit: {
       event: "tournament.signup_closed",
-      subject: rowOf("SELECT id, name, status, signup_closes_on signupClosesOn FROM tournaments WHERE id = ?"),
+      subject: rowOf(
+        "SELECT id, name, status, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt FROM tournaments WHERE id = ?",
+      ),
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
     // Sign-up closed now, not on its closing day: a draft moves on to Draft open (ADR 0074)
-    handle: async (c) => (await closeSignup(c.env.DB, id(c), c.today), ok()),
+    handle: async (c) => (await closeSignup(c.env.DB, id(c), c.today, c.now), ok()),
   },
   {
     method: "POST",

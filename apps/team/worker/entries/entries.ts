@@ -294,9 +294,15 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   // A tournament takes sign-ups once an admin opens them or its opening day comes, until the end of the closing day
   // (London, lib/signup.ts); saying you're out is always fine
   if (kind === "tournament") {
-    const t = await first<{ status: string; signupOpensOn: string | null; signupClosesOn: string | null }>(
+    const t = await first<{
+      status: string;
+      signupOpensOn: string | null;
+      signupClosesOn: string | null;
+      signupClosedAt: string | null;
+    }>(
       db,
-      `SELECT status, signup_opens_on signupOpensOn, signup_closes_on signupClosesOn FROM tournaments WHERE id = ?`,
+      `SELECT status, signup_opens_on signupOpensOn, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt
+       FROM tournaments WHERE id = ?`,
       [id],
     );
     const today = londonToday(new Date(now));
