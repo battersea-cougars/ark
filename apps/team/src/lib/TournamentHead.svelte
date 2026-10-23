@@ -14,7 +14,7 @@
   import { PLAYERS } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
-  import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
+  import { editTournament } from "./tournament-panel.svelte";
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
   import { countdownOf, editionWhen, hasStarted } from "./edition";
   import { stageBadge, statusOf, type Status } from "./tournament-front";
@@ -495,7 +495,11 @@
 {#if (runner || adds) && tournament?.kind === "draft"}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 
-{#if can(granted(), "manage:Tournament")}<TournamentEditorPanel />{/if}
+<!-- The editor, for whoever can edit a tournament: fetched once they're on the page, so nobody else downloads it -->
+{#if can(granted(), "manage:Tournament")}
+  {#await import("./TournamentEditorPanel.svelte") then { default: TournamentEditorPanel }}<TournamentEditorPanel
+    />{/await}
+{/if}
 
 <style>
   .tone {

@@ -13,7 +13,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import { dateBadge, formatDayDate, londonISO } from "./dates";
   import { draftTurn, nth, orderDrawn } from "./draft";
-  import { editTournament } from "./TournamentEditorPanel.svelte";
+  import { editTournament } from "./tournament-panel.svelte";
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
 

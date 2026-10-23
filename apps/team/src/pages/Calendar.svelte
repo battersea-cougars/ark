@@ -29,7 +29,8 @@
   import PlacePicker from "../lib/PlacePicker.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import TrainingEditorPanel from "../lib/TrainingEditorPanel.svelte";
-  import TournamentEditorPanel, { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import TournamentEditorPanel from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { newEventKinds, type NewEventKind } from "../lib/new-event";
   import { phone } from "../lib/viewport.svelte";
   import { switchUpFor } from "../app/settings-entry.svelte";

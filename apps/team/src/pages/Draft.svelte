@@ -34,7 +34,7 @@
   import { draftShows, roomPath } from "../lib/draft-room";
   import { teamTone } from "../lib/team-tones";
   import TeamLookSheet from "../lib/TeamLookSheet.svelte";
-  import { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import { draftPick, drawOrder, closeDraft, finishDraft, makeFixtures, openDraft, tell } from "../app/backend.svelte";
   import Drawer from "../lib/Drawer.svelte";

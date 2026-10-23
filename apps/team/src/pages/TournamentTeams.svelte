@@ -13,7 +13,7 @@
   import { table } from "../lib/fixtures";
   import { teamHref, teamTone } from "../lib/team-tones";
   import EmptyState from "../lib/EmptyState.svelte";
-  import { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
   import { formatDayDate, londonISO } from "../lib/dates";

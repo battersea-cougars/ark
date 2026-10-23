@@ -4,7 +4,8 @@
   // tournament's editor; "New tournament" opens a blank one, which can start from a series' defaults.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
-  import TournamentEditorPanel, { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import TournamentEditorPanel from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { tournamentPlace, typeById } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
   import { londonToday, pounds } from "../lib/dates";

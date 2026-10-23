@@ -40,7 +40,7 @@
   import TournamentHead from "../lib/TournamentHead.svelte";
   import PastEditions from "../lib/PastEditions.svelte";
   import Leaderboard from "../lib/Leaderboard.svelte";
-  import { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkForUpdates } from "../lib/live-updates.svelte";
   import { clock, londonToday } from "../lib/dates";
