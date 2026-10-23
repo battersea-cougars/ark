@@ -3,7 +3,7 @@
 // and (four times a year) the Kumite, underground. Then the week's news. Each section's
 // data-time / data-title drives the header clock (scripts/motion.ts): the time on the Friday-night sections and the
 // section's name beside it. The sections after the night have no time, and the clock fades out there.
-import { Image } from "astro:assets";
+import { getImage, Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import logo from "../assets/cougars.png";
 import { getEvents, getPlayers, getResults, getSettings, getVideos, kitText, upcoming } from "../lib/sanity/content";
@@ -50,13 +50,15 @@ const strip: [string, string][] = [
   [`${years} yrs`, "Same rink"],
   ...(s.team.league ? ([[s.team.league, "League team"]] as [string, string][]) : []),
 ];
+// The logo search engines show for the club: 512px is plenty, rather than the 1.3 MB original
+const searchLogo = (await getImage({ src: logo, width: 512, format: "png" })).src;
 ---
 
 <Base
   structuredData={clubData(
     s,
     Astro.site!,
-    logo.src,
+    searchLogo,
     `Roller hockey club in Battersea, South West London, since ${s.founded}.`,
   )}
 >
