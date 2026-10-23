@@ -54,3 +54,5 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
   (`auth.break-glass.routes.ts`) moved out of their domain files; no route is outside a `.routes.ts` now.
 - 2026-10-23: Unused code removed (eight exports and what only they used) and `knip.json` added; `npx knip` reports no
   unused files, exports or types.
+- 2026-10-23: `id-length` is off for now: its ~4,000 warnings drowned the other 51. It goes back on once a sweep has named
+  them.

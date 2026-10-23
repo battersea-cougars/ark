@@ -30,8 +30,10 @@ export default [
       "max-depth": ["warn", 3],
       "max-lines-per-function": ["warn", { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true }],
       "no-else-return": ["warn", { allowElseIf: false }],
+      // Off for now (2026-10-23): ~4,000 one-letter names drown the other warnings. Back on once a sweep has named
+      // them (ADR 0125)
       "id-length": [
-        "warn",
+        "off",
         {
           min: 2,
           properties: "never",
