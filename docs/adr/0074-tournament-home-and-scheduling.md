@@ -464,3 +464,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   switch.
 - 2026-10-23: A tournament's hours change only when an admin edits them, never by its matches starting early, late or
   on another day; the card shows a match's actual start once it's on (0061).
+- 2026-10-23: No stamp effect on the bait after all: under TELL NO ONE. the phrases take turns in one place, each
+  shown and gone before the next (Not your mates., Not your mum., No one.), then the switch, which stays; with less
+  motion they're all shown, one to a line.
