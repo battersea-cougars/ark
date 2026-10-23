@@ -247,12 +247,15 @@
       </div>
     </section>
     {#if past.length}
+      <!-- Under it, the record: each heading says what it is in a line, so neither reads as the next one's -->
       <section class="part">
         <h2 class="section-title">Past {type.shortName}s<Kanji text={kanjiFor(type, "martial")} /></h2>
+        <p class="part-line">Who won each one. Open one for its results and awards.</p>
         <PastEditions {type} {past} />
       </section>
       <section class="part">
         <h2 class="section-title">All-time leaders</h2>
+        <p class="part-line">Every {type.shortName} played, added up.</p>
         <Leaderboard games={past.flatMap((t) => t.games ?? [])} label="All-time leaders" />
       </section>
     {/if}
@@ -473,7 +476,7 @@
     display: flex;
     align-items: center;
     gap: clamp(var(--s-4), 5vw, var(--s-10));
-    padding-block: clamp(var(--s-6), 6vw, var(--s-10));
+    padding-block: var(--s-2) clamp(var(--s-6), 5vw, var(--s-8));
   }
   .poster {
     position: relative;
@@ -542,6 +545,11 @@
   }
   .part .section-title {
     margin: 0;
+  }
+  .part-line {
+    margin: calc(-1 * var(--s-2)) 0 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
   }
 
   /* An admin's Close sign-up: a quiet line under the card, the button small at its end */
