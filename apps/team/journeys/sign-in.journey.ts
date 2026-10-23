@@ -99,8 +99,8 @@ test("Signing in, and asking to join", async ({ browser }) => {
 
     await does(ada, "lets her in (Approve)", async () => {
       await ada.page.goto("/club");
-      // Each row's Approve is named only "Approve": the row with her name in it
-      await ada.page.locator(".row").filter({ hasText: jo.name }).getByRole("button", { name: "Approve" }).click();
+      // Each row's Approve names who it lets in
+      await ada.page.getByRole("button", { name: `Approve ${jo.name}` }).click();
       await expect.poll(statusOf).toBe("active");
       await expect(ada.page.locator(".row").filter({ hasText: jo.name })).toHaveCount(0);
       await expect(ada.page.getByRole("button", { name: `${jo.name}: turn the card over` })).toBeVisible();

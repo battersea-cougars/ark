@@ -7,7 +7,7 @@
   <div class="empty">
     <span class="mark"><Icon name="key" /></span>
     <h1>Not for this role</h1>
-    <p class="hint">Your role doesn't include this page. An admin can add it under More → Roles.</p>
+    <p class="hint">Your role doesn't include this page. An admin can add it under Settings → Roles.</p>
     <a class="btn outline" href="/">Home</a>
   </div>
 </div>

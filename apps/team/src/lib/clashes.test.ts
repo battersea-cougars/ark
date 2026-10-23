@@ -87,6 +87,13 @@ describe("answering the clash sheet", () => {
     expect(answerOfAll(rows, picks)).toBe("cancel");
   });
 
+  // Keep both, for all of these, is all of them: the tournament's row that stays on too, or Save waits for it (#171)
+  it("Keep both for all keeps every row, the one that stays on too", () => {
+    const picks = answerAll(rows, { "session:1": "", "session:2": "cancel", "tournament:5": "" }, "keep");
+    expect(picks).toEqual({ "session:1": "keep", "session:2": "keep", "tournament:5": "keep" });
+    expect(answerOfAll(rows, picks)).toBe("keep");
+  });
+
   it("the answer for all is the rows' own when they agree, and none once one is changed", () => {
     expect(answerOfAll(rows, { "session:1": "", "session:2": "" })).toBe("");
     expect(answerOfAll(rows, { "session:1": "keep", "session:2": "keep" })).toBe("keep");

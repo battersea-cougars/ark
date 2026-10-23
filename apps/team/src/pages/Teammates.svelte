@@ -96,7 +96,8 @@
       {#each pending as m (m.player.id)}
         <div class="row">
           <Person player={m.player} />
-          <button class="btn primary sm" onclick={() => approve(m)}>Approve</button>
+          <button class="btn primary sm" aria-label="Approve {m.player.name}" onclick={() => approve(m)}>Approve</button
+          >
         </div>
       {/each}
     </div>

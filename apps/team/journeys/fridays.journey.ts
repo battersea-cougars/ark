@@ -142,9 +142,14 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
         const clash = ada.page.getByRole("dialog", { name: "Already on then" });
         await expect.poll(async () => (await clash.isVisible()) || (await made())).toBe(true);
         if (await clash.isVisible()) {
-          // Each row its own Keep both (All of these, when there are several, answers only what can be called off)
-          for (const keep of await clash.locator('button:not([aria-pressed="true"])', { hasText: "Keep both" }).all())
-            await keep.click();
+          // All of these: Keep both, when there are several, keeps every row, a tournament's that stays on too (#171);
+          // one alone, its own Keep both
+          const all = clash.getByRole("group", { name: /^All of these/ });
+          if (await all.count()) await all.getByRole("button", { name: "Keep both" }).click();
+          else
+            for (const keep of await clash.locator('button:not([aria-pressed="true"])', { hasText: "Keep both" }).all())
+              await keep.click();
+          await expect(clash.getByRole("button", { name: "Save" })).toBeEnabled();
           await clash.getByRole("button", { name: "Save" }).click();
         }
         await expect.poll(made).toBe(true);

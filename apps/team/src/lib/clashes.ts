@@ -93,9 +93,13 @@ export function answerOfAll(rows: Row[], picks: Record<string, Answer>): "" | "c
   return own.length && own.every((p) => p === own[0]) && (own[0] === "cancel" || own[0] === "keep") ? own[0] : "";
 }
 
-/** One answer for all: every row that can be called off set to it; a skip is left as it is. */
+/**
+ * One answer for all: every row that can be called off set to it. Keep both keeps every row, the one that stays on
+ * (a tournament over a training being saved) too, or Save would wait on it (#171); Cancel them leaves a skip as it is.
+ */
 export function answerAll(rows: Row[], picks: Record<string, Answer>, to: "cancel" | "keep") {
-  return { ...picks, ...Object.fromEntries(rows.filter((c) => c.canCancel).map((c) => [c.key, to])) };
+  const set = rows.filter((c) => c.canCancel || (to === "keep" && c.nights?.length));
+  return { ...picks, ...Object.fromEntries(set.map((c) => [c.key, to])) };
 }
 
 /** The days of the training's own nights to call off: those over something kept on that the admin chose to skip. */

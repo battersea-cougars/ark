@@ -160,12 +160,15 @@
       </li>
     {/each}
   </ul>
+  <!-- Why Save waits, there from the start (seen only while it does), so nothing moves as the last one's answered -->
+  <p class="why small" id="clash-why" class:shown={!ready}>Choose for each one above to save.</p>
   {#snippet footer()}
     <button class="btn ghost" type="button" onclick={() => finish(null)}>Back</button>
     <button
       class="btn {cancelling ? 'cancel' : 'primary'}"
       type="button"
       disabled={!ready}
+      aria-describedby={ready ? undefined : "clash-why"}
       onclick={() => finish(choosing.filter((c) => picks[keyOf(c)] === "cancel"))}
     >
       <!-- Both words always there, one seen, so choosing never changes the button's size -->
@@ -242,5 +245,13 @@
   }
   .line {
     color: var(--fg-muted);
+  }
+  .why {
+    margin: var(--s-5) 0 0;
+    color: var(--fg-muted);
+    visibility: hidden;
+  }
+  .why.shown {
+    visibility: visible;
   }
 </style>
