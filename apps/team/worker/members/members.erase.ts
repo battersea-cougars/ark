@@ -1,6 +1,6 @@
 // A member's right to go, and to see what's held about them (#30, ADR 0029). Erasing keeps the member's row, so the
 // club's records still add up (a payment, last Friday's numbers, a goal), but empties everything that says who they
-// were: they become "Former member", with no email, phone, bio or bank reference, and no way back in. Their roles,
+// were: they become "Former member", with no email, phone, photo, bio or bank reference, and no way back in. Their roles,
 // sessions, sign-in codes, notification choices and places for what's still to come go. Earlier audit entries stop
 // naming them.
 import { all, batch, first, statement } from "@cougars/shared/d1";
@@ -68,7 +68,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
   const scrubbed = "[erased]";
   const [erased] = await db.batch([
     q(
-      `UPDATE members SET name = ?, email = NULL, phone = NULL, photo = NULL, bio = '', web_name = NULL, kumite_team_name = NULL,
+      `UPDATE members SET name = ?, email = NULL, phone = NULL, photo = NULL, photo_at = NULL, bio = '', web_name = NULL, kumite_team_name = NULL,
          payment_reference = NULL, everyday_role_id = NULL, cougar = 0, status = 'erased' WHERE id = ?`,
       FORMER_MEMBER,
       id,
@@ -132,7 +132,7 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       statement(
         db,
         `SELECT name, web_name goesBy, email, phone, position, bio, cougar, status, joined_on joinedOn,
-            payment_reference paymentReference, ${carriedName()} kumiteTeamName FROM members m WHERE id = ?`,
+            payment_reference paymentReference, ${carriedName()} kumiteTeamName, photo FROM members m WHERE id = ?`,
         [id],
       ),
       statement(

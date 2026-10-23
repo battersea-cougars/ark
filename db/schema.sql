@@ -43,7 +43,10 @@ CREATE TABLE members (
   -- 0–100, for balancing teams; only read:Rating sees it
   rating INTEGER NOT NULL DEFAULT 50,
   cougar INTEGER NOT NULL DEFAULT 0,
+  -- Their profile photo (ADR 0123): a small square image their phone shrank, as a data: URL, or null (their
+  -- initials). photo_at is when it was set, so its address changes with it and browsers can keep it.
   photo TEXT,
+  photo_at TEXT,
   -- pending (asked to join), active, inactive, erased (deleted their account: a nameless Former member, #30)
   status TEXT NOT NULL DEFAULT 'active',
   -- The bank-transfer reference, the name as a bank shows it: COUGARS ADRIAN K (ADR 0007)

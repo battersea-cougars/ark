@@ -254,6 +254,9 @@ export const saveProfile = (p: {
   /** Left out: as it is */
   kumiteTeamName?: string;
 }) => save(() => api("PUT", "/api/me", p));
+/** Your profile photo (ADR 0123), shrunk on your phone (lib/photo.ts); null takes it down. */
+export const savePhoto = (photo: string | null) =>
+  save(() => api("PUT", "/api/me/photo", { photo }), photo ? "Photo saved" : "Photo removed");
 /** The role the app opens as (ADR 0024); null for your full role. */
 export const saveEverydayRole = (roleId: number | null) => save(() => api("PUT", "/api/me/everyday-role", { roleId }));
 /** Another member's everyday role, or null for their full role (ADR 0024). */

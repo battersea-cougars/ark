@@ -1,7 +1,7 @@
 <script lang="ts">
   // A player as a physical trading card: printed card stock with a border round the photo, a deep red name plate and
   // the position printed large under it, and a shadow as if it's lying on the table. Flat colour, no sheen.
-  // The photo slot shows the club mark until members add photos. The corner number is the sign-up order; your own
+  // The photo slot shows their profile photo (ADR 0123), or the club mark until they add one. The corner number is the sign-up order; your own
   // card carries a "You" sticker in the other corner and a ring round it. Ratings
   // only show for admins (read:Rating). With `onopen` it's a button: the page flips it over (PlayerCardZoom), and
   // hides this one meanwhile, as if it's been picked up.
@@ -9,6 +9,8 @@
   import { POSITIONS, POSITION_ICONS, type Player } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import mark from "../assets/cougars-mark.webp";
+  import { photoUrl } from "./photo";
+  import { db } from "../demo/store.svelte";
 
   let {
     player,
@@ -34,12 +36,18 @@
   const first = $derived(shortName(player));
   // Long names print smaller so the whole name fits the plate (see .plate strong)
   const len = $derived(Math.max(first.length, 5));
+  const face = $derived(photoUrl(db.members.find((m) => m.player.id === player.id)?.player ?? player));
 </script>
 
 {#snippet card()}
   <article class="pc" class:you aria-label={goesBy(player)}>
     <span class="photo">
-      <img class="ghost" src={mark} alt="" loading="lazy" />
+      {#if face}<img class="face" src={face} alt="" loading="lazy" decoding="async" />{:else}<img
+          class="ghost"
+          src={mark}
+          alt=""
+          loading="lazy"
+        />{/if}
       {#if n !== undefined}<span class="no">{n}</span>{/if}
       {#if you}<span class="you-tag">You</span>{/if}
       {#if player.cougar}<span class="cougar-tag">Cougar</span>{/if}
@@ -135,6 +143,14 @@
     border-radius: 1cqw;
     background: var(--card-well);
     box-shadow: 0 0 0 0.6cqw var(--card-ink);
+  }
+  /* Their photo fills the slot, cropped to it */
+  .face {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
   /* No photo yet: the club mark, its red turned down, so the name, tags and rating are what you read */
   .ghost {

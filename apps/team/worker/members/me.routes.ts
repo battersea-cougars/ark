@@ -5,6 +5,7 @@ import { body } from "../api/api.http";
 import { choosePlan, memberStanding, planNext, setEverydayRole, updateProfile } from "./members";
 import { eraseMember, memberData } from "./members.erase";
 import { endLive } from "../live/live";
+import { MAX_PHOTO_BODY, setPhoto } from "./members.photo";
 
 export const ME_ROUTES: Route[] = [
   {
@@ -40,6 +41,16 @@ export const ME_ROUTES: Route[] = [
     changes: ["members"],
     // Your own phone, position, bio, the name you go by and your default Kumite team name
     handle: async (c) => (await updateProfile(c.env.DB, c.memberId, await body(c.request)), ok()),
+  },
+  {
+    method: "PUT",
+    path: /^\/api\/me\/photo$/,
+    audit: { none: "a member's own profile photo: theirs to change" },
+    action: "authenticated",
+    changes: ["members"],
+    maxBody: MAX_PHOTO_BODY,
+    // { photo: "data:image/jpeg;base64,…" | null }: your profile photo, shrunk on your phone (ADR 0123); null takes it down
+    handle: async (c) => (await setPhoto(c.env.DB, c.memberId, await body(c.request), c.now), ok()),
   },
   {
     method: "PUT",

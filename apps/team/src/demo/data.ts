@@ -27,6 +27,8 @@ export interface Player {
   kumiteTeamName?: string | null;
   /** Training sessions they came to. */
   played?: number;
+  /** When their profile photo was set (ADR 0123, lib/photo.ts); null: none, their initials show. */
+  photoAt?: string | null;
 }
 
 /** Everyone in the club. Filled by hydrate(). */
@@ -142,6 +144,7 @@ export interface Bootstrap {
     webName: string | null;
     phone: string | null;
     kumiteTeamName: string | null;
+    photoAt: string | null;
     played: number;
     quarterly: boolean;
     quarterlyNext: boolean;
@@ -209,8 +212,8 @@ export function applySlices(b: Slices) {
       EMAILS.set(m.id, m.email);
       REFERENCES.set(m.id, m.paymentReference);
       PHONES.set(m.id, m.phone);
-      const { id, name, position, rating, cougar, bio, webName, kumiteTeamName, played } = m;
-      return { id, name, position, rating, cougar, bio, webName, kumiteTeamName, played };
+      const { id, name, position, rating, cougar, bio, webName, kumiteTeamName, played, photoAt } = m;
+      return { id, name, position, rating, cougar, bio, webName, kumiteTeamName, played, photoAt };
     });
     fill(PLAYERS, players);
     fill(
