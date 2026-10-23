@@ -4,12 +4,14 @@
 // What a person does moves the story on: if they can't, the rest can't happen, so the journey stops there. What a
 // person checks (they can, they can't, they see) is noted when it fails and the journey goes on, so one run finds
 // every broken check, not just the first. A known bug is `knownBug`: it should fail, and says so when it doesn't.
+// Everyone's browser is listened to: an uncaught error, a console error or one of Svelte's warnings that means a bug,
+// on any of their pages, fails the step it happened in (noted, as a check is, so the journey goes on).
 // journeys.report.ts turns the failures into one summary for the run.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { test, type Browser, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
 
 const root = join(import.meta.dirname, "../../..");
 const out = process.env.JOURNEY_OUT ?? join(root, ".journeys");
@@ -32,19 +34,80 @@ export interface Person {
  * the app for them.
  */
 export async function signIn(browser: Browser, role: string, name: string, email: string): Promise<Person> {
+  freshFor(test.info().testId);
   const state = join(out, "auth", `${email}.json`);
   execFileSync("node", [join(root, "scripts/dev-sign-in.mjs"), email, "--port", String(port), "--out", state], {
     stdio: ["ignore", "ignore", "inherit"],
   });
   const context = await browser.newContext({ storageState: state });
+  const person = { role: `${role} (${name.split(" ")[0]})`, name, email, context } as Person;
+  // Every page they open, this one and any later (context.newPage), is listened to
+  context.on("page", (p) => listen(person, p));
   const page = await context.newPage();
-  const person = { role: `${role} (${name.split(" ")[0]})`, name, email, context, page };
+  person.page = page;
   people.push(person);
   return person;
 }
 
 /** Everyone signed in so far, for the accessibility look (their page may have closed since). */
 const people: Person[] = [];
+
+/**
+ * Svelte's dev warnings that mean a bug in the app, not a style note (svelte.dev/docs/svelte/runtime-warnings). Its
+ * runtime errors (effect_update_depth_exceeded, state_unsafe_mutation, …) are thrown, so they're page errors already.
+ */
+const SVELTE_BUGS = [
+  "ownership_invalid_binding",
+  "ownership_invalid_mutation",
+  "state_proxy_equality_mismatch",
+  "state_snapshot_uncloneable",
+  "binding_property_non_reactive",
+  "await_reactivity_loss",
+  "await_waterfall",
+  "assignment_value_stale",
+  "event_handler_invalid",
+  "hydration_mismatch",
+  "lifecycle_double_unmount",
+  "select_multiple_invalid_value",
+];
+
+/** Console errors that aren't the app's bugs, each with why. Keep it short: an entry here hides a real message. */
+const HARMLESS: { why: string; is: (m: ConsoleMessage) => boolean }[] = [
+  {
+    why: "the browser asking for /favicon.ico on its own: the app's icon is in its manifest",
+    is: (m) => /\/favicon\.ico$/.test(m.location().url),
+  },
+];
+
+/** What went wrong in someone's browser since the last step took it: "Admin (Ada) on /settings: …". */
+const browserErrors: string[] = [];
+
+function listen(who: Person, page: Page) {
+  const where = () => `${who.role} on ${new URL(page.url() || "about:blank", "http://x").pathname}`;
+  page.on("pageerror", (e) => browserErrors.push(`${where()}: uncaught ${e.name}: ${e.message}`));
+  page.on("console", (m) => {
+    const svelteBug = m.type() === "warning" && SVELTE_BUGS.some((code) => m.text().includes(code));
+    if ((m.type() !== "error" && !svelteBug) || HARMLESS.some((h) => h.is(m))) return;
+    const from = m.location().url ? ` (${m.location().url})` : "";
+    browserErrors.push(`${where()}: console ${m.type()}: ${m.text()}${from}`);
+  });
+}
+
+/**
+ * The browser errors since the last step took them, failing a step of their own under the one they happened in (so
+ * the summary has them, under it) and noted as a failed check: the journey goes on.
+ */
+async function noBrowserErrors(title: string) {
+  if (!browserErrors.length) return;
+  const errors = browserErrors.splice(0);
+  try {
+    await test.step(`${title}: no errors in the browser`, () => {
+      throw new Error(`${errors.length} error(s) in the browser:\n${errors.map((e) => `- ${e}`).join("\n")}`);
+    });
+  } catch {
+    failed.push(`${title}: errors in the browser`);
+  }
+}
 
 /**
  * The API as a member, without a browser: only to get the story to a step that isn't the one under test (the other
@@ -74,10 +137,22 @@ export function asMember(email: string) {
 /** The checks that failed, so the test fails at the end once every stage has run. */
 const failed: string[] = [];
 
+/** The journey these are for: a new one (the next test in the run) starts with none of the last one's. */
+let journeyId = "";
+function freshFor(testId: string) {
+  if (testId === journeyId) return;
+  journeyId = testId;
+  failed.length = 0;
+  browserErrors.length = 0;
+  people.length = 0;
+}
+
 /** A stage of the story ("Sign-up opens"), its steps under it. */
 export const stage = (title: string, body: () => Promise<void>) =>
   test.step(title, async () => {
     await body();
+    // Any that came between its steps
+    await noBrowserErrors(title);
     if (a11y) await lookForBarriers(title);
   });
 
@@ -105,13 +180,23 @@ async function lookForBarriers(stageTitle: string) {
 }
 
 /** Something a person does that the story needs: if it fails, the journey stops here. */
-export const does = (who: Person, what: string, body: () => Promise<void>) => test.step(`${who.role}: ${what}`, body);
+export const does = (who: Person, what: string, body: () => Promise<void>) =>
+  test.step(`${who.role}: ${what}`, async () => {
+    await body();
+    await noBrowserErrors(`${who.role}: ${what}`);
+  });
 
 /** Something a person can or can't do, or sees: a failure is noted and the journey goes on. */
 export async function checks(who: Person, what: string, body: () => Promise<void>) {
   const title = `${who.role}: ${what}`;
   try {
-    await test.step(title, body);
+    await test.step(title, async () => {
+      try {
+        await body();
+      } finally {
+        await noBrowserErrors(title);
+      }
+    });
   } catch {
     failed.push(title);
   }

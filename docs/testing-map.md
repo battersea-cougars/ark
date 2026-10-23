@@ -87,4 +87,8 @@ Close, but each still checks something of its own, or moving it is more than rem
   types). The use cases' `cup()`/`kumite()` setups (eleven and nine of them) differ per story; `boot`, `phone`,
   `idOf` one-liners repeat in ~15 files and could become `testWorld` helpers.
 - **Journeys** (`apps/team/journeys/`): the Kumite journey has landed; the use cases it re-walks end to end (sign-up
-  to awards) are the next to compare; nothing was removed for it yet.
+  to awards) are the next to compare; nothing was removed for it yet. It schedules by season only and plays tonight
+  (The Anchor follows the kick-off, `edition.edge-cases`' unit cases); being on its day (KUMITE! from the fixtures out)
+  is `tournament-front.test`'s only. Its other checks that units also hold: No captains yet for whoever runs the draft
+  (`tournament-front.test` paneOf), Done that evening and history the morning after (`edition.edge-cases`). Every page
+  opens clean (`pages.journey.ts`) is the only check that the pages render without browser errors.

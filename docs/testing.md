@@ -121,7 +121,10 @@ Use cases stop at the API; **journeys** drive the real team app in a browser (Pl
 workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
 mustn't ([ADR 0124](adr/0124-test-levels.md): which check goes at which level). They live in `apps/team/journeys/`,
 one `{workflow}.journey.ts` each; the first is the Kumite night (`kumite.journey.ts`: an admin, a player and a member
-who isn't in it, from sign-up to the last award).
+who isn't in it, from sign-up to the morning after), then Every page opens clean (`pages.journey.ts`: each of them
+opens every page in their menus, the admin each editor, shut unsaved). Any error in a person's browser (uncaught, a
+console error, a Svelte warning that means a bug) fails the step it happened in; the allowlist, each with its reason,
+is in `journey.ts`.
 
 ```sh
 npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped

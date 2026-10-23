@@ -35,7 +35,14 @@ browser, through a whole workflow as each person in it (#154).
 - **Its own fresh database every run**: `npm run journeys` wipes the checkout's own local D1 (`--own-db`), rebuilds it
   from `db/schema.sql`, the club seed and a made-up roster (`journeys.roster.json`), starts the team app on a private
   port (`npm run app -- --private --own-db team`), runs, and stops it. It refuses to run in the main checkout, whose
-  D1 is everyone's; it never touches 4500/4510/4520. The real clock: the Kumite is scheduled for today.
+  D1 is everyone's; it never touches 4500/4510/4520. The real clock: the Kumite is scheduled by season only (the
+  wizard's default) and played tonight, so it's the evening a match kicked off, not its date, that counts; the morning
+  after is the browser's clock a day on (Playwright's `page.clock`). Being on its day is a unit test's.
+- **The browser is listened to**: every person's pages (`journey.ts`) report an uncaught error, a console error or a
+  Svelte dev warning that means a bug (a named list), and it fails the step it happened in, noted like a check. Noise
+  that isn't the app's goes on an allowlist, each entry with its reason. **Every page opens clean**
+  (`pages.journey.ts`): each of the three opens every page in their menus and, the admin, each editor (shut unsaved);
+  it only looks, never saves.
 - **Failures never block.** A run with failures writes one summary (`.journeys/summary.md`: each failing step, by
   stage and role, expected and what happened) and, in CI or with `--file-issue`, opens **one issue for the run**
   (label `regression`) to review: fix the code, or change what the journey expects. `npm run journeys` locally prints
@@ -47,8 +54,8 @@ browser, through a whole workflow as each person in it (#154).
 
 - A broken flow shows up as a step with a role and an expected/actual, before a release, without holding it up.
 - A journey run is minutes, not seconds, so it never runs on every push; the use cases stay the everyday net.
-- Journeys meet the real clock: a check that depends on the day (a Friday's training clash) handles it, and anything
-  after the evening (the 06:00 move to History) isn't reachable without a dev clock.
+- Journeys meet the real clock: a check that depends on the day handles it, or moves the browser's clock (the app
+  reckons the evening in the browser); the server's clock can't be moved.
 - Overlap between levels is to be taken out as it's found (#154): the same check twice is twice the upkeep.
 - The checkout's own D1 (`--own-db`) is the journeys': a branch that needs its own D1 for its own work loses it to a run.
 
@@ -56,3 +63,6 @@ browser, through a whole workflow as each person in it (#154).
 
 - 2026-10-23: Three levels, a check at one only; journeys by role in Playwright, on demand and before a release, one
   issue per failing run (#154). The first journey: the Kumite night.
+- 2026-10-23: The Kumite night is scheduled by season only, not for today, as one played on another day than its date
+  missed The Anchor unseen; the captains named after (No captains yet, Name the captains), Done that evening and
+  history the morning after (`page.clock`). Browser errors fail the step they happened in; Every page opens clean.
