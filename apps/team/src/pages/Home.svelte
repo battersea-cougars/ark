@@ -304,6 +304,9 @@
       events,
       emailStopped: keepsEmail && db.forAdmins.emailStopped,
       usage: seesUsage ? db.forAdmins.usage : [],
+      asking: can(perms, "manage:Member")
+        ? db.members.filter((m) => m.status === "pending").map((m) => m.player.name)
+        : [],
       now: openedAt,
       pinned,
     }),

@@ -155,6 +155,24 @@ describe("Home's feed", () => {
     expect(feed(kumite(), { emailStopped: false }).admin).toEqual([]);
   });
 
+  // Someone asking to join waits for an admin (ADR 0069): Home says so, for whoever lets members in (manage:Member),
+  // as The club does, opening it where Approve is (decided 2026-10-23)
+  it("someone asking to join is an admin's line, naming them, opening The club", () => {
+    const rows = feed(kumite(), { club: { total: 9000, people: 3, worst: 0 }, asking: ["Jo Bloggs"] });
+    expect(rows.admin.map((r) => [r.text, r.sub, r.href, r.hot])).toEqual([
+      ["Jo Bloggs is asking to join", "Approve them on The club", "/club", true],
+      ["Owed to the club £90", "3 people", "/settings/overdue", false],
+    ]);
+  });
+
+  it("two or more asking to join is one line, how many", () => {
+    const rows = feed(kumite(), { asking: ["Jo Bloggs", "Al New", "Bo Fresh"] });
+    expect(rows.admin.map((r) => [r.text, r.sub, r.href])).toEqual([
+      ["3 asking to join", "Approve them on The club", "/club"],
+    ]);
+    expect(feed(kumite(), { asking: [] }).admin).toEqual([]);
+  });
+
   // The hourly check keeps the free limits at 70% or more (ADR 0059, #148); Home asks for them only for whoever sees
   // Usage, and says the nearest in one line, last, opening the Usage page
   const level = (id: string, label: string, percent: number, period: "day" | "month" = "day") => ({

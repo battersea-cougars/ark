@@ -57,7 +57,8 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
 5. **What needs you**: your move first (an open draft, the draft being on, the teams being out unless you've a match
    coming, a captain's draft day, a sign-up closing for a tournament not already asked about), then the store app's
    notification ask ([0108](0108-store-apps.md)).
-6. **For admins**, under a quiet label, only for whoever they're for: running the draft, what the club is owed.
+6. **For admins**, under a quiet label, only for whoever they're for: running the draft, someone asking to join
+   (named if it's one, opening The club, for whoever lets members in), what the club is owed.
 7. **Your tab**, at the foot while you owe anything: "£58 to pay", "Your tab · 3 nights · £16 overdue", Settle up
    opening your tab ([0007](0007-dues-and-payments.md)).
 
@@ -113,3 +114,5 @@ follows this order and doesn't add strips, stacks of calls to action or blocks a
   card?"): the tournament's name with the draft's icon, the draft's day and time (On now once it's open), "Draft ·
   You pick 1st" where In and Out would be, the whole card opening the draft; Make your pick inside it only while it's
   your pick. No loose button under it.
+- 2026-10-23: Someone asking to join is a line For admins (whoever lets members in, manage:Member): "Jo Bloggs is
+  asking to join", or how many, opening The club where Approve is. Only The club had said so.

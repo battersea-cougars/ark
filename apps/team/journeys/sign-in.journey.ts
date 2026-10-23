@@ -97,6 +97,21 @@ test("Signing in, and asking to join", async ({ browser }) => {
       await expect(ada.page.getByText(jo.name)).toBeVisible();
     });
 
+    // Home tells whoever lets members in, as The club does (decided 2026-10-23, ADR 0118)
+    await checks(ada, "is told on Home, under For admins, that Jo is asking to join, opening The club", async () => {
+      await ada.page.goto("/");
+      const forAdmins = ada.page.getByRole("region", { name: "For admins" });
+      await expect(forAdmins.getByRole("link", { name: new RegExp(`${jo.name} is asking to join`) })).toHaveAttribute(
+        "href",
+        "/club",
+      );
+    });
+    await checks(hal, "isn't told on Home that anyone's asking to join", async () => {
+      await hal.page.goto("/");
+      await expect(hal.page.getByRole("main")).toBeVisible();
+      await expect(hal.page.getByText(/asking to join/)).toHaveCount(0);
+    });
+
     await does(ada, "lets her in (Approve)", async () => {
       await ada.page.goto("/club");
       // Each row's Approve names who it lets in

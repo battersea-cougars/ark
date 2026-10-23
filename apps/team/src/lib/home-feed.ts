@@ -2,7 +2,7 @@
 // is shown on its card (playing in it: your match; in, waiting, or may sign up: In and Out; not in it: You're out). Then what's coming up
 // after it, in date order and capped, with "See the calendar". Then what needs you (a captain's draft, the draft
 // being on, the teams being out, a sign-up closing you haven't answered), and under "For admins", only for whoever
-// they're for, the email having stopped, running the draft, what the club is owed and a free limit getting close
+// they're for, the email having stopped, running the draft, someone asking to join, what the club is owed and a free limit getting close
 // (lib/usage-near.ts). What you owe is Home's foot (owedNotice), and a loud icon in its header while some of it is
 // overdue (lib/dues.ts overdue).
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
@@ -120,6 +120,8 @@ export interface FeedInput {
   emailStopped?: boolean;
   /** The free limits at 70% or more, nearest first (lib/usage-near.ts): for whoever sees Usage, nobody else. */
   usage?: UsageLevel[];
+  /** Who's asking to join, by name (ADR 0069): for whoever lets members in (manage:Member), nobody else. */
+  asking?: string[];
 }
 
 /** Your team's next game in a tournament on or coming up: Home's lead when it's your soonest thing. */
@@ -191,6 +193,17 @@ export function homeFeed(input: FeedInput): Feed {
       sub: "Google cancelled its access: nobody gets a sign-in code. Reconnect it",
       hot: true,
       icon: "mail",
+    });
+  // Someone waiting to be let in: named if it's one, opening The club where Approve is
+  const asking = input.asking ?? [];
+  if (asking.length)
+    admin.push({
+      key: "admin:asking-to-join",
+      href: "/club",
+      text: asking.length === 1 ? `${asking[0]} is asking to join` : `${asking.length} asking to join`,
+      sub: "Approve them on The club",
+      hot: true,
+      icon: "teams",
     });
   if (club && club.total > 0)
     admin.push({
