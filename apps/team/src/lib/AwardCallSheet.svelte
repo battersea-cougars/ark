@@ -1,7 +1,8 @@
 <script lang="ts">
   // The admin's call as they confirm the awards (ADR 0044), in a sheet over the drawer: for the judges' call, what it
   // is tonight (one of its names, or their own typed in) and who won it; for a vote that's level after its tie-break,
-  // who of the level ones takes it. Then it's confirmed with the rest, and revealed in its turn.
+  // who of the level ones takes it. Then it's confirmed with the rest, and revealed in its turn. Either half has a
+  // Random: a name, or a winner, chosen for them (another each press), theirs to change.
   import Icon from "../app/shell/Icon.svelte";
   import type { Tournament } from "../demo/model";
   import PeopleChoice from "./PeopleChoice.svelte";
@@ -39,6 +40,13 @@
   $effect(() => {
     if (!open) [name, own, memberId] = [null, "", null];
   });
+  /** One of `from` at random, never the one already chosen (when there's another to choose). */
+  function anyBut<T>(from: T[], now: T | null): T | undefined {
+    const others = from.length > 1 ? from.filter((x) => x !== now) : from;
+    return others[Math.floor(Math.random() * others.length)];
+  }
+  const randomName = () => (name = anyBut(names, name) ?? name);
+  const randomWinner = () => (memberId = anyBut(people, memberId) ?? memberId);
   async function choose() {
     if (busy || !ready || memberId === null) return;
     busy = true;
@@ -63,7 +71,12 @@
   <div class="call">
     {#if names.length}
       <section class="part" aria-labelledby="call-what">
-        <h3 class="label" id="call-what">What is it tonight?</h3>
+        <div class="label-row">
+          <h3 class="label" id="call-what">What is it tonight?</h3>
+          <button type="button" class="btn sm ghost" onclick={randomName}
+            ><Icon name="refresh" size={14} />Random</button
+          >
+        </div>
         <div class="names" role="listbox" aria-labelledby="call-what">
           {#each names as n (n)}
             <button type="button" class="option" role="option" aria-selected={name === n} onclick={() => (name = n)}
@@ -92,7 +105,12 @@
       </section>
     {/if}
     <section class="part" aria-labelledby="call-who">
-      <h3 class="label" id="call-who">{tie ? "Who takes it?" : "Who won it?"}</h3>
+      <div class="label-row">
+        <h3 class="label" id="call-who">{tie ? "Who takes it?" : "Who won it?"}</h3>
+        <button type="button" class="btn sm ghost" disabled={!people.length} onclick={randomWinner}
+          ><Icon name="refresh" size={14} />Random</button
+        >
+      </div>
       <PeopleChoice {tournament} {people} bind:value={memberId} aria-label="Who won it" />
     </section>
   </div>
@@ -111,6 +129,12 @@
   .part {
     display: grid;
     gap: var(--s-2);
+  }
+  .label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
   }
   .label {
     margin: 0;

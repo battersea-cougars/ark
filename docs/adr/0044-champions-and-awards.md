@@ -110,3 +110,5 @@ who won most of them.
   listed (and revealed) joke first, champions last. Then "the natural place for the voting and final award selection
   is pre award reveal" (the user): voting closes, the votes are counted and the judges' call made when the awards
   are confirmed, before the reveal, one guarded batch.
+- 2026-10-23: The judges' call's sheet has a Random on either half: a name from its list, or a winner from who
+  played, another each press, the admin's to change.
