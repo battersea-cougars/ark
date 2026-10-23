@@ -378,6 +378,9 @@ export async function setPlayer(
   const was = await current(db, kind, id, memberId);
   if (inIt) {
     if (was?.signup === "in") return "in";
+    // Someone new to it may not exist (erased while the drawer was open): told so, not the insert's foreign key
+    if (!was && !(await first(db, "SELECT 1 FROM members WHERE id = ?", [memberId])))
+      throw new HttpError(404, "No such member.");
     if (kind === "session") {
       if (was?.signup === "waitlist") return "waitlist";
       await put(db, kind, id, memberId, { join: places }, now);

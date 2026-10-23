@@ -231,15 +231,13 @@ describe("answers that make no sense", () => {
     expect((await f.seen()).going).toEqual([]);
   });
 
-  // The id goes straight into the insert, whose foreign key refuses it as a server error (known bug #130)
-  it.fails(
-    "an admin putting in a member who doesn't exist is told so, not a server error (known bug #130)",
-    async () => {
-      const f = await friday({ capacity: 5 });
-      const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, { memberId: 987654, in: true });
-      expect(res.status).toBe(404);
-    },
-  );
+  // The id went straight into the insert, whose foreign key refused it as a server error (#130)
+  it("an admin putting in a member who doesn't exist is told so, not a server error (#130)", async () => {
+    const f = await friday({ capacity: 5 });
+    const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, { memberId: 987654, in: true });
+    expect(res.status).toBe(404);
+    expect((await f.seen()).going).toEqual([]);
+  });
 
   it("an admin taking off someone who never signed up: nothing changes, and the reply says they're not on it", async () => {
     const f = await friday({ capacity: 1 });
