@@ -339,6 +339,8 @@
     })),
   );
 
+  // Its type is how its teams are made: once it has any saved, it stays (the server says so too)
+  const kindFixed = $derived(!!dateId && (db.tournaments.find((x) => x.id === dateId)?.teams.length ?? 0) > 0);
   const drawn = $derived.by(() => {
     const state = dateId ? db.tournaments.find((x) => x.id === dateId)?.draftState : undefined;
     return state === "open" || state === "closed";
@@ -487,12 +489,21 @@
               <span id="date-kind">Type</span>
               <div class="seg kind" role="group" aria-labelledby="date-kind">
                 {#each TOURNAMENT_KINDS as k (k.id)}
-                  <button type="button" aria-pressed={date.kind === k.id} onclick={() => (date.kind = k.id)}>
+                  <button
+                    type="button"
+                    aria-pressed={date.kind === k.id}
+                    disabled={kindFixed && date.kind !== k.id}
+                    onclick={() => (date.kind = k.id)}
+                  >
                     {k.label}
                   </button>
                 {/each}
               </div>
-              <span class="hint small">{TOURNAMENT_KINDS.find((k) => k.id === date.kind)?.hint}</span>
+              <span class="hint small"
+                >{TOURNAMENT_KINDS.find((k) => k.id === date.kind)?.hint}{kindFixed
+                  ? " It has teams, so its type stays."
+                  : ""}</span
+              >
             </div>
           </FormSection>
           <FormSection title="When" description="A season is enough until the day is known.">

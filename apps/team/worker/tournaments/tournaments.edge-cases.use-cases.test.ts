@@ -204,26 +204,24 @@ describe("an admin sets a tournament's teams", () => {
     expect(two.body.error).toBe("Someone is on two teams.");
   });
 
-  it("once its draft has started, a draft stays a draft; before, it can become one teams enter", async () => {
+  it("its type changes only while it has no teams: a draft with captains named, or teams that entered, keeps its type", async () => {
     const dana = await admin();
     const [cara, cole] = [await dana.idOf("Cara Captain"), await dana.idOf("Cole Captain")];
-    const made = await dana.create({ kind: "draft", teams: [{ captainMemberId: cara }, { captainMemberId: cole }] });
-    const id = made.body.id as number;
-    // Not started yet: it can change, its teams named
+    // No teams yet: either way round
+    const bare = (await dana.create({ kind: "draft", teams: [] })).body.id as number;
+    const empty = await dana.tournament(bare);
+    expect((await dana.call("PUT", `/api/tournaments/${bare}`, { ...empty, kind: "teams" })).status).toBe(200);
+    expect((await dana.call("PUT", `/api/tournaments/${bare}`, { ...empty, kind: "draft" })).status).toBe(200);
+    // Captains named: it's a draft with teams, and stays one
+    const id = (await dana.create({ kind: "draft", teams: [{ captainMemberId: cara }, { captainMemberId: cole }] }))
+      .body.id as number;
     const before = await dana.tournament(id);
     const named = before.teams.map((t: Json, i: number) => ({ ...t, name: `Team ${i + 1}` }));
-    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, kind: "teams", teams: named })).status).toBe(
-      200,
-    );
-    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, kind: "draft", teams: named })).status).toBe(
-      200,
-    );
-    // Drawn: still not started. Opened: it stays a draft
-    expect((await dana.call("POST", `/api/tournaments/${id}/draft/draw`, {})).status).toBe(200);
-    w.db.raw.prepare("UPDATE tournaments SET draft_state = 'open' WHERE id = ?").run(id);
-    const res = await dana.call("PUT", `/api/tournaments/${id}`, { ...(await dana.tournament(id)), kind: "teams" });
+    const res = await dana.call("PUT", `/api/tournaments/${id}`, { ...before, kind: "teams", teams: named });
     expect(res.status).toBe(409);
-    expect(res.body.error).toBe("The draft has started: it stays a draft.");
+    expect(res.body.error).toBe("It has teams: its type stays.");
+    // …and a save that leaves the type alone is fine
+    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, capacity: 30 })).status).toBe(200);
   });
 
   it("a change to a tournament that isn't there is a 404", async () => {

@@ -264,3 +264,6 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   in the order they're set**: Details, Sign-up, Draft & teams (Teams), Rules & awards, shorter on a phone (Details,
   Sign-up, Teams, Rules) so all four fit at 390px; the full name is the tab's label. **Awards per Kumite, and the
   website follows**: the website shows a Kumite's own awards, not the series' (ADR 0044).
+- 2026-10-23: A tournament's type (captains draft, or teams enter) stays once it has any team: captains named or a
+  team entered. Before, only an opened draft fixed it, so a draft with captains could become one teams enter and
+  leave them as nameless entered teams. The editor greys the other type out and says why; the server refuses (409).

@@ -803,19 +803,20 @@ export async function updateTournament(
       signup_opens_on: string | null;
       signup_closes_on: string | null;
       status: string;
+      teams: number;
     }
   >(
     db,
     `SELECT points_win, points_draw, points_loss, game_minutes, kind, awards, playoffs, penalty_rule, periods, default_penalty_minutes,
        break_minutes, draft_state, after_mode, after_venue_id, after_time, after_note, signup_opens_on, signup_closes_on,
-       status
+       status, (SELECT count(*) FROM tournament_teams WHERE tournament_id = tournaments.id) teams
      FROM tournaments WHERE id = ?`,
     [id],
   );
   if (!current) throw new HttpError(404, "No such tournament.");
   const rules = rulesOf(o, current);
-  if (rules[4] !== current.kind && current.draft_state !== "none")
-    throw new HttpError(409, "The draft has started: it stays a draft.");
+  // Its type is how its teams are made (captains draft them, or they enter): once it has any, it stays
+  if (rules[4] !== current.kind && current.teams > 0) throw new HttpError(409, "It has teams: its type stays.");
   const after = await tournamentAfterOf(db, o, [
     current.after_mode,
     current.after_venue_id,
