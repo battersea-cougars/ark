@@ -1,3 +1,5 @@
+import { characters, firstCharacter, firstCharacters } from "./text";
+
 /**
  * A team's logo, shrunk in the browser to 256px on its longest side so it's small enough to keep in the database:
  * WebP where the browser can write it, else PNG. Throws when the file isn't an image it can read.
@@ -26,15 +28,15 @@ function nameWords(name: string) {
 /** Its own initials: the first two words' first letters, or a single word's first two letters. */
 function ownInitials(name: string) {
   const [a = "", b] = nameWords(name);
-  return (b ? a[0] + b[0] : a.slice(0, 2)).toUpperCase();
+  return (b ? firstCharacter(a) + firstCharacter(b) : firstCharacters(a, 2)).toUpperCase();
 }
 
 /** Its other choices, in order, when another team has its own: its first letter with each later one, then three. */
 function fallbacks(name: string) {
   const words = nameWords(name);
   const [a = ""] = words;
-  const letters = [...a.slice(1), ...words.slice(1).map((w) => w[0])];
-  return [...letters.map((l) => a[0] + l), a.slice(0, 3)].map((x) => x.toUpperCase());
+  const letters = [...characters(a).slice(1), ...words.slice(1).map(firstCharacter)];
+  return [...letters.map((l) => firstCharacter(a) + l), firstCharacters(a, 3)].map((x) => x.toUpperCase());
 }
 
 /**
@@ -52,7 +54,7 @@ export function teamInitials(name: string, among: readonly string[] = []): strin
     const others = new Set(own.filter((_, j) => j > i && among[j] !== n));
     const pick =
       [own[i], ...fallbacks(n)].find((x) => x && !used.has(x) && (x === own[i] || !others.has(x))) ??
-      `${own[i][0] ?? ""}${i + 1}`;
+      `${firstCharacter(own[i])}${i + 1}`;
     given.set(n, pick);
     used.add(pick);
   });

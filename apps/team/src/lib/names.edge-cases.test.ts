@@ -6,10 +6,8 @@ import { goesBy, matchesName, nameOfTeam, shortName } from "./names";
 import { teamInitials } from "./logo";
 
 describe("a member's initials, on their avatar", () => {
-  // https://github.com/battersea-cougars/ark/issues/140
-  // Known bug #140: the first character is taken as one UTF-16 unit, so an emoji (two) is cut in half
-  // and the avatar shows a broken character
-  it.fails("a name that starts with an emoji keeps the emoji whole (known bug #140)", () => {
+  // #140: the first character was one UTF-16 unit, half an emoji, a broken character on the avatar
+  it("a name that starts with an emoji keeps the emoji whole (#140)", () => {
     expect(initials("🦁 Leo")).toBe("🦁L");
   });
 });
@@ -77,9 +75,11 @@ describe("a team's initials, when it has no logo", () => {
     expect(teamInitials(name)).toBe(expected);
   });
 
-  // https://github.com/battersea-cougars/ark/issues/140
-  // Known bug #140: the same as a member's: an emoji is cut in half
-  it.fails("a team named with an emoji keeps it whole (known bug #140)", () => {
-    expect(teamInitials("Team 🦁")).toBe("T🦁");
+  // #140: the same as a member's, an emoji was cut in half ("Team" is generic, so "Team 🦁" is known by its 🦁)
+  it("a team named with an emoji keeps it whole (#140)", () => {
+    expect(teamInitials("🦁 Pride")).toBe("🦁P");
+    expect(teamInitials("Team 🦁")).toBe("🦁");
+    expect(teamInitials("🦁🐯")).toBe("🦁🐯");
+    expect(teamInitials("🦁 Pride", ["🦁 Pride", "🦁 Paws"])).toBe("🦁P");
   });
 });
