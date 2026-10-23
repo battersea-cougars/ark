@@ -113,8 +113,10 @@ export async function ensureSessions(db: D1Database, today: string) {
   });
   const fresh = made.flatMap((s) => s.dates.map((d) => [s.id, d]));
   if (fresh.length) await run(db, INSERT_SESSIONS, [JSON.stringify(fresh)]);
-  // Only when there are new ones: this runs on every load of the app
-  for (const s of made) if (s.dates.length) await syncSeries(db, s.id);
+  // Only when there are new ones: this runs on every load of the app. Every series with new ones at once (ADR 0003)
+  const grown = made.filter((s) => s.dates.length).map((s) => s.id);
+  if (grown.length) await syncSeries(db, ...grown);
+  return grown;
 }
 
 /**
@@ -269,9 +271,10 @@ export async function createSeries(db: D1Database, o: Record<string, unknown>, t
     ...also({ sql: "(SELECT id FROM training_series WHERE slug = ?)", params: [slug] }),
   ]);
   if (!res.meta.changes) throw new HttpError(409, SOMETHING_NEW);
-  await ensureSessions(db, today);
-  await syncSeries(db, Number(res.meta.last_row_id));
-  return { id: Number(res.meta.last_row_id), slug };
+  const id = Number(res.meta.last_row_id);
+  // Its sessions made, and on the agenda with them; one with none yet goes on it still (its rows, none)
+  if (!(await ensureSessions(db, today)).includes(id)) await syncSeries(db, id);
+  return { id, slug };
 }
 
 /**
