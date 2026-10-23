@@ -1,11 +1,22 @@
-// A member's passkeys, from their sheet (ADR 0023, ADR 0065): an admin sees them by device and date, and removes them
-// all, say when a phone's lost or sold. Their sign-ins aren't touched (that's Sign out everywhere, beside it); they
-// sign in with a code next time. A member's own passkeys are on the You page (auth.passkeys.ts, under /api/auth).
+// Passkeys' routes (ADR 0023). A member's own, under /api/auth/passkeys (handlePasskeys, sent here by auth.routes.ts):
+// signing in with one, and listing, adding and removing yours on the You page. And a member's, from their sheet
+// (ADR 0065): an admin sees them by device and date, and removes them all, say when a phone's lost or sold. Their
+// sign-ins aren't touched (that's Sign out everywhere, beside it); they sign in with a code next time.
 import { ok, type Route } from "../api/api.route";
 import { json } from "../api/api.http";
 import { memberExists } from "../dues/dues";
 import { mayChange } from "../members/members";
-import { forgetPasskeys, passkeyCount, passkeysOf } from "./auth.passkeys";
+import { findSession, type AuthEnv } from "./auth";
+import {
+  forgetPasskey,
+  forgetPasskeys,
+  passkeyCount,
+  passkeysOf,
+  register,
+  registerOptions,
+  signIn,
+  signInOptions,
+} from "./auth.passkeys";
 
 const id = (c: { params: string[] }) => Number(c.params[0]);
 
@@ -38,3 +49,24 @@ export const PASSKEY_ROUTES: Route[] = [
     },
   },
 ];
+
+/** A member's own passkey routes, under /api/auth/passkeys (not a change to the club: the bootstrap's version stays). */
+export async function handlePasskeys(request: Request, env: AuthEnv, now: Date): Promise<Response | null> {
+  const { pathname } = new URL(request.url);
+  const m = request.method;
+  if (pathname === "/api/auth/passkeys/sign-in-options" && m === "POST") return signInOptions(request, env, now);
+  if (pathname === "/api/auth/passkeys/sign-in" && m === "POST") return signIn(request, env, now);
+  // The rest are yours: signed in
+  const session = await findSession(request, env, now);
+  if (!session) return json({ error: "Sign in first." }, 401);
+  const mine = { memberId: session.member_id, sessionId: session.id };
+  if (pathname === "/api/auth/passkeys" && m === "GET")
+    return json({ passkeys: await passkeysOf(env.DB, mine.memberId) });
+  if (pathname === "/api/auth/passkeys/register-options" && m === "POST")
+    return registerOptions(request, env, now, mine);
+  if (pathname === "/api/auth/passkeys/register" && m === "POST") return register(request, env, now, mine);
+  const one = pathname.match(/^\/api\/auth\/passkeys\/(\d+)$/);
+  if (!one || m !== "DELETE") return null;
+  await forgetPasskey(env.DB, now, mine.memberId, Number(one[1]));
+  return json({ ok: true });
+}

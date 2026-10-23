@@ -25,17 +25,7 @@ import { all, first, run } from "@cougars/shared/d1";
 import { HttpError, body, json } from "../api/api.http";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
 import { audit } from "../settings/audit";
-import {
-  addMs,
-  cookie,
-  cookieName,
-  findSession,
-  setCookie,
-  sha256,
-  startSession,
-  withCookies,
-  type AuthEnv,
-} from "./auth";
+import { addMs, cookie, cookieName, setCookie, sha256, startSession, withCookies, type AuthEnv } from "./auth";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
@@ -112,36 +102,6 @@ export function deviceOf(userAgent: string): string {
 const nameOf = (userAgent: string, aaguid: string) =>
   [deviceOf(userAgent), PROVIDERS[aaguid]].filter(Boolean).join(" · ");
 
-// ─── The routes ───
-
-/** Every passkey route, under /api/auth/passkeys (not a change to the club: the bootstrap's version stays). */
-export async function handlePasskeys(request: Request, env: AuthEnv, now: Date): Promise<Response | null> {
-  const { pathname } = new URL(request.url);
-  const m = request.method;
-  if (pathname === "/api/auth/passkeys/sign-in-options" && m === "POST") return signInOptions(request, env, now);
-  if (pathname === "/api/auth/passkeys/sign-in" && m === "POST") return signIn(request, env, now);
-  // The rest are yours: signed in
-  const session = await findSession(request, env, now);
-  if (!session) return json({ error: "Sign in first." }, 401);
-  const mine = { memberId: session.member_id, sessionId: session.id };
-  if (pathname === "/api/auth/passkeys" && m === "GET")
-    return json({ passkeys: await passkeysOf(env.DB, mine.memberId) });
-  if (pathname === "/api/auth/passkeys/register-options" && m === "POST")
-    return registerOptions(request, env, now, mine);
-  if (pathname === "/api/auth/passkeys/register" && m === "POST") return register(request, env, now, mine);
-  const one = pathname.match(/^\/api\/auth\/passkeys\/(\d+)$/);
-  if (one && m === "DELETE") {
-    const gone = await run(env.DB, "DELETE FROM passkeys WHERE id = ? AND member_id = ?", [
-      Number(one[1]),
-      mine.memberId,
-    ]);
-    if (gone.meta.changes !== 1) throw new HttpError(404, "That passkey isn't one of yours.");
-    await audit(env.DB, now, mine.memberId, "passkey.removed", { passkeyId: Number(one[1]) });
-    return json({ ok: true });
-  }
-  return null;
-}
-
 /** A member's passkeys, as the You page and their sheet list them: by device and date. */
 export async function passkeysOf(db: D1Database, memberId: number) {
   return all<{ id: number; name: string; createdAt: string; lastUsedAt: string | null }>(
@@ -213,7 +173,7 @@ async function spendChallenge(
 }
 
 /** Adding a passkey, step one: what the device needs to make it ("Use Face ID next time"). */
-async function registerOptions(
+export async function registerOptions(
   request: Request,
   env: AuthEnv,
   now: Date,
@@ -253,7 +213,12 @@ async function registerOptions(
 }
 
 /** Adding a passkey, step two: the device's new passkey, checked, kept, named for the device it was made on. */
-async function register(request: Request, env: AuthEnv, now: Date, mine: { memberId: number; sessionId: number }) {
+export async function register(
+  request: Request,
+  env: AuthEnv,
+  now: Date,
+  mine: { memberId: number; sessionId: number },
+) {
   const response = (await body(request)).response as RegistrationResponseJSON;
   const challenge = challengeOf(response);
   const spent = await spendChallenge(env, now, challenge, "register", { sessionId: mine.sessionId });
@@ -309,7 +274,7 @@ async function register(request: Request, env: AuthEnv, now: Date, mine: { membe
  * offers whichever of this site's it holds. The sign-in page asks as it opens, for the passkey in the email field's
  * suggestions (conditional mediation), and again for the button.
  */
-async function signInOptions(request: Request, env: AuthEnv, now: Date) {
+export async function signInOptions(request: Request, env: AuthEnv, now: Date) {
   await enforce("passkey", addressOf(request), LIMITS.passkey, "Too many tries from here. Wait a few minutes.");
   const nonce = crypto.getRandomValues(new Uint8Array(32));
   const challenge = await newChallenge(env, now, "sign_in", { nonceHash: await sha256(toB64url(nonce)) });
@@ -323,7 +288,7 @@ async function signInOptions(request: Request, env: AuthEnv, now: Date) {
 }
 
 /** Signing in, step two: the device's signed answer. The same session as a code's, on the same rules. */
-async function signIn(request: Request, env: AuthEnv, now: Date) {
+export async function signIn(request: Request, env: AuthEnv, now: Date) {
   const response = (await body(request)).response as AuthenticationResponseJSON;
   const nonce = cookie(request, cookieName(request, "passkey"));
   if (!nonce) throw new HttpError(400, TRY_AGAIN);
@@ -391,4 +356,11 @@ async function signIn(request: Request, env: AuthEnv, now: Date) {
   }
   const { cookies } = await startSession(request, env, now, key.member_id, "passkey");
   return withCookies(json({ ok: true }), cookies);
+}
+
+/** Removes one of a member's own passkeys, on the record. A 404 when it isn't theirs. */
+export async function forgetPasskey(db: D1Database, now: Date, memberId: number, passkeyId: number) {
+  const gone = await run(db, "DELETE FROM passkeys WHERE id = ? AND member_id = ?", [passkeyId, memberId]);
+  if (gone.meta.changes !== 1) throw new HttpError(404, "That passkey isn't one of yours.");
+  await audit(db, now, memberId, "passkey.removed", { passkeyId });
 }

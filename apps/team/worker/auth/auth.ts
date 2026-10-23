@@ -24,7 +24,6 @@ import { firstAdmin } from "../members/members";
 import { forgetDevice, registerDevice } from "../push/push";
 import { endSessions } from "./auth.sessions";
 import { mustBeHuman, type TurnstileEnv } from "./auth.turnstile";
-import { handlePasskeys } from "./auth.passkeys";
 import { brokeGlass, claimBreakGlass } from "./auth.break-glass";
 import type { LiveEnv } from "../live/live";
 import { scribe } from "@cougars/shared/scribe";
@@ -291,31 +290,7 @@ export const withCookies = (res: Response, cookies: string[]) => {
   return res;
 };
 
-// ─── The routes, before anyone is signed in ───
-
 export type Waiter = (p: Promise<unknown>) => void;
-
-/** Sign-in's own routes, answered without a session. Null for anything else. */
-export async function handleAuth(
-  request: Request,
-  env: AuthEnv,
-  now: Date,
-  waitUntil?: Waiter,
-): Promise<Response | null> {
-  const { pathname } = new URL(request.url);
-  const m = request.method;
-  if (pathname === "/api/auth/start" && m === "POST") return start(request, env, now, waitUntil);
-  if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now, waitUntil);
-  // Passkeys: adding one (signed in), and signing in with one (auth.passkeys.ts)
-  if (pathname.startsWith("/api/auth/passkeys")) return handlePasskeys(request, env, now);
-  if (pathname === "/api/auth/sign-out" && m === "POST") return signOut(request, env, now);
-  if (pathname === "/api/auth/sign-out-everywhere" && m === "POST") return signOut(request, env, now, true);
-  if (pathname === "/api/auth/device" && (m === "PUT" || m === "DELETE")) return device(request, env, now);
-  if (pathname === "/api/auth/request" && m === "POST") return requestAccess(request, env, now);
-  // Your own machine only: anywhere else it isn't there at all (null: the API's 404)
-  if (pathname === "/api/auth/dev" && m === "POST" && localHere(env, request)) return devSignIn(request, env, now);
-  return null;
-}
 
 const EMAIL = /^[^\s@,<>]+@[^\s@,<>]+\.[^\s@,<>]+$/;
 /** An email address from a request body: trimmed, lower case, and shaped like one. */
@@ -339,7 +314,7 @@ async function failuresToday(db: D1Database, nonceHash: string, now: Date) {
  * Email in: a nonce cookie in this browser (the one it already has, so an earlier code in the same browser keeps
  * working), and a code to the member, if it's a member's.
  */
-async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
+export async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   await enforce("sign-in", addressOf(request), LIMITS.signIn, TOO_MANY_TRIES);
   const sent = await body(request);
   const address = email(sent);
@@ -463,7 +438,7 @@ async function spend(env: AuthEnv, now: Date, c: Challenge, nonceHash: string): 
 }
 
 /** The 6-digit code, typed in the browser that asked. Any of its live codes will do. */
-async function verify(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
+export async function verify(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   const typed = text(await body(request), "code", { max: 20 }).replace(/\s/g, "");
   const live = await liveChallenges(request, env, now);
   if (!live) throw new HttpError(400, ELSEWHERE);
@@ -512,7 +487,7 @@ async function verify(request: Request, env: AuthEnv, now: Date, waitUntil?: Wai
  * member's inbox and their account, and on your own machine there's neither. A real session, so the app behaves as
  * it does for anyone; on the record as `sign_in` with method `dev`. Only ever answered by localHere.
  */
-async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   // No email: the first admin, as TEAM_AUTO_ADMIN does, so a script needs nobody's address written into it
   const b = await body(request);
   const memberId = b.email
@@ -528,7 +503,7 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
  * browser's `{ platform: "web", subscription }`; DELETE `{ token }` when a browser's switch is turned off. Here, beside
  * signing in and out, because a device belongs to a sign-in: signing out forgets it.
  */
-async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   const row = await findSession(request, env, now);
   if (!row) return json({ error: "Sign in first." }, 401);
   if (request.method === "DELETE") await forgetDevice(env.DB, row.id, await body(request));
@@ -540,7 +515,7 @@ async function device(request: Request, env: AuthEnv, now: Date): Promise<Respon
  * Sign this browser out, or (`everywhere`, from the You page) every browser and phone you're signed in on (#72). Its
  * phones stop hearing from the club and its live pages close (auth.sessions.ts).
  */
-async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = false): Promise<Response> {
+export async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = false): Promise<Response> {
   const row = await findSession(request, env, now);
   if (row) {
     const sessions = await endSessions(
@@ -557,7 +532,7 @@ async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = f
  * Someone new asks to join: a pending member an admin approves. The reply never says the email was taken, and a full
  * list is full for everyone, member or not (#13). Turnstile first, so a script can't fill the list.
  */
-async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   await enforce("join", addressOf(request), LIMITS.join, TOO_MANY_TRIES);
   const b = await body(request);
   const name = text(b, "name", { max: 80 });

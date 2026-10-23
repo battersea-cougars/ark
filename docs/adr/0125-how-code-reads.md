@@ -48,3 +48,5 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 ## History
 
 - 2026-10-23: Decided (#148): how code reads, beside ADR 0105's where it goes; the warnings and `npm run sizes` added.
+- 2026-10-23: Sign-in's routes (`auth.routes.ts`), passkeys' (`auth.passkeys.routes.ts`) and break glass's
+  (`auth.break-glass.routes.ts`) moved out of their domain files; no route is outside a `.routes.ts` now.

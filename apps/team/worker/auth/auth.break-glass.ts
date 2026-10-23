@@ -10,14 +10,9 @@
 // off a code nobody's used.
 import { all, first, run } from "@cougars/shared/d1";
 import { sendMail } from "@cougars/shared/email";
-import type { Route } from "../api/api.route";
-import { ok } from "../api/api.route";
-import { HttpError } from "../api/api.http";
-import { mayChange } from "../members/members";
 import { notify } from "../push/push";
 import { audit } from "../settings/audit";
 import { mailSetup, type AuthEnv, type Waiter } from "./auth";
-import { endSessions } from "./auth.sessions";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
@@ -100,10 +95,10 @@ export async function brokeGlass(env: AuthEnv, now: Date, memberId: number, sess
   else await told;
 }
 
-type Kind = "code" | "session";
+export type Kind = "code" | "session";
 
 /** The week's break-glass codes not used, and its break-glass sessions, newest first: each admin's Home lists them. */
-async function breakGlassShown(db: D1Database, now: string) {
+export async function breakGlassShown(db: D1Database, now: string) {
   const since = new Date(Date.parse(now) - SHOWN_DAYS * 86_400_000).toISOString();
   const rows = await all<{ kind: Kind; id: number; memberId: number; at: string; live: number }>(
     db,
@@ -119,7 +114,7 @@ async function breakGlassShown(db: D1Database, now: string) {
 }
 
 /** Whether a break-glass code or session is still a way in: what ending it changes, on the record. */
-async function stillLive(db: D1Database, kind: Kind, id: number, now: string) {
+export async function stillLive(db: D1Database, kind: Kind, id: number, now: string) {
   const row =
     kind === "code"
       ? await first<{ memberId: number; live: number }>(
@@ -136,42 +131,3 @@ async function stillLive(db: D1Database, kind: Kind, id: number, now: string) {
         );
   return row && { memberId: row.memberId, live: !!row.live };
 }
-
-/** Calling off a code nobody's used, or signing a break-glass session out: nobody meant to. */
-const endRoute = (kind: Kind, plural: string): Route => ({
-  method: "POST",
-  path: new RegExp(`^\\/api\\/break-glass\\/${plural}\\/(\\d+)\\/end$`),
-  audit: {
-    event: "auth.break_glass",
-    subject: async (c) => {
-      const row = await stillLive(c.env.DB, kind, Number(c.params[0]), c.now);
-      return row && { live: row.live };
-    },
-    about: (c) => ({ step: "ended", kind, id: Number(c.params[0]) }),
-  },
-  action: "manage:Member",
-  changes: ["members"],
-  // The session is signed out (its phones and live pages with it), or the code can't be used
-  handle: async (c) => {
-    const id = Number(c.params[0]);
-    const row = await stillLive(c.env.DB, kind, id, c.now);
-    if (!row) throw new HttpError(404, "There's no break-glass sign-in like that.");
-    await mayChange(c.env.DB, c.actions, row.memberId);
-    if (kind === "session") await endSessions(c.env, c.now, { sessionId: id });
-    else
-      await run(c.env.DB, "UPDATE login_challenges SET expires_at = ? WHERE id = ? AND used_at IS NULL", [c.now, id]);
-    return ok();
-  },
-});
-
-export const BREAK_GLASS_ROUTES: Route[] = [
-  {
-    method: "GET",
-    path: /^\/api\/break-glass$/,
-    action: "manage:Member",
-    // Home's line for admins: who got in that way this week, and whether it's still a way in
-    handle: async (c) => Response.json({ breakGlass: await breakGlassShown(c.env.DB, c.now) }),
-  },
-  endRoute("code", "codes"),
-  endRoute("session", "sessions"),
-];
