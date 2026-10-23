@@ -142,8 +142,8 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
   winner's area the 封 ("sealed") hanko, big, red, worn ink, askew (a series without the motif: a "?"). Under the card, whoever runs it has one button (`cueOf` in `lib/afters.ts`): Confirm the awards
   (the same drawer) till they're confirmed, then **Reveal** (a tap on the sealed card too), **Next award** once it's
   out, nothing after the last; everyone else's place says **Waiting for the reveal**, with Cast your vote under it
-  till they're confirmed. **The reveal:** the seal beats like a heart, twice, then breaks: it cracks
-  down a jagged line and its two halves drop and turn away, short and heavy (the "?" fades in its place); then the
+  till they're confirmed. **The reveal:** the seal beats like a heart, twice, then its ink drains away, patchy,
+  from the edges in (the "?" fades in its place); then the
   winner (a team's crest
   and name, or a player's name and their team) rolls into the winner's area alone, clipped to it, a short motor's roll
   (slow to start, quicker, a knock as it stops), the award's name staying put; then the 賞 hanko lands
@@ -153,7 +153,7 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
   counted: the reveal is the awards given, in order (`awardsToReveal`). **The champions** (the award the table decides, by `decidedBy`, wherever the admin lists it: the reveal
   keeps their order, the Kumite's champions last) are the finale: a bigger card, ringed in brass, the crest and name
   a size up; its button says **The champions**, and on it the page darkens round the card and one gong ring of brass
-  goes out from it, a bigger, heavier seal beats twice and breaks, "And your Kumite champions…" holds over the winner's
+  goes out from it, a bigger, heavier seal beats twice and drains away, slower, "And your Kumite champions…" holds over the winner's
   area a moment longer, the crest and name roll in,
   heavier, 優勝 slams down, and the dark eases out to a warm brass glow. **After the last**, once its beat's landed (the
   button's place coming back says so), the end: the champions the hero, on the stage as their finale left them
@@ -608,3 +608,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   a crossfade; a series without the motif keeps the "?"; the grid's cards, face up, never show it.
 - 2026-10-23: Close sign-up is back for whoever runs it on the Kumite's sign-up view, under the invitation (it had
   gone with the invitation card, 88e4cdd); it stays the view's, not Manage's, like each step's action.
+- 2026-10-23: The 封 seal no longer cracks in two (too literal): after its heartbeat its worn ink drains away from the
+  edges in (`--drain-ms`), slower for the champions.
