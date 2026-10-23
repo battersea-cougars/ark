@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
-import { homeFeed, owedNotice, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
+import { beersFor, homeFeed, owedNotice, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
 
 const ME = 7;
 const type = { id: 1, slug: "kumite", name: "The Cougars Kumite", shortName: "Kumite" } as TournamentType;
@@ -165,6 +165,17 @@ describe("what you owe, in the locker room", () => {
     });
     expect(owedNotice({ pence: 1000, kinds: ["quarterly"] })?.sub).toBe("Your tab · 1 charge");
     expect(feed(kumite()).now.some((r) => r.href === "/me/tab")).toBe(false);
+  });
+
+  it("in beers at the club's pub too: a lot of them, the same all day", () => {
+    expect(owedNotice({ pence: 2200, kinds: ["quarterly"] }, { name: "The Anchor", beers: 27 })?.text).toBe(
+      "£22 to pay, or 27 beers at The Anchor",
+    );
+    const beers = ["2026-10-23", "2026-10-24", "2026-11-01"].flatMap((d) =>
+      [100, 2200, 9999].map((p) => beersFor(p, d)),
+    );
+    expect(beers.every((n) => n >= 10 && n <= 40)).toBe(true);
+    expect(beersFor(2200, "2026-10-23")).toBe(beersFor(2200, "2026-10-23"));
   });
 
   it("nobody square sees one", () => {

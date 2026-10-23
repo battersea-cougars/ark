@@ -23,6 +23,7 @@
   import {
     homeFeed,
     owedNotice,
+    beersFor,
     tournamentTitle,
     whenSaid,
     type Fight,
@@ -171,14 +172,23 @@
   // What you owe (ADR 0007): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
   // (a charge whose day has passed, lib/dues.ts) is also a loud icon in the hello, opening the same tab
   const late = $derived(overdue(db.charges, who.id, today));
+  // The club's pub (the first series that goes on somewhere afterwards: the Kumite's The Anchor), for the joke on it
+  const pubName = $derived.by(() => {
+    const venueId = db.tournamentTypes.find((x) => x.active && x.afterVenueId)?.afterVenueId;
+    return db.venues.find((v) => v.id === venueId)?.name;
+  });
+  const pub = $derived(pubName ? { name: pubName, beers: beersFor(owedBy(who.id), today) } : undefined);
   const owing = $derived(
-    owedNotice({
-      pence: owedBy(who.id),
-      kinds: chargesFor(who.id)
-        .filter((c) => leftOn(c) > 0)
-        .map((c) => c.kind),
-      overdue: late,
-    }),
+    owedNotice(
+      {
+        pence: owedBy(who.id),
+        kinds: chargesFor(who.id)
+          .filter((c) => leftOn(c) > 0)
+          .map((c) => c.kind),
+        overdue: late,
+      },
+      pub,
+    ),
   );
 
   // Each training's next session: the hello knows a training night by it

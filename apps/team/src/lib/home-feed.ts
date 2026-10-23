@@ -207,8 +207,24 @@ export interface Owes {
   overdue?: number;
 }
 
-/** What you owe, at Home's foot: none when you're square. Overdue is also the loud icon in Home's header. */
-export function owedNotice(owes: Owes): { text: string; sub: string; href: string } | null {
+/**
+ * The joke on your tab: what you owe in beers at the club's pub, a lot of them (it's cheap there), 10 to 40. The same
+ * all day for the same amount, so it doesn't jump about between visits.
+ */
+export function beersFor(pence: number, day: string): number {
+  let h = pence;
+  for (const c of day) h = (h * 31 + c.charCodeAt(0)) % 100_003;
+  return 10 + (h % 31);
+}
+
+/**
+ * What you owe, at Home's foot: none when you're square. Overdue is also the loud icon in Home's header. With the
+ * club's pub, the amount in beers there too.
+ */
+export function owedNotice(
+  owes: Owes,
+  pub?: { name: string; beers: number },
+): { text: string; sub: string; href: string } | null {
   if (owes.pence <= 0) return null;
   const n = owes.kinds.length;
   const what = owes.kinds.every((k) => k === "session")
@@ -219,7 +235,8 @@ export function owedNotice(owes: Owes): { text: string; sub: string; href: strin
       ? "charge"
       : "charges";
   const late = owes.overdue && owes.overdue > 0 ? ` · ${pounds(owes.overdue)} overdue` : "";
-  return { text: `${pounds(owes.pence)} to pay`, sub: `Your tab${n ? ` · ${n} ${what}` : ""}${late}`, href: "/me/tab" };
+  const text = `${pounds(owes.pence)} to pay${pub ? `, or ${pub.beers} beers at ${pub.name}` : ""}`;
+  return { text, sub: `Your tab${n ? ` · ${n} ${what}` : ""}${late}`, href: "/me/tab" };
 }
 
 const weekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "long" });
