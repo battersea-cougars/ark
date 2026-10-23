@@ -2,8 +2,8 @@
   // The after-party (ADR 0074): the evening a tournament ends, its last status. Everyone's at the afterwards (the
   // Kumite's The Anchor), so the page is the pub after the film's last match: warm brass on the carbon, the Kumite's
   // motif kept. Where everyone is; the awards, a big card to their own page (pages/Awards, the stage where they're
-  // revealed one at a time), with Confirm the awards on it for whoever runs it till they're confirmed and Cast your
-  // vote for everyone who played meanwhile (ADR 0044); then the final table (the champions first) and the day's
+  // revealed one at a time), with everyone who played voting on it and whoever runs it confirming them on it too
+  // (lib/AwardsEntry, ADR 0044); then the final table (the champions first) and the day's
   // results, one line each.
   import type { Tournament, TournamentType } from "../demo/model";
   import type { After } from "@cougars/shared/places";
@@ -11,7 +11,6 @@
   import Icon from "../app/shell/Icon.svelte";
   import Kanji from "./Kanji.svelte";
   import BoardTable from "./BoardTable.svelte";
-  import CastYourVote from "./CastYourVote.svelte";
   import { finalOrder } from "./afters";
   import AwardsEntry from "./AwardsEntry.svelte";
   import { kanjiFor } from "./motif";
@@ -65,10 +64,8 @@
     </div>
   </section>
 
-  <!-- The awards: confirmed here, revealed on their own page, the stage -->
+  <!-- The awards: voted and confirmed here, on one card, revealed on their own page, the stage -->
   <AwardsEntry {type} tournament={t} {manage} />
-  <!-- Before the reveal, everyone who played votes, till the awards are confirmed -->
-  <CastYourVote {type} tournament={t} tillCast />
 
   {#if standings.length}
     <!-- The table with the stats we track (played, won, drawn, lost, goal difference, points), the champions first -->

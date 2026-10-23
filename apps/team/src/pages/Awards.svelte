@@ -94,18 +94,16 @@
     if (!t) return "";
     const won = (t.winners ?? []).filter((w) => w.award === award);
     if (!won.length) return "Nobody this time";
-    if (won.length > 2) return `Shared by ${won.length}`;
-    return won
-      .map((w) =>
-        w.teamId
-          ? nameOfTeam(
-              t.teams.find((x) => x.id === w.teamId),
-              t.teams,
-              byId,
-            )
-          : goesByOf(byId(w.memberId)),
-      )
-      .join(" & ");
+    const names = won.map((w) =>
+      w.teamId
+        ? nameOfTeam(
+            t.teams.find((x) => x.id === w.teamId),
+            t.teams,
+            byId,
+          )
+        : goesByOf(byId(w.memberId)),
+    );
+    return won.length > 2 ? `Shared by ${won.length}: ${names.join(", ")}` : names.join(" & ");
   };
 </script>
 

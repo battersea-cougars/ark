@@ -144,3 +144,8 @@ export function ballotOf(
       mine: t.votes?.find((v) => v.award === award.name)?.mine ?? null,
     }));
 }
+export type Ballot = ReturnType<typeof ballotOf>;
+
+/** The ballot's line, for the votes still to cast: one award by name, or how many. */
+export const voteLineOf = (left: Ballot) =>
+  `${left.length === 1 ? `${left[0].award.name}: one vote, secret.` : `${left.length} awards, one vote each, secret.`} Not for yourself. We checked.`;

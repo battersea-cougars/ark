@@ -94,6 +94,10 @@
           <span class="who" class:none={!won.length}
             ><BoardWords text={won.length ? `Shared by ${won.length}` : "Nobody this time"} size={sizes.who} /></span
           >
+          <!-- A big tie: who shares it, a line under it -->
+          {#if won.length}<span class="shared-names"
+              >{won.map((w) => (w.teamId ? teamName(w.teamId) : goesByOf(byId(w.memberId)))).join(" · ")}</span
+            >{/if}
         {:else}
           {#each won as w, k (k)}
             {#if w.teamId}
@@ -263,6 +267,11 @@
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     column-gap: var(--s-3);
+  }
+  .shared-names {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    line-height: 1.4;
   }
   .team-line {
     overflow: hidden;

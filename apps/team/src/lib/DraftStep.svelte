@@ -177,6 +177,7 @@
   }
   .act {
     display: grid;
+    gap: var(--s-2);
     width: 100%;
     justify-items: center;
     margin-top: var(--s-2);
