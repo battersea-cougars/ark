@@ -47,7 +47,8 @@
     leaving?: boolean;
     /** A size down, for the grid of every award once they're all out: face up, still. */
     small?: boolean;
-    /** Its place in the reveal ("2 of 3"): only while they're being revealed. Empty, its row takes no room. */
+    /** Its place in the reveal ("2 of 3"): only while they're being revealed. Hidden, its row keeps its room, so the
+     *  name doesn't move as the last reveal ends. */
     numbered?: boolean;
     /** Whoever runs it: a tap on the sealed card reveals it, as the button under it does. */
     onreveal?: () => void;
@@ -87,7 +88,7 @@
   aria-hidden={leaving || undefined}
 >
   {#if kumite}<span class="ghost" lang="ja" aria-hidden="true">{mark}</span>{/if}
-  <span class="order num">{numbered ? `${at + 1} of ${count}` : ""}</span>
+  <span class="order num" class:unnumbered={!numbered} aria-hidden={!numbered || undefined}>{at + 1} of {count}</span>
   <div class="name"><BoardWords text={name} size={sizes.name} /></div>
   <p class="about">{about || " "}</p>
 
@@ -200,6 +201,9 @@
     color: var(--fg-subtle);
     font-size: var(--text-xs);
     font-weight: 600;
+  }
+  .order.unnumbered {
+    visibility: hidden;
   }
   .name {
     margin-top: var(--s-1);
