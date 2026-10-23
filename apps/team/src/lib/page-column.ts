@@ -6,7 +6,9 @@
 const READING_REM = 52;
 
 export function column(): { left: number; width: number } | null {
-  const pages = document.querySelectorAll<HTMLElement>(".view .page");
+  // The page itself, never a drawer in it (lib/Drawer's editor mode is .drawer.page too: measuring that gave a
+  // column no wider than the closed drawer, and an editor that opened as a sliver)
+  const pages = document.querySelectorAll<HTMLElement>(".view .page:not(dialog)");
   const page = pages[pages.length - 1];
   if (!page) return null;
   const r = page.getBoundingClientRect();
