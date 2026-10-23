@@ -198,7 +198,8 @@ describe("answers that make no sense", () => {
     const event = (startsAt: string, endsAt: string) =>
       dana.call("POST", "/api/club-events", { title: "Curry night", startsAt, endsAt, venue: "", signup: true });
     const idOf = (title: string, startsAt: string) =>
-      (w.db.raw.prepare("SELECT id FROM club_events WHERE title = ? AND starts_at = ?").get(title, startsAt) as Json).id;
+      (w.db.raw.prepare("SELECT id FROM club_events WHERE title = ? AND starts_at = ?").get(title, startsAt) as Json)
+        .id;
     await event("2026-10-24T19:00:00.000Z", "2026-10-24T22:00:00.000Z");
     const ahead = idOf("Curry night", "2026-10-24T19:00:00.000Z");
     expect((await dana.call("POST", `/api/club-events/${ahead}/cancelled`, { cancelled: true })).status).toBe(200);
