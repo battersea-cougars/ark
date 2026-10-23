@@ -243,16 +243,13 @@ describe("an announcement's words on a phone", () => {
 });
 
 describe("a long announcement with an emoji where it's cut", () => {
-  // #134: body.slice(0, 180) halves the emoji, and SQLite stores the half as invalid UTF-8
-  it.fails(
-    "an emoji where a long announcement is cut arrives whole or not at all, never as ��� (known bug #134)",
-    async () => {
-      await phone("reg@example.com");
-      const dana = await w.signedIn("dana@example.com");
-      await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, body: "x".repeat(179) + "🏒 and more" });
-      const body = w.pushes[0].body as string;
-      expect(body).not.toContain("\uFFFD");
-      expect(["x".repeat(179), "x".repeat(179) + "🏒"]).toContain(body);
-    },
-  );
+  // #134: body.slice(0, 180) halved the emoji, and SQLite stored the half as invalid UTF-8
+  it("an emoji where a long announcement is cut arrives whole or not at all, never as ��� (#134)", async () => {
+    await phone("reg@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, body: "x".repeat(179) + "🏒 and more" });
+    const body = w.pushes[0].body as string;
+    expect(body).not.toContain("\uFFFD");
+    expect(["x".repeat(179), "x".repeat(179) + "🏒"]).toContain(body);
+  });
 });

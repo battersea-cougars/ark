@@ -8,6 +8,7 @@ import type { Notice } from "./push";
 import { announcementSummary } from "../announcements/announcements";
 import { nth } from "../../src/lib/draft";
 import { markTold, signupOpenNotice } from "../tournaments/signup";
+import { firstCharacters } from "../../src/lib/text";
 
 /** A training night as a notification names it (its day), and where it is in the app. */
 async function sessionOf(db: D1Database, sessionId: number) {
@@ -213,7 +214,7 @@ export const announced: Notify = {
             topic: "announcements",
             key: `announcement:${reply.id}`,
             title: a.title,
-            body: a.body.slice(0, 180),
+            body: firstCharacters(a.body, 180),
             path: "/",
           },
         ]
