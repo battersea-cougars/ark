@@ -355,14 +355,32 @@ export async function addGoal(
   if (done && game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
 
-/** Any goal off a finished game: it wasn't one, or it was the other side's. */
+/**
+ * Any goal off a finished game: it wasn't one, or it was the other side's. Never one that leaves a playoff level (a
+ * playoff needs a winner, as full time and a typed-in result say, #123), decided in the statement that takes it off
+ * (ADR 0121): two admins taking a goal each off a 2–1 Final at once leave it 1–1 for neither.
+ */
 export async function removeGoal(db: D1Database, tournamentId: number, gameId: number, goalId: number, who: Who) {
   const game = await correctable(db, tournamentId, gameId, who);
+  // Params: the game, the goal, the team. Each side's goals but this one
+  const others = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND id != ? AND team_id = ?)";
   const [res] = await batch(db, [
-    statement(db, "DELETE FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]),
+    game.stage === "playoff"
+      ? statement(db, `DELETE FROM tournament_goals WHERE id = ? AND game_id = ? AND ${others} != ${others}`, [
+          goalId,
+          gameId,
+          ...[gameId, goalId, game.homeTeamId],
+          ...[gameId, goalId, game.awayTeamId],
+        ])
+      : statement(db, "DELETE FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]),
     recount(db, game),
   ]);
-  if (!res.meta.changes) throw new HttpError(404, "No such goal.");
+  if (!res.meta.changes) {
+    const there = await first(db, "SELECT 1 FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]);
+    throw there
+      ? new HttpError(409, "That would leave it level, and a playoff needs a winner: put the right score in instead.")
+      : new HttpError(404, "No such goal.");
+  }
   // The playoffs from the table
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, await tournamentOf(db, tournamentId));
 }

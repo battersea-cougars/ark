@@ -61,7 +61,8 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - **Only the game up next is scored**: scoring, the clock and a typed-in result go on the first game in the day's
   order that isn't over; the next opens at full time. Anything else is a 409 ("Game N is up next").
 - A game being played has a score but no result: the table counts only finished games. A level playoff can't be
-  called at full time: it plays on and the next goal wins.
+  called at full time: it plays on and the next goal wins. Nor can it be left level after: a typed-in result can't
+  say level, and an admin can't take off a goal that would leave it so (409: put the right score in instead).
 
 ### Who keeps score
 
@@ -290,3 +291,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-23: Each goal and penalty tap carries an id made on the phone as it's pressed (`tapId`), so the same tap
   from two phones or sent again is one; Undo names the goal or penalty the page shows last (`?goal=`, `?penalty=`),
   so Undo tapped twice takes one off ([0121](0121-load-and-concurrency.md), #114).
+- 2026-10-23: An admin taking a goal off a finished playoff that would leave it level is refused (409), as full time
+  and a typed-in result are, decided in its statement (#123): it went through, and the Final crowned nobody.

@@ -672,18 +672,32 @@ describe("playoffs, after the group", () => {
     expect(final).toMatchObject({ status: "done", homeGoals: 2, awayGoals: 1 });
   });
 
-  // removeGoal takes any goal off a finished game, a playoff's too, with no check that a winner's left: a typed-in
-  // result (scoreGame) or full time (clockGame) can't make a playoff level, but this can, and the Final then crowns
-  // nobody (known bug #123)
-  it.fails(
-    "an admin can't take a goal off a finished playoff if that would leave it level: a playoff needs a winner (known bug #123)",
-    async () => {
+  // A typed-in result (scoreGame) or full time (clockGame) can't make a playoff level, and nor can taking a goal off
+  // it (#123: it could, and the Final then crowned nobody)
+  it("an admin can't take a goal off a finished playoff if that would leave it level: a playoff needs a winner", async () => {
+    const c = await groupPlayed();
+    await c.score(c.final.id, 1, 0);
+    const goalId = (await c.game(c.final.id)).goals[0].id;
+    const res = await c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/winner/);
+    expect(row(c.final.id)).toMatchObject({ home: 1, away: 0 });
+  });
+
+  it.each(seeds(5))(
+    "two admins each taking a goal off a 3–1 Final at once: one comes off, the other would leave it level (seed %i)",
+    async (seed) => {
       const c = await groupPlayed();
-      await c.score(c.final.id, 1, 0);
-      const goalId = (await c.game(c.final.id)).goals[0].id;
-      const res = await c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`);
-      expect(res.status).toBe(409);
-      expect(row(c.final.id)).toMatchObject({ home: 1, away: 0 });
+      await c.score(c.final.id, 3, 1);
+      const final = await c.game(c.final.id);
+      const home = final.goals.filter((g: Json) => g.teamId === final.homeTeamId).map((g: Json) => g.id);
+      w.db.interleave(seed);
+      const replies = await Promise.all(
+        home.slice(0, 2).map((goalId: number) => c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`)),
+      );
+      w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
+      expect(row(c.final.id)).toMatchObject({ home: 2, away: 1 });
     },
   );
 

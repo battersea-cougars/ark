@@ -36,7 +36,8 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
     so full time never reads a goal without its score; each goal and penalty tap has an id made on the phone
     (`tap_id`, UNIQUE in its game, `ON CONFLICT DO NOTHING`), and an Undo names the one it takes back, so the same tap
-    from two phones, or sent again, counts once (#114); an admin's typed-in result and its goals are one batch, each
+    from two phones, or sent again, counts once (#114); an admin's goal comes off a finished playoff only while
+    the rest still leave a winner, inside its DELETE (#123); an admin's typed-in result and its goals are one batch, each
     side's goals matched against the count inside its statement, so the same result saved twice adds them once (#124).
     An admin's take-over (or freeing) of the scoresheet goes only while it's still held by whoever their page saw
     and the game isn't over, so two admins at once leave one scorekeeper; every scorekeeper's write, the clock's
@@ -134,3 +135,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-23: The same goal or penalty from two phones (or a retry) was two; each tap now has an id from the phone and
   a repeat does nothing, and an Undo names the goal or penalty the page shows last, so a double tap takes one off
   (#114).
+- 2026-10-23: An admin taking a goal off a finished playoff is decided in its DELETE: only while the other goals still
+  leave a winner, so two at once can't make it level (#123).
