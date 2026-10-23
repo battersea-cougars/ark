@@ -4,10 +4,14 @@
   // named; then whoever's waiting, then (for whoever sees it) who said they're out. Nobody in yet: a quip about
   // slackers (Settings → Quips, "Nobody in"), as Friday's says it. The Kumite's is by invitation (lib/motif.ts
   // invitationOnly): its players are The fighters, each with their fighter's number (lib/fighters.ts), whoever's
-  // waiting the Reserves, numbered too, and who said out Declined.
+  // waiting the Reserves, numbered too, and who said out Declined. A row turns the player's card over (PlayerCardZoom),
+  // as Friday's does.
   import { PLAYERS, type Player } from "../demo/data";
   import type { Tournament } from "../demo/model";
-  import { me } from "../demo/session.svelte";
+  import { granted, me } from "../demo/session.svelte";
+  import { can } from "../access/actions";
+  import PlayerCardZoom from "./PlayerCardZoom.svelte";
+  import { goesBy } from "./names";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import Person from "./Person.svelte";
@@ -34,6 +38,13 @@
   const going = $derived(people(t.going));
   const waiting = $derived(people(t.waitlist));
   const out = $derived(people(t.out ?? []));
+  const perms = $derived(granted());
+  // The card being looked at, and where it grows from: the row's initials, or the row where they're hidden
+  let lifted = $state<{ id: number; el: HTMLElement; n?: number } | null>(null);
+  const zoomFrom = (row: HTMLElement) => {
+    const avatar = row.querySelector<HTMLElement>(".avatar");
+    return avatar?.offsetParent ? avatar : row;
+  };
   const SLACKERS = "No slackers allowed. Be the first one in.";
   // Picked once for the page, so a live update never swaps it
   const slackers = untrack(() => pick(db.quips.filter((q) => q.kind === "empty" && q.text.trim()))?.text ?? SLACKERS);
@@ -42,12 +53,18 @@
 {#snippet rows(list: Player[], numbered: boolean)}
   <div class="list tight">
     {#each list as p, i (p.id)}
-      <div class="row" class:you={p.id === me().id}>
+      <button
+        type="button"
+        class="row"
+        class:you={p.id === me().id}
+        aria-label="{goesBy(p)}: see their card"
+        onclick={(e) => (lifted = { id: p.id, el: zoomFrom(e.currentTarget), n: numbered ? i + 1 : undefined })}
+      >
         {#if numbered}<span class="n num" class:no={fighters}>{fighters ? fighterNo(i + 1) : i + 1}</span>{/if}
         <Person player={p} bare />
         {#if captains.has(p.id)}<span class="badge"><Icon name="shield" size={12} />Captain</span>{/if}
         <span class="pos" class:g={p.position === "G"}>{p.position}</span>
-      </div>
+      </button>
     {/each}
   </div>
 {/snippet}
@@ -68,6 +85,21 @@
     {@render rows(out, false)}
   {/if}
 </section>
+
+{#if lifted}
+  {@const p = byId(lifted.id)}
+  {#if p}
+    <PlayerCardZoom
+      player={p}
+      source={lifted.el}
+      n={lifted.n}
+      you={p.id === me().id}
+      bio={p.bio}
+      detailsHref={can(perms, "manage:Member") ? `/club/${p.id}` : undefined}
+      onclose={() => (lifted = null)}
+    />
+  {/if}
+{/if}
 
 <style>
   .whos-in {

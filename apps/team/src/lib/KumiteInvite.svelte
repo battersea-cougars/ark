@@ -14,7 +14,7 @@
   import { formatDayDate, timeRange } from "./dates";
   import { fighterLabel, fighterNo, fighterOf } from "./fighters";
   import { kanjiFor } from "./motif";
-  import Kanji from "./Kanji.svelte";
+  import InkStamp from "./InkStamp.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { prefersReducedMotion } from "../app/motion";
   import { tick } from "svelte";
@@ -105,20 +105,31 @@
     </div>
   </div>
 
-  <!-- The fighter's pass (or a reserve's): the number, the name like a poster, the day; Withdraw, with a confirm -->
+  <!-- The pass (or a reserve's): stamped ADMITTED as it turns over, the number, the name like a poster, the day;
+       Withdraw, with a confirm -->
   <div class="face pass-face" class:on={face === "pass"} inert={face !== "pass"}>
     <span class="watermark" lang="ja" aria-hidden="true">{kanjiFor(type, "onTheMat")}</span>
     <div class="pass-top" bind:this={passAt} tabindex="-1">
-      <span class="eyebrow">{fighter?.is === "reserve" ? "Reserve's pass" : "Admission"}</span>
+      <span class="eyebrow">By invitation only</span>
       <span class="sr-only">{fighterLabel(fighter)}</span>
       <span class="number" aria-hidden="true"
-        ><span class="no-label">{fighter?.is === "reserve" ? "Reserve No." : "Admitted · No."}</span><span
-          class="no display num">{fighter && fighter.is !== "declined" ? fighterNo(fighter.no) : "00"}</span
+        ><span class="no-label">No.</span><span class="no display num"
+          >{fighter && fighter.is !== "declined" ? fighterNo(fighter.no) : "00"}</span
         ></span
       >
     </div>
-    <span class="seal-stamp"><Kanji text={kanjiFor(type, "onTheMat")} seal /></span>
-    <strong class="name display">{name}</strong>
+    <!-- Pressed on as the pass shows (accepting turns the card over), so it lands each time it's earned -->
+    {#if face === "pass"}<span class="admit-stamp"
+        ><InkStamp
+          text={fighter?.is === "reserve" ? "Reserve" : "Admitted"}
+          kanji={kanjiFor(type, "invite")}
+          icon="check"
+          tone={fighter?.is === "reserve" ? "faint" : "red"}
+          tilt={-8}
+          land
+        /></span
+      >{/if}
+    <strong class="name">{name}</strong>
     <p class="when">
       <span class="num">{day}</span><span class="num">{hours}</span>{#if event.venue}<span
           ><Icon name="pin" size={14} />{event.venue}</span
@@ -266,33 +277,55 @@
   .number {
     display: flex;
     align-items: baseline;
-    gap: var(--s-3);
+    gap: var(--s-2);
   }
   .no-label {
     color: var(--fg-muted);
     font-family: var(--font-display);
-    font-size: 1.25rem;
+    font-size: 1rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .no {
     color: var(--fg);
-    font-size: clamp(2.5rem, 9vw, 3.25rem);
-    line-height: 0.85;
+    font-size: 1.6rem;
+    line-height: 1;
   }
   .reserve .no,
   .reserve .name {
     color: var(--fg-muted);
   }
+  /* The name as a poster: the page titles' heavy italic capitals and the logo's red slash under them (app.css
+     h1.poster) */
   .name {
+    position: relative;
     max-width: 100%;
+    padding-bottom: 0.7rem;
     color: var(--fg);
-    font-size: clamp(1.7rem, 6vw, 2.4rem);
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 7vw, 2.75rem);
+    font-style: italic;
     font-weight: 400;
-    line-height: 1;
-    letter-spacing: 0.02em;
+    line-height: 0.95;
+    letter-spacing: 0.005em;
     text-transform: uppercase;
     overflow-wrap: anywhere;
+  }
+  .name::after {
+    content: "";
+    position: absolute;
+    left: 0.1em;
+    bottom: 0;
+    width: 2.75rem;
+    height: 4px;
+    transform: skewX(-24deg);
+    transform-origin: left;
+    background: var(--red);
+    box-shadow: 0.8rem 0 0 -0.5px color-mix(in srgb, var(--red) 45%, transparent);
+  }
+  .reserve .name::after {
+    background: var(--fg-subtle);
+    box-shadow: none;
   }
   /* 組手 down the right of the pass, faint, like the poster's */
   .watermark {
@@ -308,13 +341,12 @@
     pointer-events: none;
     z-index: -1;
   }
-  .seal-stamp {
+  /* ADMITTED (招, invited) in the corner, askew, over the faint 組手 */
+  .admit-stamp {
     position: absolute;
-    top: 0.25rem;
-    right: 0.25rem;
-  }
-  .reserve .seal-stamp {
-    opacity: 0.55;
+    top: 0.75rem;
+    right: 0.5rem;
+    display: inline-flex;
   }
   .ask {
     color: var(--fg);

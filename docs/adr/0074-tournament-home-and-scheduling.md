@@ -447,3 +447,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   Reveal the next award card, which stays only to confirm the awards first; everyone else's sealed card says Waiting for
   the reveal. Each reveal flips the card over for everyone watching, brings it into view, and the next sealed card rises
   in; with reduced motion the face and the next card fade in instead.
+- 2026-10-23: The pass is stamped: an ADMITTED ink stamp (招, red, askew) lands in its corner as it turns over, a
+  faint RESERVE for a reserve, in place of the red 組手 seal; the name is a poster, the page titles' heavy italic
+  capitals with the red slash under them; "No. 02" is a small line under "By invitation only", not the headline. Who's
+  in's rows turn the player's card over (PlayerCardZoom), as Friday's do.
