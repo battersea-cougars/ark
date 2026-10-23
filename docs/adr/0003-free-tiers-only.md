@@ -1,7 +1,7 @@
 # 0003. Free tiers only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-18
+- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-23
 
 ## Context
 
@@ -16,6 +16,31 @@ a year). The budget and each service's limits are below.
 A Durable Object is allowed when it stores nothing. Since April 2025 SQLite-backed classes are on the Workers Free
 plan (100,000 requests and 13,000 GB-s of duration a day). The live hub, `LiveHub`, holds open streams in memory and
 keeps no rows; D1 stays the only source of truth ([ADR 0072](0072-live-updates.md)).
+
+## API functions stay cheap
+
+The free plan is the ceiling, not the goal: every route is designed to stay far under it, so a busy Friday, a draft
+night or a club twice the size doesn't find the edge. The rule, route by route (checked in
+[docs/api-budget.md](../api-budget.md)):
+
+- **Few round trips.** A request makes at most **25 D1 calls** (round trips; a `batch()` is one, as Workers counts its
+  50 queries an invocation, [0123](0123-dev-only-tools.md)), whatever the club's size, the wrapper's own and what goes
+  after the reply included. Statements that go together go in one `batch()`, reads included; never a query per item in
+  a loop (no N+1). A route that needs more says so and why, inside 50: the Kumite simulator 45 (dev only), Move to 40.
+- **Read only what's needed.** Name the columns, bound the rows (yours by index, not picked out of everyone's), and
+  give every read path an index (`EXPLAIN QUERY PLAN`): no whole-table read of a growing table on a hot path.
+- **Little CPU in the request.** No heavy search or compute inline: precompute it, cache it, or keep it inside a
+  measured bound (fair fixtures: the table for up to 8 teams, the timed search past it).
+- **Side effects after the reply.** Pushes, emails and fan-out go through `waitUntil`, the outbox and the cron
+  ([0108](0108-store-apps.md)), never awaited in the response.
+- **Small replies.** Send back the parts a change touched (versions and slices, [0072](0072-live-updates.md)), not the
+  whole club.
+- **Rules decided in the statement that writes** ([0121](0121-load-and-concurrency.md)): cheaper than read-then-write,
+  and race-safe.
+
+`api.budget.use-cases.test.ts` drives every route on its happy path on a club of 60 and of 120 and fails when a route
+isn't driven, goes over its budget, or costs more for the bigger club. The fake D1 counts each request's own calls
+(`Reply.d1`), however many run at once.
 
 ## Budget
 
@@ -66,3 +91,8 @@ Usage page and count in its 80% check ([ADR 0059](0059-usage-page-and-check.md))
   dropped, its alert routing unclear without paid on-call.
 - 2026-10-23: The 50 subrequests (D1 queries included) an invocation is in the budget, as the simulator's Spin kick
   is sized by it (0123).
+- 2026-10-23: API functions stay cheap, as a rule (#148): at most 25 D1 calls a request (the simulator 45, Move to
+  40), batched, bounded, indexed, side effects after the reply, small replies, rules in the writing statement; every
+  route counted on a club of 60 and of 120 (`api.budget.use-cases.test.ts`, docs/api-budget.md), and what it found
+  fixed: agenda syncs in two round trips, the first open's N+1 over trainings, a tournament's standing read in one,
+  Move to's repeated syncs, the dues parts read by index, four indexes.

@@ -34,6 +34,9 @@ grouped, so it grew wherever was convenient.
 - **How the code inside a file reads** (one job per file and function, early exits, the club's words for names,
   classes for cohesion and functions for composition, and the warnings that point at the rest) is
   [ADR 0125](0125-how-code-reads.md).
+- **A route stays cheap** ([0003](0003-free-tiers-only.md), API functions stay cheap): a few D1 calls, batched, its
+  reads bounded and indexed, its side effects after the reply; `api.budget.use-cases.test.ts` drives every route and
+  fails when one isn't there or goes over (docs/api-budget.md).
 - **Moving code is its own change**, with behaviour unchanged and the tests as they were; new code goes in the right
   place from the start. Existing code moves feature by feature when it's next worked on, not in one sweep.
 
@@ -50,3 +53,4 @@ grouped, so it grew wherever was convenient.
 - 2026-10-10: A folder per component, flat inside: the Worker's 65 files moved into `api/` and ten components, and
   `schedule.ts` (920 lines) split into training, tournaments, club events, venues and slugs (#88).
 - 2026-10-23: How code reads went to its own record, [ADR 0125](0125-how-code-reads.md), linked from here (#148).
+- 2026-10-23: A route stays cheap, by ADR 0003's rule, checked for every route by the budget test (#148).
