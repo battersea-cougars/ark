@@ -100,7 +100,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 ### The scoresheet
 
 - Kept simple for a phone: the clock, one big button right under it (Start the game, Pause; Full time once time's up,
-  tapped twice), with clear space before Goal for each side, and the goals. The clock itself isn't a button. Scorer
+  which opens the review), with clear space before Goal for each side, and the goals. The clock itself isn't a button. Scorer
   and assist (both optional, both on that team) open in a side drawer, full width on a phone.
 - **Set the time** by tapping the clock (the scorekeeper's, once started): a sheet with minutes and seconds left, or
   nudged by 10 seconds or a minute; never more than an hour; paused stays paused, running runs on.
@@ -108,7 +108,11 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   tools: take back the last goal, full time early, hand over. A sheet on a phone, a side drawer on a desktop
   ([0103](0103-drawers-sheets-and-panels.md)). No banner above the clock: on a phone the clock and the goal buttons
   need the screen.
-- **Full time** makes the score the result and fills the playoffs.
+- **Full time** opens a review over the page (lib/SealResult, a tall sheet on a phone, a side drawer on a desktop):
+  the final score with both teams, every goal and penalty in order, the last goal to take back and Set the time, and
+  one main button, **Seal the result**, which makes the score the result and fills the playoffs. The Kumite's carries
+  its 決 (sealed) mark, stamped down as it's pressed; other series', plain. Called early, the clock stops while it's
+  looked over. Until it's sealed the match stays live for everyone; a level playoff can't be sealed and plays on.
 - **A game starts whenever its scorekeeper starts it**, on the tournament's day or another: nothing is asked and
   nothing moves; the tournament's day stays as an admin set it.
 - **A tournament's hours are only an admin's to change**, in its editor. However early or late the matches really
@@ -280,3 +284,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   from: from a matchup, a team or a push, the way back to the Kumite was two steps or none.
 - 2026-10-23: Starting a game on another day than the tournament's no longer asks or moves the day ("Start it
   today" and `startingToday` are gone): the game just starts, the day stays as set.
+- 2026-10-23: Full time no longer ends the match at once (nor asks "Tap again"): it opens a review of the score, the
+  goals and the penalties, with the last goal to take back, and Seal the result is full time. The scorekeeper had no
+  look back before the score became the result.

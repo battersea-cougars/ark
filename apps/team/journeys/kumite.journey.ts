@@ -327,7 +327,10 @@ test("The Kumite night", async ({ browser }) => {
     await does(ada, "calls full time", async () => {
       await ada.page.getByRole("button", { name: "You're keeping score: tools" }).click();
       await ada.page.getByRole("button", { name: /^Full time now/ }).click();
-      await ada.page.getByRole("button", { name: /^Tap again: full time/ }).click();
+      // The review: the goal she logged, then the seal
+      const review = ada.page.getByRole("dialog", { name: "Full time?" });
+      await expect(review.getByRole("listitem").filter({ hasText: scorer }).filter({ hasText: "0–1" })).toBeVisible();
+      await review.getByRole("button", { name: "Seal the result" }).click();
       await expect
         .poll(async () => ((await kumite()).games as { status: string }[])[0])
         .toMatchObject({ status: "done", awayGoals: 1, homeGoals: 0 });

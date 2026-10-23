@@ -6,7 +6,8 @@
   // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
   // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
   // assisted, a quieter Penalty (who, 2 or 5 minutes, what for) whose clock runs beside the team, take the last goal or
-  // penalty back, and Full time, which makes the score the result; the clock's start and pause is
+  // penalty back, and Full time, which opens the review (lib/SealResult): the score, every goal and penalty, the last
+  // goal to take back, and Seal the result, which makes the score the result; the clock's start and pause is
   // one big button right under the clock, with clear space before the goals, so it's easy to hit and hard to hit by
   // mistake.
   //
@@ -26,6 +27,7 @@
   import { phone } from "../lib/viewport.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
+  import SealResult from "../lib/SealResult.svelte";
   import { PLAYERS, type Player } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import { goBack, navigate, router } from "../app/router.svelte";
@@ -219,6 +221,7 @@
     else if (wasKeeper && !over && !handingOver) {
       lost = { to: holder ? goesBy(holder) : null };
       toolsOpen = false;
+      reviewing = false;
       picking = null;
       calling = null;
       setting = false;
@@ -242,19 +245,29 @@
     if (!tournament || !game || over) return;
     act(() => clockGame(tournament.id, game.id, running ? "pause" : "start"));
   };
-  // Full time asks once: it can't be taken back here
-  let confirmEnd = $state(false);
+  // Full time opens the review, the confirmation: the match stays live for everyone until it's sealed. Called early,
+  // the clock stops while it's looked over (Keep scoring, then Start again, carries on)
+  let reviewing = $state(false);
   function end() {
     if (!tournament || !game) return;
-    if (!confirmEnd) {
-      // Asks for a few seconds, then lets it be
-      confirmEnd = true;
-      setTimeout(() => (confirmEnd = false), 4000);
-      return;
-    }
-    confirmEnd = false;
     toolsOpen = false;
-    act(() => clockGame(tournament.id, game.id, "end"));
+    reviewing = true;
+    if (running && left > 0) act(() => clockGame(tournament.id, game.id, "pause"));
+  }
+  // Seal the result: full time, the score's the result (a level playoff's refused, and plays on)
+  async function seal() {
+    if (!tournament || !game || busy) return false;
+    busy = true;
+    try {
+      return (await clockGame(tournament.id, game.id, "end")) !== null;
+    } finally {
+      busy = false;
+    }
+  }
+  const takeBackGoal = () => tournament && game && act(() => undoGoal(tournament.id, game.id));
+  function setTimeFromReview() {
+    reviewing = false;
+    openSet();
   }
 
   // The tools behind Scoring in the bar: what the scorekeeper needs now and then, kept away from the big buttons
@@ -542,10 +555,10 @@
           <Icon name="whistle" size={26} />Play on: next goal wins
         </div>
       {:else if keeper && timeUp}
-        <!-- Time's up: the big button is full time. Tap twice: it can't be taken back here (Set the time for more) -->
-        <button class="btn control full-time" class:confirming={confirmEnd} disabled={busy} onclick={end}>
+        <!-- Time's up: the big button is full time, which opens the review to seal the result -->
+        <button class="btn control full-time" disabled={busy} onclick={end}>
           <Icon name="whistle" size={26} />
-          {confirmEnd ? "Tap again: full time" : "Full time"}
+          Full time
         </button>
       {:else if keeper}
         <button class="btn control" class:start={!running} class:pause={running} disabled={busy} onclick={startPause}>
@@ -686,7 +699,7 @@
     </div>
   </div>
 
-  <!-- The tools: big rows, one tap each (full time asks again), each done right here. Up from the bottom on a phone,
+  <!-- The tools: big rows, one tap each (full time opens its review), each done right here. Up from the bottom on a phone,
        a side drawer on a desktop (ADR 0103) -->
   {#snippet toolList()}
     <div class="tools">
@@ -730,13 +743,13 @@
             >
           </button>
         {/if}
-        <button class="tool" class:danger={confirmEnd} disabled={busy || level} onclick={end}>
+        <button class="tool" disabled={busy || level} onclick={end}>
           <Icon name="whistle" size={22} />
           <span class="tool-text"
-            ><strong>{confirmEnd ? "Tap again: full time" : "Full time now"}</strong><span
+            ><strong>Full time now</strong><span
               >{level
                 ? "Not while it's level: a playoff needs a winner."
-                : "The score's the result. Can't be taken back."}</span
+                : "Stops the clock to look it over, then seal the result."}</span
             ></span
           >
         </button>
@@ -753,6 +766,21 @@
     <Sheet bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Sheet>
   {:else}
     <Drawer bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Drawer>
+  {/if}
+
+  <!-- Full time's review: look it over, put a mistake right, then seal the result -->
+  {#if keeper || reviewing}
+    <SealResult
+      bind:open={reviewing}
+      {type}
+      {tournament}
+      {game}
+      {busy}
+      {level}
+      onseal={seal}
+      ontakeback={takeBackGoal}
+      onsettime={setTimeFromReview}
+    />
   {/if}
 
   <!-- An admin's Manage: a sheet on a phone, a side drawer on a desktop (ADR 0103) -->
@@ -1299,11 +1327,6 @@
     color: var(--red-hot);
     font-size: 1.4rem;
   }
-  .control.full-time.confirming {
-    border-color: var(--red);
-    background: var(--red);
-    color: var(--on-red);
-  }
   /* Quieter than Goal: a ghost button under it, words and a flag */
   .penalty {
     width: 100%;
@@ -1487,10 +1510,6 @@
   .tool:disabled {
     opacity: 0.5;
   }
-  .tool.danger {
-    background: var(--red);
-    color: var(--on-red);
-  }
   .tool-text {
     display: grid;
     gap: 0.15rem;
@@ -1499,10 +1518,6 @@
     color: var(--fg);
     font-size: var(--text-md);
     font-weight: 600;
-  }
-  .tool.danger .tool-text strong,
-  .tool.danger .tool-text span {
-    color: var(--on-red);
   }
   .tool-text span {
     font-size: var(--text-sm);
