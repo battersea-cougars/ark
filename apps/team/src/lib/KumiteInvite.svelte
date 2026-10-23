@@ -143,15 +143,15 @@
           ><Icon name="pin" size={14} />{event.venue}</span
         >{/if}
     </p>
-    <!-- The middle of the pass: the one rule, as a poster; under it the bait, one phrase at a time in the same place,
-         each gone before the next, then the switch, which stays -->
+    <!-- The middle of the pass: the one rule, as a poster; under it the bait, a phrase at a time, each flying in and
+         landing like a stamp, then the switch; all of them stay -->
     <div class="hush">
-      <strong class="hush-line">Tell no one.</strong>
+      <strong class="hush-line slam" style:--at="0.3s">Tell no one.</strong>
       <span class="beats">
-        <span class="beat" style:--at="1s">Not your mates.</span>
-        <span class="beat" style:--at="2.2s">Not your mum.</span>
-        <span class="beat" style:--at="3.4s">No one.</span>
-        <span class="beat switch" style:--at="4.9s">{tellAfterAll}</span>
+        <span class="slam" style:--at="1.3s">Not your mates.</span>
+        <span class="slam" style:--at="2.2s">Not your mum.</span>
+        <span class="slam" style:--at="3.1s">No one.</span>
+        <span class="slam switch" style:--at="4.6s">{tellAfterAll}</span>
       </span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
@@ -308,10 +308,11 @@
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  /* The bait and the switch: one place, the phrases taking turns in it (stacked in one grid cell, so the slot is the
-     longest's size and nothing moves). With less motion, all of them at once, one to a line */
+  /* The bait and the switch: one to a line, each in its own place from the start, so nothing moves as they land */
   .beats {
     display: grid;
+    justify-items: start;
+    gap: 0.2rem;
     color: var(--fg-muted);
     font-family: var(--font-display);
     font-size: clamp(1.05rem, 4vw, 1.3rem);
@@ -322,34 +323,28 @@
   .switch {
     color: var(--red-hot);
   }
+  /* Each flies in and lands like a stamp (lib/InkStamp's land): from bigger and fainter, a thump, then still, in turn
+     as the pass shows. Less motion: all there at once */
+  .slam {
+    display: inline-block;
+    transform-origin: left center;
+  }
   @media (prefers-reduced-motion: no-preference) {
-    .beat {
-      grid-area: 1 / 1;
-      opacity: 0;
-    }
-    .pass-face.on .beat {
-      animation: flash 1.1s ease var(--at) both;
-    }
-    .pass-face.on .beat.switch {
-      animation: arrive 0.35s ease var(--at) both;
+    .pass-face.on .slam {
+      animation: slam 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25) var(--at) both;
     }
   }
-  /* In, held, out */
-  @keyframes flash {
+  @keyframes slam {
     0% {
       opacity: 0;
+      transform: rotate(calc(var(--tilt, 0deg) - 6deg)) scale(2.2);
     }
-    15%,
-    80% {
+    60% {
       opacity: 1;
+      transform: rotate(var(--tilt, 0deg)) scale(0.94);
     }
     100% {
-      opacity: 0;
-    }
-  }
-  @keyframes arrive {
-    to {
-      opacity: 1;
+      transform: rotate(var(--tilt, 0deg)) scale(1);
     }
   }
   .reserve .hush-line {

@@ -467,3 +467,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: No stamp effect on the bait after all: under TELL NO ONE. the phrases take turns in one place, each
   shown and gone before the next (Not your mates., Not your mum., No one.), then the switch, which stays; with less
   motion they're all shown, one to a line.
+- 2026-10-23: Then the reveal the user settled on: TELL NO ONE. and each phrase under it fly in and land like a stamp
+  (InkStamp's land, without the ink), one at a time about a second apart, the switch last after a beat, and all of
+  them stay; with less motion all are there at once.
