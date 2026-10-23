@@ -1,20 +1,8 @@
 // The draft's jobs in the page's one Manage (ADR 0060): which apply at each step, and what they say.
 import { describe, expect, it } from "vitest";
 import { draftJobsOf } from "./draft-jobs";
+import { snakeDraft as draft } from "./kumite.testing";
 
-const CARA = 1;
-const COLE = 2;
-/** Two captains, six signed up besides them; `picked` taken so far in snake order (A B B A A B). */
-function draft(picked = 0, draftState = "open") {
-  const pool = [10, 11, 12, 13, 14, 15];
-  const teams = [
-    { captainMemberId: CARA, players: [] as { memberId: number; pick: number }[] },
-    { captainMemberId: COLE, players: [] as { memberId: number; pick: number }[] },
-  ];
-  const order = [0, 1, 1, 0, 0, 1];
-  for (let n = 0; n < picked; n++) teams[order[n]].players.push({ memberId: pool[n], pick: n + 1 });
-  return { kind: "draft", draftState, teams, going: [CARA, COLE, ...pool] };
-}
 const names = { player: (id: number | null) => `Player ${id}`, team: (i: number) => ["Team Cara", "Team Cole"][i] };
 const jobs = (t: ReturnType<typeof draft>, runs = true, adds = true) =>
   draftJobsOf(t, { runs, adds }, names).map((j) => j.job);

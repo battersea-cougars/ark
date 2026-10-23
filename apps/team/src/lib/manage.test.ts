@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
 import { manageItemsOf, manageStageOf, type Manager } from "./manage";
+import { game, kumite as draftKumite } from "./kumite.testing";
 
 const TODAY = "2026-11-01";
 const CARA = 2;
@@ -23,39 +24,15 @@ const team = (id: number, captain: number, pick: number, players: number[] = [])
   pick,
   players: players.map((memberId, i) => ({ memberId, name: "", pick: i * 2 + id })),
 });
-const game = (position: number, status: "next" | "live" | "done" = "next") => ({
-  id: 100 + position,
-  stage: "group" as const,
-  position,
-  homeTeamId: 1,
-  awayTeamId: 2,
-  homeSeed: null,
-  awaySeed: null,
-  homeGoals: status === "next" ? null : 1,
-  awayGoals: status === "next" ? null : 0,
-  status,
-});
 const build = (o: Partial<Tournament> = {}) =>
-  ({
-    id: 10,
-    typeId: 1,
-    kind: "draft",
-    status: "open",
-    heldOn: "2026-11-14",
-    season: null,
-    signupOpensOn: null,
-    signupClosesOn: null,
+  draftKumite({
     signupClosedAt: null,
     going: [CARA, COLE, 10, 11, 12, 13],
-    waitlist: [],
-    teams: [],
-    games: [],
-    draftState: "scheduled",
     awards: [{ name: "Champions", about: "" }],
     awardsRevealed: 0,
     awardsConfirmedAt: null,
     ...o,
-  }) as unknown as Tournament;
+  } as Partial<Tournament>);
 
 const drawn = {
   signupClosedAt: "2026-10-30T20:00:00Z",

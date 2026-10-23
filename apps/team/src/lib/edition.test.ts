@@ -1,17 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
 import { countdownOf, editionState, editionWhen, stageOf } from "./edition";
+import { game } from "./kumite.testing";
 
-const game = (position: number, status: "next" | "live" | "done", home = 1, away = 2) => ({
-  id: position,
-  stage: "group" as const,
-  position,
-  homeTeamId: home,
-  awayTeamId: away,
-  homeGoals: status === "next" ? null : 1,
-  awayGoals: status === "next" ? null : 0,
-  status,
-});
 const cup = (o: Partial<Tournament> = {}) =>
   ({
     id: 1,

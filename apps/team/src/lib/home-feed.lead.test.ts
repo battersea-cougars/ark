@@ -4,19 +4,11 @@
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
 import { homeFeed, type FeedInput, type UpcomingEvent } from "./home-feed";
+import { team } from "./kumite.testing";
 
 const ME = 7;
 const TODAY = "2026-10-21";
 const type = { id: 1, slug: "kumite", name: "The Cougars Kumite", shortName: "Kumite" } as TournamentType;
-const team = (id: number, captain: number, players: number[] = []) => ({
-  id,
-  name: "",
-  logo: null,
-  captainMemberId: captain,
-  captainName: "",
-  contact: "",
-  players: players.map((memberId) => ({ memberId, name: "" })),
-});
 const game = (id: number, position: number, home: number, away: number, status = "next") =>
   ({ id, position, homeTeamId: home, awayTeamId: away, status }) as never;
 /** A Kumite you're on Team 2 in, its fixtures out: your fight is game 3, at 10:00 + 2 × (12 + 5) = 10:34. */

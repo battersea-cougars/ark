@@ -2,22 +2,9 @@
 // everyone out (the draft closed, or stepped back to before it opened).
 import { describe, expect, it } from "vitest";
 import { canEnterRoom, draftShows, roomPath, roomTurn } from "./draft-room";
+import { CARA, COLE, snakeDraft as draft } from "./kumite.testing";
 
-const CARA = 1;
-const COLE = 2;
 const REG = 3;
-/** Two captains, Cara picking first, six signed up besides them; `picked` of them taken so far, in snake order. */
-function draft(picked = 0, draftState = "open") {
-  const pool = [10, 11, 12, 13, 14, 15];
-  const teams = [
-    { captainMemberId: CARA, players: [] as { memberId: number; pick: number }[] },
-    { captainMemberId: COLE, players: [] as { memberId: number; pick: number }[] },
-  ];
-  // A B B A A B
-  const order = [0, 1, 1, 0, 0, 1];
-  for (let n = 0; n < picked; n++) teams[order[n]].players.push({ memberId: pool[n], pick: n + 1 });
-  return { kind: "draft", draftState, teams, going: [CARA, COLE, ...pool] };
-}
 const name = (i: number) => ["Team Cara", "Team Cole"][i];
 
 describe("who the draft room is for", () => {
