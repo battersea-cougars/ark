@@ -24,7 +24,9 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   it is only for the words of a refusal. As found (docs/load-testing.md has each, with its test):
   - Sign-ups: out and the first waiting moving up are one batch (an admin taking someone off too), so nobody
     signing up between takes the place; joining never rewrites an answer already in or waiting (a double tap kept
-    its place); a drafted player saying they're out comes off their team in the same batch. A limit raised fills its
+    its place); a drafted player saying they're out comes off their team in the same batch. A member's own answer to a
+    tournament goes only while it hasn't started, inside each of that batch's statements (`STARTED`,
+    `worker/tournaments/started.ts`), so an Out landing as it goes live is refused whole or done whole. A limit raised fills its
     room in the batch that saves it (#127).
   - The draft: a pick says which turn it's for (`turn`, the slot the page saw on the clock), so a tap landing after
     the turn moved on is refused, not spent on the captain's next pick; the pick goes in only while that slot is
@@ -125,3 +127,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   quiet hours and the debounce ([0108](0108-store-apps.md)): 200 phones in about five minutes, not 35.
 - 2026-10-22: Taking over a scoresheet decided in its statement (two admins at once: one scorekeeper), and the clock's
   writes, like goals', only while the tapper holds the sheet (#116), with their seeds' tests.
+- 2026-10-23: A member's own In or Out for a tournament that's started is decided in its statements (ADR 0074), with a
+  test of an Out landing as it goes live.

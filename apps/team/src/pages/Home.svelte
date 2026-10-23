@@ -241,10 +241,12 @@
       place: standing === "waitlist" ? queue.indexOf(who.id) + 1 || undefined : undefined,
       // Only when you can answer now: the sign-up open (a training night's from its opening day, a tournament's by
       // lib/signup.ts, both worked out on the schedule's Bookable), not one you're barred from
-      asking: !standing && ev.signup && !ev.opens && !ev.cancelled && can(perms, "signup:Event"),
+      asking: !standing && ev.signup && !ev.opens && !ev.cancelled && !ev.started && can(perms, "signup:Event"),
       signupOpensOn: t?.signupOpensOn ?? null,
-      // Over (past its last day, or under way): nobody's answering now. One still to open isn't closed
-      signupClosed: !!t && !signupOpen(t, today) && (signupOver(t, today) || t.status !== "planned"),
+      // Over (past its last day, or under way): nobody's answering now. One still to open isn't closed. Started
+      // (a match played, whatever its status says), it's an admin's to change (ADR 0074)
+      signupClosed:
+        !!t && (!!ev.started || (!signupOpen(t, today) && (signupOver(t, today) || t.status !== "planned"))),
     };
   };
   const bookables = $derived.by(() => {

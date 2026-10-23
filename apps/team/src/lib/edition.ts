@@ -30,6 +30,15 @@ export function editionState(t: Tournament): EditionState {
 }
 
 /**
+ * Started: under way or done (editionState). From then who's in is an admin's to change, not a member's own In or Out
+ * (ADR 0074; the server keeps to it, worker/tournaments/started.ts): it's what the fees follow.
+ */
+export function hasStarted(t: Tournament) {
+  const state = editionState(t);
+  return state === "live" || state === "done";
+}
+
+/**
  * Where the next one has got to (ADR 0074), for which of its pages are tabs: its fixtures out once it has games; a
  * draft's on while it's open; the teams set once a draft closes, or once teams have entered; else it's sign-up.
  */

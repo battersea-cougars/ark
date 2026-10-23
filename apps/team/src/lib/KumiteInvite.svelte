@@ -18,6 +18,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import { prefersReducedMotion } from "../app/motion";
   import { tick } from "svelte";
+  import { hasStarted } from "./edition";
 
   let { tournament: t, type }: { tournament: Tournament; type: TournamentType } = $props();
 
@@ -25,6 +26,8 @@
   // Viewing as someone is read-only (ADR 0024): their card, without the buttons doing anything
   const locked = $derived(impersonating());
   const fighter = $derived(fighterOf(t, id));
+  // Started (ADR 0074): your place is an admin's to change, so no Withdraw (the server refuses it too)
+  const started = $derived(hasStarted(t));
   const face = $derived(!fighter ? "sealed" : fighter.is === "declined" ? "declined" : "pass");
   const name = $derived(PLAYERS.find((p) => p.id === id)?.name ?? "");
   const event = $derived(tournamentBookable(t));
@@ -122,7 +125,9 @@
         >{/if}
     </p>
     <div class="answers">
-      {#if confirming}
+      {#if started}
+        <span class="ask quiet">On the card. Ask an admin to change it.</span>
+      {:else if confirming}
         <span class="ask">Give up your place?</span>
         <button class="btn sm outline leave" disabled={locked} onclick={() => answer(false)}>Withdraw</button>
         <button class="btn sm ghost" onclick={() => (confirming = false)}>Keep it</button>

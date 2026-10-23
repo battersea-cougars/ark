@@ -130,6 +130,18 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   card.
 - The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under
   Friday's; before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
+- **Once it's started, who's in is an admin's to change**: "once the kumite goes live, the player cannot remove
+  themselves. only the admin can adjust it. it has fees implications" (the user, 2026-10-23). Started is what the page
+  calls under way (`hasStarted` in `lib/edition.ts`, `worker/tournaments/started.ts`): marked live or finished
+  (KUMITE!, The Anchor), or a match being played or played, whatever its status says. From then a member's own In or
+  Out (`POST /api/tournaments/:id/answer`) is refused with a 409 ("The Kumite's started: ask an admin to take you
+  off."), inside the statements that write it ([0121](0121-load-and-concurrency.md)), so one landing as it goes live
+  is refused or done whole; their place, their team and their charge ([0007](0007-dues-and-payments.md): charged from
+  its day, an unpaid one goes when they do) stay as they are. The app shows where they stand without the button: the
+  header's answer sheet says "The Kumite's started · Ask an admin to change it" in Can't make it's place, a card's In
+  and Out are that line, the same height. An admin's Add player and take-off (`/players`, update:Event) work as ever.
+  Before it starts nothing changes: a drafted player already goes through an admin once the draft's closed, a captain
+  always.
 
 - **Your next match on Home** too: it's Home's lead card when it's your soonest thing (ADR 0118), with its day and
   pitch.
@@ -410,6 +422,9 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   forward does the jobs in between, and Teams set chooses everyone still to pick at random, in production too (one
   goalie a team, captains told). `POST /api/tournaments/:id/move { from, to }`, refused with a 409 when the page is out
   of date, audited `tournament.moved` (from, to, what was done).
+- 2026-10-23: Once a tournament's started (marked live or finished, or a match played), a member can't say they're out
+  or in: the server refuses it in the statement that writes it, and the app shows their place with "Ask an admin to
+  change it"; an admin's Add player and take-off are unchanged ("it has fees implications", the user).
 - 2026-10-23: The KUMITE! carousel goes back to the current match by itself, 8 seconds after it was last touched,
   scrolled or hovered, so a phone left on an old match catches up.
 - 2026-10-23: The match being played wears the status's live ink stamp (組手 KUMITE!, the block of red) in place of

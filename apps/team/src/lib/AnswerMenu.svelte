@@ -1,8 +1,9 @@
 <script lang="ts">
   // Changing your answer to a tournament, from the badge in its header (ADR 0074): your answer as the badge itself, a
   // line in the club's voice (Settings → Quips, your answer's), and the one choice as a row: Can't make it, in red
-  // words, or I'm in while sign-up's open. Saying you're out is always allowed (worker/entries answer); what it means
-  // for your team, if you're on one, is said under it. A small popover under the badge on a desktop, a short bottom
+  // words, or I'm in while sign-up's open. Saying you're out is allowed till it's started (worker/entries answer);
+  // what it means for your team, if you're on one, is said under it. Once it's started, who's in is an admin's to
+  // change: a line in the row's place, as tall as it, instead. A small popover under the badge on a desktop, a short bottom
   // sheet on a phone (TournamentHead).
   import type { Tournament } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
@@ -18,6 +19,7 @@
   import { invitationOnly } from "./motif";
   import { fighterLabel, fighterOf } from "./fighters";
   import { typeById } from "../demo/schedule.svelte";
+  import { hasStarted } from "./edition";
 
   let {
     tournament: t,
@@ -29,6 +31,8 @@
   const inIt = $derived(t.going.includes(id) || t.waitlist.includes(id));
   const open = $derived(signupOpen(t, londonToday()));
   const full = $derived(t.capacity != null && t.going.length >= t.capacity);
+  const started = $derived(hasStarted(t));
+  const series = $derived(typeById(t.typeId)?.shortName);
   // The Kumite's by invitation: your fighter's number, a reserve's, or Declined, as the header's badge says it
   const fighter = $derived(invitationOnly(typeById(t.typeId)) ? fighterOf(t, id) : null);
   const label = $derived(
@@ -68,7 +72,15 @@
 <div class="answer-menu">
   <span class="said {t.going.includes(id) ? 'in' : t.waitlist.includes(id) ? 'wait' : 'out'}">{label}</span>
   {#if quip}<p class="quip">{quip}</p>{/if}
-  {#if canSignUp && inIt}
+  {#if canSignUp && started}
+    <p class="row settled">
+      <Icon name="key" size={20} />
+      <span class="text"
+        ><strong>{series ? `The ${series}'s started` : "It's started"}</strong><span>Ask an admin to change it</span
+        ></span
+      >
+    </p>
+  {:else if canSignUp && inIt}
     <button class="row" disabled={busy} onclick={() => answer(false)}>
       <Icon name="userMinus" size={20} />
       <span class="text"
@@ -133,7 +145,11 @@
     font: inherit;
     text-align: left;
   }
-  .row:hover {
+  .row.settled {
+    margin: 0;
+    background: none;
+  }
+  .row:not(.settled):hover {
     background: var(--surface-3);
   }
   .text {

@@ -16,7 +16,7 @@
   import PageHeader from "./PageHeader.svelte";
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
-  import { countdownOf, editionState, editionWhen } from "./edition";
+  import { countdownOf, editionState, editionWhen, hasStarted } from "./edition";
   import { stageBadge, statusOf, type Status } from "./tournament-front";
   import { invitationOnly, kanjiFor, type MotifKey } from "./motif";
   import { fighterLabel, fighterOf } from "./fighters";
@@ -315,7 +315,9 @@
               class="answered {answered.tone}"
               aria-haspopup="dialog"
               aria-expanded={answerOpen}
-              aria-label="{answered.label}: change it"
+              aria-label="{answered.label}: {tournament && hasStarted(tournament)
+                ? 'ask an admin to change it'
+                : 'change it'}"
               onclick={() => (answerOpen = !answerOpen)}
               ><span class="said"><Icon name={answered.icon} size={14} /></span><span class="long"
                 >{answered.label}</span

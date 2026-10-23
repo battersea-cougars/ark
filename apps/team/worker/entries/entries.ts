@@ -12,6 +12,7 @@ import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../
 import { HttpError } from "../api/api.http";
 import { offTeams } from "../training/training.teams";
 import { joinDraft, leaveDraft } from "../tournaments/draft";
+import { STARTED, hasStarted, startedRefusal } from "../tournaments/started";
 
 export type EntryKind = "session" | "tournament" | "event";
 export type Answer = "in" | "out";
@@ -170,7 +171,8 @@ const roomIn = (kind: EntryKind, keeper: boolean) => {
 /**
  * Write someone's answer. `join` is in if there's a place, else the waitlist, decided in the same statement; it never
  * touches an answer that's already in or waiting (a double tap, or two of their phones at once), which would count
- * their own place against them and send them to the back.
+ * their own place against them and send them to the back. A member's `own` answer to a tournament goes only while it
+ * hasn't started (tournaments/started.ts), in the same statement, so one landing as it goes live is refused whole.
  */
 function putting(
   db: D1Database,
@@ -179,18 +181,25 @@ function putting(
   memberId: number,
   signup: "in" | "out" | { join: Places },
   now: string,
+  own = false,
 ) {
   const { table, key } = TABLES[kind];
   // A fresh answer clears what the register said about an old one, and a move up not told yet: it's old news
   const reset = (kind === "session" ? ", attended = NULL, walk_in = 0" : "") + ", moved = NULL";
   const join = typeof signup === "object";
+  const locked = own && kind === "tournament";
+  const lock = locked ? ` AND NOT ${STARTED}` : "";
   return statement(
     db,
     `INSERT INTO ${table} (${key}, member_id, signup, signed_up_at)
-     VALUES (?, ?, ${join ? `CASE WHEN ${roomIn(kind, signup.join.keeper)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?)
+     SELECT ?, ?, ${join ? `CASE WHEN ${roomIn(kind, signup.join.keeper)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?
+     WHERE TRUE${lock}
      ON CONFLICT (${key}, member_id) DO UPDATE SET signup = excluded.signup, signed_up_at = excluded.signed_up_at${reset}
-     ${join ? `WHERE ${table}.signup NOT IN ('in', 'waitlist')` : ""}`,
-    join ? [id, memberId, signup.join.limit, id, signup.join.limit, now] : [id, memberId, signup, now],
+     WHERE TRUE${join ? ` AND ${table}.signup NOT IN ('in', 'waitlist')` : ""}${lock}`,
+    [
+      ...(join ? [id, memberId, signup.join.limit, id, signup.join.limit, now] : [id, memberId, signup, now]),
+      ...(locked ? [id, id] : []),
+    ],
   );
 }
 const put = (...args: Parameters<typeof putting>) => putting(...args).run();
@@ -200,18 +209,20 @@ const put = (...args: Parameters<typeof putting>) => putting(...args).run();
  * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. Sent in
  * the same batch as whatever freed the place, so nobody signing up in between can take it first. Whoever moves up is
  * marked to be told (`moved`, push.notices.ts places). */
-function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
+function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string, own = false) {
   const { table, key } = TABLES[kind];
   const kept = kind === "session";
   const side = kept ? ` AND ${keeperRow("e")} = ${places.keeper ? 1 : 0}` : "";
   const { limit } = places;
+  // A member's own Out from a tournament that's started is refused (putting), and so is this with it
+  const locked = own && kind === "tournament";
   return statement(
     db,
     `UPDATE ${table} SET signup = 'in', moved = 'place'${kept ? "" : ", signed_up_at = ?"}
      WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'${side}
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
-       AND ${roomIn(kind, places.keeper)}`,
-    kept ? [id, limit, id, limit] : [now, id, limit, id, limit],
+       AND ${roomIn(kind, places.keeper)}${locked ? ` AND NOT ${STARTED}` : ""}`,
+    [...(kept ? [id, limit, id, limit] : [now, id, limit, id, limit]), ...(locked ? [id] : [])],
   );
 }
 
@@ -265,7 +276,10 @@ export function fillingUp(
   );
 }
 
-/** A member says in or out for themselves. In on a full event is the waitlist. */
+/**
+ * A member says in or out for themselves. In on a full event is the waitlist. Not once a tournament's started: who's
+ * in then is an admin's to change (tournaments/started.ts), decided in the statements that write it.
+ */
 export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
   const places = await capacity(db, kind, id, memberId);
   // A night that's over is the register's record (ADR 0007, 0030): who came, and what it charged, is the register's
@@ -279,8 +293,13 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
     const offTeam = kind === "tournament" ? await leaveDraft(db, id, memberId) : [];
     // Out, and the first waiting in, at once (whatever they were when read: another of their taps may have moved
     // them since). A session's published teams keep them until a team maker remakes the teams or keeps them as they
-    // are (ADR 0076)
-    await batch(db, [...offTeam, putting(db, kind, id, memberId, "out", now), movingUp(db, kind, id, places, now)]);
+    // are (ADR 0076). A tournament that's started refuses all of it, the team too
+    const done = await batch(db, [
+      ...offTeam,
+      putting(db, kind, id, memberId, "out", now, true),
+      movingUp(db, kind, id, places, now, true),
+    ]);
+    if (kind === "tournament" && !done[offTeam.length].meta.changes) throw await startedRefusal(db, id, "take you off");
     return;
   }
   if (was?.signup === "in" || was?.signup === "waitlist") return;
@@ -312,7 +331,10 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
       throw new HttpError(409, "Sign-up has closed.");
     }
   }
-  await put(db, kind, id, memberId, { join: places }, now);
+  const joined = await put(db, kind, id, memberId, { join: places }, now, true);
+  // Nothing written: a double tap, already in or waiting; or it's started
+  if (kind === "tournament" && !joined.meta.changes && (await hasStarted(db, id)))
+    throw await startedRefusal(db, id, "put you in");
   if (kind === "session" && places.limit !== null && !places.keeper) await bump(db, id, memberId);
 }
 

@@ -8,6 +8,7 @@ import { MIN_TEAM_SIZE, nextSlots, onTheClock, playersNeeded } from "../../src/l
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
 import { clearingFixtures, fixturesCanBeMade, makeFixtures } from "./fixtures";
+import { STARTED } from "./started";
 import { can, type Action } from "../../src/access/actions";
 
 interface DraftTeam {
@@ -361,7 +362,8 @@ export async function undoPick(db: D1Database, tournamentId: number) {
  * comes off their team; once it's closed, or for a captain, it goes through an admin. An admin taking them off
  * (`byAdmin`) takes them off their team whenever; a captain still comes off in the tournament's settings. Checks, then
  * gives the statement that takes them off their team, for the same batch as their answer: a pick landing between the
- * two would leave them on a team they've said no to.
+ * two would leave them on a team they've said no to. A member's own, only while it hasn't started (started.ts), as
+ * their answer is.
  */
 export async function leaveDraft(
   db: D1Database,
@@ -399,8 +401,8 @@ export async function leaveDraft(
     statement(
       db,
       `DELETE FROM tournament_team_players WHERE member_id = ?
-       AND team_id IN (SELECT id FROM tournament_teams WHERE tournament_id = ?)`,
-      [memberId, tournamentId],
+       AND team_id IN (SELECT id FROM tournament_teams WHERE tournament_id = ?)${byAdmin ? "" : ` AND NOT ${STARTED}`}`,
+      byAdmin ? [memberId, tournamentId] : [memberId, tournamentId, tournamentId],
     ),
   ];
 }

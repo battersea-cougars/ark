@@ -132,7 +132,9 @@
   });
 
   // Not in yet, whether unanswered or out: In pulses once to ask, and again if you say out
-  const beckoning = $derived(beckon && canSignUp && event.signup && !event.opens && !inIt && !waiting && !locked);
+  const beckoning = $derived(
+    beckon && canSignUp && event.signup && !event.opens && !event.started && !inIt && !waiting && !locked,
+  );
 
   // Faces slide, never pop: each has a slot in its row (a translate, so the row's neighbours glide along when one
   // arrives), and yours travels from the in row to the out row and back when you change your answer. A face with
@@ -332,7 +334,11 @@
         </div>
       {/if}
       <div class="reply">
-        {#if canSignUp}
+        {#if canSignUp && event.started}
+          <!-- A tournament that's started (ADR 0074): who's in is an admin's to change, so a line where In and Out
+               were, the same height, so nothing moves as it starts -->
+          <p class="answer settled">Ask an admin to change it</p>
+        {:else if canSignUp}
           <div class="answer" role="group" aria-label="Are you in?">
             <!-- A night whose sign-up isn't open yet says when, in In's place (ADR 0030); an admin's put in still shows -->
             {#if event.opens && !inIt && !waiting}
@@ -725,6 +731,18 @@
   .answer > button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+  }
+  /* Started: a quiet line in the tiles' place, as tall as they are */
+  .answer.settled {
+    display: flex;
+    align-items: center;
+    min-height: 2.5rem;
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .glance .answer.settled {
+    min-height: 3rem;
   }
   /* Not open yet: when it opens, in In's tile, two lines if need be, so the tile keeps its size */
   .answer > .yes.opens {

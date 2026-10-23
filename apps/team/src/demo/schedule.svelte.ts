@@ -1,7 +1,7 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
 import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../lib/signup";
-import { atAfters, currentOf, editionState, latestOf, previousOf } from "../lib/edition";
+import { atAfters, currentOf, editionState, hasStarted, latestOf, previousOf } from "../lib/edition";
 import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
@@ -105,6 +105,7 @@ export function tournamentBookable(t: Tournament): Bookable {
     endsAt: londonISO(t.heldOn, t.endTime),
     ...where(tournamentPlace(t)),
     signup: signupOpen(t, londonToday()),
+    started: hasStarted(t),
     capacity: t.capacity,
     dateTbc: !!t.season,
     season: t.season ? { name: t.season, year: seasonYear(t.season, t.heldOn) } : undefined,
