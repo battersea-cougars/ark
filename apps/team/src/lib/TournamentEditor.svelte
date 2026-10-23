@@ -66,7 +66,7 @@
     awards: [
       {
         name: "Champions",
-        about: "Last team standing.",
+        about: "Last team standing… barely.",
         decidedBy: { kind: "stat", stat: "table" },
       },
       { name: "Top scorer", about: "Most goals across every game.", decidedBy: { kind: "stat", stat: "goals" } },
