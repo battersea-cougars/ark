@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";
 import { statusOf } from "../../src/lib/tournament-front";
-import { startingToday } from "../../src/lib/fixtures";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -151,13 +150,10 @@ describe("sign-up that opened today, closed today", () => {
     expect((await k.mo.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at)).status).toBe(409);
   });
 
-  it("the tournament still saves: as it is, and moved to today to start a match", async () => {
+  it("the tournament still saves as it is", async () => {
     const k = await closedToday();
     const t = await k.tournament();
     expect((await k.dana.call("PUT", `/api/tournaments/${k.id}`, t, at)).status).toBe(200);
-    const moved = startingToday(t, "2026-11-24");
-    const saved = await k.dana.call("PUT", `/api/tournaments/${k.id}`, moved, at);
-    expect([saved.status, saved.body.error]).toEqual([200, undefined]);
     // Saving it doesn't open it again
     expect((await k.tournament()).signupClosedAt).toBe(NOW.toISOString());
   });
@@ -179,7 +175,7 @@ describe("a tournament already stored closing before it opens", () => {
     // As the first Close sign-up left it: its closing day moved to the day before it opened
     w.db.raw.prepare("UPDATE tournaments SET signup_closes_on = '2026-11-23' WHERE id = ?").run(k.id);
     const t = await k.tournament();
-    const saved = await k.dana.call("PUT", `/api/tournaments/${k.id}`, startingToday(t, "2026-11-24"), at);
+    const saved = await k.dana.call("PUT", `/api/tournaments/${k.id}`, t, at);
     expect([saved.status, saved.body.error]).toEqual([200, undefined]);
     const wrong = await k.dana.call("PUT", `/api/tournaments/${k.id}`, { ...t, signupClosesOn: "2026-11-20" }, at);
     expect([wrong.status, wrong.body.error]).toEqual([400, "Sign-up can't close before it opens."]);

@@ -4,7 +4,6 @@
 // the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
-import { startingToday } from "../../src/lib/fixtures";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -64,13 +63,11 @@ describe("the tournament's own hours", () => {
     expect(await k.tournament()).toMatchObject({ heldOn: "2026-10-06", startTime: "19:00", endTime: "21:30" });
   });
 
-  it("stay as set when its first match is started on another day: only the day moves to today", async () => {
+  it("stay as set, day and all, when its first match is started on another day: the match just starts", async () => {
     const k = await evening("2026-10-30");
-    // What the match's page saves on "Start it today", then the clock
-    const moved = startingToday(await k.tournament(), "2026-10-06");
-    expect((await k.dana.call("PUT", `/api/tournaments/${k.id}`, moved)).status).toBe(200);
     expect((await k.clock("start")).status).toBe(200);
-    expect(await k.tournament()).toMatchObject({ heldOn: "2026-10-06", startTime: "19:00", endTime: "21:30" });
+    expect((await k.game()).startedAt).toBe(NOW.toISOString());
+    expect(await k.tournament()).toMatchObject({ heldOn: "2026-10-30", startTime: "19:00", endTime: "21:30" });
   });
 });
 

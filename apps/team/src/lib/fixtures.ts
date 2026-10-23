@@ -387,23 +387,3 @@ export function scorekeepers(
   });
   return out;
 }
-
-const earliest = (day: string | null, today: string) => (day && day > today ? today : day);
-
-/**
- * A game started on another day than its tournament's (asked first, on the game's clock): the tournament moves to
- * today, its hours kept as an admin set them (each match keeps when it really started, `startedAt`), and its sign-up
- * and draft days no later than the new day (the Worker refuses them after it).
- */
-export function startingToday<
-  T extends { signupOpensOn: string | null; signupClosesOn: string | null; draftOn: string | null },
->(t: T, today: string) {
-  return {
-    ...t,
-    heldOn: today,
-    season: null,
-    signupOpensOn: earliest(t.signupOpensOn, today),
-    signupClosesOn: earliest(t.signupClosesOn, today),
-    draftOn: earliest(t.draftOn, today),
-  };
-}

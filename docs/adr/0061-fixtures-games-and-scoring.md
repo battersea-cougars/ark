@@ -54,7 +54,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   has its result, the playoffs get their teams from the table (points, goal difference, goals for). A group result
   put right afterwards fills again only the playoffs still to start (status next, no goals): one being played or
   over keeps its teams.
-- `lib/fixtures.ts` (round robin, table, scorekeepers, `startingToday`, `matchTime`) is shared by the Worker and the app.
+- `lib/fixtures.ts` (round robin, table, scorekeepers, `matchTime`) is shared by the Worker and the app.
 
 ### One game on at a time
 
@@ -109,9 +109,8 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   ([0103](0103-drawers-sheets-and-panels.md)). No banner above the clock: on a phone the clock and the goal buttons
   need the screen.
 - **Full time** makes the score the result and fills the playoffs.
-- **Starting the first game on another day asks first** ("The Kumite is on Fri 30 Oct. Start this game now? …"). Yes
-  moves the tournament's day to today, its hours kept as set, its sign-up and draft days no later than the new day
-  (`startingToday`), using the same save an admin makes in settings.
+- **A game starts whenever its scorekeeper starts it**, on the tournament's day or another: nothing is asked and
+  nothing moves; the tournament's day stays as an admin set it.
 - **A tournament's hours are only an admin's to change**, in its editor. However early or late the matches really
   start, the time it was set for stays (it's what everyone was told); each match keeps its own actual start.
 - **Each match keeps when it actually kicked off** (`tournament_games.started_at`): set by the first Start of its
@@ -279,3 +278,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   keeps when it actually kicked off (`started_at`, the first Start of its clock), and the card shows it once it's on.
 - 2026-10-23: The game's page (the clock, Scoring) goes back to the tournament's page, not to where it was opened
   from: from a matchup, a team or a push, the way back to the Kumite was two steps or none.
+- 2026-10-23: Starting a game on another day than the tournament's no longer asks or moves the day ("Start it
+  today" and `startingToday` are gone): the game just starts, the day stays as set.

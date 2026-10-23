@@ -42,13 +42,12 @@
     scoreGame,
     setGameClock,
     undoGoal,
-    updateTournament,
   } from "../app/backend.svelte";
-  import { clock, formatDayDate, londonISO, londonTime, londonToday } from "../lib/dates";
+  import { clock, londonTime } from "../lib/dates";
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { breakLeftOf, leftOf, mmss, ticking } from "../lib/game-clock.svelte";
-  import { kickOff, slotMinutes, startingToday } from "../lib/fixtures";
+  import { kickOff, slotMinutes } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { inGameTime, periodName } from "../lib/periods";
@@ -236,24 +235,12 @@
   const setFor = $derived(
     tournament && game ? kickOff(tournament.startTime, slotMinutes(tournament), game.position) : "",
   );
-  // Starting the first game on another day than the tournament's: asked first, as it moves the tournament's day to
-  // today, its hours kept as set (lib/fixtures.ts startingToday); the game keeps when it really started
-  const offDay = $derived(!!tournament && !!game && game.status === "next" && tournament.heldOn !== londonToday());
-  let askingDay = $state(false);
+  // A match starts whenever its scorekeeper starts it, on the tournament's day or not: the day stays as an admin set
+  // it, and the match keeps when it really started
   const startPause = () => {
     if (!tournament || !game || over) return;
-    if (offDay && !running) return void (askingDay = true);
     act(() => clockGame(tournament.id, game.id, running ? "pause" : "start"));
   };
-  /** Yes: the tournament moves to today, then the clock starts. */
-  const startToday = () =>
-    tournament &&
-    game &&
-    act(async () => {
-      const moved = startingToday($state.snapshot(tournament), londonToday());
-      askingDay = false;
-      if (await updateTournament(moved)) await clockGame(tournament.id, game.id, "start");
-    });
   // Full time asks once: it can't be taken back here
   let confirmEnd = $state(false);
   function end() {
@@ -559,18 +546,6 @@
           <Icon name="whistle" size={26} />
           {confirmEnd ? "Tap again: full time" : "Full time"}
         </button>
-      {:else if keeper && askingDay && tournament}
-        <!-- Not the tournament's day: say so, and what starting now does, before it does it -->
-        <div class="ask-day" role="alert">
-          <p>
-            The {type.shortName} is on {formatDayDate(londonISO(tournament.heldOn, tournament.startTime))}. Start this
-            game now? Its day moves to today, {formatDayDate(new Date().toISOString())}; its times stay as they are.
-          </p>
-          <div class="ask-actions">
-            <button class="btn ghost" disabled={busy} onclick={() => (askingDay = false)}>Not yet</button>
-            <button class="btn primary" disabled={busy} onclick={startToday}>Start it today</button>
-          </div>
-        </div>
       {:else if keeper}
         <button class="btn control" class:start={!running} class:pause={running} disabled={busy} onclick={startPause}>
           <Icon name={running ? "pause" : "play"} size={26} />
@@ -1584,22 +1559,5 @@
   .name-skip {
     width: 100%;
     height: 3.5rem;
-  }
-  /* The question before starting on another day: in the big button's place, the same width */
-  .ask-day {
-    display: grid;
-    gap: var(--s-3);
-    width: min(100%, 26rem);
-    justify-self: center;
-    color: var(--fg-body);
-    text-align: center;
-  }
-  .ask-day p {
-    margin: 0;
-  }
-  .ask-actions {
-    display: flex;
-    justify-content: center;
-    gap: var(--s-2);
   }
 </style>

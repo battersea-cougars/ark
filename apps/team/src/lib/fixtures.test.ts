@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  champion,
-  kickOff,
-  roundRobin,
-  scorekeepers,
-  slotMinutes,
-  table,
-  startingToday,
-  teamsForPlayoffs,
-} from "./fixtures";
+import { champion, kickOff, roundRobin, scorekeepers, slotMinutes, table, teamsForPlayoffs } from "./fixtures";
 
 describe("table", () => {
   it("ranks by points, then goal difference, and leaves out games without a result", () => {
@@ -119,35 +110,6 @@ describe("champion", () => {
 
   it("no games, no champion", () => {
     expect(champion(teams, [])).toBeNull();
-  });
-});
-
-describe("starting a game on another day than the tournament's", () => {
-  const t = {
-    heldOn: "2026-10-30",
-    startTime: "11:00",
-    endTime: "16:00",
-    gameMinutes: 12,
-    signupOpensOn: "2026-10-09",
-    signupClosesOn: "2026-10-28",
-    draftOn: "2026-10-23",
-  };
-
-  it("moves its day to today and keeps its hours as set", () => {
-    expect(startingToday(t, "2026-10-09")).toMatchObject({
-      heldOn: "2026-10-09",
-      startTime: "11:00",
-      endTime: "16:00",
-      season: null,
-    });
-  });
-
-  it("brings its sign-up and draft days no later than the new day", () => {
-    expect(startingToday(t, "2026-10-09")).toMatchObject({
-      signupOpensOn: "2026-10-09",
-      signupClosesOn: "2026-10-09",
-      draftOn: "2026-10-09",
-    });
   });
 });
 
