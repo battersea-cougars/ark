@@ -477,3 +477,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The switch drops its "…OK": "Unless they can skate. We need 6 more.", or, full, "Except your mum. She
   can watch."
 - 2026-10-23: Full, the switch is "Except your physio. That knee's dodgy."
+- 2026-10-23: Back to "ok", lower case, no ellipsis: "ok, tell your mates. We need 6 more.", or, full, "ok, tell your
+  physio. That knee's dodgy."
