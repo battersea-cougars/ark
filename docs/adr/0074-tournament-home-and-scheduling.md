@@ -418,3 +418,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   pass "Your pass" with "You're in · No. 07", Who's in keeps its own heading, the invitation counts "12 in". Reserves
   are still Reserve No. 3. The carousel's sliver of the match before is 4.5rem, so Back to now (and opening) shows
   enough of it to read as a card above the one in front.
+- 2026-10-23: The champions wear an ink stamp like the match cards' (bone, 優勝, "Kumite Champions": the series' short
+  name), on the board and the after-party's final table, in place of the trophy badge; on the final table the points
+  keep their own last column, so the champions' stamp never pushes theirs out of line, and they read Pts as
+  everywhere else.

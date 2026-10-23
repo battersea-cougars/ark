@@ -8,6 +8,8 @@
   import { teamHref, teamTone } from "./team-tones";
   import TeamCrest from "./TeamCrest.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import InkStamp from "./InkStamp.svelte";
+  import { kanjiFor } from "./motif";
   import { champion, table } from "./fixtures";
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
@@ -64,8 +66,14 @@
                 tone={teamTone(teams.findIndex((t) => t.id === r.teamId))}
                 size="2.75rem"
               /><a class="team-link" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a
-              >{#if r.teamId === champ}<span class="badge champ-badge" title="Champions"
-                  ><Icon name="trophy" size={13} /><span class="champ-word">Champions</span></span
+              >{#if r.teamId === champ}<span class="champ-badge" title="{type.shortName} Champions"
+                  ><InkStamp
+                    size="card"
+                    tone="bone"
+                    kanji={kanjiFor(type, "champions")}
+                    icon="trophy"
+                    text="{type.shortName} Champions"
+                  /></span
                 >{/if}</span
             ></td
           >
@@ -166,9 +174,10 @@
       color: var(--fg);
     }
   }
+  /* The champions' stamp, as the match cards' (lib/InkStamp): bone, the win's ink */
   .champ-badge {
+    display: inline-flex;
     flex: none;
-    gap: 0.3rem;
     margin-left: var(--s-3);
   }
   .pts {
@@ -202,8 +211,8 @@
     .l :global(.crest) {
       margin-right: var(--s-2);
     }
-    /* The champions: the trophy alone, the name keeping the room */
-    .champ-word {
+    /* The champions: the stamp's block alone (優勝, or the trophy), the name keeping the room */
+    .champ-badge :global(.word) {
       display: none;
     }
     .champ-badge {

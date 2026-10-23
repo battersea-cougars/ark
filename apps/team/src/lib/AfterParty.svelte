@@ -20,6 +20,7 @@
   import TeamCrest from "./TeamCrest.svelte";
   import { finalOrder, revealOf } from "./afters";
   import { kanjiFor } from "./motif";
+  import InkStamp from "./InkStamp.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
   import { afterNoteWords } from "./tournament-front";
@@ -206,8 +207,16 @@
               size={r.champions ? "2.5rem" : "2rem"}
             />
             <a class="team display" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a>
-            {#if r.champions}<span class="badge champ"><Icon name="trophy" size={13} />Champions</span>{/if}
-            <span class="pts num">{r.pts}<span class="unit">pts</span></span>
+            {#if r.champions}<span class="champ"
+                ><InkStamp
+                  size="card"
+                  tone="bone"
+                  kanji={kanjiFor(type, "champions")}
+                  icon="trophy"
+                  text="{type.shortName} Champions"
+                /></span
+              >{/if}
+            <span class="pts num">{r.pts}<span class="unit">Pts</span></span>
           </li>
         {/each}
       </ol>
@@ -520,11 +529,15 @@
   .champs .pos {
     color: var(--brass);
   }
-  .badge.champ {
-    gap: 0.25rem;
-    color: var(--brass-ink);
+  /* The champions' stamp, as the match cards' (lib/InkStamp): bone, the win's ink */
+  .champ {
+    grid-column: 4;
+    display: inline-flex;
   }
+  /* Always the last column, so the champions' badge never pushes their points out of line with the rest */
   .pts {
+    grid-column: 5;
+    justify-self: end;
     color: var(--fg-muted);
     font-weight: 600;
   }
@@ -572,9 +585,9 @@
       color: var(--brass-ink);
     }
   }
-  /* A phone: the champions' badge goes (the trophy and the size say it) */
+  /* A phone: the champions' stamp goes (the trophy and the size say it) */
   @media (max-width: 440px) {
-    .badge.champ {
+    .champ {
       display: none;
     }
     .result {
