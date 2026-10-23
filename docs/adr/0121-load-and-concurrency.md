@@ -142,3 +142,6 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   leave a winner, so two at once can't make it level (#123).
 - 2026-10-23: A draft's reset is one batch, closed to picks first, and a pick goes in only while the draft's open
   (#126): a pick landing between the reset's statements had outlived it.
+- 2026-10-23: An admin's replacement (putOnTeam) decided in its statements: the INSERT only while they're on no team
+  of the tournament, a move only from the team read, so two at once (a double tap, two admins) can't leave someone on
+  two teams or one twice (5 of 20 seeds did, #148), with their seeds' tests.

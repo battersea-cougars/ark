@@ -30,6 +30,8 @@ const ROSTER = [
   })),
 ];
 const SEEDS = seeds(5);
+// A replacement put on twice at once: the seeds that put them on two teams before it was decided in the write
+const PUT_SEEDS = seeds(5, 11, 14);
 const DRAFT_DAY = new Date("2026-12-08T19:30:00Z");
 const at = { now: DRAFT_DAY };
 
@@ -352,4 +354,42 @@ describe("draft night: taps at once", () => {
       expect(goalies.n).toBeLessThanOrEqual(1);
     },
   );
+});
+
+describe("a replacement put on a team twice at once (a double tap, a retry, two admins)", () => {
+  /** Every team row this member has in the tournament. */
+  const rowsOf = (tournamentId: number, memberId: number) =>
+    w.db.raw
+      .prepare(
+        `SELECT p.team_id team FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+         WHERE t.tournament_id = ? AND p.member_id = ?`,
+      )
+      .all(tournamentId, memberId) as { team: number }[];
+  const put = (d: Awaited<ReturnType<typeof draftNight>>, as: Phone, teamId: number, memberId: number) =>
+    as.call("POST", `/api/tournaments/${d.id}/teams/${teamId}/players`, { memberId }, at);
+
+  it.each(PUT_SEEDS)("onto the same team twice: on it once (seed %i)", async (seed) => {
+    const d = await opened(seed);
+    const [team] = d.teams();
+    const player = d.players[5];
+    w.db.interleave(seed);
+    const replies = await Promise.all([put(d, d.dana, team.id, player), put(d, d.dev, team.id, player)]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(rowsOf(d.id, player)).toEqual([{ team: team.id }]);
+  });
+
+  it.each(PUT_SEEDS)("onto two teams at once: on one of them (seed %i)", async (seed) => {
+    const d = await opened(seed);
+    const [a, b] = d.teams();
+    const player = d.players[5];
+    w.db.interleave(seed);
+    const replies = await Promise.all([put(d, d.dana, a.id, player), put(d, d.dev, b.id, player)]);
+    w.db.interleave(null);
+    const on = rowsOf(d.id, player);
+    expect(on).toHaveLength(1);
+    // Whichever came second either moved them or was told they'd just been put on the other
+    expect(replies.map((r) => r.status).sort()).toEqual(expect.arrayContaining([200]));
+    for (const r of replies) expect([200, 409]).toContain(r.status);
+  });
 });

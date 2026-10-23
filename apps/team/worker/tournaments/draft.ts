@@ -436,42 +436,60 @@ async function teamOf(db: D1Database, tournamentId: number, teamId: number) {
   return team;
 }
 
+/** The team this member is on in this tournament, if any. */
+const teamIn = (db: D1Database, tournamentId: number, memberId: number) =>
+  first<{ id: number; team: number }>(
+    db,
+    `SELECT p.id, p.team_id team FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+     WHERE t.tournament_id = ? AND p.member_id = ?`,
+    [tournamentId, memberId],
+  );
+
 /**
  * An admin puts a member on a team directly, outside the draft: a replacement when someone drops out. From another
  * team they move (their pick number goes with them, so the draft's turn doesn't shift); not signed up, they're put in.
- * A captain stays on their own team.
+ * A captain stays on their own team. Two at once (a double tap, a retry, two admins) is decided in the write (ADR 0121):
+ * the INSERT only while they're on no team of this tournament, the move only from the team read, so nobody's on two
+ * teams, or one twice.
  */
 export async function putOnTeam(db: D1Database, tournamentId: number, teamId: number, memberId: number, now: string) {
   await teamOf(db, tournamentId, teamId);
+  // Someone not in the club (erased while the drawer was open): told so, not the insert's foreign key
+  if (!(await first(db, "SELECT 1 FROM members WHERE id = ? AND status != 'erased'", [memberId])))
+    throw new HttpError(404, "No such member.");
   const captain = await first(db, "SELECT 1 FROM tournament_teams WHERE tournament_id = ? AND captain_member_id = ?", [
     tournamentId,
     memberId,
   ]);
   if (captain) throw new HttpError(409, "That's a captain: they stay on their own team.");
   await oneGoalie(db, teamId, memberId);
-  const on = await first<{ id: number; team: number }>(
-    db,
-    `SELECT p.id, p.team_id team FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
-     WHERE t.tournament_id = ? AND p.member_id = ?`,
-    [tournamentId, memberId],
-  );
+  const on = await teamIn(db, tournamentId, memberId);
   if (on?.team === teamId) return;
   const position = `(SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?)`;
   const guard = [memberId, memberId, teamId, teamId];
   const res = on
     ? await run(
         db,
-        `UPDATE tournament_team_players SET team_id = ?, position = ${position} WHERE id = ? AND ${NOT_A_SECOND_GOALIE}`,
-        [teamId, teamId, on.id, ...guard],
+        `UPDATE tournament_team_players SET team_id = ?, position = ${position}
+         WHERE id = ? AND team_id = ? AND ${NOT_A_SECOND_GOALIE}`,
+        [teamId, teamId, on.id, on.team, ...guard],
       )
     : await run(
         db,
         `INSERT INTO tournament_team_players (team_id, member_id, name, position)
-         SELECT ?, ?, '', ${position} WHERE ${NOT_A_SECOND_GOALIE}`,
-        [teamId, memberId, teamId, ...guard],
+         SELECT ?, ?, '', ${position} WHERE NOT EXISTS (
+           SELECT 1 FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+           WHERE t.tournament_id = ? AND p.member_id = ?) AND ${NOT_A_SECOND_GOALIE}`,
+        [teamId, memberId, teamId, tournamentId, memberId, ...guard],
       );
-  // A goalie picked onto the team just before
-  if (!res.meta.changes) throw new HttpError(409, "They've got a keeper already.");
+  if (!res.meta.changes) {
+    const meanwhile = await teamIn(db, tournamentId, memberId);
+    // The same tap, a moment before
+    if (meanwhile?.team === teamId) return;
+    if (meanwhile?.team !== on?.team) throw new HttpError(409, "They've just been put on another team.");
+    // A goalie picked onto the team just before
+    throw new HttpError(409, "They've got a keeper already.");
+  }
   // On a team means in the tournament
   await run(
     db,

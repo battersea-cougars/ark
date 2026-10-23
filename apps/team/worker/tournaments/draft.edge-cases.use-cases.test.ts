@@ -453,6 +453,22 @@ describe("someone leaves mid-draft", () => {
   });
 });
 
+describe("a replacement who isn't there (docs/security-review.md #17)", () => {
+  it("an admin puts on a team a member who doesn't exist, or was erased while the drawer was open: 404, nobody's put on", async () => {
+    const d = await opened();
+    const [team] = await d.teams();
+    const gone = d.players[4];
+    w.db.raw.prepare("UPDATE members SET status = 'erased' WHERE id = ?").run(gone);
+    const put = (memberId: number) =>
+      d.dana.call("POST", `/api/tournaments/${d.id}/teams/${team.id}/players`, { memberId }, at);
+    for (const memberId of [987654, gone]) {
+      const r = await put(memberId);
+      expect([r.status, r.body]).toEqual([404, { error: "No such member." }]);
+    }
+    expect((await d.teams())[0].players).toEqual([]);
+  });
+});
+
 describe("deleting what the draft made", () => {
   it("an admin deletes a tournament mid-draft: its teams, picks and sign-ups go, and a pick for it after is a 404", async () => {
     const d = await opened();
