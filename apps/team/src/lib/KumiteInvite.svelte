@@ -146,12 +146,14 @@
     <!-- The middle of the pass: the one rule, as a poster; under it the bait, a phrase at a time, each flying in and
          landing like a stamp, then the switch; all of them stay -->
     <div class="hush">
-      <strong class="hush-line slam" style:--at="0.3s">Tell no one.</strong>
+      <strong class="hush-line slam" style:--at="0.4s">Tell no one.</strong>
       <span class="beats">
-        <span class="slam" style:--at="1.3s">Not your mates.</span>
-        <span class="slam" style:--at="2.2s">Not your mum.</span>
-        <span class="slam" style:--at="3.1s">No one.</span>
-        <span class="slam switch" style:--at="4.6s">{tellAfterAll}</span>
+        <span class="bait">
+          <span class="slam" style:--at="1.9s">Not your mates.</span>
+          <span class="slam" style:--at="3.3s">Not your mum.</span>
+          <span class="slam" style:--at="4.7s">No one.</span>
+        </span>
+        <span class="slam switch" style:--at="6.9s">{tellAfterAll}</span>
       </span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
@@ -308,7 +310,8 @@
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
-  /* The bait and the switch: one to a line, each in its own place from the start, so nothing moves as they land */
+  /* The bait on one line, the switch under it; each phrase in its own place from the start, so nothing moves as they
+     land */
   .beats {
     display: grid;
     justify-items: start;
@@ -319,6 +322,11 @@
     letter-spacing: 0.04em;
     line-height: 1.15;
     text-transform: uppercase;
+  }
+  .bait {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 0.6rem;
   }
   .switch {
     color: var(--red-hot);
@@ -331,7 +339,7 @@
   }
   @media (prefers-reduced-motion: no-preference) {
     .pass-face.on .slam {
-      animation: slam 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25) var(--at) both;
+      animation: slam 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.25) var(--at) both;
     }
   }
   @keyframes slam {

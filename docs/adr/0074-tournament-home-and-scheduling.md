@@ -470,3 +470,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: Then the reveal the user settled on: TELL NO ONE. and each phrase under it fly in and land like a stamp
   (InkStamp's land, without the ink), one at a time about a second apart, the switch last after a beat, and all of
   them stay; with less motion all are there at once.
+- 2026-10-23: Slower, and the bait on one line (Not your mates. Not your mum. No one.) with the switch under it: the
+  phrases land about 1.4s apart, the switch 2s after the last.
