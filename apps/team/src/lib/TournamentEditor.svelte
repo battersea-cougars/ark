@@ -69,7 +69,7 @@
         about: "Last team standing… barely.",
         decidedBy: { kind: "stat", stat: "table" },
       },
-      { name: "Top scorer", about: "Most goals… some on purpose.", decidedBy: { kind: "stat", stat: "goals" } },
+      { name: "Top scorer", about: "Most goals. Some on purpose.", decidedBy: { kind: "stat", stat: "goals" } },
     ],
     playoffs: [{ name: "Final", home: 1, away: 2 }],
   });
