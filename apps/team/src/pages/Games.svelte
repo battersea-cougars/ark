@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  // Fight card or the board, on the day: remembered while the app's open, not stored
+  const dayView = $state({ board: false });
+</script>
+
 <script lang="ts">
   // A tournament series' page (ADR 0074): one page for the one on or coming up (lib/edition.ts currentOf), by status.
   // The header (its day, its place on the map, where everyone goes after), then the track of its statuses (Sign-up
@@ -6,8 +11,8 @@
   // then what it's about. Sign-up: are you in (the Kumite's an invitation, then your fighter's pass), and who's in (the
   // Kumite's fighters). Draft open: the draft, for its captains and whoever runs it; everyone else is fighting blind.
   // Teams set: every team, in full. Fixtures set: the matches, a list. KUMITE!:
-  // your turn to keep score, the matches as a carousel with the one on now in front, where everyone goes after, the
-  // board. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
+  // your turn to keep score, the matches as a carousel with the one on now in front (or the board in its place, a
+  // switch over them), where everyone goes after. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
   // revealed one at a time, the final table, the results; at 06:00 the next morning it's history. A status it's been
   // through opens from the track, read-only, at its own address (/sign-up, /draft, /teams, /schedule, /afters); the
   // page's own address is the status it's at. Moving between them the header and the track stay still
@@ -181,13 +186,17 @@
   const links = $derived(
     earlier ? [{ href: `/tournaments/${type.slug}/history`, label: "History", icon: "medal" as const }] : [],
   );
-  // The board's a scroll away under the carousel: brought into view, not jumped to (less motion: at once)
-  function toBoard(e: MouseEvent) {
-    e.preventDefault();
-    document
-      .getElementById("board")
-      ?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
-  }
+  // On the day, the fight card or the board, a switch over them: one in the other's place, so there's one scroll. The
+  // board slides in from the right, the fight card back from the left (less motion: at once). Kept for the session
+  const showIn = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 260,
+    easing: cubicOut,
+    css: (t: number, u: number) => `transform: translateX(${u * 32 * (dayView.board ? 1 : -1)}px); opacity: ${t}`,
+  });
+  const showOut = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 180,
+    css: (t: number, u: number) => `transform: translateX(${-u * 24 * (dayView.board ? 1 : -1)}px); opacity: ${t}`,
+  });
 </script>
 
 <!-- On the day, once the last match is on (Then) or played (Now): where everyone goes, big, on the page -->
@@ -338,11 +347,44 @@
                 <a class="btn sm outline" href="/tournaments/{type.slug}/games/{duty.id}/live">Keep score</a>
               </div>
             {/if}
-            <!-- Every match, the one on now (or up next) brought forward; then the way down to the table as it stands -->
-            <Schedule {typeId} carousel />
-            <p class="to-board">
-              <a class="btn sm ghost" href="#board" onclick={toBoard}><Icon name="list" size={16} />The board</a>
-            </p>
+            <!-- Every match, the one on now (or up next) brought forward; or the table as it stands in its place (ADR
+                 0074), there from the first match (everyone on nothing), moving live as each result comes in -->
+            {#if games.length}
+              <div class="tablist day-tabs" role="tablist" aria-label="On the day">
+                <button
+                  role="tab"
+                  id="day-tab-card"
+                  aria-selected={!dayView.board}
+                  aria-controls="day-panel"
+                  onclick={() => (dayView.board = false)}>Fight card</button
+                >
+                <button
+                  role="tab"
+                  id="day-tab-board"
+                  aria-selected={dayView.board}
+                  aria-controls="day-panel"
+                  onclick={() => (dayView.board = true)}>The board</button
+                >
+              </div>
+            {/if}
+            <!-- Both in one cell, the carousel's height kept, so nothing under it moves as they swap -->
+            <div
+              class="day-shows"
+              class:held={games.length > 0}
+              id="day-panel"
+              role="tabpanel"
+              aria-labelledby={dayView.board ? "day-tab-board" : "day-tab-card"}
+            >
+              {#key dayView.board && games.length > 0}
+                <div class="day-show" in:showIn out:showOut>
+                  {#if dayView.board && games.length}
+                    <BoardTable {type} {tournament} />
+                  {:else}
+                    <Schedule {typeId} carousel />
+                  {/if}
+                </div>
+              {/key}
+            </div>
             {#if day?.yours}
               <p class="yours">
                 <Icon name="user" size={16} />Your next:
@@ -353,14 +395,6 @@
             {/if}
             <!-- The last match on, then where everyone goes (every one played, it's the after-party) -->
             {#if after?.moment === "next"}{@render afterNow(after.place, false)}{/if}
-            <!-- The table as it stands, under the matches (ADR 0074): no page of its own. There from the first match
-                 (everyone on nothing), moving live as each result comes in -->
-            {#if games.length}
-              <section class="part" id="board">
-                <h2 class="section-title">The board<Kanji text={kanjiFor(type, "results")} /></h2>
-                <BoardTable {type} {tournament} />
-              </section>
-            {/if}
           {:else if pane === "afters"}
             <!-- The evening it ends: everyone at the afterwards, the awards turned over one at a time -->
             <AfterParty {type} {tournament} after={tournamentAfter(tournament)} {manage} />
@@ -554,12 +588,24 @@
     font-size: var(--text-sm);
   }
 
-  /* Your next match on the day, when it's neither on now nor next: one line */
-  .to-board {
-    display: flex;
-    justify-content: center;
-    margin: 0;
+  /* On the day, Fight card or The board: Tabs over them, the one showing in the other's place. The cell keeps the
+     carousel's band (lib/MatchCarousel), so what's under it stays put */
+  .day-tabs {
+    margin-bottom: calc(-1 * var(--s-3));
   }
+  .day-shows {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+  .day-shows.held {
+    min-height: min(72vh, 40rem);
+  }
+  .day-show {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+  /* Your next match on the day, when it's neither on now nor next: one line */
   .yours {
     display: flex;
     flex-wrap: wrap;

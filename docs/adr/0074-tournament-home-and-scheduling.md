@@ -72,13 +72,13 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   other way, stacked in one cell so the area never collapses; less motion, at once. The draw's shuffle stays the draw
   to open: the same view from sign-up through the picking, for those who run it.
 
-  | Status       | For whoever runs it               | What's on it                                                                                                                             |
-  | ------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-  | Sign-up open | Close sign-up (small, not a card) | the Friday card (`lib/EventCard`: are you in, In / Out, your place), then who's in, waiting and out (`lib/WhosIn`)                       |
-  | Draft open   | Draw the order, Open, Seal        | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                          |
-  | Teams set    | Make the fixtures                 | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page |
-  | Fixtures set | (made again from Manage)          | the matches, a plain list in order of play, each card opening its matchup                                                                |
-  | KUMITE!      |                                   | your turn to keep score, the matches as a carousel (`lib/MatchCarousel`), then where everyone goes after, then the board                 |
+  | Status       | For whoever runs it               | What's on it                                                                                                                                                          |
+  | ------------ | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Sign-up open | Close sign-up (small, not a card) | the Friday card (`lib/EventCard`: are you in, In / Out, your place), then who's in, waiting and out (`lib/WhosIn`)                                                    |
+  | Draft open   | Draw the order, Open, Seal        | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                                                       |
+  | Teams set    | Make the fixtures                 | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page                              |
+  | Fixtures set | (made again from Manage)          | the matches, a plain list in order of play, each card opening its matchup                                                                                             |
+  | KUMITE!      |                                   | your turn to keep score, a switch (Fight card / The board), the matches as a carousel (`lib/MatchCarousel`) or the board in its place, then where everyone goes after |
 
 | THE ANCHOR | Confirm the awards, then the reveal | where everyone is (🍺 The Anchor · celebration and awards, Map), The awards (a big card to their own page, the stage), Cast your vote till they're confirmed, the final table, the results |
 
@@ -92,6 +92,11 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   now when the one in front isn't it, and back by itself once it's been left alone 8 seconds; a tap on a peeking one brings it forward. On a phone a card's stamp (KUMITE!, You
   are next!, a result) is a sticker on its top edge, so no card is taller for one; the names are one line, plain text
   (the card opens the match, whose page links both teams, with a chevron); where a team is a link it looks like one.
+- **The board on the day**: a switch above the fight card, the app's Tabs (Fight card / The board), Fight card first;
+  The board shows the table as it stands in the carousel's place, not under it, so the page has one scroll and the
+  carousel the other. The switch never moves, and the cell keeps the carousel's height, so Your next and where
+  everyone goes after stay put; the one coming in slides from its side (less motion: at once). The choice holds while
+  the app's open, never stored. Everyone sees it, once there are matches.
 - **Manage** (the gear) holds every job, a row each, never a menu inside the menu, in the order they're needed: the
   step it's at first (at the draft: Undo the last pick, naming it; Add a player; Close it now, only to close early
   leaving the rest out, the Seal card closing it once everyone's picked; Reset the draft, in red words; then Make the
@@ -555,3 +560,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   configrable! no that is better", the user): the champions' finale is theirs wherever they're listed. A judges' call
   left out as they confirm isn't revealed at all: the reveal is the awards given (`awardsToReveal` in
   `lib/awards.ts`, the Worker's count and the page's alike; everyone's sent which awards were given, never who to).
+- 2026-10-23: The board is a switch above the fight card (Fight card / The board), in the cards' place, so there's
+  one scroll; the ghost "The board" link under the carousel and the board under it are gone.
