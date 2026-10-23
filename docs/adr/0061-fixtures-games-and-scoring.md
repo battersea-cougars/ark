@@ -83,6 +83,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   the old phone is refused (403, "Someone else is keeping score"), never landed after the take-over.
 - **The Fight card says who's scoring** each game until it's over ("Scored by Dan", a red whistle, after Game N of M
   on lib/GameCard), the tournament's home and the day's carousel too, so an admin sees it without opening each game.
+  When it's you, the header's red whistle says so and the eyebrow doesn't repeat it.
 
 ### A game's pages
 
@@ -263,3 +264,5 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   one statement from who their page saw holding it, on the record; the old scorekeeper's phone hears it live and its
   writes (the clock's too, now) go only while it holds the sheet; the Fight card says who's scoring each game.
   The Let it go button under the clock went (#116).
+- 2026-10-23: A game you're scoring no longer says "Scored by you" as well as showing its red whistle: the eyebrow
+  names only someone else.
