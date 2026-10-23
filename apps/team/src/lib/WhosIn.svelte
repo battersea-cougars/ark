@@ -11,9 +11,14 @@
   import Person from "./Person.svelte";
   import { pick } from "./quips";
   import { untrack } from "svelte";
+  import Kanji from "./Kanji.svelte";
+  import { kanjiFor } from "./motif";
+  import { typeById } from "../demo/schedule.svelte";
 
   let { tournament: t }: { tournament: Tournament } = $props();
 
+  // The Kumite's motif beside the heading, where Friday's has none: 組手, the fighters (lib/motif.ts)
+  const kanji = $derived(kanjiFor(typeById(t.typeId), "onTheMat"));
   const byId = (id: number) => PLAYERS.find((p) => p.id === id);
   const people = (ids: readonly number[]) => ids.flatMap((id) => byId(id) ?? []);
   const captains = $derived(new Set(t.teams.flatMap((x) => x.captainMemberId ?? [])));
@@ -39,7 +44,7 @@
 {/snippet}
 
 <section class="whos-in" aria-label="Who's in">
-  <h2 class="section-title">Who's in <span class="count num">{going.length}</span></h2>
+  <h2 class="section-title">Who's in <span class="count num">{going.length}</span><Kanji text={kanji} /></h2>
   {#if going.length}
     {@render rows(going, true)}
   {:else}

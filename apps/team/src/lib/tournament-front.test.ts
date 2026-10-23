@@ -254,6 +254,22 @@ describe("statusesOf: one page, by status (ADR 0074)", () => {
 
   it("is at sign-up till the draft opens; then open, the teams set once it's closed, the fixtures out, the day", () => {
     expect(now(draft())).toBe("signup");
+    // Sign-up closed (an admin's Close sign-up, or past its closing day): on to the draft, where the order's drawn
+    expect(now(draft({ signupClosesOn: "2026-10-20" }))).toBe("draft");
+    expect(now(draft({ signupClosesOn: TODAY }))).toBe("signup");
+    // The order drawn already (before Close sign-up was a step): the draft's under way
+    expect(
+      now(
+        draft({
+          teams: [
+            { ...team(1, 2), pick: 1 },
+            { ...team(2, 3), pick: 2 },
+          ] as never,
+        }),
+      ),
+    ).toBe("draft");
+    // Teams that enter wait at sign-up for the teams, closed or not
+    expect(now(draft({ kind: "teams", signupClosesOn: "2026-10-20" }))).toBe("signup");
     expect(now(draft({ draftState: "open" }))).toBe("draft");
     expect(now(teamsSet())).toBe("teams");
     expect(now(fixtures())).toBe("fixtures");

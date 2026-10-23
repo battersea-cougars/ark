@@ -6,6 +6,7 @@ import { revealAward, setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
+import { closeSignup } from "./signup";
 import { awardsOut, draftPaused } from "../push/push.notices";
 import { londonToday } from "../../src/lib/dates";
 import { body, json } from "../api/api.http";
@@ -137,6 +138,19 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments"],
     // The round robin and its playoffs, once the teams are set (ADR 0061)
     handle: async (c) => (await makeFixtures(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/signup\/close$/,
+    // Its closing day before and after (null, then yesterday)
+    audit: {
+      event: "tournament.signup_closed",
+      subject: rowOf("SELECT id, name, status, signup_closes_on signupClosesOn FROM tournaments WHERE id = ?"),
+    },
+    action: "manage:Tournament",
+    changes: ["tournaments"],
+    // Sign-up closed now, not on its closing day: a draft moves on to Draft open (ADR 0074)
+    handle: async (c) => (await closeSignup(c.env.DB, id(c), c.today), ok()),
   },
   {
     method: "POST",

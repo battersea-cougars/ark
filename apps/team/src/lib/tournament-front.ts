@@ -4,7 +4,8 @@
 // match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { editionState, stageOf } from "./edition";
-import { signupOpen } from "./signup";
+import { signupOpen, signupOver } from "./signup";
+import { orderDrawn } from "./draft";
 
 /** Your team in it, as its captain or a player: its place in the teams, or -1. */
 export const myTeamIndex = (t: Tournament, me: number) =>
@@ -76,13 +77,15 @@ export function statusLabel(
 }
 
 /**
- * The status it's at: sign-up until the draft opens (or, teams that enter, a team's in); the draft open; complete
+ * The status it's at: sign-up until it closes (an admin's Close sign-up, or past its closing day) or, teams that
+ * enter, a team's in; a captains' draft is then at Draft open, where the order's drawn and the draft opened; complete
  * (closed, or the teams in); the fixtures out; then, on its day or once a match has started, the day itself; the last
  * match played, the after-party (the page shows it that evening only: lib/edition.ts atAfters).
  */
 export function statusOf(t: Tournament, today: string): Status {
   if (editionState(t) === "done") return "afters";
   const stage = stageOf(t);
+  if (stage === "signup" && t.kind === "draft" && (signupOver(t, today) || orderDrawn(t.teams))) return "draft";
   if (stage !== "fixtures") return stage;
   const state = editionState(t);
   return state === "live" || state === "done" || (!t.season && t.heldOn === today) ? "day" : "fixtures";

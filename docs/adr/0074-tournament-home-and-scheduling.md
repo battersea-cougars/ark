@@ -47,7 +47,9 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
 - **The statuses** (`statusOf`, `statusesOf` in `lib/tournament-front.ts`): **Sign-up open** → **Draft open** →
   **Teams set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started) →
   **THE ANCHOR** (the after-party, named after its afterwards; **AFTERS** when it has none); teams that enter skip the
-  draft. "Teams set" for both, draft or not: "Teams finalised" didn't fit a phone's track.
+  draft. "Teams set" for both, draft or not: "Teams finalised" didn't fit a phone's track. A draft leaves Sign-up open
+  when sign-up closes (its closing day gone by, or an admin's **Close sign-up**); Draft open is where the order's
+  drawn and the draft opened.
 - **The after-party** ("The evening a Kumite ends: the last step should be the after party", the user, 2026-10-22)
   starts when the last match is played (or an admin marks it finished) and lasts till 06:00 London the next morning
   (`atAfters` in `lib/edition.ts`, `londonEvening` in `lib/dates.ts`: before 06:00 it's still the night before's
@@ -70,13 +72,13 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   other way, stacked in one cell so the area never collapses; less motion, at once. The draw's shuffle stays the draw
   to open: the same view from sign-up through the picking, for those who run it.
 
-  | Status       | For whoever runs it                | What's on it                                                                                                                             |
-  | ------------ | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-  | Sign-up open | the draw (its captains, run:Draft) | are you in (In / Out), then who's in, waiting and out (`lib/WhosIn`)                                                                     |
-  | Draft open   | Open the draft, Seal the teams     | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                          |
-  | Teams set    | Make the fixtures                  | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page |
-  | Fixtures set | (made again from Manage)           | the matches, a plain list in order of play, each card opening its matchup                                                                |
-  | KUMITE!      |                                    | your turn to keep score, the matches as a carousel (`lib/MatchCarousel`), then where everyone goes after, then the board                 |
+  | Status       | For whoever runs it               | What's on it                                                                                                                             |
+  | ------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+  | Sign-up open | Close sign-up (small, not a card) | the Friday card (`lib/EventCard`: are you in, In / Out, your place), then who's in, waiting and out (`lib/WhosIn`)                       |
+  | Draft open   | Draw the order, Open, Seal        | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                          |
+  | Teams set    | Make the fixtures                 | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page |
+  | Fixtures set | (made again from Manage)          | the matches, a plain list in order of play, each card opening its matchup                                                                |
+  | KUMITE!      |                                   | your turn to keep score, the matches as a carousel (`lib/MatchCarousel`), then where everyone goes after, then the board                 |
 
 | THE ANCHOR | Reveal the next award | where everyone is (🍺 The Anchor · celebration and awards, Map), the awards face down or turned over, the final table, the results |
 
@@ -163,6 +165,10 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   | the draft open               | the drawn order             | the picks so far ("Draft paused" to its captains)                   | red, counted (none: no) |
   | the order drawn              | before the draw             | the order                                                           | quietly                 |
   | sign-up past its closing day | sign-up open                | the closing day                                                     | no                      |
+
+  **Close sign-up** (`POST /api/tournaments/:id/signup/close`, manage:Tournament, audited `tournament.signup_closed`)
+  sets the closing day to yesterday, so it's past it as if the day had come: one guarded statement, only while sign-up
+  is open with nothing drawn or made (ADR 0121); Back to Sign-up open undoes it.
 
   `POST /api/tournaments/:id/step-back { from }` says which step it's leaving; it's refused (409) if the tournament
   has moved on since, so a tap from a page that's out of date never takes a second step. Each is one batch whose
@@ -335,3 +341,10 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-22: On dev and locally, Manage → Play out the Kumite plays the rest at random through the real draft and
   scoring, to the after-party with the awards provisional, to try it without scoring every match
   ([0123](0123-dev-only-tools.md)).
+- 2026-10-23: "When in sign-up mode, the CTA for the admin is 'Draw the order' for the draft, which is confusing since
+  we're in sign-up. There should be a smaller CTA instead that closes the sign-up and advances to the draft." (the
+  user). Sign-up open's admin action is a small Close sign-up under the card, not the draw's step card; closing it
+  (now, a route of its own, or by its closing day) moves a draft on to Draft open, where Draw the order is; Back to
+  Sign-up open opens it again.
+- 2026-10-23: "As a member, the sign-up card should be styled like the Friday training card." (the user). Sign-up
+  open is the Friday card (lib/EventCard: are you in, In / Out, your number), then Who's in with the Kumite's kanji.

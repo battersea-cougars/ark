@@ -17,8 +17,17 @@
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { currentTournament, pastTournaments, tournamentAfter, typeById } from "../demo/schedule.svelte";
+  import {
+    currentTournament,
+    pastTournaments,
+    tournamentAfter,
+    tournamentBookable,
+    typeById,
+  } from "../demo/schedule.svelte";
   import SignUpLine from "../lib/SignUpLine.svelte";
+  import EventCard from "../lib/EventCard.svelte";
+  import { closeSignup } from "../app/backend.svelte";
+  import { signupOpen } from "../lib/signup";
   import Kanji from "../lib/Kanji.svelte";
   import { kanjiFor } from "../lib/motif";
   import TournamentHead from "../lib/TournamentHead.svelte";
@@ -95,17 +104,25 @@
   const status = $derived(tournament ? statusOf(tournament, today) : "signup");
   const view = $derived(tournament ? viewOf(tournament, today, rest) : "signup");
   const drafted = $derived(tournament?.kind === "draft");
-  // You've answered: in, waiting or out (the header carries it, ADR 0074)
-  const answered = $derived(
-    !!tournament && [tournament.going, tournament.waitlist, tournament.out ?? []].some((l) => l.includes(me().id)),
-  );
+  // Sign-up open now: the Friday card's question, Are you in? (lib/EventCard), and an admin's Close sign-up
+  const open = $derived(!!tournament && status === "signup" && signupOpen(tournament, today));
+  let closing = $state(false);
+  async function close() {
+    if (!tournament || closing) return;
+    closing = true;
+    try {
+      await closeSignup(tournament.id);
+    } finally {
+      closing = false;
+    }
+  }
   // The draft is its captains' and whoever runs it (ADR 0060): everyone else fights blind until it's done
   const inDraft = $derived(teams.some((t) => t.captainMemberId === me().id) || can(perms, "run:Draft"));
-  // Which view's in the pane. One Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
-  // the teams (complete) are another, so closing it slides on to them
+  // Which view's in the pane. Sign-up is everyone's, the draft's runner too (they close it, ADR 0074); then one
+  // Draft goes from the draw to the picking, so the shuffle plays as the draft opens; the teams (complete) are
+  // another, so closing it slides on to them
   const pane = $derived.by(() => {
     if (!drafted || !inDraft || teams.length < 2) return view === "draft" ? "blind" : view;
-    if (view === "draft" || (view === "signup" && status === "signup")) return "draft";
     return view;
   });
   // The draft being picked, on a phone: the header makes room, the track stays, the players scroll inside
@@ -231,17 +248,34 @@
           out:paneOut
         >
           {#if pane === "signup"}
-            <!-- Sign-up: are you in, and who's coming (a status gone by: your answer, one line) -->
-            <!-- Not answered yet, sign-up open: are you in, the view's one action. Answered: it's the header's badge -->
-            {#if !answered && status === "signup"}<SignUpLine
-                {tournament}
+            <!-- Sign-up open, as Friday's training says it (lib/EventCard): are you in or out, your place, then who's
+                 in. Not open yet, or a status gone by: a line. Then who's in -->
+            {#if open}
+              <EventCard
+                event={tournamentBookable(tournament)}
                 canSignUp={can(perms, "signup:Event")}
-              />{/if}
+                beckon
+                roster={false}
+                place={false}
+              />
+              {#if manage}
+                <!-- An admin's: a small one, not the step card. Closing it moves the Kumite on to the draft, where the
+                     order's drawn (ADR 0074); Back to Sign-up open, in Manage, opens it again -->
+                <div class="close-signup">
+                  <span class="hint"
+                    >{drafted
+                      ? "Everyone had their say? Close it, then draw the order."
+                      : "Everyone had their say? Close it to new names."}</span
+                  >
+                  <button class="btn sm outline" disabled={closing} onclick={close}
+                    ><Icon name="x" size={14} />Close sign-up</button
+                  >
+                </div>
+              {/if}
+            {:else if status === "signup"}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
             <WhosIn {tournament} />
           {:else if pane === "draft"}
-            <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking.
-                 While it's still sign-up, your answer first -->
-            {#if view === "signup" && !answered}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
+            <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking -->
             <!-- Before it opens, the draw's card says it all: no line of its own over it ("Draft today") -->
             <div
               class="draft-at"
@@ -249,14 +283,12 @@
             >
               <Draft
                 {typeId}
-                signup={view === "signup"}
                 onpicking={(v) => {
                   picking = v;
                 }}
               />
             </div>
             <!-- The draft done: its teams and how the picks went are Draft's two tabs -->
-            {#if view === "signup"}<WhosIn {tournament} />{/if}
           {:else if pane === "blind"}
             <!-- Everyone else: the draft's the captains' (ADR 0060). Chong Li's powder; Dux fought blind -->
             <DraftStep {type} mark="open" icon="blindfold" title="Fighting blind">
@@ -460,6 +492,21 @@
     margin: 0;
   }
 
+  /* An admin's Close sign-up: a quiet line under the card, the button small at its end */
+  .close-signup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2) var(--s-4);
+    margin: 0;
+  }
+  .close-signup .hint {
+    font-size: var(--text-sm);
+  }
+  .close-signup .btn {
+    gap: var(--s-1);
+  }
   /* Your turn to keep score: a line between rules, not a card */
   .duty {
     display: flex;
