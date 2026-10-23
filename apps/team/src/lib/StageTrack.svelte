@@ -193,7 +193,7 @@
     background: var(--fg-muted);
     transition: width var(--t-slow) var(--ease-in-out);
   }
-  /* A status's name, as a badge: italic display caps */
+  /* A status's name, as a badge: upright display caps (not slanted: they're links, and read as buttons) */
   .badge-s {
     display: inline-flex;
     align-items: center;
@@ -207,7 +207,6 @@
     color: var(--fg-subtle);
     font-family: var(--font-display);
     font-size: 0.85rem;
-    font-style: italic;
     letter-spacing: 0.03em;
     line-height: 1;
     text-transform: uppercase;
@@ -223,13 +222,13 @@
     background: var(--surface-2);
     color: var(--fg-muted);
   }
-  /* The one being looked at, brought forward: the header stamp's red outline, bigger and a little askew (transform
+  /* The one being looked at, brought forward: the header stamp's red outline, a little bigger, upright (transform
      only, so nothing moves). Where the Kumite is stays the line's: its lit node and the fill reaching it */
   .here .badge-s {
     border-color: currentColor;
     background: var(--bg);
     color: var(--red-hot);
-    transform: scale(1.12) rotate(-3deg);
+    transform: scale(1.12);
   }
   a.go:hover .badge-s {
     color: var(--fg);
@@ -240,14 +239,14 @@
   .short {
     display: none;
   }
-  /* Stamped in: down from big and askew onto its place, as a hanko comes down */
+  /* Stamped in: down from big onto its place, as a hanko comes down */
   .stamped .badge-s {
     animation: stamp 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) 0.15s both;
   }
   @keyframes stamp {
     from {
       opacity: 0;
-      transform: scale(1.8) rotate(-10deg);
+      transform: scale(1.8);
     }
   }
   @media (prefers-reduced-motion: reduce) {

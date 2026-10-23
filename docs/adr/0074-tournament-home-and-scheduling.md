@@ -610,3 +610,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   gone with the invitation card, 88e4cdd); it stays the view's, not Manage's, like each step's action.
 - 2026-10-23: The 封 seal no longer cracks in two (too literal): after its heartbeat its worn ink drains away from the
   edges in (`--drain-ms`), slower for the champions.
+- 2026-10-23: The stage track's badges stand upright: no italic, and the one you're on no longer tilts (bigger only, in
+  the red outline). Slanted, they read as buttons; the header's stamp keeps its tilt, being ink.
