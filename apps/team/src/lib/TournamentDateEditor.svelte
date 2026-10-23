@@ -498,7 +498,8 @@
             </div>
           </FormSection>
           <FormSection title="When" description="A season is enough until the day is known.">
-            <div class="cols">
+            <!-- Two to a row: the season and the day, then Starts and Ends together (on a phone too) -->
+            <div class="cols when">
               <div class="field">
                 Season
                 <Select
@@ -753,9 +754,18 @@
     gap: var(--s-5) var(--s-4);
     align-items: start;
   }
+  .cols.when {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   @container (max-width: 30rem) {
     .cols {
       grid-template-columns: minmax(0, 1fr);
+    }
+    .cols.when {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .cols.when > :nth-child(-n + 2) {
+      grid-column: 1 / -1;
     }
   }
   .add-award {
