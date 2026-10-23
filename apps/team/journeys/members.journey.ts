@@ -1,5 +1,6 @@
 // Members: added, changed, given roles, and gone (ADR 0024, 0029, 0069, 0124). Ada, an admin, adds someone from The
-// club and changes their name, email and position on their card; makes Mo a Session lead, and Mo has the night's jobs
+// club and changes their name, email and position on their card; adds another quietly, with the email switch off, and
+// sends them the app link from their card later (#164); makes Mo a Session lead, and Mo has the night's jobs
 // (Make teams, Add player) till she takes it away; can't make herself a Member, as she's the last admin. Rae deletes
 // her own account from her You page, can't sign in again, and is gone from the club's lists. Hal, a plain member,
 // can't open Settings → Members. The Roles page shows what a role can do.
@@ -62,6 +63,12 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
   const surname = freshSurname();
   const added = { name: `Lee ${surname}`, email: `lee.${surname.toLowerCase()}@example.com` };
   const renamed = { name: `Lea ${surname}`, email: `lea.${surname.toLowerCase()}@example.com` };
+  const quiet = { name: `Qui ${surname}`, email: `qui.${surname.toLowerCase()}@example.com` };
+  /** The record's latest entry of `action` about someone (Settings → Audit log reads the same). */
+  const recorded = async (action: string, memberId: number) =>
+    ((await adaApi("GET", "/api/audit")).entries as { action: string; detail: Record<string, unknown> }[]).find(
+      (e) => e.action === action && e.detail.memberId === memberId,
+    );
 
   await stage("1. A member added, then changed", async () => {
     await checks(hal, "can't add anyone: no Member button on The club", async () => {
@@ -110,6 +117,34 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
       );
       await expect(ada.page.getByRole("button", { name: `${added.name}: turn the card over` })).toHaveCount(0);
       expect(await byEmail(added.email)).toBeUndefined();
+    });
+
+    await does(ada, `adds ${quiet.name} without emailing them: the switch off, the button just Add`, async () => {
+      await ada.page.goto("/club");
+      await ada.page.getByRole("button", { name: "Member", exact: true }).click();
+      const sheet = ada.page.getByRole("dialog", { name: "Add a member" });
+      await sheet.getByRole("textbox", { name: "Name" }).fill(quiet.name);
+      await sheet.getByRole("textbox", { name: "Email" }).fill(quiet.email);
+      const emailThem = sheet.getByRole("switch", { name: "Email them a link to the app" });
+      await expect(emailThem).toHaveAttribute("aria-checked", "true");
+      await emailThem.click();
+      await expect(sheet.getByRole("button", { name: "Add and email them" })).toHaveCount(0);
+      await sheet.getByRole("button", { name: "Add", exact: true }).click();
+      await expect(sheet).toHaveCount(0);
+      await expect.poll(async () => (await byEmail(quiet.email))?.status).toBe("active");
+    });
+
+    await checks(ada, "the record says they weren't emailed", async () => {
+      const { id } = (await byEmail(quiet.email))!;
+      expect((await recorded("member.added", id))?.detail.to).toMatchObject({ name: quiet.name, emailed: false });
+    });
+
+    await does(ada, "sends them the app link from their card later, and it's on the record", async () => {
+      const { id } = (await byEmail(quiet.email))!;
+      const sheet = await openCard(quiet.name);
+      await sheet.getByRole("button", { name: "Send them the app link" }).click();
+      await expect.poll(async () => (await recorded("member.app_link", id))?.detail.to).toEqual({ emailed: true });
+      await ada.page.keyboard.press("Escape");
     });
   });
 

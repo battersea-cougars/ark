@@ -20,6 +20,7 @@ import {
   memberEmail,
   memberJoined,
   memberStanding,
+  sendAppLink,
   setContact,
   setMemberEverydayRole,
   updateMember,
@@ -133,15 +134,33 @@ export const MEMBERS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/members$/,
+    // Who they are, and whether the add emailed them the app link (#164)
     audit: {
       event: "member.added",
-      subject: async (c, reply) => (reply ? memberJoined(c.env.DB, theMember(c, reply)) : null),
+      subject: async (c, reply) =>
+        reply ? { ...(await memberJoined(c.env.DB, theMember(c, reply))), emailed: reply.emailed === true } : null,
       about: (c, reply) => ({ memberId: theMember(c, reply) }),
     },
     action: "manage:Member",
     changes: ["members"],
-    // { name, email, position }: in the club now, and emailed a link to the app (ADR 0069)
+    // { name, email, position, emailThem? }: in the club now, and emailed a link to the app unless emailThem is false
+    // (ADR 0069, #164)
     handle: async (c) => json(await addMember(c.env, await body(c.request), new URL(c.request.url).origin, c), 201),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/members\/(\d+)\/app-link$/,
+    // Nothing changes but an email sent: on the record as sent (or tried), from nothing
+    audit: {
+      event: "member.app_link",
+      subject: async (_c, reply) => (reply ? { emailed: reply.emailed === true } : null),
+      about: (c) => ({ memberId: id(c) }),
+    },
+    action: "manage:Member",
+    // Nothing of theirs changes; the sheet's members come back as after any action on a member
+    changes: ["members"],
+    // Someone added quietly (#164), or whose first email went astray: the same link to the app, once per tap
+    handle: async (c) => json(await sendAppLink(c.env, id(c), new URL(c.request.url).origin)),
   },
   {
     method: "POST",

@@ -26,6 +26,7 @@
     eraseMember,
     saveMember,
     signOutMember,
+    sendAppLink,
     removeMemberPasskeys,
     setQuarterly,
     setMemberEveryday,
@@ -438,6 +439,16 @@
     if (done) shut();
   }
 
+  // The link to the app, sent after all (#164): someone added without it, or whose email went astray. One email a
+  // tap, to the address saved (not one typed and unsaved)
+  let sendingLink = $state(false);
+  async function sendLink() {
+    if (sendingLink) return;
+    sendingLink = true;
+    await sendAppLink(member.player.id, shortName(member.player));
+    sendingLink = false;
+  }
+
   // Signing them out everywhere (#72): a lost phone, a shared laptop. They sign in again with a code.
   let signingOut = $state(false);
   async function signOutEverywhere() {
@@ -713,6 +724,12 @@
                 <!-- A member who asked the club by email to delete their account (#30): as if they'd done it -->
                 <div class="group">
                   <h3 class="eyebrow">Their account</h3>
+                  {#if saved.email}
+                    <!-- Added quietly, or the first email went astray (#164): the same "You're in" email -->
+                    <button class="btn ghost sm start" type="button" disabled={sendingLink} onclick={sendLink}
+                      >Send them the app link</button
+                    >
+                  {/if}
                   <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out (#72) -->
                   <button class="btn ghost sm start" type="button" disabled={signingOut} onclick={signOutEverywhere}
                     >Sign out everywhere</button

@@ -186,14 +186,16 @@ export async function firstAdmin(db: D1Database): Promise<number | null> {
 
 /**
  * An admin adds someone to the club (ADR 0069): in straight away (no asking to join), with a payment reference, and
- * an email with a link to the app that fills in their address on the sign-in screen. The email going astray doesn't
- * undo the add: `emailed` says whether it went, so the admin can tell them another way.
+ * an email with a link to the app that fills in their address on the sign-in screen, unless `emailThem` is false
+ * (#164: they'll be told in person, or later from their card). The email going astray doesn't undo the add:
+ * `emailed` says whether it went, so the admin can tell them another way.
  */
 export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin: string, by: By) {
   const now = new Date(by.now);
   const name = text(o, "name", { max: 80 });
   const address = email(o);
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
+  const emailThem = o.emailThem === undefined ? true : bool(o, "emailThem");
   if (await first(env.DB, "SELECT 1 FROM members WHERE email = ?", [address]))
     throw new HttpError(409, "Someone in the club has that email already.");
   const res = await run(
@@ -203,8 +205,24 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
-  const emailed = await tellTheyreIn(env, name, address, origin);
+  const emailed = emailThem && (await tellTheyreIn(env, name, address, origin));
   return { id, emailed };
+}
+
+/**
+ * An admin sends a member the app link after all (#164): the same "You're in" email as an add, once per tap. Only to
+ * someone in the club (active) with an email; whether it went is in the reply, as for an add.
+ */
+export async function sendAppLink(env: AuthEnv, id: number, origin: string): Promise<{ emailed: boolean }> {
+  const m = await first<{ name: string; email: string | null; status: string }>(
+    env.DB,
+    "SELECT name, email, status FROM members WHERE id = ?",
+    [id],
+  );
+  if (!m) throw new HttpError(404, "No such member.");
+  if (m.status !== "active") throw new HttpError(409, "They're not in the club, so there's no link to send.");
+  if (!m.email) throw new HttpError(400, "They've no email: add one on their card first.");
+  return { emailed: await tellTheyreIn(env, m.name, m.email, origin) };
 }
 
 /**

@@ -95,7 +95,12 @@
       case "access.requested":
         return `${who} asked to join`;
       case "member.added":
-        return `${who} added ${about} (${str(to?.email)})`;
+        // Whether they were emailed the app link (#164); entries from before don't say
+        return `${who} added ${about} (${str(to?.email)})${to?.emailed === true ? ", and emailed them the app link" : to?.emailed === false ? ", without emailing them" : ""}`;
+      case "member.app_link":
+        return to?.emailed
+          ? `${who} emailed ${about} the app link`
+          : `${who} tried to email ${about} the app link, but it didn't go`;
       case "members.imported": {
         const added = (to?.added as string[] | undefined) ?? [];
         return `${who} imported ${added.length} member${added.length === 1 ? "" : "s"} from a file: ${list(added)}`;

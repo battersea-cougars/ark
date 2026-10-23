@@ -1,7 +1,7 @@
 # 0069. Admins add members; the members table is in Settings; a member's details save with a button
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-09
+- **Date:** 2026-10-08 · updated 2026-10-23
 - **Merges:** 0080, 0082
 
 ## Context
@@ -30,8 +30,17 @@ live at once.
   fills the address in from it, so they send themselves a code and they're in. The link signs nobody in by itself
   ([0023](0023-sign-in-and-sessions.md)). It's sent through Gmail like the codes
   ([0027](0027-email-through-gmail-api.md)), so outside production it goes to the safe address.
+- **Emailing them is a switch, on by default** (#164): "Email them a link to the app" in the sheet, and the main
+  button says what it'll do, **Add and email them** or **Add**. Off (`emailThem: false`), nothing is sent: they're in
+  all the same and sign in with their address (a code, then a passkey) whenever they're told, in person or later. A
+  request that doesn't say emails them, as before.
 - **The email failing doesn't undo the add.** The reply says `emailed: false` and the admin is told to send the link
   themselves.
+- **Send them the app link**, on the member's card (Their account, `manage:Member`): the same welcome, one email a
+  tap, for a quiet add or an email that went astray. `POST /api/members/:id/app-link`; only for someone active with
+  an email (409, 400 otherwise), `emailed` in the reply.
+- **On the record:** `member.added` says whether the add emailed them (`emailed`), and each Send the app link is a
+  `member.app_link` entry, sent or not.
 
 **Asking to join**
 
@@ -67,7 +76,8 @@ live at once.
   `json_each` that gives every Quarterly row its subscription, found by name and the import's `created_at`): the free
   plan allows 50 queries per request, and a half-imported file would be worse than none. Up to 500 rows a file.
 - **Nobody is emailed.** An import is for bringing the club in at launch; the admins say when the app's ready, and
-  everyone signs in with the email in the file. On the record as `members.imported`, with the names.
+  everyone signs in with the email in the file; anyone can be sent the link from their card (Send them the app
+  link). On the record as `members.imported`, with the names.
 
 **The members table**
 
@@ -120,3 +130,6 @@ live at once.
 - 2026-10-21: Import takes the club's own spreadsheet: a `subx` column for the plan (Quarterly from the import's day,
   pay as you go, Keeper for a G), header aliases (`role`, `is Cougars`), and a Download template with the club's
   columns; the check shows each person's plan.
+- 2026-10-23: Adding a member can leave the email off (a switch, on by default; the button says Add or Add and email
+  them), and the member's card has Send them the app link for later; the record says whether they were emailed. Import
+  still sends nothing (#164).

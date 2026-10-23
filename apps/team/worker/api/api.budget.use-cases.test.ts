@@ -183,6 +183,7 @@ async function walk() {
   await hit(dana, "PUT", `/api/members/${m2}/contact`, { email: "m52.new@example.com", phone: "07700 900001" });
   await hit(dana, "POST", `/api/members/${m2}/sign-out`);
   const nina = await hit(dana, "POST", "/api/members", { name: "Nina New", email: "nina@example.com", position: "G" });
+  await hit(dana, "POST", `/api/members/${nina.body.id}/app-link`);
   await hit(dana, "POST", "/api/members/import", {
     file: "name,email,position\nIan Import,ian@example.com,F\nIvy Import,ivy@example.com,D\n",
   });

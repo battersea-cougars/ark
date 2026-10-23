@@ -323,7 +323,7 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
         by: me,
         memberId: ninaId,
         from: null,
-        to: { name: "Nina New", email: "nina@example.com" },
+        to: { name: "Nina New", email: "nina@example.com", emailed: true },
       },
       {
         event: "refused",

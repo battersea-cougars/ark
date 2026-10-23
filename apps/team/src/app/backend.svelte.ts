@@ -345,17 +345,31 @@ export const markHere = async (sessionId: number, memberId: number, here: boolea
 export const markAttendance = (memberId: number, marks: { sessionId: number; here: boolean }[]) =>
   save(() => api("PUT", `/api/members/${memberId}/attendance`, { marks }), "");
 
-/** An admin adds someone to the club; the app emails them a link to itself (ADR 0069). */
-export const addMember = async (name: string, email: string, position: string) => {
+/** An admin adds someone to the club; the app emails them a link to itself unless asked not to (ADR 0069, #164). */
+export const addMember = async (name: string, email: string, position: string, emailThem = true) => {
   const r = await save(
-    () => api<{ id: number; emailed: boolean }>("POST", "/api/members", { name, email, position }),
+    () => api<{ id: number; emailed: boolean }>("POST", "/api/members", { name, email, position, emailThem }),
     "",
   );
+  const first = name.split(" ")[0];
   if (r)
     say(
-      r.emailed
-        ? `${name.split(" ")[0]}'s in. We've emailed them a link.`
-        : `${name.split(" ")[0]}'s in, but the email didn't go: send them the link yourself.`,
+      !emailThem
+        ? `${first}'s in. No email: send them the link from their card when they're ready.`
+        : r.emailed
+          ? `${first}'s in. We've emailed them a link.`
+          : `${first}'s in, but the email didn't go: send them the link yourself.`,
+      emailThem && !r.emailed,
+    );
+  return r;
+};
+
+/** An admin emails a member the link to the app after all (#164): someone added quietly, or whose email went astray. */
+export const sendAppLink = async (memberId: number, name: string) => {
+  const r = await save(() => api<{ emailed: boolean }>("POST", `/api/members/${memberId}/app-link`), "");
+  if (r)
+    say(
+      r.emailed ? `We've emailed ${name} a link to the app.` : `The email didn't go: send ${name} the link yourself.`,
       !r.emailed,
     );
   return r;
