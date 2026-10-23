@@ -1,24 +1,20 @@
 <script lang="ts" module>
   import { goesBy } from "./names";
-  import type { TournamentStatus } from "../demo/model";
   import type { QuickValues } from "./TournamentQuickCreate.svelte";
 
   /** A sheet the editor's rows open: a team's or an award's, by its place in the list. */
   export type EditorSheet = { team: number } | { award: number };
-
-  export const STATUSES: { id: TournamentStatus; label: string }[] = [
-    { id: "planned", label: "Coming up" },
-    { id: "open", label: "Sign-up open" },
-    { id: "live", label: "Live" },
-    { id: "finished", label: "Finished" },
-  ];
+  /** Its tabs, in the order they're set: the tournament, sign-up, its teams, then how it's played. */
+  export type EditorTab = "details" | "signup" | "teams" | "rules";
 </script>
 
 <script lang="ts">
   // One tournament's editor, in the panel its card opens (Settings → Tournaments): what an admin comes here
-  // for. When and where it is, its rules and awards, sign-up, and its teams (ADR 0030): teams that entered, or a
-  // draft's captains (in no order: it's drawn as the draft opens) and the draft night, on tabs as the training editor lays out its fields. Picking a series copies its defaults in (ADR 0030); they can
-  // then change for this one. The series' look (icon, colour) stays the series'.
+  // for. When and where it is, sign-up, its teams (ADR 0030): teams that entered, or a draft's captains (in no order:
+  // it's drawn as the draft opens) and the draft night, and its rules and awards, on tabs as the training editor lays
+  // out its fields. Picking a series copies its defaults in (ADR 0030); they can then change for this one. The
+  // series' look (icon, colour) stays the series'. Not here: its stage (Coming up, Sign-up open, …), moved on from its
+  // own page (Manage, ADR 0074), and a team's name and logo, edited on the team's page (Edit the team).
   import TimeSelect from "./TimeSelect.svelte";
   import { tick } from "svelte";
   import { cancelClashes, createTournament, updateTournament } from "../app/backend.svelte";
@@ -50,6 +46,7 @@
   import { typeAfter, typePlace } from "../demo/schedule.svelte";
   import { londonToday, pounds } from "./dates";
   import { navigate } from "../app/router.svelte";
+  import { teamHref } from "./team-tones";
   import { seriesToOpen } from "../pages/TournamentSeries.svelte";
   import { seasonEnd, seasonLabel, seasonOf, seasonsFrom, seasonYear, type Season } from "@cougars/shared/seasons";
   import type { Edits } from "./dirty.svelte";
@@ -63,19 +60,22 @@
     start = $bindable(),
     edits,
     oncreated,
+    leave,
     sheet = $bindable(null),
   }: {
     dateId?: number;
     /** A new date in this series, its defaults copied in (from the series' own page) */
     typeId?: number;
     /** The tab it opens on: "teams" to add the captains */
-    startTab?: "details" | "rules" | "signup" | "teams";
+    startTab?: EditorTab;
     /** A new date's answers from the quick questions (Advanced): its day, draft and captains, kept up to date here so
      *  going back to the questions keeps what was changed */
     start?: QuickValues;
     /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
     edits?: Edits;
     oncreated?: (id: number) => void;
+    /** Off to another page (a team's, to edit it there): the panel closes first, asking if anything's unsaved. */
+    leave?: (path: string) => void;
     /** The row's sheet open over the editor, if any: a team or an award, by its place in the list. One value, so a
      *  page address could open it. */
     sheet?: EditorSheet | null;
@@ -104,7 +104,6 @@
     afterNote: string;
     capacity: number | null;
     fee: string;
-    status: TournamentStatus;
     public: boolean;
     signupOpensOn: string;
     signupClosesOn: string;
@@ -150,7 +149,6 @@
         afterNote: t.afterNote ?? "",
         capacity: t.capacity,
         fee: String(t.feePence / 100),
-        status: t.status,
         public: t.public,
         signupOpensOn: t.signupOpensOn ?? "",
         signupClosesOn: t.signupClosesOn ?? "",
@@ -187,7 +185,6 @@
       afterNote: "",
       capacity: 24,
       fee: "0",
-      status: "planned",
       public: true,
       // Sign-up opens the day it's scheduled, unless said otherwise
       signupOpensOn: londonToday(),
@@ -347,15 +344,17 @@
     return state === "open" || state === "closed";
   });
 
-  // Four tabs: the tournament itself, how it's played, sign-up, then its teams (and a draft's night)
-  type Tab = "details" | "rules" | "signup" | "teams";
+  // Four tabs, in the order they're set: the tournament itself, sign-up, its teams (and a draft's night), then how
+  // it's played (a series' edition copies its rules and awards, so they're rarely changed). Shorter on a phone, so all
+  // four fit; the full name is still what a screen reader hears
+  type Tab = EditorTab;
   // svelte-ignore state_referenced_locally
   let tab = $state<Tab>(startTab);
-  const tabs = $derived<{ id: Tab; label: string }[]>([
-    { id: "details", label: "Details" },
-    { id: "rules", label: "Rules & awards" },
-    { id: "signup", label: "Sign-up" },
-    { id: "teams", label: date.kind === "draft" ? "Draft & teams" : "Teams" },
+  const tabs = $derived<{ id: Tab; label: string; short: string }[]>([
+    { id: "details", label: "Details", short: "Details" },
+    { id: "signup", label: "Sign-up", short: "Sign-up" },
+    { id: "teams", label: date.kind === "draft" ? "Draft & teams" : "Teams", short: "Teams" },
+    { id: "rules", label: "Rules & awards", short: "Rules" },
   ]);
   let formEl = $state<HTMLFormElement | undefined>();
 
@@ -366,6 +365,9 @@
     formEl?.reportValidity();
   }
 
+  const stored = $derived(dateId ? db.tournaments.find((x) => x.id === dateId) : undefined);
+  /** A saved team's own page, in a series (a tournament on its own has no pages): its name and logo are edited there. */
+  const teamPage = (team: TournamentTeam) => (type && team.id ? teamHref(type.slug, team.id) : null);
   const toTournament = (d: DateForm): Tournament => ({
     id: d.id,
     typeId: d.typeId,
@@ -382,7 +384,8 @@
     startTime: d.startTime,
     endTime: d.endTime,
     capacity: d.capacity || null,
-    status: d.status,
+    // Never sent (lib/tournament-body.ts): its own page moves it on
+    status: stored?.status ?? "planned",
     feePence: Math.round(Number(d.fee || 0) * 100),
     public: d.public,
     signupOpensOn: d.signupOpensOn || null,
@@ -441,9 +444,10 @@
         id="date-tab-{t.id}"
         aria-selected={tab === t.id}
         aria-controls="date-panel"
+        aria-label={t.label}
         onclick={() => (tab = t.id)}
       >
-        {t.label}
+        <span class="long">{t.label}</span><span class="short" aria-hidden="true">{t.short}</span>
       </button>
     {/each}
   </div>
@@ -593,7 +597,10 @@
           <FormSection title="Playoffs" description="After the round robin, by place in the table.">
             <PlayoffsField bind:playoffs={date.playoffs} teams={date.teams.length} />
           </FormSection>
-          <FormSection title="Awards" description="Handed out on the day, and shown on the website.">
+          <FormSection
+            title="Awards"
+            description="This one's own (a series' edition starts with the series'): handed out on the day, and shown on the website."
+          >
             <AwardsField
               bind:awards={date.awards}
               bind:open={
@@ -607,30 +614,9 @@
             title="Sign-up"
             description="Members say they're in from the day it opens till it closes (empty: up to the day)."
           >
-            <!-- Two to a row, in pairs: its status and the website, opens and closes, places and fee -->
+            <!-- Two to a row, in pairs: opens and closes, places and fee, then the website. Its stage isn't here: it
+                 moves on from its own page (Manage: Close sign-up, Move to…, ADR 0074) -->
             <div class="cols pairs">
-              <div class="field">
-                Status
-                <Select
-                  id="date-status"
-                  bind:value={date.status}
-                  options={STATUSES.map((s) => ({ value: s.id, label: s.label }))}
-                  aria-label="Status"
-                />
-              </div>
-              <div class="field">
-                Website
-                <Select
-                  id="date-public"
-                  value={date.public ? "yes" : "no"}
-                  onchange={(v) => (date.public = v === "yes")}
-                  options={[
-                    { value: "yes", label: "On the website" },
-                    { value: "no", label: "Members only" },
-                  ]}
-                  aria-label="Website"
-                />
-              </div>
               <div class="field">
                 Sign-up opens
                 <DateField
@@ -658,6 +644,19 @@
                 >Fee (£) <input class="input num" inputmode="decimal" bind:value={date.fee} disabled={charged} />
                 {#if charged}<span class="hint small">Already charged: the fee is fixed.</span>{/if}</label
               >
+              <div class="field">
+                Website
+                <Select
+                  id="date-public"
+                  value={date.public ? "yes" : "no"}
+                  onchange={(v) => (date.public = v === "yes")}
+                  options={[
+                    { value: "yes", label: "On the website" },
+                    { value: "no", label: "Members only" },
+                  ]}
+                  aria-label="Website"
+                />
+              </div>
             </div>
             {#if collected?.people}
               <p class="num">Collected {pounds(collected.paid)} of {pounds(collected.due)}</p>
@@ -686,15 +685,16 @@
             title={date.kind === "draft" ? "Captains" : "Teams"}
             description={date.kind === "draft"
               ? "Any order: the draft draws who picks first."
-              : "Each team that's entered: its name, logo, captain and players."}
+              : "Each team that's entered: its name, captain and players. Once it's saved, its name and logo change on its page."}
             stacked={date.kind === "draft"}
           >
             <TeamsField
               bind:teams={date.teams}
               kind={date.kind}
               {drawn}
-              inSeries={date.typeId !== null}
               members={memberList}
+              pageOf={teamPage}
+              ongo={leave}
               bind:open={
                 () => (sheet && "team" in sheet ? sheet.team : null), (i) => (sheet = i === null ? null : { team: i })
               }
@@ -743,6 +743,18 @@
     }
     .cols.when > :nth-child(-n + 2) {
       grid-column: 1 / -1;
+    }
+  }
+  /* A tab's name: in full, or shorter where four in full don't fit (a phone) */
+  .tablist .short {
+    display: none;
+  }
+  @container (max-width: 34rem) {
+    .tablist .long {
+      display: none;
+    }
+    .tablist .short {
+      display: inline;
     }
   }
   .link {

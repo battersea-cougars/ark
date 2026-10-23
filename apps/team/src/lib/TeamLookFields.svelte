@@ -1,7 +1,8 @@
 <script lang="ts">
   // A team's name and logo, the fields (ADR 0030): the name (none: "Team Dan", after its captain) and the crest, its
   // logo or its initials, with a way to change it. In the team's own sheet (lib/TeamLookSheet, its captain or an
-  // admin, saving at once) and in a tournament editor's team sheet (lib/TeamSheet, saved with the editor).
+  // admin, saving at once), and for a team that enters, new in a tournament's editor (lib/TeamSheet: it can't be
+  // registered without a name; saved with the editor).
   import TeamCrest from "./TeamCrest.svelte";
   import { shrinkLogo } from "./logo";
 

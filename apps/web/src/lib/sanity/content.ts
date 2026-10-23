@@ -82,8 +82,9 @@ export const getClub = fromFacts((f) => mergeClub(FALLBACK_CLUB, f?.club ?? null
 export const getFridays = fromFacts((f) => mergeFridays(FALLBACK_FRIDAYS, f?.fridays ?? null));
 export const getPub = fromFacts((f) => mergePub(FALLBACK_PUB, f?.pub ?? null));
 export const getTeam = fromFacts((f) => mergeTeam(FALLBACK_TEAM, f?.team ?? null));
-// The Kumite's awards come from the team app (ADR 0044), through the build's club snapshot; Sanity's list (names
-// only) until the snapshot has them.
+// The Kumite's awards come from the team app (ADR 0044), through the build's club snapshot: a Kumite's own (the next
+// public one's, else the last held's; the series' before there's been one, scripts/lib/kumite-sql.mjs). Sanity's list
+// (names only) until the snapshot has them.
 /** The next Kumite as the team app has it (ADR 0042): when, where, or that it's TBC or only a season so far. */
 export interface NextKumite {
   startsAt: string;

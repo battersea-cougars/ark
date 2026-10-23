@@ -1,13 +1,15 @@
 <script lang="ts">
-  // One team in a tournament's editor (ADR 0030, 0065), opened from its row: its name and logo (the fields the team's
-  // own page has, lib/TeamLookFields) and its captain; a team that entered also has its players, members or names
-  // from outside. A draft's players come from the draft (Edit the squad, on the team's page). Changes go into the
-  // editor's form and are saved with the editor's Save, never on their own; Done closes it, Remove takes the team
-  // off (asking once when that loses a name, a logo or players).
+  // One team in a tournament's editor (ADR 0030, 0065), opened from its row: its captain, and a team that entered its
+  // players, members or names from outside (a draft's come from the draft: Edit the squad, on the team's page). Its
+  // name and logo are the team's own page's (Edit the team, its captain or an admin, saving at once): here they read
+  // as text, with the way there. A team that enters, new here, is registered with its name (and logo) in this sheet,
+  // as it must have one. Changes go into the editor's form and are saved with the editor's Save, never on their own;
+  // Done closes it, Remove takes the team off (asking once when that loses a name, a logo or players).
   import Sheet from "./Sheet.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import PersonPicker from "./PersonPicker.svelte";
   import TeamLookFields from "./TeamLookFields.svelte";
+  import TeamCrest from "./TeamCrest.svelte";
   import type { TournamentKind, TournamentTeam } from "../demo/model";
 
   const MAX_PLAYERS = 30;
@@ -18,9 +20,10 @@
     open = $bindable(false),
     title,
     fallback,
-    brings = false,
     members,
     taken,
+    page = null,
+    ongo,
     onremove,
     onclose,
   }: {
@@ -31,17 +34,28 @@
     title: string;
     /** What it's called with no name of its own ("Team Dan", or the team its captain brings). */
     fallback: string;
-    /** A draft in a series: the captain's next team starts with this name and logo. */
-    brings?: boolean;
     members: { id: number; name: string }[];
     /** Members already on a team (this one's included), who can't be added again. */
     taken: Set<number>;
+    /** The team's own page, where its name and logo are edited (saved teams of a series' tournament); null: none yet. */
+    page?: string | null;
+    /** Off to that page: the editor closes first (asking if anything's unsaved), never a sheet over a sheet. */
+    ongo?: (path: string) => void;
     onremove: () => void;
     onclose?: () => void;
   } = $props();
 
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
   const draft = $derived(kind === "draft");
+  // A team that enters, not saved yet: named here, as it can't be without a name
+  const registering = $derived(!draft && !team.id);
+
+  function go(e: MouseEvent) {
+    if (!page || !ongo) return;
+    e.preventDefault();
+    open = false;
+    ongo(page);
+  }
 
   function pickCaptain(id: number) {
     team.captainMemberId = id;
@@ -108,14 +122,27 @@
       </div>
     {/if}
 
-    <TeamLookFields
-      bind:name={team.name}
-      bind:logo={team.logo}
-      {fallback}
-      {brings}
-      required={!draft}
-      autofocus={!draft && !team.name}
-    />
+    {#if registering}
+      <TeamLookFields bind:name={team.name} bind:logo={team.logo} {fallback} required autofocus={!team.name} />
+    {:else}
+      <!-- Its name and logo, as they are: changed on its page -->
+      <div class="field">
+        <span>Team</span>
+        <div class="look">
+          <TeamCrest name={team.name || fallback} logo={team.logo} />
+          <span class="look-text">
+            <span class="look-name" class:quiet={!team.name}>{team.name || fallback}</span>
+            <span class="hint small">
+              {#if page}
+                <a class="link" href={page} onclick={go}>Edit the team</a> on its page: its name and logo.
+              {:else}
+                Its captain names it on its page, once it's saved.
+              {/if}
+            </span>
+          </span>
+        </div>
+      </div>
+    {/if}
 
     {#if !draft}
       <div class="field">
@@ -182,6 +209,30 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--s-4);
+  }
+  .look {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--s-3);
+    align-items: center;
+  }
+  .look-text {
+    display: grid;
+    min-width: 0;
+  }
+  .look-name {
+    overflow: hidden;
+    color: var(--fg);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .look-name.quiet {
+    color: var(--fg-body);
+    font-weight: 400;
+  }
+  .look .link {
+    color: var(--fg);
   }
   .link {
     justify-self: start;

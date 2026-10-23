@@ -23,8 +23,9 @@ have an edit UI for the teams" (the captains) and "This form is a mess" (the awa
    captain and contact, and its players are in its sheet; the row says its name, captain and how many players.
 5. **Where and Afterwards** (fixed): each was a section whose only field had its own name again ("Where / Where",
    "Afterwards / Afterwards"). One section, Venue, with Where and Afterwards.
-6. **Sign-up on a phone** (fixed): six fields one under another. Now in pairs, two to a row everywhere: status and
-   the website, opens and closes, places and fee. Its line was two sentences about the status; now one.
+6. **Sign-up on a phone** (fixed): six fields one under another. Now in pairs, two to a row everywhere: opens and
+   closes, places and fee, then the website (the status has gone, below). Its line was two sentences about the
+   status; now one.
 7. **The fee's lock said why only on hover** (fixed): once anyone's paid, "Already charged: the fee is fixed" shows
    under it, on a phone too.
 8. **Break between periods with one period** (fixed): it's off (disabled) while there's one period; its value is kept.
@@ -32,10 +33,12 @@ have an edit UI for the teams" (the captains) and "This form is a mess" (the awa
    (the explanation moved to the sheet's hint).
 10. **Two warnings for too few teams for the playoffs**, one on Rules & awards, one on Teams. Kept: each is where the
     thing it asks you to change is.
-11. **The tabs don't fit a phone** (not changed): four tabs in italic caps scroll sideways at 390px, so the first is
-    cut ("S" of Details) once you're on a later one.
+11. **The tabs don't fit a phone** (fixed, below): four tabs in italic caps scrolled sideways at 390px, so the first
+    was cut ("S" of Details) once you were on a later one.
 
 ### Questions for the user
+
+Answered the same day; what was done is under **The answers**.
 
 - **Status on the Sign-up tab** (Coming up, Sign-up open, Live, Finished) duplicates the Kumite's own page, where
   Manage moves it on (Close sign-up, Open draft, …, ADR 0065, 0074). Keep it here as an override, or take it out?
@@ -52,10 +55,36 @@ have an edit UI for the teams" (the captains) and "This form is a mess" (the awa
   in the app. Say so in the Awards line, or edit them only on the series?
 - **Phone tabs**: shorten the labels (Details, Rules, Sign-up, Teams), or keep the scroll?
 
+### The answers (2026-10-23)
+
+- **Status**: taken out. A Kumite's stage moves on only from its own page (Manage: Close sign-up, Move to…). The
+  app's save no longer sends a status (`lib/tournament-body.ts`), and the Worker keeps the one it has when a save
+  leaves it out, so an editor opened at Sign-up open and saved after the night doesn't put it back.
+- **Two ways to rename a team**: one. A team's name and logo are edited only on its page (Edit the team). In the
+  editor, a team's sheet shows its captain, and its crest and name as text with **Edit the team**, which closes the
+  editor (asking first if anything's unsaved: Keep editing or Discard) and goes to the team's page; no sheet opens over
+  the editor. A team with no page yet (not saved, or a tournament on its own) says its captain names it once it's
+  saved. The editor adds and removes captains and changes a team's captain. The app sends a saved team without its
+  name or logo and the Worker keeps them, so an editor left open while a captain renames their team no longer puts
+  the old name back.
+  - **Teams enter**: a team new in the editor still has its name and logo fields in its sheet, as it can't be
+    registered without a name (Save opens the sheet of one with none). Once saved, it's like any other: its name and
+    logo on its page, its captain and players in the editor.
+- **Tab order**: Details, Sign-up, Draft & teams (Teams when teams enter), Rules & awards. Deep links
+  (`editTournament(id, { tab: "teams" })`) are by the tab's id, unchanged.
+- **Awards**: each Kumite keeps its own, and the website shows that Kumite's own: the next public one's, else the
+  last public one held's; the series' only before there's been any (`scripts/lib/kumite-sql.mjs`, ADR 0044). The
+  series' awards stay the defaults a new Kumite copies. The Awards line says so.
+- **Phone tabs**: shorter where four in full don't fit: Details, Sign-up, Teams, Rules (the full name is still each
+  tab's label, for a screen reader).
+- **Type locked once there are teams**: not decided yet; unchanged (it's locked once the draft has started).
+
 ### Where each edit happens now
 
-- A team: its row on Draft & teams opens its sheet (captain; name and logo; a team that entered, its players). Remove
-  is in the sheet, asking once if it loses a name, a logo or players. A new captain: Add a captain, as before.
+- A team: its row on Draft & teams opens its sheet (its captain; a team that entered, its players; its name and crest
+  as text, with Edit the team to its page). Remove is in the sheet, asking once if it loses a name, a logo or
+  players. A new captain: Add a captain, as before. A team's name and logo: its page, Edit the team.
+- A Kumite's stage: its page, Manage.
 - An award: its row on Rules & awards opens its sheet (name, line, decided by, tie-break for a vote, what it means).
   Add an award opens the same sheet empty; closed with no name, it goes.
 - Both save with the editor's Save ("No changes" until something changes, then "Unsaved changes").

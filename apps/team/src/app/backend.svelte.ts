@@ -5,6 +5,7 @@
 // it comes back into view (only if something changed, ADR 0053), and after a failed change; a live page reads just
 // the parts the hub says changed (`copy`, catch-up.ts, ADR 0072).
 import type { MemberRow, Role } from "../demo/data";
+import { tournamentBody } from "../lib/tournament-body";
 import {
   applySlices,
   hydrate,
@@ -546,40 +547,6 @@ export const createTournamentType = (t: TournamentType) =>
 export const updateTournamentType = (t: TournamentType) =>
   save(() => api("PUT", `/api/tournament-types/${t.id}`, typeBody(t)));
 
-const tournamentBody = (t: Tournament) => ({
-  typeId: t.typeId,
-  name: t.name,
-  venueId: t.venueId,
-  location: t.location,
-  mapUrl: t.mapUrl,
-  heldOn: t.heldOn,
-  startTime: t.startTime,
-  endTime: t.endTime,
-  capacity: t.capacity,
-  status: t.status,
-  feePence: t.feePence,
-  season: t.season,
-  public: t.public,
-  signupOpensOn: t.signupOpensOn,
-  signupClosesOn: t.signupClosesOn,
-  draftOn: t.draftOn,
-  pointsWin: t.pointsWin,
-  pointsDraw: t.pointsDraw,
-  pointsLoss: t.pointsLoss,
-  gameMinutes: t.gameMinutes,
-  penaltyRule: t.penaltyRule,
-  periods: t.periods,
-  defaultPenaltyMinutes: t.defaultPenaltyMinutes,
-  breakMinutes: t.breakMinutes,
-  kind: t.kind,
-  awards: t.awards,
-  playoffs: t.playoffs,
-  teams: t.teams,
-  afterMode: t.afterMode,
-  afterVenueId: t.afterVenueId,
-  afterTime: t.afterTime,
-  afterNote: t.afterNote,
-});
 /** The captain on the clock (or whoever's running the draft) picks a member, for the turn after `turn` picks. */
 export const draftPick = (tournamentId: number, memberId: number, turn: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/picks`, { memberId, turn }), "Chosen");

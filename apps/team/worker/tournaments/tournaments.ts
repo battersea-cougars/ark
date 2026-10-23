@@ -433,6 +433,8 @@ interface TeamIn {
   id: number | null;
   name: string;
   logo: string | null;
+  /** Sent with its id and no name or logo (the editor, ADR 0030): its look is its page's, so it keeps the one it has. */
+  keepsLook: boolean;
   captainMemberId: number | null;
   captainName: string;
   contact: string;
@@ -485,10 +487,12 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
     const logo = logoOf(t);
     const list = t.players ?? [];
     if (!Array.isArray(list) || list.length > 30) throw new HttpError(400, "Up to 30 players a team.");
+    const id = int(t, "id", { min: 1, nullable: true });
     const team = {
-      id: int(t, "id", { min: 1, nullable: true }),
+      id,
       name: teamNameOf(t),
       logo,
+      keepsLook: id !== null && t.name === undefined && t.logo === undefined,
       captainMemberId: int(t, "captainMemberId", { min: 1, nullable: true }),
       captainName: text(t, "captainName", { optional: true, max: 60 }).trim(),
       contact: text(t, "contact", { optional: true, max: 120 }).trim(),
@@ -501,7 +505,7 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
     };
     if (kind === "draft" && team.captainMemberId === null)
       throw new HttpError(400, "In a draft, every team's captain is a member.");
-    if (kind === "teams" && !team.name) throw new HttpError(400, "Every team needs a name.");
+    if (kind === "teams" && !team.name && !team.keepsLook) throw new HttpError(400, "Every team needs a name.");
     return team;
   });
   // A draft's players come from its picks (draft.ts), never from the editor
@@ -565,8 +569,12 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
     return found;
   });
   // A team sent with neither its id nor a name (an editor that hasn't seen what the server named it, matched by its
-  // captain) keeps the name it has, and its logo unless one's sent: a stale editor never clears them
-  const unseen = teams.map((t, i) => !!rows[i] && t.id === null && !t.name);
+  // captain) keeps the name it has, and its logo unless one's sent: a stale editor never clears them. One sent by its
+  // id with no name or logo keeps both: they're changed on the team's page (Edit the team), never by the editor, so
+  // an editor left open while its captain renames it never puts the old name back
+  const unseen = teams.map((t, i) => !!rows[i] && ((t.id === null && !t.name) || t.keepsLook));
+  if (kind === "teams" && teams.some((t, i) => t.keepsLook && !rows[i]))
+    throw new HttpError(400, "Every team needs a name.");
   // A captain's new team, left unnamed, takes the name and logo of the team they bring (team-name.ts, ADR 0060),
   // unless another team goes by that name, automatic names included: then it has the automatic name and initials
   const captainRows = carriedRows.results as {
@@ -781,11 +789,13 @@ export async function updateTournament(
       after_note: string;
       signup_opens_on: string | null;
       signup_closes_on: string | null;
+      status: string;
     }
   >(
     db,
     `SELECT points_win, points_draw, points_loss, game_minutes, kind, awards, playoffs, penalty_rule, periods, default_penalty_minutes,
-       break_minutes, draft_state, after_mode, after_venue_id, after_time, after_note, signup_opens_on, signup_closes_on
+       break_minutes, draft_state, after_mode, after_venue_id, after_time, after_note, signup_opens_on, signup_closes_on,
+       status
      FROM tournaments WHERE id = ?`,
     [id],
   );
@@ -800,7 +810,10 @@ export async function updateTournament(
     current.after_note,
   ]);
   const stored = { opensOn: current.signup_opens_on, closesOn: current.signup_closes_on };
-  const fields = [...(await tournamentFields(db, o, stored)), ...rules, ...after];
+  // Its status moves on from its own page (Manage: Close sign-up, Move to…, ADR 0074), so the editor leaves it out
+  // and it stays as it is; a save that names one still sets it
+  const status = o.status ?? current.status;
+  const fields = [...(await tournamentFields(db, { ...o, status }, stored)), ...rules, ...after];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
   // A limit raised moves the first waiting up into its room, in the same batch (ADR 0030)

@@ -45,9 +45,10 @@ who won most of them.
   Champions the table, a scorer most goals, a goalie fewest against, a Dim Mak (or anything random, lucky or fun) a
   draw, anything else the judges' call. The Worker writes the guess in when the awards are next saved, and an editor
   shows it, so it's mapped once and old data still works.
-- The website takes the Kumite's awards from the build's club snapshot (`scripts/club-snapshot.mjs`, which also takes
-  the roster, [0043](0043-roster-and-names.md)): the next public Kumite's own awards, else the series'. Names on the
-  home page, names and lines on `/kumite/`. Sanity's _Awards_ list is the fallback until the snapshot has them.
+- The website takes the Kumite's awards from the build's club snapshot (`scripts/club-snapshot.mjs`,
+  `scripts/lib/kumite-sql.mjs`; it also takes the roster, [0043](0043-roster-and-names.md)): a Kumite's own awards,
+  the next public one's, else the last public one held's; the series' only before there's been any. Names on the home
+  page, names and lines on `/kumite/`. Sanity's _Awards_ list is the fallback until the snapshot has them.
 
 ### The champions
 
@@ -120,3 +121,6 @@ who won most of them.
 - 2026-10-23: The champions' award says what it is: the final's winner (else the top of the table), "Last team standing…
   barely."; its reason reads Won the final or Top of the table, not From the results.
 - 2026-10-23: Every Kumite award's line has a punchline, not all the same shape: "Bribes were accepted.", "Most goals. Some on purpose.", "Big glove… bigger excuses."
+- 2026-10-23: Awards per Kumite, and the website follows (the user): each Kumite keeps its own (changed in its
+  editor), and the website shows that Kumite's own, not the series': the next public one's, else the last public one
+  held's (was: the series' whenever none was coming up). The series' awards stay the defaults a new Kumite copies.

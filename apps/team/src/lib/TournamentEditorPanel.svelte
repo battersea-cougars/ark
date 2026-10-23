@@ -12,6 +12,7 @@
   import TournamentQuickCreate, { blankQuick } from "./TournamentQuickCreate.svelte";
   import { typeById, whenOf } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
+  import { navigate } from "../app/router.svelte";
 
   /** From the Calendar's New event: a new one, once scheduled, closes on the calendar, which now shows it. Elsewhere
    * the panel goes on to the new one's editor. */
@@ -30,6 +31,22 @@
   let editor = $state<EditorPanel | undefined>();
   // What's unsaved in the date's editor, and when it was saved (lib/dirty.svelte.ts)
   const edits = new Edits();
+  // Off to another page from the editor (a team's, to edit it there): asked first if anything's unsaved, then the
+  // panel slides away and the page changes. Never a sheet over the editor for it
+  let then: string | null = null;
+  function leaveFor(path: string) {
+    const go = () => {
+      then = path;
+      editor?.close();
+    };
+    if (!edits.guard(go)) go();
+  }
+  function closed() {
+    tournamentPanel.open = null;
+    const to = then;
+    then = null;
+    if (to) navigate(to);
+  }
   async function remove() {
     if (!date) return;
     // Closed first, so the panel never shows it gone; a failure says so in the save note
@@ -54,7 +71,7 @@
       title={date?.name ?? (type ? `The next ${type.shortName}` : "New tournament")}
       icon={type?.icon}
       tone={type?.tone}
-      onclose={() => (tournamentPanel.open = null)}
+      onclose={closed}
       footer={quick ? undefined : footer}
       {edits}
     >
@@ -75,6 +92,7 @@
           startTab={tournamentPanel.tab}
           bind:start={answers}
           {edits}
+          leave={leaveFor}
           oncreated={(id) => (tournamentPanel.open = closeOnCreate ? null : id)}
         />
       {/if}

@@ -183,8 +183,8 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - An existing place typed as text keeps working (name and search link) until it's re-picked as a venue. The website's
   own Fridays venue (Sanity settings) is separate content and isn't linked to this table.
 - Logos in D1 make a tournament's rows heavier; fine at 16 teams, and they can move to storage later.
-- The website's Kumite page lists the series' awards (ADR [0044](0044-champions-and-awards.md)), not a tournament's
-  own.
+- The website's Kumite page lists a Kumite's own awards (the next public one's, else the last held's), not the
+  series' (ADR [0044](0044-champions-and-awards.md)); the series' are the defaults a new Kumite copies.
 
 ## History
 
@@ -252,3 +252,15 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   sheets change the editor's form and are saved with its Save; Done closes, Remove asks once. Which sheet is open is
   one value the editor holds (`sheet`), for a page address to open later. A team that entered with no name opens its
   sheet on Save. The team page's Edit the team still saves on its own, for its captain.
+- 2026-10-23: The editor's open questions answered (docs/kumite-editor-review.md, the user). **A team's name and logo
+  are edited only on its own page** (Edit the team): the editor's team sheet shows its captain and its name and crest
+  as text, with Edit the team, which closes the editor (asking first if anything's unsaved) and goes to the team's
+  page, never a sheet over the editor; the editor only adds, removes and changes captains (and a team that entered,
+  its players). A team that enters, new in the editor, is still named there (it can't be registered without a name).
+  The app sends a saved team without its name or logo (`lib/tournament-body.ts`), and the Worker keeps a team's look
+  when a save leaves it out, so an editor left open while a captain renames their team never puts the old name back.
+  **No Status on Sign-up**: a tournament's stage moves on only from its own page (Manage: Close sign-up, Move to…,
+  ADR 0074); the app's save leaves `status` out and the Worker keeps it (a save that names one still sets it). **Tabs
+  in the order they're set**: Details, Sign-up, Draft & teams (Teams), Rules & awards, shorter on a phone (Details,
+  Sign-up, Teams, Rules) so all four fit at 390px; the full name is the tab's label. **Awards per Kumite, and the
+  website follows**: the website shows a Kumite's own awards, not the series' (ADR 0044).

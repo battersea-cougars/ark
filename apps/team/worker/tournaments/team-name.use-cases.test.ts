@@ -134,12 +134,10 @@ describe("a captain brings their team to the next edition of the series", () => 
     expect((await dana.teamNames(oct))[cara]).toBe("September Side");
   });
 
-  it("an admin renaming a team in the tournament's editor changes what its captain brings next time", async () => {
+  it("an admin renaming a team on its page (Edit the team) changes what its captain brings next time", async () => {
     const { dana, cara, cole } = await cast();
     const id = await dana.schedule([cara, cole], "2026-11-06");
-    const t = await dana.tournament(id);
-    const teams = t.teams.map((x: Json) => ({ ...x, name: x.captainMemberId === cole ? "Cole's Crew" : x.name }));
-    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...t, teams })).status).toBe(200);
+    expect((await rename(dana, id, await dana.teamOf(id, cole), "Cole's Crew")).status).toBe(200);
     expect((await dana.teamNames(await dana.schedule([cara, cole], "2026-12-04")))[cole]).toBe("Cole's Crew");
   });
 

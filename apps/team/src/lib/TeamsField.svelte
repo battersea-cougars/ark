@@ -1,10 +1,10 @@
 <script lang="ts">
   // A tournament's teams in its editor (ADR 0030): a row each, read as text, which opens the team's sheet
-  // (lib/TeamSheet) to change it. A draft's row is its captain: their crest, their name, what their team's called (or
-  // will be: its own name, the team they bring, else "Team Dan"), its place in the pick order once the draft's drawn
-  // it (ADR 0060), and who they've picked. Add a captain finds a member and they're one. A team that entered reads as
-  // its name, captain and players; + Team opens a new one's sheet. Which team is open is `open`, one value its editor
-  // can hold (and a URL drive).
+  // (lib/TeamSheet): its captain, and a team that entered its players; its name and logo are its own page's. A draft's
+  // row is its captain: their crest, their name, what their team's called (or will be: its own name, the team they
+  // bring, else "Team Dan"), its place in the pick order once the draft's drawn it (ADR 0060), and who they've picked.
+  // Add a captain finds a member and they're one. A team that entered reads as its name, captain and players; + Team
+  // opens a new one's sheet. Which team is open is `open`, one value its editor can hold (and a URL drive).
   import Icon from "../app/shell/Icon.svelte";
   import PersonPicker from "./PersonPicker.svelte";
   import TeamCrest from "./TeamCrest.svelte";
@@ -20,18 +20,21 @@
     teams = $bindable(),
     kind,
     drawn,
-    inSeries,
     members,
+    pageOf,
+    ongo,
     open = $bindable(null),
   }: {
     teams: TournamentTeam[];
     kind: TournamentKind;
     /** The draft's opened and drawn the pick order: the rows are in it, numbered. */
     drawn: boolean;
-    /** In a series: a draft's captain brings their team to the next one. */
-    inSeries: boolean;
     /** `brings`: the team a captain brings from the series' last edition they captained (brought-team.ts). */
     members: { id: number; name: string; brings?: BroughtTeam | null }[];
+    /** A saved team's own page, where its name and logo are edited (Edit the team); null: none (yet). */
+    pageOf?: (team: TournamentTeam) => string | null;
+    /** Off to a team's page, from its sheet. */
+    ongo?: (path: string) => void;
     /** The team whose sheet is open, by its place in the list; null: none. */
     open?: number | null;
   } = $props();
@@ -142,7 +145,8 @@
     {kind}
     title={added === i ? "New team" : teams[i].name || fallbackOf(teams[i])}
     fallback={fallbackOf(teams[i])}
-    brings={draft && inSeries}
+    page={pageOf?.(teams[i]) ?? null}
+    {ongo}
     {members}
     {taken}
     onclose={() => (leaving = null)}
