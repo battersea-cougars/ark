@@ -2,6 +2,7 @@
 // Games and Standings pages): a round robin by the circle method, played in the order fairest to everyone's breaks,
 // kick-off times and who keeps score. The table and the champions are shared with the website
 // (packages/shared/results.ts, ADR 0100).
+import { londonTime } from "./dates";
 export { champion, table, type Result, type TableRow } from "@cougars/shared/results";
 
 /** How many teams a tournament's playoffs need: the lowest place they take (3rd v 4th needs 4); 0 for none. */
@@ -351,6 +352,15 @@ export function kickOff(startTime: string, gameMinutes: number, position: number
 }
 
 /**
+ * A match's time on the card, "HH:MM" London: when it actually kicked off once it has (`startedAt`, the first Start of
+ * its clock), else when it's set to (`kickOff`). The tournament's own hours never move for it (ADR 0061).
+ */
+export const matchTime = (
+  t: { startTime: string; gameMinutes: number; periods?: number; breakMinutes?: number },
+  g: { position: number; startedAt?: string | null },
+) => (g.startedAt ? londonTime(g.startedAt) : kickOff(t.startTime, slotMinutes(t), g.position));
+
+/**
  * Who keeps score (ADR 0061): each game goes to a team sitting it out, in the day's order, taking turns evenly: the
  * one that's scored fewest so far, then the one that's waited longest, then the first in the pick order. A game whose
  * teams aren't known yet (a playoff waiting on the table) gets none, nor does any game when there's no third team.
@@ -378,40 +388,19 @@ export function scorekeepers(
   return out;
 }
 
-const minutes = (hhmm: string) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-};
-const hhmm = (mins: number) => {
-  const at = ((mins % (24 * 60)) + 24 * 60) % (24 * 60);
-  return `${String(Math.floor(at / 60)).padStart(2, "0")}:${String(at % 60).padStart(2, "0")}`;
-};
 const earliest = (day: string | null, today: string) => (day && day > today ? today : day);
 
 /**
  * A game started on another day than its tournament's (asked first, on the game's clock): the tournament moves to
- * today, its hours shifted so this game kicks off now and the day as long as before, and its sign-up and draft days
- * no later than the new day (the Worker refuses them after it).
+ * today, its hours kept as an admin set them (each match keeps when it really started, `startedAt`), and its sign-up
+ * and draft days no later than the new day (the Worker refuses them after it).
  */
-export function startingNow<
-  T extends {
-    startTime: string;
-    endTime: string;
-    gameMinutes: number;
-    periods?: number;
-    breakMinutes?: number;
-    signupOpensOn: string | null;
-    signupClosesOn: string | null;
-    draftOn: string | null;
-  },
->(t: T, position: number, today: string, now: string) {
-  const start = minutes(now) - (position - 1) * (slotMinutes(t) + BREAK_MINUTES);
-  const length = minutes(t.endTime) - minutes(t.startTime);
+export function startingToday<
+  T extends { signupOpensOn: string | null; signupClosesOn: string | null; draftOn: string | null },
+>(t: T, today: string) {
   return {
     ...t,
     heldOn: today,
-    startTime: hhmm(start),
-    endTime: hhmm(start + length),
     season: null,
     signupOpensOn: earliest(t.signupOpensOn, today),
     signupClosesOn: earliest(t.signupClosesOn, today),

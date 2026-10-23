@@ -82,7 +82,7 @@ export function stepsBack(db: D1Database, id: number, today: string): Record<Bac
       statement(
         db,
         `UPDATE tournament_games SET home_goals = NULL, away_goals = NULL, status = 'next', clock_left_ms = NULL,
-           clock_started_at = NULL, keeper_member_id = NULL, period = 1, period_ended_at = NULL,
+           clock_started_at = NULL, keeper_member_id = NULL, period = 1, period_ended_at = NULL, started_at = NULL,
            home_team_id = CASE WHEN stage = 'playoff' THEN NULL ELSE home_team_id END,
            away_team_id = CASE WHEN stage = 'playoff' THEN NULL ELSE away_team_id END
          WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next'

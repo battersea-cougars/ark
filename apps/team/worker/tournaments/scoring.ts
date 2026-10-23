@@ -178,9 +178,10 @@ export async function clockGame(
       await landed(
         await run(
           db,
+          // Kick-off: when it actually started, kept from the first Start on (ADR 0121: set once, in its statement)
           `UPDATE tournament_games SET status = 'live', home_goals = 0, away_goals = 0, clock_left_ms = ?,
-             clock_started_at = ? WHERE id = ? AND status = 'next' ${held}`,
-          [t.gameMinutes * 60_000, now.toISOString(), gameId],
+             clock_started_at = ?, started_at = COALESCE(started_at, ?) WHERE id = ? AND status = 'next' ${held}`,
+          [t.gameMinutes * 60_000, now.toISOString(), now.toISOString(), gameId],
         ),
         new HttpError(409, "The clock's already running."),
       );

@@ -6,7 +6,7 @@ import {
   scorekeepers,
   slotMinutes,
   table,
-  startingNow,
+  startingToday,
   teamsForPlayoffs,
 } from "./fixtures";
 
@@ -48,20 +48,6 @@ describe("a game's slot, with periods", () => {
     expect(slotMinutes({ gameMinutes: 12, periods: 3, breakMinutes: 2 })).toBe(40);
     expect(slotMinutes({ gameMinutes: 12, periods: 1, breakMinutes: 2 })).toBe(12);
     expect(kickOff("11:00", slotMinutes({ gameMinutes: 12, periods: 3, breakMinutes: 2 }), 2)).toBe("11:45");
-  });
-
-  it("starting a game now moves the day back by whole slots", () => {
-    const t = {
-      startTime: "11:00",
-      endTime: "16:00",
-      gameMinutes: 10,
-      periods: 3,
-      signupOpensOn: null,
-      signupClosesOn: null,
-      draftOn: null,
-    };
-    // Game 2 now at 12:00: game 1 started a 30-minute slot and a 5-minute break before
-    expect(startingNow(t, 2, "2026-10-09", "12:00")).toMatchObject({ startTime: "11:25" });
   });
 });
 
@@ -157,18 +143,17 @@ describe("starting a game on another day than the tournament's", () => {
     draftOn: "2026-10-23",
   };
 
-  it("moves its day to today and its hours so this game kicks off now, the day as long as before", () => {
-    // Game 3 at 18:40: games 1 and 2 (12 minutes and a 5-minute break each) would have started 34 minutes before
-    expect(startingNow(t, 3, "2026-10-09", "18:40")).toMatchObject({
+  it("moves its day to today and keeps its hours as set", () => {
+    expect(startingToday(t, "2026-10-09")).toMatchObject({
       heldOn: "2026-10-09",
-      startTime: "18:06",
-      endTime: "23:06",
+      startTime: "11:00",
+      endTime: "16:00",
       season: null,
     });
   });
 
   it("brings its sign-up and draft days no later than the new day", () => {
-    expect(startingNow(t, 1, "2026-10-09", "10:00")).toMatchObject({
+    expect(startingToday(t, "2026-10-09")).toMatchObject({
       signupOpensOn: "2026-10-09",
       signupClosesOn: "2026-10-09",
       draftOn: "2026-10-09",

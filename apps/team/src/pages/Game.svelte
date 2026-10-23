@@ -49,7 +49,7 @@
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { breakLeftOf, leftOf, mmss, ticking } from "../lib/game-clock.svelte";
-  import { kickOff, slotMinutes, startingNow } from "../lib/fixtures";
+  import { kickOff, slotMinutes, startingToday } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { inGameTime, periodName } from "../lib/periods";
@@ -234,8 +234,12 @@
     const from = router.from ? routes().find((r) => r.path === router.from) : undefined;
     return from ? { href: from.path, label: from.name } : { href: games, label: `The ${type.shortName}` };
   });
+  // When it's set to kick off on the day: the card's time until it starts (lib/fixtures.ts kickOff)
+  const setFor = $derived(
+    tournament && game ? kickOff(tournament.startTime, slotMinutes(tournament), game.position) : "",
+  );
   // Starting the first game on another day than the tournament's: asked first, as it moves the tournament's day to
-  // today and its hours so this game kicks off now (lib/fixtures.ts startingNow)
+  // today, its hours kept as set (lib/fixtures.ts startingToday); the game keeps when it really started
   const offDay = $derived(!!tournament && !!game && game.status === "next" && tournament.heldOn !== londonToday());
   let askingDay = $state(false);
   const startPause = () => {
@@ -243,17 +247,12 @@
     if (offDay && !running) return void (askingDay = true);
     act(() => clockGame(tournament.id, game.id, running ? "pause" : "start"));
   };
-  /** Yes: the tournament moves to now, then the clock starts. */
+  /** Yes: the tournament moves to today, then the clock starts. */
   const startToday = () =>
     tournament &&
     game &&
     act(async () => {
-      const moved = startingNow(
-        $state.snapshot(tournament),
-        game.position,
-        londonToday(),
-        londonTime(new Date().toISOString()),
-      );
+      const moved = startingToday($state.snapshot(tournament), londonToday());
       askingDay = false;
       if (await updateTournament(moved)) await clockGame(tournament.id, game.id, "start");
     });
@@ -501,10 +500,11 @@
       <span class="time display num">{onBreak ? mmss(breakMs!) : mmss(left)}</span>
       <span class="meter"><span style:transform="scaleX({onBreak ? breakMs! / breakFull : left / full})"></span></span>
       <span class="cue hint">
-        {#if over}Full time
-        {:else if game.status === "next"}Kick-off {clock(
-            kickOff(tournament.startTime, slotMinutes(tournament), game.position),
-          )}
+        {#if over}Full time{#if game.startedAt}
+            · Started {clock(londonTime(game.startedAt))}{#if londonTime(game.startedAt) !== setFor}, set for {clock(
+                setFor,
+              )}{/if}{/if}
+        {:else if game.status === "next"}Kick-off {clock(setFor)}
         {:else if timeUp && level}Level: next goal wins
         {:else if timeUp}{keeper ? "Time's up: call full time" : "Time's up"}
         {:else if onBreak}Break · {periodName(period)} period next
@@ -566,8 +566,7 @@
         <div class="ask-day" role="alert">
           <p>
             The {type.shortName} is on {formatDayDate(londonISO(tournament.heldOn, tournament.startTime))}. Start this
-            game now? Its day moves to today, {formatDayDate(new Date().toISOString())}, and its times so this game
-            starts now.
+            game now? Its day moves to today, {formatDayDate(new Date().toISOString())}; its times stay as they are.
           </p>
           <div class="ask-actions">
             <button class="btn ghost" disabled={busy} onclick={() => (askingDay = false)}>Not yet</button>

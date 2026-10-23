@@ -326,6 +326,8 @@ export interface TournamentGame {
   period?: number;
   /** When the last period ended: the break before this one, until its clock starts (ADR 0061). */
   periodEndedAt?: string | null;
+  /** When it actually kicked off: the first Start of its clock (null: not yet). The card shows it once it's on. */
+  startedAt?: string | null;
   /** Each goal as it went in, in order: its period and the time into it. */
   goals?: {
     id: number;

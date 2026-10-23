@@ -204,11 +204,11 @@ const PARTS = {
   ),
   games: rows(
     `id tournamentId stage round position name homeTeamId awayTeamId homeSeed awaySeed homeGoals awayGoals status
-     clockLeftMs clockStartedAt keeperId period periodEndedAt`,
+     clockLeftMs clockStartedAt keeperId period periodEndedAt startedAt`,
     `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
             away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
             away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
-            keeper_member_id keeperId, period, period_ended_at periodEndedAt
+            keeper_member_id keeperId, period, period_ended_at periodEndedAt, started_at startedAt
      FROM tournament_games ORDER BY tournament_id, position`,
   ),
   goals: rows(

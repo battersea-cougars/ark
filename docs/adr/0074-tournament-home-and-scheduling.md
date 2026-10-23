@@ -246,7 +246,8 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - **A series has usual hours** (`tournament_types.default_start_time`, `default_end_time`, defaulting to
   11:00–16:00), set in its settings (Settings → Tournament Series → When, where and fee) beside its place and fee.
   Each new tournament starts with them and can change them. The seed has the Kumite at Friday training's hours
-  (19:30–21:30).
+  (19:30–21:30). A tournament's hours change only when an admin edits them: the matches starting early or late, or on
+  another day, never move them (each match keeps its own actual start, [0061](0061-fixtures-games-and-scoring.md)).
 - **The draft has a day, not a time** (`draft_on`). It's a reminder for the captains, on their calendar as a day; an
   admin messages them when it opens (ADR [0060](0060-the-draft.md)).
 
@@ -461,3 +462,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The rule's phrases are rubber-stamped words (the poster face in worn ink, each askew), one to a line,
   pressed down about a second apart for the drama: TELL NO ONE., Not your mates., Not your mum., No one., then the
   switch.
+- 2026-10-23: A tournament's hours change only when an admin edits them, never by its matches starting early, late or
+  on another day; the card shows a match's actual start once it's on (0061).

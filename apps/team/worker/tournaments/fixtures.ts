@@ -31,6 +31,8 @@ export interface Game {
   clockStartedAt: string | null;
   /** The period being played (1 unless the tournament has more): the clock counts down each in turn. */
   period: number;
+  /** When it actually kicked off: the first Start of its clock (null: not yet). */
+  startedAt: string | null;
   /** Each goal as it went in, in order. */
   goals: Goal[];
   /** Each penalty as it was called, in order. */
@@ -73,7 +75,7 @@ export async function listGames(db: D1Database, tournamentId?: number): Promise<
       `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
               away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
               away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
-              keeper_member_id keeperId, period
+              keeper_member_id keeperId, period, started_at startedAt
        FROM tournament_games ${where} ORDER BY tournament_id, position`,
       args,
     ),

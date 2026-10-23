@@ -10,7 +10,7 @@
   import { nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { clock } from "./dates";
-  import { kickOff, slotMinutes } from "./fixtures";
+  import { matchTime } from "./fixtures";
   import TeamCrest from "./TeamCrest.svelte";
   import Icon from "../app/shell/Icon.svelte";
 
@@ -46,7 +46,8 @@
       goals,
     };
   };
-  const at = (g: TournamentGame) => clock(kickOff(t.startTime, slotMinutes(t), g.position));
+  // Its kick-off, or once it's on or played, when it actually started (lib/fixtures.ts matchTime)
+  const at = (g: TournamentGame) => clock(matchTime(t, g));
   // Once played, who won (nobody, a draw): the loser fades
   const lost = (g: TournamentGame, home: boolean) =>
     g.status === "done" &&

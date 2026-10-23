@@ -6,7 +6,7 @@
   import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
-  import { kickOff, slotMinutes, table } from "./fixtures";
+  import { matchTime, table } from "./fixtures";
   import TeamCrest from "./TeamCrest.svelte";
   import RollNumber from "./RollNumber.svelte";
   import { teamHref, teamTone } from "./team-tones";
@@ -106,7 +106,7 @@
   {#if live}{#if !feature}<span class="badge red live">{chant}</span>{/if}<span class="clock num"
       >{mmss(leftOf(g))}</span
     >
-  {:else}{clock(kickOff(tournament.startTime, slotMinutes(tournament), g.position))}{/if}
+  {:else}{clock(matchTime(tournament, g))}{/if}
 {/snippet}
 
 <!-- Every row has the same columns, so the teams, the score and the button line up down a list. Big: the time sits

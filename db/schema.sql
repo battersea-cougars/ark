@@ -819,7 +819,10 @@ CREATE TABLE tournament_games (
   -- The period being played (ADR 0061): the clock counts down each one in turn
   period INTEGER NOT NULL DEFAULT 1,
   -- When the last period ended: the break before the next, until its clock starts (ADR 0061)
-  period_ended_at TEXT
+  period_ended_at TEXT,
+  -- When it actually kicked off: the first Start of its clock (ADR 0061), kept through pauses and periods; null until
+  -- then, and again when it's put back to not played. The tournament's own hours never move for it (ADR 0074)
+  started_at TEXT
 );
 
 CREATE INDEX tournament_games_tournament ON tournament_games (tournament_id, position);

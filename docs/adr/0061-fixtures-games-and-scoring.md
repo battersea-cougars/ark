@@ -54,7 +54,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   has its result, the playoffs get their teams from the table (points, goal difference, goals for). A group result
   put right afterwards fills again only the playoffs still to start (status next, no goals): one being played or
   over keeps its teams.
-- `lib/fixtures.ts` (round robin, table, scorekeepers, `startingNow`) is shared by the Worker and the app.
+- `lib/fixtures.ts` (round robin, table, scorekeepers, `startingToday`, `matchTime`) is shared by the Worker and the app.
 
 ### One game on at a time
 
@@ -110,15 +110,23 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   need the screen.
 - **Full time** makes the score the result and fills the playoffs.
 - **Starting the first game on another day asks first** ("The Kumite is on Fri 30 Oct. Start this game now? …"). Yes
-  moves the tournament: its day to today, its hours so this game kicks off now (the day as long as before), its
-  sign-up and draft days no later than the new day (`startingNow`), using the same save an admin makes in settings.
+  moves the tournament's day to today, its hours kept as set, its sign-up and draft days no later than the new day
+  (`startingToday`), using the same save an admin makes in settings.
+- **A tournament's hours are only an admin's to change**, in its editor. However early or late the matches really
+  start, the time it was set for stays (it's what everyone was told); each match keeps its own actual start.
+- **Each match keeps when it actually kicked off** (`tournament_games.started_at`): set by the first Start of its
+  clock, once, in that statement (`COALESCE(started_at, ?)`, [0121](0121-load-and-concurrency.md)), so a pause, a
+  restart or the next period never moves it; cleared when the match is put back to not played (Back from Results,
+  Move to… back). A result typed in has none. Once it's on or played the card shows it in place of the scheduled
+  kick-off (`matchTime`, the same slot, room for the longest time); the match's page says "Full time · Started
+  7:52pm, set for 7:45pm". Upcoming matches keep their scheduled times.
 
 ### Periods and the box score
 
 - **A game is 1 to 3 periods** (`periods`, a series setting beside the rules, as taps, copied onto each tournament
   like the penalty rule; a new series and the Kumite have 1). Game minutes are the minutes in each period. A game's
   slot on the day is its periods times those minutes, the breaks between them, plus the changeover (`slotMinutes`),
-  so kick-off times, starting now and the schedule's words (`gameLength`: "games of 3 × 12-minute periods, 2-minute
+  so kick-off times and the schedule's words (`gameLength`: "games of 3 × 12-minute periods, 2-minute
   breaks") follow it.
 - **A break between periods** (`break_minutes`, a series setting in minutes beside Periods, 0 to 15, copied onto
   each tournament; a new series 2, the Kumite 0 with its one period). When a period ends the game keeps when
@@ -266,3 +274,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   The Let it go button under the clock went (#116).
 - 2026-10-23: A game you're scoring no longer says "Scored by you" as well as showing its red whistle: the eyebrow
   names only someone else.
+- 2026-10-23: A tournament's hours stay as an admin set them: starting the first match on another day moves only its
+  day to today (`startingToday`, was `startingNow`, which shifted its hours so that match kicked off now). Each match
+  keeps when it actually kicked off (`started_at`, the first Start of its clock), and the card shows it once it's on.
