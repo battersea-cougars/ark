@@ -39,6 +39,14 @@
   const hours = $derived(event.dateTbc ? "Date to be confirmed" : timeRange(event.startsAt, event.endsAt));
   const full = $derived(t.capacity != null && t.going.length >= t.capacity);
   const left = $derived(t.capacity != null ? Math.max(0, t.capacity - t.going.length) : null);
+  // The switch after the bait (Tell no one…): places to fill, so tell your mates; none, so tell your mum
+  const tellAfterAll = $derived(
+    left
+      ? `…OK, tell your mates. We need ${left} more.`
+      : left === 0
+        ? "…OK, tell your mum. She can watch."
+        : "…OK, tell your mates.",
+  );
   const tally = $derived(
     full
       ? "The card's full: accept and you're a reserve"
@@ -139,6 +147,7 @@
     <div class="hush">
       <strong class="hush-line">Tell no one.</strong>
       <span class="hush-small">Not your mates. Not your mum. No one.</span>
+      <span class="hush-small switch">{tellAfterAll}</span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
     <div class="answers stub">
@@ -299,6 +308,21 @@
     font-weight: 600;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
+  }
+  /* The switch: a beat after the bait, in the club's red */
+  .switch {
+    color: var(--red-hot);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .pass-face.on .switch {
+      animation: beat 0.4s ease 1.4s both;
+    }
+  }
+  @keyframes beat {
+    from {
+      opacity: 0;
+      transform: translateX(-0.4rem);
+    }
   }
   .reserve .hush-line {
     color: var(--fg-muted);
