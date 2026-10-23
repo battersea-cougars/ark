@@ -456,3 +456,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   (in place of Withdraw), whose confirm asks "Punk out? Tanaka will be disappointed." (Dux's master in the film).
 - 2026-10-23: The pass's rule gets its switch a beat after the bait: "…OK, tell your mates. We need 6 more." (the
   places left), or, full, "…OK, tell your mum. She can watch."
+- 2026-10-23: The pass's rule is revealed a phrase at a time as it shows, each pressed down like an ink stamp (TELL NO
+  ONE., then Not your mates., Not your mum., No one.), the switch last after a beat; with less motion, all at once.

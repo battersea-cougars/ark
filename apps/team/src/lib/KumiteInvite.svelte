@@ -145,9 +145,13 @@
     </p>
     <!-- The middle of the pass: the one rule, as a poster -->
     <div class="hush">
-      <strong class="hush-line">Tell no one.</strong>
-      <span class="hush-small">Not your mates. Not your mum. No one.</span>
-      <span class="hush-small switch">{tellAfterAll}</span>
+      <strong class="hush-line press" style:--at="0.25s">Tell no one.</strong>
+      <span class="hush-small"
+        ><span class="press" style:--at="1s">Not your mates.</span>
+        <span class="press" style:--at="1.45s">Not your mum.</span>
+        <span class="press" style:--at="1.9s">No one.</span></span
+      >
+      <span class="hush-small switch press" style:--at="3s">{tellAfterAll}</span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
     <div class="answers stub">
@@ -296,7 +300,8 @@
     line-height: 0.9;
     letter-spacing: 0.01em;
     text-transform: uppercase;
-    transform: rotate(-2deg);
+    --tilt: -2deg;
+    transform: rotate(var(--tilt));
     transform-origin: left center;
     opacity: 0.92;
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -309,19 +314,33 @@
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
   }
-  /* The switch: a beat after the bait, in the club's red */
+  /* The switch, after the bait: in the club's red */
   .switch {
     color: var(--red-hot);
   }
+  /* Each phrase pressed down in turn as the pass shows, like the ink stamps (lib/InkStamp's land): in from bigger and
+     fainter, a thump, then still; the switch last, after a beat. Every phrase keeps its room, so nothing moves */
+  .press {
+    display: inline-block;
+    justify-self: start;
+    transform-origin: left center;
+  }
   @media (prefers-reduced-motion: no-preference) {
-    .pass-face.on .switch {
-      animation: beat 0.4s ease 1.4s both;
+    .pass-face.on .press {
+      animation: press 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.25) var(--at, 0s) both;
     }
   }
-  @keyframes beat {
-    from {
+  @keyframes press {
+    0% {
       opacity: 0;
-      transform: translateX(-0.4rem);
+      transform: rotate(-6deg) scale(1.9);
+    }
+    60% {
+      opacity: 1;
+      transform: rotate(var(--tilt, 0deg)) scale(0.94);
+    }
+    100% {
+      transform: rotate(var(--tilt, 0deg)) scale(1);
     }
   }
   .reserve .hush-line {
