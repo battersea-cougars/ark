@@ -39,12 +39,12 @@
   const hours = $derived(event.dateTbc ? "Date to be confirmed" : timeRange(event.startsAt, event.endsAt));
   const full = $derived(t.capacity != null && t.going.length >= t.capacity);
   const left = $derived(t.capacity != null ? Math.max(0, t.capacity - t.going.length) : null);
-  // The switch after the bait (Tell no one… No one.): places to fill, unless they can skate; none, your mum can watch
+  // The switch after the bait (Tell no one… No one.): places to fill, unless they can skate; none, except your physio
   const tellAfterAll = $derived(
     left
       ? `Unless they can skate. We need ${left} more.`
       : left === 0
-        ? "Except your mum. She can watch."
+        ? "Except your physio. That knee's dodgy."
         : "Unless they can skate.",
   );
   const tally = $derived(

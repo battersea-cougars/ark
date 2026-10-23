@@ -476,3 +476,4 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   face, quiet grey, fading in after them, no stamp.
 - 2026-10-23: The switch drops its "…OK": "Unless they can skate. We need 6 more.", or, full, "Except your mum. She
   can watch."
+- 2026-10-23: Full, the switch is "Except your physio. That knee's dodgy."
