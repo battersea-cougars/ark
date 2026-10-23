@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import * as Sentry from "@sentry/cloudflare";
 import { rateLimit } from "@cougars/shared/rate-limit";
 import { scribe } from "@cougars/shared/scribe";
+import { withinLimit } from "../../lib/server/body-limit";
 import { browserErrorEvent } from "../../lib/server/client-errors";
 
 const log = scribe.logger("browser");
@@ -19,8 +20,11 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     limit: 10,
     windowSeconds: 10 * 60,
   });
-  const body = (await request.text()).slice(0, 10_000);
+  // Over its limit, or past this visitor's few, it isn't read at all (#73)
   if (!allowed) return done;
+  const sent = await withinLimit(request, 10_000);
+  if (!sent) return done;
+  const body = await sent.text();
   let report: unknown;
   try {
     report = JSON.parse(body);
