@@ -285,21 +285,22 @@
                 roster={false}
                 place={false}
               />
-              {#if manage}
-                <!-- An admin's: a small one, not the step card. Closing it moves the Kumite on to the draft, where the
-                     order's drawn (ADR 0074); Back to Sign-up open, in Manage, opens it again -->
-                <div class="close-signup">
-                  <span class="hint"
-                    >{drafted
-                      ? "Everyone had their say? Close it, then draw the order."
-                      : "Everyone had their say? Close it to new names."}</span
-                  >
-                  <button class="btn sm outline" disabled={closing} onclick={close}
-                    ><Icon name="x" size={14} />Close sign-up</button
-                  >
-                </div>
-              {/if}
             {:else if status === "signup"}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
+            {#if open && manage}
+              <!-- An admin's, under the invitation or the card alike: a small one, not the step card. Closing it moves
+                   the Kumite on to the draft, where the order's drawn (ADR 0074); Back to Sign-up open, in Manage,
+                   opens it again -->
+              <div class="close-signup">
+                <span class="hint"
+                  >{drafted
+                    ? "Everyone had their say? Close it, then draw the order."
+                    : "Everyone had their say? Close it to new names."}</span
+                >
+                <button class="btn sm outline" disabled={closing} onclick={close}
+                  ><Icon name="x" size={14} />Close sign-up</button
+                >
+              </div>
+            {/if}
             <WhosIn {tournament} />
           {:else if pane === "draft"}
             <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking -->

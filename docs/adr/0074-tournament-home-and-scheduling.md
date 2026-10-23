@@ -606,3 +606,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   subset): stamped over the winner's area, it keeps the heartbeat, then breaks in two down a jagged crack and the halves
   fall away (`--break-ms`, in place of the fade, `lib/award-reveal.css`); the champions' bigger and heavier. Less motion,
   a crossfade; a series without the motif keeps the "?"; the grid's cards, face up, never show it.
+- 2026-10-23: Close sign-up is back for whoever runs it on the Kumite's sign-up view, under the invitation (it had
+  gone with the invitation card, 88e4cdd); it stays the view's, not Manage's, like each step's action.

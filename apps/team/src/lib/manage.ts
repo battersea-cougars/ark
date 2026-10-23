@@ -21,7 +21,8 @@
 // after: step back first); Confirm till they're confirmed, then Change. Your team and the pick log are the draft's:
 // once a match is on, the teams are what they are, and the pick log stays on the draft's own page (the track's Draft
 // open). Back a step is one item while there's a step before it (lib/step-back.ts), the draft's own steps for whoever
-// runs the draft too.
+// runs the draft too. Close sign-up isn't Manage's: like each step's action (Shuffle, Open, Seal), it's on the
+// sign-up view itself (pages/Games.svelte), for whoever runs it.
 import type { Tournament, TournamentType } from "../demo/model";
 import type { IconName } from "../app/shell/icons";
 import { draftJobsOf, type DraftJob } from "./draft-jobs";
