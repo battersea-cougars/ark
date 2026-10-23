@@ -36,6 +36,7 @@
   import { switchUpFor } from "../app/settings-entry.svelte";
   import { Edits } from "../lib/dirty.svelte";
   import SaveBar from "../lib/SaveBar.svelte";
+  import { byMonth } from "../lib/months";
 
   const perms = $derived(granted());
 
@@ -69,19 +70,8 @@
   ]);
   const items = $derived(calendar().filter((e) => filter === "all" || e.filter === filter));
 
-  // Group by month for the running order
-  const months = $derived.by(() => {
-    const out: { label: string; events: typeof items }[] = [];
-    for (const e of items) {
-      const label = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "Europe/London" }).format(
-        new Date(e.startsAt),
-      );
-      const last = out.at(-1);
-      if (last?.label === label) last.events.push(e);
-      else out.push({ label, events: [e] });
-    }
-    return out;
-  });
+  // Group by month for the running order, each month in its year (lib/months.ts)
+  const months = $derived(byMonth(items));
 
   // ─── New event: what kind ───
   // Your full role's kinds, so the button shows in your everyday role too and switches you up as you pick one (as
@@ -223,7 +213,7 @@
     {/snippet}
   </PageHeader>
 
-  {#each months as month (month.label)}
+  {#each months as month (month.key)}
     <h2 class="section-title">{month.label}</h2>
     {#each month.events as event (event.key)}
       {@const o = oneOff(event)}
