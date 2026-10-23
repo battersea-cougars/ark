@@ -34,3 +34,36 @@ export function signInEmail(
     }),
   };
 }
+
+/** The code that makes a new address a member's sign-in email (members.email.ts): sent to that address, in the same frame. */
+export function newEmailCodeEmail(
+  code: string,
+  minutes: number,
+): { subject: string; text: string; html: string; secrets: string[] } {
+  const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
+  const { heading, subheading, text } = EMAIL_TYPE;
+  return {
+    secrets: [code, spaced],
+    subject: `Your Cougars email change code: ${code}`,
+    text: [
+      `Your code is ${code}`,
+      "",
+      `Type it in the Cougars app within ${minutes} minutes to sign in with this address from now on.`,
+      "",
+      "Didn't ask for it? Ignore this email: nothing changes without the code.",
+      "",
+      "Battersea Cougars Inline Hockey Club",
+    ].join("\n"),
+    html: emailPage({
+      title: "Your Cougars email change code",
+      preheader: `Your code is ${code}. It works for ${minutes} minutes.`,
+      panel: `    <h1 style="${heading}">Confirm your new email</h1>
+    <div style="margin:0 0 20px;font-family:${EMAIL.mono};font-size:40px;line-height:1.1;font-weight:700;letter-spacing:6px;color:${EMAIL.bone};white-space:nowrap;">${spaced}</div>
+    <p style="${text}">Type it in the Cougars app within ${minutes} minutes to sign in with this address from now on.</p>
+    <h2 style="${subheading}">Didn't ask for it?</h2>
+    <p style="${text}margin-bottom:0;">Ignore this email. Nothing changes without the code.</p>`,
+      footer: "You're getting this because a Cougars member asked to sign in with this address.",
+      links: false,
+    }),
+  };
+}

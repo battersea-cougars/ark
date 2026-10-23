@@ -76,6 +76,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     q("DELETE FROM member_roles WHERE member_id = ?", id),
     q("DELETE FROM auth_sessions WHERE member_id = ?", id),
     q("DELETE FROM login_challenges WHERE member_id = ?", id),
+    q("DELETE FROM email_changes WHERE member_id = ?", id),
     q("DELETE FROM notification_prefs WHERE member_id = ?", id),
     // Places for what's still to come are given up; what's been played stays, about nobody
     q(
