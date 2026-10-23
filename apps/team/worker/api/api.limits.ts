@@ -14,8 +14,10 @@ export interface Limit {
 }
 
 export const LIMITS = {
-  /** Every API request from one address that isn't a signed-in member's: sign-in, error reports, strangers. */
+  /** Every API request from one address with no session: sign-in, error reports, pages that aren't there, strangers. */
   perAddress: { limit: 600, windowSeconds: 60 },
+  /** Session cookies from one address that turn out to be nobody's: refused before another is looked up in D1. */
+  unknownSessions: { limit: 600, windowSeconds: 60 },
   /** Every API request by one signed-in member, wherever they are: a phone on a live page reloads once per change. */
   perMember: { limit: 600, windowSeconds: 60 },
   /** Every API request from one address, signed in or not: a club's worth of phones on one wifi, and no more. */

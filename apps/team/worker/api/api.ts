@@ -5,7 +5,7 @@ import { londonToday } from "../../src/lib/dates";
 import { type Ctx, type Env, type Route } from "./api.route";
 import { ACCESS, SCHEDULE, slices } from "./api.slices";
 import { audit, auditRefused } from "../settings/audit";
-import { localHere, sessionOf } from "../auth/auth";
+import { carriesSession, localHere, sessionOf } from "../auth/auth";
 import { devClock } from "./api.dev-clock";
 import { handleAuth } from "../auth/auth.routes";
 import { CLUB_ROUTES } from "./bootstrap.routes";
@@ -132,17 +132,23 @@ export async function handleApi(
   // Generous limits (ADR 0055); sign-in and changes have tighter ones of their own. Someone not signed in is counted
   // by their address; a member as themselves, as a squad on the rink's wifi shares one address (#113)
   const address = addressOf(request);
-  const asStranger = () => enforce("api", address, LIMITS.perAddress, FROM_HERE);
+  // A request with a session cookie is counted apart from the strangers', so one device using their allowance up
+  // (sign-in, error reports, pages that aren't there) never turns away the signed-in phones on its wifi; a cookie
+  // that's nobody's spends an allowance of its own
+  const withSession = carriesSession(request);
+  const unknown = withSession
+    ? (spend = true) => enforce("api-unknown-session", address, LIMITS.unknownSessions, FROM_HERE, spend)
+    : (spend = true) => enforce("api", address, LIMITS.perAddress, FROM_HERE, spend);
   try {
     // A ceiling over everyone on one address, first
     await enforce("api-address", address, LIMITS.addressCeiling, FROM_HERE);
     // Sign-in, the app's error reports and a route that isn't there have no member to count by. Anything else is
-    // counted once it's known who's asking, but an address already over the strangers' limit gets no further: a
-    // made-up session is never looked up
+    // counted once it's known who's asking, but an address already over its allowance for unknown sessions gets no
+    // further: a made-up session is never looked up
     const errors = url.pathname === "/api/errors";
     const signingIn = url.pathname.startsWith("/api/auth/");
-    if (errors || signingIn || !hit) await asStranger();
-    else await enforce("api", address, LIMITS.perAddress, FROM_HERE, false);
+    if (errors || signingIn || !hit) await enforce("api", address, LIMITS.perAddress, FROM_HERE);
+    else await unknown(false);
     // A body over its route's limit is refused before anything reads it, signed in or not (#73)
     const max = errors ? MAX_ERRORS_BODY : signingIn ? MAX_AUTH_BODY : hit?.r.maxBody;
     request = await withinLimit(request, max);
@@ -173,7 +179,7 @@ export async function handleApi(
   try {
     const who = await whoIs(request, env, signedInAt);
     if (!who) {
-      await asStranger();
+      await unknown();
       return json({ error: "Sign in first." }, 401);
     }
     const { memberId } = who;

@@ -57,6 +57,7 @@ best effort, not a security boundary).
   | Any `/api` request from one address, signed in or not  | 6,000 a minute per address |
   | Any `/api` request by a signed-in member               | 600 a minute per member    |
   | Anything else: sign-in, error reports, strangers, 404s | 600 a minute per address   |
+  | A session cookie that turns out to be nobody's         | 600 a minute per address   |
   | A change (not a GET)                                   | 60 a minute per member     |
   | Asking for a sign-in code                              | 10 per 10 minutes          |
   | The join form                                          | 5 an hour                  |
@@ -65,8 +66,10 @@ best effort, not a security boundary).
   change ([0072](0072-live-updates.md)): 80 phones following a game make 80 requests a goal, a draft's 68 about 400
   a minute. So a signed-in member is counted as themselves, wherever they are (#113), and the address only by a
   ceiling over everyone on it, ten phones' worth of members at their own limit. Everyone else is counted by address
-  as before. An address already over the strangers' 600 is refused before a session is looked up, so a made-up
-  cookie costs no D1 read; one that turns out to be no session counts as a stranger's.
+  as before. A request with a session cookie isn't behind the strangers' 600, so one device using it up (a page
+  that isn't there in a loop, sign-in, error reports) doesn't turn away the members on its wifi. A cookie that turns
+  out to be nobody's spends an allowance of its own, and an address over that is refused before a session is looked
+  up, so a made-up cookie costs no D1 read.
 
 - Over a limit, the answer is a 429 (JSON) with a plain sentence saying to wait.
 
@@ -135,3 +138,6 @@ loudly, so a broken deploy never replaces the live site; live server routes alre
 - 2026-10-23: A signed-in member's API requests are counted per member (600 a minute), not per address, so a squad
   on one wifi following a live game or the draft isn't turned away together; the address keeps a ceiling of 6,000 a
   minute over everyone, and strangers, sign-in and error reports keep 600 an address (#113).
+- 2026-10-23: A request with a session cookie no longer checks the strangers' 600 an address, which one device could
+  use up for every member on its wifi; a cookie that's nobody's spends 600 an address of its own, still refused
+  before it's looked up (#148).

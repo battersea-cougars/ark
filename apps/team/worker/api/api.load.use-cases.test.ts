@@ -138,15 +138,28 @@ describe("rate limits", () => {
     expect(refused.status).toBe(429);
   });
 
-  it("turn away a made-up session as a stranger, before it's looked up", async () => {
+  it("turn away an address sending made-up sessions, before another is looked up", async () => {
     stubCaches();
     const forger = w.browser();
     forger.jar.set("session", "made-up");
-    for (let i = 0; i < LIMITS.perAddress.limit; i++)
+    for (let i = 0; i < LIMITS.unknownSessions.limit; i++)
       expect((await forger.call("GET", "/api/bootstrap")).status).toBe(401);
     const refused = await forger.call("GET", "/api/bootstrap");
     expect(refused.status).toBe(429);
     expect(refused.d1.roundTrips).toBe(0);
+  });
+
+  // One device on the rink's wifi going through the strangers' allowance (a page that isn't there, sign-in, error
+  // reports, in a loop or on purpose) used to turn away every signed-in phone there too: members aren't behind it
+  it("let a squad on one wifi keep following while a stranger there uses up the strangers' allowance", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    stubCaches();
+    const stranger = w.browser();
+    for (let i = 0; i < LIMITS.perAddress.limit; i++) await stranger.call("GET", "/api/nope");
+    expect((await stranger.call("GET", "/api/nope")).status).toBe(429);
+    expect((await stranger.call("GET", "/api/bootstrap")).status).toBe(429);
+    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.call("PUT", "/api/me", PROFILE)).status).toBe(200);
   });
 
   // The rink's wifi is one address (#113): a squad following a live game or the draft reloads once per change each,

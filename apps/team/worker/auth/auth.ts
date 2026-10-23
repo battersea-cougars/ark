@@ -181,6 +181,9 @@ interface SessionRow {
   token_hash: string;
 }
 
+/** Whether a request carries a session cookie at all: one without can be nobody's session, and isn't looked up. */
+export const carriesSession = (request: Request) => Boolean(cookie(request, cookieName(request, "session")));
+
 /**
  * The live session a request's cookie is for: its current token, or the one before a renewal for a few minutes after
  * (ROTATE_GRACE_MS). An inactive member's session isn't one.
