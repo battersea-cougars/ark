@@ -63,3 +63,6 @@ form, those need JavaScript anyway, so a failed check **refuses** (403, nothing 
 - 2026-10-06: Auto-replies only to people Turnstile verified, and capped.
 - 2026-10-21: The team app's sign-in and Ask to join use the same widgets, refusing a failed check; App Review's
   address skips it; a full join list is the same for everyone and unanswered requests go after 30 days (#13).
+- 2026-10-23: The join form's limit (5 a quarter-hour per address) counts only valid enquiries: an invalid form is refused
+  first, and the deploy's smoke test with this deploy's key isn't counted, as its retries used the limit up and failed
+  dev deploys.

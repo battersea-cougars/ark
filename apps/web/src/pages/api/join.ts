@@ -33,22 +33,29 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   const form = await request.formData();
   if (isSpam(form)) return reply(200, { ok: true }, "/join/thanks");
 
-  const { allowed } = await rateLimit(await caches.open("rate-limit"), "join", clientAddress ?? "unknown", {
-    limit: 5,
-    windowSeconds: 15 * 60,
-  });
-  if (!allowed)
-    return reply(429, { ok: false, error: "Too many submissions, please try again later." }, "/join?error=rate");
-
+  // Refused before the limit: an invalid form writes and sends nothing, so it uses up nobody's tries (the deploy's
+  // smoke test posts an empty one)
   const parsed = parseEnquiry(form);
   if (!parsed.ok) return reply(400, { ok: false, errors: parsed.errors }, "/join?error=invalid");
 
   // The deploy's smoke test (lib/server/smoke.ts): the whole path, its emails to the sending account only, then gone.
   // A smoke header with the wrong key (an old deploy's, or this one's before it has spread) is refused, never taken as
-  // an ordinary enquiry: the club must never get a smoke test's email.
+  // an ordinary enquiry: the club must never get a smoke test's email. This deploy's key isn't held to the limit: its
+  // retries while the key spreads would use it up and fail the deploy.
   if (request.headers.has(SMOKE_HEADER) && !isSmoke(request, smokeToken()))
     return Response.json({ ok: false, error: "Not this deploy's smoke key." }, { status: 403 });
-  if (isSmoke(request, smokeToken())) {
+  const smoke = isSmoke(request, smokeToken());
+
+  if (!smoke) {
+    const { allowed } = await rateLimit(await caches.open("rate-limit"), "join", clientAddress ?? "unknown", {
+      limit: 5,
+      windowSeconds: 15 * 60,
+    });
+    if (!allowed)
+      return reply(429, { ok: false, error: "Too many submissions, please try again later." }, "/join?error=rate");
+  }
+
+  if (smoke) {
     const id = await saveEnquiry(env.DB, parsed.enquiry, { verified: true });
     try {
       const sent = await emailAfterEnquiry(parsed.enquiry, id, true, { smoke: true });
