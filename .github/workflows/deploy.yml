@@ -30,7 +30,7 @@ on:
       apps:
         description: Which apps to deploy
         type: choice
-        options: [all, web, team]
+        options: [all, web, team, studio]
         default: all
 
 concurrency:

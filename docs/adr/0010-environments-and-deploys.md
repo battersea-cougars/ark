@@ -30,12 +30,13 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 | Sanity project      | **Cougars** (`ah165efl`), the live Studio           | **Cougars Dev** (`zmg6rbe3`): dev site, PRs, machines, local Studios |
 | Content             | Sanity                                              | Sanity, sample content where it's empty; always `noindex`            |
 
-**Deploys** (`.github/workflows/deploy.yml`, which runs the checks, rebuilds D1 from the schema and smoke-tests):
+**Deploys** (`.github/workflows/deploy.yml`, which builds, rebuilds D1 from the schema when it changed and smoke-tests;
+`pr.yml` runs the checks):
 
 | Trigger                  | Environment | Deploys                                                                     |
 | ------------------------ | ----------- | --------------------------------------------------------------------------- |
 | Pull request into `main` | dev         | a preview version of `web` (`pr-<n>` alias), linked on the PR               |
-| Push to `main`           | dev         | `web`, then the team app as `team`                                          |
+| Push to `main`           | dev         | `web`, the team app as `team`, and the Studio as `studio`                   |
 | Push to `release`        | production  | `web`, the team app as `team`, and the Studio as `studio`                   |
 | Daily, 04:30 UTC         | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
 
