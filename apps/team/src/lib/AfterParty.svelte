@@ -501,7 +501,7 @@
     font-size: var(--text-xs);
     font-weight: 600;
   }
-  /* Face up: a dark board, as the old scoreboards: the award in brass flaps, what for, who took it home in bone
+  /* Face up: a dark board: the award in brass poster capitals, what for, who took it home in bone
      (lib/BoardWords); the hanko in the corner */
   .front {
     z-index: 1;
