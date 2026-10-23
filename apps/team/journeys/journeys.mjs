@@ -45,6 +45,16 @@ const run = (cmd, args, opts = {}) => {
 };
 const app = (...args) => run("node", [join(root, "scripts/app.mjs"), ...args]);
 
+// Nor in the checkout 4500/4510 show: that's the one being reviewed, and its D1 is someone's copy of the club
+const shown = run("node", [join(root, "scripts/app.mjs"), "status"], { mayFail: true }).stdout ?? "";
+if (!ci && shown.split("\n").some((line) => line.startsWith("→") && line.trimEnd().endsWith(` ${root}`))) {
+  console.error(
+    "journeys: not in the checkout 4500/4510 show: they'd stop it and start its D1 afresh, and that copy is being\n" +
+      "reviewed. Run them in another worktree, or show another checkout first.",
+  );
+  process.exit(2);
+}
+
 // 1. A fresh database: the app stopped first (it holds the files), the checkout's own D1 removed and made again
 const t0 = Date.now();
 app("stop", "team");
