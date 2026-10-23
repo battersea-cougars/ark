@@ -105,6 +105,8 @@ async function health(env: Env): Promise<Response> {
   }
 }
 
+const FROM_HERE = "Too many requests from here. Wait a minute.";
+
 /** What sign-in's routes and the app's error reports may send: a form, a Sentry envelope (#73). */
 const MAX_AUTH_BODY = 16 * 1024;
 const MAX_ERRORS_BODY = 256 * 1024;
@@ -125,12 +127,22 @@ export async function handleApi(
     .map((r) => ({ r, m: url.pathname.match(r.path) }))
     .filter((x) => x.m);
   const hit = match.find((x) => x.r.method === request.method);
+  // Generous limits (ADR 0055); sign-in and changes have tighter ones of their own. Someone not signed in is counted
+  // by their address; a member as themselves, as a squad on the rink's wifi shares one address (#113)
+  const address = addressOf(request);
+  const asStranger = () => enforce("api", address, LIMITS.perAddress, FROM_HERE);
   try {
-    // A generous limit per address (ADR 0055); sign-in and changes have tighter ones of their own
-    await enforce("api", addressOf(request), LIMITS.perAddress, "Too many requests from here. Wait a minute.");
-    // A body over its route's limit is refused before anything reads it, signed in or not (#73)
+    // A ceiling over everyone on one address, first
+    await enforce("api-address", address, LIMITS.addressCeiling, FROM_HERE);
+    // Sign-in, the app's error reports and a route that isn't there have no member to count by. Anything else is
+    // counted once it's known who's asking, but an address already over the strangers' limit gets no further: a
+    // made-up session is never looked up
     const errors = url.pathname === "/api/errors";
-    const max = errors ? MAX_ERRORS_BODY : url.pathname.startsWith("/api/auth/") ? MAX_AUTH_BODY : hit?.r.maxBody;
+    const signingIn = url.pathname.startsWith("/api/auth/");
+    if (errors || signingIn || !hit) await asStranger();
+    else await enforce("api", address, LIMITS.perAddress, FROM_HERE, false);
+    // A body over its route's limit is refused before anything reads it, signed in or not (#73)
+    const max = errors ? MAX_ERRORS_BODY : signingIn ? MAX_AUTH_BODY : hit?.r.maxBody;
     request = await withinLimit(request, max);
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
@@ -150,11 +162,18 @@ export async function handleApi(
   if (!hit) return json({ error: match.length ? "Method not allowed." : "Not found." }, match.length ? 405 : 404);
   // Who it was, for the log if it fails: their number only, never their name or email (ADR 0110)
   let member: number | undefined;
+  // A renewed session's cookie goes back on a refusal too, or the member is signed out once the old one's grace ends
+  let renewal: string | undefined;
   try {
     const who = await whoIs(request, env, now);
-    if (!who) return json({ error: "Sign in first." }, 401);
+    if (!who) {
+      await asStranger();
+      return json({ error: "Sign in first." }, 401);
+    }
     const { memberId } = who;
     member = memberId;
+    renewal = who.setCookie;
+    await enforce("member", String(memberId), LIMITS.perMember, "That's a lot of requests at once. Wait a minute.");
     const writes = request.method !== "GET";
     if (writes)
       await enforce(
@@ -257,7 +276,11 @@ export async function handleApi(
     renewed.headers.append("set-cookie", who.setCookie);
     return renewed;
   } catch (e) {
-    if (e instanceof HttpError) return json({ error: e.message }, e.status);
+    if (e instanceof HttpError) {
+      const refused = json({ error: e.message }, e.status);
+      if (renewal) refused.headers.append("set-cookie", renewal);
+      return refused;
+    }
     log.error("request.failed", e, { method: request.method, path: url.pathname, route: hit.r.path.source, member });
     return json({ error: "Something went wrong." }, 500);
   }

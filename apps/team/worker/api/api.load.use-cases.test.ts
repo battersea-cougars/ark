@@ -130,12 +130,44 @@ describe("rate limits", () => {
     expect((await dana.call("PUT", "/api/me", PROFILE)).status).toBe(200);
   });
 
-  it("turn away an address that keeps asking, signed in or not", async () => {
+  it("turn away an address that keeps asking without signing in", async () => {
     stubCaches();
     const stranger = w.browser();
     for (let i = 0; i < LIMITS.perAddress.limit; i++) await stranger.call("GET", "/api/bootstrap");
     const refused = await stranger.call("GET", "/api/bootstrap");
     expect(refused.status).toBe(429);
+  });
+
+  it("turn away a made-up session as a stranger, before it's looked up", async () => {
+    stubCaches();
+    const forger = w.browser();
+    forger.jar.set("session", "made-up");
+    for (let i = 0; i < LIMITS.perAddress.limit; i++)
+      expect((await forger.call("GET", "/api/bootstrap")).status).toBe(401);
+    const refused = await forger.call("GET", "/api/bootstrap");
+    expect(refused.status).toBe(429);
+    expect(refused.d1.roundTrips).toBe(0);
+  });
+
+  // The rink's wifi is one address (#113): a squad following a live game or the draft reloads once per change each,
+  // so together they went over the address's 600 a minute and every phone there was turned away
+  it("let a squad on one wifi keep following, each member counted on their own", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    const tag = (await reg.call("GET", "/api/bootstrap")).headers.get("etag")!;
+    stubCaches();
+    const reload = (b: typeof reg) => b.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": tag } });
+    for (let i = 0; i < LIMITS.perMember.limit; i++) expect((await reload(reg)).status).toBe(304);
+    // Past what one address may ask without signing in, and Dana on the same wifi still gets through
+    expect(LIMITS.perMember.limit).toBeGreaterThanOrEqual(LIMITS.perAddress.limit);
+    expect((await reload(dana)).status).toBe(200);
+    // One member asking more than anyone's phone does is slowed down, and only them
+    const refused = await reload(reg);
+    expect(refused.status).toBe(429);
+    expect(refused.body.error).toMatch(/Wait a minute/);
+    expect((await reload(dana)).status).toBe(200);
+    // Signing in still works there
+    expect((await w.browser().call("POST", "/api/auth/start", { email: "nobody@example.com" })).status).not.toBe(429);
   });
 });
 

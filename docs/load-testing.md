@@ -107,8 +107,8 @@ CPU comes from `npm run load -- cpu`. **D1 rows read and written, and the counts
 Cloudflare would bill**, and are the numbers to plan with.
 
 `--one-address` also counts the run's requests as production's per-address limits would
-([#113](https://github.com/battersea-cougars/ark/issues/113)): the API's 600 a minute (`api.limits.ts`) and the
-domain's 150 in 10 seconds (`scripts/ratelimit-setup.mjs`), in the limiter's fixed windows, and how many would have
+([#113](https://github.com/battersea-cougars/ark/issues/113)): the API's ceiling of 6,000 a minute (`api.limits.ts`;
+a signed-in member is counted as themselves, 600 a minute, not by address) and the domain's 150 in 10 seconds (`scripts/ratelimit-setup.mjs`), in the limiter's fixed windows, and how many would have
 been 429s. A local server can't say for itself: `wrangler dev`'s Cache API holds no count.
 
 `--target local` is the dev path on your machine: the run's own Worker and D1 as above, but with only the club's

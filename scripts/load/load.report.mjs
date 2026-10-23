@@ -70,9 +70,12 @@ export function report(name, stats, usage) {
 
 const share = (n, of) => `${((100 * n) / of).toFixed(1)}%`;
 
-/** The API's limit for one address (apps/team/worker/api/api.limits.ts) and the domain's rule (ratelimit-setup.mjs). */
+/**
+ * The API's ceiling for one address (apps/team/worker/api/api.limits.ts) and the domain's rule (ratelimit-setup.mjs).
+ * The run's members are signed in, so the API counts each of them as themselves (600 a minute, #113), not here.
+ */
 export const ADDRESS_LIMITS = [
-  { name: "the API's 600 a minute an address (api.limits.ts, #113)", limit: 600, seconds: 60 },
+  { name: "the API's 6,000 a minute an address (api.limits.ts, #113)", limit: 6000, seconds: 60 },
   { name: "the domain's 150 in 10 s an address (ratelimit-setup.mjs, #57)", limit: 150, seconds: 10 },
 ];
 

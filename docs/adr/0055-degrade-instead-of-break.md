@@ -1,7 +1,7 @@
 # 0055. Degrade instead of break: circuit breakers, rate limits, the app's own brake and fallback content
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-21
+- **Date:** 2026-10-07 · updated 2026-10-23
 - **Merges:** 0056, 0058
 
 ## Context
@@ -52,14 +52,21 @@ best effort, not a security boundary).
   assets and never reach the Worker.
 - The team app's limits live in `apps/team/worker/api/api.limits.ts`:
 
-  | What                      | Limit                    |
-  | ------------------------- | ------------------------ |
-  | Any `/api` request        | 600 a minute per address |
-  | A change (not a GET)      | 60 a minute per member   |
-  | Asking for a sign-in code | 10 per 10 minutes        |
-  | The join form             | 5 an hour                |
+  | What                                                   | Limit                      |
+  | ------------------------------------------------------ | -------------------------- |
+  | Any `/api` request from one address, signed in or not  | 6,000 a minute per address |
+  | Any `/api` request by a signed-in member               | 600 a minute per member    |
+  | Anything else: sign-in, error reports, strangers, 404s | 600 a minute per address   |
+  | A change (not a GET)                                   | 60 a minute per member     |
+  | Asking for a sign-in code                              | 10 per 10 minutes          |
+  | The join form                                          | 5 an hour                  |
 
-  Per address is generous because a whole squad on the rink's wifi shares one.
+  A whole squad on the rink's or the pub's wifi shares one address, and every phone on a live page reloads once per
+  change ([0072](0072-live-updates.md)): 80 phones following a game make 80 requests a goal, a draft's 68 about 400
+  a minute. So a signed-in member is counted as themselves, wherever they are (#113), and the address only by a
+  ceiling over everyone on it, ten phones' worth of members at their own limit. Everyone else is counted by address
+  as before. An address already over the strangers' 600 is refused before a session is looked up, so a made-up
+  cookie costs no D1 read; one that turns out to be no session counts as a stranger's.
 
 - Over a limit, the answer is a 429 (JSON) with a plain sentence saying to wait.
 
@@ -103,6 +110,11 @@ loudly, so a broken deploy never replaces the live site; live server routes alre
   day, not the club's 100,000.
 - After an outage, the app's background checks come back within five minutes, not instantly.
 - The Cache API only works on a custom domain; on `*.workers.dev` the rate limits and the shared pause do nothing.
+- Counting members as themselves (#113) trades some protection for the rink: one address may now make 6,000
+  requests a minute instead of 600, but only with that many members' real sessions behind them, each held to 600;
+  a stolen session is still one member's 600. Strangers and made-up sessions keep the 600 an address. The domain's
+  rule (150 in 10 seconds an address, `scripts/ratelimit-setup.mjs`, #57) counts by address only, as the free plan
+  allows, so a burst of more than 150 phones' reloads in 10 seconds on one wifi is still blocked there for 10 seconds.
 - Not atomic: a burst can go slightly over a limit. Cloudflare's own rate limiting would be exact, but its free-plan
   terms haven't been checked; this costs nothing.
 - Still to do: Cloudflare's free rate-limiting rule once there's a custom domain (#57). The daily allowance is watched
@@ -120,3 +132,6 @@ loudly, so a broken deploy never replaces the live site; live server routes alre
   builds keep the rest; a server route falls back to the club facts it last read (ADR 0116).
 - 2026-10-21: What one member can spend: three live streams, a refusal on the record once a minute, and request bodies
   capped before they're parsed (#73).
+- 2026-10-23: A signed-in member's API requests are counted per member (600 a minute), not per address, so a squad
+  on one wifi following a live game or the draft isn't turned away together; the address keeps a ceiling of 6,000 a
+  minute over everyone, and strangers, sign-in and error reports keep 600 an address (#113).

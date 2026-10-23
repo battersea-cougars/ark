@@ -30,4 +30,13 @@ describe("rateLimit", () => {
     expect((await rateLimit(cache, "join", "2.2.2.2", opts)).allowed).toBe(true);
     expect((await rateLimit(cache, "join", "1.1.1.1", { ...opts, now: opts.now + 60_000 })).allowed).toBe(true);
   });
+
+  it("can only look, without counting", async () => {
+    const cache = memoryCache();
+    for (let i = 0; i < 5; i++)
+      expect((await rateLimit(cache, "api", "1.1.1.1", { ...opts, spend: false })).allowed).toBe(true);
+    await rateLimit(cache, "api", "1.1.1.1", opts);
+    await rateLimit(cache, "api", "1.1.1.1", opts);
+    expect((await rateLimit(cache, "api", "1.1.1.1", { ...opts, spend: false })).allowed).toBe(false);
+  });
 });
