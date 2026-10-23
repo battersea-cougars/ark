@@ -1249,9 +1249,10 @@
       >
     {/key}
   </div>
-  <!-- The players, in a drawer over the teams: the search and chips stay put, the list scrolls, and the confirm
+  <!-- The players, in a side drawer over the teams (from the right, on a phone too): the search and chips stay put, the list scrolls, and the confirm
        sits at its foot (whoever can pick); confirmed, it shuts and the pick burns into its team -->
   <Drawer
+    side
     bind:open={() => drawerOpen, (v) => !v && follow({ kind: "shut" })}
     title={drawerTitle}
     sub={fol.drawer === "pick" && myTeam >= 0
