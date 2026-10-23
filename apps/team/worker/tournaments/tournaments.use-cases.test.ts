@@ -237,7 +237,7 @@ describe("a tournament, from setting it up to the draft", () => {
     // The 6th: not yet
     const early = await reg.answer(res.body.id, "in");
     expect(early.status).toBe(409);
-    expect(early.body.error).toMatch(/opens on/);
+    expect(early.body.error).toBe("Sign-up opens Saturday.");
     // The 10th: open, and it says so
     expect((await reg.answer(res.body.id, "in", new Date("2026-10-10T09:00:00Z"))).status).toBe(200);
     expect((await dana.sees()).tournaments.find((t: Json) => t.id === res.body.id)).toMatchObject({

@@ -340,7 +340,11 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
     const today = londonToday(new Date(now));
     if (t && !signupOpen(t, today)) {
       if (t.status === "planned" && !signupOver(t, today))
-        throw new HttpError(409, t.signupOpensOn ? `Sign-up opens on ${t.signupOpensOn}.` : "Sign-up isn't open yet.");
+        // In words, as the app says it, London's day (lib/signup.ts opensWords): "Monday", "Monday 19 October" (#170)
+        throw new HttpError(
+          409,
+          t.signupOpensOn ? `Sign-up opens ${opensWords(t.signupOpensOn, today)}.` : "Sign-up isn't open yet.",
+        );
       throw new HttpError(409, "Sign-up has closed.");
     }
   }

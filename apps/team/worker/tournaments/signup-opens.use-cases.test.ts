@@ -151,3 +151,17 @@ describe("a tournament's sign-up opens and members hear it", () => {
     expect(told()).toEqual([]);
   });
 });
+
+describe("before a tournament's sign-up opens", () => {
+  // Refused in the app's words, the day in Europe/London (lib/signup.ts opensWords), not a date code (#170)
+  it("a member saying in is told when it opens, in words: within the week its weekday, further off with its date", async () => {
+    const { id } = await schedule({ typeId: KUMITE });
+    const reg = await w.signedIn("reg@example.com");
+    const tuesday = await reg.call("POST", `/api/tournaments/${id}/answer`, { answer: "in" });
+    expect(tuesday.status).toBe(409);
+    expect(tuesday.body.error).toBe("Sign-up opens Monday.");
+    const weekBefore = new Date("2026-10-02T12:00:00Z");
+    const earlier = await reg.call("POST", `/api/tournaments/${id}/answer`, { answer: "in" }, { now: weekBefore });
+    expect(earlier.body.error).toBe("Sign-up opens Monday 12 October.");
+  });
+});
