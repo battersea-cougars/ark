@@ -84,19 +84,23 @@ jobs:
           BEFORE: ${{ github.event.before }}
           APPS: ${{ inputs.apps || 'all' }}
         run: |
-          shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/'
+          # Every app: the install, shared code, the schema, this workflow and its actions, and the scripts every job
+          # runs (target, smoke test, deployment links; the secrets step's env-pull). Then each app's own: the
+          # website's build reads D1 through the club snapshot; the team app's build checks its budget and its config
+          # imports the dev-server helper. Nothing else in scripts/ (the show switch, setup and load scripts) deploys.
+          shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/|scripts/ci/(target|smoke-test)\.mjs|scripts/ci/link-deployment\.sh|scripts/env-pull\.mjs|scripts/lib/(bitwarden|settings)\.mjs'
           declare -A pattern=(
-            [web]="^(apps/web/|scripts/|$shared)"
-            [team]="^(apps/team/|scripts/ci/|scripts/lib/settings\.mjs|$shared)"
+            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
+            [team]="^(apps/team/|scripts/team-app-budget\.mjs|scripts/lib/dev-server\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
-            [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/seed-roster\.mjs|scripts/lib/roster|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
+            [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/lib/backup\.mjs|scripts/seed-roster\.mjs|scripts/lib/(roster|anonymize)|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
           )
           # A PR is checked out as a merge commit: its first parent is the base. A new branch has no `before`.
           base=
           [ "$EVENT" = pull_request ] && base=$(git rev-parse HEAD^1)
           [ "$EVENT" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null && base=$BEFORE
           if [ -n "$base" ]; then
-            files=$(git diff --name-only "$base" HEAD)
+            files=$(git diff --name-only --no-renames "$base" HEAD) # both sides of a move
             echo "Changed since ${base:0:7}:"; echo "$files"
           fi
           for app in web team studio database; do

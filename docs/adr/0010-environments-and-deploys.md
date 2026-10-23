@@ -1,7 +1,7 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-18
+- **Date:** 2026-10-05 · updated 2026-10-23
 - **Merges:** 0005, 0013, 0017, 0075
 
 ## Context
@@ -40,11 +40,20 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 | Daily, 04:30 UTC         | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
 
 - **One job per app, and only the apps a change touches.** `deploy.yml`'s `changes` job reads the files a push or PR
-  changed: `apps/web/` and `scripts/` deploy the website, `apps/team/` the team app, `apps/studio/` the Studio, and
-  shared code, `db/`, the lockfile and the workflow itself deploy every app. A manual run picks with its `apps` input;
+  changed (both sides of a move): `apps/web/` and the club snapshot's scripts deploy the website, `apps/team/` (and its
+  build's budget and dev-server scripts) the team app, `apps/studio/` the Studio, and shared code, `db/`, the
+  lockfile, the workflow and its actions, and the scripts every job runs (`scripts/ci/`'s target, smoke test and
+  links; `env-pull.mjs`) deploy every app. The rest of `scripts/` (the show switch, setup and load scripts) deploys
+  nothing. A manual run picks with its `apps` input;
   a rebuild deploys the website only. The shared D1 database is its own `database` job (rebuild from the schema, seed
   the roster), run only when `db/` or its scripts change, or on a manual `all`; both apps wait for it then, and
   otherwise deploy side by side.
+- **PR checks run what a change can reach** (`pr.yml`, `scripts/ci/pr-plan.mjs`): the tiers of `npm run merge:check`
+  ([ADR 0115](0115-worktrees-and-the-show-switch.md)). Docs alone get a format check; code gets lint and the tests,
+  then the checks and builds of its apps (a website change the team app's too); anything outside the apps, everything.
+  One job, so its name never changes.
+- **Every job restores its `node_modules`** from a cache keyed on the OS, Node and the lockfile (`.github/actions/setup`),
+  and runs `npm ci` only on a miss, saving the tree straight after: the install was most of every job.
 - **Every app is linked from GitHub's Deployments page**, under its own name: `web (dev)`, `web (PR preview)`,
   `web (production)`, `team (dev)`, `team (production)`, `studio (dev)`, `studio (production)` (`scripts/ci/link-deployment.sh`), and each run's summary
   lists them. Jobs read their GitHub environment's secrets with `deployment: false`, so `preview` and `production`
@@ -145,3 +154,6 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   the list from the roster when it runs again.
 - 2026-10-18: The Studio moves off `battersea-cougars.sanity.studio` to its own Worker, `studio`: studio.batterseacougars.com
   from `release`, and now a dev Studio from `main` too (ADR 0112).
+- 2026-10-23: Deploy only what changed, more narrowly: only the scripts a deploy runs count, not all of `scripts/`;
+  PR checks run the merge:check tier their files reach; `node_modules` cached by lockfile, `npm ci` only on a miss
+  (#148).

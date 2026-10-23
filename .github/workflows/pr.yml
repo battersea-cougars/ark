@@ -12,19 +12,39 @@ concurrency:
   cancel-in-progress: true
 
 # No secrets here: the site builds from fallback content without Sanity.
+# Only what the change can reach (scripts/ci/pr-plan.mjs, the tiers of `npm run merge:check`, ADR 0115): docs alone, a
+# format check of those files; code, lint and the tests, then the checks and builds of the apps it reaches (the
+# website's also the team app's, which imports it; anything outside the apps, every one). One job, so its name stays
+# the same whatever runs.
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      # A PR is checked out as a merge commit: its first parent is the base
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2
       - uses: ./.github/actions/setup
-      - run: npm run lint
+      - id: plan
+        run: node scripts/ci/pr-plan.mjs HEAD^1
+      - name: Format (docs)
+        if: steps.plan.outputs.tier == 'docs'
+        run: git diff --name-only --no-renames --diff-filter=d HEAD^1 HEAD | xargs -r npx prettier --check --ignore-unknown
+      - if: steps.plan.outputs.lint == 'true'
+        run: npm run lint
       # The files past the size prompts (ADR 0125): a report, never a failure
-      - run: npm run sizes
-      - run: npm test
-      - run: npm run check -w @cougars/web
+      - if: steps.plan.outputs.lint == 'true'
+        run: npm run sizes
+      - if: steps.plan.outputs.test == 'true'
+        run: npm test
+      - if: steps.plan.outputs.checkWeb == 'true'
+        run: npm run check -w @cougars/web
       # The team app's pages (svelte-check) and its Worker (tsc)
-      - run: npm run check -w @cougars/team
-      - run: npm run build
-      - run: npm run build -w @cougars/team
-      - run: npm run build -w @cougars/studio
+      - if: steps.plan.outputs.checkTeam == 'true'
+        run: npm run check -w @cougars/team
+      - if: steps.plan.outputs.buildWeb == 'true'
+        run: npm run build
+      - if: steps.plan.outputs.buildTeam == 'true'
+        run: npm run build -w @cougars/team
+      - if: steps.plan.outputs.buildStudio == 'true'
+        run: npm run build -w @cougars/studio

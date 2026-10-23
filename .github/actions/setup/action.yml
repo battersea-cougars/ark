@@ -1,11 +1,33 @@
 name: Setup
-description: Node 24 + cached npm ci
+description: Node from .nvmrc and the installed node_modules, restored from a cache keyed on the lockfile (npm ci on a miss)
 runs:
   using: composite
   steps:
     - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version-file: .nvmrc
-        cache: npm
-    - run: npm ci
+
+    # npm ci was most of every job (45-75 s of a 2-minute deploy). The installed tree itself is cached, per OS and
+    # architecture (native modules: better-sqlite3, sharp, workerd), Node version and lockfile, and saved straight
+    # after the install, before a build writes its caches into it.
+    - id: modules
+      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+        key: node-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+
+    - if: steps.modules.outputs.cache-hit != 'true'
+      run: npm ci
       shell: bash
+
+    - if: steps.modules.outputs.cache-hit != 'true'
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+        key: ${{ steps.modules.outputs.cache-primary-key }}
