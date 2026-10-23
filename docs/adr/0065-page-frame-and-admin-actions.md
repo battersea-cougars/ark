@@ -203,3 +203,5 @@ sat at three heights (pages with an eyebrow pushed theirs down; Home had its own
   changes have been committed."
 - 2026-10-23: A training's Manage has Cancel this night (a confirm sheet saying who hears it) and It's back on for a
   night that's off, the same words as a one-off's; it had been only in the training editor's list of nights.
+- 2026-10-23: A page under its section's front page says its way back once: on a phone the app bar's ‹ (Shell), so the
+  header's eyebrow button shows on a desktop only (the header's badge stays).

@@ -131,9 +131,10 @@
     <!-- On a desktop the eyebrow's line is kept even when there's none, so every title sits at the same height -->
     {#if eyebrow}
       <p class="eyebrow-line">
-        {#if eyebrowHref}<a class="eyebrow-back" href={eyebrowHref}
-            ><Icon name="chevronLeft" size={16} /><span>{eyebrow}</span></a
-          >
+        <!-- The way back: on a phone the app bar's own ‹ says it (Shell), so it isn't said twice -->
+        {#if eyebrowHref}{#if !phone.current}<a class="eyebrow-back" href={eyebrowHref}
+              ><Icon name="chevronLeft" size={16} /><span>{eyebrow}</span></a
+            >{/if}
         {:else}{#if eyebrowIcon}<Icon name={eyebrowIcon} size={14} />{/if}{eyebrow}{/if}
         {#if badge && phone.current}{@render badge()}{/if}
       </p>
