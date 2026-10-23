@@ -23,9 +23,9 @@ export function fighterOf(t: Entries, memberId: number): Fighter {
 /** The number as the pass prints it: two figures ("07"). */
 export const fighterNo = (n: number) => String(n).padStart(2, "0");
 
-/** Said in a line or a badge: "Fighter No. 7", "Reserve No. 3", "Declined". */
+/** Said in a line or a badge: "You're in · No. 7", "Reserve No. 3", "Declined" (never "fighter": the user's call). */
 export function fighterLabel(f: Fighter) {
   if (!f) return "";
   if (f.is === "declined") return "Declined";
-  return `${f.is === "fighter" ? "Fighter" : "Reserve"} No. ${f.no}`;
+  return f.is === "fighter" ? `You're in · No. ${f.no}` : `Reserve No. ${f.no}`;
 }

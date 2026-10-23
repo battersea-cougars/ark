@@ -21,7 +21,7 @@ describe("a fighter's number", () => {
   it("is printed on the pass with two figures, said plainly elsewhere", () => {
     expect(fighterNo(7)).toBe("07");
     expect(fighterNo(23)).toBe("23");
-    expect(fighterLabel({ is: "fighter", no: 7 })).toBe("Fighter No. 7");
+    expect(fighterLabel({ is: "fighter", no: 7 })).toBe("You're in · No. 7");
     expect(fighterLabel({ is: "reserve", no: 3 })).toBe("Reserve No. 3");
     expect(fighterLabel({ is: "declined" })).toBe("Declined");
   });

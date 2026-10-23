@@ -414,3 +414,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   scrolled or hovered, so a phone left on an old match catches up.
 - 2026-10-23: The match being played wears the status's live ink stamp (組手 KUMITE!, the block of red) in place of
   the outlined badge with a dot, and it breathes, its glow swelling and fading, for as long as the match is on.
+- 2026-10-23: No "fighter" in what members read (the user's call): the header's answer is "You're in · No. 7", the
+  pass "Your pass" with "You're in · No. 07", Who's in keeps its own heading, the invitation counts "12 in". Reserves
+  are still Reserve No. 3. The carousel's sliver of the match before is 4.5rem, so Back to now (and opening) shows
+  enough of it to read as a card above the one in front.

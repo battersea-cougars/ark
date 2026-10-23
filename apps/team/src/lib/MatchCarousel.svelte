@@ -29,7 +29,7 @@
 
   const items = () => [...(box?.querySelectorAll<HTMLElement>(":scope > .item") ?? [])];
   /** Where the one in front sits: near the band's top, a sliver of the one before showing over it. */
-  const SLIVER = 40;
+  const SLIVER = 72; // the band's 4.5rem top padding and scroll-padding: enough of the one before to read as a card
   const still = prefersReducedMotion;
   /** Bring a match forward: scroll it to the front place (snap does the rest). */
   function bring(i: number, smooth = !prefersReducedMotion) {
@@ -179,15 +179,15 @@
     height: var(--band);
     margin: 0;
     /* The one in front near the top, a sliver of the one before over it; room under the last to bring it up */
-    padding: 2.5rem var(--s-2) calc(var(--band) - 16rem);
-    scroll-padding-top: 2.5rem;
+    padding: 4.5rem var(--s-2) calc(var(--band) - 16rem);
+    scroll-padding-top: 4.5rem;
     overflow-y: auto;
     overscroll-behavior: contain;
     list-style: none;
     scroll-snap-type: y mandatory;
     scrollbar-width: none;
     /* The sliver of the one before dimmed, not gone; the ones after fading out at the foot, so the list plainly goes on */
-    mask-image: linear-gradient(rgb(0 0 0 / 0.55), #000 2.5rem, #000 86%, transparent);
+    mask-image: linear-gradient(rgb(0 0 0 / 0.7), #000 4.5rem, #000 86%, transparent);
   }
   .band::-webkit-scrollbar {
     display: none;

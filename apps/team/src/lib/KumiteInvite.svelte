@@ -39,8 +39,7 @@
   const tally = $derived(
     full
       ? "The card's full: accept and you're a reserve"
-      : `${t.going.length} ${t.going.length === 1 ? "fighter" : "fighters"} in` +
-          (left !== null ? ` · ${left} ${left === 1 ? "place" : "places"} left` : ""),
+      : `${t.going.length} in` + (left !== null ? ` · ${left} ${left === 1 ? "place" : "places"} left` : ""),
   );
 
   // The seal breaking: a moment's animation, then the pass is just there
@@ -107,10 +106,10 @@
   <div class="face pass-face" class:on={face === "pass"} inert={face !== "pass"}>
     <span class="watermark" lang="ja" aria-hidden="true">{kanjiFor(type, "onTheMat")}</span>
     <div class="pass-top" bind:this={passAt} tabindex="-1">
-      <span class="eyebrow">{fighter?.is === "reserve" ? "Reserve's pass" : "Fighter's pass"}</span>
+      <span class="eyebrow">{fighter?.is === "reserve" ? "Reserve's pass" : "Your pass"}</span>
       <span class="sr-only">{fighterLabel(fighter)}</span>
       <span class="number" aria-hidden="true"
-        ><span class="no-label">{fighter?.is === "reserve" ? "Reserve" : "Fighter"} No.</span><span
+        ><span class="no-label">{fighter?.is === "reserve" ? "Reserve No." : "You're in · No."}</span><span
           class="no display num">{fighter && fighter.is !== "declined" ? fighterNo(fighter.no) : "00"}</span
         ></span
       >

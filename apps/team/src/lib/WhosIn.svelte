@@ -25,7 +25,7 @@
   const fighters = $derived(invitationOnly(typeById(t.typeId)));
   const said = $derived(
     fighters
-      ? { going: "The fighters", waiting: "Reserves", out: "Declined" }
+      ? { going: "Who's in", waiting: "Reserves", out: "Declined" }
       : { going: "Who's in", waiting: "Waiting", out: "Out" },
   );
   const byId = (id: number) => PLAYERS.find((p) => p.id === id);
