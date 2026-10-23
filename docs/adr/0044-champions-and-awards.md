@@ -114,3 +114,6 @@ who won most of them.
   played, another each press, the admin's to change.
 - 2026-10-23: The judges' call is optional: confirming doesn't wait for it, and one not made (or left out) isn't
   revealed. Its names take in the ref too: "Most Calls Missed (the ref)", "Blindest Whistle (the ref)".
+- 2026-10-23: Nobody voted: the admin chooses among everyone eligible, as on a tie, not the tie-break on its own (one
+  eligible, they win it). "Keeper", as the club says it, in every word members read: the seed's Best keeper, One
+  keeper a team, No keeper yet; the position was already Keeper.

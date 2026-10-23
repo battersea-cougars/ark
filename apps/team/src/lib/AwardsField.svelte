@@ -30,7 +30,7 @@
 
 {#each awards as award, i (i)}
   <div class="award">
-    <input class="input" aria-label="Award" placeholder="e.g. Best goalie" maxlength="40" bind:value={award.name} />
+    <input class="input" aria-label="Award" placeholder="e.g. Best keeper" maxlength="40" bind:value={award.name} />
     <input
       class="input"
       aria-label="What it's for"
@@ -73,7 +73,7 @@
     {:else if award.decidedBy?.kind === "vote"}
       <p class="hint how-said">
         {award.decidedBy.voters === "skaters"
-          ? "The skaters who played vote for a goalie"
+          ? "The skaters who played vote for a keeper"
           : "Everyone who played votes"}, from the last match till it's revealed. One each, secret, never for yourself.
       </p>
     {/if}

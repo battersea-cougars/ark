@@ -332,7 +332,7 @@ describe("draft night: taps at once", () => {
   );
 
   it.each(SEEDS)(
-    "an admin puts a goalie on a team just as its captain picks the other: still one goalie a team (seed %i)",
+    "an admin puts a goalie on a team just as its captain picks the other: still one keeper a team (seed %i)",
     async (seed) => {
       const d = await opened(seed);
       const [g1, g2] = d.players.slice(0, 2);

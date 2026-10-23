@@ -130,7 +130,7 @@ describe("the schedule", () => {
       [
         ["The Judges' Call", "live"],
         ["Top scorer", "stat"],
-        ["Best goalie", "vote"],
+        ["Best keeper", "vote"],
         ["Champions", "stat"],
       ],
     );

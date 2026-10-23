@@ -50,7 +50,7 @@
     }
   }
 
-  const POS = { F: "Forward", D: "Defence", G: "Goalie" } as const;
+  const POS = { F: "Forward", D: "Defence", G: "Keeper" } as const;
   const PLAN = { quarterly: "Quarterly", payg: "Pay as you go", keeper: "Keeper" } as const;
 
   // The club's own columns, in its order, with one made-up player to copy

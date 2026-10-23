@@ -1,6 +1,6 @@
 <script lang="ts">
   // Cast your vote (ADR 0044): from the last match played till the awards are confirmed, everyone who played votes
-  // for the voted awards (Best goalie: the skaters, for a goalie), one vote an award, secret, never for yourself. A
+  // for the voted awards (Best keeper: the skaters, for a keeper), one vote an award, secret, never for yourself. A
   // card on the Kumite page (the after-party, and the KUMITE! day once it's done) opens one sheet: each award, its
   // line, and who you can vote for, a row each. Cast, they're in; a vote's yours to see, and only yours. Nothing at
   // all for someone who didn't play, or once the awards are confirmed (then it's Waiting for the reveal).

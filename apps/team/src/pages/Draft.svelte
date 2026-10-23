@@ -201,7 +201,7 @@
     ),
   );
 
-  // Positions: what a team has, counting its captain; one goalie a team (ADR 0060)
+  // Positions: what a team has, counting its captain; one keeper a team (ADR 0060)
   const membersOf = (i: number) =>
     [teams[i].captainMemberId, ...teams[i].players.map((p) => p.memberId)].flatMap((id) =>
       id ? (byId(id) ?? []) : [],
@@ -928,8 +928,8 @@
           {#if yours && open}<span
               class="no-g"
               class:gone={haveGoalie}
-              title="No goalie yet"
-              aria-label={haveGoalie ? undefined : "No goalie yet"}><Icon name="alert" size={14} />G</span
+              title="No keeper yet"
+              aria-label={haveGoalie ? undefined : "No keeper yet"}><Icon name="alert" size={14} />G</span
             >{/if}
           <!-- Every tag this card can show, in one cell: only the one it says is seen, so the card keeps the widest's
                room and nothing moves as the turn comes and goes -->
@@ -1310,7 +1310,7 @@
       <div class="tab-row" in:fade={viewsIn}>
         <div class="tablist" role="tablist" aria-label="Draft" style:--slide={dir}>
           <button role="tab" aria-selected={view === "teams"} onclick={() => show("teams")}
-            >Teams{#if myTeam >= 0 && open && !haveGoalie}<span class="need" title="No goalie yet"
+            >Teams{#if myTeam >= 0 && open && !haveGoalie}<span class="need" title="No keeper yet"
                 ><Icon name="alert" size={13} />G</span
               >{/if}</button
           >
@@ -2194,7 +2194,7 @@
   .badge.tag.on {
     color: var(--red-hot);
   }
-  /* No goalie yet: a small amber warning before the tag */
+  /* No keeper yet: a small amber warning before the tag */
   .no-g {
     display: inline-flex;
     align-items: center;

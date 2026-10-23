@@ -26,7 +26,7 @@ export type MoveStep =
   | "closeSignup"
   | "draw"
   | "open"
-  /** Everyone still to pick chosen at random, one goalie a team, and the draft closed: the teams set. */
+  /** Everyone still to pick chosen at random, one keeper a team, and the draft closed: the teams set. */
   | "setTeams"
   | "makeFixtures"
   /** Marked under way (status live): the first match can start. */
@@ -131,7 +131,7 @@ export function planMove(t: Moving, today: string, to: Status, n: Counts): MoveP
       say(
         "setTeams",
         n.pool
-          ? `${plural(n.pool, "player")} still unchosen put on teams at random (one goalie a team), the draft closed`
+          ? `${plural(n.pool, "player")} still unchosen put on teams at random (one keeper a team), the draft closed`
           : "the draft closed",
       );
   }

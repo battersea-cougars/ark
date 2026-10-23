@@ -1,4 +1,4 @@
-// A captains' draft (ADR 0060, after 0052; reset and reopen: 0064, 0066; one goalie a team: 0067). An admin opens it on
+// A captains' draft (ADR 0060, after 0052; reset and reopen: 0064, 0066; one keeper a team: 0067). An admin opens it on
 // the night, once the captains' pick order is drawn at random (step 1, drawOrder); the captains take turns, in snake order from it,
 // picking from the members who said they're in (captains are in automatically and never picked); an admin closes it
 // once everyone's picked, or leaving the rest out on purpose, and then the teams are locked. Someone running the draft
@@ -268,7 +268,7 @@ const NOT_A_SECOND_GOALIE = `NOT (EXISTS (SELECT 1 FROM members WHERE id = ? AND
       OR m.id IN (SELECT member_id FROM tournament_team_players WHERE team_id = ?))))`;
 
 /**
- * One goalie a team (ADR 0060): a goalie can't join a team that has one, its captain or a player. Refused for a pick,
+ * One keeper a team (ADR 0060): a goalie can't join a team that has one, its captain or a player. Refused for a pick,
  * whoever makes it, and for an admin's team edit. Checked first for the words; the statements keep to it too
  * (NOT_A_SECOND_GOALIE).
  */
@@ -282,7 +282,7 @@ async function oneGoalie(db: D1Database, teamId: number, memberId: number) {
        OR m.id IN (SELECT member_id FROM tournament_team_players WHERE team_id = ?))`,
     [memberId, teamId, teamId],
   );
-  if (has) throw new HttpError(409, "They've got a goalie already.");
+  if (has) throw new HttpError(409, "They've got a keeper already.");
 }
 
 /**
@@ -464,7 +464,7 @@ export async function putOnTeam(db: D1Database, tournamentId: number, teamId: nu
         [teamId, memberId, teamId, ...guard],
       );
   // A goalie picked onto the team just before
-  if (!res.meta.changes) throw new HttpError(409, "They've got a goalie already.");
+  if (!res.meta.changes) throw new HttpError(409, "They've got a keeper already.");
   // On a team means in the tournament
   await run(
     db,

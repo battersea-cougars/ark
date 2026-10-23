@@ -59,7 +59,7 @@ describe("formatAndRules: a tournament's format and rules, from what it stores",
   it("the draft: the rules it enforces, for a draft only", () => {
     expect(formatAndRules(kumite)[1].title).toBe("The draft");
     expect(formatAndRules(kumite)[1].lines).toContainEqual({
-      key: "One goalie a team",
+      key: "One keeper a team",
       rest: ": once a team has one, the rest are off the menu.",
     });
     expect(formatAndRules({ ...kumite, kind: "teams" }).map((s) => s.title)).not.toContain("The draft");

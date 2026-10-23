@@ -118,7 +118,7 @@
           <Icon name="chevronRight" size={20} />
         </span>
         {#if !squad.some((p) => p.position === "G")}
-          <span class="warn"><Icon name="alert" size={14} />No goalie</span>
+          <span class="warn"><Icon name="alert" size={14} />No keeper</span>
         {/if}
         <ol class="squad">
           {#each squad as p (p.key)}

@@ -1,5 +1,5 @@
 // The Kumite's evening, for the awards' use cases (ADR 0044, 0074): two teams, their one match played, everyone at
-// The Anchor. The series' awards as the club seed has them: the judges' call, Top scorer, Best goalie (the skaters
+// The Anchor. The series' awards as the club seed has them: the judges' call, Top scorer, Best keeper (the skaters
 // vote), Champions. For Vitest only.
 import { expect } from "vitest";
 import type { testWorld } from "../testing";
@@ -60,7 +60,8 @@ export async function kumiteNight(w: ReturnType<typeof testWorld>) {
   };
   await play();
   /** Confirming the awards, as the drawer sends them: the stats checked, the judges' call made, any tie settled. */
-  const confirm = (extra: object[] = [], as = dana) =>
+  /** Confirm, as the drawer sends it; `keeper: false` leaves out the admin's keeper (to see a vote come back level). */
+  const confirm = (extra: object[] = [], as = dana, { keeper = true } = {}) =>
     as.call(
       "PUT",
       `/api/tournaments/${id}/winners`,
@@ -69,6 +70,8 @@ export async function kumiteNight(w: ReturnType<typeof testWorld>) {
           { award: "The Judges' Call", memberId: idOf("Sam Skater"), title: "Most Dramatic Fall" },
           { award: "Top scorer", memberId: idOf("Cara Captain") },
           { award: "Champions", teamId: ants },
+          // The admin's keeper, as the drawer sends it: counted only when nobody voted (or it's level)
+          ...(keeper ? [{ award: "Best keeper", memberId: idOf("Gus Goalie") }] : []),
           ...extra,
         ],
       },

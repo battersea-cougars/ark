@@ -77,7 +77,7 @@ export function formatAndRules(
           line("The order's drawn at random", " before it opens, not the order the captains were named in."),
           line("Snake order", ": the captains pick one at a time, and each round the order flips."),
           line("Captains are on their teams already", ": nobody can pick a captain."),
-          line("One goalie a team", ": once a team has one, the rest are off the menu."),
+          line("One keeper a team", ": once a team has one, the rest are off the menu."),
           line("A captain gone quiet", ": whoever runs the draft can pick for them, and undo the last pick."),
           line("Not picked when it closes", ": you stay signed up, and an admin can put you on a team."),
         ]

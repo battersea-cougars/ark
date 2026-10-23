@@ -37,7 +37,7 @@ const kumiteOn = (statuses: ("next" | "live" | "done")[], o: Partial<Tournament>
     awards: [
       { name: "Champions", about: "" },
       { name: "Top scorer", about: "" },
-      { name: "Best goalie", about: "" },
+      { name: "Best keeper", about: "" },
       { name: "The Dim Mak", about: "" },
     ],
     games: statuses.map((s, i) => game(i + 1, s)),
@@ -135,7 +135,7 @@ describe("revealOf: the awards, revealed in the order listed", () => {
   it("two out: the first two face up, the next is the third", () => {
     const r = revealOf(kumiteOn(["done", "done"], { winners, awardsRevealed: 2 }));
     expect(r.awards.map((a) => a.revealed)).toEqual([true, true, false, false]);
-    expect(r.next?.name).toBe("Best goalie");
+    expect(r.next?.name).toBe("Best keeper");
   });
 
   it("every one out: none next", () => {
@@ -197,12 +197,12 @@ describe("isFinale: the champions' card is the big one, by how it's decided, not
     expect(isFinale({ name: "Champions" })).toBe(true);
   });
 
-  it("the Kumite's order builds to it: the joke, Top scorer, Best goalie, then the champions", () => {
+  it("the Kumite's order builds to it: the joke, Top scorer, Best keeper, then the champions", () => {
     const t = kumiteOn(["done", "done"], {
       awards: [
         { name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: [] } },
         { name: "Top scorer", about: "", decidedBy: { kind: "stat", stat: "goals" } },
-        { name: "Best goalie", about: "", decidedBy: { kind: "vote", voters: "skaters" } },
+        { name: "Best keeper", about: "", decidedBy: { kind: "vote", voters: "skaters" } },
         { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
       ],
     });
@@ -219,15 +219,15 @@ describe("ballotOf: your votes, from the last match till the awards are confirme
       ] as Tournament["teams"],
       awards: [
         { name: "Top scorer", about: "", decidedBy: { kind: "stat", stat: "goals" } },
-        { name: "Best goalie", about: "", decidedBy: { kind: "vote", voters: "skaters" } },
+        { name: "Best keeper", about: "", decidedBy: { kind: "vote", voters: "skaters" } },
       ],
       ...o,
     });
   const positionOf = (id: number) => ({ 10: "F", 11: "G", 20: "D", 21: "G" })[id];
 
-  it("a skater: Best goalie, for the goalies who played", () => {
+  it("a skater: Best keeper, for the goalies who played", () => {
     expect(ballotOf(voted({}), 10, { positionOf })).toEqual([
-      { award: expect.objectContaining({ name: "Best goalie" }), candidates: [11, 21], mine: null },
+      { award: expect.objectContaining({ name: "Best keeper" }), candidates: [11, 21], mine: null },
     ]);
   });
 
@@ -239,7 +239,7 @@ describe("ballotOf: your votes, from the last match till the awards are confirme
   });
 
   it("the vote you cast is yours to see", () => {
-    expect(ballotOf(voted({ votes: [{ award: "Best goalie", cast: 3, mine: 21 }] }), 10, { positionOf })[0].mine).toBe(
+    expect(ballotOf(voted({ votes: [{ award: "Best keeper", cast: 3, mine: 21 }] }), 10, { positionOf })[0].mine).toBe(
       21,
     );
   });

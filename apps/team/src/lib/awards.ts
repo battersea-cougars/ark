@@ -3,7 +3,7 @@
 //   A stat we track, from the results: top of the table (the champions, a team); most goals (then most assists);
 //     most assists (then most goals); most points, goals and assists (then most goals); fewest goals against a game
 //     (a goalie, position G, by their team's games); most penalty minutes. Still level: joint winners.
-//   A vote, at the after-party: everyone who played votes for anyone who played, or the skaters vote for a goalie,
+//   A vote, at the after-party: everyone who played votes for anyone who played, or the skaters vote for a keeper,
 //     from the last match till the awards are confirmed. Most votes wins; level, the award's tie-break stat among
 //     the level ones, else the admin chooses among them.
 //   The admin's call, live (the judges' call): as they confirm, they name it ("Most Dramatic Fall") and choose who.
@@ -241,6 +241,8 @@ export function countVotes(
   const n = new Map(candidates.map((id) => [id, 0]));
   for (const id of votes) if (n.has(id)) n.set(id, n.get(id)! + 1);
   const most = Math.max(0, ...n.values());
+  // Nobody voted: it's the admin's to choose among everyone eligible, not the tie-break's
+  if (most === 0) return candidates.length > 1 ? { winners: [], tied: candidates } : { winners: candidates, tied: [] };
   const level = candidates.filter((id) => n.get(id) === most);
   if (level.length <= 1) return { winners: level, tied: [] };
   const broken = how.kind === "vote" && how.tieBreak ? bestAt(how.tieBreak, t, ctx, level) : null;
@@ -254,10 +256,10 @@ export const DECIDED_BY_OPTIONS = [
   { value: "stat:goals", label: "Most goals" },
   { value: "stat:assists", label: "Most assists" },
   { value: "stat:points", label: "Most points (goals + assists)" },
-  { value: "stat:goalsAgainst", label: "Fewest goals against a game (goalies)" },
+  { value: "stat:goalsAgainst", label: "Fewest goals against a game (keepers)" },
   { value: "stat:penaltyMinutes", label: "Most penalty minutes" },
   { value: "vote:players", label: "A vote: everyone who played" },
-  { value: "vote:skaters", label: "A vote: the skaters, for a goalie" },
+  { value: "vote:skaters", label: "A vote: the skaters, for a keeper" },
   { value: "live", label: "The judges' call (the admin's, on the night)" },
   { value: "random", label: "Drawn at random" },
 ] as const;

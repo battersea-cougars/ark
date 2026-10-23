@@ -14,7 +14,7 @@ beforeEach(() => {
   w = testWorld(ROSTER);
 });
 
-const ALL = ["The Judges' Call", "Top scorer", "Best goalie", "Champions"];
+const ALL = ["The Judges' Call", "Top scorer", "Best keeper", "Champions"];
 
 describe("the awards at The Anchor, one card at a time", () => {
   it("revealed in the order listed, the champions last; members see each only once it's out", async () => {
@@ -23,7 +23,7 @@ describe("the awards at The Anchor, one card at a time", () => {
     // Cara and Sam (the skaters) vote Gus the best goalie
     for (const who of ["cara@example.com", "sam@example.com"])
       expect(
-        (await k.vote(await w.signedIn(who), [{ award: "Best goalie", memberId: k.idOf("Gus Goalie") }])).status,
+        (await k.vote(await w.signedIn(who), [{ award: "Best keeper", memberId: k.idOf("Gus Goalie") }])).status,
       ).toBe(200);
     expect((await k.confirm()).status).toBe(200);
     // Confirmed, nothing out: the admin sees every winner, a member none (the card's sealed)
@@ -45,7 +45,7 @@ describe("the awards at The Anchor, one card at a time", () => {
     expect(await k.sees(mo)).toEqual({ revealed: 4, next: false, winners: ALL });
     // The votes made Gus the best goalie
     const t = await k.tournament(mo);
-    expect(t.winners.find((x: { award: string }) => x.award === "Best goalie").memberId).toBe(k.idOf("Gus Goalie"));
+    expect(t.winners.find((x: { award: string }) => x.award === "Best keeper").memberId).toBe(k.idOf("Gus Goalie"));
     // After the last the drum stays on the champions: nothing to roll on to, nothing more to reveal
     expect((await k.roll(4)).status).toBe(409);
     expect((await k.reveal(4)).status).toBe(409);

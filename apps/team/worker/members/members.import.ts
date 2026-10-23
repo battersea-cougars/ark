@@ -206,7 +206,7 @@ export async function checkImport(db: D1Database, file: unknown, caller: Readonl
     const chosen =
       typeof planValue === "boolean" ? (planValue ? "quarterly" : "payg") : PLANS[raw("plan").toLowerCase()];
     if (!chosen) wrong("Subx should be quarterly, payg or keeper");
-    else if (chosen === "keeper" && position && position !== "G") wrong("Keeper is for a goalie: position G");
+    else if (chosen === "keeper" && position && position !== "G") wrong("Keeper is for position G");
     // Keepers play training free, whatever the file says (ADR 0007)
     const plan: Plan = position === "G" ? "keeper" : (chosen ?? "payg");
 

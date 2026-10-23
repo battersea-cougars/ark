@@ -258,7 +258,7 @@ describe("an admin imports the club's own spreadsheet", () => {
     expect(check.body.problems).toEqual([
       { row: 3, name: "Ray Role", why: "No role called Captain" },
       { row: 4, name: "Sue Subx", why: "Subx should be quarterly, payg or keeper" },
-      { row: 5, name: "Ken Keeper", why: "Keeper is for a goalie: position G" },
+      { row: 5, name: "Ken Keeper", why: "Keeper is for position G" },
     ]);
     const r = await dana.call("POST", "/api/members/import", { file: bad, apply: true });
     expect(r.status).toBe(400);

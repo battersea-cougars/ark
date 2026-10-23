@@ -126,7 +126,7 @@ describe("drawn at random", () => {
 describe("a vote and a live call: decided at the reveal, not from the data", () => {
   it("nothing from the data for either", () => {
     expect(
-      awardFromData({ name: "Best goalie", about: "", decidedBy: { kind: "vote", voters: "skaters" } }, t, ctx),
+      awardFromData({ name: "Best keeper", about: "", decidedBy: { kind: "vote", voters: "skaters" } }, t, ctx),
     ).toBeNull();
     expect(
       awardFromData({ name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: [] } }, t, ctx),
@@ -136,7 +136,7 @@ describe("a vote and a live call: decided at the reveal, not from the data", () 
 
 describe("counting a vote", () => {
   const goalie: Award = {
-    name: "Best goalie",
+    name: "Best keeper",
     about: "",
     decidedBy: { kind: "vote", voters: "skaters", tieBreak: "goalsAgainst" },
   };
@@ -160,8 +160,8 @@ describe("counting a vote", () => {
     expect(countVotes(goalie, [12, 22], even, ctx).tied.sort()).toEqual([12, 22]);
   });
 
-  it("no votes at all: everyone eligible is level at nought, so the tie-break, else the admin", () => {
-    expect(countVotes(goalie, [], t, ctx)).toEqual({ winners: [12], tied: [] });
+  it("nobody voted: the admin chooses among everyone eligible (no tie-break deciding it for them)", () => {
+    expect(countVotes(goalie, [], t, ctx)).toEqual({ winners: [], tied: [12, 22] });
     expect(countVotes(mvp, [], t, ctx).tied).toHaveLength(6);
   });
 
@@ -174,7 +174,7 @@ describe("awards saved before they said how: the old guess from the name, once",
   it("Champions the table, a scorer most goals, a goalie fewest against, the Dim Mak a draw, anything else live", () => {
     expect(decidedByOf({ name: "Champions" })).toEqual({ kind: "stat", stat: "table" });
     expect(decidedByOf({ name: "Top scorer" })).toEqual({ kind: "stat", stat: "goals" });
-    expect(decidedByOf({ name: "Best goalie" })).toEqual({ kind: "stat", stat: "goalsAgainst" });
+    expect(decidedByOf({ name: "Best keeper" })).toEqual({ kind: "stat", stat: "goalsAgainst" });
     expect(decidedByOf({ name: "The Dim Mak" })).toEqual({ kind: "random" });
     expect(decidedByOf({ name: "Best hair" })).toEqual({ kind: "live", options: [] });
   });

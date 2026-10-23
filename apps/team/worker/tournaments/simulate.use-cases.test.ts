@@ -175,6 +175,13 @@ describe("simulating the rest of a Kumite, on dev", () => {
       {
         winners: [
           { award: "Champions", teamId: awardFromData(award("Champions"), t, { positionOf })!.winners[0].teamId },
+          // Nobody voted for the keeper: the admin chooses one who played
+          {
+            award: "Best keeper",
+            memberId: t.teams
+              .flatMap((x: { players: { memberId: number }[] }) => x.players.map((p) => p.memberId))
+              .find((m: number) => positionOf(m) === "G"),
+          },
         ],
       },
       EVENING,
