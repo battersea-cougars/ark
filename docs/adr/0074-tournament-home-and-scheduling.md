@@ -458,3 +458,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   places left), or, full, "…OK, tell your mum. She can watch."
 - 2026-10-23: The pass's rule is revealed a phrase at a time as it shows, each pressed down like an ink stamp (TELL NO
   ONE., then Not your mates., Not your mum., No one.), the switch last after a beat; with less motion, all at once.
+- 2026-10-23: The rule's phrases are rubber-stamped words (the poster face in worn ink, each askew), one to a line,
+  pressed down about a second apart for the drama: TELL NO ONE., Not your mates., Not your mum., No one., then the
+  switch.

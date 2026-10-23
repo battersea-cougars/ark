@@ -145,13 +145,13 @@
     </p>
     <!-- The middle of the pass: the one rule, as a poster -->
     <div class="hush">
-      <strong class="hush-line press" style:--at="0.25s">Tell no one.</strong>
+      <strong class="hush-line press" style:--at="0.3s">Tell no one.</strong>
       <span class="hush-small"
-        ><span class="press" style:--at="1s">Not your mates.</span>
-        <span class="press" style:--at="1.45s">Not your mum.</span>
-        <span class="press" style:--at="1.9s">No one.</span></span
+        ><span class="press" style:--at="1.3s" style:--tilt="-3deg">Not your mates.</span>
+        <span class="press" style:--at="2.1s" style:--tilt="2deg">Not your mum.</span>
+        <span class="press" style:--at="2.9s" style:--tilt="-1.5deg">No one.</span></span
       >
-      <span class="hush-small switch press" style:--at="3s">{tellAfterAll}</span>
+      <span class="hush-small switch press" style:--at="4.4s" style:--tilt="-2.5deg">{tellAfterAll}</span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
     <div class="answers stub">
@@ -307,12 +307,23 @@
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
+  /* The smaller phrases, rubber-stamped too: the poster face in worn ink, each pressed a little askew */
   .hush-small {
-    color: var(--fg-subtle);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    letter-spacing: var(--tracking-label);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+    color: var(--fg-muted);
+    font-family: var(--font-display);
+    font-size: clamp(1.05rem, 4vw, 1.3rem);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1.15;
     text-transform: uppercase;
+  }
+  .press {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
   /* The switch, after the bait: in the club's red */
   .switch {
@@ -323,6 +334,7 @@
   .press {
     display: inline-block;
     justify-self: start;
+    transform: rotate(var(--tilt, 0deg));
     transform-origin: left center;
   }
   @media (prefers-reduced-motion: no-preference) {
