@@ -323,7 +323,7 @@
             <Schedule {typeId} deal={dealing} />
           {:else if pane === "day"}
             <!-- The last match played: everyone who played votes for the voted awards (nothing before then) -->
-            <CastYourVote {type} {tournament} />
+            <CastYourVote {type} {tournament} tillCast />
             <!-- The day: your team's turn to keep score (once you hold it, your game's card wears the whistle
                  instead), the match on now and the next, then every match -->
             {#if duty && !holding}

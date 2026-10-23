@@ -3,8 +3,10 @@
   // for the voted awards (Best keeper: the skaters, for a keeper), one vote an award, secret, never for yourself. A
   // card on the Kumite page (the after-party, and the KUMITE! day once it's done) opens one sheet: each award, its
   // line, and who you can vote for, a row each. Cast, they're in; a vote's yours to see, and only yours. Nothing at
-  // all for someone who didn't play, or once the awards are confirmed (then it's Waiting for the reveal).
+  // all for someone who didn't play, or once the awards are confirmed (then it's Waiting for the reveal). Cast, you're
+  // taken on to the awards' own page, to wait for the reveal there (a vote left still has its card there).
   import { castVotes } from "../app/backend.svelte";
+  import { navigate } from "../app/router.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
@@ -15,7 +17,13 @@
   import { ballotOf } from "./afters";
   import { goesByOf } from "./names";
 
-  let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
+  // tillCast: only while there's a vote left to cast (the after-party, the day); the awards' page keeps "Your votes
+  // are in" and the votes to look back at
+  let {
+    type,
+    tournament,
+    tillCast = false,
+  }: { type: TournamentType; tournament: Tournament; tillCast?: boolean } = $props();
 
   const positionOf = (id: number) => PLAYERS.find((p) => p.id === id)?.position;
   const ballot = $derived(ballotOf(tournament, me().id, { positionOf }));
@@ -36,6 +44,7 @@
       if (done) {
         chosen = {};
         open = false;
+        navigate(`/tournaments/${type.slug}/awards`);
       }
     } finally {
       busy = false;
@@ -44,7 +53,7 @@
   const nameOf = (id: number | null) => goesByOf(PLAYERS.find((p) => p.id === id));
 </script>
 
-{#if ballot.length}
+{#if ballot.length && (left.length || !tillCast)}
   <DraftStep {type} mark="awards" title={left.length ? "Cast your vote" : "Your votes are in"}>
     {#if left.length}
       {left.length === 1 ? `${left[0].award.name}: one vote, secret.` : `${left.length} awards, one vote each, secret.`}

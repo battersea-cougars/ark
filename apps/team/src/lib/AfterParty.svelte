@@ -68,7 +68,7 @@
   <!-- The awards: confirmed here, revealed on their own page, the stage -->
   <AwardsEntry {type} tournament={t} {manage} />
   <!-- Before the reveal, everyone who played votes, till the awards are confirmed -->
-  <CastYourVote {type} tournament={t} />
+  <CastYourVote {type} tournament={t} tillCast />
 
   {#if standings.length}
     <!-- The table with the stats we track (played, won, drawn, lost, goal difference, points), the champions first -->
