@@ -138,6 +138,8 @@ INSERT OR IGNORE INTO quips (id, kind, text) VALUES
   (71, 'out', 'Out. Your stick will forgive you.'),
   (72, 'out', 'Tragic. Anyway, more shifts for us.'),
   (73, 'out', 'Shame. Guess I''ll take your spot then.'),
+  -- The club's own excuse for missing training
+  (83, 'out', 'These blankets won''t crochet themselves.'),
   (74, 'empty', 'No slackers allowed. Be the first one in.'),
   (75, 'empty', 'Empty. The slackers are still deciding.'),
   (76, 'empty', 'Not one. Slackers, the lot of them.'),
