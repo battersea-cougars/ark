@@ -116,8 +116,8 @@ describe("forward: the jobs in between, done in one go", () => {
     expect(res.status).toBe(200);
     expect(res.body.done).toEqual([
       "sign-up closed",
-      "the pick order drawn",
-      "8 players still to pick chosen at random (one goalie a team), the draft closed",
+      "the order of choosing drawn",
+      "8 players still unchosen put on teams at random (one goalie a team), the draft closed",
       "the fixtures made, in a fair order",
     ]);
     // Three goalies picked, one a team; the fourth left out
@@ -218,8 +218,8 @@ describe("back: every step in between undone, in one go", () => {
     expect(res.body.done).toEqual([
       "the fixtures cleared",
       "the draft reopened",
-      "7 picks off the teams",
-      "the pick order undrawn",
+      "7 choices off the teams",
+      "the order of choosing undrawn",
       "sign-up open again",
     ]);
     expect(k.left()).toMatchObject({ picks: 0, drawn: 0, games: 0, draft: "none", status: "open", closedAt: null });

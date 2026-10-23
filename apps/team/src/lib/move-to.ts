@@ -112,8 +112,8 @@ export function planMove(t: Moving, today: string, to: Status, n: Counts): MoveP
       if (j <= at("draft") && state === "closed") say("teams", "the draft reopened");
       if (j <= at("signup")) {
         if (state === "open" || state === "closed")
-          say("draft", n.picks ? `${plural(n.picks, "pick")} off the teams` : "the draft no longer open");
-        if (orderDrawn(t.teams)) say("order", "the pick order undrawn");
+          say("draft", n.picks ? `${plural(n.picks, "choice")} off the teams` : "the draft no longer open");
+        if (orderDrawn(t.teams)) say("order", "the order of choosing undrawn");
         if (signupOver(t, today)) say("signup", "sign-up open again");
       }
     }
@@ -125,13 +125,13 @@ export function planMove(t: Moving, today: string, to: Status, n: Counts): MoveP
     return `Not enough players yet: a team's at least ${MIN_TEAM_SIZE}, so the draft needs ${playersNeeded(t.teams.length)} signed up for ${t.teams.length} captains: ${n.pool} so far.`;
   if (i < at("teams")) {
     if (signupOpen(t, today)) say("closeSignup", "sign-up closed");
-    if (state === "none" && !orderDrawn(t.teams)) say("draw", "the pick order drawn");
+    if (state === "none" && !orderDrawn(t.teams)) say("draw", "the order of choosing drawn");
     if (to === "draft") say("open", "the draft opened (the captains hear it)");
     else
       say(
         "setTeams",
         n.pool
-          ? `${plural(n.pool, "player")} still to pick chosen at random (one goalie a team), the draft closed`
+          ? `${plural(n.pool, "player")} still unchosen put on teams at random (one goalie a team), the draft closed`
           : "the draft closed",
       );
   }
