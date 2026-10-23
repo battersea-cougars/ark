@@ -302,9 +302,9 @@ export function testWorld(roster: object[]) {
   }
 
   /**
-   * Gmail on (ADR 0027): the deployed Desktop client and its refresh token (from Bitwarden), the Web client an admin
-   * reconnects with, and the key a reconnected token is sealed with; then Google's token endpoint, its consent page
-   * and Gmail's send. Google knows each refresh token's client and account; `cancel()` cancels them (a password
+   * Gmail on (ADR 0027): the one client, the Web client, with the deployed refresh token it made (from Bitwarden,
+   * scripts/gmail-auth.mjs), the key an admin's reconnected token is sealed with; then Google's token endpoint, its
+   * consent page and Gmail's send. Google knows each refresh token's client and account; `cancel()` cancels them (a password
    * change), with their access tokens. `busy`: Gmail rate-limits every send. Each email Gmail took is in `sent`, with
    * the refresh token it went with. Every world has fresh tokens, so email.ts's cached access token never carries over.
    */
@@ -312,8 +312,6 @@ export function testWorld(roster: object[]) {
     const deployed = `deployed-${randomUUID()}`;
     const web = { id: `web-${randomUUID()}.apps.googleusercontent.com`, secret: `web-secret-${randomUUID()}` };
     Object.assign(env, {
-      GMAIL_CLIENT_ID: "desktop.apps.googleusercontent.com",
-      GMAIL_CLIENT_SECRET: "desktop-secret",
       GMAIL_REFRESH_TOKEN: deployed,
       GMAIL_WEB_CLIENT_ID: web.id,
       GMAIL_WEB_CLIENT_SECRET: web.secret,
@@ -321,7 +319,7 @@ export function testWorld(roster: object[]) {
     });
     const SEND = "https://www.googleapis.com/auth/gmail.send";
     const refreshTokens = new Map<string, { client: string; account: string }>([
-      [deployed, { client: env.GMAIL_CLIENT_ID!, account }],
+      [deployed, { client: web.id, account }],
     ]);
     const accessTokens = new Map<string, string>();
     const codes = new Map<
@@ -388,8 +386,7 @@ export function testWorld(roster: object[]) {
         const p = new URLSearchParams(String(init.body));
         if (p.get("grant_type") === "refresh_token") {
           const known = refreshTokens.get(p.get("refresh_token") ?? "");
-          const secret = p.get("client_id") === web.id ? web.secret : env.GMAIL_CLIENT_SECRET;
-          if (!known || known.client !== p.get("client_id") || p.get("client_secret") !== secret)
+          if (!known || known.client !== p.get("client_id") || p.get("client_secret") !== web.secret)
             return Response.json(
               { error: "invalid_grant", error_description: "Token has been expired or revoked." },
               { status: 400 },

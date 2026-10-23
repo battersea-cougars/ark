@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // Set up the team app in the App Store through Apple's App Store Connect API (docs/adr/0108-store-apps.md): its bundle
-// id with the capabilities it uses (notifications; links to the team app opening the app), and the Apple team's id
-// (APPLE_TEAM_ID, not secret, but one copy: the Worker serves it to phones and store.yml signs with it) stored
-// straight in Secrets Manager. Safe to run again: it changes nothing that's already right.
+// id with the capabilities it uses (notifications; links to the team app opening the app), and it checks the Apple
+// team's id (APPLE_TEAM_ID, not secret: the Worker serves it to phones and store.yml signs with it) against the one
+// committed in scripts/lib/settings.mjs, saying what to put there if it differs. Safe to run again: it changes nothing
+// that's already right.
 //   node scripts/env-pull.mjs -- node scripts/store-setup.mjs
-// Needs APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID and APP_STORE_CONNECT_KEY (docs/secrets.md#app_store_connect_key).
+// Needs APP_STORE_CONNECT_KEY (the secret) and APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID (settings), which
+// env-pull hands it (docs/secrets.md#apple).
 // The app's record (name, description, screenshots) is made in App Store Connect by hand: Apple's API can't.
 // The Play Store's setup joins this when the Android app comes (the ADR lists what it needs).
 import { createPrivateKey, sign } from "node:crypto";
-import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const APP_ID = "com.batterseacougars.team";
 const NAME = "Cougars Fresh Meat";
@@ -66,7 +67,8 @@ for (const capability of CAPABILITIES) {
   console.log(`Turned on ${capability}.`);
 }
 
-// The team's id is the bundle id's prefix (Apple calls it the seed id)
-ensureToken();
-console.log(`${setSecret("APPLE_TEAM_ID", bundle.attributes.seedId)} APPLE_TEAM_ID in cougars-dev.`);
+// The team's id is the bundle id's prefix (Apple calls it the seed id). Not secret, so it's committed, not stored.
+const teamId = bundle.attributes.seedId;
+if (process.env.APPLE_TEAM_ID === teamId) console.log("APPLE_TEAM_ID in scripts/lib/settings.mjs is right.");
+else console.log(`Put APPLE_TEAM_ID: "${teamId}" in scripts/lib/settings.mjs and commit it (not secret).`);
 console.log("Next: make the app's record in App Store Connect (My Apps → +) with this bundle id.");

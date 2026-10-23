@@ -28,7 +28,10 @@ Each entry opens with **what it's for**: what stops working without it. Then:
 - **Expires:** whether it stops working by itself.
 - **Changing it:** what to do to replace it, and what breaks until you have.
 
-**Not a secret** marks a value that's an ID or an address: harmless on its own, kept beside the secret it goes with.
+**Not a secret** marks a value that's an ID or an address: harmless on its own. Such a value is committed, not kept
+in Bitwarden: most in [`scripts/lib/settings.mjs`](../scripts/lib/settings.mjs), which `env-pull.mjs` hands to every
+command and CI job beside the secrets, under the same name ([Plain settings](#plain-settings)). The exception is
+personal data, such as an email address, which stays out of this public repo.
 
 ## Contents
 
@@ -55,7 +58,9 @@ Bitwarden is where every secret lives, and nowhere else. The club has one Bitwar
 EU server (log in at <https://vault.bitwarden.eu>), on the free plan: 3 projects, 3 machine accounts, 2 people.
 People (organisation members) get access to the projects they look after. It has two halves: the **vault**
 (Password Manager, the `bw` command), opened with your master password; and **Secrets Manager** (`bws`), which only
-takes a **machine account's access token**. Secrets Manager has two projects:
+takes a **machine account's access token**. Secrets Manager holds what code reads; the vault holds the tokens for
+your machine and the recovery copy of a key no code reads (the [Apple push key](#apple-push-key-recovery-copy), in
+the organisation's vault, ADR 0002 point 1). Secrets Manager has two projects:
 
 | Project       | Holds                                                                          | Read by                                         |
 | ------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
@@ -76,7 +81,7 @@ Secrets Manager → **Machine accounts → _account_ → Projects**:
 
 **How CI uses its token:** the job passes its environment's token to `bws` as `BWS_ACCESS_TOKEN` and runs
 `scripts/env-pull.mjs --github-env --environment production|dev`, which exports every other secret into the job,
-masked (`.github/actions/secrets`). Used by every CI job (`deploy.yml`, `backup.yml`, `store.yml`). CI only reads: it
+masked, and the [plain settings](#plain-settings) beside them (`.github/actions/secrets`). Used by every CI job (`deploy.yml`, `backup.yml`, `store.yml`). CI only reads: it
 never changes a secret.
 
 ### Production
@@ -170,18 +175,20 @@ deploys.
 - **Expires:** no, unless you set a TTL.
 - **Changing it:** roll it in the dashboard, `npm run secret:set CLOUDFLARE_API_TOKEN__PRODUCTION`, run one deploy.
 
-#### `CLOUDFLARE_ACCOUNT_ID__PRODUCTION`
+#### `CLOUDFLARE_ACCOUNT_ID` (production's)
 
 Cloudflare's API addresses everything by account, so every call needs the account's ID beside the token. **Not a
-secret: an ID**, on the account's home page and in every dashboard URL; useless without a token. Kept in Bitwarden for
-now.
+secret: an ID**, on the account's home page and in every dashboard URL; useless without a token. It lives in
+`scripts/lib/settings.mjs` (`CLOUDFLARE_ACCOUNT_ID.production`), not in Bitwarden.
 
 - **Comes from:** Cloudflare: the Cougars account's ID (dashboard → Account home → ⋮ → Copy account ID). Not
   something we make; it identifies the account.
-- **Used by:** everything that uses the API token above, and the team app's Usage page (with the analytics token;
-  `target.mjs` puts it on the team Worker as a var).
-- **Gets there by:** CI pull, like the token.
+- **Used by:** everything that uses the API token above (wrangler reads it too), and the team app's Usage page (with
+  the analytics token).
+- **Gets there by:** `env-pull.mjs` hands it over beside the secrets, in CI and on your machine; `target.mjs` puts it
+  on the team Worker as a var.
 - **Expires:** never.
+- **Changing it:** only for a new account: edit `scripts/lib/settings.mjs`, commit.
 
 #### `CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`
 
@@ -242,15 +249,15 @@ your machine.
 - **Expires:** no, unless you set a TTL.
 - **Changing it:** roll it in the dashboard, `npm run secret:set CLOUDFLARE_API_TOKEN__DEV`, run one deploy.
 
-#### `CLOUDFLARE_ACCOUNT_ID__DEV`
+#### `CLOUDFLARE_ACCOUNT_ID` (dev's)
 
-The Cougars Dev account's ID, for the same reasons as production's. **Not a secret: an ID.** Kept in Bitwarden for
-now.
+The Cougars Dev account's ID, for the same reasons as production's. **Not a secret: an ID.** It lives in
+`scripts/lib/settings.mjs` (`CLOUDFLARE_ACCOUNT_ID.dev`), not in Bitwarden.
 
 - **Comes from:** Cloudflare: the Cougars Dev account's ID (dashboard → Account home → ⋮ → Copy account ID). Not
   something we make.
 - **Used by:** everything that uses the dev token, and dev's Usage page.
-- **Gets there by:** CI pull; on your machine, through `env-pull.mjs`.
+- **Gets there by:** `env-pull.mjs`, as production's.
 - **Expires:** never.
 
 #### `CLOUDFLARE_ANALYTICS_TOKEN__DEV`
@@ -350,20 +357,6 @@ The same for dev, previews and your machine, so a leaked dev key can be revoked 
 The [Gmail](#gmail) values are one copy for both environments: production sends from the developer account too, so
 resetting the club account's password breaks nothing (ADR 0027).
 
-#### `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`
-
-The **Desktop client**, which `scripts/gmail-auth.mjs` signs in with to make the first token, `GMAIL_REFRESH_TOKEN`;
-the Workers refresh that token with it. The ID is **not a secret** (Google's consent page shows it in its URL); the
-secret is.
-
-- **Comes from:** Google: the project `battersea-cougars` → Google Auth Platform → Clients → the Desktop client
-  `cougars-website`.
-- **Used by:** both Workers, to send with the deployed token; `scripts/gmail-auth.mjs`.
-- **Gets there by:** CI pull, then `deploy.yml` puts them on both Workers as secrets on every deploy.
-- **Expires:** no.
-- **Changing it:** **Clients → the client → Add secret**, update Bitwarden, deploy, delete the old secret (a client
-  holds two at once, so there's no gap).
-
 #### `GMAIL_REFRESH_TOKEN`
 
 The deployed token: it lets both apps send email as the developer account. It can send mail as that account and
@@ -371,7 +364,7 @@ nothing else: it can't read the mailbox. Used only while no admin has [reconnect
 
 - **Comes from:** Google: issued to the developer Gmail account when it consents in `scripts/gmail-auth.mjs`; it
   shows in that account's [third-party access](https://myaccount.google.com/connections), where you revoke it. It
-  works only with the client that made it (the Desktop client).
+  works only with the client that made it: the Web client.
 - **Used by:** the website's enquiry form (Worker) and the team app's sign-in codes and notices.
 - **Gets there by:** CI pull (both environments read the same token), then `deploy.yml` puts it on both Workers as a
   secret on every deploy. On your machine, `node scripts/env-pull.mjs -- npm run dev`. The team app's dev server never
@@ -383,12 +376,15 @@ nothing else: it can't read the mailbox. Used only while no admin has [reconnect
 
 #### `GMAIL_WEB_CLIENT_ID`, `GMAIL_WEB_CLIENT_SECRET`
 
-The **Web client**, which makes a token when an admin presses **Reconnect email** in the team app. The ID is **not a
-secret**; the secret is. Without them, Settings → Email says reconnecting isn't ready.
+The **Web client**, the one Google client: `scripts/gmail-auth.mjs` signs in with it to make the deployed token, and
+the team app with it when an admin presses **Reconnect email**. The Workers refresh either token with it. Without it,
+no email is sent at all (they're logged). The ID is **not a secret** (Google's consent page shows it in its URL), but
+it's kept beside its secret, which is.
 
 - **Comes from:** Google: the project `battersea-cougars` → Google Auth Platform → Clients → the Web client
   `GMAIL_WEB_CLIENT_ID`.
-- **Used by:** the team Worker (Reconnect email, `worker/mail`) and both Workers, to send with the reconnected token.
+- **Used by:** both Workers, to send with either token; the team Worker (Reconnect email, `worker/mail`);
+  `scripts/gmail-auth.mjs`.
 - **Gets there by:** CI pull, then `deploy.yml` puts them on both Workers. On your machine the team app's dev server
   gets them through `env-pull.mjs`, in memory.
 - **Expires:** no.
@@ -428,15 +424,16 @@ developer account. Without a token, emails are logged, not sent ([ADR 0027](adr/
 Outside production every email goes to one safe inbox, and dev can only ever send from its own test account, never
 the club's.
 
-There are two Google "clients" (apps that may ask for a token) and two places a token can be:
+There's one Google "client" (an app that may ask for a token), the **Web client** (`GMAIL_WEB_CLIENT_ID`,
+`GMAIL_WEB_CLIENT_SECRET`), and two places a token it made can be:
 
-- The **Desktop client** (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`) made the first token, `GMAIL_REFRESH_TOKEN`,
-  with `scripts/gmail-auth.mjs`. That token is in Bitwarden.
-- The **Web client** (`GMAIL_WEB_CLIENT_ID`, `GMAIL_WEB_CLIENT_SECRET`) makes a token when an admin presses
-  **Reconnect email** in the team app. That token is kept in D1, sealed with
-  [`GMAIL_TOKEN_KEY`](#gmail_token_key) (ADR 0002 point 8, `packages/shared/gmail-token.ts`).
+- The **deployed token**, `GMAIL_REFRESH_TOKEN`, made with `scripts/gmail-auth.mjs` (the first one, and the way back
+  in from a terminal). It's in Bitwarden.
+- The **reconnected token**, made when an admin presses **Reconnect email** in the team app. It's kept in D1, sealed
+  with [`GMAIL_TOKEN_KEY`](#gmail_token_key) (ADR 0002 point 8, `packages/shared/gmail-token.ts`).
 
-A token only works with the client that made it, so each keeps its own. The reconnected one wins once it exists.
+The reconnected one wins once it exists. A token only works with the client that made it, so a new client means
+making the deployed token again.
 
 **When Google cancels the token**, an admin fixes it in the team app: **Settings → Email → Reconnect email**. Google's
 consent page opens; they sign in as the developer account and tick _Send email on your behalf_. It works at once in
@@ -455,18 +452,15 @@ instead: re-run `gmail-auth.mjs`, then deploy both environments (it's only used 
    is). Save.
 5. **Audience → Publish app**, to **In production**. In _Testing_, Google cancels tokens after 7 days. It stays
    unverified (Google warns on the consent screen, which is fine: only the developer account ever signs in).
-6. **Clients → Create client → Desktop app**, named `cougars-website`. Save both values:
-   `npm run secret:set GMAIL_CLIENT_ID`, then `GMAIL_CLIENT_SECRET`. It's only for `gmail-auth.mjs`, the first
-   token.
-7. **Clients → Create client → Web application**, named `GMAIL_WEB_CLIENT_ID`, for reconnecting from the team app.
-   **Authorised redirect URIs:** `https://team.batterseacougars.com/api/mail/callback` and
-   `https://team.cougars-dev.workers.dev/api/mail/callback` (no JavaScript origins needed). Create, then
-   `npm run secret:set GMAIL_WEB_CLIENT_ID`, then `GMAIL_WEB_CLIENT_SECRET`.
-8. **The first token:** `node scripts/gmail-auth.mjs`, signed in as the developer account. It opens Google's consent
+6. **Clients → Create client → Web application**, named `GMAIL_WEB_CLIENT_ID`. **Authorised redirect URIs:**
+   `https://team.batterseacougars.com/api/mail/callback` and `https://team.cougars-dev.workers.dev/api/mail/callback`
+   (reconnecting from the team app), and `http://localhost:4590/` (`gmail-auth.mjs`). No JavaScript origins needed.
+   Create, then `npm run secret:set GMAIL_WEB_CLIENT_ID`, then `GMAIL_WEB_CLIENT_SECRET`.
+7. **The first token:** `node scripts/gmail-auth.mjs`, signed in as the developer account. It opens Google's consent
    page, catches the answer on `http://localhost:4590` and saves `GMAIL_REFRESH_TOKEN` straight to Bitwarden;
    nothing is printed. It refuses the club's account. This is also the way back in from a terminal if no admin can
    sign in.
-9. **The club's address as the sender:** in the developer account's Gmail, **Settings → Accounts and Import → Send
+8. **The club's address as the sender:** in the developer account's Gmail, **Settings → Accounts and Import → Send
    mail as → Add another email address**: name _Battersea Cougars_, address the club's Gmail address, **Treat as an
    alias** ticked. Gmail emails the club account a confirmation link; open it there. Production then sends as the
    club's address, and replies land in the club inbox. Without it, production sends as the developer account. The
@@ -490,8 +484,8 @@ The team Worker sends notifications to the store app through Firebase Cloud Mess
 
 **Setting it up:** `node scripts/firebase-setup.mjs`, signed in with `gcloud auth login` as an Owner of
 `battersea-cougars`. It turns Firebase on, makes the iOS app and the service account, and stores both secrets
-straight in Bitwarden. The one step it can't do is upload the [Apple push key](#apns_key-apns_key_id) in the Firebase
-console; it prints the link.
+straight in Bitwarden. The one step it can't do is upload the [Apple push key](#apple-push-key-recovery-copy) in
+the Firebase console; it prints the link.
 
 ---
 
@@ -542,42 +536,46 @@ could** upload builds and change the app's store listing, not release one past A
 #### `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`
 
 Which key that is, and whose: Apple asks for both beside the `.p8`. **Not a secret: IDs**, useless without the key.
-Kept in Bitwarden for now.
+They live in `scripts/lib/settings.mjs`, not in Bitwarden.
 
 - **Comes from:** Apple: the same Team Keys page. The Key ID is in the key's row; the Issuer ID is at the top of the
   page.
 - **Used by:** `store.yml` and `scripts/store-setup.mjs`.
-- **Gets there by:** CI pull.
-- **Expires:** never (a new key has a new ID).
+- **Gets there by:** `env-pull.mjs` hands them over beside the secrets.
+- **Expires:** never (a new key has a new ID: edit `settings.mjs` with it, and commit).
 
 #### `APPLE_TEAM_ID`
 
 The Apple Developer team's ID. Without it, the build can't be signed, and phones won't open team app links in the app
-or use its passkeys. **Not a secret: an ID** (every app link carries it). Kept in Bitwarden for now, so there's one
-copy.
+or use its passkeys. **Not a secret: an ID** (every app link carries it). It lives in `scripts/lib/settings.mjs`, one
+copy, not in Bitwarden.
 
 - **Comes from:** Apple: Apple Developer → Account → Membership details → Team ID. Not something we make;
-  `scripts/store-setup.mjs` reads it from Apple (the bundle id's prefix) and stores it.
+  `scripts/store-setup.mjs` reads it from Apple (the bundle id's prefix) and checks the committed one.
 - **Used by:** `store.yml` (signing), and the team Worker, which serves it to phones at
   `/.well-known/apple-app-site-association` (`worker/store/store.links.ts`).
-- **Gets there by:** CI pull; `deploy.yml` puts it on the team Worker.
+- **Gets there by:** `env-pull.mjs` hands it to `store.yml`; `target.mjs` puts it on the team Worker as a var. Your
+  machine's team app has none, so it serves no app links.
 - **Expires:** never.
 
-#### `APNS_KEY`, `APNS_KEY_ID`
+#### Apple push key (recovery copy)
 
-The Apple push key, uploaded to Firebase (Project settings → Cloud Messaging → Apple app configuration), which uses it
-to reach iPhones. **No code reads it.** It's kept only as a recovery copy, because Apple lets you download it once
-(ADR 0002 point 1). The Key ID is **not a secret**. **A leaked key could** send notifications to the app's users,
-given their phones' tokens.
+The APNs key, uploaded to Firebase (Project settings → Cloud Messaging → Apple app configuration), which uses it to
+reach iPhones. **No code reads it**, so it isn't in Secrets Manager (nothing should export it into a CI job). It's
+kept only as a recovery copy, because Apple lets you download it once (ADR 0002 point 1). Its Key ID is **not a
+secret**. **A leaked key could** send notifications to the app's users, given their phones' tokens.
 
 - **Comes from:** Apple: Apple Developer → Certificates, IDs & Profiles → Keys → the APNs key (its `.p8`, and its Key
   ID).
+- **Kept in:** the club's Bitwarden **vault** (Password Manager), in the organisation's collection, as the secure note
+  **Apple push key (APNs)**: the `.p8`'s text in the note, the Key ID in a field `Key ID`. Both organisation members
+  can open it.
 - **Used by:** nothing; Firebase holds its own copy.
 - **Expires:** no.
-- **Changing it:** make a new key, upload it to Firebase, store it here, revoke the old one (Apple allows two at a
-  time).
-- **Setting it up:** Keys → +, **Apple Push Notifications service**, Sandbox & Production;
-  `node scripts/secret-set.mjs APNS_KEY < AuthKey_XXXX.p8`, the Key ID in `APNS_KEY_ID`, then delete the file.
+- **Changing it:** make a new key, upload it to Firebase, replace the note's contents, revoke the old one (Apple allows
+  two at a time).
+- **Setting it up:** Keys → +, **Apple Push Notifications service**, Sandbox & Production; download the `.p8`, paste it
+  into the vault note with its Key ID, upload it to Firebase, then delete the file.
 
 ---
 
@@ -604,19 +602,31 @@ Sets Sentry up and uploads source maps, so error reports show our code, not mini
 - **Expires:** no.
 - **Changing it:** make a new one, set it, revoke the old.
 
-#### `SENTRY_DSN_WEB`, `SENTRY_DSN_TEAM`
+#### `SENTRY_DSN_WEB`
 
-Where each app sends its errors. **Not really secret** (the team app's is in its browser code), but kept out of this
-public repo, so nobody can fill our free quota with fake errors.
+Where the website sends its errors. **Not really secret**, but none of it reaches a browser, so it's kept out of this
+public repo: nobody can fill our free quota with fake errors.
 
-- **Comes from:** Sentry: the project `web` or `team` → Settings → Client Keys (DSN). `sentry-setup.mjs` reads them
-  and stores them.
-- **Used by:** each Worker (as `SENTRY_DSN`), and the team app in the browser (built in as `VITE_SENTRY_DSN`).
-- **Gets there by:** CI pull; `deploy.yml` puts each on its Worker as `SENTRY_DSN` and builds the team app with
-  `VITE_SENTRY_DSN`. Unset (your machine): no reports, only the log.
+- **Comes from:** Sentry: the project `web` → Settings → Client Keys (DSN). `sentry-setup.mjs` reads it and stores
+  it.
+- **Used by:** the website Worker (as `SENTRY_DSN`).
+- **Gets there by:** CI pull; `deploy.yml` puts it on the Worker as `SENTRY_DSN`. Unset (your machine): no reports,
+  only the log.
 - **Expires:** no.
 - **Setting up or checking:** `node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs` (add `--uptime` for the
   monitors).
+
+#### `SENTRY_DSN_TEAM`
+
+Where the team app sends its errors, from the Worker and the browser. **Not a secret:** it's in the team app's
+browser code for anyone to read, so it lives in `scripts/lib/settings.mjs`, not in Bitwarden.
+
+- **Comes from:** Sentry: the project `team` → Settings → Client Keys (DSN). `sentry-setup.mjs` checks the committed
+  one and says what to put there if it differs.
+- **Used by:** the team Worker (as `SENTRY_DSN`), and the team app in the browser (built in as `VITE_SENTRY_DSN`).
+- **Gets there by:** `env-pull.mjs` hands it to the deploy, which builds the team app with `VITE_SENTRY_DSN`;
+  `target.mjs` puts it on the Worker as the var `SENTRY_DSN`. Unset (your machine): no reports, only the log.
+- **Expires:** no.
 
 ---
 
@@ -872,8 +882,20 @@ its deploys skip the seed.
 
 ## Plain settings
 
-Values that aren't secret, committed in config. (The ones still kept in Bitwarden say so in their entries above:
-"Not a secret".)
+Values that aren't secret, committed in config, one copy each.
+
+**In [`scripts/lib/settings.mjs`](../scripts/lib/settings.mjs)**, which `env-pull.mjs` hands to every command and CI
+job beside the secrets (a CI job refuses to start while one isn't filled in), under the names the code reads:
+
+| Name                          | Per environment | What                                                                                    |
+| ----------------------------- | --------------- | --------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_ACCOUNT_ID`       | yes             | [The Cougars and Cougars Dev accounts' IDs](#cloudflare_account_id-productions)         |
+| `APPLE_TEAM_ID`               | no              | [The Apple Developer team](#apple_team_id)                                              |
+| `APP_STORE_CONNECT_KEY_ID`    | no              | [The App Store Connect key's ID](#app_store_connect_key_id-app_store_connect_issuer_id) |
+| `APP_STORE_CONNECT_ISSUER_ID` | no              | [Its issuer](#app_store_connect_key_id-app_store_connect_issuer_id)                     |
+| `SENTRY_DSN_TEAM`             | no              | [Where the team app's errors go](#sentry_dsn_team)                                      |
+
+**Elsewhere:**
 
 | Name                                   | Where                       | What                                                                                                            |
 | -------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -900,21 +922,24 @@ Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names
 1. **Bitwarden:** the organisation, the two projects, the three machine accounts and their
    [tokens](#bitwarden). Put the two CI tokens in GitHub, the local one in your vault, then `bw-unlock`.
 2. **Cloudflare**, in each account: the API token ([production](#cloudflare_api_token__production),
-   [dev](#cloudflare_api_token__dev)) and the account ID, then the analytics token. Then `turnstile-setup.mjs`
+   [dev](#cloudflare_api_token__dev)), the account ID into
+   [`settings.mjs`](#plain-settings), then the analytics token. Then `turnstile-setup.mjs`
    ([Turnstile](#turnstile)), and, for production before launch, `access-setup.mjs`
    ([Cloudflare Access](#cf_access_client_id__production-cf_access_client_secret__production)).
 3. **Our own keys:** [`BACKUP_KEY`](#our-own-keys), `GMAIL_TOKEN_KEY` and `INSTAGRAM_TOKEN_KEY`, for each
    environment.
 4. **The roster:** [`TEAM_ROSTER__PRODUCTION`](#team_roster__production).
-5. **Google:** [Gmail](#gmail) steps 1 to 9, then the [YouTube](#youtube) keys, then `firebase-setup.mjs`
+5. **Google:** [Gmail](#gmail) steps 1 to 8, then the [YouTube](#youtube) keys, then `firebase-setup.mjs`
    ([Firebase](#firebase)).
 6. **Sanity:** [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production).
 7. **GitHub:** the Cougars rebuilds App and its [key](#github_app_private_key).
-8. **Sentry:** [`SENTRY_AUTH_TOKEN`](#sentry_auth_token), then `sentry-setup.mjs`, which makes the DSNs.
+8. **Sentry:** [`SENTRY_AUTH_TOKEN`](#sentry_auth_token), then `sentry-setup.mjs`, which stores the website's DSN and
+   says the team app's, for [`settings.mjs`](#plain-settings).
 9. **Web Push:** `webpush-setup.mjs` ([Web Push](#web-push)).
 10. **Instagram**, production only: [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production).
-11. **Apple**, when the store app is built: the [App Store Connect key](#app_store_connect_key), `store-setup.mjs`
-    ([`APPLE_TEAM_ID`](#apple_team_id)), the [push key](#apns_key-apns_key_id), and the
+11. **Apple**, when the store app is built: the [App Store Connect key](#app_store_connect_key) (its IDs into
+    `settings.mjs`), `store-setup.mjs`
+    ([`APPLE_TEAM_ID`](#apple_team_id)), the [push key](#apple-push-key-recovery-copy), and the
     [App Review sign-in](#app_review_email__production-app_review_code__production).
 
 Adding a new secret: create the token at its provider with the secret's exact name, store it with
@@ -927,51 +952,49 @@ system and environment, and in the Overview, in the same change.
 
 Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTION`, project `cougars`), _dev_
 (`NAME__DEV`, or a plain `NAME` with a production value beside it, project `cougars-dev`), or _both_ (one plain
-`NAME` for both, project `cougars-dev`).
+`NAME` for both, project `cougars-dev`). A value marked `settings.mjs` isn't in Bitwarden at all: it's committed in
+[`scripts/lib/settings.mjs`](../scripts/lib/settings.mjs).
 
-| Name                                                                                                          | System     | Env  | Secret?          | Used by                                   |
-| ------------------------------------------------------------------------------------------------------------- | ---------- | ---- | ---------------- | ----------------------------------------- |
-| [`BWS_ACCESS_TOKEN__PRODUCTION`](#bws_access_token__production)                                               | Bitwarden  | prod | yes (in GitHub)  | Production CI jobs                        |
-| [`BWS_ACCESS_TOKEN__DEV`](#bws_access_token__dev)                                                             | Bitwarden  | dev  | yes (in GitHub)  | `main` and PR CI jobs                     |
-| [`COUGARS_LOCAL_BW_TOKEN`](#cougars_local_bw_token)                                                           | Bitwarden  | both | yes (your vault) | Your machine                              |
-| [`CLOUDFLARE_API_TOKEN__PRODUCTION`](#cloudflare_api_token__production)                                       | Cloudflare | prod | yes              | Production deploys, scripts               |
-| [`CLOUDFLARE_API_TOKEN__DEV`](#cloudflare_api_token__dev)                                                     | Cloudflare | dev  | yes              | Dev deploys, PR previews, scripts         |
-| [`CLOUDFLARE_ACCOUNT_ID__PRODUCTION`](#cloudflare_account_id__production)                                     | Cloudflare | prod | no               | Production deploys, Usage page            |
-| [`CLOUDFLARE_ACCOUNT_ID__DEV`](#cloudflare_account_id__dev)                                                   | Cloudflare | dev  | no               | Dev deploys, Usage page                   |
-| [`CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`](#cloudflare_analytics_token__production)                           | Cloudflare | prod | yes              | Team app: Usage page                      |
-| [`CLOUDFLARE_ANALYTICS_TOKEN__DEV`](#cloudflare_analytics_token__dev)                                         | Cloudflare | dev  | yes              | Team app: Usage page, `cpu-by-route.mjs`  |
-| [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile_secret_key__production)                                       | Cloudflare | prod | yes              | Website, team app: forms, sign-in         |
-| [`TURNSTILE_SECRET_KEY`](#turnstile_secret_key)                                                               | Cloudflare | dev  | yes              | Website, team app: forms, sign-in         |
-| [`CF_ACCESS_CLIENT_ID__PRODUCTION`](#cf_access_client_id__production-cf_access_client_secret__production)     | Cloudflare | prod | no               | Production smoke tests, until launch      |
-| [`CF_ACCESS_CLIENT_SECRET__PRODUCTION`](#cf_access_client_id__production-cf_access_client_secret__production) | Cloudflare | prod | yes              | Production smoke tests, until launch      |
-| [`YOUTUBE_API_KEY__PRODUCTION`](#youtube_api_key__production)                                                 | Google     | prod | yes              | Website: videos                           |
-| [`YOUTUBE_API_KEY__DEV`](#youtube_api_key__dev)                                                               | Google     | dev  | yes              | Website: videos                           |
-| [`GMAIL_CLIENT_ID`](#gmail_client_id-gmail_client_secret)                                                     | Google     | both | no               | Website, team app: email                  |
-| [`GMAIL_CLIENT_SECRET`](#gmail_client_id-gmail_client_secret)                                                 | Google     | both | yes              | Website, team app: email                  |
-| [`GMAIL_REFRESH_TOKEN`](#gmail_refresh_token)                                                                 | Google     | both | yes              | Website, team app: email                  |
-| [`GMAIL_WEB_CLIENT_ID`](#gmail_web_client_id-gmail_web_client_secret)                                         | Google     | both | no               | Website, team app: reconnected email      |
-| [`GMAIL_WEB_CLIENT_SECRET`](#gmail_web_client_id-gmail_web_client_secret)                                     | Google     | both | yes              | Website, team app: reconnected email      |
-| [`FIREBASE_SERVICE_ACCOUNT`](#firebase_service_account)                                                       | Google     | both | yes              | Team app: store app notifications         |
-| [`FIREBASE_IOS_CONFIG`](#firebase_ios_config)                                                                 | Google     | both | no               | `store.yml`                               |
-| [`APP_REVIEW_EMAIL__PRODUCTION`](#app_review_email__production-app_review_code__production) (not set yet)     | Apple      | prod | no (personal)    | Team app: App Review sign-in              |
-| [`APP_REVIEW_CODE__PRODUCTION`](#app_review_email__production-app_review_code__production) (not set yet)      | Apple      | prod | yes              | Team app: App Review sign-in              |
-| [`APP_STORE_CONNECT_KEY`](#app_store_connect_key)                                                             | Apple      | both | yes              | `store.yml`, `store-setup.mjs`            |
-| [`APP_STORE_CONNECT_KEY_ID`](#app_store_connect_key_id-app_store_connect_issuer_id)                           | Apple      | both | no               | `store.yml`, `store-setup.mjs`            |
-| [`APP_STORE_CONNECT_ISSUER_ID`](#app_store_connect_key_id-app_store_connect_issuer_id)                        | Apple      | both | no               | `store.yml`, `store-setup.mjs`            |
-| [`APPLE_TEAM_ID`](#apple_team_id)                                                                             | Apple      | both | no               | `store.yml`, team app: app links          |
-| [`APNS_KEY`](#apns_key-apns_key_id)                                                                           | Apple      | both | yes              | Nothing: recovery copy of Firebase's      |
-| [`APNS_KEY_ID`](#apns_key-apns_key_id)                                                                        | Apple      | both | no               | Nothing: recovery copy of Firebase's      |
-| [`SENTRY_AUTH_TOKEN`](#sentry_auth_token)                                                                     | Sentry     | both | yes              | Deploys (source maps), `sentry-setup.mjs` |
-| [`SENTRY_DSN_WEB`](#sentry_dsn_web-sentry_dsn_team)                                                           | Sentry     | both | no               | Website Worker                            |
-| [`SENTRY_DSN_TEAM`](#sentry_dsn_web-sentry_dsn_team)                                                          | Sentry     | both | no               | Team Worker and app                       |
-| [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes              | Studio schema deploy                      |
-| [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes              | Team app: website rebuilds                |
-| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production) (not set yet)                                   | Instagram  | prod | yes              | Website: photos                           |
-| [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes              | Team app: browser notifications           |
-| [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes              | Database backups                          |
-| [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes              | Database backups                          |
-| [`GMAIL_TOKEN_KEY__PRODUCTION`](#gmail_token_key__production)                                                 | Us         | prod | yes              | Website, team app: reconnected email      |
-| [`GMAIL_TOKEN_KEY`](#gmail_token_key)                                                                         | Us         | dev  | yes              | Website, team app: reconnected email      |
-| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token_key__production)                                         | Us         | prod | yes              | Website: photos                           |
-| [`SMOKE_TOKEN`](#smoke_token) (never stored)                                                                  | Us         | both | yes              | Deploy smoke test of the form             |
-| [`TEAM_ROSTER__PRODUCTION`](#team_roster__production)                                                         | Club data  | prod | personal data    | Deploys (D1 seed), `access-setup.mjs`     |
+| Name                                                                                                          | System     | Env  | Secret?                          | Used by                                   |
+| ------------------------------------------------------------------------------------------------------------- | ---------- | ---- | -------------------------------- | ----------------------------------------- |
+| [`BWS_ACCESS_TOKEN__PRODUCTION`](#bws_access_token__production)                                               | Bitwarden  | prod | yes (in GitHub)                  | Production CI jobs                        |
+| [`BWS_ACCESS_TOKEN__DEV`](#bws_access_token__dev)                                                             | Bitwarden  | dev  | yes (in GitHub)                  | `main` and PR CI jobs                     |
+| [`COUGARS_LOCAL_BW_TOKEN`](#cougars_local_bw_token)                                                           | Bitwarden  | both | yes (your vault)                 | Your machine                              |
+| [`CLOUDFLARE_API_TOKEN__PRODUCTION`](#cloudflare_api_token__production)                                       | Cloudflare | prod | yes                              | Production deploys, scripts               |
+| [`CLOUDFLARE_API_TOKEN__DEV`](#cloudflare_api_token__dev)                                                     | Cloudflare | dev  | yes                              | Dev deploys, PR previews, scripts         |
+| [`CLOUDFLARE_ACCOUNT_ID`](#cloudflare_account_id-productions) (production's)                                  | Cloudflare | prod | no (`settings.mjs`)              | Production deploys, Usage page            |
+| [`CLOUDFLARE_ACCOUNT_ID`](#cloudflare_account_id-devs) (dev's)                                                | Cloudflare | dev  | no (`settings.mjs`)              | Dev deploys, Usage page                   |
+| [`CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`](#cloudflare_analytics_token__production)                           | Cloudflare | prod | yes                              | Team app: Usage page                      |
+| [`CLOUDFLARE_ANALYTICS_TOKEN__DEV`](#cloudflare_analytics_token__dev)                                         | Cloudflare | dev  | yes                              | Team app: Usage page, `cpu-by-route.mjs`  |
+| [`TURNSTILE_SECRET_KEY__PRODUCTION`](#turnstile_secret_key__production)                                       | Cloudflare | prod | yes                              | Website, team app: forms, sign-in         |
+| [`TURNSTILE_SECRET_KEY`](#turnstile_secret_key)                                                               | Cloudflare | dev  | yes                              | Website, team app: forms, sign-in         |
+| [`CF_ACCESS_CLIENT_ID__PRODUCTION`](#cf_access_client_id__production-cf_access_client_secret__production)     | Cloudflare | prod | no                               | Production smoke tests, until launch      |
+| [`CF_ACCESS_CLIENT_SECRET__PRODUCTION`](#cf_access_client_id__production-cf_access_client_secret__production) | Cloudflare | prod | yes                              | Production smoke tests, until launch      |
+| [`YOUTUBE_API_KEY__PRODUCTION`](#youtube_api_key__production)                                                 | Google     | prod | yes                              | Website: videos                           |
+| [`YOUTUBE_API_KEY__DEV`](#youtube_api_key__dev)                                                               | Google     | dev  | yes                              | Website: videos                           |
+| [`GMAIL_REFRESH_TOKEN`](#gmail_refresh_token)                                                                 | Google     | both | yes                              | Website, team app: email                  |
+| [`GMAIL_WEB_CLIENT_ID`](#gmail_web_client_id-gmail_web_client_secret)                                         | Google     | both | no                               | Website, team app: reconnected email      |
+| [`GMAIL_WEB_CLIENT_SECRET`](#gmail_web_client_id-gmail_web_client_secret)                                     | Google     | both | yes                              | Website, team app: reconnected email      |
+| [`FIREBASE_SERVICE_ACCOUNT`](#firebase_service_account)                                                       | Google     | both | yes                              | Team app: store app notifications         |
+| [`FIREBASE_IOS_CONFIG`](#firebase_ios_config)                                                                 | Google     | both | no                               | `store.yml`                               |
+| [`APP_REVIEW_EMAIL__PRODUCTION`](#app_review_email__production-app_review_code__production) (not set yet)     | Apple      | prod | no (personal)                    | Team app: App Review sign-in              |
+| [`APP_REVIEW_CODE__PRODUCTION`](#app_review_email__production-app_review_code__production) (not set yet)      | Apple      | prod | yes                              | Team app: App Review sign-in              |
+| [`APP_STORE_CONNECT_KEY`](#app_store_connect_key)                                                             | Apple      | both | yes                              | `store.yml`, `store-setup.mjs`            |
+| [`APP_STORE_CONNECT_KEY_ID`](#app_store_connect_key_id-app_store_connect_issuer_id)                           | Apple      | both | no (`settings.mjs`)              | `store.yml`, `store-setup.mjs`            |
+| [`APP_STORE_CONNECT_ISSUER_ID`](#app_store_connect_key_id-app_store_connect_issuer_id)                        | Apple      | both | no (`settings.mjs`)              | `store.yml`, `store-setup.mjs`            |
+| [`APPLE_TEAM_ID`](#apple_team_id)                                                                             | Apple      | both | no (`settings.mjs`)              | `store.yml`, team app: app links          |
+| [Apple push key](#apple-push-key-recovery-copy) (the `.p8` and its Key ID)                                    | Apple      | both | yes (vault, not Secrets Manager) | Nothing: recovery copy of Firebase's      |
+| [`SENTRY_AUTH_TOKEN`](#sentry_auth_token)                                                                     | Sentry     | both | yes                              | Deploys (source maps), `sentry-setup.mjs` |
+| [`SENTRY_DSN_WEB`](#sentry_dsn_web)                                                                           | Sentry     | both | no                               | Website Worker                            |
+| [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
+| [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |
+| [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
+| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production) (not set yet)                                   | Instagram  | prod | yes                              | Website: photos                           |
+| [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
+| [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes                              | Database backups                          |
+| [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes                              | Database backups                          |
+| [`GMAIL_TOKEN_KEY__PRODUCTION`](#gmail_token_key__production)                                                 | Us         | prod | yes                              | Website, team app: reconnected email      |
+| [`GMAIL_TOKEN_KEY`](#gmail_token_key)                                                                         | Us         | dev  | yes                              | Website, team app: reconnected email      |
+| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token_key__production)                                         | Us         | prod | yes                              | Website: photos                           |
+| [`SMOKE_TOKEN`](#smoke_token) (never stored)                                                                  | Us         | both | yes                              | Deploy smoke test of the form             |
+| [`TEAM_ROSTER__PRODUCTION`](#team_roster__production)                                                         | Club data  | prod | personal data                    | Deploys (D1 seed), `access-setup.mjs`     |

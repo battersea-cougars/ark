@@ -243,7 +243,11 @@ describe("when the email can't go", () => {
     await bank();
     await owes("Reg Player", 1200, "2026-09-20");
     // Gmail is set up but down
-    Object.assign(w.env, { GMAIL_CLIENT_ID: "id", GMAIL_CLIENT_SECRET: "secret", GMAIL_REFRESH_TOKEN: "token" });
+    Object.assign(w.env, {
+      GMAIL_WEB_CLIENT_ID: "id",
+      GMAIL_WEB_CLIENT_SECRET: "secret",
+      GMAIL_REFRESH_TOKEN: "token",
+    });
     vi.stubGlobal("fetch", async () => new Response("down", { status: 503 }));
     expect((await send()).body).toMatchObject({ queued: 1 });
     vi.unstubAllGlobals();
@@ -251,8 +255,8 @@ describe("when the email can't go", () => {
     expect(w.db.raw.prepare("SELECT COUNT(*) n FROM dues_reminders").get()).toEqual({ n: 0 });
     // Back to logging mail (no Gmail): sent again an hour on, it goes
     Object.assign(w.env, {
-      GMAIL_CLIENT_ID: undefined,
-      GMAIL_CLIENT_SECRET: undefined,
+      GMAIL_WEB_CLIENT_ID: undefined,
+      GMAIL_WEB_CLIENT_SECRET: undefined,
       GMAIL_REFRESH_TOKEN: undefined,
     });
     expect((await send(undefined, dana, later(0, 1))).body).toMatchObject({ queued: 1 });

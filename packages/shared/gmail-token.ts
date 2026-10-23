@@ -1,10 +1,10 @@
-// Which Gmail token the website and the team app send with (ADR 0027). Two can exist:
-//   - the deployed one: GMAIL_REFRESH_TOKEN from Bitwarden, made by scripts/gmail-auth.mjs (first-time setup) with the
-//     Desktop client GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET;
-//   - the reconnected one: made when an admin presses "Reconnect email" in the team app (apps/team/worker/mail), with
-//     the Web client GMAIL_WEB_CLIENT_ID / GMAIL_WEB_CLIENT_SECRET, and kept in D1 (sealed_tokens, row "gmail"), sealed
-//     with GMAIL_TOKEN_KEY (sealed-tokens.ts). The Worker can't write to Bitwarden, so this is the second exception to
-//     secrets living only there (ADR 0002 point 8).
+// Which Gmail token the website and the team app send with (ADR 0027). Both come from the one OAuth client, the Web
+// client GMAIL_WEB_CLIENT_ID / GMAIL_WEB_CLIENT_SECRET, and two can exist:
+//   - the deployed one: GMAIL_REFRESH_TOKEN from Bitwarden, made by scripts/gmail-auth.mjs (first-time setup, and the
+//     way back in from a terminal);
+//   - the reconnected one: made when an admin presses "Reconnect email" in the team app (apps/team/worker/mail), and
+//     kept in D1 (sealed_tokens, row "gmail"), sealed with GMAIL_TOKEN_KEY (sealed-tokens.ts). The Worker can't write
+//     to Bitwarden, so this is the second exception to secrets living only there (ADR 0002 point 8).
 // The reconnected one wins. If it won't open (a changed key, a changed row), the deployed one is used and an error says
 // so. Each environment has its own D1, so reconnecting dev never touches production. The token is never logged.
 import { first, run } from "./d1";
@@ -18,8 +18,6 @@ const NAME = "gmail";
 
 export interface GmailEnv {
   DB: D1Database;
-  GMAIL_CLIENT_ID?: string;
-  GMAIL_CLIENT_SECRET?: string;
   GMAIL_REFRESH_TOKEN?: string;
   GMAIL_WEB_CLIENT_ID?: string;
   GMAIL_WEB_CLIENT_SECRET?: string;
@@ -53,11 +51,11 @@ export async function gmailCredentials(
       log.error("mail.token_unreadable", { reason: (error as Error).name });
     }
   }
-  if (env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET && env.GMAIL_REFRESH_TOKEN)
+  if (env.GMAIL_WEB_CLIENT_ID && env.GMAIL_WEB_CLIENT_SECRET && env.GMAIL_REFRESH_TOKEN)
     return {
       gmail: {
-        clientId: env.GMAIL_CLIENT_ID,
-        clientSecret: env.GMAIL_CLIENT_SECRET,
+        clientId: env.GMAIL_WEB_CLIENT_ID,
+        clientSecret: env.GMAIL_WEB_CLIENT_SECRET,
         refreshToken: env.GMAIL_REFRESH_TOKEN,
       },
       source: "deployed",

@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // Sentry for the club's errors and down alerts (ADR 0111), made through its API and safe to run again: it changes nothing
 // that's already right.
-//   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, DSNs into Secrets Manager
+//   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, the DSNs
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs --uptime   also the uptime monitors (once /health is live)
 // Needs SENTRY_AUTH_TOKEN (docs/secrets.md#sentry_auth_token). The organisation is the developer account's, in the EU region.
 //
 // Each app is a project. Three alerts email: a new issue in production, a new issue in dev, and a spike in production.
-// The team Worker's hourly cron has a cron monitor. The DSNs go to Secrets Manager, not the repo; the deploy hands them
-// to the apps.
+// The team Worker's hourly cron has a cron monitor. The website's DSN goes to Secrets Manager (SENTRY_DSN_WEB); the
+// team app's is in its browser code anyway, so it's committed (SENTRY_DSN_TEAM, scripts/lib/settings.mjs): this checks
+// it and says what to put there if it differs. The deploy hands them to the apps.
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const ORG = "battersea-cougars";
@@ -15,11 +16,12 @@ const API = "https://de.sentry.io/api/0";
 const SITE = "https://batterseacougars.com";
 
 const PROJECTS = [
-  { slug: "web", platform: "javascript-astro", dsnSecret: "SENTRY_DSN_WEB", health: `${SITE}/health` },
+  { slug: "web", platform: "javascript-astro", dsn: "SENTRY_DSN_WEB", secret: true, health: `${SITE}/health` },
   {
     slug: "team",
     platform: "javascript-svelte",
-    dsnSecret: "SENTRY_DSN_TEAM",
+    dsn: "SENTRY_DSN_TEAM",
+    secret: false,
     health: `${SITE.replace("://", "://team.")}/api/health`,
   },
 ];
@@ -57,7 +59,9 @@ for (const want of PROJECTS) {
   } else console.log(`The project ${want.slug} is there.`);
 
   const [key] = await sentry("GET", `/projects/${ORG}/${want.slug}/keys/`);
-  console.log(`  ${setSecret(want.dsnSecret, key.dsn.public)} ${want.dsnSecret} in Secrets Manager.`);
+  if (want.secret) console.log(`  ${setSecret(want.dsn, key.dsn.public)} ${want.dsn} in Secrets Manager.`);
+  else if (process.env[want.dsn] === key.dsn.public) console.log(`  ${want.dsn} in scripts/lib/settings.mjs is right.`);
+  else console.log(`  Put ${want.dsn}: "${key.dsn.public}" in scripts/lib/settings.mjs and commit it (not secret).`);
 
   if (!uptime) continue;
   // Down alerts: Sentry checks the health route every 10 minutes (about 290 requests a day for both, ADR 0003) and opens

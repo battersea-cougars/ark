@@ -87,7 +87,7 @@ jobs:
           shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/'
           declare -A pattern=(
             [web]="^(apps/web/|scripts/|$shared)"
-            [team]="^(apps/team/|scripts/ci/|$shared)"
+            [team]="^(apps/team/|scripts/ci/|scripts/lib/settings\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
             [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/seed-roster\.mjs|scripts/lib/roster|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
           )
@@ -201,7 +201,8 @@ jobs:
           # Each GitHub environment holds only its own: BWS_ACCESS_TOKEN__PRODUCTION or BWS_ACCESS_TOKEN__DEV
           token: ${{ secrets.BWS_ACCESS_TOKEN__PRODUCTION || secrets.BWS_ACCESS_TOKEN__DEV }}
 
-      # Dev (no domain of its own) lives at web.<account subdomain>.workers.dev
+      # Dev (no domain of its own) lives at web.<account subdomain>.workers.dev. The account's ID is a committed setting
+      # (scripts/lib/settings.mjs) that env-pull exported, as it does for every job.
       - name: Site URL
         if: env.SITE_URL == ''
         run: |
@@ -253,13 +254,24 @@ jobs:
         run: |
           # Where its errors go (ADR 0111): the web project's DSN, as the Worker's SENTRY_DSN
           SENTRY_DSN="${SENTRY_DSN_WEB:-}"
-          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID \
-            GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY TURNSTILE_SECRET_KEY SENTRY_DSN INSTAGRAM_TOKEN INSTAGRAM_TOKEN_KEY; do
+          for name in YOUTUBE_API_KEY GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY \
+            TURNSTILE_SECRET_KEY SENTRY_DSN INSTAGRAM_TOKEN INSTAGRAM_TOKEN_KEY; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/server/wrangler.json
             else
               echo "$name: not in Secrets Manager for $SITE_ENV, skipped"
             fi
+          done
+
+      # Once, 2026-10-23: the Gmail Desktop client is gone. Deletes only what's there; drop this step once both
+      # environments have deployed.
+      - name: Retire old Worker secrets
+        if: github.event_name != 'pull_request'
+        working-directory: apps/web
+        run: |
+          have=$(npx wrangler secret list -c dist/server/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
+          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET; do
+            if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/server/wrangler.json; fi
           done
 
       - name: Upload preview
@@ -342,8 +354,8 @@ jobs:
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      # The app in the browser reports its errors too (ADR 0111): the team project's DSN, built in; and Turnstile's
-      # public site key for the sign-in page (#13)
+      # The app in the browser reports its errors too (ADR 0111): the team project's DSN, built in (a committed setting,
+      # scripts/lib/settings.mjs, which env-pull exported); and Turnstile's public site key for the sign-in page (#13)
       - name: Build
         run: VITE_SENTRY_DSN="${SENTRY_DSN_TEAM:-}" VITE_SITE_ENV="$SITE_ENV" VITE_RELEASE="$PUBLIC_BUILD_VERSION" VITE_TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY" npm run build -w @cougars/team
 
@@ -363,6 +375,17 @@ jobs:
       - name: Target ${{ env.SITE_ENV }}
         run: node scripts/ci/target.mjs "$SITE_ENV" team
 
+      # Once, 2026-10-23: the Worker secrets it no longer has. The Gmail Desktop client is gone, and the Apple team ID and
+      # Sentry DSN are vars now, which can't share a name with a secret. Deletes only what's there; drop this step once
+      # both environments have deployed.
+      - name: Retire old Worker secrets
+        working-directory: apps/team
+        run: |
+          have=$(npx wrangler secret list -c dist/cougars_team/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
+          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET APPLE_TEAM_ID SENTRY_DSN; do
+            if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/cougars_team/wrangler.json; fi
+          done
+
       # `wrangler deploy`, not a previews-only upload, so the live hub's Durable Object migration is applied (ADR 0072)
       - name: Deploy
         id: deploy
@@ -373,14 +396,13 @@ jobs:
           [ -n "$SITE_URL" ] && url="https://team.${SITE_URL#https://}"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+      # Its plain settings (the account ID, the Apple team ID, the Sentry DSN) are vars, from target.mjs
       - name: Worker secrets
         working-directory: apps/team
         run: |
-          # Where its errors go (ADR 0111): the team project's DSN, as the Worker's SENTRY_DSN
-          SENTRY_DSN="${SENTRY_DSN_TEAM:-}"
-          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET \
-            GMAIL_TOKEN_KEY CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY \
-            FIREBASE_SERVICE_ACCOUNT VAPID_PRIVATE_KEY APPLE_TEAM_ID APP_REVIEW_EMAIL APP_REVIEW_CODE SENTRY_DSN TURNSTILE_SECRET_KEY; do
+          for name in GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY \
+            CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY FIREBASE_SERVICE_ACCOUNT VAPID_PRIVATE_KEY \
+            APP_REVIEW_EMAIL APP_REVIEW_CODE TURNSTILE_SECRET_KEY; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/cougars_team/wrangler.json
             else

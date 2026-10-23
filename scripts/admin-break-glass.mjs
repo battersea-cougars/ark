@@ -12,6 +12,7 @@ import { execFileSync } from "node:child_process";
 import { hostname, userInfo } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { ensureToken, loadSecrets } from "./lib/bitwarden.mjs";
+import { settingsFor } from "./lib/settings.mjs";
 import { issueBreakGlass } from "./lib/break-glass.mjs";
 import { remoteD1 } from "./lib/d1-api.mjs";
 
@@ -61,12 +62,13 @@ function localQuery() {
 }
 
 async function remoteQuery() {
-  // The environment's Cloudflare token and account, from Bitwarden into this process only: never printed or written
+  // The environment's Cloudflare token, from Bitwarden into this process only (never printed or written), and its
+  // account's ID, a committed setting
   ensureToken();
-  const secrets = loadSecrets(environment);
+  const found = { ...loadSecrets(environment), ...settingsFor(environment) };
   for (const key of ["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]) {
-    if (!secrets[key]) throw new Error(`${key} isn't in Bitwarden for ${environment}.`);
-    process.env[key] = secrets[key];
+    if (!found[key]) throw new Error(`${key} isn't set for ${environment} (docs/secrets.md#cloudflare).`);
+    process.env[key] = found[key];
   }
   return remoteD1(environment);
 }

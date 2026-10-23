@@ -14,9 +14,10 @@
 //                                                   database and its migrations, for deploy.yml's `database` job and
 //                                                   backup.yml)
 //
-// Needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for that environment's account.
+// Needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for that environment's account (scripts/env-pull.mjs).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { settingsFor } from "../lib/settings.mjs";
 
 const TARGETS = {
   production: { db: "cougars" },
@@ -68,8 +69,12 @@ config.name = target.worker;
 config.vars = { ...config.vars, SITE_ENV: environment };
 // The release Sentry files this Worker's errors under (ADR 0111): the deploy's build version, as the browser code has it
 if (process.env.PUBLIC_BUILD_VERSION) config.vars.BUILD_VERSION = process.env.PUBLIC_BUILD_VERSION;
-// The team app's Usage page reads this account's analytics (worker/settings/usage.ts); the id isn't secret
-if (team && process.env.CLOUDFLARE_ACCOUNT_ID) config.vars.CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+// The team Worker's plain settings (scripts/lib/settings.mjs, not secret): the account its Usage page reads the analytics
+// of (worker/settings/usage.ts), the Apple team its app links name (worker/store/store.links.ts), where its errors go
+if (team) {
+  const { CLOUDFLARE_ACCOUNT_ID, APPLE_TEAM_ID, SENTRY_DSN_TEAM } = settingsFor(environment);
+  Object.assign(config.vars, { CLOUDFLARE_ACCOUNT_ID, APPLE_TEAM_ID, SENTRY_DSN: SENTRY_DSN_TEAM });
+}
 if (environment === "production") {
   const host = URL.canParse(process.env.SITE_URL ?? "") ? new URL(process.env.SITE_URL).hostname : "";
   if (!host || host.endsWith(".workers.dev"))

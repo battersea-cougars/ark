@@ -1,7 +1,7 @@
 # 0027. Email goes through the Gmail API; outside production it reaches only the safe inbox, admins and a dev list
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-22
+- **Date:** 2026-10-06 · updated 2026-10-23
 - **Merges:** 0077
 
 ## Context
@@ -59,7 +59,9 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   log as `mail.reconnected`. Google won't sign in inside the store app's web view, so it's done from a browser.
 - **Signing in while email is down:** passkeys are the way in (team/passkeys); the admin needs no code to reach
   the button. With no admin able to sign in, `scripts/gmail-auth.mjs` is the terminal fallback, then a deploy.
-  `gmail-auth.mjs` and its _Desktop_ client otherwise stay only for the first token.
+  `gmail-auth.mjs` otherwise stays only for the first token. It uses the same Web client as reconnecting (its
+  redirect `http://localhost:4590/` is one of that client's authorised redirect URIs), so there's one client, and
+  the deployed token refreshes with it too.
 
 **Who receives it** (`safeMail`, run on every send)
 
@@ -96,8 +98,8 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - The token that sends as the developer account can live in D1, sealed. Someone with both the database and the
   Worker's key could send mail as that account (not read it); revoking it is one click in the account's third-party
   access, and the next reconnect replaces it.
-- Two OAuth clients: the Desktop one for `gmail-auth.mjs`, the Web one for reconnecting. A refresh token works only
-  with the client that made it, so each keeps its own credentials.
+- One OAuth client, the Web one, for both `gmail-auth.mjs` and reconnecting. A refresh token works only with the
+  client that made it, so changing the client means making the deployed token again (`gmail-auth.mjs`).
 - Production's mail depends on the developer account, so it's kept for sending only and the team account co-owns its
   Google Cloud project.
 - An admin on dev can make dev email a real person, by adding them. That's the point; it's limited to
@@ -139,3 +141,6 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - 2026-10-22: The test email reads as the club's address outside production too (`Mail.asClub`, that email alone,
   which only ever goes to the admin who asked), so the "Send mail as" alias is checked before launch; it says what
   a From line showing the sending account means.
+- 2026-10-23: One OAuth client: `gmail-auth.mjs` uses the Web client (redirect `http://localhost:4590/`), and the
+  deployed token refreshes with it, so the Desktop client and its two secrets go (`GMAIL_CLIENT_ID`,
+  `GMAIL_CLIENT_SECRET`). The deployed token is made again with the Web client before the Desktop one is deleted.

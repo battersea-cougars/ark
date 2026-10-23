@@ -107,8 +107,8 @@ Three things shape it:
 - **Built in CI** (`.github/workflows/store.yml`, job `ios`): on `release` when the shell changes, or by hand for a
   dev build for testers. Signing is automatic with the App Store Connect API key, so there are no certificates or
   profiles to keep; the build goes to TestFlight, and a person submits it for review in App Store Connect.
-  `scripts/store-setup.mjs` registers the bundle id (`com.batterseacougars.team`) with its capabilities and stores
-  `APPLE_TEAM_ID`. Icons come from `scripts/favicons.mjs`, like the web app's.
+  `scripts/store-setup.mjs` registers the bundle id (`com.batterseacougars.team`) with its capabilities and checks
+  `APPLE_TEAM_ID`, which isn't secret and is committed (`scripts/lib/settings.mjs`). Icons come from `scripts/favicons.mjs`, like the web app's.
 - **Android is one platform folder and one CI job away**, with nothing above to change: the same config and app id,
   Firebase is Android's own push, `native.ts` and the links are shared, `push_devices.platform` already says which.
   It needs: `npx cap add android` (commit `apps/team/android/`); a Google Play Console account ($25 once,
@@ -190,3 +190,7 @@ Three things shape it:
   sign-in, admins only).
 - 2026-10-22: "Email has stopped" and a break-glass sign-in are `live` too: nobody can get a code, or someone got in
   by the back door, so neither waits for the morning.
+- 2026-10-23: The APNs key's recovery copy moves to the organisation's Bitwarden vault (no code reads it, so it's out
+  of Secrets Manager and CI), and `APPLE_TEAM_ID` and the App Store Connect key's IDs are committed settings
+  (`scripts/lib/settings.mjs`), not Bitwarden entries; `store-setup.mjs` checks the team ID instead of storing it
+  ([0002](0002-secrets-in-bitwarden.md)).

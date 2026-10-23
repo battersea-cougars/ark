@@ -72,6 +72,13 @@ describe("Settings → Email says whether email works", () => {
     });
   });
 
+  it("the deployed token sends with the Web client, the one client there is (gmail-auth.mjs made it with it)", async () => {
+    const dana = await admin();
+    expect(await moSignsIn()).toBe(true);
+    expect(google.sent.at(-1)!.token).toBe(google.deployed);
+    expect((await dana.email()).source).toBe("deployed");
+  });
+
   it("in production it sends as the club's address, the account's alias", async () => {
     const dana = await admin();
     w.env.SITE_ENV = "production";

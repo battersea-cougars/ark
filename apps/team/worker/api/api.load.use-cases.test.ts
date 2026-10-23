@@ -143,8 +143,8 @@ describe("signing in while Gmail is paused", () => {
   it("says email isn't working, before anyone waits for a code that can't come", async () => {
     Object.assign(w.env, {
       TEAM_ENV: "dev",
-      GMAIL_CLIENT_ID: "id",
-      GMAIL_CLIENT_SECRET: "s",
+      GMAIL_WEB_CLIENT_ID: "id",
+      GMAIL_WEB_CLIENT_SECRET: "s",
       GMAIL_REFRESH_TOKEN: "r",
     });
     await guard("gmail", () => Promise.reject(new QuotaError("429", Date.now() + 15 * 60_000))).catch(() => {});

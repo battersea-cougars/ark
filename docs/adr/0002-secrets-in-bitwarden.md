@@ -17,11 +17,12 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 
 ## Decision
 
-1. **Bitwarden Secrets Manager is the only store for secrets.** CI and scripts load them at run time
-   (`scripts/lib/bitwarden.mjs`, `scripts/env-pull.mjs`). It is also our recovery store: **every secret we make
-   goes in**, including one that only a provider uses and no code of ours reads (the Apple push key, uploaded to
-   Firebase) and one a provider lets us download only once. Such a backup is documented in docs/secrets.md like any other,
-   its _Used by_ saying it's a backup.
+1. **Bitwarden Secrets Manager is the only store for the secrets our code reads.** CI and scripts load them at run
+   time (`scripts/lib/bitwarden.mjs`, `scripts/env-pull.mjs`), including one a provider lets us download only once.
+   **A recovery copy of a key no code reads** (the Apple push key, which only Firebase uses) is kept too, but in the
+   club's Bitwarden **vault** (Password Manager, an organisation item), not Secrets Manager: env-pull exports every
+   Secrets Manager value into every CI job, and a key nothing reads has no business there. Either way it's
+   documented in docs/secrets.md, its _Used by_ saying it's a backup.
 2. **Two projects, for every app:** `cougars` (production, `NAME__PRODUCTION`) and `cougars-dev` (dev `NAME__DEV`
    and shared plain `NAME` values). The production/dev split ([ADR 0010](0010-environments-and-deploys.md)) is the
    one that keeps production safe, so that is the one we keep. The third project slot stays free.
@@ -60,9 +61,15 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
    - Gmail's send-only token, which an admin reconnects in the team app when Google cancels it
      ([ADR 0027](0027-email-through-gmail-api.md)). It can send mail as the developer account (not read it), so it
      is the more powerful of the two; it's allowed because otherwise sign-in stops until a developer runs a script
-     and deploys. Bitwarden keeps the clients and the first token, which is how a developer gets back in.
+     and deploys. Bitwarden keeps the client and the first token, which is how a developer gets back in.
 
    Anything else a Worker would write stays out: ask first.
+
+9. **A value that isn't secret is committed, not stored.** An ID that is on a dashboard, in a URL or in browser code
+   anyway (an account's ID, an API key's ID, the team app's Sentry DSN) lives in committed config, one copy:
+   `scripts/lib/settings.mjs`, which env-pull hands to every command and CI job beside the secrets under the same
+   names, or a Worker var. One that is personal data (an email address) stays in Secrets Manager though it isn't
+   secret, because this repo is public.
 
 ## Consequences
 
@@ -92,3 +99,9 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   short overview.
 - 2026-10-23: docs/secrets.md is laid out by system, then by environment, each entry saying where it comes from
   (not an "owner"); the README keeps only how secrets work and a link per system.
+- 2026-10-23: The recovery copy of a key no code reads (the Apple push key) moves from Secrets Manager to an item in
+  the club's Bitwarden vault, so env-pull stops exporting it into every CI job; point 1 covers only what code reads.
+- 2026-10-23: IDs that aren't secret leave Bitwarden for committed config (`scripts/lib/settings.mjs`, exported by
+  env-pull): both Cloudflare account IDs, the Apple team ID, the App Store Connect key's ID and issuer, and the team
+  app's Sentry DSN (point 9). The Gmail Desktop client goes: the Web client makes and refreshes both tokens
+  ([ADR 0027](0027-email-through-gmail-api.md)).

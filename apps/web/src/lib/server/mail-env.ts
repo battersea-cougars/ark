@@ -5,8 +5,6 @@
 // email (read as the rest of the club facts are, lib/sanity/content.ts).
 import { env } from "cloudflare:workers";
 import {
-  GMAIL_CLIENT_ID,
-  GMAIL_CLIENT_SECRET,
   GMAIL_REFRESH_TOKEN,
   GMAIL_TOKEN_KEY,
   GMAIL_WEB_CLIENT_ID,
@@ -29,8 +27,6 @@ export const mailConfig = async (club: string | null): Promise<MailConfig> => ({
     (
       await gmailCredentials({
         DB: env.DB,
-        GMAIL_CLIENT_ID,
-        GMAIL_CLIENT_SECRET,
         GMAIL_REFRESH_TOKEN,
         GMAIL_WEB_CLIENT_ID,
         GMAIL_WEB_CLIENT_SECRET,

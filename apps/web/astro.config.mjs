@@ -53,13 +53,11 @@ export default defineConfig({
       INSTAGRAM_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Which site this build is (deploy.yml sets it): production, or dev for everything else
       SITE_ENV: envField.enum({ values: ["production", "dev"], context: "server", access: "public", default: "dev" }),
-      // Enquiry emails through the Gmail API (packages/shared/email.ts, docs/secrets.md#gmail). Worker secrets; without them the
-      // email is logged instead of sent.
-      GMAIL_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
-      GMAIL_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
+      // Enquiry emails through the Gmail API (packages/shared/email.ts, docs/secrets.md#gmail): the Web client and the
+      // deployed token it made. Worker secrets; without them the email is logged instead of sent. The token an admin
+      // reconnects in the team app wins over the deployed one: kept in D1, sealed with GMAIL_TOKEN_KEY
+      // (packages/shared/gmail-token.ts, ADR 0027).
       GMAIL_REFRESH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
-      // The token an admin reconnects in the team app wins over the deployed one: kept in D1, sealed with
-      // GMAIL_TOKEN_KEY, for the Web client (packages/shared/gmail-token.ts, ADR 0027)
       GMAIL_WEB_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
       GMAIL_WEB_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
       GMAIL_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),

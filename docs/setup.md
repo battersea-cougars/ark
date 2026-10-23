@@ -23,8 +23,8 @@ Do this twice: once for **Cougars** (production), once for **Cougars Dev** (dev)
    login). Scope **Entire _account_**; permissions **Workers Admin** (Editor can't create a new worker) and **D1 Write**. Name it
    `CLOUDFLARE_API_TOKEN__PRODUCTION` on Cougars, `CLOUDFLARE_API_TOKEN__DEV` on Cougars Dev. Copy it.
 
-Bitwarden secrets (step 3): `CLOUDFLARE_API_TOKEN__PRODUCTION`, `CLOUDFLARE_ACCOUNT_ID__PRODUCTION` in
-`cougars`; `CLOUDFLARE_API_TOKEN__DEV`, `CLOUDFLARE_ACCOUNT_ID__DEV` in `cougars-dev`.
+Bitwarden secrets (step 3): `CLOUDFLARE_API_TOKEN__PRODUCTION` in `cougars`; `CLOUDFLARE_API_TOKEN__DEV` in
+`cougars-dev`. The account IDs aren't secret: they go in `scripts/lib/settings.mjs` (`CLOUDFLARE_ACCOUNT_ID`), committed.
 
 ## 2. Sanity (content editing)
 

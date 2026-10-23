@@ -18,18 +18,18 @@ Accounts are named here by role, never by address:
 
 ## At a glance
 
-| Service                       | Owned by                                                                                              | What it holds                                                            | Secrets it issues (in Bitwarden)                                                                                                                                         |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [GitHub](#github)             | Organisation `battersea-cougars`; club account and a maintainer are owners                            | The repo, Actions, the rebuild App                                       | `GITHUB_APP_PRIVATE_KEY`; GitHub itself holds only the two Bitwarden tokens                                                                                              |
-| [Bitwarden](#bitwarden)       | The club's organisation (EU server); club account and a maintainer                                    | Secrets Manager: projects `cougars` and `cougars-dev`                    | The machine-account tokens `BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`, and the local one                                                                                    |
-| [Cloudflare](#cloudflare)     | Accounts **Cougars** and **Cougars Dev**; club account and a maintainer are Super Administrators      | Workers, D1, the domain, Access, Turnstile, Web Analytics, rate limiting | `CLOUDFLARE_API_TOKEN__*`, `CLOUDFLARE_ACCOUNT_ID__*`, `CLOUDFLARE_ANALYTICS_TOKEN__*`, `TURNSTILE_SECRET_KEY`(`__PRODUCTION`), `CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION` |
-| [Sanity](#sanity)             | Projects **Cougars** and **Cougars Dev**; club account and a maintainer are Administrators            | The website's editable content and photos                                | `SANITY_DEPLOY_TOKEN__PRODUCTION`                                                                                                                                        |
-| [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner                | The Gmail API app, YouTube API keys, Firebase                            | `GMAIL_CLIENT_ID`/`_SECRET`, `GMAIL_WEB_CLIENT_ID`/`_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_*`                                                                         |
-| [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                            | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                                                    |
-| [YouTube](#youtube)           | The club account owns the channel; managers upload                                                    | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                                               |
-| [Instagram](#instagram)       | The club account owns @batterseacougarshockey (Professional); the developer account owns the Meta app | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN__PRODUCTION` (and our `INSTAGRAM_TOKEN_KEY__PRODUCTION`)                                                                                                |
-| [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                          | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_DSN_WEB`, `SENTRY_DSN_TEAM`                                                                                                                 |
-| [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                                   | The store app (iOS)                                                      | `APP_STORE_CONNECT_KEY`, `_KEY_ID`, `_ISSUER_ID`, `APPLE_TEAM_ID`, `FIREBASE_IOS_CONFIG`, `APP_REVIEW_*__PRODUCTION` (when the store app ships)                          |
+| Service                       | Owned by                                                                                              | What it holds                                                            | Secrets it issues (in Bitwarden)                                                                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| [GitHub](#github)             | Organisation `battersea-cougars`; club account and a maintainer are owners                            | The repo, Actions, the rebuild App                                       | `GITHUB_APP_PRIVATE_KEY`; GitHub itself holds only the two Bitwarden tokens                                                                  |
+| [Bitwarden](#bitwarden)       | The club's organisation (EU server); club account and a maintainer                                    | Secrets Manager: projects `cougars` and `cougars-dev`                    | The machine-account tokens `BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`, and the local one                                                        |
+| [Cloudflare](#cloudflare)     | Accounts **Cougars** and **Cougars Dev**; club account and a maintainer are Super Administrators      | Workers, D1, the domain, Access, Turnstile, Web Analytics, rate limiting | `CLOUDFLARE_API_TOKEN__*`, `CLOUDFLARE_ANALYTICS_TOKEN__*`, `TURNSTILE_SECRET_KEY`(`__PRODUCTION`), `CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION` |
+| [Sanity](#sanity)             | Projects **Cougars** and **Cougars Dev**; club account and a maintainer are Administrators            | The website's editable content and photos                                | `SANITY_DEPLOY_TOKEN__PRODUCTION`                                                                                                            |
+| [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner                | The Gmail API app, YouTube API keys, Firebase                            | `GMAIL_WEB_CLIENT_ID`/`_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_*`                                                                          |
+| [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                            | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                        |
+| [YouTube](#youtube)           | The club account owns the channel; managers upload                                                    | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                   |
+| [Instagram](#instagram)       | The club account owns @batterseacougarshockey (Professional); the developer account owns the Meta app | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN__PRODUCTION` (and our `INSTAGRAM_TOKEN_KEY__PRODUCTION`)                                                                    |
+| [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                          | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_DSN_WEB`                                                                                                        |
+| [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                                   | The store app (iOS)                                                      | `APP_STORE_CONNECT_KEY`, `FIREBASE_IOS_CONFIG`, `APP_REVIEW_*__PRODUCTION` (when the store app ships)                                        |
 
 Made by us, from no service: `BACKUP_KEY` (`__PRODUCTION`) seals the database backups; `TEAM_ROSTER__PRODUCTION` is
 production's first admins; `SMOKE_TOKEN` is made and spent by each deploy and never stored.
@@ -85,9 +85,9 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
 
 - **Project** `battersea-cougars`, owned by the developer account, the club account a second Owner.
 - **Gmail API:** one OAuth app, "Battersea Cougars" (In production, unverified: only the developer account ever signs
-  in), with a Desktop client `cougars-website`, scope `gmail.send` only. Its ID and secret are `GMAIL_CLIENT_ID` and
-  `GMAIL_CLIENT_SECRET`; a Web client, `GMAIL_WEB_CLIENT_ID` and `GMAIL_WEB_CLIENT_SECRET`, lets an admin reconnect
-  from the team app. A client can hold two secrets at once, so a rotation has no gap
+  in), with one Web client, scope `gmail.send` only: `GMAIL_WEB_CLIENT_ID` and `GMAIL_WEB_CLIENT_SECRET`. It makes
+  the deployed token (`scripts/gmail-auth.mjs`) and the one an admin reconnects from the team app. A client can hold
+  two secrets at once, so a rotation has no gap
   ([secrets.md#gmail](secrets.md#gmail)).
 - **YouTube Data API:** two API keys, `YOUTUBE_API_KEY__PRODUCTION` and `__DEV`, each restricted to the YouTube Data
   API.
@@ -129,9 +129,10 @@ README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's U
 ## Apple
 
 - **Apple Developer membership:** a maintainer's for now; making it the club's is #103.
-- **Secrets:** the App Store Connect API key and its IDs, `APPLE_TEAM_ID`, Firebase's iOS
-  config, and the App Review sign-in ([secrets.md#apple](secrets.md#apple)). All are in Bitwarden but the App Review
-  pair, made when the app first goes to review.
+- **Secrets:** the App Store Connect API key, Firebase's iOS config, and the App Review sign-in
+  ([secrets.md#apple](secrets.md#apple)). All are in Bitwarden but the App Review pair, made when the app first goes
+  to review. The key's IDs and `APPLE_TEAM_ID` aren't secret: they're committed (`scripts/lib/settings.mjs`). The
+  APNs key's recovery copy is in the organisation's vault, not Secrets Manager.
 
 ## Not yet handed over
 
