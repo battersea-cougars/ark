@@ -701,6 +701,43 @@ describe("playoffs, after the group", () => {
     },
   );
 
+  // Adding a goal missed on the day can leave it level as well (#159): a Final won 1–0, an away goal, 1–1
+  it("an admin can't add a goal to a finished playoff if that would leave it level", async () => {
+    const c = await groupPlayed();
+    await c.score(c.final.id, 1, 0);
+    const final = await c.game(c.final.id);
+    const res = await c.goal(c.dana, c.final.id, { teamId: final.awayTeamId });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/winner: put the right score in instead/);
+    expect(row(c.final.id)).toMatchObject({ status: "done", home: 1, away: 0 });
+  });
+
+  it("an admin can add a goal to a finished playoff that still leaves a winner", async () => {
+    const c = await groupPlayed();
+    await c.score(c.final.id, 2, 0);
+    const final = await c.game(c.final.id);
+    expect((await c.goal(c.dana, c.final.id, { teamId: final.awayTeamId })).status).toBe(200);
+    expect(row(c.final.id)).toMatchObject({ status: "done", home: 2, away: 1 });
+  });
+
+  it.each(seeds(5))(
+    "two admins each adding an away goal to a 3–1 Final at once: one goes in, the other would leave it level (seed %i)",
+    async (seed) => {
+      const c = await groupPlayed();
+      await c.score(c.final.id, 3, 1);
+      const final = await c.game(c.final.id);
+      // Two admins: two phones signed in as one does the same
+      const other = await w.signedIn("dana@example.com");
+      w.db.interleave(seed);
+      const replies = await Promise.all(
+        [c.dana, other].map((who) => c.goal(who, c.final.id, { teamId: final.awayTeamId })),
+      );
+      w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
+      expect(row(c.final.id)).toMatchObject({ home: 3, away: 2 });
+    },
+  );
+
   it("an admin can take a goal off a finished playoff that still leaves a winner", async () => {
     const c = await groupPlayed();
     await c.score(c.final.id, 3, 1);

@@ -325,6 +325,12 @@ export async function addGoal(
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
   const tapId = tapOf(o);
+  // A goal missed on a finished playoff never leaves it level (#159, as taking one off can't, #123), decided in the
+  // statement that adds it (ADR 0121): two admins adding one each to a 3–1 Final at once can't make it 3–3. Params:
+  // the game and this team, then the game and the other
+  const playoff = done && game.stage === "playoff";
+  const goals = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND team_id = ?)";
+  const other = teamId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;
   // The goal and the score it makes in one batch: full time landing between them would make the result without it.
   // The same tap twice is one goal (#114): the second's insert does nothing
   const [res] = await batch(db, [
@@ -332,7 +338,8 @@ export async function addGoal(
       db,
       `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, tap_id,
          created_at)
-       SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)} ON CONFLICT (game_id, tap_id) DO NOTHING`,
+       SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}${playoff ? ` AND ${goals} + 1 != ${goals}` : ""}
+       ON CONFLICT (game_id, tap_id) DO NOTHING`,
       [
         gameId,
         teamId,
@@ -344,16 +351,23 @@ export async function addGoal(
         now.toISOString(),
         gameId,
         who.memberId,
+        ...(playoff ? [gameId, teamId, gameId, other] : []),
       ],
     ),
     recount(db, game),
   ]);
   if (!res.meta.changes) {
     if (await tapped(db, "tournament_goals", gameId, tapId)) return;
+    if (playoff && (await first(db, "SELECT 1 FROM tournament_games WHERE id = ? AND status = 'done'", [gameId])))
+      throw leavesItLevel();
     throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
   }
   if (done && game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
+
+/** A finished playoff left level by a goal added or taken off: it needs a winner. */
+const leavesItLevel = () =>
+  new HttpError(409, "That would leave it level, and a playoff needs a winner: put the right score in instead.");
 
 /**
  * Any goal off a finished game: it wasn't one, or it was the other side's. Never one that leaves a playoff level (a
@@ -377,9 +391,7 @@ export async function removeGoal(db: D1Database, tournamentId: number, gameId: n
   ]);
   if (!res.meta.changes) {
     const there = await first(db, "SELECT 1 FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]);
-    throw there
-      ? new HttpError(409, "That would leave it level, and a playoff needs a winner: put the right score in instead.")
-      : new HttpError(404, "No such goal.");
+    throw there ? leavesItLevel() : new HttpError(404, "No such goal.");
   }
   // The playoffs from the table
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, await tournamentOf(db, tournamentId));
