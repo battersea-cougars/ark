@@ -48,38 +48,79 @@ test("The Kumite night", async ({ browser }) => {
 
     await does(
       ada,
-      "schedules the next Kumite by season only, no day, sign-up opening today, no captains yet, then Advanced: nine places",
+      "schedules the next Kumite by season only, no day, sign-up opening today, no captains yet, then Advanced in the same wizard: nine places, the rules looked over",
       async () => {
         await open(ada);
         const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
         await ada.page.getByRole("button", { name: "Next Kumite" }).click();
         // The day's left unset, as the wizard has it: just the season
         await expect(wizard.getByRole("button", { name: /^Day:/ })).toContainText("Not set");
+        // What it takes from the series is said, with the way to change it for this one
+        await expect(wizard.getByRole("button", { name: "change it" })).toBeVisible();
         await wizard.getByRole("button", { name: "Next · Sign-up" }).click();
         await expect(wizard.getByRole("button", { name: "Sign-up opens" })).toHaveText(todayLabel());
-        await wizard.getByRole("button", { name: "Next · Captains" }).click();
+        // Without Advanced, the places and the fee are a line, not fields
+        await expect(wizard.getByRole("spinbutton", { name: "Places" })).toHaveCount(0);
+        await expect(wizard.getByText(/24 places/)).toBeVisible();
+        // "change it" turns Advanced on, here: the fee for this one, the places, when sign-up closes
+        const change = wizard.getByRole("button", { name: "change it" });
+        await expect(change).toHaveCount(1);
+        await change.click();
+        await expect(wizard.getByRole("switch", { name: "Advanced" })).toHaveAttribute("aria-checked", "true");
+        await expect(wizard.getByRole("textbox", { name: "Fee (£)" })).toBeFocused();
+        await expect(wizard.getByRole("button", { name: "Sign-up closes" })).toBeVisible();
+        await wizard.getByRole("spinbutton", { name: "Places" }).fill("9");
+        // The club's data refreshed while it's open (the series changed elsewhere, the app back in view): what's been
+        // typed stays, and the fee is still the one it started with, not the series' new one
+        const series = ((await adaApi("GET", "/api/bootstrap")).tournamentTypes as { id: number }[]).find(
+          (t) => t.id === 1,
+        )!;
+        const fee = await wizard.getByRole("textbox", { name: "Fee (£)" }).inputValue();
+        await adaApi("PUT", "/api/tournament-types/1", { ...series, defaultFeePence: 1500 });
+        const refreshed = ada.page.waitForResponse((r) => r.url().includes("/api/bootstrap"));
+        await ada.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+        await refreshed;
+        await expect(wizard.getByRole("spinbutton", { name: "Places" })).toHaveValue("9");
+        await expect(wizard.getByRole("textbox", { name: "Fee (£)" })).toHaveValue(fee);
+        await adaApi("PUT", "/api/tournament-types/1", series);
+        await wizard.getByRole("button", { name: "Next · Teams" }).click();
         // The captains offered, but none chosen yet: they're named after (below, and the draft asks, stage 3)
         await expect(wizard.getByRole("button", { name: "Add Cara Captain as a captain" })).toBeVisible();
-        // The quick questions don't ask how many places: the full editor does, with the answers filled in
-        await wizard.getByRole("button", { name: "Advanced" }).click();
-        await wizard.getByRole("tab", { name: "Sign-up" }).click();
-        await wizard.getByRole("spinbutton", { name: "Places" }).fill("9");
+        await expect(wizard.getByRole("button", { name: "Draft day" })).toBeVisible();
+        // Advanced's last step before Check: the rules and awards, as the series has them
+        await wizard.getByRole("button", { name: "Next · Rules" }).click();
+        await expect(wizard.getByRole("spinbutton", { name: "Points for a win" })).toBeVisible();
+        await wizard.getByRole("button", { name: "Next · Check" }).click();
+        await expect(wizard.getByText("9 places", { exact: false })).toBeVisible();
         await wizard.getByRole("button", { name: "Schedule it" }).click();
-        // Scheduled, the panel goes on to its editor
+        // Scheduled, the wizard closes on the Kumite's page, which shows it
+        await expect(wizard).toHaveCount(0);
         await expect.poll(async () => (await kumite())?.capacity).toBe(9);
       },
     );
 
-    // Scheduled, then straight on in the editor it opens to: a captain added, saved again
-    await checks(ada, "adds a captain in the editor it goes on to (Draft & teams), Save there, and saves", async () => {
-      await ada.page.getByRole("tab", { name: "Draft & teams" }).click();
-      await ada.page.getByRole("combobox", { name: "Add a captain" }).fill("Cara Captain");
-      await ada.page.getByRole("option", { name: "Cara Captain" }).click();
-      const save = ada.page.getByRole("button", { name: "Save", exact: true });
-      await expect(save).toBeEnabled();
-      await save.click();
-      await expect.poll(async () => ((await kumite()).teams as unknown[]).length).toBe(1);
-    });
+    // Then its editor, from the page (Manage → Kumite settings): the same tabs as the wizard's steps; a captain added
+    // lights Save, and it saves
+    await checks(
+      ada,
+      "adds a captain in its editor (Manage → Kumite settings, Draft & teams), Save, and saves",
+      async () => {
+        await ada.page.getByRole("button", { name: "Manage the Kumite" }).click();
+        await ada.page
+          .getByRole("dialog", { name: "Manage the Kumite" })
+          .getByRole("button", { name: /^Kumite settings/ })
+          .click();
+        for (const tab of ["Details", "Sign-up", "Draft & teams", "Rules & awards"])
+          await expect(ada.page.getByRole("tab", { name: tab })).toBeVisible();
+        await ada.page.getByRole("tab", { name: "Draft & teams" }).click();
+        await ada.page.getByRole("combobox", { name: "Add a captain" }).fill("Cara Captain");
+        await ada.page.getByRole("option", { name: "Cara Captain" }).click();
+        const save = ada.page.getByRole("button", { name: "Save", exact: true });
+        await expect(save).toBeEnabled();
+        await save.click();
+        await expect.poll(async () => ((await kumite()).teams as unknown[]).length).toBe(1);
+      },
+    );
     await does(ada, "leaves the editor for the Kumite's page", async () => {
       await open(ada);
       await expect(ada.page.getByRole("dialog")).toHaveCount(0);

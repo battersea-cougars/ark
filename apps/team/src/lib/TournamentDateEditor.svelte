@@ -1,6 +1,5 @@
 <script lang="ts" module>
   import { goesBy } from "./names";
-  import type { QuickValues } from "./TournamentQuickCreate.svelte";
 
   /** A sheet the editor's rows open: a team's or an award's, by its place in the list. */
   export type EditorSheet = { team: number } | { award: number };
@@ -12,52 +11,40 @@
   // One tournament's editor, in the panel its card opens (Settings → Tournaments): what an admin comes here
   // for. When and where it is, sign-up, its teams (ADR 0030): teams that entered, or a draft's captains (in no order:
   // it's drawn as the draft opens) and the draft night, and its rules and awards, on tabs as the training editor lays
-  // out its fields. Picking a series copies its defaults in (ADR 0030); they can then change for this one. The
-  // series' look (icon, colour) stays the series'. Not here: its stage (Coming up, Sign-up open, …), moved on from its
-  // own page (Manage, ADR 0074), and a team's name and logo, edited on the team's page (Edit the team).
-  import TimeSelect from "./TimeSelect.svelte";
+  // out its fields. The tabs are the wizard's steps, by the same names, and each group of fields is the one the wizard
+  // shows (lib/Tournament*Fields), so scheduling one and editing it read as one form (#163). Picking a series copies
+  // its defaults in (ADR 0030); they can then change for this one. The series' look (icon, colour) stays the series'.
+  // Not here: its stage (Coming up, Sign-up open, …), moved on from its own page (Manage, ADR 0074), and a team's
+  // name and logo, edited on the team's page (Edit the team).
   import { tick } from "svelte";
   import { cancelClashes, createTournament, updateTournament } from "../app/backend.svelte";
   import ClashSheet from "./ClashSheet.svelte";
   import { tournamentWindow } from "./clashes";
-  import {
-    TOURNAMENT_KINDS,
-    type Playoff,
-    type Tournament,
-    type TournamentKind,
-    type TournamentTeam,
-  } from "../demo/model";
+  import type { TournamentTeam } from "../demo/model";
   import { db } from "../demo/store.svelte";
   import { collectedFor } from "../demo/dues.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { teamsForPlayoffs } from "./fixtures";
   import Select from "./Select.svelte";
   import FormSection from "./FormSection.svelte";
-  import PlacePicker from "./PlacePicker.svelte";
-  import AfterFields from "./AfterFields.svelte";
-  import type { AfterMode } from "@cougars/shared/places";
-  import PlayoffsField from "./PlayoffsField.svelte";
-  import Choice from "./Choice.svelte";
-  import { PENALTY_LENGTH_OPTIONS, PENALTY_RULE_OPTIONS, type PenaltyRule } from "./penalties";
-  import { PERIOD_OPTIONS } from "./periods";
-  import DateField from "../lib/DateField.svelte";
   import TeamsField from "./TeamsField.svelte";
+  import TournamentWhatFields from "./TournamentWhatFields.svelte";
+  import TournamentWhenFields from "./TournamentWhenFields.svelte";
+  import TournamentVenueFields from "./TournamentVenueFields.svelte";
+  import TournamentSignupFields from "./TournamentSignupFields.svelte";
+  import TournamentDraftDay from "./TournamentDraftDay.svelte";
+  import TournamentRulesFields from "./TournamentRulesFields.svelte";
   import { broughtTeam } from "./brought-team";
-  import { typeAfter, typePlace } from "../demo/schedule.svelte";
-  import { londonToday, pounds } from "./dates";
   import { navigate } from "../app/router.svelte";
   import { teamHref } from "./team-tones";
   import { seriesToOpen } from "../pages/TournamentSeries.svelte";
-  import { seasonEnd, seasonLabel, seasonOf, seasonsFrom, seasonYear, type Season } from "@cougars/shared/seasons";
   import type { Edits } from "./dirty.svelte";
-  import AwardsField from "./AwardsField.svelte";
-  import { withDecidedBy, type Award } from "./awards";
+  import { blankForm, formDay, formOf, toTournament, withSeries, type TournamentForm } from "./tournament-form";
 
   let {
     dateId,
     typeId,
     startTab = "details",
-    start = $bindable(),
     edits,
     oncreated,
     leave,
@@ -68,9 +55,6 @@
     typeId?: number;
     /** The tab it opens on: "teams" to add the captains */
     startTab?: EditorTab;
-    /** A new date's answers from the quick questions (Advanced): its day, draft and captains, kept up to date here so
-     *  going back to the questions keeps what was changed */
-    start?: QuickValues;
     /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
     edits?: Edits;
     oncreated?: (id: number) => void;
@@ -81,208 +65,30 @@
     sheet?: EditorSheet | null;
   } = $props();
 
-  interface DateForm {
-    id: number;
-    /** Its series, or none: a tournament can stand on its own */
-    typeId: number | null;
-    name: string;
-    /** Optional: empty while it's just a season (ADR 0030) */
-    heldOn: string;
-    /** Always: the season it's in, which a day sets */
-    season: Season;
-    seasonYear: number;
-    startTime: string;
-    endTime: string;
-    /** Its place (ADR 0030); none set: its series' */
-    venueId: number | null;
-    location: string;
-    mapUrl: string;
-    /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own, or none this time */
-    afterMode: AfterMode;
-    afterVenueId: number | null;
-    afterTime: string | null;
-    afterNote: string;
-    capacity: number | null;
-    fee: string;
-    public: boolean;
-    signupOpensOn: string;
-    signupClosesOn: string;
-    draftOn: string;
-    pointsWin: number;
-    pointsDraw: number;
-    pointsLoss: number;
-    gameMinutes: number;
-    penaltyRule: PenaltyRule;
-    periods: number;
-    defaultPenaltyMinutes: number;
-    breakMinutes: number;
-    kind: TournamentKind;
-    awards: Award[];
-    playoffs: Playoff[];
-    teams: TournamentTeam[];
-  }
-
-  // A new date's season: next summer, unless this one is still to come
-  const thisYear = Number(londonToday().slice(0, 4));
-  const nextSummer = londonToday() <= seasonEnd("summer", thisYear) ? thisYear : thisYear + 1;
-  // The seasons a date can be in: this one and the next few
-  const SEASONS_AHEAD = 4;
-
-  function formOf(t: Tournament | undefined): DateForm {
-    if (t)
-      return {
-        id: t.id,
-        typeId: t.typeId,
-        name: t.name,
-        // A season's day is only its stand-in, never shown
-        heldOn: t.season ? "" : t.heldOn,
-        season: t.season ?? seasonOf(t.heldOn).season,
-        seasonYear: t.season ? seasonYear(t.season, t.heldOn) : seasonOf(t.heldOn).year,
-        startTime: t.startTime,
-        endTime: t.endTime,
-        venueId: t.venueId,
-        location: t.location,
-        mapUrl: t.mapUrl,
-        afterMode: t.afterMode ?? "usual",
-        afterVenueId: t.afterVenueId ?? null,
-        afterTime: t.afterTime ?? null,
-        afterNote: t.afterNote ?? "",
-        capacity: t.capacity,
-        fee: String(t.feePence / 100),
-        public: t.public,
-        signupOpensOn: t.signupOpensOn ?? "",
-        signupClosesOn: t.signupClosesOn ?? "",
-        draftOn: t.draftOn ?? "",
-        pointsWin: t.pointsWin,
-        pointsDraw: t.pointsDraw,
-        pointsLoss: t.pointsLoss,
-        gameMinutes: t.gameMinutes,
-        penaltyRule: t.penaltyRule ?? "power_play",
-        periods: t.periods ?? 1,
-        defaultPenaltyMinutes: t.defaultPenaltyMinutes ?? 2,
-        breakMinutes: t.breakMinutes ?? 2,
-        kind: t.kind,
-        awards: withDecidedBy(t.awards),
-        playoffs: (t.playoffs ?? []).map((g) => ({ ...g })),
-        teams: t.teams.map((team) => ({ ...team, players: team.players.map((p) => ({ ...p })) })),
-      };
-    // A new one stands on its own until a series is picked
-    return {
-      id: 0,
-      typeId: null,
-      name: "",
-      heldOn: "",
-      season: "summer",
-      seasonYear: nextSummer,
-      startTime: "11:00",
-      endTime: "16:00",
-      venueId: null,
-      location: "",
-      mapUrl: "",
-      afterMode: "usual",
-      afterVenueId: null,
-      afterTime: null,
-      afterNote: "",
-      capacity: 24,
-      fee: "0",
-      public: true,
-      // Sign-up opens the day it's scheduled, unless said otherwise
-      signupOpensOn: londonToday(),
-      signupClosesOn: "",
-      draftOn: "",
-      // The usual round robin until a series says otherwise
-      pointsWin: 3,
-      pointsDraw: 1,
-      pointsLoss: 0,
-      gameMinutes: 12,
-      penaltyRule: "power_play",
-      periods: 1,
-      defaultPenaltyMinutes: 2,
-      breakMinutes: 2,
-      kind: "teams",
-      awards: [],
-      playoffs: [],
-      teams: [],
-    };
-  }
-
   // The panel mounts a fresh editor for each date, so the form takes its starting values once
-  const starting = () => {
+  const starting = (): TournamentForm => {
     const t = dateId ? db.tournaments.find((x) => x.id === dateId) : undefined;
-    return formOf(t ? $state.snapshot(t) : undefined);
+    return t ? formOf($state.snapshot(t)) : blankForm();
   };
-  let date = $state<DateForm>(starting());
+  let date = $state<TournamentForm>(starting());
 
   const type = $derived(db.tournamentTypes.find((t) => t.id === date.typeId));
   /** Already charged: the fee is fixed. */
-  const charged = $derived(date.id ? collectedFor("tournament", date.id).people > 0 : false);
   const collected = $derived(date.id ? collectedFor("tournament", date.id) : null);
+  const charged = $derived((collected?.people ?? 0) > 0);
 
-  /**
-   * Picking a series copies its defaults in: its rules, awards and location, its name if there's none yet, and its
-   * fee unless anyone's paid. They can then change for this one.
-   */
   function pickType(id: string) {
-    date.typeId = id ? Number(id) : null;
-    const t = db.tournamentTypes.find((x) => x.id === date.typeId);
-    if (!t) return;
-    if (!date.name) date.name = t.name;
-    if (!charged) date.fee = String(t.defaultFeePence / 100);
-    // Its usual hours (ADR 0074)
-    date.startTime = t.defaultStartTime;
-    date.endTime = t.defaultEndTime;
-    date.venueId = t.venueId;
-    date.location = t.location;
-    date.mapUrl = t.mapUrl;
-    date.pointsWin = t.pointsWin;
-    date.pointsDraw = t.pointsDraw;
-    date.pointsLoss = t.pointsLoss;
-    date.gameMinutes = t.gameMinutes;
-    date.penaltyRule = t.penaltyRule;
-    date.periods = t.periods;
-    date.defaultPenaltyMinutes = t.defaultPenaltyMinutes;
-    date.breakMinutes = t.breakMinutes;
-    date.kind = t.kind;
-    date.awards = withDecidedBy(t.awards);
-    date.playoffs = (t.playoffs ?? []).map((g) => ({ ...g }));
+    const t = db.tournamentTypes.find((x) => x.id === Number(id));
+    if (t) withSeries(date, t, { charged });
+    else date.typeId = null;
   }
 
   // Started from a series' page: in that series from the off (the panel mounts a fresh editor for each, as above)
   // svelte-ignore state_referenced_locally
   if (!dateId && typeId) pickType(String(typeId));
-  // Come from the quick questions: their answers, filled in
-  // svelte-ignore state_referenced_locally
-  if (!dateId && start) {
-    pickSeason(start.season, start.seasonYear);
-    if (start.heldOn) pickDay(start.heldOn);
-    date.startTime = start.startTime;
-    date.endTime = start.endTime;
-    date.draftOn = start.draftOn;
-    date.signupOpensOn = start.signupOpensOn;
-    date.teams = start.captains.map((captainMemberId) => ({
-      name: "",
-      logo: null,
-      captainMemberId,
-      captainName: "",
-      contact: "",
-      players: [],
-    }));
-  }
   // What it starts as is what's saved: changes from here are unsaved until Save
   // svelte-ignore state_referenced_locally
   edits?.watch(() => date, { fresh: !dateId });
-  // …and changes here go back to them, for Back to the questions
-  $effect(() => {
-    if (dateId || !start) return;
-    start.heldOn = date.heldOn;
-    start.season = date.season;
-    start.seasonYear = date.seasonYear;
-    start.startTime = date.startTime;
-    start.endTime = date.endTime;
-    start.draftOn = date.draftOn;
-    start.signupOpensOn = date.signupOpensOn;
-    start.captains = date.teams.map((t) => t.captainMemberId).filter((m): m is number => m !== null);
-  });
 
   /** Off to the series' own page, its defaults open. */
   function editSeries() {
@@ -298,39 +104,11 @@
       .map((t) => ({ value: String(t.id), label: t.name })),
   ]);
 
-  /** The day a date sorts by: its own, or its season's last. */
-  const dayOf = (d: DateForm) => d.heldOn || seasonEnd(d.season, d.seasonYear);
-
-  // A day sets the season it's in; a season the day isn't in clears the day
-  function pickDay(day: string) {
-    date.heldOn = day;
-    if (day) ({ season: date.season, year: date.seasonYear } = seasonOf(day));
-  }
-  function pickSeason(season: Season, year: number) {
-    date.season = season;
-    date.seasonYear = year;
-    if (date.heldOn) {
-      const s = seasonOf(date.heldOn);
-      if (s.season !== season || s.year !== year) date.heldOn = "";
-    }
-  }
-  // "Summer 2027": this season and the next few, and the one it's in if that's further out or gone
-  const seasonOptions = $derived(
-    [...seasonsFrom(londonToday(), SEASONS_AHEAD), { season: date.season, year: date.seasonYear }]
-      .map(({ season, year }) => ({ value: `${season} ${year}`, label: seasonLabel(season, seasonEnd(season, year)) }))
-      .filter((o, i, all) => all.findIndex((x) => x.value === o.value) === i)
-      .sort((a, b) => seasonEndOf(a.value).localeCompare(seasonEndOf(b.value))),
-  );
-  function seasonEndOf(value: string) {
-    const [season, year] = value.split(" ");
-    return seasonEnd(season as Season, Number(year));
-  }
-
   const members = $derived(
     db.members.filter((m) => m.status === "active").sort((a, b) => goesBy(a.player).localeCompare(goesBy(b.player))),
   );
   // A draft's captains bring their team from the series' last edition they captained in (brought-team.ts)
-  const edition = $derived({ id: date.id || undefined, typeId: date.typeId, heldOn: dayOf(date) });
+  const edition = $derived({ id: date.id || undefined, typeId: date.typeId, heldOn: formDay(date) });
   const memberList = $derived(
     members.map((m) => ({
       id: m.player.id,
@@ -339,16 +117,14 @@
     })),
   );
 
+  const stored = $derived(dateId ? db.tournaments.find((x) => x.id === dateId) : undefined);
   // Its type is how its teams are made: once it has any saved, it stays (the server says so too)
-  const kindFixed = $derived(!!dateId && (db.tournaments.find((x) => x.id === dateId)?.teams.length ?? 0) > 0);
-  const drawn = $derived.by(() => {
-    const state = dateId ? db.tournaments.find((x) => x.id === dateId)?.draftState : undefined;
-    return state === "open" || state === "closed";
-  });
+  const kindFixed = $derived((stored?.teams.length ?? 0) > 0);
+  const drawn = $derived(stored?.draftState === "open" || stored?.draftState === "closed");
 
   // Four tabs, in the order they're set: the tournament itself, sign-up, its teams (and a draft's night), then how
   // it's played (a series' edition copies its rules and awards, so they're rarely changed). Shorter on a phone, so all
-  // four fit; the full name is still what a screen reader hears
+  // four fit, and those are the wizard's steps; the full name is still what a screen reader hears
   type Tab = EditorTab;
   // svelte-ignore state_referenced_locally
   let tab = $state<Tab>(startTab);
@@ -367,47 +143,8 @@
     formEl?.reportValidity();
   }
 
-  const stored = $derived(dateId ? db.tournaments.find((x) => x.id === dateId) : undefined);
   /** A saved team's own page, in a series (a tournament on its own has no pages): its name and logo are edited there. */
   const teamPage = (team: TournamentTeam) => (type && team.id ? teamHref(type.slug, team.id) : null);
-  const toTournament = (d: DateForm): Tournament => ({
-    id: d.id,
-    typeId: d.typeId,
-    name: d.name,
-    venueId: d.venueId,
-    location: d.venueId ? "" : d.location.trim(),
-    mapUrl: d.venueId ? "" : d.mapUrl.trim(),
-    afterMode: d.afterMode,
-    afterVenueId: d.afterMode === "own" ? d.afterVenueId : null,
-    afterTime: d.afterMode === "own" ? d.afterTime : null,
-    afterNote: d.afterMode === "own" ? d.afterNote.trim() : "",
-    heldOn: dayOf(d),
-    season: d.heldOn ? null : d.season,
-    startTime: d.startTime,
-    endTime: d.endTime,
-    capacity: d.capacity || null,
-    // Never sent (lib/tournament-body.ts): its own page moves it on
-    status: stored?.status ?? "planned",
-    feePence: Math.round(Number(d.fee || 0) * 100),
-    public: d.public,
-    signupOpensOn: d.signupOpensOn || null,
-    signupClosesOn: d.signupClosesOn || null,
-    draftOn: d.kind === "draft" && d.draftOn ? d.draftOn : null,
-    pointsWin: d.pointsWin,
-    pointsDraw: d.pointsDraw,
-    pointsLoss: d.pointsLoss,
-    gameMinutes: d.gameMinutes,
-    penaltyRule: d.penaltyRule,
-    periods: d.periods,
-    defaultPenaltyMinutes: d.defaultPenaltyMinutes,
-    breakMinutes: d.breakMinutes,
-    kind: d.kind,
-    awards: d.awards.filter((a) => a.name.trim()),
-    playoffs: d.playoffs.filter((g) => g.name.trim()),
-    teams: d.teams,
-    going: [],
-    waitlist: [],
-  });
 
   async function save(e: SubmitEvent) {
     e.preventDefault();
@@ -415,12 +152,9 @@
     // A team that entered needs a name: its sheet opens on it
     const unnamed = date.kind === "teams" ? date.teams.findIndex((t) => !t.name.trim()) : -1;
     if (unnamed >= 0) return void ((tab = "teams"), (sheet = { team: unnamed }));
-    const t = toTournament(date);
+    const t = toTournament(date, stored?.status);
     // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
-    const window = tournamentWindow(
-      t,
-      db.tournaments.find((x) => x.id === t.id),
-    );
+    const window = tournamentWindow(t, stored);
     const chosen = window ? await clashSheet?.ask(window, t.name) : [];
     if (chosen === null) return;
     if (date.id) {
@@ -458,239 +192,47 @@
     {#key tab}
       <div class="panel-tab rise" id="date-panel" role="tabpanel" aria-labelledby="date-tab-{tab}">
         {#if tab === "details"}
-          <FormSection title="What">
-            <div class="field">
-              <span>Series <span class="hint">· optional</span></span>
-              <Select
-                id="date-type"
-                value={date.typeId ? String(date.typeId) : ""}
-                onchange={pickType}
-                options={seriesOptions}
-                aria-label="Series"
-              />
-              <span class="hint small">
-                {#if type}
-                  Its fee, location, rules and awards were copied from the series; change them here for this one.
-                  <button type="button" class="link" onclick={editSeries}>Edit the series' defaults</button>
-                {:else}
-                  One on its own, or choose a series to copy in its rules, awards, location and fee.
-                {/if}
-              </span>
-            </div>
-            <label class="field"
-              >Name <input
-                class="input"
-                bind:value={date.name}
-                placeholder="e.g. Winter {type?.shortName ?? 'Cup'}"
-                required
-              /></label
-            >
-            <div class="field">
-              <span id="date-kind">Type</span>
-              <div class="seg kind" role="group" aria-labelledby="date-kind">
-                {#each TOURNAMENT_KINDS as k (k.id)}
-                  <button
-                    type="button"
-                    aria-pressed={date.kind === k.id}
-                    disabled={kindFixed && date.kind !== k.id}
-                    onclick={() => (date.kind = k.id)}
-                  >
-                    {k.label}
-                  </button>
-                {/each}
-              </div>
-              <span class="hint small"
-                >{TOURNAMENT_KINDS.find((k) => k.id === date.kind)?.hint}{kindFixed
-                  ? " It has teams, so its type stays."
-                  : ""}</span
-              >
-            </div>
-          </FormSection>
-          <FormSection title="When" description="A season is enough until the day is known.">
-            <!-- Two to a row: the season and the day, then Starts and Ends together (on a phone too) -->
-            <div class="cols when">
+          <TournamentWhatFields
+            bind:form={date}
+            id="date"
+            {kindFixed}
+            placeholder="e.g. Winter {type?.shortName ?? 'Cup'}"
+          >
+            {#snippet series()}
               <div class="field">
-                Season
+                <span>Series <span class="hint">· optional</span></span>
                 <Select
-                  id="date-season"
-                  value={`${date.season} ${date.seasonYear}`}
-                  onchange={(v) => {
-                    const [season, year] = v.split(" ");
-                    pickSeason(season as Season, Number(year));
-                  }}
-                  options={seasonOptions}
-                  aria-label="Season"
+                  id="date-type"
+                  value={date.typeId ? String(date.typeId) : ""}
+                  onchange={pickType}
+                  options={seriesOptions}
+                  aria-label="Series"
                 />
+                <span class="hint small">
+                  {#if type}
+                    Its fee, location, rules and awards were copied from the series; change them here for this one.
+                    <button type="button" class="link" onclick={editSeries}>Edit the series' defaults</button>
+                  {:else}
+                    One on its own, or choose a series to copy in its rules, awards, location and fee.
+                  {/if}
+                </span>
               </div>
-              <!-- The day, once it's known; until then it's just the season -->
-              <div class="field">
-                <label for="date-day">Date <span class="hint">· optional</span></label>
-                <DateField
-                  id="date-day"
-                  placeholder="Not set: just the season"
-                  bind:value={() => date.heldOn, (v) => pickDay(v)}
-                />
-              </div>
-              <div class="field">
-                Starts <TimeSelect id="date-start" bind:value={date.startTime} aria-label="Starts" />
-              </div>
-              <div class="field">Ends <TimeSelect id="date-end" bind:value={date.endTime} aria-label="Ends" /></div>
-            </div>
-          </FormSection>
-          <!-- Where it is and where everyone goes after (ADR 0074): one section, each field saying which -->
-          <FormSection title="Venue">
-            <PlacePicker
-              id="date-place"
-              bind:venueId={date.venueId}
-              bind:name={date.location}
-              bind:mapUrl={date.mapUrl}
-              usual={type ? typePlace(type) : undefined}
-            />
-            <AfterFields
-              id="date-after"
-              bind:mode={date.afterMode}
-              bind:venueId={date.afterVenueId}
-              bind:time={date.afterTime}
-              bind:note={date.afterNote}
-              usual={type ? typeAfter(type) : null}
-            />
-          </FormSection>
+            {/snippet}
+          </TournamentWhatFields>
+          <TournamentWhenFields bind:form={date} id="date" />
+          <TournamentVenueFields bind:form={date} id="date" {type} />
         {:else if tab === "rules"}
-          <FormSection title="Rules" description="Round robin: every team plays every other once.">
-            <div class="cols">
-              <label class="field"
-                >Points for a win <input class="input num" type="number" min="0" bind:value={date.pointsWin} /></label
-              >
-              <label class="field"
-                >A draw <input class="input num" type="number" min="0" bind:value={date.pointsDraw} /></label
-              >
-              <label class="field"
-                >A loss <input class="input num" type="number" min="0" bind:value={date.pointsLoss} /></label
-              >
-              <label class="field">
-                Minutes a period
-                <input class="input num" type="number" min="1" max="90" bind:value={date.gameMinutes} />
-              </label>
-              <label class="field">
-                Break between periods
-                <!-- One period: no break to have -->
-                <input
-                  class="input num"
-                  type="number"
-                  min="0"
-                  max="15"
-                  disabled={date.periods === 1}
-                  bind:value={date.breakMinutes}
-                />
-              </label>
-            </div>
-            <div class="field">
-              Periods
-              <Choice
-                bind:value={() => String(date.periods), (v) => (date.periods = Number(v))}
-                options={PERIOD_OPTIONS}
-                aria-label="Periods"
-              />
-            </div>
-            <div class="field">
-              Penalties
-              <Choice bind:value={date.penaltyRule} options={PENALTY_RULE_OPTIONS} aria-label="Penalties" />
-            </div>
-            <div class="field">
-              Usual penalty
-              <Choice
-                bind:value={() => String(date.defaultPenaltyMinutes), (v) => (date.defaultPenaltyMinutes = Number(v))}
-                options={PENALTY_LENGTH_OPTIONS}
-                aria-label="Usual penalty"
-              />
-            </div>
-          </FormSection>
-          <FormSection title="Playoffs" description="After the round robin, by place in the table.">
-            <PlayoffsField bind:playoffs={date.playoffs} teams={date.teams.length} />
-          </FormSection>
-          <FormSection
-            title="Awards"
-            description="This one's own (a series' edition starts with the series'): handed out on the day, and shown on the website."
-          >
-            <AwardsField
-              bind:awards={date.awards}
-              bind:open={
-                () => (sheet && "award" in sheet ? sheet.award : null),
-                (i) => (sheet = i === null ? null : { award: i })
-              }
-            />
-          </FormSection>
+          <TournamentRulesFields
+            bind:form={date}
+            bind:award={
+              () => (sheet && "award" in sheet ? sheet.award : null), (i) => (sheet = i === null ? null : { award: i })
+            }
+          />
         {:else if tab === "signup"}
-          <FormSection
-            title="Sign-up"
-            description="Members say they're in from the day it opens till it closes (empty: up to the day)."
-          >
-            <!-- Two to a row, in pairs: opens and closes, places and fee, then the website. Its stage isn't here: it
-                 moves on from its own page (Manage: Close sign-up, Move to…, ADR 0074) -->
-            <div class="cols pairs">
-              <div class="field">
-                Sign-up opens
-                <DateField
-                  id="date-signup-opens"
-                  aria-label="Sign-up opens"
-                  placeholder="Not set"
-                  bind:value={date.signupOpensOn}
-                  max={dayOf(date) || undefined}
-                />
-              </div>
-              <div class="field">
-                Sign-up closes
-                <DateField
-                  id="date-signup-closes"
-                  aria-label="Sign-up closes"
-                  placeholder="Not set"
-                  bind:value={date.signupClosesOn}
-                  max={dayOf(date) || undefined}
-                />
-              </div>
-              <label class="field"
-                >Places <input class="input num" type="number" min="0" bind:value={date.capacity} /></label
-              >
-              <label class="field"
-                >Fee (£) <input class="input num" inputmode="decimal" bind:value={date.fee} disabled={charged} />
-                {#if charged}<span class="hint small">Already charged: the fee is fixed.</span>{/if}</label
-              >
-              <div class="field">
-                Website
-                <Select
-                  id="date-public"
-                  value={date.public ? "yes" : "no"}
-                  onchange={(v) => (date.public = v === "yes")}
-                  options={[
-                    { value: "yes", label: "On the website" },
-                    { value: "no", label: "Members only" },
-                  ]}
-                  aria-label="Website"
-                />
-              </div>
-            </div>
-            {#if collected?.people}
-              <p class="num">Collected {pounds(collected.paid)} of {pounds(collected.due)}</p>
-            {/if}
-          </FormSection>
+          <TournamentSignupFields bind:form={date} id="date" {charged} {collected} />
         {:else}
           {#if date.kind === "draft"}
-            <FormSection
-              title="Draft"
-              description="Captains choose in snake order on the Draft page. The day's a reminder for them; you open it on the night."
-            >
-              <div class="cols">
-                <div class="field">
-                  Draft day <DateField
-                    id="date-draft"
-                    aria-label="Draft day"
-                    placeholder="TBC"
-                    bind:value={date.draftOn}
-                    max={dayOf(date) || undefined}
-                  />
-                </div>
-              </div>
-            </FormSection>
+            <TournamentDraftDay bind:form={date} id="date" />
           {/if}
           <FormSection
             title={date.kind === "draft" ? "Captains" : "Teams"}
@@ -733,29 +275,6 @@
     gap: var(--s-5);
     container-type: inline-size;
   }
-  /* Fields three to a row, wrapping on, so every field lines up with the ones above it */
-  .cols {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--s-5) var(--s-4);
-    align-items: start;
-  }
-  .cols.when,
-  .cols.pairs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  @container (max-width: 30rem) {
-    .cols {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .cols.when,
-    .cols.pairs {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .cols.when > :nth-child(-n + 2) {
-      grid-column: 1 / -1;
-    }
-  }
   /* A tab's name: in full, or shorter where four in full don't fit (a phone) */
   .tablist .short {
     display: none;
@@ -777,8 +296,5 @@
     text-decoration: underline;
     text-underline-offset: 0.2em;
     cursor: pointer;
-  }
-  .kind {
-    justify-self: start;
   }
 </style>

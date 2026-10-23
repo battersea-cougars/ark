@@ -6,10 +6,9 @@
   import { untrack } from "svelte";
   import { Edits } from "./dirty.svelte";
   import SaveBar from "./SaveBar.svelte";
-  import Icon from "../app/shell/Icon.svelte";
   import EditorPanel from "./EditorPanel.svelte";
   import TournamentDateEditor from "./TournamentDateEditor.svelte";
-  import TournamentQuickCreate, { blankQuick } from "./TournamentQuickCreate.svelte";
+  import TournamentQuickCreate from "./TournamentQuickCreate.svelte";
   import { typeById, whenOf } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
   import { navigate } from "../app/router.svelte";
@@ -22,10 +21,8 @@
     typeof tournamentPanel.open === "number" ? db.tournaments.find((t) => t.id === tournamentPanel.open) : undefined,
   );
   const type = $derived(typeById(date?.typeId ?? tournamentPanel.typeId ?? null));
-  // A new date in a series: the quick questions first, unless Advanced
-  const quick = $derived(tournamentPanel.open === "new" && !!type && !tournamentPanel.advanced);
-  // The answers so far, kept when Advanced takes over
-  let answers = $state(blankQuick());
+  // A new date in a series: the wizard (Advanced is a mode of it, never the full editor)
+  const quick = $derived(tournamentPanel.open === "new" && !!type);
   // Deleting one: asked in the footer first, in so many words
   let asking = $state(false);
   let editor = $state<EditorPanel | undefined>();
@@ -55,7 +52,6 @@
     await deleteTournament(id);
   }
   $effect(() => {
-    if (tournamentPanel.open === "new") answers = blankQuick(typeById(tournamentPanel.typeId ?? null));
     // Shut without its own way out (deleted): the next one opens with nothing to say
     if (tournamentPanel.open === null) untrack(() => edits.closed());
     asking = false;
@@ -63,7 +59,9 @@
 </script>
 
 {#if tournamentPanel.open !== null}
-  {#key tournamentPanel.open}
+  <!-- A fresh form for each one opened (a new one in another series too): each takes its starting values once, as it
+       mounts, and never follows the club's data after, so a refresh while it's open keeps what's been typed -->
+  {#key `${tournamentPanel.open}:${tournamentPanel.typeId ?? ""}`}
     <EditorPanel
       bind:this={editor}
       fill={quick}
@@ -79,10 +77,9 @@
         <!-- Scheduled: the panel closes on the page, which now shows the new one -->
         <TournamentQuickCreate
           {type}
-          bind:values={answers}
           bind:step={tournamentPanel.step}
+          bind:advanced={tournamentPanel.advanced}
           oncreated={() => (tournamentPanel.open = null)}
-          onadvanced={() => (tournamentPanel.advanced = true)}
           close={() => editor?.close()}
         />
       {:else}
@@ -90,7 +87,6 @@
           dateId={date?.id}
           typeId={tournamentPanel.typeId}
           startTab={tournamentPanel.tab}
-          bind:start={answers}
           {edits}
           leave={leaveFor}
           oncreated={(id) => (tournamentPanel.open = closeOnCreate ? null : id)}
@@ -107,19 +103,11 @@
     <button class="btn ghost" type="button" onclick={() => (asking = false)}>Keep it</button>
     <button class="btn delete" type="button" disabled={saving.busy > 0} onclick={remove}>Delete</button>
   {:else}
-    <SaveBar {edits} form="date-form" label={date ? "Save" : "Schedule it"} start={date ? deleteIt : backIt} />
+    <SaveBar {edits} form="date-form" label={date ? "Save" : "Schedule it"} start={date ? deleteIt : undefined} />
   {/if}
 {/snippet}
 {#snippet deleteIt()}
   <button class="btn ghost danger" type="button" onclick={() => (asking = true)}>Delete</button>
-{/snippet}
-{#snippet backIt()}
-  {#if type}
-    <!-- Advanced on a new one: back to the three questions, with what's been filled in here -->
-    <button class="btn ghost back" type="button" onclick={() => (tournamentPanel.advanced = false)}
-      ><Icon name="chevronLeft" size={16} />Back to the questions</button
-    >
-  {/if}
 {/snippet}
 
 <style>

@@ -267,3 +267,15 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-23: A tournament's type (captains draft, or teams enter) stays once it has any team: captains named or a
   team entered. Before, only an opened draft fixed it, so a draft with captains could become one teams enter and
   leave them as nameless entered teams. The editor greys the other type out and says why; the server refuses (409).
+- 2026-10-23: Scheduling a Kumite is one wizard; **Advanced is a mode of it**, not a jump to the full editor (#163).
+  Its steps are the editor's tabs by the same names (Details, Sign-up, Teams, Rules, then Check), and each group of
+  fields is one component both show (`lib/TournamentWhenFields`, `…VenueFields`, `…WhatFields`, `…SignupFields`,
+  `…DraftDay`, `…RulesFields`, on one form shape, `lib/tournament-form.ts`), so scheduling one and editing it read as
+  one form. Without Advanced each step asks what it did (the season, day and hours; when sign-up opens; the draft's day
+  and captains) and says in a line what it takes from the series, with "change it" ("No fee · 24 places · on the
+  website · change it"), which turns Advanced on at that field. Advanced (a switch at the wizard's foot) shows the rest
+  in place: the venue and afterwards, the name and type on Details; when sign-up closes, the places, the fee and the
+  website on Sign-up; a Teams step for teams that enter too; and Rules & awards as a step before Check. The draft's day
+  moved from the wizard's Sign-up to its Teams step, as the editor has it under Draft & teams. The series' usual values
+  stay in the series' settings. The wizard takes its starting answers once, as it opens, so a refresh of the club's
+  data while it's open never resets what's been typed.

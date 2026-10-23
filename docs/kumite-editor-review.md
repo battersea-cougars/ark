@@ -88,3 +88,29 @@ Answered the same day; what was done is under **The answers**.
 - An award: its row on Rules & awards opens its sheet (name, line, decided by, tie-break for a vote, what it means).
   Add an award opens the same sheet empty; closed with no name, it goes.
 - Both save with the editor's Save ("No changes" until something changes, then "Unsaved changes").
+
+## 2026-10-23: one form for scheduling and editing (#163)
+
+The wizard said "Change them for this one here, or the usual ones in the series' settings" with no field for the fee,
+and Advanced threw you into the full editor, a different, busier form. Now:
+
+- **One wizard, Advanced a mode of it** (a switch at its foot). Its steps are the editor's tabs by the same names:
+  **Details · Sign-up · Teams · Rules · Check** (Teams only for a draft without Advanced; Rules only in Advanced).
+
+  | Step    | Without Advanced                                            | Advanced adds, in place                      |
+  | ------- | ----------------------------------------------------------- | -------------------------------------------- |
+  | Details | When: season, day, starts, ends; the place line · change it | Venue (where, afterwards); What (name, type) |
+  | Sign-up | Sign-up opens; the fee, places and website line · change it | Sign-up closes, Places, Fee (£), Website     |
+  | Teams   | Draft (the draft day) and Captains (a draft series)         | Teams for a series whose teams enter         |
+  | Rules   | (a line on Check: as the series has them · change them)     | Rules, Playoffs, Awards                      |
+
+- "change it" turns Advanced on at that field (the fee's focused), so the fee for this one is one tap from the line
+  that names it. The series' usual values stay in the series' settings.
+- **The editor shares the fields**: each group is one component both show (When, Venue, What, Sign-up, Draft, Rules
+  & awards: `lib/Tournament*Fields.svelte`, `lib/TournamentDraftDay.svelte`), on one form (`lib/tournament-form.ts`),
+  so the labels, hints and order within a section are the same in both. The editor keeps its four tabs (Details,
+  Sign-up, Draft & teams, Rules & awards) and its captains' rows (lib/TeamsField); the wizard keeps its captain search.
+- The draft's day moved in the wizard from Sign-up to Teams, beside the captains, as the editor has it.
+- Scheduled, the wizard closes on the Kumite's page; its editor is Manage → Kumite settings, where Save lights up on a
+  change (the journey adds a captain there).
+- The wizard takes its answers once, as it opens: a refresh of the club's data while it's open keeps what's typed.

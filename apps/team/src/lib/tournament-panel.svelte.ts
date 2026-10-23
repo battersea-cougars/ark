@@ -1,14 +1,15 @@
 // Which tournament the editor panel has open, from wherever an admin is: Settings → Tournaments, or a series' own
 // pages (Games, Standings, Draft), where "New date", "Edit" and "Add the captains" open it in place. A new date in a
-// series opens on its questions, a step at a time (ADR 0074, lib/Wizard); Advanced opens the full editor with the
-// answers filled in.
+// series opens on its questions, a step at a time (ADR 0074, lib/Wizard); Advanced shows every field in the same
+// steps (#163).
 import type { EditorTab as Tab } from "./TournamentDateEditor.svelte";
 export const tournamentPanel = $state<{
   open: number | "new" | null;
   typeId?: number;
   tab: Tab;
+  /** The wizard's Advanced: every field, each on its step */
   advanced: boolean;
-  /** The quick questions' step, kept while Advanced is open so Back returns to it */
+  /** The wizard's step in view */
   step: number;
 }>({
   open: null,
