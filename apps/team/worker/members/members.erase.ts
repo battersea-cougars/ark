@@ -1,7 +1,8 @@
 // A member's right to go, and to see what's held about them (#30, ADR 0029). Erasing keeps the member's row, so the
 // club's records still add up (a payment, last Friday's numbers, a goal), but empties everything that says who they
 // were: they become "Former member", with no email, phone, bio or bank reference, and no way back in. Their roles,
-// sessions, sign-in codes, notification choices, award votes and places for what's still to come go (on a team too).
+// sessions, sign-in codes, notification choices, award votes and places for what's still to come go (on a team too;
+// a team they captain stays, with no captain).
 // Earlier audit entries stop naming them.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fillingUp } from "../entries/entries";
@@ -88,6 +89,14 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     q(
       `DELETE FROM tournament_team_players WHERE member_id = ? AND team_id IN (SELECT tt.id FROM tournament_teams tt
          JOIN tournaments t ON t.id = tt.tournament_id WHERE t.held_on >= ?)`,
+      id,
+      today,
+    ),
+    // A team they captain keeps its place, with no captain, as a team whose captain is gone: an admin names another
+    // (#160). One already played keeps them, about nobody
+    q(
+      `UPDATE tournament_teams SET captain_member_id = NULL WHERE captain_member_id = ?
+         AND tournament_id IN (SELECT id FROM tournaments WHERE held_on >= ?)`,
       id,
       today,
     ),

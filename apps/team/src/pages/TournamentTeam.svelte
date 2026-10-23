@@ -85,8 +85,11 @@
       <div class="who">
         <h2 class="display">{team.name || fallback}</h2>
         <p class="hint">
-          Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{#if !drafting}&nbsp;· {team.players.length + 1}
-            {team.players.length ? "players" : "player so far"}{/if}
+          <!-- A team whose captain's gone (an account deleted, #160) keeps its place: an admin names another -->
+          {#if captain}Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{:else}No captain{admin
+              ? ": name one"
+              : " yet"}{/if}{#if !drafting}&nbsp;· {team.players.length + (captain ? 1 : 0)}
+            {team.players.length + (captain ? 1 : 0) === 1 ? "player so far" : "players"}{/if}
         </p>
       </div>
       {#if canEdit && team.id}

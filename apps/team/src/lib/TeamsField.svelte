@@ -93,7 +93,7 @@
           </span>
           <span class="text">
             {#if draft}
-              <span class="main">{nameOf(team.captainMemberId) || "No captain"}</span>
+              <span class="main">{nameOf(team.captainMemberId) || "No captain: name one"}</span>
               <span class="sub" class:quiet={!team.name}
                 >{team.name || (brought?.name ? `Brings ${brought.name}` : fallbackOf(team))}</span
               >
@@ -101,7 +101,7 @@
             {:else}
               <span class="main" class:missing={!team.name.trim()}>{team.name || "Needs a name"}</span>
               <span class="sub">
-                {nameOf(team.captainMemberId) || team.captainName || "No captain"} · {team.players.length}
+                {nameOf(team.captainMemberId) || team.captainName || "No captain: name one"} · {team.players.length}
                 {team.players.length === 1 ? "player" : "players"}
               </span>
             {/if}

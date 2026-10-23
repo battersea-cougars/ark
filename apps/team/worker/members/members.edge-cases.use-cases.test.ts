@@ -265,6 +265,44 @@ describe("a member who goes while they still have places on what's to come", () 
     expect(onTeam()).toBe(0);
   });
 
+  // A team they captain keeps its place with no captain, as a team whose captain is gone, for an admin to name
+  // another (#160: it kept them, "Former member" as its captain); one already played keeps them, about nobody
+  it("the captain of a team for a tournament still to come deletes their account: the team stays, with no captain", async () => {
+    const dana = await admin();
+    const reg = await dana.member("Reg Player");
+    const paul = await dana.member("Paul Payg");
+    const cup = (name: string, heldOn: string) =>
+      dana.call("POST", "/api/tournaments", {
+        typeId: null,
+        kind: "teams",
+        name,
+        location: "",
+        heldOn,
+        startTime: "10:00",
+        endTime: "15:00",
+        capacity: null,
+        status: "open",
+        feePence: 0,
+        teams: [{ name: "Cougars B", logo: null, captainMemberId: paul.id, players: [{ memberId: reg.id }] }],
+      });
+    const coming = await cup("Charity Cup", "2027-03-20");
+    const played = await cup("Summer Cup", "2026-06-20");
+    expect([coming.status, played.status]).toEqual([201, 201]);
+    expect((await (await w.signedIn("paul@example.com")).call("DELETE", "/api/me")).status).toBe(200);
+    const team = async (id: number) => (await dana.sees()).tournaments.find((t: Json) => t.id === id).teams[0];
+    expect(await team(coming.body.id)).toMatchObject({ name: "Cougars B", captainMemberId: null });
+    expect((await team(played.body.id)).captainMemberId).toBe(paul.id);
+    // And an admin names another
+    const wes = await dana.member("Wes Waiting");
+    const t = (await dana.sees()).tournaments.find((x: Json) => x.id === coming.body.id);
+    const named = await dana.call("PUT", `/api/tournaments/${t.id}`, {
+      ...t,
+      teams: t.teams.map((x: Json) => ({ ...x, captainMemberId: wes.id })),
+    });
+    expect(named.status).toBe(200);
+    expect((await team(coming.body.id)).captainMemberId).toBe(wes.id);
+  });
+
   it("a member who played and paid last month deletes their account: the money and the night stay, about nobody", async () => {
     const dana = await admin();
     const reg = await dana.member("Reg Player");
