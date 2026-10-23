@@ -85,9 +85,9 @@ const steps = [
     </dl>
 
     <section class="first">
-      <p class="kicker" data-reveal>
+      <h2 class="kicker" data-reveal>
         Your first {slot?.day ?? "Friday"}
-      </p>
+      </h2>
       <ol class="steps">
         {steps.map((step, i) => (
           <li data-reveal style={`--i:${i}`}>
@@ -121,6 +121,13 @@ const steps = [
 </Base>
 
 <style>
+  /* The section's heading (so its steps' h3s sit under one), dressed as the kicker it was */
+  .first h2.kicker {
+    margin: 0 0 1.1em;
+    font-family: inherit;
+    line-height: inherit;
+    text-wrap: initial;
+  }
   .facts {
     margin: 0 0 clamp(4rem, 9vw, 7rem);
     border-top: 1px solid var(--rule);
