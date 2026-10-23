@@ -1,4 +1,4 @@
-// What's already on when something new would be (ADR 0122): the calendar's timed things that overlap a window, so an
+// What's already on when something new would be (ADR 0122): the calendar's timed things on its day, so an
 // admin putting the Kumite on a Friday night is asked whether Friday Training is off. Read from the agenda (ADR 0042),
 // which every part of the club keeps, plus the nights a training's rule gives that aren't made yet (sessions are
 // made 12 weeks ahead, ADR 0030; a tournament is often further off).
@@ -38,8 +38,22 @@ const CANCEL: Record<Clash["source"], Action | null> = {
 };
 
 const ms = (iso: string) => Date.parse(iso);
-/** Half-open windows: one ending as the other starts doesn't clash. */
+/** Half-open windows: one ending as the other starts doesn't overlap. */
 const overlaps = (a: [number, number], b: [number, number]) => a[0] < b[1] && b[0] < a[1];
+
+/** A time something new would be on, as instants and the London days it's on. */
+interface Window {
+  span: [number, number];
+  days: Set<string>;
+}
+const windowOf = (w: Span): Window => ({
+  span: [ms(w.startsAt), ms(w.endsAt)],
+  days: new Set([londonDay(w.startsAt), londonDay(w.endsAt)]),
+});
+/** Over it: on the same London day, whatever the hours (the user, 2026-10-23: "it should at least ask"), or overlapping
+ * its time (a night past midnight). */
+const isOver = (w: Window, c: { day: string; startsAt: string; endsAt: string }) =>
+  w.days.has(c.day) || overlaps(w.span, [ms(c.startsAt), ms(c.endsAt)]);
 
 /** A time something new would be on, as London instants. */
 export interface Span {
@@ -81,7 +95,7 @@ export async function clashesOver(
   const from = earliest > today ? earliest : today;
   const to = spans.map((w) => londonDay(w.endsAt)).reduce((a, b) => (a > b ? a : b));
   if (to < from) return [];
-  const windows = spans.map((w): [number, number] => [ms(w.startsAt), ms(w.endsAt)]);
+  const windows = spans.map(windowOf);
 
   const [rows, series, made] = await Promise.all([
     all<{ source: Clash["source"]; id: number; title: string; day: string; startsAt: string; endsAt: string }>(
@@ -150,10 +164,7 @@ export async function clashesOver(
   }
 
   const clashes = found.filter(
-    (c) =>
-      `${c.source}:${c.id}` !== except &&
-      c.day >= today &&
-      windows.some((w) => overlaps(w, [ms(c.startsAt), ms(c.endsAt)])),
+    (c) => `${c.source}:${c.id}` !== except && c.day >= today && windows.some((w) => isOver(w, c)),
   );
   const sessionIds = clashes.filter((c) => c.source === "session" && c.id).map((c) => c.id);
   const eventIds = clashes.filter((c) => c.source === "club_event").map((c) => c.id);
@@ -178,7 +189,7 @@ export async function clashesOver(
     .map((c) => {
       const cancel = CANCEL[c.source];
       const seriesId = c.seriesId ?? sessionMeta.find((s) => s.id === c.id)?.seriesId ?? null;
-      const over = spans.filter((w, i) => w.day && overlaps(windows[i], [ms(c.startsAt), ms(c.endsAt)]));
+      const over = spans.filter((w, i) => w.day && isOver(windows[i], c));
       return {
         ...c,
         key: `${c.source}:${c.id ?? `${seriesId}@${c.day}`}`,

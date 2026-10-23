@@ -28,7 +28,7 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
   (`trainingNights`): every night the rule gives, less those the saved training already has at the same hours (asked
   about when they were put on) and its nights already off. None of its own nights, made or not, is over it.
 - **A clash** is a training night, a tournament's day or a one-off on the agenda ([0042](0042-website-reads-the-club-agenda.md))
-  whose time overlaps (one ending as the other starts doesn't), from today on, not cancelled already, not a paused
+  on the same London day, whatever the hours (or overlapping its time, for a night past midnight), from today on, not cancelled already, not a paused
   training, not the thing being edited, and with a time: a sign-up deadline or a draft night (all day) never clashes.
   A night the training's rule gives that isn't made yet clashes too (`id: null`, with its series).
 - **The sheet** (`lib/ClashSheet`) lists each with its day and hours, and for each the admin can call off, Cancel it or
@@ -93,3 +93,6 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 - 2026-10-22: One answer for all at the top of the sheet when two or more can be called off; something that stays on
   over a training lets the admin skip the training that night instead (made if need be, then cancelled by its own
   cancel), and each clash asked about with a training's rule says which of its nights it's over.
+- 2026-10-23: A clash is by day, not by the hour: anything on the same London day asks, a Kumite in the afternoon
+  before Friday Training as much as one over it (the user: "it should at least ask"). Overlapping times still count,
+  for a night past midnight. The day before or after doesn't.

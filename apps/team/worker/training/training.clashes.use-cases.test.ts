@@ -144,7 +144,7 @@ describe("a training over something already on", () => {
     const made = await dana.call("POST", "/api/series", { ...sunday, endsOn: "2026-10-25", clashes: [] });
     expect(made.status).toBe(201);
 
-    // To Friday the 16th, 18:30 to 19:30: before Friday Training starts, in the Kumite
+    // To Friday the 16th, 18:30 to 19:30: in the Kumite, and on Friday Training's day (before it starts)
     const moved = {
       ...sunday,
       id: made.body.id,
@@ -154,9 +154,12 @@ describe("a training over something already on", () => {
       startTime: "18:30",
       endTime: "19:30",
     };
-    expect((await ask(dana, moved)).map((c) => [c.source, c.title, c.canCancel])).toEqual([
-      ["tournament", "Kumite", false],
-    ]);
+    expect((await ask(dana, moved)).map((c) => [c.source, c.title, c.canCancel])).toEqual(
+      expect.arrayContaining([
+        ["tournament", "Kumite", false],
+        ["session", "Friday Training", true],
+      ]),
+    );
   });
 
   it("the Kumite stays on, so the training can skip that night: saved, its own night is made and cancelled", async () => {
@@ -257,7 +260,8 @@ describe("a training over something already on", () => {
     const again = await ask(dana, sunday);
     expect(again).toEqual([expect.objectContaining({ source: "club_event", title: "Quiz night", canCancel: true })]);
     const early = { ...sunday, name: "Sunday Early", shortName: "Early", startTime: "18:00", endTime: "19:30" };
-    expect((await ann.call("POST", "/api/series", { ...early, clashes: [] })).status).toBe(201);
+    // (asked about the quiz the same evening, and keeping both)
+    expect((await ann.call("POST", "/api/series", { ...early, clashes: keys(again) })).status).toBe(201);
     expect((await dana.call("POST", "/api/series", { ...sunday, clashes: keys(again) })).status).toBe(409);
 
     const third = await ask(dana, sunday);

@@ -173,11 +173,18 @@ describe("scheduling over something already on", () => {
     ]);
   });
 
-  it("what isn't a clash: before or after it, a night already off, a sign-up deadline or draft night", async () => {
+  it("on the same day is a clash, whatever the hours: the afternoon, or after training's over", async () => {
     const dana = await w.signedIn("dana@example.com");
-    // Ends as training starts; starts as it ends
-    expect((await ask(dana, at(FRIDAY, "17:00"), at(FRIDAY, "19:30"))).body.clashes).toEqual([]);
-    expect((await ask(dana, at(FRIDAY, "21:30"), at(FRIDAY, "23:00"))).body.clashes).toEqual([]);
+    const friday = [expect.objectContaining({ source: "session", title: "Friday Training", day: FRIDAY })];
+    expect((await ask(dana, at(FRIDAY, "12:00"), at(FRIDAY, "17:00"))).body.clashes).toEqual(friday);
+    expect((await ask(dana, at(FRIDAY, "21:30"), at(FRIDAY, "23:00"))).body.clashes).toEqual(friday);
+  });
+
+  it("what isn't a clash: the day before or after, a night already off, a sign-up deadline or draft night", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    // The Thursday evening and the Saturday
+    expect((await ask(dana, at("2026-10-15", "19:00"), at("2026-10-15", "22:00"))).body.clashes).toEqual([]);
+    expect((await ask(dana, at("2026-10-17", "10:00"), at("2026-10-17", "22:00"))).body.clashes).toEqual([]);
     // A deadline and a draft night (all day, no time) on the Thursday
     expect(
       (
