@@ -1,10 +1,11 @@
 <script lang="ts">
   // The after-party (ADR 0074): the evening a tournament ends, its last status. Everyone's at the afterwards (the
   // Kumite's The Anchor), so the page is the pub after the film's last fight: warm brass on the carbon, the Kumite's
-  // motif kept. Whoever runs it has one card, Reveal the next award (Confirm the awards first, if they aren't yet);
-  // each tap turns ONE award over for everyone watching (the live hub), in the order listed. Still face down, an award
-  // is a card with a question mark; turned over while you watch, it flips and its winner burns in under a 賞 hanko;
-  // opened later, what's out is just there. Then where everyone is, the final table (the champions first) and the
+  // motif kept. The awards come up one at a time, in the order listed: what's out face up, then the next one sealed
+  // (a card with a question mark), the rest not yet there (their room kept, so nothing moves). Whoever runs it taps the
+  // sealed card to reveal it (Confirm the awards first, if they aren't yet); for everyone else it waits. Each tap turns
+  // ONE award over for everyone watching (the live hub): it flips and its winner burns in under a 賞 hanko, the page
+  // brings it into view, and the next sealed card rises in under it. Opened later, what's out is just there. Then where everyone is, the final table (the champions first) and the
   // day's results, one line each. The last one out: "That's the Kumite. See you at the next one."
   import type { Tournament, TournamentType } from "../demo/model";
   import type { After } from "@cougars/shared/places";
@@ -53,17 +54,26 @@
   const games = $derived([...(t.games ?? [])].sort((a, b) => a.position - b.position));
   const kumite = $derived(!!kanjiFor(type, "awards"));
 
-  // An award turned over while you watch: it flips and burns in. Opened later (or after a step back), they're just
-  // as they are
+  // An award turned over while you watch: it flips and burns in (with reduced motion, it fades in), the page brings
+  // it into view, and the next sealed card rises in. Opened later (or after a step back), they're just as they are
   let seen = untrack(() => reveal.revealed);
   let turning = $state<number[]>([]);
+  let rising = $state(-1);
+  const cards: HTMLElement[] = $state([]);
   $effect.pre(() => {
     const n = reveal.revealed;
     untrack(() => {
-      if (n > seen && !prefersReducedMotion) {
+      if (n > seen) {
         const fresh = Array.from({ length: n - seen }, (_, k) => seen + k);
         turning = [...turning, ...fresh];
+        rising = n;
         setTimeout(() => (turning = turning.filter((i) => !fresh.includes(i))), 2200);
+        setTimeout(() => {
+          if (rising === n) rising = -1;
+        }, 2200);
+        requestAnimationFrame(() =>
+          cards[n - 1]?.scrollIntoView({ block: "center", behavior: prefersReducedMotion ? "auto" : "smooth" }),
+        );
       }
       seen = n;
     });
@@ -90,20 +100,12 @@
 </script>
 
 <div class="afters">
-  {#if manage && reveal.awards.length && !reveal.all}
-    <!-- The one card for whoever runs it: confirm the awards, then reveal them one at a time -->
-    <DraftStep {type} mark="awards" title="Reveal the next award">
-      {#if !reveal.confirmed}
-        Confirm the awards first, then call them out one at a time.
-      {:else}
-        Next: <strong>{reveal.next?.name}</strong> · {reveal.revealed} of {reveal.awards.length} out
-      {/if}
+  {#if manage && reveal.awards.length && !reveal.confirmed}
+    <!-- Whoever runs it confirms the awards first; then they tap each card to reveal it -->
+    <DraftStep {type} mark="awards" title="Confirm the awards">
+      Confirm the awards first, then tap each card to call them out one at a time.
       {#snippet action()}
-        {#if !reveal.confirmed}
-          <button class="btn primary" onclick={() => enterAwards(t.id)}>Confirm the awards</button>
-        {:else}
-          <button class="btn primary" disabled={busy} onclick={next}>Reveal</button>
-        {/if}
+        <button class="btn primary" onclick={() => enterAwards(t.id)}>Confirm the awards</button>
       {/snippet}
     </DraftStep>
   {/if}
@@ -130,14 +132,42 @@
       <ol class="awards">
         {#each reveal.awards as a, i (a.name)}
           {@const won = winnersOf(a.name)}
-          <li class="award" class:up={a.revealed} class:turning={turning.includes(i)}>
+          {@const sealed = i === reveal.revealed}
+          {@const tap = manage && sealed && reveal.confirmed}
+          <li
+            class="award"
+            class:up={a.revealed}
+            class:sealed
+            class:later={i > reveal.revealed}
+            class:turning={turning.includes(i)}
+            class:rising={rising === i}
+            aria-hidden={i > reveal.revealed}
+            bind:this={cards[i]}
+          >
             <div class="flip">
-              <!-- Face down: a question mark, the award's place in the order -->
+              <!-- Face down: a question mark, the award's place in the order; for whoever runs it, the card to tap -->
               <div class="face back" aria-hidden={a.revealed}>
                 <span class="order num">{i + 1}</span>
                 <span class="mystery display">?</span>
                 {#if kumite}<span class="back-kanji" lang="ja" aria-hidden="true">{kanjiFor(type, "awards")}</span>{/if}
-                <span class="sr-only">{a.revealed ? "" : `Award ${i + 1}, still face down`}</span>
+                {#if sealed}
+                  <span class="cue" class:go={tap}>
+                    {#if tap}<Icon name="medal" size={16} />Tap to reveal: {a.name}
+                    {:else if manage}Confirm the awards to reveal
+                    {:else}Waiting for the reveal{/if}
+                  </span>
+                {/if}
+                {#if tap}
+                  <button
+                    class="tap"
+                    type="button"
+                    disabled={busy}
+                    aria-label="Reveal award {i + 1}: {a.name}"
+                    onclick={next}
+                  ></button>
+                {:else}
+                  <span class="sr-only">{a.revealed ? "" : `Award ${i + 1}, still face down`}</span>
+                {/if}
               </div>
               <!-- Face up: the award, what it's for, who took it home -->
               <div class="face front" aria-hidden={!a.revealed}>
@@ -172,7 +202,7 @@
                     {/if}
                   </span>
                   {#if kumite}<span class="stamp"><Kanji text={kanjiFor(type, "awards")} seal /></span>{/if}
-                  {#if turning.includes(i)}<BurnReveal />{/if}
+                  {#if turning.includes(i) && !prefersReducedMotion}<BurnReveal />{/if}
                 {/if}
               </div>
             </div>
@@ -367,6 +397,82 @@
     font-size: 5.5rem;
     font-weight: 900;
     line-height: 1;
+  }
+  /* The sealed card's line: what it's waiting for, or (whoever runs it) the tap that reveals it */
+  .cue {
+    position: absolute;
+    right: var(--s-3);
+    bottom: var(--s-3);
+    left: var(--s-3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s-1);
+    overflow: hidden;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cue.go {
+    color: var(--brass-ink);
+    font-weight: 600;
+  }
+  /* The whole sealed card is the button, for whoever runs it (Enter or Space too): a brass glow says it's live */
+  .tap {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: none;
+    cursor: pointer;
+  }
+  .tap:disabled {
+    cursor: progress;
+  }
+  .tap:focus-visible {
+    outline: 2px solid var(--brass-ink);
+    outline-offset: 2px;
+  }
+  .sealed .back:has(.tap) {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--brass) 35%, transparent),
+      0 0 1.5rem color-mix(in srgb, var(--brass) 14%, transparent);
+    transition: box-shadow var(--dur, 200ms) ease;
+  }
+  @media (hover: hover) {
+    .sealed .back:has(.tap:hover) {
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent),
+        0 0 2rem color-mix(in srgb, var(--brass) 24%, transparent);
+    }
+  }
+  .sealed .back:has(.tap:active) .mystery {
+    transform: scale(0.94);
+  }
+  /* Not up yet, after the sealed one: an empty slot, just its number, its room kept so nothing moves as they come */
+  .later .back {
+    background: color-mix(in srgb, var(--surface-1) 70%, transparent);
+  }
+  .later .mystery,
+  .later .back-kanji {
+    visibility: hidden;
+  }
+  .later .order {
+    opacity: 0.6;
+  }
+  /* The next card comes up once the last one's over: it rises into its slot */
+  .rising {
+    animation: rise 0.6s 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem) scale(0.97);
+    }
   }
   .order {
     position: absolute;
@@ -595,10 +701,22 @@
       gap: var(--s-2);
     }
   }
+  /* Reduced motion: no turn and no rise; the revealed card's face and the next card fade in */
   @media (prefers-reduced-motion: reduce) {
     .turning .flip,
     .turning .stamp {
       animation: none;
+    }
+    .turning .front {
+      animation: fade 0.4s ease both;
+    }
+    .rising {
+      animation: fade 0.4s 0.4s ease both;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
     }
   }
 </style>

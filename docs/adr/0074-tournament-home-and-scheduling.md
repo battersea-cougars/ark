@@ -440,3 +440,10 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The pass speaks for a secret, invitation-only night, not a real fight (it's a hockey tournament
   playing at being the Kumite): "Admission", "Admitted · No. 02" (the header's answer "Admitted · No. 2"), signed off
   "Tell no one." in place of "See you on the mat."; the number a size smaller, so it no longer dwarfs the name.
+- 2026-10-23: "When the admin is revealing the awards … bring each card up one at a time", then "how about the admin
+  taps the card to reveal" (the user). The after-party's awards come up one at a time: what's out face up, the next one
+  sealed (the question mark and 賞), the rest empty numbered slots with their room kept, so nothing moves. Whoever runs
+  it taps the sealed card itself to reveal it (Tap to reveal: the award's name; Enter or Space too), in place of the
+  Reveal the next award card, which stays only to confirm the awards first; everyone else's sealed card says Waiting for
+  the reveal. Each reveal flips the card over for everyone watching, brings it into view, and the next sealed card rises
+  in; with reduced motion the face and the next card fade in instead.
