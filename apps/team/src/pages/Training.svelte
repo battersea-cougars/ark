@@ -842,7 +842,7 @@
         {@render search()}
         {#if arranging}
           <p class="hint move-hint">
-            Drag a player by the grip to another team, or tap them to pick one. Everyone sees it straight away.
+            Drag a player by the grip to another team, or tap them to choose one. Everyone sees it straight away.
           </p>
         {/if}
       </div>

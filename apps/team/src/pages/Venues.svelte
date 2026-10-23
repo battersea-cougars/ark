@@ -86,7 +86,7 @@
       </ul>
     </div>
   {:else}
-    <p class="hint">No venues yet. Add the rink, then pick it for trainings and tournaments.</p>
+    <p class="hint">No venues yet. Add the rink, then choose it for trainings and tournaments.</p>
   {/if}
 </div>
 
@@ -122,7 +122,7 @@
         >In Google Maps, find it, then Share → Copy link. Empty: the map searches for the name and address.</span
       >
     </label>
-    <label class="check"><input type="checkbox" bind:checked={draft.active} /> Offer it when picking a place</label>
+    <label class="check"><input type="checkbox" bind:checked={draft.active} /> Offer it when choosing a place</label>
     {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
   </form>
   {#snippet footer()}<SaveBar {edits} form="venue-form" label={draft.id ? "Save" : "Add venue"} />{/snippet}

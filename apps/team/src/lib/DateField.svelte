@@ -14,7 +14,7 @@
     min,
     max,
     required = false,
-    placeholder = "Pick a day",
+    placeholder = "Choose a day",
     "aria-label": ariaLabel,
     "aria-describedby": describedBy,
     onchange,
@@ -175,7 +175,7 @@
       class="pop"
       style={popStyle}
       role="dialog"
-      aria-label={ariaLabel ?? "Pick a day"}
+      aria-label={ariaLabel ?? "Choose a day"}
       tabindex="-1"
       onkeydown={onKey}
     >

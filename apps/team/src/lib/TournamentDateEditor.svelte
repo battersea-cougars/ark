@@ -473,7 +473,7 @@
                   Its fee, location, rules and awards were copied from the series; change them here for this one.
                   <button type="button" class="link" onclick={editSeries}>Edit the series' defaults</button>
                 {:else}
-                  One on its own, or pick a series to copy in its rules, awards, location and fee.
+                  One on its own, or choose a series to copy in its rules, awards, location and fee.
                 {/if}
               </span>
             </div>

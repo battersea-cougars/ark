@@ -19,7 +19,7 @@
   <p>
     Your name and the name you go by, your email address (to sign in), your phone number if you give it, your position
     and the bio on your player card; which sessions, tournaments and events you signed up for and played; what you owe
-    and have paid, and the reference your bank transfers use; and information the club's organisers keep to help pick
+    and have paid, and the reference your bank transfers use; and information the club's organisers keep to help choose
     teams, which other members don't see.
   </p>
 

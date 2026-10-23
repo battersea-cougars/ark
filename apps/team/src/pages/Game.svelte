@@ -389,8 +389,8 @@
   const callNeeds = $derived.by(() => {
     if (!calling) return "";
     const rule = infractionOf(calling.infraction);
-    if (!rule) return "Pick what it's for";
-    return !rule.bench && calling.memberId === null ? "Pick who it's on" : "";
+    if (!rule) return "Choose what it's for";
+    return !rule.bench && calling.memberId === null ? "Choose who it's on" : "";
   });
   function savePenalty(known = true) {
     if (!calling || !tournament || !game || callNeeds) return;

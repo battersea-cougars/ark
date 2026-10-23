@@ -38,7 +38,7 @@
 </script>
 
 <div class="page">
-  <PageHeader title="Quips" subtitle="Home picks one at random. Short and cheeky, never needy, never a club fact.">
+  <PageHeader title="Quips" subtitle="Home chooses one at random. Short and cheeky, never needy, never a club fact.">
     {#snippet toolbar()}
       <div class="seg" role="group" aria-label="Which lines">
         {#each GROUPS as g (g.group)}
