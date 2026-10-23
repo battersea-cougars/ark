@@ -165,3 +165,23 @@ describe("the after-party is the evening it was played, whatever its date says (
     expect(atAfters(played([null], { season: { name: "Summer", year: 2027 } as never }), "2027-08-31")).toBe(false);
   });
 });
+
+describe("every award revealed, it's over: the page goes back to the next one (ADR 0074)", () => {
+  const champs = { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } };
+  const night = (revealed: number) =>
+    cup({
+      games: [{ ...game(1, "done"), startedAt: "2026-11-14T20:00:00Z" }] as never,
+      awards: [champs, { ...champs, name: "Top scorer" }] as never,
+      awardsRevealed: revealed,
+    });
+
+  it("an award still to reveal: still at The Anchor, still the one on", () => {
+    expect(atAfters(night(1), "2026-11-14")).toBe(true);
+    expect(currentOf([night(1)], "2026-11-14", "2026-11-14")?.id).toBe(1);
+  });
+
+  it("the last one revealed: history, nothing on, the same evening", () => {
+    expect(atAfters(night(2), "2026-11-14")).toBe(false);
+    expect(currentOf([night(2)], "2026-11-14", "2026-11-14")).toBeUndefined();
+  });
+});
