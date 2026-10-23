@@ -485,3 +485,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   way to the next, and the one taking over flies in and lands (one already there when the page opens just sits).
 - 2026-10-23: A record is written 1-0-0 (won-drawn-lost) then the points, 1-0-0 · 3 Pts, on the match cards, the
   matchup and the teams' list, all through lib/TeamRecord (the user's call, replacing 1W 0D 0L); one line on a phone.
+- 2026-10-23: On the day the board's there from the fixtures (everyone on nothing), moving live as each result comes
+  in, and a "The board" button under the carousel brings it into view.

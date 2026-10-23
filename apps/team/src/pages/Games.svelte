@@ -176,6 +176,13 @@
   const links = $derived(
     earlier ? [{ href: `/tournaments/${type.slug}/history`, label: "History", icon: "medal" as const }] : [],
   );
+  // The board's a scroll away under the carousel: brought into view, not jumped to (less motion: at once)
+  function toBoard(e: MouseEvent) {
+    e.preventDefault();
+    document
+      .getElementById("board")
+      ?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+  }
 </script>
 
 <!-- On the day, once the last match is on (Then) or played (Now): where everyone goes, big, on the page -->
@@ -323,8 +330,11 @@
                 <a class="btn sm outline" href="/tournaments/{type.slug}/games/{duty.id}/live">Keep score</a>
               </div>
             {/if}
-            <!-- Every match, the one on now (or up next) brought forward -->
+            <!-- Every match, the one on now (or up next) brought forward; then the way down to the table as it stands -->
             <Schedule {typeId} carousel />
+            <p class="to-board">
+              <a class="btn sm ghost" href="#board" onclick={toBoard}><Icon name="list" size={16} />The board</a>
+            </p>
             {#if day?.yours}
               <p class="yours">
                 <Icon name="user" size={16} />Your next:
@@ -335,9 +345,10 @@
             {/if}
             <!-- The last match on, then where everyone goes (every one played, it's the after-party) -->
             {#if after?.moment === "next"}{@render afterNow(after.place, false)}{/if}
-            <!-- The table as it stands, under the matches (ADR 0074): no page of its own -->
-            {#if games.some((g) => g.stage === "group" && g.status === "done")}
-              <section class="part">
+            <!-- The table as it stands, under the matches (ADR 0074): no page of its own. There from the first match
+                 (everyone on nothing), moving live as each result comes in -->
+            {#if games.length}
+              <section class="part" id="board">
                 <h2 class="section-title">The board<Kanji text={kanjiFor(type, "results")} /></h2>
                 <BoardTable {type} {tournament} />
               </section>
@@ -536,6 +547,11 @@
   }
 
   /* Your next match on the day, when it's neither on now nor next: one line */
+  .to-board {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+  }
   .yours {
     display: flex;
     flex-wrap: wrap;
