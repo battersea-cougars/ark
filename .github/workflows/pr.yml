@@ -19,6 +19,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
       - run: npm run lint
+      # The files past the size prompts (ADR 0125): a report, never a failure
+      - run: npm run sizes
       - run: npm test
       - run: npm run check -w @cougars/web
       # The team app's pages (svelte-check) and its Worker (tsc)

@@ -31,7 +31,8 @@
     "worktree": "node scripts/worktree.mjs",
     "merge:check": "node scripts/merge-check.mjs",
     "load": "node scripts/load/load.mjs",
-    "journeys": "node apps/team/journeys/journeys.mjs"
+    "journeys": "node apps/team/journeys/journeys.mjs",
+    "sizes": "node scripts/sizes.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
