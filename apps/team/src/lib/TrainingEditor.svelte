@@ -55,32 +55,6 @@
   } = $props();
 
   const selected = $derived<number | "new">(seriesId ?? "new");
-  let form = $state<TrainingSeries | null>(null);
-
-  // When a night's sign-up opens (ADR 0030): days before it, at midnight; any time is always open, and nobody's told
-  const OPENS = [
-    { value: "", label: "Any time" },
-    { value: "0", label: "On the day" },
-    ...Array.from({ length: 14 }, (_, i) => ({ value: String(i + 1), label: `${i + 1} ${i ? "days" : "day"} before` })),
-  ];
-  const opensDays = $derived(form?.signupOpensDays ?? null);
-  /** "Friday's opens Monday, at midnight; members are told." */
-  const opensHint = $derived.by(() => {
-    if (!form || opensDays === null) return "Members can say they're in for any night, however far off.";
-    const nights = WEEKDAYS.filter((d) => form!.weekdays.includes(d));
-    const opensOn = (d: (typeof WEEKDAYS)[number]) => WEEKDAYS[(WEEKDAYS.indexOf(d) - (opensDays % 7) + 7) % 7];
-    const when =
-      opensDays === 0
-        ? "Each night's opens on the day"
-        : opensDays < 7 && nights.length
-          ? nights.map((d) => `${LONG_DAYS[d]}'s opens ${LONG_DAYS[opensOn(d)]}`).join(", ")
-          : `Each night's opens ${opensDays} days before`;
-    return `${when}, at midnight; members are told.`;
-  });
-  // Upcoming sessions, 12 weeks a page; paging past the last one made asks the server to make the next 12
-  const PAGE_DAYS = 12 * 7;
-  let page = $state(0);
-  let fetching = $state(false);
 
   const blank = (): TrainingSeries => {
     const today = londonToday();
@@ -109,25 +83,58 @@
     };
   };
 
-  $effect(() => {
+  /** The saved training (or a blank, for a new one), as the form starts from it. */
+  const starting = (): TrainingSeries | null => {
     const s = selected === "new" ? blank() : db.series.find((x) => x.id === selected);
-    form = s ? structuredClone($state.snapshot(s)) : null;
+    return s ? structuredClone($state.snapshot(s)) : null;
+  };
+  const feeText = (f: TrainingSeries | null) => (f ? String(feeOn(f.fees, londonToday()) / 100) : "");
+  // The form takes its starting values as it opens (the panel mounts a fresh editor for each training), and again
+  // only after its own save: the club read again (a refused save, coming back to the tab, a live change) never puts
+  // the saved copy over what's being typed, nor a refused save's retry sends the saved copy back
+  let form = $state<TrainingSeries | null>(starting());
+  // The fee, going forward: a new amount applies from its date; sessions already held keep theirs (ADR 0007).
+  // svelte-ignore state_referenced_locally
+  let feeAmount = $state(feeText(form));
+  let feeFrom = $state(londonToday());
+  /** Saved: what's on screen is the saved copy, as the server has it now. */
+  function reload() {
+    form = starting();
+    feeAmount = feeText(form);
+    feeFrom = londonToday();
+    edits?.reset();
+  }
+
+  // When a night's sign-up opens (ADR 0030): days before it, at midnight; any time is always open, and nobody's told
+  const OPENS = [
+    { value: "", label: "Any time" },
+    { value: "0", label: "On the day" },
+    ...Array.from({ length: 14 }, (_, i) => ({ value: String(i + 1), label: `${i + 1} ${i ? "days" : "day"} before` })),
+  ];
+  const opensDays = $derived(form?.signupOpensDays ?? null);
+  /** "Friday's opens Monday, at midnight; members are told." */
+  const opensHint = $derived.by(() => {
+    if (!form || opensDays === null) return "Members can say they're in for any night, however far off.";
+    const nights = WEEKDAYS.filter((d) => form!.weekdays.includes(d));
+    const opensOn = (d: (typeof WEEKDAYS)[number]) => WEEKDAYS[(WEEKDAYS.indexOf(d) - (opensDays % 7) + 7) % 7];
+    const when =
+      opensDays === 0
+        ? "Each night's opens on the day"
+        : opensDays < 7 && nights.length
+          ? nights.map((d) => `${LONG_DAYS[d]}'s opens ${LONG_DAYS[opensOn(d)]}`).join(", ")
+          : `Each night's opens ${opensDays} days before`;
+    return `${when}, at midnight; members are told.`;
   });
+  // Upcoming sessions, 12 weeks a page; paging past the last one made asks the server to make the next 12
+  const PAGE_DAYS = 12 * 7;
+  let page = $state(0);
+  let fetching = $state(false);
 
   // Dues (ADR 0007): whoever sets fees sets a training's; whoever sees dues sees what each night collected
   const setsFees = $derived(can(granted(), "manage:Fees"));
   const seesDues = $derived(can(granted(), "read:Dues") || can(granted(), "record:Payment"));
 
-  // The fee, going forward: a new amount applies from its date; sessions already held keep theirs (ADR 0007).
   const current = $derived(form ? feeOn(form.fees, londonToday()) : 0);
-  let feeAmount = $state("");
-  let feeFrom = $state(londonToday());
-  $effect(() => {
-    feeAmount = form ? String(feeOn(form.fees, londonToday()) / 100) : "";
-    feeFrom = londonToday();
-    // Loaded (or loaded again, after a save): what's on screen now is what's saved
-    edits?.reset();
-  });
   // svelte-ignore state_referenced_locally
   edits?.watch(() => ({ form, feeAmount, feeFrom }), { fresh: !seriesId });
   function applyFee() {
@@ -233,8 +240,9 @@
       await cancelClashes(chosen ?? []);
       const id = selected === "new" ? (done as { id: number }).id : form.id;
       if (skip.length) await skipNights(id, skip);
-      // The blank form gives way to the new training's editor, in the same panel
+      // The blank form gives way to the new training's editor, in the same panel; a saved one shows what's saved
       if (selected === "new") oncreated?.((done as { id: number }).id);
+      else reload();
       return;
     }
   }

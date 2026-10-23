@@ -4,7 +4,7 @@
   // and how it looks in the menu. Each tournament is edited on its own card (TournamentDateEditor). A new series gets
   // its own section in the menu.
   import TimeSelect from "./TimeSelect.svelte";
-  import { tick, untrack } from "svelte";
+  import { tick } from "svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
   import { PENALTY_LENGTH_OPTIONS, PENALTY_RULE_OPTIONS } from "./penalties";
@@ -33,7 +33,6 @@
   } = $props();
 
   const selected = $derived<number | "new">(typeId ?? "new");
-  let form = $state<TournamentType | null>(null);
 
   const blank = (): TournamentType => ({
     id: 0,
@@ -74,18 +73,17 @@
     playoffs: [{ name: "Final", home: 1, away: 2 }],
   });
 
-  // Follows the series and its saved values; the form it writes isn't followed (reading it back made the effect its
-  // own cause, re-running till Svelte stopped it: seconds to open the editor)
-  $effect(() => {
+  /** The saved series (or a blank, for a new one), as the form starts from it. */
+  const starting = (): TournamentType | null => {
     const t = selected === "new" ? blank() : db.tournamentTypes.find((x) => x.id === selected);
     const loaded = t ? structuredClone($state.snapshot(t)) : null;
-    untrack(() => {
-      // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
-      form = loaded && { ...loaded, awards: withDecidedBy(loaded.awards) };
-      // Loaded (or loaded again, after a save): what's on screen now is what's saved
-      edits?.reset();
-    });
-  });
+    // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
+    return loaded && { ...loaded, awards: withDecidedBy(loaded.awards) };
+  };
+  // The form takes its starting values as it opens (the page mounts a fresh editor for each series), and again only
+  // after its own save: the club read again (a refused save, coming back to the tab, a live change) never puts the
+  // saved copy over what's being typed
+  let form = $state<TournamentType | null>(starting());
   // svelte-ignore state_referenced_locally
   edits?.watch(() => form, { fresh: !typeId });
 
@@ -115,7 +113,12 @@
       if (created) oncreated?.(created.id);
     } else {
       const f = form;
-      await (edits ? edits.run(() => updateTournamentType(f)) : updateTournamentType(f));
+      const saved = await (edits ? edits.run(() => updateTournamentType(f)) : updateTournamentType(f));
+      // Saved: what's on screen is the saved copy, as the server has it now
+      if (saved) {
+        form = starting();
+        edits?.reset();
+      }
     }
   }
 </script>
