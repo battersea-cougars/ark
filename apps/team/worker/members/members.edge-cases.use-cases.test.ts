@@ -136,6 +136,20 @@ describe("an admin edits a member, at the edges", () => {
     expect((await w.ask(w.browser(), "paul@example.com")).devCode).toBeUndefined();
   });
 
+  it("a member manager who can't see ratings edits someone, and their rating stays as it was", async () => {
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (9, 'Helper', 'Members', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (9, 'manage:Member');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'paul@example.com';`);
+    const paul = await w.signedIn("paul@example.com");
+    const reg = ((await paul.call("GET", "/api/bootstrap")).body as Json).members.find(
+      (m: Json) => m.name === "Reg Player",
+    );
+    // The sheet sends back the rating it was given, which for them is none
+    const r = await paul.call("PUT", `/api/members/${reg.id}`, { ...reg, position: "D", rating: 0, roles: ["Member"] });
+    expect(r.status).toBe(200);
+    expect(one("SELECT position, rating FROM members WHERE id = ?", reg.id)).toEqual({ position: "D", rating: 60 });
+  });
+
   it("an attendance year that isn't a year is refused", async () => {
     const dana = await admin();
     const reg = await dana.member("Reg Player");

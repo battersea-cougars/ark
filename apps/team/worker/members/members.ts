@@ -1,7 +1,7 @@
 // Members and roles (ADR 0024). A member's permissions are the union of their roles' actions; actions no longer in
 // the catalog are ignored.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
-import { ACTIONS, type Action } from "../../src/access/actions";
+import { ACTIONS, can, type Action } from "../../src/access/actions";
 import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
 import { tellTheyreIn } from "./members.mail";
@@ -218,12 +218,17 @@ export async function updateMember(
   by: By,
 ): Promise<{ letIn: boolean; shutOut: boolean }> {
   const caller = by.actions;
-  const existing = await first<{ id: number; status: string }>(db, "SELECT id, status FROM members WHERE id = ?", [id]);
+  const existing = await first<{ id: number; status: string; rating: number }>(
+    db,
+    "SELECT id, status, rating FROM members WHERE id = ?",
+    [id],
+  );
   if (!existing) throw new HttpError(404, "No such member.");
   await mayChange(db, caller, id);
   const name = text(o, "name");
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
-  const rating = int(o, "rating", { max: 100 });
+  // A rating is only theirs to change who may see it (ADR 0036): anyone else was sent none, and sends that back
+  const rating = can(caller, "read:Rating") ? int(o, "rating", { max: 100 }) : existing.rating;
   const cougar = bool(o, "cougar");
   const status = oneOf(o, "status", ["pending", "active", "inactive"] as const);
   const roles = o.roles;
