@@ -261,7 +261,7 @@ test("The Kumite night", async ({ browser }) => {
     for (const who of everyone)
       await checks(who, "sees the fixtures: three matches", async () => {
         await open(who, `${KUMITE}/schedule`);
-        await expect(who.page.getByRole("link", { name: /^Game \d$/ })).toHaveCount(3);
+        await expect(who.page.getByRole("link", { name: /^Game \d:/ })).toHaveCount(3);
       });
 
     await checks(ada, "Manage offers to make the fixtures again, and no awards", async () => {
