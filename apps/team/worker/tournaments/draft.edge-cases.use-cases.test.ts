@@ -532,18 +532,15 @@ describe("taps at once on a reset (ADR 0121)", () => {
     expect(leftOnTeams(d.id)).toEqual([]);
   });
 
-  // Seeds that find it (most do): the pick lands between the reset's statements.
-  // https://github.com/battersea-cougars/ark/issues/126
-  it.fails.each([2, 3, 4])(
-    "a reset racing the first pick: once reset, no pick is left on a team (known bug #126) (seed %i)",
-    async (seed) => {
-      const d = await opened({ seed });
-      const first = await d.onClock();
-      w.db.interleave(seed);
-      const [reset] = await Promise.all([d.step(d.dana, "reset"), d.pick(first.phone, d.players[1], 0)]);
-      expect(reset.status).toBe(200);
-      expect((await d.tournament()).draftState).toBe("scheduled");
-      expect(leftOnTeams(d.id)).toEqual([]);
-    },
-  );
+  // Seeds 2, 3 and 4 found it (#126): the pick landed between the reset's statements, which are one batch now, the
+  // draft closed to picks first
+  it.each([2, 3, 4])("a reset racing the first pick: once reset, no pick is left on a team (seed %i)", async (seed) => {
+    const d = await opened({ seed });
+    const first = await d.onClock();
+    w.db.interleave(seed);
+    const [reset] = await Promise.all([d.step(d.dana, "reset"), d.pick(first.phone, d.players[1], 0)]);
+    expect(reset.status).toBe(200);
+    expect((await d.tournament()).draftState).toBe("scheduled");
+    expect(leftOnTeams(d.id)).toEqual([]);
+  });
 });

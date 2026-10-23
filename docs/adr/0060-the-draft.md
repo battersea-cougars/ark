@@ -71,7 +71,8 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   draft is refused (409): reopen it first.
 - **Reset** (`run:Draft`, open or closed) takes every pick off and sets `draft_state` back to none. Sign-ups, captains
   (and admin-added players, who are sign-ups) and the fixtures stay. It's allowed after games have results; the app
-  asks first, since it can't be undone.
+  asks first, since it can't be undone. It's one batch, the draft closed to picks first, and a pick goes in only while
+  the draft's open, so a pick landing during a reset never outlives it (#126).
 - The draft night is on the agenda for its captains and whoever runs the draft until it's closed
   ([0042](0042-website-reads-the-club-agenda.md)); a reset puts it back.
 
@@ -351,3 +352,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-23: Once the draft is open, a save must keep the same captains, in any order: an editor opened before the
   draw sends them as it saw them, and the order is the draw's (each team's pick), never the save's. It refused a save
   whose order differed from the draw's, so an editor opened at sign-up failed to save half the time after the draw.
+- 2026-10-23: A reset is one batch, closing the draft to picks first, and a pick's insert asks that the draft's open:
+  a captain's pick landing between the reset's statements had stayed on a team after it (#126, ADR 0121).

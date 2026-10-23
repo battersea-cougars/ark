@@ -246,14 +246,18 @@ export async function finishDraft(db: D1Database, tournamentId: number, leaveOut
  */
 export async function resetDraft(db: D1Database, tournamentId: number) {
   await tournamentOf(db, tournamentId);
-  await run(
-    db,
-    "DELETE FROM tournament_team_players WHERE team_id IN (SELECT id FROM tournament_teams WHERE tournament_id = ?)",
-    [tournamentId],
-  );
-  await run(db, "UPDATE tournaments SET draft_state = 'none' WHERE id = ?", [tournamentId]);
-  // And its pick order: it's drawn again before it next opens
-  await run(db, "UPDATE tournament_teams SET pick = NULL WHERE tournament_id = ?", [tournamentId]);
+  // One batch, the draft closed to picks first (#126): a pick landing during the reset finds it not open and is
+  // refused (its INSERT asks), never left on a team after the picks are taken off
+  await batch(db, [
+    statement(db, "UPDATE tournaments SET draft_state = 'none' WHERE id = ?", [tournamentId]),
+    statement(
+      db,
+      "DELETE FROM tournament_team_players WHERE team_id IN (SELECT id FROM tournament_teams WHERE tournament_id = ?)",
+      [tournamentId],
+    ),
+    // And its pick order: it's drawn again before it next opens
+    statement(db, "UPDATE tournament_teams SET pick = NULL WHERE tournament_id = ?", [tournamentId]),
+  ]);
   // Its draft night comes back to the agenda
   await syncTournament(db, tournamentId);
 }
@@ -310,13 +314,15 @@ export async function pick(
   if (!running && !teams.some((x) => x.captain === by.memberId)) throw new HttpError(403, "Only the captains pick.");
   if (!running && team.captain !== by.memberId) throw new HttpError(409, "It's not your pick.");
   await oneGoalie(db, team.id, memberId);
-  // One statement, so two captains tapping at once can't both pick: it only goes in if they're still in the pool
-  // and the pick on the clock is still this one (no other has landed, or come off, since). It takes that pick's number
+  // One statement, so two captains tapping at once can't both pick: it only goes in while the draft's still open (a
+  // reset landing first, #126), they're still in the pool and the pick on the clock is still this one (no other has
+  // landed, or come off, since). It takes that pick's number
   const res = await run(
     db,
     `INSERT INTO tournament_team_players (team_id, member_id, name, position, pick_number, picked_by)
      SELECT ?, ?, '', (SELECT COUNT(*) FROM tournament_team_players WHERE team_id = ?), ?, ?
-     WHERE ? IN (${POOL}) AND (${NEXT_SLOT}) = ? AND ${NOT_A_SECOND_GOALIE}`,
+     WHERE EXISTS (SELECT 1 FROM tournaments WHERE id = ? AND draft_state = 'open')
+       AND ? IN (${POOL}) AND (${NEXT_SLOT}) = ? AND ${NOT_A_SECOND_GOALIE}`,
     [
       team.id,
       memberId,
@@ -324,6 +330,7 @@ export async function pick(
       slot + 1,
       // Who picked: the captain, or whoever runs the draft picking for them, which the app and the record say
       by.memberId,
+      tournamentId,
       memberId,
       tournamentId,
       tournamentId,

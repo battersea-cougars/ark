@@ -30,15 +30,18 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
     room in the batch that saves it (#127).
   - The draft: a pick says which turn it's for (`turn`, the slot the page saw on the clock), so a tap landing after
     the turn moved on is refused, not spent on the captain's next pick; the pick goes in only while that slot is
-    still the first free pick number; one goalie a team is inside the statements. Close draft & make fixtures claims
-    the close (`UPDATE … WHERE draft_state = 'open'`, its changes checked) before making them, so two taps make one set.
+    still the first free pick number, and only while the draft's open; a reset is one batch that closes it first,
+    so a pick landing during it never outlives it (#126); one goalie a team is inside the statements. Close draft &
+    make fixtures claims the close (`UPDATE … WHERE draft_state = 'open'`, its changes checked) before making them,
+    so two taps make one set.
   - Scoring: the end of a period moves on only from the period said; a goal, penalty or Undo lands only while the
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
     so full time never reads a goal without its score; each goal and penalty tap has an id made on the phone
     (`tap_id`, UNIQUE in its game, `ON CONFLICT DO NOTHING`), and an Undo names the one it takes back, so the same tap
     from two phones, or sent again, counts once (#114); an admin's goal comes off a finished playoff only while
-    the rest still leave a winner, inside its DELETE (#123); an admin's typed-in result and its goals are one batch, each
-    side's goals matched against the count inside its statement, so the same result saved twice adds them once (#124).
+    the rest still leave a winner, inside its DELETE (#123); an admin's typed-in result and its goals are one batch,
+    each side's goals matched against the count inside its statement, so the same result saved twice adds them once
+    (#124).
     An admin's take-over (or freeing) of the scoresheet goes only while it's still held by whoever their page saw
     and the game isn't over, so two admins at once leave one scorekeeper; every scorekeeper's write, the clock's
     included, goes only while they still hold the sheet, so the old phone's tap is refused after a take-over (#116).
@@ -137,3 +140,5 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   (#114).
 - 2026-10-23: An admin taking a goal off a finished playoff is decided in its DELETE: only while the other goals still
   leave a winner, so two at once can't make it level (#123).
+- 2026-10-23: A draft's reset is one batch, closed to picks first, and a pick goes in only while the draft's open
+  (#126): a pick landing between the reset's statements had outlived it.
