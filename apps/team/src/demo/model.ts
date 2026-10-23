@@ -296,9 +296,11 @@ export interface Bookable {
   /** A training night whose sign-up isn't open yet: when it opens, short ("Mon", "Mon 19 Oct"), said where In would
    * be. Unset: open. */
   opens?: string;
-  /** A tournament that's started (lib/edition.ts hasStarted): who's in is an admin's to change, so In and Out are a
-   * line in their place (ADR 0074). */
+  /** A tournament that's started (lib/edition.ts hasStarted), or a training night that has (ADR 0030, #167): who's in
+   * is an admin's or the register's to change, so In and Out are a line in their place (ADR 0074). */
   started?: boolean;
+  /** That line, where it isn't "Ask an admin to change it": a training's, started or over. */
+  startedWords?: string;
   entries: Entries;
 }
 

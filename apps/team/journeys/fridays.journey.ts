@@ -1,6 +1,6 @@
 // Fridays: a training night and what it costs (ADR 0007, 0030, 0124; #154). An admin sets up a small training of her
 // own; members say they're in or out as its sign-up opens; it fills, the waiting list moves up, the keepers keep their
-// own place; the register on the night; a member's own answer refused once it's over; the fees charged (on the night
+// own place; the register on the night; a member's own answer refused once it's started; the fees charged (on the night
 // by the register, the next day by the hourly run); Unpaid fees, a payment, an adjustment, reminders sent by hand; a
 // night called off; a Quarterly Member's quarter charged on its first day. Ada runs it; Pia, Wes, Tam and Kit (a
 // keeper) play pay as you go; Quin goes Quarterly.
@@ -267,15 +267,13 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
 
     await moveTo("2026-10-25T19:45");
-    await checks(
-      pia,
-      "at 7:45pm, training's started: her In and Out are locked (asked: locked once it starts; ADR 0030 locks once it's ended — decide)",
-      async () => {
-        await open(pia);
-        await expect(card(pia.page)).toContainText("Sun 25 Oct");
-        await expect(answers(pia.page).getByRole("button", { name: "Out", exact: true })).toHaveCount(0);
-      },
-    );
+    // Locked once it starts, not only once it's over (ADR 0030, decided with #11; #167)
+    await checks(pia, "at 7:45pm, training's started: no In or Out, the night says it's started", async () => {
+      await open(pia);
+      const night = pia.page.getByRole("article").filter({ hasText: "Sun 25 Oct" });
+      await expect(night).toContainText("Started: the register says who's in");
+      await expect(answers(pia.page)).toHaveCount(0);
+    });
   });
 
   await stage("5. On the night: the register (a no-show, a walk-in let in), and what it charges", async () => {
@@ -315,21 +313,24 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
       },
     );
 
-    // The night ends at 9pm GMT (21:00 UTC, the clocks gone back). Bo, who never answered, says Out through the API
-    // either side of it: after, the page shows Tuesday's night, not this one
+    // It starts at 7:30pm GMT (19:30 UTC, the clocks gone back) and ends at 9pm. Bo, who never answered, says Out
+    // through the API either side of its start (a request's own clock, not the page's): from then it's the register's
     await checks(
       pia,
-      "a member's own answer is taken at 8:59pm and refused from 9pm GMT: the register's now",
+      "a member's own answer is taken at 7:29pm and refused from 7:30pm GMT, and after 9pm: the register's now",
       async () => {
-        expect(await answerAt("bo@example.com", "2026-10-25", "out", "2026-10-25T20:59")).toBe(200);
+        expect(await answerAt("bo@example.com", "2026-10-25", "out", "2026-10-25T19:29")).toBe(200);
+        expect(await answerAt("bo@example.com", "2026-10-25", "out", "2026-10-25T19:30")).toBe(409);
         expect(await answerAt("bo@example.com", "2026-10-25", "out", "2026-10-25T21:00")).toBe(409);
       },
     );
     await moveTo("2026-10-25T21:01");
-    // The server refuses them from 9pm (above); the page shouldn't offer them
-    await checks(pia, "once it's over, isn't offered In or Out for Sunday any more", async () => {
+    // The server refuses them (above); the page doesn't offer them, and says it's over
+    await checks(pia, "once it's over, isn't offered In or Out for Sunday any more: it says it's over", async () => {
       await open(pia);
       await expect(card(pia.page).filter({ hasText: "Sun 25 Oct" })).toHaveCount(0);
+      const night = pia.page.getByRole("article").filter({ hasText: "Sun 25 Oct" });
+      if (await night.count()) await expect(night).toContainText("Over: the register says who came");
     });
   });
 
@@ -592,11 +593,15 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
         await expect(card(pia.page)).toContainText("7:30 to 9pm");
       },
     );
-    // The night ends at 9pm BST: 20:00 UTC. Bo either side of it, through the API, as on 25 October
-    await checks(pia, "a member's own answer is taken at 8:59pm BST and refused from 9pm BST (20:00 UTC)", async () => {
-      expect(await answerAt("bo@example.com", "2027-03-28", "out", "2027-03-28T20:59")).toBe(200);
-      expect(await answerAt("bo@example.com", "2027-03-28", "out", "2027-03-28T21:00")).toBe(409);
-    });
+    // The night starts at 7:30pm BST: 18:30 UTC. Bo either side of it, through the API, as on 25 October
+    await checks(
+      pia,
+      "a member's own answer is taken at 7:29pm BST and refused from 7:30pm BST (18:30 UTC)",
+      async () => {
+        expect(await answerAt("bo@example.com", "2027-03-28", "out", "2027-03-28T19:29")).toBe(200);
+        expect(await answerAt("bo@example.com", "2027-03-28", "out", "2027-03-28T19:30")).toBe(409);
+      },
+    );
     await moveTo("2027-03-28T22:00");
     await cron(now);
     await checks(ada, "Pia's charged £8 for it, due Sun 28 Mar", async () => {

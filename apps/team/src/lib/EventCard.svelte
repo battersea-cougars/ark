@@ -348,9 +348,9 @@
       {/if}
       <div class="reply">
         {#if canSignUp && event.started}
-          <!-- A tournament that's started (ADR 0074): who's in is an admin's to change, so a line where In and Out
-               were, the same height, so nothing moves as it starts -->
-          <p class="answer settled">Ask an admin to change it</p>
+          <!-- A tournament that's started (ADR 0074), or a training night (ADR 0030): who's in is an admin's or the
+               register's to change, so a line where In and Out were, the same height, so nothing moves as it starts -->
+          <p class="answer settled">{event.startedWords ?? "Ask an admin to change it"}</p>
         {:else if canSignUp}
           <div class="answer" role="group" aria-label="Are you in?">
             <!-- A night whose sign-up isn't open yet says when, in In's place (ADR 0030); an admin's put in still shows -->

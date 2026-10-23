@@ -315,6 +315,41 @@ describe("a night that's over", () => {
   });
 });
 
+// Once training's started, who's in is the register's (decided 2026-10-23, #11, #167): a member's own In or Out is
+// refused, in plain words; an admin still changes who's in. Friday Training is 7:30 to 9:30pm (BST: 18:30Z)
+describe("a night that's started", () => {
+  const BEFORE = new Date("2026-10-09T18:29:00Z");
+  const STARTED = new Date("2026-10-09T18:45:00Z");
+
+  it("a minute before it starts, a member can still say in or out", async () => {
+    const f = await friday({ capacity: 5 });
+    expect((await f.say("Reg", "in", BEFORE)).status).toBe(200);
+    expect((await f.say("Paul", "out", BEFORE)).status).toBe(200);
+  });
+
+  it("once it's started a member can't say out, nor in: the register says who's in (#167)", async () => {
+    const f = await friday({ capacity: 5 });
+    expect((await f.say("Reg", "in", BEFORE)).status).toBe(200);
+    const out = await f.say("Reg", "out", STARTED);
+    expect(out.status).toBe(409);
+    expect(out.body.error).toBe("Training's started: the register says who's in.");
+    expect((await f.say("Paul", "in", STARTED)).status).toBe(409);
+    expect(await f.seen(STARTED)).toMatchObject({ going: [f.id.Reg], out: [] });
+  });
+
+  it("an admin still puts someone in once it's started", async () => {
+    const f = await friday({ capacity: 5 });
+    const put = await f.dana.call(
+      "POST",
+      `/api/sessions/${f.night.id}/players`,
+      { memberId: f.id.Paul, in: true },
+      { now: STARTED },
+    );
+    expect(put.status).toBe(200);
+    expect((await f.seen(STARTED)).going).toEqual([f.id.Paul]);
+  });
+});
+
 describe("who may do what (ADR 0024)", () => {
   it("someone not signed in can't answer, add, register, let in, reset or cancel", async () => {
     const f = await friday();
@@ -372,9 +407,10 @@ describe("Quarterly Members and walk-ins", () => {
     const f = await friday({ capacity: 2 });
     expect((await f.dana.call("POST", `/api/members/${f.id.Quinn}/quarterly`, { quarterly: true })).status).toBe(200);
     await f.say("Reg", "in");
-    // Walt walks in on the night (room for him): the last place
+    // Walt walks in on the night (room for him): the last place. Quinn says in just before it starts, when a member's
+    // own answer still counts (from 7:30pm it's the register's, #167)
     const tess = await as("tess@example.com");
-    const onTheNight = new Date(`${NEXT_FRIDAY}T18:45:00Z`);
+    const onTheNight = new Date(`${NEXT_FRIDAY}T18:25:00Z`);
     const walkIn = await tess.call(
       "POST",
       `/api/sessions/${f.night.id}/register`,

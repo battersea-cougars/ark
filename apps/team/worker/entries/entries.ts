@@ -99,17 +99,18 @@ interface Places {
   endsAt: string | null;
 }
 
-/** A training's night: its day, when it ends, and how many days before it sign-up opens (null: always open). */
+/** A training's night: its day, when it starts and ends, and how many days before it sign-up opens (null: always open). */
 interface Night {
   heldOn: string;
+  startTime: string;
   endTime: string;
   opensDays: number | null;
 }
 
-/** A training's night is over once it has ended, London time. */
-const nightOver = (night: Night, now: string) => {
+/** Whether a training's night has reached this time of its day (its start or its end), London time. */
+const nightPast = (night: Night, time: string, now: string) => {
   const today = londonToday(new Date(now));
-  return today > night.heldOn || (today === night.heldOn && londonTime(now) >= night.endTime);
+  return today > night.heldOn || (today === night.heldOn && londonTime(now) >= time);
 };
 
 /** Whether the event exists and takes sign-ups, and the places that count for this member. */
@@ -121,12 +122,13 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
           cancelled: string | null;
           keeper: number;
           heldOn: string;
+          startTime: string;
           endTime: string;
           opensDays: number | null;
         }>(
           db,
           `SELECT k.keeper, ${placesFor("k.keeper")} capacity, s.cancelled_at cancelled, s.held_on heldOn,
-             COALESCE(s.end_time, ts.end_time) endTime, ts.signup_opens_days opensDays
+             COALESCE(s.start_time, ts.start_time) startTime, COALESCE(s.end_time, ts.end_time) endTime, ts.signup_opens_days opensDays
            FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
              JOIN (SELECT COALESCE((SELECT position = 'G' FROM members WHERE id = ?), 0) keeper) k
            WHERE s.id = ?`,
@@ -149,7 +151,10 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
   return {
     limit: row.capacity,
     keeper: "keeper" in row && Boolean(row.keeper),
-    night: "heldOn" in row ? { heldOn: row.heldOn, endTime: row.endTime, opensDays: row.opensDays } : null,
+    night:
+      "heldOn" in row
+        ? { heldOn: row.heldOn, startTime: row.startTime, endTime: row.endTime, opensDays: row.opensDays }
+        : null,
     endsAt: "endsAt" in row ? row.endsAt : null,
   };
 }
@@ -286,10 +291,12 @@ export function fillingUp(
  */
 export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
   const places = await capacity(db, kind, id, memberId);
-  // A night that's over is the register's record (ADR 0007, 0030): who came, and what it charged, is the register's
-  // to change, not a member's own In or Out (#128)
-  if (places.night && nightOver(places.night, now))
+  // Once training's started, who's in is the register's (ADR 0007, 0030, #167): who's there, and what it charges, is
+  // the register's and the admins' to change, not a member's own In or Out; once it's over, it's the record (#128)
+  if (places.night && nightPast(places.night, places.night.endTime, now))
     throw new HttpError(409, "That night's over: the register says who came.");
+  if (places.night && nightPast(places.night, places.night.startTime, now))
+    throw new HttpError(409, "Training's started: the register says who's in.");
   if (places.endsAt && places.endsAt <= now) throw new HttpError(409, "That's over now.");
   if (a === "clear") return takeBack(db, kind, id, memberId);
   const was = await current(db, kind, id, memberId);

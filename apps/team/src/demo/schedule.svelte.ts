@@ -71,6 +71,10 @@ export function sessionBookable(session: TrainingSession): Bookable {
   const opensOn = nightOpensOn(r.heldOn, r.series.signupOpensDays);
   const opens =
     opensOn && !nightOpen(r.heldOn, r.series.signupOpensDays, today) ? opensWords(opensOn, today, true) : undefined;
+  // Once it's started, who's in is the register's (ADR 0030, #167): the server refuses a member's own In or Out
+  const startsAt = londonISO(r.heldOn, r.startTime);
+  const endsAt = londonISO(r.heldOn, r.endTime);
+  const started = !r.cancelled && Date.now() >= Date.parse(startsAt);
   return {
     key: `session:${session.id}`,
     kind: "training",
@@ -78,10 +82,16 @@ export function sessionBookable(session: TrainingSession): Bookable {
     icon: r.series.icon,
     tone: r.series.tone,
     title: r.series.name,
-    startsAt: londonISO(r.heldOn, r.startTime),
-    endsAt: londonISO(r.heldOn, r.endTime),
+    startsAt,
+    endsAt,
     ...where(r.place),
     signup: !r.cancelled,
+    started,
+    startedWords: !started
+      ? undefined
+      : Date.now() >= Date.parse(endsAt)
+        ? "Over: the register says who came"
+        : "Started: the register says who's in",
     capacity: r.capacity,
     goalieCapacity: r.goalieCapacity,
     cancelled: r.cancelled,

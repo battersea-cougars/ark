@@ -93,8 +93,10 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   signed up (a Quarterly Member taking the last pay-as-you-go place; someone already waiting keeps their place in the
   queue). Only the team maker's Let in puts anyone over the limit. The reply says where they went (`signup`), and the
   register says so ("Full: Walt's on the waiting list", Waiting on their row) with Let in beside them for whoever
-  can. A night that's over is a record: someone ticked as there is in, whatever the places. Once it has ended (London
-  time) a member's own In or Out is refused (409): who came, and what it charged, is the register's to change.
+  can. A night that's over is a record: someone ticked as there is in, whatever the places. **Once training has
+  started** (its start time, London) a member's own In or Out is refused (409, "Training's started: the register says
+  who's in"; once it's ended, "That night's over"): who's there, and what it charges, is the register's to change,
+  and admins still put people in and take them off. The page says so where In and Out were (Started, then Over).
 - **The places are the skaters'; keepers have their own**: a keeper is never on the waiting list because the skaters
   are full, and never takes a skater's place. A series' `goalie_capacity` is the keepers' limit (null: none), kept to
   the same way: over it a keeper waits. Places are counted a side at a time, so a place a keeper leaves goes to the
@@ -283,3 +285,6 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   each Kumite has its own: the calendar's and Home's cards for a night open that night, not the series' next one, so
   with two open a tap on the later one goes to it. The series' address stays its front page, the next night that's on.
   A date with no night shows the next one.
+- 2026-10-23: A member's own In or Out locks once training has started, not only once it's over (decided with #11);
+  the page shows the night as started, then over, with no In or Out, which had stayed and then refused (#167). The
+  register and admins still change who's in.
