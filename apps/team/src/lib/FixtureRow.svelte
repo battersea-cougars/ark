@@ -125,15 +125,9 @@
     {@render side(g.homeTeamId, g.homeSeed)}
   </span>
   <!-- On now, a big row opens the live page (the clock, the goals as they go in); otherwise the matchup -->
-  <a
-    class="mid num"
-    href={(big && live) || scoresheet ? clockHref : gameHref}
-    aria-label={scoresheet
-      ? `Game ${g.position}, your scoresheet`
-      : big && live
-        ? `Game ${g.position}, live`
-        : `Game ${g.position}`}
-  >
+  <a class="mid num" href={(big && live) || scoresheet ? clockHref : gameHref}>
+    <!-- Its name is which game, then what it shows (the time, the score), as a screen reader reads it -->
+    <span class="sr-only">Game {g.position}{scoresheet ? ", your scoresheet" : big && live ? ", live" : ""}: </span>
     {#if big}<span class="when hint">{@render when()}</span>{/if}
     <span class="score">
       {#if g.homeGoals !== null}<RollNumber value={g.homeGoals} /><span class="dash">–</span><RollNumber

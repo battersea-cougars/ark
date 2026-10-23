@@ -90,7 +90,7 @@
   --fg: #efe8e1; /* bone: titles, the active item, 14.7:1 on a panel */
   --fg-body: #d8d1ca; /* running text */
   --fg-muted: #a6a09a; /* hints, 6.9:1 */
-  --fg-subtle: #75716b; /* placeholders and disabled only, 3.7:1 */
+  --fg-subtle: #8a857f; /* the quietest words: placeholders, steps ahead, 4.5:1 on a field */
 
   /* ─── Colour ─── */
   --red: #e5131f;

@@ -1454,7 +1454,7 @@
   /* Called off: the club's red in a badge, the rest of the row a step quieter */
   .badge.off {
     gap: 0.25rem;
-    color: var(--red-hot);
+    color: var(--red-ink);
   }
   .item.off .item-text,
   .item.off .up-sub {

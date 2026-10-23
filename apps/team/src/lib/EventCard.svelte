@@ -374,7 +374,6 @@
             <button
               class="no"
               aria-pressed={out}
-              aria-label={out ? "Take back your Out" : undefined}
               title={out ? "Take back your Out" : undefined}
               disabled={locked}
               onclick={() => setIn(false)}
@@ -399,7 +398,9 @@
     gap: var(--s-5);
     padding: var(--s-5) var(--s-6);
   }
-  .event.cancelled {
+  /* Called off: the details step back, the Cancelled badge that says why stays readable */
+  .event.cancelled > :not(.top),
+  .event.cancelled .top > :not(.side) {
     opacity: 0.55;
   }
   .event.cancelled h3 {

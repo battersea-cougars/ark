@@ -140,7 +140,7 @@
     type="button"
     class="input trigger {size}"
     {id}
-    aria-label={ariaLabel}
+    aria-label={ariaLabel && `${ariaLabel}: ${label}`}
     aria-haspopup="listbox"
     aria-expanded={open}
     onclick={() => void setOpen(!open)}

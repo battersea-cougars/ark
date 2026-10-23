@@ -21,7 +21,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { flip } from "svelte/animate";
-  import { untrack } from "svelte";
+  import { tick, untrack } from "svelte";
   import { easeOut, fadeMs, flyMs, prefersReducedMotion } from "../app/motion";
   import { fade, fly, slide } from "svelte/transition";
   import TeamCrest from "../lib/TeamCrest.svelte";
@@ -409,6 +409,17 @@
   const forOther = $derived(canPick && !mine);
   const forName = $derived(clock >= 0 ? firstName(teams[clock].captainMemberId) : "");
   const chosenPlayer = $derived(chosen !== null && canPick ? pool.find((p) => p.id === chosen) : undefined);
+  // Chosen from the keyboard (a click with no pointer): on to Yes, the next step, rather than the long way round the
+  // rest of the pool to reach it
+  async function choose(id: number | null, byKeyboard: boolean) {
+    chosen = id;
+    if (id === null || !byKeyboard) return;
+    await tick();
+    const yes = [...document.querySelectorAll<HTMLButtonElement>(".seal-yes")].find(
+      (button) => !button.disabled && button.checkVisibility(),
+    );
+    yes?.focus();
+  }
   let ending = $state(false);
   // Yes: the 決 seal stamped down on the button (DraftStep's press, its ink specks), and as it lands the choice goes
   let stamping = $state(false);
@@ -793,7 +804,7 @@
           aria-pressed={on}
           aria-label={forOther ? `Choose ${goesBy(p)} for ${forName}` : `Choose ${goesBy(p)}`}
           title={forOther ? `Choose for ${forName}` : undefined}
-          onclick={() => (chosen = on ? null : p.id)}>{on ? "Chosen" : "Choose"}</button
+          onclick={(e) => void choose(on ? null : p.id, e.detail === 0)}>{on ? "Chosen" : "Choose"}</button
         >
       {/if}
     </span>

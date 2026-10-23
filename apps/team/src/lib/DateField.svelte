@@ -153,7 +153,7 @@
     type="button"
     class="input trigger"
     {id}
-    aria-label={ariaLabel}
+    aria-label={ariaLabel && `${ariaLabel}: ${value ? said(value) : placeholder}`}
     aria-describedby={describedBy}
     aria-haspopup="dialog"
     aria-expanded={open}

@@ -147,10 +147,19 @@
     margin-top: var(--s-2);
     font-size: var(--text-sm);
   }
-  .links a {
+  .links a,
+  .links .link {
     color: var(--fg);
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+  /* "Take down": words, not a button's box, as on Home */
+  .links .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
   }
   .status {
     flex-shrink: 0;

@@ -53,8 +53,10 @@
       background-color var(--t-fast) var(--ease-in-out),
       border-color var(--t-fast) var(--ease-in-out);
   }
+  /* In use: the app's fields' red edge and wash (app.css .input), so a keyboard can see where it is */
   .search:focus-within {
-    border-color: color-mix(in srgb, var(--fg) 12%, transparent);
+    border-color: var(--red-border);
+    box-shadow: 0 0 0 3px var(--red-wash);
     background: color-mix(in srgb, var(--fg) 7%, transparent);
     color: var(--fg-body);
   }

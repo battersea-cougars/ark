@@ -5,10 +5,9 @@
   let { w, d, l, pts }: { w: number; d: number; l: number; pts?: number } = $props();
 </script>
 
-<span
-  class="record num"
-  title="Won-drawn-lost"
-  aria-label="{w} won, {d} drawn, {l} lost{pts === undefined ? '' : `, ${pts} ${pts === 1 ? 'point' : 'points'}`}"
+<span class="record num" title="Won-drawn-lost"
+  ><span class="sr-only"
+    >{w} won, {d} drawn, {l} lost{pts === undefined ? "" : `, ${pts} ${pts === 1 ? "point" : "points"}`}</span
   ><span aria-hidden="true"
     >{w}-{d}-{l}{#if pts !== undefined}<span class="sep">·</span><b>{pts}</b><abbr>Pts</abbr>{/if}</span
   ></span

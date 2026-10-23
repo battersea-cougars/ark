@@ -75,6 +75,24 @@
   let pinnedH = $state(0);
   let content: HTMLElement | undefined = $state();
 
+  // A link inside the page took you to another: the link leaves with its page, so focus goes to the new page rather
+  // than back to the top of the document (a keyboard or screen reader carries on from there). Focus in the dock or
+  // the tabs stays where it is.
+  let shownRoute = "";
+  $effect(() => {
+    const id = route.id;
+    if (!shownRoute || shownRoute === id) return void (shownRoute = id);
+    shownRoute = id;
+    const was = document.activeElement;
+    if (!content || (was && was !== document.body && !content.contains(was))) return;
+    content.focus({ preventScroll: true });
+  });
+  // Skip to the page: past the dock and the corners, for a keyboard
+  function skipToPage(e: MouseEvent) {
+    e.preventDefault();
+    content?.focus({ preventScroll: true });
+  }
+
   let filtersOpen = $state(false);
   // The desktop header shows the section's pages as pills in its toolbar row
   $effect(() => {
@@ -273,6 +291,7 @@
 </script>
 
 <div class="shell" class:focus={route.focus} class:in-settings={inSettings && !phone.current}>
+  <a class="skip" href="#page" onclick={skipToPage}>Skip to the page</a>
   <!-- Desktop: the dock, floating mid-left -->
   <nav class="dock" aria-label="Main" inert={route.focus || undefined}>
     {#each dock as item (item.id)}{@render dockItem(item)}{/each}
@@ -391,10 +410,10 @@
               class:on={route.tab === "more" && route.group === "You"}
               class:as={impersonating()}
               href="/me"
-              aria-label="You: {goesBy(me())}"
               aria-current={route.id === "profile" ? "page" : undefined}
               title="You"
             >
+              <span class="sr-only">You: {goesBy(me())}</span>
               <span class="avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
             </a>
           </div>
@@ -432,7 +451,9 @@
 
     <!-- (bar-tucked and --bar-h: for what sticks under the bar, to follow it up: Friday's table) -->
     <div
+      id="page"
       class="content"
+      tabindex="-1"
       class:bar-tucked={tucked}
       bind:this={content}
       style:--chrome-h="{chromeH}px"
@@ -539,6 +560,26 @@
     position: relative;
     flex: 1;
     min-height: 0;
+  }
+  /* Focused only to carry the keyboard into a new page: no ring round the whole page */
+  .content:focus-visible {
+    outline: none;
+  }
+  /* Out of sight until a keyboard reaches it, first in the tab order */
+  .skip {
+    position: fixed;
+    top: var(--s-2);
+    left: var(--s-2);
+    z-index: 100;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-md);
+    background: var(--surface-3);
+    color: var(--fg);
+    font-weight: 600;
+    translate: 0 -200%;
+  }
+  .skip:focus-visible {
+    translate: 0;
   }
   /* Views stack, so one can leave while the next slides in. Each scrolls on its own, under the chrome. */
   .view {

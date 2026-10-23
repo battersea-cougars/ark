@@ -99,8 +99,17 @@
 
   // One tap, one step: the tap says where it saw the card, so a double tap (or a second phone) moves it once
   let busy = $state(false);
-  async function go() {
+  // The button is made again for each step (and gives way to the way back at the end): pressed from the keyboard, the
+  // focus goes on to whichever takes its place, rather than back to the top of the page
+  let keepFocus = false;
+  function takesFocus(node: HTMLElement) {
+    if (!keepFocus) return;
+    keepFocus = false;
+    node.focus({ preventScroll: true });
+  }
+  async function go(e?: Event) {
     if (busy || !t || !reveal) return;
+    keepFocus = !!e && document.activeElement === e.currentTarget;
     busy = true;
     try {
       if (cue === "reveal" || cue === "champions") await revealAward(t.id, reveal.revealed);
@@ -176,7 +185,7 @@
                   ><Icon name="medal" size={18} />Confirm the awards</button
                 >
               {:else if cue === "reveal" || cue === "champions" || cue === "next"}
-                <button class="btn primary" class:big={cue === "champions"} disabled={busy} onclick={go}
+                <button class="btn primary" class:big={cue === "champions"} disabled={busy} onclick={go} use:takesFocus
                   ><Icon name={BUTTON[cue].icon} size={18} />{BUTTON[cue].label}</button
                 >
               {:else if cue === "waiting"}
@@ -193,7 +202,9 @@
              admin's order; then the final table and the day's results -->
         <div class="end" class:fresh>
           <p class="cue">
-            <a class="btn outline" href={back.href}><Icon name="chevronLeft" size={18} />The {type.shortName}</a>
+            <a class="btn outline" href={back.href} use:takesFocus
+              ><Icon name="chevronLeft" size={18} />The {type.shortName}</a
+            >
           </p>
           <AwardsWon {type} tournament={t} hero={false} />
           <FinalResults {type} tournament={t} />
