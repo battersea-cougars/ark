@@ -502,3 +502,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   (lib/BoardWords), rolls down over the sealed one in one roll, like a scoreboard's drum (slow to start, quicker, a
   knock as it stops), then the 賞 hanko lands. Every winner's name sits on the same line across the cards (a line under
   it always kept), a team's crest level with its name.
+- 2026-10-23: The awards' words drop the clock-like tiles: the poster's italic capitals (the award in brass, the
+  winner bone), fitting the card.

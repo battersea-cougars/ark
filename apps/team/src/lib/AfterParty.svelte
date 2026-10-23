@@ -192,12 +192,12 @@
             <!-- Face up: a dark board, the award and who took it home on its tiles, what it's for; the hanko last -->
             {#if a.revealed}
               <div class="face front" style:--roll="{ROLL_MS}ms" style:--stamp-at="{times.stamp}ms">
-                <span class="award-name"><BoardWords text={a.name} size="1.15rem" /></span>
+                <span class="award-name"><BoardWords text={a.name} size="1.35rem" /></span>
                 {#if a.about}<span class="about">{a.about}</span>{/if}
                 <span class="won">
                   {#if !won.length || won.length > 2}
                     <span class="who" class:none={!won.length}
-                      ><BoardWords text={wonWords(a.name)[0]} size="1.4rem" /><span class="hint" aria-hidden="true"
+                      ><BoardWords text={wonWords(a.name)[0]} size="1.65rem" /><span class="hint" aria-hidden="true"
                         >&nbsp;</span
                       ></span
                     >
@@ -215,7 +215,7 @@
                             /></span
                           >
                           <span class="who-name"
-                            ><BoardWords text={teamName(w.teamId)} size="1.4rem" lines={won.length > 1 ? 1 : 2} /><span
+                            ><BoardWords text={teamName(w.teamId)} size="1.65rem" lines={won.length > 1 ? 1 : 2} /><span
                               class="hint"
                               aria-hidden="true">&nbsp;</span
                             ></span
@@ -223,7 +223,7 @@
                         </a>
                       {:else}
                         <span class="who who-player">
-                          <BoardWords text={goesByOf(byId(w.memberId))} size="1.4rem" lines={won.length > 1 ? 1 : 2} />
+                          <BoardWords text={goesByOf(byId(w.memberId))} size="1.65rem" lines={won.length > 1 ? 1 : 2} />
                           <!-- Always a line under the name, so every card's winner sits on the same line -->
                           <span class="hint">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : "\u00a0"}</span>
                         </span>
@@ -510,7 +510,6 @@
     gap: 0.35rem;
     padding: var(--s-3) var(--s-4);
     background: color-mix(in srgb, var(--bg) 72%, black);
-    --flap-face: color-mix(in srgb, var(--surface-2) 95%, var(--brass));
   }
   .award-name {
     padding-right: 3rem;
