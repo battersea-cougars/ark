@@ -6,6 +6,7 @@ import { type Ctx, type Env, type Route } from "./api.route";
 import { ACCESS, SCHEDULE, slices } from "./api.slices";
 import { audit, auditRefused } from "../settings/audit";
 import { localHere, sessionOf } from "../auth/auth";
+import { devClock } from "./api.dev-clock";
 import { handleAuth } from "../auth/auth.routes";
 import { CLUB_ROUTES } from "./bootstrap.routes";
 import { ANNOUNCEMENTS_ROUTES } from "../announcements/announcements.routes";
@@ -161,12 +162,16 @@ export async function handleApi(
     }
   }
   if (!hit) return json({ error: match.length ? "Method not allowed." : "Not found." }, match.length ? 405 : 404);
+  // A journey may move the club's clock, on dev or your own machine only (api.dev-clock.ts); who's signed in is the
+  // real clock's
+  const signedInAt = now;
+  now = devClock(request, env) ?? now;
   // Who it was, for the log if it fails: their number only, never their name or email (ADR 0110)
   let member: number | undefined;
   // A renewed session's cookie goes back on a refusal too, or the member is signed out once the old one's grace ends
   let renewal: string | undefined;
   try {
-    const who = await whoIs(request, env, now);
+    const who = await whoIs(request, env, signedInAt);
     if (!who) {
       await asStranger();
       return json({ error: "Sign in first." }, 401);
