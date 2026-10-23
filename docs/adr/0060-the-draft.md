@@ -348,3 +348,6 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   In a draft series it's worked out from the last edition the captain captained in ("once I set my team name, if I get
   chosen as captain again, that would be my team name again unless I change it"), name and logo, with no separate
   copy, and for any draft series, not only the Kumite. Team-entry series, where the team carries it, are #150.
+- 2026-10-23: Once the draft is open, a save must keep the same captains, in any order: an editor opened before the
+  draw sends them as it saw them, and the order is the draw's (each team's pick), never the save's. It refused a save
+  whose order differed from the draw's, so an editor opened at sign-up failed to save half the time after the draw.

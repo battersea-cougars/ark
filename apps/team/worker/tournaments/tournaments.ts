@@ -554,8 +554,12 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   // team would, not its captain)
   const bringing = kind === "draft" && tournament?.series != null;
   if (kind === "draft" && (state === "open" || state === "closed")) {
-    const same = teams.length === existing.length && teams.every((t, i) => t.captainMemberId === existing[i].captain);
-    if (!same) throw new HttpError(409, "The draft has started: the captains and their order are set.");
+    // The same captains, in any order: an editor opened before the draw sends them as it saw them, and the order is
+    // the draw's (kept in each row's pick), never the editor's
+    const captainsOf = (list: { captain?: number | null; captainMemberId?: number | null }[]) =>
+      list.map((t) => t.captain ?? t.captainMemberId ?? null).sort((a, b) => (a ?? 0) - (b ?? 0));
+    const same = JSON.stringify(captainsOf(teams)) === JSON.stringify(captainsOf(existing));
+    if (!same) throw new HttpError(409, "The draft has started: the captains are set.");
   }
   const match = (t: TeamIn) =>
     existing.find((e) => e.id === t.id) ??

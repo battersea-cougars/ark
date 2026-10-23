@@ -507,11 +507,23 @@ describe("a tournament, from setting it up to the draft", () => {
       expect(await teams()).toEqual([[ids.Reg], []]);
     });
 
-    it("once the draft is open, the captains' order can't change", async () => {
+    it("once the draft is open, the captains and the drawn order stay: a save listing them in another order keeps the draw's, another captain is refused", async () => {
       const { dana, id, tournament } = await draftOpen();
       const t = await tournament();
+      const drawn = t.teams.map((x: Json) => [x.captainMemberId, x.pick]);
+      // An editor opened before the draw lists them as it saw them: the order's the draw's, not the save's
       t.teams.reverse();
-      expect((await dana.call("PUT", `/api/tournaments/${id}`, t, { now: DRAFT_DAY })).status).toBe(409);
+      expect((await dana.call("PUT", `/api/tournaments/${id}`, t, { now: DRAFT_DAY })).status).toBe(200);
+      const after = await tournament();
+      expect(after.teams.map((x: Json) => [x.captainMemberId, x.pick]).sort()).toEqual([...drawn].sort());
+      // A different captain once it's open: refused
+      const other = await tournament();
+      other.teams[0] = {
+        ...other.teams[0],
+        id: null,
+        captainMemberId: other.going.find((m: number) => !other.teams.some((x: Json) => x.captainMemberId === m)),
+      };
+      expect((await dana.call("PUT", `/api/tournaments/${id}`, other, { now: DRAFT_DAY })).status).toBe(409);
     });
 
     it("a member who withdraws during the draft comes off their team; once it's closed, they ask an admin", async () => {
