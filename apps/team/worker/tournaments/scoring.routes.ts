@@ -1,7 +1,7 @@
 // Scoring a game as it's played (ADR 0061): the scoresheet, the clock and goals.
 import { id, ok, rowOf, type Ctx, type Route } from "../api/api.route";
 import { scoreGame } from "./fixtures";
-import { body } from "../api/api.http";
+import { body, int } from "../api/api.http";
 import {
   addGoal,
   addPenalty,
@@ -16,6 +16,11 @@ import {
 
 /** The game in a path (its second number). */
 const game = (c: Ctx) => Number(c.params[1]);
+/** The goal or penalty an Undo names (`?goal=`, `?penalty=`), if it does. */
+const named = (c: Ctx, key: string) => {
+  const v = new URL(c.request.url).searchParams.get(key);
+  return v === null ? null : int({ [key]: Number(v) }, key, { max: Number.MAX_SAFE_INTEGER });
+};
 /** A game's result as it's on the record: its score, and its penalty minutes. */
 const RESULT = `SELECT id, home_goals homeGoals, away_goals awayGoals, status,
     (SELECT coalesce(sum(minutes), 0) FROM tournament_penalties WHERE game_id = g.id) penaltyMinutes
@@ -108,7 +113,8 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
-    handle: async (c) => (await undoGoal(c.env.DB, id(c), Number(c.params[1]), c), ok()),
+    // ?goal=: the last goal the page shows, so Undo tapped twice takes it off once (#114)
+    handle: async (c) => (await undoGoal(c.env.DB, id(c), Number(c.params[1]), c, named(c, "goal")), ok()),
   },
   {
     method: "DELETE",
@@ -141,7 +147,8 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
-    handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c), ok()),
+    // ?penalty=: the last penalty the page shows (#114)
+    handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c, named(c, "penalty")), ok()),
   },
   {
     method: "DELETE",

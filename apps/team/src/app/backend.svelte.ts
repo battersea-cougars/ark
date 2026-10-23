@@ -689,7 +689,10 @@ export async function playOnAPastDay(typeId: number, heldOn: string) {
 /** The time left on the clock, by the scorekeeper's watch: paused, or running on from there. */
 export const setGameClock = (tournamentId: number, gameId: number, leftMs: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "set", leftMs }), "Clock set");
-/** A goal as it goes in: its team, who scored, who assisted. */
+/**
+ * A goal as it goes in: its team, who scored, who assisted. The tap's id is made here, as the button's pressed, so the
+ * same tap sent twice (another phone, a retry) is one goal (#114).
+ */
 export const addGoal = (
   tournamentId: number,
   gameId: number,
@@ -700,14 +703,20 @@ export const addGoal = (
     atMs?: number | null;
     period?: number | null;
   },
-) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/goals`, goal), "Goal");
+) => {
+  const tapId = crypto.randomUUID();
+  return save(() => api("POST", `${gamePath(tournamentId, gameId)}/goals`, { ...goal, tapId }), "Goal");
+};
 /** Any goal off a finished game: an admin putting the result right. */
 export const removeGoal = (tournamentId: number, gameId: number, goalId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/${goalId}`), "Goal taken off");
-/** The last goal comes off. */
-export const undoGoal = (tournamentId: number, gameId: number) =>
-  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/last`), "Goal taken back");
-/** A penalty as it's called (or, for an admin after the game, at the time they say): team, who, minutes, what for. */
+/** The last goal comes off: the one the page shows as last, so Undo tapped twice takes it off once (#114). */
+export const undoGoal = (tournamentId: number, gameId: number, goalId: number) =>
+  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/last?goal=${goalId}`), "Goal taken back");
+/**
+ * A penalty as it's called (or, for an admin after the game, at the time they say): team, who, minutes, what for. Its
+ * tap's id as for a goal (#114).
+ */
 export const addPenalty = (
   tournamentId: number,
   gameId: number,
@@ -719,13 +728,19 @@ export const addPenalty = (
     atMs?: number | null;
     period?: number | null;
   },
-) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/penalties`, penalty), "Penalty");
+) => {
+  const tapId = crypto.randomUUID();
+  return save(() => api("POST", `${gamePath(tournamentId, gameId)}/penalties`, { ...penalty, tapId }), "Penalty");
+};
 /** Any penalty off a finished game: an admin putting it right. */
 export const removePenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/${penaltyId}`), "Penalty taken off");
-/** The last penalty comes off. */
-export const undoPenalty = (tournamentId: number, gameId: number) =>
-  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/last`), "Penalty taken back");
+/** The last penalty comes off: the one the page shows as last (#114). */
+export const undoPenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
+  save(
+    () => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/last?penalty=${penaltyId}`),
+    "Penalty taken back",
+  );
 
 export const createTournament = (t: Tournament) =>
   save(() => api<{ id: number }>("POST", "/api/tournaments", tournamentBody(t)), "Date added");

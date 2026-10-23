@@ -8,7 +8,7 @@
 import { batch, first, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { fillPlayoffs, listGames, tournamentOf, type Game, type TournamentRow } from "./fixtures";
-import { HttpError, int, oneOf } from "../api/api.http";
+import { HttpError, int, oneOf, text } from "../api/api.http";
 import { INFRACTIONS, infractionOf, PENALTY_MINUTES } from "../../src/lib/penalties";
 import { periodName } from "../../src/lib/periods";
 
@@ -324,12 +324,15 @@ export async function addGoal(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
-  // The goal and the score it makes in one batch: full time landing between them would make the result without it
+  const tapId = tapOf(o);
+  // The goal and the score it makes in one batch: full time landing between them would make the result without it.
+  // The same tap twice is one goal (#114): the second's insert does nothing
   const [res] = await batch(db, [
     statement(
       db,
-      `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
-       SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
+      `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, tap_id,
+         created_at)
+       SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)} ON CONFLICT (game_id, tap_id) DO NOTHING`,
       [
         gameId,
         teamId,
@@ -337,6 +340,7 @@ export async function addGoal(
         assistId,
         atMs,
         periodOf(o, done, atMs, game, t),
+        tapId,
         now.toISOString(),
         gameId,
         who.memberId,
@@ -344,7 +348,10 @@ export async function addGoal(
     ),
     recount(db, game),
   ]);
-  if (!res.meta.changes) throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
+  if (!res.meta.changes) {
+    if (await tapped(db, "tournament_goals", gameId, tapId)) return;
+    throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
+  }
   if (done && game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
 
@@ -360,20 +367,23 @@ export async function removeGoal(db: D1Database, tournamentId: number, gameId: n
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, await tournamentOf(db, tournamentId));
 }
 
-/** The last goal comes off: logged by mistake. */
-export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who) {
+/**
+ * The last goal comes off: logged by mistake. The page says which (`goalId`, the last it shows, #114), so Undo
+ * tapped twice takes that one off once; unsaid, the last logged.
+ */
+export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who, goalId: number | null) {
   const { game } = await scorable(db, tournamentId, gameId, who);
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   // As a goal goes in: off, and the score with it, in one batch
   const [res] = await batch(db, [
     statement(
       db,
-      `DELETE FROM tournament_goals WHERE id = (SELECT max(id) FROM tournament_goals WHERE game_id = ?) AND ${stillAsFound(false)}`,
-      [gameId, gameId, who.memberId],
+      `DELETE FROM tournament_goals WHERE ${whichOff(goalId, "tournament_goals")} AND ${stillAsFound(false)}`,
+      [...whichOffParams(goalId, gameId), gameId, who.memberId],
     ),
     recount(db, game),
   ]);
-  if (!res.meta.changes) throw await refusal(db, gameId, who, new HttpError(409, "No goals to take back."));
+  if (!res.meta.changes) await nothingTakenBack(db, gameId, who, goalId, "No goals to take back.");
 }
 
 /**
@@ -419,11 +429,13 @@ export async function addPenalty(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
+  const tapId = tapOf(o);
+  // The same tap twice is one penalty (#114)
   const res = await run(
     db,
     `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, period, recorded_by,
-       created_at)
-     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
+       tap_id, created_at)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)} ON CONFLICT (game_id, tap_id) DO NOTHING`,
     [
       gameId,
       teamId,
@@ -433,12 +445,16 @@ export async function addPenalty(
       atMs,
       periodOf(o, done, atMs, game, t),
       who.memberId,
+      tapId,
       now.toISOString(),
       gameId,
       who.memberId,
     ],
   );
-  if (!res.meta.changes) throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
+  if (!res.meta.changes) {
+    if (await tapped(db, "tournament_penalties", gameId, tapId)) return;
+    throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
+  }
 }
 
 /** Any penalty off a finished game: an admin putting it right. */
@@ -448,16 +464,53 @@ export async function removePenalty(db: D1Database, tournamentId: number, gameId
   if (!res.meta.changes) throw new HttpError(404, "No such penalty.");
 }
 
-/** The last penalty comes off: logged by mistake. */
-export async function undoPenalty(db: D1Database, tournamentId: number, gameId: number, who: Who) {
+/** The last penalty comes off: logged by mistake. Which, as for goals (`penaltyId`, #114). */
+export async function undoPenalty(
+  db: D1Database,
+  tournamentId: number,
+  gameId: number,
+  who: Who,
+  penaltyId: number | null,
+) {
   const { game } = await scorable(db, tournamentId, gameId, who);
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   const res = await run(
     db,
-    `DELETE FROM tournament_penalties WHERE id = (SELECT max(id) FROM tournament_penalties WHERE game_id = ?) AND ${stillAsFound(false)}`,
-    [gameId, gameId, who.memberId],
+    `DELETE FROM tournament_penalties WHERE ${whichOff(penaltyId, "tournament_penalties")} AND ${stillAsFound(false)}`,
+    [...whichOffParams(penaltyId, gameId), gameId, who.memberId],
   );
-  if (!res.meta.changes) throw await refusal(db, gameId, who, new HttpError(409, "No penalties to take back."));
+  if (!res.meta.changes) await nothingTakenBack(db, gameId, who, penaltyId, "No penalties to take back.");
+}
+
+/** Which tap a goal or penalty is (#114): the phone's id for it, made when the button's pressed; none from an admin. */
+const tapOf = (o: Record<string, unknown>) => (o.tapId == null ? null : text(o, "tapId", { max: 64 }));
+
+/** This tap's already in: sent twice (two phones, a retry), it counted the first time. The read is only for that. */
+const tapped = async (
+  db: D1Database,
+  table: "tournament_goals" | "tournament_penalties",
+  gameId: number,
+  tapId: string | null,
+) => tapId !== null && !!(await first(db, `SELECT 1 FROM ${table} WHERE game_id = ? AND tap_id = ?`, [gameId, tapId]));
+
+/** SQL for the one an Undo takes off: the one it names, in this game, or else the game's last logged. */
+const whichOff = (named: number | null, table: "tournament_goals" | "tournament_penalties") =>
+  named !== null ? "id = ? AND game_id = ?" : `id = (SELECT max(id) FROM ${table} WHERE game_id = ?)`;
+const whichOffParams = (named: number | null, gameId: number) => (named !== null ? [named, gameId] : [gameId]);
+
+/**
+ * An Undo that took nothing off, and why: the sheet's someone else's now, or the game's over; else the one it named is
+ * already off (Undo tapped twice: done once, and that's fine), or there was nothing to take back.
+ */
+async function nothingTakenBack(db: D1Database, gameId: number, who: Who, named: number | null, nothing: string) {
+  const g = await first<{ keeper: number | null; status: string }>(
+    db,
+    "SELECT keeper_member_id keeper, status FROM tournament_games WHERE id = ?",
+    [gameId],
+  );
+  if (g?.keeper !== who.memberId) throw new HttpError(403, "Someone else is keeping score.");
+  if (g.status !== "live") throw tooLate(false);
+  if (named === null) throw new HttpError(409, nothing);
 }
 
 /** The score on the game, from its goals: what everyone sees. Sent in the same batch as the change to its goals, so

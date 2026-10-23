@@ -729,22 +729,39 @@ describe("taps at once, outside the live game (ADR 0121)", () => {
     },
   );
 
-  // Undo says "the last goal", not which: a double tap on Undo takes two goals off, the same root as a goal sent
-  // twice (#114: give each tap an id). Seeds that show it, fixed, as above
-  it.fails.each([1, 2, 3, 4, 5])(
-    "Undo tapped twice at once takes back one goal, not two (known bug #114) (seed %i)",
-    async (seed) => {
-      const c = await cup();
-      const keeper = await c.keeperOf(c.first);
-      await c.clock(keeper, c.first.id, "start", at(0));
-      await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(1));
-      await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(2));
-      const undo = () => keeper.call("DELETE", `${c.path(c.first.id)}/goals/last`, undefined, { now: at(3) });
-      w.db.interleave(seed);
-      await Promise.all([undo(), undo()]);
-      w.db.interleave(null);
-      expect(goalsIn(c.first.id)).toBe(1);
-      expect(row(c.first.id)).toMatchObject({ home: 1 });
-    },
-  );
+  // Undo says which goal it takes back, the last one the page shows (#114): a double tap on Undo takes that one off
+  // once, and the second finds it gone. Seeds 1 to 5 took two off when it said only "the last goal"
+  it.each([1, 2, 3, 4, 5])("Undo tapped twice at once takes back one goal, not two (seed %i)", async (seed) => {
+    const c = await cup();
+    const keeper = await c.keeperOf(c.first);
+    await c.clock(keeper, c.first.id, "start", at(0));
+    await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(1));
+    await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(2));
+    const last = (await c.game(c.first.id)).goals.at(-1).id;
+    const undo = () =>
+      keeper.call("DELETE", `${c.path(c.first.id)}/goals/last?goal=${last}`, undefined, { now: at(3) });
+    w.db.interleave(seed);
+    const replies = await Promise.all([undo(), undo()]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(goalsIn(c.first.id)).toBe(1);
+    expect(row(c.first.id)).toMatchObject({ home: 1 });
+  });
+
+  it.each([1, 2, 3, 4, 5])("Undo of a penalty tapped twice at once takes back one penalty (seed %i)", async (seed) => {
+    const c = await cup();
+    const keeper = await c.keeperOf(c.first);
+    await c.clock(keeper, c.first.id, "start", at(0));
+    const called = { teamId: c.first.homeTeamId, infraction: "delay-of-game" };
+    await c.penalty(keeper, c.first.id, called, at(1));
+    await c.penalty(keeper, c.first.id, called, at(2));
+    const last = (await c.game(c.first.id)).penalties.reduce((a: Json, b: Json) => (b.id > a.id ? b : a)).id;
+    const undo = () =>
+      keeper.call("DELETE", `${c.path(c.first.id)}/penalties/last?penalty=${last}`, undefined, { now: at(3) });
+    w.db.interleave(seed);
+    const replies = await Promise.all([undo(), undo()]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(penaltiesIn(c.first.id)).toBe(1);
+  });
 });

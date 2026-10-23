@@ -287,3 +287,6 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-23: Full time no longer ends the match at once (nor asks "Tap again"): it opens a review of the score, the
   goals and the penalties, with the last goal to take back, and Seal the result is full time. The scorekeeper had no
   look back before the score became the result.
+- 2026-10-23: Each goal and penalty tap carries an id made on the phone as it's pressed (`tapId`), so the same tap
+  from two phones or sent again is one; Undo names the goal or penalty the page shows last (`?goal=`, `?penalty=`),
+  so Undo tapped twice takes one off ([0121](0121-load-and-concurrency.md), #114).

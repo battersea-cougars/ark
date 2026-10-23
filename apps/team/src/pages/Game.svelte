@@ -265,7 +265,7 @@
       busy = false;
     }
   }
-  const takeBackGoal = () => tournament && game && act(() => undoGoal(tournament.id, game.id));
+  const takeBackGoal = () => tournament && game && lastGoal && act(() => undoGoal(tournament.id, game.id, lastGoal.id));
   function setTimeFromReview() {
     reviewing = false;
     openSet();
@@ -709,7 +709,7 @@
         <button
           class="tool"
           disabled={busy || !lastGoal}
-          onclick={() => tool(() => act(() => undoGoal(tournament.id, game.id)))}
+          onclick={() => lastGoal && tool(() => act(() => undoGoal(tournament.id, game.id, lastGoal.id)))}
         >
           <Icon name="undo" size={22} />
           <span class="tool-text"
@@ -723,7 +723,7 @@
         <button
           class="tool"
           disabled={busy || !lastPenalty}
-          onclick={() => tool(() => act(() => undoPenalty(tournament.id, game.id)))}
+          onclick={() => lastPenalty && tool(() => act(() => undoPenalty(tournament.id, game.id, lastPenalty.id)))}
         >
           <Icon name="undo" size={22} />
           <span class="tool-text"

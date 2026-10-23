@@ -890,10 +890,14 @@ CREATE TABLE tournament_goals (
   at_ms INTEGER,
   -- In which period (at_ms is the time into it); NULL with no time
   period INTEGER,
+  -- Which tap it was (#114): made on the scorekeeper's phone when the button's pressed, so the same tap sent twice
+  -- (two phones, a retry) is one goal (ON CONFLICT DO NOTHING); NULL for an admin's or a typed-in result's
+  tap_id TEXT,
   created_at TEXT NOT NULL
 );
 
 CREATE INDEX tournament_goals_game ON tournament_goals (game_id, id);
+CREATE UNIQUE INDEX tournament_goals_tap ON tournament_goals (game_id, tap_id);
 -- In the club read's order (by game time, untimed last), so it reads every goal once, not twice for a sort
 CREATE INDEX tournament_goals_time ON tournament_goals (at_ms IS NULL, period, at_ms, id);
 
@@ -913,10 +917,13 @@ CREATE TABLE tournament_penalties (
   period INTEGER,
   -- Who wrote it down: the scorekeeper, or an admin putting the result right
   recorded_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  -- Which tap it was, as for goals (#114)
+  tap_id TEXT,
   created_at TEXT NOT NULL
 );
 
 CREATE INDEX tournament_penalties_game ON tournament_penalties (game_id, id);
+CREATE UNIQUE INDEX tournament_penalties_tap ON tournament_penalties (game_id, tap_id);
 CREATE INDEX tournament_penalties_time ON tournament_penalties (at_ms IS NULL, period, at_ms, id);
 CREATE INDEX tournament_penalties_member ON tournament_penalties (member_id);
 

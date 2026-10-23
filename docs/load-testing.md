@@ -38,7 +38,7 @@ INTERLEAVE_SEEDS=500 npx vitest run concurrency     # each case under seeds 1 to
 | --------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Friday sign-up  | `apps/team/worker/entries/entries.concurrency.use-cases.test.ts`     | 30 tap In for 20 places: 20 in, 10 waiting in tap order, nobody twice; keepers on their own side; Quarterly members bumping at once; a place freed while others join goes to the first waiting; a double tap; out twice |
 | The draft       | `apps/team/worker/tournaments/draft.concurrency.use-cases.test.ts`   | Set the order twice; every captain tapping; two phones; the snake's double turn; captain and admin on one player, or two; Undo racing a pick; out as they're picked; one goalie a team; a whole draft of taps           |
-| Scoring         | `apps/team/worker/tournaments/scoring.concurrency.use-cases.test.ts` | The same goal from two phones (two goals, #114); end of a period twice; full time twice; a goal as full time is called; goals and penalties at once                                                                     |
+| Scoring         | `apps/team/worker/tournaments/scoring.concurrency.use-cases.test.ts` | The same goal or penalty tap from two phones (one, #114); end of a period twice; full time twice; a goal as full time is called; goals and penalties at once                                                            |
 | Taking over     | `apps/team/worker/tournaments/scoring.takeover.use-cases.test.ts`    | Two admins taking over one scoresheet at once (#116); the old scorekeeper's goal, or full time, as an admin takes over                                                                                                  |
 | Push outbox     | `apps/team/worker/push/push.concurrency.use-cases.test.ts`           | Two announcements and three drains at once: every phone hears each once, no invocation past 50 subrequests                                                                                                              |
 | Dues reminders  | `apps/team/worker/dues/reminders.concurrency.use-cases.test.ts`      | An admin's Send beside the five-minute cron, two runs at once: each member emailed once; a club-wide send and reminders for everyone: no request or cron run past 50 subrequests                                        |
@@ -72,7 +72,7 @@ Held already, now tested: a sign-up's place decided in its statement; picks guar
 once; the push outbox claimed before sending (three drains at 08:00 at once, a club-wide send held overnight:
 `push.outbox.use-cases.test.ts`); charges unique.
 
-Still open: the same goal from two phones is two goals (#114, Undo takes one back; nothing retries on its own).
+The same goal from two phones was two goals (#114): each tap now has an id, and a repeat does nothing.
 
 ## Load runs
 
@@ -285,6 +285,5 @@ says what the rink's wifi would have refused.
 2. **Watch the Usage page on the first draft night and the first busy Friday** ([0059](adr/0059-usage-page-and-check.md)):
    rows read is the line to watch, not requests.
 3. **The rink's wifi** is one address for the per-address limit (#113): count signed-in GETs per member.
-4. **Give scoring taps an id** when a retry or a second device makes duplicates likely (#114).
-5. A tap costs 29 round trips (the charges are worked out again for the whole club after each): fine for CPU today,
+4. A tap costs 29 round trips (the charges are worked out again for the whole club after each): fine for CPU today,
    and the place to look if a tap's CPU grows with the club.
