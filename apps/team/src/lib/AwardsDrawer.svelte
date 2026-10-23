@@ -22,6 +22,11 @@
   import AwardCallSheet from "./AwardCallSheet.svelte";
   import { awardFromData, decidedByOf, playersOf, votersOf, type Award, type AwardWinner } from "./awards";
   import { teamTone } from "./team-tones";
+  import { onDestroy } from "svelte";
+
+  // The page going while it's open (a back swipe, a link) closes it too: left set, it opened by itself the next time
+  // the tournament's page did
+  onDestroy(() => (editing.id = null));
 
   const tournament = $derived(db.tournaments.find((t) => t.id === editing.id));
   const teams = $derived(tournament?.teams ?? []);

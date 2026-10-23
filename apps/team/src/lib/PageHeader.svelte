@@ -12,7 +12,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
   import Pills from "./Pills.svelte";
-  import { pageBar } from "../app/shell/page-bar.svelte";
+  import { barOwner, pageBar } from "../app/shell/page-bar.svelte";
   import { phone } from "./viewport.svelte";
 
   let {
@@ -52,20 +52,14 @@
   } = $props();
 
   // Lend the phone bar this page's actions and filters. A page arriving can register before the one leaving has
-  // cleaned up, so each only clears what it set.
+  // cleaned up, so each only clears what it set (barOwner, a plain field: a teardown reads reactive state as it was)
   const me = Symbol("page");
+  const release = barOwner.claim(me);
   $effect(() => {
-    Object.assign(pageBar, { owner: me, actions, filters, active, onclear });
+    if (barOwner.current === me) Object.assign(pageBar, { actions, filters, active, onclear });
   });
   $effect(() => () => {
-    if (pageBar.owner === me)
-      Object.assign(pageBar, {
-        owner: undefined,
-        actions: undefined,
-        filters: undefined,
-        active: 0,
-        onclear: undefined,
-      });
+    if (release()) Object.assign(pageBar, { actions: undefined, filters: undefined, active: 0, onclear: undefined });
   });
 
   const strip = $derived(!phone.current && pageBar.strip.length > 1 ? pageBar.strip : []);

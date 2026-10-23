@@ -461,11 +461,13 @@
   // Their sign-ins stay: that's Sign out everywhere, beside it
   let theirPasskeys = $state<Passkey[] | null>(null);
   $effect(() => {
-    if (memberId === me().id) return;
+    const id = memberId;
+    if (id === me().id) return;
     theirPasskeys = null;
-    api<{ passkeys: Passkey[] }>("GET", `/api/members/${memberId}/passkeys`)
-      .then((r) => (theirPasskeys = r.passkeys))
-      .catch(() => (theirPasskeys = null));
+    // A slow answer for someone no longer shown is dropped, as their attendance's is
+    api<{ passkeys: Passkey[] }>("GET", `/api/members/${id}/passkeys`)
+      .then((r) => id === memberId && (theirPasskeys = r.passkeys))
+      .catch(() => id === memberId && (theirPasskeys = null));
   });
   const passkeysLine = $derived(
     theirPasskeys === null
