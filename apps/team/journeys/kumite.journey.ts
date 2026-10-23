@@ -7,7 +7,7 @@
 // It runs on the real clock, on a fresh database: the Kumite is scheduled for today (London), so it's on its day from
 // the start and The Anchor follows its last match (its evening lasts till 06:00).
 import { expect, test } from "@playwright/test";
-import { asMember, checks, does, knownBug, noFailedChecks, signIn, stage, type Person } from "./journey";
+import { asMember, checks, does, noFailedChecks, signIn, stage, type Person } from "./journey";
 
 /** Today in London as the app's day picker names it: "Fri 23 Oct 2026". */
 const todayLabel = () =>
@@ -38,6 +38,11 @@ test("The Kumite night", async ({ browser }) => {
   const nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
   const everyone = [ada, fay, nell];
   const open = (who: Person, path = KUMITE) => who.page.goto(path);
+  // The Kumite as the API has it (its id, its places, its teams and games), as the admin
+  const adaApi = asMember(ada.email);
+  const kumite = async () =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((await adaApi("GET", "/api/bootstrap")).tournaments as any[]).find((t) => t.typeId === 1 && t.heldOn);
 
   await stage("1. The Kumite scheduled: sign-up opens", async () => {
     for (const who of [fay, nell])
@@ -47,51 +52,41 @@ test("The Kumite night", async ({ browser }) => {
         await expect(who.page.getByRole("button", { name: "Next Kumite" })).toHaveCount(0);
       });
 
-    await open(ada);
-    await knownBug(
+    await does(
       ada,
-      "the next Kumite's Advanced opens the full editor",
-      "structuredClone of a reactive proxy",
+      "schedules the next Kumite for today, sign-up opening today, three captains, then Advanced: nine places",
       async () => {
+        await open(ada);
+        const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
         await ada.page.getByRole("button", { name: "Next Kumite" }).click();
-        await ada.page.getByRole("button", { name: "Advanced" }).click();
-        await expect(ada.page.getByRole("button", { name: "Schedule it" })).toBeVisible({ timeout: 3000 });
+        await wizard.getByRole("button", { name: "Day", exact: true }).click();
+        await ada.page.getByRole("button", { name: todayLabel() }).click();
+        await wizard.getByRole("button", { name: "Next · Sign-up" }).click();
+        await expect(wizard.getByRole("button", { name: "Sign-up opens" })).toHaveText(todayLabel());
+        await wizard.getByRole("button", { name: "Next · Captains" }).click();
+        for (const captain of ["Cara Captain", "Cole Captain", "Cass Captain"])
+          await wizard.getByRole("button", { name: `Add ${captain} as a captain` }).click();
+        // The quick questions don't ask how many places: the full editor does, with the answers filled in
+        await wizard.getByRole("button", { name: "Advanced" }).click();
+        await wizard.getByRole("tab", { name: "Sign-up" }).click();
+        await wizard.getByRole("spinbutton", { name: "Places" }).fill("9");
+        await wizard.getByRole("button", { name: "Schedule it" }).click();
+        // On a Friday it's over Friday Training: asked, it keeps both (ADR 0122)
+        const clash = ada.page.getByRole("dialog", { name: "Already on then" });
+        const scheduled = ada.page.getByRole("button", { name: "Save" });
+        await expect(clash.or(scheduled).first()).toBeVisible();
+        if (await clash.isVisible()) {
+          await clash.getByRole("button", { name: "Keep both" }).click();
+          await clash.getByRole("button", { name: "Save" }).click();
+        }
+        // Scheduled, the panel goes on to its editor; closed, the page has it
+        await expect.poll(async () => (await kumite())?.capacity).toBe(9);
+        await ada.page.keyboard.press("Escape");
+        await expect(ada.page.getByRole("dialog")).toHaveCount(0);
       },
     );
-
-    await does(ada, "schedules the next Kumite for today, sign-up opening today, three captains", async () => {
-      await open(ada);
-      const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
-      await ada.page.getByRole("button", { name: "Next Kumite" }).click();
-      await wizard.getByRole("button", { name: "Day", exact: true }).click();
-      // The month runs past a 720px-high window, its pop-over moving as it's scrolled to: the day's picked with the
-      // keyboard, which is on today when it opens
-      await ada.page.getByRole("button", { name: todayLabel() }).press("Enter");
-      await wizard.getByRole("button", { name: "Next · Sign-up" }).click();
-      await expect(wizard.getByRole("button", { name: "Sign-up opens" })).toHaveText(todayLabel());
-      await wizard.getByRole("button", { name: "Next · Captains" }).click();
-      for (const captain of ["Cara Captain", "Cole Captain", "Cass Captain"])
-        await wizard.getByRole("button", { name: `Add ${captain} as a captain` }).click();
-      await wizard.getByRole("button", { name: "Next · Check" }).click();
-      await expect(wizard.getByText("Cara Captain · Cole Captain · Cass Captain")).toBeVisible();
-      await wizard.getByRole("button", { name: "Schedule it" }).click();
-      // On a Friday it's over Friday Training: asked, it keeps both (ADR 0122)
-      const clash = ada.page.getByRole("dialog", { name: "Already on then" });
-      await expect(wizard.or(clash).first()).toBeVisible();
-      await Promise.race([clash.waitFor(), wizard.waitFor({ state: "detached" })]);
-      if (await clash.isVisible()) {
-        await clash.getByRole("button", { name: "Keep both" }).click();
-        await clash.getByRole("button", { name: "Save" }).click();
-      }
-      await expect(wizard).toHaveCount(0);
-    });
   });
 
-  // The Kumite as the API has it (its id, its teams and games), as the admin
-  const adaApi = asMember(ada.email);
-  const kumite = async () =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((await adaApi("GET", "/api/bootstrap")).tournaments as any[]).find((t) => t.typeId === 1 && t.heldOn);
   const { id } = await kumite();
   const members = (await adaApi("GET", "/api/bootstrap")).members as { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
@@ -132,22 +127,14 @@ test("The Kumite night", async ({ browser }) => {
         await expect(who.page.getByRole("button", { name: "Manage the Kumite" })).toHaveCount(0);
       });
 
-    await knownBug(
-      ada,
-      "closes sign-up from the sign-up view",
-      "the Kumite's invitation card takes Close sign-up's place",
-      async () => {
-        await open(ada);
-        await expect(ada.page.getByRole("button", { name: "Close sign-up" })).toBeVisible({ timeout: 3000 });
-      },
-    );
+    await checks(nell, "can't get a place once the card's full: she'd be a reserve", async () => {
+      await open(nell, `${KUMITE}/sign-up`);
+      await expect(nell.page.getByText("Changed your mind? You'd be a reserve.")).toBeVisible();
+    });
 
-    await does(ada, "closes sign-up: Manage → Move to… → Draft open", async () => {
+    await does(ada, "closes sign-up from the sign-up view", async () => {
       await open(ada);
-      await ada.page.getByRole("button", { name: "Manage the Kumite" }).click();
-      await ada.page.getByRole("button", { name: /^Move to…/ }).click();
-      await ada.page.getByRole("button", { name: /Draft open/ }).click();
-      await ada.page.getByRole("button", { name: "Move on" }).click();
+      await ada.page.getByRole("button", { name: "Close sign-up" }).click();
       await expect(ada.page.getByRole("status", { name: "Status: Draft open" })).toBeVisible();
     });
 
@@ -171,14 +158,7 @@ test("The Kumite night", async ({ browser }) => {
   };
 
   await stage("3. The order drawn", async () => {
-    // Move to… drew the order and opened the draft on its way: stepped back by hand to draw it as an admin does
-    await does(ada, "steps back to before the draw (Manage)", async () => {
-      await open(ada);
-      await (await manage(ada)).getByRole("button", { name: /^Back to the drawn order/ }).click();
-      await expect(ada.page.getByRole("button", { name: "Open draft" })).toBeVisible();
-      await (await manage(ada)).getByRole("button", { name: /^Back to before the draw/ }).click();
-      const asked = ada.page.getByRole("dialog", { name: "Back to before the draw" });
-      await asked.getByRole("button", { name: "Back to before the draw" }).click();
+    await checks(ada, "has the order to draw, now sign-up's closed", async () => {
       await expect(ada.page.getByRole("heading", { name: "Draw the order" })).toBeVisible();
     });
 
