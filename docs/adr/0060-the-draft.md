@@ -323,3 +323,21 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   is on its name's line ("why does the picking badge have to be on the second row?"): PICKING, YOUR PICK or YOURS in
   the tabs' italic caps, the light and the word the only red, no filled pill; each card keeps the room for its
   widest tag and the name ends in an ellipsis, so nothing moves as the turn goes round (lib/draft-follow.ts).
+- 2026-10-23: The room's actions in the Kumite's own hand, and its words say choose, not pick. On your turn the
+  floating button reads CHOOSE YOUR CHAMPION (sticker yellow, the same fixed box as PLAYERS, two lines inside it on a
+  narrow phone), a red 選 seal pressed on its left and one ring of ink going out as the turn arrives, like a gong, then
+  still. Each player's Choose is a small seal-shaped button (the red seal's outline, italic caps); the one chosen has a
+  small red 選 beside the name, never a filled row. Confirming is "Are you sure? <name>" (with "for <captain>" when an
+  admin chooses for them) and a red hanko button, 決 YES, that stamps down with DraftStep's press and ink specks as the
+  choice goes, in the drawer and on a desktop's bar alike. The drawer has 組手 faint behind its header; Follow the
+  draft, Players, Change and Manage are the italic caps with the red slash, no grey pills. The room's bar: the live
+  light sits on the eyebrow's line (red, softly pulsing, while the stream's open; grey with how often it checks
+  otherwise), and whose turn is one fixed box: a crest or, yours, the 選 seal, then YOUR CHOICE in red italic caps;
+  nothing once everyone's chosen. The last choice made with the room watching gets a finale: it burns in like any
+  other, the light leaves the team, each team's edge lights in turn and "The teams are chosen" rises where the button
+  was, then the Seal the teams card rises in with its 決 fading up last (about 2s after the burn; less motion, a
+  crossfade). A room 1100px or wider has the choices as a column of their own (the newest first, burning in as it
+  lands, the snake's rounds as quiet breaks, an admin's choice marked "Dan's choice"): on the board beside the pool
+  and the teams (two to a row, every card one height), and once everyone's chosen as the last third beside the teams'
+  two thirds; narrower, the Teams and Choices tabs as before. The room scrolls once everyone's chosen (the guard that
+  keeps it from moving sideways had been resetting it). 選 added to the kanji subset.

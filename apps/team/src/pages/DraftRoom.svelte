@@ -10,6 +10,7 @@
   import Kanji from "../lib/Kanji.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { kanjiFor } from "../lib/motif";
+  import { liveFeed } from "../lib/live-updates.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamTone } from "../lib/team-tones";
@@ -49,7 +50,7 @@
           ...dataTurn,
           team: shownClock,
           you: shownClock === myIndex,
-          said: shownClock === myIndex ? "Your pick" : `${nameOf(shownClock)} is picking`,
+          said: shownClock === myIndex ? "Your choice" : `${nameOf(shownClock)} is choosing`,
         }
       : dataTurn,
   );
@@ -83,6 +84,7 @@
   // The tournament's team names, which its crests are told apart among (logo.ts)
   const crestNames = $derived(teamNamesOf(teams, byId));
   const seal = $derived(kanjiFor(type, "fist"));
+  const choose = $derived(kanjiFor(type, "choose"));
 
   // Manage: the same items as the page's gear, for the draft (lib/draft-jobs.ts) and a step back, a row each
   const runs = $derived(can(granted(), "run:Draft"));
@@ -140,9 +142,12 @@
       return;
     }
     if (!(el instanceof HTMLElement)) return;
-    if (el.scrollLeft && (el.matches(".room, .room > .body") || el.querySelector(":scope > .room"))) el.scrollLeft = 0;
+    // (The room is the page's .page.room: the draft inside it is a .room too, and the body under the bar, its parent,
+    // is the one thing here that scrolls down)
+    if (el.scrollLeft && (el.matches(".page.room, .page.room > .body") || el.querySelector(":scope > .page.room")))
+      el.scrollLeft = 0;
     // The view and the room are the window: only the body under the bar scrolls, so neither moves up either
-    if (el.scrollTop && (el.matches(".room") || el.querySelector(":scope > .room"))) el.scrollTop = 0;
+    if (el.scrollTop && (el.matches(".page.room") || el.querySelector(":scope > .page.room"))) el.scrollTop = 0;
   }
   // Full screen is the room's own button, on and off (Escape leaves it too, and you stay in the room); ✕ and Back
   // leave the room. Where the browser has none (an iPhone's Safari), no button: the room's the whole page anyway
@@ -159,44 +164,58 @@
     <span class="mark" aria-hidden="true"
       >{#if seal}<Kanji text={seal} seal />{:else}<Icon name={type.icon} size={18} />{/if}</span
     >
-    <!-- Where you are, small beside the seal: the bar's words are whose pick it is -->
-    <span class="titles eyebrow">{type.shortName} · Draft room</span>
-    <!-- Whose pick, big and plain: the team picking with its crest, or YOUR PICK in red with its light; then quietly
-         how long till yours. The one line that changes, in its own room, so nothing else in the bar moves on a pick -->
+    <!-- Where you are, small beside the seal, and on the same line whether the picks come live: a red light, softly
+         pulsing, while the hub's stream is open; else a grey one and how often it checks (both laid in one place, so
+         the swap moves nothing) -->
+    <span class="titles">
+      <span class="eyebrow">{type.shortName} · Draft room</span>
+      <span
+        class="live-status"
+        class:on={liveFeed.on}
+        title={liveFeed.on ? "Choices show up as they're made" : "Choices show up on the club's beat"}
+        ><i class="ldot" aria-hidden="true"></i><span class="lw"><LiveNote what="Updates" /></span></span
+      >
+    </span>
+    <!-- Whose turn, big and plain, in one fixed box (a mark, then two lines): the team choosing with its crest and
+         "choosing · you're in 3"; yours, the red 選 seal and YOUR CHOICE in the italic caps; everyone chosen, nothing.
+         The one thing in the bar that changes, so nothing else moves on a choice -->
     <span class="turn" aria-live="polite">
-      {#if turn}
-        {#if turn.team !== null && !turn.you}
-          <TeamCrest
-            among={crestNames}
-            name={nameOf(turn.team)}
-            logo={teams[turn.team].logo}
-            tone={teamTone(turn.team)}
-            size="2rem"
-          />
-        {/if}
+      {#if turn && turn.team !== null}
+        <span class="turn-mark">
+          {#if turn.you}
+            {#if choose}<Kanji text={choose} seal />{:else}<Icon name="user" size={20} />{/if}
+          {:else}
+            <TeamCrest
+              among={crestNames}
+              name={nameOf(turn.team)}
+              logo={teams[turn.team].logo}
+              tone={teamTone(turn.team)}
+              size="2rem"
+            />
+          {/if}
+        </span>
         {#if turn.you}
-          <!-- Yours: the one red, a badge with its light (colour's an accent, ADR 0084) -->
-          <span class="said"><span class="badge red yours"><i class="dot"></i>{turn.said}</span></span>
+          <span class="said yours">
+            <strong class="name display" use:fitLine={turn.said}>{turn.said}</strong>
+            <span class="sub">Choose your champion</span>
+          </span>
         {:else}
           <!-- Two lines, never more, the bar one height whatever the name: the team in the display face, sized down
-               to fit its line; under it, small, that they're picking and how long till you -->
+               to fit its line; under it, small, that they're choosing and how long till you -->
           <span class="said">
             <strong class="name display" use:fitLine={teamShown}>{teamShown}</strong>
             <span class="sub"
-              >picking{#if turn.inPicks !== null}<span class="num"> · you're in {turn.inPicks}</span>{/if}</span
+              >choosing{#if turn.inPicks !== null}<span class="num">&nbsp;· you're in {turn.inPicks}</span>{/if}</span
             >
           </span>
         {/if}
       {/if}
     </span>
     <span class="keys">
-      <span class="live hint" title="Picks show up as they're made"><Icon name="live" size={14} /><LiveNote /></span>
       {#if items.length}
-        <button
-          class="btn sm ghost icon"
-          aria-haspopup="dialog"
-          aria-label="Manage the draft"
-          onclick={() => (menuOpen = true)}><Icon name="settings" size={18} /></button
+        <!-- Manage: the room's quieter action, the italic caps with the red slash (just the gear on a phone) -->
+        <button class="manage" aria-haspopup="dialog" aria-label="Manage the draft" onclick={() => (menuOpen = true)}
+          ><Icon name="settings" size={18} /><span class="mw">Manage</span></button
         >
       {/if}
       {#if fullScreenable}
@@ -259,9 +278,90 @@
     place-items: center;
     color: var(--tone, var(--red));
   }
+  /* The eyebrow and the live light on one line, centred on the seal */
   .titles {
+    display: inline-flex;
     flex-shrink: 0;
+    align-items: center;
+    gap: var(--s-3);
     white-space: nowrap;
+  }
+  .live-status {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    color: var(--fg-subtle);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+  .live-status.on {
+    color: var(--fg-muted);
+  }
+  .ldot {
+    flex-shrink: 0;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--fg-subtle);
+  }
+  .live-status.on .ldot {
+    background: var(--red-hot);
+    animation: pulse 2.4s var(--ease-in-out) infinite;
+  }
+  .turn-mark {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .turn-mark :global(.seal) {
+    width: 2.1rem;
+    height: 2.1rem;
+    font-size: 1.25rem;
+    box-shadow: none;
+  }
+  .said.yours .name {
+    color: var(--red-hot);
+    font-style: italic;
+    letter-spacing: 0.03em;
+  }
+  /* Manage: italic caps and the red slash under the word, no box */
+  .manage {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    height: var(--control-h-sm);
+    padding: 0 var(--s-2);
+    border: 0;
+    background: none;
+    color: var(--fg-muted);
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-style: italic;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .manage:hover {
+    color: var(--fg);
+  }
+  .mw {
+    position: relative;
+    padding-bottom: 0.25rem;
+  }
+  .mw::after {
+    content: "";
+    position: absolute;
+    left: 0.05em;
+    bottom: 0;
+    width: 1.25rem;
+    height: 3px;
+    transform: skewX(-24deg);
+    transform-origin: left;
+    background: var(--red);
   }
   .turn {
     display: flex;
@@ -301,28 +401,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .said:has(.yours) {
-    grid-template-rows: 1fr;
-    justify-items: start;
-  }
-  .yours {
-    flex: none;
-    gap: 0.35rem;
-    padding: 0.35rem 0.75rem;
-    font-size: var(--text-md);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .dot {
-    display: inline-block;
-    width: 0.55rem;
-    height: 0.55rem;
-    margin-right: 0.5rem;
-    vertical-align: 0.2em;
-    border-radius: 50%;
-    background: currentColor;
-    animation: pulse 1.4s var(--ease-in-out) infinite;
-  }
   @keyframes pulse {
     50% {
       opacity: 0.35;
@@ -333,14 +411,6 @@
     flex-shrink: 0;
     align-items: center;
     gap: var(--s-1);
-  }
-  .live {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-1);
-    padding-inline: var(--s-2);
-    font-size: var(--text-xs);
-    white-space: nowrap;
   }
   /* The rest of the window: the draft fills it, and scrolls here only when it isn't being picked (the seal) */
   .room > .body {
@@ -367,20 +437,22 @@
   :global(body:has(.room)) {
     overflow-x: clip;
   }
-  @media (max-width: 640px) {
-    .live {
+  @media (max-width: 760px) {
+    .mw {
       display: none;
     }
   }
-  /* A phone: whose pick gets the room; the seal says where you are */
+  /* A phone: whose turn gets the room; the seal says where you are, and the light alone (no words) whether it's
+     live */
   @media (max-width: 560px) {
-    .titles {
+    .titles .eyebrow,
+    .live-status .lw {
       display: none;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .dot {
+    .live-status.on .ldot {
       animation: none;
     }
   }

@@ -22,6 +22,8 @@ export const KUMITE_KANJI = {
   sealed: "決",
   /** The invitation's wax seal: "invite". Its sign-up is an invitation (invitationOnly). */
   invite: "招",
+  /** Choose: the seal on your turn's button in the draft room. Yes, the pick decided, reuses 決. */
+  choose: "選",
   /** Blood, martial, fist: kept for the draft and the board. */
   blood: "血",
   martial: "武",
