@@ -241,16 +241,7 @@
 <!-- Running, the page is the full frame whatever the status (the draft needs it), so moving between statuses never
      changes its width; the other views keep the usual reading width themselves -->
 <div class="page" class:full={!!tournament} class:fit={compact}>
-  <TournamentHead
-    {type}
-    {tournament}
-    title="The {type.shortName}"
-    manage
-    {back}
-    track
-    viewing={view}
-    {compact}
-  />
+  <TournamentHead {type} {tournament} title="The {type.shortName}" manage {back} track viewing={view} {compact} />
 
   {#if !tournament}
     <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
