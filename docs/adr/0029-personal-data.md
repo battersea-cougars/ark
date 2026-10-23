@@ -48,7 +48,7 @@ admin does the same for a member who asks by email (their member sheet → Delet
 - Deleting erases, now: the member's row stays, so the club's records still add up (payments, who played a session,
   goals), but becomes a nameless **Former member** (`status = 'erased'`): no email, phone, bio, photo, bank reference
   or roles. Their sessions and sign-in codes go, so they're signed out everywhere; places for what's still to come are
-  given up; earlier audit entries stop naming them (`apps/team/worker/members/members.erase.ts`). The audit log records
+  given up, a place on a team for a tournament still to come too; earlier audit entries stop naming them (`apps/team/worker/members/members.erase.ts`). The audit log records
   the deletion as a change of standing only. The club's last admin can't delete their account.
 - The download is everything the app holds about them as JSON, except their rating, the information the organisers keep to help pick teams, which is the organisers'
   opinion and hidden from members (the club's choice, 2026-10-10).
@@ -102,3 +102,5 @@ admin does the same for a member who asks by email (their member sheet → Delet
   already there.
 - 2026-10-17: The club's full roster is deleted from Bitwarden (`TEAM_ROSTER`); only production's two admins stay
   (`TEAM_ROSTER__PRODUCTION`). Dev's database already has everyone, anonymized.
+- 2026-10-23: Deleting an account takes the member off teams for tournaments still to come, as saying out does (#138):
+  they'd stayed in its lineup as "Former member".

@@ -238,36 +238,32 @@ describe("a member who goes while they still have places on what's to come", () 
     expect(signup("Wes Waiting")).toBe("in");
   });
 
-  // https://github.com/battersea-cougars/ark/issues/138
-  // Known bug #138: their entry for a tournament still to come goes, but their place on its team stays, as
-  // "Former member" in the lineup
-  it.fails(
-    "a member on a team for a tournament still to come deletes their account, and comes off the team (known bug #138)",
-    async () => {
-      const dana = await admin();
-      const reg = await dana.member("Reg Player");
-      const paul = await dana.member("Paul Payg");
-      const cup = await dana.call("POST", "/api/tournaments", {
-        typeId: null,
-        kind: "teams",
-        name: "Charity Cup",
-        location: "",
-        heldOn: "2027-03-20",
-        startTime: "10:00",
-        endTime: "15:00",
-        capacity: null,
-        status: "open",
-        feePence: 0,
-        teams: [{ name: "Cougars B", logo: null, captainMemberId: paul.id, players: [{ memberId: reg.id }] }],
-      });
-      expect(cup.status).toBe(201);
-      const onTeam = () =>
-        one<{ n: number }>("SELECT count(*) n FROM tournament_team_players WHERE member_id = ?", reg.id).n;
-      expect(onTeam()).toBe(1);
-      expect((await (await w.signedIn("reg@example.com")).call("DELETE", "/api/me")).status).toBe(200);
-      expect(onTeam()).toBe(0);
-    },
-  );
+  // Their place on its team goes with their entry, as when they say out (#138: it stayed, as "Former member" in the
+  // lineup)
+  it("a member on a team for a tournament still to come deletes their account, and comes off the team", async () => {
+    const dana = await admin();
+    const reg = await dana.member("Reg Player");
+    const paul = await dana.member("Paul Payg");
+    const cup = await dana.call("POST", "/api/tournaments", {
+      typeId: null,
+      kind: "teams",
+      name: "Charity Cup",
+      location: "",
+      heldOn: "2027-03-20",
+      startTime: "10:00",
+      endTime: "15:00",
+      capacity: null,
+      status: "open",
+      feePence: 0,
+      teams: [{ name: "Cougars B", logo: null, captainMemberId: paul.id, players: [{ memberId: reg.id }] }],
+    });
+    expect(cup.status).toBe(201);
+    const onTeam = () =>
+      one<{ n: number }>("SELECT count(*) n FROM tournament_team_players WHERE member_id = ?", reg.id).n;
+    expect(onTeam()).toBe(1);
+    expect((await (await w.signedIn("reg@example.com")).call("DELETE", "/api/me")).status).toBe(200);
+    expect(onTeam()).toBe(0);
+  });
 
   it("a member who played and paid last month deletes their account: the money and the night stay, about nobody", async () => {
     const dana = await admin();
