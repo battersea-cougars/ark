@@ -194,3 +194,7 @@ Three things shape it:
   of Secrets Manager and CI), and `APPLE_TEAM_ID` and the App Store Connect key's IDs are committed settings
   (`scripts/lib/settings.mjs`), not Bitwarden entries; `store-setup.mjs` checks the team ID instead of storing it
   ([0002](0002-secrets-in-bitwarden.md)).
+- 2026-10-23: A Notice can say `except` (everyone but these members), skipped in the statement that fills the outbox,
+  so it costs no round trip. "Sign-up's open" (a training night's, a tournament's, the Kumite's invitation) skips
+  those who've answered already, read in the statement that marks it told: one who said Out, or was put in, isn't
+  told; taking back an Out puts you among those told ([0030](0030-training-and-tournament-schedule.md)).

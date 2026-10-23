@@ -23,10 +23,10 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     // Out of a full event: the first waiting is in, and hears it. A Quarterly Member in for a full training: the one
     // whose place they took is waiting now, and hears that
     notify: places,
-    // You, in or out
+    // You, in or out; "clear" takes back your Out, back to not answered
     handle: async (c) => {
       const b = await body(c.request);
-      if (b.answer !== "in" && b.answer !== "out") throw new HttpError(400, "In or out?");
+      if (b.answer !== "in" && b.answer !== "out" && b.answer !== "clear") throw new HttpError(400, "In or out?");
       await answer(c.env.DB, kind, id(c), c.memberId, b.answer, c.now);
       return ok();
     },

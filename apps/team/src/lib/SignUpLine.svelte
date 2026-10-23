@@ -33,10 +33,11 @@
   const where = $derived(inIt ? "You're in" : waiting ? "You're on the waitlist" : out ? "You're out" : "Are you in?");
   let busy = $state(false);
   async function answer(going: boolean) {
-    if (busy || impersonating() || (going ? inIt || waiting : out)) return;
+    if (busy || impersonating() || (going && (inIt || waiting))) return;
     busy = true;
     try {
-      await answerFor(`tournament:${t.id}`, going ? "in" : "out");
+      // Out again, when you're out, takes it back: not answered (ADR 0030)
+      await answerFor(`tournament:${t.id}`, going ? "in" : out ? "clear" : "out");
     } finally {
       busy = false;
     }
@@ -79,8 +80,15 @@
           disabled={busy}
           onclick={() => answer(true)}>{full && !inIt ? "Waitlist" : "In"}</button
         >
-        <button class="btn sm" class:primary={out} class:outline={!out} disabled={busy} onclick={() => answer(false)}
-          >Out</button
+        <button
+          class="btn sm"
+          class:primary={out}
+          class:outline={!out}
+          aria-pressed={out}
+          title={out ? "Take back your Out" : undefined}
+          aria-label={out ? "Take back your Out" : undefined}
+          disabled={busy}
+          onclick={() => answer(false)}>Out</button
         >
       </span>
     {/if}

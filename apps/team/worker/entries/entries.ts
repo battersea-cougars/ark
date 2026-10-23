@@ -15,7 +15,8 @@ import { joinDraft, leaveDraft } from "../tournaments/draft";
 import { STARTED, hasStarted, startedRefusal } from "../tournaments/started";
 
 export type EntryKind = "session" | "tournament" | "event";
-export type Answer = "in" | "out";
+/** In or out; "clear" takes back an Out, back to not answered. */
+export type Answer = "in" | "out" | "clear";
 
 export const TABLES = {
   session: { table: "attendance", key: "session_id" },
@@ -286,6 +287,7 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   // to change, not a member's own In or Out (#128)
   if (places.night && nightOver(places.night, now))
     throw new HttpError(409, "That night's over: the register says who came.");
+  if (a === "clear") return takeBack(db, kind, id, memberId);
   const was = await current(db, kind, id, memberId);
   if (a === "out") {
     if (was?.signup === "out") return;
@@ -336,6 +338,23 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   if (kind === "tournament" && !joined.meta.changes && (await hasStarted(db, id)))
     throw await startedRefusal(db, id, "put you in");
   if (kind === "session" && places.limit !== null && !places.keeper) await bump(db, id, memberId);
+}
+
+/**
+ * A member takes back their Out: not answered, as if they'd never said, so they're among those told when sign-up opens
+ * (training.signup.ts, tournaments/signup.ts). One statement, and only their own Out: an In or a place waiting is
+ * taken back by saying Out, and a double tap, or two phones at once, finds nothing more to do. Not once a tournament's
+ * started, decided in the same statement (tournaments/started.ts); the caller's already refused a night that's over.
+ */
+async function takeBack(db: D1Database, kind: EntryKind, id: number, memberId: number) {
+  const { table, key } = TABLES[kind];
+  const locked = kind === "tournament";
+  const res = await run(
+    db,
+    `DELETE FROM ${table} WHERE ${key} = ? AND member_id = ? AND signup = 'out'${locked ? ` AND NOT ${STARTED}` : ""}`,
+    [id, memberId, ...(locked ? [id] : [])],
+  );
+  if (locked && !res.meta.changes && (await hasStarted(db, id))) throw await startedRefusal(db, id, "change it");
 }
 
 /**

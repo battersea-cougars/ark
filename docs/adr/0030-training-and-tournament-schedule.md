@@ -77,7 +77,14 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   is always fine, and the register and admins put people in whenever. On the day members are told, once a night
   (topic `places`, [0108](0108-store-apps.md)): the cron takes the night in the statement that marks it told
   (`training_sessions.signup_told_at`, [0121](0121-load-and-concurrency.md)); a night already open when its training
-  was given an opening day isn't news, and isn't sent (`worker/training/training.signup.ts`, `lib/signup.ts`).
+  was given an opening day isn't news, and isn't sent (`worker/training/training.signup.ts`, `lib/signup.ts`). Nor
+  is it to anyone who's answered already (said Out, or put in by an admin): they aren't told.
+- **An Out can be taken back**: tapping a pressed Out ("Take back your Out") is not answered again
+  (`answer: "clear"`), so a member who said Out before sign-up opened hears when it does. One statement deletes only
+  their own Out (`… AND signup = 'out'`), so a double tap finds nothing more to do and an In or a place waiting is
+  never touched (that's left by saying Out, as ever). It keeps the rules of answering: not once the night's over, nor
+  once a tournament's started (`worker/entries/entries.ts` takeBack). The Kumite's invitation keeps Decline and
+  Accept.
 - **The limit is what members see and what sign-up keeps to, not a wall**: the team maker can let someone waiting in
   over it ([0076](0076-training-teams.md)). They keep their sign-up time, so they take their place in the order; while
   more are in than the limit, nobody moves up when someone drops out, and the page says how many over it is.
@@ -231,3 +238,7 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   sheet's words), then the night's own cancel (`manage:Training`). A training's page is still its next night that's on,
   and any night off from today to it shows above it, struck through and Cancelled, so a Friday off for the Kumite
   doesn't just vanish from the page (`lib/night-off.ts`).
+- 2026-10-23: An Out can be taken back, to not answered ("i should be able to unclick out here - otherwise i wont get
+  the push on monday right?", the user): a pressed Out taps off (`answer: "clear"`, one guarded delete of your own
+  Out), for training nights, tournaments and club events, refused once a night's over or a tournament's started; and
+  "sign-up's open" goes only to those who haven't answered (a night's or a tournament's).

@@ -31,7 +31,8 @@ export async function closeSignup(db: D1Database, tournamentId: number, today: s
 // Its sign-up opening (ADR 0074, 0108): members hear it once, under Your place (topic `places`), on the day it's set to
 // open (the cron, announceOpenTournaments) or the moment an admin opens it by hand (push.notices.ts tournamentSaved).
 // Whichever comes first marks it told (`signup_told_at`) in the statement that takes it, so it's never said twice, and
-// opened again (Back to Sign-up open) it isn't news. The Kumite is invitation-only, as in Bloodsport: its notification
+// opened again (Back to Sign-up open) it isn't news. Nor is it to a member who's answered already (said Out, or
+// declined the Kumite, or been put in by an admin), who isn't told. The Kumite is invitation-only, as in Bloodsport: its notification
 // is an invitation; any other tournament says its sign-up's open.
 
 /** A tournament whose sign-up has just opened, as its notification needs it. */
@@ -42,6 +43,8 @@ export interface Opened {
   /** Its series' slug and full name; none for one in no series. */
   slug: string | null;
   series: string | null;
+  /** Who's answered already, as JSON (its entries' members): not news to them. */
+  answered: string;
 }
 
 /** What its notification says: the Kumite's an invitation ("The Cougars Kumite, Fri 23 Oct."), the rest plainly. */
@@ -50,6 +53,7 @@ export function signupOpenNotice(t: Opened): Notice {
   const invitation = invitationOnly(t.slug ? { slug: t.slug } : undefined);
   return {
     to: "everyone",
+    except: JSON.parse(t.answered) as number[],
     topic: "places",
     key: `signup-open:tournament:${t.id}`,
     title: invitation ? "An invitation has arrived" : `${t.name}: sign-up's open`,
@@ -66,7 +70,8 @@ export const markTold = (db: D1Database, where: string, args: Param[], now: Date
      WHERE signup_told_at IS NULL AND held_on >= ? AND (signup_closes_on IS NULL OR signup_closes_on >= ?) AND ${where}
      RETURNING id, name, held_on heldOn,
        (SELECT slug FROM tournament_types ty WHERE ty.id = type_id) slug,
-       (SELECT name FROM tournament_types ty WHERE ty.id = type_id) series`,
+       (SELECT name FROM tournament_types ty WHERE ty.id = type_id) series,
+       (SELECT json_group_array(member_id) FROM tournament_entries e WHERE e.tournament_id = tournaments.id) answered`,
     [now.toISOString(), londonToday(now), londonToday(now), ...args],
   );
 

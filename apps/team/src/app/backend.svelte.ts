@@ -224,7 +224,8 @@ function entryPath(key: string) {
   return `/api/${ENTRY_PATHS[kind]}/${id}`;
 }
 /** You say in or out. */
-export const answerFor = (key: string, answer: "in" | "out") =>
+/** In or out; "clear" takes back your Out, back to not answered (ADR 0030). */
+export const answerFor = (key: string, answer: "in" | "out" | "clear") =>
   save(() => api("POST", `${entryPath(key)}/answer`, { answer }), "");
 /** Where someone is on a session now, as the server says after a change (ADR 0030). */
 type Placed = { signup: "in" | "waitlist" | "out" | null };

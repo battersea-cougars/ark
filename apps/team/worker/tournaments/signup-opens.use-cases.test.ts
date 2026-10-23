@@ -110,6 +110,30 @@ describe("a tournament's sign-up opens and members hear it", () => {
     expect(told()).toHaveLength(1);
   });
 
+  it("a member who's already said Out (or declined) isn't told; the rest are", async () => {
+    await phone("reg@example.com");
+    await phone("mo@example.com");
+    const k = await schedule({ typeId: KUMITE });
+    const reg = await w.signedIn("reg@example.com");
+    expect((await reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "out" })).status).toBe(200);
+    await w.scheduled("*/5 * * * *", OPENING);
+    const boot = (await k.dana.call("GET", "/api/bootstrap")).body as Json;
+    const mo = boot.members.find((m: Json) => m.name === "Mo Player").id as number;
+    expect(told().map((p) => p.memberId)).toEqual([mo]);
+  });
+
+  it("opened by hand, the same: one who's said Out isn't told", async () => {
+    await phone("reg@example.com");
+    await phone("mo@example.com");
+    const k = await schedule({ name: "Summer Cup", signupOpensOn: null });
+    const reg = await w.signedIn("reg@example.com");
+    expect((await reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "out" })).status).toBe(200);
+    expect((await k.save({ status: "open" })).status).toBe(200);
+    const boot = (await k.dana.call("GET", "/api/bootstrap")).body as Json;
+    const mo = boot.members.find((m: Json) => m.name === "Mo Player").id as number;
+    expect(told().map((p) => p.memberId)).toEqual([mo]);
+  });
+
   it("a member who turned off Your place isn't told", async () => {
     await phone("reg@example.com");
     const reg = await w.signedIn("reg@example.com");

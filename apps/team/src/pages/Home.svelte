@@ -486,8 +486,8 @@
   const quip = $derived(
     said ?? (isIn ? standing.in : waiting ? standing.waitlist : declined ? standing.out : standing.ask),
   );
-  function onanswer(status: "in" | "waitlist" | "out") {
-    said = pick(lines(status));
+  function onanswer(status: "in" | "waitlist" | "out" | "none") {
+    said = pick(lines(status === "none" ? "ask" : status));
   }
   // The message types itself out, a letter at a time, each time it changes.
   let typed = $state("");

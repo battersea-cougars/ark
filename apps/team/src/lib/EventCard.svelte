@@ -40,8 +40,8 @@
     feature?: boolean;
     /** Calendar rows: the title links to its page, and the date gets a bar in the type's colour. */
     compact?: boolean;
-    /** Called after a tap on In or Out with where the member ended up. */
-    onanswer?: (status: "in" | "waitlist" | "out") => void;
+    /** Called after a tap on In or Out with where the member ended up ("none": an Out taken back). */
+    onanswer?: (status: "in" | "waitlist" | "out" | "none") => void;
     /** A link row along the bottom of the card (Home: where you stand, and the way to the teams). */
     footer?: Snippet;
     /** The session you're being asked about (Home's next one, a training's page): until you're in, In pulses once,
@@ -155,8 +155,15 @@
   // The card answers at once; the server's word (in, or the waitlist) arrives with the refresh.
   function setIn(going: boolean) {
     if (locked) return;
-    // Tapping the answer you've already given changes nothing: no call to the server, no new quip on Home
-    if (going ? inIt || waiting : out) return;
+    // Tapping In when you're in changes nothing: no call to the server, no new quip on Home
+    if (going && (inIt || waiting)) return;
+    // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0030, 0108)
+    if (!going && out) {
+      void answerFor(event.key, "clear");
+      entries.out = (entries.out ?? []).filter((x) => x !== id);
+      onanswer?.("none");
+      return;
+    }
     void answerFor(event.key, going ? "in" : "out");
     const wasIn = inIt;
     entries.going = entries.going.filter((x) => x !== id);
@@ -357,7 +364,15 @@
                 {:else}{waiting ? "Waitlist" : full && !inIt ? "Join waitlist" : "In"}{/if}
               </button>
             {/if}
-            <button class="no" aria-pressed={out} disabled={locked} onclick={() => setIn(false)}>
+            <!-- Pressed, Out takes itself back: not answered again -->
+            <button
+              class="no"
+              aria-pressed={out}
+              aria-label={out ? "Take back your Out" : undefined}
+              title={out ? "Take back your Out" : undefined}
+              disabled={locked}
+              onclick={() => setIn(false)}
+            >
               {#if out}<Icon name="x" size={glance ? 18 : 16} />{/if}{glance && out ? "I'm out" : "Out"}
             </button>
           </div>

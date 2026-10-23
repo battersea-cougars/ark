@@ -17,7 +17,11 @@ export async function hasStarted(db: D1Database, tournamentId: number) {
 }
 
 /** The refusal: "The Kumite's started: ask an admin to take you off." */
-export async function startedRefusal(db: D1Database, tournamentId: number, ask: "take you off" | "put you in") {
+export async function startedRefusal(
+  db: D1Database,
+  tournamentId: number,
+  ask: "take you off" | "put you in" | "change it",
+) {
   const t = await first<{ short: string | null }>(
     db,
     `SELECT ty.short_name short FROM tournaments t LEFT JOIN tournament_types ty ON ty.id = t.type_id WHERE t.id = ?`,

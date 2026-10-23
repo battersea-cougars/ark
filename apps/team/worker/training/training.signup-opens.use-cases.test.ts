@@ -158,6 +158,21 @@ describe("members hear it's open", () => {
     expect(w.pushes).toEqual([]);
   });
 
+  it("a member who's said Out for the night isn't told, nor one already in; the rest are", async () => {
+    await phone("reg@example.com");
+    await phone("paul@example.com");
+    await phone("dana@example.com");
+    const f = await friday(4);
+    expect((await f.say("reg@example.com", FRIDAY_AFTER, "out")).status).toBe(200);
+    const put = await f.dana.call("POST", `/api/sessions/${f.night(FRIDAY_AFTER).id}/players`, {
+      memberId: f.id.Paul,
+      in: true,
+    });
+    expect(put.status).toBe(200);
+    await w.scheduled("*/5 * * * *", MONDAY_MIDNIGHT);
+    expect(w.pushes.filter((p) => p.body.includes("16 October")).map((p) => p.memberId)).toEqual([f.id.Dana]);
+  });
+
   it("a night that's called off isn't announced", async () => {
     await phone("reg@example.com");
     const f = await friday(4);

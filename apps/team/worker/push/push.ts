@@ -34,6 +34,8 @@ const log = scribe.logger("push");
  */
 export interface Notice {
   to: number[] | "everyone";
+  /** Everyone but these: those it isn't news to (a night's sign-up opening, to members who've answered already). */
+  except?: number[];
   topic: Topic;
   /**
    * The thing it's news about, for the debounce: one waiting per member and key, the newest in its place
@@ -227,7 +229,7 @@ export async function notify(env: PushEnv, notices: Notice[], now: Date, atOnce 
          JOIN auth_sessions s ON s.id = d.session_id JOIN members m ON m.id = s.member_id
          WHERE s.revoked_at IS NULL AND s.expires_at > ? AND m.status = 'active') r
          ON n.value ->> '$.to' = 'everyone' OR r.member_id IN (SELECT value FROM json_each(n.value, '$.to'))
-       WHERE NOT EXISTS (SELECT 1 FROM notification_prefs p
+       WHERE r.member_id NOT IN (SELECT value FROM json_each(n.value, '$.except')) AND NOT EXISTS (SELECT 1 FROM notification_prefs p
          WHERE p.member_id = r.member_id AND p.topic = n.value ->> '$.topic' AND p.enabled = 0)
        ORDER BY n.key, r.member_id
        ON CONFLICT (member_id, key) WHERE state = 'queued' DO UPDATE SET
