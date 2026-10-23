@@ -106,9 +106,43 @@ describe("the page under it", () => {
     expect(opener.focus).toHaveBeenCalledWith({ preventScroll: true });
   });
 
-  it("leaves focus alone when the opener has gone from the page", () => {
+  it("leaves focus alone when the opener has gone from the page, with nothing near it to take it", () => {
     const opener = { focus: vi.fn(), isConnected: false };
     rememberFocus(opener as unknown as Element)();
     expect(opener.focus).not.toHaveBeenCalled();
+  });
+
+  /** Focusable things in page order, as `document.querySelectorAll` gives them; each still there and shown or not. */
+  function page(...things: { connected?: boolean; shown?: boolean; disabled?: boolean }[]) {
+    const all: Record<string, unknown>[] = [];
+    const doc = { querySelectorAll: () => all };
+    for (const { connected = true, shown = true, disabled = false } of things)
+      all.push({
+        focus: vi.fn(),
+        isConnected: connected,
+        disabled,
+        ownerDocument: doc,
+        getClientRects: () => (shown ? [{}] : []),
+      });
+    return all as unknown as (Element & { focus: ReturnType<typeof vi.fn> })[];
+  }
+
+  it("its row removed (the last award, a player taken off): focus goes to what came next, the list's Add", () => {
+    const [before, opener, add] = page({}, {}, {});
+    const back = rememberFocus(opener);
+    Object.assign(opener, { isConnected: false });
+    back();
+    expect(add.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(before.focus).not.toHaveBeenCalled();
+  });
+
+  it("the Add that opened it gone at the cap: focus goes to the row just before it, skipping what's hidden or off", () => {
+    const [row, opener, hidden, off] = page({}, {}, { shown: false }, { disabled: true });
+    const back = rememberFocus(opener);
+    Object.assign(opener, { isConnected: false });
+    back();
+    expect(row.focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(hidden.focus).not.toHaveBeenCalled();
+    expect(off.focus).not.toHaveBeenCalled();
   });
 });

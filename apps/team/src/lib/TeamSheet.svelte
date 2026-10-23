@@ -6,6 +6,7 @@
   // as it must have one. Changes go into the editor's form and are saved with the editor's Save, never on their own;
   // Done closes it, Remove takes the team off (asking once when that loses a name, a logo or players).
   import Sheet from "./Sheet.svelte";
+  import { keepFocus } from "./overlay";
   import Icon from "../app/shell/Icon.svelte";
   import PersonPicker from "./PersonPicker.svelte";
   import TeamLookFields from "./TeamLookFields.svelte";
@@ -63,10 +64,15 @@
   }
 
   let outsider = $state("");
+  // Each change that can take what's focused off the sheet (a row's remove, the adding at its cap) keeps focus near
+  // it (lib/overlay.ts keepFocus)
+  const focused = () => document.activeElement ?? document.body;
   function addOutsider() {
     const name = outsider.trim();
-    if (name) team.players.push({ memberId: null, name });
-    outsider = "";
+    void keepFocus(focused(), () => {
+      if (name) team.players.push({ memberId: null, name });
+      outsider = "";
+    });
   }
 
   // Remove asks once when it would lose something: a name, a logo or players
@@ -105,7 +111,11 @@
         onpick={pickCaptain}
       />
       {#if !draft && team.captainMemberId}
-        <button type="button" class="link small" onclick={() => (team.captainMemberId = null)}>Not a member?</button>
+        <button
+          type="button"
+          class="link small"
+          onclick={(e) => keepFocus(e.currentTarget, () => (team.captainMemberId = null))}>Not a member?</button
+        >
       {/if}
     </div>
     {#if !draft && !team.captainMemberId}
@@ -157,7 +167,8 @@
                   type="button"
                   class="btn sm ghost icon"
                   aria-label="Remove {player.memberId ? nameOf(player.memberId) : player.name}"
-                  onclick={() => team.players.splice(i, 1)}><Icon name="x" size={14} /></button
+                  onclick={(e) => keepFocus(e.currentTarget, () => team.players.splice(i, 1))}
+                  ><Icon name="x" size={14} /></button
                 >
               </li>
             {/each}
@@ -171,7 +182,7 @@
             clearOnPick
             placeholder="Add a member…"
             aria-label="Add a member"
-            onpick={(id) => team.players.push({ memberId: id, name: "" })}
+            onpick={(id) => keepFocus(focused(), () => team.players.push({ memberId: id, name: "" }))}
           />
           <div class="outsider">
             <input

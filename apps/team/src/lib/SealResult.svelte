@@ -68,7 +68,7 @@
 
 <Drawer bind:open title="Full time?" sub="Game {game.position} · check it, then seal it">
   <div class="review">
-    <div class="final" aria-label="Final score">
+    <div class="final" role="group" aria-label="Final score">
       {#each sides as side, i (i)}
         <div class="side" class:away={i === 1}>
           {#if side.teamId}
@@ -97,9 +97,13 @@
       {/if}
     </section>
 
-    <!-- A mistake: the last goal back, or back to the clock -->
+    <!-- A mistake: the last goal back, or back to the clock. Off without being disabled, so focus stays on it when it
+         takes the last goal back -->
     <div class="fixes">
-      <button class="btn ghost sm" disabled={busy || stamping || !lastGoal} onclick={ontakeback}
+      <button
+        class="btn ghost sm"
+        aria-disabled={busy || stamping || !lastGoal}
+        onclick={() => !busy && !stamping && lastGoal && ontakeback()}
         ><Icon name="undo" size={16} /><span
           >{lastGoal
             ? `Take back ${goesByOf(byId(lastGoal.scorerId)) || teamName(lastGoal.teamId)}'s goal · ${mmss(lastGoal.atMs)}`
@@ -172,10 +176,11 @@
     display: grid;
     gap: var(--s-2);
   }
+  /* One row whatever the first button says (its words shorten as goals are taken back): its own column, so the
+     other never moves */
   .fixes {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--s-2);
   }
   .fixes .btn {

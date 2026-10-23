@@ -10,6 +10,7 @@
   import { db } from "../demo/store.svelte";
   import { recordPastKumite, saving } from "../app/backend.svelte";
   import Drawer from "./Drawer.svelte";
+  import { keepFocus } from "./overlay";
   import Wizard from "./Wizard.svelte";
   import DateField from "./DateField.svelte";
   import PersonPicker from "./PersonPicker.svelte";
@@ -178,7 +179,8 @@
                     type="button"
                     class="btn ghost sm icon"
                     aria-label="Take {teamName(i)} off"
-                    onclick={() => values.teams.splice(i, 1)}><Icon name="x" size={16} /></button
+                    onclick={(e) => keepFocus(e.currentTarget, () => values.teams.splice(i, 1))}
+                    ><Icon name="x" size={16} /></button
                   >
                 {/if}
               </div>
@@ -201,7 +203,8 @@
                       type="button"
                       class="chip-btn"
                       aria-label="Take {nameOf(id)} off"
-                      onclick={() => team.players.splice(p, 1)}><Icon name="x" size={14} /></button
+                      onclick={(e) => keepFocus(e.currentTarget, () => team.players.splice(p, 1))}
+                      ><Icon name="x" size={14} /></button
                     >
                   </li>
                 {/each}
@@ -349,10 +352,15 @@
             type="button"
             class="btn ghost sm icon"
             aria-label="{teamName(team)}: one goal fewer"
-            disabled={n === 0}
-            onclick={() => score(m, side, -1)}><Icon name="minus" size={16} /></button
+            aria-disabled={n === 0}
+            onclick={() => n > 0 && score(m, side, -1)}><Icon name="minus" size={16} /></button
           >
-          <span class="goals" aria-label="{teamName(team)}: {n} goals">{n}</span>
+          <!-- Said as it changes: the steppers say only "one more" or "one fewer" -->
+          <span class="goals" aria-live="polite"
+            ><span aria-hidden="true">{n}</span><span class="sr-only"
+              >{teamName(team)}: {n} {n === 1 ? "goal" : "goals"}</span
+            ></span
+          >
           <button
             type="button"
             class="btn ghost sm icon"

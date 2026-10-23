@@ -966,10 +966,13 @@ button.row:hover:not(:disabled) {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
   color: var(--fg);
 }
-/* A quiet button that can't be used just fades: a fill would read as pressed */
-.btn.ghost:disabled {
+/* A quiet button that can't be used just fades: a fill would read as pressed. aria-disabled is the same, for a
+   button that's off only for now and keeps focus (one that went disabled under the finger dropped it) */
+.btn.ghost:disabled,
+.btn.ghost[aria-disabled="true"] {
   background: transparent;
   opacity: 0.35;
+  cursor: not-allowed;
 }
 /* An edged or filled kind that can't be used reads as off: its colours give way. (.btn:disabled alone sits above the
    kinds at the same weight, so a disabled main button kept its look and seemed live) */
