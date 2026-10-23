@@ -420,7 +420,11 @@ export async function setContact(
     if (other) throw new HttpError(409, `${other.name} already has that email.`);
   }
   await run(db, "UPDATE members SET email = ?, phone = ? WHERE id = ?", [email, phone, id]);
-  return { emailChanged: (was.email?.toLowerCase() ?? null) !== email };
+  const emailChanged = (was.email?.toLowerCase() ?? null) !== email;
+  // A code they asked for to change it themselves (members.email.ts) goes: the admin's address stands
+  if (emailChanged)
+    await run(db, "UPDATE email_changes SET used_at = ? WHERE member_id = ? AND used_at IS NULL", [by.now, id]);
+  return { emailChanged };
 }
 
 /** Make someone a Quarterly Member from today, or end it today (ADR 0007). */

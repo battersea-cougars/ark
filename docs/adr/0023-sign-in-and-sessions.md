@@ -141,3 +141,7 @@ worker.
   page, and a new email or being made inactive does it on its own; an ended session's phones and live streams go with
   it. Renewal rotates the token (10 minutes' grace) and a session ends a year after signing in (#72).
 - 2026-10-21: Turnstile in front of asking for a code and asking to join (#13, [0028](0028-turnstile-and-auto-reply.md)).
+- 2026-10-23: A member changes their own sign-in email from the You page: a code to the new address (stored hashed,
+  15 minutes, 5 tries, 5 an hour and 10 a day), typed while signed in. Their other sessions end, this one stays, and the
+  old address is told. An address that's someone else's gets a note instead of a code, with the same reply, so the app
+  never says whose it is. Everything a member did stays theirs, as it hangs on their id, not their address.

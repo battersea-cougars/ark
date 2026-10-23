@@ -86,7 +86,7 @@ function token(): string {
     .replace(/=+$/, "");
 }
 /** Six digits, every one equally likely. */
-function code(): string {
+export function code(): string {
   const buf = new Uint32Array(1);
   let n: number;
   do n = crypto.getRandomValues(buf)[0];
