@@ -58,6 +58,7 @@ export const viewerOf = (c: Ctx): Viewer => ({
   // The awards' winners before they're revealed: whoever runs tournaments, who reveals them
   seesAwards: holdsAny(c, ["manage:Tournament"]),
   seesUsage: holdsAny(c, ["read:Usage"]),
+  keepsEmail: holdsAny(c, ["manage:Settings"]),
   evening: londonEvening(new Date(c.now)),
 });
 
@@ -164,10 +165,14 @@ export const SLICES = {
   // Your own notifications, a choice per topic (ADR 0108)
   notifications: { parts: ["notifications"], shape: (_c: Ctx, p: Parts) => prefsFrom(p.notifications) },
   // What only admins act on, for Home's For admins, in with the club so it's there on first paint: the free limits
-  // getting close (ADR 0059), for whoever sees Usage; anyone else, none
+  // getting close (ADR 0059), for whoever sees Usage, and Google having cancelled the email (ADR 0027), for whoever
+  // looks after it; anyone else, none
   forAdmins: {
-    parts: ["usageLevels"],
-    shape: (c: Ctx, p: Parts) => ({ usage: levelsFrom(p.usageLevels, new Date(c.now)) }),
+    parts: ["usageLevels", "mailFailure"],
+    shape: (c: Ctx, p: Parts) => ({
+      usage: levelsFrom(p.usageLevels, new Date(c.now)),
+      emailStopped: p.mailFailure[0]?.failure === "cancelled",
+    }),
   },
   // What's on from today (ADR 0042)
   agenda: { parts: ["agenda"], shape: (_c: Ctx, p: Parts) => (p.agenda as AgendaRow[]).map(agendaItem) },

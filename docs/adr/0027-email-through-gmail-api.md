@@ -47,7 +47,9 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   by itself, and from any other failure.
 - **Telling the admins:** the send that first finds the token cancelled sends the holders of `manage:Settings` a
   notification ([0108](0108-store-apps.md), topic `email`, shown only to them), and while it stays cancelled Home's
-  _For admins_ leads with "Email has stopped".
+  _For admins_ leads with "Email has stopped". It comes with the club (the bootstrap's `forAdmins`, only to them), so
+  it's there on first paint rather than pushing the page down; a change to the failure moves the club's data version
+  on in the same round trip (`packages/shared/mail-health.ts`), so the next open reads it rather than a 304.
 - **Reconnect email**, on that page: OAuth's code flow with PKCE, for a _Web application_ client
   (`GMAIL_WEB_CLIENT_ID`), whose redirect URIs are the team app's `/api/mail/callback` in production and dev. The
   state and verifier go in a 10-minute cookie, so Google's answer counts only in the browser that asked, and once.
@@ -144,3 +146,5 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 - 2026-10-23: One OAuth client: `gmail-auth.mjs` uses the Web client (redirect `http://localhost:4590/`), and the
   deployed token refreshes with it, so the Desktop client and its two secrets go (`GMAIL_CLIENT_ID`,
   `GMAIL_CLIENT_SECRET`). The deployed token is made again with the Web client before the Desktop one is deleted.
+- 2026-10-23: Home's "Email has stopped" comes with the club's first read instead of a request after Home opens, so
+  nothing moves when it arrives (#148); recording a change to the failure, or a reconnect, moves the data version on.

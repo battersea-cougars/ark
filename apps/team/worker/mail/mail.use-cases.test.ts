@@ -145,6 +145,30 @@ describe("when Google cancels the token", () => {
     ]);
   });
 
+  it("Home's For admins says it from the app's first read, to whoever looks after the email only, and stops once it's reconnected", async () => {
+    const mo = await w.signedIn("mo@example.com");
+    const dana = await admin();
+    const home = async (etag?: string | null, now = NOW) =>
+      dana.call("GET", "/api/bootstrap", undefined, { now, headers: etag ? { "if-none-match": etag } : {} });
+    const before = await home();
+    expect(before.body.forAdmins.emailStopped).toBe(false);
+    google.cancel();
+    await moSignsIn(minutes(1));
+    // Opened again: not an unchanged reply with the old news
+    const stopped = await home(before.headers.get("etag"), minutes(2));
+    expect(stopped.status).toBe(200);
+    expect(stopped.body.forAdmins.emailStopped).toBe(true);
+    expect((await mo.call("GET", "/api/bootstrap", undefined, { now: minutes(2) })).body.forAdmins.emailStopped).toBe(
+      false,
+    );
+    // Another failed send says nothing new: the app's copy stands
+    await moSignsIn(minutes(3));
+    expect((await home(stopped.headers.get("etag"), minutes(4))).status).toBe(304);
+    const { body } = await dana.reconnect();
+    await dana.back(google.consent(body.url), minutes(5));
+    expect((await home(stopped.headers.get("etag"), minutes(6))).body.forAdmins.emailStopped).toBe(false);
+  });
+
   it("Gmail being busy isn't a cancelled token: it says so, and there's nothing to reconnect", async () => {
     const dana = await admin();
     google.busy = true;

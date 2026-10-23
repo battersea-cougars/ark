@@ -31,6 +31,8 @@ export interface Viewer {
   seesAwards: boolean;
   /** The free limits getting close, for Home's For admins (ADR 0059): whoever sees Usage */
   seesUsage: boolean;
+  /** Whether Google has cancelled the club's email (ADR 0027), for Home's For admins: whoever looks after it */
+  keepsEmail: boolean;
   /** London's evening now, its date (till 06:00, the night before's): the after-party's (ADR 0074) */
   evening: string;
 }
@@ -50,6 +52,7 @@ const VIEWER = [
   "sees_dues",
   "sees_awards",
   "sees_usage",
+  "keeps_email",
   "evening",
 ] as const;
 
@@ -67,6 +70,7 @@ const bound = (v: Viewer) => [
   Number(v.seesDues),
   Number(v.seesAwards),
   Number(v.seesUsage),
+  Number(v.keepsEmail),
   v.evening,
 ];
 
@@ -343,6 +347,8 @@ const PARTS = {
     `SELECT u.metric id, u.period, u.label, u.percent FROM usage_levels u, viewer v WHERE v.sees_usage
      ORDER BY u.percent DESC, u.metric`,
   ),
+  // Why the club's email is failing, if it is (mail_health, ADR 0027), for whoever looks after it
+  mailFailure: rows("failure", "SELECT h.failure FROM mail_health h, viewer v WHERE h.id = 1 AND v.keeps_email"),
   // What's on from today (ADR 0042). A draft night is for whoever runs the draft and that tournament's captains.
   agenda: rows(
     `source source_id kind group_key title starts_at ends_at day all_day date_tbc season venue map_url description

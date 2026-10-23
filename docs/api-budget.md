@@ -159,8 +159,9 @@ reads and bills, however it travels.
 | `DELETE /api/auth/device`                              |        2 |          2 |
 | `POST /api/auth/passkeys/sign-in-options`              |        1 |          1 |
 
-Home's For admins (the free limits getting close, ADR 0059) is a part of the bootstrap's one club read, not a call of
-its own: the bootstrap stays at 16 calls and 43 statements (23 October 2026, `team/usage-check`).
+Home's For admins (the free limits getting close, ADR 0059, and the email having stopped, ADR 0027) is a part of the
+bootstrap's one club read, not a call of its own after Home opens: the bootstrap stays at 16 calls and 43 statements
+(23 October 2026, `team/usage-check`).
 
 ## What was fixed (23 October 2026)
 

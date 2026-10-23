@@ -280,18 +280,9 @@
       worst: rows.reduce((s, r) => s + r.amounts[3], 0),
     };
   });
-  // Whether Google has cancelled the club's email (ADR 0027, #101): asked once a visit, for whoever looks after it,
-  // so they hear before the members do. Its line goes under For admins, at the foot, so nothing above it moves
-  let emailStopped = $state(false);
+  // Whether Google has cancelled the club's email (ADR 0027, #101), for whoever looks after it, so they hear before
+  // the members do: with the club, so its line is there on first paint (the server sends it to nobody else)
   const keepsEmail = $derived(can(perms, "manage:Settings"));
-  $effect(() => {
-    if (!keepsEmail) return;
-    untrack(() => {
-      api<{ failure: string | null }>("GET", "/api/mail")
-        .then((s) => (emailStopped = s.failure === "cancelled"))
-        .catch(() => {});
-    });
-  });
   // The free limits at 70% or more, as the hourly check found them (ADR 0059, #148): with the club, so the line is
   // there on first paint; only for whoever sees Usage (the server sends nobody else any)
   const seesUsage = $derived(can(perms, "read:Usage"));
@@ -311,7 +302,7 @@
       afters,
       club,
       events,
-      emailStopped: keepsEmail && emailStopped,
+      emailStopped: keepsEmail && db.forAdmins.emailStopped,
       usage: seesUsage ? db.forAdmins.usage : [],
       now: openedAt,
       pinned,

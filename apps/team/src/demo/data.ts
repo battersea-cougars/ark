@@ -169,7 +169,7 @@ export interface Bootstrap {
   subscriptionFees: DatedFee[];
   /** Your own notifications, a choice per topic (ADR 0108). */
   notifications: NotificationPrefs;
-  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0059), for whoever sees Usage. */
+  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0059), the email stopped. */
   forAdmins: ForAdmins;
 }
 
@@ -177,8 +177,10 @@ export interface Bootstrap {
 export interface ForAdmins {
   /** The free limits at 70% or more, nearest first (lib/usage-near.ts); none for anyone who doesn't see Usage. */
   usage: UsageLevel[];
+  /** Google cancelled the email's token (ADR 0027): for whoever looks after it (manage:Settings), nobody else. */
+  emailStopped: boolean;
 }
-export const FOR_ADMINS: ForAdmins = { usage: [] };
+export const FOR_ADMINS: ForAdmins = { usage: [], emailStopped: false };
 
 /** Home's lines, from D1. */
 export const QUIPS: Quip[] = [];
