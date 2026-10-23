@@ -4,7 +4,7 @@
   // and how it looks in the menu. Each tournament is edited on its own card (TournamentDateEditor). A new series gets
   // its own section in the menu.
   import TimeSelect from "./TimeSelect.svelte";
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
   import Choice from "./Choice.svelte";
   import { PENALTY_LENGTH_OPTIONS, PENALTY_RULE_OPTIONS } from "./penalties";
@@ -74,13 +74,17 @@
     playoffs: [{ name: "Final", home: 1, away: 2 }],
   });
 
+  // Follows the series and its saved values; the form it writes isn't followed (reading it back made the effect its
+  // own cause, re-running till Svelte stopped it: seconds to open the editor)
   $effect(() => {
     const t = selected === "new" ? blank() : db.tournamentTypes.find((x) => x.id === selected);
-    form = t ? structuredClone($state.snapshot(t)) : null;
-    // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
-    if (form) form.awards = withDecidedBy(form.awards);
-    // Loaded (or loaded again, after a save): what's on screen now is what's saved
-    edits?.reset();
+    const loaded = t ? structuredClone($state.snapshot(t)) : null;
+    untrack(() => {
+      // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
+      form = loaded && { ...loaded, awards: withDecidedBy(loaded.awards) };
+      // Loaded (or loaded again, after a save): what's on screen now is what's saved
+      edits?.reset();
+    });
   });
   // svelte-ignore state_referenced_locally
   edits?.watch(() => form, { fresh: !typeId });
