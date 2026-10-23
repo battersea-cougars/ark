@@ -45,6 +45,7 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
   down; they're paid down as each file is next worked on, not in one sweep (ADR 0105), and become errors only once a
   rule's count is near zero.
 - Splitting the big pages (Draft, Training, Game, Home, MemberSheet, Shell) waits for the shared components (#153).
+- Where the code stood on 2026-10-23, file by file: [docs/code-style-audit.md](../code-style-audit.md).
 
 ## History
 
