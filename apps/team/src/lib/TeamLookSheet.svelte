@@ -34,11 +34,11 @@
   // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
   const edits = new Edits();
   edits.watch(() => form);
-  // A Kumite team's name is its captain's to carry to the next one (ADR 0060): saved on their profile too
-  const kumite = $derived(
-    db.tournamentTypes.find((ty) => ty.id === db.tournaments.find((x) => x.id === tournamentId)?.typeId)?.slug ===
-      "kumite",
-  );
+  // A draft in a series: its captain brings this team's name and logo to the next edition they captain (ADR 0060)
+  const brings = $derived.by(() => {
+    const t = db.tournaments.find((x) => x.id === tournamentId);
+    return t?.kind === "draft" && t.typeId != null;
+  });
   let error = $state("");
   let file = $state<HTMLInputElement | undefined>();
 
@@ -64,8 +64,8 @@
       <!-- svelte-ignore a11y_autofocus -->
       <input class="input" maxlength="40" placeholder={fallback} autofocus={focus === "name"} bind:value={form.name} />
       <span class="hint"
-        >Leave it empty and you're {fallback}.{#if kumite}
-          Saved as the captain's team name for next time.{/if}</span
+        >Leave it empty and you're {fallback}.{#if brings}
+          The captain's next team in this series starts with it.{/if}</span
       >
     </label>
     <div class="look">

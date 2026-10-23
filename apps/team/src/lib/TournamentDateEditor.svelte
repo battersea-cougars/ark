@@ -44,6 +44,7 @@
   import { PERIOD_OPTIONS } from "./periods";
   import DateField from "../lib/DateField.svelte";
   import TeamCard from "./TeamCard.svelte";
+  import { broughtTeam } from "./brought-team";
   import { typeAfter, typePlace } from "../demo/schedule.svelte";
   import { londonToday, pounds } from "./dates";
   import { navigate } from "../app/router.svelte";
@@ -324,8 +325,14 @@
   const members = $derived(
     db.members.filter((m) => m.status === "active").sort((a, b) => goesBy(a.player).localeCompare(goesBy(b.player))),
   );
+  // A draft's captains bring their team from the series' last edition they captained in (brought-team.ts)
+  const edition = $derived({ id: date.id || undefined, typeId: date.typeId, heldOn: dayOf(date) });
   const memberList = $derived(
-    members.map((m) => ({ id: m.player.id, name: goesBy(m.player), carries: m.player.kumiteTeamName })),
+    members.map((m) => ({
+      id: m.player.id,
+      name: goesBy(m.player),
+      brings: date.kind === "draft" ? broughtTeam(db.tournaments, edition, m.player.id) : null,
+    })),
   );
 
   // Teams (ADR 0030): nobody on two of them. A draft's are in no order till it opens and draws one (ADR 0060), and

@@ -6,6 +6,7 @@
   // players, members found by typing or names from outside.
   import { shrinkLogo, teamInitials } from "./logo";
   import type { TournamentKind, TournamentTeam } from "../demo/model";
+  import type { BroughtTeam } from "./brought-team";
   import Icon from "../app/shell/Icon.svelte";
   import PersonPicker from "./PersonPicker.svelte";
 
@@ -24,16 +25,25 @@
     place: number;
     /** Its place in the draft's pick order, from 1, once the draft's opened and drawn it; null till then. */
     pick?: number | null;
-    /** `carries`: the team name a captain carries from Kumite to Kumite (team-name.ts), if they've one. */
-    members: { id: number; name: string; carries?: string | null }[];
+    /**
+     * `brings`: the team a captain brings from the last edition of the series they captained in (brought-team.ts),
+     * if they've one.
+     */
+    members: { id: number; name: string; brings?: BroughtTeam | null }[];
     /** Members already on a team (this one's included), who can't be added again. */
     taken: Set<number>;
     onremove: () => void;
   } = $props();
 
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
-  /** What the team's called if its name's left empty: the name its captain carries, when they've one. */
-  const carried = $derived(members.find((m) => m.id === team.captainMemberId)?.carries ?? "");
+  /**
+   * What a new team takes as it's saved if it's left unnamed, with no logo: the team its captain brings (the server
+   * decides, worker/tournaments/team-name.ts). A saved team has what it was given.
+   */
+  const brought = $derived(
+    team.id || team.name || team.logo ? null : (members.find((m) => m.id === team.captainMemberId)?.brings ?? null),
+  );
+  const carried = $derived(brought?.name ?? "");
   const label = $derived(team.name || carried || nameOf(team.captainMemberId) || team.captainName || "New team");
   const initials = $derived(teamInitials(label));
 
@@ -84,7 +94,11 @@
     title={team.logo ? "Change the logo" : "Add a logo"}
     onclick={() => fileInput?.click()}
   >
-    {#if team.logo}<img src={team.logo} alt="" />{:else}<span>{initials}</span>{/if}
+    {#if team.logo}<img src={team.logo} alt="" />{:else if brought?.logo}<img
+        class="brought"
+        src={brought.logo}
+        alt=""
+      />{:else}<span>{initials}</span>{/if}
   </button>
   <input
     bind:this={fileInput}
@@ -124,10 +138,10 @@
       <input
         class="team-name"
         bind:value={team.name}
-        placeholder={carried || "Team name"}
+        placeholder={carried ? `Brings: ${carried}` : "Team name"}
         maxlength="40"
         aria-label="Team name"
-        title={carried ? `Left empty, it's ${carried}, the name they carry` : undefined}
+        title={carried ? `Left empty, it's ${carried}, their team last time in this series` : undefined}
       />
     </div>
     <button
@@ -362,6 +376,10 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+  }
+  /* The logo a new team brings, quiet like the name's placeholder till it's saved */
+  .logo img.brought {
+    opacity: 0.6;
   }
   .file {
     display: none;

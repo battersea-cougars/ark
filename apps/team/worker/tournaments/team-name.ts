@@ -1,29 +1,26 @@
-// A captain's default Kumite team name (ADR 0060): the name their team takes when they're named captain of a Kumite,
-// so a captain carries their name from one to the next. One field on the member (members.kumite_team_name), theirs to
-// set on their profile and an admin's in their editor, and overwritten whenever their Kumite team is renamed. Empty
-// text is the automatic name ("Team <first name>", the app's). Never set (null): their latest Kumite team's name, so
-// captains from before the field keep theirs. An erased member carries nothing.
+// A captain brings their team to the next edition of a series (ADR 0060): in a draft, the team they're named captain
+// of starts with the name and logo of the team they last captained in an earlier edition of the same series, unless
+// it's given its own. Nothing about it lives on the member (another club may have no Kumite): it's worked out from
+// the editions, each keeping its own team's name and logo, so a rename changes only that edition's team, which is
+// then the last one for next time. An erased member brings nothing; one who's never captained in it starts blank.
 import { text } from "../api/api.http";
-
-/** The series whose captains carry their team name: the Kumite, by its slug. */
-export const KUMITE = "kumite";
 
 /** Team names are up to 40 characters, trimmed (the team's look and the editor say the same). */
 export const teamNameOf = (o: Record<string, unknown>, key = "name") =>
   text(o, key, { optional: true, max: 40 }).trim();
 
 /**
- * SQL for member `m`'s default Kumite team name: their own, else their latest Kumite team's (by its day), leaving out
- * the tournament `except` names (SQL: a `?`, or "0" for none), the one the team's being named in. Null: none, the
- * automatic name.
+ * SQL for the team (its id) member `m` last captained in an earlier edition of tournament `edition`'s series (SQL: a
+ * `?`): by day, and of editions on the same day the one made first. Null: none, so the automatic name and initials.
  */
-export const carriedName = (except = "0") => `CASE WHEN m.status = 'erased' THEN NULL ELSE coalesce(m.kumite_team_name,
-    (SELECT tt.name FROM tournament_teams tt JOIN tournaments t ON t.id = tt.tournament_id
-       JOIN tournament_types ty ON ty.id = t.type_id
-     WHERE tt.captain_member_id = m.id AND ty.slug = '${KUMITE}' AND t.id != ${except}
-     ORDER BY t.held_on DESC, t.id DESC LIMIT 1)) END`;
+export const broughtTeam = (edition = "?") => `CASE WHEN m.status != 'erased' THEN
+    (SELECT tt.id FROM tournaments this JOIN tournaments t ON t.type_id = this.type_id
+       JOIN tournament_teams tt ON tt.tournament_id = t.id
+     WHERE this.id = ${edition} AND tt.captain_member_id = m.id
+       AND (t.held_on < this.held_on OR (t.held_on = this.held_on AND t.id < this.id))
+     ORDER BY t.held_on DESC, t.id DESC LIMIT 1) END`;
 
-/** A team in a tournament as it's being named: what its captain carries (null: it isn't carrying, it keeps `name`). */
+/** A team in a tournament as it's being named: the name its captain brings (null: it isn't bringing one, it keeps `name`). */
 export interface Naming {
   carried: string | null;
   name: string;
@@ -32,10 +29,10 @@ export interface Naming {
 }
 
 /**
- * The names new captains' teams start with: each their carried name, unless another team in the tournament goes by it,
- * case aside, when it's the automatic name (""). Going by it: a team keeping its name, or an unnamed one its automatic
- * name; a team carrying a name before it, that name; and any other carrying team its automatic name, since it may end up
- * with it.
+ * The names new captains' teams start with: each the name they bring, unless another team in the tournament goes by
+ * it, case aside, when it's the automatic name (""). Going by it: a team keeping its name, or an unnamed one its
+ * automatic name; a team bringing a name before it, that name; and any other bringing team its automatic name, since
+ * it may end up with it.
  */
 export function carriedNames(teams: readonly Naming[]): string[] {
   const key = (n: string | null) => n?.trim().toLowerCase() || "";

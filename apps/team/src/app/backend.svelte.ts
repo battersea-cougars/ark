@@ -252,15 +252,9 @@ export const resetSession = (sessionId: number) =>
 /** One kind of notification on or off, for you (ADR 0108). Quiet: the switch is its own answer. */
 export const chooseNotification = (topic: Topic, on: boolean) =>
   save(() => api("PUT", "/api/me/notifications", { [topic]: on }), "");
-/** Your own phone, position, bio, the name you go by and your default Kumite team name. */
-export const saveProfile = (p: {
-  position: Position;
-  phone: string;
-  bio: string;
-  webName: string;
-  /** Left out: as it is */
-  kumiteTeamName?: string;
-}) => save(() => api("PUT", "/api/me", p));
+/** Your own phone, position, bio and the name you go by. */
+export const saveProfile = (p: { position: Position; phone: string; bio: string; webName: string }) =>
+  save(() => api("PUT", "/api/me", p));
 /** A code to the address you want to sign in with (ADR 0023): what to say, and the code itself on your own machine. Quiet: the form says. */
 export const askEmailCode = (email: string) =>
   save(() => api<{ message: string; devCode?: string }>("POST", "/api/me/email", { email }), "");
@@ -387,8 +381,6 @@ export const saveMember = (m: MemberRow) =>
     api("PUT", `/api/members/${m.player.id}`, {
       name: m.player.name,
       webName: m.player.webName ?? "",
-      // Only once there's one to say: left out, it stays as it is
-      ...(m.player.kumiteTeamName != null && { kumiteTeamName: m.player.kumiteTeamName }),
       position: m.player.position,
       rating: m.player.rating,
       cougar: m.player.cougar,

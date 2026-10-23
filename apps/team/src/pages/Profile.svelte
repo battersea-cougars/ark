@@ -1,7 +1,7 @@
 <script lang="ts">
   // You (ADR 0022): only your own things. Your card (name, position, roles), the switch between your everyday role and
   // your full one, your details (your sign-in email, changed with a code to the new address; phone, position, bio, the
-  // name you go by, your default Kumite team name: your name is an admin's to change, since the roster goes by it), notifications, your dues, your data, and sign out. The phone's last tab
+  // name you go by: your name is an admin's to change, since the roster goes by it), notifications, your dues, your data, and sign out. The phone's last tab
   // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton)
   // and at the foot of a desktop's dock, never listed here.
   import Icon from "../app/shell/Icon.svelte";
@@ -29,10 +29,6 @@
 
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
-  // The name your team takes when you're a Kumite captain (ADR 0060): empty, "Team" and your name. Renaming your team
-  // in a Kumite changes it too, so it's always your latest
-  const teamNameWas = who.kumiteTeamName ?? "";
-  let teamName = $state(teamNameWas);
 
   // The name you go by, in the app and on the website (ADR 0043): ready-made forms of your name, or a nickname. Saved as the text itself;
   // the default (first name and initial) is saved as nothing, so it follows a change to your name.
@@ -60,7 +56,7 @@
   const locked = impersonating();
   // Your details' unsaved changes: Save lights up, and leaving the page asks first (lib/dirty.svelte.ts)
   const edits = new Edits();
-  edits.watch(() => ({ form, teamName, nameForm, nickname }));
+  edits.watch(() => ({ form, nameForm, nickname }));
   const BIO_MAX = 160;
 
   // Your everyday role (ADR 0024): anyone with more than Member can open the app as a lesser role, so ratings and admin
@@ -89,14 +85,12 @@
   }
   function save(e: SubmitEvent) {
     e.preventDefault();
-    const kumiteTeamName = teamName.trim().replace(/\s+/g, " ");
     edits.run(() =>
       saveProfile({
         ...form,
         phone: form.phone.trim(),
         bio: form.bio.trim(),
         webName,
-        ...(kumiteTeamName !== teamNameWas && { kumiteTeamName }),
       }),
     );
   }
@@ -158,10 +152,6 @@
           maxlength={BIO_MAX}
           placeholder="Shoots left. Blames the wheels."
           bind:value={form.bio}></textarea>
-      </label>
-      <label class="field">
-        <span>Default Kumite team name <span class="hint">· your team's when you captain one</span></span>
-        <input class="input" maxlength="40" placeholder={`Team ${shortName(who)}`} bind:value={teamName} />
       </label>
       <SaveBar {edits} />
     </fieldset>

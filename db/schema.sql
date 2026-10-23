@@ -65,11 +65,7 @@ CREATE TABLE members (
   created_at TEXT NOT NULL,
   bio TEXT NOT NULL DEFAULT '',
   everyday_role_id INTEGER REFERENCES roles (id) ON DELETE SET NULL,
-  web_name TEXT,
-  -- The name their team takes when they're named a Kumite captain (ADR 0060, worker/tournaments/team-name.ts): set on
-  -- their profile or by an admin, and overwritten whenever their Kumite team's renamed. Empty: the automatic "Team
-  -- <first name>"; null (never set): their latest Kumite team's name
-  kumite_team_name TEXT
+  web_name TEXT
 );
 
 CREATE INDEX members_status ON members (status);

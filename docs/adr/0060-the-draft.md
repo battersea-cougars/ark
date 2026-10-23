@@ -139,22 +139,24 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   can't change the captains once the draft is open. A save without some rules keeps the tournament's own, not the
   series'.
 
-### A captain carries their team name
+### A captain brings their team to the series' next edition
 
-- A member has one **default Kumite team name** (`members.kumite_team_name`, `worker/tournaments/team-name.ts`):
-  theirs to set on You, an admin's (`manage:Member`) in their editor, up to 40 characters like any team name, and seen
-  only by themselves and those who see members' private details. When they're named a Kumite's captain, their new team
-  takes it; empty, it's the automatic "Team <first name>". Whenever their Kumite team is renamed (Name and logo, by
-  them or an admin, or in the tournament's editor) the field becomes the new name, so it's always their latest; the
-  Name and logo sheet says so. Only the name carries, not the crest.
-- Never set (captains from before it): their latest Kumite team's name, read from their history.
-- A carried name another team in that Kumite goes by, case aside, gives way and its carrier has the automatic name
-  (and still carries theirs): a team already called it, one carrying it named before, or another captain's automatic
-  name ("Team Alex" carried by Bob, beside Alex's own).
-- The tournament editor renames a team (and so its captain's default) only when the name it sends differs from the
-  team's as the save runs (ADR 0121); a team it sends with neither its id nor a name, an editor that hasn't seen what
-  the server named it, keeps its name. An erased member's field is emptied and
-  their history never read. Other series neither carry it nor change it.
+- Nothing about it lives on the member: another club may have no Kumite. When a member is named captain of a new
+  edition of a draft series (the editor, the quick form, `worker/tournaments/team-name.ts`), their new team starts
+  with the **name and logo of the team they last captained in an earlier edition of the same series** (by day, then
+  the edition made first), unless it's given a name or logo of its own. Never captained in it: blank, the automatic
+  "Team <first name>" and initials. Other series neither bring it nor change it.
+- Each edition keeps its own team's name and logo (`tournament_teams`), so the history stays per edition: renaming
+  during an edition (Name and logo, by the captain or an admin, or in the tournament's editor) changes only that
+  edition's team, which is then the last one for next time. The Name and logo sheet says so, and the captains form
+  shows what a new captain brings as the name's placeholder ("Brings: Reacher Rounds") and the logo, quiet, until it's
+  saved (`lib/brought-team.ts`).
+- A brought name another team in that edition goes by, case aside, gives way: its captain has the automatic name and
+  initials. Going by it: a team already called it, one bringing it named before, or another captain's automatic name
+  ("Team Alex" brought by Bob, beside Alex's own).
+- A team the tournament editor sends with neither its id nor a name, an editor that hasn't seen what the server named
+  it, keeps its name and, unless it sends one, its logo. An erased member's old teams are never read as theirs.
+- Future (#150): in a series teams enter, the team, not its captain, would carry its name from edition to edition.
 - Not recorded: like the team's look, it's the captain's own.
 
 ### Who sees what
@@ -341,3 +343,8 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   and the teams (two to a row, every card one height), and once everyone's chosen as the last third beside the teams'
   two thirds; narrower, the Teams and Choices tabs as before. The room scrolls once everyone's chosen (the guard that
   keeps it from moving sideways had been resetting it). 選 added to the kanji subset.
+- 2026-10-23: The captain's team name no longer lives on the member (`members.kumite_team_name`, on You and in the
+  member editor, gone): "Kumite-specific data must not live on the member", since another club may not have a Kumite.
+  In a draft series it's worked out from the last edition the captain captained in ("once I set my team name, if I get
+  chosen as captain again, that would be my team name again unless I change it"), name and logo, with no separate
+  copy, and for any draft series, not only the Kumite. Team-entry series, where the team carries it, are #150.

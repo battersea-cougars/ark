@@ -8,7 +8,6 @@ import { fillingUp } from "../entries/entries";
 import { HttpError, json } from "../api/api.http";
 import { keepsSomeoneWhoCanDoEverything } from "./members";
 import { prefsFrom } from "../push/push.prefs";
-import { carriedName } from "../tournaments/team-name";
 
 export const FORMER_MEMBER = "Former member";
 
@@ -61,7 +60,7 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
   const scrubbed = "[erased]";
   const [erased] = await db.batch([
     q(
-      `UPDATE members SET name = ?, email = NULL, phone = NULL, photo = NULL, bio = '', web_name = NULL, kumite_team_name = NULL,
+      `UPDATE members SET name = ?, email = NULL, phone = NULL, photo = NULL, bio = '', web_name = NULL,
          payment_reference = NULL, everyday_role_id = NULL, cougar = 0, status = 'erased' WHERE id = ?`,
       FORMER_MEMBER,
       id,
@@ -127,7 +126,7 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       statement(
         db,
         `SELECT name, web_name goesBy, email, phone, position, bio, cougar, status, joined_on joinedOn,
-            payment_reference paymentReference, ${carriedName()} kumiteTeamName FROM members m WHERE id = ?`,
+            payment_reference paymentReference FROM members m WHERE id = ?`,
         [id],
       ),
       statement(

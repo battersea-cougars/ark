@@ -23,8 +23,6 @@ export interface Player {
   bio?: string;
   /** How their name shows on the website roster; null: first name and initial. */
   webName?: string | null;
-  /** The name their team takes as a Kumite captain (ADR 0060); "" the automatic one. Your own, or an admin's view. */
-  kumiteTeamName?: string | null;
   /** Training sessions they came to. */
   played?: number;
 }
@@ -145,7 +143,6 @@ export interface Bootstrap {
     bio: string;
     webName: string | null;
     phone: string | null;
-    kumiteTeamName: string | null;
     played: number;
     quarterly: boolean;
     quarterlyNext: boolean;
@@ -214,8 +211,8 @@ export function applySlices(b: Slices) {
       EMAILS.set(m.id, m.email);
       REFERENCES.set(m.id, m.paymentReference);
       PHONES.set(m.id, m.phone);
-      const { id, name, position, rating, cougar, bio, webName, kumiteTeamName, played } = m;
-      return { id, name, position, rating, cougar, bio, webName, kumiteTeamName, played };
+      const { id, name, position, rating, cougar, bio, webName, played } = m;
+      return { id, name, position, rating, cougar, bio, webName, played };
     });
     fill(PLAYERS, players);
     fill(

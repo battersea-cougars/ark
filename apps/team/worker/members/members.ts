@@ -7,7 +7,6 @@ import { email, giveReference, type AuthEnv } from "../auth/auth";
 import { tellTheyreIn } from "./members.mail";
 import { londonToday } from "../../src/lib/dates";
 import { QUARTER, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
-import { teamNameOf } from "../tournaments/team-name";
 
 export interface MemberJson {
   id: number;
@@ -26,11 +25,6 @@ export interface MemberJson {
   webName: string | null;
   /** Only for the member themselves and those who manage members; null otherwise. */
   phone: string | null;
-  /**
-   * The name their team takes when they're named a Kumite captain (ADR 0060, tournaments/team-name.ts): "" the
-   * automatic "Team <first name>". Your own, or anyone's for those who manage members; null otherwise.
-   */
-  kumiteTeamName: string | null;
   /** Training sessions they came to: in, not a no-show, held before today and not cancelled. */
   played: number;
   /** A Quarterly Member today: a subscription covers it (ADR 0007). Only your own, unless you manage members. */
@@ -83,7 +77,6 @@ export function membersFrom(
     bio: string;
     web_name: string | null;
     phone: string | null;
-    kumite_team_name: string | null;
     played: number;
     quarterly: number;
     quarterlyNext: number;
@@ -104,7 +97,6 @@ export function membersFrom(
     // Public anyway (the website roster), so everyone may see it
     webName: m.web_name,
     phone: m.phone,
-    kumiteTeamName: m.kumite_team_name,
     played: m.played,
     quarterly: Boolean(m.quarterly),
     quarterlyNext: Boolean(m.quarterlyNext),
@@ -282,11 +274,6 @@ export async function updateMember(
     const webName = o.webName === null ? "" : text(o, "webName", { optional: true, max: 40 }).trim();
     statements.push(guarded("UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]));
   }
-  // Their default Kumite team name (ADR 0060), when it's sent: an admin's to set, as theirs on their profile
-  if ("kumiteTeamName" in o)
-    statements.push(
-      guarded("UPDATE members SET kumite_team_name = ? WHERE id = ?", [teamNameOf(o, "kumiteTeamName"), id]),
-    );
   statements.push(guarded("DELETE FROM member_roles WHERE member_id = ?", [id]));
   for (const roleId of ids)
     statements.push(guarded("INSERT INTO member_roles (member_id, role_id) SELECT ?, ? WHERE 1", [id, roleId]));
@@ -349,22 +336,21 @@ export async function updateRole(db: D1Database, id: number, o: Record<string, u
 }
 
 /**
- * Your own profile: phone, position, bio, how your name shows on the website (empty: first name and initial) and,
- * when it's sent, your default Kumite team name (empty: "Team <first name>", ADR 0060). Your name and email stay with
- * admins (the roster seed matches by name).
+ * Your own profile: phone, position, bio and how your name shows on the website (empty: first name and initial). Your
+ * name and email stay with admins (the roster seed matches by name).
  */
 export async function updateProfile(db: D1Database, id: number, o: Record<string, unknown>) {
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
   const phone = text(o, "phone", { optional: true, max: 30 });
   const bio = text(o, "bio", { optional: true, max: 160 });
   const webName = text(o, "webName", { optional: true, max: 40 }).trim();
-  const teamName = "kumiteTeamName" in o ? teamNameOf(o, "kumiteTeamName") : null;
-  await run(
-    db,
-    `UPDATE members SET position = ?, phone = ?, bio = ?, web_name = ?, kumite_team_name = coalesce(?, kumite_team_name)
-     WHERE id = ?`,
-    [position, phone || null, bio, webName || null, teamName, id],
-  );
+  await run(db, "UPDATE members SET position = ?, phone = ?, bio = ?, web_name = ? WHERE id = ?", [
+    position,
+    phone || null,
+    bio,
+    webName || null,
+    id,
+  ]);
 }
 
 /** The role someone runs the app as day to day (ADR 0024); null means their full role. */
