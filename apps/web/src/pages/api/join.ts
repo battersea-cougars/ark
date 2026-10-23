@@ -19,6 +19,7 @@ import { getSettings } from "../../lib/sanity/content";
 import { sendMail } from "@cougars/shared/email";
 import { scribe } from "@cougars/shared/scribe";
 import { withinLimit } from "../../lib/server/body-limit";
+import { refusedAt } from "../../lib/enquiry-form";
 
 const log = scribe.logger("join");
 
@@ -27,8 +28,8 @@ export const prerender = false;
 /** The most the form may send: its fields at their longest are under 4 KB, with Turnstile's token. */
 const MAX_FORM = 16 * 1024;
 
-// Works without JavaScript: a plain form POST gets a 303 redirect. The
-// enhanced form on /join sends `Accept: application/json` and gets JSON back.
+// Works without JavaScript: a plain form POST gets a 303 redirect, to the thanks page or to the form saying what went
+// wrong (refusedAt). The enhanced form on /join sends `Accept: application/json` and gets JSON back.
 export const POST: APIRoute = async ({ request, redirect, clientAddress, locals }) => {
   const wantsJson = request.headers.get("accept")?.includes("application/json");
   const reply = (status: number, body: Record<string, unknown>, location: string) =>
@@ -36,14 +37,14 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
 
   // Plenty for the form's fields; anything bigger is refused before it's read (#73)
   const sent = await withinLimit(request, MAX_FORM);
-  if (!sent) return reply(413, { ok: false, error: "That's too much to send." }, "/join?error=invalid");
+  if (!sent) return reply(413, { ok: false, error: "That's too much to send." }, refusedAt("invalid"));
   const form = await sent.formData();
   if (isSpam(form)) return reply(200, { ok: true }, "/join/thanks");
 
   // Refused before the limit: an invalid form writes and sends nothing, so it uses up nobody's tries (the deploy's
   // smoke test posts an empty one)
   const parsed = parseEnquiry(form);
-  if (!parsed.ok) return reply(400, { ok: false, errors: parsed.errors }, "/join?error=invalid");
+  if (!parsed.ok) return reply(400, { ok: false, errors: parsed.errors }, refusedAt("invalid"));
 
   // The deploy's smoke test (lib/server/smoke.ts): the whole path, its emails to the sending account only, then gone.
   // A smoke header with the wrong key (an old deploy's, or this one's before it has spread) is refused, never taken as
@@ -59,7 +60,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
       windowSeconds: 15 * 60,
     });
     if (!allowed)
-      return reply(429, { ok: false, error: "Too many submissions, please try again later." }, "/join?error=rate");
+      return reply(429, { ok: false, error: "Too many submissions, please try again later." }, refusedAt("rate"));
   }
 
   if (smoke) {

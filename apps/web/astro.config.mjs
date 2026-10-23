@@ -25,10 +25,12 @@ export default defineConfig({
   // Old Wix addresses. /gallery/<album> is a server route (pages/gallery/[slug].ts): a config redirect to a
   // server-rendered page would point at a prerendered file that doesn't exist.
   redirects: { "/gallery": "/photos" },
-  // Not in the sitemap: the thanks page (noindex) and the pieces the home page fetches (the reel, What's on). The
-  // build's Sanity requests are counted into the environment's D1 (ADR 0116).
+  // Not in the sitemap: the thanks page and the form saying what went wrong (noindex), and the pieces the home page
+  // fetches (the reel, What's on). The build's Sanity requests are counted into the environment's D1 (ADR 0116).
   integrations: [
-    sitemap({ filter: (page) => !/\/(join\/thanks|videos\/reel|whats-on)(\/|$)/.test(new URL(page).pathname) }),
+    sitemap({
+      filter: (page) => !/\/(join\/(thanks|invalid|rate)|videos\/reel|whats-on)(\/|$)/.test(new URL(page).pathname),
+    }),
     sanityBuildCount(),
   ],
   adapter: cloudflare({

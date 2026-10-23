@@ -8,7 +8,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf
 
 describe("the join form's Turnstile check", () => {
   it("its widget is rendered for the enquiry, and the server checks for that", () => {
-    expect(read("../../pages/join/index.astro")).toContain(`action: "${ENQUIRY_ACTION}"`);
+    expect(read("../../pages/join/[...refused].astro")).toContain(`action: "${ENQUIRY_ACTION}"`);
     expect(read("../../pages/api/join.ts")).toMatch(/verifyTurnstile\([^;]*action: ENQUIRY_ACTION/s);
   });
 
