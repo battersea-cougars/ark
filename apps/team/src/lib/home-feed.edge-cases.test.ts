@@ -103,9 +103,10 @@ describe("what's coming up, at the edges", () => {
     expect(rows.map((r) => r.key)).not.toContain(`e${UPCOMING_MAX}`);
   });
 
-  it("a cancelled one says Cancelled, whatever you'd said", () => {
+  it("a cancelled one wears Cancelled, whatever you'd said", () => {
     const rows = up([ev("off", day(2), { cancelled: true, standing: "in", asking: true })]);
-    expect(rows[0].sub).toBe("8pm · Cancelled");
+    expect(rows[0].sub).toBe("8pm");
+    expect(rows[0].cancelled).toBe(true);
   });
 
   it("asks from the day sign-up opens (the Kumite: Accept the invitation), and says when it opens before that", () => {

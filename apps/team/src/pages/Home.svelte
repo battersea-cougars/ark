@@ -565,7 +565,7 @@
 
 <!-- One row of what's coming up: the date on the left, then what it is and how you stand -->
 {#snippet upcomingItem(r: (typeof feed.upcoming)[number])}
-  <a class="item dated rise" href={r.href ?? "/calendar"}>
+  <a class="item dated rise" class:off={r.cancelled} href={r.href ?? "/calendar"}>
     {@render when(r.on)}
     <span class="grow">
       <span class="sr-only"
@@ -592,6 +592,8 @@
         {/if}
       </span>
     </span>
+    <!-- Called off: a badge where the count would be, the row quieter -->
+    {#if r.cancelled}<span class="badge off"><Icon name="x" size={12} />Cancelled</span>{/if}
     <!-- How many are in, on a row taking sign-ups, whether or not you are: the same words as its sign-up line -->
     {#if r.count}
       <span class="up-count num"><strong>{r.count.going}</strong>{r.count.limit ? ` of ${r.count.limit}` : ""} in</span>
@@ -1448,6 +1450,15 @@
   }
   .up-stand.waitlist {
     color: var(--fg-body);
+  }
+  /* Called off: the club's red in a badge, the rest of the row a step quieter */
+  .badge.off {
+    gap: 0.25rem;
+    color: var(--red-hot);
+  }
+  .item.off .item-text,
+  .item.off .up-sub {
+    color: var(--fg-muted);
   }
   .up-count {
     flex-shrink: 0;

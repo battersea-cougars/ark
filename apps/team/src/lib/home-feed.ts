@@ -88,6 +88,8 @@ export interface UpcomingRow {
   standing?: { is: Standing; place?: number };
   /** How many are in, and its places: on a row taking sign-ups, not cancelled nor still to open. */
   count?: { going: number; limit?: number };
+  /** Called off: a Cancelled badge where the count would be, not words in the line. */
+  cancelled?: true;
 }
 
 export interface FeedInput {
@@ -320,7 +322,7 @@ function upcomingRow(e: UpcomingEvent, today: string, fight?: string, invited = 
   const opensOn = e.signupOpensOn && e.signupOpensOn > today ? dateBadge(londonISO(e.signupOpensOn, "12:00")) : null;
   const stands = !e.cancelled && !fight && e.standing;
   const how = e.cancelled
-    ? "Cancelled"
+    ? ""
     : fight
       ? `Your match at ${fight}`
       : stands
@@ -337,6 +339,7 @@ function upcomingRow(e: UpcomingEvent, today: string, fight?: string, invited = 
   const sub = [e.dateTbc ? "" : time, how].filter(Boolean).join(" · ");
   const on = { at: e.startsAt, season: e.season, tbc: e.dateTbc };
   const row: UpcomingRow = { key: e.key, href: e.href, icon: e.icon, on, text: e.title, sub };
+  if (e.cancelled) row.cancelled = true;
   if (stands) row.standing = e.standing === "waitlist" && e.place ? { is: "waitlist", place: e.place } : { is: stands };
   // Nobody's in one still to open, and a cancelled one has nobody going
   if (e.going !== undefined && !e.cancelled && !e.opens && !opensOn)

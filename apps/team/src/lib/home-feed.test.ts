@@ -293,9 +293,10 @@ describe("what's coming up", () => {
       expect(row(tournament({ signupClosed: true, standing: "in" })).count).toEqual({ going: 16 });
     });
 
-    it("a cancelled one: no count and no standing, just Cancelled", () => {
+    it("a cancelled one: no count and no standing, just its Cancelled badge", () => {
       const r = row(training({ cancelled: true, standing: "in" }));
-      expect(r.sub).toBe("7:30 to 9pm · Cancelled");
+      expect(r.sub).toBe("7:30 to 9pm");
+      expect(r.cancelled).toBe(true);
       expect(r.standing).toBeUndefined();
       expect(r.count).toBeUndefined();
     });
