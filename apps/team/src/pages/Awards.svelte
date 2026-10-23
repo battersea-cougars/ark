@@ -167,7 +167,7 @@
       {#if !ended}
         <!-- Under the card: whoever runs it, the one button; everyone else, where it's at. Its room kept; it's dimmed
              while a beat plays, and its waking after the last beat is the end -->
-        <div class="cue" class:after-beat={!!beat} aria-live="polite">
+        <div class="cue" class:after-beat={!!beat} class:after-next={beat === "next"} aria-live="polite">
           {#key `${shown.at}:${shown.face}`}
             <div class="cue-in" onanimationstart={(e) => e.target === e.currentTarget && land()}>
               {#if cue === "confirm"}
@@ -242,6 +242,9 @@
      waits for the moment */
   .after-beat .cue-in {
     animation: award-wake 240ms var(--beat-ms) both;
+  }
+  .after-next .cue-in {
+    animation-delay: var(--next-beat-ms);
   }
   .cue-line {
     max-width: 30rem;

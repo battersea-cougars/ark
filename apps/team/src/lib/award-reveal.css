@@ -22,8 +22,10 @@
   --roll-delay: calc(var(--pulse-ms) + var(--fade-ms) + var(--line-ms));
   --roll-ms: 650ms;
   --stamp-delay: calc(var(--roll-delay) + var(--roll-ms) + 60ms);
-  /* The button under the card wakes (lit, tappable) once it's all landed */
+  /* The button under the card wakes (lit, tappable) once it's all landed: after a reveal, the hanko; after Next
+     award, the card and its name */
   --beat-ms: calc(var(--stamp-delay) + 450ms);
+  --next-beat-ms: calc(var(--enter-ms) + var(--enter-name-delay));
   /* The champions: only the finale uses these */
   --spot-in-ms: 600ms;
   --spot-out-delay: calc(var(--stamp-delay) + 700ms);

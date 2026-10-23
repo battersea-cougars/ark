@@ -597,3 +597,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The finished Kumite's page (the after-party, every award out) shows the awards themselves, the champions
   the hero and the rest in a grid (`lib/AwardsWon`, the awards page's end too), in place of the awards card; the awards
   page's end has the way back to the Kumite's page in its button's place.
+- 2026-10-23: After Next award the button wakes once the card's landed (`--next-beat-ms`, under a second), not after a
+  reveal's full wait.
