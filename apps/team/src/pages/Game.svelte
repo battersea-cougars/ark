@@ -17,7 +17,7 @@
   // same person may have it open twice), while the page is in view.
   import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { can } from "../access/actions";
   import Icon from "../app/shell/Icon.svelte";
   import BackBar from "../app/shell/BackBar.svelte";
@@ -117,14 +117,27 @@
   // A playoff can't end level (worker/tournaments/scoring.ts): level at time up, it plays on and the next goal wins
   const level = $derived(!!game && game.stage === "playoff" && (game.homeGoals ?? 0) === (game.awayGoals ?? 0));
   // A period's over (its time's up, or the scorekeeper says so): the next starts paused at its full length. Sent from
-  // the scorekeeper's phone when the clock hits zero; saying it twice is harmless (the Worker knows the period's done)
-  let endedPeriod = 0;
+  // the scorekeeper's phone when the clock hits zero, and again until the server has it (the period moves on): once
+  // a tap on its way (a goal at the buzzer) has gone, and a few seconds after one that didn't go through. Saying it
+  // twice is harmless (the Worker knows the period's done)
   const endPeriod = () => tournament && game && act(() => nextPeriod(tournament.id, game.id, period));
+  const RETRY_MS = 3000;
+  let endRetry = $state(0);
+  let endWaiting = false;
   $effect(() => {
-    if (periodUp && keeper && endedPeriod !== period) {
-      endedPeriod = period;
-      endPeriod();
-    }
+    void endRetry;
+    if (!periodUp || !keeper || busy || endWaiting || !tournament || !game) return;
+    const [t, g, p] = [tournament.id, game.id, period];
+    untrack(() =>
+      act(async () => {
+        if ((await nextPeriod(t, g, p)) !== null) return;
+        endWaiting = true;
+        setTimeout(() => {
+          endWaiting = false;
+          endRetry++;
+        }, RETRY_MS);
+      }),
+    );
   });
   // A buzz when time runs out on the scorekeeper's phone
   let buzzed = false;
