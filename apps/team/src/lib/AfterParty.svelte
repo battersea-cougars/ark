@@ -3,12 +3,15 @@
   // Kumite's The Anchor), so the page is the pub after the film's last match: warm brass on the carbon, the Kumite's
   // motif kept. Where everyone is; the awards, a big card to their own page (pages/Awards, the stage where they're
   // revealed one at a time), with everyone who played voting on it and whoever runs it confirming them on it too
-  // (lib/AwardsEntry, ADR 0044); then the final table (the champions first) and the day's
+  // (lib/AwardsEntry, ADR 0044); every one out, the awards themselves instead, the champions the hero and the rest in
+  // a grid (lib/AwardsWon): the finished Kumite's page. Then the final table (the champions first) and the day's
   // results, one line each.
   import type { Tournament, TournamentType } from "../demo/model";
   import type { After } from "@cougars/shared/places";
   import Icon from "../app/shell/Icon.svelte";
   import AwardsEntry from "./AwardsEntry.svelte";
+  import AwardsWon from "./AwardsWon.svelte";
+  import { revealOf } from "./afters";
   import FinalResults from "./FinalResults.svelte";
   import { afterNoteWords } from "./tournament-front";
   import { clock } from "./dates";
@@ -53,8 +56,13 @@
     </div>
   </section>
 
-  <!-- The awards: voted and confirmed here, on one card, revealed on their own page, the stage -->
-  <AwardsEntry {type} tournament={t} {manage} />
+  {#if revealOf(t).all}
+    <!-- Every award out: the finished Kumite's page shows them, the champions the hero, the rest in a grid -->
+    <AwardsWon {type} tournament={t} />
+  {:else}
+    <!-- The awards: voted and confirmed here, on one card, revealed on their own page, the stage -->
+    <AwardsEntry {type} tournament={t} {manage} />
+  {/if}
 
   <!-- The final table (the champions first), then the day's results -->
   <FinalResults {type} tournament={t} />

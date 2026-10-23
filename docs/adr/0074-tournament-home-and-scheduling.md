@@ -594,3 +594,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   after-party's too). The winners list and its link are gone.
 - 2026-10-23: The awards page's button stays in place while a beat plays, dimmed and untappable, and lights up once it's
   landed; it no longer vanished and came back, which read as a delay.
+- 2026-10-23: The finished Kumite's page (the after-party, every award out) shows the awards themselves, the champions
+  the hero and the rest in a grid (`lib/AwardsWon`, the awards page's end too), in place of the awards card; the awards
+  page's end has the way back to the Kumite's page in its button's place.

@@ -7,7 +7,8 @@
   // same beat from the change of state (lib/afters beatOf; the timing, lib/award-reveal.css); opened late or
   // reloaded, it's just where it is. The stage's room is the finale's from the start, so nothing round it moves, and
   // nothing scrolls. After the last, once its beat's landed: the champions up on the stage (wherever they're listed),
-  // every other award a smaller card in a grid under them, face up, then the final table and the day's results.
+  // the way back to the Kumite's page under them, every other award a smaller card in a grid (lib/AwardsWon), face
+  // up, then the final table and the day's results.
   import { untrack } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { nextAward, revealAward } from "../app/backend.svelte";
@@ -21,6 +22,7 @@
   import TournamentHead from "../lib/TournamentHead.svelte";
   import AwardStage from "../lib/AwardStage.svelte";
   import CastYourVote from "../lib/CastYourVote.svelte";
+  import AwardsWon from "../lib/AwardsWon.svelte";
   import FinalResults from "../lib/FinalResults.svelte";
   import { beatOf, cueOf, isFinale, revealOf, toConfirmOf, type Card } from "../lib/afters";
   import "../lib/award-reveal.css";
@@ -94,8 +96,6 @@
   }
   // The card on the stage: the champions once it's ended (none without them), till then the one shown
   const onStage = $derived(ended ? championsAt : shown.at);
-  // The grid: every other award, in the admin's order
-  const others = $derived(awards.map((a, i) => ({ a, i })).filter(({ i }) => i !== championsAt));
 
   // One tap, one step: the tap says where it saw the card, so a double tap (or a second phone) moves it once
   let busy = $state(false);
@@ -188,26 +188,13 @@
         <!-- Their vote, till the awards are confirmed (only for those who played) -->
         <CastYourVote {type} tournament={t} />
       {:else}
-        <!-- The end: every other award face up, in the admin's order; then the final table and the day's results -->
+        <!-- The end: the way back to the Kumite's page in the button's place; every other award face up, in the
+             admin's order; then the final table and the day's results -->
         <div class="end" class:fresh>
-          {#if others.length}
-            <ol class="grid" aria-label="The awards">
-              {#each others as { a, i } (a.name)}
-                <li>
-                  <AwardStage
-                    {type}
-                    tournament={t}
-                    award={a}
-                    at={i}
-                    count={awards.length}
-                    face="up"
-                    finale={false}
-                    small
-                  />
-                </li>
-              {/each}
-            </ol>
-          {/if}
+          <p class="cue">
+            <a class="btn outline" href={back.href}><Icon name="chevronLeft" size={18} />The {type.shortName}</a>
+          </p>
+          <AwardsWon {type} tournament={t} hero={false} />
           <FinalResults {type} tournament={t} />
         </div>
       {/if}
@@ -277,17 +264,6 @@
   /* Live, it comes in once the last beat's landed; opened late, it's just there */
   .end.fresh {
     animation: award-fade-in 400ms both;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-    gap: var(--s-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  .grid li {
-    display: grid;
   }
   @media (prefers-reduced-motion: reduce) {
     .after-beat .cue-in {
