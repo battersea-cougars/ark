@@ -161,7 +161,7 @@ manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The
   it's all there at once. The same for everyone. Every beat plays from the
   change of state (`beatOf`: sealed to face up is the reveal, face up to the next sealed is Next award), so every
   phone sees the same moments; opened late, reloaded, or a step missed, it's just where it is, nothing replayed; the
-  button comes back once the beat's landed. Every beat's timing is one block (`lib/award-reveal.css`: keyframes and
+  button stays under the card, dimmed and untappable while the beat plays, lit once it's landed. Every beat's timing is one block (`lib/award-reveal.css`: keyframes and
   custom properties: the dissolve, the zoom, the heartbeat, the fade, the delay after it, the roll, the hanko, the
   champions' line, the spotlight), to tune or swap. Reduced motion: crossfades only, no heartbeat, ring, roll or zoom,
   the champions' line still shown.
@@ -592,3 +592,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The awards page's end, as the user asked: the champions the hero, up on the stage; every other award
   a smaller card in a grid under them, face up; then the final table and the results (`lib/FinalResults`, the
   after-party's too). The winners list and its link are gone.
+- 2026-10-23: The awards page's button stays in place while a beat plays, dimmed and untappable, and lights up once it's
+  landed; it no longer vanished and came back, which read as a delay.

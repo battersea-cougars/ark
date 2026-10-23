@@ -164,8 +164,8 @@
       {/if}
 
       {#if !ended}
-        <!-- Under the card: whoever runs it, the one button; everyone else, where it's at. Its room kept; its coming
-             back after the last beat is the end -->
+        <!-- Under the card: whoever runs it, the one button; everyone else, where it's at. Its room kept; it's dimmed
+             while a beat plays, and its waking after the last beat is the end -->
         <div class="cue" class:after-beat={!!beat} aria-live="polite">
           {#key `${shown.at}:${shown.face}`}
             <div class="cue-in" onanimationstart={(e) => e.target === e.currentTarget && land()}>
@@ -250,9 +250,10 @@
     justify-items: center;
     gap: var(--s-2);
   }
-  /* Back once the beat's landed (lib/award-reveal.css --beat-ms), so a tap waits for the moment */
+  /* Dimmed while the beat plays, lit once it's landed (lib/award-reveal.css --beat-ms): it stays put, and a tap
+     waits for the moment */
   .after-beat .cue-in {
-    animation: award-fade-in 240ms var(--beat-ms) both;
+    animation: award-wake 240ms var(--beat-ms) both;
   }
   .cue-line {
     max-width: 30rem;

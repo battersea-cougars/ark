@@ -22,7 +22,7 @@
   --roll-delay: calc(var(--pulse-ms) + var(--fade-ms) + var(--line-ms));
   --roll-ms: 650ms;
   --stamp-delay: calc(var(--roll-delay) + var(--roll-ms) + 60ms);
-  /* The button under the card comes back once it's all landed */
+  /* The button under the card wakes (lit, tappable) once it's all landed */
   --beat-ms: calc(var(--stamp-delay) + 450ms);
   /* The champions: only the finale uses these */
   --spot-in-ms: 600ms;
@@ -65,6 +65,13 @@
 @keyframes award-fade-in {
   from {
     opacity: 0;
+  }
+}
+/* The button under the card while a beat plays: there, dimmed, not to be tapped till the moment's landed */
+@keyframes award-wake {
+  from {
+    opacity: 0.35;
+    pointer-events: none;
   }
 }
 /* The roll, a motor's: slow to start, quicker, a knock as it stops (a touch past and back) */
