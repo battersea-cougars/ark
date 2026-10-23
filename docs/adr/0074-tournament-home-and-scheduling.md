@@ -89,7 +89,7 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   the last) near the top, brought forward (full size, bright, raised), a sliver of the one before over it and the ones
   after below, smaller and dim, the depth following the scroll; a thumb scrolls it a match a snap, a desktop has
   arrows, ↑/↓ and the wheel. It glides to the new current match unless someone's just been looking along it; Back to
-  now when the one in front isn't it; a tap on a peeking one brings it forward. On a phone a card's stamp (KUMITE!, You
+  now when the one in front isn't it, and back by itself once it's been left alone 8 seconds; a tap on a peeking one brings it forward. On a phone a card's stamp (KUMITE!, You
   are next!, a result) is a sticker on its top edge, so no card is taller for one; the names are one line, plain text
   (the card opens the match, whose page links both teams, with a chevron); where a team is a link it looks like one.
 - **Manage** (the gear) holds every job, a row each, never a menu inside the menu, in the order they're needed: the
@@ -410,3 +410,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   forward does the jobs in between, and Teams set chooses everyone still to pick at random, in production too (one
   goalie a team, captains told). `POST /api/tournaments/:id/move { from, to }`, refused with a 409 when the page is out
   of date, audited `tournament.moved` (from, to, what was done).
+- 2026-10-23: The KUMITE! carousel goes back to the current match by itself, 8 seconds after it was last touched,
+  scrolled or hovered, so a phone left on an old match catches up.

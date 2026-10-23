@@ -5,7 +5,8 @@
   // as the draft's ticker lifts the pick on the clock. A thumb scrolls it, a match a snap; on a desktop the arrows
   // beside it, ↑/↓ once it's focused, or the wheel. It opens on the current match and glides to the new one when that
   // changes, unless someone's just been looking along it. A tap on the one in front opens it; on one peeking, brings
-  // it forward. Back to now, when the one in front isn't the current one. Less motion: no scaling, a plain snap.
+  // it forward. Back to now, when the one in front isn't the current one, and on its own once they've left it alone a
+  // while. Less motion: no scaling, a plain snap.
   import type { Tournament } from "../demo/model";
   import GameCard from "./GameCard.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -22,6 +23,9 @@
   // When someone last moved it themselves: a change to the current match doesn't pull it away from them for a while
   let touched = 0;
   const LEAVE_ALONE_MS = 5000;
+  // Left on another match: after this long untouched it glides back to the current one by itself
+  const DRIFT_BACK_MS = 8000;
+  let driftBack: ReturnType<typeof setTimeout> | undefined;
 
   const items = () => [...(box?.querySelectorAll<HTMLElement>(":scope > .item") ?? [])];
   /** Where the one in front sits: near the band's top, a sliver of the one before showing over it. */
@@ -66,13 +70,24 @@
   const onScroll = () => {
     if (!frame) frame = requestAnimationFrame(measure);
   };
-  const byHand = () => (touched = Date.now());
+  function backToNow() {
+    touched = 0;
+    bring(games.findIndex((g) => g.id === current?.id));
+  }
+  function byHand() {
+    touched = Date.now();
+    clearTimeout(driftBack);
+    driftBack = setTimeout(() => {
+      if (!atNow && !document.hidden) backToNow();
+    }, DRIFT_BACK_MS);
+  }
 
   onMount(() => {
     void tick().then(() => {
       bring(Math.max(0, games.indexOf(current!)), false);
       measure();
     });
+    return () => clearTimeout(driftBack);
   });
   // The current match moved on (a result in, the next one started): glide to it, unless they're looking elsewhere
   let lastCurrent: number | undefined;
@@ -112,7 +127,9 @@
     bind:this={box}
     onscroll={onScroll}
     ontouchstart={byHand}
+    ontouchmove={byHand}
     onwheel={byHand}
+    onpointermove={byHand}
     onkeydown={key}
     tabindex="0"
     aria-label="Matches, in order of play"
@@ -140,15 +157,8 @@
     >
   </div>
   <!-- Always there, shown only when the one in front isn't the current one, so nothing moves when it appears -->
-  <button
-    class="btn sm now"
-    class:shown={!atNow}
-    tabindex={atNow ? -1 : 0}
-    aria-hidden={atNow}
-    onclick={() => {
-      touched = 0;
-      bring(games.findIndex((g) => g.id === current?.id));
-    }}><Icon name="clock" size={14} />Back to now</button
+  <button class="btn sm now" class:shown={!atNow} tabindex={atNow ? -1 : 0} aria-hidden={atNow} onclick={backToNow}
+    ><Icon name="clock" size={14} />Back to now</button
   >
 </div>
 
