@@ -7,7 +7,6 @@ import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { champion } from "./fixtures";
 import { clockRange, formatDayDate, londonEvening, londonISO, londonToday } from "./dates";
 import { signupOpen } from "./signup";
-import { revealOf } from "./afters";
 
 export type EditionState = "live" | "done" | "open" | "planned";
 
@@ -99,11 +98,10 @@ export function playedOn(t: Tournament): string | null {
 
 /**
  * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening it was played
- * (`evening`, lib/dates.ts londonEvening), until its last award's revealed: then it's over, history, and the page is
- * back to the next one. Results typed in on another day, or one with only a season, go straight to history.
+ * (`evening`, lib/dates.ts londonEvening), the awards revealed or not: once they are, its page is its results, Done.
+ * Results typed in on another day, or one with only a season, go straight to history.
  */
-export const atAfters = (t: Tournament, evening: string) =>
-  editionState(t) === "done" && playedOn(t) === evening && !revealOf(t).all;
+export const atAfters = (t: Tournament, evening: string) => editionState(t) === "done" && playedOn(t) === evening;
 
 /**
  * The one on or coming up, which a series' running pages show (its fight card, board, teams, draft): its latest, unless

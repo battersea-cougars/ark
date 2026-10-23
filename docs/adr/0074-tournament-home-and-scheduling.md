@@ -616,6 +616,6 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   last match's kick-off's (lib/edition.ts playedOn). A match starts on any day, so a Kumite dated next summer (or by
   season only) played tonight went straight to history, "No Kumite yet", its awards unreachable. Results typed in
   with no match kicked off keep to its own day.
-- 2026-10-23: The last award revealed ends it: the after-party (lib/edition.ts atAfters) is over then, not at 06:00,
-  so the series' page goes back to Nothing on the card with Next Kumite, and the one just played is first in Past
-  Kumites, where its page keeps the awards, the final table and the results.
+- 2026-10-23: The last award revealed, it's Done (the stamp), but its page stays its results, the track and every
+  status to look back through, till the morning after its evening (lib/edition.ts atAfters); then the series' page
+  is back to Nothing on the card with Next Kumite, and it's first in Past Kumites.

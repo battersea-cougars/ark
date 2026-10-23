@@ -4,6 +4,7 @@
 // match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { atAfters, editionState, stageOf } from "./edition";
+import { revealOf } from "./afters";
 import { signupOpen, signupOver } from "./signup";
 import { orderDrawn } from "./draft";
 import type { MotifKey } from "./motif";
@@ -222,8 +223,11 @@ export function stageBadge(
   const status = statusOf(t, today);
   const mark = STATUS_MARK[status];
   const { label } = statusLabel(status, t, type, afterName);
+  // At The Anchor until the last award's out: then Done, though its page stays its results that evening
   if (status === "afters")
-    return afterMomentOf(t, today) === "now" ? { label, tone: "done", mark } : { label: "Done", tone: "done", mark };
+    return afterMomentOf(t, today) === "now" && !revealOf(t).all
+      ? { label, tone: "done", mark }
+      : { label: "Done", tone: "done", mark };
   if (status === "signup" && editionState(t) !== "open") return { label: "Coming up", tone: "quiet", mark };
   return { label, tone: status === "day" ? "live" : "on", mark };
 }

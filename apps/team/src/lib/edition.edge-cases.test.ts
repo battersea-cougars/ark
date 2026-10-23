@@ -166,7 +166,7 @@ describe("the after-party is the evening it was played, whatever its date says (
   });
 });
 
-describe("every award revealed, it's over: the page goes back to the next one (ADR 0074)", () => {
+describe("every award revealed: done, its results on its page that evening, then history (ADR 0074)", () => {
   const champs = { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } };
   const night = (revealed: number) =>
     cup({
@@ -174,14 +174,19 @@ describe("every award revealed, it's over: the page goes back to the next one (A
       awards: [champs, { ...champs, name: "Top scorer" }] as never,
       awardsRevealed: revealed,
     });
+  const kumite = { shortName: "Kumite" } as never;
 
-  it("an award still to reveal: still at The Anchor, still the one on", () => {
-    expect(atAfters(night(1), "2026-11-14")).toBe(true);
+  it("an award still to reveal: at The Anchor", () => {
     expect(currentOf([night(1)], "2026-11-14", "2026-11-14")?.id).toBe(1);
+    expect(stageBadge(night(1), kumite, "2026-11-14", "The Anchor").label).toBe("The Anchor");
   });
 
-  it("the last one revealed: history, nothing on, the same evening", () => {
-    expect(atAfters(night(2), "2026-11-14")).toBe(false);
-    expect(currentOf([night(2)], "2026-11-14", "2026-11-14")).toBeUndefined();
+  it("the last one revealed: still its page that evening, its results, the stamp Done", () => {
+    expect(currentOf([night(2)], "2026-11-14", "2026-11-14")?.id).toBe(1);
+    expect(stageBadge(night(2), kumite, "2026-11-14", "The Anchor").label).toBe("Done");
+  });
+
+  it("the morning after: history, nothing on", () => {
+    expect(currentOf([night(2)], "2026-11-15", "2026-11-15")).toBeUndefined();
   });
 });
