@@ -586,8 +586,8 @@
     transform: scale(0.72);
     transform-origin: top right;
   }
-  /* Turned over while you watch: the face-up card rolls down over the sealed one, whole, in one roll (the card
-     clips it), then the hanko comes down */
+  /* Turned over while you watch: the face-up card rolls down into view as the sealed one rolls down and away, one
+     drum, in one roll (the card clips them), then the hanko comes down */
   .turning {
     overflow: clip;
     border-radius: var(--r-lg);
@@ -595,8 +595,29 @@
   .turning .front {
     animation: roll-in var(--roll) both;
   }
+  /* One machine: the sealed card rolls down and away on the same drum, just ahead of the face coming in */
+  .turning .back {
+    animation: roll-out var(--roll) both;
+  }
   /* One roll, like a scoreboard's drum: slow to start (the drum's weight to get over), quicker and quicker, then a
      knock as it stops, a touch past and back */
+  @keyframes roll-out {
+    0% {
+      transform: none;
+      animation-timing-function: cubic-bezier(0.7, 0, 0.95, 0.55);
+    }
+    80% {
+      transform: translateY(119%);
+      animation-timing-function: ease-out;
+    }
+    90% {
+      transform: translateY(113.5%);
+      animation-timing-function: ease-in-out;
+    }
+    100% {
+      transform: translateY(115%);
+    }
+  }
   @keyframes roll-in {
     0% {
       transform: translateY(-115%);
@@ -738,7 +759,8 @@
   /* Reduced motion: no roll, no hanko coming down and no rise; the face-up card and
      the next card fade in */
   @media (prefers-reduced-motion: reduce) {
-    .turning .stamp {
+    .turning .stamp,
+    .turning .back {
       animation: none;
     }
     .turning .front {
