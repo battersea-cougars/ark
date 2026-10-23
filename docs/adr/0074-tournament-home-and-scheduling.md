@@ -30,7 +30,7 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   Tomorrow, This Friday, In 7 days; `countdownOf` in `lib/edition.ts`; a phone drops the hours to keep it one line);
   further off, the date leads with "in 24 days" quiet after it. The second: the place on the map (pin) and, beside it,
   where everyone goes after (a pint glass: "📍Battersea Sports Centre · 🍺The Anchor"); just a season, "Day to be set".
-  Its actions, the same on every status: **Rules** (one sheet, a topic each: Sign-up, The draft, Format, Points,
+  Its actions, the same on every status: **Rules** (one sheet, a topic a page: Sign-up, The draft, Format, Points,
   Penalties, House rules; `formatAndRules` in `lib/format-rules.ts`, from what's stored and enforced, nothing invented;
   a series' house rules are plain text an admin writes, `tournament_types.house_rules`) and **Manage** (the gear).
 - **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date
@@ -348,3 +348,9 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   Sign-up open opens it again.
 - 2026-10-23: "As a member, the sign-up card should be styled like the Friday training card." (the user). Sign-up
   open is the Friday card (lib/EventCard: are you in, In / Out, your number), then Who's in with the Kumite's kanji.
+- 2026-10-23: The header's status "lacks imagination" next to your answer, both green (the user). The status is one
+  ink stamp in the club's red, the status's kanji in a block of ink, the ink patchy, the edge uneven, askew; every
+  status alike, KUMITE! filled; the after-party and Done in bone; no green. Your answer is your choice, not a status:
+  a tick (red) or a cross, plain words, a caret; it steps aside while the sign-up card is on the page. Rules is a
+  topic a page ("Pages would be better" than scrolling to it): the tabs, a swipe on a phone, the topics either side at
+  the foot; it opens on the status's topic; each rule leads with its fact in bold, its figures standing out.

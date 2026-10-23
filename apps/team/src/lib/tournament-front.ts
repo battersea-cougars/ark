@@ -6,6 +6,7 @@ import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { editionState, stageOf } from "./edition";
 import { signupOpen, signupOver } from "./signup";
 import { orderDrawn } from "./draft";
+import type { MotifKey } from "./motif";
 
 /** Your team in it, as its captain or a player: its place in the teams, or -1. */
 export const myTeamIndex = (t: Tournament, me: number) =>
@@ -186,29 +187,36 @@ export function onTheDayOf(t: Tournament, me: number) {
   return { now, after, live: !!live, yours: yours && yours !== now && yours !== after ? yours : undefined };
 }
 
-export type BadgeTone = "open" | "live" | "set" | "done" | "quiet";
+export type BadgeTone = "on" | "live" | "quiet" | "done";
+
+/** Each status's kanji on its stamp (lib/motif.ts): open, the lots drawn, decided, the matches, the Kumite, the prize. */
+export const STATUS_MARK: Record<Status, MotifKey> = {
+  signup: "open",
+  draft: "draw",
+  teams: "sealed",
+  fixtures: "fights",
+  day: "onTheMat",
+  afters: "awards",
+};
 
 /**
- * The stamp in a tournament's header (every page of the series): its stage, in words. Sign-up open (or coming up), the
- * draft live, the teams set, the fixtures out, then on the day its own name shouted, KUMITE!; under way on another
- * day, on now; every game played, done.
+ * The stamp in a tournament's header (every page of the series): the status it's at, as the track says it, with the
+ * status's kanji (ADR 0074). Every one the same ink stamp ("on"); before sign-up opens it's Coming up, faint; the day
+ * (KUMITE!, or a match under way) the loudest; every match played, the after-party's name that evening, then Done.
  */
-export function stageBadge(t: Tournament, type: Pick<TournamentType, "shortName">, today: string) {
-  const state = editionState(t);
-  const badge = (label: string, tone: BadgeTone) => ({ label, tone });
-  if (state === "done") return badge("Done", "done");
-  switch (stageOf(t)) {
-    case "signup":
-      return state === "open" ? badge("Sign-up open", "open") : badge("Coming up", "quiet");
-    case "draft":
-      return badge("Draft live", "live");
-    case "teams":
-      return badge("Teams set", "set");
-    case "fixtures":
-      if (!t.season && t.heldOn === today) return badge(`${type.shortName}!`, "live");
-      if (state === "live") return badge("On now", "live");
-      return badge("Fixtures set", "set");
-  }
+export function stageBadge(
+  t: Tournament,
+  type: Pick<TournamentType, "shortName">,
+  today: string,
+  afterName?: string | null,
+): { label: string; tone: BadgeTone; mark: MotifKey } {
+  const status = statusOf(t, today);
+  const mark = STATUS_MARK[status];
+  const { label } = statusLabel(status, t, type, afterName);
+  if (status === "afters")
+    return afterMomentOf(t, today) === "now" ? { label, tone: "done", mark } : { label: "Done", tone: "done", mark };
+  if (status === "signup" && editionState(t) !== "open") return { label: "Coming up", tone: "quiet", mark };
+  return { label, tone: status === "day" ? "live" : "on", mark };
 }
 
 /** When the afterwards shows on the front page (ADR 0074). */

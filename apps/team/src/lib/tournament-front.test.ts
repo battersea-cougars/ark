@@ -169,28 +169,34 @@ describe("onTheDayOf: the match on now and the next, nothing else", () => {
   });
 });
 
-describe("stageBadge: the stamp says where it is", () => {
-  it("sign-up open (coming up before it opens), the draft live, the teams set", () => {
-    expect(stageBadge(draft(), kumite, TODAY)).toEqual({ label: "Sign-up open", tone: "open" });
-    expect(stageBadge(draft({ status: "planned", signupOpensOn: "2026-11-01" }), kumite, TODAY).label).toBe(
-      "Coming up",
-    );
-    expect(stageBadge(draft({ draftState: "open" }), kumite, TODAY)).toEqual({ label: "Draft live", tone: "live" });
-    expect(stageBadge(teamsSet(), kumite, TODAY)).toEqual({ label: "Teams set", tone: "set" });
+describe("stageBadge: the stamp says the status, as the track does", () => {
+  const stamp = (t: Tournament, type = kumite, today = TODAY) => {
+    const b = stageBadge(t, type, today, "The Anchor");
+    return [b.label, b.tone, b.mark];
+  };
+  it("sign-up open (coming up before it opens), the draft open once sign-up's closed, the teams set", () => {
+    expect(stamp(draft())).toEqual(["Sign-up open", "on", "open"]);
+    expect(stamp(draft({ status: "planned", signupOpensOn: "2026-11-01" }))).toEqual(["Coming up", "quiet", "open"]);
+    expect(stamp(draft({ signupClosesOn: "2026-10-20" }))).toEqual(["Draft open", "on", "draw"]);
+    expect(stamp(draft({ draftState: "open" }))).toEqual(["Draft open", "on", "draw"]);
+    expect(stamp(teamsSet())).toEqual(["Teams set", "on", "sealed"]);
   });
 
-  it("fixtures out: Fixtures set before the day, for every type; on the day itself its own name shouted", () => {
-    expect(stageBadge(fixtures(), kumite, TODAY)).toEqual({ label: "Fixtures set", tone: "set" });
-    expect(stageBadge(fixtures(), cup, TODAY).label).toBe("Fixtures set");
-    expect(stageBadge(fixtures({ heldOn: TODAY }), kumite, TODAY)).toEqual({ label: "Kumite!", tone: "live" });
-    expect(stageBadge(fixtures({ heldOn: TODAY }), cup, TODAY).label).toBe("Cup!");
-  });
-
-  it("under way on another day: on now; every game played: done", () => {
+  it("fixtures out: Fixtures set before the day, for every type; on the day its own name shouted, the loudest", () => {
+    expect(stamp(fixtures())).toEqual(["Fixtures set", "on", "fights"]);
+    expect(stamp(fixtures(), cup)[0]).toBe("Fixtures set");
+    expect(stamp(fixtures({ heldOn: TODAY }))).toEqual(["Kumite!", "live", "onTheMat"]);
+    expect(stamp(fixtures({ heldOn: TODAY }), cup)[0]).toBe("Cup!");
+    // Under way on another day: it's the day all the same
     const going = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3)] as never });
-    expect(stageBadge(going, kumite, TODAY)).toEqual({ label: "On now", tone: "live" });
-    const over = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
-    expect(stageBadge(over, kumite, TODAY)).toEqual({ label: "Done", tone: "done" });
+    expect(stamp(going)).toEqual(["Kumite!", "live", "onTheMat"]);
+  });
+
+  it("every match played: the after-party's name that evening, then Done", () => {
+    const over = (heldOn: string) =>
+      fixtures({ heldOn, games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
+    expect(stamp(over(TODAY))).toEqual(["The Anchor", "done", "awards"]);
+    expect(stamp(over("2026-10-01"))).toEqual(["Done", "done", "awards"]);
   });
 });
 

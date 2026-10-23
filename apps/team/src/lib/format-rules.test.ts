@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatAndRules } from "./format-rules";
+import { formatAndRules, lineText, type RulesSection } from "./format-rules";
+
+/** A topic as sentences, its fact first. */
+const said = (x: RulesSection | undefined) => x && { title: x.title, lines: x.lines.map(lineText) };
 
 const kumite = {
   kind: "draft" as const,
@@ -26,38 +29,50 @@ describe("formatAndRules: a tournament's format and rules, from what it stores",
         signupClosesOn: "2026-11-09",
         feePence: 1000,
       })[0],
+    ).toMatchObject({ id: "signup" });
+    expect(
+      said(
+        formatAndRules({
+          ...kumite,
+          capacity: 24,
+          signupOpensOn: "2026-11-02",
+          signupClosesOn: "2026-11-09",
+          feePence: 1000,
+        })[0],
+      ),
     ).toEqual({
       title: "Sign-up",
       lines: [
-        "Members say they're in; the captains draft them into teams.",
-        "24 places; after that, a waiting list in the order people said they're in.",
-        "Sign-up opens Mon 2 Nov.",
-        "It closes at the end of Mon 9 Nov.",
+        "Members sign up, and the captains draft them into teams.",
+        "24 places, then a waiting list in the order people said they're in.",
+        "Opens Mon 2 Nov.",
+        "Closes at the end of Mon 9 Nov, or sooner if an admin closes it.",
         "£10 to play.",
       ],
     });
-    expect(formatAndRules({ ...kumite, kind: "teams" })[0].lines).toEqual([
+    expect(said(formatAndRules({ ...kumite, kind: "teams" })[0])!.lines).toEqual([
       "Teams enter with their captain and players.",
-      "It stays open up to the day.",
+      "Open up to the day, unless an admin closes it sooner.",
     ]);
   });
 
   it("the draft: the rules it enforces, for a draft only", () => {
     expect(formatAndRules(kumite)[1].title).toBe("The draft");
-    expect(formatAndRules(kumite)[1].lines).toContain(
-      "One goalie a team: once a team has one, the rest are off the menu.",
-    );
+    expect(formatAndRules(kumite)[1].lines).toContainEqual({
+      key: "One goalie a team",
+      rest: ": once a team has one, the rest are off the menu.",
+    });
     expect(formatAndRules({ ...kumite, kind: "teams" }).map((s) => s.title)).not.toContain("The draft");
   });
 
   it("the format: the draft, the round robin and its final, its fair order, the match length and gap, the first match", () => {
-    expect(formatAndRules(kumite).find((x) => x.title === "Format")).toEqual({
+    expect(said(formatAndRules(kumite).find((x) => x.title === "Format"))).toEqual({
       title: "Format",
       lines: [
         "A round robin: every team plays every other once, then the Final (1st v 2nd).",
-        "The order gives everyone the longest break it can: nobody plays twice running unless it can't be helped.",
+        "The longest break it can: nobody plays twice running unless it can't be helped.",
         "12-minute games, 5 minutes between matches.",
-        "The first match at 7:30pm.",
+        "First match at 7:30pm.",
       ],
     });
   });
@@ -71,27 +86,28 @@ describe("formatAndRules: a tournament's format and rules, from what it stores",
       breakMinutes: 2,
       season: "summer",
     }).find((x) => x.title === "Format")!;
-    expect(format.lines).toEqual([
+    expect(format.lines.map(lineText)).toEqual([
       "A round robin: every team plays every other once.",
-      "The order gives everyone the longest break it can: nobody plays twice running unless it can't be helped.",
+      "The longest break it can: nobody plays twice running unless it can't be helped.",
       "Games of 3 × 12-minute periods, 2-minute breaks, 5 minutes between matches.",
     ]);
   });
 
   it("points as set, ranked as the board ranks them; the penalty rule and usual length", () => {
     const [, , , points, penalties] = formatAndRules({ ...kumite, pointsDraw: 0 });
-    expect(points.lines).toEqual([
-      "3 points for a win, 0 points for a draw, 0 points for a loss.",
+    expect(points.lines.map(lineText)).toEqual([
+      "3 points a win, 0 points a draw, 0 points a loss.",
       "Level on points: goal difference, then goals scored.",
     ]);
-    expect(penalties.lines).toEqual([
+    expect(points.lines[0].key).toBe("3 points a win");
+    expect(penalties.lines.map(lineText)).toEqual([
       "Penalty shot: the other team takes a shot; the player sits out, nobody plays short.",
       "Usually a minor (2 min).",
     ]);
   });
 
   it("house rules a line each, blank lines dropped; none written, no section", () => {
-    expect(formatAndRules(kumite, "No slapshots.\n\n  Helmets on.  ").at(-1)).toEqual({
+    expect(said(formatAndRules(kumite, "No slapshots.\n\n  Helmets on.  ").at(-1))).toEqual({
       title: "House rules",
       lines: ["No slapshots.", "Helmets on."],
     });

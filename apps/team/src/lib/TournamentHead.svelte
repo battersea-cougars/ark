@@ -17,7 +17,14 @@
   import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
   import { countdownOf, editionState, editionWhen } from "./edition";
-  import { stageBadge, type Status } from "./tournament-front";
+  import { stageBadge, statusOf, type Status } from "./tournament-front";
+  import { kanjiFor, type MotifKey } from "./motif";
+  import Kanji from "./Kanji.svelte";
+  import type { IconName } from "../app/shell/icons";
+  import type { RulesTopic } from "./format-rules";
+  import { signupOpen } from "./signup";
+  import { prefersReducedMotion } from "../app/motion";
+  import { cubicOut } from "svelte/easing";
   import { makeFixtures } from "../app/backend.svelte";
   import { formatAndRules } from "./format-rules";
   import StageTrack from "./StageTrack.svelte";
@@ -60,10 +67,13 @@
     viewing?: Status | null;
   } = $props();
 
-  // Where it's got to, as the stamp says it (lib/tournament-front.ts): sign-up open, the draft live, the teams set,
-  // the fixtures out, KUMITE! on the day, done
-  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday()) : null);
   const when = $derived(tournament ? editionWhen(tournament) : null);
+  // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
+  const after = $derived(tournament ? tournamentAfter(tournament) : null);
+  // Where it's got to, as the stamp says it (lib/tournament-front.ts): the status, as the track names it, with its
+  // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor
+  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday(), after?.name) : null);
+  const mark = $derived(stage ? kanjiFor(type, stage.mark) : "");
   // Where it is, opening the map (its venue's link, else a search for its name)
   const place = $derived(tournament ? tournamentPlace(tournament) : null);
   // How far off the day is (lib/edition.ts countdownOf): within a week it leads the line, big, in the club's red
@@ -73,8 +83,6 @@
   );
   const lead = $derived(countdown && "lead" in countdown ? countdown.lead : "");
   const quiet = $derived(countdown && "quiet" in countdown ? countdown.quiet : "");
-  // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
-  const after = $derived(tournament ? tournamentAfter(tournament) : null);
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
   // Whoever runs the draft takes back the draft's own steps too (the drawn order, the picks): from here, the one
   // Back on the page (lib/StepBack), not one of the draft's as well
@@ -95,23 +103,86 @@
   let logOpen = $state(false);
   let menuOpen = $state(false);
   let rulesOpen = $state(false);
-  // Your answer, as a badge in the header once you've given it (ADR 0074): in, waiting or out
+  // Your answer once you've given it (ADR 0074): in, waiting or out, as the Friday card's answer says it (a tick, a
+  // cross), never like the status's stamp; it opens a small sheet to change it. Not while the sign-up card is on the
+  // page under it, where you answer (pages/Games)
+  const signingUp = $derived(
+    !!tournament &&
+      viewing === "signup" &&
+      statusOf(tournament, londonToday()) === "signup" &&
+      signupOpen(tournament, londonToday()),
+  );
   const answered = $derived.by(() => {
-    if (!tournament || !track) return null;
+    if (!tournament || !track || signingUp) return null;
     const id = me().id;
-    if (tournament.going.includes(id)) return { label: "You're in", tone: "in", going: true };
-    if (tournament.waitlist.includes(id)) return { label: "Waiting", tone: "wait", going: true };
-    if (tournament.out?.includes(id)) return { label: "You're out", tone: "out", going: false };
+    if (tournament.going.includes(id)) return { label: "You're in", short: "In", tone: "in", icon: "check" as const };
+    if (tournament.waitlist.includes(id))
+      return { label: "Waiting", short: "Waiting", tone: "wait", icon: "clock" as const };
+    if (tournament.out?.includes(id)) return { label: "You're out", short: "Out", tone: "out", icon: "x" as const };
     return null;
   });
   let answerOpen = $state(false);
   let answerAt = $state<HTMLElement | undefined>();
-  function jump(topic: string) {
-    document
-      .querySelector(`[data-topic="${CSS.escape(topic)}"]`)
-      ?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
+  // Rules, a topic a page (ADR 0074): the tabs change the page, which slides in the way you went; on a phone a swipe
+  // does too. It opens on the topic for the status it's at, and keeps to the one you're on while it's open
   const rules = $derived(tournament ? formatAndRules(tournament, type.houseRules) : []);
+  const TOPIC_FOR: Record<Status, RulesTopic[]> = {
+    signup: ["signup"],
+    draft: ["draft", "signup"],
+    teams: ["format"],
+    fixtures: ["format"],
+    day: ["points"],
+    afters: ["points"],
+  };
+  const TOPIC_LOOK: Record<RulesTopic, { mark: MotifKey; icon: IconName }> = {
+    signup: { mark: "open", icon: "userPlus" },
+    draft: { mark: "draw", icon: "draft" },
+    format: { mark: "fights", icon: "swords" },
+    points: { mark: "results", icon: "medal" },
+    penalties: { mark: "blood", icon: "whistle" },
+    house: { mark: "martial", icon: "rules" },
+  };
+  let topic = $state<RulesTopic>("signup");
+  let topicDir = $state(1);
+  const topicAt = $derived(
+    Math.max(
+      0,
+      rules.findIndex((x) => x.id === topic),
+    ),
+  );
+  function openRules() {
+    const at = tournament ? statusOf(tournament, londonToday()) : "signup";
+    topic = TOPIC_FOR[at].find((id) => rules.some((x) => x.id === id)) ?? rules[0]?.id ?? "signup";
+    rulesOpen = true;
+  }
+  function toTopic(i: number) {
+    const next = rules[i];
+    if (!next || i === topicAt) return;
+    topicDir = i > topicAt ? 1 : -1;
+    topic = next.id;
+  }
+  // A swipe across the page (not down it) turns it
+  let swipeFrom: { x: number; y: number } | null = null;
+  function swipeEnd(e: TouchEvent) {
+    const t = e.changedTouches[0];
+    if (!swipeFrom || !t) return;
+    const dx = t.clientX - swipeFrom.x;
+    const dy = t.clientY - swipeFrom.y;
+    swipeFrom = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) toTopic(topicAt + (dx < 0 ? 1 : -1));
+  }
+  const topicIn = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 280,
+    easing: cubicOut,
+    css: (t: number, u: number) => `transform: translateX(${u * 40 * topicDir}px); opacity: ${t}`,
+  });
+  const topicOut = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 180,
+    css: (t: number, u: number) => `transform: translateX(${-u * 28 * topicDir}px); opacity: ${t}`,
+  });
+  // A rule's figures stand out (places, £, minutes, points): split into words and figures, a figure every other part
+  const figures = (text: string) =>
+    text.split(/(£?\d+(?:[.:]\d+)?(?:am|pm|st|nd|rd|th)?(?:-minute)?(?: × \d+-minute)?)/);
   let stepper = $state<ReturnType<typeof StepBack>>();
   let simulator = $state<ReturnType<typeof SimulateRest>>();
   // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
@@ -201,11 +272,15 @@
     <PageHeader {title} eyebrow={phone.current ? type.shortName : type.name} eyebrowIcon={type.icon}>
       {#snippet badge()}
         {#if stage}
-          <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red live (the
-               draft, the day), green open, the teams and fixtures set plain -->
-          <span class="stamp {stage.tone}" class:on-track={track}>
-            {stage.label}
-          </span>
+          <!-- Where it stands, as an ink stamp in the club's red (the Kumite's hanko: its kanji pressed in a block,
+               the word beside it, the ink a little patchy, the edge uneven, askew). Every status the same stamp;
+               Coming up faint; KUMITE! the loudest, the block of ink filled; the evening's after-party and Done
+               in bone -->
+          <span class="stamp {stage.tone}" role="status" aria-label="Status: {stage.label}"
+            >{#if mark}<span class="stamp-mark" lang="ja" aria-hidden="true">{mark}</span>{/if}<span class="stamp-word"
+              >{stage.label}</span
+            ></span
+          >
         {/if}
         {#if answered}
           <!-- Your answer, once you've given it (ADR 0074): a sticker that opens a small sheet to change it -->
@@ -215,7 +290,12 @@
               aria-haspopup="dialog"
               aria-expanded={answerOpen}
               aria-label="{answered.label}: change it"
-              onclick={() => (answerOpen = !answerOpen)}>{answered.label}<Icon name="chevronDown" size={14} /></button
+              onclick={() => (answerOpen = !answerOpen)}
+              ><span class="said"><Icon name={answered.icon} size={14} /></span><span class="long"
+                >{answered.label}</span
+              ><span class="short">{answered.short}</span><span class="caret"
+                ><Icon name="chevronDown" size={14} /></span
+              ></button
             >
             {#if answerOpen && !phone.current && tournament}
               <!-- A desktop: a small popover under the badge, pointing at it -->
@@ -236,7 +316,7 @@
             aria-haspopup="dialog"
             aria-label="Rules"
             title="Rules"
-            onclick={() => (rulesOpen = true)}><Icon name="rules" size={18} /></button
+            onclick={openRules}><Icon name="rules" size={18} /></button
           >
         {/if}
         {#if tools.length}
@@ -328,29 +408,77 @@
   }}
 />
 
-{#snippet rulesList()}
-  <div class="rules-list">
-    <!-- One Rules, a topic each (ADR 0074): a jump to each, then the topics -->
-    <nav class="topics" aria-label="Topics">
-      {#each rules as section (section.title)}
-        <button type="button" class="btn sm ghost" onclick={() => jump(section.title)}>{section.title}</button>
-      {/each}
-    </nav>
-    {#each rules as section (section.title)}
-      <section data-topic={section.title}>
-        <h3 class="eyebrow">{section.title}</h3>
-        <ul>
-          {#each section.lines as line, i (i)}<li>{line}</li>{/each}
-        </ul>
-      </section>
+{#snippet topicTabs()}
+  <!-- One topic a page (ADR 0074): the app's tabs, one row, scrolling sideways when they don't fit -->
+  <div class="tablist rules-tabs" role="tablist" aria-label="Topics">
+    {#each rules as section, i (section.id)}
+      <button
+        type="button"
+        role="tab"
+        id="rules-tab-{section.id}"
+        aria-selected={section.id === topic}
+        aria-controls="rules-page"
+        onclick={() => toTopic(i)}>{section.title}</button
+      >
     {/each}
+  </div>
+{/snippet}
+{#snippet topicSteps()}
+  <!-- The topics either side, small, at the foot: back and on, the way a swipe goes -->
+  <nav class="topic-steps" aria-label="Other topics">
+    {#if rules[topicAt - 1]}<button type="button" class="step-to" onclick={() => toTopic(topicAt - 1)}
+        ><Icon name="chevronLeft" size={16} />{rules[topicAt - 1].title}</button
+      >{:else}<span></span>{/if}
+    {#if rules[topicAt + 1]}<button type="button" class="step-to on" onclick={() => toTopic(topicAt + 1)}
+        >{rules[topicAt + 1].title}<Icon name="chevronRight" size={16} /></button
+      >{/if}
+  </nav>
+{/snippet}
+{#snippet rulesList()}
+  <!-- The topic showing, from its top: its heading (the kanji on the Kumite, else its icon), then its rules, each
+       its fact first in bold, the figures standing out. A swipe across turns the page -->
+  <div
+    class="rules-pages"
+    id="rules-page"
+    role="tabpanel"
+    tabindex="-1"
+    aria-labelledby="rules-tab-{topic}"
+    ontouchstart={(e) => (swipeFrom = { x: e.touches[0].clientX, y: e.touches[0].clientY })}
+    ontouchend={swipeEnd}
+  >
+    {#key topic}
+      {@const section = rules[topicAt]}
+      {#if section}
+        <section class="rules-page" in:topicIn out:topicOut>
+          <h3 class="topic-title">
+            {#if kanjiFor(type, TOPIC_LOOK[section.id].mark)}<Kanji
+                text={kanjiFor(type, TOPIC_LOOK[section.id].mark)}
+              />
+            {:else}<Icon name={TOPIC_LOOK[section.id].icon} size={20} />{/if}<span>{section.title}</span>
+          </h3>
+          <ol class="rules-items">
+            {#each section.lines as l, i (i)}
+              <li>
+                {#if l.key}<strong
+                    >{#each figures(l.key) as part, j (j)}{#if j % 2}<span class="fig">{part}</span
+                        >{:else}{part}{/if}{/each}</strong
+                  >{/if}{#each figures(l.rest) as part, j (j)}{#if j % 2}<span class="fig">{part}</span
+                    >{:else}{part}{/if}{/each}
+              </li>
+            {/each}
+          </ol>
+        </section>
+      {/if}
+    {/key}
   </div>
 {/snippet}
 {#if tournament && track}
   {#if phone.current}
-    <Sheet bind:open={rulesOpen} title="Rules">{@render rulesList()}</Sheet>
+    <Sheet bind:open={rulesOpen} title="Rules" top={topicTabs} footer={topicSteps} tall>{@render rulesList()}</Sheet>
   {:else}
-    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name}>{@render rulesList()}</Drawer>
+    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name} top={topicTabs} footer={topicSteps}
+      >{@render rulesList()}</Drawer
+    >
   {/if}
 {/if}
 
@@ -399,67 +527,175 @@
   .rules {
     margin-left: auto;
   }
-  .rules-list {
-    display: grid;
-    gap: var(--s-5);
+  /* ─── Rules: one topic a page ─── */
+  /* The tabs, outside the sheet's scroll (its top): one row, sideways when they don't fit */
+  .rules-tabs {
+    min-width: 0;
+    margin-inline: calc(var(--s-1) * -1);
   }
-  .topics {
+  /* The page: one cell, so the topic leaving and the one coming overlap as they slide; never wider than the sheet */
+  .rules-pages {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    overflow-x: clip;
+    touch-action: pan-y;
+  }
+  .rules-page {
+    grid-area: 1 / 1;
+    display: grid;
+    align-content: start;
+    gap: var(--s-4);
+    min-width: 0;
+    max-width: 38rem;
+    padding-top: var(--s-2);
+  }
+  .topic-title {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1);
-  }
-  .rules-list section {
-    scroll-margin-top: var(--s-4);
-    display: grid;
-    gap: var(--s-2);
-  }
-  .rules-list h3 {
+    align-items: center;
+    gap: var(--s-3);
     margin: 0;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-style: italic;
+    font-weight: 400;
+    line-height: 1;
+    text-transform: uppercase;
   }
-  .rules-list ul {
-    display: grid;
-    gap: var(--s-2);
+  .topic-title :global(.kanji) {
     margin: 0;
-    padding-left: 1.1rem;
-    color: var(--fg-body, var(--fg));
+    color: var(--red-hot);
+    font-size: 1.35rem;
+    font-style: normal;
   }
-  .stamp {
+  .topic-title :global(svg) {
+    flex: none;
+    color: var(--red-hot);
+  }
+  /* The rules: a mark each (the tabs' red slash, small), the fact first in bold, the figures in bone */
+  .rules-items {
+    display: grid;
+    gap: var(--s-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .rules-items li {
+    position: relative;
+    padding-left: var(--s-5);
+  }
+  .rules-items li::before {
+    content: "";
+    position: absolute;
+    left: 0.2rem;
+    top: 0.45em;
+    width: 3px;
+    height: 0.75em;
+    background: var(--red);
+    transform: skewX(-24deg);
+  }
+  .rules-items strong {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .fig {
+    color: var(--fg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  /* The topics either side, at the foot: small, quiet, the next one on the right */
+  .topic-steps {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+  .step-to {
     display: inline-flex;
     align-items: center;
-    align-self: center;
-    padding: 0.2rem 0.6rem 0.15rem;
-    border: 2.5px solid currentColor;
-    border-radius: 0.3rem;
+    gap: var(--s-1);
+    min-height: 2.75rem;
+    padding: 0 var(--s-2);
+    border: 0;
+    background: none;
     color: var(--fg-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .step-to:hover {
+    color: var(--fg);
+  }
+  .step-to.on {
+    margin-left: auto;
+  }
+
+  /* ─── The status: an ink stamp ─── */
+  /* The Kumite's hanko, in the club's red: the status's kanji pressed in a block of ink, the word beside it in the
+     display face, the ink a little patchy (a noise mask), the edge uneven, askew. Every status the same stamp, so
+     they read as a family; only its words change */
+  .stamp {
+    --ink: var(--red-hot);
+    display: inline-flex;
+    align-items: stretch;
+    align-self: center;
+    flex: none;
+    overflow: hidden;
+    border: 2px solid var(--ink);
+    border-radius: 0.45rem 0.25rem 0.5rem 0.3rem / 0.3rem 0.5rem 0.25rem 0.45rem;
+    color: var(--ink);
     font-family: var(--font-display);
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     line-height: 1;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     white-space: nowrap;
-    transform: rotate(-4deg);
+    transform: rotate(-3deg);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    -webkit-mask-size: 140px 70px;
+    mask-size: 140px 70px;
   }
-  .stamp.done {
-    color: var(--primary);
+  .stamp-mark {
+    display: inline-grid;
+    place-items: center;
+    padding: 0 0.3rem;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: var(--font-kanji);
+    font-size: 0.9em;
+    font-weight: 900;
+    letter-spacing: 0;
   }
+  .stamp-word {
+    padding: 0.22rem 0.55rem 0.14rem;
+  }
+  /* Before sign-up opens: the same stamp, faint */
+  .stamp.quiet {
+    --ink: var(--fg-muted);
+  }
+  /* KUMITE!: the loudest, the whole stamp a block of ink, the kanji knocked out of it */
   .stamp.live {
+    --ink: var(--red);
+    background: var(--red);
+    color: var(--on-red);
+    box-shadow: 0 0 22px -6px color-mix(in srgb, var(--red) 70%, transparent);
+  }
+  .stamp.live .stamp-mark {
+    background: color-mix(in srgb, var(--bg) 82%, var(--red));
     color: var(--red-hot);
   }
-  .stamp.open {
-    color: var(--green-ink);
-  }
-  .stamp.set {
-    color: var(--fg);
-  }
-  /* A phone: the track under the header says the status, so the stamp makes way for your answer */
-  @media (max-width: 600px) {
-    .stamp.on-track {
-      display: none;
-    }
+  /* The after-party and done: bone, the club's red put away */
+  .stamp.done {
+    --ink: var(--primary);
   }
   .answer-at {
     position: relative;
     display: inline-flex;
+    flex: none;
   }
   /* The desktop's popover: under the badge, an arrow at it, a panel like Manage's */
   .popover {
@@ -486,41 +722,73 @@
     background: var(--surface-1);
     transform: rotate(45deg);
   }
-  /* Your answer: a sticker, like the stamp but filled and quieter, a caret saying it opens */
+  /* Your answer: your choice, not a status, said as the Friday card says it: a tick (in the club's red) or a cross,
+     the word in plain type, a caret saying it opens. No fill, no stamp; under the pointer, a faint one */
   .answered {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.3rem;
     min-height: 1.75rem;
-    padding: 0.1rem 0.45rem 0.05rem 0.55rem;
+    padding: 0 0.4rem;
     border: 0;
-    border-radius: 0.3rem;
-    font-family: var(--font-display);
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: normal;
     line-height: 1;
-    text-transform: uppercase;
+    text-transform: none;
     white-space: nowrap;
-    transform: rotate(-3deg);
+    transition: background-color var(--t-fast) var(--ease-in-out);
   }
-  .answered.in {
-    background: color-mix(in srgb, var(--green-ink) 22%, transparent);
-    color: var(--green-ink);
+  .answered:hover,
+  .answered[aria-expanded="true"] {
+    background: var(--row-hover);
   }
-  .answered.wait {
-    background: color-mix(in srgb, var(--tone-amber) 20%, transparent);
-    color: var(--tone-amber);
+  .answered .said {
+    display: inline-flex;
+    color: var(--red-hot);
   }
-  .answered.out {
-    background: var(--surface-2);
+  .answered.wait .said,
+  .answered.out .said {
     color: var(--fg-muted);
   }
-  /* On a phone it sits in the eyebrow line: no taller than the line, so the header's height never changes */
+  .answered.out {
+    color: var(--fg-muted);
+  }
+  .answered .caret {
+    display: inline-flex;
+    color: var(--fg-subtle);
+  }
+  .answered .short {
+    display: none;
+  }
+  /* On a phone the stamp sits in the eyebrow line: no taller than the line, so the header's height never changes,
+     and your answer says it in a word */
   @media (max-width: 900px) {
     .stamp {
-      padding: 0.05rem 0.4rem 0;
       border-width: 1.5px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+    }
+    .stamp-word {
+      padding: 0.12rem 0.4rem 0.06rem;
+    }
+    .stamp-mark {
+      padding: 0 0.22rem;
+    }
+    .answered {
+      min-height: 1.5rem;
+      font-size: var(--text-xs);
+    }
+  }
+  @media (max-width: 600px) {
+    .answered .long {
+      display: none;
+    }
+    .answered .short {
+      display: inline;
     }
   }
   /* The header's line clamps to two lines on a phone, and WebKit's clamp cuts the countdown short ("TOD…") on one

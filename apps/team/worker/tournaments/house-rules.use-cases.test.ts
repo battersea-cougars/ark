@@ -3,7 +3,7 @@
 // The story: an admin writes the Kumite's house rules in its settings, a rule a line. Every member sees them under
 // Format & rules on the Kumite's page. A wall of text is refused.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { formatAndRules } from "../../src/lib/format-rules";
+import { formatAndRules, lineText } from "../../src/lib/format-rules";
 import { testWorld } from "../testing";
 
 const ROSTER = [
@@ -56,7 +56,8 @@ describe("house rules", () => {
       },
       kumite.houseRules,
     );
-    expect(sections.at(-1)).toEqual({ title: "House rules", lines: ["No slapshots.", "Helmets on, always."] });
+    expect(sections.at(-1)?.title).toBe("House rules");
+    expect(sections.at(-1)?.lines.map(lineText)).toEqual(["No slapshots.", "Helmets on, always."]);
   });
 
   it("a series with none has none to show, and a wall of text is refused", async () => {
