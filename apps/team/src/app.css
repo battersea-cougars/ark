@@ -1388,6 +1388,23 @@ input[type="checkbox"] {
   }
 }
 
+/* A captain, said in a row: the red C the team lists use, and the word, no pill (colour is an accent) */
+.captain-mark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.captain-mark .c {
+  color: var(--red-hot);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
 /* Initials in a disc. In a row, quiet; big (a profile, the member editor, the back of a card), the club's red with
    the display face, so every "this person" header looks the same. */
 .avatar {

@@ -13,7 +13,6 @@
   import PlayerCardZoom from "./PlayerCardZoom.svelte";
   import { goesBy } from "./names";
   import { db } from "../demo/store.svelte";
-  import Icon from "../app/shell/Icon.svelte";
   import Person from "./Person.svelte";
   import { pick } from "./quips";
   import { untrack } from "svelte";
@@ -62,7 +61,8 @@
       >
         {#if numbered}<span class="n num" class:no={fighters}>{fighters ? fighterNo(i + 1) : i + 1}</span>{/if}
         <Person player={p} bare />
-        {#if captains.has(p.id)}<span class="badge"><Icon name="shield" size={12} />Captain</span>{/if}
+        {#if captains.has(p.id)}<span class="captain-mark"><span class="c" aria-hidden="true">C</span>Captain</span
+          >{/if}
         <span class="pos" class:g={p.position === "G"}>{p.position}</span>
       </button>
     {/each}
@@ -145,8 +145,7 @@
     font-size: var(--text-md);
     letter-spacing: 0.03em;
   }
-  .badge {
-    gap: 0.25rem;
+  .captain-mark {
     flex: none;
   }
   .pos {

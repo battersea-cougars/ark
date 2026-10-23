@@ -71,7 +71,7 @@
     {#if team.captainMemberId && byId(team.captainMemberId)}
       <div class="row">
         <Person player={byId(team.captainMemberId)!} />
-        <span class="state"><span class="badge red">Captain</span></span>
+        <span class="state"><span class="captain-mark"><span class="c" aria-hidden="true">C</span>Captain</span></span>
       </div>
     {/if}
     {#each on as p (p.id)}{@render row(p, "off")}{/each}
