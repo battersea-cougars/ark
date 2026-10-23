@@ -6,6 +6,7 @@
   // sends them on its own (ADR 0007; a configurable schedule is #143). Manage (ADR 0065) keeps the bank details.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
+  import { csvCell } from "../lib/csv";
   import MemberSheet from "../lib/MemberSheet.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { can } from "../access/actions";
@@ -64,14 +65,13 @@
 
   /** The report as a spreadsheet: one row per member, a column per bucket. */
   function exportCsv() {
-    const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const money = (p: number) => (p / 100).toFixed(2);
     const lines = [
       ["Name", "Reference", ...BUCKETS, "Total"],
       ...rows.map((r) => [r.player.name, r.reference, ...r.amounts.map(money), money(r.total)]),
       ["Total", "", ...totals.map(money), money(grand)],
     ];
-    const blob = new Blob([lines.map((l) => l.map(cell).join(",")).join("\r\n")], { type: "text/csv" });
+    const blob = new Blob([lines.map((l) => l.map(csvCell).join(",")).join("\r\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `unpaid-fees-${londonToday()}.csv`;
