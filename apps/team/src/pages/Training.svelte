@@ -41,7 +41,8 @@
   import { londonToday } from "../lib/dates";
   import { fade } from "svelte/transition";
   import { resolve, seriesById, seriesNights, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
-  import { offWords, signedUp } from "../lib/night-off";
+  import { nightOn, offWords, signedUp } from "../lib/night-off";
+  import { router } from "../app/router.svelte";
 
   let { seriesId }: { seriesId: number } = $props();
 
@@ -50,7 +51,8 @@
   const last: { series?: ReturnType<typeof seriesById> } = {};
   const series = $derived((last.series = seriesById(seriesId) ?? last.series)!);
   // The next night that's on, and those off from today to it: struck through above it, never just gone
-  const nights = $derived(seriesNights(series));
+  // or the night at the page's address, its date (/training/friday/2026-10-30)
+  const nights = $derived(seriesNights(series, londonToday(), nightOn(router.path, series.slug)));
   const session = $derived(nights.shown);
   const offBefore = $derived(nights.off.filter((n) => n !== session));
   const info = $derived(session && resolve(session, series));

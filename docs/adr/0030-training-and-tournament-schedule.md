@@ -279,3 +279,7 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   moved from the wizard's Sign-up to its Teams step, as the editor has it under Draft & teams. The series' usual values
   stay in the series' settings. The wizard takes its starting answers once, as it opens, so a refresh of the club's
   data while it's open never resets what's been typed.
+- 2026-10-23: Each training night has its own page at its date, `/training/{series}/{yyyy-mm-dd}` (past ones too), as
+  each Kumite has its own: the calendar's and Home's cards for a night open that night, not the series' next one, so
+  with two open a tap on the later one goes to it. The series' address stays its front page, the next night that's on.
+  A date with no night shows the next one.

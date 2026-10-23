@@ -5,7 +5,7 @@ import { atAfters, currentOf, editionState, hasStarted, latestOf } from "../lib/
 import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
-import { trainingNights } from "../lib/night-off";
+import { nightPath, trainingNights } from "../lib/night-off";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
 import { afterOf, placeOf, type Place } from "@cougars/shared/places";
 
@@ -85,7 +85,7 @@ export function sessionBookable(session: TrainingSession): Bookable {
     capacity: r.capacity,
     goalieCapacity: r.goalieCapacity,
     cancelled: r.cancelled,
-    href: `/training/${r.series.slug}`,
+    href: nightPath(r.series.slug, r.heldOn),
     opens,
     entries: session,
   };
@@ -121,9 +121,9 @@ export const signupClosed = (t: Tournament, today = londonToday()) => signupOver
 export const nextSession = (series: TrainingSeries, today = londonToday()): TrainingSession | undefined =>
   trainingNights(db.sessions, series.id, today).shown;
 
-/** A training's page: its next night that's on, and those off from today to it (lib/night-off.ts). */
-export const seriesNights = (series: TrainingSeries, today = londonToday()) =>
-  trainingNights(db.sessions, series.id, today);
+/** A training's page: its next night that's on, and those off from today to it, or one night's own (lib/night-off.ts). */
+export const seriesNights = (series: TrainingSeries, today = londonToday(), on?: string) =>
+  trainingNights(db.sessions, series.id, today, on);
 
 /** A series' latest (lib/edition.ts latestOf): what the app's Home teases. */
 export const latestTournament = (typeId: number, today = londonToday()) =>
