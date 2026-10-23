@@ -127,6 +127,15 @@ export function viewOf(t: Tournament, today: string, rest: string): Status {
   return asked && reached(t, today, asked) ? asked : statusOf(t, today);
 }
 
+/**
+ * What the page's pane shows for a status: the draft is its captains' and whoever runs it (ADR 0060), everyone else
+ * fights blind until it's done. Whoever runs it sees the draft before there are captains too: it asks them to name them.
+ */
+export function paneOf(t: Tournament, view: Status, me: number, runsDraft: boolean): Status | "blind" {
+  if (view !== "draft" || t.kind !== "draft") return view === "draft" ? "blind" : view;
+  return runsDraft || t.teams.some((x) => x.captainMemberId === me) ? "draft" : "blind";
+}
+
 /** The address that shows a status: the page itself for the one it's at, else the status's own. */
 export function statusHref(slug: string, t: Tournament, today: string, s: Status) {
   const base = `/tournaments/${slug}`;

@@ -7,6 +7,7 @@ import {
   nextFightOf,
   nextOf,
   onTheDayOf,
+  paneOf,
   reached,
   stageBadge,
   statusesOf,
@@ -332,5 +333,26 @@ describe("currentMatchOf: the match the carousel brings forward", () => {
     expect(currentMatchOf([game(2, "next", 2, 3), game(1, "next", 1, 2)])?.position).toBe(1);
     expect(currentMatchOf([game(1, "done", 1, 2), game(2, "done", 2, 3)])?.position).toBe(2);
     expect(currentMatchOf([])).toBeUndefined();
+  });
+});
+
+describe("paneOf: the draft is its captains' and whoever runs it (ADR 0060)", () => {
+  const live = draft({ draftState: "open", teams: [team(1, 2), team(2, 4)] });
+
+  it("everyone else fights blind; a captain and whoever runs it see the draft", () => {
+    expect(paneOf(live, "draft", ME, false)).toBe("blind");
+    expect(paneOf(live, "draft", 2, false)).toBe("draft");
+    expect(paneOf(live, "draft", ME, true)).toBe("draft");
+  });
+
+  it("no captains yet: whoever runs it still sees the draft, which asks them to name the captains", () => {
+    const captainless = draft({ draftState: "none", teams: [] });
+    expect(paneOf(captainless, "draft", ME, true)).toBe("draft");
+    expect(paneOf(captainless, "draft", ME, false)).toBe("blind");
+  });
+
+  it("any other status is everyone's", () => {
+    expect(paneOf(live, "signup", ME, false)).toBe("signup");
+    expect(paneOf(teamsSet(), "teams", ME, false)).toBe("teams");
   });
 });

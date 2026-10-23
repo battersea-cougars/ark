@@ -45,7 +45,7 @@
   import { checkForUpdates } from "../lib/live-updates.svelte";
   import { clock, londonToday } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
-  import { afterMomentOf, myTeamIndex, onTheDayOf, statusList, statusOf, viewOf } from "../lib/tournament-front";
+  import { afterMomentOf, myTeamIndex, onTheDayOf, paneOf, statusList, statusOf, viewOf } from "../lib/tournament-front";
   import type { After } from "@cougars/shared/places";
   import YourTeam from "../lib/YourTeam.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
@@ -128,15 +128,10 @@
       closing = false;
     }
   }
-  // The draft is its captains' and whoever runs it (ADR 0060): everyone else fights blind until it's done
-  const inDraft = $derived(teams.some((t) => t.captainMemberId === me().id) || can(perms, "run:Draft"));
-  // Which view's in the pane. Sign-up is everyone's, the draft's runner too (they close it, ADR 0074); then one
-  // Draft goes from the draw to the picking, so the shuffle plays as the draft opens; the teams (complete) are
-  // another, so closing it slides on to them
-  const pane = $derived.by(() => {
-    if (!drafted || !inDraft || teams.length < 2) return view === "draft" ? "blind" : view;
-    return view;
-  });
+  // Which view's in the pane (lib/tournament-front.ts paneOf). Sign-up is everyone's, the draft's runner too (they
+  // close it, ADR 0074); then one Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
+  // the teams (complete) are another, so closing it slides on to them
+  const pane = $derived(tournament ? paneOf(tournament, view, me().id, can(perms, "run:Draft")) : view);
   // The draft being picked, on a phone: the header makes room, the track stays, the players scroll inside
   let picking = $state(false);
   const compact = $derived(phone.current && pane === "draft" && picking);
