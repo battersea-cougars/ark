@@ -612,3 +612,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   edges in (`--drain-ms`), slower for the champions.
 - 2026-10-23: The stage track's badges stand upright: no italic, and the one you're on no longer tilts (bigger only, in
   the red outline). Slanted, they read as buttons; the header's stamp keeps its tilt, being ink.
+- 2026-10-23: The after-party (The Anchor, its awards) is the evening it was played, not the evening of its date: its
+  last match's kick-off's (lib/edition.ts playedOn). A match starts on any day, so a Kumite dated next summer (or by
+  season only) played tonight went straight to history, "No Kumite yet", its awards unreachable. Results typed in
+  with no match kicked off keep to its own day.

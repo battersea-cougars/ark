@@ -3,7 +3,7 @@
 // you in. The draft on: the draft. The teams set: your team, and the fight card to come. The fixtures out: the first
 // match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
-import { editionState, stageOf } from "./edition";
+import { atAfters, editionState, stageOf } from "./edition";
 import { signupOpen, signupOver } from "./signup";
 import { orderDrawn } from "./draft";
 import type { MotifKey } from "./motif";
@@ -243,7 +243,7 @@ export type AfterMoment =
  */
 export function afterMomentOf(t: Tournament, today: string): AfterMoment | null {
   const state = editionState(t);
-  if (state === "done") return !t.season && t.heldOn === today ? "now" : null;
+  if (state === "done") return atAfters(t, today) ? "now" : null;
   if (state !== "live") return "before";
   return (t.games ?? []).filter((g) => g.status !== "done").length <= 1 ? "next" : null;
 }

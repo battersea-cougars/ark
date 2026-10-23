@@ -5,7 +5,7 @@ import type { Stage } from "../app/nav-routes";
 import { isDone } from "@cougars/shared/results";
 import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { champion } from "./fixtures";
-import { clockRange, formatDayDate, londonISO, londonToday } from "./dates";
+import { clockRange, formatDayDate, londonEvening, londonISO, londonToday } from "./dates";
 import { signupOpen } from "./signup";
 
 export type EditionState = "live" | "done" | "open" | "planned";
@@ -83,12 +83,25 @@ export function latestOf(editions: Tournament[], today: string): Tournament | un
 }
 
 /**
- * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening of its day,
- * which runs till 06:00 the next morning (`evening`, lib/dates.ts londonEvening). Results typed in on another day, or
- * one with only a season, go straight to history.
+ * The evening it was played: its last match's kick-off's (till 06:00 the next morning, lib/dates.ts londonEvening),
+ * whatever its date says, as a match starts on any day (ADR 0074). None kicked off (results typed in): its own day, if
+ * it has one; just a season, none.
  */
-export const atAfters = (t: Tournament, evening: string) =>
-  editionState(t) === "done" && !t.season && t.heldOn === evening;
+export function playedOn(t: Tournament): string | null {
+  const last = (t.games ?? [])
+    .flatMap((g) => (g.startedAt ? [g.startedAt] : []))
+    .sort()
+    .at(-1);
+  if (last) return londonEvening(new Date(last));
+  return t.season ? null : t.heldOn;
+}
+
+/**
+ * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening it was played
+ * (`evening`, lib/dates.ts londonEvening). Results typed in on another day, or one with only a season, go straight
+ * to history.
+ */
+export const atAfters = (t: Tournament, evening: string) => editionState(t) === "done" && playedOn(t) === evening;
 
 /**
  * The one on or coming up, which a series' running pages show (its fight card, board, teams, draft): its latest, unless

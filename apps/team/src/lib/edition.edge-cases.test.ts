@@ -3,7 +3,7 @@
 // a series opens on when there's none, or one on today. Pure logic; "now" is set with fake timers, never the real clock.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tournament } from "../demo/model";
-import { currentOf, editionState, latestOf, stageOf } from "./edition";
+import { atAfters, currentOf, editionState, latestOf, stageOf } from "./edition";
 import { stageBadge } from "./tournament-front";
 import { game } from "./kumite.testing";
 
@@ -135,5 +135,33 @@ describe("which edition a series opens on, at the edges", () => {
     const a = cup({ id: 1, heldOn: "2026-10-10", status: "live" });
     const b = cup({ id: 2, heldOn: "2026-10-03", games: [game(1, "live")] as never });
     expect(latestOf([a, b], "2026-10-06")?.id).toBe(2);
+  });
+});
+
+describe("the after-party is the evening it was played, whatever its date says (ADR 0074)", () => {
+  const played = (startedAt: (string | null)[], o: Partial<Tournament> = {}) =>
+    cup({
+      games: startedAt.map((s, k) => ({ ...game(k + 1, "done"), startedAt: s })) as never,
+      ...o,
+    });
+
+  it("played today, its day still next summer: tonight's the after-party, and it's still the one on", () => {
+    const t = played(["2026-10-23T14:06:00Z", "2026-10-23T14:07:00Z"], {
+      season: { name: "Summer", year: 2027 } as never,
+      heldOn: "2027-08-31",
+    });
+    expect(atAfters(t, "2026-10-23")).toBe(true);
+    expect(currentOf([t], "2026-10-23", "2026-10-23")?.id).toBe(1);
+    expect(atAfters(t, "2026-10-24")).toBe(false);
+  });
+
+  it("the final kicked off after midnight: still that evening's after-party, till 06:00", () => {
+    expect(atAfters(played(["2026-11-14T23:40:00Z", "2026-11-15T00:30:00Z"]), "2026-11-14")).toBe(true);
+  });
+
+  it("results typed in, no match kicked off: its own day's, and on another day straight to history", () => {
+    expect(atAfters(played([null, null]), "2026-11-14")).toBe(true);
+    expect(atAfters(played([null, null]), "2026-11-20")).toBe(false);
+    expect(atAfters(played([null], { season: { name: "Summer", year: 2027 } as never }), "2027-08-31")).toBe(false);
   });
 });
