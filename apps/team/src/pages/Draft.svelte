@@ -1215,7 +1215,10 @@
             size="3.5rem"
           />
           <div class="said">
-            {#if shownMine}<span class="badge red"><i class="dot"></i>Your choice</span>{/if}
+            <!-- Its room always kept, so the card's the same height whosever turn it is -->
+            <span class="badge red mine-badge" class:shown={shownMine} aria-hidden={!shownMine}
+              ><i class="dot"></i>Your choice</span
+            >
             <h2 class="display">{shownMine ? "Choose your champion" : `${teamName(shownClock)} is choosing`}</h2>
             <span class="hint num">Choice {shownMade + 1} of {made + pool.length}</span>
           </div>
@@ -2694,6 +2697,10 @@
     line-height: 1.05;
     text-transform: uppercase;
     overflow-wrap: anywhere;
+  }
+  /* Your choice: there on your turn, its room kept otherwise */
+  .mine-badge:not(.shown) {
+    visibility: hidden;
   }
   .on-clock .badge .dot {
     display: inline-block;
