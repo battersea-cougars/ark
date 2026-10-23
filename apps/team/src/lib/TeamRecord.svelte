@@ -1,16 +1,16 @@
 <script lang="ts">
-  // A team's record so far, in the table's own words (lib/BoardTable, ADR 0074): won, drawn, lost in that order, then
-  // points, each figure with the table's column letter after it (1W 0D 0L · 3 Pts), figures tabular, the letters as
-  // the table's headings are. Under a team's name on a match card (lib/FixtureRow) and its matchup (Matchup).
+  // A team's record so far (ADR 0074), the one way it's written everywhere: won, drawn, lost as 1-0-0, then the
+  // points (1-0-0 · 3 Pts), figures tabular. Under a team's name on a match card (lib/FixtureRow), its matchup
+  // (Matchup) and the teams' list (TournamentTeams). Short enough to stay on one line on a phone.
   let { w, d, l, pts }: { w: number; d: number; l: number; pts?: number } = $props();
 </script>
 
 <span
   class="record num"
+  title="Won-drawn-lost"
   aria-label="{w} won, {d} drawn, {l} lost{pts === undefined ? '' : `, ${pts} ${pts === 1 ? 'point' : 'points'}`}"
   ><span aria-hidden="true"
-    >{w}<abbr>W</abbr>&#8201;{d}<abbr>D</abbr>&#8201;{l}<abbr>L</abbr>{#if pts !== undefined}<span class="sep">·</span
-      ><span class="pts"><b>{pts}</b><abbr>Pts</abbr></span>{/if}</span
+    >{w}-{d}-{l}{#if pts !== undefined}<span class="sep">·</span><b>{pts}</b><abbr>Pts</abbr>{/if}</span
   ></span
 >
 
@@ -21,7 +21,7 @@
     font-weight: 400;
     white-space: nowrap;
   }
-  /* The table's headings: small capitals, spaced, quieter than the figures */
+  /* The table's heading: small capitals, spaced, quieter than the figure */
   abbr {
     margin-left: 0.12em;
     color: var(--fg-muted);
@@ -39,19 +39,5 @@
   b {
     color: var(--fg);
     font-weight: 700;
-  }
-  /* A phone: a match card's side is too narrow for the whole line, so the points go under the record, on every card
-     alike (never cut off) */
-  @media (max-width: 600px) {
-    abbr {
-      margin-left: 0.05em;
-      letter-spacing: 0.02em;
-    }
-    .sep {
-      display: none;
-    }
-    .pts {
-      display: block;
-    }
   }
 </style>

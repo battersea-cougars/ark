@@ -9,6 +9,7 @@
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
+  import TeamRecord from "../lib/TeamRecord.svelte";
   import { table } from "../lib/fixtures";
   import { teamHref, teamTone } from "../lib/team-tones";
   import EmptyState from "../lib/EmptyState.svelte";
@@ -111,7 +112,7 @@
               >{#if isMine(i)}<strong class="yours">Your team</strong> ·
               {/if}{squad.length}
               {squad.length === 1 ? "player" : "players"}{#if played && r}
-                · {r.w}W {r.d}D {r.l}L · {r.pts} pts{/if}</span
+                · <TeamRecord w={r.w} d={r.d} l={r.l} pts={r.pts} />{/if}</span
             >
           </span>
           <Icon name="chevronRight" size={20} />

@@ -483,3 +483,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
 - 2026-10-23: The match being played wears a stamp like the rest (組手 KUMITE!, red outline, worn ink), glowing and
   breathing, not a filled block. A card's stamp sits in one fixed box whichever it is, so nothing shifts as one gives
   way to the next, and the one taking over flies in and lands (one already there when the page opens just sits).
+- 2026-10-23: A record is written 1-0-0 (won-drawn-lost) then the points, 1-0-0 · 3 Pts, on the match cards, the
+  matchup and the teams' list, all through lib/TeamRecord (the user's call, replacing 1W 0D 0L); one line on a phone.
