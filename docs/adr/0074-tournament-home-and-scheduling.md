@@ -498,3 +498,7 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   whole words, shrinking to fit; with reduced motion the words are just there. `lib/SplitFlap` is shared, for the draft
   or a scoreboard later. "That's the Kumite. See you at the next one." is gone (the user), and the after-party's brass
   glow fades out inside its own box on every side, with no edge.
+- 2026-10-23: The awards' board, simpler: no flaps and no fade to black. The face-up card, its words on dark tiles
+  (lib/BoardWords), rolls down over the sealed one in one roll, like a scoreboard's drum (slow to start, quicker, a
+  knock as it stops), then the 賞 hanko lands. Every winner's name sits on the same line across the cards (a line under
+  it always kept), a team's crest level with its name.

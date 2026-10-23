@@ -1,12 +1,12 @@
 <script lang="ts">
   // The after-party (ADR 0074): the evening a tournament ends, its last status. Everyone's at the afterwards (the
-  // Kumite's The Anchor), so the page is the pub after the film's last fight: warm brass on the carbon, the Kumite's
+  // Kumite's The Anchor), so the page is the pub after the film's last match: warm brass on the carbon, the Kumite's
   // motif kept. The awards come up one at a time, in the order listed: what's out face up, then the next one sealed
   // (a card with a question mark), the rest not yet there (their room kept, so nothing moves). Whoever runs it taps the
   // sealed card to reveal it (Confirm the awards first, if they aren't yet); for everyone else it waits. Each tap turns
-  // ONE award over for everyone watching (the live hub): the card stays put and its face becomes a dark board, like the
-  // old scoreboards, the award's name and then who took it home clacking in flap by flap (lib/SplitFlap), then a 賞
-  // hanko comes down; the page brings it into view, and the next sealed card rises in under it. Opened later, what's
+  // ONE award over for everyone watching (the live hub): the face-up card, a dark board like the old
+  // scoreboards with its words on tiles (lib/BoardWords), rolls down over the sealed one in one roll, then a 賞 hanko
+  // comes down; the page brings it into view, and the next sealed card rises in under it. Opened later, what's
   // out is just there. Then where everyone is, the final table (the champions first) and the day's results, one line
   // each.
   import type { Tournament, TournamentType } from "../demo/model";
@@ -19,11 +19,10 @@
   import { enterAwards } from "./AwardsDrawer.svelte";
   import DraftStep from "./DraftStep.svelte";
   import Kanji from "./Kanji.svelte";
-  import SplitFlap from "./SplitFlap.svelte";
+  import BoardWords from "./BoardWords.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { finalOrder, revealOf } from "./afters";
   import { kanjiFor } from "./motif";
-  import { flapMs } from "./split-flap";
   import InkStamp from "./InkStamp.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
@@ -64,20 +63,12 @@
     if (won.length > 2) return [`Shared by ${won.length}`];
     return won.map((w) => (w.teamId ? teamName(w.teamId) : goesByOf(byId(w.memberId))));
   };
-  // A reveal's beats, ms after the tap lands: the board comes on, the award's name clacks in, then who took it home,
-  // then the hanko comes down. About 2s, however long the names (long ones clack faster)
-  const BOARD_ON_MS = 250;
-  const BEAT_MS = 180;
-  const boardOf = (award: string) => {
-    const name = BOARD_ON_MS;
-    const about = name + flapMs(award);
-    const won = about + BEAT_MS;
-    const stamp = won + Math.max(...wonWords(award).map(flapMs)) + 120;
-    return { name, about, won, stamp };
-  };
+  // A reveal's beats, ms after the tap lands: the face-up card rolls down over the sealed one in one roll, like a
+  // scoreboard's drum turning over (slow to start, quicker, then a knock as it stops), then the hanko comes down
+  const ROLL_MS = 750;
+  const boardOf = () => ({ stamp: ROLL_MS + 150 });
 
-  // An award turned over while you watch: its face becomes the board and the words clack in (with reduced motion,
-  // the board fades in, the words just there), the page brings it into view, and once the hanko's down the next
+  // An award turned over while you watch: the face-up card rolls down over it (with reduced motion, it fades in), the page brings it into view, and once the hanko's down the next
   // sealed card rises in. Opened later (or after a step back), they're just as they are
   let seen = untrack(() => reveal.revealed);
   let turning = $state<number[]>([]);
@@ -88,7 +79,7 @@
     untrack(() => {
       if (n > seen) {
         const fresh = Array.from({ length: n - seen }, (_, k) => seen + k);
-        const done = Math.max(...fresh.map((k) => boardOf(reveal.awards[k]?.name ?? "").stamp)) + 700;
+        const done = boardOf().stamp + 700;
         turning = [...turning, ...fresh];
         rising = n;
         setTimeout(() => (turning = turning.filter((i) => !fresh.includes(i))), done);
@@ -158,7 +149,7 @@
           {@const won = winnersOf(a.name)}
           {@const sealed = i === reveal.revealed}
           {@const tap = manage && sealed && reveal.confirmed}
-          {@const times = boardOf(a.name)}
+          {@const times = boardOf()}
           {@const playing = turning.includes(i)}
           <li
             class="award"
@@ -167,7 +158,7 @@
             class:later={i > reveal.revealed}
             class:turning={playing}
             class:rising={rising === i}
-            style:--rise-at={rising === i && i > 0 ? `${boardOf(reveal.awards[i - 1].name).stamp + 200}ms` : null}
+            style:--rise-at={rising === i && i > 0 ? `${boardOf().stamp + 200}ms` : null}
             aria-hidden={i > reveal.revealed}
             bind:this={cards[i]}
           >
@@ -198,22 +189,17 @@
                 {/if}
               </div>
             {/if}
-            <!-- Face up: a dark board, the award and who took it home clacking in, what it's for; the hanko last -->
+            <!-- Face up: a dark board, the award and who took it home on its tiles, what it's for; the hanko last -->
             {#if a.revealed}
-              <div
-                class="face front"
-                style:--about-at="{times.about}ms"
-                style:--won-at="{times.won}ms"
-                style:--stamp-at="{times.stamp}ms"
-              >
-                <span class="award-name"
-                  ><SplitFlap text={a.name} play={playing} delay={times.name} size="1.15rem" /></span
-                >
+              <div class="face front" style:--roll="{ROLL_MS}ms" style:--stamp-at="{times.stamp}ms">
+                <span class="award-name"><BoardWords text={a.name} size="1.15rem" /></span>
                 {#if a.about}<span class="about">{a.about}</span>{/if}
                 <span class="won">
                   {#if !won.length || won.length > 2}
                     <span class="who" class:none={!won.length}
-                      ><SplitFlap text={wonWords(a.name)[0]} play={playing} delay={times.won} size="1.4rem" /></span
+                      ><BoardWords text={wonWords(a.name)[0]} size="1.4rem" /><span class="hint" aria-hidden="true"
+                        >&nbsp;</span
+                      ></span
                     >
                   {:else}
                     {#each won as w, k (k)}
@@ -228,24 +214,18 @@
                               size="2.25rem"
                             /></span
                           >
-                          <SplitFlap
-                            text={teamName(w.teamId)}
-                            play={playing}
-                            delay={times.won}
-                            size="1.4rem"
-                            lines={won.length > 1 ? 1 : 2}
-                          />
+                          <span class="who-name"
+                            ><BoardWords text={teamName(w.teamId)} size="1.4rem" lines={won.length > 1 ? 1 : 2} /><span
+                              class="hint"
+                              aria-hidden="true">&nbsp;</span
+                            ></span
+                          >
                         </a>
                       {:else}
                         <span class="who who-player">
-                          <SplitFlap
-                            text={goesByOf(byId(w.memberId))}
-                            play={playing}
-                            delay={times.won}
-                            size="1.4rem"
-                            lines={won.length > 1 ? 1 : 2}
-                          />
-                          {#if teamOf(w.memberId)}<span class="hint">{teamName(teamOf(w.memberId))}</span>{/if}
+                          <BoardWords text={goesByOf(byId(w.memberId))} size="1.4rem" lines={won.length > 1 ? 1 : 2} />
+                          <!-- Always a line under the name, so every card's winner sits on the same line -->
+                          <span class="hint">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : "\u00a0"}</span>
                         </span>
                       {/if}
                     {/each}
@@ -522,7 +502,7 @@
     font-weight: 600;
   }
   /* Face up: a dark board, as the old scoreboards: the award in brass flaps, what for, who took it home in bone
-     (lib/SplitFlap); the hanko in the corner */
+     (lib/BoardWords); the hanko in the corner */
   .front {
     z-index: 1;
     grid-template-rows: auto auto 1fr;
@@ -547,10 +527,12 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
   }
+  /* The winner at the card's foot, its name on the same line on every card: a line under it is always kept (the
+     player's team, or kept empty), and a team's crest sits level with the name */
   .won {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-end;
     align-self: end;
     gap: var(--s-2) var(--s-4);
     min-width: 0;
@@ -563,23 +545,27 @@
   .who.none {
     color: var(--fg-muted);
   }
-  .who-team {
-    display: flex;
-    align-items: center;
-    gap: var(--s-2);
+  /* Name over its line, as a player's: the crest beside the name, level with it */
+  .who {
+    display: grid;
+    row-gap: 0.15rem;
   }
-  .who-team :global(.split-flap) {
-    flex: 1;
+  .who-team {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: var(--s-2);
+  }
+  .who-name {
+    display: contents;
+  }
+  .who-team .hint {
+    grid-column: 2;
   }
   .crest {
     display: inline-flex;
     flex: none;
   }
-  .who-player {
-    display: grid;
-    gap: 0.15rem;
-  }
-  .who-player .hint {
+  .who .hint {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -591,17 +577,33 @@
     transform: scale(0.72);
     transform-origin: top right;
   }
-  /* Turned over while you watch: the board comes on over the face-down card, the words clack in (SplitFlap), what
-     it's for and the crest come up as their words settle, and the hanko comes down once they have */
+  /* Turned over while you watch: the face-up card rolls down over the sealed one, whole, in one roll (the card
+     clips it), then the hanko comes down */
+  .turning {
+    overflow: clip;
+    border-radius: var(--r-lg);
+  }
   .turning .front {
-    animation: fade 0.25s ease both;
+    animation: roll-in var(--roll) both;
   }
-  .turning .about {
-    animation: fade 0.3s var(--about-at) ease both;
-  }
-  .turning .crest,
-  .turning .who-player .hint {
-    animation: fade 0.3s var(--won-at) ease both;
+  /* One roll, like a scoreboard's drum: slow to start (the drum's weight to get over), quicker and quicker, then a
+     knock as it stops, a touch past and back */
+  @keyframes roll-in {
+    0% {
+      transform: translateY(-115%);
+      animation-timing-function: cubic-bezier(0.7, 0, 0.95, 0.55);
+    }
+    80% {
+      transform: translateY(4%);
+      animation-timing-function: ease-out;
+    }
+    90% {
+      transform: translateY(-1.5%);
+      animation-timing-function: ease-in-out;
+    }
+    100% {
+      transform: none;
+    }
   }
   .turning .stamp {
     animation: stamp 0.45s var(--stamp-at) cubic-bezier(0.3, 1.4, 0.5, 1) both;
@@ -724,12 +726,9 @@
       gap: var(--s-2);
     }
   }
-  /* Reduced motion: no flaps (SplitFlap's words are just there), no hanko coming down and no rise; the board and
+  /* Reduced motion: no roll, no hanko coming down and no rise; the face-up card and
      the next card fade in */
   @media (prefers-reduced-motion: reduce) {
-    .turning .about,
-    .turning .crest,
-    .turning .who-player .hint,
     .turning .stamp {
       animation: none;
     }
