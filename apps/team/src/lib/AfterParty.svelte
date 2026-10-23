@@ -58,6 +58,9 @@
   // it into view, and the next sealed card rises in. Opened later (or after a step back), they're just as they are
   let seen = untrack(() => reveal.revealed);
   let turning = $state<number[]>([]);
+  // The winner burns in once the card's face is round (the flip's 0.7s), never during it
+  let burning = $state<number[]>([]);
+  const FLIP_MS = 700;
   let rising = $state(-1);
   const cards: HTMLElement[] = $state([]);
   $effect.pre(() => {
@@ -67,7 +70,11 @@
         const fresh = Array.from({ length: n - seen }, (_, k) => seen + k);
         turning = [...turning, ...fresh];
         rising = n;
-        setTimeout(() => (turning = turning.filter((i) => !fresh.includes(i))), 2200);
+        setTimeout(() => (burning = [...burning, ...fresh]), FLIP_MS);
+        setTimeout(() => {
+          turning = turning.filter((i) => !fresh.includes(i));
+          burning = burning.filter((i) => !fresh.includes(i));
+        }, FLIP_MS + 2200);
         setTimeout(() => {
           if (rising === n) rising = -1;
         }, 2200);
@@ -202,7 +209,7 @@
                     {/if}
                   </span>
                   {#if kumite}<span class="stamp"><Kanji text={kanjiFor(type, "awards")} seal /></span>{/if}
-                  {#if turning.includes(i) && !prefersReducedMotion}<BurnReveal />{/if}
+                  {#if burning.includes(i) && !prefersReducedMotion}<BurnReveal />{/if}
                 {/if}
               </div>
             </div>
@@ -575,16 +582,10 @@
       transform: scale(1.6) rotate(-12deg);
     }
   }
-  /* The burn sweeps the winner in after the flip */
+  /* The burn sweeps the winner in once the flip's done (it's only made then: burning) */
   .front :global(.burn) {
     inset: auto 0 0;
     height: 55%;
-    animation: wait 0.6s both;
-  }
-  @keyframes wait {
-    from {
-      visibility: hidden;
-    }
   }
 
   .closing {
