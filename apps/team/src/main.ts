@@ -21,6 +21,8 @@ const target = document.getElementById("app")!;
 // before it's up waits for it (errors.early.ts)
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 if (dsn) void import("./app/errors").then(({ startErrorReports }) => startErrorReports(dsn)).catch(() => {});
+// On your machine, where there's no Sentry: what goes wrong shows on the page (app/dev-errors.ts)
+if (import.meta.env.DEV) void import("./app/dev-errors").then((d) => d.showDevErrors());
 try {
   start(await club);
   await firstPage();
