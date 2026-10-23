@@ -1,8 +1,8 @@
 # Load and concurrency testing
 
 Why and what we decided: [ADR 0121](adr/0121-load-and-concurrency.md). This page is how to run it, what D1 does
-with requests at once, what the runs found, and the free-tier headroom. Everything here runs on your own machine:
-**never send load to the dev or production Cloudflare accounts**.
+with requests at once, what the runs found, and the free-tier headroom. It runs on your own machine, or on dev once
+the user's been told ([Against dev](#against-dev)): **never send load to production**.
 
 ## How D1 behaves with requests at once
 

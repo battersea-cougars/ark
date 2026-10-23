@@ -49,9 +49,9 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
    `docs/env-reference.md`), and within each system by environment (production, dev, both): why it exists (what
    breaks without it), where it comes from (the provider and the account or page it's made or found in; "we make it"
    for our own keys), its permissions, who uses it (_Used by_ records which app, since project names don't), how it
-   gets there, whether it expires, and how to change it; then one Overview table of every name. The README says only
-   how secrets work ([README.md#secrets](../../README.md#secrets)). A secret that isn't in docs/secrets.md shouldn't
-   exist.
+   gets there, whether it expires, and how to change it; then one Overview table of every name. It opens with how secrets work, in short
+   ([How secrets work](../secrets.md#how-secrets-work)); the README only links to it. A secret that isn't in
+   docs/secrets.md shouldn't exist.
 8. **One exception: a token a Worker has to write.** A Worker can't write to Bitwarden, so a token that the app
    itself makes or renews is kept in D1 (`sealed_tokens`), sealed in the Worker (AES-GCM, `packages/shared/sealed-tokens.ts`)
    with a key of its own that is itself a Bitwarden secret. Its first value is in Bitwarden; if the sealed one won't
@@ -105,3 +105,5 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   env-pull): both Cloudflare account IDs, the Apple team ID, the App Store Connect key's ID and issuer, and the team
   app's Sentry DSN (point 9). The Gmail Desktop client goes: the Web client makes and refreshes both tokens
   ([ADR 0027](0027-email-through-gmail-api.md)).
+- 2026-10-23: How secrets work, in short, moves from the README into docs/secrets.md, so the README is only what
+  the project is and how to start (#148).

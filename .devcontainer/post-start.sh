@@ -54,7 +54,7 @@ if [ "$members" = "0" ]; then
   (cd "$ROOT" && npm run --silent db:seed:local) || echo "Local seed failed; run: npm run db:seed:local"
 fi
 
-echo "Cougars monorepo ready — web :4500 and the team app :4510 start automatically (.vscode/tasks.json). See README.md"
+echo "Cougars monorepo ready — web :4500 and the team app :4510 start automatically (.vscode/tasks.json). See docs/development.md"
 # Cougars' own Bitwarden login (a volume, not the host's: that may be another org's account)
 if [ -d "/home/node/.config/Bitwarden CLI" ]; then
   sudo chown -R node:node "/home/node/.config/Bitwarden CLI" 2>/dev/null || true

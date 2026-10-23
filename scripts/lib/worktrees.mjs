@@ -1,4 +1,4 @@
-// Checkouts and their ports (ADR 0115, README.md#worktrees). The main checkout stays on main and holds .worktrees/;
+// Checkouts and their ports (ADR 0115, docs/development.md#worktrees). The main checkout stays on main and holds .worktrees/;
 // each task is a branch in its own worktree there. The user's ports (4500 website, 4510 team app, 4520 Studio) belong to
 // the show switch (scripts/app-supervisor.mjs), never to an app: every app runs on ports free when it starts.
 import { execFileSync } from "node:child_process";

@@ -1,4 +1,4 @@
-// Show the user a checkout's apps on their ports (ADR 0115, README.md#worktrees): 4500 the website, 4510 the team
+// Show the user a checkout's apps on their ports (ADR 0115, docs/development.md#worktrees): 4500 the website, 4510 the team
 // app, 4520 the Studio. The one way to run them: the supervisor (scripts/app-supervisor.mjs) runs each app, keeps it
 // up and stops it, so nothing is started with & or nohup, and nothing is left behind.
 //

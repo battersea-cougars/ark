@@ -1,9 +1,9 @@
 # The team app's tests, mapped
 
 What checks what, at which level, and where two levels or two files checked the same thing (#154). The levels are
-[ADR 0031](adr/0031-use-case-tests.md)'s: **unit** for tricky pure logic (`src/lib`, `src/app`), **use case** for
-rules and routes through the real Worker handlers (`worker/**/*.use-cases.test.ts`), and soon **journey** for whole
-workflows by role in a browser (#154, being built on `team/journeys`). Each check should live at one of them.
+[ADR 0124](adr/0124-test-levels.md)'s: **unit** for tricky pure logic (`src/lib`, `src/app`), **use case** for
+rules and routes through the real Worker handlers (`worker/**/*.use-cases.test.ts`), and **journey** for whole
+workflows by role in a browser (`apps/team/journeys/`, `npm run journeys`). Each check should live at one of them.
 Taken on 23 October 2026 at `1fa5e83` (`team/review`).
 
 ## Feature by level
@@ -86,5 +86,5 @@ Close, but each still checks something of its own, or moving it is more than rem
   `awards`, `leaders` and `periods` build theirs with different defaults (a 2–1 score, ids the tests assert on, other
   types). The use cases' `cup()`/`kumite()` setups (eleven and nine of them) differ per story; `boot`, `phone`,
   `idOf` one-liners repeat in ~15 files and could become `testWorld` helpers.
-- **Journeys** (`team/journeys`): once the Kumite journey lands, the use cases it re-walks end to end (sign-up to
-  awards) are the next to compare; nothing was removed for it yet.
+- **Journeys** (`apps/team/journeys/`): the Kumite journey has landed; the use cases it re-walks end to end (sign-up
+  to awards) are the next to compare; nothing was removed for it yet.

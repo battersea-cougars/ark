@@ -41,7 +41,7 @@ production's first admins; `SMOKE_TOKEN` is made and spent by each deploy and ne
 - **Environments:** `production` (deploys from `release` only) holds `BWS_ACCESS_TOKEN__PRODUCTION`; `preview` (`main`
   and PRs) holds `BWS_ACCESS_TOKEN__DEV`. Nothing else is stored in GitHub ([ADR 0010](adr/0010-environments-and-deploys.md)).
 - **GitHub App "Cougars rebuilds",** owned by the organisation: lets the team app start a website rebuild, and nothing
-  else. Its private key is `GITHUB_APP_PRIVATE_KEY`; its client and installation IDs aren't secret (README, settings).
+  else. Its private key is `GITHUB_APP_PRIVATE_KEY`; its client and installation IDs aren't secret ([secrets.md, Plain settings](secrets.md#plain-settings)).
 
 ## Bitwarden
 
@@ -69,7 +69,7 @@ Two accounts, so dev can never touch production ([ADR 0010](adr/0010-environment
 | Also      | Web Analytics; the rate-limiting rule (`scripts/ratelimit-setup.mjs`)                                                                                                              |                                                      |
 
 API tokens are account tokens, named exactly like their secret, each with only the permissions listed under its
-README entry. `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's Usage page.
+entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's Usage page.
 
 ## Sanity
 

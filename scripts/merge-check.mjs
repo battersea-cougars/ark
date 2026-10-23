@@ -1,4 +1,4 @@
-// Whether a branch is safe to merge, mechanically (ADR 0115, README.md#worktrees).
+// Whether a branch is safe to merge, mechanically (ADR 0115, docs/development.md#worktrees).
 //
 //   npm run merge:check -- <area>/<topic>
 //

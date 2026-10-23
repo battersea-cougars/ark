@@ -37,7 +37,7 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
   Never print secret values, never write them to files (`.env`, `.dev.vars`), never commit them. `.env` is for
   local non-secret overrides only. GitHub holds only the Bitwarden tokens (`BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`). Use
   `npm run secrets` to see what exists (names only).
-- **Every secret is documented in [docs/secrets.md](docs/secrets.md)** (by system; README.md#secrets is the short
+- **Every secret is documented in [docs/secrets.md](docs/secrets.md)** (by system; its "How secrets work" is the short
   overview), and a provider token is named exactly like its secret. Adding or renaming a secret means updating its
   entry and the Overview table there in the same change.
 - **Never deploy to production by hand.** Production deploys only from the `release` branch via
@@ -81,7 +81,7 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
 - **Use cases first** ([ADR 0031](docs/adr/0031-use-case-tests.md), [docs/testing.md](docs/testing.md)): tests
   describe what someone does, drive the real handlers, and fake outside services in one fake world. Unit tests only
   for tricky pure logic. Known bugs stay as `it.fails("… (known bug #N)")`.
-- Vitest, colocated `*.test.ts`. D1 is in-memory SQLite with all migrations applied (`packages/shared/testing/d1-sqlite.ts`).
+- Vitest, colocated `*.test.ts`. D1 is in-memory SQLite built from the schema and seed (`packages/shared/testing/d1-sqlite.ts`).
   Don't mock our own code.
 - Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio` (as `pr.yml`).
 - **Signed in, headless**: `node scripts/dev-sign-in.mjs [email]` (no email: the first admin) writes a Playwright

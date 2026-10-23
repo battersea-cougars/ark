@@ -92,7 +92,7 @@ The website's photos are the club's **Instagram**. Post on Instagram as usual an
 
 ## Describe every photo
 
-Every photo in the Studio (an event's cover, the team photo, the homepage background) needs a short description in
+Every photo in the Studio (the team photo, the homepage background) needs a short description in
 _Describe the photo_, e.g. "Cougars celebrating a goal". The Studio won't publish a photo without one. It's read
 aloud to blind visitors and shown if the photo can't load.
 

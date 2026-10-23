@@ -1,4 +1,4 @@
-// The show supervisor (ADR 0115, README.md#worktrees): the one process that runs every checkout's apps. Started by
+// The show supervisor (ADR 0115, docs/development.md#worktrees): the one process that runs every checkout's apps. Started by
 // `npm run app` (or npm run dev / team / studio) when it isn't running; never by hand.
 //
 // It holds the user's ports (website 4500, team app 4510, Studio 4520) as a switch: each request, hot reload's

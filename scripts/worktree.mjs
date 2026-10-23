@@ -1,4 +1,4 @@
-// One task, one worktree (ADR 0115, README.md#worktrees).
+// One task, one worktree (ADR 0115, docs/development.md#worktrees).
 //
 //   npm run worktree -- add <area>/<topic> [base]   a branch off base (main) in .worktrees/<area>-<topic>, ready at
 //                                                   once: main's node_modules hard-linked when the lockfile matches
