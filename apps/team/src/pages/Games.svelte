@@ -200,7 +200,7 @@
   // Where everyone goes afterwards, and whether it's for later or next (lib/tournament-front.ts); the evening's done,
   // it's the after-party's own view
   const after = $derived.by(() => {
-    const moment = tournament ? afterMomentOf(tournament, today) : null;
+    const moment = tournament ? afterMomentOf(tournament, londonEvening()) : null;
     const place = tournament && moment ? tournamentAfter(tournament) : null;
     return place && moment ? { place, moment } : null;
   });

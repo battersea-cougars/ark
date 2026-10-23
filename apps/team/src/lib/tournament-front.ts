@@ -209,19 +209,21 @@ export const STATUS_MARK: Record<Status, MotifKey> = {
  * The stamp in a tournament's header (every page of the series): the status it's at, as the track says it, with the
  * status's kanji (ADR 0074). Every one the same ink stamp ("on"); before sign-up opens it's Coming up, faint; the day
  * (KUMITE!, or a match under way) the loudest; every match played, the after-party's name that evening, then Done.
+ * `evening`: the evening it is now (lib/dates.ts londonEvening), which runs past midnight till 06:00 (#168).
  */
 export function stageBadge(
   t: Tournament,
   type: Pick<TournamentType, "shortName">,
   today: string,
   afterName?: string | null,
+  evening = today,
 ): { label: string; tone: BadgeTone; mark: MotifKey } {
   const status = statusOf(t, today);
   const mark = STATUS_MARK[status];
   const { label } = statusLabel(status, t, type, afterName);
   // At The Anchor until the last award's out: then Done, though its page stays its results that evening
   if (status === "afters")
-    return afterMomentOf(t, today) === "now" && !revealOf(t).all
+    return afterMomentOf(t, evening) === "now" && !revealOf(t).all
       ? { label, tone: "done", mark }
       : { label: "Done", tone: "done", mark };
   if (status === "signup" && editionState(t) !== "open") return { label: "Coming up", tone: "quiet", mark };
@@ -239,11 +241,11 @@ export type AfterMoment =
 
 /**
  * Where the afterwards goes on the front page: a quiet line before the day; nothing on the day while the matches are
- * what matters, until the last one's on, when it's next; then, the day done, it's now (that day only).
+ * what matters, until the last one's on, when it's next; then, the day done, it's now (that evening only, past midnight till 06:00: `evening`, lib/dates.ts londonEvening).
  */
-export function afterMomentOf(t: Tournament, today: string): AfterMoment | null {
+export function afterMomentOf(t: Tournament, evening: string): AfterMoment | null {
   const state = editionState(t);
-  if (state === "done") return atAfters(t, today) ? "now" : null;
+  if (state === "done") return atAfters(t, evening) ? "now" : null;
   if (state !== "live") return "before";
   return (t.games ?? []).filter((g) => g.status !== "done").length <= 1 ? "next" : null;
 }

@@ -33,7 +33,7 @@
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
   import { phone } from "./viewport.svelte";
-  import { londonToday } from "./dates";
+  import { londonEvening, londonToday } from "./dates";
   import StepBack from "./StepBack.svelte";
   import MoveTo from "./MoveTo.svelte";
   import SimulateRest from "./SimulateRest.svelte";
@@ -79,8 +79,9 @@
   // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
   const after = $derived(tournament ? tournamentAfter(tournament) : null);
   // Where it's got to, as the stamp says it (lib/tournament-front.ts): the status, as the track names it, with its
-  // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor
-  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday(), after?.name) : null);
+  // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor (that
+  // evening, past midnight till 06:00, as the track and Home say it, #168)
+  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday(), after?.name, londonEvening()) : null);
   const mark = $derived(stage ? kanjiFor(type, stage.mark) : "");
   // The status's ink (lib/InkStamp): the club's red, Coming up faint, KUMITE! a block of red, the after-party and Done bone
   const INK = { on: "red", quiet: "faint", live: "live", done: "bone" } as const satisfies Record<string, InkTone>;
