@@ -66,6 +66,8 @@ rules, the team solver, standings, slugs, permissions. Don't add them by default
 
 Don't mock our own code. If a test needs to stub one of our functions, it's testing at the wrong level.
 
+Which level checks what, feature by feature, and the overlaps found: [testing-map.md](testing-map.md).
+
 ## The fake world
 
 `packages/shared/testing/fake-world.ts` gives each test a fresh world:
