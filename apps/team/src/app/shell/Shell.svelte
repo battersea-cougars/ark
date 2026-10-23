@@ -288,7 +288,6 @@
       href={item.href}
       aria-current={item.on ? "page" : undefined}
       aria-label={item.name}
-      title={foot ? item.name : undefined}
       onclick={foot ? () => enterSettings() : undefined}
     >
       <Icon name={item.icon} size={20} />
@@ -621,29 +620,53 @@
   .dock-item.foot {
     margin-top: var(--s-5);
   }
+  /* Its name on hover: a small poster tag, the page titles' heavy italic capitals with the logo's red slash, frosted,
+     sliding out of the rail after a beat (so sweeping past the rail doesn't flash every name) */
   .dock-label {
     position: absolute;
     left: calc(100% + var(--s-3));
     top: 50%;
-    translate: 0 -50%;
-    padding: 0.4rem 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.8rem 0.4rem 0.65rem;
     border-radius: var(--r-sm);
-    border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
-    background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+    background: color-mix(in srgb, var(--surface-3) 88%, transparent);
+    backdrop-filter: blur(12px) saturate(1.2);
     color: var(--fg);
-    font-size: var(--text-2xs);
-    font-weight: 700;
-    letter-spacing: var(--tracking-label);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: var(--text-sm);
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
-    box-shadow: var(--shadow);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 14px 30px -14px rgb(0 0 0 / 0.9);
     opacity: 0;
+    translate: -6px -50%;
     pointer-events: none;
-    transition: opacity var(--t-fast) var(--ease-in-out);
+    transition:
+      opacity var(--t-fast) var(--ease-in-out),
+      translate var(--t-fast) var(--ease-in-out);
+  }
+  .dock-label::before {
+    content: "";
+    width: 3px;
+    height: 0.95em;
+    background: var(--red);
+    transform: skewX(-24deg);
   }
   .dock-item:hover .dock-label,
   .dock-item:focus-visible .dock-label {
     opacity: 1;
+    translate: 0 -50%;
+    transition-delay: 140ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dock-label {
+      translate: 0 -50%;
+    }
   }
 
   /* ─── The save note (toast): a small pill at the bottom centre, above the tabs on a phone. It rises from the
