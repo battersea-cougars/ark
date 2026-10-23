@@ -95,6 +95,8 @@ interface Places {
   keeper: boolean;
   /** A training's day and when it ends (London), for whether it's over; null elsewhere */
   night: Night | null;
+  /** A club event's end: once it's past, members' own answers are over too */
+  endsAt: string | null;
 }
 
 /** A training's night: its day, when it ends, and how many days before it sign-up opens (null: always open). */
@@ -136,18 +138,19 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
             "SELECT capacity, NULL cancelled FROM tournaments WHERE id = ?",
             [id],
           )
-        : await first<{ capacity: number | null; cancelled: null; signup: number }>(
+        : await first<{ capacity: number | null; cancelled: string | null; signup: number; endsAt: string }>(
             db,
-            "SELECT capacity, NULL cancelled, signup_enabled signup FROM club_events WHERE id = ?",
+            "SELECT capacity, cancelled_at cancelled, signup_enabled signup, ends_at endsAt FROM club_events WHERE id = ?",
             [id],
           );
   if (!row) throw new HttpError(404, "No such event.");
-  if (row.cancelled) throw new HttpError(409, "That session's cancelled.");
+  if (row.cancelled) throw new HttpError(409, kind === "session" ? "That session's cancelled." : "That's called off.");
   if ("signup" in row && !row.signup) throw new HttpError(409, "That event doesn't take sign-ups.");
   return {
     limit: row.capacity,
     keeper: "keeper" in row && Boolean(row.keeper),
     night: "heldOn" in row ? { heldOn: row.heldOn, endTime: row.endTime, opensDays: row.opensDays } : null,
+    endsAt: "endsAt" in row ? row.endsAt : null,
   };
 }
 
@@ -287,6 +290,7 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   // to change, not a member's own In or Out (#128)
   if (places.night && nightOver(places.night, now))
     throw new HttpError(409, "That night's over: the register says who came.");
+  if (places.endsAt && places.endsAt <= now) throw new HttpError(409, "That's over now.");
   if (a === "clear") return takeBack(db, kind, id, memberId);
   const was = await current(db, kind, id, memberId);
   if (a === "out") {

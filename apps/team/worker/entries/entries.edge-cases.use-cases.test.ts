@@ -192,6 +192,23 @@ describe("answers that make no sense", () => {
     expect((await reg.call("POST", "/api/tournaments/424242/answer", { answer: "in" })).status).toBe(404);
   });
 
+  it("a club event that's called off or over takes no more sign-ups", async () => {
+    const dana = await as("dana@example.com");
+    const reg = await as("reg@example.com");
+    const event = (startsAt: string, endsAt: string) =>
+      dana.call("POST", "/api/club-events", { title: "Curry night", startsAt, endsAt, venue: "", signup: true });
+    const idOf = (title: string, startsAt: string) =>
+      (w.db.raw.prepare("SELECT id FROM club_events WHERE title = ? AND starts_at = ?").get(title, startsAt) as Json).id;
+    await event("2026-10-24T19:00:00.000Z", "2026-10-24T22:00:00.000Z");
+    const ahead = idOf("Curry night", "2026-10-24T19:00:00.000Z");
+    expect((await dana.call("POST", `/api/club-events/${ahead}/cancelled`, { cancelled: true })).status).toBe(200);
+    expect((await reg.call("POST", `/api/club-events/${ahead}/answer`, { answer: "in" })).status).toBe(409);
+    await event("2026-10-03T19:00:00.000Z", "2026-10-03T22:00:00.000Z");
+    const past = idOf("Curry night", "2026-10-03T19:00:00.000Z");
+    expect((await reg.call("POST", `/api/club-events/${past}/answer`, { answer: "in" })).status).toBe(409);
+    expect(w.db.raw.prepare("SELECT COUNT(*) n FROM club_event_entries").get()).toEqual({ n: 0 });
+  });
+
   it("the Add player drawer's batch with one bad change saves none of them", async () => {
     const f = await friday({ capacity: 5 });
     const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, {
