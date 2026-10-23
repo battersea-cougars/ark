@@ -8,6 +8,7 @@ import { all, batch, first, statement } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
 import { HttpError, int, text } from "../api/api.http";
 import {
+  awardsToReveal,
   candidatesOf,
   countVotes,
   decidedByOf,
@@ -111,6 +112,11 @@ async function awardsDataOf(db: D1Database, tournamentId: number) {
   return {
     data,
     awards,
+    // The ones revealed, in order: a judges' call left out isn't
+    toReveal: awardsToReveal(
+      awards,
+      winners.map((w) => w.award as string),
+    ),
     revealed: row.revealed,
     // Confirmed, or (before it was said when) its winners set
     confirmed: !!row.confirmedAt || winners.length > 0,
@@ -119,6 +125,16 @@ async function awardsDataOf(db: D1Database, tournamentId: number) {
     ctx: { positionOf: (id: number) => position.get(id) } satisfies Positions,
   };
 }
+
+/**
+ * SQL: the place in the reveal of award `w.award` of tournament `t` (0 first), as `awardsToReveal` (lib/awards.ts)
+ * has it: how many awards listed before it are revealed, a judges' call left out (live, nobody given it) not one.
+ */
+export const REVEAL_PLACE = `(SELECT COUNT(*) FROM json_each(t.awards) j
+  WHERE j.key < (SELECT k.key FROM json_each(t.awards) k WHERE json_extract(k.value, '$.name') = w.award)
+    AND (COALESCE(json_extract(j.value, '$.decidedBy.kind'), '') <> 'live'
+      OR EXISTS (SELECT 1 FROM tournament_award_winners g
+        WHERE g.tournament_id = t.id AND g.award = json_extract(j.value, '$.name'))))`;
 
 const CLOSED = "Voting's closed: the awards are confirmed. Waiting for the reveal.";
 
@@ -219,9 +235,9 @@ export async function setWinners(
  */
 export async function revealAward(db: D1Database, tournamentId: number, o: Record<string, unknown>) {
   const next = int(o, "next", { max: 8 });
-  const { data, awards, revealed, confirmed } = await awardsDataOf(db, tournamentId);
+  const { data, toReveal, revealed, confirmed } = await awardsDataOf(db, tournamentId);
   if (!isDone(data.status, data.games ?? [])) throw new HttpError(409, "Not till the last match is played.");
-  if (next >= awards.length) throw new HttpError(409, "Every award's out.");
+  if (next >= toReveal.length) throw new HttpError(409, "Every award's out.");
   if (!confirmed) throw new HttpError(409, "Confirm the awards first.");
   if (revealed > next) return;
   if (revealed < next) throw new HttpError(409, "It's moved on since: have another look.");
@@ -230,9 +246,9 @@ export async function revealAward(db: D1Database, tournamentId: number, o: Recor
     statement(
       db,
       `UPDATE tournaments SET awards_revealed = awards_revealed + 1, awards_next = 0
-       WHERE id = ? AND awards_revealed = ? AND awards_revealed < json_array_length(awards)
+       WHERE id = ? AND awards_revealed = ? AND awards_revealed < ?
          AND (awards_revealed = 0 OR awards_next = 1)`,
-      [tournamentId, next],
+      [tournamentId, next, toReveal.length],
     ),
   ]);
 }
@@ -244,21 +260,22 @@ export async function revealAward(db: D1Database, tournamentId: number, o: Recor
  */
 export async function nextAward(db: D1Database, tournamentId: number, o: Record<string, unknown>) {
   const at = int(o, "at", { min: 1, max: 8 });
-  const t = await first<{ revealed: number; next: number; count: number }>(
+  const t = await first<{ revealed: number; next: number }>(
     db,
-    "SELECT awards_revealed revealed, awards_next next, json_array_length(awards) count FROM tournaments WHERE id = ?",
+    "SELECT awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?",
     [tournamentId],
   );
   if (!t) throw new HttpError(404, "No such tournament.");
   if (t.revealed > at || (t.revealed === at && t.next)) return;
   if (t.revealed < at) throw new HttpError(409, "It's moved on since: have another look.");
-  if (at >= t.count) throw new HttpError(409, "That was the last one.");
+  const { toReveal } = await awardsDataOf(db, tournamentId);
+  if (at >= toReveal.length) throw new HttpError(409, "That was the last one.");
   await batch(db, [
     statement(
       db,
       `UPDATE tournaments SET awards_next = 1
-       WHERE id = ? AND awards_revealed = ? AND awards_next = 0 AND awards_revealed < json_array_length(awards)`,
-      [tournamentId, at],
+       WHERE id = ? AND awards_revealed = ? AND awards_next = 0 AND awards_revealed < ?`,
+      [tournamentId, at, toReveal.length],
     ),
   ]);
 }
@@ -328,4 +345,29 @@ export async function castVotes(
     const refused = missed.filter((v) => ins.find((x) => x.award === v.name)?.id !== v.memberId);
     if (refused.length) throw new HttpError(409, CLOSED);
   }
+}
+
+/** On the record, as a reveal leaves it (ADR 0074): how many are out, and the one that just came out. */
+export async function revealedSubject(db: D1Database, tournamentId: number) {
+  const t = await first<{ id: number; name: string; revealed: number; awards: string }>(
+    db,
+    "SELECT id, name, awards_revealed revealed, awards FROM tournaments WHERE id = ?",
+    [tournamentId],
+  );
+  if (!t) return null;
+  const given = await all<{ award: string }>(
+    db,
+    "SELECT DISTINCT award FROM tournament_award_winners WHERE tournament_id = ?",
+    [tournamentId],
+  );
+  const out = awardsToReveal(
+    parseAwards(t.awards),
+    given.map((g) => g.award),
+  );
+  return {
+    id: t.id,
+    name: t.name,
+    revealed: t.revealed,
+    award: t.revealed > 0 ? (out[t.revealed - 1]?.name ?? null) : null,
+  };
 }

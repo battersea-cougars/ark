@@ -1,0 +1,158 @@
+/*
+ * The awards' reveal (ADR 0074): every beat's timing and motion in one place, to tune or swap. The awards page sets
+ * `.award-reveal` on the stage (`.finale` while the champions' card is up); its card (lib/AwardStage) and the button
+ * under it (pages/Awards) use these. Each beat plays from the change of state, so every phone sees the same moments.
+ *
+ *   Next award: the last card dissolves while the next zooms in, lands with a little overshoot, its name a beat after.
+ *   Reveal: the "?" beats like a heart, fades, then the winner rolls into the winner's area (slow start, quicker, a
+ *   knock as it stops), then the hanko lands.
+ *   The champions: the page darkens round the card and a gong ring goes out from it; "And your … champions…" holds over
+ *   the "?"; the crest and name roll in, heavier; 優勝 slams down; the dark eases out to a warm brass glow.
+ */
+.award-reveal {
+  /* Next award */
+  --dissolve-ms: 420ms;
+  --enter-ms: 620ms;
+  --enter-ease: cubic-bezier(0.3, 1.45, 0.55, 1);
+  --enter-name-delay: 220ms;
+  /* Reveal: the heartbeat, the "?" fading, then (after it) the roll */
+  --pulse-ms: 1000ms;
+  --fade-ms: 280ms;
+  --line-ms: 0ms;
+  --roll-delay: calc(var(--pulse-ms) + var(--fade-ms) + var(--line-ms));
+  --roll-ms: 650ms;
+  --stamp-delay: calc(var(--roll-delay) + var(--roll-ms) + 60ms);
+  /* The button under the card comes back once it's all landed */
+  --beat-ms: calc(var(--stamp-delay) + 450ms);
+  /* The champions: only the finale uses these */
+  --spot-in-ms: 600ms;
+  --spot-out-delay: calc(var(--stamp-delay) + 700ms);
+  --spot-out-ms: 1400ms;
+  --spot-dark: rgb(0 0 0 / 0.72);
+}
+.award-reveal.finale {
+  --pulse-ms: 1300ms;
+  --line-ms: 1700ms;
+  --roll-ms: 1050ms;
+  --beat-ms: calc(var(--spot-out-delay) + 400ms);
+}
+
+/* The heartbeat: twice, the second smaller */
+@keyframes award-heartbeat {
+  0%,
+  100% {
+    scale: 1;
+  }
+  14% {
+    scale: 1.22;
+  }
+  28% {
+    scale: 1;
+  }
+  44% {
+    scale: 1.12;
+  }
+  60% {
+    scale: 1;
+  }
+}
+@keyframes award-fade-out {
+  to {
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+@keyframes award-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+/* The roll, a motor's: slow to start, quicker, a knock as it stops (a touch past and back) */
+@keyframes award-roll-in {
+  0% {
+    transform: translateY(-115%);
+    animation-timing-function: cubic-bezier(0.7, 0, 0.95, 0.55);
+  }
+  80% {
+    transform: translateY(5%);
+    animation-timing-function: ease-out;
+  }
+  90% {
+    transform: translateY(-2%);
+    animation-timing-function: ease-in-out;
+  }
+  100% {
+    transform: none;
+  }
+}
+/* "And your … champions…": up, held, gone */
+@keyframes award-line {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+  18%,
+  82% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Next award: the last card going, the next one coming in from small and faint, landing with weight */
+@keyframes award-dissolve {
+  to {
+    opacity: 0;
+    scale: 1.03;
+    filter: blur(6px);
+  }
+}
+@keyframes award-enter {
+  from {
+    opacity: 0;
+    scale: 0.85;
+  }
+}
+@keyframes award-settle {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+/* The champions: the page darkens round the card, then eases out to a brass glow */
+@keyframes award-spot-in {
+  from {
+    box-shadow:
+      0 0 0 100vmax rgb(0 0 0 / 0),
+      0 0 0 transparent;
+  }
+  to {
+    box-shadow:
+      0 0 0 100vmax var(--spot-dark),
+      0 0 0 transparent;
+  }
+}
+@keyframes award-spot-out {
+  from {
+    box-shadow:
+      0 0 0 100vmax var(--spot-dark),
+      0 0 0 transparent;
+  }
+  to {
+    box-shadow:
+      0 0 0 100vmax rgb(0 0 0 / 0),
+      0 0 3rem color-mix(in srgb, var(--brass) 32%, transparent);
+  }
+}
+/* The gong: one ring of brass out from the card, once */
+@keyframes award-gong {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25, 1.45);
+  }
+}

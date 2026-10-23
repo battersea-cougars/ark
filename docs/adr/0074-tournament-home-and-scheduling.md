@@ -80,7 +80,7 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   | Fixtures set | (made again from Manage)          | the matches, a plain list in order of play, each card opening its matchup                                                                |
   | KUMITE!      |                                   | your turn to keep score, the matches as a carousel (`lib/MatchCarousel`), then where everyone goes after, then the board                 |
 
-| THE ANCHOR | Confirm the awards, then the reveal | where everyone is (🍺 The Anchor · celebration and awards, Map), Cast your vote till they're confirmed, the awards on one card (a drum) and the winners so far, the final table, the results |
+| THE ANCHOR | Confirm the awards, then the reveal | where everyone is (🍺 The Anchor · celebration and awards, Map), The awards (a big card to their own page, the stage), Cast your vote till they're confirmed, the final table, the results |
 
 - **Fighting blind**: a draft is its captains' and whoever runs it (ADR [0060](0060-the-draft.md)), so anyone else's
   Draft open view is a card with a blindfold, "Fighting blind" and a line from Settings → Quips ("Fighting blind", the
@@ -101,37 +101,49 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   page, for whoever runs the draft too (the draft's own steps). The draft room's gear has the same draft items and
   Back. A drawer opens only from a tap.
 - **The after-party's view** (`lib/AfterParty.svelte`) is the pub after the film's last match: brass on the carbon
-  (a warm glow in place of the red, award names in brass), the motif kept (賞 beside the awards, a 賞 hanko on each
-  one turned over, 優勝 for the champions and beside the final table). **Two steps** (ADR
-  [0044](0044-champions-and-awards.md)). First the awards are confirmed: everyone who played sees **Cast your vote**
-  (on the KUMITE! day too, once the last match is done) while voting's open; whoever runs it (`manage:Tournament`) has
-  one card, **Confirm the awards**, saying how many have voted for each voted award and what's still to choose (the
-  judges' call), opening the drawer. Confirming closes voting. Then **the reveal**, on **one card, a drum** like the old
-  scoreboards ("maybe instead we just do it one card at a time", the user, 2026-10-23): sealed, the award's confirmed
-  name big in brass (the judges' call's name tonight included) and a brass question mark where the winner will be, 賞
-  faint behind it; whoever runs it taps it (Tap to reveal; everyone else's says Waiting for the reveal) and the drum
-  turns over in one roll, the face up rolling in as the sealed face rolls away, one machine (slow to start, quicker,
-  a knock as it stops), then the hanko lands; once it's settled the admin's cue on it is **Next award**, and a tap
-  rolls the drum on to the next one, sealed. Every phone follows each roll live, so everyone sees the same card. No
-  scrolling, no dimmed waiting cards: the only motion is the drum; with reduced motion, a crossfade. Under the drum,
-  **the winners so far**, a line each (the award, who took it home), each line's room kept from the start. **The
-  champions are the finale** ("the champions should be revealed last - that is the culmination. Start with the joke,
-  go to top scorer, best goalie, then a special larger card for the champions", the user): the award the table decides
-  (by `decidedBy`, not its name) has the bigger card, wherever it's listed: its crest and name a size up, ringed in
-  brass, a heavier roll, a bigger 優勝 hanko; the drum's room is the finale's from the start (full width, taller), so
-  nothing moves. The reveal keeps the admin's order (the Kumite lists the champions last; an admin listing them
-  elsewhere gets the big card there). After the last the drum stays on it, the full list under it; opened later, it's
-  just where it is. Then where everyone is, the final table (`lib/BoardTable`, with the stats we track: played, won,
-  drawn, lost, goal difference, points; the champions first, with their ink stamp, then the final's loser, then the
-  table: `finalOrder` in `lib/afters.ts`), and the day's results, a line a match. The page follows the live hub all
-  evening, as it does a match (ADR [0072](0072-live-updates.md)).
-- **Revealing is the server's** (`tournaments.awards_revealed`, how many are out, and `awards_next`, the drum rolled
-  on to the next, sealed; `drumOf` in `lib/afters.ts`): `POST /api/tournaments/:id/awards/reveal { next }` names the
-  award the tap saw sealed, by its place in the list; `POST /api/tournaments/:id/awards/next { at }` rolls on, `at`
-  how many were out. Only once the last match is played and the awards are confirmed (409 otherwise); each one
-  `UPDATE` guarded on the count and the drum where the tap saw them, so a double tap or two phones at once move it
-  once, the second tap finding it moved and doing nothing (ADR [0121](0121-load-and-concurrency.md)); a tap from a
-  page further behind is refused. On the record as `tournament.award_revealed` (how many out, which one) and
+  (a warm glow in place of the red, award names in brass), the motif kept (賞 beside the awards, 優勝 beside the final
+  table). **Two steps** (ADR [0044](0044-champions-and-awards.md)). First the awards are confirmed: everyone who played
+  sees **Cast your vote** (on the KUMITE! day too, once the last match is done) while voting's open; whoever runs it
+  (`manage:Tournament`) confirms them. Then **the reveal**, on the awards' own page. The view has where everyone is,
+  then **The awards**, one big card (`lib/AwardsEntry`): for whoever runs it, till they're confirmed, **Confirm the
+  awards** (how many have voted for each voted award, what's still to choose, the judges' call; opening the drawer),
+  for everyone else Waiting for the reveal; then where the reveal's at; and the way to the page. Then the final table
+  (`lib/BoardTable`, with the stats we track: played, won, drawn, lost, goal difference, points; the champions first,
+  with their ink stamp, then the final's loser, then the table: `finalOrder` in `lib/afters.ts`), and the day's
+  results, a line a match. The page follows the live hub all evening, as it does a match (ADR
+  [0072](0072-live-updates.md)).
+- **The awards' page** (`/tournaments/:slug/awards`, `pages/Awards.svelte`; its way back the Kumite) is a stage ("lets
+  do a full page for the awards", the user, 2026-10-23): **one card, centred, big** (`lib/AwardStage`), the award now,
+  its size fixed, in a room the finale's size from the start, so nothing round it moves and nothing scrolls. Sealed:
+  the award's confirmed name big in brass (the judges' call's name tonight included), what it's for, and "?" in the
+  winner's area. Under the card, whoever runs it has one button (`cueOf` in `lib/afters.ts`): Confirm the awards
+  (the same drawer) till they're confirmed, then **Reveal** (a tap on the sealed card too), **Next award** once it's
+  out, nothing after the last; everyone else's place says **Waiting for the reveal**, with Cast your vote under it
+  till they're confirmed. **The reveal:** the "?" beats like a heart, twice, and fades; then the winner (a team's crest
+  and name, or a player's name and their team) rolls into the winner's area alone, clipped to it, a short motor's roll
+  (slow to start, quicker, a knock as it stops), the award's name staying put; then the 賞 hanko lands
+  (`lib/HankoPress`, the draft's seal with its ink specks). **Next award** dissolves the card (fading, a touch of blur)
+  as the next zooms in from small and faint, landing with a little overshoot, its name settling a beat after,
+  sealed. A judges' call left out as they confirm (ADR [0044](0044-champions-and-awards.md)) isn't on the stage, nor
+  counted: the reveal is the awards given, in order (`awardsToReveal`). **The champions** (the award the table decides, by `decidedBy`, wherever the admin lists it: the reveal
+  keeps their order, the Kumite's champions last) are the finale: a bigger card, ringed in brass, the crest and name
+  a size up; its button says **The champions**, and on it the page darkens round the card and one gong ring of brass
+  goes out from it, "And your Kumite champions…" holds over the "?" a moment longer, the crest and name roll in,
+  heavier, 優勝 slams down, and the dark eases out to a warm brass glow. After the last the champions stay up, **The
+  winners** under them (each award and who took it home) and a link to The final table. Every beat plays from the
+  change of state (`beatOf`: sealed to face up is the reveal, face up to the next sealed is Next award), so every
+  phone sees the same moments; opened late, reloaded, or a step missed, it's just where it is, nothing replayed; the
+  button comes back once the beat's landed. Every beat's timing is one block (`lib/award-reveal.css`: keyframes and
+  custom properties: the dissolve, the zoom, the heartbeat, the fade, the delay after it, the roll, the hanko, the
+  champions' line, the spotlight), to tune or swap. Reduced motion: crossfades only, no heartbeat, ring, roll or zoom,
+  the champions' line still shown.
+- **Revealing is the server's** (`tournaments.awards_revealed`, how many are out, and `awards_next`, the stage moved
+  on to the next, sealed; `drumOf` in `lib/afters.ts`, the card it shows):
+  `POST /api/tournaments/:id/awards/reveal { next }` names the award the tap saw sealed, by its place in the list;
+  `POST /api/tournaments/:id/awards/next { at }` moves on, `at` how many were out. Only once the last match is played
+  and the awards are confirmed (409 otherwise); each one `UPDATE` guarded on the count and the card where the tap saw
+  them, so a double tap or two phones at once move it once, the second tap finding it moved and doing nothing (ADR
+  [0121](0121-load-and-concurrency.md)); a tap from a page further behind is refused. On the record as `tournament.award_revealed` (how many out, which one) and
   `tournament.award_next`. **A member isn't sent an award's winner on its evening until it's revealed** (the club
   read's `viewer` has the evening and who runs tournaments, as the blind draft keeps its picks); from 06:00 every
   winner is history. The first one out tells everyone with the app, once ("Awards at The Anchor", topic
@@ -530,3 +542,16 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   instead we just do it one card at a time", the user); no scrolling, no dimmed cards; the winners so far under it.
   The champions (the table's award) are the finale's bigger card, its room kept from the start. The final table
   has the stats we track (`lib/BoardTable`), not points alone.
+- 2026-10-23: "the worfklow is still not there. lets do a full page for the awards. the admin can have a button under
+  the award to go to the next award. dissolve the last, and zoom ireavel the next card. the admin then clicks to
+  reveal … make the ? part of the card disappear, then start the roll maybe?" and "the whole workflow needs to be a
+  little more dramatic" (the user). The awards get a page of their own, a stage (`/tournaments/:slug/awards`): one
+  card, the admin's button under it (Reveal, Next award, The champions), everyone else Waiting for the reveal; the
+  "?" beats and fades, then only the winner rolls in; Next award dissolves the card as the next zooms in; the
+  champions' finale darkens the page round the card, a gong ring, "And your Kumite champions…", 優勝 slammed down,
+  then a brass glow. Every beat's timing in `lib/award-reveal.css`. The after-party keeps where everyone is, a big
+  The awards card (Confirm the awards on it till they're confirmed), Cast your vote, the final table and the
+  results; the drum and the winners so far move to the page. The reveal keeps the admin's order ("ohh - it's
+  configrable! no that is better", the user): the champions' finale is theirs wherever they're listed. A judges' call
+  left out as they confirm isn't revealed at all: the reveal is the awards given (`awardsToReveal` in
+  `lib/awards.ts`, the Worker's count and the page's alike; everyone's sent which awards were given, never who to).

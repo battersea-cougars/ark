@@ -1,7 +1,7 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
-import { castVotes, nextAward, revealAward, setWinners } from "./awards";
+import { castVotes, nextAward, revealAward, revealedSubject, setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
@@ -113,11 +113,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     // How many are out, and the one just revealed
     audit: {
       event: "tournament.award_revealed",
-      subject: rowOf(
-        `SELECT id, name, awards_revealed revealed,
-                CASE WHEN awards_revealed > 0 THEN json_extract(awards, '$[' || (awards_revealed - 1) || '].name') END award
-         FROM tournaments WHERE id = ?`,
-      ),
+      subject: (c) => revealedSubject(c.env.DB, id(c)),
     },
     action: "manage:Tournament",
     // Everyone watching the after-party sees it turn over (ADR 0072)
@@ -125,7 +121,8 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     calendar: false,
     // The first one out: everyone hears the awards are on
     notify: awardsOut,
-    // { next }: the award it reveals, by its place in the list, the one the tap saw face down (ADR 0074)
+    // { next }: the award it reveals, by its place in the reveal (a judges' call left out isn't one), the one the tap
+    // saw face down (ADR 0074)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
   },
   {

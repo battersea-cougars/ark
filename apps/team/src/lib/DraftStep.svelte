@@ -12,7 +12,7 @@
   import { prefersReducedMotion } from "../app/motion";
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
-  import Kanji from "./Kanji.svelte";
+  import HankoPress from "./HankoPress.svelte";
   import { kanjiFor, type MotifKey } from "./motif";
   import type { TournamentType } from "../demo/model";
 
@@ -58,13 +58,7 @@
     <div class="head" out:slide={out}>
       <div class="mark">
         {#if icon}<span class="icon"><Icon name={icon} size={44} /></span>
-        {:else if kanji && seal}<span class="hanko-press"
-            ><Kanji text={kanji} seal />{#if pressed}{#each [0, 1, 2, 3, 4, 5] as k (k)}<i
-                  class="ink"
-                  style:--a="{k * 60 + 15}deg"
-                  style:--d="{0.9 + (k % 3) * 0.35}rem"
-                ></i>{/each}{/if}</span
-          >
+        {:else if kanji && seal}<HankoPress text={kanji} {pressed} />
         {:else if kanji}<span class="big" lang="ja" aria-hidden="true">{kanji}</span>
         {:else}<span class="icon"><Icon name={type.icon} size={34} /></span>{/if}
       </div>
@@ -81,51 +75,8 @@
 </section>
 
 <style>
-  /* The teams sealed: the hanko comes down on the card like a rubber stamp (big and tilted, then flat on the card, a
-     thud of shadow, ink specks), held a moment, and the card lifts away. Less motion: none of it */
-  .hanko-press {
-    position: relative;
-    display: inline-grid;
-  }
-  .pressed .hanko-press {
-    animation: press 350ms cubic-bezier(0.55, 0, 0.75, 0.2) both;
-  }
-  @keyframes press {
-    0% {
-      transform: scale(1.4) rotate(-9deg);
-      filter: drop-shadow(0 1.2rem 1rem rgb(0 0 0 / 0.45));
-    }
-    80% {
-      transform: scale(0.96) rotate(-1deg);
-      filter: drop-shadow(0 0.1rem 0.15rem rgb(0 0 0 / 0.6));
-    }
-    100% {
-      transform: scale(1) rotate(0);
-      filter: drop-shadow(0 0.15rem 0.3rem rgb(0 0 0 / 0.4));
-    }
-  }
-  .ink {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 4px;
-    height: 4px;
-    margin: -2px;
-    border-radius: 50%;
-    background: var(--red);
-    opacity: 0;
-    animation: speck 420ms 280ms ease-out both;
-  }
-  @keyframes speck {
-    0% {
-      opacity: 0.9;
-      transform: rotate(var(--a)) translateX(1.2rem) scale(1);
-    }
-    100% {
-      opacity: 0;
-      transform: rotate(var(--a)) translateX(calc(1.2rem + var(--d))) scale(0.5);
-    }
-  }
+  /* The teams sealed: the hanko comes down on the card like a rubber stamp (lib/HankoPress), held a moment, and the
+     card lifts away. Less motion: none of it */
   .step-card.pressed {
     animation: lift 260ms 650ms ease-in both;
   }
@@ -136,8 +87,6 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .pressed .hanko-press,
-    .ink,
     .step-card.pressed {
       animation: none;
     }

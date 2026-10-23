@@ -1,7 +1,17 @@
 // How each award's decided (ADR 0044): the stats we track, a draw, a vote counted, and awards saved before they said
 // how. The tricky pure part; the routes that save, vote and reveal have their use cases in worker/tournaments.
 import { describe, expect, it } from "vitest";
-import { awardFromData, countVotes, decidedByOf, fromKey, keyOf, withDecidedBy, type Award, type Stat } from "./awards";
+import {
+  awardFromData,
+  awardsToReveal,
+  countVotes,
+  decidedByOf,
+  fromKey,
+  keyOf,
+  withDecidedBy,
+  type Award,
+  type Stat,
+} from "./awards";
 
 // Two teams: Ants (1, captain 10, goalie 12) and Bees (2, captain 20, goalie 22)
 const teams = [
@@ -198,5 +208,27 @@ describe("awards saved before they said how: the old guess from the name, once",
     expect(keyOf(was)).toBe("vote:players");
     expect(fromKey("vote:skaters", was)).toEqual({ kind: "vote", voters: "skaters", tieBreak: "points" });
     expect(fromKey("vote:skaters")).toEqual({ kind: "vote", voters: "skaters", tieBreak: "goalsAgainst" });
+  });
+});
+
+describe("the awards revealed: a judges' call left out isn't one", () => {
+  const awards: Award[] = [
+    { name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: [] } },
+    { name: "Top scorer", about: "", decidedBy: { kind: "stat", stat: "goals" } },
+    { name: "Most penalty minutes", about: "", decidedBy: { kind: "stat", stat: "penaltyMinutes" } },
+    { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
+  ];
+
+  it("every award in the admin's order, the judges' call too once it's given", () => {
+    const given = ["The Judges' Call", "Top scorer", "Champions"];
+    expect(awardsToReveal(awards, given).map((a) => a.name)).toEqual(awards.map((a) => a.name));
+  });
+
+  it("the judges' call nobody was given is left out; a stat nobody won stays (Nobody this time)", () => {
+    expect(awardsToReveal(awards, ["Top scorer", "Champions"]).map((a) => a.name)).toEqual([
+      "Top scorer",
+      "Most penalty minutes",
+      "Champions",
+    ]);
   });
 });

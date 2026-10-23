@@ -193,7 +193,9 @@ describe("the judges' call, made as they're confirmed", () => {
     expect((await k.confirm()).status).toBe(200);
     const mo = await w.signedIn("mo@example.com");
     const before = await k.tournament(mo);
-    expect(before.titles).toEqual([{ award: "The Judges' Call", title: "Most Dramatic Fall" }]);
+    // Which awards were given (the judges' call with its name tonight), never who to
+    expect(before.titles).toContainEqual({ award: "The Judges' Call", title: "Most Dramatic Fall" });
+    expect(before.titles.filter((x: { title: string | null }) => x.title)).toHaveLength(1);
     expect(winnerOf(before, "The Judges' Call")).toEqual([]);
     await k.reveal(0);
     expect(winnerOf(await k.tournament(mo), "The Judges' Call")).toEqual([
@@ -238,7 +240,9 @@ describe("the judges' call, made as they're confirmed", () => {
         )
       ).status,
     ).toBe(200);
-    expect((await k.tournament()).titles).toEqual([{ award: "The Judges' Call", title: "Best Celly" }]);
+    expect((await k.tournament()).titles.filter((x: { title: string | null }) => x.title)).toEqual([
+      { award: "The Judges' Call", title: "Best Celly" },
+    ]);
     await k.reveal(0);
     const late = await k.confirm();
     expect(late.status).toBe(409);

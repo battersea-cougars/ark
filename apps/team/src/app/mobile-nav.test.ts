@@ -51,8 +51,8 @@ describe("buildRoutes", () => {
       "/training/friday",
       "/training/sunday",
     ]);
-    // One page, by status, and its board (ADR 0074)
-    expect(routes.filter((r) => r.fold === "type:2").map((r) => r.name)).toEqual(["The Cup"]);
+    // One page, by status, and its board (ADR 0074); the awards' stage under it
+    expect(routes.filter((r) => r.fold === "type:2").map((r) => r.name)).toEqual(["The Cup", "The awards"]);
     // A draft's has its draft room too, full screen and off every menu (ADR 0060)
     expect(routes.find((r) => r.path === "/tournaments/kumite/draft/room")).toMatchObject({
       page: "draft-room",
@@ -205,6 +205,16 @@ describe("a tournament is one page; its teams and History are a link away, with 
       page: "tournament-team",
       under: "games:1",
     });
+  });
+
+  it("The awards: a page of their own under the tournament's page, the way back the Kumite; not a tab", () => {
+    const routes = at("fixtures");
+    expect(routeFor(routes, "/tournaments/kumite/awards")).toMatchObject({
+      page: "awards",
+      under: "games:1",
+      hidden: true,
+    });
+    expect(tabRoutes(routes, "tournaments", admin).map((r) => r.name)).not.toContain("The awards");
   });
 
   it("History isn't a tab while one's running: it opens from the page, and a past one goes back to History", () => {

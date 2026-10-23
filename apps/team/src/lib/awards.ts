@@ -59,6 +59,16 @@ export function decidedByOf(a: { name: string; decidedBy?: DecidedBy | null }): 
   return { kind: "live", options: [] };
 }
 
+/**
+ * The awards revealed at the after-party, in the admin's order (ADR 0044, 0074): every one but a judges' call left
+ * out (a live award nobody was given as they confirmed). `given`: the awards that have a winner. The Worker's reveal
+ * and the page count the same list, so how many are out (`awards_revealed`) means the same to both.
+ */
+export const awardsToReveal = <A extends { name: string; decidedBy?: DecidedBy | null }>(
+  awards: A[],
+  given: string[],
+) => awards.filter((a) => decidedByOf(a).kind !== "live" || given.includes(a.name));
+
 /** Awards as an editor loads them: each saying how it's decided, the old guess written in for one that didn't. */
 export const withDecidedBy = (awards: Award[]): Award[] =>
   awards.map((a) => ({ ...a, decidedBy: structuredClone(decidedByOf(a)) }));

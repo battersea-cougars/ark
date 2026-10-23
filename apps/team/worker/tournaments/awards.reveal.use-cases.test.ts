@@ -51,6 +51,77 @@ describe("the awards at The Anchor, one card at a time", () => {
     expect((await k.reveal(4)).status).toBe(409);
   });
 
+  it("revealed in the admin's order, wherever they list the champions: the finale's card is theirs wherever it is", async () => {
+    const k = await kumiteNight(w, {
+      awards: [
+        { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
+        { name: "Top scorer", about: "", decidedBy: { kind: "stat", stat: "goals" } },
+      ],
+    });
+    const mo = await w.signedIn("mo@example.com");
+    expect(
+      (
+        await k.dana.call(
+          "PUT",
+          `/api/tournaments/${k.id}/winners`,
+          {
+            winners: [
+              { award: "Champions", teamId: k.ants },
+              { award: "Top scorer", memberId: k.idOf("Cara Captain") },
+            ],
+          },
+          EVENING,
+        )
+      ).status,
+    ).toBe(200);
+    // The champions first, as listed: sealed, then out first, for everyone
+    expect((await k.tournament(mo)).awards.map((a: { name: string }) => a.name)).toEqual(["Champions", "Top scorer"]);
+    await k.reveal(0);
+    expect(await k.sees(mo)).toEqual({ revealed: 1, next: false, winners: ["Champions"] });
+    await k.roll(1);
+    await k.reveal(1);
+    expect(await k.sees(mo)).toEqual({ revealed: 2, next: false, winners: ["Champions", "Top scorer"] });
+  });
+
+  it("the judges' call left out isn't revealed: three cards, not four, members seeing each in turn", async () => {
+    const k = await kumiteNight(w);
+    const mo = await w.signedIn("mo@example.com");
+    const left = await k.dana.call(
+      "PUT",
+      `/api/tournaments/${k.id}/winners`,
+      {
+        winners: [
+          { award: "Top scorer", memberId: k.idOf("Cara Captain") },
+          { award: "Best keeper", memberId: k.idOf("Gus Goalie") },
+          { award: "Champions", teamId: k.ants },
+        ],
+      },
+      EVENING,
+    );
+    expect(left.status).toBe(200);
+    // Top scorer is the first out
+    expect((await k.reveal(0)).status).toBe(200);
+    expect(await k.sees(mo)).toEqual({ revealed: 1, next: false, winners: ["Top scorer"] });
+    expect((await k.roll(1)).status).toBe(200);
+    expect((await k.reveal(1)).status).toBe(200);
+    expect(await k.sees(mo)).toMatchObject({ revealed: 2, winners: ["Top scorer", "Best keeper"] });
+    // The third is the last: the champions
+    expect((await k.roll(2)).status).toBe(200);
+    expect((await k.reveal(2)).status).toBe(200);
+    expect(await k.sees(mo)).toEqual({ revealed: 3, next: false, winners: ["Top scorer", "Best keeper", "Champions"] });
+    expect((await k.roll(3)).status).toBe(409);
+    expect((await k.reveal(3)).status).toBe(409);
+    // On the record by name, each one as it came out
+    const rows = w.db.raw
+      .prepare("SELECT detail FROM audit_log WHERE action = 'tournament.award_revealed' ORDER BY id")
+      .all() as { detail: string }[];
+    expect(rows.map((r) => JSON.parse(r.detail).to)).toMatchObject([
+      { revealed: 1, award: "Top scorer" },
+      { revealed: 2, award: "Best keeper" },
+      { revealed: 3, award: "Champions" },
+    ]);
+  });
+
   it("each tap in its turn: no reveal while the card shows the last one face up, no roll on from a sealed one", async () => {
     const k = await kumiteNight(w);
     await k.confirm();

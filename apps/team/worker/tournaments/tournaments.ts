@@ -333,7 +333,7 @@ export function tournamentsFrom(
   games: Game[],
   winners: (Winner & { tournamentId: number })[],
   votes: { tournamentId: number; award: string; cast: number; mine: number | null }[] = [],
-  titles: { tournamentId: number; award: string; title: string }[] = [],
+  titles: { tournamentId: number; award: string; title: string | null }[] = [],
 ) {
   return rows.map((t) => ({
     ...t,

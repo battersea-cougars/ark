@@ -232,7 +232,8 @@ export interface Tournament extends Entries {
    *  (never anyone else's). */
   votes?: { award: string; cast: number; mine: number | null }[];
   /** The judges' call's name tonight, once the awards are confirmed (ADR 0044): everyone's, before it's revealed. */
-  titles?: { award: string; title: string }[];
+  /** The awards given (once confirmed), each with the judges' call's name tonight, if it's one; never who won. */
+  titles?: { award: string; title: string | null }[];
   /** Its teams: in pick order for a draft, else in the order they entered. */
   teams: TournamentTeam[];
   /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own (the three below), or none this time.

@@ -448,6 +448,23 @@ export function buildRoutes(config: NavConfig): Route[] {
               },
             ]
           : []),
+        // The awards (ADR 0074): a stage of their own, the after-party's reveal, one card at a time. Under its front
+        // page, which links to it
+        ...(running
+          ? [
+              {
+                ...base,
+                id: `awards:${t.id}`,
+                path: `/tournaments/${t.slug}/awards`,
+                name: "The awards",
+                page: "awards",
+                action: "read:Event" as const,
+                icon: "medal" as const,
+                hidden: true,
+                under: home,
+              },
+            ]
+          : []),
         // Its draft, teams, fixtures and board aren't pages of their own: they're its statuses, shown on its one page
         // (ADR 0074). /tournaments/kumite/draft, /teams, /schedule show those, as the page's own address does the one
         // it's at; /standings (the board's old address) the one it's at, where the table is on the day

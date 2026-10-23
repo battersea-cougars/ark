@@ -16,6 +16,7 @@
   import { teamTone } from "./team-tones";
   import { awardFromData, decidedByOf } from "./awards";
   import { atAfters, editionState } from "./edition";
+  import { revealOf } from "./afters";
   import { londonEvening } from "./dates";
 
   let { tournament }: { tournament: Tournament } = $props();
@@ -37,8 +38,8 @@
   // Its evening, an award not yet revealed at the after-party is face down for everyone but whoever reveals it
   // (ADR 0074): no provisional pick in its place
   const tonight = $derived(atAfters(tournament, londonEvening()));
-  const faceDown = (award: string) =>
-    !admin && tonight && awards.findIndex((a) => a.name === award) >= (tournament.awardsRevealed ?? 0);
+  const revealed = $derived(revealOf(tournament).awards);
+  const faceDown = (award: string) => !admin && tonight && !revealed.find((a) => a.name === award)?.revealed;
   const winnersOf = (award: string) => {
     const saved = (tournament.winners ?? []).filter((w) => w.award === award);
     if (saved.length) return { list: saved, provisional: false };

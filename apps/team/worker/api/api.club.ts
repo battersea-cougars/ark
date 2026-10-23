@@ -4,6 +4,7 @@
 // (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
 import { quarterlyOn } from "../entries/entries";
+import { REVEAL_PLACE } from "../tournaments/awards";
 
 /** Who's asking, and what changes what they see. */
 export interface Viewer {
@@ -230,14 +231,15 @@ const PARTS = {
     `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId, w.title
      FROM viewer v CROSS JOIN tournament_award_winners w JOIN tournaments t ON t.id = w.tournament_id
      WHERE v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening
-        OR (SELECT j.key FROM json_each(t.awards) j WHERE json_extract(j.value, '$.name') = w.award) < t.awards_revealed
+        OR ${REVEAL_PLACE} < t.awards_revealed
      ORDER BY w.tournament_id, w.position`,
   ),
-  // The judges' call's name tonight (ADR 0044): everyone's once the awards are confirmed, before it's revealed (the
-  // sealed card says it); who won it waits for the reveal
+  // Which awards were given, and the judges' call's name tonight (ADR 0044): everyone's once the awards are confirmed,
+  // before they're revealed (the sealed card says the name; a judges' call left out isn't revealed at all, lib/awards
+  // awardsToReveal); who won each waits for the reveal
   awardTitles: rows(
     "tournamentId award title",
-    `SELECT DISTINCT tournament_id tournamentId, award, title FROM tournament_award_winners WHERE title IS NOT NULL`,
+    `SELECT tournament_id tournamentId, award, MAX(title) title FROM tournament_award_winners GROUP BY tournament_id, award`,
   ),
   // A voted award's votes (ADR 0044): how many are in, and the one this member cast. Who voted for whom is never sent
   votes: rows(

@@ -24,9 +24,9 @@ export const MORNING = { now: new Date("2026-11-14T06:30:00Z") };
 
 /**
  * A Kumite on Friday 13 November: Ants (Cara, captain, and Gus in goal) beat Bees (Cole, captain, in goal, and Sam)
- * 3–1, its one match, that evening. Mo didn't play; Dana runs it.
+ * 3–1, its one match, that evening. Mo didn't play; Dana runs it. `awards`: its own, in place of the series'.
  */
-export async function kumiteNight(w: ReturnType<typeof testWorld>) {
+export async function kumiteNight(w: ReturnType<typeof testWorld>, { awards }: { awards?: object[] } = {}) {
   const dana = await w.signedIn("dana@example.com");
   const club = (await dana.call("GET", "/api/bootstrap", undefined, EVENING)).body as Json;
   const idOf = (name: string) => club.members.find((m: Json) => m.name === name).id as number;
@@ -38,6 +38,7 @@ export async function kumiteNight(w: ReturnType<typeof testWorld>) {
     endTime: "21:30",
     kind: "teams",
     playoffs: [],
+    ...(awards ? { awards } : {}),
     teams: [
       { name: "Ants", logo: null, captainMemberId: idOf("Cara Captain"), players: [{ memberId: idOf("Gus Goalie") }] },
       { name: "Bees", logo: null, captainMemberId: idOf("Cole Captain"), players: [{ memberId: idOf("Sam Skater") }] },

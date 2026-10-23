@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 import type { Tournament, TournamentType } from "../demo/model";
 import { londonEvening } from "./dates";
 import { atAfters, currentOf } from "./edition";
-import { ballotOf, drumOf, finalOrder, isFinale, revealOf } from "./afters";
+import { ballotOf, beatOf, cueOf, drumOf, finalOrder, isFinale, revealOf, toConfirmOf } from "./afters";
 import { statusesOf, statusOf } from "./tournament-front";
+import type { Award } from "./awards";
 
 const kumite = { id: 1, slug: "kumite", shortName: "Kumite" } as TournamentType;
 const game = (position: number, status: "next" | "live" | "done") => ({
@@ -186,6 +187,100 @@ describe("drumOf: the after-party's one card, a drum", () => {
     expect(drumOf(4, 4, false)).toEqual({ at: 3, face: "up" });
     // Rolled on past the last is nowhere to go: still the last, face up
     expect(drumOf(4, 4, true)).toEqual({ at: 3, face: "up" });
+  });
+});
+
+describe("cueOf: what's under the awards page's card", () => {
+  const awards = [
+    { name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: [] } },
+    { name: "Top scorer", about: "", decidedBy: { kind: "stat", stat: "goals" } },
+    { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
+  ] as Award[];
+  const at = (o: Partial<Tournament>) => revealOf(kumiteOn(["done", "done"], { awards: [...awards], ...o }));
+  // Confirmed, the judges' call given (everyone's sent which were, never who to)
+  const confirmed = {
+    awardsConfirmedAt: "2026-10-23T21:40:00Z",
+    titles: [{ award: "The Judges' Call", title: "Best Celly" }],
+  };
+
+  it("before they're confirmed: Confirm the awards for whoever runs it; everyone else waits", () => {
+    expect(cueOf(at({}), true)).toBe("confirm");
+    expect(cueOf(at({}), false)).toBe("waiting");
+  });
+
+  it("sealed: Reveal for whoever runs it, everyone else waiting; face up, Next award", () => {
+    expect(cueOf(at(confirmed), true)).toBe("reveal");
+    expect(cueOf(at(confirmed), false)).toBe("waiting");
+    expect(cueOf(at({ ...confirmed, awardsRevealed: 1 }), true)).toBe("next");
+    expect(cueOf(at({ ...confirmed, awardsRevealed: 1 }), false)).toBe(null);
+    expect(cueOf(at({ ...confirmed, awardsRevealed: 1, awardsNext: true }), true)).toBe("reveal");
+  });
+
+  it("the champions sealed: The champions, wherever they're listed; after the last, nothing", () => {
+    expect(cueOf(at({ ...confirmed, awardsRevealed: 2, awardsNext: true }), true)).toBe("champions");
+    expect(cueOf(at({ ...confirmed, awardsRevealed: 3 }), true)).toBe(null);
+    const first = revealOf(kumiteOn(["done", "done"], { awards: [awards[2], awards[0]], ...confirmed }));
+    expect(cueOf(first, true)).toBe("champions");
+  });
+
+  it("no awards: nothing", () => {
+    expect(cueOf(at({ awards: [] }), true)).toBe(null);
+  });
+});
+
+describe("revealOf: a judges' call left out isn't revealed", () => {
+  it("once confirmed without it, the reveal is the rest, in order", () => {
+    const awards = [
+      { name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: [] } },
+      { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
+    ] as Award[];
+    const before = revealOf(kumiteOn(["done"], { awards }));
+    expect(before.awards.map((a) => a.name)).toEqual(["The Judges' Call", "Champions"]);
+    const after = revealOf(kumiteOn(["done"], { awards, awardsConfirmedAt: "2026-10-23T21:40:00Z", titles: [] }));
+    expect(after.awards.map((a) => a.name)).toEqual(["Champions"]);
+    expect(after.drum).toEqual({ at: 0, face: "sealed" });
+  });
+});
+
+describe("toConfirmOf: where confirming the awards stands, for whoever runs it", () => {
+  it("each voted award's count so far (never who for), and the judges' call yours to call", () => {
+    const t = kumiteOn(["done", "done"], {
+      teams: [
+        { id: 1, name: "", captainMemberId: 1, players: [{ memberId: 2 }] },
+        { id: 2, name: "", captainMemberId: 3, players: [{ memberId: 4 }] },
+      ],
+      awards: [
+        { name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: [] } },
+        { name: "Best keeper", about: "", decidedBy: { kind: "vote", voters: "skaters" } },
+        { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
+      ],
+      votes: [{ award: "Best keeper", cast: 1, mine: null }],
+    } as never);
+    const positionOf = (id: number) => (id === 2 || id === 3 ? "G" : "F");
+    expect(toConfirmOf(t, { positionOf })).toBe(
+      "Best keeper: 1 of 2 voted · Yours to call (or leave out): The Judges' Call",
+    );
+  });
+
+  it("nothing voted or to choose: nothing to say", () => {
+    expect(
+      toConfirmOf(kumiteOn(["done"], { awards: [{ name: "Champions", about: "" }] }), { positionOf: () => "F" }),
+    ).toBe("");
+  });
+});
+
+describe("beatOf: each change of card plays its beat, so every phone sees the same moments", () => {
+  it("sealed to face up is the reveal; face up to the next one sealed is the next card coming in", () => {
+    expect(beatOf({ at: 0, face: "sealed" }, { at: 0, face: "up" })).toBe("reveal");
+    expect(beatOf({ at: 0, face: "up" }, { at: 1, face: "sealed" })).toBe("next");
+  });
+
+  it("anything else (opened late, a reload, a step back, a step missed) plays nothing", () => {
+    expect(beatOf({ at: 0, face: "sealed" }, { at: 0, face: "sealed" })).toBe(null);
+    expect(beatOf({ at: 0, face: "sealed" }, { at: 1, face: "sealed" })).toBe(null);
+    expect(beatOf({ at: 0, face: "up" }, { at: 2, face: "sealed" })).toBe(null);
+    expect(beatOf({ at: 2, face: "up" }, { at: 0, face: "sealed" })).toBe(null);
+    expect(beatOf({ at: 1, face: "sealed" }, { at: 2, face: "up" })).toBe(null);
   });
 });
 
