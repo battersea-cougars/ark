@@ -3,7 +3,6 @@
 // (worker/auth/auth.passkeys.ts). In the iPhone app it's the same web page in WKWebView, which may use the team
 // domain's passkeys once the app's entitlement and the domain's apple-app-site-association agree (store.links.ts).
 import {
-  WebAuthnAbortService,
   browserSupportsWebAuthn,
   browserSupportsWebAuthnAutofill,
   platformAuthenticatorIsAvailable,
@@ -70,9 +69,6 @@ export async function signInWithPasskey(autofill = false): Promise<boolean> {
   throw new Error(why.error ?? "That passkey didn't work. Sign in with a code.");
 }
 
-/** Stop waiting for an autofilled passkey (the member chose another way). */
-export const stopWaiting = () => WebAuthnAbortService.cancelCeremony();
-
 async function forgetHere(rpId: string | undefined, credentialId: string) {
   const signal = (PublicKeyCredential as unknown as { signalUnknownCredential?: (o: object) => Promise<void> })
     .signalUnknownCredential;
@@ -131,13 +127,19 @@ export function signedInWithCode() {
   if (!recall(ADDED) && !recall(DONE)) remember(OFFER);
 }
 
-/** Whether Home offers "Use Face ID next time": after a code sign-in, once, where the device can make a passkey. */
+/**
+ * Whether Home offers "Use Face ID next time": after a code sign-in, once, where the device can make a passkey.
+ * @public Home imports this file lazily, which knip doesn't follow.
+ */
 export async function mayOfferPasskey(): Promise<boolean> {
   if (recall(OFFER) !== "1" || recall(ADDED) || recall(DONE) || !passkeysWork()) return false;
   return platformAuthenticatorIsAvailable().catch(() => false);
 }
 
-/** Offered: added, or "Not now". It isn't asked again on this device. */
+/**
+ * Offered: added, or "Not now". It isn't asked again on this device.
+ * @public As above: Home's lazy import.
+ */
 export function offered() {
   remember(DONE);
   try {

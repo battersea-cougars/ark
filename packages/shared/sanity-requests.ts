@@ -31,11 +31,9 @@ interface Tally {
   pending: Map<string, number>;
   /** The month so far as D1 had it at the last flush: `project|kind` → requests. */
   month: Map<string, { month: string; used: number }>;
-  /** Every request counted by this process: astro dev logs the difference per page (middleware.ts). */
-  total: number;
 }
 const KEY = Symbol.for("cougars.sanity-requests");
-const tally = ((globalThis as Record<symbol, Tally>)[KEY] ??= { pending: new Map(), month: new Map(), total: 0 });
+const tally = ((globalThis as Record<symbol, Tally>)[KEY] ??= { pending: new Map(), month: new Map() });
 
 /** Which project and quota a URL counts towards, or null if it isn't Sanity's API (its image CDN isn't). */
 export function sanityTarget(url: URL | string): { project: string; kind: SanityKind } | null {
@@ -52,7 +50,6 @@ export function countSanity(url: URL | string, status: number, now = new Date())
   if (!target || status >= 400) return;
   const key = `${dayOf(now)}|${target.project}|${target.kind}`;
   tally.pending.set(key, (tally.pending.get(key) ?? 0) + 1);
-  tally.total++;
 }
 
 /** `fetch`, counted. */
@@ -62,7 +59,6 @@ export async function sanityFetch(url: URL | string, init?: RequestInit): Promis
   return res;
 }
 
-export const sanityRequestsMade = () => tally.total;
 export const hasPendingSanityRequests = () => tally.pending.size > 0;
 
 /** What's been counted and not sent, and forget it. */
@@ -122,5 +118,4 @@ export const nextMonth = (now = new Date()) => Date.UTC(now.getUTCFullYear(), no
 export function resetSanityRequests() {
   tally.pending.clear();
   tally.month.clear();
-  tally.total = 0;
 }

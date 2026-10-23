@@ -111,13 +111,6 @@ async function edgePut<T>(edge: CacheDeps["edge"], key: string, entry: Entry<T>,
   }
 }
 
-/** A short, stable name for a query and its parameters, for cache keys. */
-export function hashKey(text: string): string {
-  let h = 0x811c9dc5; // FNV-1a
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
-  return (h >>> 0).toString(36);
-}
-
 /** Forget everything (tests). */
 export function clearCache(): void {
   memory.clear();

@@ -35,7 +35,8 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 - **Cheap checks, as warnings**: ESLint's `max-depth` (3), `max-lines-per-function` (80, tests excepted), `id-length`
   (2, with the exceptions above; object keys aren't counted) and `no-else-return` warn, and never fail lint or CI.
   `npm run sizes` lists the files and component styles past the prompts (CI prints it).
-- **Unused code goes.** An export nobody imports, a file nothing reaches, is removed; knip finds them.
+- **Unused code goes.** An export nobody imports, a file nothing reaches, is removed: `npx knip` finds them (its entry
+  points in `knip.json`). One kept on purpose says why, tagged `@public`.
 
 ## Consequences
 
@@ -50,3 +51,5 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 - 2026-10-23: Decided (#148): how code reads, beside ADR 0105's where it goes; the warnings and `npm run sizes` added.
 - 2026-10-23: Sign-in's routes (`auth.routes.ts`), passkeys' (`auth.passkeys.routes.ts`) and break glass's
   (`auth.break-glass.routes.ts`) moved out of their domain files; no route is outside a `.routes.ts` now.
+- 2026-10-23: Unused code removed (eight exports and what only they used) and `knip.json` added; `npx knip` reports no
+  unused files, exports or types.

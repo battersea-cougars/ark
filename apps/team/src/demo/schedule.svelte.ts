@@ -1,7 +1,7 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
 import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../lib/signup";
-import { atAfters, currentOf, editionState, hasStarted, latestOf, previousOf } from "../lib/edition";
+import { atAfters, currentOf, editionState, hasStarted, latestOf } from "../lib/edition";
 import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
@@ -146,13 +146,6 @@ export const pastTournaments = (typeId: number, evening = londonEvening()) =>
   db.tournaments
     .filter((t) => t.typeId === typeId && editionState(t) === "done" && !atAfters(t, evening))
     .sort((a, b) => b.heldOn.localeCompare(a.heldOn));
-
-/** The last one played before this (lib/edition.ts previousOf). */
-export const previousTournament = (t: Tournament) =>
-  previousOf(
-    db.tournaments.filter((x) => x.typeId === t.typeId),
-    t,
-  );
 
 const oneOffBookable = (o: OneOff): Bookable => ({
   key: `oneoff:${o.id}`,

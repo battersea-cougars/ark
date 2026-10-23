@@ -25,7 +25,6 @@ export const INFRACTIONS = [
   { value: "bench-minor", label: "Bench minor", bench: true, minorOnly: true },
   { value: "other", label: "Other", bench: false, minorOnly: false },
 ] as const;
-export type Infraction = (typeof INFRACTIONS)[number]["value"];
 export const infractionOf = (value: string) => INFRACTIONS.find((i) => i.value === value);
 
 /**

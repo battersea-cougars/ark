@@ -33,9 +33,6 @@ MATCHES[2].status = "live";
 
 export const POINTS = { win: 3, draw: 1, loss: 0 };
 
-/** The sample fixtures belong to this tournament (Autumn Kumite in data.ts); others start with none. */
-export const SAMPLE_TOURNAMENT_ID = 2;
-
 export function standings(matches: Match[], points = POINTS) {
   const rows = new Map(KUMITE_TEAMS.map((t) => [t.id, { team: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }]));
   for (const m of matches.filter((m) => m.status === "done")) {
@@ -62,21 +59,4 @@ export function standings(matches: Match[], points = POINTS) {
     }
   }
   return [...rows.values()].sort((x, y) => y.pts - x.pts || y.gf - y.ga - (x.gf - x.ga) || y.gf - x.gf);
-}
-
-export function leaders(matches: Match[]) {
-  const tally = new Map<number, { goals: number; assists: number }>();
-  const bump = (id: number, key: "goals" | "assists") => {
-    const t = tally.get(id) ?? { goals: 0, assists: 0 };
-    t[key]++;
-    tally.set(id, t);
-  };
-  for (const m of matches)
-    for (const goal of m.goals) {
-      bump(goal.scorer, "goals");
-      if (goal.assist) bump(goal.assist, "assists");
-    }
-  return [...tally]
-    .map(([id, t]) => ({ player: PLAYERS.find((p) => p.id === id)!, ...t, points: t.goals + t.assists }))
-    .sort((a, b) => b.points - a.points || b.goals - a.goals);
 }

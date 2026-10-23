@@ -602,12 +602,6 @@ export const openDraft = (tournamentId: number) =>
 /** ...and closes it: everyone's picked, or the rest are left out on purpose. The teams are then set. */
 export const closeDraft = (tournamentId: number, leaveOut = false) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/close`, { leaveOut }), "The draft is closed");
-/** Whoever runs the draft reopens a closed one, keeping the fixtures or clearing them, results and all (ADR 0060). */
-export const reopenDraft = (tournamentId: number, fixtures: "keep" | "clear") =>
-  save(
-    () => api("POST", `/api/tournaments/${tournamentId}/draft/reopen`, { fixtures }),
-    fixtures === "clear" ? "The draft is open again, the fixtures cleared" : "The draft is open again",
-  );
 /** One step of a tournament's workflow back, from the step it's at (lib/step-back.ts, ADR 0074). */
 export const stepBack = (tournamentId: number, from: string, said: string) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/step-back`, { from }), said);
@@ -617,9 +611,6 @@ export const moveTournament = (tournamentId: number, from: string, to: string, s
 /** An admin closes sign-up now, not on its closing day: a draft moves on to Draft open (ADR 0074). */
 export const closeSignup = (tournamentId: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/signup/close`), "Sign-up closed");
-/** An admin clears the fixtures, results and all, to be made again (ADR 0061). */
-export const clearFixtures = (tournamentId: number) =>
-  save(() => api("DELETE", `/api/tournaments/${tournamentId}/fixtures`), "Fixtures cleared");
 /** Everyone's picked (or the rest left out): one tap closes the draft and makes the fixtures (ADR 0060). */
 export const finishDraft = (tournamentId: number, leaveOut = false) =>
   save(
