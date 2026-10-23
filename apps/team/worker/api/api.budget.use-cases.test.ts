@@ -572,7 +572,8 @@ describe("every route keeps to the D1 budget, on a club of 60 and of 120", () =>
     at60 = await club(60);
     if (process.env.BUDGET === "plan") process.stdout.write(`\n${scans().join("\n")}\n`);
     at120 = await club(120);
-  });
+    // Every route twice, two clubs over: ~3 s alone, far longer beside the other suites (a hook's 10 s isn't enough)
+  }, 120_000);
 
   it("drives every route on its happy path", () => {
     const keys = [...ROUTES.map((r) => `${r.method} ${pretty(r.path)}`), ...AUTH_ROUTES];
