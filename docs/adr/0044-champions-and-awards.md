@@ -119,5 +119,5 @@ who won most of them.
   keeper a team, No keeper yet; the position was already Keeper.
 - 2026-10-23: The champions' award says what it is: the final's winner (else the top of the table), "Last team standing…
   barely."; its reason reads Won the final or Top of the table, not From the results.
-- 2026-10-23: Every Kumite award's line has a punchline, as the champions' does: "The judges' decision is final…
-  mostly.", "Most goals… some on purpose.", "Big glove… bigger excuses."
+- 2026-10-23: Every Kumite award's line has a punchline, not all the same shape: "Decided by people who've had a
+  pint.", "Most goals… some on purpose.", "Big glove… bigger excuses."
