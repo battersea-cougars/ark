@@ -107,14 +107,15 @@
       why: d.tied ? "Level on votes: your call" : "Your call",
     };
   }
-  // What's still to be chosen before it can be confirmed: the judges' call, and a vote that came back level
+  // What's still to be chosen before it can be confirmed: a vote that came back level. The judges' call is the
+  // admin's to make or not: one not made is left out of the reveal
   const pending = $derived(
-    awards.filter(
-      (a) =>
-        (kindOf(a) === "live" && !draft[a.name]?.winners.length) ||
-        (kindOf(a) === "vote" && draft[a.name]?.tied && !draft[a.name].winners.length),
-    ),
+    awards.filter((a) => kindOf(a) === "vote" && draft[a.name]?.tied && !draft[a.name].winners.length),
   );
+  const uncalled = $derived(awards.filter((a) => kindOf(a) === "live" && !draft[a.name]?.winners.length));
+  function clearCall(award: string) {
+    draft[award] = { ...draft[award], winners: [], title: undefined, why: "" };
+  }
   function close() {
     editing.id = null;
     filledFor = null;
@@ -203,19 +204,19 @@
               {#each d.winners as w, i (i)}{@render winner(w)}{/each}
             {/if}
           {:else if kind === "live"}
-            <p class="hint">The judges' call: name it tonight and choose who.</p>
+            <p class="hint">
+              The judges' call, if you want one: name it tonight and choose who. Not made, it's left out.
+            </p>
           {:else}
             <p class="hint">The results don't decide this one.</p>
           {/if}
           <div class="row-actions">
             {#if kind === "live"}
-              <button
-                class="btn sm"
-                class:primary={!d?.winners.length}
-                class:outline={!!d?.winners.length}
-                onclick={() => (calling = a)}
+              <button class="btn sm outline" onclick={() => (calling = a)}
                 ><Icon name="medal" size={15} />{d?.winners.length ? "Change the call" : "Make the call"}</button
               >
+              {#if d?.winners.length}<button class="btn sm ghost" onclick={() => clearCall(a.name)}>Leave it out</button
+                >{/if}
             {:else if kind === "vote"}
               {#if d?.tied}
                 <button
@@ -264,7 +265,11 @@
   {#snippet footer()}
     <!-- Room for the line kept, so the button doesn't move as the calls are made -->
     <p class="still hint" aria-live="polite">
-      {pending.length ? `Still to choose: ${pending.map((a) => a.name).join(", ")}` : "Voting closes as you confirm."}
+      {pending.length
+        ? `Still to choose: ${pending.map((a) => a.name).join(", ")}`
+        : uncalled.length
+          ? `Voting closes as you confirm. No call made: ${uncalled.map((a) => a.name).join(", ")} is left out.`
+          : "Voting closes as you confirm."}
     </p>
     <button class="btn primary confirm" disabled={busy || !!pending.length} onclick={confirm}
       ><Icon name="check" size={18} />Confirm the awards</button
