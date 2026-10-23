@@ -106,9 +106,11 @@ the draft's day, its captains. The page then shows the new one, its day obvious,
   award**, saying which is next ("Next: Top scorer · 1 of 4 out"); before the awards are confirmed its button is
   **Confirm the awards** (the drawer, ADR [0044](0044-champions-and-awards.md)). Each tap turns one award over for
   everyone watching, in the order listed: an award still to come is a face-down card (a brass question mark, 賞 faint
-  behind it); turned over while you watch, it flips, the winner burns in (`lib/BurnReveal`, the draft's) and the hanko
-  comes down; opened later, what's out is just there. Face up or down, a card is the same size. After the last: "That's
-  the Kumite. See you at the next one." Then where everyone is, the final table (the champions first, then the final's
+  behind it); turned over while you watch, the card stays put and its face becomes a dark split-flap board, like the
+  old scoreboards (`lib/SplitFlap`): the award's name and then who took it home clack in, each character turning
+  through a few others before it settles, left to right, and then the hanko comes down; opened later, what's out is
+  just there. Face up or down, a card is the same size. After the last, nothing more is said under the cards (their
+  line's room is kept). Then where everyone is, the final table (the champions first, then the final's
   loser, then the table: `finalOrder` in `lib/afters.ts`), and the day's results, a line a match. The page follows the
   live hub all evening, as it does a match (ADR [0072](0072-live-updates.md)).
 - **Revealing is the server's** (`tournaments.awards_revealed`, how many are out): `POST
@@ -489,3 +491,10 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   in, and a "The board" button under the carousel brings it into view.
 - 2026-10-23: Your pass stays on the Sign-up view once you're in or a reserve, after sign-up closes and through the
   day, not only while it's open (Punk out goes once it's started, as before).
+- 2026-10-23: A split-flap board, like the old scoreboards, in place of the flip and the burn: an award turned over
+  stays put, its face becomes a dark board, and the award's name and then the winner (a team, "Shared by 3", "Nobody
+  this time") clack in, each character a flap turning through a few others (seeded by the text, so everyone watching
+  sees the same) and settling left to right, then the 賞 hanko lands; about 2s, long names clacking faster and wrapping
+  whole words, shrinking to fit; with reduced motion the words are just there. `lib/SplitFlap` is shared, for the draft
+  or a scoreboard later. "That's the Kumite. See you at the next one." is gone (the user), and the after-party's brass
+  glow fades out inside its own box on every side, with no edge.

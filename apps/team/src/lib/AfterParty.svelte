@@ -4,9 +4,11 @@
   // motif kept. The awards come up one at a time, in the order listed: what's out face up, then the next one sealed
   // (a card with a question mark), the rest not yet there (their room kept, so nothing moves). Whoever runs it taps the
   // sealed card to reveal it (Confirm the awards first, if they aren't yet); for everyone else it waits. Each tap turns
-  // ONE award over for everyone watching (the live hub): it flips and its winner burns in under a 賞 hanko, the page
-  // brings it into view, and the next sealed card rises in under it. Opened later, what's out is just there. Then where everyone is, the final table (the champions first) and the
-  // day's results, one line each. The last one out: "That's the Kumite. See you at the next one."
+  // ONE award over for everyone watching (the live hub): the card stays put and its face becomes a dark board, like the
+  // old scoreboards, the award's name and then who took it home clacking in flap by flap (lib/SplitFlap), then a 賞
+  // hanko comes down; the page brings it into view, and the next sealed card rises in under it. Opened later, what's
+  // out is just there. Then where everyone is, the final table (the champions first) and the day's results, one line
+  // each.
   import type { Tournament, TournamentType } from "../demo/model";
   import type { After } from "@cougars/shared/places";
   import { PLAYERS } from "../demo/data";
@@ -15,12 +17,13 @@
   import { prefersReducedMotion } from "../app/motion";
   import { untrack } from "svelte";
   import { enterAwards } from "./AwardsDrawer.svelte";
-  import BurnReveal from "./BurnReveal.svelte";
   import DraftStep from "./DraftStep.svelte";
   import Kanji from "./Kanji.svelte";
+  import SplitFlap from "./SplitFlap.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { finalOrder, revealOf } from "./afters";
   import { kanjiFor } from "./motif";
+  import { flapMs } from "./split-flap";
   import InkStamp from "./InkStamp.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
@@ -54,13 +57,30 @@
   const games = $derived([...(t.games ?? [])].sort((a, b) => a.position - b.position));
   const kumite = $derived(!!kanjiFor(type, "awards"));
 
-  // An award turned over while you watch: it flips and burns in (with reduced motion, it fades in), the page brings
-  // it into view, and the next sealed card rises in. Opened later (or after a step back), they're just as they are
+  // What the board says under an award: who took it home (one or two), how many shared it, or that nobody did
+  const wonWords = (award: string) => {
+    const won = winnersOf(award);
+    if (!won.length) return ["Nobody this time"];
+    if (won.length > 2) return [`Shared by ${won.length}`];
+    return won.map((w) => (w.teamId ? teamName(w.teamId) : goesByOf(byId(w.memberId))));
+  };
+  // A reveal's beats, ms after the tap lands: the board comes on, the award's name clacks in, then who took it home,
+  // then the hanko comes down. About 2s, however long the names (long ones clack faster)
+  const BOARD_ON_MS = 250;
+  const BEAT_MS = 180;
+  const boardOf = (award: string) => {
+    const name = BOARD_ON_MS;
+    const about = name + flapMs(award);
+    const won = about + BEAT_MS;
+    const stamp = won + Math.max(...wonWords(award).map(flapMs)) + 120;
+    return { name, about, won, stamp };
+  };
+
+  // An award turned over while you watch: its face becomes the board and the words clack in (with reduced motion,
+  // the board fades in, the words just there), the page brings it into view, and once the hanko's down the next
+  // sealed card rises in. Opened later (or after a step back), they're just as they are
   let seen = untrack(() => reveal.revealed);
   let turning = $state<number[]>([]);
-  // The winner burns in once the card's face is round (the flip's 0.7s), never during it
-  let burning = $state<number[]>([]);
-  const FLIP_MS = 700;
   let rising = $state(-1);
   const cards: HTMLElement[] = $state([]);
   $effect.pre(() => {
@@ -68,16 +88,13 @@
     untrack(() => {
       if (n > seen) {
         const fresh = Array.from({ length: n - seen }, (_, k) => seen + k);
+        const done = Math.max(...fresh.map((k) => boardOf(reveal.awards[k]?.name ?? "").stamp)) + 700;
         turning = [...turning, ...fresh];
         rising = n;
-        setTimeout(() => (burning = [...burning, ...fresh]), FLIP_MS);
-        setTimeout(() => {
-          turning = turning.filter((i) => !fresh.includes(i));
-          burning = burning.filter((i) => !fresh.includes(i));
-        }, FLIP_MS + 2200);
+        setTimeout(() => (turning = turning.filter((i) => !fresh.includes(i))), done);
         setTimeout(() => {
           if (rising === n) rising = -1;
-        }, 2200);
+        }, done + 400);
         requestAnimationFrame(() =>
           cards[n - 1]?.scrollIntoView({ block: "center", behavior: prefersReducedMotion ? "auto" : "smooth" }),
         );
@@ -141,18 +158,22 @@
           {@const won = winnersOf(a.name)}
           {@const sealed = i === reveal.revealed}
           {@const tap = manage && sealed && reveal.confirmed}
+          {@const times = boardOf(a.name)}
+          {@const playing = turning.includes(i)}
           <li
             class="award"
             class:up={a.revealed}
             class:sealed
             class:later={i > reveal.revealed}
-            class:turning={turning.includes(i)}
+            class:turning={playing}
             class:rising={rising === i}
+            style:--rise-at={rising === i && i > 0 ? `${boardOf(reveal.awards[i - 1].name).stamp + 200}ms` : null}
             aria-hidden={i > reveal.revealed}
             bind:this={cards[i]}
           >
-            <div class="flip">
-              <!-- Face down: a question mark, the award's place in the order; for whoever runs it, the card to tap -->
+            <!-- Face down: a question mark, the award's place in the order; for whoever runs it, the card to tap. Kept
+                 under the board while it comes on -->
+            {#if !a.revealed || playing}
               <div class="face back" aria-hidden={a.revealed}>
                 <span class="order num">{i + 1}</span>
                 <span class="mystery display">?</span>
@@ -172,55 +193,73 @@
                     aria-label="Reveal award {i + 1}: {a.name}"
                     onclick={next}
                   ></button>
-                {:else}
-                  <span class="sr-only">{a.revealed ? "" : `Award ${i + 1}, still face down`}</span>
+                {:else if !a.revealed}
+                  <span class="sr-only">Award {i + 1}, still face down</span>
                 {/if}
               </div>
-              <!-- Face up: the award, what it's for, who took it home -->
-              <div class="face front" aria-hidden={!a.revealed}>
-                {#if a.revealed}
-                  <span class="award-name display">{a.name}</span>
-                  {#if a.about}<span class="about">{a.about}</span>{/if}
-                  <span class="won">
-                    {#if !won.length}
-                      <span class="hint">Nobody this time</span>
-                    {:else if won.length > 2}
-                      <span class="who display">Shared by {won.length}</span>
-                    {:else}
-                      {#each won as w, k (k)}
-                        {#if w.teamId}
-                          <a class="who-team" href={teamHref(type.slug, w.teamId)}>
-                            <TeamCrest
+            {/if}
+            <!-- Face up: a dark board, the award and who took it home clacking in, what it's for; the hanko last -->
+            {#if a.revealed}
+              <div
+                class="face front"
+                style:--about-at="{times.about}ms"
+                style:--won-at="{times.won}ms"
+                style:--stamp-at="{times.stamp}ms"
+              >
+                <span class="award-name"
+                  ><SplitFlap text={a.name} play={playing} delay={times.name} size="1.15rem" /></span
+                >
+                {#if a.about}<span class="about">{a.about}</span>{/if}
+                <span class="won">
+                  {#if !won.length || won.length > 2}
+                    <span class="who" class:none={!won.length}
+                      ><SplitFlap text={wonWords(a.name)[0]} play={playing} delay={times.won} size="1.4rem" /></span
+                    >
+                  {:else}
+                    {#each won as w, k (k)}
+                      {#if w.teamId}
+                        <a class="who who-team" href={teamHref(type.slug, w.teamId)}>
+                          <span class="crest"
+                            ><TeamCrest
                               among={crestNames}
                               name={teamName(w.teamId)}
                               logo={teams[teamIndex(w.teamId)]?.logo ?? null}
                               tone={teamTone(teamIndex(w.teamId))}
                               size="2.25rem"
-                            />
-                            <span class="who display">{teamName(w.teamId)}</span>
-                          </a>
-                        {:else}
-                          <span class="who-player">
-                            <span class="who display">{goesByOf(byId(w.memberId))}</span>
-                            {#if teamOf(w.memberId)}<span class="hint">{teamName(teamOf(w.memberId))}</span>{/if}
-                          </span>
-                        {/if}
-                      {/each}
-                    {/if}
-                  </span>
-                  {#if kumite}<span class="stamp"><Kanji text={kanjiFor(type, "awards")} seal /></span>{/if}
-                  {#if burning.includes(i) && !prefersReducedMotion}<BurnReveal />{/if}
-                {/if}
+                            /></span
+                          >
+                          <SplitFlap
+                            text={teamName(w.teamId)}
+                            play={playing}
+                            delay={times.won}
+                            size="1.4rem"
+                            lines={won.length > 1 ? 1 : 2}
+                          />
+                        </a>
+                      {:else}
+                        <span class="who who-player">
+                          <SplitFlap
+                            text={goesByOf(byId(w.memberId))}
+                            play={playing}
+                            delay={times.won}
+                            size="1.4rem"
+                            lines={won.length > 1 ? 1 : 2}
+                          />
+                          {#if teamOf(w.memberId)}<span class="hint">{teamName(teamOf(w.memberId))}</span>{/if}
+                        </span>
+                      {/if}
+                    {/each}
+                  {/if}
+                </span>
+                {#if kumite}<span class="stamp"><Kanji text={kanjiFor(type, "awards")} seal /></span>{/if}
               </div>
-            </div>
+            {/if}
           </li>
         {/each}
       </ol>
-      <!-- Room kept for the last line, so nothing under it moves when it comes -->
+      <!-- Room kept for the line under the cards (members only, till the last is out), so nothing moves when it goes -->
       <p class="closing" aria-live="polite">
-        {#if reveal.all}
-          <Icon name="trophy" size={18} />That's the {type.shortName}. See you at the next one.
-        {:else if !manage}
+        {#if !reveal.all && !manage}
           {reveal.revealed
             ? `${reveal.revealed} of ${reveal.awards.length} out. Stay for the rest.`
             : "Face down till they're called. Stay put."}
@@ -296,18 +335,17 @@
     grid-template-columns: minmax(0, 1fr);
     gap: var(--s-6);
   }
+  /* The glow fades to nothing inside its own box on every side (the mask), and the box stays inside the page's
+     sides (.view clips across), so it reads as warm light with no edge on a phone or a desktop */
   .afters::before {
     position: absolute;
-    inset: -3rem -2rem auto;
+    inset: -4rem -1rem auto;
     z-index: -1;
-    height: 22rem;
-    background: radial-gradient(
-      28rem 16rem at 30% 0%,
-      color-mix(in srgb, var(--brass) 14%, transparent),
-      transparent 70%
-    );
+    height: 26rem;
+    background: radial-gradient(60% 55% at 32% 40%, color-mix(in srgb, var(--brass) 15%, transparent), transparent 75%);
     content: "";
     pointer-events: none;
+    mask-image: radial-gradient(closest-side, #000 55%, transparent);
   }
   .part {
     display: grid;
@@ -366,15 +404,10 @@
     margin: 0;
     padding: 0;
     list-style: none;
-    perspective: 900px;
   }
   .award {
-    height: 9.5rem;
-  }
-  .flip {
     position: relative;
-    height: 100%;
-    transform-style: preserve-3d;
+    height: 10.5rem;
   }
   .face {
     position: absolute;
@@ -382,7 +415,6 @@
     display: grid;
     overflow: hidden;
     border-radius: var(--r-lg);
-    backface-visibility: hidden;
   }
   /* Face down: carbon, a brass question mark, the kanji faint behind it */
   .back {
@@ -473,7 +505,7 @@
   }
   /* The next card comes up once the last one's over: it rises into its slot */
   .rising {
-    animation: rise 0.6s 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: rise 0.6s var(--rise-at, 0.85s) cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes rise {
     from {
@@ -489,39 +521,20 @@
     font-size: var(--text-xs);
     font-weight: 600;
   }
-  /* Face up: the award in brass, what for, who took it home; the hanko in the corner */
+  /* Face up: a dark board, as the old scoreboards: the award in brass flaps, what for, who took it home in bone
+     (lib/SplitFlap); the hanko in the corner */
   .front {
+    z-index: 1;
+    grid-template-rows: auto auto 1fr;
     align-content: start;
-    gap: 0.2rem;
+    gap: 0.35rem;
     padding: var(--s-3) var(--s-4);
-    background: linear-gradient(var(--brass-wash), var(--brass-wash)), var(--surface-1);
-    transform: rotateY(180deg);
-  }
-  .up .flip {
-    transform: rotateY(180deg);
-  }
-  .turning .flip {
-    animation: turn 0.7s cubic-bezier(0.3, 0.7, 0.3, 1) both;
-  }
-  @keyframes turn {
-    from {
-      transform: rotateY(0) scale(1);
-    }
-    50% {
-      transform: rotateY(90deg) scale(1.04);
-    }
-    to {
-      transform: rotateY(180deg) scale(1);
-    }
+    background: color-mix(in srgb, var(--bg) 72%, black);
+    --flap-face: color-mix(in srgb, var(--surface-2) 95%, var(--brass));
   }
   .award-name {
     padding-right: 3rem;
     color: var(--brass-ink);
-    font-size: 1.25rem;
-    font-style: italic;
-    letter-spacing: 0.02em;
-    line-height: 1.1;
-    text-transform: uppercase;
   }
   .about {
     display: -webkit-box;
@@ -529,39 +542,45 @@
     padding-right: 3rem;
     color: var(--fg-muted);
     font-size: var(--text-sm);
+    line-height: 1.3;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     -webkit-box-orient: vertical;
   }
   .won {
-    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     align-self: end;
     gap: var(--s-2) var(--s-4);
     min-width: 0;
-    margin-top: auto;
   }
-  .front {
-    grid-template-rows: auto auto 1fr;
-  }
-  .who-team {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-2);
+  .who {
+    flex: 1 1 9rem;
     min-width: 0;
     color: var(--fg);
+  }
+  .who.none {
+    color: var(--fg-muted);
+  }
+  .who-team {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+  }
+  .who-team :global(.split-flap) {
+    flex: 1;
+  }
+  .crest {
+    display: inline-flex;
+    flex: none;
   }
   .who-player {
     display: grid;
-    min-width: 0;
+    gap: 0.15rem;
   }
-  .who {
+  .who-player .hint {
     overflow: hidden;
-    color: var(--fg);
-    font-size: 1.5rem;
-    line-height: 1.05;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -572,20 +591,26 @@
     transform: scale(0.72);
     transform-origin: top right;
   }
-  /* Turned over while you watch: the hanko comes down once the card's over */
+  /* Turned over while you watch: the board comes on over the face-down card, the words clack in (SplitFlap), what
+     it's for and the crest come up as their words settle, and the hanko comes down once they have */
+  .turning .front {
+    animation: fade 0.25s ease both;
+  }
+  .turning .about {
+    animation: fade 0.3s var(--about-at) ease both;
+  }
+  .turning .crest,
+  .turning .who-player .hint {
+    animation: fade 0.3s var(--won-at) ease both;
+  }
   .turning .stamp {
-    animation: stamp 0.45s 0.75s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+    animation: stamp 0.45s var(--stamp-at) cubic-bezier(0.3, 1.4, 0.5, 1) both;
   }
   @keyframes stamp {
     from {
       opacity: 0;
       transform: scale(1.6) rotate(-12deg);
     }
-  }
-  /* The burn sweeps the winner in once the flip's done (it's only made then: burning) */
-  .front :global(.burn) {
-    inset: auto 0 0;
-    height: 55%;
   }
 
   .closing {
@@ -595,9 +620,6 @@
     min-height: 1.6rem;
     margin: 0;
     color: var(--fg-muted);
-  }
-  .closing :global(svg) {
-    color: var(--brass);
   }
 
   /* The final table: a line each, the champions first and a size up */
@@ -702,9 +724,12 @@
       gap: var(--s-2);
     }
   }
-  /* Reduced motion: no turn and no rise; the revealed card's face and the next card fade in */
+  /* Reduced motion: no flaps (SplitFlap's words are just there), no hanko coming down and no rise; the board and
+     the next card fade in */
   @media (prefers-reduced-motion: reduce) {
-    .turning .flip,
+    .turning .about,
+    .turning .crest,
+    .turning .who-player .hint,
     .turning .stamp {
       animation: none;
     }
