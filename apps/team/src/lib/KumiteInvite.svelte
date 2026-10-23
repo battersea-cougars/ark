@@ -153,7 +153,7 @@
           <span class="slam" style:--at="3.3s">Not your mum.</span>
           <span class="slam" style:--at="4.7s">No one.</span>
         </span>
-        <span class="slam switch" style:--at="6.9s">{tellAfterAll}</span>
+        <span class="switch" style:--at="6.9s">{tellAfterAll}</span>
       </span>
     </div>
     <!-- Torn off along the dashes, like a ticket's stub: your way out -->
@@ -323,13 +323,22 @@
     line-height: 1.15;
     text-transform: uppercase;
   }
+  /* The bait is said in earnest: the club's red */
   .bait {
     display: flex;
     flex-wrap: wrap;
     gap: 0 0.6rem;
-  }
-  .switch {
     color: var(--red-hot);
+  }
+  /* The switch is an aside: the body's face, small, quiet, said under the breath once the bait's landed */
+  .switch {
+    margin-top: var(--s-1);
+    color: var(--fg-muted);
+    font-family: var(--font);
+    font-size: var(--text-sm);
+    font-style: italic;
+    letter-spacing: normal;
+    text-transform: none;
   }
   /* Each flies in and lands like a stamp (lib/InkStamp's land): from bigger and fainter, a thump, then still, in turn
      as the pass shows. Less motion: all there at once */
@@ -338,8 +347,16 @@
     transform-origin: left center;
   }
   @media (prefers-reduced-motion: no-preference) {
+    .pass-face.on .switch {
+      animation: aside 0.8s ease var(--at) both;
+    }
     .pass-face.on .slam {
       animation: slam 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.25) var(--at) both;
+    }
+  }
+  @keyframes aside {
+    from {
+      opacity: 0;
     }
   }
   @keyframes slam {

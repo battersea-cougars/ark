@@ -472,3 +472,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   them stay; with less motion all are there at once.
 - 2026-10-23: Slower, and the bait on one line (Not your mates. Not your mum. No one.) with the switch under it: the
   phrases land about 1.4s apart, the switch 2s after the last.
+- 2026-10-23: The bait's phrases in the club's red (said in earnest); the switch an aside, small italic in the body
+  face, quiet grey, fading in after them, no stamp.
