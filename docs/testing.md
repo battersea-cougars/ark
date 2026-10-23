@@ -15,7 +15,8 @@ next to the code runs without editing config.
 | `npx vitest run -t "walk-in"`  | tests whose name matches            |
 | VS Code test explorer (Vitest) | any file or single test             |
 
-Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build`.
+Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio`
+(as `pr.yml`, which runs only the part a change can reach: the tiers of `npm run merge:check`, ADR 0115).
 
 ## Signed in, in a real browser
 
@@ -31,12 +32,20 @@ Each run is a fresh session of its own, with no code and no caps, so it never si
 a local server answers it ([ADR 0023](adr/0023-sign-in-and-sessions.md)). Don't change shared local data to stage a
 screen; pick a member who already shows it.
 
+### Screenshots go in `.shots/`
+
+Every screenshot taken to test something (an agent's check, a Playwright script, `small-screens.mjs`) goes in
+`.shots/` at the root of the checkout, which git ignores, or in your own temp folder: never next to the code, never
+committed (#148). The journeys keep their failures' screenshots and traces in `.journeys/` (also ignored,
+[ADR 0124](adr/0124-test-levels.md)). Pictures the apps use live in their `src/assets/` or `public/`, and the brand's in
+`brand/`.
+
 ### Small screens
 
 `scripts/small-screens.mjs` visits every team-app page (the route tree from `nav-routes.ts`, a couple of each kind)
 and its main sheets, drawers and editor tabs in WebKit at phone widths, and lists what doesn't fit: the page scrolling
 sideways, anything past the right edge, words cut short by an ellipsis, and small tap targets. Screenshots go to
-`<out>/<width>/<page>.png` (the system's temp folder unless `--out`). It only opens things (never Keep score, In or
+`<out>/<width>/<page>.png` (`.shots/small-screens` unless `--out`). It only opens things (never Keep score, In or
 Save); a state that isn't in the local data (a game nobody's scoring, or one you're scoring) is faked in the browser's
 copy of `/api/bootstrap`.
 

@@ -87,6 +87,8 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
 - **Signed in, headless**: `node scripts/dev-sign-in.mjs [email]` (no email: the first admin) writes a Playwright
   storage state to `.auth/team.json`. Use it for every screenshot or browser check; never ask for a code (ADR 0023,
   docs/testing.md).
+- **Screenshots for testing go in `.shots/`** (git-ignored) or your scratchpad, never next to the code, never
+  committed (docs/testing.md).
 
 ## Ports
 
