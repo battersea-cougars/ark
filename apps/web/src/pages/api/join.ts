@@ -14,7 +14,7 @@ import { enquiryMail } from "../../lib/server/enquiry-mail";
 import { clubInbox, mailConfig, smokeToken, turnstileSecret } from "../../lib/server/mail-env";
 import { isSmoke, smokeMailConfig, SMOKE_HEADER } from "../../lib/server/smoke";
 import { autoReplyMail } from "../../lib/server/auto-reply";
-import { TURNSTILE_FIELD, verifyTurnstile } from "@cougars/shared/turnstile";
+import { ENQUIRY_ACTION, TURNSTILE_FIELD, verifyTurnstile } from "@cougars/shared/turnstile";
 import { getSettings } from "../../lib/sanity/content";
 import { sendMail } from "@cougars/shared/email";
 import { scribe } from "@cougars/shared/scribe";
@@ -74,7 +74,11 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   }
 
   // A person, says Turnstile? Only they can get an auto-reply; everyone else's enquiry still counts.
-  const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress);
+  // Rendered for the enquiry form only: a token from the team app's sign-in or Ask to join widgets (the same account's)
+  // isn't one (ADR 0028)
+  const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress, {
+    action: ENQUIRY_ACTION,
+  });
   const id = await saveEnquiry(env.DB, parsed.enquiry, { verified });
   log.info("enquiry.created", { id, source: parsed.enquiry.source, verified });
   // Emails go out after the answer: the enquiry is already saved, so a failed email never loses it.

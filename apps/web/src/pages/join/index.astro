@@ -274,8 +274,9 @@ const slot = s.training[0];
   function renderTurnstile() {
     const el = document.querySelector<HTMLElement>("[data-turnstile]");
     if (!el || el.childElementCount) return;
+    // Its own action, ENQUIRY_ACTION (shared/turnstile.ts): the team app's tokens aren't this form's, nor this its
     const render = () => {
-      widget = w.turnstile!.render(el, { sitekey: el.dataset.sitekey, theme: "dark", action: "join" });
+      widget = w.turnstile!.render(el, { sitekey: el.dataset.sitekey, theme: "dark", action: "enquiry" });
     };
     if (w.turnstile) return render();
     const script = document.createElement("script");

@@ -18,7 +18,8 @@ The form must still work without JavaScript.
 ## Decision
 
 - **Cloudflare Turnstile** (free, unlimited, no cookies) on `/join`. The server checks its token once with
-  Cloudflare (`packages/shared/turnstile.ts`) and saves the answer on the enquiry (`enquiries.verified`). One widget per
+  Cloudflare (`packages/shared/turnstile.ts`), rendered and checked for its own action (`enquiry`), and saves the
+  answer on the enquiry (`enquiries.verified`). One widget per
   Cloudflare account: dev's workers.dev address, and batterseacougars.com.
 - A failed or missing check (a bot, or JavaScript off) **doesn't block** the enquiry: it's saved and the club is
   emailed, with a note that no automatic reply went out. The club answers those by hand.
@@ -66,3 +67,6 @@ form, those need JavaScript anyway, so a failed check **refuses** (403, nothing 
 - 2026-10-23: The join form's limit (5 a quarter-hour per address) counts only valid enquiries: an invalid form is refused
   first, and the deploy's smoke test with this deploy's key isn't counted, as its retries used the limit up and failed
   dev deploys.
+- 2026-10-23: The website's widget has its own action, `enquiry`, checked on the server (security review, #148): it
+  was rendered as `join`, the team app's Ask to join, and /join checked no action, so a token from either form was
+  accepted by the other.

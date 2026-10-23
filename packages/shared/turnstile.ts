@@ -8,6 +8,11 @@ import { scribe } from "./scribe";
 const log = scribe.logger("turnstile");
 
 export const TURNSTILE_FIELD = "cf-turnstile-response";
+/**
+ * The website's /join widget's action. Every form's widget has its own (the team app's are `sign-in` and `join`), so a
+ * token from one is never accepted by another: the one Turnstile widget covers both sites (ADR 0028).
+ */
+export const ENQUIRY_ACTION = "enquiry";
 export const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 /**
