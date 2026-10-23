@@ -294,6 +294,10 @@
       }
       case "tournament.simulated":
         return `${who} played ${str(to?.name)} on at random (dev only): ${Number(to?.played ?? 0)} of ${Number(to?.games ?? 0)} matches played`;
+      case "tournament.recorded":
+        return `${who} recorded a past one, ${str(to?.name)} on ${str(to?.heldOn)}: ${Number(to?.games ?? 0)} matches, ${Number(to?.goals ?? 0)} goals, ${Number(to?.winners ?? 0)} awards`;
+      case "tournament.past_day":
+        return `${who} made ${str(to?.name)} on a past day to play out (dev only): ${Number(to?.signedUp ?? 0)} in`;
       case "fixtures.made":
         return `${who} made the fight card: ${Number(to?.games ?? 0)} games`;
       case "team.players":

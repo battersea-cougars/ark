@@ -18,6 +18,10 @@ export type MoveKind =
   | "penalty"
   | "period"
   | "fulltime"
+  // On its own day only (worker/tournaments/on-its-day.ts): the awards confirmed, one revealed, the drum rolled on
+  | "awards"
+  | "reveal"
+  | "nextAward"
   | "done";
 
 export interface Move {
@@ -48,6 +52,8 @@ export interface SimulationState {
   speed: Speed;
   /** The last move, in words. */
   said: string;
+  /** Played on its own day, a day gone by, and on through the awards (worker/tournaments/on-its-day.ts). */
+  onItsDay?: boolean;
 }
 
 /** A pick's change of turn, as the draft room shows it: burn in, hold, scroll, highlight; then a beat. */
@@ -70,6 +76,9 @@ export const WATCH_MS: Record<MoveKind, number> = {
   penalty: 1800,
   period: 2000,
   fulltime: 3000,
+  awards: 3000,
+  reveal: 3000,
+  nextAward: 1500,
   done: 0,
 };
 
@@ -92,7 +101,7 @@ export const saidOf = (m: Move) => ((m.moves ?? 1) > 1 ? `${m.moves} moves: ${m.
  */
 export function simulator(
   state: SimulationState,
-  move: (tournamentId: number, moves: number) => Promise<Move | null>,
+  move: (tournamentId: number, moves: number, onItsDay: boolean) => Promise<Move | null>,
   ended: (last: Move | null) => void = () => {},
 ) {
   // Each run's own number: Stop and a new start mean the old loop's reply, landing late, is dropped
@@ -112,18 +121,19 @@ export function simulator(
     });
 
   function reset() {
-    Object.assign(state, { id: 0, status: "idle", said: "" });
+    Object.assign(state, { id: 0, status: "idle", said: "", onItsDay: false });
   }
 
-  async function start(tournamentId: number) {
+  /** Plays it out from where it is; `onItsDay`, on its own evening, a day gone by, and the awards too. */
+  async function start(tournamentId: number, onItsDay = false) {
     if (state.status !== "idle") return;
     const mine = ++run;
-    Object.assign(state, { id: tournamentId, status: "running", said: "" });
+    Object.assign(state, { id: tournamentId, status: "running", said: "", onItsDay });
     let last: Move | null;
     try {
       for (;;) {
         const began = Date.now();
-        last = await move(tournamentId, MOVES_A_REQUEST[state.speed]);
+        last = await move(tournamentId, MOVES_A_REQUEST[state.speed], onItsDay);
         if (mine !== run) return;
         if (!last || last.done) break;
         state.said = saidOf(last);

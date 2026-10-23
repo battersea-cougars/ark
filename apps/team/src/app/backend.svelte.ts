@@ -40,6 +40,7 @@ import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/
 import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
 import { simulator, type Move, type SimulationState } from "../lib/simulation";
+import type { pastBody } from "../lib/past-kumite";
 
 /** The last save's outcome, shown briefly by the shell; `refused`, how the Worker refused it (409: something changed). */
 export const saving = $state({ busy: 0, message: "", failed: false, refused: 0 });
@@ -694,11 +695,30 @@ export const simulating = $state<SimulationState>({ id: 0, status: "idle", speed
  */
 export const simulation = simulator(
   simulating,
-  (tournamentId, moves) => save(() => api<Move>("POST", `/api/tournaments/${tournamentId}/simulate`, { moves }), ""),
+  (tournamentId, moves, onItsDay) =>
+    save(
+      () =>
+        api<Move>("POST", `/api/tournaments/${tournamentId}/simulate`, { moves, ...(onItsDay && { onItsDay: true }) }),
+      "",
+    ),
   (last) => {
     if (last?.done) say(last.said, false);
   },
 );
+/** A past one recorded (ADR 0126): its day, teams, results and awards in one go, straight into history. */
+export const recordPastKumite = (body: ReturnType<typeof pastBody>) =>
+  save(() => api<{ id: number }>("POST", "/api/tournaments/past", body), "Recorded: it's in the history");
+/**
+ * Dev only (ADR 0123): a Kumite on a day gone by, signed up for, then played out on that evening to its last award
+ * by the simulator, at Spin kick unless another speed's chosen, so it's history with a whole evening behind it.
+ */
+export async function playOnAPastDay(typeId: number, heldOn: string) {
+  const made = await save(() => api<{ id: number }>("POST", "/api/tournaments/past-day", { typeId, heldOn }), "");
+  if (!made) return null;
+  if (simulating.speed === "kata") simulation.speed("spinKick");
+  void simulation.start(made.id, true);
+  return made;
+}
 /** The time left on the clock, by the scorekeeper's watch: paused, or running on from there. */
 export const setGameClock = (tournamentId: number, gameId: number, leftMs: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "set", leftMs }), "Clock set");

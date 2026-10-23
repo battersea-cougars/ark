@@ -521,6 +521,47 @@ async function kumites() {
   await boot(await member(12), EVENING);
   await hit(dana, "PUT", `/api/tournaments/${mid}/games/${t.games[1].id}`, { homeGoals: 2, awayGoals: 1 }, EVENING);
 
+  // A past one recorded (ADR 0126): the most teams, every match of their round robin and a final, every goal named
+  const captains = [1, 2, 3, 4, 5, 6, 7, 8];
+  const pastTeams = captains.map((n, i) => ({
+    name: `Old ${n}`,
+    captainMemberId: ids[`Member ${n}`],
+    players: [11 + i * 3, 12 + i * 3, 13 + i * 3].map((p) => ids[`Member ${p}`]),
+  }));
+  const pastGames = captains.flatMap((_, home) =>
+    captains.slice(home + 1).map((_n, j) => ({
+      home,
+      away: home + 1 + j,
+      homeGoals: 2,
+      awayGoals: 1,
+      scorers: { home: [pastTeams[home].captainMemberId, pastTeams[home].players[0]], away: [null] },
+    })),
+  );
+  await hit(
+    dana,
+    "POST",
+    "/api/tournaments/past",
+    {
+      typeId: KUMITE_TYPE,
+      name: "Kumite Spring",
+      heldOn: "2026-04-17",
+      teams: pastTeams,
+      games: [...pastGames, { home: 0, away: 1, homeGoals: 3, awayGoals: 2, final: true }],
+      winners: [
+        { award: "Champions", team: 0 },
+        { award: "Top scorer", memberId: ids["Member 1"] },
+        { award: "The Judges' Call", memberId: ids["Member 12"], title: "Best Celly" },
+      ],
+    },
+    EVENING,
+  );
+  // A Kumite on a past day (dev, ADR 0123): made, then played out on that evening to its last award, at Spin kick
+  const pastDay = await hit(dana, "POST", "/api/tournaments/past-day", { typeId: KUMITE_TYPE, heldOn: "2026-09-25" });
+  for (let i = 0; i < 200; i++) {
+    const r = await hit(dana, "POST", `/api/tournaments/${pastDay.body.id}/simulate`, { moves: 4, onItsDay: true });
+    if (r.body.done) break;
+  }
+
   // Setting up: a type, a tournament made, edited, moved on, stepped back, deleted
   const type = await hit(dana, "POST", "/api/tournament-types", SERIES_TYPE);
   await hit(dana, "PUT", `/api/tournament-types/${type.body.id}`, { ...SERIES_TYPE, penaltyRule: "power_play" });

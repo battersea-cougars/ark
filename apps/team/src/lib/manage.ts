@@ -16,6 +16,11 @@
 // | Your team                        |         | yes   | yes       | yes      |      |             | its captain               |
 // | Pick log (a captains' draft)     |         | open  | yes       | yes      |      |             | runner or a captain       |
 // | Settings                         | yes     | yes   | yes       | yes      | yes  | yes         | admin                     |
+// | Record a past one                | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
+// | A Kumite on a past day (dev)     | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
+//
+// The last two are the series' history's, not this edition's (historyItemsOf): one from before the app recorded
+// (ADR 0126), and on dev one played out on a day gone by (ADR 0123). With nothing on, they're Manage's only items.
 //
 // The awards are confirmed once every match is played, and can be changed till the reveal starts (the Worker refuses
 // after: step back first); Confirm till they're confirmed, then Change. Your team and the pick log are the draft's:
@@ -34,7 +39,8 @@ import { BACK_SAYS, DRAFT_STEPS, backFrom, backTo } from "./step-back";
 export type ManageStage = "signup" | "draft" | "teams" | "fixtures" | "live" | "afters";
 
 /** What a Manage item does, for the page to wire: a draft job carries which. */
-export type ManageKey = "draftJob" | "remake" | "awards" | "simulate" | "back" | "move" | "team" | "log" | "settings";
+export type ManageKey =
+  "draftJob" | "remake" | "awards" | "simulate" | "back" | "move" | "team" | "log" | "settings" | "record" | "pastDay";
 
 export interface ManageEntry {
   key: ManageKey;
@@ -85,7 +91,7 @@ export function manageStageOf(t: Tournament, today: string): ManageStage {
  */
 export function manageItemsOf(
   t: Tournament,
-  type: Pick<TournamentType, "shortName">,
+  type: Pick<TournamentType, "shortName"> & Partial<Pick<TournamentType, "kind">>,
   who: Manager,
   today: string,
   names: ManageNames = NO_NAMES,
@@ -147,6 +153,33 @@ export function manageItemsOf(
         t.kind === "draft"
           ? "Day, sign-up, captains and draft day, rules, awards"
           : "Day, sign-up, teams, rules, awards",
+    });
+  return [...items, ...historyItemsOf(type, who)];
+}
+
+/**
+ * The series' history's jobs, an admin's, whatever's on (and with nothing on, Manage's only ones): a past one
+ * recorded (ADR 0126); on dev, one played out on a day gone by (ADR 0123), a captains' draft's only.
+ */
+export function historyItemsOf(
+  type: Pick<TournamentType, "shortName"> & Partial<Pick<TournamentType, "kind">>,
+  who: Pick<Manager, "admin" | "simulator">,
+): ManageEntry[] {
+  if (!who.admin) return [];
+  const items: ManageEntry[] = [
+    {
+      key: "record",
+      icon: "plus",
+      label: `Record a past ${type.shortName}`,
+      sub: "One from before the app: its day, teams, results and awards",
+    },
+  ];
+  if (who.simulator && type.kind === "draft")
+    items.push({
+      key: "pastDay",
+      icon: "play",
+      label: `A ${type.shortName} on a past day`,
+      sub: "Dev only: a whole evening at random, straight into history",
     });
   return items;
 }

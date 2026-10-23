@@ -41,7 +41,9 @@
   import { simulating } from "../app/backend.svelte";
   import DraftJobs from "./DraftJobs.svelte";
   import ManageList, { type ManageItem } from "./ManageList.svelte";
-  import { manageItemsOf, type ManageEntry, type ManageKey } from "./manage";
+  import { historyItemsOf, manageItemsOf, type ManageEntry, type ManageKey } from "./manage";
+  import PastKumiteRecord from "./PastKumiteRecord.svelte";
+  import PastDayPlay from "./PastDayPlay.svelte";
   import InkStamp, { type InkTone } from "./InkStamp.svelte";
 
   let {
@@ -207,29 +209,36 @@
   const adds = $derived(offer && can(granted(), "update:Event"));
   let drafter = $state<ReturnType<typeof DraftJobs>>();
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  // The series' history's own (a past one recorded; on dev, one on a past day), with nothing on too (ADR 0126)
+  let recorder = $state<ReturnType<typeof PastKumiteRecord>>();
+  let pastDay = $state<ReturnType<typeof PastDayPlay>>();
   const tools = $derived.by(() => {
-    if (!tournament || !offer) return [] as ManageItem[];
+    if (!offer) return [] as ManageItem[];
     const t = tournament;
-    const entries = manageItemsOf(
-      t,
-      type,
-      { admin, runsDraft: runner, adds, me: me().id, simulator: SIMULATOR && simulating.id !== t.id },
-      londonToday(),
-      {
-        player: (id, name) => goesByOf(byId(id)) || name || "",
-        team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
-      },
-    );
+    const entries = !t
+      ? historyItemsOf(type, { admin, simulator: SIMULATOR })
+      : manageItemsOf(
+          t,
+          type,
+          { admin, runsDraft: runner, adds, me: me().id, simulator: SIMULATOR && simulating.id !== t.id },
+          londonToday(),
+          {
+            player: (id, name) => goesByOf(byId(id)) || name || "",
+            team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
+          },
+        );
     const RUN: Record<ManageKey, (e: ManageEntry) => void> = {
       draftJob: (e) => e.job && drafter?.run(e.job),
-      remake: () => void makeFixtures(t.id),
-      awards: () => enterAwards(t.id),
+      remake: () => t && void makeFixtures(t.id),
+      awards: () => t && enterAwards(t.id),
       simulate: () => simulator?.start(),
       back: () => stepper?.start(),
       move: () => mover?.start(),
       team: () => (lookOpen = true),
       log: () => (logOpen = true),
-      settings: () => editTournament(t.id),
+      settings: () => t && editTournament(t.id),
+      record: () => recorder?.start(),
+      pastDay: () => pastDay?.start(),
     };
     return entries.map((e): ManageItem => ({
       icon: e.icon,
@@ -492,6 +501,8 @@
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 {#if admin && tournament?.kind === "draft"}<MoveTo bind:this={mover} {type} {tournament} afterName={after?.name} />{/if}
 {#if admin && SIMULATOR && tournament}<SimulateRest bind:this={simulator} {type} {tournament} />{/if}
+{#if admin}<PastKumiteRecord bind:this={recorder} {type} />{/if}
+{#if admin && SIMULATOR}<PastDayPlay bind:this={pastDay} {type} />{/if}
 {#if (runner || adds) && tournament?.kind === "draft"}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 

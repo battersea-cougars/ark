@@ -5,7 +5,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 - **Changing a decision:** update its topic's record in the same change as the code. Rewrite what no longer holds,
   add a dated line to its **History**, and bump _updated_.
-- **A new topic:** copy [template.md](template.md) and take the next unused number (the next is **0126**). Numbers are
+- **A new topic:** copy [template.md](template.md) and take the next unused number (the next is **0127**). Numbers are
   never reused.
 - **An old number** (from a commit, an issue or a chat) that has no file any more was merged into another record.
   `grep -l 0035 docs/adr/*.md` finds it on that record's _Merges_ line.
@@ -106,3 +106,4 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0044](0044-champions-and-awards.md)           | Awards are set in the team app; champions and winners come from the results, an admin confirms              |
 | [0119](0119-tournament-leaderboards.md)        | Leaderboards (points, goals, assists, PIM) are worked out in the app, a tab each, under the table           |
 | [0123](0123-dev-only-tools.md)                 | A dev-only tool (the Kumite simulator) exists only where the environment says dev or local; else a 404      |
+| [0126](0126-past-kumites-recorded.md)          | A Kumite from before the app is recorded in one go, done and in history, its awards out                     |

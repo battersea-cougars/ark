@@ -11,6 +11,11 @@
 // an invocation's D1 queries (Workers Free stops one at 50) with room to spare. Every move is read from the
 // tournament as it is, so a second run carries on where the first stopped, or says it's done.
 // The dice are the Worker's crypto (draft.ts randomBelow), which the tests seed (testing.ts luck).
+//
+// On its own day (`onItsDay`, a Kumite dated in the past, past-day.ts): every clock is the evening's, not now, a match
+// after the one before (on-its-day.ts), so it's played that evening and goes to history; and it goes on past the
+// matches: the awards confirmed (the stats', a draw's, a vote's and the judges' call chosen at random) and each one
+// revealed, so the Kumite has a whole evening behind it.
 import { all, first } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
 import type { Action } from "../../src/access/actions";
@@ -20,6 +25,8 @@ import { HttpError } from "../api/api.http";
 import { drawOrder, finishDraft, goaliesFirst, isDrawn, openDraft, pick, randomBelow, shuffled } from "./draft";
 import { listGames, makeFixtures, tournamentOf, type Game } from "./fixtures";
 import { addGoal, addPenalty, clockGame, holdScoresheet } from "./scoring";
+import { awardsMove, eveningClock, type Evening } from "./on-its-day";
+import { londonToday } from "../../src/lib/dates";
 
 /**
  * Whether the simulator exists on this Worker: only where the environment says, in so many words, that it isn't
@@ -76,14 +83,15 @@ export async function simulateMoves(
   who: Who,
   now: Date,
   asked: number,
+  onItsDay = false,
 ): Promise<SimulatedMoves> {
   const most = Math.min(MOST_MOVES, Math.max(1, Math.floor(Number(asked)) || 1));
   const counted = countingQueries(db);
-  let last = await simulate(counted.db, tournamentId, who, now);
+  let last = await simulate(counted.db, tournamentId, who, now, onItsDay);
   let moves = last.done ? 0 : 1;
   while (!last.done && moves < most && counted.used() + MOVE_QUERIES[nextIs(last.move)] <= MOVES_QUERIES) {
     try {
-      const next = await simulate(counted.db, tournamentId, who, now);
+      const next = await simulate(counted.db, tournamentId, who, now, onItsDay);
       if (next.done) break;
       last = next;
       moves++;
@@ -136,16 +144,31 @@ function countingQueries(db: D1Database) {
 
 const DONE_SAID = "Every match played: on to the after-party. Confirm the awards, then reveal them.";
 
-/** One move on from where it is, as `who` (an admin), at `now`: one change of the app's own (one guarded write). */
-export async function simulate(db: D1Database, tournamentId: number, who: Who, now: Date): Promise<Simulated> {
-  const t = await first<{ kind: string; draftState: string; status: string }>(
+/**
+ * One move on from where it is, as `who` (an admin), at `now`: one change of the app's own (one guarded write). On its
+ * own day (`onItsDay`), at the evening's time instead, and on through the awards.
+ */
+export async function simulate(
+  db: D1Database,
+  tournamentId: number,
+  who: Who,
+  now: Date,
+  onItsDay = false,
+): Promise<Simulated> {
+  const t = await first<{ kind: string; draftState: string; status: string } & Evening>(
     db,
-    "SELECT kind, draft_state draftState, status FROM tournaments WHERE id = ?",
+    `SELECT kind, draft_state draftState, status, held_on heldOn, start_time startTime, game_minutes gameMinutes,
+            periods, break_minutes breakMinutes, awards_revealed revealed, awards_next next
+     FROM tournaments WHERE id = ?`,
     [tournamentId],
   );
   if (!t) throw new HttpError(404, "No such tournament.");
+  if (onItsDay && t.heldOn >= londonToday(now))
+    throw new HttpError(409, "Its day hasn't gone by: play it out as it is, tonight.");
   const games = await listGames(db, tournamentId);
-  if (games.length && isDone(t.status, games)) return { done: true, move: "done", said: DONE_SAID };
+  if (onItsDay) now = eveningClock(t, games);
+  if (games.length && isDone(t.status, games))
+    return onItsDay ? awardsMove(db, tournamentId, t, now) : { done: true, move: "done", said: DONE_SAID };
   // The draft first, whatever's been made: its teams are the fixtures' teams
   if (t.kind === "draft" && t.draftState !== "closed") return draftMove(db, tournamentId, t.draftState, who);
   if (!games.length) {

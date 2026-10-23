@@ -1,7 +1,7 @@
 // The Kumite's Manage menu at each stage, for each of who looks (ADR 0074): only what makes sense where it stands.
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
-import { manageItemsOf, manageStageOf, type Manager } from "./manage";
+import { historyItemsOf, manageItemsOf, manageStageOf, type Manager } from "./manage";
 import { game, kumite as draftKumite } from "./kumite.testing";
 
 const TODAY = "2026-11-01";
@@ -68,58 +68,60 @@ type StageName = keyof typeof STAGES;
 
 const labels = (t: Tournament, who: Manager) => manageItemsOf(t, kumite, who, TODAY).map((x) => x.label);
 
+/** The series' history's own, an admin's at every stage (ADR 0126). */
+const PAST = "Record a past Kumite";
 const DRAFTING = ["Undo the last pick", "Add a player", "Close it now", "Reset the draft"];
 const MENUS: Record<StageName, Record<"admin" | "runner" | "captain" | "member", string[]>> = {
   "sign-up": {
-    admin: ["Add a player", "Move to…", "Kumite settings"],
+    admin: ["Add a player", "Move to…", "Kumite settings", PAST],
     runner: [],
     captain: [],
     member: [],
   },
   "order drawn": {
-    admin: ["Add a player", "Back to before the draw", "Move to…", "Kumite settings"],
+    admin: ["Add a player", "Back to before the draw", "Move to…", "Kumite settings", PAST],
     runner: ["Back to before the draw"],
     captain: ["Your team"],
     member: [],
   },
   "draft open": {
-    admin: [...DRAFTING, "Back to the drawn order", "Move to…", "Pick log", "Kumite settings"],
+    admin: [...DRAFTING, "Back to the drawn order", "Move to…", "Pick log", "Kumite settings", PAST],
     runner: ["Undo the last pick", "Close it now", "Reset the draft", "Back to the drawn order", "Pick log"],
     captain: ["Your team", "Pick log"],
     member: [],
   },
   "teams set": {
-    admin: ["Back to Draft open", "Move to…", "Pick log", "Kumite settings"],
+    admin: ["Back to Draft open", "Move to…", "Pick log", "Kumite settings", PAST],
     runner: ["Back to Draft open", "Pick log"],
     captain: ["Your team", "Pick log"],
     member: [],
   },
   "fixtures out": {
-    admin: ["Make the fixtures again", "Back to Teams set", "Move to…", "Pick log", "Kumite settings"],
+    admin: ["Make the fixtures again", "Back to Teams set", "Move to…", "Pick log", "Kumite settings", PAST],
     runner: ["Pick log"],
     captain: ["Your team", "Pick log"],
     member: [],
   },
   "live, a result in": {
-    admin: ["Back to Fixtures set, unplayed", "Move to…", "Kumite settings"],
+    admin: ["Back to Fixtures set, unplayed", "Move to…", "Kumite settings", PAST],
     runner: [],
     captain: [],
     member: [],
   },
   "all played": {
-    admin: ["Confirm the awards", "Back to Fixtures set, unplayed", "Move to…", "Kumite settings"],
+    admin: ["Confirm the awards", "Back to Fixtures set, unplayed", "Move to…", "Kumite settings", PAST],
     runner: [],
     captain: [],
     member: [],
   },
   "awards confirmed": {
-    admin: ["Change the awards", "Back to Fixtures set, unplayed", "Move to…", "Kumite settings"],
+    admin: ["Change the awards", "Back to Fixtures set, unplayed", "Move to…", "Kumite settings", PAST],
     runner: [],
     captain: [],
     member: [],
   },
   "awards revealed": {
-    admin: ["Back to before the awards", "Move to…", "Kumite settings"],
+    admin: ["Back to before the awards", "Move to…", "Kumite settings", PAST],
     runner: [],
     captain: [],
     member: [],
@@ -159,7 +161,7 @@ describe("Manage: where it stands", () => {
 
   it("a match under way, none finished, is live: no awards, no draft's jobs", () => {
     const t = build({ ...picked, draftState: "closed", games: [game(1, "live"), game(2)] as never });
-    expect(labels(t, ADMIN)).toEqual(["Back to Fixtures set, unplayed", "Move to…", "Kumite settings"]);
+    expect(labels(t, ADMIN)).toEqual(["Back to Fixtures set, unplayed", "Move to…", "Kumite settings", PAST]);
     expect(labels(t, CAPTAIN)).toEqual([]);
   });
 });
@@ -180,7 +182,7 @@ describe("Manage: the rest", () => {
 
   it("teams that enter: no Move to…, no pick log; a captain's own team till the matches start", () => {
     const entered = { kind: "teams", draftState: undefined, teams: [team(1, CARA, 1), team(2, COLE, 2)] } as never;
-    expect(labels(build(entered), ADMIN)).toEqual(["Kumite settings"]);
+    expect(labels(build(entered), ADMIN)).toEqual(["Kumite settings", PAST]);
     expect(labels(build(entered), CAPTAIN)).toEqual(["Your team"]);
   });
 
@@ -195,7 +197,22 @@ describe("Manage: the rest", () => {
       "move",
       "log",
       "settings",
+      "record",
     ]);
     expect(items.filter((x) => x.key === "draftJob").map((x) => x.job)).toEqual(["undo", "add", "leaveOut", "reset"]);
+  });
+});
+
+describe("Manage: the series' history", () => {
+  it("an admin records a past one, whatever's on and with nothing on; on dev, a Kumite on a past day too", () => {
+    expect(historyItemsOf({ shortName: "Kumite", kind: "draft" }, { admin: true }).map((x) => x.label)).toEqual([
+      "Record a past Kumite",
+    ]);
+    expect(
+      historyItemsOf({ shortName: "Kumite", kind: "draft" }, { admin: true, simulator: true }).map((x) => x.key),
+    ).toEqual(["record", "pastDay"]);
+    // Only a captains' draft is played out; nobody but an admin sees either
+    expect(historyItemsOf({ shortName: "Cup", kind: "teams" }, { admin: true, simulator: true })).toHaveLength(1);
+    expect(historyItemsOf({ shortName: "Kumite", kind: "draft" }, { admin: false, simulator: true })).toEqual([]);
   });
 });

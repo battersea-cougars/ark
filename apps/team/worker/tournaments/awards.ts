@@ -32,7 +32,7 @@ const DONE = `(t.status = 'finished' OR (EXISTS (SELECT 1 FROM tournament_games 
   AND NOT EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = t.id AND g.status <> 'done')))`;
 
 /** Everything an award is decided from, in one round trip: the tournament, its teams, results and who plays where. */
-async function awardsDataOf(db: D1Database, tournamentId: number) {
+export async function awardsDataOf(db: D1Database, tournamentId: number) {
   const p = [tournamentId];
   const [t, teams, players, games, goals, penalties, positions, winners] = (
     await batch(db, [

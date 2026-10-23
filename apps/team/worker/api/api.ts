@@ -27,6 +27,7 @@ import { actionsOf, firstAdmin } from "../members/members";
 import { ROLES_ROUTES } from "../members/roles.routes";
 import { SCORING_ROUTES } from "../tournaments/scoring.routes";
 import { SETTINGS_ROUTES } from "../settings/settings.routes";
+import { PAST_ROUTES } from "../tournaments/past.routes";
 import { SIMULATE_ROUTES } from "../tournaments/simulate.routes";
 import { TOURNAMENTS_ROUTES } from "../tournaments/tournaments.routes";
 import { TRAINING_ROUTES } from "../training/training.routes";
@@ -68,6 +69,8 @@ export const ROUTES: Route[] = [
   ...TOURNAMENTS_ROUTES,
   ...DRAFT_ROUTES,
   ...SCORING_ROUTES,
+  // A Kumite from before the app, recorded after the fact (ADR 0126)
+  ...PAST_ROUTES,
   // Dev only (ADR 0123): the Kumite played on to its after-party
   ...SIMULATE_ROUTES,
   // Everything else on the calendar, and the club's own settings

@@ -3,6 +3,7 @@
 import { id, rowOf, type Route } from "../api/api.route";
 import { body, HttpError, json } from "../api/api.http";
 import { simulateMoves, simulatorHere } from "./simulate";
+import { setUpPastDay } from "./past-day";
 
 export const SIMULATE_ROUTES: Route[] = [
   {
@@ -29,7 +30,33 @@ export const SIMULATE_ROUTES: Route[] = [
       // The router leaves it out elsewhere; and should it ever be mounted without that, it still isn't there
       if (!simulatorHere(c.env)) throw new HttpError(404, "Not found.");
       const asked = await body(c.request).catch(() => ({}) as Record<string, unknown>);
-      return json(await simulateMoves(c.env.DB, id(c), c, new Date(c.now), Number(asked.moves ?? 1)));
+      // `onItsDay`: a Kumite dated in the past, played on that evening and on through its awards (on-its-day.ts)
+      return json(
+        await simulateMoves(c.env.DB, id(c), c, new Date(c.now), Number(asked.moves ?? 1), asked.onItsDay === true),
+      );
+    },
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/past-day$/,
+    only: simulatorHere,
+    action: "manage:Tournament",
+    // What was made: the Kumite on its day, its captains and who signed up (nothing before: it's new)
+    audit: {
+      event: "tournament.past_day",
+      subject: rowOf(
+        `SELECT t.id, t.name, t.held_on heldOn, t.draft_state draftState,
+                (SELECT COUNT(*) FROM tournament_teams WHERE tournament_id = t.id) teams,
+                (SELECT COUNT(*) FROM tournament_entries WHERE tournament_id = t.id AND signup = 'in') signedUp
+         FROM tournaments t WHERE t.id = ?`,
+      ),
+    },
+    changes: ["tournaments"],
+    // { typeId, heldOn }: a Kumite on a day gone by, signed up for, its captains named; then the app plays it out on
+    // that evening (`simulate` with `onItsDay`), to its awards, so it's history with a whole evening behind it
+    handle: async (c) => {
+      if (!simulatorHere(c.env)) throw new HttpError(404, "Not found.");
+      return json(await setUpPastDay(c.env.DB, await body(c.request), c.today), 201);
     },
   },
 ];

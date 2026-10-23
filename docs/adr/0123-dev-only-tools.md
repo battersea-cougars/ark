@@ -1,7 +1,7 @@
 # 0123. A dev-only tool isn't there in production: its route exists only where the environment says dev or local
 
 - **Status:** Accepted
-- **Date:** 2026-10-22
+- **Date:** 2026-10-22 · updated 2026-10-23
 
 ## Context
 
@@ -66,6 +66,19 @@ changes are limited to 60 a minute ([0055](0055-degrade-instead-of-break.md)); a
   a page's, so it carries on across the Kumite's views; a reload ends it, and running it again carries on from where
   the tournament is. Every move is read from the tournament as it is: stopped part way (Stop, a refusal, a closed
   tab, the minute's changes used up), the next run carries on; at the end it says there's nothing left.
+- **A Kumite on a past day** (`POST /api/tournaments/past-day`, `past-day.ts`, the same `only` and action): Manage →
+  A Kumite on a past day (`lib/PastDayPlay`, with the series' history's jobs, so there with nothing on too), one
+  question, the day (before today). It makes a Kumite on that day as an admin would (its series' rules, four captains,
+  fewer in a small club), signs up enough of the club for the teams over the fortnight before, closes sign-up the day
+  before, no fee; then the app plays it out with the simulator **on its day** (`{ onItsDay: true }`, refused while the
+  day's to come), at Spin kick unless another speed's chosen. On its day the simulator's `now` is the evening's
+  (`on-its-day.ts eveningClock`), worked out from what's been played so a stopped run carries on at the same time: the
+  first match kicks off half an hour after its start time, each period its full length with the break between, the
+  next match three minutes after the last; so every kick-off is that evening and it's history at once
+  (`lib/edition.ts playedOn`). And it goes on past the matches: the awards confirmed (a stat's and a draw's from the
+  data, a vote's and the judges' call chosen at random), then each revealed, the drum rolled on between them, a move
+  each (`awards`, `reveal`, `nextAward`). On the record as `tournament.past_day`. The journeys get it from `journeys/past-kumite.ts kumiteOnAPastDay` (the API
+  as an admin, at the 1.25s floor).
 - On the audit log like any admin job ([0095](0095-audit-log.md)): `tournament.simulated`, how far it's played
   (the draft's state, matches made and played) before and after, so once for each request that closes the draft,
   makes the fixtures or finishes a match, not for every goal. A Spin kick request is one entry however many moves it
@@ -92,3 +105,6 @@ changes are limited to 60 a minute ([0055](0055-degrade-instead-of-break.md)); a
 - 2026-10-23: Three speeds, named for the Kumite: Kata (was Watch), Sparring (was Quick) and Spin kick, the new
   fastest, which makes up to four moves a request (`{ moves: n }`, clamped 1..4) at the 1.25s floor, as many as fit
   in 30 of the request's D1 queries, so the worst request stays about 42 of Workers Free's 50.
+- 2026-10-23: A Kumite on a past day: made, signed up for and played out by the simulator on that evening (its clocks
+  the evening's, `onItsDay`) through the awards confirmed and every one revealed, so it's history with a whole evening
+  behind it; for trying what a past Kumite shows. The simulator's moves gain `awards`, `reveal` and `nextAward`.
