@@ -11,3 +11,6 @@ export const firstCharacters = (text: string, count: number) => characters(text)
 
 /** Its first character ("" for none): "🦁 Leo" is "🦁". */
 export const firstCharacter = (text: string) => firstCharacters(text, 1);
+
+/** For matching what's typed: lower case, accents off ("Seán" is "sean", "Zoë" is "zoe"). */
+export const folded = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();

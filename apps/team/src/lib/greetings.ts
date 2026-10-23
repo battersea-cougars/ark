@@ -25,5 +25,8 @@ export function ordinal(n: number): string {
 /** Fill in a greeting: `{name}` is the first name, `{nth}` today's visit ("45th"), `{day}` the training's day. */
 export function fill(line: string, values: { name: string; visits: number; day: string }): string {
   const nth = ordinal(values.visits);
-  return line.replaceAll("{name}", values.name).replaceAll("{nth}", nth).replaceAll("{day}", values.day);
+  return line
+    .replaceAll("{name}", () => values.name)
+    .replaceAll("{nth}", () => nth)
+    .replaceAll("{day}", () => values.day);
 }

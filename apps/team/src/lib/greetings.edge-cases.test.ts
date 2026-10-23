@@ -60,8 +60,8 @@ describe("filling a greeting in", () => {
     expect(fill("{unknown} {name}", v)).toBe("{unknown} Zoë");
   });
 
-  // #118: replaceAll reads $& and $$ in the name as patterns
-  it.fails("a name with a dollar sign in it is greeted as written (known bug #118)", () => {
+  // #118: replaceAll read $& and $$ in the name as patterns
+  it("a name with a dollar sign in it is greeted as written (#118)", () => {
     expect(fill("Hi {name}!", { name: "Ca$$h", visits: 1, day: "" })).toBe("Hi Ca$$h!");
     expect(fill("Hi {name}!", { name: "Jo $& Co", visits: 1, day: "" })).toBe("Hi Jo $& Co!");
   });

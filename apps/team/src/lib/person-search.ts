@@ -1,5 +1,7 @@
 // Finding a member by typing (PersonPicker, the quick create's Captains): names that start with what's typed first,
-// then names with a word that does, then any that has it.
+// then names with a word that does, then any that has it. Accents and case don't matter: "sean" finds Seán.
+
+import { folded } from "./text";
 
 export interface Findable {
   id: number;
@@ -8,10 +10,10 @@ export interface Findable {
 
 /** Who matches `query` (all of them, alphabetical, when it's empty), at most `limit`. */
 export function findPeople<T extends Findable>(pool: readonly T[], query: string, limit = 60): T[] {
-  const q = query.trim().toLowerCase();
+  const q = folded(query.trim());
   if (!q) return pool.slice(0, limit);
   const rank = (n: string) => {
-    const s = n.toLowerCase();
+    const s = folded(n);
     if (s.startsWith(q)) return 0;
     if (s.split(/\s+/).some((w) => w.startsWith(q))) return 1;
     return s.includes(q) ? 2 : 3;

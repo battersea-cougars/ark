@@ -33,6 +33,12 @@ describe("the name someone goes by", () => {
     expect(matchesName({ name: "Jo Bloggs", webName: null }, "")).toBe(true);
     expect(matchesName({ name: "Jo Bloggs", webName: null }, "zz")).toBe(false);
   });
+
+  it("search finds a name with an accent typed without it (#118)", () => {
+    expect(matchesName({ name: "Zoë Adams", webName: null }, "zoe")).toBe(true);
+    expect(matchesName({ name: "Jo Bloggs", webName: "Seán" }, "sean")).toBe(true);
+    expect(matchesName({ name: "Seán Byrne", webName: null }, "seán")).toBe(true);
+  });
 });
 
 describe("a team named for its captain", () => {
