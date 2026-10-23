@@ -480,6 +480,9 @@ CREATE INDEX login_challenges_nonce ON login_challenges (nonce_hash);
 
 CREATE INDEX login_challenges_member ON login_challenges (member_id, created_at);
 
+-- The admins' Home lists the week's break-glass codes (auth.break-glass.ts): found among the few, not every code sent
+CREATE INDEX login_challenges_break_glass ON login_challenges (created_at) WHERE kind = 'break_glass';
+
 -- A member changing their own sign-in email (ADR 0023): a code to the new address, typed in the app they're signed in
 -- to (worker/members/members.email.ts). Like sign-in's, the code is stored only as its hash, works for 15 minutes and
 -- takes 5 wrong tries; the address is theirs only once the code's typed. Asking again spends the one before.
@@ -517,6 +520,9 @@ CREATE TABLE auth_sessions (
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);
 
 CREATE INDEX auth_sessions_previous ON auth_sessions (previous_hash);
+
+-- ...and the week's break-glass sign-ins, beside every phone's session
+CREATE INDEX auth_sessions_break_glass ON auth_sessions (created_at) WHERE method = 'break_glass';
 
 -- A member's passkeys (ADR 0023): sign in with Face ID, a fingerprint or the phone's PIN, no email needed. Only the
 -- public key is kept; the private one never leaves the member's device (or their password manager). One row per
@@ -565,6 +571,9 @@ CREATE TABLE passkey_challenges (
 );
 
 CREATE INDEX passkey_challenges_created ON passkey_challenges (created_at);
+
+-- A session signed out or ended takes its challenges with it (ON DELETE CASCADE): found by index, not by a scan
+CREATE INDEX passkey_challenges_session ON passkey_challenges (session_id);
 
 -- A device that wants notifications (ADR 0108): a phone with the store app (its Firebase token) or a browser with Web
 -- Push (its subscription's endpoint), and the sign-in it belongs to. Signing out forgets it, and the session running
@@ -655,6 +664,9 @@ CREATE TABLE audit_log (
 );
 
 CREATE INDEX audit_log_at ON audit_log (at);
+
+-- The admins' Home and Settings → Email read the last reconnect's try (mail.ts): by action, not back through the log
+CREATE INDEX audit_log_action ON audit_log (action);
 
 -- A tournament's teams (ADR 0030). Teams enter: each signs up with a name, a captain and its players, who may be
 -- from outside the club. Captains draft: each captain is a member, given a pick order, and drafts members.
