@@ -96,8 +96,9 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   for a captain waiting, how long till theirs), Manage the draft for whoever runs it, and ✕. Under it, filling the
   window to its foot: the picks a size up, then on a desktop a board, the pool down the left and every team a column
   in pick order, each scrolling inside itself, the one on the clock lifted, each with a row for every pick to come
-  (so a pick fills its row and moves nothing); on a phone the pool and the teams a tab apart. Pick and End turn as
-  ever, live as ever. The way in is a quiet Draft room on the draft's strip, lit red (no bigger) when your
+  (so a pick fills its row and moves nothing); narrower than the board, the teams are the page and the players open
+  in a drawer from a button at the screen's foot (Your pick on your turn), the confirm inside it. Pick and End turn
+  as ever, live as ever. The way in is a quiet Draft room on the draft's strip, lit red (no bigger) when your
   pick's now or two away; Home's row for a captain whose pick is that close goes straight in. Out by ✕, Escape (or
   the full screen ending), or Back (it's an address of its own); shown out to the page, the teams set sliding in,
   once the draft closes, and likewise if it steps back or it isn't yours.
@@ -313,3 +314,12 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   arrives ("just the first time it becomes active"). Your pick has no red outline, glow or fill, only its red Your
   pick badge ("too much red highlight"). On a phone the room opens on Teams (Players if it's your turn), tabs Teams |
   Players; the board (pool beside the team cards) from about 900px wide.
+- 2026-10-23: The room on a phone has no tabs ("the workflow between shifting between tabs is awkward"): the teams
+  are the page, following the draft as before (each pick burns in, then on to the next team). Your turn brings up
+  YOUR PICK, the main button, at the foot of the screen (no jump to the players); it opens the players (search,
+  chips, list) in a drawer, the confirm at its foot; confirmed, it shuts and the pick burns into your team. The turn
+  passing while it's open for your pick (picked for you, or on your other phone) shuts it and the note says so.
+  Anyone else's way to the players is the same button, quiet: PLAYERS and how many are left. The team picking's tag
+  is on its name's line ("why does the picking badge have to be on the second row?"): PICKING, YOUR PICK or YOURS in
+  the tabs' italic caps, the light and the word the only red, no filled pill; each card keeps the room for its
+  widest tag and the name ends in an ellipsis, so nothing moves as the turn goes round (lib/draft-follow.ts).

@@ -183,6 +183,9 @@ function say(message: string, failed: boolean) {
   clearing = setTimeout(() => (saving.message = ""), failed ? 6000 : 2200);
 }
 
+/** Say something in the save note that no save of yours did (the draft room: the turn passed while you were picking). */
+export const tell = (message: string) => say(message, false);
+
 /**
  * Send a change, then put what it touched in place (the whole club, if the reply doesn't say). Says `done` ("Saved") or what went wrong; an empty `done` stays quiet on success,
  * for taps that show their own result. Returns the server's reply, or null if it failed.

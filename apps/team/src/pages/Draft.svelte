@@ -8,9 +8,10 @@
   // goalie. Teams are edited on the Teams page, not here.
   //
   // Laid out as a draft room: a ticker of picks across the top (the one on the clock brought forward with a badge),
-  // then two views, Players and Teams: side by side on a wide screen, tabs on anything narrower. The players are a
-  // plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
-  // first of the teams, badged "Your team", with their coming pick drawn in.
+  // then two views, Players and Teams: side by side on a wide screen; in the room on anything narrower, the teams are
+  // the page and the players open in a drawer from the button at its foot (Your pick, on your turn). The players are
+  // a plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
+  // first of the teams, marked Yours, with their coming pick drawn in.
   import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
@@ -35,7 +36,8 @@
   import TeamLookSheet from "../lib/TeamLookSheet.svelte";
   import { editTournament } from "../lib/TournamentEditorPanel.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
-  import { draftPick, drawOrder, closeDraft, finishDraft, makeFixtures, openDraft } from "../app/backend.svelte";
+  import { draftPick, drawOrder, closeDraft, finishDraft, makeFixtures, openDraft, tell } from "../app/backend.svelte";
+  import Drawer from "../lib/Drawer.svelte";
   import { checkForUpdates, everyHowOften, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { formatDayDate, londonISO, londonToday } from "../lib/dates";
@@ -399,19 +401,26 @@
       // The turn it's for: the slot on the clock as this page sees it (the server refuses it once that's moved on)
       const own = !forOther;
       const done = await draftPick(tournament.id, chosenPlayer.id, slot);
-      // Your own pick in, on a phone: over to the teams, the team now on the clock in front (lib/draft-follow.ts)
+      // Your own pick in, on a phone: the drawer shuts, your team in front for it to burn in (lib/draft-follow.ts);
+      // whoever runs it picking for a captain, the drawer shuts too
       if (done !== null && own && phoneFollow) follow({ kind: "picked", team: captainIndex });
+      else if (done !== null) follow({ kind: "shut" });
+      // Refused because the turn had moved on (picked for you meanwhile): it shuts and says so
+      else if (own && !mine) follow({ kind: "taken" });
     } finally {
       ending = false;
     }
   }
 
-  // Two columns only where they fit (by the page's own width); anything narrower gets the phone's tabs, one view at
-  // a time. No in-between layout
+  // Two columns only where they fit (by the page's own width); anything narrower: in the room, the teams with the
+  // players in a drawer; before it opens, the phone's tabs, one view at a time. No in-between layout
   let pageW = $state(0);
   const columns = $derived(pageW >= 860);
   // (Not before the page's width is known: a desktop would start as a phone, and its ticker scroll to the wrong place)
   const fit = $derived(room && pageW > 0 && !columns && live);
+  // The room on a phone (or anything narrower than the board): the teams are the page, no tabs; the players in a
+  // drawer from the button at its foot (lib/draft-follow.ts)
+  const teamsOnly = $derived(room && !columns && live);
   type View = "players" | "teams";
   let view = $state<View>("players");
   // Switching tabs slides the new view in from the side it's on (no slide out: the old one just goes, so the page
@@ -439,38 +448,53 @@
         // One that can't be finished: left as it is
       }
   }
-  // A captain following the draft on a phone (lib/draft-follow.ts): your pick made, the teams, your team in front for
-  // it to burn in, then the team on the clock; each pick burns into its team in front, held a moment with the name
-  // cooled, and only then on to the next; your turn, back to the players. Never on while a pick's burning in. Touch a
-  // tab or move the teams and it leaves you be until your next pick or turn; Follow the draft picks it up again
+  // A captain following the draft on a phone (lib/draft-follow.ts): the teams, the team on the clock in front; each
+  // pick burns into its team in front, held a moment with the name cooled, and only then on to the next; your turn,
+  // the Your pick button comes up, opening the players in a drawer; your pick confirmed there, it shuts and your team's
+  // in front for it to burn in. Never on while a pick's burning in. Move the teams and it leaves you be until your
+  // next pick or turn; Follow the draft picks it up again
   const captainIndex = $derived(teams.findIndex((t) => t.captainMemberId === me().id));
   const phoneFollow = $derived(!columns && live && captainIndex >= 0);
   let fol = $state<Follow>(following());
-  // The room opens on the teams, the team on the clock in front (on the players if it's your turn), following
+  // The room opens on the teams, the team on the clock in front (your button up if it's your turn), following
   let opened = false;
   $effect(() => {
     if (opened || !room || !live) return;
     opened = true;
     untrack(() => {
       fol = following(clock, captainIndex);
-      view = fol.view;
     });
   });
   function follow(e: FollowEvent) {
-    const was = view;
-    const next = followDraft({ ...fol, view }, e);
+    const was = fol;
+    const next = followDraft(fol, e);
     fol = next;
-    if (next.view !== view) show(next.view);
     // Your turn come round: a short buzz where the phone can (only once you've touched the page)
-    if (was === "teams" && next.view === "players" && next.focus === captainIndex)
+    if (!was.yours && next.yours && phoneFollow)
       try {
         if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(60);
       } catch {
         // No vibration here: the bar says it
       }
+    // The turn passed while the drawer was open for your pick: it's shut, so say why
+    if (next.passed && !was.passed) tell(passedSaid());
   }
-  const manual = (v?: View) => follow({ kind: "manual", view: v });
+  /** What the note says when your turn went while you were picking: who took it, and whom. */
+  function passedSaid() {
+    const p = log.at(-1);
+    if (!p) return "The turn moved on";
+    if (p.team !== captainIndex) return `The turn moved on: ${teamName(p.team)} picked ${p.name}`;
+    return p.by ? `${p.by} picked ${p.name} for you` : `${p.name}'s yours: picked on another device`;
+  }
+  const manual = () => follow({ kind: "manual" });
   const resume = () => follow({ kind: "resume", clock, mine: captainIndex });
+  // The players' drawer (the room on a phone): open while the follow says so; shut by its ✕, the scrim or a pick
+  const drawerOpen = $derived(fol.drawer !== "shut");
+  const openPlayers = () => follow({ kind: "open", pick: mine && captainIndex === clock });
+  // Whose pick the drawer's for: yours, or whoever runs it picking for the team on the clock
+  const drawerTitle = $derived(
+    fol.drawer === "pick" ? "Your pick" : canPick && !mine ? `Pick for ${forName}` : "Players",
+  );
   // The team in front: following on a phone, the one it's on
   let draftEl = $state<HTMLElement | undefined>();
   const front = $derived(fol.focus);
@@ -478,7 +502,7 @@
   let teamsEl = $state<HTMLElement | undefined>();
   let lanesEl = $state<HTMLElement | undefined>();
   $effect(() => {
-    if (columns || view !== "teams" || front < 0 || !teamsEl) return;
+    if (columns || !room || front < 0 || !teamsEl) return;
     const f = front;
     requestAnimationFrame(() => {
       const reel = teamsEl;
@@ -559,6 +583,8 @@
     const newest = picks.at(-1);
     untrack(() => {
       if (seen >= 0 && n > seen && newest?.memberId) {
+        // Not the pick you've just sent: if the drawer's open for your pick, the turn's gone (lib/draft-follow.ts)
+        if (!ending) follow({ kind: "taken" });
         waitingBurns = [...waitingBurns, newest.memberId];
         void turns.land({ memberId: newest.memberId, team: newest.team, clock, made: n });
       } else if (!turns.busy) showNow();
@@ -720,6 +746,31 @@
   </div>
 {/snippet}
 
+<!-- The search (on a row of its own over the chips, always there, on a desktop or in the drawer, so neither covers the
+     other) and the position filter: the app's filter chips, as Teammates has them, each with how many are left -->
+{#snippet poolFind(withSearch: boolean)}
+  {#if withSearch}
+    <div class="find-row">
+      <SearchField bind:value={query} placeholder="Search players" label="Search players" />
+    </div>
+  {/if}
+  <div class="filters" role="group" aria-label="Position">
+    {#each [["all", "All", found.length, "teams"], ["F", "Forwards", foundTally.F, "stick"], ["D", "Defence", foundTally.D, "shield"], ["G", "Keepers", foundTally.G, "net"]] as const as [v, label, n, icon] (v)}
+      <button class="filter" aria-pressed={filter === v} onclick={() => (filter = v)}
+        ><Icon name={icon} size={16} />{label}<span class="count num">{n}</span></button
+      >
+    {/each}
+  </div>
+{/snippet}
+
+{#snippet poolList()}
+  <div class="plist" aria-label="Players left">
+    {#each listed as p (p.id)}<div class="pool-row" out:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
+        {@render playerRow(p, true)}
+      </div>{:else}<p class="hint none">No one matches.</p>{/each}
+  </div>
+{/snippet}
+
 {#snippet playersView()}
   <section class="players" aria-label="Players">
     {#if phase === "closed"}
@@ -733,24 +784,8 @@
       {/if}
     {:else if pool.length}
       <!-- The position filter: the app's filter chips, as Teammates has them, each with how many are left -->
-      {#if columns}
-        <!-- A desktop: the search on a row of its own over the chips, always there, so neither covers the other -->
-        <div class="find-row">
-          <SearchField bind:value={query} placeholder="Search players" label="Search players" />
-        </div>
-      {/if}
-      <div class="filters" role="group" aria-label="Position">
-        {#each [["all", "All", found.length, "teams"], ["F", "Forwards", foundTally.F, "stick"], ["D", "Defence", foundTally.D, "shield"], ["G", "Keepers", foundTally.G, "net"]] as const as [v, label, n, icon] (v)}
-          <button class="filter" aria-pressed={filter === v} onclick={() => (filter = v)}
-            ><Icon name={icon} size={16} />{label}<span class="count num">{n}</span></button
-          >
-        {/each}
-      </div>
-      <div class="plist" aria-label="Players left">
-        {#each listed as p (p.id)}<div class="pool-row" out:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
-            {@render playerRow(p, true)}
-          </div>{:else}<p class="hint none">No one matches.</p>{/each}
-      </div>
+      {@render poolFind(columns)}
+      {@render poolList()}
     {:else if open}
       <p class="hint">
         {running ? "Everyone's picked." : "Everyone's picked. Whoever runs the draft closes it to set the teams."}
@@ -771,7 +806,9 @@
 
 <!-- A team, as a card: every team the same, the same height (its captain and a row for each pick it'll have), so a
      full team fills it exactly. The team picking is lit (its crest and name; the others a little quieter while it
-     picks) with the one red Picking badge; yours says so, and warns while you've no goalie -->
+     picks), PICKING on its name's line in the tabs' italic caps, the light beside it the one red; yours says YOURS
+     (YOUR PICK on your turn), and warns while you've no goalie. While it's picked every card keeps the room for the
+     tag, so it moves from card to card and no name shifts -->
 {#snippet teamCard(i: number)}
   {@const t = teams[i]}
   {@const yours = i === myTeam}
@@ -781,6 +818,7 @@
     class:picking
     class:my-pick={picking && yours}
     class:quiet={live && !picking}
+    class:drafting={live}
     data-team={i}
     style:--team={teamTone(i)}
     aria-label={teamName(i)}
@@ -793,13 +831,28 @@
         tone={teamTone(i)}
         onclick={canLook(i) ? () => ((lookIndex = i), (lookOpen = true)) : undefined}
       />
-      <h3 class="display">{teamName(i)}</h3>
+      <h3 class="display" title={teamName(i)}>{teamName(i)}</h3>
+      {#if live || yours}
+        {@const said = picking ? (yours ? "Your pick" : "Picking") : yours ? "Yours" : ""}
+        <span class="tags">
+          {#if yours && open}<span
+              class="no-g"
+              class:gone={haveGoalie}
+              title="No goalie yet"
+              aria-label={haveGoalie ? undefined : "No goalie yet"}><Icon name="alert" size={14} />G</span
+            >{/if}
+          <!-- Every tag this card can show, in one cell: only the one it says is seen, so the card keeps the widest's
+               room and nothing moves as the turn comes and goes -->
+          <span class="tag-slot">
+            {#each yours ? (live ? ["Your pick", "Yours"] : ["Yours"]) : ["Picking"] as l (l)}
+              <span class="badge tag" class:on={picking && l === said} class:shown={l === said} aria-hidden={l !== said}
+                >{#if l !== "Yours"}<i class="dot"></i>{/if}{l}</span
+              >
+            {/each}
+          </span>
+        </span>
+      {/if}
     </header>
-    <div class="panel-badges">
-      {#if picking}<span class="badge red"><i class="dot"></i>{yours ? "Your pick" : "Picking"}</span>{/if}
-      {#if yours && open && !haveGoalie}<span class="badge amber"><Icon name="alert" size={13} />No goalie</span>{/if}
-      {#if yours && !picking}<span class="badge">Your team</span>{/if}
-    </div>
     {@render roster(i)}
   </section>
 {/snippet}
@@ -1123,21 +1176,33 @@
           {#each teams as _, i (teams[i].id ?? i)}{@render teamCard(i)}{/each}
         </div>
       </div>
+    {:else if teamsOnly}
+      <!-- The room narrower than the board: the teams are the page, following the draft; the players are in a drawer
+           from the button at the foot (Your pick, on your turn). Only a finger or the wheel on the teams stops it
+           following -->
+      <div class="panes" in:fade={viewsIn}>
+        <div
+          class="pane"
+          role="group"
+          aria-label="The teams, following the draft"
+          ontouchmove={phoneFollow ? () => manual() : undefined}
+          onwheel={phoneFollow ? () => manual() : undefined}
+        >
+          {@render teamsView()}
+        </div>
+      </div>
     {:else if !columns}
-      <!-- Narrower than two columns: one view at a time; Teams warns while you still need a goalie -->
+      <!-- Narrower than two columns, before it opens: one view at a time; Teams warns while you still need a goalie -->
       <div class="tab-row" in:fade={viewsIn}>
         <div class="tablist" role="tablist" aria-label="Draft" style:--slide={dir}>
-          <button role="tab" aria-selected={view === "teams"} onclick={() => manual("teams")}
+          <button role="tab" aria-selected={view === "teams"} onclick={() => show("teams")}
             >Teams{#if myTeam >= 0 && open && !haveGoalie}<span class="need" title="No goalie yet"
                 ><Icon name="alert" size={13} />G</span
               >{/if}</button
           >
-          <button role="tab" aria-selected={view === "players"} onclick={() => manual("players")}>Players</button>
+          <button role="tab" aria-selected={view === "players"} onclick={() => show("players")}>Players</button>
         </div>
-        {#if phoneFollow && !fol.follow && !sliding}
-          <!-- Left alone (you took over): one tap and it moves with the draft again -->
-          <button class="btn sm follow" onclick={resume}><Icon name="live" size={14} />Follow the draft</button>
-        {:else if searching}{@render finder()}{/if}
+        {#if searching}{@render finder()}{/if}
       </div>
       <!-- The views share one cell: switching, the whole of the old one slides out as the new one slides in from its
            tab's side, one movement, nothing below jumping. Only a finger or the wheel on the teams stops it following -->
@@ -1151,8 +1216,6 @@
             out:fly={{ x: `${-100 * dir}%`, duration: slideMs, easing: easeOut, opacity: 1 }}
             onintrostart={() => (sliding = true)}
             onintroend={() => (sliding = false)}
-            ontouchmove={view === "teams" && phoneFollow ? () => manual() : undefined}
-            onwheel={view === "teams" && phoneFollow ? () => manual() : undefined}
           >
             {#if view === "teams"}{@render teamsView()}
             {:else}{@render playersView()}{/if}
@@ -1163,9 +1226,63 @@
   {/if}
 </div>
 
+<!-- The room on a phone: the players' button at the foot of the screen, over the teams (they keep room for it), where
+     a thumb is. Anyone's way to the players left, quiet; on your turn it's the main button, YOUR PICK, rising in
+     (the same place and size: nothing moves). Beside it, once you've moved the teams yourself, Follow the draft -->
+{#if teamsOnly}
+  <div class="room-foot" transition:fade={{ duration: fadeMs }}>
+    {#if phoneFollow && !fol.follow}
+      <button class="btn sm follow" onclick={resume} transition:fade={{ duration: fadeMs }}
+        ><Icon name="live" size={14} />Follow the draft</button
+      >
+    {/if}
+    {#key fol.yours && mine}
+      <button
+        class="btn fab"
+        class:primary={fol.yours && mine}
+        class:yours={fol.yours && mine}
+        aria-haspopup="dialog"
+        onclick={openPlayers}
+        >{#if fol.yours && mine}<i class="dot"></i>Your pick{:else}<Icon name="teams" size={18} />Players<span
+            class="count num">{pool.length}</span
+          >{/if}</button
+      >
+    {/key}
+  </div>
+  <!-- The players, in a drawer over the teams: the search and chips stay put, the list scrolls, and the confirm
+       sits at its foot (whoever can pick); confirmed, it shuts and the pick burns into its team -->
+  <Drawer
+    bind:open={() => drawerOpen, (v) => !v && follow({ kind: "shut" })}
+    title={drawerTitle}
+    sub={fol.drawer === "pick" && myTeam >= 0
+      ? `${teamName(myTeam)} · pick ${made + 1}`
+      : `${pool.length} left to pick`}
+  >
+    {#snippet top()}<div class="players in-drawer">{@render poolFind(true)}</div>{/snippet}
+    <div class="players in-drawer">{@render poolList()}</div>
+    {#snippet footer()}
+      {#if canPick}
+        <div class="confirm">
+          <div class="who-picked">
+            <span class="eyebrow">{forOther ? `Picking for ${teamName(clock)}` : "Your pick"}</span>
+            <span class="chosen-name" class:empty={!chosenPlayer}
+              >{#if chosenPlayer}{goesBy(chosenPlayer)}<small>{chosenPlayer.position}</small>{:else}Tap Pick on a player{/if}</span
+            >
+          </div>
+          <button class="btn primary end-turn" disabled={ending || !chosenPlayer} onclick={endTurn}
+            >{forOther ? `Pick for ${forName}` : "Confirm"}<Icon name="chevronRight" size={18} /></button
+          >
+        </div>
+      {:else}
+        <p class="hint">{teamName(clock)} is picking.</p>
+      {/if}
+    {/snippet}
+  </Drawer>
+{/if}
+
 <!-- End turn: a bar floating at the bottom once you've picked someone, over the page (so nothing moves), where your
-     thumb is -->
-{#if chosenPlayer}
+     thumb is (the room on a phone has it in the drawer) -->
+{#if chosenPlayer && !teamsOnly}
   <div
     class="end-bar"
     role="region"
@@ -1910,28 +2027,70 @@
     min-height: 3rem;
     padding: var(--s-2) var(--s-2) var(--s-1);
   }
-  /* The name in full: it wraps rather than cut, with nothing beside it but the crest */
+  /* The name on one line beside the crest and the tag: cut with an ellipsis, never wrapped (its title has it whole) */
   .panel h3 {
     flex: 1;
     min-width: 0;
     margin: 0;
+    overflow: hidden;
     color: var(--fg);
     font-size: 1.25rem;
-    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  /* One line, always there, so every card's the same height: what doesn't fit goes, it never wraps */
-  .panel-badges {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    align-items: center;
-    gap: var(--s-1);
-    min-height: 1.6rem;
-    padding: 0 var(--s-2);
-  }
-  .panel-badges .badge {
+  /* The tag at the name's end: PICKING, YOUR PICK or YOURS in the tabs' italic caps (the app's .badge, no fill), the
+     team picking's in red with its light, the colour only an accent. While it's picked every card keeps the same room
+     for it, empty or not, so the tag moves from card to card and no name shifts */
+  .tags {
+    display: inline-flex;
     flex-shrink: 0;
-    gap: 0.3rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--s-2);
+  }
+  .tag-slot {
+    display: grid;
+  }
+  .tag-slot > .tag {
+    grid-area: 1 / 1;
+    justify-self: end;
+    visibility: hidden;
+  }
+  .tag-slot > .tag.shown {
+    visibility: visible;
+  }
+  .no-g.gone {
+    visibility: hidden;
+  }
+  /* The board's narrow cards: the tags a size down, so the names keep their room */
+  .lanes .badge.tag {
+    font-size: 0.8rem;
+  }
+  .badge.tag {
+    gap: 0.4rem;
+    height: auto;
+    padding: 0;
+    background: none;
+    color: var(--fg-muted);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .badge.tag.on {
+    color: var(--red-hot);
+  }
+  /* No goalie yet: a small amber warning before the tag */
+  .no-g {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    color: var(--caution-ink);
+    font-size: var(--text-2xs);
+    font-weight: 700;
   }
   /* The board's narrow cards: who picked for a captain is in the pick log, not squeezed beside the name */
   .lanes .by {
@@ -1975,13 +2134,102 @@
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 2.5rem), transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 14px, #000 calc(100% - 2.5rem), transparent);
   }
+  /* The room's foot on a phone: Follow the draft (once you've moved the teams) and the players' button, floating over
+     the teams at the bottom of the screen, clear of the home bar */
+  .room-foot {
+    position: fixed;
+    right: var(--gutter);
+    bottom: max(var(--s-4), calc(env(safe-area-inset-bottom, 0px) + var(--s-2)));
+    left: var(--gutter);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--s-3);
+    pointer-events: none;
+  }
+  .room-foot > * {
+    pointer-events: auto;
+  }
   .follow {
-    position: absolute;
-    top: 50%;
-    right: 0;
     gap: var(--s-1);
-    translate: 0 -50%;
+    margin-right: auto;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-3) 85%, transparent);
+    backdrop-filter: blur(12px);
     color: var(--red-hot);
+    box-shadow: var(--shadow-pop);
+  }
+  /* The players' button: one size whatever it says. Quiet, frosted, for a look; on your turn the main button, sticker
+     yellow, rising in with a little lift */
+  .fab {
+    gap: var(--s-2);
+    min-width: 9.5rem;
+    height: 3.25rem;
+    padding: 0 var(--s-5);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-3) 85%, transparent);
+    backdrop-filter: blur(12px);
+    color: var(--fg);
+    box-shadow: var(--shadow-pop);
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-style: italic;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .fab .count {
+    color: var(--fg-subtle);
+    font-family: var(--font);
+    font-size: var(--text-sm);
+    font-style: normal;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  .fab.yours {
+    background: var(--action);
+    color: var(--on-action);
+    animation: fab-in 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .fab.yours .dot {
+    background: currentColor;
+  }
+  @keyframes fab-in {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem) scale(0.85);
+    }
+  }
+  /* The note (Picked, the turn passing) rises just above the button, not over it */
+  :global(body:has(.room-foot)) {
+    --above-tabs: 0.75rem;
+  }
+  /* The drawer's players: the search and chips at its top, the list under them; the confirm at its foot */
+  .in-drawer {
+    gap: var(--s-3);
+  }
+  .in-drawer .prow {
+    min-height: 2.75rem;
+  }
+  .in-drawer .filters {
+    flex-wrap: nowrap;
+    gap: var(--s-1);
+  }
+  .in-drawer .filter {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: var(--s-1);
+    min-width: 0;
+    padding: 0 var(--s-2);
+  }
+  .confirm {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+  }
+  .chosen-name.empty {
+    color: var(--fg-subtle);
+    font-weight: 500;
   }
   /* A tab's focus ring inside it: outside, the tab row (a scroller) cut its top and bottom off, leaving two red bars
      either side of the tab */
