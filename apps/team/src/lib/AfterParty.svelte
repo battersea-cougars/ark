@@ -493,14 +493,15 @@
   .later .order {
     opacity: 0.6;
   }
-  /* The next card comes up once the last one's over: it rises into its slot */
+  /* The next card comes up once the last one's over: it rises into its slot, from just below it and a little dim,
+     never gone in the meantime */
   .rising {
     animation: rise 0.6s var(--rise-at, 0.85s) cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes rise {
     from {
-      opacity: 0;
-      transform: translateY(1.5rem) scale(0.97);
+      transform: translateY(0.75rem) scale(0.98);
+      filter: brightness(0.6);
     }
   }
   .order {
@@ -767,7 +768,7 @@
       animation: fade 0.4s ease both;
     }
     .rising {
-      animation: fade 0.4s 0.4s ease both;
+      animation: none;
     }
   }
   @keyframes fade {
