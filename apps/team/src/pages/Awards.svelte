@@ -155,6 +155,7 @@
               at={onStage}
               count={awards.length}
               face={ended ? "up" : shown.face}
+              numbered={!ended}
               finale={finale(onStage)}
               {beat}
               onreveal={cue === "reveal" || cue === "champions" ? go : undefined}

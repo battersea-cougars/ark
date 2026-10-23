@@ -29,6 +29,7 @@
     beat = null,
     leaving = false,
     small = false,
+    numbered = true,
     onreveal,
   }: {
     type: TournamentType;
@@ -46,6 +47,8 @@
     leaving?: boolean;
     /** A size down, for the grid of every award once they're all out: face up, still. */
     small?: boolean;
+    /** Its place in the reveal ("2 of 3"): only while they're being revealed. Empty, its row takes no room. */
+    numbered?: boolean;
     /** Whoever runs it: a tap on the sealed card reveals it, as the button under it does. */
     onreveal?: () => void;
   } = $props();
@@ -84,7 +87,7 @@
   aria-hidden={leaving || undefined}
 >
   {#if kumite}<span class="ghost" lang="ja" aria-hidden="true">{mark}</span>{/if}
-  <span class="order num">{at + 1} of {count}</span>
+  <span class="order num">{numbered ? `${at + 1} of ${count}` : ""}</span>
   <div class="name"><BoardWords text={name} size={sizes.name} /></div>
   <p class="about">{about || " "}</p>
 

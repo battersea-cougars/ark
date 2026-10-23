@@ -25,6 +25,7 @@
         count={awards.length}
         face="up"
         finale
+        numbered={false}
       />
     </div>
   {/if}
@@ -32,7 +33,17 @@
     <ol class="grid" aria-label="The awards">
       {#each others as { a, i } (a.name)}
         <li>
-          <AwardStage {type} tournament={t} award={a} at={i} count={awards.length} face="up" finale={false} small />
+          <AwardStage
+            {type}
+            tournament={t}
+            award={a}
+            at={i}
+            count={awards.length}
+            face="up"
+            finale={false}
+            small
+            numbered={false}
+          />
         </li>
       {/each}
     </ol>
