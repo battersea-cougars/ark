@@ -131,6 +131,32 @@ const mine = "(v.sees_private OR m.id = v.member_id)";
 const DUES_SHOWN = `SELECT v.member_id FROM viewer v
   UNION ALL SELECT m.id FROM viewer v CROSS JOIN members m WHERE v.sees_dues AND m.id <> v.member_id`;
 
+// A tournament's games, goals and penalties: nothing in them is anyone's own, so they're the same for every member,
+// in the club's read and in a live match's (`readMatch`). `where`: which.
+const games = (where = "") =>
+  rows(
+    `id tournamentId stage round position name homeTeamId awayTeamId homeSeed awaySeed homeGoals awayGoals status
+     clockLeftMs clockStartedAt keeperId period periodEndedAt startedAt`,
+    `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
+            away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
+            away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
+            keeper_member_id keeperId, period, period_ended_at periodEndedAt, started_at startedAt
+     FROM tournament_games ${where} ORDER BY tournament_id, position`,
+  );
+const goals = (where = "") =>
+  rows(
+    "id gameId teamId scorerId assistId atMs period",
+    `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs,
+            period
+     FROM tournament_goals ${where} ORDER BY at_ms IS NULL, period, at_ms, id`,
+  );
+const penalties = (where = "") =>
+  rows(
+    "id gameId teamId memberId minutes infraction atMs period recordedBy",
+    `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs, period,
+            recorded_by recordedBy
+     FROM tournament_penalties ${where} ORDER BY at_ms IS NULL, period, at_ms, id`,
+  );
 const PARTS = {
   everydayRole: "json_array((SELECT m.everyday_role_id FROM members m, viewer v WHERE m.id = v.member_id))",
   members: rows(
@@ -219,27 +245,9 @@ const PARTS = {
     `SELECT team_id teamId, member_id memberId, name, pick_number pick, picked_by pickedBy FROM tournament_team_players
      ORDER BY team_id, coalesce(pick_number, position), id`,
   ),
-  games: rows(
-    `id tournamentId stage round position name homeTeamId awayTeamId homeSeed awaySeed homeGoals awayGoals status
-     clockLeftMs clockStartedAt keeperId period periodEndedAt startedAt`,
-    `SELECT id, tournament_id tournamentId, stage, round, position, name, home_team_id homeTeamId,
-            away_team_id awayTeamId, home_seed homeSeed, away_seed awaySeed, home_goals homeGoals,
-            away_goals awayGoals, status, clock_left_ms clockLeftMs, clock_started_at clockStartedAt,
-            keeper_member_id keeperId, period, period_ended_at periodEndedAt, started_at startedAt
-     FROM tournament_games ORDER BY tournament_id, position`,
-  ),
-  goals: rows(
-    "id gameId teamId scorerId assistId atMs period",
-    `SELECT id, game_id gameId, team_id teamId, scorer_member_id scorerId, assist_member_id assistId, at_ms atMs,
-            period
-     FROM tournament_goals ORDER BY at_ms IS NULL, period, at_ms, id`,
-  ),
-  penalties: rows(
-    "id gameId teamId memberId minutes infraction atMs period recordedBy",
-    `SELECT id, game_id gameId, team_id teamId, member_id memberId, minutes, infraction, at_ms atMs, period,
-            recorded_by recordedBy
-     FROM tournament_penalties ORDER BY at_ms IS NULL, period, at_ms, id`,
-  ),
+  games: games(),
+  goals: goals(),
+  penalties: penalties(),
   // Who won each award (ADR 0044). On its evening an award's winner is a surprise until it's revealed at the
   // after-party (ADR 0074): only whoever runs tournaments is sent it before then
   winners: rows(
@@ -375,4 +383,37 @@ export async function readClub(db: D1Database, viewer: Viewer, parts: readonly P
     .bind(...bound(viewer))
     .first<Record<Part, string>>();
   return Object.fromEntries(parts.map((p) => [p, JSON.parse(row![p])])) as Parts;
+}
+
+/** One tournament's games, goals and penalties, and its teams in pick order (who keeps score, fixtures.ts). */
+export interface MatchRows {
+  games: Parts["games"];
+  goals: Parts["goals"];
+  penalties: Parts["penalties"];
+  teams: { id: number; tournamentId: number }[];
+}
+
+/**
+ * A live match (ADR 0072, #161): one tournament's games as every member sees them, read with no viewer since nothing
+ * in them is anyone's own, in one statement; null when the tournament isn't on today (a result put right afterwards).
+ */
+export async function readMatch(db: D1Database, tournamentId: number, today: string): Promise<MatchRows | null> {
+  const ofGames = "WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)";
+  const teams = rows(
+    "id tournamentId",
+    `SELECT id, tournament_id tournamentId FROM tournament_teams WHERE tournament_id = ?
+     ORDER BY coalesce(pick, 1000), id`,
+  );
+  // Each ? in turn: the day's check, then the games, goals, penalties and teams of this tournament
+  const row = await db
+    .prepare(
+      `SELECT EXISTS (SELECT 1 FROM tournaments WHERE id = ? AND held_on = ?) today,
+              ${games("WHERE tournament_id = ?")} games, ${goals(ofGames)} goals, ${penalties(ofGames)} penalties,
+              ${teams} teams`,
+    )
+    .bind(tournamentId, today, tournamentId, tournamentId, tournamentId, tournamentId)
+    .first<Record<"today" | "games" | "goals" | "penalties" | "teams", string | number>>();
+  if (!row?.today) return null;
+  const parsed = (k: "games" | "goals" | "penalties" | "teams") => JSON.parse(String(row[k]));
+  return { games: parsed("games"), goals: parsed("goals"), penalties: parsed("penalties"), teams: parsed("teams") };
 }

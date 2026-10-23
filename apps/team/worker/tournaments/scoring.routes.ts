@@ -45,6 +45,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "score:Match",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // A game's final score; the last group result fills the playoffs
     handle: async (c) => (await scoreGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request)), ok()),
   },
@@ -56,6 +57,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // { action: "claim" | "release" }: Start scoring, or let it go
     handle: async (c) => (await holdScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c), ok()),
   },
@@ -74,6 +76,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "manage:Tournament",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // { action: "takeover" | "free", from: the keeper the admin's page saw, or null }
     handle: async (c) => (
       await overrideScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c),
@@ -87,6 +90,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // { action: "start" | "pause" | "end" }
     handle: async (c) => (
       await clockGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
@@ -100,6 +104,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // { teamId, scorerId?, assistId? }
     handle: async (c) => (
       await addGoal(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
@@ -113,6 +118,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // ?goal=: the last goal the page shows, so Undo tapped twice takes it off once (#114)
     handle: async (c) => (await undoGoal(c.env.DB, id(c), Number(c.params[1]), c, named(c, "goal")), ok()),
   },
@@ -123,6 +129,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // An admin takes any goal off a finished game (scoring.ts decides who)
     handle: async (c) => (await removeGoal(c.env.DB, id(c), Number(c.params[1]), Number(c.params[2]), c), ok()),
   },
@@ -134,6 +141,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // { teamId, memberId?, minutes?, infraction?, atMs? }
     handle: async (c) => (
       await addPenalty(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c, new Date(c.now)),
@@ -147,6 +155,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // ?penalty=: the last penalty the page shows (#114)
     handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c, named(c, "penalty")), ok()),
   },
@@ -157,6 +166,7 @@ export const SCORING_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["tournaments"],
     calendar: false,
+    liveMatch: true,
     // An admin takes any penalty off a finished game (scoring.ts decides who)
     handle: async (c) => (await removePenalty(c.env.DB, id(c), Number(c.params[1]), Number(c.params[2]), c), ok()),
   },

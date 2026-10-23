@@ -3,9 +3,8 @@
 // changes named, not the whole club. Phones here hold the app's own copy of the club (src/app/catch-up.ts), reading
 // through the real Worker, their streams from the real hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ClubCopy } from "../../src/app/catch-up";
-import { atVersion } from "../../src/app/club-tag";
 import { NOW, testWorld } from "../testing";
+import { phoneOn as livePhone } from "./live.testing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -35,70 +34,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Long enough for the hub's second and every phone's wait before its read, and the read itself. */
 const settled = () => wait(1500);
 
-/**
- * A member's phone with a live page open that follows `parts`: its copy of the club, what it asked the Worker for,
- * and whether the page is in view.
- */
+/** A member's phone with a live page open that follows `parts` (live.testing.ts). */
 async function phoneOn(email: string, parts: readonly string[]) {
-  const b = await w.listening(email);
-  let club: Json = null;
-  let tag: string | null = null;
-  let inView = true;
-  const asked: string[] = [];
-  const whole = async () => {
-    const r = await b.call("GET", "/api/bootstrap", undefined, {
-      headers: tag ? { "if-none-match": atVersion(tag, copy.held) } : {},
-    });
-    asked.push(r.status === 304 ? "whole: unchanged" : "whole");
-    if (r.status !== 200) return;
-    club = r.body;
-    tag = r.headers.get("etag");
-    copy.wholeAt(Number(r.headers.get("x-club-version")));
-  };
-  const copy: ClubCopy = new ClubCopy({
-    readParts: async (names) => {
-      asked.push(`parts: ${names.join(", ")}`);
-      const r = await b.call("GET", `/api/slices?names=${names.join(",")}`);
-      if (r.status !== 200) throw new Error(`${r.status}`);
-      return r.body;
-    },
-    readWhole: whole,
-    apply: (slices) => (club = { ...club, ...slices }),
-    visible: () => inView,
-    waitMs: 100,
-  });
-  await whole();
-  copy.follow(parts);
-  // The stream: every event to the copy
-  let streaming = true;
-  const pump = (async () => {
-    while (streaming) {
-      const e = await b.next().catch(() => null);
-      if (!e) return;
-      if (e.event === "changed") copy.hear(e.data);
-    }
-  })();
-  const phone = {
-    email,
-    copy,
-    asked,
-    club: () => club,
-    whole,
-    hide: () => (inView = false),
-    /** A change from this phone: its reply's parts go in place, as the app's `save` does. */
-    change: async (method: string, path: string, payload?: unknown) => {
-      const r = await b.call(method, path, payload);
-      const v = r.headers.get("x-club-version");
-      if (r.status < 300 && r.body.changed && v) Object.assign(club, copy.partsAt(Number(v), r.body.changed));
-      return r;
-    },
-    stop: async () => {
-      streaming = false;
-      copy.stop();
-      await b.close();
-      await pump;
-    },
-  };
+  const phone = await livePhone(w, email, parts);
   open.push(phone);
   return phone;
 }

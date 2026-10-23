@@ -82,7 +82,7 @@ npm run load -- friday-rush    # 120 members open the app and tap In within 10 s
                                # in the middle; the teams published while everyone's on the page
 npm run load -- live-draft     # 8 captains picking in turn, 60 players watching the draft room live; an Undo and a
                                # pick for a captain
-npm run load -- scoring        # 1 scorekeeper, 80 members following the game live
+npm run load -- scoring        # 1 scorekeeper, 80 members following the game live (--followers 20)
 npm run load -- all            # each, a fresh Worker each
 npm run load -- soak --minutes 60   # the scenarios in turn, a minute's pause between, the crons every 5 min and hourly
 npm run load -- cpu            # the Worker's own CPU a request (the fake world, SQLite's time taken off)
@@ -188,16 +188,42 @@ routes that can't move the calendar (`api.route.ts`). Same machine, the same hou
 (The "before" ran on this branch's schema, so its tournaments already had the new indexes' help: the real before is
 a little higher, 1.64M for the draft earlier in the day.) On the local club's copy (28 members, a month of trainings), an admin's bootstrap went from 1,504 rows to 1,137, a read of the sign-ups from 577 to 244 and of the tournaments from 114 to 78.
 
+### A live match pushed (2026-10-23, #161)
+
+The game's own change now carries the match: the Worker reads the tournament's games once (one statement) and the hub
+sends them in the event to every member ([0072](adr/0072-live-updates.md)); a phone holding the version just before
+puts them in place and reads nothing. `npm run load -- scoring --followers N --one-address`, the same machine, main's
+Worker against this one, each of the scorekeeper's 21 changes (12 goals, 3 penalties, an Undo, the sheet and the
+clock) counted from once every phone is on the game page:
+
+| Followers  | A change: requests (the tap + reads) | D1 rows read a change | Most requests in 10 s (domain's rule: 150) | Tap to every screen, p50 / p95 | Tap to each phone, p50 / p95 |
+| ---------- | ------------------------------------ | --------------------- | ------------------------------------------ | ------------------------------ | ---------------------------- |
+| 20, before | 14.3 (13.3 reads)                    | 567                   | 102                                        | 1.08 s / 1.31 s                | 0.61 s / 1.11 s              |
+| 20, after  | **1.0** (no reads)                   | **140**               | **8**                                      | **0.17 s** / 1.00 s            | **0.17 s** / 1.00 s          |
+| 80, before | 54.4 (53.4 reads)                    | 1,951                 | 327 (5 of 6 windows over)                  | 2.58 s / 3.14 s                | 1.60 s / 2.81 s              |
+| 80, after  | **1.0** (no reads)                   | **140**               | **6**                                      | **0.13 s** / 1.00 s            | **0.13 s** / 1.00 s          |
+
+- The cost of a change no longer grows with the phones following it: one request (the tap) and its rows (the tap's own
+  and the match's one read), whether 20 or 80 are watching. The whole run at 80 read 62k rows, was 100k; what's left
+  is opening the page (a bootstrap a phone, ~700 rows).
+- The p95 of a second is the hub's one event a second: a penalty logged just after a goal waits for the end of it.
+- The busiest 10 s of a whole 80-phone run is now everyone opening the game page at once (80 bootstraps and 80
+  streams, 162 in 10 s); real phones open it over minutes. Before, the goals themselves went over 150 in five of six
+  windows.
+- Before, under this machine's other load, the 80-phone run varied (47 requests and 1,658 rows a change, 6.1 s to
+  every screen, in a rerun with the machine busy); after, it didn't (the same numbers twice).
+- The draft is still names only, one read a phone a pick (#162).
+
 ### Free-tier headroom
 
-| Limit (Workers Free, D1 Free)       | Per request / run                                            | A Friday                                                          | A Kumite day                                                                              |
-| ----------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| CPU, 10 ms a request                | 0.2–2.8 ms (the Worker's own)                                | fine                                                              | fine                                                                                      |
-| Subrequests, 50 an invocation       | 42 at most (an announcement's request); 35 a cron            | fine                                                              | fine                                                                                      |
-| Requests, 100k a day                | —                                                            | a normal week a few thousand; the rush ~12k if every reload lands | draft ~4.6k; 15 games with 40 phones ~7k                                                  |
-| D1 rows read, 5M a day              | ~900 a full reload, 8 a 304; a live read in parts ~100–1,000 | normal ~1.2M (25%); the rush ~0.6M (12%), was ~10.8M (216%)       | draft ~1.7M (33%), was 4.4M; 15 games × 10 taps × 40 phones × ~100 ≈ 0.6M (12%), was 5.4M |
-| D1 rows written, 100k a day         | 3–5 a tap                                                    | under 2%                                                          | under 2%                                                                                  |
-| Durable Object requests, 100k a day | one a change, one a stream connect                           | hundreds                                                          | hundreds                                                                                  |
+| Limit (Workers Free, D1 Free)       | Per request / run                                            | A Friday                                                          | A Kumite day                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| CPU, 10 ms a request                | 0.2–2.8 ms (the Worker's own)                                | fine                                                              | fine                                                                                                                             |
+| Subrequests, 50 an invocation       | 42 at most (an announcement's request); 35 a cron            | fine                                                              | fine                                                                                                                             |
+| Requests, 100k a day                | —                                                            | a normal week a few thousand; the rush ~12k if every reload lands | draft ~4.6k; 15 games with 40 phones ~7k                                                                                         |
+| D1 rows read, 5M a day              | ~900 a full reload, 8 a 304; a live read in parts ~100–1,000 | normal ~1.2M (25%); the rush ~0.6M (12%), was ~10.8M (216%)       | draft ~1.7M (33%), was 4.4M; 15 games × 10 taps × ~140 rows ≈ 21k (0.4%) whatever the phones (#161), was 0.6M (12%) at 40 phones |
+| D1 rows written, 100k a day         | 3–5 a tap                                                    | under 2%                                                          | under 2%                                                                                                                         |
+| Durable Object requests, 100k a day | one a change, one a stream connect                           | hundreds                                                          | hundreds                                                                                                                         |
 
 A normal Friday estimates sign-ups spread over the week (about five phones on Home at any tap) and five app opens a
 member a day. Rows read per full reload grow with the club's history (sessions, attendance, charges): these are a

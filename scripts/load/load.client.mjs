@@ -2,8 +2,9 @@
 // says they share one (the rink's wifi; against dev every phone is this machine's one address), doing what the team
 // app does: the bootstrap with its ETag at the version its
 // copy holds (ADR 0053), a change with the page's Origin and its reply's parts put in place, and a live page's stream
-// (ADR 0072), its copy of the club reading the parts an event names (the app's own catch-up.ts, #112).
-import { ClubCopy } from "../../apps/team/src/app/catch-up.ts";
+// (ADR 0072), its copy of the club reading the parts an event names, or taking the live match it brings (the app's own
+// catch-up.ts, #112, #161).
+import { ClubCopy, withMatch } from "../../apps/team/src/app/catch-up.ts";
 import { atVersion, VERSION_HEADER } from "../../apps/team/src/app/club-tag.ts";
 
 /** Every request's time and answer, by what it was (`label`). */
@@ -85,6 +86,14 @@ export async function phone(target, email, stats, { address } = {}) {
     apply: (slices) => {
       club = { ...club, ...slices };
       onScreen();
+    },
+    // A live match the hub sent (#161), as the app puts it in place
+    applyMatch: (match) => {
+      const tournaments = withMatch(club?.tournaments, match);
+      if (!tournaments) return false;
+      club = { ...club, tournaments };
+      onScreen();
+      return true;
     },
     visible: () => true,
   });
@@ -175,7 +184,7 @@ export async function phone(target, email, stats, { address } = {}) {
             heard = { changed: parts };
           }
           if ((heard.changed ?? []).some((p) => parts.includes(p))) stats.add("live: event", 0, 200);
-          copy.hear({ changed: heard.changed ?? [], versions: heard.versions });
+          copy.hear({ changed: heard.changed ?? [], versions: heard.versions, parts: heard.parts });
           // Something to read: from now until it's on the screen
           if (copy.lacking(true).length) heardAt ??= performance.now();
         }

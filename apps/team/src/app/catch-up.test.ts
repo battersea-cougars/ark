@@ -212,3 +212,68 @@ describe("a phone's copy of the club, catching up", () => {
     expect(p.asked).toHaveLength(1);
   });
 });
+
+describe("a live match the hub sends with its change (#161)", () => {
+  const match = (homeGoals: number) => ({ tournamentId: 3, games: [{ id: 1, homeGoals }] });
+  /** A copy that holds version 4 of everything, a tournament page open, and the matches it put in place. */
+  const following = (over: Partial<CopyIO> = {}) => {
+    const put: number[] = [];
+    const p = phone({ applyMatch: (m) => (put.push((m.games[0] as { homeGoals: number }).homeGoals), true), ...over });
+    p.copy.wholeAt(4);
+    p.copy.follow(["tournaments"]);
+    return { ...p, put };
+  };
+
+  it("matches that follow on from the version held go in place one after another, and nothing's read", async () => {
+    const p = following();
+    p.copy.hear({
+      changed: ["tournaments"],
+      versions: [5, 6],
+      parts: [
+        { version: 6, match: match(2) },
+        { version: 5, match: match(1) },
+      ],
+    });
+    await settle();
+    expect(p.put).toEqual([1, 2]);
+    expect(p.copy.held).toBe(6);
+    expect(p.asked).toEqual([]);
+  });
+
+  it("a match after a change it never heard of is left: the tournaments are read instead", async () => {
+    const p = following();
+    p.server.version = 6;
+    p.copy.hear({ changed: ["tournaments"], versions: [6], parts: [{ version: 6, match: match(2) }] });
+    await settle();
+    expect(p.put).toEqual([]);
+    expect(p.asked).toEqual(["parts: tournaments"]);
+  });
+
+  it("in a second with another change, only the match's own version goes in place; the other part is read", async () => {
+    const p = following();
+    p.server.version = 6;
+    p.copy.hear({ changed: ["tournaments", "sessions"], versions: [5, 6], parts: [{ version: 5, match: match(1) }] });
+    await settle();
+    expect(p.put).toEqual([1]);
+    expect(p.asked).toEqual(["parts: tournaments, sessions"]);
+    expect(p.copy.held).toBe(6);
+  });
+
+  it("a match no newer than what the copy has (its own change's reply) changes nothing", async () => {
+    const p = following();
+    p.copy.partsAt(5, { tournaments: "mine@5" });
+    p.copy.hear({ changed: ["tournaments"], versions: [5], parts: [{ version: 5, match: match(1) }] });
+    await settle();
+    expect(p.put).toEqual([]);
+    expect(p.copy.held).toBe(5);
+    expect(p.asked).toEqual([]);
+  });
+
+  it("a match whose tournament the copy hasn't got is read", async () => {
+    const p = following({ applyMatch: () => false });
+    p.server.version = 5;
+    p.copy.hear({ changed: ["tournaments"], versions: [5], parts: [{ version: 5, match: match(1) }] });
+    await settle();
+    expect(p.asked).toEqual(["parts: tournaments"]);
+  });
+});

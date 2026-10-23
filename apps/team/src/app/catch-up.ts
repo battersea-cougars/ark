@@ -7,15 +7,41 @@
 // version it never heard of (a change that told nobody, a stream that dropped) leaves it short, and the next whole
 // check reads the club; a whole check at the version held is a 304.
 //
+// A live match comes with its event (#161): it's the same for every member, so the Worker builds it once and the hub
+// sends it along. A copy that holds the version just before puts it in place as it is, and reads nothing; any other
+// copy reads as the names say, so a missed event costs a read, never a wrong screen.
+//
 // One read at a time, after a short random wait, so a burst of events is one read, and 120 phones don't all ask in
 // the same instant. Nothing while the page is out of view: coming back checks the whole club anyway.
 //
 // No imports, and only what Node can run as it is: the load runs' phones use this too (scripts/load/load.client.mjs).
 
-/** What changed, as the hub says it: the parts, and the data versions that changed them. */
+/** A live match as the hub sends it (#161): a tournament's games, as every member sees them. */
+export interface PushedMatch {
+  tournamentId: number;
+  games: unknown[];
+}
+
+/** What the hub sends with a change, besides its names: the data version the change made, and the match. */
+export interface Pushed {
+  version: number;
+  match: PushedMatch;
+}
+
+/** What changed, as the hub says it: the parts, the data versions that changed them, and any match sent along. */
 export interface Heard {
   changed: readonly string[];
   versions: readonly number[];
+  parts?: readonly Pushed[];
+}
+
+/** The part of the club a match goes into: the change that made it changed nothing else (api/api.ts). */
+const MATCH_IN = "tournaments";
+
+/** The tournaments with this match's games in place, or null when its tournament isn't among them (read instead). */
+export function withMatch<T extends { id: number }>(tournaments: T[] | undefined, match: PushedMatch): T[] | null {
+  if (!tournaments?.some((t) => t.id === match.tournamentId)) return null;
+  return tournaments.map((t) => (t.id === match.tournamentId ? { ...t, games: match.games } : t));
 }
 
 /** How the copy reads and stores; the app's are in backend.svelte.ts, the load runs' phones have their own. */
@@ -26,6 +52,8 @@ export interface CopyIO {
   readWhole(): Promise<void>;
   /** Put these parts in place. */
   apply(slices: Record<string, unknown>): void;
+  /** Put a match the hub sent in place (`withMatch`); false: the copy has no such tournament. None: always read. */
+  applyMatch?(match: PushedMatch): boolean;
   /** Whether the page is in view. */
   visible(): boolean;
   /** The longest random wait before a read, in ms. */
@@ -83,12 +111,29 @@ export class ClubCopy {
     return Object.fromEntries(newer);
   }
 
-  /** The hub says this changed: read what a page follows, soon (and whatever else the copy lacks, in the same read). */
-  hear({ changed, versions = [] }: Partial<Heard> & Pick<Heard, "changed">) {
+  /**
+   * The hub says this changed: a match it sent that follows on from the version held goes in place; anything else
+   * the copy now lacks is read, soon, if a page follows it (with whatever else it lacks, in the same read).
+   */
+  hear({ changed, versions = [], parts = [] }: Partial<Heard> & Pick<Heard, "changed">) {
     for (const v of versions) if (v > this.held) this.heard.set(v, changed);
     this.advance();
+    for (const part of [...parts].sort((a, b) => a.version - b.version)) this.take(part);
     if (!versions.length && changed.some((c) => this.followed().has(c))) this.unsure = true;
     if (this.unsure || this.lacking(true).length) this.soon();
+  }
+
+  /**
+   * A match sent with its change. That change changed only the match's tournament (api/api.ts), so it's all of it:
+   * holding the version just before, and nothing newer of the tournaments, the copy puts it in place and moves on.
+   */
+  private take({ version, match }: Pushed) {
+    if (version <= this.held) return;
+    this.heard.set(version, [MATCH_IN]);
+    if (version !== this.held + 1 || (this.fresh.get(MATCH_IN) ?? 0) >= version) return this.advance();
+    if (!this.io.applyMatch?.(match)) return;
+    this.fresh.set(MATCH_IN, version);
+    this.advance();
   }
 
   /** The parts the copy lacks a change to; `followed`, only if a page follows one of them. */

@@ -10,12 +10,13 @@ beforeEach(() => {
 });
 afterEach(() => void vi.useRealTimers());
 
-/** A phone's stream: every event it's been sent so far. */
-async function listen(hub: LiveHub) {
-  const res = await hub.fetch(new Request("https://live/subscribe"));
+/** A phone's stream (a member's, `member`): every event it's been sent so far. */
+async function listen(hub: LiveHub, member?: number) {
+  const res = await hub.fetch(new Request(`https://live/subscribe${member ? `?member=${member}` : ""}`));
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
-  const events: { changed: string[]; versions: number[] }[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const events: { changed: string[]; versions: number[]; parts?: any[] }[] = [];
   let text = "";
   const pump = (async () => {
     for (;;) {
@@ -141,6 +142,71 @@ describe("the live hub", () => {
     await vi.advanceTimersByTimeAsync(30_000);
     expect(await read()).toBe("event: ping\ndata: {}\n\n");
     await reader.cancel();
+  });
+
+  it("a part goes only down the streams of the members it's for; the others hear the names alone", async () => {
+    const hub = new LiveHub();
+    const mine = await listen(hub, 7);
+    const theirs = await listen(hub, 8);
+    const match = { tournamentId: 3, games: [{ id: 1, homeGoals: 1 }] };
+    await notify(hub, { changed: ["tournaments"], version: 4, pushed: { part: { match }, audience: [7] } });
+    await tick();
+    expect(mine.events).toEqual([{ changed: ["tournaments"], versions: [4], parts: [{ version: 4, match }] }]);
+    expect(theirs.events).toEqual([{ changed: ["tournaments"], versions: [4] }]);
+    await mine.close();
+    await theirs.close();
+  });
+
+  it("a part for everyone goes down every stream, each with its version, in the second's one event", async () => {
+    const hub = new LiveHub();
+    const a = await listen(hub, 7);
+    const b = await listen(hub, 8);
+    const at = (version: number, homeGoals: number) => ({
+      changed: ["tournaments"],
+      version,
+      pushed: { part: { match: { tournamentId: 3, games: [{ id: 1, homeGoals }] } }, audience: "everyone" },
+    });
+    await notify(hub, at(1, 1));
+    await tick();
+    await notify(hub, at(3, 3));
+    await notify(hub, at(2, 2));
+    await notify(hub, { changed: ["sessions"], version: 4 });
+    await vi.advanceTimersByTimeAsync(1000);
+    for (const phone of [a, b]) {
+      expect(phone.events).toHaveLength(2);
+      expect(phone.events[1].versions).toEqual([2, 3, 4]);
+      expect(phone.events[1].parts!.map((p) => [p.version, p.match.games[0].homeGoals])).toEqual([
+        [2, 2],
+        [3, 3],
+      ]);
+    }
+    await a.close();
+    await b.close();
+  });
+
+  it("a part without a version goes nowhere: a phone couldn't tell what it follows on from", async () => {
+    const hub = new LiveHub();
+    const phone = await listen(hub, 7);
+    await notify(hub, { changed: ["tournaments"], pushed: { part: { match: {} }, audience: "everyone" } });
+    await tick();
+    expect(phone.events).toEqual([{ changed: ["tournaments"], versions: [] }]);
+    await phone.close();
+  });
+
+  it("stores nothing: streams and what's waiting live in memory only, whatever it's sent", async () => {
+    const touched: string[] = [];
+    const trap = new Proxy({}, { get: (_t, key) => (touched.push(String(key)), () => Promise.resolve()) });
+    const hub = new LiveHub({ storage: trap, blockConcurrencyWhile: trap }, {});
+    const phone = await listen(hub, 7);
+    await notify(hub, {
+      changed: ["tournaments"],
+      version: 1,
+      pushed: { part: { match: { tournamentId: 1, games: [] } }, audience: "everyone" },
+    });
+    await vi.advanceTimersByTimeAsync(31_000);
+    await phone.close();
+    expect(phone.events).toHaveLength(1);
+    expect(touched).toEqual([]);
   });
 
   it("answers anything else with a 404", async () => {

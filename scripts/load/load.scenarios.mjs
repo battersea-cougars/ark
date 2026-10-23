@@ -279,11 +279,10 @@ async function scoring({ target, roster, stats, shared, followers = 80, notes, d
   // The game as each phone shows it, each time it changes: when the phone first had each state
   const shown = (c) => JSON.stringify(c?.tournaments?.find((y) => y.id === t.id)?.games.find((y) => y.id === game.id));
   const seen = viewers.map(() => []);
-  const stops = viewers.map(
-    (p, i) => (
-      p.boot("bootstrap: open the game"),
-      p.follow(["tournaments"], (c) => seen[i].push({ at: performance.now(), game: shown(c) }))
-    ),
+  // Everyone opens the game page first: the changes' cost is counted from once they're all on it
+  await Promise.all(viewers.map((p) => p.boot("bootstrap: open the game")));
+  const stops = viewers.map((p, i) =>
+    p.follow(["tournaments"], (c) => seen[i].push({ at: performance.now(), game: shown(c) })),
   );
   await sleep(2000);
   // From here, the scorekeeper's changes: their cost, and each one's state of the game and when it was sent
@@ -320,7 +319,10 @@ async function scoring({ target, roster, stats, shared, followers = 80, notes, d
   const changes = sent.length;
   const during = stats.rows
     .slice(from.requests)
-    .filter((r) => !r.label.startsWith("live: event") && r.label !== "live: change to screen");
+    // A stream opening is the page's, not a change's
+    .filter(
+      (r) => !r.label.startsWith("live: event") && !["live: change to screen", "live: connect"].includes(r.label),
+    );
   const reads = during.filter((r) => r.label.startsWith("live: read")).length;
   const rows = d1 ? (await d1()).rowsRead - from.rows : null;
   notes.push(

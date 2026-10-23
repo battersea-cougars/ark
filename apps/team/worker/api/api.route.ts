@@ -63,6 +63,12 @@ export interface Route {
    */
   calendar?: false;
   /**
+   * true: a change to a match as it's played, touching nothing but its tournament's games. On the tournament's day the
+   * match goes with the live hub's event to every member, so the phones following it read nothing (ADR 0072, #161;
+   * live/live.parts.ts).
+   */
+  liveMatch?: true;
+  /**
    * On the record (ADR 0095): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
    * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says
    * (security.test.ts). The wrapper reads `subject` before the handler and again after; when the two differ it writes

@@ -18,6 +18,7 @@ import { EVENTS_ROUTES } from "../calendar/events.routes";
 import { HttpError, json, sameOrigin, withinLimit } from "./api.http";
 import { LIMITS, addressOf, enforce } from "./api.limits";
 import { notifyLive } from "../live/live";
+import { pushedWith } from "../live/live.parts";
 import { MAIL_ROUTES } from "../mail/mail.routes";
 import { ME_ROUTES } from "../members/me.routes";
 import { MEMBERS_ROUTES } from "../members/members.routes";
@@ -251,8 +252,9 @@ export async function handleApi(
       const declared = hit.r.changes ?? [];
       const calendar = hit.r.calendar !== false && declared.some((d) => SCHEDULE.includes(d));
       const changes = calendar ? [...declared, "agenda" as const] : declared;
-      // ...and everyone on a live page hears which parts, and the version (ADR 0072), once this reply is on its way
-      const told = notifyLive(env, changes, version);
+      // ...and everyone on a live page hears which parts, and the version (ADR 0072), with a live match as it is
+      // (#161), once this reply is on its way
+      const told = pushedWith(ctx, hit.r, changes).then((pushed) => notifyLive(env, changes, version, pushed));
       if (waitUntil) waitUntil(told);
       else await told;
       if (changes.length) {

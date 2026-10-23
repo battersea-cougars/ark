@@ -3,7 +3,7 @@
 // (demo/store.svelte.ts), so what you see is what's stored. Screens change the copy at once for a quick answer, then
 // the reply brings back what the server decided (the waitlist, say). The whole club is read when the app opens, when
 // it comes back into view (only if something changed, ADR 0053), and after a failed change; a live page reads just
-// the parts the hub says changed (`copy`, catch-up.ts, ADR 0072).
+// the parts the hub says changed, or puts in place the live match it sent (`copy`, catch-up.ts, ADR 0072).
 import type { MemberRow, Role } from "../demo/data";
 import { tournamentBody } from "../lib/tournament-body";
 import {
@@ -36,7 +36,7 @@ import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
 import type { ClashQuestion } from "../lib/clashes";
 import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
-import { ClubCopy } from "./catch-up";
+import { ClubCopy, withMatch } from "./catch-up";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
@@ -136,6 +136,12 @@ export const copy = new ClubCopy({
   readParts: (names) => (brake.mayCheck() ? readSlices(names) : Promise.reject(new Error("resting"))),
   readWhole: () => (brake.mayCheck() ? refreshIfChanged() : Promise.reject(new Error("resting"))),
   apply: (slices) => apply(slices as Slices),
+  // A live match the hub sent (#161): its games in place of the tournament's
+  applyMatch: (match) => {
+    const tournaments = withMatch(TOURNAMENTS, match);
+    if (tournaments) apply({ tournaments } as Slices);
+    return Boolean(tournaments);
+  },
   visible: () => document.visibilityState === "visible",
 });
 

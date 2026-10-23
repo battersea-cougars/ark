@@ -1,9 +1,11 @@
 // The club's live hub (ADR 0072): one Durable Object per environment that holds every open live page's stream and
 // tells them all at once when something changed. It stores nothing (declared SQLite-backed because the free plan
 // asks for it; the streams live in memory, D1 is the source of truth), so if it restarts the phones just reconnect.
-// An event is only the names of the club's parts that changed (ADR 0057) and the data versions that changed them: what
-// a member sees still comes from their own read. A burst of changes (a Friday's taps) goes out as one event a second
-// at most, naming every part and version in it, so each phone reads once (#112). Each stream is a member's and a
+// An event is the names of the club's parts that changed (ADR 0057) and the data versions that changed them: what a
+// member sees comes from their own read, except a part the Worker built once for an audience (a live match, for every
+// member: live.parts.ts, #161), which goes with the event down those members' streams only, held a second at most. A
+// burst of changes (a Friday's taps) goes out as one event a second at most, naming every part and version in it, so
+// each phone reads once (#112). Each stream is a member's and a
 // sign-in's: three a member at most, and closed when its sign-in ends (#72, #73). Written in the classic Durable
 // Object shape, with no runtime imports, so the tests hold a real one.
 import { scribe } from "@cougars/shared/scribe";
@@ -39,6 +41,21 @@ const EVENT_EVERY_MS = 1000;
  */
 export const STREAMS_PER_MEMBER = 3;
 
+/** Who a part is for: every member's streams, or these members' only. */
+export type Audience = "everyone" | readonly number[];
+
+/** A part of the club a change sends with its names (live.parts.ts), and who it's for. */
+export interface Pushed {
+  part: Record<string, unknown>;
+  audience: Audience;
+}
+
+const hears = (audience: Audience, memberId: number) => audience === "everyone" || audience.includes(memberId);
+
+/** An event with these parts, each with its change's version; with none, just the names and versions. */
+const withParts = <T extends object>(event: T, parts: (Pushed & { version: number })[]) =>
+  parts.length ? { ...event, parts: parts.map((p) => ({ version: p.version, ...p.part })) } : event;
+
 /** Whose a stream is: the member, and the sign-in it came with (none: a local server's auto admin). */
 interface Listener {
   memberId: number;
@@ -52,6 +69,8 @@ export class LiveHub {
   /** What's changed since the last event, waiting for the next. */
   private readonly changed = new Set<string>();
   private readonly versions: number[] = [];
+  /** The parts sent with those changes, each with its change's version, waiting with them. */
+  private readonly parts: (Pushed & { version: number })[] = [];
   private lastSent = 0;
   private waiting: ReturnType<typeof setTimeout> | undefined;
 
@@ -87,11 +106,16 @@ export class LiveHub {
       return Response.json({ ended });
     }
     if (request.method === "POST" && pathname === "/notify") {
-      const { changed = [], version } = (await request.json().catch(() => ({}))) as {
+      const {
+        changed = [],
+        version,
+        pushed,
+      } = (await request.json().catch(() => ({}))) as {
         changed?: string[];
         version?: number;
+        pushed?: Pushed;
       };
-      this.heard(changed, version);
+      this.heard(changed, version, pushed);
       return Response.json({ listeners: this.listeners });
     }
     return new Response("Not found", { status: 404 });
@@ -101,23 +125,34 @@ export class LiveHub {
    * A change: out at once if the last event was a second or more ago, else with the others at the end of that second.
    * Nobody listening, nothing to send: a change made before anyone's on a live page starts no wait.
    */
-  private heard(changed: readonly string[], version: number | undefined) {
+  private heard(changed: readonly string[], version: number | undefined, pushed: Pushed | undefined) {
     if (!this.streams.size) return;
     for (const c of changed) this.changed.add(c);
     if (version !== undefined) this.versions.push(version);
+    // Without its version a phone couldn't tell what a part follows on from: names only
+    if (version !== undefined && pushed) this.parts.push({ ...pushed, version });
     if (this.waiting) return;
     const left = this.lastSent + EVENT_EVERY_MS - Date.now();
     if (left <= 0) this.flush();
     else this.waiting = setTimeout(() => this.flush(), left);
   }
 
+  /** The second's event: the same names and versions to everyone, and to each member the parts that are theirs. */
   private flush() {
     this.waiting = undefined;
     this.lastSent = Date.now();
     const event = { changed: [...this.changed], versions: [...this.versions].sort((a, b) => a - b) };
+    const parts = this.parts.sort((a, b) => a.version - b.version).splice(0);
     this.changed.clear();
     this.versions.length = 0;
-    this.send(frame("changed", event));
+    // One frame for each different set of parts (just one, while every part is everyone's)
+    const frames = new Map<string, Uint8Array>();
+    const framed = (theirs: typeof parts) => {
+      const key = theirs.map((p) => p.version).join();
+      if (!frames.has(key)) frames.set(key, frame("changed", withParts(event, theirs)));
+      return frames.get(key)!;
+    };
+    this.send((who) => framed(parts.filter((p) => hears(p.audience, who.memberId))));
   }
 
   /** One phone's stream, open until the page closes it, or the member opens too many others. */
@@ -139,11 +174,14 @@ export class LiveHub {
     return new Response(stream, { headers: SSE_HEADERS });
   }
 
-  /** To every stream; one that's gone (the phone closed it, the network dropped it) is forgotten. */
-  private send(bytes: Uint8Array) {
-    for (const c of this.streams.keys()) {
+  /**
+   * To every stream (or, a function: what's for whose stream it is); one that's gone (the phone closed it, the network
+   * dropped it) is forgotten.
+   */
+  private send(bytes: Uint8Array | ((who: Listener) => Uint8Array)) {
+    for (const [c, who] of this.streams) {
       try {
-        c.enqueue(bytes);
+        c.enqueue(typeof bytes === "function" ? bytes(who) : bytes);
       } catch {
         this.drop(c);
       }
@@ -170,6 +208,7 @@ export class LiveHub {
     this.waiting = undefined;
     this.changed.clear();
     this.versions.length = 0;
+    this.parts.length = 0;
   }
 }
 
@@ -209,14 +248,22 @@ export async function endLive(env: LiveEnv, which: { memberId: number } | { sess
   }
 }
 
-/** After a change: tell everyone listening which parts, and the data version the change made. Never fails the change. */
-export async function notifyLive(env: LiveEnv, changed: readonly string[], version?: number): Promise<void> {
+/**
+ * After a change: tell everyone listening which parts, and the data version the change made, with the part it sends
+ * along and who to, if any (live.parts.ts). Never fails the change.
+ */
+export async function notifyLive(
+  env: LiveEnv,
+  changed: readonly string[],
+  version?: number,
+  pushed?: Pushed | null,
+): Promise<void> {
   if (!env.LIVE || !changed.length) return;
   try {
     await hub(env).fetch("https://live/notify", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ changed, version }),
+      body: JSON.stringify({ changed, version, ...(pushed ? { pushed } : {}) }),
     });
   } catch (e) {
     // An error, not a warning: every phone on a live page misses this change until its next check (ADR 0111)

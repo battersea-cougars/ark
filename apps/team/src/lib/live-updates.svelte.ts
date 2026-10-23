@@ -1,6 +1,6 @@
 // Live pages follow along (ADR 0072): a game being scored, the tournament's home while a game's on, the draft room
 // while it's open. The page holds one stream from the club's live hub, which says which parts of the club changed
-// the moment they do; the app then reads just those parts (one read at a time, after a short random wait, so a burst
+// the moment they do (a live match comes with it, #161); the app then reads just those parts (one read at a time, after a short random wait, so a burst
 // is one read: app/catch-up.ts, #112). The stream itself, and the hub's heartbeat that tells a dead one from a quiet
 // one, are lib/live-stream.ts. While the stream's open the page still checks every minute, as a safety net
 // (a 304 when the copy has every change); when it's down (a dropped connection, a server
@@ -33,13 +33,13 @@ const FRESH_MS = 10_000;
 let streams = 0;
 
 /**
- * What an event says changed: the parts, and the versions that changed them. Not what the hub sends means everything
+ * What an event says changed: the parts, the versions that changed them, and a live match sent along (#161). Not what the hub sends means everything
  * followed, with no versions, which only a check of the whole club can settle (a 304 when nothing has changed).
  */
 function whatChanged(data: string, follow: readonly string[]): Pick<Heard, "changed"> & Partial<Heard> {
   try {
-    const { changed = [], versions } = JSON.parse(data);
-    return { changed, versions };
+    const { changed = [], versions, parts } = JSON.parse(data);
+    return { changed, versions, parts };
   } catch {
     return { changed: [...follow] };
   }
