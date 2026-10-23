@@ -48,17 +48,20 @@ const query = (sql) => JSON.parse(d1(["--json", "--command", sql]));
 // The schema's tables and columns, from an empty copy of it, parents before the tables that point at them
 const empty = new Database(":memory:");
 empty.exec(schema);
-const columns = new Map(
-  empty
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-    .all()
-    .map(({ name }) => [
-      name,
-      empty
-        .prepare(`PRAGMA table_info("${name}")`)
-        .all()
-        .map((c) => c.name),
-    ]),
+const info = (name) => empty.prepare(`PRAGMA table_info("${name}")`).all();
+const names = empty
+  .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+  .all()
+  .map(({ name }) => name);
+const columns = new Map(names.map((name) => [name, info(name).map((c) => c.name)]));
+// The columns a row must bring: NOT NULL with no default (a key it can't make up: not the rowid's)
+const required = new Map(
+  names.map((name) => [
+    name,
+    info(name)
+      .filter((c) => c.notnull && c.dflt_value === null && !(c.pk && c.type.toUpperCase() === "INTEGER"))
+      .map((c) => c.name),
+  ]),
 );
 const order = [];
 const visit = (table, seen = new Set()) => {
@@ -95,6 +98,13 @@ for (const table of order) {
   const keep = Object.keys(list[0]).filter((c) => columns.get(table).includes(c));
   const gone = Object.keys(list[0]).filter((c) => !keep.includes(c));
   if (gone.length) console.log(`${table}: dropping ${gone.join(", ")} (not in the schema)`);
+  // A column the schema now requires that the old rows don't have: they can't be read back (an outbox's pending rows
+  // after its shape changed), so they go, said out loud, rather than the whole rebuild failing
+  const missing = required.get(table).filter((c) => !keep.includes(c));
+  if (missing.length) {
+    console.log(`${table}: ${list.length} rows not kept (the schema now requires ${missing.join(", ")})`);
+    continue;
+  }
   for (const r of list)
     sql.push(`INSERT INTO "${table}" (${keep.join(", ")}) VALUES (${keep.map((c) => literal(r[c])).join(", ")});`);
 }
@@ -104,5 +114,7 @@ sql.push(seed);
 const file = join(dir, "rebuild.sql");
 writeFileSync(file, sql.join("\n"), { mode: 0o600 });
 d1(["--file", file]);
-const kept = order.reduce((n, t) => n + (rows[t]?.length ?? 0), 0);
+const kept = order
+  .filter((t) => required.get(t).every((c) => !rows[t]?.length || c in rows[t][0]))
+  .reduce((n, t) => n + (rows[t]?.length ?? 0), 0);
 console.log(`Rebuilt from db/schema.sql: ${kept} rows kept, club seed topped up.`);

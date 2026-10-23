@@ -48,3 +48,5 @@ settings, entered in the app, which will become production.
 - 2026-10-10: The switch is built: `scripts/db-launch.mjs` makes migration 0001; CI migrates once there are migrations
   and never rebuilds production; a backup before every schema change (#76, ADR 0106).
 - 2026-10-10: Production is deployed before launch, behind Cloudflare Access, and rebuilds until `LAUNCHED` is set.
+- 2026-10-23: A rebuild sets aside a table's old rows when the schema now requires a column they don't have (NOT NULL,
+  no default), and says so, rather than failing the whole rebuild: dev's deploy failed on the push outbox's new `key`.
