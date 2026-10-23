@@ -487,3 +487,5 @@ uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends t
   matchup and the teams' list, all through lib/TeamRecord (the user's call, replacing 1W 0D 0L); one line on a phone.
 - 2026-10-23: On the day the board's there from the fixtures (everyone on nothing), moving live as each result comes
   in, and a "The board" button under the carousel brings it into view.
+- 2026-10-23: Your pass stays on the Sign-up view once you're in or a reserve, after sign-up closes and through the
+  day, not only while it's open (Punk out goes once it's started, as before).

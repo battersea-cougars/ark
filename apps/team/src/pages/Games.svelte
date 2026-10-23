@@ -109,6 +109,10 @@
   // Sign-up open now: the Friday card's question, Are you in? (lib/EventCard), or the Kumite's invitation to accept
   // (lib/KumiteInvite), and an admin's Close sign-up
   const open = $derived(!!tournament && status === "signup" && signupOpen(tournament, today));
+  // Your pass stays on the Sign-up view once you're in (or a reserve), whatever the status: it's your ticket
+  const holdsPass = $derived(
+    !!tournament && (tournament.going.includes(me().id) || tournament.waitlist.includes(me().id)),
+  );
   let closing = $state(false);
   async function close() {
     if (!tournament || closing) return;
@@ -260,8 +264,9 @@
           {#if pane === "signup"}
             <!-- Sign-up open, as Friday's training says it (lib/EventCard): are you in or out, your place, then who's
                  in. Not open yet, or a status gone by: a line. Then who's in -->
-            {#if open && kumite && can(perms, "signup:Event")}
-              <!-- The Kumite's is an invitation (lib/KumiteInvite): sealed till you answer, then your fighter's pass -->
+            {#if (open || holdsPass) && kumite && can(perms, "signup:Event")}
+              <!-- The Kumite's is an invitation (lib/KumiteInvite): sealed till you answer, then your pass, which stays
+                   here once sign-up's closed too -->
               <KumiteInvite {tournament} {type} />
             {:else if open}
               <EventCard
