@@ -10,6 +10,8 @@ import { atAfters } from "../../src/lib/edition";
 import { londonEvening } from "../../src/lib/dates";
 import { table } from "../../src/lib/fixtures";
 import { testWorld } from "../testing";
+import { MOST_MOVES } from "../../src/lib/simulation";
+import { MOVE_QUERIES, MOVES_QUERIES, simulate as simulateOnce } from "./simulate";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -78,15 +80,16 @@ async function kumite({ signed = PLAYERS, seed = 7 } = {}) {
     ((await as.call("GET", "/api/bootstrap", undefined, EVENING)).body as Json).tournaments.find(
       (t: Json) => t.id === id,
     );
-  /** One request: one move on. */
-  const simulate = (as: Phone = dana) => as.call("POST", `/api/tournaments/${id}/simulate`, {}, EVENING);
+  /** One request: one move on (or, asked for `moves`, up to that many: Spin kick). */
+  const simulate = (as: Phone = dana, body: Record<string, unknown> = {}) =>
+    as.call("POST", `/api/tournaments/${id}/simulate`, body, EVENING);
   /** As the app does it: ask again till it says it's done. */
-  const playOn = async () => {
+  const playOn = async (body: Record<string, unknown> = {}) => {
     /** The most D1 round trips a request made: the free plan stops an invocation at 50 queries. */
     let most = 0;
     for (let i = 0; i < 1000; i++) {
       const before = w.db.roundTrips;
-      const res = await simulate();
+      const res = await simulate(dana, body);
       most = Math.max(most, w.db.roundTrips - before);
       expect(res.status).toBe(200);
       if (res.body.done) return { res, requests: i + 1, most };
@@ -94,6 +97,12 @@ async function kumite({ signed = PLAYERS, seed = 7 } = {}) {
     throw new Error("It never finished.");
   };
   return { dana, id, idOf, tournament, simulate, playOn };
+}
+
+/** Whoever the simulator plays as: an admin. */
+function admin() {
+  const [dana] = rows("SELECT id FROM members WHERE email = 'dana@example.com'");
+  return { memberId: dana.id as number, actions: new Set(["manage:all"]) as Json };
 }
 
 describe("simulating the rest of a Kumite, on dev", () => {
@@ -302,6 +311,90 @@ describe("one move a request, to watch", () => {
     expect([...seen].sort()).toEqual(
       ["clock", "close", "fulltime", "goal", "open", "order", "penalty", "period", "pick", "scoresheet"].sort(),
     );
+  });
+});
+
+describe("Spin kick: a few moves a request", () => {
+  it("reaches the after-party in far fewer requests than a move a request, each well inside its D1 queries", async () => {
+    const one = await (await kumite()).playOn();
+    // The same Kumite again (the same luck), a few moves a request
+    w = testWorld(ROSTER);
+    const k = await kumite();
+    let moves = 0;
+    let requests = 0;
+    let most = 0;
+    for (;;) {
+      expect(requests).toBeLessThan(1000);
+      const before = w.db.roundTrips;
+      const res = await k.simulate(k.dana, { moves: MOST_MOVES });
+      most = Math.max(most, w.db.roundTrips - before);
+      requests++;
+      expect(res.status).toBe(200);
+      expect(res.body.moves).toBeGreaterThanOrEqual(res.body.done ? 0 : 1);
+      expect(res.body.moves).toBeLessThanOrEqual(MOST_MOVES);
+      moves += res.body.moves;
+      if (res.body.done) break;
+    }
+    // Every move made, as one at a time made them (the same dice, in the same order), in far fewer requests
+    expect(moves).toBe(one.requests - 1);
+    expect(requests).toBeLessThan(one.requests * 0.6);
+    // The worst request, the wrapper's reads, the audit and the version included, plus the live hub's one
+    // subrequest: well under Workers Free's 50
+    expect(most + 1).toBeLessThanOrEqual(42);
+    // Played out just the same: every match done, on the record as it went
+    const t = await k.tournament();
+    expect(t.games.every((g: Json) => g.status === "done")).toBe(true);
+    const record = rows("SELECT detail FROM audit_log WHERE action = 'tournament.simulated' ORDER BY id");
+    expect(JSON.parse(record.at(-1).detail).to).toMatchObject({ games: 7, played: 7, draftState: "closed" });
+  });
+
+  it("no move takes more than its share of the request's queries, so the moves never go over theirs", async () => {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      w = testWorld(ROSTER);
+      const k = await kumite({ seed });
+      let last = "start";
+      for (let i = 0; i < 1000; i++) {
+        const before = w.db.roundTrips;
+        const res = await simulateOnce(w.db, k.id, admin(), EVENING.now);
+        const used = w.db.roundTrips - before;
+        // A draft's move after the order, the opening or a pick (or the first, whatever it is), else a match's
+        const share = ["start", "order", "open", "pick"].includes(last) ? MOVE_QUERIES.draft : MOVE_QUERIES.match;
+        expect(used, `${last} then ${res.move}, seed ${seed}`).toBeLessThanOrEqual(share);
+        if (res.done) break;
+        last = res.move;
+      }
+    }
+    expect(MOVE_QUERIES.draft).toBeLessThanOrEqual(MOVES_QUERIES);
+  });
+
+  it("asks for too many or too few: clamped, from one move to a few", async () => {
+    const k = await kumite();
+    const picksNow = () => Number(progress(k.id).picks);
+    // Into the draft
+    while ((await k.tournament()).draftState !== "open") expect((await k.simulate()).status).toBe(200);
+    for (const asked of [0, -3, 1.5, "lots", null]) {
+      const before = picksNow();
+      const res = await k.simulate(k.dana, { moves: asked });
+      expect(res.status).toBe(200);
+      expect(res.body.moves).toBe(1);
+      expect(picksNow()).toBe(before + 1);
+    }
+    // Into the matches, where moves are cheap: never more than the most, however many it's asked for
+    while (!(await k.tournament()).games?.some((g: Json) => g.keeperId)) await k.simulate();
+    const many = await k.simulate(k.dana, { moves: 99 });
+    expect(many.status).toBe(200);
+    expect(many.body.moves).toBeGreaterThan(1);
+    expect(many.body.moves).toBeLessThanOrEqual(MOST_MOVES);
+  });
+
+  it("a refusal after a move: the move stands, said; the next request meets the refusal", async () => {
+    const k = await kumite({ signed: 5 });
+    const res = await k.simulate(k.dana, { moves: MOST_MOVES });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ done: false, move: "order", moves: 1 });
+    const refused = await k.simulate(k.dana, { moves: MOST_MOVES });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error).toMatch(/Not enough players/);
   });
 });
 

@@ -23,6 +23,7 @@ keeps no rows; D1 stays the only source of truth ([ADR 0072](0072-live-updates.m
 | ------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | Cloudflare Workers        | 100k dynamic requests a day; static assets free and unlimited | Form posts, photo pages, team-app API, live Kumite                                 |
 | Workers CPU               | 10 ms per request and per cron run; waiting on I/O is free    | 1–5 ms; watched on the Usage page (ADR 0059)                                       |
+| Workers subrequests       | 50 an invocation, D1 queries included                         | A request a handful; the Kumite simulator's dearest about 42 (ADR 0123)            |
 | Durable Objects           | 100k requests, 13,000 GB-s a day (SQLite classes only)        | One live hub (ADR 0072): a draft night ~900 GB-s                                   |
 | D1                        | 5 GB storage, 5M rows read a day                              | Tiny                                                                               |
 | Cron Triggers             | Free                                                          | Friday series, quarterly dues                                                      |
@@ -63,3 +64,5 @@ Usage page and count in its 80% check ([ADR 0059](0059-usage-page-and-check.md))
   and GitHub's macOS runners added, both free (0108).
 - 2026-10-18: Sentry's free Developer plan added for errors and down alerts (0111); Better Stack was tried and
   dropped, its alert routing unclear without paid on-call.
+- 2026-10-23: The 50 subrequests (D1 queries included) an invocation is in the budget, as the simulator's Spin kick
+  is sized by it (0123).

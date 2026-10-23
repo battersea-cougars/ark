@@ -1,6 +1,6 @@
 <script lang="ts">
   // Dev only (ADR 0123): the Kumite simulation's control while it runs, floating over whatever page you're on (its
-  // views, the draft room), so you can follow it along: what it just did, Watch or Quick, Pause/Resume and Stop. The
+  // views, the draft room), so you can follow it along: what it just did, its speed (Kata, Sparring, Spin kick), Pause/Resume and Stop. The
   // run is a store (app/backend.svelte.ts simulating), so the control comes and goes with it, not with a page. Bottom
   // right on a desktop; on a phone, a bar above the tabs, the save note lifted over it. Its size never changes with
   // what it says: the words swap in a fixed line.
@@ -13,8 +13,9 @@
   const on = $derived(simulating.status !== "idle");
   const paused = $derived(simulating.status === "paused");
   const SPEEDS: { value: Speed; label: string; title: string }[] = [
-    { value: "watch", label: "Watch", title: "Each move plays out before the next" },
-    { value: "quick", label: "Quick", title: "As quick as a member's changes may go" },
+    { value: "kata", label: "Kata", title: "Each move plays out before the next" },
+    { value: "sparring", label: "Sparring", title: "As quick as a member's changes may go" },
+    { value: "spinKick", label: "Spin kick", title: "A few moves at a time, as quick again" },
   ];
 
   // The save note sits above this bar on a phone (app/shell/Shell.svelte reads --above-tabs)
@@ -68,7 +69,7 @@
     display: flex;
     align-items: center;
     gap: var(--s-2);
-    width: 26rem;
+    width: 30rem;
     padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
     border-radius: var(--r-xl);
     background: var(--surface-3);
@@ -145,6 +146,10 @@
       left: var(--gutter);
       bottom: calc(var(--tab-h) + var(--s-3));
       width: auto;
+    }
+    /* Three speeds beside the line: closer together, so what it did still has room */
+    .speed {
+      padding: 0 var(--s-1);
     }
     /* No tabs on a page of its own (the draft room) */
     .sim.focus {

@@ -5,16 +5,16 @@
 // logged as the clock runs, its periods ended and full time called, the playoffs filled from the table. It stops
 // with every match played and the awards still provisional: an admin confirms them and reveals them by hand.
 //
-// A request makes one move, one thing you'd see (a pick, a goal, a period's end), and says what it was and whether
-// there's more (`done`): the app asks again, paced so each lands on the page before the next (lib/simulation.ts), so
-// it can be watched, paused and stopped. One move keeps a request well inside an invocation's D1 queries (Workers
-// Free, ADR 0003). Every move is read from the tournament as it is, so a second run carries on where the first
-// stopped, or says it's done.
+// A move is one thing you'd see (a pick, a goal, a period's end), and says what it was and whether there's more
+// (`done`): the app asks again, paced so each lands on the page before the next (lib/simulation.ts), so it can be
+// watched, paused and stopped. A request makes one move, or at Spin kick a few (`simulateMoves`), as many as fit in
+// an invocation's D1 queries (Workers Free stops one at 50) with room to spare. Every move is read from the
+// tournament as it is, so a second run carries on where the first stopped, or says it's done.
 // The dice are the Worker's crypto (draft.ts randomBelow), which the tests seed (testing.ts luck).
 import { all, first } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
 import type { Action } from "../../src/access/actions";
-import type { MoveKind } from "../../src/lib/simulation";
+import { MOST_MOVES, type MoveKind } from "../../src/lib/simulation";
 import { INFRACTIONS } from "../../src/lib/penalties";
 import { HttpError } from "../api/api.http";
 import { drawOrder, finishDraft, goaliesFirst, isDrawn, openDraft, pick, randomBelow, shuffled } from "./draft";
@@ -42,6 +42,96 @@ export interface Simulated {
 interface Who {
   memberId: number;
   actions: Set<Action>;
+}
+
+/** A few moves in one request (Spin kick): how many were made, and the last. */
+export interface SimulatedMoves extends Simulated {
+  moves: number;
+}
+
+/**
+ * The D1 queries a request's moves may use: 30. The request around them (who's asking, the limits, the audit's read
+ * before and after and its entry, the version, the parts sent back) takes about 11 more, and the live hub one
+ * subrequest, so even the worst request is about 42, well under Workers Free's 50 (the use-case test counts them).
+ */
+export const MOVES_QUERIES = 30;
+
+/**
+ * The most D1 queries one move can take, by what came before it: while the draft's on, the next may be a pick or the
+ * draft closed with its fixtures (the dearest); in the matches, the dearest is full time. The use-case test checks
+ * that no move takes more.
+ */
+export const MOVE_QUERIES = { draft: 24, match: 10 };
+
+/** What the next move may be, from the last: the draft's, till it's closed. */
+const nextIs = (last: MoveKind) => (last === "order" || last === "open" || last === "pick" ? "draft" : "match");
+
+/**
+ * Up to `asked` moves on (clamped to 1..MOST_MOVES), as `simulate`, stopping when it's done, when another move might
+ * not fit in MOVES_QUERIES, or at a refusal after the first move (made moves stand; the next request meets it).
+ */
+export async function simulateMoves(
+  db: D1Database,
+  tournamentId: number,
+  who: Who,
+  now: Date,
+  asked: number,
+): Promise<SimulatedMoves> {
+  const most = Math.min(MOST_MOVES, Math.max(1, Math.floor(Number(asked)) || 1));
+  const counted = countingQueries(db);
+  let last = await simulate(counted.db, tournamentId, who, now);
+  let moves = last.done ? 0 : 1;
+  while (!last.done && moves < most && counted.used() + MOVE_QUERIES[nextIs(last.move)] <= MOVES_QUERIES) {
+    try {
+      const next = await simulate(counted.db, tournamentId, who, now);
+      if (next.done) break;
+      last = next;
+      moves++;
+    } catch (e) {
+      if (e instanceof HttpError) break;
+      throw e;
+    }
+  }
+  return { ...last, moves };
+}
+
+/**
+ * The database, counting the queries sent through it: each `first`, `all`, `run` or `raw` one, a `batch` one (a
+ * round trip, as the tests' D1 counts them).
+ */
+function countingQueries(db: D1Database) {
+  let used = 0;
+  const real = new WeakMap<object, D1PreparedStatement>();
+  const counted = (stmt: D1PreparedStatement): D1PreparedStatement => {
+    const wrapped = new Proxy(stmt, {
+      get(target, key) {
+        const value = Reflect.get(target, key, target);
+        if (typeof value !== "function") return value;
+        if (key === "bind") return (...params: unknown[]) => counted(value.apply(target, params));
+        if (key === "first" || key === "all" || key === "run" || key === "raw")
+          return (...args: unknown[]) => {
+            used++;
+            return value.apply(target, args);
+          };
+        return value.bind(target);
+      },
+    });
+    real.set(wrapped, stmt);
+    return wrapped;
+  };
+  const wrapped = new Proxy(db, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === "prepare") return (sql: string) => counted(target.prepare(sql));
+      if (key === "batch")
+        return (statements: D1PreparedStatement[]) => {
+          used++;
+          return target.batch(statements.map((s) => real.get(s) ?? s));
+        };
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  return { db: wrapped, used: () => used };
 }
 
 const DONE_SAID = "Every match played: on to the after-party. Confirm the awards, then reveal them.";

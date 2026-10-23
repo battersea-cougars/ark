@@ -1,6 +1,6 @@
-// The Kumite simulator's loop (ADR 0123), dev only: a move a request, each paced so it plays out on the page before
-// the next (the draft's burn-in and the turn moving on, a goal on the scoreboard, the carousel gliding to the next
-// match), and paused, resumed or stopped from the floating control (lib/SimulationControl). Pause holds after the
+// The Kumite simulator's loop (ADR 0123), dev only: a move a request (a few at Spin kick), each paced so it plays out
+// on the page before the next (the draft's burn-in and the turn moving on, a goal on the scoreboard, the carousel
+// gliding to the next match), and paused, resumed or stopped from the floating control (lib/SimulationControl). Pause holds after the
 // move in flight; Stop ends it there. Plain logic over a state object, so app/backend.svelte.ts makes it a store that
 // outlives any page, and the tests drive it with fake timers.
 import { turnSteps } from "./draft-sequence";
@@ -22,12 +22,24 @@ export type MoveKind =
 
 export interface Move {
   done: boolean;
+  /** The last move made. */
   move: MoveKind;
   said: string;
+  /** How many moves the request made (more than one at Spin kick). */
+  moves?: number;
 }
 
-/** Watch: each move plays out. Quick: as fast as a member's changes may go (60 a minute, api.limits.ts). */
-export type Speed = "watch" | "quick";
+/**
+ * Kata: each move plays out. Sparring: as fast as a member's changes may go (60 a minute, api.limits.ts). Spin kick:
+ * as fast again, a few moves a request (worker/tournaments/simulate.ts simulateMoves).
+ */
+export type Speed = "kata" | "sparring" | "spinKick";
+
+/** The most moves a request makes (worker/tournaments/simulate.ts simulateMoves, which may make fewer). */
+export const MOST_MOVES = 4;
+
+/** The moves a request asks for, at a speed: Spin kick the most. */
+export const MOVES_A_REQUEST: Record<Speed, number> = { kata: 1, sparring: 1, spinKick: MOST_MOVES };
 
 export interface SimulationState {
   /** The tournament being played out; 0: none. */
@@ -67,17 +79,20 @@ export const WATCH_MS: Record<MoveKind, number> = {
  */
 export const FLOOR_MS = 1250;
 
-/** The wait after a move, at a speed: quick is a quarter, never under the floor. */
+/** The wait after a request, at a speed: Kata each move's own, Sparring a quarter, Spin kick the floor. */
 export const paceOf = (move: MoveKind, speed: Speed) =>
-  Math.max(FLOOR_MS, speed === "quick" ? WATCH_MS[move] / 4 : WATCH_MS[move]);
+  Math.max(FLOOR_MS, speed === "kata" ? WATCH_MS[move] : speed === "sparring" ? WATCH_MS[move] / 4 : 0);
+
+/** A reply in words, for the control: "3 moves: Match 2: goal" when it made more than one. */
+export const saidOf = (m: Move) => ((m.moves ?? 1) > 1 ? `${m.moves} moves: ${m.said}` : m.said);
 
 /**
- * The loop over `state`. `move` makes one request (null: refused, and said why); `ended` hears how it ended (the last
- * reply, or null when stopped or refused).
+ * The loop over `state`. `move` makes one request, asking for `moves` (null: refused, and said why); `ended` hears
+ * how it ended (the last reply, or null when stopped or refused).
  */
 export function simulator(
   state: SimulationState,
-  move: (tournamentId: number) => Promise<Move | null>,
+  move: (tournamentId: number, moves: number) => Promise<Move | null>,
   ended: (last: Move | null) => void = () => {},
 ) {
   // Each run's own number: Stop and a new start mean the old loop's reply, landing late, is dropped
@@ -108,10 +123,10 @@ export function simulator(
     try {
       for (;;) {
         const began = Date.now();
-        last = await move(tournamentId);
+        last = await move(tournamentId, MOVES_A_REQUEST[state.speed]);
         if (mine !== run) return;
         if (!last || last.done) break;
-        state.said = last.said;
+        state.said = saidOf(last);
         // Wait the move out (the speed read afresh each time it's changed), held while paused
         for (;;) {
           if (mine !== run) return;

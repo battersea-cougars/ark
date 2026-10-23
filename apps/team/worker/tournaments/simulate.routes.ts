@@ -1,8 +1,8 @@
 // The Kumite simulator (ADR 0123): dev only. Not there at all in production, or wherever the environment doesn't
 // say it's dev or your own machine (simulate.ts simulatorHere; api.ts leaves the route out, so it's a 404).
 import { id, rowOf, type Route } from "../api/api.route";
-import { HttpError, json } from "../api/api.http";
-import { simulate, simulatorHere } from "./simulate";
+import { body, HttpError, json } from "../api/api.http";
+import { simulateMoves, simulatorHere } from "./simulate";
 
 export const SIMULATE_ROUTES: Route[] = [
   {
@@ -23,12 +23,13 @@ export const SIMULATE_ROUTES: Route[] = [
       ),
     },
     changes: ["tournaments"],
-    // One move on towards the after-party, what it was, and whether there's more: the app asks again, paced to watch
-    // (lib/simulation.ts), till it's done
+    // One move on towards the after-party (or `{ moves: n }`, up to a few, as many as fit: Spin kick), what the last
+    // was, how many, and whether there's more: the app asks again, paced (lib/simulation.ts), till it's done
     handle: async (c) => {
       // The router leaves it out elsewhere; and should it ever be mounted without that, it still isn't there
       if (!simulatorHere(c.env)) throw new HttpError(404, "Not found.");
-      return json(await simulate(c.env.DB, id(c), c, new Date(c.now)));
+      const asked = await body(c.request).catch(() => ({}) as Record<string, unknown>);
+      return json(await simulateMoves(c.env.DB, id(c), c, new Date(c.now), Number(asked.moves ?? 1)));
     },
   },
 ];

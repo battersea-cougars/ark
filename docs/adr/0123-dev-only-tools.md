@@ -43,22 +43,38 @@ changes are limited to 60 a minute ([0055](0055-degrade-instead-of-break.md)); a
   before asking again (`lib/simulation.ts`), timed to what the page shows: a pick 2.8s (the draft room's turn change,
   `draft-sequence.ts`: burn 1.2s, hold 0.8s, scroll 0.4s, highlight 0.3s), a goal or a penalty 1.8s, the clock 1.5s,
   a period's end 2s, full time and the draft's steps 3s (the match carousel gliding to the next match). The match's
-  clock still runs on a period at a time behind it (started a period ago), but its events land one by one. Quick is a
-  quarter of that, never under 1.25s start to start, so even quick stays at 48 changes a minute, under a member's 60
-  (`api.limits.ts`), with room for the admin's own taps. Each request is a handful of D1 round trips, far under 50.
+  clock still runs on a period at a time behind it (started a period ago), but its events land one by one.
+- **Three speeds, named for the Kumite** (`lib/simulation.ts Speed`), slowest to fastest: **Kata** (each move plays
+  out, as above), **Sparring** (a quarter of that, never under 1.25s start to start) and **Spin kick** (the 1.25s
+  floor, and a few moves a request). The floor keeps every speed at 48 requests a minute, under a member's 60 changes
+  (`api.limits.ts`), with room for the admin's own taps; so Spin kick is quicker by doing more a request, not by
+  asking faster. It asks for `{ moves: 4 }` (`MOST_MOVES`); the route clamps it to 1..4 and makes moves
+  (`simulateMoves`) till it's done, till another might not fit, or at a refusal after the first (the moves made
+  stand; the next request meets it). The reply is the last move, with how many (`moves`): the control says
+  "3 moves: Match 2: goal".
+- **A request keeps well inside Workers Free's 50 D1 queries an invocation.** The moves get 30 (`MOVES_QUERIES`),
+  counted as they're sent (each `first`, `all`, `run`, and a `batch`, one); another is made only while the dearest
+  it could be still fits: 24 while the draft's on (a pick, retried past a goalie a team can't take, or the draft
+  closed with its fixtures), 10 in the matches (`MOVE_QUERIES`). The request around them takes about 11 more (who's
+  asking, the limits, the audit's reads and entry, the version, the parts sent back) and the live hub one
+  subrequest, so the worst is about 42. In the draft that's a pick a request, so Spin kick is Sparring's pace there;
+  in the matches, three or four moves. A whole Kumite in the test: 77 requests a move at a time, 31 at Spin kick,
+  the dearest 37 queries. The use-case tests count every request's queries and check each move against its share.
 - **A control while it runs** (`lib/SimulationControl`): floating over whichever page you're on (the Kumite's views,
-  the draft room), bottom right on a desktop, above the tabs on a phone: what it just did, Watch or Quick, Pause
+  the draft room), bottom right on a desktop, above the tabs on a phone: what it just did, its speed, Pause
   (holds after the move in flight) or Resume, and Stop. The run is a store (`app/backend.svelte.ts simulating`), not
   a page's, so it carries on across the Kumite's views; a reload ends it, and running it again carries on from where
   the tournament is. Every move is read from the tournament as it is: stopped part way (Stop, a refusal, a closed
   tab, the minute's changes used up), the next run carries on; at the end it says there's nothing left.
 - On the audit log like any admin job ([0095](0095-audit-log.md)): `tournament.simulated`, how far it's played
   (the draft's state, matches made and played) before and after, so once for each request that closes the draft,
-  makes the fixtures or finishes a match, not for every goal.
+  makes the fixtures or finishes a match, not for every goal. A Spin kick request is one entry however many moves it
+  made, from before the first to after the last.
 
 ## Consequences
 
-- The after-party can be watched coming in a few minutes on dev or locally (Quick about half that). Its own evening
+- The after-party can be watched coming in a few minutes on dev or locally (Sparring about half that, Spin kick
+  less again: about 40 seconds for a Kumite of 77 moves). Its own evening
   still decides whether it shows (`lib/edition.ts atAfters`): the question says so when the tournament's day isn't
   today.
 - A new dev-only tool uses `only` and `simulatorHere`'s rule (or one as strict), not `devToolsHere`, whenever it
@@ -73,3 +89,6 @@ changes are limited to 60 a minute ([0055](0055-degrade-instead-of-break.md)); a
   (a pick 2.8s, a goal 1.8s, full time 3s; Quick a quarter, never under 1.25s), with a floating Pause/Resume/Stop
   control that outlives the page; the audit is unchanged (one entry when the draft's state, the fixtures or the
   matches played change), so a paced run doesn't fill the log with goals.
+- 2026-10-23: Three speeds, named for the Kumite: Kata (was Watch), Sparring (was Quick) and Spin kick, the new
+  fastest, which makes up to four moves a request (`{ moves: n }`, clamped 1..4) at the 1.25s floor, as many as fit
+  in 30 of the request's D1 queries, so the worst request stays about 42 of Workers Free's 50.

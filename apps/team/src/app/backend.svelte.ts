@@ -672,15 +672,15 @@ export const revealAward = (tournamentId: number, next: number) =>
  * store, so the floating control (lib/SimulationControl) keeps it across the Kumite's views and the draft room; a
  * reload ends it (run again, it carries on from where it is).
  */
-export const simulating = $state<SimulationState>({ id: 0, status: "idle", speed: "watch", said: "" });
+export const simulating = $state<SimulationState>({ id: 0, status: "idle", speed: "kata", said: "" });
 /**
- * The Kumite played on to its after-party, a move a request, paced so each plays out on the page (lib/simulation.ts),
+ * The Kumite played on to its after-party, a move a request (a few at Spin kick), paced so each plays out on the page (lib/simulation.ts),
  * the live hub telling everyone watching. Stops at the first refusal (too few signed up, the minute's changes used
  * up), saying why: run again, it carries on from there.
  */
 export const simulation = simulator(
   simulating,
-  (tournamentId) => save(() => api<Move>("POST", `/api/tournaments/${tournamentId}/simulate`, {}), ""),
+  (tournamentId, moves) => save(() => api<Move>("POST", `/api/tournaments/${tournamentId}/simulate`, { moves }), ""),
   (last) => {
     if (last?.done) say(last.said, false);
   },
