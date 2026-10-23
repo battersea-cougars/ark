@@ -131,7 +131,7 @@ const PLAYED_SAID = "A match has started: clear the fixtures to reopen the draft
  * place: push.notices.ts draftOpen). A closed one reopens with its picks and its order, where it left off (0066),
  * keeping its fixtures, which are between the same teams; not once a match has started (reopenDraft clears them).
  */
-export async function openDraft(db: D1Database, tournamentId: number) {
+export async function openDraft(db: D1Database, tournamentId: number, agenda = true) {
   const t = await tournamentOf(db, tournamentId);
   if (t.state === "closed" && (await played(db, tournamentId))) throw new HttpError(409, PLAYED_SAID);
   const captains = (await teamsOf(db, tournamentId)).length;
@@ -153,7 +153,7 @@ export async function openDraft(db: D1Database, tournamentId: number) {
       );
   }
   await run(db, "UPDATE tournaments SET draft_state = 'open' WHERE id = ?", [tournamentId]);
-  await syncTournament(db, tournamentId);
+  if (agenda) await syncTournament(db, tournamentId);
 }
 
 /** An admin closes the draft: once everyone's picked, or leaving the rest out on purpose. Then it's locked. */
@@ -514,7 +514,7 @@ export const draftProgress = (db: D1Database, tournamentId: number) =>
  * changes nothing and is refused (ADR 0121). Each pick names the admin (`by`) as who picked. How many were chosen, and
  * how many left out.
  */
-export async function setTeamsAtRandom(db: D1Database, tournamentId: number, by: number) {
+export async function setTeamsAtRandom(db: D1Database, tournamentId: number, by: number, agenda = true) {
   const t = await tournamentOf(db, tournamentId);
   if (t.state === "closed") throw new HttpError(409, "The draft is closed.");
   const [teams, taken, pool] = await Promise.all([
@@ -585,7 +585,7 @@ export async function setTeamsAtRandom(db: D1Database, tournamentId: number, by:
     ]),
   ]);
   if (!results.at(-1)?.meta.changes) throw new HttpError(409, "It's moved on since: have another look.");
-  // Its draft night leaves the agenda
-  await syncTournament(db, tournamentId);
+  // Its draft night leaves the agenda (unless the caller syncs it once at the end, as Move to does)
+  if (agenda) await syncTournament(db, tournamentId);
   return { chosen: picks.length, leftOut: left.length };
 }

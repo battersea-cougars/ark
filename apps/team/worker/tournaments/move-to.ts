@@ -101,6 +101,7 @@ export async function moveTo(
   const moved: Moved = { from, to, done: plan.steps.map((s) => s.said), chosen: 0, leftOut: 0 };
   if (plan.back) await back(db, tournamentId, plan, today);
   else Object.assign(moved, await forward(db, tournamentId, plan, by.memberId, today, now));
+  // The agenda once, for every step (they leave it to this)
   await syncTournament(db, tournamentId);
   return moved;
 }
@@ -139,16 +140,16 @@ async function forward(db: D1Database, id: number, plan: MovePlan, by: number, t
   for (const { step } of plan.steps)
     switch (step) {
       case "closeSignup":
-        await closeSignup(db, id, today, now);
+        await closeSignup(db, id, today, now, false);
         break;
       case "draw":
         await drawOrder(db, id);
         break;
       case "open":
-        await openDraft(db, id);
+        await openDraft(db, id, false);
         break;
       case "setTeams":
-        Object.assign(out, await setTeamsAtRandom(db, id, by));
+        Object.assign(out, await setTeamsAtRandom(db, id, by, false));
         break;
       case "makeFixtures":
         await makeFixtures(db, id);

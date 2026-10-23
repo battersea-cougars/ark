@@ -10,7 +10,8 @@ import { formatDayDate, londonToday } from "../../src/lib/dates";
 import { notify, type Notice, type PushEnv } from "../push/push";
 import { invitationOnly } from "../../src/lib/motif";
 
-export async function closeSignup(db: D1Database, tournamentId: number, today: string, now: string) {
+/** Sign-up closed, and the agenda told (`agenda` false: the caller syncs it once at the end, as Move to does). */
+export async function closeSignup(db: D1Database, tournamentId: number, today: string, now: string, agenda = true) {
   const res = await run(
     db,
     `UPDATE tournaments SET signup_closed_at = ?
@@ -25,7 +26,7 @@ export async function closeSignup(db: D1Database, tournamentId: number, today: s
     const there = await first(db, "SELECT 1 FROM tournaments WHERE id = ?", [tournamentId]);
     throw there ? new HttpError(409, "Sign-up isn't open.") : new HttpError(404, "No such tournament.");
   }
-  await syncTournament(db, tournamentId);
+  if (agenda) await syncTournament(db, tournamentId);
 }
 
 // Its sign-up opening (ADR 0074, 0108): members hear it once, under Your place (topic `places`), on the day it's set to
