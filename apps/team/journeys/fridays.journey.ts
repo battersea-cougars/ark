@@ -1,4 +1,4 @@
-// Fridays: a training night and what it costs (ADR 0007, 0030, 0124; #154). An admin sets up a small training of her
+// Fridays: a training night and what it costs (ADR 0007, 0030, 0031; #154). An admin sets up a small training of her
 // own; members say they're in or out as its sign-up opens; it fills, the waiting list moves up, the keepers keep their
 // own place; the register on the night; a member's own answer refused once it's started; the fees charged (on the night
 // by the register, the next day by the hourly run); Unpaid fees, a payment, an adjustment, reminders sent by hand; a

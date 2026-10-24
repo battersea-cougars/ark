@@ -1,4 +1,4 @@
-// The Kumite night, end to end (ADR 0074, 0124; #154): sign-up opens, players sign up, the captains are named, the
+// The Kumite night, end to end (ADR 0074, 0031; #154): sign-up opens, players sign up, the captains are named, the
 // order's drawn, the captains draft, the teams are set, the fixtures made, the matches scored live, then The Anchor:
 // the vote, the awards confirmed and revealed one by one; Done that evening, and the morning after it's history, first
 // in Past Kumites. Three people throughout, each checking what they can and can't do at

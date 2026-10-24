@@ -1,4 +1,4 @@
-// The club's clock moved, for the journeys (ADR 0124): a request may say what time it is (`x-dev-now`, an ISO time),
+// The club's clock moved, for the journeys (ADR 0031): a request may say what time it is (`x-dev-now`, an ISO time),
 // and the API reckons the day, the evening and what's open by it, as if it were then. Only where the simulator is
 // (dev, your own machine: simulatorHere fails closed, so production never reads the header), and on dev only for an
 // admin (manage:all): dev's D1 is the whole club, and a moved day writes charges, sessions and the record by it. On

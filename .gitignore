@@ -34,5 +34,5 @@ apps/team/native/server.js
 # Screenshots taken for testing (agents, Playwright checks): here and nowhere else, never committed (#148)
 .shots/
 
-# The journeys' runs (npm run journeys, ADR 0124): the summary, traces and screenshots of failures, sign-ins
+# The journeys' runs (npm run journeys, ADR 0031): the summary, traces and screenshots of failures, sign-ins
 .journeys/

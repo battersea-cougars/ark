@@ -1,4 +1,4 @@
-// Every page opens clean (ADR 0124): for each of the three people (an admin, a Kumite player, a member not in it),
+// Every page opens clean (ADR 0031): for each of the three people (an admin, a Kumite player, a member not in it),
 // every page their menu has (the rail, Settings for the admin, More for a member) and the overlays that only look
 // (each editor opened and shut unsaved, Manage, the draft room, the awards), each showing its heading with no error in
 // the browser (journey.ts listens: an uncaught error, a console error, a Svelte warning that means a bug).

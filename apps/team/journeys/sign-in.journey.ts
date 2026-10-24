@@ -1,4 +1,4 @@
-// Signing in, and asking to join (ADR 0023, 0069, 0124): someone new asks to join from the sign-in page and waits; an
+// Signing in, and asking to join (ADR 0023, 0069, 0031): someone new asks to join from the sign-in page and waits; an
 // admin lets them in from The club; they sign in with the code (on your own machine it's on the screen, nothing is
 // emailed), a wrong one refused; they add a passkey on their You page, sign out, and sign in with it, no code. Three
 // people: Jo, new, in a browser no one's signed in on; Ada, an admin; Hal, a member, who can't let anyone in.

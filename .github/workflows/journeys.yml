@@ -1,6 +1,6 @@
 name: Journeys
 
-# The team app's journeys (docs/adr/0124-test-levels.md): whole workflows by role, in Chromium, against a fresh local
+# The team app's journeys (docs/adr/0031-use-case-tests.md): whole workflows by role, in Chromium, against a fresh local
 # database and the app started on the runner. The core run (all but the Kumite on the clock, ~5 minutes) nightly on
 # main; the full run on a push to `release`, beside the deploy; either by hand. Never required, never blocking: a run
 # with failures opens one issue (label `regression`) listing every failing step, and a later run failing at the same

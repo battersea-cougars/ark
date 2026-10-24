@@ -1,4 +1,4 @@
-// The Kumite on the clock (ADR 0074, 0124): the days and times that change what each person sees, with both clocks
+// The Kumite on the clock (ADR 0074, 0031): the days and times that change what each person sees, with both clocks
 // moved (journey.ts `at`: the browser's and the server's). The Kumite night (kumite.journey.ts) walks sign-up to the
 // awards on the real clock; this one is about when: one on a Friday asked about Friday Training that evening first
 // (ADR 0122), sign-up opening and closing at London midnight, the draft's day, its own day (Today, Tonight), the day

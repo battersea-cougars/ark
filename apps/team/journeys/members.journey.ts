@@ -1,4 +1,4 @@
-// Members: added, changed, given roles, and gone (ADR 0024, 0029, 0069, 0124). Ada, an admin, adds someone from The
+// Members: added, changed, given roles, and gone (ADR 0024, 0029, 0069, 0031). Ada, an admin, adds someone from The
 // club and changes their name, email and position on their card; adds another quietly, with the email switch off, and
 // sends them the app link from their card later (#164); makes Mo a Session lead, and Mo has the night's jobs
 // (Make teams, Add player) till she takes it away; can't make herself a Member, as she's the last admin. Rae deletes

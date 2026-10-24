@@ -1,4 +1,4 @@
-// The calendar, the news and Home (ADR 0030, 0122, 0124; #154): an admin puts a one-off on the calendar and members
+// The calendar, the news and Home (ADR 0030, 0122, 0031; #154): an admin puts a one-off on the calendar and members
 // say in or out; one over Friday Training asks first (the clash prompt), and closing it saves nothing; one called off is
 // off for everyone. The locker room: a post on everyone's Home till its last day, London's midnight. A member's
 // notification switches stay as they set them. Home says how soon each thing is (Today, Tonight, Tomorrow, In N days)

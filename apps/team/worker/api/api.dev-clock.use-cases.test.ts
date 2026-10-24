@@ -1,4 +1,4 @@
-// The club's clock moved for a request (api.dev-clock.ts, ADR 0124): on your own machine or dev a journey says what
+// The club's clock moved for a request (api.dev-clock.ts, ADR 0031): on your own machine or dev a journey says what
 // time it is, and the API reckons what's open by it; production never reads the header; who's signed in stays on the
 // real clock.
 import { beforeEach, describe, expect, it, vi } from "vitest";

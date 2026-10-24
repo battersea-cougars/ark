@@ -1,4 +1,4 @@
-// What every journey shares (ADR 0124): the people in it, each signed in in a browser of their own, and the steps.
+// What every journey shares (ADR 0031): the people in it, each signed in in a browser of their own, and the steps.
 //
 // A journey is one story told in stages (`stage`), each a list of things a person does or checks (`does`, `checks`).
 // What a person does moves the story on: if they can't, the rest can't happen, so the journey stops there. What a

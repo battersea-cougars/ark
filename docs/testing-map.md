@@ -1,7 +1,7 @@
 # The team app's tests, mapped
 
 What checks what, at which level, and where two levels or two files checked the same thing (#154). The levels are
-[ADR 0124](adr/0124-test-levels.md)'s: **unit** for tricky pure logic (`src/lib`, `src/app`), **use case** for
+[ADR 0031](adr/0031-use-case-tests.md)'s: **unit** for tricky pure logic (`src/lib`, `src/app`), **use case** for
 rules and routes through the real Worker handlers (`worker/**/*.use-cases.test.ts`), and **journey** for whole
 workflows by role in a browser (`apps/team/journeys/`, `npm run journeys`). Each check should live at one of them.
 Taken on 23 October 2026 at `1fa5e83` (`team/review`).
@@ -97,7 +97,7 @@ Close, but each still checks something of its own, or moving it is more than rem
 
 Every workflow someone does in the team app, by role, and which journey covers it, or why none does (23 October
 2026). One journey covers each workflow once; a rule's every case stays in its use case or unit test, and a journey
-taps it once (ADR 0124). The people: **Ada** an admin, **players** in the Kumite (Fay, the captains), members not in
+taps it once (ADR 0031). The people: **Ada** an admin, **players** in the Kumite (Fay, the captains), members not in
 it (Nell, Ivy, Hal, Pia, Wes, Tam, Quin, Kit the keeper), **Mo** made a Session lead, **Jo** new and asking to join.
 
 | Who                | Workflow                                                                                          | Journey › stage                                      | Or why not                                                                                |

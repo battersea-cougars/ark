@@ -1,4 +1,4 @@
-// The run's one summary (ADR 0124): every step that failed, by stage and role, what was expected and what happened,
+// The run's one summary (ADR 0031): every step that failed, by stage and role, what was expected and what happened,
 // as markdown, the body of the run's issue. Nothing failed: no file (journeys.mjs reads that as a clean run).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, relative } from "node:path";

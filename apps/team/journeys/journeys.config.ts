@@ -1,4 +1,4 @@
-// Playwright for the team app's journeys (ADR 0124). Run through `npm run journeys` (journeys.mjs), which makes the
+// Playwright for the team app's journeys (ADR 0031). Run through `npm run journeys` (journeys.mjs), which makes the
 // fresh database, starts the app on its own port (JOURNEY_PORT) and stops it after.
 import { defineConfig, devices } from "@playwright/test";
 

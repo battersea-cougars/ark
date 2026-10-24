@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The team app's journeys (ADR 0124): whole workflows, by role, in a real browser, against a fresh database.
+// The team app's journeys (ADR 0031): whole workflows, by role, in a real browser, against a fresh database.
 //
 //   npm run journeys                     fresh D1, the team app started privately, every journey, the app stopped
 //   npm run journeys -- --core           the core run: all but the Kumite on the clock (its played-out Kumites)
@@ -149,7 +149,7 @@ function fileTheIssue() {
     "--label",
     "regression",
     "--body",
-    `${readFileSync(summary, "utf8")}\n\nFrom the ${which} \`npm run journeys\` at ${sha}${where}. Fix the code, or change what the journey expects (ADR 0124).`,
+    `${readFileSync(summary, "utf8")}\n\nFrom the ${which} \`npm run journeys\` at ${sha}${where}. Fix the code, or change what the journey expects (ADR 0031).`,
   );
   if (res.status === 0) console.log(`journeys: filed ${res.stdout.trim()}`);
   else console.error(`journeys: couldn't file the issue: ${res.stderr}`);
