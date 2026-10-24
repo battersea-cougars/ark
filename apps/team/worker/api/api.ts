@@ -41,6 +41,7 @@ import { PUSH_ROUTES } from "../push/push.routes";
 import { bumpDataVersion } from "./api.version";
 import { VERSION_HEADER } from "../../src/app/club-tag";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
+import { WEBSITE_ROUTES } from "../website/website.routes";
 import { scribe } from "@cougars/shared/scribe";
 import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
 
@@ -84,6 +85,8 @@ export const ROUTES: Route[] = [
   ...EVENTS_ROUTES,
   ...SETTINGS_ROUTES,
   ...MAIL_ROUTES,
+  // The club's website: its rebuilds and its links (#107)
+  ...WEBSITE_ROUTES,
 ];
 
 /** Who's asking: their session, or (on your own machine, when asked for) the first admin. */

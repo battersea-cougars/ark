@@ -30,6 +30,7 @@ const LOADERS: Record<string, () => Promise<{ default: Page }>> = {
   usage: () => import("../pages/Usage.svelte"),
   errors: () => import("../pages/Errors.svelte"),
   email: () => import("../pages/Email.svelte"),
+  website: () => import("../pages/Website.svelte"),
   audit: () => import("../pages/AuditLog.svelte"),
   "dev-tools": () => import("../pages/DevTools.svelte"),
   "training-settings": () => import("../pages/TrainingSettings.svelte"),

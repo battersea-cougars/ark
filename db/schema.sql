@@ -729,6 +729,15 @@ CREATE TABLE website_rebuild (
   wanted_at TEXT NOT NULL
 );
 
+-- When something last happened to the website, by name (packages/shared/website-times.ts): `rebuild_sent`, the last
+-- rebuild the team app asked GitHub for (Settings → Website, ADR 0100), and `media_refreshed`, when an admin last
+-- pressed Refresh photos and videos there (ADR 0016): the website's YouTube and Instagram copies from before it are no
+-- longer fresh, so the next visit reads them again.
+CREATE TABLE website_times (
+  name TEXT PRIMARY KEY,
+  at TEXT NOT NULL
+);
+
 -- Who won a tournament's awards (apps/team/worker/tournaments/awards.ts, ADR 0044): a team (Champions) or a player on
 -- one of its teams (Top scorer). The award is one of the tournament's own, by name (tournaments.awards). An admin's
 -- live call is named on the night: `title` is the name they chose ("Most Dramatic Fall"); null for every other award.

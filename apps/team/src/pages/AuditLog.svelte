@@ -192,6 +192,9 @@
         return to?.result === "sent"
           ? `${who} sent a test email to ${str(to?.to)}`
           : `${who} tried a test email to ${str(to?.to)}: ${TEST_RESULT[str(to?.result)] ?? "it didn't go"}`;
+      // Settings → Website (#107): Rebuild now, when GitHub was asked
+      case "website.rebuilt":
+        return `${who} rebuilt the website`;
       case "tournament.deleted":
         return `${who} deleted the tournament ${str(from?.name)} (${str(from?.heldOn)})`;
       case "session.reset":

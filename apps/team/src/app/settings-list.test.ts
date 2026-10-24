@@ -21,7 +21,7 @@ describe("the Settings page", () => {
     expect(listed(admin)).toEqual([
       { section: "Club", rows: ["Members", "Unpaid fees", "Membership", "Roles"] },
       { section: "Schedule", rows: ["Training", "Tournaments", "Tournament Series", "Venues"] },
-      { section: "Content", rows: ["Quips"] },
+      { section: "Content", rows: ["Website", "Quips"] },
       { section: "System", rows: ["View as a member", "Audit log", "Usage", "Errors", "Email", "Dev tools"] },
     ]);
   });
@@ -32,12 +32,17 @@ describe("the Settings page", () => {
       settingsSections(unfinished, admin, admin)
         .find((s) => s.section === "Content")
         ?.rows.map((r) => r.route.name),
-    ).toEqual(["Quips", "Upload"]);
+    ).toEqual(["Website", "Quips", "Upload"]);
   });
 
   it("is empty for a member and a session lead (they have no gear)", () => {
     expect(listed(member)).toEqual([]);
     expect(listed(sessionLead)).toEqual([]);
+  });
+
+  it("lists the website for whoever may edit it, and nothing else of the admins' (#107)", () => {
+    const editor = new Set<Action>([...member, "edit:Content"]);
+    expect(listed(editor)).toEqual([{ section: "Content", rows: ["Website"] }]);
   });
 
   it("lists only what a role can set up", () => {

@@ -358,6 +358,8 @@ async function walk() {
   await hit(dana, "POST", "/api/mail/reconnect");
   await hit(dana, "POST", "/api/mail/test");
   await hit(dana, "GET", "/api/mail/callback?code=x&state=y");
+  await hit(dana, "GET", "/api/website");
+  await hit(dana, "POST", "/api/website/rebuild");
 
   // A member leaves: their account erased
   await hit(await member(59), "DELETE", "/api/me");

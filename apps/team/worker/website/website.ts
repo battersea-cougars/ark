@@ -2,8 +2,10 @@
 // change marks one wanted (`wantRebuild`, from the API's change pipeline); the five-minute cron (`rebuildWebsite`)
 // sends it once things have been quiet for five minutes, so a results day is one rebuild. It asks GitHub as the
 // club's GitHub App (docs/secrets.md#github_app_private_key): a JWT signed with the App's key buys an hour's installation token
-// that can only start workflows, which runs deploy.yml for the website from this environment's branch.
+// that can only start workflows, which runs deploy.yml for the website from this environment's branch. Settings →
+// Website's Rebuild now (#107) sends one at once (`rebuildNow`), for Studio changes that can't wait for the morning.
 import { first, run } from "@cougars/shared/d1";
+import { markWebsiteTime, websiteTime } from "@cougars/shared/website-times";
 import { isDone } from "@cougars/shared/results";
 import { scribe } from "@cougars/shared/scribe";
 
@@ -52,7 +54,7 @@ export const wantRebuild = (db: D1Database, now: Date) =>
 
 /** The cron's job: send a wanted rebuild once it's been quiet for five minutes. What happened, for the log and tests. */
 export async function rebuildWebsite(env: WebsiteEnv, now: Date): Promise<"nothing" | "waiting" | "sent" | "failed"> {
-  if (env.TEAM_ENV === "local" || !env.SITE_ENV) return "nothing";
+  if (!canRebuild(env)) return "nothing";
   const wanted = await first<{ wantedAt: string }>(
     env.DB,
     "SELECT wanted_at wantedAt FROM website_rebuild WHERE id = 1",
@@ -68,8 +70,26 @@ export async function rebuildWebsite(env: WebsiteEnv, now: Date): Promise<"nothi
   }
   // Only the request it sent: a change since then waits for its own quiet five minutes
   await run(env.DB, "DELETE FROM website_rebuild WHERE id = 1 AND wanted_at = ?", [wanted.wantedAt]);
+  await markWebsiteTime(env.DB, "rebuild_sent", now);
   log.info("website.rebuild_sent", { environment: env.SITE_ENV });
   return "sent";
+}
+
+/** Whether this Worker asks GitHub at all: a deployed one, never a laptop's. */
+export const canRebuild = (env: WebsiteEnv) => env.TEAM_ENV !== "local" && !!env.SITE_ENV;
+
+/**
+ * Rebuild now (Settings → Website): sent at once, without the five quiet minutes. Pressed again while the last one is
+ * still building (about five minutes), it's "recent" and nothing more is asked. If GitHub can't be reached it stays
+ * wanted, so the five-minute check sends it.
+ */
+export async function rebuildNow(env: WebsiteEnv, now: Date): Promise<"sent" | "failed" | "recent" | "not-here"> {
+  if (!canRebuild(env)) return "not-here";
+  const last = await websiteTime(env.DB, "rebuild_sent");
+  if (last && now.getTime() - Date.parse(last) < QUIET_MS) return "recent";
+  await wantRebuild(env.DB, new Date(now.getTime() - QUIET_MS));
+  const result = await rebuildWebsite(env, now);
+  return result === "sent" ? "sent" : "failed";
 }
 
 async function dispatch(env: WebsiteEnv, now: Date) {

@@ -234,6 +234,19 @@ const STATIC_TAIL: Route[] = [
     section: "Club",
     hint: "What each role can do",
   },
+  // Where the club's website is managed (#107): its rebuilds, and the links to the Studio and the site
+  {
+    id: "website",
+    path: "/settings/website",
+    name: "Website",
+    tab: "more",
+    page: "website",
+    action: "edit:Content",
+    icon: "open",
+    group: "Settings",
+    section: "Content",
+    hint: "Put Studio changes live now",
+  },
   {
     id: "quips",
     path: "/settings/quips",

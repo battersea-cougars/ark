@@ -1,7 +1,7 @@
 # 0100. Tournament results are built into the website from D1, and the team app rebuilds it when one changes
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-21
+- **Date:** 2026-10-09 · updated 2026-10-24
 
 ## Context
 
@@ -46,6 +46,10 @@ Three ways were open:
   the website (`workflow_dispatch`, `apps: web`) from its environment's branch: `main` for dev, `release` for
   production. The App can start workflows and nothing else, and each token it takes asks for only that: a leaked key
   can't push code (#71). If GitHub can't be reached, the next check tries again. A laptop's server never asks.
+- **Rebuild now.** Settings → Website (`edit:Content`, #107) sends the same rebuild at once, for Studio changes
+  ([ADR 0004](0004-astro-workers-sanity-d1.md)); within five minutes of the last one sent it says that one's still
+  building and asks for nothing. The time of each one sent is kept (`website_times.rebuild_sent`) and shown there; a
+  press is on the record (`website.rebuilt`).
 - **Names.** Every player is shown by the name they chose on their profile (`members.web_name`), else first name and
   initial (`@cougars/shared/names`, as on the roster). That includes members who aren't Cougars, and players from
   outside the club, who have no profile. A team with no name of its own is "Team" and its captain's chosen name, else
@@ -77,3 +81,5 @@ Three ways were open:
   App needs Actions: write, not Contents: write (#71).
 - 2026-10-21: Penalties reach the website: each game's penalty minutes a side, a player's PIM beside their goals on
   a result, and PIM in the `/team/` stats and on a card.
+- 2026-10-24: Rebuild now in Settings → Website sends the rebuild at once (#107); each one sent is timed, so the page
+  says when, and a second press within five minutes asks for nothing.

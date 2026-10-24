@@ -9,8 +9,11 @@ invited with.
 
 The Studio at **https://studio.batterseacougars.com** is the real website: its title says **Cougars website
 (Live)**. Changes appear on the website **the next morning**, when it rebuilds by itself. Photos come from Instagram, so
-they're not in the Studio at all. If something can't wait until tomorrow,
-ask the developer to rebuild the site now.
+they're not in the Studio at all.
+
+**If something can't wait until tomorrow**, put it live yourself: in the Studio's top bar, **Put changes live** links
+to the team app's **Settings → Website**. Press **Rebuild now** there, and your published changes are on the website
+about five minutes later. (It needs a team app account that may edit the website: admins can.)
 
 There's also a separate practice copy, **Cougars dev site (Practice copy, not live)**, for trying things out. It
 only shows on the dev site, never on the real one. Ask the developer if you'd like access.
