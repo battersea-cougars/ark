@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { waitingFor } from "../app/editions.svelte";
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
   // One game, full screen (ADR 0130). For everyone, the live scoreboard: the clock, the score, each goal as it went
@@ -67,6 +68,8 @@
   } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
+  // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
+  const waiting = $derived(!!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId));
 
   const type = $derived(typeById(typeId)!);
   // The game's own tournament: the current one, or a past one's (History)
@@ -493,7 +496,10 @@
   >
 {/snippet}
 
-{#if !tournament || !game}
+{#if waiting}
+  <!-- Its tournament on its way (#175): the room the page takes -->
+  <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+{:else if !tournament || !game}
   <p class="note missing">No such game.</p>
 {:else}
   <div class="game">
@@ -1590,5 +1596,8 @@
   .name-skip {
     width: 100%;
     height: 3.5rem;
+  }
+  .waiting {
+    min-height: 60vh;
   }
 </style>

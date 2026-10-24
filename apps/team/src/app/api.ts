@@ -116,3 +116,17 @@ export async function bootstrapIfChanged(held: number): Promise<Bootstrap | null
 /** Just these parts of the club, and the data version they're at least as new as (catch-up.ts). */
 export const readSlices = (names: string[]) =>
   api<{ version: number; slices: Slices }>("GET", `/api/slices?names=${names.join(",")}`);
+
+/**
+ * Part of the club read on demand (a past tournament, a page of History; #175), with the tag it came with: asked again
+ * with that tag, null when it's unchanged (an empty 304 after one row read). Never kept by the browser.
+ */
+export async function readTagged<T>(path: string, tag: string | null): Promise<{ data: T | null; tag: string | null }> {
+  const ask = { cache: "no-store" as const, headers: tag ? { "if-none-match": tag } : undefined };
+  const res = await send(path, ask);
+  if (res.status === 304) {
+    brake.answered(304, true);
+    return { data: null, tag };
+  }
+  return { data: await read<T>(res, path), tag: res.headers.get("etag") };
+}

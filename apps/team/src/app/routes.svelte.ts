@@ -9,6 +9,10 @@ import { navigate, router } from "./router.svelte";
 import { goesBy } from "../lib/names";
 import { stageOf } from "../lib/edition";
 import { frontDoorTo } from "../lib/edition-address";
+import { editions, type EditionBy } from "./editions.svelte";
+
+/** Of a series' pages, the ones on their way (app/editions.svelte.ts): their pages are there, loading, till they come. */
+const asked = (slug: string, by: EditionBy) => editions.asking.filter((a) => a.slug === slug && a.by === by).map((a) => a.n);
 
 const config = (): NavConfig => ({
   series: db.series,
@@ -20,10 +24,13 @@ const config = (): NavConfig => ({
       onTeam: (next?.teams ?? []).some(
         (team) => team.captainMemberId === me().id || team.players.some((p) => p.memberId === me().id),
       ),
-      // Every edition's games and teams, so a past one's links work too
-      games: db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
+      // Every edition's games and teams the app has, and those on their way, so a past one's links work too (#175)
+      games: [
+        ...db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
+        ...asked(t.slug, "game"),
+      ],
       past: pastTournaments(t.id).map((x) => x.id),
-      editions: db.tournaments.filter((x) => x.typeId === t.id).map((x) => x.id),
+      editions: [...db.tournaments.filter((x) => x.typeId === t.id).map((x) => x.id), ...asked(t.slug, "tournament")],
       idle: !next,
       stage: next && stageOf(next),
       teams: db.tournaments
@@ -38,7 +45,8 @@ const config = (): NavConfig => ({
                 },
               ]
             : [],
-        ),
+        )
+        .concat(asked(t.slug, "team").map((id) => ({ id, mine: false }))),
     };
   }),
   me: me().id,
@@ -65,9 +73,21 @@ export function stayIfAllowed() {
  */
 export function editionAddressOf(path: string): string | null {
   for (const type of db.tournamentTypes) {
-    const editions = db.tournaments.filter((t) => t.typeId === type.id).map((t) => t.id);
-    const to = frontDoorTo(path, type.slug, currentTournament(type.id)?.id, editions);
+    // The ones the app has, and those on their way: one that isn't there (a 404) goes back to the front door
+    const ids = [
+      ...db.tournaments.filter((t) => t.typeId === type.id).map((t) => t.id),
+      ...asked(type.slug, "tournament"),
+    ];
+    const to = frontDoorTo(path, type.slug, currentTournament(type.id)?.id, ids) ?? goneTo(path, type.slug);
     if (to) return to;
   }
   return null;
+}
+
+/** A game's or a team's page that isn't there (a 404, app/editions.svelte.ts): the series' front door. */
+function goneTo(path: string, slug: string) {
+  const gone = editions.gone.find((a) => a.slug === slug && a.by !== "tournament");
+  return gone && path.startsWith(`/tournaments/${slug}/${gone.by === "game" ? "games" : "teams"}/${gone.n}`)
+    ? `/tournaments/${slug}`
+    : null;
 }

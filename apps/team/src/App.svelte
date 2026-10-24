@@ -4,6 +4,8 @@
   import { granted } from "./demo/session.svelte";
   import { routeFor } from "./app/nav-routes";
   import { editionAddressOf, routes } from "./app/routes.svelte";
+  import { askedBy, editions, wantEdition } from "./app/editions.svelte";
+  import { db } from "./demo/store.svelte";
   import { interceptLinks, navigate, remember, router } from "./app/router.svelte";
   import Shell from "./app/shell/Shell.svelte";
   import NotAllowed from "./pages/NotAllowed.svelte";
@@ -14,6 +16,14 @@
   import { ribbon } from "./app/shell/env-ribbon";
   import { withRibbon } from "@cougars/shared/ribbon";
 
+  // A past one's page, or one of its games' or teams': read it if the app hasn't it, or ask again if it's changed
+  // since (#175, app/editions.svelte.ts). Its page shows it loading meanwhile. First, so the address below knows
+  // it's on its way
+  $effect.pre(() => {
+    void editions.round;
+    const asked = askedBy(router.path);
+    if (asked && db.tournamentTypes.some((t) => t.slug === asked.slug)) untrack(() => wantEdition(asked));
+  });
   // A series' address with one on is that one's own (ADR 0074): replaced before the page shows, and again when the
   // one on changes under it (the next one scheduled from No Kumite yet)
   $effect.pre(() => {

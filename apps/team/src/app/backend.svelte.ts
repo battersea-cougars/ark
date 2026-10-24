@@ -37,6 +37,7 @@ import type { Team } from "../lib/balance";
 import type { ClashQuestion } from "../lib/clashes";
 import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
 import { ClubCopy, withMatch } from "./catch-up";
+import { forgetEdition, keptAreStale, showTournaments } from "./editions.svelte";
 import { reportUnexpected } from "./errors.early";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
@@ -69,8 +70,10 @@ const COPY: Record<keyof Slices, () => void> = {
   tournamentTypes: () => {
     db.tournamentTypes = structuredClone(TOURNAMENT_TYPES);
   },
+  // The club's, and the past ones read when they were opened (app/editions.svelte.ts), asked about again when shown
   tournaments: () => {
-    db.tournaments = structuredClone(TOURNAMENTS);
+    keptAreStale();
+    showTournaments();
   },
   clubEvents: () => {
     db.oneOffs = structuredClone(ONE_OFFS);
@@ -781,7 +784,10 @@ export const createTournament = (t: Tournament) =>
 export const updateTournament = (t: Tournament) =>
   save(() => api("PUT", `/api/tournaments/${t.id}`, tournamentBody(t)));
 /** Gone, with its teams, sign-ups, games and awards. */
-export const deleteTournament = (id: number) => save(() => api("DELETE", `/api/tournaments/${id}`), "Deleted");
+export const deleteTournament = (id: number) => {
+  forgetEdition(id);
+  return save(() => api("DELETE", `/api/tournaments/${id}`), "Deleted");
+};
 
 /** A one-off event as the app sends it. */
 export interface ClubEventBody {

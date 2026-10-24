@@ -1,47 +1,63 @@
 <script lang="ts">
   // A series' past ones (ADR 0074), newest first, each with how it ended: the day, the champions, the final's score.
   // Each opens its own page (lib/edition-address.ts), its track and every status it went through. On History, and on
-  // the series' front page when nothing's on.
+  // the series' front page when nothing's on. Read a page at a time as the list's end comes into view (#175,
+  // app/history.svelte.ts); tonight's, at its after-party, is still on, so it isn't here.
   import { nameOfTeam } from "./names";
   import { PLAYERS } from "../demo/data";
-  import type { Tournament, TournamentType } from "../demo/model";
+  import type { TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { championOf, editionWhen } from "./edition";
+  import { atAfters, editionWhen } from "./edition";
   import { teamTone } from "./team-tones";
   import { editionPath } from "./edition-address";
+  import { pastList, type EditionSummary } from "../app/history.svelte";
+  import { loadMore } from "./load-more";
+  import { db } from "../demo/store.svelte";
+  import { londonEvening } from "./dates";
 
-  let { type, past }: { type: TournamentType; past: Tournament[] } = $props();
+  let { type }: { type: TournamentType } = $props();
 
-  const nameOf = (t: Tournament, id: number | null) => {
+  const list = $derived(pastList(type.id));
+  // Read (again) whenever the club's tournaments change: unchanged, an empty 304
+  $effect(() => {
+    void db.tournaments;
+    void list.refresh().catch(() => {});
+  });
+  const evening = londonEvening();
+  const past = $derived(
+    list.editions.filter((e) => {
+      const held = db.tournaments.find((t) => t.id === e.id);
+      return !held || !atAfters(held, evening);
+    }),
+  );
+
+  const nameOf = (t: EditionSummary, id: number | null) => {
     const team = t.teams.find((x) => x.id === id);
     return nameOfTeam(team, t.teams, (id) => PLAYERS.find((p) => p.id === id));
   };
   // How it ended, in a line: the final, else the top of the table
-  const summary = (t: Tournament) => {
-    const champ = championOf(t);
-    const playoffs = (t.games ?? []).filter((g) => g.stage === "playoff");
-    if (champ && playoffs.length) {
-      const f = playoffs.reduce((a, b) => (b.position > a.position ? b : a));
-      const home = f.homeTeamId === champ;
+  const summary = (t: EditionSummary) => {
+    const f = t.final;
+    if (t.champion && f) {
+      const home = f.homeTeamId === t.champion;
       const [us, them] = home ? [f.homeGoals, f.awayGoals] : [f.awayGoals, f.homeGoals];
       return `Beat ${nameOf(t, home ? f.awayTeamId : f.homeTeamId)} ${us}–${them} in the final`;
     }
-    return champ ? "Top of the table" : `${(t.games ?? []).length} matches`;
+    return t.champion ? "Top of the table" : `${t.games} matches`;
   };
 </script>
 
-<ol class="past">
+<ol class="past" aria-busy={list.loading}>
   {#each past as t (t.id)}
-    {@const champ = championOf(t)}
-    {@const ci = t.teams.findIndex((x) => x.id === champ)}
+    {@const ci = t.teams.findIndex((x) => x.id === t.champion)}
     {@const w = editionWhen(t)}
     <li>
       <a class="edition" href={editionPath(type.slug, t.id)}>
         {#if ci >= 0}
           <TeamCrest
-            among={t.teams.map((x) => nameOf(t, x.id ?? null))}
-            name={nameOf(t, champ)}
+            among={t.teams.map((x) => nameOf(t, x.id))}
+            name={nameOf(t, t.champion)}
             logo={t.teams[ci].logo}
             tone={teamTone(ci)}
             size="3.5rem"
@@ -51,14 +67,19 @@
         {/if}
         <span class="text">
           <span class="eyebrow">{w.day ?? w.season}</span>
-          <span class="champ display">{champ ? `${nameOf(t, champ)} won it` : t.name}</span>
+          <span class="champ display">{t.champion ? `${nameOf(t, t.champion)} won it` : t.name}</span>
           <span class="hint">{summary(t)}</span>
         </span>
         <Icon name="chevronRight" size={20} />
       </a>
     </li>
   {/each}
+  {#if !list.read}
+    <!-- The first page on its way: a line's room, so nothing moves when it comes -->
+    <li class="waiting" aria-hidden="true"></li>
+  {/if}
 </ol>
+{#if list.next}<div class="more" use:loadMore={() => list.more()}></div>{/if}
 
 <style>
   .past {
@@ -91,6 +112,12 @@
     flex: 1;
     gap: 0.2rem;
     min-width: 0;
+  }
+  .waiting {
+    height: calc(3.5rem + 2 * var(--s-4));
+  }
+  .more {
+    height: 1px;
   }
   .champ {
     overflow: hidden;

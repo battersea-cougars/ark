@@ -43,7 +43,9 @@ export function leaders(games: GameLike[], stat: LeaderStat): LeaderRow[] {
   }
   for (const [memberId, minutes] of penaltyMinutes(played).byMember) row(memberId).pim = minutes;
   for (const r of rows.values()) r.points = r.goals + r.assists;
-  return [...rows.values()]
-    .filter((r) => r[stat] > 0)
-    .sort((a, b) => b[stat] - a[stat] || b.points - a.points || b.goals - a.goals);
+  return ranked([...rows.values()], stat);
 }
+
+/** Rows already counted (History's all-time board, counted by the Worker, #175), as the board for one stat. */
+export const ranked = (rows: LeaderRow[], stat: LeaderStat) =>
+  rows.filter((r) => r[stat] > 0).sort((a, b) => b[stat] - a[stat] || b.points - a.points || b.goals - a.goals);

@@ -56,7 +56,7 @@ export const EDITION_LABEL: Record<EditionState, string> = {
 };
 
 /** When: the day and hours once there's a day (null while it's just a season), and the season always. */
-export function editionWhen(t: Tournament) {
+export function editionWhen(t: Pick<Tournament, "season" | "heldOn" | "startTime" | "endTime">) {
   const season = seasonLabel(t.season ?? seasonOf(t.heldOn).season, t.heldOn);
   const dated = !t.season;
   return {

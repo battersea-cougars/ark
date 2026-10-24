@@ -42,7 +42,8 @@
   import { kanjiFor } from "../lib/motif";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import PastEditions from "../lib/PastEditions.svelte";
-  import Leaderboard from "../lib/Leaderboard.svelte";
+  import AllTimeLeaders from "../lib/AllTimeLeaders.svelte";
+  import { waitingFor } from "../app/editions.svelte";
   import { editTournament } from "../lib/tournament-panel.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkForUpdates } from "../lib/live-updates.svelte";
@@ -86,6 +87,8 @@
   const tournament = $derived(
     tournamentId === undefined ? current : db.tournaments.find((t) => t.id === tournamentId && t.typeId === typeId),
   );
+  // A past one the app hasn't yet, on its way (#175, app/editions.svelte.ts): its page waits for it, not No Kumite yet
+  const loading = $derived(tournamentId !== undefined && !tournament && waitingFor("tournament", tournamentId));
   const past = $derived(tournament ? [] : pastTournaments(typeId));
   // While one's on, the past ones are History: not a tab, a link at the foot here
   const earlier = $derived(current ? pastTournaments(typeId).length : 0);
@@ -243,7 +246,10 @@
 <div class="page" class:full={!!tournament} class:fit={compact}>
   <TournamentHead {type} {tournament} title="The {type.shortName}" manage {back} track viewing={view} {compact} />
 
-  {#if !tournament}
+  {#if loading}
+    <!-- The one opened on its way: the room its page takes, so nothing jumps when it comes -->
+    <div class="loading" aria-busy="true" aria-label="Loading"></div>
+  {:else if !tournament}
     <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
          stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, 0074) -->
     <section class="no-bout">
@@ -270,12 +276,12 @@
       <section class="part">
         <h2 class="section-title">Past {type.shortName}s<Kanji text={kanjiFor(type, "martial")} /></h2>
         <p class="part-line">Who won each one. Open one for its results and awards.</p>
-        <PastEditions {type} {past} />
+        <PastEditions {type} />
       </section>
       <section class="part">
         <h2 class="section-title">All-time leaders</h2>
         <p class="part-line">Every {type.shortName} played, added up.</p>
-        <Leaderboard games={past.flatMap((t) => t.games ?? [])} label="All-time leaders" />
+        <AllTimeLeaders typeId={type.id} />
       </section>
     {/if}
   {:else}
@@ -495,6 +501,9 @@
     text-underline-offset: 2px;
   }
   /* Nothing on: the page's one big moment. The kanji down the side, quiet; the words beside them */
+  .loading {
+    min-height: 60vh;
+  }
   .no-bout {
     display: flex;
     align-items: center;

@@ -4,23 +4,26 @@
   // are (italic caps, the red slash); the table shows every column, the chosen one bright. On a tournament's own
   // board, each player's team under their name.
   import { PLAYERS } from "../demo/data";
-  import { LEADER_STATS, leaders, type LeaderStat } from "./leaders";
+  import { LEADER_STATS, leaders, ranked, type LeaderRow, type LeaderStat } from "./leaders";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { goesBy, nameOfTeam } from "./names";
 
   let {
-    games,
+    games = [],
+    counted,
     tournament,
     label = "Leaders",
   }: {
-    games: TournamentGame[];
+    games?: TournamentGame[];
+    /** Already counted, in place of the games: every edition's, from the Worker (History, #175). */
+    counted?: LeaderRow[];
     /** One tournament's: its teams name each player's. */
     tournament?: Tournament;
     label?: string;
   } = $props();
 
   let stat = $state<LeaderStat>("points");
-  const rows = $derived(leaders(games, stat));
+  const rows = $derived(counted ? ranked(counted, stat) : leaders(games, stat));
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const teams = $derived(tournament?.teams ?? []);
   const teamOf = (memberId: number) => {

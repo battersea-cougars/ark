@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { waitingFor } from "../app/editions.svelte";
   // One game's matchup (ADR 0130), from the fight card's Details: the two teams side by side, each squad in full and
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
@@ -23,6 +24,8 @@
   import { editionWhen } from "../lib/edition";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
+  // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
+  const waiting = $derived(!!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId));
 
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(
@@ -105,7 +108,10 @@
       : { href: editionPath(type.slug, tournament.id), label: onNow ? undefined : tournament.name }}
   />
 
-  {#if !tournament || !game}
+  {#if waiting}
+  <!-- Its tournament on its way (#175): the room the page takes -->
+  <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+{:else if !tournament || !game}
     <p class="note">There's no such game.</p>
   {:else}
     <!-- The two teams, face to face: the score once it's played, else the kick-off -->
@@ -393,5 +399,8 @@
   .m-teams .num {
     margin: 0 var(--s-2);
     font-weight: 700;
+  }
+  .waiting {
+    min-height: 60vh;
   }
 </style>

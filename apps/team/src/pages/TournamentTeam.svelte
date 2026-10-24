@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { waitingFor } from "../app/editions.svelte";
   // A team in a tournament: its crest and name, the squad, and its games. Every team has one, reached from wherever
   // the team's shown, with a way back to them all; yours is also My team (no teamId: the one you're on). Its captain
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
@@ -21,6 +22,8 @@
   import { teamTone } from "../lib/team-tones";
 
   let { typeId, teamId }: { typeId: number; teamId?: number } = $props();
+  // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
+  const waiting = $derived(!!teamId && !db.tournaments.some((t) => t.teams.some((x) => x.id === teamId)) && waitingFor("team", teamId));
 
   const type = $derived(typeById(typeId)!);
   // The team's own tournament (a past one's team, from History), else the current one: yours is My team
@@ -63,7 +66,10 @@
 <div class="page">
   <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} back={{ href: edition }} />
 
-  {#if !tournament || !team}
+  {#if waiting}
+  <!-- Its tournament on its way (#175): the room the page takes -->
+  <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+{:else if !tournament || !team}
     <EmptyState icon="teams" title={teamId ? "Not found" : "No team yet"}>
       {teamId
         ? "There's no such team in this one."
@@ -247,5 +253,8 @@
     font-weight: 500;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+  .waiting {
+    min-height: 60vh;
   }
 </style>
