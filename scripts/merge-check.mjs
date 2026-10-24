@@ -4,7 +4,7 @@
 //
 // In the main checkout. The branch must be on main's tip (a fast-forward) and its worktree clean. `git diff
 // main...<branch>` picks the tier (scripts/lib/merge-check.mjs): docs only, a format check of the changed files;
-// otherwise lint, the tests, and the checks and builds of the apps the diff reaches. Steps run in two lanes side by
+// otherwise lint, knip, the tests, and the checks and builds of the apps the diff reaches. Steps run in two lanes side by
 // side, each printing pass or FAIL as it ends; a failure's output is printed whole at the end. It runs in the
 // branch's worktree, or a temporary checkout of it (.worktrees/.merge-check-*, removed after): never in the main
 // checkout's tree.
@@ -56,14 +56,15 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
   });
 console.log(`in ${tree}\n`);
 
+const FIRST_LANE = ["lint", "knip", "test"];
 const present = files.filter((f) => existsSync(join(tree, f)));
 const format = { name: "format (changed files)", cmd: ["npx", "prettier", "--check", "--ignore-unknown", ...present] };
-// Lane one: lint and the tests; lane two: the checks and builds, which share no output with them
+// Lane one: lint, knip and the tests; lane two: the checks and builds, which share no output with them
 const lanes =
   tier === "docs"
     ? [present.length ? [format] : []]
-    : [steps.filter((k) => k === "lint" || k === "test"), steps.filter((k) => k !== "lint" && k !== "test")].map(
-        (lane) => lane.map((k) => STEPS[k]),
+    : [steps.filter((k) => FIRST_LANE.includes(k)), steps.filter((k) => !FIRST_LANE.includes(k))].map((lane) =>
+        lane.map((k) => STEPS[k]),
       );
 
 const started = Date.now();

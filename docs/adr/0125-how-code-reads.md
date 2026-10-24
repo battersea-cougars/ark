@@ -35,8 +35,10 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 - **Cheap checks, as warnings**: ESLint's `max-depth` (3), `max-lines-per-function` (80, tests excepted), `id-length`
   (2, with the exceptions above; object keys aren't counted) and `no-else-return` warn, and never fail lint or CI.
   `npm run sizes` lists the files and component styles past the prompts (CI prints it).
-- **Unused code goes.** An export nobody imports, a file nothing reaches, is removed: `npx knip` finds them (its entry
-  points in `knip.json`). One kept on purpose says why, tagged `@public`.
+- **Unused code goes.** An export nobody imports, a file nothing reaches, is removed: `npm run knip` finds them (its
+  entry points in `knip.jsonc`), and fails a PR (`pr.yml`) and `npm run merge:check` when it finds any. One kept on
+  purpose says why, tagged `@public`; what knip can't see used (a runtime module, a script's command-line tools) is
+  ignored in `knip.jsonc` with its reason.
 
 ## Consequences
 
@@ -56,3 +58,6 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
   unused files, exports or types.
 - 2026-10-23: `id-length` is off for now: its ~4,000 warnings drowned the other 51. It goes back on once a sweep has named
   them.
+- 2026-10-24: knip is a check: `npm run knip` (a dev dependency now) fails a PR and merge:check. Two components the
+  Kumite's one page left behind (DraftStatus, FightCard) and five unused re-exports removed; `knip.json` is
+  `knip.jsonc`, so each ignore says why (#148).

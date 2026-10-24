@@ -3,7 +3,7 @@
 // kick-off times and who keeps score. The table and the champions are shared with the website
 // (packages/shared/results.ts, ADR 0100).
 import { londonTime } from "./dates";
-export { champion, table, type Result, type TableRow } from "@cougars/shared/results";
+export { champion, table, type TableRow } from "@cougars/shared/results";
 
 /** How many teams a tournament's playoffs need: the lowest place they take (3rd v 4th needs 4); 0 for none. */
 export const teamsForPlayoffs = (playoffs: { home: number; away: number }[]) =>

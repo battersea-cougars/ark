@@ -1,6 +1,6 @@
 // Which of pr.yml's checks a pull request needs: the same tiers as `npm run merge:check` (scripts/lib/merge-check.mjs,
 // ADR 0115), from the files it changes against its base. Docs alone get a format check of those files; code gets
-// lint, the tests, and the checks and builds of the apps it can reach.
+// lint, knip, the tests, and the checks and builds of the apps it can reach.
 //
 //   node scripts/ci/pr-plan.mjs <base>    tier=… and lint=true, checkWeb=false, … to $GITHUB_OUTPUT
 import { execFileSync } from "node:child_process";

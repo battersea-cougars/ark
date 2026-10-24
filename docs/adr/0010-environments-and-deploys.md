@@ -50,7 +50,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   the roster), run only when `db/` or its scripts change, or on a manual `all`; both apps wait for it then, and
   otherwise deploy side by side.
 - **PR checks run what a change can reach** (`pr.yml`, `scripts/ci/pr-plan.mjs`): the tiers of `npm run merge:check`
-  ([ADR 0115](0115-worktrees-and-the-show-switch.md)). Docs alone get a format check; code gets lint and the tests,
+  ([ADR 0115](0115-worktrees-and-the-show-switch.md)). Docs alone get a format check; code gets lint, knip and the tests,
   then the checks and builds of its apps (a website change the team app's too); anything outside the apps, everything.
   One job, so its name never changes.
 - **Every job restores its `node_modules`** from a cache keyed on the OS, Node and the lockfile (`.github/actions/setup`),

@@ -32,7 +32,8 @@
     "merge:check": "node scripts/merge-check.mjs",
     "load": "node scripts/load/load.mjs",
     "journeys": "node apps/team/journeys/journeys.mjs",
-    "sizes": "node scripts/sizes.mjs"
+    "sizes": "node scripts/sizes.mjs",
+    "knip": "knip"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
@@ -46,6 +47,7 @@
     "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-svelte": "^3.23.0",
     "globals": "^17.13.0",
+    "knip": "^6.43.0",
     "prettier": "^3.9.9",
     "prettier-plugin-astro": "^1.1.0",
     "prettier-plugin-svelte": "^4.1.1",

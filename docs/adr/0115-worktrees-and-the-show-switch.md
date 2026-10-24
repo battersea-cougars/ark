@@ -49,7 +49,7 @@ hard-linked, and one supervisor that owns the well-known ports and switches them
   `npm run db:rebuild:local` then changes; `--shared-db` goes back.
 - **`npm run merge:check -- <area>/<topic>`**, in the main checkout: the branch must be on main's tip and clean. In its
   worktree (or a temporary one), never main's tree, it runs a tier picked from `git diff main...<branch>`
-  (`scripts/lib/merge-check.mjs`): docs only, a format check; otherwise lint and the whole test suite, then the checks
+  (`scripts/lib/merge-check.mjs`): docs only, a format check; otherwise lint, knip and the whole test suite, then the checks
   and builds of the apps the diff reaches. A website change also checks and builds the team app (it imports the
   website's code); a change only in the team app or the Studio checks that one; anything outside the apps runs the
   full pre-push list. It prints "Safe to merge" or not.

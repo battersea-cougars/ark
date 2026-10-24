@@ -1,6 +1,7 @@
 // What a branch's diff asks of `npm run merge:check` (scripts/merge-check.mjs, ADR 0115): pure, tested beside it.
 //
-// Every non-docs change runs lint and the whole test suite (one fake world, and fast). The checks and builds are the
+// Every non-docs change runs lint, knip (unused files, exports and dependencies, ADR 0125) and the whole test suite
+// (one fake world, and fast). The checks and builds are the
 // pre-push list (CLAUDE.md, Tests, as pr.yml), narrowed to the apps a diff can reach: the team app imports the
 // website's code (its tests and checks read apps/web/src), so a website change checks both; nothing imports the team
 // app or the Studio, so a change inside one checks that one. Anything outside the apps (packages/, scripts/, db/,
@@ -8,6 +9,7 @@
 
 export const STEPS = {
   lint: { name: "lint", cmd: ["npm", "run", "lint"] },
+  knip: { name: "unused code (knip)", cmd: ["npm", "run", "knip"] },
   test: { name: "test", cmd: ["npm", "test"] },
   checkWeb: { name: "check website", cmd: ["npm", "run", "check", "-w", "@cougars/web"] },
   checkTeam: { name: "check team app", cmd: ["npm", "run", "check", "-w", "@cougars/team"] },
@@ -30,13 +32,13 @@ export const isDocs = (file) =>
 /** The app a file belongs to, or "shared" when it reaches every app. */
 export const areaOf = (file) => file.match(/^apps\/(web|team|studio)\//)?.[1] ?? "shared";
 
-/** The tier a diff runs: none, docs (a format check), or the steps it reaches (always lint and test first). */
+/** The tier a diff runs: none, docs (a format check), or the steps it reaches (always lint, knip and test first). */
 export function plan(files) {
   if (!files.length) return { tier: "none", steps: [] };
   const code = files.filter((f) => !isDocs(f));
   if (!code.length) return { tier: "docs", steps: [] };
   const areas = new Set(code.map(areaOf));
-  const keys = areas.has("shared") ? Object.keys(STEPS).slice(2) : [...areas].flatMap((a) => REACHES[a]);
-  const steps = ["lint", "test", ...Object.keys(STEPS).filter((k) => keys.includes(k))];
+  const keys = areas.has("shared") ? Object.keys(STEPS).slice(3) : [...areas].flatMap((a) => REACHES[a]);
+  const steps = ["lint", "knip", "test", ...Object.keys(STEPS).filter((k) => keys.includes(k))];
   return { tier: areas.has("shared") ? "full" : [...areas].sort().join("+"), steps };
 }

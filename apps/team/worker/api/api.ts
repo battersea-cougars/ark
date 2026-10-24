@@ -43,8 +43,7 @@ import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
 
 const log = scribe.logger("api");
 
-export type { Audit, Ctx, Env, Route } from "./api.route";
-export type { Slice } from "./api.slices";
+export type { Env, Route } from "./api.route";
 
 /**
  * Every route, by feature (ADR 0105). Each feature's file says what it covers; the wrapper below (handleApi) does what

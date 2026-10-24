@@ -1,0 +1,29 @@
+// Unused files, exports, types and dependencies (`npm run knip`; pr.yml fails a PR on any). ADR 0125: unused code
+// goes; anything ignored here says why.
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignoreExportsUsedInFile": true,
+  // Not packages: `cloudflare:workers` is the Workers runtime's own module (knip reads it as a package "cloudflare");
+  // sharp is the website's (apps/web), which the brand and favicon scripts borrow; playwright is loaded from
+  // PLAYWRIGHT_DIR by scripts/small-screens.mjs when it isn't here (WebKit, by hand)
+  "ignoreDependencies": ["cloudflare", "sharp", "playwright"],
+  // Command-line tools a script runs, not packages: tail, gcloud (Firebase setup), bw and bws (Bitwarden)
+  "ignoreBinaries": ["tail", "gcloud", "bw", "bws"],
+  // scripts/load/load.worker.mjs is copied next to the built Worker's index.js before it runs (docs/load-testing.md)
+  "ignoreUnresolved": ["./index.js"],
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/**/*.mjs"],
+      "project": ["scripts/**/*.mjs"],
+    },
+    "apps/team": {
+      "entry": ["public/sw.js", "journeys/*.{ts,mjs}"],
+      "project": ["{src,worker,journeys,native}/**/*.{ts,svelte,mjs}"],
+    },
+    "apps/studio": {
+      "entry": ["seed.ts"],
+    },
+    "apps/web": {},
+    "packages/shared": {},
+  },
+}

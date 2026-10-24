@@ -13,7 +13,7 @@ concurrency:
 
 # No secrets here: the site builds from fallback content without Sanity.
 # Only what the change can reach (scripts/ci/pr-plan.mjs, the tiers of `npm run merge:check`, ADR 0115): docs alone, a
-# format check of those files; code, lint and the tests, then the checks and builds of the apps it reaches (the
+# format check of those files; code, lint, knip and the tests, then the checks and builds of the apps it reaches (the
 # website's also the team app's, which imports it; anything outside the apps, every one). One job, so its name stays
 # the same whatever runs.
 jobs:
@@ -32,6 +32,10 @@ jobs:
         run: git diff --name-only --no-renames --diff-filter=d HEAD^1 HEAD | xargs -r npx prettier --check --ignore-unknown
       - if: steps.plan.outputs.lint == 'true'
         run: npm run lint
+      # Unused files, exports, types and dependencies fail it (ADR 0125; what's ignored, and why, is in knip.jsonc)
+      - name: Unused code (knip)
+        if: steps.plan.outputs.knip == 'true'
+        run: npm run knip
       # The files past the size prompts (ADR 0125): a report, never a failure
       - if: steps.plan.outputs.lint == 'true'
         run: npm run sizes
