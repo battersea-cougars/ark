@@ -1,7 +1,7 @@
 # 0125. Code reads like the club's model: one job per file and function, early exits, the club's words for names
 
 - **Status:** Accepted
-- **Date:** 2026-10-23
+- **Date:** 2026-10-23 · updated 2026-10-24
 
 ## Context
 
@@ -17,23 +17,18 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 - **Sizes to notice**: a file past roughly **400 lines**, a Svelte component's own CSS past roughly **500 lines**
   (#153), or a function past a screen (about **80 lines**) is the prompt to ask whether it holds more than one idea and
   to split it. A prompt, not a rule: a long list of routes or a table of rules can stay long.
-- **The API split by module**: the controller idea without the controller pattern (ADR 0105). Every route lives in its
-  component's `{domain}.routes.ts` (sign-in's own routes too: `auth.routes.ts`, `auth.passkeys.routes.ts`); its rules
-  and queries in `{domain}.ts` beside it. `api.ts` stays a table of contents and holds no feature's routes.
 - **Exit early, minimal nesting.** Guard clauses first (`if (!session) return …`), then the main path, unindented. No
   `else` after a `return`; no pyramid of `if`s. Past three blocks deep, pull the inside out into a named function.
 - **Names from the domain.** Variables, parameters and functions say what they are in the club's words (`session`,
   `captain`, `goalsAgainst`, `heldOn`), not `x`, `d`, `tmp`, `data` or `item`. Short names only in tiny conventional
   scopes: an index (`i`, `j`, `k`), a count (`n`), a sort's pair (`a`, `b`), a caught error (`e`), geometry (`x`, `y`),
   and `_` for what's unused.
-- **The pattern follows the model.** A person who knows the app should find a feature where its model says it is:
-  `worker/tournaments/`, `tournaments.routes.ts`, `draft.ts`, `draft.use-cases.test.ts`. The app side holds to the same:
-  `src/lib` groups its components and helpers by feature, with file names per domain and kind (#88).
 - **Classes for cohesion, functions for composition.** A class when state and the behaviour that guards it must stay
   together (a live connection, a simulation loop, a store); functions for rules, formatting and queries, composed. No
   classes as namespaces, and no bag of state passed from function to function that wants to be an object.
-- **Cheap checks, as warnings**: ESLint's `max-depth` (3), `max-lines-per-function` (80, tests excepted), `id-length`
-  (2, with the exceptions above; object keys aren't counted) and `no-else-return` warn, and never fail lint or CI.
+- **Cheap checks, as warnings**: ESLint's `max-depth` (3), `max-lines-per-function` (80, tests excepted) and
+  `no-else-return` warn, and never fail lint or CI. `id-length` (2, with the exceptions above; object keys aren't
+  counted) is configured but off until a sweep has named the ~4,000 short names.
   `npm run sizes` lists the files and component styles past the prompts (CI prints it).
 - **Unused code goes.** An export nobody imports, a file nothing reaches, is removed: `npm run knip` finds them (its
   entry points in `knip.jsonc`), and fails a PR (`pr.yml`) and `npm run merge:check` when it finds any. One kept on
@@ -43,9 +38,8 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 ## Consequences
 
 - A reviewer has words for what's wrong ("two jobs", "late exit", "say what `r` is"), and the warnings point at where.
-- The warnings start in the thousands (mostly `id-length`, many in tests), so lint's output is long until they're paid
-  down; they're paid down as each file is next worked on, not in one sweep (ADR 0105), and become errors only once a
-  rule's count is near zero.
+- The warnings are paid down as each file is next worked on, not in one sweep (ADR 0105), and become errors only
+  once a rule's count is near zero.
 - Splitting the big pages (Draft, Training, Game, Home, MemberSheet, Shell) waits for the shared components (#153).
 - Where the code stood on 2026-10-23, file by file: [docs/code-style-audit.md](../code-style-audit.md).
 
@@ -61,3 +55,5 @@ review (#148) found pages of 1,500 to 3,000 lines, functions past two screens, n
 - 2026-10-24: knip is a check: `npm run knip` (a dev dependency now) fails a PR and merge:check. Two components the
   Kumite's one page left behind (DraftStatus, FightCard) and five unused re-exports removed; `knip.json` is
   `knip.jsonc`, so each ignore says why (#148).
+- 2026-10-24: Trimmed against ADR 0105: where routes and features live is there; the sizes to notice are here only;
+  `id-length` said to be off.
