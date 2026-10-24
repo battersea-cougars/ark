@@ -8,6 +8,8 @@ import { start } from "./app/backend.svelte";
 import { inApp, startInApp } from "./app/native";
 import { routeFor } from "./app/nav-routes";
 import { loadPage } from "./app/pages.svelte";
+import { need, needsOf } from "./app/page-data.svelte";
+import { granted } from "./demo/session.svelte";
 import { navigate } from "./app/router.svelte";
 import { routes } from "./app/routes.svelte";
 import { isStaleCode, recoverOnce } from "./app/stale-code";
@@ -60,10 +62,15 @@ function newCode() {
   return recoverOnce(sessionStorage, () => location.reload());
 }
 
-// The page you're opening, so the app's first paint has it (Home is already in; another page is its own chunk)
+// The page you're opening, so the app's first paint has it (Home is already in; another page is its own chunk), and
+// its parts of the club beyond the core (#178): side by side. An address that isn't a page until they're in (a
+// member's, before the roster) reads everything first, then its page. Offline, the page shows with what there is.
 async function firstPage() {
-  const all = routes();
-  await loadPage((routeFor(all, location.pathname) ?? routeFor(all, "/")!).page);
+  const route = routeFor(routes(), location.pathname);
+  const parts = need(needsOf(route?.page, granted())).catch(() => {});
+  if (route) return void (await Promise.all([parts, loadPage(route.page)]));
+  await parts;
+  await loadPage((routeFor(routes(), location.pathname) ?? routeFor(routes(), "/")!).page);
 }
 
 /** The splash (index.html) fades once the first screen is up, over it, so nothing moves underneath. */

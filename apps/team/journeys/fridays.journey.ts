@@ -15,7 +15,19 @@
 // what's owed again on each day's first open (bootstrap.routes.ts), so a page opened on an earlier day would take back
 // the charges a later one made. Real clocks don't go backwards; a journey mustn't either.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, at, checks, cron, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
+import {
+  asMember,
+  clubVia,
+  at,
+  checks,
+  cron,
+  does,
+  london,
+  noFailedChecks,
+  signIn,
+  stage,
+  type Person,
+} from "./journey";
 
 /** The training this journey makes: on a database other runs may have used, a name nobody's used yet. */
 const TAG = Date.now().toString(36).slice(-4);
@@ -65,7 +77,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   };
   /** The club as the admin's app reads it, at the story's moment. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const club = async (): Promise<any> => asMember(ada.email, { at: now })("GET", "/api/bootstrap");
+  const club = async (): Promise<any> => clubVia(asMember(ada.email, { at: now }));
   const adaApi = (method: string, where: string, body?: object) =>
     asMember(ada.email, { at: now })(method, where, body);
   const members = (await club()).members as { id: number; name: string }[];

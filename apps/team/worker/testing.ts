@@ -26,7 +26,7 @@ import { SITEVERIFY } from "@cougars/shared/turnstile";
 import { authenticator } from "./testing.authenticator";
 import { londonISO } from "@cougars/shared/london";
 import { HOLDS_HEADER, PAGE_PARTS } from "../src/app/club-parts";
-import { duesOf, membersOf, nightsOf, tournamentsOf } from "../src/app/club-whole";
+import { wholeClub } from "../src/app/club-whole";
 
 /** An issue as Sentry's API lists it, with the environment and status the fake filters by. */
 export interface SentryIssue {
@@ -97,18 +97,8 @@ export interface Reply {
   headers: Headers;
 }
 
-/** The bootstrap with every page's parts in place, as the app puts them together (src/app/club-whole.ts, #178). */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function wholeClub(core: any, pages: any) {
-  return {
-    ...core,
-    ...pages,
-    members: membersOf(pages.members, core.people, core.viewingAs ?? core.me),
-    sessions: nightsOf(core.sessions, pages.pastSessions),
-    tournaments: tournamentsOf(core.tournaments, pages.lastPlayed),
-    dues: duesOf(core.dues, pages.clubDues),
-  };
-}
+/** The bootstrap with every page's parts in place, as the app puts them together (#178). */
+export { wholeClub };
 
 /** The seeded luck of the last world that asked for it (luck()): a new world starts with the real thing. */
 let seeded: { mockRestore(): void } | null = null;

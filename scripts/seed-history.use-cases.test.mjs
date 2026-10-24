@@ -165,7 +165,7 @@ describe("a seeded history", () => {
     expect(w.db.raw.prepare("SELECT played_through FROM data_version").get().played_through).not.toBeNull();
     await seedHistory(db, { today: TODAY });
     expect(dues(w.db.raw)).toEqual(duesFromAllocations(w.db.raw));
-    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    const boot = (await dana.club()).body;
     const owed = Object.fromEntries(boot.dues.map((d) => [d.memberId, d.owed - d.credit]));
     for (const m of boot.members) {
       // Unpaid fees' line is what the top of their ledger says, and what every charge less every payment comes to
@@ -217,7 +217,7 @@ describe("a seeded history", () => {
     // What anyone owes, and played, as before (#177)
     expect([dues(w.db.raw), playedFromAttendance(w.db.raw)]).toEqual([owedBefore, playedBefore]);
     // Seeded, its nights counted in (the hourly run), then taken away: the counts go back with them
-    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    const boot = (await dana.club()).body;
     expect(Object.fromEntries(boot.members.map((m) => [m.id, m.played]))).toEqual(playedBefore);
   });
 });

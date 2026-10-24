@@ -30,7 +30,7 @@ const listening = (email: string) => w.listening(email, DRAFT_DAY);
 /** A draft night, open, with Cara on the clock. */
 async function draftNight({ opened = true } = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (b: { call: typeof dana.call }) => (await b.club()).body as Json;
+  const sees = async (b: typeof dana) => (await b.club()).body as Json;
   const idOf = async (name: string) => (await sees(dana)).members.find((m: Json) => m.name === name).id as number;
   const typeId = (
     await dana.call("POST", "/api/tournament-types", {

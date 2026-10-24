@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 const DAY = 24 * 60;
-const memberNamed = async (b: { call: Awaited<ReturnType<typeof w.signedIn>>["call"] }, name: string) =>
+const memberNamed = async (b: Awaited<ReturnType<typeof w.signedIn>>, name: string) =>
   (await b.club()).body.members.find((m: Json) => m.name === name);
 const phones = () =>
   (w.db.raw.prepare("SELECT token FROM push_devices ORDER BY token").all() as Json[]).map((r) => r.token);

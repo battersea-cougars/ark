@@ -9,7 +9,7 @@
 // The member Ada adds is new every run (their email has the time in it). Rae can leave only once a database: on one a
 // run has been through already she's gone, and her stage says so and checks only that she stays gone.
 import { expect, test, type Locator } from "@playwright/test";
-import { asMember, checks, does, expectRefusal, noFailedChecks, signIn, stage, type Person } from "./journey";
+import { asMember, clubVia, checks, does, expectRefusal, noFailedChecks, signIn, stage, type Person } from "./journey";
 
 /** A surname no run has used: letters from the time. */
 const freshSurname = () => {
@@ -36,7 +36,7 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
   const mo = await signIn(browser, "Member, then Session lead", "Mo Moved", "mo@example.com");
   const hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
   const adaApi = asMember(ada.email);
-  const members = async () => (await adaApi("GET", "/api/bootstrap")).members as Member[];
+  const members = async () => (await clubVia(adaApi)).members as Member[];
   const byEmail = async (email: string) => (await members()).find((m) => m.email === email);
 
   /** Opens someone's card on The club, as an admin: their sheet, with Details. */

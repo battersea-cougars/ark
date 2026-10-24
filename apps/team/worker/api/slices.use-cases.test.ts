@@ -240,6 +240,11 @@ it("never keeps for others a part that reads who's asking or the moment", () => 
   expect(shared.filter(([, sql]) => personal.test(sql)).map(([part]) => part)).toEqual([]);
 });
 
+it("keeps to D1's five terms in a compound SELECT, which the tests' SQLite doesn't hold it to", () => {
+  const over = partsSql().filter(([, sql]) => (sql.match(/\bUNION\b/g) ?? []).length > 4);
+  expect(over.map(([part]) => part)).toEqual([]);
+});
+
 describe("a club of 120 with a year of Fridays and Kumites behind it", () => {
   let small: string;
   let large: string;

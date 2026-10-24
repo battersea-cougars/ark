@@ -12,7 +12,7 @@
 // the Friday one is scheduled through the wizard, as its question is the step under test. Each Kumite is deleted when
 // its stage is done, so the club is left as the Kumite night left it.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, at, checks, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
+import { asMember, clubVia, at, checks, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
 import { kumiteOnAPastDay } from "./past-kumite";
 
 const KUMITE = "/tournaments/kumite";
@@ -58,7 +58,7 @@ test("The Kumite on the clock", async ({ browser }) => {
   // The club as the admin reads it, the server's clock at `wall` (a shortcut to ids and states, not under test)
   const adaAt = (wall: string) => asMember(ada.email, { at: london(wall) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const club = async (wall = "2026-10-30T12:00"): Promise<any> => adaAt(wall)("GET", "/api/bootstrap");
+  const club = async (wall = "2026-10-30T12:00"): Promise<any> => clubVia(adaAt(wall));
   const members = (await club()).members as { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
   /** Deletes a Kumite (Settings → Tournaments has the same delete): a shortcut, the club as it was. */

@@ -5,6 +5,7 @@ import { atVersion, VERSION_HEADER } from "./club-tag";
 import { Brake } from "./brake";
 import { BUILD_HEADER } from "./build";
 import { heardBuild } from "./update.svelte";
+import { HOLDS_HEADER } from "./club-parts";
 
 /** Keeps a tab that's gone wrong from spending the club's free allowance (ADR 0055). */
 export const brake = new Brake();
@@ -22,10 +23,17 @@ export class ApiError extends Error {
 /** Set once the app is up: from then on, a session that's gone (signed out elsewhere, revoked) reloads to sign-in. */
 export const running = { app: false };
 
+/** The pages' parts the app holds (page-data.svelte.ts, #178): a change sends back its parts of them too. */
+export const held = { parts: (): string[] => [] };
+
 export async function api<T = unknown>(method: string, path: string, payload?: unknown): Promise<T> {
+  const parts = method === "GET" ? [] : held.parts();
   const res = await send(path, {
     method,
-    headers: payload === undefined ? undefined : { "content-type": "application/json" },
+    headers: {
+      ...(payload === undefined ? {} : { "content-type": "application/json" }),
+      ...(parts.length ? { [HOLDS_HEADER]: parts.join(",") } : {}),
+    },
     body: payload === undefined ? undefined : JSON.stringify(payload),
   });
   return versioned(res, await read<T>(res, path));
@@ -111,6 +119,27 @@ export async function bootstrapIfChanged(held: number): Promise<Bootstrap | null
   brake.answered(304, true);
   heardBuild(res.headers.get(BUILD_HEADER));
   return null;
+}
+
+/**
+ * A page's parts of the club (#178), with the tag they came with: asked again with that tag, no slices when they're
+ * unchanged (an empty 304). The data version they're at least as new as, for the copy (catch-up.ts). Never kept by
+ * the browser, as the bootstrap isn't.
+ */
+export async function readParts(
+  names: string[],
+  tag: string | null,
+): Promise<{ slices: Slices | null; version: number | undefined; tag: string | null }> {
+  const path = `/api/slices?names=${names.join(",")}`;
+  const ask = { cache: "no-store" as const, headers: tag ? { "if-none-match": tag } : undefined };
+  const res = await send(path, ask);
+  const version = Number(res.headers.get(VERSION_HEADER)) || undefined;
+  if (res.status === 304) {
+    brake.answered(304, true);
+    return { slices: null, version, tag };
+  }
+  const data = await read<{ version: number; slices: Slices }>(res, path);
+  return { slices: data.slices, version: data.version, tag: res.headers.get("etag") };
 }
 
 /** Just these parts of the club, and the data version they're at least as new as (catch-up.ts). */

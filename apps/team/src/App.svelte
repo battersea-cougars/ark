@@ -10,6 +10,9 @@
   import Shell from "./app/shell/Shell.svelte";
   import NotAllowed from "./pages/NotAllowed.svelte";
   import { loadedPage, loadPage, preloadPages } from "./app/pages.svelte";
+  import { need, needsOf, prefetch, readyFor, showing } from "./app/page-data.svelte";
+  import { reportUnexpected } from "./app/errors.early";
+  import { ACTIONS } from "./demo/data";
   import { enterSettings } from "./app/settings-entry.svelte";
   import SimulationControl from "./lib/SimulationControl.svelte";
   import EnvRibbon from "./app/shell/EnvRibbon.svelte";
@@ -39,6 +42,19 @@
   const Page: Component<any> | undefined = $derived(allowed ? loadedPage(route.page) : NotAllowed);
   $effect(() => {
     if (allowed) void loadPage(route.page);
+  });
+  // ...and its parts of the club beyond the core (#178, app/page-data.svelte.ts): one request, if they aren't in. An
+  // address that isn't a page yet (a member's, before the roster's in) is given everything, then found
+  const needs = $derived(needsOf(allowed ? routeFor(all, router.path)?.page : "home", granted()));
+  $effect(() => {
+    showing(needs);
+    // Offline or resting: the page shows with what the app has; anything else is ours to hear of
+    need(needs).catch((e) => reportUnexpected(e, "Couldn't read this page's part of the club"));
+  });
+  const ready = $derived(readyFor(needs));
+  // Then the pages you're likely to open next, while the phone's idle, once
+  $effect(() => {
+    untrack(() => prefetch(new Set(ACTIONS)));
   });
   // A settings page opened in your everyday role (a link, a reload): your full role, as the gear does (ADR 0024)
   $effect(() => {
@@ -72,7 +88,7 @@
 
 <Shell {route}>
   {#each [view] as v (v.id)}
-    {#if v.Page}<v.Page {...v.params} />{/if}
+    {#if v.Page && ready}<v.Page {...v.params} />{/if}
   {/each}
 </Shell>
 <!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page -->

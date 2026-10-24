@@ -99,7 +99,9 @@ async function fridayRush({ target, roster, stats, shared, notes }) {
  */
 async function liveDraft({ target, roster, stats, shared, notes }) {
   const admin = await adminPhone(target, roster, stats, shared);
-  const club = await admin.boot("setup");
+  await admin.boot("setup");
+  // The roster is the members' page's (#178)
+  const club = await admin.page("setup", ["members"]);
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const type = must(
     await admin.call("setup", "POST", "/api/tournament-types", {
@@ -172,7 +174,10 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
     return { teams, made, pool, team: teams[onTheClock(teams.length, made)] };
   };
   // Everyone watching: the stream, reloading on each pick
-  const stops = watching.map((p) => (p.boot("bootstrap: open the draft"), p.follow(["tournaments"])));
+  // Opening the draft room: the core, then the Kumite's pages' parts (#178), as the app reads them
+  const opened = (p) =>
+    p.boot("bootstrap: open the draft").then(() => p.page("page: the draft room", ["members", "lastPlayed"]));
+  const stops = watching.map((p) => (opened(p), p.follow(["tournaments"])));
   // The captains: on each change, the one on the clock thinks a moment and picks
   const busy = new Set();
   const turn = async (cap) => {
@@ -195,6 +200,7 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
   };
   for (const cap of captainPhones) {
     await cap.boot("bootstrap: open the draft");
+    await cap.page("page: the draft room", ["members", "lastPlayed"]);
     stops.push(cap.follow(["tournaments"], () => turn(cap)));
     turn(cap);
   }
@@ -238,7 +244,9 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
  */
 async function scoring({ target, roster, stats, shared, followers = 80, notes, d1 }) {
   const admin = await adminPhone(target, roster, stats, shared);
-  const club = await admin.boot("setup");
+  await admin.boot("setup");
+  // The roster is the members' page's (#178)
+  const club = await admin.page("setup", ["members"]);
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const captains = roster.slice(1, 4);
   const t = must(
@@ -280,7 +288,11 @@ async function scoring({ target, roster, stats, shared, followers = 80, notes, d
   const shown = (c) => JSON.stringify(c?.tournaments?.find((y) => y.id === t.id)?.games.find((y) => y.id === game.id));
   const seen = viewers.map(() => []);
   // Everyone opens the game page first: the changes' cost is counted from once they're all on it
-  await Promise.all(viewers.map((p) => p.boot("bootstrap: open the game")));
+  await Promise.all(
+    viewers.map((p) =>
+      p.boot("bootstrap: open the game").then(() => p.page("page: the game", ["members", "lastPlayed"])),
+    ),
+  );
   const stops = viewers.map((p, i) =>
     p.follow(["tournaments"], (c) => seen[i].push({ at: performance.now(), game: shown(c) })),
   );

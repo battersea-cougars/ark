@@ -18,7 +18,7 @@ const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
-type Phone = { call: Json };
+type Phone = { call: Json; club: Json };
 let w: ReturnType<typeof testWorld>;
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});

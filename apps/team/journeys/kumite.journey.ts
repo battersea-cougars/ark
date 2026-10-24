@@ -10,7 +10,7 @@
 // off, whatever its date (ADR 0074). Sign-up opens today. Being on its day (KUMITE! from the fixtures out) is
 // lib/tournament-front.test.ts's. The morning after is the browser's clock a day on (Playwright's page.clock).
 import { expect, test } from "@playwright/test";
-import { asMember, checks, does, noFailedChecks, signIn, stage, type Person } from "./journey";
+import { asMember, clubVia, checks, does, noFailedChecks, signIn, stage, type Person } from "./journey";
 
 /** Today in London as the app's day picker names it: "Fri 23 Oct 2026". */
 const todayLabel = () =>
@@ -36,7 +36,7 @@ test("The Kumite night", async ({ browser }) => {
   const adaApi = asMember(ada.email);
   const kumite = async () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((await adaApi("GET", "/api/bootstrap")).tournaments as any[]).find((t) => t.typeId === 1 && t.heldOn);
+    ((await clubVia(adaApi)).tournaments as any[]).find((t) => t.typeId === 1 && t.heldOn);
 
   await stage("1. The Kumite scheduled: sign-up opens", async () => {
     for (const who of [fay, nell])
@@ -128,7 +128,7 @@ test("The Kumite night", async ({ browser }) => {
   });
 
   const { id } = await kumite();
-  const members = (await adaApi("GET", "/api/bootstrap")).members as { id: number; name: string }[];
+  const members = (await clubVia(adaApi)).members as { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
   /** The Kumite as last read, for its teams. */
   let cached = await kumite();

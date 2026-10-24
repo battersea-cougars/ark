@@ -34,8 +34,10 @@ import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
 import type { ClashQuestion } from "../lib/clashes";
-import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
+import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, held, readSlices, versionOf } from "./api";
 import { ClubCopy, withMatch } from "./catch-up";
+import { partsChanged } from "./club-parts";
+import { letGo, onParts, revalidate } from "./page-data.svelte";
 import { forgetEdition, keptAreStale, showTournaments } from "./editions.svelte";
 import { reportUnexpected } from "./errors.early";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
@@ -54,6 +56,9 @@ const COPY: Record<keyof Slices, () => void> = {
   members: () => {
     db.members = structuredClone(MEMBERS);
   },
+  // Home's people and the roster are one list in the store (demo/data.ts), as are the nights, the tournaments and
+  // what's owed (#178)
+  people: () => COPY.members(),
   roles: () => {
     db.roles = structuredClone(ROLES);
   },
@@ -67,6 +72,7 @@ const COPY: Record<keyof Slices, () => void> = {
     db.sessions = structuredClone(SESSIONS);
     db.teams = structuredClone(TEAMS);
   },
+  pastSessions: () => COPY.sessions(),
   tournamentTypes: () => {
     db.tournamentTypes = structuredClone(TOURNAMENT_TYPES);
   },
@@ -75,6 +81,7 @@ const COPY: Record<keyof Slices, () => void> = {
     keptAreStale();
     showTournaments();
   },
+  lastPlayed: () => COPY.tournaments(),
   clubEvents: () => {
     db.oneOffs = structuredClone(ONE_OFFS);
   },
@@ -94,6 +101,7 @@ const COPY: Record<keyof Slices, () => void> = {
   dues: () => {
     db.dues = structuredClone(DUES);
   },
+  clubDues: () => COPY.dues(),
   reminders: () => {
     db.reminders = structuredClone(REMINDERS);
   },
@@ -119,14 +127,27 @@ function apply(changed: Slices) {
   for (const key of Object.keys(changed) as (keyof Slices)[]) COPY[key]?.();
 }
 
-/** The whole club in place, and the data version it's at. */
+/**
+ * The core in place, and the data version it's at (#178). The pages' parts held were read before it: when the club
+ * has changed since, they're asked about again with their tags (unchanged, an empty 304).
+ */
 function whole(b: Bootstrap) {
+  const was = copy.held;
   hydrate(b);
   copyAll();
   copy.wholeAt(versionOf(b) ?? 0);
   // ...and who you are in it, and who you're viewing as (ADR 0024)
   startSession();
+  if (was && copy.held !== was)
+    revalidate().catch((e) => reportUnexpected(e, "Couldn't read the pages' parts again after the club changed"));
 }
+
+// A page's parts, as page-data.svelte.ts reads them: as new as the copy's, or (new to the app) in place as they came
+onParts((slices, version, fresh) => {
+  if (!version) return apply(slices as Slices);
+  const newer = copy.partsAt(version, slices);
+  apply((fresh ? slices : newer) as Slices);
+});
 
 /** When the whole club was last read or found unchanged: a live page opening just after doesn't ask again. */
 export const checked = { at: 0 };
@@ -149,6 +170,10 @@ export const copy = new ClubCopy({
     return Boolean(tournaments);
   },
   visible: () => document.visibilityState === "visible",
+  // A family's parts the app holds: the core's, and the pages' it's read (#178)
+  partsOf: (families) => partsChanged(families, held.parts()),
+  // ...and a page's that changed while no page in view shows it: read again when one opens
+  letGo,
 });
 
 /** The club's data, in place before the app mounts (main.ts): the store, and who you are in it. */

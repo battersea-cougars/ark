@@ -6,6 +6,7 @@
 // catch-up.ts, #112, #161).
 import { ClubCopy, withMatch } from "../../apps/team/src/app/catch-up.ts";
 import { atVersion, VERSION_HEADER } from "../../apps/team/src/app/club-tag.ts";
+import { HOLDS_HEADER, partsChanged } from "../../apps/team/src/app/club-parts.ts";
 
 /** Every request's time and answer, by what it was (`label`). */
 export class Stats {
@@ -49,8 +50,8 @@ async function devSignIn(url, email, base) {
 }
 
 /**
- * A member's phone: `call` for a request (timed into `stats`), `boot` for the bootstrap with its ETag, `follow` for a
- * live page's stream. `target`: { url, signIn? } (load.mjs); with `signIn` (a session minted for it, load.club.mjs)
+ * A member's phone: `call` for a request (timed into `stats`), `boot` for the bootstrap with its ETag (the core, #178),
+ * `page` for a page's own parts as the app reads them when it's opened, `follow` for a live page's stream. `target`: { url, signIn? } (load.mjs); with `signIn` (a session minted for it, load.club.mjs)
  * the phone sends that cookie, else it signs in as dev-sign-in does. `address`: the cf-connecting-ip it claims, on a
  * local server only (Cloudflare sets its own).
  */
@@ -63,6 +64,8 @@ export async function phone(target, email, stats, { address } = {}) {
   let club = null;
   /** Whether the last read of the whole club got an answer. */
   let booted = false;
+  /** The pages' parts this phone has read (#178): a change sends them back, and the hub's events count them in. */
+  const holds = new Set();
   /** The pages following along, each told when the copy changes. */
   const following = new Set();
   /** When the oldest change not yet on this phone's screen was heard of. */
@@ -96,6 +99,7 @@ export async function phone(target, email, stats, { address } = {}) {
       return true;
     },
     visible: () => true,
+    partsOf: (families) => partsChanged(families, holds),
   });
 
   async function call(label, method, path, payload, headers = {}) {
@@ -111,6 +115,7 @@ export async function phone(target, email, stats, { address } = {}) {
           ...base,
           cookie,
           ...(method === "GET" ? {} : { "content-type": "application/json", origin }),
+          ...(method !== "GET" && holds.size ? { [HOLDS_HEADER]: [...holds].join(",") } : {}),
           ...headers,
         },
         body: payload === undefined ? undefined : JSON.stringify(payload),
@@ -136,6 +141,16 @@ export async function phone(target, email, stats, { address } = {}) {
       copy.wholeAt(r.version ?? 0);
     }
     booted = r.status === 200 || r.status === 304;
+    return club;
+  }
+
+  /** A page's own parts of the club (#178), as the app reads them when the page is opened: kept, and followed. */
+  async function page(label, names) {
+    const r = await call(label, "GET", `/api/slices?names=${names.join(",")}`);
+    if (r.status === 200) {
+      club = { ...club, ...r.body.slices };
+      for (const name of names) holds.add(name);
+    }
     return club;
   }
 
@@ -199,7 +214,7 @@ export async function phone(target, email, stats, { address } = {}) {
     };
   }
 
-  return { email, memberId, call, change, boot, follow, copy, club: () => club };
+  return { email, memberId, call, change, boot, page, follow, copy, club: () => club };
 }
 
 /** The address a phone claims on a local server (`shared`: the rink's wifi); none against dev, where it's ours. */

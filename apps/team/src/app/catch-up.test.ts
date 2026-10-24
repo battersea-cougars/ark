@@ -4,6 +4,7 @@
 // copy of the club's versions, and the waits fake timers.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ClubCopy, type CopyIO } from "./catch-up";
+import { partsChanged } from "./club-parts";
 
 /** A copy whose reads come back with whatever `server` says, and a log of what it asked. */
 function phone(over: Partial<CopyIO> = {}) {
@@ -275,5 +276,55 @@ describe("a live match the hub sends with its change (#161)", () => {
     p.copy.hear({ changed: ["tournaments"], versions: [5], parts: [{ version: 5, match: match(1) }] });
     await settle();
     expect(p.asked).toEqual(["parts: tournaments"]);
+  });
+
+  describe("the core and the pages' parts (#178)", () => {
+    /** A phone holding these pages' parts, with these shown by the page in view: the rest are let go. */
+    const holding = (held: string[], shown: string[]) => {
+      const kept = new Set(held);
+      const away: string[] = [];
+      const p = phone({
+        partsOf: (families) => partsChanged(families, kept),
+        letGo: (parts) => {
+          const going = parts.filter((n) => kept.has(n) && !shown.includes(n));
+          for (const n of going) kept.delete(n);
+          away.push(...going);
+          return going;
+        },
+      });
+      return { ...p, away, kept };
+    };
+
+    it("reads a family's parts the phone holds: Home's next nights and people, and the weeks just held on their page", async () => {
+      const p = holding(["pastSessions"], ["pastSessions"]);
+      p.copy.follow(["sessions"]);
+      p.server.version = 1;
+      p.copy.hear({ changed: ["sessions"], versions: [1] });
+      await settle();
+      expect(p.asked).toEqual(["parts: sessions, people, pastSessions"]);
+      expect(p.copy.held).toBe(1);
+    });
+
+    it("lets go of a page's part no page in view shows, and isn't held back waiting for it", async () => {
+      const p = holding(["pastSessions", "members"], []);
+      p.copy.follow(["sessions"]);
+      p.server.version = 1;
+      p.copy.hear({ changed: ["sessions"], versions: [1] });
+      await settle();
+      expect(p.asked).toEqual(["parts: sessions, people"]);
+      expect(p.away).toEqual(["pastSessions"]);
+      expect([...p.kept]).toEqual(["members"]);
+      expect(p.copy.held).toBe(1);
+      expect(p.copy.lacking()).toEqual([]);
+    });
+
+    it("reads the whole club for a change to what someone may do, whatever parts it holds", async () => {
+      const p = holding([], []);
+      p.copy.follow(["sessions"]);
+      p.server.version = 1;
+      p.copy.hear({ changed: ["members", "sessions"], versions: [1] });
+      await settle();
+      expect(p.asked).toEqual(["whole"]);
+    });
   });
 });

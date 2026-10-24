@@ -12,6 +12,8 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { test, type Browser, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
+import { PAGE_PARTS } from "../src/app/club-parts";
+import { wholeClub } from "../src/app/club-whole";
 
 const root = join(import.meta.dirname, "../../..");
 const out = process.env.JOURNEY_OUT ?? join(root, ".journeys");
@@ -204,6 +206,16 @@ export function asMember(email: string, opts: { at?: Date | string } = {}) {
     if (!res.ok) throw new Error(`${email}: ${method} ${path} → ${res.status} ${await res.text()}`);
     return res.headers.get("content-type")?.includes("json") ? res.json() : null;
   };
+}
+
+/**
+ * The club as the app holds it once its pages are read (#178), through a shortcut like `asMember`'s: opening the app
+ * (the core) and every page's parts, put together as the app puts them.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function clubVia(api: (method: string, path: string) => Promise<any>) {
+  const core = await api("GET", "/api/bootstrap");
+  return wholeClub(core, (await api("GET", `/api/slices?names=${PAGE_PARTS.join(",")}`)).slices);
 }
 
 /**

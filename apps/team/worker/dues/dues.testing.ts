@@ -1,5 +1,6 @@
 // A member's dues as the app reads them, for the use cases (#177): their ledger page by page (what the Dues tab and
 // the member sheet show), and their line of what they owe from the club read. For Vitest only.
+import { duesOf } from "../../src/app/club-whole";
 import { expect } from "vitest";
 import type { ChargeJson } from "./dues";
 import type { Line, Payment } from "./dues.ledger";
@@ -40,7 +41,12 @@ export const paymentsOf = async (b: Asker, memberId: number, now?: Date): Promis
   (await ledgerOf(b, memberId, now)).flatMap((l) => (l.kind === "payment" ? [l.payment] : []));
 
 /** What each owes, as the club read sends it to `b` (their own, or everyone's for who sees Unpaid fees). */
-export const owedLines = async (b: Asker, now?: Date): Promise<Owed[]> => (await b.club({ now })).body.dues;
+export async function owedLines(b: Asker, now?: Date): Promise<Owed[]> {
+  const core = (await b.call("GET", "/api/bootstrap", undefined, { now })).body;
+  // Everyone's is the members' pages' (#178): put together with your own as the app does
+  const pages = (await b.call("GET", "/api/slices?names=clubDues", undefined, { now })).body.slices;
+  return duesOf(core.dues, pages.clubDues);
+}
 
 /** A member's credit, as the club read sends it. */
 export const creditOf = async (b: Asker, memberId: number, now?: Date) =>

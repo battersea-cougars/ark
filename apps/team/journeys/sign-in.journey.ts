@@ -7,7 +7,18 @@
 // Her browser says it's on an address of its own (journey.ts stranger): the sign-in and join limits count per address
 // (api.limits.ts), and they aren't what this tests.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, checks, does, expectRefusal, noFailedChecks, signIn, stage, stranger, type Person } from "./journey";
+import {
+  asMember,
+  clubVia,
+  checks,
+  does,
+  expectRefusal,
+  noFailedChecks,
+  signIn,
+  stage,
+  stranger,
+  type Person,
+} from "./journey";
 
 /**
  * A passkey authenticator in this tab, as a phone's own would be (Chrome's virtual one, through DevTools). `present`
@@ -52,9 +63,7 @@ test("Signing in, and asking to join", async ({ browser }) => {
   const jo = await stranger(browser, "New", `Jo ${surname}`, `jo.${surname.toLowerCase()}@example.com`);
   const adaApi = asMember(ada.email);
   const statusOf = async () =>
-    ((await adaApi("GET", "/api/bootstrap")).members as { name: string; status: string }[]).find(
-      (m) => m.name === jo.name,
-    )?.status;
+    ((await clubVia(adaApi)).members as { name: string; status: string }[]).find((m) => m.name === jo.name)?.status;
   /** The sign-in page's first step: her email, and Send me a code. */
   const askForCode = async () => {
     await jo.page.goto("/");

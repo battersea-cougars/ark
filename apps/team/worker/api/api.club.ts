@@ -226,19 +226,19 @@ const nightTeams = (which: string) =>
  * Home's people (#178): you, who you really are while viewing as someone, and whoever's named in your next things:
  * the nights from tonight (their answers and teams), the tournaments opening the app sends (their teams, captains,
  * players, answers, award winners) and the events still to come. As many as those things hold, however big the club.
+ * A test for each (`m`: the member), not one UNION of them: D1 allows five terms in a compound SELECT.
  */
-const PEOPLE = `SELECT v.member_id FROM viewer v
-  UNION SELECT v.viewed_by FROM viewer v WHERE v.viewed_by IS NOT NULL
-  UNION SELECT e.member_id FROM viewer v CROSS JOIN training_sessions s CROSS JOIN attendance e ON e.session_id = s.id
-    WHERE ${NEXT_NIGHTS}
-  UNION SELECT p.member_id FROM session_teams t JOIN session_team_players p ON p.team_id = t.id
-    WHERE t.session_id IN (${nightsShown(NEXT_NIGHTS)})
-  UNION SELECT captain_member_id FROM tournament_teams WHERE tournament_id IN (SELECT id FROM shown)
-  UNION SELECT p.member_id FROM tournament_teams t JOIN tournament_team_players p ON p.team_id = t.id
-    WHERE t.tournament_id IN (SELECT id FROM shown)
-  UNION SELECT member_id FROM tournament_entries WHERE tournament_id IN (SELECT id FROM shown)
-  UNION SELECT member_id FROM tournament_award_winners WHERE tournament_id IN (SELECT id FROM shown)
-  UNION SELECT member_id FROM club_event_entries WHERE event_id IN (${EVENTS_SHOWN})`;
+const PEOPLE = `m.id IN (v.member_id, v.viewed_by)
+  OR m.id IN (SELECT e.member_id FROM viewer v CROSS JOIN training_sessions s
+    CROSS JOIN attendance e ON e.session_id = s.id WHERE ${NEXT_NIGHTS})
+  OR m.id IN (SELECT p.member_id FROM session_teams t JOIN session_team_players p ON p.team_id = t.id
+    WHERE t.session_id IN (${nightsShown(NEXT_NIGHTS)}))
+  OR m.id IN (SELECT captain_member_id FROM tournament_teams WHERE tournament_id IN (SELECT id FROM shown))
+  OR m.id IN (SELECT p.member_id FROM tournament_teams t JOIN tournament_team_players p ON p.team_id = t.id
+    WHERE t.tournament_id IN (SELECT id FROM shown))
+  OR m.id IN (SELECT member_id FROM tournament_entries WHERE tournament_id IN (SELECT id FROM shown))
+  OR m.id IN (SELECT member_id FROM tournament_award_winners WHERE tournament_id IN (SELECT id FROM shown))
+  OR m.id IN (SELECT member_id FROM club_event_entries WHERE event_id IN (${EVENTS_SHOWN}))`;
 
 /**
  * Played: every game over, or an admin marked it finished (lib/edition.ts editionState, @cougars/shared/results isDone).
@@ -410,7 +410,7 @@ const PARTS = {
   people: memberRows({
     mine: "m.id = v.member_id",
     seesRoles: "m.id = v.member_id",
-    who: `m.id IN (${PEOPLE}) AND (m.id IN (v.member_id, v.viewed_by) OR v.sees_private OR m.status = 'active')`,
+    who: `(${PEOPLE}) AND (m.id IN (v.member_id, v.viewed_by) OR v.sees_private OR m.status = 'active')`,
   }),
   roles: rows("id name description is_system", "SELECT id, name, description, is_system FROM roles ORDER BY id"),
   roleActions: rows("role_id action", "SELECT role_id, action FROM role_actions"),

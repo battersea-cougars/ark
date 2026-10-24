@@ -21,6 +21,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   asMember,
+  clubVia,
   at,
   checks,
   cron,
@@ -72,7 +73,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
   };
   /** The club as the admin's app reads it, at the story's moment. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const club = async (): Promise<any> => asMember(ada.email, { at: now })("GET", "/api/bootstrap");
+  const club = async (): Promise<any> => clubVia(asMember(ada.email, { at: now }));
   const members = (await club()).members as { id: number; name: string }[];
   const idOf = (name: string) => members.find((m) => m.name === name)!.id;
   let seriesId = 0;

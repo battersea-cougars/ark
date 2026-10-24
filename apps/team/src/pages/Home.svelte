@@ -19,7 +19,7 @@
   import { myTurnLine } from "../lib/draft";
   import { kickOff, slotMinutes } from "../lib/fixtures";
   import { teamTone } from "../lib/team-tones";
-  import { agedOf, leftOn, overdue } from "../lib/dues";
+  import { leftOn, overdue } from "../lib/dues";
   import {
     homeFeed,
     owedNotice,
@@ -275,16 +275,8 @@
   const events = $derived(bookables.map(upcomingEvent));
 
   // What the club is owed, for whoever sees Unpaid fees (read:Dues): the total, by how many, and how much of it is
-  // in the worst bucket (over 90 days)
-  const club = $derived.by(() => {
-    if (!can(perms, "read:Dues")) return null;
-    const rows = agedOf(db.dues);
-    return {
-      total: rows.reduce((s, r) => s + r.total, 0),
-      people: rows.length,
-      worst: rows.reduce((s, r) => s + r.amounts[3], 0),
-    };
-  });
+  // in the worst bucket (over 90 days), added up by the server, so Home needn't hold everyone's dues (#178)
+  const club = $derived(can(perms, "read:Dues") ? db.forAdmins.owed : null);
   // Whether Google has cancelled the club's email (ADR 0027, #101), for whoever looks after it, so they hear before
   // the members do: with the club, so its line is there on first paint (the server sends it to nobody else)
   const keepsEmail = $derived(can(perms, "manage:Settings"));
@@ -309,9 +301,8 @@
       events,
       emailStopped: keepsEmail && db.forAdmins.emailStopped,
       usage: seesUsage ? db.forAdmins.usage : [],
-      asking: can(perms, "manage:Member")
-        ? db.members.filter((m) => m.status === "pending").map((m) => m.player.name)
-        : [],
+      // Who's asking to join, from the server with the core (#178): Home doesn't hold the roster
+      asking: can(perms, "manage:Member") ? db.forAdmins.asking : [],
       now: openedAt,
       pinned,
     }),

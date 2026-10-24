@@ -8,7 +8,7 @@
 // in November 2026 (`at`: the browser's clock and the server's, both), so the days are the same whenever it runs. It
 // runs first, on a fresh database, and again on one it ran on before: what it adds has this run's own name.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, at, checks, does, london, noFailedChecks, signIn, stage } from "./journey";
+import { asMember, clubVia, at, checks, does, london, noFailedChecks, signIn, stage } from "./journey";
 
 /** This run's mark on what it adds, so a database it ran on before doesn't confuse it. */
 const run = Date.now().toString(36).slice(-4);
@@ -45,7 +45,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
   const adaApi = asMember(ada.email, { at: MONDAY });
   const events = async () => (await adaApi("GET", "/api/bootstrap")).clubEvents as Event[];
   const event = async (title: string) => (await events()).find((e) => e.title === title);
-  const members = (await adaApi("GET", "/api/bootstrap")).members as { id: number; name: string }[];
+  const members = (await clubVia(adaApi)).members as { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
 
   /** A card on the page by its heading: an event on the Calendar, or Home's. */

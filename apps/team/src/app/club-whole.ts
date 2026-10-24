@@ -55,3 +55,19 @@ export function duesOf<T extends Owing>(yours: T[], everyone: T[] | undefined): 
     (a, b) => b.oldest - a.oldest || b.owed - a.owed || a.memberId - b.memberId,
   );
 }
+
+/**
+ * The bootstrap with every page's parts in place, as the app holds the club once its pages are read: for the tests'
+ * fake app and the journeys' shortcuts, which read the club through the API.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function wholeClub(core: any, pages: any) {
+  return {
+    ...core,
+    ...pages,
+    members: membersOf(pages.members, core.people, core.viewingAs ?? core.me),
+    sessions: nightsOf(core.sessions, pages.pastSessions),
+    tournaments: tournamentsOf(core.tournaments, pages.lastPlayed),
+    dues: duesOf(core.dues, pages.clubDues),
+  };
+}
