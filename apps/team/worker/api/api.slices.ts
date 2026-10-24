@@ -21,7 +21,7 @@ import { levelsFrom } from "../settings/usage.levels";
 // ─── The club, in parts ───
 // The bootstrap is all of them; a change's reply is the ones it touched. Each is what this member may see (ADR 0036).
 
-// Who may see more than their own (ADR 0036, ADR 0036). Anyone else sees, of anything personal, only their own.
+// Who may see more than their own (ADR 0036). Anyone else sees, of anything personal, only their own.
 /** Everyone's roles, and every role's actions: who sets them, and who views the app as someone (ADR 0024). */
 export const SEES_ROLES: readonly Action[] = ["manage:Member", "manage:Role", "impersonate:Member"];
 /** Everyone's answers (out as well as in) and the register (no-shows, walk-ins): who runs events and their teams. */
