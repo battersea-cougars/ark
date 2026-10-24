@@ -69,10 +69,13 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
   the second step. A row closes the menu before its job opens, and the job opens in the same kind of layer as the
   menu, never a drawer and then a sheet: a job that belongs in a sheet is reached from the thing itself on the page
   (tap the clock to set the time), and a menu row either does its job there and then (Take back last goal) or opens a
-  drawer or panel.
+  drawer or panel. A menu is `lib/ManageMenu` (its rows `lib/ManageList`, in a `short` drawer); a question before a
+  job (Back a step, Reset the draft) is `lib/Confirm` in a `short` drawer, its tap that can't be undone the one red
+  fill, `.btn.danger` (app.css). None of these is written again by hand (#153; `scripts/team-one-home.test.mjs`).
 - **Stacking:** one overlay at a time, except a pop-over inside a form and a short sheet opened from an editor panel
   (a member's Charge, Adjust and Record a payment), which stacks on top as its own modal dialog. Pop-overs and a
-  player's card are moved to `<body>` (`lib/portal.ts`), out of the page's stacking context. Escape closes the top
+  player's card are moved to `<body>`, or into the open dialog they're in (`portal` in `lib/overlay.ts`), out of the
+  page's stacking context. Escape closes the top
   layer only. Overlays don't touch the history: iOS's back swipe still goes back a page.
 - **A sheet's or drawer's main action sits in its footer**, not at the end of the body, so it's always in reach.
 
@@ -80,7 +83,8 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 
 - **One side drawer for the app: `lib/Drawer`** (desktop and tablet, from the right; 26rem, or `wide` 36rem). An editor
   (`lib/EditorPanel`) is the same drawer in its `page` placement, in the page's column (below). On a phone each is
-  the one bottom sheet, `lib/Sheet` (above), unless it's `side` (the draft room's players, worked beside the page:
+  the one bottom sheet, `lib/Sheet` (above): tall, or `short` for a menu or a question (as tall as what's in it, without
+  the line under the title), unless it's `side` (the draft room's players, worked beside the page:
   from the right on a phone too, leaving a strip of page to tap off on). Same header everywhere: the title, an
   optional line under it, the ×.
 - **They keep one close contract (`lib/overlay.ts`)**: a native modal dialog, so focus stays in it and goes back to
@@ -222,3 +226,9 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - 2026-10-23: An overlay's save state has one owner at a time, kept out of reactive state (`FormOwner`).
 - 2026-10-24: ADR 0103 (drawers, sheets and panels) merged in; its stale lines dropped (drawers are native dialogs
   now, the account menu is gone, its to-do list is done).
+- 2026-10-24: One home for each look and word, a first pass (#153): every page's Manage menu is `lib/ManageMenu`, a
+  question before a job is `lib/Confirm`, both in a `short` drawer (no more Sheet-on-a-phone, Drawer-on-a-desktop by
+  hand); the red confirm is `.btn.danger`; `portal` lives in `lib/overlay.ts`, one copy; ordinals, plurals and stored
+  days in words come from `lib/dates.ts`. `scripts/team-one-home.test.mjs` fails on a copy. Nothing looks different,
+  except fixes: Passkeys' "Remove it" is red, a pick past the 20th says "21st", and a member's card or the team
+  maker's deal opened from inside a sheet opens in front of it.
