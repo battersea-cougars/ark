@@ -16,7 +16,7 @@ import { flushSanityRequests, hasPendingSanityRequests } from "@cougars/shared/s
 import { consoleAdapter } from "@cougars/shared/scribe.console";
 import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
 
-// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0111)
+// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0110)
 scribe.configure({ adapter: consoleAdapter, report: sentryReporter(Sentry) });
 const log = scribe.logger("cron");
 /** The hourly run's Sentry cron monitor, made by scripts/sentry-setup.mjs (the free plan has one). */
@@ -104,7 +104,7 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
     }
     // Hourly: charge what a new day or quarter makes due (ADR 0007; no reminders: an admin sends them), warn the admins
     // before the free allowance runs out (ADR 0059), and forget old sign-in records (#30). Each on its own, so one
-    // failing doesn't stop the rest. It checks in with Sentry's cron monitor (ADR 0111, scripts/sentry-setup.mjs), so
+    // failing doesn't stop the rest. It checks in with Sentry's cron monitor (ADR 0110, scripts/sentry-setup.mjs), so
     // an hour it doesn't run is an alert; a job's failure is reported by its own log line. No Sentry here: just runs.
     else {
       await Sentry.withMonitor(HOURLY_MONITOR, async () => {

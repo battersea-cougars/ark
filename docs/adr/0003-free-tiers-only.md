@@ -60,7 +60,7 @@ isn't driven, goes over its budget, or costs more for the bigger club. The fake 
 | Web Push                  | Free (browser push services)                                  | Team-app notifications ([#24](https://github.com/battersea-cougars/ark/issues/24)) |
 | Firebase Cloud Messaging  | Free, unlimited                                               | The store app's notifications (ADR 0108)                                           |
 | GitHub Actions macOS      | Free on a public repo                                         | The store app's builds, when its shell changes (ADR 0108)                          |
-| Sentry                    | Developer plan: 5k errors a month, 1 user                     | The apps' errors and down alerts (ADR 0111): a handful a month once settled        |
+| Sentry                    | Developer plan: 5k errors a month, 1 user                     | The apps' errors and down alerts (ADR 0110): a handful a month once settled        |
 
 Sanity Free, checked on [sanity.io/pricing](https://www.sanity.io/pricing) on 2026-10-05: 20 seats, 2 datasets
 (public only), 10k documents, 1M API CDN requests and 250k API requests a month, 100 GB of assets, 100 GB of

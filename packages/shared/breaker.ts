@@ -96,7 +96,7 @@ export async function pausedUntil(
 }
 
 /**
- * A call that failed, logged for what it means (ADR 0110, 0111): an error, so Sentry hears, unless it failed only
+ * A call that failed, logged for what it means (ADR 0110): an error, so Sentry hears, unless it failed only
  * because the service is paused. That's a warning: the failures that paused it were errors already, and the pause was
  * logged once (`breaker.open`), so a page read while it's paused doesn't send Sentry one event a visitor.
  */

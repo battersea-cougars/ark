@@ -223,7 +223,7 @@ jobs:
         env:
           CLUB_SNAPSHOT_ENV: ${{ env.SITE_ENV }}
 
-      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0111). A PR
+      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0110). A PR
       # preview only deletes them.
       - name: Source maps
         env:
@@ -256,7 +256,7 @@ jobs:
         if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: |
-          # Where its errors go (ADR 0111): the web project's DSN, as the Worker's SENTRY_DSN
+          # Where its errors go (ADR 0110): the web project's DSN, as the Worker's SENTRY_DSN
           SENTRY_DSN="${SENTRY_DSN_WEB:-}"
           for name in YOUTUBE_API_KEY GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY \
             TURNSTILE_SECRET_KEY SENTRY_DSN INSTAGRAM_TOKEN INSTAGRAM_TOKEN_KEY; do
@@ -358,12 +358,12 @@ jobs:
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      # The app in the browser reports its errors too (ADR 0111): the team project's DSN, built in (a committed setting,
+      # The app in the browser reports its errors too (ADR 0110): the team project's DSN, built in (a committed setting,
       # scripts/lib/settings.mjs, which env-pull exported); and Turnstile's public site key for the sign-in page (#13)
       - name: Build
         run: VITE_SENTRY_DSN="${SENTRY_DSN_TEAM:-}" VITE_SITE_ENV="$SITE_ENV" VITE_RELEASE="$PUBLIC_BUILD_VERSION" VITE_TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY" npm run build -w @cougars/team
 
-      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0111). A PR
+      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0110). A PR
       # preview only deletes them.
       - name: Source maps
         env:

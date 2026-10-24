@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sentry for the club's errors and down alerts (ADR 0111), made through its API and safe to run again: it changes nothing
+// Sentry for the club's errors and down alerts (ADR 0110), made through its API and safe to run again: it changes nothing
 // that's already right.
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, the DSNs
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs --uptime   also the uptime monitors (once /health is live)

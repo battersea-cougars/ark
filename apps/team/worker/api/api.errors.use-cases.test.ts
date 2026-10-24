@@ -1,4 +1,4 @@
-// When the app breaks for a member, the developer hears of it (ADR 0111, #75): a request that fails is reported with
+// When the app breaks for a member, the developer hears of it (ADR 0110, #75): a request that fails is reported with
 // what was asked (method, path, the route it matched) and who asked, by their number only, never their name or email.
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Entry } from "@cougars/shared/scribe";

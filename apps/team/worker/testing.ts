@@ -506,7 +506,7 @@ export function testWorld(roster: object[]) {
   }
 
   /**
-   * Sentry's API on (ADR 0111): the read-only token, and each project's issues as Sentry lists them
+   * Sentry's API on (ADR 0110): the read-only token, and each project's issues as Sentry lists them
    * (`GET /api/0/projects/battersea-cougars/{project}/issues/`), the open ones in the environment asked for. A test
    * puts issues in `issues.team` or `issues.web` (`issue()` makes one), and says `down` (no answer) or `refuses` (the
    * token isn't let in). `asked`: each request's project and query, as Sentry got them.

@@ -67,7 +67,7 @@ if (dbOnly) {
 const config = JSON.parse(readFileSync(GENERATED, "utf8"));
 config.name = target.worker;
 config.vars = { ...config.vars, SITE_ENV: environment };
-// The release Sentry files this Worker's errors under (ADR 0111): the deploy's build version, as the browser code has it
+// The release Sentry files this Worker's errors under (ADR 0110): the deploy's build version, as the browser code has it
 if (process.env.PUBLIC_BUILD_VERSION) config.vars.BUILD_VERSION = process.env.PUBLIC_BUILD_VERSION;
 // The team Worker's plain settings (scripts/lib/settings.mjs, not secret): the account its Usage page reads the analytics
 // of (worker/settings/usage.ts), the Apple team its app links name (worker/store/store.links.ts), where its errors go

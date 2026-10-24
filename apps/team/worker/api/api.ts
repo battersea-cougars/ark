@@ -155,7 +155,7 @@ export async function handleApi(
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     throw e;
   }
-  // The app's own errors on their way to Sentry (ADR 0111), signed in or not: an error at sign-in counts too
+  // The app's own errors on their way to Sentry (ADR 0110), signed in or not: an error at sign-in counts too
   if (url.pathname === "/api/errors") return sentryTunnel(request, env.SENTRY_DSN);
   if (url.pathname.startsWith("/api/auth/")) {
     try {

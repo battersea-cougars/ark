@@ -1,4 +1,4 @@
-// The app's errors from its first moment (ADR 0111): Sentry loads beside the club's data, off the first-paint path
+// The app's errors from its first moment (ADR 0110): Sentry loads beside the club's data, off the first-paint path
 // (errors.ts, ADR 0120), so anything that goes wrong before it's ready (the start-up failing, an error thrown while
 // Home mounts) waits here and is handed to it once it starts. Tiny and with no imports, so it costs Home nothing; it
 // is main.ts's first import, so it listens before the rest of the app runs. A build without a DSN keeps nothing.

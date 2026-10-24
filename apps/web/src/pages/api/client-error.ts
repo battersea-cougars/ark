@@ -9,7 +9,7 @@ const log = scribe.logger("browser");
 
 export const prerender = false;
 
-// A visitor's browser hit an error in our scripts (lib/server/client-errors.ts, ADR 0111). Only our own pages, a few
+// A visitor's browser hit an error in our scripts (lib/server/client-errors.ts, ADR 0110). Only our own pages, a few
 // reports per visitor at most (Sentry's free 5k a month is for real errors), and always a quiet 204: a broken page
 // has nothing to do with the answer.
 export const POST: APIRoute = async ({ request, clientAddress }) => {

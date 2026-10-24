@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The apps' recent errors, from Sentry (ADR 0111): each project's open issues in this environment, newest first,
+  // The apps' recent errors, from Sentry (ADR 0110): each project's open issues in this environment, newest first,
   // each a link to it in Sentry. The server asks Sentry at most every few minutes, whoever opens this, so Refresh
   // shows what it last heard. Here in Settings → System rather than Dev tools, which production doesn't have.
   import { api } from "../app/api";

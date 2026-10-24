@@ -344,7 +344,7 @@ const STATIC_TAIL: Route[] = [
     section: "System",
     hint: "Today's use of the free plan",
   },
-  // The apps' recent errors, from Sentry (ADR 0111): here, not in Dev tools, which production doesn't have
+  // The apps' recent errors, from Sentry (ADR 0110): here, not in Dev tools, which production doesn't have
   {
     id: "errors",
     path: "/settings/errors",

@@ -9,7 +9,7 @@ import { scribe } from "@cougars/shared/scribe";
 import { consoleAdapter } from "@cougars/shared/scribe.console";
 import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
 
-// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0111)
+// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0110)
 scribe.configure({ adapter: consoleAdapter, report: sentryReporter(Sentry) });
 const log = scribe.logger("cron");
 

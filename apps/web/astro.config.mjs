@@ -79,7 +79,7 @@ export default defineConfig({
       TURNSTILE_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // The deploy's smoke test of the form (lib/server/smoke.ts): unset, there's no smoke path at all
       SMOKE_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
-      // Where the Worker's errors go (ADR 0111, src/worker.ts reads it): a Worker secret; unset, only the log
+      // Where the Worker's errors go (ADR 0110, src/worker.ts reads it): a Worker secret; unset, only the log
       SENTRY_DSN: envField.string({ context: "server", access: "secret", optional: true }),
       PUBLIC_BUILD_VERSION: envField.string({ context: "client", access: "public", default: "dev" }),
       // Sample content + noindex for dev builds (local, PR previews, scripts/deploy-dev.sh). Never in production.
@@ -134,7 +134,7 @@ export default defineConfig({
   vite: {
     envDir: "../..",
     define: { "import.meta.env.ENV_RIBBON": JSON.stringify(ribbon ?? "") },
-    // Source maps for Sentry (ADR 0111): written but never linked from the scripts; the deploy uploads them, then
+    // Source maps for Sentry (ADR 0110): written but never linked from the scripts; the deploy uploads them, then
     // deletes them before the files go live
     build: {
       sourcemap: "hidden",

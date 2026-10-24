@@ -1,4 +1,4 @@
-// The apps' recent errors, from Sentry (ADR 0111): Settings → Errors shows whoever may read them (`read:Errors`;
+// The apps' recent errors, from Sentry (ADR 0110): Settings → Errors shows whoever may read them (`read:Errors`;
 // admins through `manage:all`) each project's open issues in this environment, newest first, each linking to Sentry.
 // Read by the Worker with a read-only token, SENTRY_ISSUES_TOKEN (Issue & Event: Read), never the deploy's
 // SENTRY_AUTH_TOKEN. Sentry is asked at most every few minutes, whoever opens the page: its last answer is kept in

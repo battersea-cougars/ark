@@ -156,7 +156,7 @@ export async function readUsage(env: Env, now: Date): Promise<Usage> {
     return { configured: true, day, resetsAt, metrics, cpu: { limitMs: CPU_LIMIT_MS, workers }, backup, sanity };
   } catch (e) {
     // An error, not a warning: the hourly check can't see the free allowance either, so nobody would be warned before
-    // it runs out and the app stops for everyone (ADR 0059, 0111)
+    // it runs out and the app stops for everyone (ADR 0059, 0110)
     log.error("usage.unavailable", e);
     return { configured: true, unavailable: true, ...none };
   }

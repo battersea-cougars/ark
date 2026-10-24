@@ -611,7 +611,7 @@ secret**. **A leaked key could** send notifications to the app's users, given th
 
 ## Sentry
 
-Errors from both apps, server and browser, and the down alerts ([ADR 0111](adr/0111-errors-and-uptime.md)). One
+Errors from both apps, server and browser, and the down alerts ([ADR 0110](adr/0110-structured-logging.md)). One
 organisation, `battersea-cougars`, in Sentry's **EU region** (log in at <https://de.sentry.io>), on the free Developer
 plan (one user: the developer account, which forwards the alerts). Projects `web` and `team`; each event says its
 environment. Alerts email on a new issue in **production** or **dev**, and on a spike in production; the team
@@ -635,7 +635,7 @@ Sets Sentry up and uploads source maps, so error reports show our code, not mini
 #### `SENTRY_ISSUES_TOKEN`
 
 Lets the team app's Worker read the open issues in both projects for Settings → Errors
-([ADR 0111](adr/0111-errors-and-uptime.md)). **Read-only**, so a leak shows our error titles and nothing more: never
+([ADR 0110](adr/0110-structured-logging.md)). **Read-only**, so a leak shows our error titles and nothing more: never
 the deploy's `SENTRY_AUTH_TOKEN`. Without it the page says it isn't set up; errors still go to Sentry and the alerts
 still email.
 

@@ -1,4 +1,4 @@
-// The app's own errors to Sentry (ADR 0111), in the browser and the store app alike: anything thrown that nothing
+// The app's own errors to Sentry (ADR 0110), in the browser and the store app alike: anything thrown that nothing
 // caught. Through the Worker's /api/errors (the app talks only to its own origin, and ad blockers leave that alone).
 // Errors only, nothing about the member: the same settings and clean-up as the Workers (packages/shared/scribe.sentry.ts).
 // A build without a DSN (your machine) never loads this.

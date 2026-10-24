@@ -1,5 +1,5 @@
-// What goes wrong before Sentry is up (errors.early.ts, ADR 0111): kept from the first moment and handed over once it
-// starts, the start-up's own failure too. The browser-level check (Safari's engine, the real build) is in ADR 0111's
+// What goes wrong before Sentry is up (errors.early.ts, ADR 0110): kept from the first moment and handed over once it
+// starts, the start-up's own failure too. The browser-level check (Safari's engine, the real build) is in ADR 0110's
 // History; this keeps the order and the hand-off right.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

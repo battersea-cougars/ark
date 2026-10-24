@@ -266,7 +266,7 @@ export async function notifyLive(
       body: JSON.stringify({ changed, version, ...(pushed ? { pushed } : {}) }),
     });
   } catch (e) {
-    // An error, not a warning: every phone on a live page misses this change until its next check (ADR 0111)
+    // An error, not a warning: every phone on a live page misses this change until its next check (ADR 0110)
     log.error("live.notify.failed", e, { changed });
   }
 }

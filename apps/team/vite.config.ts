@@ -45,7 +45,7 @@ export default defineConfig(({ command }) => ({
                 // The Usage page (ADR 0059), when started through env-pull: in memory, never in a file
                 CLOUDFLARE_ANALYTICS_TOKEN: process.env.CLOUDFLARE_ANALYTICS_TOKEN ?? "",
                 CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
-                // Settings → Errors (ADR 0111), the same way: Sentry's read-only token, in memory
+                // Settings → Errors (ADR 0110), the same way: Sentry's read-only token, in memory
                 SENTRY_ISSUES_TOKEN: process.env.SENTRY_ISSUES_TOKEN ?? "",
                 // Web Push from your machine to your own browser (localhost may subscribe): the private key only when
                 // started through env-pull, in memory
@@ -72,7 +72,7 @@ export default defineConfig(({ command }) => ({
   },
   // The notifications plugin's web build wants the Firebase web SDK; the app never uses it (src/app/no-web-push.ts)
   resolve: { alias: { "firebase/messaging": fileURLToPath(new URL("src/app/no-web-push.ts", import.meta.url)) } },
-  // Source maps for Sentry (ADR 0111): written but never linked from the files; the deploy uploads them, then deletes
+  // Source maps for Sentry (ADR 0110): written but never linked from the files; the deploy uploads them, then deletes
   // them before the files go live. The manifest (which files each chunk imports) is for scripts/team-app-budget.mjs,
   // which weighs what the first paint loads (ADR 0120); public/.assetsignore keeps it off the site.
   build: { sourcemap: "hidden", manifest: true },

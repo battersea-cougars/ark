@@ -2,7 +2,7 @@
 //
 //   const log = scribe.logger("join");
 //   log.info("enquiry.created", { id, source });       → {"level":"info","name":"join","msg":"enquiry.created","id":…}
-//   log.error("enquiry.email_failed", error, { id });  → the error with its stack, and reported (Sentry, ADR 0111)
+//   log.error("enquiry.email_failed", error, { id });  → the error with its stack, and reported (Sentry, ADR 0110)
 //
 // The facade only shapes and cleans a line; an adapter writes it (scribe.console.ts: JSON for Workers Logs). The message is a dotted event name; the details go
 // in fields. Nothing private reaches the log: secrets by key, phone numbers by key, email addresses wherever they are.
@@ -85,7 +85,7 @@ export const scribe = {
     config = { adapter, level, report };
   },
 
-  /** Adds a reporter (Sentry, ADR 0111) without changing where lines go. */
+  /** Adds a reporter (Sentry, ADR 0110) without changing where lines go. */
   report(report: Reporter | undefined) {
     config = { ...config, report };
   },

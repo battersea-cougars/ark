@@ -66,7 +66,7 @@ JavaScript, a line points at Instagram.
   associated data. D1's own encryption at rest only protects Cloudflare's disks; this keeps the token from anyone who
   can query the database or read an export or backup. Changed, or moved to another row, it won't open.
 - If it won't open, the Bitwarden token is used and an error is logged. A refused renewal is an error with the days
-  left. Errors reach Sentry, whose alert emails ([0111](0111-errors-and-uptime.md)). The token is never logged.
+  left. Errors reach Sentry, whose alert emails ([0110](0110-structured-logging.md)). The token is never logged.
 - What the token can do is read the club's own posts, which are public anyway: it can't post or reach messages. A
   leak is revoked in the Meta app.
 
