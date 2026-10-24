@@ -5,8 +5,7 @@ import type { Team } from "../lib/balance";
 import {
   AGENDA,
   CHARGES,
-  CREDITS,
-  PAYMENTS,
+  DUES,
   REMINDERS,
   MEMBERS,
   NOTIFICATIONS,
@@ -45,11 +44,10 @@ export const db = $state({
   settings: structuredClone(SETTINGS),
   /** Published teams, by session id. */
   teams: structuredClone(TEAMS) as Record<number, Team[]>,
-  /** One person for one session or tournament, paid or not (ADR 0007). */
+  /** Your own charges with something left to pay (ADR 0007, #177): a ledger is read a page at a time (app/ledger). */
   charges: structuredClone(CHARGES),
-  /** Money paid in and not yet spent, by member: it pays their next charge. */
-  credits: structuredClone(CREDITS),
-  payments: structuredClone(PAYMENTS),
+  /** What each owes, by age, and their credit: yours, or everyone's for who sees Unpaid fees. */
+  dues: structuredClone(DUES),
   /** What your phone tells you, a choice per topic (ADR 0108). */
   notifications: structuredClone(NOTIFICATIONS),
   /** When each member was last reminded of what they owe (ADR 0007). */

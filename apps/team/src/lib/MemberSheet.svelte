@@ -33,7 +33,8 @@
     type AttendanceRow,
   } from "../app/backend.svelte";
   import { POSITIONS, REAL_ID, emailFor, phoneFor, referenceFor, type Position } from "../demo/data";
-  import { chargesFor, creditOf, owedBy } from "../demo/dues.svelte";
+  import { creditOf, owedBy } from "../demo/dues.svelte";
+  import { ledgerOf } from "../app/ledger.svelte";
   import { db } from "../demo/store.svelte";
   import { granted, me, session } from "../demo/session.svelte";
   import { can } from "../access/actions";
@@ -45,7 +46,7 @@
   import RemindReview from "./RemindReview.svelte";
   import MoneyField from "./MoneyField.svelte";
   import DateField from "./DateField.svelte";
-  import { feeOn, leftOn } from "./dues";
+  import { feeOn } from "./dues";
   import { formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { registerClosed } from "./register-closes";
   import { initials } from "./initials";
@@ -268,10 +269,11 @@
     else marks[r.sessionId] = here;
   }
 
-  const charges = $derived(chargesFor(memberId));
+  // Their ledger, read when the Dues tab shows it (#177): what they've paid in all, and the quarters charged lately
+  const book = $derived(ledgerOf(memberId));
   const owed = $derived(owedBy(memberId));
   // Everything paid towards their charges, part payments too, and money not yet spent on one
-  const paidTotal = $derived(charges.reduce((s, c) => s + c.pence - leftOn(c), 0));
+  const paidTotal = $derived(book.paid);
   const credit = $derived(creditOf(memberId));
 
   // Dues (ADR 0007): who sees Unpaid fees sees a member's charges; who records payments marks them
@@ -288,7 +290,7 @@
   const chargeOptions = $derived(
     [0, 1, 2, 3, 4].map((back) => {
       const n = thisQuarter - back;
-      const taken = charges.some((c) => c.quarter === quarterKey(n));
+      const taken = book.quarters.includes(quarterKey(n));
       return { value: String(n), label: `${quarterName(n)}${taken ? " (charged)" : ""}`, disabled: taken };
     }),
   );

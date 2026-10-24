@@ -74,8 +74,14 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
+  /** Someone's charges, paid or not: their ledger, as the admin's member sheet reads it (#177). */
   const chargesOf = async (name: string) =>
-    ((await club()).charges as Charge[]).filter((c) => c.memberId === idOf(name));
+    (
+      (await asMember(ada.email, { at: now })("GET", `/api/members/${idOf(name)}/ledger?limit=200`)).lines as {
+        kind: string;
+        charge?: Charge;
+      }[]
+    ).flatMap((l) => (l.kind === "charge" ? [l.charge!] : []));
   /** Someone's charge for one of this training's nights, if they have one. */
   const chargeFor = async (name: string, day: string) => {
     const session = await sessionOn(day);

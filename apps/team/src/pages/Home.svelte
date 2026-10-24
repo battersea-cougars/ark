@@ -8,7 +8,7 @@
   import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
   import { PLAYERS } from "../demo/data";
-  import { chargesFor, owedBy } from "../demo/dues.svelte";
+  import { owedBy, unpaidCharges } from "../demo/dues.svelte";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -19,7 +19,7 @@
   import { myTurnLine } from "../lib/draft";
   import { kickOff, slotMinutes } from "../lib/fixtures";
   import { teamTone } from "../lib/team-tones";
-  import { aged, leftOn, overdue } from "../lib/dues";
+  import { agedOf, leftOn, overdue } from "../lib/dues";
   import {
     homeFeed,
     owedNotice,
@@ -187,7 +187,7 @@
     owedNotice(
       {
         pence: owedBy(who.id),
-        kinds: chargesFor(who.id)
+        kinds: unpaidCharges(who.id)
           .filter((c) => leftOn(c) > 0)
           .map((c) => c.kind),
         overdue: late,
@@ -278,7 +278,7 @@
   // in the worst bucket (over 90 days)
   const club = $derived.by(() => {
     if (!can(perms, "read:Dues")) return null;
-    const rows = aged(db.charges, today);
+    const rows = agedOf(db.dues);
     return {
       total: rows.reduce((s, r) => s + r.total, 0),
       people: rows.length,

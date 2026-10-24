@@ -7,6 +7,8 @@
   import Icon from "../app/shell/Icon.svelte";
   import { db } from "../demo/store.svelte";
   import { createVenue, updateVenue } from "../app/backend.svelte";
+  import { readTagged } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
   import type { Venue } from "../demo/model";
   import { cleanMapUrl, placeOf } from "@cougars/shared/places";
   import { Edits } from "../lib/dirty.svelte";
@@ -28,14 +30,16 @@
     open = true;
   }
 
-  // What picks each one, so it's clear what a change moves
-  const usedBy = (id: number) =>
-    [
-      ...db.series.filter((s) => s.venueId === id).map((s) => s.name),
-      ...db.tournamentTypes.filter((t) => t.venueId === id).map((t) => t.name),
-      ...db.tournaments.filter((t) => t.venueId === id).map((t) => t.name),
-      ...db.oneOffs.filter((o) => o.venueId === id).map((o) => o.title),
-    ].join(", ");
+  // What picks each one, so it's clear what a change moves: every one held there, past ones too, read from the server
+  // (#177); again after a change to what's on (the series, sessions and tournaments come back with it)
+  let used = $state<{ venueId: number; names: string[] }[]>([]);
+  $effect(() => {
+    void [db.series, db.tournamentTypes, db.tournaments, db.oneOffs, db.venues];
+    readTagged<{ used: typeof used }>("/api/venues/used", null)
+      .then(({ data }) => data && (used = data.used))
+      .catch((e) => reportUnexpected(e, "Couldn't read what each venue is used for"));
+  });
+  const usedBy = (id: number) => used.find((u) => u.venueId === id)?.names.join(", ") ?? "";
 
   const mapOf = (v: Venue) => placeOf({ venueId: v.id, name: "", mapUrl: "" }, [v])!.mapUrl;
 

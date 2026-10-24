@@ -1,5 +1,6 @@
 // When two captains' sides last met (the matchup page): past games where one was on each team, as captain or player.
 // Teams are drafted afresh every time, so it's the people who carry over, not the teams.
+import type { Season } from "@cougars/shared/seasons";
 
 interface Side {
   id?: number | null;
@@ -20,6 +21,18 @@ interface Edition<T extends Side = Side, G extends Played = Played> {
   heldOn: string;
   teams: T[];
   games?: G[];
+}
+
+/** A past edition as the server sends it for a matchup (worker/tournaments/matchups.ts): where both captains played. */
+export interface PastMeeting {
+  id: number;
+  heldOn: string;
+  season: Season | null;
+  name: string;
+  startTime: string;
+  endTime: string;
+  teams: { id: number; name: string; captainMemberId: number | null; players: { memberId: number | null }[] }[];
+  games: Played[];
 }
 
 const on = (t: Side | undefined, memberId: number) =>

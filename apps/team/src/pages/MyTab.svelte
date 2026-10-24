@@ -4,7 +4,7 @@
   import Ledger from "../lib/Ledger.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { PLAN_NAMES, referenceFor, type Plan } from "../demo/data";
-  import { chargesFor, creditOf, owedBy } from "../demo/dues.svelte";
+  import { creditOf, owedBy, unpaidCharges } from "../demo/dues.svelte";
   import { impersonating, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import { choosePlan } from "../app/backend.svelte";
@@ -12,7 +12,7 @@
   import { formatDayDate, londonToday, pounds } from "../lib/dates";
 
   const who = $derived(me());
-  const unpaid = $derived(chargesFor(who.id).filter((c) => !c.paidOn));
+  const unpaid = $derived(unpaidCharges(who.id));
   const owed = $derived(owedBy(who.id));
   // Paid in and not yet spent: it pays your next charge
   const credit = $derived(creditOf(who.id));

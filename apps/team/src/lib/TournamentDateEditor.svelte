@@ -22,7 +22,8 @@
   import { tournamentWindow } from "./clashes";
   import type { TournamentTeam } from "../demo/model";
   import { db } from "../demo/store.svelte";
-  import { collectedFor } from "../demo/dues.svelte";
+  import { readCollected, type Collected } from "../app/ledger.svelte";
+  import { reportUnexpected } from "../app/errors.early";
   import Icon from "../app/shell/Icon.svelte";
   import { teamsForPlayoffs } from "./fixtures";
   import Select from "./Select.svelte";
@@ -34,7 +35,7 @@
   import TournamentSignupFields from "./TournamentSignupFields.svelte";
   import TournamentDraftDay from "./TournamentDraftDay.svelte";
   import TournamentRulesFields from "./TournamentRulesFields.svelte";
-  import { broughtTeam } from "./brought-team";
+  import { broughtTeams, type BroughtTeam } from "./brought-team";
   import { navigate } from "../app/router.svelte";
   import { teamHref } from "./team-tones";
   import { seriesToOpen } from "../pages/TournamentSeries.svelte";
@@ -74,7 +75,16 @@
 
   const type = $derived(db.tournamentTypes.find((t) => t.id === date.typeId));
   /** Already charged: the fee is fixed. */
-  const collected = $derived(date.id ? collectedFor("tournament", date.id) : null);
+  // What it's collected, read from the server (#177): how many were charged fixes its fee; the money, for who sees dues
+  let collected = $state<Collected | null>(null);
+  $effect(() => {
+    void db.dues;
+    const id = date.id;
+    if (!id) return void (collected = null);
+    readCollected({ tournaments: [id] })
+      .then((r) => (collected = r.tournaments[0] ?? null))
+      .catch((e) => reportUnexpected(e, "Couldn't read what it collected"));
+  });
   const charged = $derived((collected?.people ?? 0) > 0);
 
   function pickType(id: string) {
@@ -109,11 +119,20 @@
   );
   // A draft's captains bring their team from the series' last edition they captained in (brought-team.ts)
   const edition = $derived({ id: date.id || undefined, typeId: date.typeId, heldOn: formDay(date) });
+  // ...read from the server (#177), for a draft in a series, again as its series or day changes
+  let brought = $state<Record<number, BroughtTeam>>({});
+  $effect(() => {
+    const wanted = { ...edition };
+    if (date.kind !== "draft" || wanted.typeId == null) return;
+    broughtTeams(wanted)
+      .then((m) => (brought = m))
+      .catch((e) => reportUnexpected(e, "Couldn't read what the captains bring"));
+  });
   const memberList = $derived(
     members.map((m) => ({
       id: m.player.id,
       name: goesBy(m.player),
-      brings: date.kind === "draft" ? broughtTeam(db.tournaments, edition, m.player.id) : null,
+      brings: date.kind === "draft" ? (brought[m.player.id] ?? null) : null,
     })),
   );
 

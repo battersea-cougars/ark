@@ -24,8 +24,7 @@ import {
   AGENDA,
   SETTINGS,
   CHARGES,
-  CREDITS,
-  PAYMENTS,
+  DUES,
   REMINDERS,
   SUBSCRIPTION_FEES,
   FOR_ADMINS,
@@ -88,14 +87,12 @@ const COPY: Record<keyof Slices, () => void> = {
   agenda: () => {
     db.agenda = structuredClone(AGENDA);
   },
+  // Your unpaid charges, and what each owes: a ledger shown reads itself again when they come (app/ledger.svelte.ts)
   charges: () => {
     db.charges = structuredClone(CHARGES);
   },
-  credits: () => {
-    db.credits = structuredClone(CREDITS);
-  },
-  payments: () => {
-    db.payments = structuredClone(PAYMENTS);
+  dues: () => {
+    db.dues = structuredClone(DUES);
   },
   reminders: () => {
     db.reminders = structuredClone(REMINDERS);

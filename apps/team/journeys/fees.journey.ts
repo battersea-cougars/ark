@@ -81,8 +81,14 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
   const feesNow = async () =>
     ((await club()).series as { id: number; fees: DatedFee[] }[]).find((s) => s.id === seriesId)!.fees;
+  /** Someone's charges, paid or not: their ledger, as the admin's member sheet reads it (#177). */
   const chargesOf = async (name: string) =>
-    ((await club()).charges as Charge[]).filter((c) => c.memberId === idOf(name));
+    (
+      (await asMember(ada.email, { at: now })("GET", `/api/members/${idOf(name)}/ledger?limit=200`)).lines as {
+        kind: string;
+        charge?: Charge;
+      }[]
+    ).flatMap((l) => (l.kind === "charge" ? [l.charge!] : []));
   /** Someone's charges for one of this training's nights: one at most, ever. */
   const chargesFor = async (name: string, day: string) => {
     const session = await sessionOn(day);
@@ -94,16 +100,17 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     expect(found.length, `${name} has one charge at most for ${day}`).toBeLessThanOrEqual(1);
     return found[0]?.pence;
   };
+  /** Someone's line of what they owe, as the admin's app is sent it (#177): none, nothing owed and no credit. */
+  const duesOf = async (name: string) =>
+    ((await club()).dues as { memberId: number; owed: number; credit: number }[]).find(
+      (x) => x.memberId === idOf(name),
+    );
   /** What someone owes, in pence: every charge less what's paid towards it, less their credit. */
   const owes = async (name: string) => {
-    const c = await club();
-    const charges = (c.charges as Charge[]).filter((x) => x.memberId === idOf(name));
-    const credit = (c.credits as { memberId: number; pence: number }[]).find((x) => x.memberId === idOf(name));
-    return charges.reduce((sum, x) => sum + x.pence - x.paidPence, 0) - (credit?.pence ?? 0);
+    const d = await duesOf(name);
+    return (d?.owed ?? 0) - (d?.credit ?? 0);
   };
-  const creditOf = async (name: string) =>
-    ((await club()).credits as { memberId: number; pence: number }[]).find((x) => x.memberId === idOf(name))?.pence ??
-    0;
+  const creditOf = async (name: string) => (await duesOf(name))?.credit ?? 0;
   /** Pence as the app shows them: "£8". */
   const pounds = (pence: number) => `£${pence / 100}`;
   /** Members say they're in for a night through the API: not the step under test (Fridays' journey taps In). */

@@ -20,7 +20,9 @@
   import { kickOff, slotMinutes, table } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
-  import { meetings } from "../lib/matchups";
+  import { meetings, type PastMeeting } from "../lib/matchups";
+  import { readTagged } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
   import { editionWhen } from "../lib/edition";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
@@ -75,23 +77,26 @@
   const played = $derived(game?.status === "done");
   const href = $derived(`/tournaments/${type.slug}/games/${gameId}`);
 
-  // When these captains' sides last met, in past ones of this series
+  // When these captains' sides last met, in past ones of this series: read from the server (#177), which has them all
+  let met = $state<{ gameId: number; editions: PastMeeting[] }>({ gameId: 0, editions: [] });
+  $effect(() => {
+    const id = gameId;
+    if (!id || !tournament?.typeId) return;
+    readTagged<{ editions: PastMeeting[] }>(`/api/tournament-games/${id}/meetings`, null)
+      .then(({ data }) => data && (met = { gameId: id, editions: data.editions }))
+      .catch((e) => reportUnexpected(e, "Couldn't read when they last met"));
+  });
   const past = $derived.by(() => {
     const [a, b] = sides.map((s) => s.team?.captainMemberId ?? null);
-    if (!tournament || !a || !b) return [];
-    return meetings(
-      db.tournaments.filter((t) => t.typeId === tournament.typeId),
-      tournament,
-      a,
-      b,
-    ).slice(0, 5);
+    if (!tournament || !a || !b || met.gameId !== gameId) return [];
+    return meetings(met.editions, tournament, a, b).slice(0, 5);
   });
   const tally = $derived({
     a: past.filter((m) => m.for > m.against).length,
     d: past.filter((m) => m.for === m.against).length,
     b: past.filter((m) => m.for < m.against).length,
   });
-  const nameOf = (t: { teams: typeof teams }, id: number | null) => {
+  const nameOf = (t: { teams: { id: number; name: string; captainMemberId: number | null }[] }, id: number | null) => {
     const team = t.teams.find((x) => x.id === id);
     return nameOfTeam(team, t.teams, byId);
   };

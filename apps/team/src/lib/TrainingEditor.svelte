@@ -27,7 +27,8 @@
   import Select from "./Select.svelte";
   import { clockRange, dayWords, formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { feeOn } from "./dues";
-  import { collectedFor } from "../demo/dues.svelte";
+  import { readCollected, type Collected } from "../app/ledger.svelte";
+  import { reportUnexpected } from "../app/errors.early";
   import { granted } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import { WEEKDAYS, addDays, describeRule, weekdayOf } from "./recurrence";
@@ -157,6 +158,19 @@
           .slice(0, 8)
       : [],
   );
+
+  // What each collected, read from the server for whoever sees dues (#177), again after a change to dues
+  let collected = $state<Collected[]>([]);
+  $effect(() => {
+    void db.dues;
+    const ids = held.map((s) => s.id);
+    if (!seesDues || !ids.length) return;
+    readCollected({ sessions: ids })
+      .then((r) => (collected = r.sessions))
+      .catch((e) => reportUnexpected(e, "Couldn't read what the nights collected"));
+  });
+  const NOTHING = { due: 0, paid: 0, people: 0, paidPeople: 0 };
+  const collectedFor = (id: number) => collected.find((c) => c.refId === id) ?? NOTHING;
 
   const upcoming = $derived(
     typeof selected === "number" ? db.sessions.filter((s) => s.seriesId === selected && s.heldOn >= londonToday()) : [],
@@ -447,7 +461,7 @@
                   <h2>Held</h2>
                   <div class="nights-grid">
                     {#each held as session (session.id)}
-                      {@const c = collectedFor("session", session.id)}
+                      {@const c = collectedFor(session.id)}
                       <div class="night">
                         <span class="when"
                           >{formatDayDate(londonISO(session.heldOn, session.startTime ?? form.startTime))}</span

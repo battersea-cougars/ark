@@ -13,7 +13,7 @@
   import { granted } from "../demo/session.svelte";
   import { PLAYERS, referenceFor } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { BUCKETS, aged } from "../lib/dues";
+  import { BUCKETS, agedOf } from "../lib/dues";
   import { londonToday, pounds } from "../lib/dates";
   import { listScroll } from "../lib/list-scroll";
   import SearchField from "../lib/SearchField.svelte";
@@ -26,7 +26,7 @@
   import RemindReview from "../lib/RemindReview.svelte";
 
   const rows = $derived(
-    aged(db.charges, londonToday()).map((r) => ({
+    agedOf(db.dues).map((r) => ({
       ...r,
       player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: "Someone who's left" },
       reference: referenceFor(r.memberId),

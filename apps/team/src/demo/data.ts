@@ -6,7 +6,7 @@ import type { IconName } from "../app/shell/icons";
 import type { AgendaRow, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession, Venue } from "./model";
 import type { Quip } from "../lib/quips";
 import type { Team } from "../lib/balance";
-import type { Charge, DatedFee, Payment } from "../lib/dues";
+import type { Charge, DatedFee, Owed } from "../lib/dues";
 import type { UsageLevel } from "../lib/usage-near";
 
 export type Position = "F" | "D" | "G";
@@ -115,14 +115,12 @@ export const MEMBERS: MemberRow[] = [];
 
 /** The quarterly rate, from each date (ADR 0007). */
 export const SUBSCRIPTION_FEES: DatedFee[] = [];
-/** Charges: your own, or everyone's if you see Unpaid fees (ADR 0007). */
+/** Your own charges with something left to pay (ADR 0007, #177); the rest of your ledger is read a page at a time. */
 export const CHARGES: Charge[] = [];
 /** When each member was last reminded of what they owe (ADR 0007): for who sees everyone's dues. */
 export const REMINDERS: { memberId: number; at: string }[] = [];
-/** Each payment: your own, or everyone's if you see Unpaid fees; for the dues ledger (ADR 0007). */
-export const PAYMENTS: Payment[] = [];
-/** Money paid in and not yet spent on a charge, by member: it pays their next one (ADR 0007). */
-export const CREDITS: { memberId: number; pence: number }[] = [];
+/** What each owes, by age, and their credit: your own, or everyone's if you see Unpaid fees (ADR 0007, #177). */
+export const DUES: Owed[] = [];
 
 /** What /api/bootstrap sends (apps/team/worker/api/api.ts). */
 export interface Bootstrap {
@@ -171,8 +169,7 @@ export interface Bootstrap {
   settings: { liveRefreshSeconds: number; bank: Bank | null };
   charges: Charge[];
   reminders: { memberId: number; at: string }[];
-  credits: { memberId: number; pence: number }[];
-  payments: Payment[];
+  dues: Owed[];
   subscriptionFees: DatedFee[];
   /** Your own notifications, a choice per topic (ADR 0108). */
   notifications: NotificationPrefs;
@@ -268,8 +265,7 @@ export function applySlices(b: Slices) {
   if (b.settings) Object.assign(SETTINGS, b.settings);
   if (b.charges) fill(CHARGES, b.charges);
   if (b.reminders) fill(REMINDERS, b.reminders);
-  if (b.credits) fill(CREDITS, b.credits);
-  if (b.payments) fill(PAYMENTS, b.payments);
+  if (b.dues) fill(DUES, b.dues);
   if (b.subscriptionFees) fill(SUBSCRIPTION_FEES, b.subscriptionFees);
   if (b.notifications) Object.assign(NOTIFICATIONS, b.notifications);
   if (b.forAdmins) Object.assign(FOR_ADMINS, b.forAdmins);
