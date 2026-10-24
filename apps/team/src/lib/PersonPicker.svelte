@@ -3,6 +3,7 @@
   // Select, its list is fixed-position at the end of the page so a panel or scroller never clips it. With `value`
   // it shows who's picked and can change them; without (`clearOnPick`), it's an "add someone" box that empties after
   // each pick.
+  import { portal } from "./overlay";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { findPeople } from "./person-search";
@@ -69,11 +70,6 @@
     const top = up ? Math.max(12, r.top - gap - height) : r.bottom + gap;
     menuStyle = `top:${Math.round(top)}px;left:${Math.round(r.left)}px;width:${Math.round(r.width)}px;max-height:${Math.round(height)}px`;
   }
-  function portal(node: HTMLElement) {
-    (input?.closest("dialog") ?? document.body).append(node);
-    return { destroy: () => node.remove() };
-  }
-
   async function show() {
     if (open) return;
     open = true;

@@ -16,6 +16,7 @@
   // and sheets, not a drop-down. After Gwenda ops' NativeSelect: native option menus can't be themed, so this is a button that
   // opens a listbox. The menu is fixed-position so panels and scrollers never clip it, and it lives at the end of
   // the page (or of the open dialog it's in), so nothing it sits inside, an animated tab say, can shift it.
+  import { portal } from "./overlay";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
 
@@ -60,11 +61,6 @@
   }
 
   /** Moves the menu out to the page, or to the native modal it's in: that sits above the page. */
-  function portal(node: HTMLElement) {
-    (trigger?.closest("dialog") ?? document.body).append(node);
-    return { destroy: () => node.remove() };
-  }
-
   function focusActive() {
     const el = menu?.querySelector<HTMLElement>(`[data-index="${active}"]`);
     if (!menu || !el) return;
