@@ -36,7 +36,7 @@
 <div class="page fit">
   <PageHeader title="Membership">
     {#snippet sub()}
-      What Quarterly Members pay each quarter. A new price applies from its date; charges already made keep theirs.
+      What Quarterly Members pay each quarter. A new price applies from its date, to quarters already charged too.
       Session fees are set on each <a href="/settings/training">training</a>, tournament fees on each
       <a href="/settings/tournaments">tournament</a>.
     {/snippet}

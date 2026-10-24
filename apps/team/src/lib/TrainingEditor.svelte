@@ -93,7 +93,7 @@
   // only after its own save: the club read again (a refused save, coming back to the tab, a live change) never puts
   // the saved copy over what's being typed, nor a refused save's retry sends the saved copy back
   let form = $state<TrainingSeries | null>(starting());
-  // The fee, going forward: a new amount applies from its date; sessions already held keep theirs (ADR 0007).
+  // The fee, going forward: a new amount applies from its date, to nights already held too (ADR 0007).
   // svelte-ignore state_referenced_locally
   let feeAmount = $state(feeText(form));
   let feeFrom = $state(londonToday());
@@ -325,8 +325,8 @@
               <div class="span-12 tuck">
                 <p class="hint small">
                   Leave places empty for no limit.{#if setsFees}
-                    {current ? `${pounds(current)} now.` : "Free now."} A new fee applies from its date; sessions already
-                    held keep theirs. Subscribers aren't charged.{/if}
+                    {current ? `${pounds(current)} now.` : "Free now."} A new fee applies from its date, to nights already
+                    held too. Subscribers aren't charged.{/if}
                 </p>
                 {#if setsFees && form.fees.length > 1}
                   <p class="hint small">

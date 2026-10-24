@@ -154,8 +154,8 @@ CREATE TABLE training_sessions (
   register_closed_at TEXT,
   -- When members were told its sign-up opened (ADR 0030, 0108): taken by the cron run that tells them, so it's once
   signup_told_at TEXT,
-  -- What a session costs (ADR 0007): the series' fee on its day, written when it first charges someone, so a later
-  -- change to the fee never alters it
+  -- What a session costs (ADR 0007): the series' fee on its day, written when it first charges someone, and worked
+  -- out again when a fee is set from a date on or before it
   fee_pence INTEGER,
   UNIQUE (series_id, held_on)
 );

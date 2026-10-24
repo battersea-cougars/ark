@@ -315,16 +315,11 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
 
     // Monday: Friday's register closed at 6am on Saturday
     await moveTo("2026-11-02T12:00");
-    await knownBug(
-      ada,
-      "picking a day before today, the editor doesn't tell her nights already held keep their fee",
-      "the editor's hint says 'sessions already held keep theirs', but a fee from an earlier date recalculates them (ADR 0007)",
-      async () => {
-        await openEditor();
-        await expect(editor()).not.toContainText("sessions already held keep theirs");
-        await ada.page.keyboard.press("Escape");
-      },
-    );
+    await checks(ada, "the editor tells her a new fee applies to nights already held too", async () => {
+      await openEditor();
+      await expect(editor()).toContainText("to nights already held too");
+      await ada.page.keyboard.press("Escape");
+    });
     await does(ada, "sets £9 from Fri 30 Oct, a closed night, and saves", async () => {
       await setFee("9", "2026-10-30", { pence: 900, from: "2026-10-30" });
     });
