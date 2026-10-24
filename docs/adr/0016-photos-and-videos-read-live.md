@@ -87,6 +87,9 @@ only need that secret.
   (e.g. _Friday hockey_). Every playlist is read (unlisted videos included) and merged into one list; each video shows
   its label next to its date. A video in two playlists is listed once, under the first playlist. With no playlists
   set, the source is the channel's public uploads.
+- Only videos YouTube has finished with show: after each page of a playlist, one `videos` call (`part=status`) keeps
+  those whose `uploadStatus` is "processed", so one still uploading or processing (YouTube's grey placeholder) waits
+  until it's ready. If that call fails, the last good list is shown, as for any YouTube failure.
 - Sanity `video` documents are optional overrides, matched by YouTube id: a filled-in title, date or description
   replaces YouTube's, _Hide from the website_ drops it, _Show first_ pins it. A document whose video isn't in the
   source adds it. They don't change the label. Order: pinned first, then newest. The date is the London day.
