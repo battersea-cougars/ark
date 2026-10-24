@@ -107,7 +107,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
   nudged by 10 seconds or a minute; never more than an hour; paused stays paused, running runs on.
 - **Scoring**, a red whistle button in the top bar, says this phone is the scoresheet and opens the scorekeeper's
   tools: take back the last goal, full time early, hand over. A sheet on a phone, a side drawer on a desktop
-  ([0103](0103-drawers-sheets-and-panels.md)). No banner above the clock: on a phone the clock and the goal buttons
+  ([0065](0065-page-frame-and-admin-actions.md)). No banner above the clock: on a phone the clock and the goal buttons
   need the screen.
 - **Full time** opens a review over the page (lib/SealResult, a tall sheet on a phone, a side drawer on a desktop):
   the final score with both teams, every goal and penalty in order, the last goal to take back and Set the time, and
@@ -152,7 +152,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 ### Penalties
 
 - **Kept the way goals are**: under each team's Goal, a quieter **Penalty** (a ghost button) opens a drawer, a tall
-  sheet on a phone ([0103](0103-drawers-sheets-and-panels.md)), every choice a tap, no drop-downs, in this order:
+  sheet on a phone ([0065](0065-page-frame-and-admin-actions.md)), every choice a tap, no drop-downs, in this order:
   - **For**, always said (`lib/penalties.ts` INFRACTIONS). Player infractions (tripping, hooking, high stick,
     slashing, interference, holding, roughing, unsportsmanlike, other) need **who** (Save waits, saying "Pick who
     it's on"; the Worker refuses one on nobody: "Who's it on?"). Bench infractions (too many players, delay of game,
@@ -235,7 +235,7 @@ enough, nobody wanted two phones scoring the same game, and whoever scores is on
 - 2026-10-09: Details opens a matchup page; Live is one page for everyone, Keep score taken on deliberately and handed
   over on the page; starting the first game on another day moves the tournament (was 0090).
 - 2026-10-09: Set the time moved from Game tools to a tap on the clock; the keeping-score banner became Scoring in the
-  top bar, opening the tools as a sheet on a phone; Stop scoring and Hand over are one (ADR 0103).
+  top bar, opening the tools as a sheet on a phone; Stop scoring and Hand over are one (ADR 0065).
 - 2026-10-09: The Details button went: a tap anywhere on a game's row opens its matchup.
 
 - 2026-10-09: The Fight card is every game as the same card as the tournament's home; the rounds no longer show.

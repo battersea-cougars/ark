@@ -496,7 +496,7 @@
   <p class="note missing">No such game.</p>
 {:else}
   <div class="game">
-    <!-- The clock: to read, and for the scorekeeper, a tap sets it (ADR 0103). Its start and pause is the big button
+    <!-- The clock: to read, and for the scorekeeper, a tap sets it (ADR 0065). Its start and pause is the big button
          under it -->
     <svelte:element
       this={settable ? "button" : "div"}
@@ -714,7 +714,7 @@
   </div>
 
   <!-- The tools: big rows, one tap each (full time opens its review), each done right here. Up from the bottom on a phone,
-       a side drawer on a desktop (ADR 0103) -->
+       a side drawer on a desktop (ADR 0065) -->
   {#snippet toolList()}
     <div class="tools">
       <p class="hint tools-note">Only you can run the clock and log goals and penalties, until you hand it over.</p>
@@ -797,7 +797,7 @@
     />
   {/if}
 
-  <!-- An admin's Manage: a sheet on a phone, a side drawer on a desktop (ADR 0103) -->
+  <!-- An admin's Manage: a sheet on a phone, a side drawer on a desktop (ADR 0065) -->
   {#snippet manageList()}<ManageList items={manageItems} go={manage} />{/snippet}
   {#if phone.current}
     <Sheet bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}">{@render manageList()}</Sheet
@@ -828,7 +828,7 @@
     {/snippet}
   </Sheet>
 
-  <!-- Set the score, in a sheet (a short form, ADR 0103): each side's goals, up and down -->
+  <!-- Set the score, in a sheet (a short form, ADR 0065): each side's goals, up and down -->
   <Sheet bind:open={scoring} title="Set the score">
     <p class="hint">Goals go on, nobody said who, or the latest come off to match.</p>
     <div class="score-set">
@@ -968,7 +968,7 @@
     {/snippet}
   </Drawer>
 
-  <!-- A penalty: what for, who, the length, each a tap, in a drawer (a tall sheet on a phone, ADR 0103) like a
+  <!-- A penalty: what for, who, the length, each a tap, in a drawer (a tall sheet on a phone, ADR 0065) like a
        goal's. Stamped with the game clock; an admin putting a result right says when -->
   <Drawer
     bind:open={() => !!calling, (v) => !v && (calling = null)}

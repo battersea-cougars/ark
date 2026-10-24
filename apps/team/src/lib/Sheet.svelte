@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The phone's one overlay (ADR 0103): a sheet up from the bottom, with a handle you can pull down to close it. A short
+   * The phone's one overlay (ADR 0065): a sheet up from the bottom, with a handle you can pull down to close it. A short
    * job (Filters, + Event) is sized to what's in it; a `tall` one (a drawer's list, an editor) rises near the top and
    * scrolls inside, its header and footer staying put. lib/Drawer and lib/EditorPanel are drawn as this on a phone.
    * On a desktop it's a centred modal. A native modal dialog, so it sits above everything, traps focus and closes on

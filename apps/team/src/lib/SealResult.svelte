@@ -3,7 +3,7 @@
   // with both teams, every goal and penalty in order, the last goal to take back, and one main button, Seal the result,
   // which is full time. The Kumite's carries its 決 (sealed) mark, stamped down as it's pressed (lib/motif.ts); any
   // other series', plain. Until it's sealed the match stays live for everyone. A level playoff can't be sealed: it
-  // plays on. A side drawer on a desktop, a tall sheet on a phone (lib/Drawer, ADR 0103).
+  // plays on. A side drawer on a desktop, a tall sheet on a phone (lib/Drawer, ADR 0065).
   import Icon from "../app/shell/Icon.svelte";
   import Drawer from "./Drawer.svelte";
   import GameTimeline from "./GameTimeline.svelte";

@@ -1,4 +1,4 @@
-// The phone's one overlay (ADR 0103): every sheet, drawer and editor panel is a bottom sheet below the 900px
+// The phone's one overlay (ADR 0065): every sheet, drawer and editor panel is a bottom sheet below the 900px
 // breakpoint. These are the choices lib/Sheet, lib/Drawer and lib/EditorPanel make, kept here to be tested.
 
 /**

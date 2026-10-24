@@ -81,7 +81,7 @@
   // A new training's editor, open over the calendar
   let newTraining = $state(false);
   function newEvent() {
-    // One kind isn't a menu (ADR 0103): straight to it
+    // One kind isn't a menu (ADR 0065): straight to it
     if (kinds.length === 1) pick(kinds[0]);
     else choosing = true;
   }
@@ -287,7 +287,7 @@
   </div>
 {/snippet}
 {#if kinds.length > 1}
-  <!-- What kind: up from the bottom on a phone, a side drawer on a desktop (ADR 0103, a menu of jobs) -->
+  <!-- What kind: up from the bottom on a phone, a side drawer on a desktop (ADR 0065, a menu of jobs) -->
   {#if phone.current}
     <Sheet bind:open={choosing} title="New event">{@render kindList()}</Sheet>
   {:else}

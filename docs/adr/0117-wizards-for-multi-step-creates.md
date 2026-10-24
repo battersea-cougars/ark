@@ -28,7 +28,7 @@ button, each step with the space to itself.
     steps after it are shut and Next is off. Enter goes on when it can, except from a button, a search that picks
     on Enter, or the last step.
 - **It fills what holds it**: `EditorPanel` and `Sheet` take `fill`, handing the wizard their height and edges, so a
-  phone gets the tall bottom sheet (ADR [0103](0103-drawers-sheets-and-panels.md)) and a desktop the panel, the same
+  phone gets the tall bottom sheet (ADR [0065](0065-page-frame-and-admin-actions.md)) and a desktop the panel, the same
   height on every step.
 - **The last step is a check**: each answer in words, with Change going back to its step.
 - First used by the next date in a series (`TournamentQuickCreate`): When · Sign-up · Captains (a draft series only)

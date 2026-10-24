@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The app's one side drawer (ADR 0065, ADR 0103): every job that opens over a page on a desktop or tablet, from a
+  // The app's one side drawer (ADR 0065): every job that opens over a page on a desktop or tablet, from a
   // menu (Manage) to a form (Add player) to an editor (lib/EditorPanel, in the page's column). It slides in from the
   // right; on a phone it's the one overlay every job uses there, lib/Sheet, tall, decided as it opens and kept that
   // way while it's open. Both keep one close contract (lib/overlay.ts): a native modal dialog, so focus stays in it
