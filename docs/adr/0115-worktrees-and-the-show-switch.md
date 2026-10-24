@@ -72,3 +72,6 @@ hard-linked, and one supervisor that owns the well-known ports and switches them
   `merge:check`; replaces `scripts/worktree.sh` and its slot ports.
 - 2026-10-24: `merge:check` scans the branch's commits for secrets first, docs-only branches too: once pushed to `main`,
   the public repo has them (#104, [0002](0002-secrets-in-bitwarden.md)).
+- 2026-10-24: The switch's ports also serve the Secrets page (`/__secrets`, loopback and localhost only), which
+  writes to Bitwarden from the supervisor's memory and restarts the apps that read secrets; `npm run app` refuses a
+  `.env` with a secret in it, and `worktree add` doesn't copy one (#149, [0002](0002-secrets-in-bitwarden.md)).

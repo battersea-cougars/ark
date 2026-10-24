@@ -19,6 +19,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync, readFileSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
+import { envProblems } from "./lib/env-guard.mjs";
 import { alive, appLog, ask, showPaths, sleep } from "./lib/show.mjs";
 import { SERVICES, checkoutOf, mainCheckout, publicPorts } from "./lib/worktrees.mjs";
 
@@ -130,6 +131,7 @@ switch (sub) {
     const swap = !flag("--private");
     const ownDb = flag("--own-db") ? true : flag("--shared-db") ? false : undefined;
     if (sub === "dev" && services.length !== 1) usage("dev takes one of web, team, studio");
+    refuseSecretsInEnv([...new Set([main, here])]);
     if (swap)
       console.log(`app: ${Object.values(ports).join("/")} now show ${nameOf(dir)} (each says so while it starts)`);
     const a = await request({
@@ -194,6 +196,17 @@ switch (sub) {
     console.log("app: the supervisor and every app stopped");
     break;
   }
+}
+
+/** A secret in .env stops the apps starting (ADR 0002, #149): it says where, never what. */
+function refuseSecretsInEnv(dirs) {
+  const problems = envProblems(dirs);
+  if (!problems.length) return;
+  for (const p of problems) console.error(`app: ${p}`);
+  console.error(
+    "app: .env is for non-secret settings only. Store each in Bitwarden (localhost:4500/__secrets), then delete the line.",
+  );
+  process.exit(1);
 }
 
 function usage(why, code = 2) {

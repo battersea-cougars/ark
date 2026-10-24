@@ -79,6 +79,12 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
     pinned release checked against its checksum (`scripts/secrets-scan.mjs`), not `gitleaks-action`, which needs a
     licence key for an organisation's repo. A find means rotating the secret first, then taking it out of history.
 
+11. **A secret is handed over on the Secrets page, never through a terminal, chat or file** (#149). The show switch's
+    supervisor serves it at `/__secrets` on this machine only, and writes a pasted value straight to Secrets Manager
+    from its memory; the page shows a stored value only as its length, last 4 characters and SHA-256 fingerprint.
+    `.env` with a secret-looking line stops `npm run lint` and `npm run app`, and a Claude Code hook refuses an
+    agent's command or read that would show a value (docs/secrets.md, "`.env` and agents").
+
 ## Consequences
 
 - No secret files to leak. Running something that needs secrets locally is `node scripts/env-pull.mjs -- <command>`,
@@ -118,3 +124,6 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 - 2026-10-24: Every commit is scanned for secrets with gitleaks: a PR's, a branch's before merging, the whole history
   on every push to `main` and weekly; the full history was clean, with three kinds of public values let through
   (#104).
+- 2026-10-24: Secrets are handed over on a local Secrets page (`localhost:4500/__secrets`): stored straight to
+  Bitwarden, checked by fingerprint, shapes questioned before saving, apps restarted after; `.env` with a secret in it
+  stops lint and the apps; a Claude Code hook keeps agents from showing values (point 11, #149).

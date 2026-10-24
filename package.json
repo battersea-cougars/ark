@@ -18,7 +18,7 @@
     "build": "npm run build -w @cougars/web",
     "studio": "node scripts/app.mjs dev studio",
     "test": "vitest run",
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint . && prettier --check . && node scripts/env-check.mjs",
     "format": "prettier --write .",
     "db:rebuild:local": "node scripts/db-rebuild.mjs --local",
     "db:migrate:local": "node scripts/db-migrate.mjs --local",

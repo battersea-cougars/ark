@@ -27,7 +27,7 @@ import {
 import { createServer as http, get } from "node:http";
 import { createServer as net } from "node:net";
 import { basename, join } from "node:path";
-import { ensureToken } from "./lib/bitwarden.mjs";
+import { ensureToken, listSecrets, setSecret } from "./lib/bitwarden.mjs";
 import { stopDevServerOn } from "./lib/dev-server.mjs";
 import {
   OWNER_ENV,
@@ -47,6 +47,8 @@ import {
   target,
   toStop,
 } from "./lib/show.mjs";
+import { documentedNames } from "./lib/secret-names.mjs";
+import { secretsPage } from "./lib/secrets-page.mjs";
 import { holdingPage, panelPage } from "./lib/show.pages.mjs";
 import { SERVICES, checkouts, freePorts, mainCheckout, publicPorts } from "./lib/worktrees.mjs";
 
@@ -143,6 +145,45 @@ function secretsAvailable() {
     lockedUntil = Date.now() + 5 * 60_000;
     return false;
   }
+}
+
+/** The vault's token read again (after bw-unlock, or once it's changed), keeping the old one if that fails. */
+function reconnect() {
+  const old = { token: process.env.COUGARS_LOCAL_BW_TOKEN, session: process.env.BW_SESSION };
+  delete process.env.COUGARS_LOCAL_BW_TOKEN;
+  delete process.env.BW_SESSION;
+  try {
+    ensureToken();
+    lockedUntil = 0;
+  } catch (e) {
+    if (old.token) process.env.COUGARS_LOCAL_BW_TOKEN = old.token;
+    if (old.session) process.env.BW_SESSION = old.session;
+    throw e;
+  }
+}
+
+// The Secrets page (/__secrets, #149): hands a value to Bitwarden from this process, then restarts what reads them
+const secrets = secretsPage({
+  bitwarden: {
+    list: () => (ensureToken(), listSecrets()),
+    set: (name, value) => (ensureToken(), setSecret(name, value)),
+    reconnect,
+  },
+  names: () => documentedNames(readFileSync(join(main, "docs", "secrets.md"), "utf8")),
+  restart: restartForSecrets,
+  log,
+});
+
+/** Every running app that reads secrets, started again so it has the new ones. */
+async function restartForSecrets() {
+  const readers = [...apps.values()].filter((a) => RUN[a.service].secrets && (a.child || a.restart));
+  const out = [];
+  for (const dir of new Set(readers.map((a) => a.dir))) {
+    const services = readers.filter((a) => a.dir === dir).map((a) => a.service);
+    const answer = await handle({ cmd: "restart", dir, services });
+    out.push({ name: `${branchOf(dir)} ${services.join(" and ")}`, ok: !!answer.ok });
+  }
+  return out;
 }
 
 // ---- apps -------------------------------------------------------------------------------------------------------
@@ -319,6 +360,7 @@ function serveSwitch(service) {
   };
   const server = http((req, res) => {
     if (req.url?.startsWith("/__app")) return void panel(req, res);
+    if (req.url === "/__secrets" || req.url?.startsWith("/__secrets/")) return void secrets(req, res);
     const t = look();
     if (!t.up) return hold(req, res, t);
     forward(req, res, t.port, () =>

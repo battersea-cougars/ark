@@ -11,6 +11,7 @@ import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { ask, showPaths } from "./lib/show.mjs";
 import { folderOf, install, mainCheckout } from "./lib/worktrees.mjs";
+import { envProblems } from "./lib/env-guard.mjs";
 
 const [command, branch, base = "main"] = process.argv.slice(2);
 const main = mainCheckout();
@@ -23,8 +24,10 @@ switch (command) {
     if (existsSync(dir)) throw new Error(`${dir} already exists`);
     run(main, "git", "worktree", "add", "-b", branch, dir, base);
     const how = install(main, dir);
-    // .env holds local, non-secret overrides only (ADR 0002), so it's safe to copy
-    if (existsSync(join(main, ".env"))) copyFileSync(join(main, ".env"), join(dir, ".env"));
+    // .env holds local, non-secret overrides only (ADR 0002), so it's safe to copy; one with a secret isn't copied
+    const secretsInEnv = envProblems([main]).filter((p) => p.startsWith(join(main, ".env ")));
+    for (const p of secretsInEnv) console.error(`worktree: not copying .env: ${p}`);
+    if (existsSync(join(main, ".env")) && !secretsInEnv.length) copyFileSync(join(main, ".env"), join(dir, ".env"));
     console.log(
       `\n${branch} in ${dir} (node_modules ${how})\n` +
         "cd there, then npm run app (to show the user on 4500/4510) or npm run app -- --private (your own checks).\n" +

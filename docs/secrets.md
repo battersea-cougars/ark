@@ -38,11 +38,50 @@ token themselves ([Bitwarden](#bitwarden)).
 npm run secrets                                  # the names in dev (never values); add -- --environment production
 node scripts/env-pull.mjs -- <command>           # run a command with dev's secrets, in memory only
 npm run secret:set NAME                          # add or change one (hidden prompt; picks the project from the name)
+# or, better: http://localhost:4500/__secrets    # paste it into the Secrets page (below)
 npm run app restart                              # the apps pick up dev secrets once Bitwarden is unlocked
 ```
 
 **Adding one:** create the token at its provider with the secret's name, `npm run secret:set NAME`, and add its entry
 here, under its system and environment, and to the [Overview](#overview), in the same change.
+
+### Handing a secret over
+
+Paste it into the **Secrets page**, <http://localhost:4500/__secrets> (linked from `/__app`), never into a terminal, a
+chat or a file (#149). The show switch serves it on your machine only: it answers loopback at `localhost`, and only
+the page itself can write.
+
+- **Store:** pick the name (every one in the [Overview](#overview) kept in Secrets Manager, and anything else Bitwarden
+  holds), paste the value into the hidden field or read it from a file (a `.p8`, a PEM, a JSON key), Save. It goes
+  from the supervisor's memory straight to Bitwarden (`setSecret`, the project its name says), and nowhere else: no
+  file, no log (the log says only `secrets: NAME updated in cougars-dev`), no terminal, no browser history or
+  password manager (there is no form to submit), and it never comes back to the page.
+- **Shape:** a value that doesn't look like its secret (a Google client secret is `GOCSPX-…`, a Bitwarden token
+  `0.…`, a key PKCS#8 PEM, a service account JSON, our keys 32 bytes of base64; `scripts/lib/secret-shapes.mjs`) or
+  that brought a `NAME=` or quotes along is questioned before it's saved.
+- **Verify:** each stored value shows as its length, last 4 characters and the first 12 hex digits of its SHA-256.
+  **Check** compares a value pasted from the provider with the stored one, in the browser: nothing is sent.
+- **After a change,** _Restart the apps_ starts every running app that reads secrets again, so it has the new value.
+  _Reconnect_ reads the token from your vault again (after `bw-unlock`, or once the token is changed) without
+  restarting anything.
+
+`npm run secret:set NAME` (a hidden prompt) still works for scripts and pipes (`openssl … | npm run secret:set NAME`).
+
+### `.env` and agents
+
+- **`.env` holds no secret.** `npm run lint` and `npm run app` refuse a `.env*` at the top of a checkout with a line
+  that looks like one (a documented secret's name, a name with TOKEN, SECRET, KEY and the like, or a value of a known
+  secret form), saying the file, line and name, never the value (`scripts/env-check.mjs`); `npm run worktree -- add`
+  doesn't copy such a `.env`. Move each to Bitwarden through the Secrets page and delete the line.
+- **Agents never see a value.** A Claude Code hook (`.claude/settings.json` → `scripts/secrets-hook.mjs`) refuses an
+  agent's command, Read or Grep that would show one: reading `.env*` or `.dev.vars*` (`cat`, `head`, `sed`, `grep`
+  without `-c`/`-q`/`-l`, `source`, `cp`, `< .env`, `git show HEAD:.env`…), `env`, `printenv`, `export -p`, `set`,
+  `ps e`, `/proc/*/environ`, `process.env` or `os.environ` in a one-liner (or dumped whole by a script on a heredoc),
+  `echo $SOME_TOKEN`, `bws secret …` and `bws run`, `bw get`/`list items`/`export`/`unlock`, the vault session file,
+  `env-pull --github-env`, and calls to the Secrets page. It lets through presence checks (`test -s .env`,
+  `grep -c '^NAME=' .env`, `ls`, `wc`), names (`npm run secrets`), running with secrets
+  (`node scripts/env-pull.mjs -- <command>`) and reading code that mentions `process.env`. It's a guard against
+  slips, not a sandbox.
 
 ## How to read this
 

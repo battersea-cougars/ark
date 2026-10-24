@@ -118,6 +118,20 @@ export function setSecret(key, value) {
   return existing ? "Updated" : "Created";
 }
 
+/**
+ * Every secret this token can see, with its project's name and when it last changed. The values are for the caller
+ * to fingerprint (the Secrets page, #149): never print them.
+ */
+export function listSecrets() {
+  const projects = new Map(bws(["project", "list"]).map((p) => [p.id, p.name.trim()]));
+  return bws(["secret", "list"]).map((s) => ({
+    key: s.key,
+    value: s.value,
+    project: projects.get(s.projectId) ?? "",
+    updated: s.revisionDate,
+  }));
+}
+
 export function loadSecrets(environment) {
   if (!ENVIRONMENTS.includes(environment)) {
     throw new Error(`Unknown environment "${environment}": use ${ENVIRONMENTS.join(" or ")}.`);
