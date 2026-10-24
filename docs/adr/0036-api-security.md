@@ -73,9 +73,11 @@ of future sessions is idempotent).
 
 **Security headers on every page, file and response, from both layers.**
 
-- Both apps carry a `_headers` file in `public/`, which Workers static assets apply to everything they serve. The
-  Worker (team app, `worker/index.ts`) and the middleware (website's live routes) set the same set on what they
-  answer. A test in each app reads the file and checks it equals the code's set, so the two can't drift.
+- Both apps have a `_headers` file, which Workers static assets apply to everything they serve. The Worker (team app,
+  `worker/index.ts`) and the middleware (website's live routes) set the same set on what they answer. The team app's
+  is `public/_headers`, and a test checks it equals the code's set, so the two can't drift; the website's is written
+  by its build from the same code (`src/lib/server/headers.ts`, `headers.integration.ts`), for the environment being
+  built, so there's nothing to drift.
 - **The team app** sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`
   and a **content security policy**: only its own scripts, styles (inline allowed: Svelte sets style attributes),
   fonts and files; talks only to its own origin; its own images plus `data:` (team logos) and `blob:` (upload
@@ -83,14 +85,15 @@ of future sessions is idempotent).
   Cloudflare Turnstile on the sign-in page ([0028](0028-turnstile-and-auto-reply.md), #13): its script and its frame
   from `challenges.cloudflare.com`. A new outside resource means widening the policy on purpose, in both places.
 - **The website** sends `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (it
-  links out and is public, so the origin may travel) and a **content security policy** (`CSP` in
-  `src/middleware.ts`):
+  links out and is public, so the origin may travel) and a **content security policy** (`csp` in
+  `src/lib/server/headers.ts`, per environment):
   - Scripts only from its own files, Turnstile and Cloudflare's analytics beacon. **No inline scripts at all**:
     Astro's small component scripts aren't inlined (`assetsInlineLimit` in `astro.config.mjs`), and the two that
     must run first (the error catcher, the back/forward check) are one blocking file, `src/scripts/head.js`. So the
     policy needs no hashes or nonces, is the same string in both layers, and works with `<ClientRouter />` (which
     Astro's own CSP feature doesn't support).
-  - Images from itself, Sanity's CDN, YouTube's thumbnails and, for demo content on dev and previews, picsum; frames
+  - Images from itself, Sanity's CDN, YouTube's thumbnails and, off production only (dev, previews, a laptop), picsum
+    for the demo content: production's policy doesn't name it (`SITE_ENV`, as the build and the Worker have it); frames
     only YouTube's player (`youtube-nocookie.com`) and Turnstile; inline styles allowed (`style="--i:…"` throughout).
   - No objects, no other base, forms only to itself, `frame-ancestors 'none'`, `upgrade-insecure-requests`.
   - A refusal is reported to `/api/csp-report` by `report-uri`, which every browser sends at once. Not the Reporting
@@ -132,7 +135,8 @@ of future sessions is idempotent).
 - Every page and file from either app is unframeable and unsniffable, and the team app's page can't run a script or
   reach a host that isn't its own, which limits what any injected content could do.
 - Adding a CDN, an embed or an analytics script to either app takes a deliberate change to its policy, in the code
-  (`worker/index.ts`, the website's `middleware.ts`) and `public/_headers`; the test fails until both agree. On the
+  (`worker/index.ts` and `public/_headers`, where the test fails until both agree; the website's
+  `lib/server/headers.ts`, both layers). On the
   website an inline `<script>` won't run: put it in a file.
 
 ## History
@@ -152,3 +156,6 @@ of future sessions is idempotent).
   HSTS; links from the Studio are checked before they reach a page
   ([#78](https://github.com/battersea-cougars/ark/issues/78)).
 - 2026-10-21: The team app's policy lets in Turnstile's script and frame, for sign-in and Ask to join (#13).
+- 2026-10-24: The website's headers are per environment: production's policy no longer lets in picsum, which only
+  dev's demo content uses. Its `_headers` is written by the build from the middleware's code, for the environment
+  built, instead of kept in `public/` (#148).

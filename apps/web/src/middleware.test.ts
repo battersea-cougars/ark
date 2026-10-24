@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { CacheLike } from "@cougars/shared/rate-limit";
-import { parseHeadersFile } from "@cougars/shared/testing/headers-file";
+import { siteHeaders } from "./lib/server/headers";
 
 vi.mock("astro:middleware", () => ({ defineMiddleware: (fn: unknown) => fn }));
+vi.mock("astro:env/server", () => ({ SITE_ENV: "dev" }));
 const { LIVE_LIMIT, SITE_HEADERS, secured, tooMany } = await import("./middleware");
 
 function memoryCache(): CacheLike {
@@ -31,10 +31,9 @@ describe("live routes", () => {
 });
 
 describe("security headers (ADR 0036)", () => {
-  it("go on every live response, and public/_headers gives prerendered pages the same", () => {
+  it("go on every live response, this site's own (lib/server/headers.ts; the built _headers in headers.test.ts)", () => {
     const live = secured(new Response("<!doctype html>", { headers: { "content-type": "text/html" } }));
+    expect(SITE_HEADERS).toEqual(siteHeaders("dev"));
     expect(Object.fromEntries(live.headers)).toMatchObject(SITE_HEADERS);
-    const file = parseHeadersFile(readFileSync(new URL("../public/_headers", import.meta.url), "utf8"));
-    expect(file).toEqual({ "/*": SITE_HEADERS });
   });
 });
