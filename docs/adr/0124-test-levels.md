@@ -18,7 +18,7 @@ browser, through a whole workflow as each person in it (#154).
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
 | **Unit**     | Tricky pure logic, every case in isolation: recurrence, the solver, standings, what Manage offers at each stage to each role              | `{domain}.test.ts` beside the code (Vitest)             | every push and PR                                     |
 | **Use case** | The rules and the routes: what someone does through the real Worker handlers, what they'd see after, what reached the outside world       | `{domain}.use-cases.test.ts` (Vitest, the fake world)   | every push and PR                                     |
-| **Journey**  | A whole workflow, by role, in a real browser on the real app: can each person do what needs doing at each step, and not what they mustn't | `apps/team/journeys/{workflow}.journey.ts` (Playwright) | on demand and before a release; never blocks anything |
+| **Journey**  | A whole workflow, by role, in a real browser on the real app: can each person do what needs doing at each step, and not what they mustn't | `apps/team/journeys/{workflow}.journey.ts` (Playwright) | nightly, on demand and before a release; never blocks |
 
 - **What goes where.** A rule (a refusal, a count, who may) is a use case; a pure function with many cases is a unit
   test; a journey checks that the app puts the right things in front of each person at each step and that they work
@@ -52,8 +52,13 @@ browser, through a whole workflow as each person in it (#154).
   stage and role, expected and what happened) and, in CI or with `--file-issue`, opens **one issue for the run**
   (label `regression`) to review: fix the code, or change what the journey expects. `npm run journeys` locally prints
   it and files nothing unless asked.
-- **CI** (`.github/workflows/journeys.yml`): by hand (`workflow_dispatch`) and on a push to `release`, beside the
-  deploy, never required by it. No secrets but `GITHUB_TOKEN`; Chromium only, its download cached.
+- **Two runs: core and full.** The core run (`npm run journeys -- --core`) is every journey but the Kumite on the
+  clock, about 5 minutes; the full run adds it (its three played-out Kumites), 9½ to 12½.
+- **CI** (`.github/workflows/journeys.yml`): the core run nightly on `main` (some time after 02:41 UTC), so a broken
+  flow shows up the morning after it merged, not at the release; the full run on a push to `release`, beside the
+  deploy, never required by it; either by hand (`workflow_dispatch`). A run failing at a commit an open issue is
+  already about comments on it, so a quiet week on `main` is one issue, not seven. No secrets but `GITHUB_TOKEN`;
+  Chromium only, its download cached.
 
 ## Consequences
 
@@ -63,7 +68,8 @@ browser, through a whole workflow as each person in it (#154).
   that production fails closed on (`api.dev-clock.use-cases`). A journey that moves the clock leaves what it made
   then (sessions a year on, say) for the journeys after it: they're written to cope, and that's how the calendar's
   two Marches were found.
-- A run is 9½ to 12½ minutes: a core run and a full one are proposed (testing.md).
+- A full run is 9½ to 12½ minutes and the core one about 5, on GitHub's free runners for a public repo: no Actions
+  minutes spent. A break that only the Kumite on the clock sees waits for the release's run.
 - Overlap between levels is to be taken out as it's found (#154): the same check twice is twice the upkeep.
 - The checkout's own D1 (`--own-db`) is the journeys': a branch that needs its own D1 for its own work loses it to a run.
 
@@ -81,3 +87,5 @@ browser, through a whole workflow as each person in it (#154).
 - 2026-10-23: On dev the clock moves only for an admin (manage:all): any member's `x-dev-now` moved charges, the
   day's sessions and the record on dev's whole-club D1. Your own machine, where the journeys run, still moves it for
   anyone; a loose time ("1", no zone) is ignored (#148).
+- 2026-10-24: Two runs: the core (all but the Kumite on the clock) nightly on `main`, the full one on a push to
+  `release`, either by hand; a failing commit's later runs comment on its open issue (#148).

@@ -1,11 +1,20 @@
 name: Journeys
 
 # The team app's journeys (docs/adr/0124-test-levels.md): whole workflows by role, in Chromium, against a fresh local
-# database and the app started on the runner. By hand, and on a push to `release` beside the deploy. Never required,
-# never blocking: a run with failures opens one issue (label `regression`) listing every failing step.
-# No secrets: the app runs locally without any, and the issue is filed with GITHUB_TOKEN.
+# database and the app started on the runner. The core run (all but the Kumite on the clock, ~5 minutes) nightly on
+# main; the full run on a push to `release`, beside the deploy; either by hand. Never required, never blocking: a run
+# with failures opens one issue (label `regression`) listing every failing step, and a later run failing at the same
+# commit comments on it. No secrets: the app runs locally without any, and the issue is filed with GITHUB_TOKEN.
 on:
+  schedule:
+    - cron: "41 2 * * *" # nightly, some time after 02:41 UTC (off the round minutes: GitHub runs those late), on main
   workflow_dispatch:
+    inputs:
+      run:
+        description: "core (all but the Kumite on the clock) or full"
+        type: choice
+        options: [full, core]
+        default: full
   push:
     branches: [release]
 
@@ -40,7 +49,8 @@ jobs:
       - name: The journeys
         env:
           GH_TOKEN: ${{ github.token }}
-        run: npm run journeys
+          CORE: ${{ github.event_name == 'schedule' || inputs.run == 'core' }}
+        run: npm run journeys -- $([ "$CORE" = true ] && echo --core)
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

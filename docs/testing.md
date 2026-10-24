@@ -148,21 +148,22 @@ than the retention allows (`retention.forget`), and everyone's signed out.
 
 ```sh
 npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
+npm run journeys -- --core          # the core run: all but the Kumite on the clock (about 5 minutes)
 npm run journeys -- --file-issue    # and a run with failures files one GitHub issue (label regression)
 npm run journeys -- --keep          # leave the app up after, to look around (npm run app stop team)
 ```
 
 It takes the checkout's own local D1 (`--own-db`) and starts it afresh every run, so it refuses the main checkout.
 Failures don't stop the run: each failing step is in `.journeys/summary.md` (stage, role, expected and what
-happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`,
-by hand and on a push to `release`) a failing run opens one issue. A step that fails because of a known bug is
+happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`: the core run
+nightly on `main`, the full one on a push to `release`, either by hand) a failing run opens one issue, and a later run
+failing at the same commit comments on it. A step that fails because of a known bug is
 `knownBug(…)`, as `it.fails` is below.
 
-**How long.** The whole run is 9½ to 12½ minutes (23 October 2026, the machine shared), most of it the simulator's
-pacing (1.25 s a request) in the Kumite's two journeys: about ten, so it's time to split it. Proposed: a **core** run
-(`calendar`, `fridays`, `kumite`, `members`, `pages`, `sign-in`: about 5 minutes) by hand and before a release, and
-the **full** run with `kumite.on-the-clock` (its three played-out Kumites) nightly or on a push to `release`, e.g.
-`npm run journeys -- --grep-invert "on the clock"` for the core.
+**How long.** The full run is 9½ to 12½ minutes (23 October 2026, the machine shared), most of it the simulator's
+pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fridays`,
+`kumite`, `members`, `pages`, `sign-in`: about 5 minutes, `--core`) every night on `main`, and the **full** run, with
+`kumite.on-the-clock` (its three played-out Kumites), before a release (a push to `release`).
 
 ## Known bugs
 

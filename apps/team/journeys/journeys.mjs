@@ -2,6 +2,7 @@
 // The team app's journeys (ADR 0124): whole workflows, by role, in a real browser, against a fresh database.
 //
 //   npm run journeys                     fresh D1, the team app started privately, every journey, the app stopped
+//   npm run journeys -- --core           the core run: all but the Kumite on the clock (its played-out Kumites)
 //   npm run journeys -- --file-issue     the same, and a run with failures files one GitHub issue (CI always does)
 //   npm run journeys -- --keep           leave the app running after (prints its port), to look around
 //   npm run journeys -- --a11y           axe over everyone's page at the end of each stage, into .journeys/a11y.md
@@ -26,6 +27,10 @@ const own = (flag) => (argv.includes(flag) ? (argv.splice(argv.indexOf(flag), 1)
 const fileIssue = own("--file-issue") || ci;
 const keep = own("--keep");
 const a11y = own("--a11y");
+const core = own("--core");
+// The core run (nightly on main, testing.md): everything but the long one, the Kumite on the clock
+const only = core ? ["--grep-invert", "The Kumite on the clock"] : [];
+const which = core ? "core" : "full";
 const out = join(root, ".journeys");
 const summary = join(out, "summary.md");
 
@@ -45,6 +50,7 @@ const run = (cmd, args, opts = {}) => {
   }
   return res;
 };
+const gh = (...args) => run("gh", args, { mayFail: true });
 const app = (...args) => run("node", [join(root, "scripts/app.mjs"), ...args]);
 
 // Nor in the checkout 4500/4510 show: that's the one being reviewed, and its D1 is someone's copy of the club
@@ -98,12 +104,12 @@ mkdirSync(out, { recursive: true });
 rmSync(summary, { force: true });
 rmSync(join(out, "a11y.md"), { force: true });
 const t1 = Date.now();
-const pw = run("npx", ["playwright", "test", "-c", join(import.meta.dirname, "journeys.config.ts"), ...argv], {
+const pw = run("npx", ["playwright", "test", "-c", join(import.meta.dirname, "journeys.config.ts"), ...only, ...argv], {
   stdio: "inherit",
   mayFail: true,
   env: { ...process.env, JOURNEY_PORT: port, JOURNEY_OUT: out, JOURNEY_A11Y: a11y ? "1" : "" },
 });
-console.log(`journeys: ran in ${secs(t1)} (exit ${pw.status})`);
+console.log(`journeys: the ${which} run in ${secs(t1)} (exit ${pw.status})`);
 if (a11y) console.log(`journeys: what axe found, stage by stage: ${join(out, "a11y.md")}`);
 
 // 4. Stopped, unless asked to keep it; in CI the switch it started goes too
@@ -126,25 +132,53 @@ if (fileIssue) fileTheIssue();
 else console.log("journeys: no issue filed (npm run journeys -- --file-issue to file one)");
 
 function fileTheIssue() {
-  const gh = (...args) => run("gh", args, { mayFail: true });
   if (gh("label", "list", "--search", "regression", "--json", "name").stdout?.includes('"regression"') !== true)
     gh("label", "create", "regression", "--color", "B60205", "--description", "A journey found something broken");
   const where = process.env.GITHUB_RUN_ID
     ? ` (run ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
     : "";
   const sha = run("git", ["rev-parse", "--short", "HEAD"]).stdout.trim();
+  const title = `Journeys: failing steps at ${sha}${core ? " (core)" : ""}`;
+  // A night with nothing new on main fails the same way again: one issue for a commit, its later runs a comment on it
+  if (notedAgain(title, where)) return;
   const res = gh(
     "issue",
     "create",
     "--title",
-    `Journeys: failing steps at ${sha}`,
+    title,
     "--label",
     "regression",
     "--body",
-    `${readFileSync(summary, "utf8")}\n\nFrom \`npm run journeys\` at ${sha}${where}. Fix the code, or change what the journey expects (ADR 0124).`,
+    `${readFileSync(summary, "utf8")}\n\nFrom the ${which} \`npm run journeys\` at ${sha}${where}. Fix the code, or change what the journey expects (ADR 0124).`,
   );
   if (res.status === 0) console.log(`journeys: filed ${res.stdout.trim()}`);
   else console.error(`journeys: couldn't file the issue: ${res.stderr}`);
+}
+
+/** A comment on the open issue with this title, if there is one: true once it's noted there. */
+function notedAgain(title, where) {
+  const search = [
+    "--label",
+    "regression",
+    "--state",
+    "open",
+    "--search",
+    `"${title}" in:title`,
+    "--json",
+    "number,title",
+  ];
+  const same = JSON.parse(gh("issue", "list", ...search).stdout || "[]").find((i) => i.title === title);
+  if (!same) return false;
+  const res = gh(
+    "issue",
+    "comment",
+    String(same.number),
+    "--body",
+    `Failing again${where}.\n\n${readFileSync(summary, "utf8")}`,
+  );
+  if (res.status === 0) console.log(`journeys: noted again on #${same.number}`);
+  else console.error(`journeys: couldn't comment on #${same.number}: ${res.stderr}`);
+  return true;
 }
 
 function secs(since) {
