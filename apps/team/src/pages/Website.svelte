@@ -109,7 +109,13 @@
       </div>
       <!-- Room kept for the answer, so nothing moves when it comes -->
       <p class="said" class:ok={rebuilt?.ok} role="status">
-        {#if rebuilt}<Icon name={rebuilt.ok ? "check" : "alert"} size={18} />{rebuilt.text}{/if}
+        {#if rebuilt}
+          <Icon name={rebuilt.ok ? "check" : "alert"} size={18} />{rebuilt.text}
+        {:else if !status.canRebuild}
+          <span class="hint"
+            >This copy of the app (on a laptop) never rebuilds the website: only dev's and the live one do.</span
+          >
+        {/if}
       </p>
     </section>
 
