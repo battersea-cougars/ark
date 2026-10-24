@@ -18,8 +18,42 @@ import {
 } from "./dues";
 import { HttpError, body, json } from "../api/api.http";
 import { quarterlyToday, setQuarterly } from "../members/members";
+import { SEES_DUES, holdsAny } from "../api/api.slices";
+import { versionedRead } from "../api/api.version";
+import { collectedFor, idsOf, ledgerPage, linePageOf } from "./dues.ledger";
 
 export const DUES_ROUTES: Route[] = [
+  // A member's ledger, a page at a time, newest first (#177): their own, or anyone's for who sees everyone's dues
+  {
+    method: "GET",
+    path: /^\/api\/members\/(\d+)\/ledger$/,
+    action: "authenticated",
+    handle: async (c) => {
+      if (id(c) !== c.memberId && !holdsAny(c, SEES_DUES)) throw new HttpError(403, "Your role can't see their dues.");
+      const page = linePageOf(new URL(c.request.url));
+      const what = `ledger${id(c)}_${page.before.on}${page.before.kind}${page.before.id}_${page.limit}`;
+      return versionedRead(c, what, async () => {
+        await memberExists(c.env.DB, id(c));
+        return ledgerPage(c.env.DB, id(c), page, c.today);
+      });
+    },
+  },
+  // What nights and tournaments collected, for their editors (#177): how many were charged, for anyone who edits
+  // them (a fee once charged is fixed); the money, for who sees everyone's dues
+  {
+    method: "GET",
+    path: /^\/api\/dues\/collected$/,
+    action: "authenticated",
+    handle: async (c) => {
+      const url = new URL(c.request.url);
+      const [sessions, tournaments] = [idsOf(url, "sessions"), idsOf(url, "tournaments")];
+      const money = holdsAny(c, SEES_DUES);
+      return versionedRead(c, `collected${sessions.join("-")}_${tournaments.join("-")}`, async () => ({
+        sessions: await collectedFor(c.env.DB, "session_id", sessions, money),
+        tournaments: await collectedFor(c.env.DB, "tournament_id", tournaments, money),
+      }));
+    },
+  },
   {
     method: "POST",
     path: /^\/api\/members\/(\d+)\/quarterly$/,
@@ -29,7 +63,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "manage:Member",
-    changes: ["members", "charges", "credits", "payments"],
+    changes: ["members", "charges", "dues"],
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.quarterly !== "boolean") throw new HttpError(400, "quarterly should be true or false.");
@@ -43,7 +77,7 @@ export const DUES_ROUTES: Route[] = [
     path: /^\/api\/subscription-fees$/,
     audit: { event: "fees.quarterly", subject: (c) => subscriptionFees(c.env.DB) },
     action: "manage:Fees",
-    changes: ["subscriptionFees", "charges", "credits", "payments"],
+    changes: ["subscriptionFees", "charges", "dues"],
     // { pence, from }: the quarterly rate from a date
     handle: async (c) => (await setSubscriptionFee(c.env.DB, await body(c.request)), ok()),
   },
@@ -56,7 +90,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // { quarter: "2026-Q3", pence? }: they owe for a quarter
     handle: async (c) => json(await addQuarterCharge(c.env.DB, id(c), await body(c.request), c.memberId, c.now), 201),
   },
@@ -69,7 +103,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c, reply) => ({ memberId: reply.memberId }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // A quarter charged by hand by mistake
     handle: async (c) => {
       const was = await chargeState(c.env.DB, id(c));
@@ -86,7 +120,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c, reply) => ({ memberId: reply.memberId }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // { via: "transfer" | "cash" }: paid
     handle: async (c) => {
       await payCharge(c.env.DB, id(c), await body(c.request), c.memberId, c.now);
@@ -102,7 +136,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c, reply) => ({ memberId: reply.memberId }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // Marked paid by mistake
     handle: async (c) => {
       await unpayCharge(c.env.DB, id(c));
@@ -118,7 +152,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // { pence (above nothing: they owe more; below: less), reason, on? }
     handle: async (c) => json(await addAdjustment(c.env.DB, id(c), await body(c.request), c.memberId, c.now), 201),
   },
@@ -131,7 +165,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c, reply) => ({ memberId: reply.memberId }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // Recorded by mistake: taken back from the ledger
     handle: async (c) => json({ ok: true, memberId: await removePayment(c.env.DB, id(c)) }),
   },
@@ -144,7 +178,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // Their dues worked out again from who came and the fees as they are now (the wrapper does it, as after any
     // change to charges); everyone's come out the same way
     // (Here, not only after it, so what it changed is on the record)
@@ -163,7 +197,7 @@ export const DUES_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Payment",
-    changes: ["charges", "credits", "payments"],
+    changes: ["charges", "dues"],
     // { via, pence }: a lump sum, paying the oldest first (FIFO), the rest kept as credit
     handle: async (c) => (await recordPayment(c.env.DB, id(c), await body(c.request), c.memberId, c.now), ok()),
   },

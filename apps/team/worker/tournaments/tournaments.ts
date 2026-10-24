@@ -1,4 +1,5 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types (series) and editions, their teams, rules and playoffs.
+import { SMALL_LOGO } from "../api/api.club";
 import { PENALTY_MINUTES, PENALTY_RULES, type PenaltyRule } from "../../src/lib/penalties";
 import { syncTournament, syncTournamentsOf } from "@cougars/shared/agenda";
 import { batch, first, run, statement, type Param } from "@cougars/shared/d1";
@@ -311,7 +312,7 @@ export type TournamentTeamRow = {
   id: number;
   tournamentId: number;
   name: string;
-  /** Its logo's version (api.club.ts LOGO_VERSION), or null for none: the image is at its own address (logoAddress). */
+  /** Its logo's version (api.club.ts LOGO_VERSION), or a small one itself (LOGO_SENT); null for none (logoAddress). */
   logo: string | null;
   captainMemberId: number | null;
   captainName: string;
@@ -329,9 +330,12 @@ export type TournamentPlayerRow = {
 
 /**
  * Where a team's logo is (editions.routes.ts), by its version: an address the browser keeps for good, so a new logo is
- * a new address. Not the image itself: a year of them was most of what opening the app sent (#175).
+ * a new address. Not the image itself: a year of them was most of what opening the app sent (#175). A small one
+ * (api.club.ts LOGO_SENT, a generated crest) comes as itself, a data URL, so a page of twenty crests isn't twenty
+ * requests queueing (#177).
  */
-export const logoAddress = (teamId: number, version: string) => `/api/tournament-teams/${teamId}/logo?v=${version}`;
+export const logoAddress = (teamId: number, sent: string) =>
+  sent.startsWith("data:") ? sent : `/api/tournament-teams/${teamId}/logo?v=${sent}`;
 
 /** Tournaments as read (api.club.ts), each with its games, award winners, and teams with their players. */
 export function tournamentsFrom(
@@ -457,9 +461,16 @@ interface TeamIn {
 
 const LOGO = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
 
-/** The team's logo as the app has it, its own address (logoAddress), sent back: the logo it has, kept. */
+/**
+ * The team's logo as the app has it, sent back: the logo it has, kept. Its own address (logoAddress); or a small one
+ * the reply sent as itself (LOGO_SENT) that isn't a kind anyone can upload (a crest made some other way, an SVG): an
+ * upload's kind is saved again as sent, after its check, and anything else only ever keeps what's there.
+ */
 const ownLogo = (teamId: number | null, logo: unknown) =>
-  teamId !== null && typeof logo === "string" && logo.startsWith(`/api/tournament-teams/${teamId}/logo?`);
+  teamId !== null &&
+  typeof logo === "string" &&
+  (logo.startsWith(`/api/tournament-teams/${teamId}/logo?`) ||
+    (logo.startsWith("data:") && logo.length <= SMALL_LOGO && !LOGO.test(logo)));
 
 /** A team's logo: a small image the browser shrank (TeamCard, TeamLookSheet), or none (its initials show). */
 function logoOf(t: Record<string, unknown>): string | null {

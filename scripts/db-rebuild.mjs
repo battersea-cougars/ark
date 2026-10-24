@@ -87,6 +87,9 @@ const dir = mkdtempSync(join(tmpdir(), "db-rebuild-"));
 writeFileSync(join(dir, "backup.json"), JSON.stringify(rows), { mode: 0o600 });
 console.log(`Backed up ${ours.length} tables to ${join(dir, "backup.json")}`);
 
+// Kept by the schema's triggers from the rows that go back (a charge's paid_pence from its allocations, #177): read
+// back as they were, the triggers would add them again
+const DERIVED = { charges: ["paid_pence"], payments: ["spent_pence"] };
 const literal = (v) => (v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const sql = ["PRAGMA defer_foreign_keys = true;"];
 // Children first, so nothing cascades into a table that's still to be read back
@@ -95,8 +98,8 @@ sql.push(schema);
 for (const table of order) {
   const list = rows[table] ?? [];
   if (!list.length) continue;
-  const keep = Object.keys(list[0]).filter((c) => columns.get(table).includes(c));
-  const gone = Object.keys(list[0]).filter((c) => !keep.includes(c));
+  const keep = Object.keys(list[0]).filter((c) => columns.get(table).includes(c) && !DERIVED[table]?.includes(c));
+  const gone = Object.keys(list[0]).filter((c) => !keep.includes(c) && !DERIVED[table]?.includes(c));
   if (gone.length) console.log(`${table}: dropping ${gone.join(", ")} (not in the schema)`);
   // A column the schema now requires that the old rows don't have: they can't be read back (an outbox's pending rows
   // after its shape changed), so they go, said out loud, rather than the whole rebuild failing

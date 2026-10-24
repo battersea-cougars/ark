@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { NOW, onTheNight, testWorld } from "../testing";
+import { chargesOf, clubCharges, creditOf as ledgerCredit } from "./dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -44,11 +45,10 @@ const sessionOn = async (b: Browser, day: string) =>
     .id as number;
 /** A member's training charges, as day → pence (two for one night would show as a list). */
 const nights = async (b: Browser, id: number, now = NOW) => {
-  const charges = ((await boot(b, now)).charges as Charge[]).filter((c) => c.memberId === id && c.kind === "session");
+  const charges = ((await chargesOf(b, id, now)) as Charge[]).filter((c) => c.kind === "session");
   return charges.map((c) => [c.dueOn, c.pence]).sort();
 };
-const creditOf = async (b: Browser, id: number) =>
-  ((await boot(b)).credits as { memberId: number; pence: number }[]).find((c) => c.memberId === id)?.pence ?? 0;
+const creditOf = (b: Browser, id: number) => ledgerCredit(b, id, NOW);
 
 /** Friday Training's fees, the whole list, as its editor sends them; saved now unless told. */
 async function fees(dana: Browser, list: { pence: number; from: string }[], now = NOW) {
@@ -178,7 +178,7 @@ describe("a fee changed back in time, over nights whose register has closed", ()
     expect(await nights(dana, reg)).toEqual([[FRIDAY_BEFORE, 900]]);
     expect(await creditOf(dana, reg)).toBe(300);
     expect(await nights(dana, pat)).toEqual([[LAST_FRIDAY, 1400]]);
-    const patCharge = ((await boot(dana)).charges as Charge[]).find((c) => c.memberId === pat)!;
+    const patCharge = ((await chargesOf(dana, pat)) as Charge[])[0];
     expect(patCharge).toMatchObject({ pence: 1400, paidPence: 1200 });
   });
 
@@ -209,7 +209,7 @@ describe("a fee of nothing from a date", () => {
     await cameTo(dana, reg, FRIDAY_BEFORE);
     await cameTo(dana, reg, LAST_FRIDAY);
     expect(await nights(dana, reg)).toEqual([[FRIDAY_BEFORE, 1000]]);
-    const overdue = ((await boot(dana)).charges as Charge[]).filter((c) => c.pence === 0);
+    const overdue = ((await clubCharges(dana)) as Charge[]).filter((c) => c.pence === 0);
     expect(overdue).toEqual([]);
   });
 });

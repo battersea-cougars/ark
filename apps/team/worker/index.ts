@@ -3,6 +3,7 @@
 import * as Sentry from "@sentry/cloudflare";
 import { handleApi, type Env } from "./api/api";
 import { chargeDue } from "./dues/dues";
+import { countPlayed } from "./members/members.played";
 import { sendQueued } from "./dues/reminders";
 import { forgetOld } from "./settings/retention";
 import { checkUsage } from "./settings/usage.alerts";
@@ -111,6 +112,7 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
     else {
       await Sentry.withMonitor(HOURLY_MONITOR, async () => {
         await task("dues.charge", () => chargeDue(env, now));
+        await task("members.played", () => countPlayed(env.DB, now));
         await task("usage.check", () => checkUsage(env, now));
         await task("retention.forget", () => forgetOld(env.DB, now));
         await task("sanity.count", () => flushSanityRequests(env.DB, now));

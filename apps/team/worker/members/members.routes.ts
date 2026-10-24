@@ -78,7 +78,7 @@ export const MEMBERS_ROUTES: Route[] = [
     },
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007)
-    changes: ["sessions", "members", "charges", "credits", "payments"],
+    changes: ["sessions", "members", "charges", "dues"],
     // A walk-in taken off frees a place: whoever moves up hears it
     notify: places,
     // { marks: [{ sessionId, here }] }: each Friday ticked or unticked, in one go

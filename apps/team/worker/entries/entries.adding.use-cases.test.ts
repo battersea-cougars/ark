@@ -5,6 +5,7 @@
 // the register still says so. Driven through the real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { clubCharges } from "../dues/dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -66,7 +67,7 @@ async function fullFriday(day = NEXT_FRIDAY) {
   const seen = async () => (await dana.sees()).sessions.find((s: Json) => s.id === friday.id);
   /** Who's charged for the night, the morning after */
   const charged = async () =>
-    ((await dana.sees(new Date(`${day}T23:30:00Z`))).charges as Json[])
+    ((await clubCharges(dana, new Date(`${day}T23:30:00Z`))) as Json[])
       .filter((c) => c.refId === friday.id)
       .map((c) => c.memberId)
       .sort((a, b) => a - b);

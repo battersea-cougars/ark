@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { onTheNight, testWorld } from "../testing";
+import { chargesOf } from "./dues.testing";
 
 // NOW is Tuesday 6 October 2026: the next Friday is the 9th
 const NEXT_FRIDAY = "2026-10-09";
@@ -130,7 +131,7 @@ describe("a tap costs a few round trips, however big the club's dues get", () =>
         .first();
     expect(await row(signedUp)).toMatchObject({ signup: "in", attended: 0 });
     expect(await row(walkIn)).toBeNull();
-    expect((await boot(dana)).charges.filter((c: { memberId: number }) => c.memberId === reg)).toEqual([]);
+    expect(await chargesOf(dana, reg)).toEqual([]);
   });
 
   it("only whoever keeps the register can, and a mark needs a session and here or not", async () => {

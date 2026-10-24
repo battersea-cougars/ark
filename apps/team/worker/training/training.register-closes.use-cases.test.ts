@@ -5,6 +5,7 @@
 // real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
+import { clubCharges } from "../dues/dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -61,7 +62,7 @@ async function friday({ capacity = 5, day = FRIDAY, signedUpAt = TUESDAY, night 
   /** Who's charged for the night, after the hourly run at `now` */
   const charged = async (now: Date) => {
     await w.scheduled("7 * * * *", now);
-    return ((await sees(now)).charges as Json[])
+    return ((await clubCharges(dana, now)) as Json[])
       .filter((c) => c.kind === "session" && c.refId === session.id)
       .map((c) => [c.memberId, c.pence])
       .sort((a, b) => a[0] - b[0]);

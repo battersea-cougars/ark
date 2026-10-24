@@ -5,6 +5,7 @@
 // Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { meetings } from "../../src/lib/matchups";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -29,7 +30,10 @@ beforeEach(() => {
 });
 const memberIds = () =>
   (w.db.raw.prepare("SELECT id FROM members ORDER BY id").all() as { id: number }[]).map((m) => m.id);
-const LOGO = `data:image/webp;base64,${Buffer.from("a small crest").toString("base64")}`;
+/** A crest as the browser shrinks one (lib/logo.ts): a few KB, so it has its own address. */
+const LOGO = `data:image/webp;base64,${Buffer.alloc(3000, "a crest").toString("base64")}`;
+/** A generated crest, a few hundred bytes: sent as itself (#177). */
+const SMALL = `data:image/svg+xml;base64,${Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>").toString("base64")}`;
 
 /**
  * Past Kumites played on these days, each of two drafted teams (the first with a logo, captained by Ash) and a final
@@ -273,7 +277,7 @@ describe("a team's logo", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("image/webp");
     expect(res.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
-    expect(Buffer.from(await res.arrayBuffer()).toString()).toBe("a small crest");
+    expect(Buffer.from(await res.arrayBuffer()).toString()).toBe(Buffer.alloc(3000, "a crest").toString());
     const again = await b.open("GET", team.logo, { headers: { "if-none-match": res.headers.get("etag")! } });
     expect(again.status).toBe(304);
   });
@@ -295,10 +299,92 @@ describe("a team's logo", () => {
     expect((await look(team.logo)).status).toBe(200);
     const kept = (await b.call("GET", `/api/tournaments/${last}`)).body.tournament.teams[0];
     expect(kept.logo).toBe(team.logo);
-    const other = `data:image/png;base64,${Buffer.from("another crest").toString("base64")}`;
+    const other = `data:image/png;base64,${Buffer.alloc(3000, "another crest").toString("base64")}`;
     expect((await look(other)).status).toBe(200);
     const changed = (await b.call("GET", `/api/tournaments/${last}`)).body.tournament.teams[0];
     expect(changed.logo).not.toBe(team.logo);
-    expect(Buffer.from(await (await b.open("GET", changed.logo)).arrayBuffer()).toString()).toBe("another crest");
+    expect(Buffer.from(await (await b.open("GET", changed.logo)).arrayBuffer()).toString()).toBe(
+      Buffer.alloc(3000, "another crest").toString(),
+    );
+  });
+
+  it("a small one (a generated crest) comes as itself, so twenty on a page of History aren't twenty requests (#177)", async () => {
+    const [last, before] = played("2025-10-14", "2025-09-14");
+    w.db.raw.prepare("UPDATE tournament_teams SET logo = ?").run(SMALL);
+    w.db.raw.prepare("UPDATE data_version SET version = version + 1").run();
+    const { b, boot } = await opened();
+    const team = boot.tournaments.find((t: Json) => t.id === last).teams[0];
+    expect(team.logo).toBe(SMALL);
+    const page = (await b.call("GET", `/api/tournament-types/${KUMITE}/editions`)).body.editions as Json[];
+    expect(page.find((e) => e.id === before).teams[0].logo).toBe(SMALL);
+    // Sent back as it came (it isn't a kind anyone uploads), the team keeps it
+    const look = await b.call("PUT", `/api/tournaments/${last}/teams/${team.id}/look`, {
+      name: "Shidoshi",
+      logo: SMALL,
+    });
+    expect(look.status).toBe(200);
+    expect((await b.call("GET", `/api/tournaments/${last}`)).body.tournament.teams[0].logo).toBe(SMALL);
   });
 });
+
+// What looked through every edition the app held, before it held only a few (#177): each a small read of its own
+describe("what the matchup, the editor and Venues read for themselves", () => {
+  it("the matchup's when these captains last met: the past ones where both played, the newest first", async () => {
+    const [first, second, third] = played("2025-01-14", "2025-02-14", "2025-03-14");
+    const [, ash, bo] = memberIds();
+    const final = (t: number) =>
+      (w.db.raw.prepare("SELECT id FROM tournament_games WHERE tournament_id = ?").get(t) as { id: number }).id;
+    const { b } = await opened("ash@example.com");
+    const res = await b.call("GET", `/api/tournament-games/${final(third)}/meetings`);
+    expect(res.status).toBe(200);
+    expect(res.body.editions.map((e: Json) => e.id)).toEqual([second, first]);
+    const met = meetings(res.body.editions, { id: third }, ash, bo);
+    expect(met.map((m) => [m.tournament.id, m.for, m.against])).toEqual([
+      [second, 3, 1],
+      [first, 3, 1],
+    ]);
+  });
+
+  it("the editor's Brings: the team each captain last captained in an earlier one of the series", async () => {
+    const [first, second] = played("2025-01-14", "2025-02-14");
+    const [, ash, bo] = memberIds();
+    const { b } = await opened();
+    const brings = async (query: string) =>
+      (await b.call("GET", `/api/tournament-types/${KUMITE}/brings?${query}`)).body.brings as Json[];
+    const next = await brings("heldOn=2026-07-01");
+    expect(next).toEqual([
+      { memberId: ash, name: "Shidoshi", logo: expect.stringMatching(/^\/api\/tournament-teams\/\d+\/logo\?v=/) },
+      { memberId: bo, name: "Dux", logo: null },
+    ]);
+    expect(next[0].logo).toContain(`/tournament-teams/${teamOf(second, ash)}/`);
+    // The second one's own editor: what they brought to it, from the first
+    expect((await brings(`heldOn=2025-02-14&tournament=${second}`))[0].logo).toContain(
+      `/tournament-teams/${teamOf(first, ash)}/`,
+    );
+    expect(await brings("heldOn=2025-01-01")).toEqual([]);
+    expect((await b.call("GET", `/api/tournament-types/${KUMITE}/brings?heldOn=soon`)).status).toBe(400);
+  });
+
+  it("Venues' used by names every one held there, past ones too, each name once", async () => {
+    const [first, second] = played("2025-01-14", "2025-02-14");
+    const { b } = await opened();
+    const venue = Number(
+      w.db.raw.prepare("INSERT INTO venues (name, address, map_url, active) VALUES ('The Rink', '', '', 1)").run()
+        .lastInsertRowid,
+    );
+    w.db.raw.prepare("UPDATE tournaments SET venue_id = ? WHERE id IN (?, ?)").run(venue, first, second);
+    w.db.raw.prepare("UPDATE tournaments SET name = 'Kumite' WHERE id IN (?, ?)").run(first, second);
+    w.db.raw.prepare("UPDATE data_version SET version = version + 1").run();
+    const used = (await b.call("GET", "/api/venues/used")).body.used as Json[];
+    expect(used.find((u) => u.venueId === venue)).toEqual({ venueId: venue, names: ["Kumite"] });
+    const ash = await w.signedIn("ash@example.com");
+    expect((await ash.call("GET", "/api/venues/used")).status).toBe(403);
+  });
+});
+
+const teamOf = (tournament: number, captain: number) =>
+  (
+    w.db.raw
+      .prepare("SELECT id FROM tournament_teams WHERE tournament_id = ? AND captain_member_id = ?")
+      .get(tournament, captain) as { id: number }
+  ).id;

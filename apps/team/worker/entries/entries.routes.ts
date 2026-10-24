@@ -17,7 +17,7 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     path: new RegExp(`^/api/${path}/(\\d+)/answer$`),
     audit: { none: "a member's own sign-up: the sign-ups are their own record (signed_up_at)" },
     action: "signup:Event",
-    changes: slice === "clubEvents" ? [slice] : [slice, "charges", "credits", "payments"],
+    changes: slice === "clubEvents" ? [slice] : [slice, "charges", "dues"],
     // Who's in: nothing on the calendar moves
     calendar: false,
     // Out of a full event: the first waiting is in, and hears it. A Quarterly Member in for a full training: the one
@@ -45,9 +45,9 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     // A past session's line-up is what a player's "played" counts
     changes:
       slice === "sessions"
-        ? ["sessions", "members", "charges", "credits", "payments"]
+        ? ["sessions", "members", "charges", "dues"]
         : slice === "tournaments"
-          ? [slice, "charges", "credits", "payments"]
+          ? [slice, "charges", "dues"]
           : [slice],
     calendar: false,
     // An admin puts someone in (a training's places kept: in, or waiting), or takes them off; the reply says where

@@ -5,6 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { testWorld } from "../testing";
+import { clubCharges } from "./dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -26,9 +27,7 @@ const mine = async (b: Browser, now?: Date) => {
 const choose = (b: Browser, quarter: string, quarterly: boolean, now?: Date) =>
   b.call("PUT", "/api/me/plan", { quarter, quarterly }, now ? { now } : {});
 const quartersCharged = async (dana: Browser, now: Date) =>
-  ((await dana.call("GET", "/api/bootstrap", undefined, { now })).body.charges as { kind: string; quarter: string }[])
-    .filter((c) => c.kind === "quarter")
-    .map((c) => c.quarter);
+  (await clubCharges(dana, now)).filter((c) => c.kind === "quarter").map((c) => c.quarter);
 
 describe("a member chooses next quarter's plan", () => {
   it("pay as you go now, Quarterly from next quarter: this quarter stays as it is", async () => {

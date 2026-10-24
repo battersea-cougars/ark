@@ -6,6 +6,7 @@ import { londonEvening } from "@cougars/shared/london";
 import { type Ctx } from "./api.route";
 import { readClub, type Part, type Parts, type Viewer } from "./api.club";
 import { chargesFrom } from "../dues/dues";
+import { owedFrom } from "../dues/dues.ledger";
 import { entriesFrom } from "../entries/entries";
 import { gamesFrom } from "../tournaments/fixtures";
 import { canGrant, membersFrom, rolesFrom } from "../members/members";
@@ -122,21 +123,10 @@ export const SLICES = {
     parts: ["clubEvents", "eventEntries"],
     shape: (_c: Ctx, p: Parts) => withEntries(clubEventsFrom(p.clubEvents), p.eventEntries),
   },
-  // Dues (ADR 0007): your own charges, or everyone's for who sees Unpaid fees; and the quarterly rate
+  // Dues (ADR 0007, #177): your own unpaid charges, and what each owes (your own, or everyone's for who sees Unpaid
+  // fees); a member's ledger is read a page at a time (dues.ledger.ts)
   charges: { parts: ["charges"], shape: (_c: Ctx, p: Parts) => chargesFrom(p.charges) },
-  credits: { parts: ["credits"], shape: (_c: Ctx, p: Parts) => p.credits as { memberId: number; pence: number }[] },
-  payments: {
-    parts: ["payments"],
-    shape: (_c: Ctx, p: Parts) =>
-      p.payments as {
-        id: number;
-        memberId: number;
-        pence: number;
-        receivedOn: string;
-        via: "transfer" | "cash" | "adjustment";
-        reason: string | null;
-      }[],
-  },
+  dues: { parts: ["dues"], shape: (_c: Ctx, p: Parts) => owedFrom(p.dues) },
   // When each was last reminded of what they owe (ADR 0007): who sees everyone's dues; anyone else, nothing
   reminders: {
     parts: ["reminders"],

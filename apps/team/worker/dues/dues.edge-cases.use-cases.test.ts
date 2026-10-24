@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { NOW, onTheNight, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
+import { chargesOf as ledgerCharges } from "./dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -48,8 +49,7 @@ const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 const sessionOn = async (b: Browser, day: string) =>
   (await boot(b)).sessions.find((s: { heldOn: string }) => s.heldOn === day).id as number;
-const chargesOf = async (b: Browser, id: number, now = NOW) =>
-  ((await boot(b, now)).charges as Charge[]).filter((c) => c.memberId === id);
+const chargesOf = async (b: Browser, id: number, now = NOW) => (await ledgerCharges(b, id, now)) as Charge[];
 /** What each of a member's payments has left to spend: their credit. */
 const credit = (id: number) =>
   (
@@ -430,7 +430,7 @@ describe("who may touch money (ADR 0024)", () => {
     unchanged(reg);
   });
 
-  it("someone who only sees Unpaid fees sees everyone's charges; a member only their own", async () => {
+  it("someone who only sees Unpaid fees sees what everyone owes and reads anyone's ledger; a member only their own", async () => {
     const { dana, reg } = await everyChange();
     const danaId = await memberId(dana, "Dana Admin");
     await dana.call(
@@ -442,10 +442,14 @@ describe("who may touch money (ADR 0024)", () => {
       },
       { now: onTheNight(FRIDAYS[2]) },
     );
-    const val = await boot(await w.signedIn("val@example.com"));
-    expect(new Set((val.charges as Charge[]).map((c) => c.memberId))).toEqual(new Set([reg, danaId]));
-    const dot = await boot(await w.signedIn("dot@example.com"));
-    expect(dot.charges).toEqual([]);
+    const valSees = await w.signedIn("val@example.com");
+    const val = await boot(valSees);
+    expect(new Set((val.dues as { memberId: number }[]).map((c) => c.memberId))).toEqual(new Set([reg, danaId]));
+    expect((await ledgerCharges(valSees, reg)).length).toBeGreaterThan(0);
+    const dotSees = await w.signedIn("dot@example.com");
+    const dot = await boot(dotSees);
+    expect([dot.charges, dot.dues]).toEqual([[], []]);
+    expect((await dotSees.call("GET", `/api/members/${reg}/ledger`)).status).toBe(403);
   });
 
   it("a treasurer records payments, charges and adjustments, but can't set the quarterly rate", async () => {

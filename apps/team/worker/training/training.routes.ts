@@ -23,7 +23,7 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "manage:Training",
-    changes: ["series", "sessions", "charges", "credits", "payments"],
+    changes: ["series", "sessions", "charges", "dues"],
     handle: async (c) => {
       const b = await body(c.request);
       // A new training is free until whoever sets fees says otherwise; its fees go in with it, or neither (#131)
@@ -45,7 +45,7 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "manage:Training",
-    changes: ["series", "sessions", "charges", "credits", "payments"],
+    changes: ["series", "sessions", "charges", "dues"],
     // A limit raised lets the first waiting in on each night, and they hear it
     notify: places,
     // Its fees too, for whoever sets fees (ADR 0007)
@@ -88,7 +88,7 @@ export const TRAINING_ROUTES: Route[] = [
       subject: rowOf("SELECT id, held_on heldOn, cancelled_at cancelledAt FROM training_sessions WHERE id = ?"),
     },
     action: "manage:Training",
-    changes: ["sessions", "members", "charges", "credits", "payments"],
+    changes: ["sessions", "members", "charges", "dues"],
     notify: sessionOff,
     handle: async (c) => {
       const b = await body(c.request);
@@ -136,7 +136,7 @@ export const TRAINING_ROUTES: Route[] = [
     },
     // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
     action: "publish:Teams",
-    changes: ["sessions", "charges", "credits", "payments"],
+    changes: ["sessions", "charges", "dues"],
     notify: places,
     // Someone waiting, in over the limit
     handle: async (c) => {
@@ -150,7 +150,7 @@ export const TRAINING_ROUTES: Route[] = [
     path: /^\/api\/sessions\/(\d+)\/reset$/,
     audit: { event: "session.reset", subject: (c) => sessionSignups(c.env.DB, id(c)) },
     action: "update:Event",
-    changes: ["sessions", "charges", "credits", "payments"],
+    changes: ["sessions", "charges", "dues"],
     // Start the session again: no sign-ups, no teams
     handle: async (c) => (await resetSession(c.env.DB, id(c), c.now), ok()),
   },
@@ -167,7 +167,7 @@ export const TRAINING_ROUTES: Route[] = [
     },
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007)
-    changes: ["sessions", "members", "charges", "credits", "payments"],
+    changes: ["sessions", "members", "charges", "dues"],
     // A walk-in taken off frees a place
     notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team

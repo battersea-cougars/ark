@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
+import { clubCharges } from "../dues/dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -62,7 +63,7 @@ async function friday({ capacity = 2, keepers = null as number | null, day = NEX
   /** Who's charged for the night, the morning after it, once the hourly run has charged what's due */
   const charged = async () => {
     await w.scheduled("7 * * * *", MORNING_AFTER(day));
-    return ((await dana.sees(MORNING_AFTER(day))).charges as Json[])
+    return ((await clubCharges(dana, MORNING_AFTER(day))) as Json[])
       .filter((c) => c.refId === night.id)
       .map((c) => c.memberId)
       .sort((a, b) => a - b);

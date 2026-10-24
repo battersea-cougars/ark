@@ -5,6 +5,8 @@
 // the day, so this is the view, as a query.
 import { quarterlyOn } from "../entries/entries";
 import { REVEAL_PLACE } from "../tournaments/awards";
+import { playedOf } from "../members/members.played";
+import { CHARGE_COLUMNS, OWED_COLUMNS, OWING, chargeSelect, owedSelect } from "../dues/dues.ledger";
 
 /** Who's asking, and what changes what they see. */
 export interface Viewer {
@@ -189,6 +191,15 @@ export const LOGO_VERSION = (t: string) =>
   `CASE WHEN ${t}.logo IS NOT NULL THEN length(${t}.logo) || hex(substr(${t}.logo, 1 + length(${t}.logo) / 3, 6))
      || hex(substr(${t}.logo, 1 + 2 * length(${t}.logo) / 3, 6)) END`;
 
+/** A logo this small (a generated crest, about 0.3 KB) is sent as itself: one request for each would queue (#177). */
+export const SMALL_LOGO = 2048;
+/**
+ * A team's logo as a reply sends it: a small one as the image itself (a data URL), else its version, which names its
+ * address (tournaments.ts logoAddress). `t`: the team's alias.
+ */
+export const LOGO_SENT = (t: string) =>
+  `CASE WHEN length(${t}.logo) <= ${SMALL_LOGO} THEN ${t}.logo ELSE ${LOGO_VERSION(t)} END`;
+
 const PARTS = {
   everydayRole: "json_array((SELECT m.everyday_role_id FROM members m, viewer v WHERE m.id = v.member_id))",
   members: rows(
@@ -200,9 +211,7 @@ const PARTS = {
               (SELECT group_concat(name) FROM (SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                 WHERE mr.member_id = m.id ORDER BY r.is_system DESC, r.id DESC)) END roles,
             m.bio, m.web_name, CASE WHEN ${mine} THEN m.phone END phone,
-            (SELECT COUNT(*) FROM attendance a JOIN training_sessions s ON s.id = a.session_id
-              WHERE a.member_id = m.id AND a.signup = 'in' AND COALESCE(a.attended, 1) = 1
-                AND s.held_on < v.today AND s.cancelled_at IS NULL) played,
+            ${playedOf("m", "v")} played,
             ${mine} AND EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.member_id = m.id AND sub.starts_on <= v.today
               AND (sub.ends_on IS NULL OR sub.ends_on >= v.today)) quarterly,
             ${mine} AND EXISTS (SELECT 1 FROM subscriptions sub, (SELECT date(v.today, 'start of month',
@@ -266,10 +275,11 @@ const PARTS = {
      FROM tournaments t WHERE t.id IN (${SHOWN}) ORDER BY t.held_on`,
   ),
   // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts). Each
-  // logo is its version (LOGO_VERSION), not the image: the image is at an address of its own (#175)
+  // logo is its version (LOGO_VERSION), not the image: the image is at an address of its own (#175); a small one is
+  // sent as itself (LOGO_SENT, #177)
   tournamentTeams: rows(
     "id tournamentId name logo captainMemberId captainName contact pick",
-    `SELECT t.id, t.tournament_id tournamentId, t.name, ${LOGO_VERSION("t")} logo, t.captain_member_id captainMemberId,
+    `SELECT t.id, t.tournament_id tournamentId, t.name, ${LOGO_SENT("t")} logo, t.captain_member_id captainMemberId,
             t.captain_name captainName, CASE WHEN v.sees_contacts THEN t.contact ELSE '' END contact, t.pick
      FROM viewer v CROSS JOIN tournament_teams t WHERE t.tournament_id IN (${SHOWN})
      ORDER BY t.tournament_id, coalesce(t.pick, 1000), t.id`,
@@ -318,46 +328,12 @@ const PARTS = {
      FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now ORDER BY ce.starts_at`,
   ),
   eventEntries: entries("club_event_entries", "event_id", EVENTS_SHOWN),
-  // Dues (ADR 0007): your own charges, or everyone's for who sees Unpaid fees. Paid: in full, the last payment's day.
-  charges: rows(
-    "id memberId kind refId quarter title seriesId typeId startTime pence dueOn paidOn paidVia paidPence byHand",
-    `SELECT c.id, c.member_id memberId,
-            CASE WHEN c.session_id IS NOT NULL THEN 'session' WHEN c.tournament_id IS NOT NULL THEN 'tournament'
-              WHEN c.reason IS NOT NULL THEN 'adjustment' ELSE 'quarter' END kind,
-            COALESCE(c.session_id, c.tournament_id) refId, c.quarter, COALESCE(ts.name, t.name, c.reason) title,
-            s.series_id seriesId, t.type_id typeId, COALESCE(s.start_time, ts.start_time, t.start_time) startTime,
-            c.amount_pence pence, c.due_on dueOn,
-            CASE WHEN paid.total >= c.amount_pence THEN paid.last_on END paidOn,
-            CASE WHEN paid.total >= c.amount_pence THEN paid.via END paidVia, COALESCE(paid.total, 0) paidPence,
-            c.created_by IS NOT NULL byHand
-     FROM charges c
-       LEFT JOIN training_sessions s ON s.id = c.session_id LEFT JOIN training_series ts ON ts.id = s.series_id
-       LEFT JOIN tournaments t ON t.id = c.tournament_id
-       LEFT JOIN (SELECT pa.charge_id, SUM(pa.amount_pence) total, MAX(p.received_on) last_on,
-                         (SELECT p2.via FROM payment_allocations pa2 JOIN payments p2 ON p2.id = pa2.payment_id
-                           WHERE pa2.charge_id = pa.charge_id ORDER BY p2.id DESC LIMIT 1) via
-                  FROM payment_allocations pa JOIN payments p ON p.id = pa.payment_id
-                  WHERE pa.charge_id IN (SELECT id FROM charges WHERE member_id IN (${DUES_SHOWN}))
-                  GROUP BY pa.charge_id) paid
-         ON paid.charge_id = c.id
-     WHERE c.member_id IN (${DUES_SHOWN})
-     ORDER BY c.due_on DESC, c.id DESC`,
-  ),
-  // Each payment, for the dues ledger: your own, or everyone's for who sees Unpaid fees
-  payments: rows(
-    "id memberId pence receivedOn via reason",
-    `SELECT p.id, p.member_id memberId, p.amount_pence pence, p.received_on receivedOn, p.via, p.reason
-     FROM payments p WHERE p.member_id IN (${DUES_SHOWN})
-     ORDER BY p.member_id, p.received_on DESC, p.id DESC`,
-  ),
-  // Money paid in and not yet spent on a charge: it pays the next one (dues.ts settle)
-  credits: rows(
-    "memberId pence",
-    `SELECT p.member_id memberId, SUM(p.amount_pence) - COALESCE((SELECT SUM(pa.amount_pence)
-              FROM payment_allocations pa JOIN payments p2 ON p2.id = pa.payment_id WHERE p2.member_id = p.member_id), 0) pence
-     FROM payments p WHERE p.member_id IN (${DUES_SHOWN})
-     GROUP BY p.member_id HAVING pence > 0 ORDER BY p.member_id`,
-  ),
+  // Dues (ADR 0007, #177): your own charges with something left to pay (Home, your tab's header), found by index; the
+  // rest of your ledger is read a page at a time (dues.ledger.ts)
+  charges: rows(CHARGE_COLUMNS, chargeSelect(`c.member_id = (SELECT member_id FROM viewer) AND ${OWING("c")}`)),
+  // What each owes, by age, and their credit: your own, or everyone's for who sees Unpaid fees, worked out here from
+  // the charges not paid and the payments not spent, so it's the same size however long the club's been charging
+  dues: rows(OWED_COLUMNS, owedSelect(DUES_SHOWN, "(SELECT today FROM viewer)")),
   subscriptionFees: rows(
     "pence from",
     `SELECT amount_pence pence, effective_from "from" FROM subscription_fees ORDER BY effective_from`,

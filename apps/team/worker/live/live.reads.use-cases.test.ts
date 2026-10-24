@@ -77,7 +77,7 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     expect((await mo.change("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
     // An answer moves nothing on the calendar, so the agenda isn't read again (api.route.ts `calendar`)
-    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, credits, payments"]);
+    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, dues"]);
     expect(reg.club().sessions.find((s: Json) => s.id === f.session.id).going).toHaveLength(1);
   });
 

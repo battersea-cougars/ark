@@ -4,12 +4,20 @@ import { AUDIT_PAGE, readAudit } from "./audit";
 import { addDevMail, devMailList, removeDevMail } from "./devtools";
 import { HttpError, body, json } from "../api/api.http";
 import { createQuip, deleteQuip, updateQuip } from "./quips";
-import { createVenue, updateVenue } from "./venues";
+import { createVenue, updateVenue, venuesUsed } from "./venues";
+import { versionedRead } from "../api/api.version";
 import { saveBank, saveSettings } from "./settings";
 import { readUsage } from "./usage";
 import { readErrors } from "./errors";
 
 export const SETTINGS_ROUTES: Route[] = [
+  {
+    method: "GET",
+    path: /^\/api\/venues\/used$/,
+    action: "manage:Venue",
+    // What picks each venue, for Settings → Venues (#177)
+    handle: (c) => versionedRead(c, "venuesUsed", async () => ({ used: await venuesUsed(c.env.DB) })),
+  },
   {
     method: "POST",
     path: /^\/api\/venues$/,

@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { onTheNight, testWorld } from "../testing";
+import { chargesOf as ledgerCharges } from "./dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -25,8 +26,7 @@ const boot = async (b: Browser, now?: Date) =>
   (await b.call("GET", "/api/bootstrap", undefined, now ? { now } : {})).body as Json;
 const ids = async (b: Browser) =>
   Object.fromEntries((await boot(b)).members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
-const chargesOf = async (b: Browser, id: number, now?: Date) =>
-  ((await boot(b, now)).charges as Json[]).filter((c) => c.memberId === id);
+const chargesOf = async (b: Browser, id: number, now?: Date) => (await ledgerCharges(b, id, now)) as Json[];
 
 describe("keepers play training free", () => {
   it("a keeper at Friday's session isn't charged; a skater beside them is", async () => {

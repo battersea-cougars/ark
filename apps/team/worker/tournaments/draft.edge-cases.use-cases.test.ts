@@ -6,6 +6,7 @@ import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { nextSlots, onTheClock } from "../../src/lib/draft";
 import { chargeDue } from "../dues/dues";
 import { testWorld } from "../testing";
+import { chargesOf, creditsOf } from "../dues/dues.testing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -512,17 +513,16 @@ describe("deleting what the draft made", () => {
     await chargeDue(w.env, day);
     const boot = async () => (await dana.call("GET", "/api/bootstrap", undefined, { now: day })).body as Json;
     const regId = (await boot()).members.find((m: Json) => m.name === "Player 2").id;
-    const charge = (await boot()).charges.find((c: Json) => c.memberId === regId && c.kind === "tournament");
+    const charge = (await chargesOf(dana, regId, day)).find((c: Json) => c.kind === "tournament");
     expect(charge).toMatchObject({ pence: 1500 });
     expect(
       (await dana.call("POST", `/api/members/${regId}/payments`, { via: "cash", pence: 1500 }, { now: day })).status,
     ).toBe(200);
-    expect((await boot()).credits).toEqual([]);
+    expect(await creditsOf(dana, day)).toEqual([]);
 
     expect((await dana.call("DELETE", `/api/tournaments/${t.body.id}`, undefined, { now: day })).status).toBe(200);
-    const after = await boot();
-    expect(after.charges.filter((c: Json) => c.memberId === regId)).toEqual([]);
-    expect(after.credits).toEqual([{ memberId: regId, pence: 1500 }]);
+    expect(await chargesOf(dana, regId, day)).toEqual([]);
+    expect(await creditsOf(dana, day)).toEqual([{ memberId: regId, pence: 1500 }]);
   });
 });
 

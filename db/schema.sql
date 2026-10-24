@@ -65,7 +65,10 @@ CREATE TABLE members (
   created_at TEXT NOT NULL,
   bio TEXT NOT NULL DEFAULT '',
   everyday_role_id INTEGER REFERENCES roles (id) ON DELETE SET NULL,
-  web_name TEXT
+  web_name TEXT,
+  -- Training nights played whose register has closed, up to data_version.played_through (members.played.ts, #177):
+  -- counted once, as each night's register closes, so opening the app doesn't count every night ever played again
+  played INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX members_status ON members (status);
@@ -428,10 +431,16 @@ CREATE TABLE charges (
   due_on TEXT NOT NULL,
   created_at TEXT NOT NULL,
   created_by INTEGER REFERENCES members (id),
+  -- What payments have put on it (payment_allocations), kept by the triggers below (#177): a charge with some left
+  -- to pay is found by index (charges_owing), not by adding up every allocation there has ever been
+  paid_pence INTEGER NOT NULL DEFAULT 0,
   CHECK ((session_id IS NOT NULL) + (tournament_id IS NOT NULL) + (quarter IS NOT NULL) + (reason IS NOT NULL) = 1)
 );
 
-CREATE INDEX charges_member ON charges (member_id);
+-- A member's ledger, newest first, a page at a time (dues.ledger.ts)
+CREATE INDEX charges_member ON charges (member_id, due_on, id);
+-- What each member owes, and how old it is (Unpaid fees, Home): only the charges not paid in full
+CREATE INDEX charges_owing ON charges (member_id, due_on) WHERE paid_pence < amount_pence;
 CREATE UNIQUE INDEX charges_session ON charges (session_id, member_id) WHERE session_id IS NOT NULL;
 CREATE UNIQUE INDEX charges_tournament ON charges (tournament_id, member_id) WHERE tournament_id IS NOT NULL;
 CREATE UNIQUE INDEX charges_quarter ON charges (quarter, member_id) WHERE quarter IS NOT NULL;
@@ -446,10 +455,14 @@ CREATE TABLE payments (
   via TEXT NOT NULL,
   reason TEXT,
   recorded_by INTEGER REFERENCES members (id),
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  -- What of it has paid charges (payment_allocations), kept by the triggers below (#177); the rest is credit
+  spent_pence INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX payments_member ON payments (member_id);
+CREATE INDEX payments_member ON payments (member_id, received_on, id);
+-- Credit: payments not all spent
+CREATE INDEX payments_spare ON payments (member_id) WHERE spent_pence < amount_pence;
 
 CREATE TABLE payment_allocations (
   payment_id INTEGER NOT NULL REFERENCES payments (id) ON DELETE CASCADE,
@@ -459,6 +472,20 @@ CREATE TABLE payment_allocations (
 );
 
 CREATE INDEX payment_allocations_charge ON payment_allocations (charge_id);
+
+-- Each charge's paid_pence and each payment's spent_pence follow its allocations, however they're written (#177)
+CREATE TRIGGER payment_allocations_in AFTER INSERT ON payment_allocations BEGIN
+  UPDATE charges SET paid_pence = paid_pence + NEW.amount_pence WHERE id = NEW.charge_id;
+  UPDATE payments SET spent_pence = spent_pence + NEW.amount_pence WHERE id = NEW.payment_id;
+END;
+CREATE TRIGGER payment_allocations_changed AFTER UPDATE OF amount_pence ON payment_allocations BEGIN
+  UPDATE charges SET paid_pence = paid_pence + NEW.amount_pence - OLD.amount_pence WHERE id = NEW.charge_id;
+  UPDATE payments SET spent_pence = spent_pence + NEW.amount_pence - OLD.amount_pence WHERE id = NEW.payment_id;
+END;
+CREATE TRIGGER payment_allocations_out AFTER DELETE ON payment_allocations BEGIN
+  UPDATE charges SET paid_pence = paid_pence - OLD.amount_pence WHERE id = OLD.charge_id;
+  UPDATE payments SET spent_pence = spent_pence - OLD.amount_pence WHERE id = OLD.payment_id;
+END;
 
 CREATE TABLE login_challenges (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -719,7 +746,9 @@ CREATE INDEX tournament_team_players_team ON tournament_team_players (team_id, c
 CREATE TABLE data_version (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   version INTEGER NOT NULL,
-  sessions_made_on TEXT
+  sessions_made_on TEXT,
+  -- The last day whose training nights are in members.played (members.played.ts, #177): null, none yet
+  played_through TEXT
 );
 
 -- The website wants rebuilding (apps/team/worker/website.ts, ADR 0100): a finished tournament changed. One row while

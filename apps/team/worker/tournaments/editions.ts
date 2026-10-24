@@ -3,7 +3,7 @@
 // would have sent it, and History a page at a time, newest first, each a line of what it was. All-time leaders are
 // counted in the database, not from every game sent.
 import { champion } from "@cougars/shared/results";
-import { DONE, LOGO_VERSION, readClub, rows } from "../api/api.club";
+import { DONE, LOGO_SENT, LOGO_VERSION, readClub, rows } from "../api/api.club";
 import { HttpError } from "../api/api.http";
 import { type Ctx } from "../api/api.route";
 import { SLICES, viewerOf } from "../api/api.slices";
@@ -101,7 +101,7 @@ export async function pastEditions(
     )} editions,
     ${rows(
       "id tournamentId name logo captainMemberId",
-      `SELECT t.id, t.tournament_id tournamentId, t.name, ${LOGO_VERSION("t")} logo, t.captain_member_id captainMemberId
+      `SELECT t.id, t.tournament_id tournamentId, t.name, ${LOGO_SENT("t")} logo, t.captain_member_id captainMemberId
        FROM tournament_teams t WHERE t.tournament_id IN (SELECT id FROM page)
        ORDER BY t.tournament_id, coalesce(t.pick, 1000), t.id`,
     )} teams,

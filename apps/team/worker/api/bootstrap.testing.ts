@@ -5,6 +5,8 @@
 // last one played, and the rest are read when they're opened (tournaments/editions.ts). For Vitest only.
 import { expect } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { recharge, settle } from "../dues/dues";
+import { recountPlayed } from "../members/members.played";
 import {
   KUMITE_ID_TABLES,
   KUMITE_TABLES,
@@ -26,33 +28,80 @@ const ROSTER = [
   })),
 ];
 
+/**
+ * Weeks of Fridays behind the club (#177): `weeks` of them, `everyone` at each (else the forty), and `paying`: each
+ * member paying every four weeks for the four nights before, but every fifth, who's paid nothing for twelve weeks.
+ */
+export interface Fridays {
+  weeks: number;
+  everyone: boolean;
+  paying: boolean;
+}
+
 /** The club, Dana (an admin) signed in, its members' ids in name order (Dana first), and this week's Friday. */
-export async function clubWithHistory(kumiteCount = 12) {
+export async function clubWithHistory(
+  kumiteCount = 12,
+  fridays: Fridays = { weeks: 8, everyone: false, paying: false },
+) {
   const w = testWorld(ROSTER);
   const dana = await w.signedIn("dana@example.com");
   const boot = (await dana.call("GET", "/api/bootstrap")).body;
   const series = boot.series[0];
   expect(
-    (await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [{ pence: 800, from: "2026-01-01" }] }))
-      .status,
+    (
+      await dana.call("PUT", `/api/series/${series.id}`, {
+        ...series,
+        fees: [{ pence: 800, from: fridays.paying ? "2025-01-01" : "2026-01-01" }],
+      })
+    ).status,
   ).toBe(200);
-  const ids: number[] = boot.members.map((m: { id: number }) => m.id).slice(1, 41);
-  lastFridays(w, ids);
+  const everyone: number[] = boot.members.map((m: { id: number }) => m.id).slice(1);
+  const ids = everyone.slice(0, 40);
+  lastFridays(w, fridays.everyone ? everyone : ids, series.id, fridays.weeks);
   kumites(w, ids, kumiteCount);
+  if (fridays.paying) {
+    // Charged as the hourly run would have, week by week; paid as the treasurer would have recorded it
+    await recharge(w.env.DB, NOW.toISOString().slice(0, 10), NOW.toISOString());
+    await payments(w, fridays.everyone ? everyone : ids, fridays.weeks);
+  }
+  // Written straight into D1, not through the register: counted again from the start, as a script would
+  await recountPlayed(w.env.DB, NOW);
   expect((await dana.call("POST", `/api/members/${ids[0]}/payments`, { via: "cash", pence: 800 })).status).toBe(200);
   const friday: number = boot.sessions.find((s: { heldOn: string }) => s.heldOn >= "2026-10-06").id;
   return { w, dana, ids, friday };
 }
 
-/** The last eight Fridays, these forty at each. */
-function lastFridays(w: ReturnType<typeof testWorld>, ids: number[]) {
+/** The last `weeks` Fridays (made, if the club's sessions don't go back that far), these members at each. */
+function lastFridays(w: ReturnType<typeof testWorld>, ids: number[], seriesId: number, weeks: number) {
+  const today = NOW.toISOString().slice(0, 10);
+  const back = (n: number) => {
+    const friday = new Date(`${today}T12:00:00Z`);
+    friday.setUTCDate(friday.getUTCDate() - ((friday.getUTCDay() + 2) % 7) - 7 * n);
+    return friday.toISOString().slice(0, 10);
+  };
+  const made = w.db.raw.prepare(
+    `INSERT OR IGNORE INTO training_sessions (series_id, held_on, start_time, end_time)
+     SELECT id, ?, start_time, end_time FROM training_series WHERE id = ?`,
+  );
+  for (let n = 0; n < weeks; n++) made.run(back(n), seriesId);
   const fridays = w.db.raw
-    .prepare("SELECT id FROM training_sessions WHERE held_on < ? ORDER BY held_on DESC LIMIT 8")
-    .all(NOW.toISOString().slice(0, 10)) as { id: number }[];
+    .prepare("SELECT id FROM training_sessions WHERE held_on < ? ORDER BY held_on DESC LIMIT ?")
+    .all(today, weeks) as { id: number }[];
   const insert = w.db.raw.prepare(
     "INSERT OR IGNORE INTO attendance (session_id, member_id, signup, signed_up_at, attended) VALUES (?, ?, 'in', ?, 1)",
   );
   for (const f of fridays) for (const m of ids) insert.run(f.id, m, NOW.toISOString());
+}
+
+/** Each member's transfers, every four weeks, for the nights before; every fifth member stopped twelve weeks ago. */
+async function payments(w: ReturnType<typeof testWorld>, ids: number[], weeks: number) {
+  const pay = w.db.raw.prepare(
+    `INSERT INTO payments (member_id, amount_pence, received_on, via, created_at) VALUES (?, 3200, ?, 'transfer', ?)`,
+  );
+  for (const [i, m] of ids.entries())
+    for (let n = weeks; n >= (i % 5 === 0 ? 12 : 4); n -= 4)
+      pay.run(m, new Date(NOW.getTime() - n * 7 * 86_400_000).toISOString().slice(0, 10), NOW.toISOString());
+  await settle(w.env.DB);
 }
 
 /** A team's logo as the browser shrinks it (lib/logo.ts): a 256px WebP, about 16 KB as a data URL. */

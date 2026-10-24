@@ -5,6 +5,7 @@ import { SLICES, slices, type Slice } from "./api.slices";
 import { devToolsHere } from "../settings/devtools";
 import { simulatorHere } from "../tournaments/simulate";
 import { chargeDue } from "../dues/dues";
+import { countPlayed } from "../members/members.played";
 import { HttpError, json } from "./api.http";
 import { sameTag } from "../../src/app/club-tag";
 import { liveStream } from "../live/live";
@@ -35,6 +36,8 @@ export const CLUB_ROUTES: Route[] = [
         await ensureSessions(db, c.today);
         // ...and whatever the new day makes due (ADR 0007), in case the hourly check hasn't run yet
         await chargeDue(c.env, new Date(c.now));
+        // ...and the nights whose registers have closed, counted into who played them (#177)
+        await countPlayed(db, new Date(c.now));
         await sessionsMade(db, c.today);
         ({ version } = await dataVersion(db));
       }

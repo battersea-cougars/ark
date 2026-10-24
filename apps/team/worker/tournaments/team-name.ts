@@ -4,6 +4,8 @@
 // the editions, each keeping its own team's name and logo, so a rename changes only that edition's team, which is
 // then the last one for next time. An erased member brings nothing; one who's never captained in it starts blank.
 import { text } from "../api/api.http";
+import { LOGO_SENT } from "../api/api.club";
+import { logoAddress } from "./tournaments";
 
 /** Team names are up to 40 characters, trimmed (the team's look and the editor say the same). */
 export const teamNameOf = (o: Record<string, unknown>, key = "name") =>
@@ -46,4 +48,31 @@ export function carriedNames(teams: readonly Naming[]): string[] {
     given.add(k);
     return t.carried;
   });
+}
+
+/**
+ * What each captain brings to an edition of series `typeId` on `heldOn` (null: no day yet, so after every other),
+ * `id` if it's saved (#177): for every member who's captained an earlier edition, the team they last captained, its
+ * name and its logo's address. The editor shows it before the team's made ("Brings: Reacher Rounds"), read from the
+ * server, not the editions the app holds.
+ */
+export async function broughtTeams(db: D1Database, typeId: number, heldOn: string | null, id: number | null) {
+  const { results } = await db
+    .prepare(
+      `SELECT memberId, teamId, name, logo FROM (
+         SELECT tt.captain_member_id memberId, tt.id teamId, tt.name, ${LOGO_SENT("tt")} logo,
+                ROW_NUMBER() OVER (PARTITION BY tt.captain_member_id ORDER BY t.held_on DESC, t.id DESC) n
+         FROM tournaments t JOIN tournament_teams tt ON tt.tournament_id = t.id
+           JOIN members m ON m.id = tt.captain_member_id
+         WHERE t.type_id = ? AND m.status != 'erased' AND t.id IS NOT ?
+           AND (? IS NULL OR t.held_on < ? OR (t.held_on = ? AND ? IS NOT NULL AND t.id < ?)))
+       WHERE n = 1 ORDER BY memberId`,
+    )
+    .bind(typeId, id, heldOn, heldOn, heldOn, id, id)
+    .all<{ memberId: number; teamId: number; name: string; logo: string | null }>();
+  return results.map((r) => ({
+    memberId: r.memberId,
+    name: r.name,
+    logo: r.logo ? logoAddress(r.teamId, r.logo) : null,
+  }));
 }

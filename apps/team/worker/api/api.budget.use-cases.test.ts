@@ -572,6 +572,15 @@ async function kumites() {
   const past = (await hit(reg, "GET", `/api/tournaments/${recorded.body.id}`)).body.tournament;
   await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/tournament`);
   await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/tournament`);
+  // What used to look through every edition the app held, and every charge (#177): each its own small read
+  await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/meetings`);
+  await hit(dana, "GET", `/api/tournament-types/${KUMITE_TYPE}/brings?heldOn=2026-12-01`);
+  await hit(dana, "GET", "/api/venues/used");
+  await hit(reg, "GET", `/api/members/${ids["Member 1"]}/ledger`);
+  const page = (await hit(dana, "GET", `/api/members/${ids["Member 1"]}/ledger?limit=3`)).body;
+  if (page.next) await hit(dana, "GET", `/api/members/${ids["Member 1"]}/ledger?limit=3&before=${page.next}`);
+  const nights = (await boot(dana)).sessions.slice(0, 8).map((s: { id: number }) => s.id);
+  await hit(dana, "GET", `/api/dues/collected?sessions=${nights.join(",")}&tournaments=${past.id}`);
   const crest = "data:image/png;base64,iVBORw0KGgo=";
   await hit(dana, "PUT", `/api/tournaments/${past.id}/teams/${past.teams[0].id}/look`, { name: "Crest", logo: crest });
   await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/logo`);

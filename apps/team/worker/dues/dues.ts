@@ -379,16 +379,16 @@ interface Owed {
 function credit(db: D1Database, memberId?: number): D1PreparedStatement[] {
   const who = memberId === undefined ? "" : "AND p.member_id = ?";
   const params = memberId === undefined ? [] : [memberId];
-  const spare = `SELECT p.id, p.member_id, p.amount_pence - COALESCE((SELECT SUM(pa.amount_pence)
-       FROM payment_allocations pa WHERE pa.payment_id = p.id), 0) spare
-     FROM payments p WHERE spare > 0 ${who}`;
+  // What's spent and paid is kept on each payment and charge (the schema's triggers), so these are found by index:
+  // only the payments with credit, and their members' charges with something left (#177)
+  const spare = `SELECT p.id, p.member_id, p.amount_pence - p.spent_pence spare
+     FROM payments p WHERE p.spent_pence < p.amount_pence ${who}`;
   return [
     statement(db, `${spare} ORDER BY p.received_on, p.id`, params),
     statement(
       db,
-      `SELECT c.id, c.member_id, c.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
-         WHERE pa.charge_id = c.id), 0) "left"
-       FROM charges c WHERE "left" > 0 AND c.member_id IN (SELECT member_id FROM (${spare}))
+      `SELECT c.id, c.member_id, c.amount_pence - c.paid_pence "left"
+       FROM charges c WHERE c.paid_pence < c.amount_pence AND c.member_id IN (SELECT member_id FROM (${spare}))
        ORDER BY c.due_on, c.id`,
       params,
     ),

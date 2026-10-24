@@ -303,8 +303,8 @@ describe("the schedule", () => {
     expect(saved.teams).toMatchObject([
       {
         name: "Clapham Crushers",
-        // Its own address, not the image (#175)
-        logo: expect.stringMatching(/^\/api\/tournament-teams\/\d+\/logo\?v=\w+$/),
+        // A logo this small comes as itself (#177); a bigger one, at its own address (#175, editions.use-cases)
+        logo,
         captainName: "Jo Outsider",
         contact: "jo@example.com",
         pick: null,

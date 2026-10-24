@@ -8,6 +8,29 @@ import { HttpError, int, text, time } from "../api/api.http";
 export const venuesFrom = (rows: { id: number; name: string; address: string; mapUrl: string; active: number }[]) =>
   rows.map((v) => ({ ...v, active: Boolean(v.active) }));
 
+/**
+ * What picks each venue (Settings → Venues, #177), so it's clear what a change moves: its trainings, tournament
+ * series, tournaments and club events, every one there has been, by name, each name once. Read when the page opens,
+ * not worked out from what the app holds (only the tournaments and events it shows).
+ */
+export async function venuesUsed(db: D1Database): Promise<{ venueId: number; names: string[] }[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT venueId, json_group_array(name) names FROM (
+         SELECT venue_id venueId, name, 1 kind, MIN(id) first FROM training_series WHERE venue_id IS NOT NULL
+           GROUP BY venue_id, name
+         UNION ALL SELECT venue_id, name, 2, MIN(id) FROM tournament_types WHERE venue_id IS NOT NULL
+           GROUP BY venue_id, name
+         UNION ALL SELECT venue_id, name, 3, MIN(id) FROM tournaments WHERE venue_id IS NOT NULL GROUP BY venue_id, name
+         UNION ALL SELECT venue_id, title, 4, MIN(id) FROM club_events WHERE venue_id IS NOT NULL
+           GROUP BY venue_id, title
+         ORDER BY venueId, kind, first)
+       GROUP BY venueId ORDER BY venueId`,
+    )
+    .all<{ venueId: number; names: string }>();
+  return results.map((r) => ({ venueId: r.venueId, names: JSON.parse(r.names) as string[] }));
+}
+
 function mapUrlOf(o: Record<string, unknown>) {
   const url = cleanMapUrl(text(o, "mapUrl", { optional: true, max: 500 }));
   if (url === null) throw new HttpError(400, "The map link should be a web link, from Google Maps say.");

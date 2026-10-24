@@ -15,6 +15,11 @@ const RUNS = 60;
 const WARM = 20;
 /** A year of Kumites, a few a year (ADR 0009); LOAD_KUMITES=12 for three years of them. */
 const KUMITES = Number(process.env.LOAD_KUMITES ?? 4);
+/**
+ * A year of Fridays, every member at each, charged and paid every four weeks, every fifth member owing the last
+ * twelve (#177); LOAD_WEEKS=8 for the last eight, to compare.
+ */
+const WEEKS = Number(process.env.LOAD_WEEKS ?? 52);
 
 let w: ReturnType<typeof testWorld>;
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
@@ -43,7 +48,7 @@ const say = (what: string, ms: number) => said.push(`${what}: ${ms.toFixed(2)} m
 
 beforeAll(async () => {
   vi.spyOn(console, "log").mockImplementation(() => {});
-  ({ w, dana, ids, friday } = await clubWithHistory(KUMITES));
+  ({ w, dana, ids, friday } = await clubWithHistory(KUMITES, { weeks: WEEKS, everyone: true, paying: true }));
   members = [];
   for (let i = 1; i <= 40; i++) members.push(await w.signedIn(`m${i}@example.com`));
   // A Worker that's been answering a while: each member's first open, and V8's compiler done with the club's shaping
@@ -76,6 +81,15 @@ describe.runIf(process.env.LOAD_CPU)(
       said.push(`bootstrap, a member's bytes: ${(bytes / 1024).toFixed(0)} KB`);
       const admin = await median(() => send(dana, "GET", "/api/bootstrap"));
       say("bootstrap, an admin (sees everything)", admin);
+      const adminBytes = (await (await dana.open("GET", "/api/bootstrap")).arrayBuffer()).byteLength;
+      said.push(`bootstrap, an admin's bytes: ${(adminBytes / 1024).toFixed(0)} KB`);
+      // D1's own time on an admin's open: what grows with the rows it reads (not the Worker's CPU, but its trend is)
+      const sqlBefore = w.db.sqlMs;
+      for (let i = 0; i < RUNS; i++) await send(dana, "GET", "/api/bootstrap");
+      say("bootstrap, an admin, SQLite's time (rows read)", (w.db.sqlMs - sqlBefore) / RUNS);
+      // A member's ledger, a page at a time (#177): what opening the app no longer sends
+      const ledger = await median((i) => send(dana, "GET", `/api/members/${ids[i % ids.length]}/ledger`));
+      say("a member's ledger, its first page", ledger);
       const tags = await Promise.all(members.map(async (m) => (await send(m, "GET", "/api/bootstrap")).headers));
       const unchanged = await median((i) =>
         send(members[i % members.length], "GET", "/api/bootstrap", undefined, {
@@ -103,9 +117,9 @@ describe.runIf(process.env.LOAD_CPU)(
       const deleted = await median((i) => send(dana, "DELETE", `/api/tournaments/${gone[i]}`));
       say("a tournament deleted (its reply: every tournament)", deleted);
       process.stdout.write(
-        `\nWorker CPU a request, ${KUMITES} Kumites behind the club, median of ${RUNS}:\n  ${said.join("\n  ")}\n`,
+        `\nWorker CPU a request, ${KUMITES} Kumites and ${WEEKS} weeks of Fridays behind the club, median of ${RUNS}:\n  ${said.join("\n  ")}\n`,
       );
-      for (const ms of [bootstrap, admin, unchanged, tap, viewing, opened, history, deleted])
+      for (const ms of [bootstrap, admin, unchanged, tap, viewing, opened, history, deleted, ledger])
         expect(ms).toBeLessThan(FREE_CPU_MS);
     });
   },
