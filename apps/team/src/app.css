@@ -959,6 +959,19 @@ button.row:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: transparent;
 }
+/* What's gone for good (#153): the one red fill is the tap that does it, in a confirm (deleting, resetting, a step
+   back that loses results). Quiet, a ghost with danger, it's the red words that ask first. :not(.ghost) gives the fill
+   the weight to hold on touch screens, where a quiet button rests with a faint fill (below) */
+.btn.danger:not(.ghost) {
+  background: var(--red);
+  color: var(--on-red);
+}
+.btn.danger:not(.ghost):hover:not(:disabled) {
+  background: var(--red-hot);
+}
+.btn.ghost.danger {
+  color: var(--red-hot);
+}
 .btn.ghost {
   color: var(--fg-muted);
 }

@@ -101,7 +101,7 @@
   {#if date && asking}
     <p class="ask" role="alert">Delete it? Its teams, sign-ups and results go too.</p>
     <button class="btn ghost" type="button" onclick={() => (asking = false)}>Keep it</button>
-    <button class="btn delete" type="button" disabled={saving.busy > 0} onclick={remove}>Delete</button>
+    <button class="btn danger" type="button" disabled={saving.busy > 0} onclick={remove}>Delete</button>
   {:else}
     <SaveBar {edits} form="date-form" label={date ? "Save" : "Schedule it"} start={date ? deleteIt : undefined} />
   {/if}
@@ -112,22 +112,11 @@
 
 <style>
   /* Delete sits apart, at the start of the footer, in red words; asked, the question takes its place */
-  .danger {
-    color: var(--red-hot);
-  }
   .ask {
     flex: 1;
     min-width: 0;
     margin: 0;
     color: var(--fg-body);
     font-size: var(--text-sm);
-  }
-  /* The one red fill: the tap that does it */
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
   }
 </style>

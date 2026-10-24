@@ -109,7 +109,7 @@
   </p>
   {#snippet footer()}
     <button class="btn ghost" type="button" onclick={() => (sheetOpen = false)}>Keep it</button>
-    <button class="btn delete" type="button" disabled={busy} onclick={remove}>Remove it</button>
+    <button class="btn danger" type="button" disabled={busy} onclick={remove}>Remove it</button>
   {/snippet}
 </Sheet>
 

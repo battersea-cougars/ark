@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Edits } from "./dirty.svelte";
   import SaveBar from "./SaveBar.svelte";
-  import { requestClose } from "./overlay";
+  import { portal, requestClose } from "./overlay";
   import { goesBy, shortName } from "./names";
   // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
   // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
@@ -371,11 +371,6 @@
   const PANEL_MS = 320;
   // Shallow depth: a light turn, not a heavy swing
   const DEPTH = "perspective(2400px)";
-
-  function portal(node: HTMLElement) {
-    document.body.append(node);
-    return { destroy: () => node.remove() };
-  }
 
   // Where the tapped card lies, before anything paints over it
   $effect.pre(() => {
@@ -772,7 +767,7 @@
                     </p>
                     {#snippet footer()}
                       <button class="btn ghost" type="button" onclick={() => (erasing = false)}>Keep it</button>
-                      <button class="btn delete" type="button" disabled={busy} onclick={erase}>Delete it</button>
+                      <button class="btn danger" type="button" disabled={busy} onclick={erase}>Delete it</button>
                     {/snippet}
                   </Sheet>
                 </div>
@@ -1512,16 +1507,6 @@
   .start,
   .danger {
     justify-self: start;
-  }
-  .danger {
-    color: var(--red-hot);
-  }
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
   }
   .erase-note {
     margin: 0;
