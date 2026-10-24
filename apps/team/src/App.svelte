@@ -78,4 +78,4 @@
 <!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page -->
 <SimulationControl focus={!!route.focus} />
 <!-- LOCAL or DEV in the corner; nothing in production (ADR 0010) -->
-{#if ribbon}<EnvRibbon label={ribbon} />{/if}
+{#if ribbon}<EnvRibbon {ribbon} />{/if}

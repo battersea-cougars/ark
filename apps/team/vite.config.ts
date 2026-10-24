@@ -5,6 +5,7 @@ import { defineConfig, type Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { takeOverPort } from "../../scripts/lib/dev-server.mjs";
+import { localCheckout } from "../../packages/shared/ribbon.checkout.ts";
 
 const PORT = 4510;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
@@ -26,6 +27,8 @@ export default defineConfig(({ command }) => ({
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_BUILD__: JSON.stringify(command === "serve" ? "dev" : buildId()),
     __VAPID_PUBLIC_KEY__: JSON.stringify(VAPID_PUBLIC_KEY),
+    // The LOCAL ribbon's checkout (src/app/shell/env-ribbon.ts, ADR 0010): the dev server's only, never a build's
+    __CHECKOUT__: JSON.stringify(command === "serve" ? localCheckout() : null),
   },
   plugins: [
     oneDevServer(PORT),

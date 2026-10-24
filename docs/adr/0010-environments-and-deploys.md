@@ -110,7 +110,12 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   production has neither (`packages/shared/ribbon.ts`). Only a positive sign shows one: the website's build reads
   `SITE_ENV` (`dev` from `deploy.yml` and `scripts/deploy-dev.sh`, none on a machine), so production's pages carry no
   ribbon markup; the team app's reads `VITE_SITE_ENV` (`deploy.yml`), and none plus Vite's dev server is your machine.
-  Anything else, a team build on a machine included, shows nothing.
+  Anything else, a team build on a machine included, shows nothing. On your machine the band has a second line, the
+  branch of the checkout the dev server runs from (ADR 0115), and the tab says it too (`[LOCAL team/review] Home`);
+  "own data" joins LOCAL when that checkout runs on its own local D1 (`npm run app -- --own-db`, or a worktree without
+  the show switch's `COUGARS_LOCAL_STATE`) rather than main's shared one. The configs read it from git once, when the
+  dev server starts (`packages/shared/ribbon.checkout.ts`); a deploy's build never does, so DEV and production are as
+  they were.
 - `DEMO_CONTENT` (sample events, videos, players and placeholder photos) is never on for production: what Sanity
   doesn't have yet, production doesn't show.
 
@@ -169,5 +174,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   GitHub runs schedules on the hour and the half and quarter hours late, or drops them (#148).
 - 2026-10-24: A corner ribbon and tab-title prefix, `LOCAL` on a machine and `DEV` on dev, on the website and the team
   app; nothing in production.
+- 2026-10-24: On your machine the ribbon and the tab's title name the checkout's branch, and "own data" when it's on
+  its own local D1, since several worktrees' apps run at once.
 - 2026-10-24: Every commit is scanned for secrets with a pinned, checksum-checked gitleaks: `pr.yml` the PR's commits
   (checked out whole now), `secrets.yml` the whole history on a push to `main` and weekly (#104).

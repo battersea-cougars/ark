@@ -38,8 +38,9 @@ const {
   structuredData,
   noindex = false,
 } = Astro.props;
-// LOCAL or DEV, fixed at build time (astro.config.mjs); empty in production
-const ribbon = (import.meta.env.ENV_RIBBON || undefined) as Ribbon | undefined;
+// LOCAL (with the checkout) or DEV, fixed at build time (astro.config.mjs); empty in production
+const ribbonJson: string = import.meta.env.ENV_RIBBON;
+const ribbon = ribbonJson ? (JSON.parse(ribbonJson) as Ribbon) : undefined;
 const fullTitle = withRibbon(ribbon, title ? `${title} · ${site}` : `${site} · Inline hockey in Battersea, London`);
 const og = image ?? new URL(`/og/${card}.png`, Astro.site).href;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
@@ -99,7 +100,7 @@ const beacon = analyticsBeacon(SITE_ENV, WEB_ANALYTICS_TOKEN);
       <slot />
     </main>
     <Footer />
-    {ribbon && <EnvRibbon label={ribbon} />}
+    {ribbon && <EnvRibbon ribbon={ribbon} />}
     <div class="scrollbar" data-scrollbar aria-hidden="true" transition:persist="scrollbar">
       <div class="scrollbar-thumb" data-scrollbar-thumb></div>
     </div>
