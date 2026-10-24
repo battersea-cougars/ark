@@ -23,6 +23,7 @@
     "db:rebuild:local": "node scripts/db-rebuild.mjs --local",
     "db:migrate:local": "node scripts/db-migrate.mjs --local",
     "db:seed:local": "node scripts/seed-roster.mjs --local --anonymous",
+    "seed:history": "node scripts/seed-history.mjs",
     "env:pull": "node scripts/env-pull.mjs",
     "secret:set": "node scripts/secret-set.mjs",
     "secrets": "node scripts/env-pull.mjs --status",

@@ -5,6 +5,14 @@
 // last one played, and the rest are read when they're opened (tournaments/editions.ts). For Vitest only.
 import { expect } from "vitest";
 import { NOW, testWorld } from "../testing";
+import {
+  KUMITE_ID_TABLES,
+  KUMITE_TABLES,
+  NEXT_IDS_SQL,
+  idsFrom,
+  insertsSql,
+  kumiteRows,
+} from "../../../../scripts/lib/history.rows.mjs";
 
 const MEMBERS = 120;
 const ROSTER = [
@@ -52,70 +60,92 @@ const logo = (n: number) => `data:image/webp;base64,${Buffer.alloc(12_000, `logo
 
 /**
  * Kumites (up to twelve), on the 14th of each month from January 2025: six drafted teams of the forty, each with its logo, a round robin and three playoffs, seven goals
- * and two penalties a game, four awards, and forty sign-ups. The first of `ids` captains Team 1 each time.
+ * and two penalties a game, four awards, and forty sign-ups. The first of `ids` captains Team 1 each time. Written as
+ * `npm run seed:history` writes its Kumites (scripts/lib/history.rows.mjs).
  */
 function kumites(w: ReturnType<typeof testWorld>, ids: number[], count: number) {
   const db = w.db.raw;
   const at = NOW.toISOString();
-  const tournament = db.prepare(
-    `INSERT INTO tournaments (type_id, name, held_on, start_time, end_time, status, kind, draft_state, awards)
-     VALUES (1, ?, ?, '11:00', '16:00', 'finished', 'draft', 'closed', (SELECT awards FROM tournaments WHERE id = 1))`,
-  );
-  const team = db.prepare(
-    `INSERT INTO tournament_teams (tournament_id, name, logo, captain_member_id, pick, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
-  const player = db.prepare(
-    "INSERT INTO tournament_team_players (team_id, member_id, position, pick_number, picked_by) VALUES (?, ?, ?, ?, ?)",
-  );
-  const game = db.prepare(
-    `INSERT INTO tournament_games (tournament_id, stage, round, position, name, home_team_id, away_team_id,
-       home_goals, away_goals, status, period, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'done', 2, ?)`,
-  );
-  const goal = db.prepare(
-    `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  );
-  const penalty = db.prepare(
-    `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, period, recorded_by,
-       created_at) VALUES (?, ?, ?, 2, 'Hooking', ?, 1, ?, ?)`,
-  );
-  const winner = db.prepare(
-    "INSERT INTO tournament_award_winners (tournament_id, award, team_id, member_id, position) VALUES (?, ?, ?, ?, 0)",
-  );
-  const entry = db.prepare(
-    "INSERT INTO tournament_entries (tournament_id, member_id, signup, signed_up_at, attended) VALUES (?, ?, 'in', ?, 1)",
-  );
+  const { awards } = db.prepare("SELECT awards FROM tournaments WHERE id = 1").get() as { awards: string };
+  const nextId = idsFrom(db.prepare(NEXT_IDS_SQL(KUMITE_ID_TABLES)).get() as Record<string, number>);
+  const tables: Record<string, object[]> = {};
   for (let n = 1; n <= count; n++) {
-    const t = Number(tournament.run(`Kumite ${n}`, `2025-${String(n).padStart(2, "0")}-14`).lastInsertRowid);
-    const teams = Array.from({ length: 6 }, (_, i) => {
-      const id = Number(team.run(t, `Team ${i + 1}`, logo(i), ids[i], i + 1, at).lastInsertRowid);
-      const squad = ids.slice(0, 48).filter((_, p) => p % 6 === i);
-      squad.forEach((m, p) => player.run(id, m, p, p * 6 + i + 1, squad[0]));
-      return { id, squad };
-    });
-    let position = 0;
-    const play = (stage: string, home: (typeof teams)[number], away: (typeof teams)[number]) => {
-      const name = stage === "playoff" ? "Final" : "";
-      const g = Number(game.run(t, stage, 1, ++position, name, home.id, away.id, 4, 3, at).lastInsertRowid);
-      for (let n = 0; n < 7; n++) {
-        const side = n % 2 ? away : home;
-        goal.run(
-          g,
-          side.id,
-          side.squad[n % side.squad.length],
-          side.squad[(n + 1) % side.squad.length],
-          n * 90_000,
-          1 + (n % 2),
-          at,
-        );
-      }
-      for (let n = 0; n < 2; n++) penalty.run(g, home.id, home.squad[n + 2], n * 120_000, ids[0], at);
-    };
-    for (let a = 0; a < 6; a++) for (let b = a + 1; b < 6; b++) play("group", teams[a], teams[b]);
-    for (let n = 0; n < 3; n++) play("playoff", teams[n], teams[n + 3]);
-    winner.run(t, "Champions", teams[0].id, null);
-    for (const award of ["Top scorer", "Best keeper", "The Dim Mak"]) winner.run(t, award, null, teams[1].squad[0]);
-    for (const m of ids) entry.run(t, m, at);
+    const squads = Array.from({ length: 6 }, (_, i) => ids.slice(0, 48).filter((_, p) => p % 6 === i));
+    const teams = squads.map((squad, i) => ({
+      name: `Team ${i + 1}`,
+      logo: logo(i),
+      captain_member_id: ids[i],
+      pick: i + 1,
+      created_at: at,
+      players: squad.map((m, p) => ({ member_id: m, position: p, pick_number: p * 6 + i + 1, picked_by: squad[0] })),
+    }));
+    const games: Record<string, unknown>[] = [];
+    const play = (stage: string, home: number, away: number) =>
+      games.push({
+        stage,
+        round: 1,
+        position: games.length + 1,
+        name: stage === "playoff" ? "Final" : "",
+        home,
+        away,
+        home_goals: 4,
+        away_goals: 3,
+        status: "done",
+        period: 2,
+        started_at: at,
+        goals: Array.from({ length: 7 }, (_, g) => {
+          const [side, squad] = g % 2 ? ["away", squads[away]] : ["home", squads[home]];
+          return {
+            side,
+            scorer_member_id: squad[g % squad.length],
+            assist_member_id: squad[(g + 1) % squad.length],
+            at_ms: g * 90_000,
+            period: 1 + (g % 2),
+            created_at: at,
+          };
+        }),
+        penalties: [0, 1].map((p) => ({
+          side: "home",
+          member_id: squads[home][p + 2],
+          minutes: 2,
+          infraction: "Hooking",
+          at_ms: p * 120_000,
+          period: 1,
+          recorded_by: ids[0],
+          created_at: at,
+        })),
+      });
+    for (let a = 0; a < 6; a++) for (let b = a + 1; b < 6; b++) play("group", a, b);
+    for (let i = 0; i < 3; i++) play("playoff", i, i + 3);
+    kumiteRows(
+      {
+        tournament: {
+          type_id: 1,
+          name: `Kumite ${n}`,
+          held_on: `2025-${String(n).padStart(2, "0")}-14`,
+          start_time: "11:00",
+          end_time: "16:00",
+          status: "finished",
+          kind: "draft",
+          draft_state: "closed",
+          awards,
+        },
+        teams,
+        games,
+        winners: [
+          { award: "Champions", team: 0, member_id: null, position: 0 },
+          ...["Top scorer", "Best keeper", "The Dim Mak"].map((award) => ({
+            award,
+            team: null,
+            member_id: squads[1][0],
+            position: 0,
+          })),
+        ],
+        entries: ids.map((m) => ({ member_id: m, signup: "in", signed_up_at: at, attended: 1 })),
+      },
+      nextId,
+      tables,
+    );
   }
+  db.exec(insertsSql(tables, KUMITE_TABLES));
 }

@@ -112,6 +112,12 @@ Two requests' statements interleave on D1 between their awaits; the fake D1 does
 seeds. Load runs against a Worker of your own (`npm run load -- friday-rush`, never dev or production). How, and what
 they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-concurrency.md)).
 
+**A club with years behind it, by hand**: `npm run seed:history` gives a local D1 (the checkout shown on 4510, if it
+has its own, `--own-db`) four years of played Kumites (30: two pages of History) and a year of Tuesday Skills nights,
+charged and partly paid, for its own members; `npm run seed:history -- --remove` takes it all away
+(`scripts/lib/history.mjs` says how it's marked; `--kumites`, `--weeks`, `--target`, `--shared` for main's D1). Local
+only. The tests' own such club is `apps/team/worker/api/bootstrap.testing.ts`, written the same way.
+
 ## Journeys
 
 Use cases stop at the API; **journeys** drive the real team app in a browser (Playwright, Chromium) through a whole
