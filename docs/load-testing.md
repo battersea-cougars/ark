@@ -176,6 +176,33 @@ Flat in weeks: an admin's open is 78 KB with 8 weeks or 52, where it was 1.7 MB,
 (over the free plan's 10 ms). In one pair of runs, SQLite's time on an admin's open was 7.32 ms at 8 weeks and
 7.27 ms at 52. A member's own was already small: their own charges only. The ±2 ms spread is the shared machine.
 
+Then each page's own (2026-10-24, #178): opening the app sends the core (who you are, the club's settings and menus,
+Home's next things, people and dues), and each page reads its parts when it's opened (`GET /api/slices?names=…`):
+the roster, the weeks just held, each series' last one played, everyone's dues. What's the same for everyone of a
+role is kept at the edge (`api.edge.ts`) by its parts' versions, each member's own rows read beside it. `cpu` now
+also opens pages. Main (5da1c56) then this branch, the same club (four Kumites, 52 weeks, 120 members), the same
+machine; SQLite is D1's own time:
+
+| Request (Worker's own CPU, median)                       | Before → after               |
+| -------------------------------------------------------- | ---------------------------- |
+| Bootstrap, a member                                      | 1.16 → 1.06 ms (72 → 17 KB)  |
+| Bootstrap, an admin                                      | 1.18 → 1.09 ms (78 → 17 KB)  |
+| Bootstrap, an admin: SQLite                              | 2.96 → 1.98 ms               |
+| Bootstrap, a member: SQLite                              | — → 1.97 ms                  |
+| The members page, an admin (38 KB)                       | — → 0.81 ms                  |
+| A training night's page, a member, its shared rows kept  | — → 0.80 ms (0.29 ms SQLite) |
+| A training night's page, nothing kept (D1 for all of it) | — → 1.23 ms (1.24 ms SQLite) |
+| A page, unchanged (304)                                  | — → 0.09 ms                  |
+| A tap, In or Out                                         | 0.88 → 1.94–1.96 ms          |
+| A tournament deleted                                     | 0.98 → 2.18–2.52 ms          |
+
+The core is the same size with four weeks of history as with fifty-two (a use case holds it within 1 KB) and doesn't
+grow with the roster: it names only the people in your next things. A page opened by phones of one role reads its
+shared rows from D1 once; the next phone's open is about a quarter of D1's time, its own answers only. A tap's reply
+costs more than before: it now reads tonight's nights and the weeks just held as two parts, each with your own
+answers overlaid, and Home's people (0.25 ms of it); still a fifth of the free plan's 10 ms. Whole-club equality: the
+core and every page put together are byte for byte the bootstrap #177 sent (bootstrap.same).
+
 Busy moments:
 
 | Run                      | Requests (s)  | Errors      | Key latencies (p50 / p95)                             | Reloads | D1 rows read (of 5M) | Rows written |

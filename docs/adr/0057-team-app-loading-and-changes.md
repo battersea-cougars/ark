@@ -1,7 +1,7 @@
 # 0057. Team app pages load when opened, the club is read in one statement, and a change replies with the parts it touched
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-24
 - **Merges:** 0081
 
 ## Context
@@ -35,7 +35,8 @@ already loaded only when shown, but registered all of its community modules: 1.1
 
 - The club is read in named parts (`SLICES` in `apps/team/worker/api/api.slices.ts`): everydayRole, members, roles, venues,
   series, sessions (with sign-ups and teams), tournamentTypes, tournaments, clubEvents, quips,
-  settings, agenda. The bootstrap is all of them.
+  settings, agenda. The bootstrap is the core of them; each page reads the rest when it's opened
+  ([0053](0053-live-reads-are-cached.md), #178).
 - Every route that isn't a GET declares `changes`: the parts it can touch. A test fails if one doesn't. For example,
   an in or out touches its own kind (sessions, tournaments or clubEvents); a register tick touches sessions and
   members (a past session is what "played" counts); renaming a role touches roles and members.
@@ -90,3 +91,5 @@ already loaded only when shown, but registered all of its community modules: 1.1
   from 29 statements to 7.
 - 2026-10-09: The coming training sessions are made on the day's first open, not every open (`sessions_made_on`);
   opening the app went from 7 statements to 5.
+- 2026-10-24: The bootstrap is the core of the club's parts, each page reads its own, and a change's reply brings the
+  core's parts of the families it names and the pages' the phone holds (`x-club-holds`, ADR 0053, #178).

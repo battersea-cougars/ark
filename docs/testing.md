@@ -102,6 +102,13 @@ const res = await dana.call("POST", "/api/training", { name: "Sunday Skills", we
 expect(res.status).toBe(201);
 ```
 
+Opening the app sends only the core (ADR 0053, #178); a page reads its own parts. `b.club()` is the club as the app
+holds it once its pages are read: the bootstrap, then every page's parts, put together as the app puts them
+(`src/app/club-whole.ts`), with the bootstrap's own status, headers and D1 calls, so a story about what opening the
+app costs still counts the bootstrap's. Use `b.call("GET", "/api/bootstrap")` for a story about the bootstrap itself.
+Every test browser says it holds every page's parts (`x-club-holds`), as an app that's been idle has, so a change's
+reply brings them back. The journeys' shortcuts do the same with `clubVia(asMember(...))`.
+
 Give each area a small helper for the person doing it (`admin(world)`, `member(world, "Jo")`) with the actions
 they take and a `sees()` for what's on their screen, so the test reads like the use case.
 

@@ -20,8 +20,9 @@ Stale content after a change came from our own caches (the build memo, the Worke
 `Cache-Control` alone doesn't help on the server: Cloudflare doesn't keep a Worker's own replies because of it; only
 browsers do. Without a server cache every visitor reads Sanity or D1 again.
 
-The team app reloads the whole club (`/api/bootstrap`) when it opens and when it comes back into view, against D1's
-5M rows read a day. Most of those reloads find nothing new.
+The team app reloaded the whole club (`/api/bootstrap`) when it opened and when it came back into view, against D1's
+5M rows read a day. Most of those reloads found nothing new, and the whole club grew with every member and every
+week of history, though Home shows only what's next.
 
 ## Decision
 
@@ -47,6 +48,46 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - Live pages send the same `Cache-Control` everywhere (`no-store` only when their source is unreachable).
 - Build-time content in `lib/sanity/content.ts` is read once per build, every five minutes on a Worker, and every
   minute in `astro dev`. The five club-fact singletons are one query.
+- **Opening the app reads the core; each page reads its own parts when it's opened** (#178). The bootstrap sends
+  who you are and what you may do (viewing as included), the club's settings and menus (series, tournament types,
+  venues, roles, fees, quips) and what Home needs: the nights from tonight with their sign-ups and teams, the
+  tournaments not played yet and those of the last fortnight, the events to come, the agenda, the announcements, your
+  own charges and dues line, and Home's people (you in full; who you really are while viewing as someone; whoever is
+  in those next things, their names and cards, nothing private). For admins also says what the club is owed in all
+  and who's asking to join. It doesn't grow with the roster or the history (17 KB on a club of 120 with a year of
+  Fridays, was 72–78 KB). A page that shows more asks for its parts in one request (`GET /api/slices?names=…`,
+  `app/page-data.svelte.ts`): the roster (`members`), the weeks just held (`pastSessions`), each series' last one
+  played (`lastPlayed`), everyone's dues and reminders (`clubDues`, `reminders`). A page waits for its parts, as for
+  its code; a deep link has both before the app mounts. Put together with the core (`app/club-whole.ts`) they're what
+  the bootstrap used to send, byte for byte.
+- **Each part has its own version** (`data_version.parts`): a change through the app sets it for the families its
+  route declared (`src/app/club-parts.ts`: `members` is Home's people and the roster, `sessions` the next nights and
+  the weeks just held...); anything else that moves the version on (a script, the hourly run, the day's first open,
+  which makes the day's sessions) makes every part new (`untold`, by trigger). A page's read is tagged by its parts'
+  versions, the member and the day: asked again with its tag while they're unchanged, it's an empty 304, whatever else
+  changed. A tap on Friday doesn't make the roster or last year's Kumite new.
+- **What's the same for everyone who sees the club alike is kept at the edge** (`worker/api/api.edge.ts`): the roster
+  as all of a role see it, a night's sign-ups and teams, a Kumite's teams, games and awards. Read from D1 once, kept in
+  the isolate's memory and Cloudflare's Cache API, keyed by the deploy, the parts, their versions and what the viewer
+  may see (their flags and the day, never who they are), so a change is a new key and nothing is ever stale. Each
+  member's own rows (their answers in full, the vote they cast) are read from D1 every time and put in place
+  (`api.club.ts` OVERLAYS). What's someone's own or depends on the moment is never kept (`OWN`: Home's people, your
+  dues and charges, the agenda, events, announcements, notifications); a use case fails if a part that reads who's
+  asking isn't in it. The Cache API only works on a custom domain: on dev (`*.workers.dev`) only the isolate's memory
+  keeps them. On Workers Free an edge hit still counts as a request; it saves D1's rows and the Worker's time.
+- **In the browser, in memory only**: the core and the pages' parts stay while the app is open, never on disk (#81).
+  A change says which pages' parts the phone holds (`x-club-holds`) and gets those back too. The live copy
+  ([0072](0072-live-updates.md)) reads, of each family the hub names, the parts the phone holds; a page's part that
+  changes while no page in view shows it is let go and asked about again, with its tag, when a page that shows it
+  opens. When the core is read again and the club has changed, the parts held are asked about with their tags.
+- **Prefetch**: once the app's up and the phone is idle, the rest is read in one request: the roster, the weeks just
+  held, each series' last one played, and for whoever sees them everyone's dues and reminders. Not when the phone asks
+  to save data. So the pages you're likely to open next (a Kumite, Friday, the calendar, Members) open at once.
+- **Offline at the rink**: Home, your next night (its sign-ups and teams) and the Kumite that's on are in the core, so
+  an app open at the rink has them, and the roster for names once the prefetch has run (opening the app at home on
+  wifi is enough). Nothing is kept for a cold open with no signal: keeping the club on disk would keep members'
+  details on the phone after signing out, which #81 took away. The app shell still opens offline (#115) and says it
+  can't reach the club.
 - **The team app's bootstrap has an ETag**: the club's data version (`data_version`, one more on every change through
   the API, the club seed and the roster seed), the member, the day and the deploy. It's sent `private, no-store`, so the
   browser keeps no copy of members' details after signing out ([0036](0036-api-security.md)): opening the app reads
@@ -78,6 +119,16 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - A change made to D1 directly (`wrangler d1 execute`, a script) must also bump `data_version`, or members' apps keep
   what they have until the next change, the next day or the next deploy. The seeds already do.
 - After a change, the app reloads only the parts it touched ([0057](0057-team-app-loading-and-changes.md)).
+- Opening the app, and every live read of the core, no longer grows with the roster or the history; a page's first
+  open is one request, and with the prefetch none at all.
+- A route that declares too little of what it changed now leaves that part stale until its next declared change, the
+  next day or the next deploy, for every phone and the edge, not just until the next whole read (#178): the parts'
+  versions are only as good as the declarations ([0057](0057-team-app-loading-and-changes.md)).
+- A tap's reply costs a little more of the Worker's time (about 1 ms more: two parts of nights, your own rows overlaid,
+  Home's people), well under the free plan's 10 ms (docs/load-testing.md).
+- D1 allows five terms in a compound SELECT and the tests' SQLite doesn't hold the club read to it, so a use case does.
+- A page that reads more of the club is a line in `page-data.svelte.ts` NEEDS; a new page's part is a family in
+  `club-parts.ts`, a slice in `api.slices.ts` and its merge in `club-whole.ts`.
 
 ## History
 
@@ -101,3 +152,7 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   each member's line of what they owe, a ledger a page at a time, "played" stored as registers close; the matchup's
   meetings, the editor's Brings and Venues' used by read from the server; a logo of 2 KB or less sent as itself (was:
   always an address, so History's twenty generated crests were twenty queued requests).
+- 2026-10-24: Opening the app reads the core; each page reads its own parts when it's opened, the rest while idle
+  (#178). Was: the whole club on every open. Each part has its own version, so a page's read is a 304 while its parts
+  are unchanged; what's the same for everyone of a role is kept at the edge by those versions; nothing is kept on disk,
+  so offline at the rink is what the open app holds (Home, your next night, the Kumite on, the roster once prefetched).

@@ -1,7 +1,7 @@
 # 0072. Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-23
+- **Date:** 2026-10-08 · updated 2026-10-24
 - **Merges:** 0096
 
 ## Context
@@ -56,7 +56,9 @@ The club may one day pay for hosting, when checking more often costs next to not
   captains and whoever runs it see ([0060](0060-the-draft.md); its own stream is #162).
 - **A page reads only the parts an event names, not the whole club** (#112). The app's copy of the club
   (`app/catch-up.ts`) knows the data version it holds all of; an event naming a part a page follows makes it read
-  the parts it lacks (`GET /api/slices?names=…`, each as this member may see it, with the version read first), one
+  the parts it lacks (`GET /api/slices?names=…`, each as this member may see it, with the version read first): of each
+  family the event names, the core's parts and the pages' the phone holds (`src/app/club-parts.ts`, #178); a page's
+  part no page in view shows is let go, and read again when one opens ([0053](0053-live-reads-are-cached.md)). One
   read at a time, after a random wait of up to a second, so a burst is one read a phone and the phones don't all ask
   in the same instant. Nothing is read while the page is out of view. A change's own reply carries its version
   (`x-club-version`), so the phone that made it reads nothing more. A change to members or roles (what someone may
@@ -134,3 +136,6 @@ The club may one day pay for hosting, when checking more often costs next to not
   game's change on its day is one D1 read in the Worker and none on the phones, so a squad on the rink's one wifi
   address stays far under the domain's 150 requests in 10 seconds (#161). Everything else stays names only, the
   draft too (#162).
+- 2026-10-24: An event's names are families: a phone reads the core's parts of each and the pages' it holds, and lets
+  go of a page's part no page in view shows, read again when one opens (#178, ADR 0053). A phone on Home through a
+  Friday's taps reads the next nights and Home's people, not the weeks just held each time.
