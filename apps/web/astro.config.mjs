@@ -81,6 +81,9 @@ export default defineConfig({
       SMOKE_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       // Where the Worker's errors go (ADR 0110, src/worker.ts reads it): a Worker secret; unset, only the log
       SENTRY_DSN: envField.string({ context: "server", access: "secret", optional: true }),
+      // Cloudflare Web Analytics' site token (lib/analytics.ts, #92): public, in every page; production's, set in
+      // deploy.yml. Unset, the pages carry no beacon of their own.
+      WEB_ANALYTICS_TOKEN: envField.string({ context: "server", access: "public", optional: true }),
       PUBLIC_BUILD_VERSION: envField.string({ context: "client", access: "public", default: "dev" }),
       // Sample content + noindex for dev builds (local, PR previews, scripts/deploy-dev.sh). Never in production.
       DEMO_CONTENT: envField.boolean({ context: "server", access: "public", default: false }),

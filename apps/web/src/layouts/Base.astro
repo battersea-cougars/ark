@@ -4,6 +4,8 @@ import { ClientRouter } from "astro:transitions";
 import { Font } from "astro:assets";
 import headScript from "../scripts/head.js?url";
 import { PUBLIC_BUILD_VERSION } from "astro:env/client";
+import { SITE_ENV, WEB_ANALYTICS_TOKEN } from "astro:env/server";
+import { analyticsBeacon } from "../lib/analytics";
 import { demo, devSanity, getSettings } from "../lib/sanity/content";
 import { jsonLd } from "../lib/structured-data";
 import Header from "../components/Header.astro";
@@ -42,6 +44,8 @@ const fullTitle = withRibbon(ribbon, title ? `${title} · ${site}` : `${site} ·
 const og = image ?? new URL(`/og/${card}.png`, Astro.site).href;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const carbon = carbonImage.src;
+// Page views, production only, without cookies (the privacy page says so; lib/analytics.ts)
+const beacon = analyticsBeacon(SITE_ENV, WEB_ANALYTICS_TOKEN);
 ---
 
 <!doctype html>
@@ -79,6 +83,7 @@ const carbon = carbonImage.src;
     <Font cssVariable="--font-display" preload />
     <Font cssVariable="--font-osd" preload />
     <ClientRouter fallback="swap" />
+    {beacon && <script is:inline defer src={beacon.src} data-cf-beacon={beacon.config} />}
   </head>
   <body style={`--carbon:url(${carbon})`}>
     <a class="skip visually-hidden" href="#main">

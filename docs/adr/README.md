@@ -54,17 +54,18 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 ## Website
 
-| #                                                | Decision                                                                                                        |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| [0009](0009-site-design-direction.md)            | Site design: a Friday night on carbon, hockey and the Kumite (not the video shop), one-page navigation, no news |
-| [0014](0014-sanity-public-content.md)            | Sanity holds the site's editable content; only club facts are editable                                          |
-| [0016](0016-photos-and-videos-read-live.md)      | Photos and videos are read live on the Worker: photos are the club's Instagram, videos its YouTube playlists    |
-| [0020](0020-drawn-share-cards.md)                | Share pictures are drawn at build time                                                                          |
-| [0042](0042-website-reads-the-club-agenda.md)    | The website's What's on and events page read one club agenda, live                                              |
-| [0043](0043-roster-and-names.md)                 | The roster is a build-time snapshot of the club's members, and members go by their chosen name everywhere       |
-| [0100](0100-website-reads-tournament-results.md) | Tournament results are built into the website from D1; the team app rebuilds it when one changes                |
-| [0101](0101-one-icon-for-both-apps.md)           | The website and the team app share one icon: the C of COUGARS, traced from the logo                             |
-| [0109](0109-website-sections-are-switches.md)    | The team and the Kumite are switches in the Studio, off until the team manager turns them on                    |
+| #                                                 | Decision                                                                                                        |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [0009](0009-site-design-direction.md)             | Site design: a Friday night on carbon, hockey and the Kumite (not the video shop), one-page navigation, no news |
+| [0014](0014-sanity-public-content.md)             | Sanity holds the site's editable content; only club facts are editable                                          |
+| [0016](0016-photos-and-videos-read-live.md)       | Photos and videos are read live on the Worker: photos are the club's Instagram, videos its YouTube playlists    |
+| [0020](0020-drawn-share-cards.md)                 | Share pictures are drawn at build time                                                                          |
+| [0042](0042-website-reads-the-club-agenda.md)     | The website's What's on and events page read one club agenda, live                                              |
+| [0043](0043-roster-and-names.md)                  | The roster is a build-time snapshot of the club's members, and members go by their chosen name everywhere       |
+| [0100](0100-website-reads-tournament-results.md)  | Tournament results are built into the website from D1; the team app rebuilds it when one changes                |
+| [0101](0101-one-icon-for-both-apps.md)            | The website and the team app share one icon: the C of COUGARS, traced from the logo                             |
+| [0109](0109-website-sections-are-switches.md)     | The team and the Kumite are switches in the Studio, off until the team manager turns them on                    |
+| [0132](0132-web-analytics-in-the-website-only.md) | Cloudflare Web Analytics counts the website's pages from a beacon in its own layout, never the team app's       |
 
 ## Team app: how it works
 

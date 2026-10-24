@@ -151,9 +151,17 @@ domain (301, path and query kept), and search engines see one copy of each page.
 `node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`, which needs **Single
 Redirect Write** on the production token. Seen under Rules → Redirect Rules.
 
-**Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics),
-with automatic setup, so Cloudflare adds its script to the site's pages and there's nothing in the code. It also reaches
-`team.batterseacougars.com`, whose CSP refuses it (harmless console errors): excluding it needs a paid rule, so it's
-tracked in #92. It counts page views without cookies (the privacy page says so). Its API refuses the
-account tokens we use, so it's set up by hand. The website's content security policy allows
-its script (`static.cloudflareinsights.com`) and its beacon (`cloudflareinsights.com`) (ADR 0036).
+**Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics).
+It counts page views without cookies (the privacy page says so). Its API refuses the account tokens we use, so it's set
+up by hand. The beacon is in the website's own pages (`apps/web/src/layouts/Base.astro`, `lib/analytics.ts`, #92), in
+production only, so it never reaches `team.batterseacougars.com`, whose CSP refuses it; Cloudflare's rule excluding a
+hostname from automatic setup needs a paid plan. To set it up, once:
+
+1. Analytics & Logs → Web Analytics → batterseacougars.com → **Manage site**: copy the **token** from the JS snippet
+   (`data-cf-beacon='{"token": "…"}'`). It's public: it's in every page.
+2. Put it in `.github/workflows/deploy.yml` as `WEB_ANALYTICS_TOKEN` (the website's build job) and release.
+3. Then, on the same page, turn **automatic setup off** (Enable with JS snippet installation), so Cloudflare stops
+   adding its own beacon to the zone's pages, the team app's included. Until then a page would count twice.
+
+The website's content security policy allows its script (`static.cloudflareinsights.com`) and its beacon
+(`cloudflareinsights.com`) (ADR 0036).
