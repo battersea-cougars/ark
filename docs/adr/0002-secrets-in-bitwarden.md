@@ -82,8 +82,8 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 11. **A secret is handed over on the Secrets page, never through a terminal, chat or file** (#149). The show switch's
     supervisor serves it at `/__secrets` on this machine only, and writes a pasted value straight to Secrets Manager
     from its memory; the page shows a stored value only as its length, last 4 characters and SHA-256 fingerprint.
-    `.env` with a secret-looking line stops `npm run lint` and `npm run app`, and a Claude Code hook refuses an
-    agent's command or read that would show a value (docs/secrets.md, "`.env` and agents").
+    `.env` with a secret-looking line stops `npm run lint` and `npm run app` (docs/secrets.md, "`.env` and agents").
+    No Claude Code hook guards agents: the user decided against one (2026-10-24); agents' briefs carry the rule.
 
 ## Consequences
 
@@ -126,4 +126,4 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   (#104).
 - 2026-10-24: Secrets are handed over on a local Secrets page (`localhost:4500/__secrets`): stored straight to
   Bitwarden, checked by fingerprint, shapes questioned before saving, apps restarted after; `.env` with a secret in it
-  stops lint and the apps; a Claude Code hook keeps agents from showing values (point 11, #149).
+  stops lint and the apps (point 11, #149). A hook for agents was built and left out: the user's call.

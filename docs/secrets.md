@@ -73,15 +73,8 @@ the page itself can write.
   that looks like one (a documented secret's name, a name with TOKEN, SECRET, KEY and the like, or a value of a known
   secret form), saying the file, line and name, never the value (`scripts/env-check.mjs`); `npm run worktree -- add`
   doesn't copy such a `.env`. Move each to Bitwarden through the Secrets page and delete the line.
-- **Agents never see a value.** A Claude Code hook (`.claude/settings.json` → `scripts/secrets-hook.mjs`) refuses an
-  agent's command, Read or Grep that would show one: reading `.env*` or `.dev.vars*` (`cat`, `head`, `sed`, `grep`
-  without `-c`/`-q`/`-l`, `source`, `cp`, `< .env`, `git show HEAD:.env`…), `env`, `printenv`, `export -p`, `set`,
-  `ps e`, `/proc/*/environ`, `process.env` or `os.environ` in a one-liner (or dumped whole by a script on a heredoc),
-  `echo $SOME_TOKEN`, `bws secret …` and `bws run`, `bw get`/`list items`/`export`/`unlock`, the vault session file,
-  `env-pull --github-env`, and calls to the Secrets page. It lets through presence checks (`test -s .env`,
-  `grep -c '^NAME=' .env`, `ls`, `wc`), names (`npm run secrets`), running with secrets
-  (`node scripts/env-pull.mjs -- <command>`) and reading code that mentions `process.env`. It's a guard against
-  slips, not a sandbox.
+- **Agents never print a value.** That's a standing rule in every agent's brief (never read `.env*`, `.dev.vars*`,
+  the environment or Bitwarden values; presence checks only), not a hook: the user decided against one (2026-10-24).
 
 ## How to read this
 
