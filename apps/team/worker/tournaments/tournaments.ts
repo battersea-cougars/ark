@@ -830,7 +830,7 @@ export async function updateTournament(
   const fields = [...(await tournamentFields(db, { ...o, status }, stored)), ...rules, ...after];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
-  // A limit raised moves the first waiting up into its room, in the same batch (ADR 0030)
+  // A limit raised moves the first waiting up into its room, in the same batch (ADR 0131)
   const [res] = await batch(db, [
     statement(
       db,

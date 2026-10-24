@@ -105,7 +105,7 @@
     edits?.reset();
   }
 
-  // When a night's sign-up opens (ADR 0030): days before it, at midnight; any time is always open, and nobody's told
+  // When a night's sign-up opens (ADR 0131): days before it, at midnight; any time is always open, and nobody's told
   const OPENS = [
     { value: "", label: "Any time" },
     { value: "0", label: "On the day" },

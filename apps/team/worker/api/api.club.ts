@@ -98,7 +98,7 @@ const entries = (table: string, key: string, events: string) =>
 
 /**
  * A training's answers, as anyone but whoever runs events sees them (their own walk-in and no-show too), and whether
- * each is a Quarterly skater's on the day (ADR 0030). Only the weeks shown are read, by index, then their answers:
+ * each is a Quarterly skater's on the day (ADR 0131). Only the weeks shown are read, by index, then their answers:
  * with SQLite left to choose the order it read every answer ever given, and with a correlated subquery for each
  * column, a full night's sign-ups were about eight rows an answer (docs/load-testing.md).
  */

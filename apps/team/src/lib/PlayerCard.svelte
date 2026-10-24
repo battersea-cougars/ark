@@ -22,7 +22,7 @@
     player: Player;
     n?: number;
     you?: boolean;
-    /** A Quarterly skater signed up: they come first (ADR 0030), tagged so the list's order reads */
+    /** A Quarterly skater signed up: they come first (ADR 0131), tagged so the list's order reads */
     quarterly?: boolean;
     showRating?: boolean;
     /** Tapped: given the card, so the zoom can start where it lies. */

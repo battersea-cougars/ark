@@ -180,7 +180,7 @@ describe("Friday's sign-ups: Quarterly Members first", () => {
     expect((await dana.sees()).clubEvents[0]).toMatchObject({ going: [id.Reg], waitlist: [id.Paul, id.Quinn] });
   });
 
-  it("an admin makes room for one more at a club event: the first waiting is in, the next still waits (ADR 0030)", async () => {
+  it("an admin makes room for one more at a club event: the first waiting is in, the next still waits (ADR 0131)", async () => {
     const { dana, id } = await fullFriday();
     const curry = {
       title: "Curry night",

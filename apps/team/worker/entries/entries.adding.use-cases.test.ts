@@ -1,4 +1,4 @@
-// Someone adding a player to a training keeps to its places (ADR 0030): the register's Add player, before the night or
+// Someone adding a player to a training keeps to its places (ADR 0131): the register's Add player, before the night or
 // on it, and an admin putting someone in. If there's room they're in; if it's full they wait, as if they'd signed up
 // (a Quarterly Member taking the last place of someone paying as they go), and only the team maker's Let in puts them
 // over the limit (ADR 0076). Only who's in is charged (ADR 0007). A night that's over is a record of who came, and

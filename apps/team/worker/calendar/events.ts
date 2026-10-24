@@ -53,7 +53,7 @@ export async function createClubEvent(db: D1Database, o: Record<string, unknown>
   return { id: Number(res.meta.last_row_id) };
 }
 
-/** Change an event; a limit raised moves the first waiting up into its room, in the same batch (ADR 0030). */
+/** Change an event; a limit raised moves the first waiting up into its room, in the same batch (ADR 0131). */
 export async function updateClubEvent(
   db: D1Database,
   id: number,

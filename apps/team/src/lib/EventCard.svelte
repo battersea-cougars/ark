@@ -163,7 +163,7 @@
     if (locked) return;
     // Tapping In when you're in changes nothing: no call to the server, no new quip on Home
     if (going && (inIt || waiting)) return;
-    // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0030, 0108)
+    // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0131, 0108)
     if (!going && out) {
       void answerFor(event.key, "clear");
       entries.out = (entries.out ?? []).filter((x) => x !== id);
@@ -195,7 +195,7 @@
       onanswer?.("out");
       return;
     }
-    // A training's list is one order, Quarterly skaters first (ADR 0030): the card places you as the server will
+    // A training's list is one order, Quarterly skaters first (ADR 0131): the card places you as the server will
     const ahead = entries.quarterly ?? [];
     const skater = (pid: number) => PLAYERS.find((p) => p.id === pid)?.position !== "G";
     const quarterly =

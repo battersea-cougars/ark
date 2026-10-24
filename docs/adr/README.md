@@ -5,7 +5,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 - **Changing a decision:** update its topic's record in the same change as the code. Rewrite what no longer holds,
   add a dated line to its **History**, and bump _updated_.
-- **A new topic:** copy [template.md](template.md) and take the next unused number (the next is **0131**). Numbers are
+- **A new topic:** copy [template.md](template.md) and take the next unused number (the next is **0132**). Numbers are
   never reused.
 - **An old number** (from a commit, an issue or a chat) was merged into another record: since 2026-10-24 a merged
   record leaves a stub that says where it went; one with no file at all is on its record's _Merges_ line
@@ -83,14 +83,15 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 ## Team app: the club
 
-| #                                                | Decision                                                                                                         |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| [0069](0069-members.md)                          | Admins add members; the members table is in Settings; a member's details save with a button                      |
-| [0030](0030-training-and-tournament-schedule.md) | The schedule lives in D1: training repeats as a series, tournaments are scheduled one by one and own their rules |
-| [0076](0076-training-teams.md)                   | Training teams: a Session lead role, made by dragging, saved as you change them                                  |
-| [0102](0102-balanced-teams-by-swap-search.md)    | Friday teams are balanced by a greedy deal and a swap search in the browser, not a linear programme              |
-| [0007](0007-dues-and-payments.md)                | Dues are charges per session and tournament, paid by bank transfer with a name reference                         |
-| [0122](0122-asked-about-clashes.md)              | Scheduling over something already on asks whether that's off; each is cancelled by its own cancel                |
+| #                                                | Decision                                                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| [0069](0069-members.md)                          | Admins add members; the members table is in Settings; a member's details save with a button                       |
+| [0030](0030-training-and-tournament-schedule.md) | The schedule lives in D1: training repeats as a series, tournaments are scheduled one by one and own their rules  |
+| [0131](0131-training-sign-ups.md)                | A training's sign-ups are one order, Quarterly Members first; keepers have their own places; nights open on a day |
+| [0076](0076-training-teams.md)                   | Training teams: a Session lead role, made by dragging, saved as you change them                                   |
+| [0102](0102-balanced-teams-by-swap-search.md)    | Friday teams are balanced by a greedy deal and a swap search in the browser, not a linear programme               |
+| [0007](0007-dues-and-payments.md)                | Dues are charges per session and tournament, paid by bank transfer with a name reference                          |
+| [0122](0122-asked-about-clashes.md)              | Scheduling over something already on asks whether that's off; each is cancelled by its own cancel                 |
 
 ## Team app: tournaments
 

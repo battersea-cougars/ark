@@ -36,7 +36,7 @@
     if (busy || impersonating() || (going && (inIt || waiting))) return;
     busy = true;
     try {
-      // Out again, when you're out, takes it back: not answered (ADR 0030)
+      // Out again, when you're out, takes it back: not answered (ADR 0131)
       await answerFor(`tournament:${t.id}`, going ? "in" : out ? "clear" : "out");
     } finally {
       busy = false;

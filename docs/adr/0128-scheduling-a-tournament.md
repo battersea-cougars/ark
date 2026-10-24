@@ -22,20 +22,26 @@ obvious, the draft's day obvious or TBC. This was part of 0074 until 2026-10-24.
 - A new date in a series opens on its questions as a wizard, a step at a time (`TournamentQuickCreate.svelte`, ADR
   [0117](0117-wizards-for-multi-step-creates.md)):
   1. **When:** the season, a day or none for TBC, and Starts and Ends filled in from the series.
-  2. **Sign-up:** when sign-up opens (today by default) and, a draft series only, the draft's day (optional).
-  3. **Captains** (a draft series only, optional): the whole club in a list as Add player has it, a search narrowing it
-     and an Add on each row (Added once picked; Enter adds the first match). The captains so far sit above the search as
-     chips with a ×, on one line that scrolls sideways so the list never moves. They're a set, not an order: the pick
-     order is drawn when the draft starts. Too few for the playoffs is said at the foot.
+  2. **Sign-up:** when sign-up opens (today by default).
+  3. **Teams** (a draft series only, optional): the draft's day, and the captains: the whole club in a list as Add
+     player has it, a search narrowing it and an Add on each row (Added once picked; Enter adds the first match). The
+     captains so far sit above the search as chips with a ×, on one line that scrolls sideways so the list never moves.
+     They're a set, not an order: the pick order is drawn when the draft starts. Too few for the playoffs is said at the
+     foot.
   4. **Check:** each answer in words, with Change back to its step.
 - Only the season is needed, so every step is open from the start; hours the wrong way round, or sign-up or the draft
   after the day, hold it on that step and the foot says why.
 - **Schedule it** creates it and closes the panel on the page, which now shows the new one.
 - **The rest comes from the series:** its name, fee, place, rules, awards and playoffs; status planned. The server fills
   in what a new one leaves out (hours, status, the series' fee, rules), so the quick form sends only what it asked.
-- **Advanced** (at the wizard's foot, and on Check) opens the full editor with the answers filled in. **Back to the
-  questions** returns to them, keeping what was changed there. A one-off tournament (no series) and Settings →
-  Tournaments use the full editor.
+- **Advanced is a mode of the wizard** (#163), not a jump to the full editor: a switch at its foot. The wizard's steps
+  are the editor's tabs by the same names (Details, Sign-up, Teams, Rules, then Check), each group of fields one
+  component both show (`lib/TournamentWhenFields`, `…VenueFields`, `…WhatFields`, `…SignupFields`, `…DraftDay`,
+  `…RulesFields`, on one form shape, `lib/tournament-form.ts`). Without Advanced each step asks only what's above and
+  says in a line what it takes from the series, with "change it" ("No fee · 24 places · on the website · change it"),
+  which turns Advanced on at that field; with it, the rest shows in place. The draft's day is on the Teams step, as the
+  editor has it. A one-off tournament (no series) and Settings → Tournaments use the full editor.
+- The wizard takes its starting answers once, as it opens, so a refresh of the club's data never resets what's typed.
 - **A series has usual hours** (`tournament_types.default_start_time`, `default_end_time`, defaulting to 11:00–16:00),
   set in its settings (Settings → Tournament Series → When, where and fee) beside its place and fee. Each new tournament
   starts with them and can change them. The seed has the Kumite at Friday training's hours (19:30–21:30). A tournament's
@@ -83,7 +89,9 @@ tournaments`, and the schema's `ON DELETE CASCADE`s take its sign-ups, teams and
 - 2026-10-09: A series has usual hours, the Kumite at Friday training's (was 0091).
 - 2026-10-21: The questions are a wizard (lib/Wizard, ADR 0117): When, Sign-up, Captains, Check.
 - 2026-10-21: Captains are picked from the whole club's list, shown as chips, with no pick order (it's drawn).
+- 2026-10-23: Advanced is a mode of the wizard, its steps the editor's tabs, one form shape for both (#163).
 - 2026-10-23: A tournament's hours change only when an admin edits them, never by its matches (ADR 0130).
 - 2026-10-23: A tournament's sign-up opening is told to members once (topic `places`), by the cron or as an admin opens
   it, marked `signup_told_at`.
-- 2026-10-24: Split out of ADR 0074, which had grown to cover the whole tournament.
+- 2026-10-24: Split out of ADR 0074, which had grown to cover the whole tournament; Advanced described as it is now (a
+  mode of the wizard, from 0030's History).

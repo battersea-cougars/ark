@@ -1,4 +1,4 @@
-// Off the waiting list (ADR 0030, 0108): whoever moves up into a training's place hears it on their phone, "You're
+// Off the waiting list (ADR 0131, 0108): whoever moves up into a training's place hears it on their phone, "You're
 // in", with the session and its day, and a tap opens it. However they moved up (someone saying out, an admin taking
 // someone off, a limit raised, an account deleted, the register taking a walk-in off, the team maker letting them in),
 // and only them, once per move: a double tap or two leaving at once tells each one who moved up once (ADR 0121).
@@ -223,7 +223,7 @@ describe("moving up, at once (ADR 0121)", () => {
   });
 });
 
-// A Quarterly Member signing up for a full training takes the place of the last one in paying as they go (ADR 0030,
+// A Quarterly Member signing up for a full training takes the place of the last one in paying as they go (ADR 0131,
 // #97): that one hears they're on the waitlist, and where, once per bump however the requests interleave.
 describe("bumped to the waiting list", () => {
   /** The full Friday, with Quinn and Kit made Quarterly Members (not signed up yet). */

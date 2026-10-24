@@ -1,7 +1,7 @@
 import type { Plan } from "../demo/data";
 
 // Friday's Who's coming, a tab at a time, grouped by plan: Quarterly, Pay as you go, Keepers (the three plans,
-// ADR 0007). The skaters are one queue (ADR 0030), Quarterly first, so they're numbered by their place in it, on
+// ADR 0007). The skaters are one queue (ADR 0131), Quarterly first, so they're numbered by their place in it, on
 // across both groups; keepers' places are counted apart, so they're numbered on their own.
 
 /** A group under its heading. */

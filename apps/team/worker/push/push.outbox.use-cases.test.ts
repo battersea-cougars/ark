@@ -186,7 +186,7 @@ describe("a club-wide send held overnight, within the free plan", () => {
   });
 });
 
-// A Quarterly Member signing up for a full night bumps the last in paying as they go (ADR 0030); one going out lets
+// A Quarterly Member signing up for a full night bumps the last in paying as they go (ADR 0131); one going out lets
 // the first waiting in. Each is news on the `places` topic, about that member's place on that night.
 describe(`the debounce: ${DEBOUNCE_MINUTES} minutes per member and thing`, () => {
   let taps = 0;

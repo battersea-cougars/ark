@@ -264,7 +264,7 @@ describe("what a member chooses to hear", () => {
   });
 });
 
-// #97: a training's list is one order, Quarterly Members first (ADR 0030). One signing up for a full Friday takes the
+// #97: a training's list is one order, Quarterly Members first (ADR 0131). One signing up for a full Friday takes the
 // place of the last one in paying as they go, who should know before they turn up.
 describe("a place taken by a Quarterly Member", () => {
   async function fullFriday() {

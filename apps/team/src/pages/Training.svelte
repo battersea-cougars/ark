@@ -78,7 +78,7 @@
     const lines = db.quips.filter((q) => q.kind === "empty" && q.text.trim());
     slackers = { night, text: pick(lines)?.text ?? SLACKERS };
   });
-  // Quarterly skaters: above those paying as they go, in and waiting (ADR 0030), badged so the order reads; and those
+  // Quarterly skaters: above those paying as they go, in and waiting (ADR 0131), badged so the order reads; and those
   // who said they're out, for whoever sees who's out
   const ahead = $derived(new Set(session?.quarterly ?? []));
   // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position, skaters as the session says
@@ -502,7 +502,7 @@
   >
 {/snippet}
 
-<!-- A Quarterly Member: ahead in the queue (ADR 0030), said in a word at every width -->
+<!-- A Quarterly Member: ahead in the queue (ADR 0131), said in a word at every width -->
 {#snippet quarterlyBadge()}
   <span class="badge plan" title="Quarterly Member: ahead in the queue"
     >Quarterly<span class="sr-only"> Member, ahead in the queue</span></span

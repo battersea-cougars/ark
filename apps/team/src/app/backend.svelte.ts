@@ -236,12 +236,12 @@ function entryPath(key: string) {
   return `/api/${ENTRY_PATHS[kind]}/${id}`;
 }
 /** You say in or out. */
-/** In or out; "clear" takes back your Out, back to not answered (ADR 0030). */
+/** In or out; "clear" takes back your Out, back to not answered (ADR 0131). */
 export const answerFor = (key: string, answer: "in" | "out" | "clear") =>
   save(() => api("POST", `${entryPath(key)}/answer`, { answer }), "");
 /** Where someone is on a session now, as the server says after a change (ADR 0030). */
 type Placed = { signup: "in" | "waitlist" | "out" | null };
-/** An admin puts someone in a session (in if there's room, else waiting: ADR 0030), or takes them off. */
+/** An admin puts someone in a session (in if there's room, else waiting: ADR 0131), or takes them off. */
 export const setPlayer = async (sessionId: number, memberId: number, inIt: boolean) => {
   const r = await save(() => api<Placed>("POST", `/api/sessions/${sessionId}/players`, { memberId, in: inIt }), "");
   if (r) say(!inIt ? "Taken off" : r.signup === "waitlist" ? "Full: on the waiting list" : "Added", false);

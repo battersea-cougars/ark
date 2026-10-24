@@ -75,7 +75,7 @@ session's fee.
   were a keeper stays, and charges nothing). There's no plan for them to choose: the server refuses next quarter's
   plan for a keeper and an admin making one Quarterly (409). Tournaments they enter are charged as for anyone. It
   follows the position, so making someone a keeper takes their unpaid training charges off at the next
-  recalculation; a paid one stays, as always. A keeper isn't in the Quarterly-first sign-up order either (ADR 0030).
+  recalculation; a paid one stays, as always. A keeper isn't in the Quarterly-first sign-up order either (ADR 0131).
 - The two are independent: a Cougar may or may not be a Quarterly Member, and the other way round. In the app,
   "Cougar" always means the official team; quarterly membership is shown as "Quarterly".
 
@@ -83,7 +83,7 @@ session's fee.
 
 - **Attendance comes from the register**: on the night one screen lists who signed up, marks no-shows and adds
   walk-ins. Someone signed up counts as there unless marked a no-show. A walk-in keeps to the places like a sign-up
-  ([0030](0030-training-and-tournament-schedule.md)): on a full night they wait, and someone waiting is never
+  ([0131](0131-training-sign-ups.md)): on a full night they wait, and someone waiting is never
   charged until they're in (a place comes up or the team maker lets them in). A night that's over is a record of who
   came: a walk-in ticked there is in and charged.
 - **There is no closing the register: charges follow it** (#11). From a session's day, everyone in who isn't a no-show

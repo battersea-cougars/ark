@@ -2,7 +2,7 @@
 // row per person per event (db/schema.sql). The rules live here, not in the app: a full
 // event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
 // waitlist moves up. A training's places are the skaters'; keepers have their own, if the series sets any, else no
-// limit (ADR 0030), so a keeper never takes a skater's place, nor a skater a keeper's. A training's list is in one order, Quarterly Members first (ADR 0030): one signing up for a full
+// limit (ADR 0131), so a keeper never takes a skater's place, nor a skater a keeper's. A training's list is in one order, Quarterly Members first (ADR 0131): one signing up for a full
 // session takes the place of the last one in who pays as they go. Adding someone to a training keeps to
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
@@ -42,7 +42,7 @@ export const quarterlyOn = (member: string, day: string) =>
     AND (sub.ends_on IS NULL OR sub.ends_on >= ${day}))`;
 
 const SESSION_DAY = "(SELECT held_on FROM training_sessions WHERE id = e.session_id)";
-/** Keepers aren't in the Quarterly rule (ADR 0030): they keep their sign-up place, and nobody takes theirs */
+/** Keepers aren't in the Quarterly rule (ADR 0131): they keep their sign-up place, and nobody takes theirs */
 const SKATER = "(SELECT position FROM members WHERE id = e.member_id) <> 'G'";
 /** SQL: 1 for a keeper's row (`x`, an attendance row), else 0 */
 const keeperRow = (x: string) => `((SELECT position FROM members WHERE id = ${x}.member_id) = 'G')`;
@@ -291,7 +291,7 @@ export function fillingUp(
  */
 export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
   const places = await capacity(db, kind, id, memberId);
-  // Once training's started, who's in is the register's (ADR 0007, 0030, #167): who's there, and what it charges, is
+  // Once training's started, who's in is the register's (ADR 0007, 0131, #167): who's there, and what it charges, is
   // the register's and the admins' to change, not a member's own In or Out; once it's over, it's the record (#128)
   if (places.night && nightPast(places.night, places.night.endTime, now))
     throw new HttpError(409, "That night's over: the register says who came.");
@@ -373,7 +373,7 @@ async function takeBack(db: D1Database, kind: EntryKind, id: number, memberId: n
 }
 
 /**
- * An admin puts someone in or takes them off altogether. A training keeps to its places (ADR 0030): in if there's
+ * An admin puts someone in or takes them off altogether. A training keeps to its places (ADR 0131): in if there's
  * room, else waiting as if they'd signed up, and only the team maker's Let in goes over the limit. A tournament or
  * club event takes them past its limit, if need be. Says where they are now (null: not on it).
  */
@@ -441,7 +441,7 @@ export interface Mark {
 /**
  * The register for one member, one Friday or many (their attendance, saved at once): a sign-up is marked here or a
  * no-show; anyone else here is a walk-in, and a walk-in not here comes off (and off the night's teams, and the first
- * waiting moves up). A walk-in keeps to the places, as a sign-up does (ADR 0030): on a full night, today or ahead,
+ * waiting moves up). A walk-in keeps to the places, as a sign-up does (ADR 0131): on a full night, today or ahead,
  * they wait (a Quarterly Member taking the last place of someone paying as they go) until the team maker lets them in.
  * Someone already waiting keeps their place in the queue. A night that's over is a record of who came, so a walk-in
  * there is in. Two round trips, however many Fridays: the Fridays as they are, then every change in one batch, each

@@ -14,7 +14,7 @@
   // The register for the night, in a drawer over the training page: every active member, sign-ups first and
   // already ticked, everyone else below to tick as they walk in. Search narrows the list. Ticks are written to the
   // session: a walk-in joins its sign-ups (so the page counts them in), a no-show stays signed up but marked. Adding
-  // someone keeps to the places (ADR 0030): on a full night they wait, and the team maker lets them in, right here.
+  // someone keeps to the places (ADR 0131): on a full night they wait, and the team maker lets them in, right here.
   let { seriesId, open = $bindable(false) }: { seriesId: number; open?: boolean } = $props();
 
   const series = $derived(seriesById(seriesId)!);

@@ -1,4 +1,4 @@
-// When a training night's sign-up opens (ADR 0030): a training can say its nights open a number of days before, at
+// When a training night's sign-up opens (ADR 0131): a training can say its nights open a number of days before, at
 // midnight London time (Friday Training: 4, the Monday). Before then a member's In is refused and the app says when it
 // opens; the register and admins can still put people in. When it opens, members hear it once, from the cron (ADR
 // 0108, 0121), on its day. Driven through the real handlers and the cron in the fake world (ADR 0031).

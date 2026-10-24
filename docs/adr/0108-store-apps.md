@@ -32,7 +32,7 @@ Three things shape it:
 - **What the app does that a browser can't** (`src/app/native.ts`, which asks "is this the app", never "is this an
   iPhone", and falls back to the browser's way everywhere else):
   - **Notifications**: the night's teams are out (which team you're on), a place came up off the waitlist, a
-    Quarterly Member took your place and you're waiting ([0030](0030-training-and-tournament-schedule.md), #97), a session
+    Quarterly Member took your place and you're waiting ([0131](0131-training-sign-ups.md), #97), a session
     you're in is off, an announcement, a training night's sign-up is open (on its day, once a night, from the cron:
     `worker/training/training.signup.ts`, topic `places`, queued for the push drain straight after it). A route says what's news with `notify` (`worker/push/push.notices.ts`), read
     before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
@@ -174,7 +174,7 @@ Three things shape it:
   ([0060](0060-the-draft.md)).
 - 2026-10-22: A training night's sign-up opening is a notification (topic `places`, to everyone with the app): the
   cron takes each night that opens today in the statement that marks it told (`training_sessions.signup_told_at`),
-  so it goes once however many runs there are, and queues it for the drain (ADR 0030, 0121).
+  so it goes once however many runs there are, and queues it for the drain (ADR 0131, 0121).
 - 2026-10-22: "You're in" whatever moved them up (someone out, an admin, a limit raised, an account deleted, the
   register, Let in), with the training and its day ("A place came up for Friday Training, Fri 9 Oct. Off the bench,
   skates on."), and "On the waitlist" whatever bumped them (signing up, or the register for a member's Fridays), each
@@ -197,6 +197,6 @@ Three things shape it:
 - 2026-10-23: A Notice can say `except` (everyone but these members), skipped in the statement that fills the outbox,
   so it costs no round trip. "Sign-up's open" (a training night's, a tournament's, the Kumite's invitation) skips
   those who've answered already, read in the statement that marks it told: one who said Out, or was put in, isn't
-  told; taking back an Out puts you among those told ([0030](0030-training-and-tournament-schedule.md)).
+  told; taking back an Out puts you among those told ([0131](0131-training-sign-ups.md)).
 - 2026-10-24: A notification about one training night opens that night's own page (`/training/{series}/{date}`,
   [0030](0030-training-and-tournament-schedule.md)), not the series' page.
