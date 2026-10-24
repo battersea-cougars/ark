@@ -94,12 +94,11 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 ## Team app: tournaments
 
-| #                                              | Decision                                                                                                    |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| [0074](0074-tournament-home-and-scheduling.md) | A tournament's home follows the day in three acts, and the next one is scheduled from it in a few questions |
-| [0060](0060-the-draft.md)                      | A captains' draft is run by an admin, picked by its captains, and seen by members once it's closed          |
-| [0061](0061-fixtures-games-and-scoring.md)     | The app makes a tournament's fixtures, and each game is scored live by one person on its own page           |
-| [0044](0044-champions-and-awards.md)           | Awards are set in the team app; champions and winners come from the results, an admin confirms              |
-| [0119](0119-tournament-leaderboards.md)        | Leaderboards (points, goals, assists, PIM) are worked out in the app, a tab each, under the table           |
-| [0123](0123-dev-only-tools.md)                 | A dev-only tool (the Kumite simulator) exists only where the environment says dev or local; else a 404      |
-| [0126](0126-past-kumites-recorded.md)          | A Kumite from before the app is recorded in one go, done and in history, its awards out                     |
+| #                                              | Decision                                                                                                                               |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [0074](0074-tournament-home-and-scheduling.md) | A tournament's home follows the day in three acts, and the next one is scheduled from it in a few questions                            |
+| [0060](0060-the-draft.md)                      | A captains' draft is run by an admin, picked by its captains, and seen by members once it's closed                                     |
+| [0061](0061-fixtures-games-and-scoring.md)     | The app makes a tournament's fixtures, and each game is scored live by one person on its own page                                      |
+| [0044](0044-champions-and-awards.md)           | Awards are set in the team app, each saying how it's decided; champions come from the results; leaderboards are counted from the games |
+| [0123](0123-dev-only-tools.md)                 | A dev-only tool (the Kumite simulator) exists only where the environment says dev or local; else a 404                                 |
+| [0126](0126-past-kumites-recorded.md)          | A Kumite from before the app is recorded in one go, done and in history, its awards out                                                |

@@ -6,7 +6,7 @@
 ## Context
 
 The club played Kumites before the app. Past Kumites ([0074](0074-tournament-home-and-scheduling.md)) and the
-all-time leaders ([0119](0119-tournament-leaderboards.md)) only knew the ones the app ran: scheduled, signed up for,
+all-time leaders ([0044](0044-champions-and-awards.md)) only knew the ones the app ran: scheduled, signed up for,
 drafted, scored and revealed on the night. Putting an old one in that way meant walking it through every step, on
 today's clocks, which lands it at an after-party tonight. An admin needed to put one in after the fact: when it was,
 its teams, its matches and their scores (a final, if it had one), who scored where anyone remembers, and who won each
