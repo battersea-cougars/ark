@@ -2,7 +2,7 @@
 // read that's at 70% or more, and only those. They go out with the club (the bootstrap's forAdmins, api.slices.ts) to
 // whoever sees Usage, so Home's For admins has its line on first paint; a change to them is a new data version, so
 // the next open reads them afresh (ADR 0053). Today's Cloudflare limits are the UTC day's, Sanity's the month's; a row
-// from a day or month that's over isn't shown. Push and email at these levels are #157's.
+// from a day or month that's over isn't shown. The check tells the admins at these levels too (usage.alerts.ts).
 import { all, batch, statement } from "@cougars/shared/d1";
 import { nextMonth } from "@cougars/shared/sanity-requests";
 import { bumpDataVersion } from "../api/api.version";

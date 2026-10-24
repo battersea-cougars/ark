@@ -32,6 +32,24 @@ export function reportCaught(error: unknown, what: string) {
   reportEarly(error, "caught");
 }
 
+/**
+ * reportCaught for a job the app carries on past in the background (a catch-up, a phone's notifications), unless it's
+ * the server's answer or the network: the Worker reports its own failures, and a phone offline is nobody's fault.
+ * What's left is ours to hear of: code that threw, a plugin that failed.
+ */
+export function reportUnexpected(error: unknown, what: string) {
+  if (answered(error) || offline(error)) return;
+  reportCaught(error, what);
+}
+
+/** The server's refusal or failure (api.ts's ApiError, by its status: this file imports nothing). */
+const answered = (e: unknown) => e instanceof Error && typeof (e as { status?: unknown }).status === "number";
+
+/** A fetch or a lazy import that didn't reach the network, or one called off. */
+const offline = (e: unknown) =>
+  (e instanceof TypeError && /fetch|network|load failed|module script/i.test(e.message)) ||
+  (e as { name?: unknown } | null)?.name === "AbortError";
+
 /** Sentry is up: it gets what waited, then everything reported here. Its own handlers take uncaught errors from now. */
 export function handOff(to: Sink) {
   sink = to;

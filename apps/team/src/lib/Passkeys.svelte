@@ -4,6 +4,7 @@
   // down; the emailed code is still there for a new phone. Removing asks first, in a sheet.
   import Icon from "../app/shell/Icon.svelte";
   import Sheet from "./Sheet.svelte";
+  import { reportUnexpected } from "../app/errors.early";
   import { addPasskey, checkName, myPasskeys, passkeysWork, removePasskey, type Passkey } from "../app/passkeys";
   import { formatDayDate } from "./dates";
 
@@ -18,9 +19,13 @@
   let removing = $state<Passkey | null>(null);
   let sheetOpen = $state(false);
 
+  // Shown as none: Sentry hears of a failure that isn't the network's or the club's refusal
   myPasskeys()
     .then((p) => (list = p))
-    .catch(() => (list = []));
+    .catch((e) => {
+      reportUnexpected(e, "Couldn't read your passkeys");
+      list = [];
+    });
 
   async function add() {
     busy = true;

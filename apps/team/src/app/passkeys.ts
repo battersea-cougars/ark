@@ -72,6 +72,7 @@ export async function signInWithPasskey(autofill = false): Promise<boolean> {
 async function forgetHere(rpId: string | undefined, credentialId: string) {
   const signal = (PublicKeyCredential as unknown as { signalUnknownCredential?: (o: object) => Promise<void> })
     .signalUnknownCredential;
+  // A browser that won't: the passkey stays offered here, and the club refuses it again
   await signal?.call(PublicKeyCredential, { rpId: rpId ?? location.hostname, credentialId }).catch(() => {});
 }
 
@@ -133,6 +134,7 @@ export function signedInWithCode() {
  */
 export async function mayOfferPasskey(): Promise<boolean> {
   if (recall(OFFER) !== "1" || recall(ADDED) || recall(DONE) || !passkeysWork()) return false;
+  // Can't tell: not offered
   return platformAuthenticatorIsAvailable().catch(() => false);
 }
 

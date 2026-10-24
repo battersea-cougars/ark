@@ -59,6 +59,7 @@ export function roomTurn(
 /** The browser's full screen, on or off, from the room's own button (a tap, which lets a page ask). */
 export function toggleFullScreen() {
   try {
+    // Refused (not from a tap, or not allowed): the room stays as it is
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     else void document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
   } catch {

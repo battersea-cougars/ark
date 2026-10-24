@@ -61,6 +61,12 @@ two-captain `snakeDraft`, the penalty clock's `penalty`/`goalAt`), in place of c
 
 Known bugs: every `it.fails` stays (20 expected fails before and after).
 
+**Since** (24 October 2026): `settings/usage.use-cases` owns the admins being told as a free limit gets close (#157):
+the email and the phone at 70% and 90%, once per limit, level and day (Sanity's month), back under 70% saying
+nothing, quiet hours (the phone waits for 08:00, or isn't told when the limit resets first), a request stopped for
+its CPU time, and the Free limits switch. Its Cloudflare analytics fake answers through the world (`w.serve`), so
+Firebase's fake sits beside it. The push topic's list is `push.use-cases`' "hears everything".
+
 ## Left, for a decision
 
 Close, but each still checks something of its own, or moving it is more than removing a copy:

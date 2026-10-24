@@ -56,6 +56,7 @@
   import { dismissAnnouncement, postAnnouncement, removeAnnouncement } from "../app/backend.svelte";
   import { askToNotify, mayAskToNotify } from "../app/native";
   import { api } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
   import { slide } from "svelte/transition";
 
   // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
@@ -104,7 +105,7 @@
   let askNotify = $state<"ask" | "homeScreen" | false>(false);
   mayAskToNotify()
     .then((may) => (askNotify = !saidNotNow() && may))
-    .catch(() => {});
+    .catch((e) => reportUnexpected(e, "Couldn't tell whether to ask about notifications"));
   function saidNotNow() {
     try {
       return localStorage.getItem(NOT_NOW) === "1";
@@ -113,7 +114,8 @@
     }
   }
   async function turnOnNotifications() {
-    await askToNotify().catch(() => false);
+    // The tap did nothing they can see, so Sentry hears of it (not the network's or the club's refusal)
+    await askToNotify().catch((e) => reportUnexpected(e, "Couldn't turn notifications on"));
     askNotify = false;
   }
   function notNow() {
@@ -137,7 +139,7 @@
       checkWord = p.checkName();
       offerPasskey = await p.mayOfferPasskey();
     })
-    .catch(() => {});
+    .catch((e) => reportUnexpected(e, "Couldn't tell whether to offer a passkey"));
   async function addPasskeyHere() {
     passkeyNote = "";
     const p = await passkeys;
@@ -161,10 +163,14 @@
   const loadBreakGlass = () =>
     api<{ breakGlass: BreakGlass[] }>("GET", "/api/break-glass")
       .then((r) => (breakGlass = r.breakGlass))
-      .catch(() => {});
+      // None shown: Sentry hears of a failure that isn't the network's or the club's refusal
+      .catch((e) => reportUnexpected(e, "Couldn't read the break-glass sign-ins"));
   if (can(granted(), "manage:Member")) void loadBreakGlass();
   async function endBreakGlass(b: BreakGlass) {
-    await api("POST", `/api/break-glass/${b.kind === "code" ? "codes" : "sessions"}/${b.id}/end`, {}).catch(() => {});
+    // Not ended, it's still on the list read again below
+    await api("POST", `/api/break-glass/${b.kind === "code" ? "codes" : "sessions"}/${b.id}/end`, {}).catch((e) =>
+      reportUnexpected(e, "Couldn't end a break-glass sign-in"),
+    );
     await loadBreakGlass();
   }
   const nameOf = (id: number) => shortNameOf(PLAYERS.find((p) => p.id === id)) || "An admin";

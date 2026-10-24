@@ -1,4 +1,4 @@
-# 0059. Admins see the free Cloudflare allowance, CPU time and our own count of Sanity requests, and are emailed before any runs out
+# 0059. Admins see the free Cloudflare allowance, CPU time and our own count of Sanity requests, and are told before any runs out
 
 - **Status:** Accepted
 - **Date:** 2026-10-07 · updated 2026-10-24
@@ -42,10 +42,19 @@ same month's quota (a month's quota, not a new leak): the CDN answers dev's read
   slowest 1 in 100 (p99), against 10 ms, and how many requests were stopped for going over. The live-update pace
   setting sits beside it ([0072](0072-live-updates.md)). Below, this month's Sanity requests as we count them, with
   their own monthly emails (below).
-- **An hourly check** (the team Worker's cron trigger, `7 * * * *`, free) emails the admins once a day per metric when
-  one passes 80%, and once a day (metric `cpu`) when any request was stopped, with the count per Worker. It goes
-  through the usual mail rules (outside production, only to the safe address). `usage_warnings` remembers what was
-  sent each day, claimed before sending so two runs send one email.
+- **An hourly check** (the team Worker's cron trigger, `7 * * * *`, free; `apps/team/worker/settings/usage.alerts.ts`)
+  tells the admins at **70% and again at 90%** of each limit it measures (today's Worker requests, D1 rows read and
+  written, the live hub's requests and time; this month's Sanity API and CDN requests), and once a day (metric `cpu`)
+  when any request was stopped, with the count per Worker. Each is an email to the admins (`manage:all` or
+  `read:Usage`) and a notification on their phones, topic `usage` ("Free limits", whose switch only they see,
+  ADR 0108), opening the Usage page; at 90% it says "Nearly spent". Once per limit and level: today's (UTC) for
+  Cloudflare's, this month's for Sanity's, and passing 90% at once is the one email and notification, not 70%'s as
+  well. Back under 70% says nothing, and the day stays told: the next day's crossing tells them again. The email goes
+  through the usual mail rules (outside production, only to the safe address) at once; the notification is queued
+  for the next push drain (a minute away, the run's requests having gone on the emails) and waits out quiet hours
+  like any other, unless the limit resets before they end, when it isn't sent (by 08:00 it's a new day). An email
+  that fails is an error line (so reported) and the rest still go. `usage_warnings` remembers what was sent, claimed
+  in one statement before sending so two runs tell once.
 - **Admins see it on Home before it runs out** (#148). Each hourly check also keeps, in `usage_levels`, every limit
   it read that's at 70% or more, and only those (`apps/team/worker/settings/usage.levels.ts`): today's Worker
   requests, D1 rows read and written, the live hub's requests and time, a request stopped for its CPU time (the 10 ms
@@ -56,7 +65,7 @@ same month's quota (a month's quota, not a new leak): the CDN answers dev's read
   any), so Home's For admins has its line on first paint and nothing moves when it comes. It says the nearest in one
   line, last, opening the Usage page: "Database rows read at 74% of today's free limit", with when it resets and how
   many more are past 70%; at 90% it says "Nearly spent" and its icon is red. All fine, no line. A row from a day or
-  month that's over isn't shown. Pushing and emailing admins at these levels is #157.
+  month that's over isn't shown. The hourly check also tells them at these levels when they aren't looking (above).
 - Both read Cloudflare's GraphQL analytics in one query (`apps/team/worker/settings/usage.ts`): `workersInvocationsAdaptive`
   sums and quantiles, the same dataset filtered to `status: "exceededResources"`, and the Durable Object datasets.
   They use a **read-only token**, `CLOUDFLARE_ANALYTICS_TOKEN` (Account Analytics Read), never the deploy token,
@@ -107,8 +116,9 @@ Sanity's webhook can't reach a laptop, and a `listen` connection is an API reque
 and CDN, against the free plan, with where the month's pace ends up and when it resets. It's ours, so it shows without
 the Cloudflare token. Production's page shows production's project; dev's, dev's.
 
-**The hourly check** emails the admins once a month per quota at 50% and at 80% (past 80% at once, the one email), and
-once when the month's pace would run out before the 1st, from the fourth day of the month (a first day says little).
+**The hourly check** emails the admins once a month per quota at 50%, 70% and 90% (past a higher one at once, the one
+email), with a notification on their phones at 70% and 90% like Cloudflare's limits (above), and emails once when the
+month's pace would run out before the 1st, from the fourth day of the month (a first day says little).
 A threshold's email also gives the pace, so a quota gets one email at a time. Claimed in `usage_warnings` keyed by the
 month.
 
@@ -119,7 +129,9 @@ month's count, so they keep reading the last tenth: the daily rebuild and a rele
 
 ## Consequences
 
-- Admins hear about a runaway or a scraper with a fifth of the day left, not when the app stops.
+- Admins hear about a runaway or a scraper with almost a third of the day left, on their phones as well as by email,
+  and again with a tenth left; not when the app stops. A limit that crosses 70% late at night is an email only, since
+  it resets (01:00 in summer) before the morning.
 - A slow route shows up as a rising p99 before it fails, and a failure is an email, not a member's report.
 - The check costs 24 Worker requests and three small round trips an hour (one reads the kept levels; writing them,
   and a new data version, only when they changed); CPU time comes from the same query.
@@ -131,8 +143,8 @@ month's count, so they keep reading the last tenth: the daily rebuild and a rele
 - It only runs where the team app is deployed; locally the page works on a dev server started through env-pull.
   Sanity's usage isn't readable through its API, so the page shows our own count.
 
-- Admins see both projects' month without sanity.io (each environment's app shows its own), and hear at 50%, 80% and
-  when the pace is wrong, before Sanity's own 80% email.
+- Admins see both projects' month without sanity.io (each environment's app shows its own), and hear at 50%, 70%,
+  90% and when the pace is wrong, the 70% before Sanity's own 80% email.
 - Our count is a floor, not Sanity's figure: the Studio, scripts with `sanity exec` (seeding, migrations: API writes),
   local builds and `astro dev` aren't counted, and a count can be lost if an isolate ends before its flush. If the
   page and sanity.io disagree, the difference is what we don't count; sanity.io/manage stays the source of truth.
@@ -161,3 +173,8 @@ month's count, so they keep reading the last tenth: the daily rebuild and a rele
   nearest, sent with the club so it's there on first paint (#148); push and email at those levels are #157. D1
   storage and Gmail sends aren't counted yet, so they aren't among them.
 - 2026-10-24: ADR 0116 (Sanity requests counted) merged in.
+- 2026-10-24: Usage alerts reach the admins (#157): at 70% and 90% of each limit, in place of one email at 80%, an
+  email and a notification on their phones (topic `usage`, "Free limits", admins only), once per limit, level and day
+  (Sanity's: month, which keeps its 50% and pace emails; its 80% is now 70% and 90%). A notification in quiet hours
+  waits for 08:00, or isn't sent when the limit resets first; an email that fails no longer stops the rest. The check
+  moved to `usage.alerts.ts`.

@@ -85,6 +85,7 @@ export async function turnOn(): Promise<boolean> {
   const sub = await subscribe(await worker());
   // The club said no (a push service it doesn't know): not left subscribed for nothing
   await give(sub).catch(async (e) => {
+    // The club's refusal is what's thrown; an unsubscribe that fails too leaves a subscription nobody sends to
     await sub.unsubscribe().catch(() => {});
     throw e;
   });
@@ -95,6 +96,7 @@ export async function turnOn(): Promise<boolean> {
 export async function turnOff() {
   const sub = await current();
   if (!sub) return;
+  // Offline: unsubscribed all the same, so the club's next send to it finds it gone and drops it
   await api("DELETE", "/api/auth/device", { token: sub.endpoint }).catch(() => {});
   await sub.unsubscribe();
 }

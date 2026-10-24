@@ -5,7 +5,7 @@ import { handleApi, type Env } from "./api/api";
 import { chargeDue } from "./dues/dues";
 import { sendQueued } from "./dues/reminders";
 import { forgetOld } from "./settings/retention";
-import { checkUsage } from "./settings/usage";
+import { checkUsage } from "./settings/usage.alerts";
 import { rebuildWebsite } from "./website/website";
 import { drainPush, SEND_AT_ONCE } from "./push/push";
 import { announceOpenSignups } from "./training/training.signup";
@@ -104,8 +104,8 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
       await task("website.rebuild", () => rebuildWebsite(env, now));
       await task("dues.remind.send", () => sendQueued(env, now));
     }
-    // Hourly: charge what a new day or quarter makes due (ADR 0007; no reminders: an admin sends them), warn the admins
-    // before the free allowance runs out (ADR 0059), and forget old sign-in records (#30). Each on its own, so one
+    // Hourly: charge what a new day or quarter makes due (ADR 0007; no reminders: an admin sends them), tell the admins
+    // as the free allowance gets close, at 70% and 90% (ADR 0059), and forget old sign-in records (#30). Each on its own, so one
     // failing doesn't stop the rest. It checks in with Sentry's cron monitor (ADR 0110, scripts/sentry-setup.mjs), so
     // an hour it doesn't run is an alert; a job's failure is reported by its own log line. No Sentry here: just runs.
     else {

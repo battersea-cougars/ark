@@ -151,6 +151,7 @@ export function simulator(
         }
       }
     } catch {
+      // Dev only (ADR 0123): the control says it ended, and the Worker's own failure is reported there
       last = null;
     }
     if (mine !== run) return;

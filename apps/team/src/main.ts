@@ -1,5 +1,5 @@
 // First, so it listens before anything else runs: errors from the start wait for Sentry (ADR 0110)
-import { reportEarly } from "./app/errors.early";
+import { reportEarly, reportUnexpected } from "./app/errors.early";
 import "./app.css";
 import { mount } from "svelte";
 import App from "./App.svelte";
@@ -20,6 +20,7 @@ const target = document.getElementById("app")!;
 // Errors to Sentry (ADR 0110), started beside the club's data rather than before it: a built copy only. What goes wrong
 // before it's up waits for it (errors.early.ts)
 const dsn = import.meta.env.VITE_SENTRY_DSN;
+// Sentry that didn't load (offline, an ad blocker) has nobody to tell: the app works without it
 if (dsn) void import("./app/errors").then(({ startErrorReports }) => startErrorReports(dsn)).catch(() => {});
 // On your machine, where there's no Sentry: what goes wrong shows on the page (app/dev-errors.ts)
 if (import.meta.env.DEV) void import("./app/dev-errors").then((d) => d.showDevErrors());
@@ -30,8 +31,10 @@ try {
   running.app = true;
   unsplash();
   // In the store app (ADR 0108): links and notifications open their page; in a browser, Web Push's (#24)
-  if (inApp) void startInApp((path) => navigate(path)).catch(() => {});
-  else void import("./app/web-push").then((w) => w.startWebPush((path) => navigate(path))).catch(() => {});
+  // Failing, the app carries on without them, so Sentry hears of it (not the network's or the club's refusal)
+  const pushFailed = (e: unknown) => reportUnexpected(e, "Couldn't start notifications on this device");
+  if (inApp) void startInApp((path) => navigate(path)).catch(pushFailed);
+  else void import("./app/web-push").then((w) => w.startWebPush((path) => navigate(path))).catch(pushFailed);
 } catch (e) {
   if (e instanceof ApiError && e.status === 401) {
     const { default: SignIn } = await import("./pages/SignIn.svelte");

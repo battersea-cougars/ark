@@ -39,6 +39,7 @@
   import { can } from "../access/actions";
   import Ledger from "./Ledger.svelte";
   import { api } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
   import type { Passkey } from "../app/passkeys";
   import Sheet from "./Sheet.svelte";
   import RemindReview from "./RemindReview.svelte";
@@ -216,7 +217,11 @@
   const load = (id: number, y: number) =>
     attendanceOf(id, String(y))
       .then((rows) => y === year && (attendance = rows))
-      .catch(() => y === year && (attendance = []));
+      // Shown as none: Sentry hears of a failure that isn't the network's or the club's refusal
+      .catch((e) => {
+        reportUnexpected(e, "Couldn't read a member's attendance");
+        if (y === year) attendance = [];
+      });
   $effect(() => {
     const y = year;
     attendance = null;
@@ -470,7 +475,11 @@
     // A slow answer for someone no longer shown is dropped, as their attendance's is
     api<{ passkeys: Passkey[] }>("GET", `/api/members/${id}/passkeys`)
       .then((r) => id === memberId && (theirPasskeys = r.passkeys))
-      .catch(() => id === memberId && (theirPasskeys = null));
+      // Their line is left out: Sentry hears of a failure that isn't the network's or the club's refusal
+      .catch((e) => {
+        reportUnexpected(e, "Couldn't read a member's passkeys");
+        if (id === memberId) theirPasskeys = null;
+      });
   });
   const passkeysLine = $derived(
     theirPasskeys === null

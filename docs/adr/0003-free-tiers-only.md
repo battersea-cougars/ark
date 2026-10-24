@@ -77,7 +77,7 @@ when the Android app comes, Google's ($25 once) ([#26](https://github.com/batter
 
 No paid bindings (Cloudflare Images, Durable Objects that store rows), no card-payment provider, no always-on
 server. Adding any paid service needs the club's agreement first. Durable Object requests and duration show on the
-Usage page and count in its 80% check ([ADR 0059](0059-usage-page-and-check.md)).
+Usage page and count in its 70% and 90% check ([ADR 0059](0059-usage-page-and-check.md)).
 
 ## History
 
@@ -96,3 +96,4 @@ Usage page and count in its 80% check ([ADR 0059](0059-usage-page-and-check.md))
   route counted on a club of 60 and of 120 (`api.budget.use-cases.test.ts`, docs/api-budget.md), and what it found
   fixed: agenda syncs in two round trips, the first open's N+1 over trainings, a tournament's standing read in one,
   Move to's repeated syncs, the dues parts read by index, four indexes.
+- 2026-10-24: The Usage check tells admins at 70% and 90% of a limit, not 80% (ADR 0059, #157).

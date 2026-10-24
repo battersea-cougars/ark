@@ -1,17 +1,13 @@
 // The club's free Cloudflare allowance (ADR 0059): one account runs the website, the team app and their database,
 // and the free plan's daily limits reset at 00:00 UTC. Admins see today's use on the Usage page; an hourly check
-// (index.ts `scheduled`) emails them once a day when anything passes 80%, before the app stops working. The free plan
-// also stops any request that computes for more than 10 ms; the page shows each Worker's CPU time against that, and
-// the check emails when a request was stopped (ADR 0059).
+// (usage.alerts.ts) tells them at 70% and 90%, before the app stops working. The free plan also stops any request
+// that computes for more than 10 ms; the page shows each Worker's CPU time against that.
 // Read with a read-only token (Account Analytics: Read), CLOUDFLARE_ANALYTICS_TOKEN, never the deploy token.
 // Sanity's monthly quotas are ours to count (usage.sanity.ts, ADR 0059): shown and checked with or without the token.
-import { all, batch, statement } from "@cougars/shared/d1";
-import { sendMail, type Mail } from "@cougars/shared/email";
-import { mailSetup } from "../auth/auth";
+import { batch, statement } from "@cougars/shared/d1";
 import type { Env } from "../api/api";
 import { scribe } from "@cougars/shared/scribe";
-import { saveLevels } from "./usage.levels";
-import { runsOutAt, sanityUsageQuery, type SanityUsage } from "./usage.sanity";
+import { sanityUsageQuery, type SanityUsage } from "./usage.sanity";
 
 const log = scribe.logger("usage");
 
@@ -64,9 +60,7 @@ const LABELS: Record<Metric["id"], string> = {
 /** A Durable Object is billed as 128 MB for every second it's active, in GB-seconds; Cloudflare gives microseconds. */
 const gbSeconds = (activeUs: number) => Math.round((activeUs / 1_000_000) * 0.128);
 /** CPU time a request may use on the free plan; waiting on the database or a fetch doesn't count. */
-const CPU_LIMIT_MS = 10;
-/** When to warn: a fifth of the day still to spend. */
-const WARN_AT = 0.8;
+export const CPU_LIMIT_MS = 10;
 
 const QUERY = `query ($account: String!, $day: Date!) {
   viewer {
@@ -159,131 +153,5 @@ export async function readUsage(env: Env, now: Date): Promise<Usage> {
     // it runs out and the app stops for everyone (ADR 0059, 0110)
     log.error("usage.unavailable", e);
     return { configured: true, unavailable: true, ...none };
-  }
-}
-
-/** Sanity's quotas are a month's: an email at each of these, once a month (ADR 0059). */
-const SANITY_WARN_AT = [0.5, 0.8];
-
-/**
- * The hourly check: each limit's level for the admins' Home (70% and 90%), then one email to the admins per metric
- * per day, once it passes 80%; for Sanity's monthly quotas, one per month at 50% and at 80%, and one when the month's
- * pace would run out before the 1st.
- */
-export async function checkUsage(
-  env: Env,
-  now: Date,
-  {
-    send = (m: Mail) =>
-      mailSetup(env)
-        .then((config) => sendMail(m, config))
-        .then(() => {}),
-  }: { send?: (m: Mail) => Promise<void> } = {},
-) {
-  const usage = await readUsage(env, now);
-  // Each limit at 70% or more, for the admins' Home (usage.levels.ts)
-  await saveLevels(env.DB, usage);
-  const over = usage.metrics.filter((m) => m.used >= m.limit * WARN_AT);
-  const stopped = (usage.cpu?.workers ?? []).filter((w) => w.stopped);
-  const { sanity } = usage;
-  // The highest threshold each Sanity quota has passed (past 80% at once, the one email), and any on pace to run out
-  const sanityOver = sanity.quotas.flatMap((q) => {
-    const at = SANITY_WARN_AT.filter((t) => q.used >= q.limit * t).at(-1);
-    return at ? [{ q, at }] : [];
-  });
-  const sanityPace = sanity.quotas.flatMap((q) => {
-    const when = runsOutAt(q, sanity, now);
-    return when ? [{ q, when }] : [];
-  });
-  if (!over.length && !stopped.length && !sanityOver.length && !sanityPace.length) return;
-  const admins = await all<{ email: string }>(
-    env.DB,
-    `SELECT DISTINCT m.email FROM members m
-     JOIN member_roles mr ON mr.member_id = m.id
-     JOIN role_actions ra ON ra.role_id = mr.role_id
-     WHERE ra.action IN ('manage:all', 'read:Usage') AND m.email IS NOT NULL AND m.status = 'active'
-     ORDER BY m.email`,
-  );
-  if (!admins.length) return;
-  // Claim the warnings first, all in one statement: two checks at once still send one email each. Cloudflare's are
-  // today's; Sanity's this month's, each threshold claiming the ones below it too.
-  const warnings = [
-    ...over.map((m) => [usage.day, m.id]),
-    ...(stopped.length ? [[usage.day, "cpu"]] : []),
-    ...sanityOver.flatMap(({ q, at }) =>
-      SANITY_WARN_AT.filter((t) => t <= at).map((t) => [sanity.month, `sanity-${q.id}-${t * 100}`]),
-    ),
-    ...sanityPace.map(({ q }) => [sanity.month, `sanity-${q.id}-pace`]),
-  ];
-  const claimed = new Set(
-    (
-      await all<{ key: string }>(
-        env.DB,
-        `INSERT OR IGNORE INTO usage_warnings (day, metric) SELECT value ->> 0, value ->> 1 FROM json_each(?) WHERE true
-         RETURNING day || ' ' || metric key`,
-        [JSON.stringify(warnings)],
-      )
-    ).map((r) => r.key),
-  );
-  const to = admins.map((a) => a.email);
-  const n = (x: number) => x.toLocaleString("en-GB");
-  for (const m of over) {
-    if (!claimed.has(`${usage.day} ${m.id}`)) continue;
-    const pct = Math.floor((m.used / m.limit) * 100);
-    await send({
-      to,
-      subject: `Cougars app: ${m.label} at ${pct}% of today's free allowance`,
-      text:
-        `${m.label}: ${n(m.used)} of ${n(m.limit)} today (UTC).\n\n` +
-        `If it runs out, the team app stops working until it resets at midnight UTC (01:00 in summer). ` +
-        `See Settings → Usage in the app. A runaway tab or a scraper is the likely cause.`,
-    });
-  }
-  if (claimed.has(`${usage.day} cpu`)) {
-    const total = stopped.reduce((n, w) => n + w.stopped, 0);
-    await send({
-      to,
-      subject: `Cougars app: ${total} request${total === 1 ? "" : "s"} stopped today for using too much CPU`,
-      text:
-        `Cloudflare's free plan stops a request that computes for more than ${CPU_LIMIT_MS} ms, and it fails.\n\n` +
-        stopped.map((w) => `${w.name}: ${w.stopped}`).join("\n") +
-        `\n\nSee Settings → Usage for each Worker's CPU time, and the Worker's logs in Cloudflare for which request.`,
-    });
-  }
-  const resets = new Date(sanity.resetsAt);
-  const date = (d: Date, opts: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", ...opts }).format(d);
-  const reset = date(resets, { day: "numeric", month: "long" });
-  const ifSpent =
-    `If it's spent, Sanity refuses those requests until ${reset} (00:00 UTC): the website's builds fail and its live ` +
-    `pages fall back. At 90% of the CDN's, the website's live reads stop so the builds keep the rest (ADR 0059).\n\n` +
-    `See Settings → Usage in the app; Sanity's own figures (and a log of the requests) are on sanity.io/manage → ` +
-    `${sanity.name} → Usage.`;
-  const runsOut = (when: Date) => `At this pace they run out around ${date(when, { day: "numeric", month: "long" })}`;
-  // A threshold's email says the pace too, so a quota gets one email at a time
-  const told = new Set<string>();
-  for (const { q, at } of sanityOver) {
-    if (!claimed.has(`${sanity.month} sanity-${q.id}-${at * 100}`)) continue;
-    told.add(q.id);
-    const when = sanityPace.find((p) => p.q.id === q.id)?.when;
-    await send({
-      to,
-      subject: `Cougars app: Sanity ${q.label} at ${Math.floor((q.used / q.limit) * 100)}% of this month's free allowance (${sanity.name})`,
-      text:
-        `Sanity ${q.label} for ${sanity.name}: ${n(q.used)} of ${n(q.limit)} this month (UTC), on pace for ` +
-        `${n(q.projected)} by ${reset}.${when ? ` ${runsOut(when)}.` : ""}\n\n${ifSpent}`,
-    });
-  }
-  for (const { q, when } of sanityPace) {
-    if (told.has(q.id) || !claimed.has(`${sanity.month} sanity-${q.id}-pace`)) continue;
-    await send({
-      to,
-      subject: `Cougars app: Sanity ${q.label} on pace to run out before ${reset} (${sanity.name})`,
-      text:
-        `Sanity ${q.label} for ${sanity.name}: ${n(q.used)} of ${n(q.limit)} so far this month. ${runsOut(when)}, ` +
-        `and ${n(q.projected)} would be needed by ${reset}.\n\n` +
-        `Something may be calling Sanity more than it should: in astro dev, the log's sanity.read lines say which page ` +
-        `and who asked.\n\n${ifSpent}`,
-    });
   }
 }

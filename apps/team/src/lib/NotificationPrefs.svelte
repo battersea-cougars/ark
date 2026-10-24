@@ -43,6 +43,7 @@
       }
     } catch {
       failed = true;
+      // The failure is said (failed); as for this browser, off unless it can say otherwise
       deviceOn = (await webPush().catch(() => "off")) === "on";
     } finally {
       busy = false;

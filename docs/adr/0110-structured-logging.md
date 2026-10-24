@@ -82,6 +82,12 @@ smaller (5k errors a month, one user) but plain about it.
   (401), resting (429, ADR 0055) and old code that reloads. The same `beforeSend` sees each. A failure the app catches
   and carries on past, where carrying on would hide it (the clash question it couldn't ask, ADR 0122), goes the same
   way through `reportCaught` (handled, phase `caught`), and to the console on your machine, which the dev strip shows.
+  A job the app carries on past in the background (catching up with the club's changes, the check when it comes back
+  into view, a phone's notification token, Home's and a member sheet's side reads) reports through `reportUnexpected`,
+  which leaves out the server's answer (an `ApiError`: the Worker reports its own 5xx, and 401 and 429 are expected)
+  and the network (a phone offline is nobody's fault), so what's left is our code or a plugin failing. A catch that
+  carries on without either says why, where it isn't plain (a browser refusing full screen or the screen lock, a
+  sign-out offline).
 - **What a member feels is an error, not a warning**: the live hub not hearing of a change (phones stay
   stale until their next check), the free allowance unreadable (nobody would be warned before it runs out). A 500 says
   its method, path, route and the member's number (never their name or email).
@@ -106,8 +112,7 @@ smaller (5k errors a month, one user) but plain about it.
   failed, is kept in one D1 row (`sentry_issues`), so a page opened costs about 4 D1 calls and, every five minutes,
   two subrequests. Down or refusing, the page says so calmly and keeps the last answer on show (ADR 0055); that's a
   warning in the log, as an error would go to the Sentry that just didn't answer. Titles are masked again on the way.
-  A push to admins on a new issue or a spike belongs with the admins' usage pushes
-  ([#157](https://github.com/battersea-cougars/ark/issues/157)); until then the alerts email.
+  A push to admins on a new issue or a spike isn't built (the usage pushes, #157, are); Sentry's alerts email.
 - **Every caught failure is an error or deliberately not**: an error line is reported; a warning says why
   it isn't where that's not plain (a limit or a check working, a stale copy served, an event Sentry gets by itself).
   A read through a circuit breaker logs with `logFailure` (`packages/shared/breaker.ts`): an error, but a warning when
@@ -150,3 +155,6 @@ smaller (5k errors a month, one user) but plain about it.
 - 2026-10-24: `reportCaught` for a failure the app catches and carries on past (the clash question it couldn't ask):
   to Sentry as handled, phase `caught`, and the console (the dev strip) on your machine (was in 0111).
 - 2026-10-24: ADR 0111 (errors and uptime) merged in.
+- 2026-10-24: Every caught failure in the team app's browser code checked (#148): a background job that carries on
+  reports through `reportUnexpected` (not the server's answer, not the network), the rest say why not. The brake's
+  "resting" is a 429 `ApiError`, so it isn't reported. The Worker's lines were checked on 2026-10-23.

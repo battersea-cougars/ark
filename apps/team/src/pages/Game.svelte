@@ -161,6 +161,7 @@
   let sleep: (() => void) | null = null;
   $effect(() => {
     if (keeper && running && !sleep)
+      // Refused: the screen may sleep, as it would anyway
       keepAwake()
         .then((s) => (sleep = s))
         .catch(() => {});

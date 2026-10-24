@@ -56,6 +56,8 @@ export interface CopyIO {
   applyMatch?(match: PushedMatch): boolean;
   /** Whether the page is in view. */
   visible(): boolean;
+  /** A read or its parts that failed: the page's beat catches up, so this only hears of it. */
+  failed?(error: unknown): void;
   /** The longest random wait before a read, in ms. */
   waitMs?: number;
   random?: () => number;
@@ -193,8 +195,10 @@ export class ClubCopy {
         this.io.apply(this.partsAt(version, slices));
       }
       ok = true;
-    } catch {
-      // Refused, offline, or the brake says wait: the page's own check on its beat catches up
+    } catch (e) {
+      // Refused, offline, or the brake says wait: the page's own check on its beat catches up. Anything else (code
+      // that threw on the parts) is ours to hear of
+      this.io.failed?.(e);
     } finally {
       this.flying = false;
     }

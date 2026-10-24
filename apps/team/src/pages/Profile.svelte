@@ -80,6 +80,7 @@
   const owed = $derived(owedBy(who.id));
   // Off this device, or every browser and phone you're signed in on (#72); the app reloads to the sign-in screen
   async function signOut(everywhere = false) {
+    // Offline or already signed out: the reload shows which
     await api("POST", everywhere ? "/api/auth/sign-out-everywhere" : "/api/auth/sign-out").catch(() => {});
     location.replace("/");
   }

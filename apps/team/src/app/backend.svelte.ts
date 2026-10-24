@@ -37,6 +37,7 @@ import type { Team } from "../lib/balance";
 import type { ClashQuestion } from "../lib/clashes";
 import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
 import { ClubCopy, withMatch } from "./catch-up";
+import { reportUnexpected } from "./errors.early";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
@@ -135,8 +136,10 @@ export const checked = { at: 0 };
  */
 export const copy = new ClubCopy({
   // A background read, like a check: not while the brake says wait (ADR 0055); the page's beat catches up after
-  readParts: (names) => (brake.mayCheck() ? readSlices(names) : Promise.reject(new Error("resting"))),
-  readWhole: () => (brake.mayCheck() ? refreshIfChanged() : Promise.reject(new Error("resting"))),
+  readParts: (names) => (brake.mayCheck() ? readSlices(names) : Promise.reject(new ApiError(429, "resting"))),
+  readWhole: () => (brake.mayCheck() ? refreshIfChanged() : Promise.reject(new ApiError(429, "resting"))),
+  // Refused, offline or resting isn't reported; anything else is ours to hear of
+  failed: (e) => reportUnexpected(e, "Couldn't catch up with the club's changes"),
   apply: (slices) => apply(slices as Slices),
   // A live match the hub sent (#161): its games in place of the tournament's
   applyMatch: (match) => {
@@ -187,7 +190,9 @@ export async function pullToRefresh() {
 // whose own reply is on its way.
 if (typeof document !== "undefined")
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && !saving.busy) refreshIfChanged().catch(() => {});
+    // Offline or refused: the page's own check tries again; anything else is ours to hear of
+    if (document.visibilityState === "visible" && !saving.busy)
+      refreshIfChanged().catch((e) => reportUnexpected(e, "Couldn't read what changed while away"));
   });
 
 let clearing: ReturnType<typeof setTimeout> | undefined;
@@ -221,7 +226,8 @@ export async function save<T>(change: () => Promise<T>, done = "Saved"): Promise
   } catch (e) {
     saving.refused = e instanceof ApiError ? e.status : 0;
     say(e instanceof Error ? e.message : "Couldn't save.", true);
-    await refresh().catch(() => {});
+    // The save's failure is said above; a refresh that fails too is only ours to hear of when it isn't the network
+    await refresh().catch((r) => reportUnexpected(r, "Couldn't read the club again after a failed save"));
     return null;
   } finally {
     saving.busy--;

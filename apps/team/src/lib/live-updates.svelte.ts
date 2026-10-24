@@ -7,6 +7,7 @@
 // without a hub), it checks on the admins' beat instead (ADR 0072), and says so. Only while the page is in view; the
 // brake (ADR 0055) still has the last word: a connect is one of the tab's calls, and nothing goes out while it rests.
 import { brake } from "../app/api";
+import { reportUnexpected } from "../app/errors.early";
 import { checked, copy, refreshIfChanged } from "../app/backend.svelte";
 import type { Heard } from "../app/catch-up";
 import { db } from "../demo/store.svelte";
@@ -56,7 +57,9 @@ export function checkForUpdates(follow: readonly string[] = ["tournaments"], { s
   let streaming = false;
 
   const check = () => {
-    if (document.visibilityState === "visible") refreshIfChanged().catch(() => {});
+    // Offline or refused: the next beat tries again. Anything else leaves the page stale unseen, so Sentry hears of it
+    if (document.visibilityState === "visible")
+      refreshIfChanged().catch((e) => reportUnexpected(e, "Couldn't check for the club's changes"));
   };
   const onBeat = () => {
     clearInterval(beat);

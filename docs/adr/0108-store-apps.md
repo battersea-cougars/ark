@@ -47,10 +47,12 @@ Three things shape it:
     ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
-    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`, `draft`, `security`; a topic
+    (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`, `draft`, `email`, `security`, `usage`; a topic
     joins it only once something's sent on it, so there's never a switch for nothing). `draft`: a draft's opening,
     to each of its captains with their place ([0060](0060-the-draft.md)). `security`: a break-glass sign-in, to
-    admins only, whose switch only admins see ([0023](0023-sign-in-and-sessions.md)). Every topic is on until a member
+    admins only, whose switch only admins see ([0023](0023-sign-in-and-sessions.md)). `usage` ("Free limits"): a free
+    limit at 70% or 90%, or a request stopped for its CPU time, to admins only, whose switch only they see
+    ([0059](0059-usage-page-and-check.md)). Every topic is on until a member
     turns it off: `notification_prefs` holds only what they switched, and the statement that fills the outbox skips
     them, so choosing costs no round trip. The choice is the member's, not a device's: one copy, whichever phone or
     browser they sign in on. The You page shows a switch per topic to everyone; it's in the bootstrap
@@ -201,3 +203,5 @@ Three things shape it:
 - 2026-10-24: A notification about one training night opens that night's own page (`/training/{series}/{date}`,
   [0030](0030-training-and-tournament-schedule.md)), not the series' page.
 - 2026-10-24: The awards' reveal sends no push: the user, "no push needed" (`awardsOut` is gone; ADR 0129).
+- 2026-10-24: The `usage` topic ("Free limits", admins only): the hourly check's 70% and 90% of a free limit, queued
+  for the next drain and waiting out quiet hours, unless the limit resets before they end ([0059](0059-usage-page-and-check.md), #157).

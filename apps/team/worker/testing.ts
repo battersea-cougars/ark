@@ -729,6 +729,8 @@ export function testWorld(roster: object[]) {
     firebase,
     gmail,
     webPush,
+    /** Another outside service, answered by the test: its answer to a URL it knows, or null for the next one's. */
+    serve,
     turnstile,
     sentry,
     /** A device's passkeys (testing.authenticator.ts): real keys, real signatures. */
