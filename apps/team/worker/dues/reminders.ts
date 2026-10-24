@@ -6,6 +6,7 @@
 // A reminder is claimed first (a queued row in dues_reminders, in one statement that checks the week), then sent a few
 // at a time: a Worker run makes at most 50 requests, and each email is one. What's left queued goes on the next run
 // (the five-minute cron), so a send to the whole club is done within minutes.
+import { bumpDataVersion } from "../api/api.version";
 import { all, batch, statement } from "@cougars/shared/d1";
 import { bucketOf } from "../../src/lib/dues";
 import { londonToday } from "@cougars/shared/london";
@@ -245,5 +246,7 @@ export async function sendQueued(env: Env, now: Date, limit: number = REMINDERS.
     ]),
   ]);
   if (dropped.length) log.info("reminders.dropped", { count: dropped.length });
+  // When each was last reminded is new on Unpaid fees (#178)
+  if (sent.length) await bumpDataVersion(env.DB, ["reminders"]);
   return sent.length;
 }

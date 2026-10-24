@@ -8,6 +8,7 @@
 // Every token (nonce, code, session) is random and stored only as its SHA-256 hash. The reply to an email
 // never says whether it's a member's. Guesses are counted before a code is checked, in one statement, so requests
 // sent all at once can't get past the limits, and a code is spent the same way, so it signs in once.
+import { bumpDataVersion } from "../api/api.version";
 import { all, first, run } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import { isProduction, mailPausedUntil, sendMail, type MailConfig } from "@cougars/shared/email";
@@ -588,6 +589,9 @@ export async function requestAccess(request: Request, env: AuthEnv, now: Date): 
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
+  // A new member, pending: the roster, and the admins' Home, are new (#178). The API's own changes do this in
+  // handleApi; this one's at sign-in
+  await bumpDataVersion(env.DB, ["members"]);
   await audit(env.DB, now, id, "access.requested");
   // The admins hear at once, with a link to their sheet (ADR 0069)
   await tellAdminsOfRequest(env, { id, name, position }, new URL(request.url).origin);

@@ -6,7 +6,7 @@
 // read from D1 once and kept at the edge, keyed by its part's version and what they may see; what's someone's own is
 // read for them each time, so it never reaches anyone else. Driven through the real Worker handlers (ADR 0031).
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { testWorld, type Reply } from "../testing";
+import { NOW, testWorld, type Reply } from "../testing";
 import { clubWithHistory } from "./bootstrap.testing";
 import { OWN, partsSql } from "./api.club";
 
@@ -176,6 +176,28 @@ describe("a page's own data", () => {
     const again = await page(ash, "members", tag);
     expect(again.status).toBe(200);
     expect(again.body.slices.members.map((m: Json) => m.name)).toContain("Flo Renamed");
+  });
+
+  it("has someone asking to join on the roster at once, though they asked at sign-in, not through a page", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    expect((await page(dana, "members")).status).toBe(200);
+    const asked = await w
+      .browser()
+      .call("POST", "/api/auth/request", { name: "Jo New", email: "jo@example.com", position: "F" });
+    expect(asked.status).toBeLessThan(300);
+    const roster = (await page(dana, "members")).body.slices.members;
+    expect(roster.find((m: Json) => m.name === "Jo New")?.status).toBe("pending");
+    expect((await dana.call("GET", "/api/bootstrap")).body.forAdmins.asking).toEqual(["Jo New"]);
+  });
+
+  it("has someone who asked to join long ago gone from the roster once the hourly run forgets them", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const longAgo = new Date(NOW.getTime() - 40 * 86_400_000);
+    const asking = { name: "Jo Old", email: "jo@example.com", position: "F" };
+    expect((await w.browser().call("POST", "/api/auth/request", asking, { now: longAgo })).status).toBeLessThan(300);
+    expect((await page(dana, "members")).body.slices.members.map((m: Json) => m.name)).toContain("Jo Old");
+    await w.scheduled("7 * * * *", NOW);
+    expect((await page(dana, "members")).body.slices.members.map((m: Json) => m.name)).not.toContain("Jo Old");
   });
 
   it("asks D1 once for what's the same for everyone of a role, and each member's own every time", async () => {

@@ -1,5 +1,6 @@
 // How long the club keeps sign-in records (#30, ADR 0029), forgotten by the hourly cron (index.ts `scheduled`). The
 // privacy notice (apps/web/src/pages/privacy.astro) says the same; change them together.
+import { bumpDataVersion } from "../api/api.version";
 import { run } from "@cougars/shared/d1";
 
 const DAY = 86_400_000;
@@ -20,6 +21,10 @@ export async function forgetOld(db: D1Database, now: Date) {
   await run(db, "DELETE FROM auth_sessions WHERE COALESCE(revoked_at, expires_at) < ?", [
     ago(KEEP_ENDED_SESSIONS_DAYS),
   ]);
-  await run(db, "DELETE FROM members WHERE status = 'pending' AND created_at < ?", [ago(KEEP_PENDING_DAYS)]);
+  const forgotten = await run(db, "DELETE FROM members WHERE status = 'pending' AND created_at < ?", [
+    ago(KEEP_PENDING_DAYS),
+  ]);
+  // Someone asking to join, forgotten: the roster and the admins' Home are new (#178)
+  if (forgotten.meta.changes) await bumpDataVersion(db, ["members"]);
   await run(db, "DELETE FROM audit_log WHERE at < ?", [ago(KEEP_AUDIT_DAYS)]);
 }
