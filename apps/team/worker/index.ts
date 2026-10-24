@@ -68,7 +68,7 @@ export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
       const res = await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p));
-      // The club's address is read from Sanity (shared/club-contact.ts): counted into D1 after the request (ADR 0116).
+      // The club's address is read from Sanity (shared/club-contact.ts): counted into D1 after the request (ADR 0059).
       // One read while sending an email after the reply is counted with the next request's.
       if (hasPendingSanityRequests()) ctx.waitUntil(task("sanity.count", () => flushSanityRequests(env.DB)));
       return secured(res);

@@ -26,7 +26,7 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 ## Decision
 
 - **Every Sanity read uses `apicdn.sanity.io`**: the build, `astro dev`, the dev Worker and production, all through
-  one reader (`lib/server/sanity-live.ts` `sanityQuery`, plain fetch), which counts them ([0116](0116-sanity-requests-counted.md)).
+  one reader (`lib/server/sanity-live.ts` `sanityQuery`, plain fetch), which counts them ([0059](0059-usage-page-and-check.md)).
   Sanity Studio and scripts that write still use the API; they're few calls.
 - **Local, the dev site and production cache the same way.** There is no switch to turn caching off.
 - **Every live read on the website goes through `lib/server/cache.ts`**: in memory, then the Workers Cache API, with
@@ -72,6 +72,6 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - 2026-10-07: Live reads cached everywhere on the server through `cache.ts`, `CACHE_READS` removed, and the team app's
   bootstrap given an ETag, after uncached reads also spent YouTube's daily quota (was 0054).
 - 2026-10-20: The build's content read through the same plain-fetch reader as the live reads (no `@sanity/client`), the
-  club facts in one query instead of five, and every read counted (ADR 0116).
+  club facts in one query instead of five, and every read counted (ADR 0059).
 - 2026-10-21: The app's checks ask with the tag at the version its copy holds, not the browser's last reply, as live
   pages now read only the parts that changed (#112, ADR 0072); the reply says its version (`x-club-version`).

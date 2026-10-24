@@ -30,18 +30,17 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 ## Data, privacy and staying free
 
-| #                                            | Decision                                                                                                               |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [0029](0029-personal-data.md)                | Personal data stays out of the repo, the roster is seeded from Secrets Manager, and nothing is kept longer than needed |
-| [0050](0050-schema-and-seed-until-launch.md) | Until launch, the database is a schema and a seed, not migrations                                                      |
-| [0106](0106-database-backups.md)             | The database is backed up nightly and before every schema change, sealed, kept 90 days as GitHub artifacts             |
-| [0107](0107-announcements.md)                | Admins post announcements to the top of Home, until their last day or until each member says "Got it"                  |
-| [0053](0053-live-reads-are-cached.md)        | Live reads are cached the same way everywhere, and Sanity is read through its API CDN                                  |
-| [0055](0055-degrade-instead-of-break.md)     | Degrade instead of break: circuit breakers, rate limits, the app's own brake and fallback content                      |
-| [0059](0059-usage-page-and-check.md)         | Admins see the free Cloudflare allowance and CPU time, and are emailed at 80% or a stopped request                     |
-| [0121](0121-load-and-concurrency.md)         | Requests at once are safe by statement, not luck; every invocation keeps to 50 subrequests; load: locally or on dev    |
-| [0116](0116-sanity-requests-counted.md)      | We count our own Sanity requests, show and warn on them, and keep the last tenth of the CDN's for builds               |
-| [0111](0111-errors-and-uptime.md)            | Errors and down alerts go to Sentry, with nothing about a person in them                                               |
+| #                                            | Decision                                                                                                                     |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [0029](0029-personal-data.md)                | Personal data stays out of the repo, the roster is seeded from Secrets Manager, and nothing is kept longer than needed       |
+| [0050](0050-schema-and-seed-until-launch.md) | Until launch, the database is a schema and a seed, not migrations                                                            |
+| [0106](0106-database-backups.md)             | The database is backed up nightly and before every schema change, sealed, kept 90 days as GitHub artifacts                   |
+| [0107](0107-announcements.md)                | Admins post announcements to the top of Home, until their last day or until each member says "Got it"                        |
+| [0053](0053-live-reads-are-cached.md)        | Live reads are cached the same way everywhere, and Sanity is read through its API CDN                                        |
+| [0055](0055-degrade-instead-of-break.md)     | Degrade instead of break: circuit breakers, rate limits, the app's own brake and fallback content                            |
+| [0059](0059-usage-page-and-check.md)         | Admins see the free Cloudflare allowance, CPU time and our own count of Sanity requests, and are emailed before any runs out |
+| [0121](0121-load-and-concurrency.md)         | Requests at once are safe by statement, not luck; every invocation keeps to 50 subrequests; load: locally or on dev          |
+| [0111](0111-errors-and-uptime.md)            | Errors and down alerts go to Sentry, with nothing about a person in them                                                     |
 
 ## Security, sign-in and email
 

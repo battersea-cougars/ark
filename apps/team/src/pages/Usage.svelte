@@ -3,7 +3,7 @@
   // database, and its daily limits reset at midnight UTC. If one runs out, this app stops until then; the hourly
   // check emails the admins at 80%. Each Worker's CPU time per request is shown against the free plan's 10 ms, past
   // which Cloudflare stops the request (ADR 0059). Below them, this month's Sanity requests as we count them, since
-  // Sanity has no usage API (ADR 0116). Read when the page opens, and again on Refresh.
+  // Sanity has no usage API (ADR 0059). Read when the page opens, and again on Refresh.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -210,7 +210,7 @@
   {/if}
 
   {#if usage?.sanity}
-    <!-- Sanity's monthly quotas (ADR 0116): our own count, as Sanity has no usage API -->
+    <!-- Sanity's monthly quotas (ADR 0059): our own count, as Sanity has no usage API -->
     <section class="live">
       <h2 class="section">Sanity this month</h2>
       <p class="hint small">

@@ -1,6 +1,6 @@
 // Every read of Sanity the website makes (ADR 0053): the build's content (lib/sanity/content.ts) and the Worker's live
 // reads (lib/server/videos.ts). Through Sanity's API CDN with plain fetch (no client library), behind a circuit
-// breaker (ADR 0055), counted (ADR 0116); callers cache (ADR 0053).
+// breaker (ADR 0055), counted (ADR 0059); callers cache (ADR 0053).
 import { HttpFailure, QuotaError, guard, retryAfter } from "@cougars/shared/breaker";
 import { nearSanityLimit, nextMonth, sanityFetch } from "@cougars/shared/sanity-requests";
 import { scribe } from "@cougars/shared/scribe";
@@ -15,7 +15,7 @@ export interface SanityConfig {
   /** Viewer token. Only needed for a private dataset; Sanity's free plan only has public ones. */
   token?: string;
   demo?: boolean;
-  /** Where the read is from (`web.build`, `web.dev`, `web.worker`), in Sanity's own request log (ADR 0116). */
+  /** Where the read is from (`web.build`, `web.dev`, `web.worker`), in Sanity's own request log (ADR 0059). */
   tag?: string;
 }
 
@@ -41,7 +41,7 @@ export function sanityError(status: number, res?: Response, now = Date.now()): E
 
 /**
  * At 90% of the month's CDN requests, as the last count had it, reads stop until the quota resets on the 1st, so the
- * builds keep the rest (ADR 0116). Only a process that counts into D1 knows (the Worker, astro dev); a build doesn't.
+ * builds keep the rest (ADR 0059). Only a process that counts into D1 knows (the Worker, astro dev); a build doesn't.
  */
 export const SAVE_FOR_BUILDS = 0.9;
 

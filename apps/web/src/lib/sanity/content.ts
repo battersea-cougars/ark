@@ -32,7 +32,7 @@ const lastGood = new Map<string, unknown>();
 async function fetchOr<T>(query: string, fallback: T): Promise<T> {
   if (!SANITY_PROJECT_ID) return fallback;
   try {
-    // Through the same reader, circuit breaker and count as the live reads (ADR 0055, ADR 0116). Every link an editor
+    // Through the same reader, circuit breaker and count as the live reads (ADR 0055, ADR 0059). Every link an editor
     // typed is checked there, once, for every page (lib/links.ts)
     const result = await sanityQuery<T | null>(sanityConfig(), query);
     if (import.meta.env.DEV) devSanity.problem = "";
@@ -64,7 +64,7 @@ const memo = <T>(fn: () => Promise<T>) => {
   };
 };
 
-// Club facts, one Sanity singleton each, read together in one request (ADR 0116) and merged field by field with their
+// Club facts, one Sanity singleton each, read together in one request (ADR 0059) and merged field by field with their
 // fallbacks.
 type Facts = Partial<Record<"club" | "fridays" | "pub" | "team" | "kumite", unknown>>;
 const getFacts = memo(() => fetchOr<Facts | null>(q.FACTS, null));

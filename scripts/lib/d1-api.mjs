@@ -1,6 +1,6 @@
 // An environment's D1 over Cloudflare's API, for scripts and builds that run outside a Worker (CI). Needs
 // CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID for that environment's account. Used by scripts/club-snapshot.mjs
-// and the website build's Sanity count (apps/web/src/lib/sanity/count.integration.ts, ADR 0116).
+// and the website build's Sanity count (apps/web/src/lib/sanity/count.integration.ts, ADR 0059).
 export const DATABASES = { production: "cougars", dev: "cougars-dev" };
 
 /** A query function for `environment`'s D1: SQL and its parameters in, the rows out. */

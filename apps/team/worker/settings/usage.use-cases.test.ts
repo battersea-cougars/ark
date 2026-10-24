@@ -269,7 +269,7 @@ describe("the admins' Home says when a free limit is getting close", () => {
   });
 });
 
-// Sanity has no usage API, so the website and this app count their own requests to it (ADR 0116), a row per day,
+// Sanity has no usage API, so the website and this app count their own requests to it (ADR 0059), a row per day,
 // project and quota in sanity_requests. Admins see this month's against Sanity's free plan, and are emailed at 50%,
 // 80% and when the month's pace would run out before the 1st.
 describe("an admin checks the club's Sanity requests this month", () => {

@@ -1,4 +1,4 @@
-// Our own count of the requests we make to Sanity (ADR 0116). Sanity has no usage API, and its free plan stops a
+// Our own count of the requests we make to Sanity (ADR 0059). Sanity has no usage API, and its free plan stops a
 // project for the rest of the month once a quota is spent: 250,000 requests to its API (`<project>.api.sanity.io`) and
 // 1,000,000 to its API CDN (`<project>.apicdn.sanity.io`) a month, reset at 00:00 UTC on the 1st. Sanity counts only
 // answers that aren't a 4xx or 5xx, and nothing the Studio does, so we count the same.

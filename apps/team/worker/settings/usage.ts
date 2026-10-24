@@ -4,7 +4,7 @@
 // also stops any request that computes for more than 10 ms; the page shows each Worker's CPU time against that, and
 // the check emails when a request was stopped (ADR 0059).
 // Read with a read-only token (Account Analytics: Read), CLOUDFLARE_ANALYTICS_TOKEN, never the deploy token.
-// Sanity's monthly quotas are ours to count (usage.sanity.ts, ADR 0116): shown and checked with or without the token.
+// Sanity's monthly quotas are ours to count (usage.sanity.ts, ADR 0059): shown and checked with or without the token.
 import { all, batch, statement } from "@cougars/shared/d1";
 import { sendMail, type Mail } from "@cougars/shared/email";
 import { mailSetup } from "../auth/auth";
@@ -42,7 +42,7 @@ export interface Usage {
   cpu?: { limitMs: number; workers: WorkerCpu[] };
   /** The database's last backup (ADR 0106), or null before the first. Ours, so it's there without the token. */
   backup: Backup | null;
-  /** This month's Sanity requests for this environment's project, as we counted them (ADR 0116). */
+  /** This month's Sanity requests for this environment's project, as we counted them (ADR 0059). */
   sanity: SanityUsage;
 }
 
@@ -162,7 +162,7 @@ export async function readUsage(env: Env, now: Date): Promise<Usage> {
   }
 }
 
-/** Sanity's quotas are a month's: an email at each of these, once a month (ADR 0116). */
+/** Sanity's quotas are a month's: an email at each of these, once a month (ADR 0059). */
 const SANITY_WARN_AT = [0.5, 0.8];
 
 /**
@@ -256,7 +256,7 @@ export async function checkUsage(
   const reset = date(resets, { day: "numeric", month: "long" });
   const ifSpent =
     `If it's spent, Sanity refuses those requests until ${reset} (00:00 UTC): the website's builds fail and its live ` +
-    `pages fall back. At 90% of the CDN's, the website's live reads stop so the builds keep the rest (ADR 0116).\n\n` +
+    `pages fall back. At 90% of the CDN's, the website's live reads stop so the builds keep the rest (ADR 0059).\n\n` +
     `See Settings → Usage in the app; Sanity's own figures (and a log of the requests) are on sanity.io/manage → ` +
     `${sanity.name} → Usage.`;
   const runsOut = (when: Date) => `At this pace they run out around ${date(when, { day: "numeric", month: "long" })}`;
