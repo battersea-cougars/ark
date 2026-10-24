@@ -38,7 +38,7 @@
   import MoveTo from "./MoveTo.svelte";
   import SimulateRest from "./SimulateRest.svelte";
   import { SIMULATOR } from "../demo/data";
-  import { simulating } from "../app/backend.svelte";
+  import { simulating } from "../app/simulation.svelte";
   import DraftJobs from "./DraftJobs.svelte";
   import type { ManageItem } from "./ManageList.svelte";
   import ManageMenu from "./ManageMenu.svelte";

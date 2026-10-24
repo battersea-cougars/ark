@@ -1,7 +1,7 @@
 # 0120. Home's first paint: the app is imported up front, beside the data, under a JavaScript budget
 
 - **Status:** Accepted
-- **Date:** 2026-10-21
+- **Date:** 2026-10-21 · updated 2026-10-24
 
 ## Context
 
@@ -104,3 +104,7 @@ preloaded with `font-display: swap`. The splash paints before any script.
   painted, so the splash sat unseen over the page for 400 ms: it now goes at once when no fade runs, and lets taps
   through while fading. (The WebKit runs need the date fix of the same day, dates built from their parts: before it,
   Home showed "Can't reach the club's data" in WebKit.)
+- 2026-10-24: The Kumite simulator (dev only, ADR 0123) is loaded only where it is: its floating control is an
+  `import()` behind the bootstrap's `simulator`, and its store and runner moved out of the backend to
+  `app/simulation.svelte.ts`. With opening the app reading its pages' parts (#178, ADR 0053), first paint is 99.8 kB
+  (101.1 kB before the move).

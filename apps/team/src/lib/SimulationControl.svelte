@@ -4,7 +4,7 @@
   // run is a store (app/backend.svelte.ts simulating), so the control comes and goes with it, not with a page. Bottom
   // right on a desktop; on a phone, a bar above the tabs, the save note lifted over it. Its size never changes with
   // what it says: the words swap in a fixed line.
-  import { simulating, simulation } from "../app/backend.svelte";
+  import { simulating, simulation } from "../app/simulation.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import type { Speed } from "./simulation";
 

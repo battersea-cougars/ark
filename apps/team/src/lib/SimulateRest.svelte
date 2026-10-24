@@ -4,7 +4,7 @@
   // watch, paused or stopped from its floating control (lib/SimulationControl). The bootstrap says whether it's here
   // (`simulator`): never in production. A sheet on a phone, a side drawer on a desktop.
   import type { Tournament, TournamentType } from "../demo/model";
-  import { simulation } from "../app/backend.svelte";
+  import { simulation } from "../app/simulation.svelte";
   import { formatDayDate, londonEvening, londonISO } from "./dates";
   import Drawer from "./Drawer.svelte";
   import Confirm from "./Confirm.svelte";

@@ -12,9 +12,8 @@
   import { loadedPage, loadPage, preloadPages } from "./app/pages.svelte";
   import { need, needsOf, prefetch, readyFor, showing } from "./app/page-data.svelte";
   import { reportUnexpected } from "./app/errors.early";
-  import { ACTIONS } from "./demo/data";
+  import { ACTIONS, SIMULATOR } from "./demo/data";
   import { enterSettings } from "./app/settings-entry.svelte";
-  import SimulationControl from "./lib/SimulationControl.svelte";
   import EnvRibbon from "./app/shell/EnvRibbon.svelte";
   import { ribbon } from "./app/shell/env-ribbon";
   import { withRibbon } from "@cougars/shared/ribbon";
@@ -91,7 +90,12 @@
     {#if v.Page && ready}<v.Page {...v.params} />{/if}
   {/each}
 </Shell>
-<!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page -->
-<SimulationControl focus={!!route.focus} />
+<!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page. Loaded only where the
+     simulator is, so no phone in production downloads it before Home paints (ADR 0120) -->
+{#if SIMULATOR}
+  {#await import("./lib/SimulationControl.svelte") then { default: SimulationControl }}
+    <SimulationControl focus={!!route.focus} />
+  {/await}
+{/if}
 <!-- LOCAL or DEV in the corner; nothing in production (ADR 0010) -->
 {#if ribbon}<EnvRibbon {ribbon} />{/if}

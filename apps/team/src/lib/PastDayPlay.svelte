@@ -4,7 +4,7 @@
   // and every award, under the floating control (lib/SimulationControl), at Spin kick unless another speed's chosen.
   // It shows in Past Kumites once its matches are played. The bootstrap says whether it's here (`simulator`).
   import type { TournamentType } from "../demo/model";
-  import { playOnAPastDay, simulating } from "../app/backend.svelte";
+  import { playOnAPastDay, simulating } from "../app/simulation.svelte";
   import { londonToday } from "./dates";
   import Drawer from "./Drawer.svelte";
   import DateField from "./DateField.svelte";
