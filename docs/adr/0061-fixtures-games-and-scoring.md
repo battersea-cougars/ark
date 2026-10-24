@@ -24,7 +24,7 @@ scored on the day is [0130](0130-scoring-a-game-live.md), which was part of this
 - **The Fight card is every game in the day's order**, each the same card as on the tournament's home (lib/GameCard),
   grouped under a header: Round robin, then Playoffs. One scroller (lib/list-scroll.ts): the page scrolls until the
   header reaches the top, then the cards pass in a box under it, never under a bar, and the header takes the name of the
-  group in view. Each team's record under its name reads as a league writes it: 1-1-0 · 2 pts. A round robin card
+  group in view. Each team's record under its name reads as a league writes it: 1-1-0 · 2 Pts. A round robin card
   doesn't say its stage again; a playoff's keeps its name (Semi-final, Final). The teams, the score, Game N of M.
   Players never see rounds.
 - **The round robin is played in the order fairest to everyone's breaks** (`fairOrder`, one pitch, every pairing once,

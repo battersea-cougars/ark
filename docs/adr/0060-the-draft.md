@@ -137,12 +137,11 @@ goes wrong needs a way back, and who was picked first or last is the stuff of a 
   shows the captains and the order (and, for whoever runs it, Shuffle, then Open draft; the players and teams only once
   the order's drawn). Once it's on, the page is the draft: the order folds away (each team card shows its place, "1st"),
   the most room goes to the players left, and what isn't picking is small or behind a tap. One line says whose pick it
-  is, and one small line under it who's next (a captain's own place, "You pick 2nd", at its end on a phone, before the
-  icons on a desktop). There's no last-pick line: the ticker's newest chip is the last pick ("2 · took Cal", or "2 · Dan
+  is, and one small line under it who's next (a captain's own place, "You pick 2nd", at its end). There's no last-pick line: the ticker's newest chip is the last pick ("2 · took Cal", or "2 · Dan
   took Cal" when someone picked for the captain), and it lights up as a pick lands (not with reduced motion); a screen
-  reader hears each pick said whole. Rules, the pick log and **Manage** (Undo, Add player, Close, Reset: a bottom sheet
-  on a phone, a side drawer on a desktop, asking there before closing with players left or a reset) are icons on that
-  first line. On a phone the series' header goes altogether (the page's tabs say where you are), the ticker stays,
+  reader hears each pick said whole. Rules, the pick log and **Manage** (Undo, Add player, Close, Reset, rows of the gear: a bottom sheet on a phone, a
+  side drawer on a desktop, asking there before closing with players left or a reset) are in the Kumite page's header
+  (`lib/TournamentHead.svelte`, ADR [0127](0127-running-a-tournament-from-manage.md)), not on the Draft page. On a phone the series' header goes altogether (the page's tabs say where you are), the ticker stays,
   shorter, the tabs and chips are a size smaller, and the players scroll inside the window's height (`.page.fit`),
   starting about a third of the way down. Once everyone's picked, whoever runs it has **Close draft & make fixtures**
   over the players and teams (one request: closed, then the fixtures). A closed draft says so on the page ("Draft
@@ -247,3 +246,5 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
 - 2026-10-23: Once the draft is open a save keeps the same captains in any order (the draw's order is kept).
 - 2026-10-23: A reset is one batch, closing the draft to picks first (#126, ADR 0121).
 - 2026-10-24: History shortened to a line per change; the draft room's Decision brought up to date with it.
+- 2026-10-24: Where it's edited says the draft's Rules, pick log and Manage are in the Kumite page's header, as
+  they have been since 2026-10-22.
