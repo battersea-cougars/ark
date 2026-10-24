@@ -1,4 +1,4 @@
-// Scoring's edges (ADR 0061): every tap the game's state doesn't allow is refused and changes nothing (a goal before
+// Scoring's edges (ADR 0130): every tap the game's state doesn't allow is refused and changes nothing (a goal before
 // the start or after full time, ending a period twice or the last one, Undo with nothing to undo, starting a game
 // that's over), who may do what (not signed in, a member who isn't holding the sheet, a scorekeeper on another game,
 // an admin), what a tap may say (wrong types, out of range, a game or team from another tournament), and an admin's

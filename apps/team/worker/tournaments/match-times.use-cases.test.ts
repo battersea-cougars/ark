@@ -1,4 +1,4 @@
-// When things happen on the day (ADR 0061, ADR 0074): the tournament keeps the hours an admin set, however early or
+// When things happen on the day (ADR 0130, ADR 0074): the tournament keeps the hours an admin set, however early or
 // late its matches really start, and each match keeps when it actually kicked off (`startedAt`), set by the first
 // Start of its clock and never moved by a later one, cleared when the match is put back to not played. Driven through
 // the real Worker handlers (ADR 0031).

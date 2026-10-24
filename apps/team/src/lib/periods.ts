@@ -1,4 +1,4 @@
-// Periods (ADR 0061), shared by the Worker and the app: a game is 1 to 3 periods of the tournament's game minutes,
+// Periods (ADR 0130), shared by the Worker and the app: a game is 1 to 3 periods of the tournament's game minutes,
 // the clock running per period. Goals and penalties keep their period and the time into it; game time runs on across
 // the breaks, so a penalty given late in one period carries into the next. Between periods, a break of the
 // tournament's minutes. The box score is the goals per period.
@@ -17,7 +17,7 @@ export const gameLength = (t: { gameMinutes: number; periods?: number; breakMinu
     : `${t.gameMinutes}-minute games`;
 
 /**
- * The break before the next period (ADR 0061): what's left of it (ms), counting from when the last period ended,
+ * The break before the next period (ADR 0130): what's left of it (ms), counting from when the last period ended,
  * while the next hasn't started; 0 once it's run out (the scorekeeper's tap still starts the next). Null when there's
  * no break on: none set, no period ended yet, or the next under way.
  */

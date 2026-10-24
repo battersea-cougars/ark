@@ -1,4 +1,4 @@
-// The game clock as everyone sees it (ADR 0061): time left now, from when it last stopped and when it was started
+// The game clock as everyone sees it (ADR 0130): time left now, from when it last stopped and when it was started
 // again, and the break between periods, ticking once a second while any page shows it.
 import type { TournamentGame } from "../demo/model";
 import { breakLeft } from "./periods";

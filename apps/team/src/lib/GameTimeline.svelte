@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A game's goals and penalties in time order (ADR 0061): each on its team's side, when down the middle, with the
+  // A game's goals and penalties in time order (ADR 0130): each on its team's side, when down the middle, with the
   // score a goal made, or a penalty's minutes (a penalty shot, where that's the tournament's rule). Grouped under each
   // period when the game has more than one. Latest first while it's on; in order once it's played. With `onremove`
   // (an admin putting a result right), each row has Take off.

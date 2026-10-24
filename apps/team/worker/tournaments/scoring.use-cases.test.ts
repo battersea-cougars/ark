@@ -1,4 +1,4 @@
-// Scoring a game as it's played (ADR 0061): each game suggests a team sitting it out to keep score, but one person
+// Scoring a game as it's played (ADR 0130): each game suggests a team sitting it out to keep score, but one person
 // keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can score until they (or an admin)
 // let it go. They start the clock, log each goal as it goes in (who scored, who assisted), pause, and call full time,
 // which makes the score the result. Everyone sees the score as it happens. Driven through the real Worker handlers

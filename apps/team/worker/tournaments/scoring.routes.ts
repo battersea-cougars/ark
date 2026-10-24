@@ -1,4 +1,4 @@
-// Scoring a game as it's played (ADR 0061): the scoresheet, the clock and goals.
+// Scoring a game as it's played (ADR 0130): the scoresheet, the clock and goals.
 import { id, ok, rowOf, type Ctx, type Route } from "../api/api.route";
 import { scoreGame } from "./fixtures";
 import { body, int } from "../api/api.http";
@@ -49,7 +49,7 @@ export const SCORING_ROUTES: Route[] = [
     // A game's final score; the last group result fills the playoffs
     handle: async (c) => (await scoreGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request)), ok()),
   },
-  // Scoring a game as it's played (ADR 0061): whoever holds the scoresheet
+  // Scoring a game as it's played (ADR 0130): whoever holds the scoresheet
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/scorer$/,

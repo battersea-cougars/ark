@@ -11,7 +11,7 @@ ones that carry a line on what they're for, and each series may give different a
 who won most of them.
 
 The board showed only the table. A tournament records every goal (scorer, assist) and penalty
-([0061](0061-fixtures-games-and-scoring.md)), so who's on top for points, goals, assists and penalty minutes can be
+([0130](0130-scoring-a-game-live.md)), so who's on top for points, goals, assists and penalty minutes can be
 counted, for one edition and across a series' editions (#47). The website's stats are a separate job (#65,
 [0100](0100-website-reads-tournament-results.md)).
 

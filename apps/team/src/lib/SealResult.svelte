@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Full time's review (ADR 0061): the scorekeeper's look back before the score becomes the result. The final score
+  // Full time's review (ADR 0130): the scorekeeper's look back before the score becomes the result. The final score
   // with both teams, every goal and penalty in order, the last goal to take back, and one main button, Seal the result,
   // which is full time. The Kumite's carries its 決 (sealed) mark, stamped down as it's pressed (lib/motif.ts); any
   // other series', plain. Until it's sealed the match stays live for everyone. A level playoff can't be sealed: it

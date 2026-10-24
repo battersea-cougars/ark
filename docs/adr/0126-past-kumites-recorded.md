@@ -34,14 +34,14 @@ award.
   results, board and awards like any other.
 - **Nobody's charged for it**: its fee is nought (paid at the time).
 - **What the all-time leaders count**: a goal with its scorer named. Scores only is fine: the goals are there (the
-  score is its goals, ADR 0061), counted in the table and the results, not for anyone.
+  score is its goals, ADR 0130), counted in the table and the results, not for anyone.
 
 ## Consequences
 
 - Old Kumites go in in a few minutes each, on production too, and Past Kumites and the all-time leaders read them as
   they read the app's own.
 - Its rules and awards are the series' as they are now, not as they were then.
-- Putting one right afterwards is the usual tools: a score or a goal on its match (an admin's correction, ADR 0061),
+- Putting one right afterwards is the usual tools: a score or a goal on its match (an admin's correction, ADR 0130),
   its settings, Back to … for the awards; or delete it and record it again.
 
 ## History

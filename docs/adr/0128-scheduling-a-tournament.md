@@ -40,7 +40,7 @@ obvious, the draft's day obvious or TBC. This was part of 0074 until 2026-10-24.
   set in its settings (Settings → Tournament Series → When, where and fee) beside its place and fee. Each new tournament
   starts with them and can change them. The seed has the Kumite at Friday training's hours (19:30–21:30). A tournament's
   hours change only when an admin edits them: the matches starting early or late, or on another day, never move them
-  (each match keeps its own actual start, [0061](0061-fixtures-games-and-scoring.md)).
+  (each match keeps its own actual start, [0130](0130-scoring-a-game-live.md)).
 - **The draft has a day, not a time** (`draft_on`). It's a reminder for the captains, on their calendar as a day; an
   admin messages them when it opens (ADR [0060](0060-the-draft.md)).
 
@@ -83,7 +83,7 @@ tournaments`, and the schema's `ON DELETE CASCADE`s take its sign-ups, teams and
 - 2026-10-09: A series has usual hours, the Kumite at Friday training's (was 0091).
 - 2026-10-21: The questions are a wizard (lib/Wizard, ADR 0117): When, Sign-up, Captains, Check.
 - 2026-10-21: Captains are picked from the whole club's list, shown as chips, with no pick order (it's drawn).
-- 2026-10-23: A tournament's hours change only when an admin edits them, never by its matches (ADR 0061).
+- 2026-10-23: A tournament's hours change only when an admin edits them, never by its matches (ADR 0130).
 - 2026-10-23: A tournament's sign-up opening is told to members once (topic `places`), by the cron or as an admin opens
   it, marked `signup_told_at`.
 - 2026-10-24: Split out of ADR 0074, which had grown to cover the whole tournament.

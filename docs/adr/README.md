@@ -5,7 +5,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 
 - **Changing a decision:** update its topic's record in the same change as the code. Rewrite what no longer holds,
   add a dated line to its **History**, and bump _updated_.
-- **A new topic:** copy [template.md](template.md) and take the next unused number (the next is **0130**). Numbers are
+- **A new topic:** copy [template.md](template.md) and take the next unused number (the next is **0131**). Numbers are
   never reused.
 - **An old number** (from a commit, an issue or a chat) was merged into another record: since 2026-10-24 a merged
   record leaves a stub that says where it went; one with no file at all is on its record's _Merges_ line
@@ -100,7 +100,8 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | [0127](0127-running-a-tournament-from-manage.md) | An admin runs a tournament from Manage: the jobs its stage needs, a step back, or Move to any status                                   |
 | [0128](0128-scheduling-a-tournament.md)          | A tournament is scheduled in a few questions from its series, opens sign-up on a day, and can be deleted                               |
 | [0060](0060-the-draft.md)                        | A captains' draft is run by an admin, picked by its captains, and seen by members once it's closed                                     |
-| [0061](0061-fixtures-games-and-scoring.md)       | The app makes a tournament's fixtures, and each game is scored live by one person on its own page                                      |
+| [0061](0061-fixtures-games-and-scoring.md)       | The app makes a tournament's fixtures: a round robin in the fairest order for everyone's breaks, then the playoffs                     |
+| [0130](0130-scoring-a-game-live.md)              | A game is scored live by one person on its own page: the scoresheet, periods, penalties and the clock                                  |
 | [0044](0044-champions-and-awards.md)             | Awards are set in the team app, each saying how it's decided; champions come from the results; leaderboards are counted from the games |
 | [0129](0129-the-after-party-and-the-reveal.md)   | The after-party: the awards confirmed, then revealed one at a time on a stage of their own                                             |
 | [0123](0123-dev-only-tools.md)                   | A dev-only tool (the Kumite simulator) exists only where the environment says dev or local; else a 404                                 |

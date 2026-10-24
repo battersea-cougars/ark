@@ -1,4 +1,4 @@
-// An admin takes over a game's scoresheet (ADR 0061, #116): the scorekeeper's phone has died, or they've had to go,
+// An admin takes over a game's scoresheet (ADR 0130, #116): the scorekeeper's phone has died, or they've had to go,
 // and the game's on. One tap frees the sheet and makes the admin the scorekeeper, from where the game is; or, for an
 // admin who isn't at the rink, Free it, and anyone can take it on. The old scorekeeper's live page hears at once and
 // its taps are refused from then on; two admins taking over at once leave one scorekeeper (ADR 0121). On the record.

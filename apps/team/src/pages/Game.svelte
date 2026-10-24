@@ -1,7 +1,7 @@
 <script lang="ts">
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
-  // One game, full screen (ADR 0061). For everyone, the live scoreboard: the clock, the score, each goal as it went
+  // One game, full screen (ADR 0130). For everyone, the live scoreboard: the clock, the score, each goal as it went
   // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
   // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
   // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
@@ -96,7 +96,7 @@
 
   // The clock, ticking while this page is up
   $effect(() => ticking());
-  // The clock counts down each period in turn (ADR 0061): full is a period's length
+  // The clock counts down each period in turn (ADR 0130): full is a period's length
   const full = $derived((tournament?.gameMinutes ?? 12) * 60_000);
   const periods = $derived(tournament?.periods ?? 1);
   const period = $derived(game?.period ?? 1);
@@ -387,7 +387,7 @@
     whenSec = 0;
     whenPeriod = 1;
   };
-  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0061)
+  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0130)
   const usualPenalty = $derived(tournament?.defaultPenaltyMinutes ?? 2);
   // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes; back from one,
   // the usual length again

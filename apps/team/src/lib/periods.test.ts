@@ -1,4 +1,4 @@
-// Periods (ADR 0061): the box score's goals per period, the period's name, and game time across period breaks.
+// Periods (ADR 0130): the box score's goals per period, the period's name, and game time across period breaks.
 import { describe, expect, it } from "vitest";
 import { boxScore, breakLeft, gameLength, inGameTime, periodName } from "./periods";
 import { running } from "./penalties";

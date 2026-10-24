@@ -1,4 +1,4 @@
-// Scoring a game as it's played (ADR 0061). Each game suggests a team sitting it out to keep score (scorekeepers in
+// Scoring a game as it's played (ADR 0130). Each game suggests a team sitting it out to keep score (scorekeepers in
 // lib/fixtures.ts), but one person keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can
 // score that game until they let it go, or an admin does (someone had to leave: anyone can take it on from there).
 // The holder starts and pauses the clock, logs each goal as it goes in (who scored, who assisted, when in game
@@ -124,7 +124,7 @@ export async function overrideScoresheet(
 
 /**
  * A scorekeeper's write that changed nothing: refused for why. The sheet's gone to someone else (an admin took it
- * over, ADR 0061) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
+ * over, ADR 0130) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
  */
 async function refusal(db: D1Database, gameId: number, who: Who, moved: HttpError | null) {
   const g = await first<{ keeper: number | null }>(
