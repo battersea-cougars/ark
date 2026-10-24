@@ -12,6 +12,15 @@ const MECHANISM: Record<How, { type: string; handled: boolean }> = {
   onerror: { type: "auto.browser.global_handlers.onerror", handled: false },
   onunhandledrejection: { type: "auto.browser.global_handlers.onunhandledrejection", handled: false },
   start: { type: "app.start", handled: true },
+  caught: { type: "app.caught", handled: true },
+};
+
+/** When it happened: the start-up, before Sentry was up, or caught by the app as it ran. */
+const PHASE: Record<How, string> = {
+  onerror: "early",
+  onunhandledrejection: "early",
+  start: "start",
+  caught: "caught",
 };
 
 export function startErrorReports(dsn: string) {
@@ -30,7 +39,7 @@ export function startErrorReports(dsn: string) {
   handOff((error, how) =>
     Sentry.captureException(error, {
       mechanism: MECHANISM[how],
-      captureContext: { tags: { phase: how === "start" ? "start" : "early" } },
+      captureContext: { tags: { phase: PHASE[how] } },
     }),
   );
 }

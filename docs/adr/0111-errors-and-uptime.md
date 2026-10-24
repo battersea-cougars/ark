@@ -40,7 +40,9 @@ smaller (5k errors a month, one user) but plain about it.
 - **From the first moment:** Sentry stays off the first-paint path, so `src/app/errors.early.ts`, main.ts's first import
   and a few lines with no imports, listens for errors and rejections until Sentry is up and hands them over then (20 at
   most). A start-up that fails (the "Can't reach the club's data" screen) is reported the same way, except sign-in
-  (401), resting (429, ADR 0055) and old code that reloads. The same `beforeSend` sees each.
+  (401), resting (429, ADR 0055) and old code that reloads. The same `beforeSend` sees each. A failure the app catches
+  and carries on past, where carrying on would hide it (the clash question it couldn't ask, ADR 0122), goes the same
+  way through `reportCaught` (handled, phase `caught`), and to the console on your machine, which the dev strip shows.
 - **What a member feels is an error, not a warning** (ADR 0110): the live hub not hearing of a change (phones stay
   stale until their next check), the free allowance unreadable (nobody would be warned before it runs out). A 500 says
   its method, path, route and the member's number (never their name or email).
@@ -102,3 +104,5 @@ smaller (5k errors a month, one user) but plain about it.
   warn and error log line checked (#148): warnings say why they aren't reported; a circuit-breaker read reports its
   failure but not each read while paused (`logFailure`); YouTube's failure is an error now (a broken key had gone
   unheard); a training's unreadable rule is `training.rule_unreadable`. New-issue and spike pushes wait for #157.
+- 2026-10-24: `reportCaught` for a failure the app catches and carries on past (the clash question it couldn't ask):
+  to Sentry as handled, phase `caught`, and the console (the dev strip) on your machine.

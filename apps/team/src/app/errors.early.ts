@@ -3,8 +3,11 @@
 // Home mounts) waits here and is handed to it once it starts. Tiny and with no imports, so it costs Home nothing; it
 // is main.ts's first import, so it listens before the rest of the app runs. A build without a DSN keeps nothing.
 
-/** How it went wrong: thrown and caught by nobody, a promise nobody caught, or the start-up that failed. */
-export type How = "onerror" | "onunhandledrejection" | "start";
+/**
+ * How it went wrong: thrown and caught by nobody, a promise nobody caught, the start-up that failed, or something the
+ * app caught and carried on past (reportCaught).
+ */
+export type How = "onerror" | "onunhandledrejection" | "start" | "caught";
 export type Sink = (error: unknown, how: How) => void;
 
 /** At most this many wait: a loop that throws before Sentry is up shouldn't fill the phone. */
@@ -16,6 +19,17 @@ let sink: Sink | null = null;
 export function reportEarly(error: unknown, how: How) {
   if (sink) sink(error, how);
   else if (waiting.length < MAX) waiting.push({ error, how });
+}
+
+/**
+ * A failure the app caught and carried on past, where carrying on hides it (the clash question it couldn't ask, so
+ * the save went ahead unasked): to Sentry, and on your machine to the console too, which the dev strip shows
+ * (dev-errors.ts), so it isn't invisible. `what` says what the app was doing.
+ */
+export function reportCaught(error: unknown, what: string) {
+  // eslint-disable-next-line no-console
+  if (import.meta.env.DEV) console.error(`${what}:`, error);
+  reportEarly(error, "caught");
 }
 
 /** Sentry is up: it gets what waited, then everything reported here. Its own handlers take uncaught errors from now. */

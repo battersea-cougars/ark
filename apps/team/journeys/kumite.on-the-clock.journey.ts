@@ -1,14 +1,16 @@
 // The Kumite on the clock (ADR 0074, 0124): the days and times that change what each person sees, with both clocks
 // moved (journey.ts `at`: the browser's and the server's). The Kumite night (kumite.journey.ts) walks sign-up to the
-// awards on the real clock; this one is about when: sign-up opening and closing at London midnight, the draft's day,
-// its own day (Today, Tonight), the day after unplayed, played on another evening with the final across midnight, the
-// after-party till 06:00, just a season, the days the clocks go back (25 Oct 2026) and forward (28 Mar 2027), and a
-// Kumite on a day gone by. Ada runs it (an admin), Fay plays, Nell isn't in it.
+// awards on the real clock; this one is about when: one on a Friday asked about Friday Training that evening first
+// (ADR 0122), sign-up opening and closing at London midnight, the draft's day, its own day (Today, Tonight), the day
+// after unplayed, played on another evening with the final across midnight, the after-party till 06:00, just a
+// season, the days the clocks go back (25 Oct 2026) and forward (28 Mar 2027), and a Kumite on a day gone by. Ada runs
+// it (an admin), Fay plays, Nell isn't in it.
 //
 // How each Kumite gets to the step under test is a shortcut, said so where it's taken: scheduled, signed up for and
 // played out through the API as the admin and the players, with the server's clock moved (the dev simulator for the
-// matches, ADR 0123). What's under test is what each person sees, and the taps that count (Accept, what's refused).
-// Each Kumite is deleted when its stage is done, so the club is left as the Kumite night left it.
+// matches, ADR 0123). What's under test is what each person sees, and the taps that count (Accept, what's refused);
+// the Friday one is scheduled through the wizard, as its question is the step under test. Each Kumite is deleted when
+// its stage is done, so the club is left as the Kumite night left it.
 import { expect, test, type Page } from "@playwright/test";
 import { asMember, at, checks, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
 import { kumiteOnAPastDay } from "./past-kumite";
@@ -28,8 +30,11 @@ const SAY = {
   table: "The final table",
 };
 
+/** A Friday with Friday Training that evening: the one scheduled through the wizard, by day, is asked about it. */
+const FRIDAY = "2026-11-06";
+
 /** Days the Kumites here are on (their stand-in day, for the season-only one), so a run cleans up after an earlier one. */
-const OURS = ["2026-11-14", "2027-02-28", "2026-10-25", "2027-03-28", "2026-09-19"];
+const OURS = [FRIDAY, "2026-11-14", "2027-02-28", "2026-10-25", "2027-03-28", "2026-09-19"];
 
 test("The Kumite on the clock", async ({ browser }) => {
   const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
@@ -70,6 +75,74 @@ test("The Kumite on the clock", async ({ browser }) => {
         await open(who);
         await expect(who.page.getByRole("heading", { name: SAY.nothingOn })).toBeVisible();
       });
+  });
+
+  // ─── Asked first: a Kumite on a Friday, by day, over Friday Training that evening (ADR 0122) ───
+
+  await stage("0b. A Kumite on a Friday at 11am: asked about Friday Training that night first", async () => {
+    // Still Fri 30 Oct, 12:00, nothing on. The user scheduled one like this (a Friday, 11:00) and wasn't asked: a
+    // clash is anything on the same London day now (worker/calendar/clashes.ts), the evening's training too
+    const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
+    const clash = ada.page.getByRole("dialog", { name: "Already on then" });
+    const training = clash.getByRole("listitem").filter({ hasText: "Friday Training" });
+    const onFriday = async () =>
+      ((await club()).tournaments as { id: number; typeId: number; heldOn: string; startTime: string }[]).find(
+        (t) => t.typeId === 1 && t.heldOn === FRIDAY,
+      );
+
+    await does(
+      ada,
+      "schedules the next Kumite on Fri 6 Nov, 11am to 3pm, through the wizard: asked first",
+      async () => {
+        await open(ada);
+        await ada.page.getByRole("button", { name: "Next Kumite" }).click();
+        await wizard.getByRole("button", { name: /^Day:/ }).click();
+        const picker = ada.page.getByRole("dialog", { name: "Day" });
+        await picker.getByRole("button", { name: "Next month" }).click();
+        await picker.getByRole("button", { name: "Fri 6 Nov 2026" }).click();
+        await wizard.getByRole("button", { name: /^Starts:/ }).click();
+        await ada.page.getByRole("option", { name: "11am", exact: true }).click();
+        await wizard.getByRole("button", { name: /^Ends:/ }).click();
+        await ada.page.getByRole("option", { name: "3pm", exact: true }).click();
+        await wizard.getByRole("button", { name: "Next · Sign-up" }).click();
+        await wizard.getByRole("button", { name: "Next · Teams" }).click();
+        await wizard.getByRole("button", { name: "Next · Check" }).click();
+        await wizard.getByRole("button", { name: "Schedule it" }).click();
+        await expect(clash).toBeVisible();
+        await expect(training).toContainText("Fri 6 Nov");
+      },
+    );
+    await checks(ada, "closes the question: back in the wizard, nothing scheduled", async () => {
+      await clash.getByRole("button", { name: "Close" }).click();
+      await expect(clash).toHaveCount(0);
+      await expect(wizard).toBeVisible();
+      expect(await onFriday()).toBeUndefined();
+    });
+    await does(
+      ada,
+      "schedules it again, keeping both: scheduled, and Friday Training still on that night",
+      async () => {
+        await wizard.getByRole("button", { name: "Schedule it" }).click();
+        await expect(training).toBeVisible();
+        // Keep both for everything it's over (one answer for all when there are several)
+        const all = clash.getByRole("group", { name: /^All of these/ });
+        if (await all.count()) await all.getByRole("button", { name: "Keep both" }).click();
+        else await training.getByRole("button", { name: "Keep both" }).click();
+        await clash.getByRole("button", { name: /^Save/ }).click();
+        await expect(wizard).toHaveCount(0);
+        await expect.poll(async () => (await onFriday())?.startTime).toBe("11:00");
+        const { series, sessions } = await club();
+        const friday = (series as { id: number; name: string }[]).find((x) => x.name === "Friday Training")!;
+        const night = (sessions as { seriesId: number; heldOn: string; cancelledAt: string | null }[]).find(
+          (x) => x.seriesId === friday.id && x.heldOn === FRIDAY,
+        );
+        expect(night?.cancelledAt ?? null).toBeNull();
+      },
+    );
+
+    // Gone again (a shortcut, as the journey's other Kumites are), so the next stages start with nothing on
+    const scheduled = await onFriday();
+    if (scheduled) await remove(scheduled.id);
   });
 
   // ─── A set day, a fortnight off: Sat 14 Nov 2026, sign-up Mon 2 Nov to Thu 12 Nov, the draft Fri 13 Nov ───

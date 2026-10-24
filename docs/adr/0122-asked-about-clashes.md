@@ -75,7 +75,8 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 
 - The Kumite on a Friday is one decision, made where the admin is, not a second trip to the training night.
 - A save over something asks one extra read first (the agenda's day index, the active series, that day's nights).
-  If the Worker can't be asked, the save goes ahead without asking: the question is a help, not a gate.
+  If the Worker can't be asked, the save goes ahead without asking: the question is a help, not a gate. The failure
+  is reported (Sentry, and the dev strip on your machine, ADR 0111), so a broken check isn't invisible.
 - A training asks only about the 12 weeks its nights are made ahead: a Kumite further off was asked about from its
   own editor if the training was there then; one set before a new training isn't asked about from the training's.
   A training over another every week lists each night (up to 12), answered all at once or each on its own.
@@ -96,3 +97,6 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 - 2026-10-23: A clash is by day, not by the hour: anything on the same London day asks, a Kumite in the afternoon
   before Friday Training as much as one over it (the user: "it should at least ask"). Overlapping times still count,
   for a night past midnight. The day before or after doesn't.
+- 2026-10-24: A clash question that can't be asked is reported (`reportCaught`, ADR 0111), the save still going
+  ahead; the Kumite on the clock journey schedules a Kumite on a Friday at 11:00 through the wizard and is asked about
+  Friday Training (closing schedules nothing, Keep both schedules it), as the user had not been.

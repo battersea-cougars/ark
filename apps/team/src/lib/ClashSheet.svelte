@@ -11,6 +11,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
   import { findClashes, type Clash } from "../app/backend.svelte";
+  import { reportCaught } from "../app/errors.early";
   import { db } from "../demo/store.svelte";
   import { formatDayDate, timeRange } from "./dates";
   import { offWords } from "./night-off";
@@ -56,14 +57,16 @@
 
   /**
    * Before saving `name` at this time: what to call off ([] for nothing, or nothing on then), or null for back to the
-   * editor. If the Worker can't be asked, the save goes ahead: the question is a help, not a gate.
+   * editor. If the Worker can't be asked, the save goes ahead: the question is a help, not a gate. But it's reported
+   * (Sentry, and the dev strip on your machine), so a broken clash check isn't invisible.
    */
   export async function ask(question: ClashQuestion, name: string, shortName = name) {
     let found: Clash[];
     clashes = [];
     try {
       found = await findClashes(question);
-    } catch {
+    } catch (e) {
+      reportCaught(e, "Couldn't ask what's on then (the save goes ahead unasked)");
       return [];
     }
     if (!found.length) return [];
