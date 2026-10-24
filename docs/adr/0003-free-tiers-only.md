@@ -1,7 +1,7 @@
 # 0003. Free tiers only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-23
+- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-24
 
 ## Context
 
@@ -97,3 +97,13 @@ Usage page and count in its 70% and 90% check ([ADR 0059](0059-usage-page-and-ch
   fixed: agenda syncs in two round trips, the first open's N+1 over trainings, a tournament's standing read in one,
   Move to's repeated syncs, the dues parts read by index, four indexes.
 - 2026-10-24: The Usage check tells admins at 70% and 90% of a limit, not 80% (ADR 0059, #157).
+- 2026-10-24: Opening the app measured 21 ms CPU (p50) on dev (#175), over the 10 ms. Every tournament there has been
+  is in the bootstrap, so its cost grows with them: the CPU use cases now run on a club with a year of Kumites (four,
+  each team with a logo; twelve with `LOAD_KUMITES=12`; `bootstrap.testing.ts`) and hold every request they time to
+  10 ms. What they found is fixed: a tournament's games, teams and players, and a game's goals and penalties, put with
+  their own in one pass (each looked through every one there's been); team logos read as text and put into the reply
+  as they are (`AsIs`, api.http.ts), never parsed or escaped again; London's wall-clock formatter made once. The app
+  is sent the same bytes (`bootstrap.same.use-cases.test.ts`). Locally a member's open is 3–5 ms with four Kumites
+  and 7–11 ms with twelve (10–15 before, docs/load-testing.md); what's left is in proportion to the bytes sent (1.5 MB
+  with twelve, three quarters logos), so the next step is sending less: logos by their own cached URL, past
+  tournaments when they're opened.

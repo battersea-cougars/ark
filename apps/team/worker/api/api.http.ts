@@ -56,10 +56,41 @@ export async function withinLimit(request: Request, max = MAX_BODY): Promise<Req
 }
 
 export const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
+  new Response(stringify(body), {
     status,
     headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
   });
+
+// The reply being written: its AsIs texts, in order, and the mark each leaves where it goes, made afresh for each reply
+// so no text a member typed can be taken for one. JSON.stringify runs to the end before anything else runs, so one
+// serves every request.
+let writing: { mark: string; texts: string[] } | null = null;
+
+/**
+ * JSON text that goes into a reply as it is, not parsed, copied and escaped again: a team's logo, 16 KB each and most
+ * of the bytes of opening the app once there's a year of tournaments (#175). Anywhere else it's the value it says.
+ */
+export class AsIs {
+  constructor(readonly text: string) {}
+  toJSON(): unknown {
+    if (!writing) return JSON.parse(this.text);
+    writing.texts.push(this.text);
+    return `${writing.mark}${writing.texts.length - 1}`;
+  }
+}
+
+/** The body as JSON, each AsIs's text put in its place. */
+function stringify(body: unknown): string {
+  const reply = { mark: `#${crypto.randomUUID()}:`, texts: [] as string[] };
+  writing = reply;
+  try {
+    const out = JSON.stringify(body);
+    if (!reply.texts.length) return out;
+    return out.replace(new RegExp(`"${reply.mark}(\\d+)"`, "g"), (_, i: string) => reply.texts[Number(i)]);
+  } finally {
+    writing = null;
+  }
+}
 
 /** The request's JSON body, as an object, or a 400. */
 export async function body(request: Request): Promise<Record<string, unknown>> {

@@ -126,6 +126,22 @@ On its own (`baseline`, `cpu`):
 | Bootstrap, unchanged (304) | 3          | 8         | 0            | 0.2–0.3 ms                |
 | A tap, In or Out           | 29         | ~440      | 3–5          | 1.0–1.6 ms                |
 
+With tournaments behind the club (2026-10-24, #175): the bootstrap sends every tournament there has been, so its
+CPU grows with them. `cpu` now runs on the club with a year of Kumites (four; `LOAD_KUMITES=12` for three years,
+`bootstrap.testing.ts`): each team with a 16 KB logo, games, goals, penalties, awards, sign-ups. Medians on a shared
+machine, so ±2 ms run to run:
+
+| Request (Worker's own CPU) | No Kumites, before → after | Four, before → after | Twelve, before → after |
+| -------------------------- | -------------------------- | -------------------- | ---------------------- |
+| Bootstrap, a member        | 4.1 → 2.2 ms               | 4.6–6.1 → 3.1–5 ms   | 10–15 → 7–11 ms        |
+| Bootstrap, an admin        | 4.8 → 3.7 ms               | 3.7–4.8 → 3.8–6 ms   | 8–13 → 7–12 ms         |
+| Viewing as a member        | 2.5 → 2.1 ms               | 3.4–4.8 → 3.1–5 ms   | 7.4–8.7 → 6–10 ms      |
+| A tournament deleted       | 5.8 → 3.2 ms               | 3.2–3.9 → 2.5–4 ms   | 4.7–5.6 → 3.7–6 ms     |
+
+Twelve Kumites are 1.5 MB a bootstrap, three quarters of it logos. What's left is in proportion to the bytes
+(parsing D1's JSON, writing the reply's, encoding it), so the next cut is sending less, not doing less with it.
+Cloudflare's CPU for the same requests reads several times this machine's (a goal 15 ms on dev, a tap 1 ms here).
+
 Busy moments:
 
 | Run                      | Requests (s)  | Errors      | Key latencies (p50 / p95)                             | Reloads | D1 rows read (of 5M) | Rows written |

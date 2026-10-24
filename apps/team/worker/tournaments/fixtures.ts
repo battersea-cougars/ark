@@ -5,6 +5,7 @@
 // its result, the playoffs get their teams from the table.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fairFixtures, scorekeepers, table } from "../../src/lib/fixtures";
+import { grouped } from "../../src/lib/grouped";
 import { HttpError, int } from "../api/api.http";
 import type { Playoff } from "./tournaments";
 
@@ -122,17 +123,21 @@ export function gamesFrom(
 ): Game[] {
   // Who keeps score, per tournament, from its teams in pick order and its games in the day's order
   const keepers = new Map<number, number>();
-  for (const tid of new Set(rows.map((g) => g.tournamentId)))
+  const teamsOf = grouped(teams, (t) => t.tournamentId);
+  for (const [tid, games] of grouped(rows, (g) => g.tournamentId))
     for (const [game, team] of scorekeepers(
-      teams.filter((t) => t.tournamentId === tid).map((t) => t.id),
-      rows.filter((g) => g.tournamentId === tid),
+      (teamsOf.get(tid) ?? []).map((t) => t.id),
+      games,
     ))
       keepers.set(game, team);
+  // Each goal and penalty put with its game once, not every game looking through every one there's been (#175)
+  const goalsOf = grouped(goals, (x) => x.gameId);
+  const penaltiesOf = grouped(penalties, (x) => x.gameId);
   return rows.map((g) => ({
     ...g,
     scoringTeamId: keepers.get(g.id) ?? null,
-    goals: goals.filter((x) => x.gameId === g.id).map(({ gameId: _, ...x }) => x),
-    penalties: penalties.filter((x) => x.gameId === g.id).map(({ gameId: _, ...x }) => x),
+    goals: (goalsOf.get(g.id) ?? []).map(({ gameId: _, ...x }) => x),
+    penalties: (penaltiesOf.get(g.id) ?? []).map(({ gameId: _, ...x }) => x),
   }));
 }
 

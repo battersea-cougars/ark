@@ -1,29 +1,26 @@
-// The Worker's CPU time per request, for a club of 120 with a season behind it (docs/load-testing.md): the free plan
-// allows 10 ms a request, and waiting on D1 is free, so what counts is the Worker's own work (reading the session,
-// shaping the club into JSON). Driven through the real handlers in the fake world (ADR 0031); the process's CPU
-// time for the request, less the time spent inside SQLite (D1's work, not the Worker's). On this machine, V8 as on
-// Cloudflare; the median of many, after a warm-up. LOAD_CPU=1 prints the numbers (npm run load -- cpu).
+// The Worker's CPU time per request, for a club of 120 with Fridays and a year of Kumites behind it
+// (bootstrap.testing.ts, docs/load-testing.md): the free plan allows 10 ms a request, and waiting on D1 is free, so
+// what counts is the Worker's own work (reading the session, shaping the club into JSON). Driven through the real
+// handlers in the fake world (ADR 0031); the process's CPU time for the request, less the time spent inside SQLite
+// (D1's work, not the Worker's). On this machine, V8 as on Cloudflare; the median of many, after a warm-up. LOAD_CPU=1
+// prints the numbers and holds each to the free plan's 10 ms (npm run load -- cpu), so opening the app can't creep
+// back over it (#175). A busy machine reads high: run it again on a quiet one before believing a failure.
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { NOW, testWorld } from "../testing";
+import { type testWorld } from "../testing";
+import { clubWithHistory } from "./bootstrap.testing";
 
-const MEMBERS = 120;
-const ROSTER = [
-  { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
-  ...Array.from({ length: MEMBERS - 1 }, (_, i) => ({
-    name: `Member ${i + 1}`,
-    position: i % 30 === 0 ? "G" : i % 3 ? "F" : "D",
-    rating: 40 + (i % 40),
-    email: `m${i + 1}@example.com`,
-  })),
-];
 /** The free plan's CPU a request (ADR 0003). */
 const FREE_CPU_MS = 10;
-const RUNS = 30;
+const RUNS = 60;
+const WARM = 20;
+/** A year of Kumites, a few a year (ADR 0009); LOAD_KUMITES=12 for three years of them. */
+const KUMITES = Number(process.env.LOAD_KUMITES ?? 4);
 
 let w: ReturnType<typeof testWorld>;
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
 let dana: Browser;
 let members: Browser[];
+let ids: number[];
 let friday: number;
 
 /** The Worker's own CPU for one request: the process's, less SQLite's. */
@@ -34,10 +31,11 @@ async function workerCpu(run: () => Promise<unknown>) {
   const used = process.cpuUsage(before);
   return (used.user + used.system) / 1000 - (w.db.sqlMs - sql);
 }
+/** The median of RUNS after WARM to warm up (V8's compiler at work); `run` is told which it is, from 0, each once. */
 async function median(run: (i: number) => Promise<unknown>) {
-  for (let i = 0; i < 5; i++) await run(i);
+  for (let i = 0; i < WARM; i++) await run(i);
   const times: number[] = [];
-  for (let i = 0; i < RUNS; i++) times.push(await workerCpu(() => run(i)));
+  for (let i = WARM; i < RUNS + WARM; i++) times.push(await workerCpu(() => run(i)));
   return times.sort((a, b) => a - b)[Math.floor(RUNS / 2)];
 }
 const said: string[] = [];
@@ -45,50 +43,62 @@ const say = (what: string, ms: number) => said.push(`${what}: ${ms.toFixed(2)} m
 
 beforeAll(async () => {
   vi.spyOn(console, "log").mockImplementation(() => {});
-  w = testWorld(ROSTER);
-  dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body;
-  const series = boot.series[0];
-  expect(
-    (await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [{ pence: 800, from: "2026-01-01" }] }))
-      .status,
-  ).toBe(200);
+  ({ w, dana, ids, friday } = await clubWithHistory(KUMITES));
   members = [];
   for (let i = 1; i <= 40; i++) members.push(await w.signedIn(`m${i}@example.com`));
-  // A season behind it: the last eight Fridays, 40 at each, all charged
-  const fridays = w.db.raw
-    .prepare("SELECT id FROM training_sessions WHERE held_on < ? ORDER BY held_on DESC LIMIT 8")
-    .all(NOW.toISOString().slice(0, 10)) as { id: number }[];
-  const ids = boot.members.map((m: { id: number }) => m.id).slice(1, 41);
-  const insert = w.db.raw.prepare(
-    "INSERT OR IGNORE INTO attendance (session_id, member_id, signup, signed_up_at, attended) VALUES (?, ?, 'in', ?, 1)",
-  );
-  for (const f of fridays) for (const m of ids) insert.run(f.id, m, NOW.toISOString());
-  expect((await dana.call("POST", `/api/members/${ids[0]}/payments`, { via: "cash", pence: 800 })).status).toBe(200);
-  friday = boot.sessions.find((s: { heldOn: string }) => s.heldOn >= "2026-10-06").id;
+  // A Worker that's been answering a while: each member's first open, and V8's compiler done with the club's shaping
+  for (const m of [...members, ...members]) await send(m, "GET", "/api/bootstrap");
 });
 
-describe.runIf(process.env.LOAD_CPU)("the Worker's CPU a request, a club of 120 (LOAD_CPU=1)", () => {
-  it("a member opening the app, the club unchanged (304), and a tap In then Out keep under the free plan's 10 ms", async () => {
-    const bootstrap = await median((i) => members[i % members.length].call("GET", "/api/bootstrap"));
-    say("bootstrap, a member", bootstrap);
-    const admin = await median(() => dana.call("GET", "/api/bootstrap"));
-    say("bootstrap, an admin (sees everything)", admin);
-    const tags = await Promise.all(members.map(async (m) => (await m.call("GET", "/api/bootstrap")).headers));
-    const unchanged = await median((i) =>
-      members[i % members.length].call("GET", "/api/bootstrap", undefined, {
-        headers: { "if-none-match": tags[i % members.length].get("etag")! },
-      }),
-    );
-    say("bootstrap, unchanged (304)", unchanged);
-    const tap = await median((i) =>
-      members[i % members.length].call("POST", `/api/sessions/${friday}/answer`, { answer: i % 2 ? "out" : "in" }),
-    );
-    say("a tap, In or Out (the charges worked out again)", tap);
-    process.stdout.write(`\nWorker CPU a request, median of ${RUNS}:\n  ${said.join("\n  ")}\n`);
-    for (const ms of [bootstrap, unchanged, tap]) expect(ms).toBeLessThan(FREE_CPU_MS);
-  });
-});
+/** A request as the phone sends it, its reply read but not parsed: the parsing is the phone's, not the Worker's. */
+async function send(b: Browser, method: string, path: string, payload?: unknown, headers?: Record<string, string>) {
+  const res = await b.open(method, path, { headers }, payload);
+  await res.arrayBuffer();
+  return res;
+}
+
+/** Tournaments to delete, one a run: the scrimmage a load run leaves, its three teams and fixtures (#175). */
+function scrimmages(n: number) {
+  const made = w.db.raw.prepare(
+    `INSERT INTO tournaments (type_id, name, held_on, start_time, end_time, status, kind)
+     VALUES (NULL, 'Scrimmage', '2026-10-06', '10:00', '15:00', 'planned', 'teams') RETURNING id`,
+  );
+  return Array.from({ length: n }, () => (made.get() as { id: number }).id);
+}
+
+describe.runIf(process.env.LOAD_CPU)(
+  "the Worker's CPU a request, a club of 120 with years of Kumites behind it (LOAD_CPU=1)",
+  () => {
+    it("opening the app, as anyone, the club unchanged (304), a tap In then Out and a tournament deleted keep under the free plan's 10 ms", async () => {
+      const bootstrap = await median((i) => send(members[i % members.length], "GET", "/api/bootstrap"));
+      say("bootstrap, a member", bootstrap);
+      const admin = await median(() => send(dana, "GET", "/api/bootstrap"));
+      say("bootstrap, an admin (sees everything)", admin);
+      const tags = await Promise.all(members.map(async (m) => (await send(m, "GET", "/api/bootstrap")).headers));
+      const unchanged = await median((i) =>
+        send(members[i % members.length], "GET", "/api/bootstrap", undefined, {
+          "if-none-match": tags[i % members.length].get("etag")!,
+        }),
+      );
+      say("bootstrap, unchanged (304)", unchanged);
+      const tap = await median((i) =>
+        send(members[i % members.length], "POST", `/api/sessions/${friday}/answer`, { answer: i % 2 ? "out" : "in" }),
+      );
+      say("a tap, In or Out (the charges worked out again)", tap);
+      expect((await dana.call("PUT", "/api/me/view-as", { memberId: ids[5] })).status).toBe(200);
+      const viewing = await median(() => send(dana, "GET", "/api/bootstrap"));
+      say("bootstrap, an admin viewing as a member", viewing);
+      expect((await dana.call("DELETE", "/api/me/view-as")).status).toBe(200);
+      const gone = scrimmages(RUNS + WARM);
+      const deleted = await median((i) => send(dana, "DELETE", `/api/tournaments/${gone[i]}`));
+      say("a tournament deleted (its reply: every tournament)", deleted);
+      process.stdout.write(
+        `\nWorker CPU a request, ${KUMITES} Kumites behind the club, median of ${RUNS}:\n  ${said.join("\n  ")}\n`,
+      );
+      for (const ms of [bootstrap, admin, unchanged, tap, viewing, deleted]) expect(ms).toBeLessThan(FREE_CPU_MS);
+    });
+  },
+);
 
 it("runs only when asked (LOAD_CPU=1): CPU times depend on the machine", () => {
   expect(friday).toBeGreaterThan(0);

@@ -233,13 +233,17 @@ const PARTS = {
             t.awards_revealed awardsRevealed, t.awards_next awardsNext, t.awards_confirmed_at awardsConfirmedAt
      FROM tournaments t ORDER BY t.held_on`,
   ),
-  // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts)
+  // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts). Whether
+  // each has a logo: the logos themselves are teamLogos
   tournamentTeams: rows(
     "id tournamentId name logo captainMemberId captainName contact pick",
-    `SELECT t.id, t.tournament_id tournamentId, t.name, t.logo, t.captain_member_id captainMemberId,
+    `SELECT t.id, t.tournament_id tournamentId, t.name, t.logo IS NOT NULL logo, t.captain_member_id captainMemberId,
             t.captain_name captainName, CASE WHEN v.sees_contacts THEN t.contact ELSE '' END contact, t.pick
      FROM tournament_teams t, viewer v ORDER BY t.tournament_id, coalesce(t.pick, 1000), t.id`,
   ),
+  // Each team's logo, as text and not JSON: a line a team, its id, a comma, and the logo as JSON text. Sent on as it
+  // is (tournaments.ts teamLogosFrom): most of the club's bytes once there's a year of tournaments, never parsed (#175)
+  teamLogos: `(SELECT group_concat(id || ',' || json_quote(logo), char(10)) FROM tournament_teams WHERE logo IS NOT NULL)`,
   tournamentPlayers: rows(
     "teamId memberId name pick pickedBy",
     `SELECT team_id teamId, member_id memberId, name, pick_number pick, picked_by pickedBy FROM tournament_team_players
@@ -370,9 +374,12 @@ const PARTS = {
 } as const;
 
 export type Part = keyof typeof PARTS;
+/** The parts read as text, not JSON: as they are, or null for none. */
+const TEXT: ReadonlySet<Part> = new Set(["teamLogos"]);
+
 /** Each part's rows. Loosely typed: each domain module's shaping says what its rows are. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Parts = Record<Part, any[]>;
+export type Parts = Record<Exclude<Part, "teamLogos">, any[]> & { teamLogos: string | null };
 
 /** The parts asked for, as this viewer may see them, in one statement. */
 export async function readClub(db: D1Database, viewer: Viewer, parts: readonly Part[]): Promise<Parts> {
@@ -382,7 +389,7 @@ export async function readClub(db: D1Database, viewer: Viewer, parts: readonly P
     .prepare(sql)
     .bind(...bound(viewer))
     .first<Record<Part, string>>();
-  return Object.fromEntries(parts.map((p) => [p, JSON.parse(row![p])])) as Parts;
+  return Object.fromEntries(parts.map((p) => [p, TEXT.has(p) ? row![p] : JSON.parse(row![p])])) as Parts;
 }
 
 /** One tournament's games, goals and penalties, and its teams in pick order (who keeps score, fixtures.ts). */

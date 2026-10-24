@@ -7,7 +7,7 @@ import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
 import type { Winner } from "./awards";
 import { STATS, decidedByOf, type Award, type DecidedBy, type PlayerStat } from "../../src/lib/awards";
 import type { Game } from "./fixtures";
-import { HttpError, bool, date, int, objectsIn, oneOf, text, time } from "../api/api.http";
+import { AsIs, HttpError, bool, date, int, objectsIn, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
 import { afterFields, placeFields } from "../settings/venues";
 import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
@@ -15,6 +15,7 @@ import { AFTER_MODES, type AfterMode } from "@cougars/shared/places";
 import { fillingUp } from "../entries/entries";
 import { broughtTeam, carriedNames, teamNameOf } from "./team-name";
 import { shortName } from "../../src/lib/names";
+import { grouped } from "../../src/lib/grouped";
 
 interface TypeRow {
   id: number;
@@ -310,7 +311,8 @@ export type TournamentTeamRow = {
   id: number;
   tournamentId: number;
   name: string;
-  logo: string | null;
+  /** Whether it has a logo (1 or 0): the logos are read on their own (teamLogosFrom). */
+  logo: number;
   captainMemberId: number | null;
   captainName: string;
   contact: string;
@@ -325,6 +327,19 @@ export type TournamentPlayerRow = {
   pickedBy: number | null;
 };
 
+/**
+ * Each team's logo as JSON text, from the club read's lines of them (api.club.ts teamLogos): a team's id, a comma, its
+ * logo. Each is sent on as it is (AsIs), never parsed: a year of them is most of what opening the app sends (#175).
+ */
+export function teamLogosFrom(text: string | null): Map<number, string> {
+  const logos = new Map<number, string>();
+  for (const line of text ? text.split("\n") : []) {
+    const comma = line.indexOf(",");
+    logos.set(Number(line.slice(0, comma)), line.slice(comma + 1));
+  }
+  return logos;
+}
+
 /** Tournaments as read (api.club.ts), each with its games, award winners, and teams with their players. */
 export function tournamentsFrom(
   rows: TournamentListRow[],
@@ -334,27 +349,32 @@ export function tournamentsFrom(
   winners: (Winner & { tournamentId: number })[],
   votes: { tournamentId: number; award: string; cast: number; mine: number | null }[] = [],
   titles: { tournamentId: number; award: string; title: string | null }[] = [],
+  logos: Map<number, string> = new Map(),
 ) {
+  // Each put with its tournament (or team) in one pass, not looked for among every one there has been, for each (#175)
+  const gamesOf = grouped(games, (g) => g.tournamentId);
+  const winnersOf = grouped(winners, (x) => x.tournamentId);
+  const votesOf = grouped(votes, (x) => x.tournamentId);
+  const titlesOf = grouped(titles, (x) => x.tournamentId);
+  const teamsOf = grouped(teams, (x) => x.tournamentId);
+  const playersOf = grouped(players, (p) => p.teamId);
+  const of = <R>(groups: Map<number, R[]>, id: number) => groups.get(id) ?? [];
   return rows.map((t) => ({
     ...t,
-    draftState: draftStateOf(
-      t,
-      teams.some((team) => team.tournamentId === t.id),
-    ),
+    draftState: draftStateOf(t, teamsOf.has(t.id)),
     public: Boolean(t.public),
     awardsNext: Boolean(t.awardsNext),
     awards: parseAwards(t.awards),
     playoffs: parsePlayoffs(t.playoffs),
-    games: games.filter((g) => g.tournamentId === t.id).map(({ tournamentId: _, ...g }) => g),
-    winners: winners.filter((x) => x.tournamentId === t.id).map(({ tournamentId: _, ...x }) => x),
-    votes: votes.filter((x) => x.tournamentId === t.id).map(({ tournamentId: _, ...x }) => x),
-    titles: titles.filter((x) => x.tournamentId === t.id).map(({ tournamentId: _, ...x }) => x),
-    teams: teams
-      .filter((team) => team.tournamentId === t.id)
-      .map(({ tournamentId: _, ...team }) => ({
-        ...team,
-        players: players.filter((p) => p.teamId === team.id).map(({ teamId: _, ...p }) => p),
-      })),
+    games: of(gamesOf, t.id).map(({ tournamentId: _, ...g }) => g),
+    winners: of(winnersOf, t.id).map(({ tournamentId: _, ...x }) => x),
+    votes: of(votesOf, t.id).map(({ tournamentId: _, ...x }) => x),
+    titles: of(titlesOf, t.id).map(({ tournamentId: _, ...x }) => x),
+    teams: of(teamsOf, t.id).map(({ tournamentId: _, ...team }) => ({
+      ...team,
+      logo: team.logo ? new AsIs(logos.get(team.id)!) : null,
+      players: of(playersOf, team.id).map(({ teamId: _, ...p }) => p),
+    })),
   }));
 }
 
