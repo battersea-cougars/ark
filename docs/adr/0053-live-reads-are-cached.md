@@ -1,7 +1,7 @@
 # 0053. Live reads are cached the same way everywhere, and Sanity is read through its API CDN
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-21
+- **Date:** 2026-10-07 · updated 2026-10-24
 - **Merges:** 0041, 0054
 
 ## Context
@@ -43,9 +43,10 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - Build-time content in `lib/sanity/content.ts` is read once per build, every five minutes on a Worker, and every
   minute in `astro dev`. The five club-fact singletons are one query.
 - **The team app's bootstrap has an ETag**: the club's data version (`data_version`, one more on every change through
-  the API, the club seed and the roster seed), the member, the day and the deploy. It's sent `private, no-cache`, so
-  the browser asks again with `If-None-Match` by itself and gets an empty 304 after one row read when nothing has
-  changed. After the app opens, its checks send `If-None-Match` themselves, at the data version the app's copy holds
+  the API, the club seed and the roster seed), the member, the day and the deploy. It's sent `private, no-store`, so the
+  browser keeps no copy of members' details after signing out ([0036](0036-api-security.md)): opening the app reads
+  the club whole. After that, the app's checks send `If-None-Match` themselves, with the tag it keeps in memory, and get
+  an empty 304 after one row read when nothing has changed, at the data version the app's copy holds
   (`x-club-version`), since a live page moves that on by reading only the parts that changed
   ([0072](0072-live-updates.md)); a weak tag (`W/`, a proxy that compressed the reply) matches too.
 
@@ -75,3 +76,5 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   club facts in one query instead of five, and every read counted (ADR 0059).
 - 2026-10-21: The app's checks ask with the tag at the version its copy holds, not the browser's last reply, as live
   pages now read only the parts that changed (#112, ADR 0072); the reply says its version (`x-club-version`).
+- 2026-10-24: The bootstrap is `private, no-store`, not `no-cache`: the browser's disk cache kept the club's data
+  after signing out (#81). The app keeps the tag in memory, so its checks are still 304s; opening it reads the club.

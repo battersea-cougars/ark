@@ -202,6 +202,19 @@ describe("opening the phone app", () => {
     expect(after).toBeGreaterThanOrEqual(5_000);
   });
 
+  // An error in place of a built file used to be cached under its name and served from then on (#81)
+  it("never keeps an error in place of a built file: the file is fetched again next time", async () => {
+    const p = phone();
+    await p.install();
+    expect(await waitFor(p.get("/assets/late.js")!)).toMatchObject({ value: "Not found" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(p.kept("/assets/late.js")).toBeUndefined();
+    p.server.set("/assets/late.js", "late js");
+    expect(await waitFor(p.get("/assets/late.js")!)).toMatchObject({ value: "late js" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(p.kept("/assets/late.js")).toBe("late js");
+  });
+
   it("never answers the club's data from a cache", async () => {
     const p = phone();
     await p.install();

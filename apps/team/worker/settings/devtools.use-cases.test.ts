@@ -76,4 +76,15 @@ describe("who gets their own email outside production", () => {
     expect((await dana.call("GET", "/api/dev/mail")).status).toBe(404);
     expect((await dana.call("POST", "/api/dev/mail", { email: "mo@example.com" })).status).toBe(404);
   });
+
+  // Dev tools were hidden only where SITE_ENV said production, which wrangler.jsonc doesn't set: a deploy that skipped
+  // scripts/ci/target.mjs would have shown them (#81). Now they're there only where it says dev, or on your own machine.
+  it("doesn't exist on a deploy that never said where it is", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    w.env.TEAM_ENV = undefined;
+    expect((await dana.call("GET", "/api/bootstrap")).body.devTools).toBe(false);
+    expect((await dana.call("GET", "/api/dev/mail")).status).toBe(404);
+    w.env.SITE_ENV = "dev";
+    expect((await dana.call("GET", "/api/bootstrap")).body.devTools).toBe(true);
+  });
 });

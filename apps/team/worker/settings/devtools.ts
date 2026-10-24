@@ -3,14 +3,19 @@
 // list is never read: real recipients always get their own email there.
 import { all, run } from "@cougars/shared/d1";
 import { clubContact } from "@cougars/shared/club-contact";
-import { isProduction } from "@cougars/shared/email";
 import { email, type AuthEnv } from "../auth/auth";
 import { HttpError } from "../api/api.http";
 
-/** Whether Dev tools exist here: anywhere but production. */
-export const devToolsHere = (env: { SITE_ENV?: string }) => !isProduction(env.SITE_ENV);
+/**
+ * Whether Dev tools (and every dev-only tool, ADR 0123) exist here: only where the environment says, in so many words,
+ * that it isn't production. A deploy says with SITE_ENV (scripts/ci/target.mjs: "dev" from main, "production" from
+ * release); your own machine's server with TEAM_ENV "local" (vite.config.ts) and no SITE_ENV. Anything else
+ * (production, a missing or unknown environment) is production here: fail closed (#81).
+ */
+export const devToolsHere = (env: { SITE_ENV?: string; TEAM_ENV?: string }) =>
+  env.SITE_ENV === "dev" || (env.TEAM_ENV === "local" && env.SITE_ENV === undefined);
 
-const here = (env: { SITE_ENV?: string }) => {
+const here = (env: { SITE_ENV?: string; TEAM_ENV?: string }) => {
   if (!devToolsHere(env)) throw new HttpError(404, "Not found.");
 };
 

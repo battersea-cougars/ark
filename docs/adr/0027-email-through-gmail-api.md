@@ -1,7 +1,7 @@
 # 0027. Email goes through the Gmail API; outside production it reaches only the safe inbox, admins and a dev list
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-23
+- **Date:** 2026-10-06 · updated 2026-10-24
 - **Merges:** 0077
 
 ## Context
@@ -84,10 +84,12 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 
 **Dev tools**
 
-- **Settings → Dev tools** exists only outside production, for whoever holds `manage:Settings`: add and take off
+- **Settings → Dev tools** exists only where the environment says dev or local, failing closed like every dev-only
+  tool ([0123](0123-dev-only-tools.md)), for whoever holds `manage:Settings`: add and take off
   addresses on the list; it takes effect at once, with no deploy. The bootstrap says whether it's there (`devTools`).
   Changes are on the audit log as `dev_mail.changed` ([0095](0095-audit-log.md)).
-- **In production none of this exists:** the routes answer 404 and the list is never read.
+- **In production none of this exists,** nor on a deploy that doesn't say where it is: the routes answer 404. In
+  production the list is never read.
 
 ## Consequences
 
@@ -151,3 +153,5 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   nothing moves when it arrives (#148); recording a change to the failure, or a reconnect, moves the data version on.
 - 2026-10-23: Outside production, "the admins" who get their own email are everyone whose roles hold `manage:all`,
   not members of the role named Admin, so a custom or renamed role that can do everything can sign in on dev too (#44).
+- 2026-10-24: Dev tools exist only where `SITE_ENV` says dev or on your own machine, not wherever it doesn't say
+  production: a deploy that skipped `target.mjs` showed them (#81, [0123](0123-dev-only-tools.md)).

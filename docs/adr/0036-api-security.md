@@ -78,14 +78,14 @@ of future sessions is idempotent).
   is `public/_headers`, and a test checks it equals the code's set, so the two can't drift; the website's is written
   by its build from the same code (`src/lib/server/headers.ts`, `headers.integration.ts`), for the environment being
   built, so there's nothing to drift.
-- **The team app** sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`
-  and a **content security policy**: only its own scripts, styles (inline allowed: Svelte sets style attributes),
+- **The team app** sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`,
+  `Permissions-Policy: camera=(), microphone=(), geolocation=()` and a **content security policy**: only its own scripts, styles (inline allowed: Svelte sets style attributes),
   fonts and files; talks only to its own origin; its own images plus `data:` (team logos) and `blob:` (upload
   previews); no objects, no other base, forms only to itself, `frame-ancestors 'none'`. The one outsider is
   Cloudflare Turnstile on the sign-in page ([0028](0028-turnstile-and-auto-reply.md), #13): its script and its frame
   from `challenges.cloudflare.com`. A new outside resource means widening the policy on purpose, in both places.
 - **The website** sends `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (it
-  links out and is public, so the origin may travel) and a **content security policy** (`csp` in
+  links out and is public, so the origin may travel), the same `Permissions-Policy` and a **content security policy** (`csp` in
   `src/lib/server/headers.ts`, per environment):
   - Scripts only from its own files, Turnstile and Cloudflare's analytics beacon. **No inline scripts at all**:
     Astro's small component scripts aren't inlined (`assetsInlineLimit` in `astro.config.mjs`), and the two that
@@ -102,6 +102,11 @@ of future sessions is idempotent).
     issue ([0110](0110-structured-logging.md)). It was enforced from the start, not report-only first: before launch
     nobody visits to report, so instead a headless browser walked every page (and the demo content's) under the real
     policy, pressing Play and opening a photo, and found nothing refused.
+- **No camera, microphone or location:** neither app uses them (a photo is picked as a file), so `Permissions-Policy`
+  turns them off for every page and anything it frames (YouTube's player, Turnstile).
+- **The bootstrap is never kept by the browser** (`private, no-store`): the club's data, members' details included,
+  would otherwise outlast signing out in its disk cache. The app keeps the ETag in memory instead
+  ([0053](0053-live-reads-are-cached.md)).
 - **HSTS:** both apps send `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Every host under the
   domain is HTTPS through Cloudflare. Not `preload`: the browsers' built-in list is slow to leave, and can come later.
 - **Links typed by someone else** (the Studio, the team app's venues) are checked before they reach a page
@@ -161,3 +166,7 @@ of future sessions is idempotent).
   built, instead of kept in `public/` (#148).
 - 2026-10-24: `impersonate:Member` no longer sees everyone's roles: viewing as a member moved to the server, which
   answers as the member (#40, [0024](0024-action-based-authorization.md)).
+- 2026-10-24: Both apps send `Permissions-Policy` (no camera, microphone or location); the bootstrap is `no-store`, its
+  ETag kept by the app; Dev tools exist only where the environment says dev or local, failing closed (ADR 0123); the
+  service worker keeps only files that arrived whole; a member's sign-in code is made after the reply, so its timing
+  says nothing about whose address it was (#81, [0023](0023-sign-in-and-sessions.md)).

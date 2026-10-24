@@ -1,7 +1,7 @@
 # 0023. Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-23
+- **Date:** 2026-10-05 · updated 2026-10-24
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context
@@ -34,8 +34,9 @@ need a way back in that no stranger on the internet could use.
   code**, and nothing else: no link. The code signs in only alongside the nonce cookie, so a forwarded email signs no
   one in ("open this on the device you signed in from"). The email shows the code first and huge, in the club's
   colours (`apps/team/worker/auth/auth.email.ts`), with a plain-text version saying the same.
-- Codes are sent only to the email on the member's own account. An unknown email gets the same reply, so the form
-  doesn't reveal who's a member.
+- Codes are sent only to the email on the member's own account. An unknown email gets the same reply, after the
+  same work (the member looked up, the browser's codes checked), so the form doesn't reveal who's a member, not even
+  by how long it takes: a member's code is made and emailed after the reply.
 - Codes are stored hashed (SHA-256), are single-use and expire after 15 minutes.
 - **One browser, one member, any of its codes.** A browser keeps its nonce while it asks again for the same member,
   so any code it asked for in the last 15 minutes works there, and using one spends all of them. Asking for a
@@ -228,3 +229,5 @@ need a way back in that no stranger on the internet could use.
   never says whose it is. Everything a member did stays theirs, as it hangs on their id, not their address.
 - 2026-10-23: Changing your own sign-in email keeps your passkeys: you're signed in and confirm the new address with a
   code, so the account is still yours. An admin changing someone's email still removes theirs.
+- 2026-10-24: A member's code is made and emailed after the reply, so asking for a member's address takes no longer
+  than a stranger's (#81).

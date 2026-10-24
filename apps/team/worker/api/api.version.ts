@@ -1,6 +1,6 @@
 // "Has anything changed?" for the app's bootstrap (ADR 0053). The app reloads everything after each change and when it
-// opens; most of those reloads find nothing new. The bootstrap carries an ETag, and the browser asks again with it
-// (If-None-Match) by itself: if the club's data hasn't changed, the answer is an empty 304 after one row read,
+// opens; most of those reloads find nothing new. The bootstrap carries an ETag, and the app asks again with it
+// (If-None-Match, src/app/api.ts): if the club's data hasn't changed, the answer is an empty 304 after one row read,
 // not the whole club read out of D1.
 //
 // The tag is the club's data version (data_version, one more on every change), who's asking (each member sees their
@@ -48,14 +48,15 @@ export const buildOf = (env: { TEAM_ENV?: string; CF_VERSION_METADATA?: { id: st
 
 export const bootstrapTag = clubTag;
 
-// The browser keeps the reply but asks before each use; only this member's browser (private)
-const REVALIDATE = "private, no-cache";
+// Never kept by the browser (#81): the club's data, members' details included, would stay in its disk cache after
+// signing out. The app keeps the tag in memory and asks with it itself, so a check is still a 304 when nothing's new
+const NOT_KEPT = "private, no-store";
 
 /** A reply with its tag, which the browser keeps and asks about next time, and the data version it's at. */
 export function tagged(res: Response, tag: string, version: number): Response {
   res.headers.set("etag", tag);
   res.headers.set(VERSION_HEADER, String(version));
-  res.headers.set("cache-control", REVALIDATE);
+  res.headers.set("cache-control", NOT_KEPT);
   // Which build answered: an app left open sees a newer one is out and offers to reload (ADR 0104)
   res.headers.set(BUILD_HEADER, APP_BUILD);
   return res;
@@ -64,5 +65,5 @@ export function tagged(res: Response, tag: string, version: number): Response {
 export const notModified = (tag: string, version: number) =>
   new Response(null, {
     status: 304,
-    headers: { etag: tag, "cache-control": REVALIDATE, [BUILD_HEADER]: APP_BUILD, [VERSION_HEADER]: String(version) },
+    headers: { etag: tag, "cache-control": NOT_KEPT, [BUILD_HEADER]: APP_BUILD, [VERSION_HEADER]: String(version) },
   });

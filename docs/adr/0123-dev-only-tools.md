@@ -1,7 +1,7 @@
 # 0123. A dev-only tool isn't there in production: its route exists only where the environment says dev or local
 
 - **Status:** Accepted
-- **Date:** 2026-10-22 · updated 2026-10-23
+- **Date:** 2026-10-22 · updated 2026-10-24
 
 ## Context
 
@@ -108,3 +108,5 @@ changes are limited to 60 a minute ([0055](0055-degrade-instead-of-break.md)); a
 - 2026-10-23: A Kumite on a past day: made, signed up for and played out by the simulator on that evening (its clocks
   the evening's, `onItsDay`) through the awards confirmed and every one revealed, so it's history with a whole evening
   behind it; for trying what a past Kumite shows. The simulator's moves gain `awards`, `reveal` and `nextAward`.
+- 2026-10-24: Dev tools ([0027](0027-email-through-gmail-api.md)) follow the same rule, one check for both
+  (`devToolsHere`, `worker/settings/devtools.ts`): they were there wherever `SITE_ENV` didn't say production (#81).

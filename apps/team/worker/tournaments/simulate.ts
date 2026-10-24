@@ -27,15 +27,13 @@ import { listGames, makeFixtures, tournamentOf, type Game } from "./fixtures";
 import { addGoal, addPenalty, clockGame, holdScoresheet } from "./scoring";
 import { awardsMove, eveningClock, type Evening } from "./on-its-day";
 import { londonToday } from "@cougars/shared/london";
+import { devToolsHere } from "../settings/devtools";
 
 /**
- * Whether the simulator exists on this Worker: only where the environment says, in so many words, that it isn't
- * production. A deploy says with SITE_ENV (scripts/ci/target.mjs: "dev" from main, "production" from release); your
- * own machine's server with TEAM_ENV "local" (vite.config.ts) and no SITE_ENV. Anything else (production, a missing
- * or unknown environment) is production here: fail closed. Elsewhere the route isn't there at all (api.ts).
+ * Whether the simulator exists on this Worker: where Dev tools do, only where the environment says, in so many words,
+ * that it isn't production (devToolsHere, ADR 0123). Elsewhere the route isn't there at all (api.ts).
  */
-export const simulatorHere = (env: { SITE_ENV?: string; TEAM_ENV?: string }) =>
-  env.SITE_ENV === "dev" || (env.TEAM_ENV === "local" && env.SITE_ENV === undefined);
+export const simulatorHere = devToolsHere;
 
 export interface Simulated {
   /** Nothing left to play: it's at the after-party. */

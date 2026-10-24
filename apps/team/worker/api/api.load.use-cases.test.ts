@@ -31,7 +31,9 @@ describe("reopening the app", () => {
     const first = await reg.call("GET", "/api/bootstrap");
     const tag = first.headers.get("etag")!;
     expect(first.status).toBe(200);
-    expect(first.headers.get("cache-control")).toBe("private, no-cache");
+    // Never kept in the browser's cache, where members' details would outlast signing out (#81): the app asks with
+    // the tag itself
+    expect(first.headers.get("cache-control")).toBe("private, no-store");
 
     const again = await reg.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": tag } });
     expect(again.status).toBe(304);

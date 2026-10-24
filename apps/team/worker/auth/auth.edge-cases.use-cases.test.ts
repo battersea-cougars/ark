@@ -2,6 +2,7 @@
 // kept after signing out, someone who left and asks to come back. Driven through the real handler in the fake world
 // (testing.ts, ADR 0031); the clock is the request's `now`, never the wall's.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { handleApi } from "../api/api";
 import { NOW, minutes, testWorld } from "../testing";
 
 const ROSTER = [
@@ -206,6 +207,41 @@ describe("who can ask for a code", () => {
     expect((await w.ask(w.browser(), "reg@example.com")).devCode).toBeUndefined();
     expect((await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, status: "active" })).status).toBe(200);
     expect((await w.ask(w.browser(), "reg@example.com")).devCode).toMatch(/^\d{6}$/);
+  });
+
+  // A member's reply used to wait for their code to be made and emailed, so it took measurably longer than a
+  // stranger's (#81). Here the database never finishes writing a code: a member's reply still comes, as a stranger's
+  // does, and the code is made after it.
+  it("the reply doesn't wait for a member's code, so its timing says nothing about whose address it was", async () => {
+    Object.assign(w.env, { TEAM_ENV: undefined, SITE_ENV: "dev", MAIL_SAFE_TO: "dev@example.com" });
+    const writing = /^\s*(INSERT INTO|UPDATE) login_challenges/;
+    const held = new Proxy(w.env.DB, {
+      get(db, key) {
+        if (key !== "prepare") return Reflect.get(db, key);
+        return (sql: string) => {
+          if (!writing.test(sql)) return db.prepare(sql);
+          const never = () => new Promise(() => {});
+          return { bind: () => ({ run: never, first: never, all: never }) };
+        };
+      },
+    });
+    const afterwards: Promise<unknown>[] = [];
+    const ask = (email: string) =>
+      handleApi(
+        new Request("https://team.example/api/auth/start", {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: "https://team.example" },
+          body: JSON.stringify({ email }),
+        }),
+        { ...w.env, DB: held },
+        NOW,
+        (p) => afterwards.push(p),
+      );
+    const stranger = await ask("nobody@example.com");
+    const member = await ask("reg@example.com");
+    expect([stranger.status, member.status]).toEqual([200, 200]);
+    expect(await member.json()).toEqual(await stranger.json());
+    expect(afterwards).toHaveLength(1);
   });
 
   it("someone who deleted their account can ask to join again with the same email", async () => {

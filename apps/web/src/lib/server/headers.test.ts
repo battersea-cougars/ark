@@ -38,6 +38,11 @@ describe("the website's security headers", () => {
     expect(images(csp("dev"))).toContain("https://fastly.picsum.photos");
   });
 
+  it("give no page, nor anything it frames, the camera, microphone or location (#81)", () => {
+    for (const env of ["production", "dev"] as const)
+      expect(siteHeaders(env)["permissions-policy"]).toBe("camera=(), microphone=(), geolocation=()");
+  });
+
   it("differ between the two only in that", () => {
     expect(csp("dev").replace(" https://picsum.photos https://fastly.picsum.photos", "")).toBe(csp("production"));
   });

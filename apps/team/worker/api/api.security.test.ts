@@ -229,7 +229,7 @@ describe("requests from somewhere else", () => {
     expect((await reg.call("GET", "/api/bootstrap", undefined, { headers: { origin: null } })).status).toBe(200);
   });
 
-  it("is never framed, sniffed or told where it came from, from the Worker or the asset layer (ADR 0036)", async () => {
+  it("is never framed, sniffed, told where it came from or given the camera, from the Worker or the asset layer (ADR 0036)", async () => {
     const res = await worker.fetch(
       new Request("https://team.test/api/health"),
       { DB: w.db, ASSETS: { fetch: async () => new Response("<!doctype html>") } as unknown as Fetcher },
@@ -237,6 +237,8 @@ describe("requests from somewhere else", () => {
     );
     expect(Object.fromEntries(res.headers)).toMatchObject(SECURITY_HEADERS);
     expect(SECURITY_HEADERS["content-security-policy"]).toContain("frame-ancestors 'none'");
+    // No camera, microphone or location, for the app or anything it frames (#81)
+    expect(res.headers.get("permissions-policy")).toBe("camera=(), microphone=(), geolocation=()");
     // The app's own page is served without the Worker (run_worker_first is /api/* only): the same set, from the file
     const file = parseHeadersFile(readFileSync(new URL("../../public/_headers", import.meta.url).pathname, "utf8"));
     expect(file["/*"]).toEqual(SECURITY_HEADERS);

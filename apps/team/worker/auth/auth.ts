@@ -320,6 +320,10 @@ async function failuresToday(db: D1Database, nonceHash: string, now: Date) {
 /**
  * Email in: a nonce cookie in this browser (the one it already has, so an earlier code in the same browser keeps
  * working), and a code to the member, if it's a member's.
+ *
+ * The reply is the same for anyone, and so is the work before it (#81): a stranger's address and a member's each look
+ * up the member and the browser's live codes, then reply. Making and emailing a member's code happens after the
+ * reply (waitUntil), so how long the reply takes says nothing about whose address it was.
  */
 export async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   await enforce("sign-in", addressOf(request), LIMITS.signIn, TOO_MANY_TRIES);
@@ -333,47 +337,65 @@ export async function start(request: Request, env: AuthEnv, now: Date, waitUntil
     withCookies(json({ ok: true, message: SAME_REPLY, ...(devCode ? { devCode } : {}) }), [
       setCookie(request, "nonce", nonce, CHALLENGE_MINUTES * 60),
     ]);
-  const paused = async () => !local && !!(await mailPausedUntil()) && !!(await mailConfig(env)).gmail;
-  // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now. The same for everyone,
-  // member or not, so it gives nothing away.
-  const PAUSED = "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.";
 
-  const member = await first<{ id: number; name: string }>(
-    env.DB,
-    `SELECT id, name FROM members WHERE email = ? AND status = 'active'`,
-    [address],
-  );
-  if (!member) {
-    if (await paused()) throw new HttpError(503, PAUSED);
-    return res();
-  }
+  const member = await first<{ id: number }>(env.DB, `SELECT id FROM members WHERE email = ? AND status = 'active'`, [
+    address,
+  ]);
   // One member a browser at a time (ADR 0023): asking for another account's code starts a fresh nonce, so the earlier
-  // account's codes die with the old one, and every guess under a nonce counts against the one account it's for
+  // account's codes die with the old one, and every guess under a nonce counts against the one account it's for.
+  // Asked for a stranger too (member 0 is nobody), so both do the same work before the reply.
   const another = await first(
     env.DB,
     `SELECT 1 FROM login_challenges WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ? AND member_id != ?`,
-    [await sha256(nonce), now.toISOString(), member.id],
+    [await sha256(nonce), now.toISOString(), member?.id ?? 0],
   );
-  if (another) nonce = token();
+  if (member && another) nonce = token();
   const nonceHash = await sha256(nonce);
-  // A break-glass code made for this admin at a terminal (auth.break-glass.ts): the first browser to ask claims it, and
-  // nothing is emailed, so it works while Gmail is down. From here it's a code like any other.
-  if (await claimBreakGlass(env.DB, now, member.id, nonceHash)) return res();
-  if (await paused()) throw new HttpError(503, PAUSED);
+  // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now; only a break-glass code
+  // made at a terminal (auth.break-glass.ts) still works, as it's never emailed. Claimed for a stranger too (it
+  // matches nothing), so the same for everyone, member or not, and it gives nothing away.
+  if (!local && (await mailPausedUntil()) && (await mailConfig(env)).gmail) {
+    if (await claimBreakGlass(env.DB, now, member?.id ?? 0, nonceHash)) return res();
+    throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
+  }
+  if (!member) return res();
+  const issuing = issueCode(env, now, member.id, address, nonceHash, local);
+  // On your own machine the code comes back to the screen, so the reply waits for it
+  if (local) return res(await issuing);
+  const sending = issuing.catch((e) => log.error("sign_in.code_failed", e));
+  if (waitUntil) waitUntil(sending);
+  else await sending;
+  return res();
+}
+
+/**
+ * A member's code, made and emailed after the reply, within this browser's and their inbox's limits; or a
+ * break-glass code made for this admin at a terminal (auth.break-glass.ts), claimed by the first browser to ask, with
+ * nothing emailed, so it works while Gmail is down. The code itself only on your own machine, to show on screen.
+ */
+async function issueCode(
+  env: AuthEnv,
+  now: Date,
+  memberId: number,
+  address: string,
+  nonceHash: string,
+  local: boolean,
+): Promise<string | undefined> {
+  if (await claimBreakGlass(env.DB, now, memberId, nonceHash)) return;
   const counts = await first<{ hour: number; day: number; everywhere: number }>(
     env.DB,
     `SELECT coalesce(sum(nonce_hash = ? AND created_at > ?), 0) AS hour,
             coalesce(sum(nonce_hash = ?), 0) AS day, count(*) AS everywhere
      FROM login_challenges WHERE member_id = ? AND created_at > ?`,
-    [nonceHash, addMs(now, -3600_000), nonceHash, member.id, addMs(now, -86_400_000)],
+    [nonceHash, addMs(now, -3600_000), nonceHash, memberId, addMs(now, -86_400_000)],
   );
   // This browser's own limits: it waits, and nobody else does
-  if ((counts?.hour ?? 0) >= MAX_CHALLENGES_PER_HOUR || (counts?.day ?? 0) >= MAX_CHALLENGES_PER_DAY) return res();
-  if ((await failuresToday(env.DB, nonceHash, now)) >= MAX_FAILURES_PER_DAY) return res();
+  if ((counts?.hour ?? 0) >= MAX_CHALLENGES_PER_HOUR || (counts?.day ?? 0) >= MAX_CHALLENGES_PER_DAY) return;
+  if ((await failuresToday(env.DB, nonceHash, now)) >= MAX_FAILURES_PER_DAY) return;
   // The member's inbox has had enough for today: on the record, for an admin to see
   if ((counts?.everywhere ?? 0) >= MAX_CHALLENGES_PER_MEMBER_DAY) {
-    await audit(env.DB, now, member.id, "sign_in.capped");
-    return res();
+    await audit(env.DB, now, memberId, "sign_in.capped");
+    return;
   }
 
   const review = isReview(env, address);
@@ -381,24 +403,18 @@ export async function start(request: Request, env: AuthEnv, now: Date, waitUntil
   await run(
     env.DB,
     `INSERT INTO login_challenges (member_id, code_hash, nonce_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`,
-    [member.id, await sha256(theCode), nonceHash, addMs(now, CHALLENGE_MINUTES * 60_000), now.toISOString()],
+    [memberId, await sha256(theCode), nonceHash, addMs(now, CHALLENGE_MINUTES * 60_000), now.toISOString()],
   );
   // On your own machine nothing is emailed, even with Gmail set up: the code comes back to the screen
-  if (local) return res(theCode);
+  if (local) return theCode;
   // App Review has its code already: nothing to email
-  if (review) return res();
+  if (review) return;
   const mail = { to: [address], ...signInEmail(theCode, CHALLENGE_MINUTES) };
   const setup = await mailSetup(env);
   // Outside production, a code that goes to its member also goes to the dev mailbox, just in case (ADR 0027): the same
   // email with no allow list lands in the safe inbox. One that went there already isn't sent twice.
-  const copy = !isProduction(env.SITE_ENV) && setup.allow?.includes(address);
-  const sending = (async () => {
-    await sendMail(mail, setup);
-    if (copy) await sendMail(mail, { ...setup, allow: [] });
-  })().catch((e) => log.error("sign_in.email_failed", e));
-  if (waitUntil) waitUntil(sending);
-  else await sending;
-  return res();
+  await sendMail(mail, setup);
+  if (!isProduction(env.SITE_ENV) && setup.allow?.includes(address)) await sendMail(mail, { ...setup, allow: [] });
 }
 
 /** App Review's account (ADR 0108), when production has one set up. */

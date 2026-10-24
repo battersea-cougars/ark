@@ -31,7 +31,8 @@ export { LiveHub } from "./live/live";
 // and files, talks only to its own origin, shows its own images and the ones it makes (team logos as data URLs,
 // previews as blob URLs), and is never shown inside another site's frame. The one outsider is Cloudflare Turnstile on
 // the sign-in page (#13): its script and its frame, from challenges.cloudflare.com. HTTPS only, for a year, as on the
-// website.
+// website. No camera, microphone or location for the app or anything it frames (#81): it uses none (a photo is picked
+// as a file).
 export const SECURITY_HEADERS: Record<string, string> = {
   "content-security-policy": [
     "default-src 'self'",
@@ -54,6 +55,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "same-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=()",
 };
 
 function secured(res: Response): Response {
