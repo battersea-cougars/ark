@@ -12,6 +12,8 @@ import { createRequire } from "node:module";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildRoutes } from "../apps/team/src/app/nav-routes.ts";
+import { PAGE_PARTS } from "../apps/team/src/app/club-parts.ts";
+import { wholeClub } from "../apps/team/src/app/club-whole.ts";
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -28,7 +30,9 @@ const { webkit } = require("playwright");
 
 const state = JSON.parse(readFileSync(".auth/team.json", "utf8"));
 const cookie = state.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-const boot = await (await fetch(`${base}/api/bootstrap`, { headers: { cookie } })).json();
+const read = async (path) => (await fetch(`${base}${path}`, { headers: { cookie } })).json();
+// The club as the app holds it once its pages are read (#178): the core, and every page's parts
+const boot = wholeClub(await read("/api/bootstrap"), (await read(`/api/slices?names=${PAGE_PARTS.join(",")}`)).slices);
 
 // The route tree from the same function the app uses, fed from the bootstrap: a couple of each kind of page
 const routes = buildRoutes({
