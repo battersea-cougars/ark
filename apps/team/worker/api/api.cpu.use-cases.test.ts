@@ -69,9 +69,11 @@ function scrimmages(n: number) {
 describe.runIf(process.env.LOAD_CPU)(
   "the Worker's CPU a request, a club of 120 with years of Kumites behind it (LOAD_CPU=1)",
   () => {
-    it("opening the app, as anyone, the club unchanged (304), a tap In then Out and a tournament deleted keep under the free plan's 10 ms", async () => {
+    it("opening the app, as anyone, the club unchanged (304), a tap In then Out, a past one opened, a page of History and a tournament deleted keep under the free plan's 10 ms", async () => {
       const bootstrap = await median((i) => send(members[i % members.length], "GET", "/api/bootstrap"));
       say("bootstrap, a member", bootstrap);
+      const bytes = (await (await members[0].open("GET", "/api/bootstrap")).arrayBuffer()).byteLength;
+      said.push(`bootstrap, a member's bytes: ${(bytes / 1024).toFixed(0)} KB`);
       const admin = await median(() => send(dana, "GET", "/api/bootstrap"));
       say("bootstrap, an admin (sees everything)", admin);
       const tags = await Promise.all(members.map(async (m) => (await send(m, "GET", "/api/bootstrap")).headers));
@@ -89,13 +91,22 @@ describe.runIf(process.env.LOAD_CPU)(
       const viewing = await median(() => send(dana, "GET", "/api/bootstrap"));
       say("bootstrap, an admin viewing as a member", viewing);
       expect((await dana.call("DELETE", "/api/me/view-as")).status).toBe(200);
+      // A past one opened, and a page of History (#175): what opening the app no longer sends
+      const pastOne = (
+        w.db.raw.prepare("SELECT MIN(id) id FROM tournaments WHERE status = 'finished'").get() as { id: number }
+      ).id;
+      const opened = await median((i) => send(members[i % members.length], "GET", `/api/tournaments/${pastOne}`));
+      say("a past Kumite opened, in full", opened);
+      const history = await median((i) => send(members[i % members.length], "GET", "/api/tournament-types/1/editions"));
+      say("a page of History", history);
       const gone = scrimmages(RUNS + WARM);
       const deleted = await median((i) => send(dana, "DELETE", `/api/tournaments/${gone[i]}`));
       say("a tournament deleted (its reply: every tournament)", deleted);
       process.stdout.write(
         `\nWorker CPU a request, ${KUMITES} Kumites behind the club, median of ${RUNS}:\n  ${said.join("\n  ")}\n`,
       );
-      for (const ms of [bootstrap, admin, unchanged, tap, viewing, deleted]) expect(ms).toBeLessThan(FREE_CPU_MS);
+      for (const ms of [bootstrap, admin, unchanged, tap, viewing, opened, history, deleted])
+        expect(ms).toBeLessThan(FREE_CPU_MS);
     });
   },
 );

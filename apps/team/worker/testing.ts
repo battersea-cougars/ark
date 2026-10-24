@@ -740,3 +740,18 @@ export function testWorld(roster: object[]) {
     luck,
   };
 }
+
+/**
+ * A team's logo as its crest shows it: the club read sends its address (#175), read here and given back as the
+ * data: URL it was saved as, so a use case can say which image it is. Null for none.
+ */
+export async function logoAt(
+  b: { open: (method: string, path: string) => Promise<Response> },
+  address: string | null,
+): Promise<string | null> {
+  if (address === null) return null;
+  const res = await b.open("GET", address);
+  if (!res.ok) throw new Error(`${address}: ${res.status}`);
+  const bytes = Buffer.from(await res.arrayBuffer()).toString("base64");
+  return `data:${res.headers.get("content-type")};base64,${bytes}`;
+}

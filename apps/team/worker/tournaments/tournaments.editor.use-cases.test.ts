@@ -5,7 +5,7 @@
 // Kumite editor; and the editor has no Status: stages change only on the Kumite's page (Manage: Close sign-up,
 // Move to…). So an editor opened before either, and saved after, changes neither back.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { testWorld } from "../testing";
+import { logoAt, testWorld } from "../testing";
 import { tournamentBody } from "../../src/lib/tournament-body";
 
 const ROSTER = [
@@ -97,7 +97,10 @@ describe("a team's name and logo are its page's, never the editor's", () => {
     ).toBe(200);
     expect((await k.save({ ...opened, capacity: 30 })).status).toBe(200);
     const after = (await k.tournament()).teams.find((t: Json) => t.id === team.id);
-    expect({ name: after.name, logo: after.logo }).toEqual({ name: "Dux's Disciples", logo: CREST });
+    expect({ name: after.name, logo: await logoAt(caraP, after.logo) }).toEqual({
+      name: "Dux's Disciples",
+      logo: CREST,
+    });
   });
 
   it("the editor changes a team's captain and keeps the team: same id, same name", async () => {

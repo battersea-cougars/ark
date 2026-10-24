@@ -9,7 +9,7 @@ import { HttpError, json } from "./api.http";
 import { sameTag } from "../../src/app/club-tag";
 import { liveStream } from "../live/live";
 import { ensureSessions } from "../training/training";
-import { bootstrapTag, buildOf, dataVersion, notModified, sessionsMade, tagged } from "./api.version";
+import { bootstrapTag, buildOf, dataVersion, notModified, sessionsMade, tagged, whoseClub } from "./api.version";
 
 export const CLUB_ROUTES: Route[] = [
   {
@@ -38,9 +38,7 @@ export const CLUB_ROUTES: Route[] = [
         await sessionsMade(db, c.today);
         ({ version } = await dataVersion(db));
       }
-      // Whose club, as whom: an admin viewing as Sam isn't sent Sam's own copy, nor their own
-      const whose = c.viewedBy == null ? c.memberId : `${c.viewedBy}as${c.memberId}`;
-      const tag = bootstrapTag(buildOf(c.env), version, whose, c.today);
+      const tag = bootstrapTag(buildOf(c.env), version, whoseClub(c), c.today);
       if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, version);
       const reply = json({
         // Who you are, and who the app is showing (ADR 0024): the member you're viewing as, with their actions

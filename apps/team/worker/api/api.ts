@@ -34,6 +34,7 @@ import { SETTINGS_ROUTES } from "../settings/settings.routes";
 import { PAST_ROUTES } from "../tournaments/past.routes";
 import { SIMULATE_ROUTES } from "../tournaments/simulate.routes";
 import { TOURNAMENTS_ROUTES } from "../tournaments/tournaments.routes";
+import { EDITIONS_ROUTES } from "../tournaments/editions.routes";
 import { TRAINING_ROUTES } from "../training/training.routes";
 import { notify } from "../push/push";
 import { PUSH_ROUTES } from "../push/push.routes";
@@ -72,6 +73,7 @@ export const ROUTES: Route[] = [
   ...REMINDERS_ROUTES,
   // The Kumite and other tournaments: editions, the draft, scoring games
   ...TOURNAMENTS_ROUTES,
+  ...EDITIONS_ROUTES,
   ...DRAFT_ROUTES,
   ...SCORING_ROUTES,
   // A Kumite from before the app, recorded after the fact (ADR 0126)

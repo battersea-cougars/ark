@@ -6,7 +6,7 @@
 // opens the draft, the captains pick them onto their teams, and the admin closes it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { whatsOn } from "../../../web/src/lib/server/whats-on";
-import { NOW, testWorld } from "../testing";
+import { NOW, logoAt, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 
 const ROSTER = [
@@ -38,7 +38,7 @@ async function person(email: string) {
   const b = await w.signedIn(email);
   const sees = async (now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
   const idOf = async (name: string) => (await sees()).members.find((m: Json) => m.name === name).id as number;
-  return { call: b.call, sees, idOf };
+  return { call: b.call, open: b.open, sees, idOf };
 }
 
 /** The admin: makes the series, schedules the tournament, opens sign-up. */
@@ -1008,7 +1008,8 @@ describe("a tournament, from setting it up to the draft", () => {
         const { dana, id, cara, cole, tournament } = await signedUp();
         const [caras, coles] = (await tournament()).teams.map((t: Json) => t.id);
         expect((await look(cara, id, caras, { name: "The Dim Maks", logo: PNG })).status).toBe(200);
-        expect((await tournament()).teams[0]).toMatchObject({ name: "The Dim Maks", logo: PNG });
+        const named = (await tournament()).teams[0];
+        expect({ name: named.name, logo: await logoAt(cara, named.logo) }).toEqual({ name: "The Dim Maks", logo: PNG });
         expect((await look(cara, id, coles, { name: "Losers" })).status).toBe(403);
         expect((await look(dana, id, coles, { name: "Cole's Crew", logo: null })).status).toBe(200);
         expect((await tournament()).teams[1]).toMatchObject({ name: "Cole's Crew", logo: null });

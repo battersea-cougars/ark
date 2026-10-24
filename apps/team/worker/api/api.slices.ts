@@ -11,7 +11,7 @@ import { gamesFrom } from "../tournaments/fixtures";
 import { canGrant, membersFrom, rolesFrom } from "../members/members";
 import { clubEventsFrom } from "../calendar/events";
 import { seriesFrom, type SessionRow } from "../training/training";
-import { teamLogosFrom, tournamentTypesFrom, tournamentsFrom } from "../tournaments/tournaments";
+import { tournamentTypesFrom, tournamentsFrom } from "../tournaments/tournaments";
 import { venuesFrom } from "../settings/venues";
 import { settingsFrom } from "../settings/settings";
 import { teamsFrom } from "../training/training.teams";
@@ -92,7 +92,6 @@ export const SLICES = {
     parts: [
       "tournaments",
       "tournamentTeams",
-      "teamLogos",
       "tournamentPlayers",
       "games",
       "goals",
@@ -114,7 +113,6 @@ export const SLICES = {
             p.winners,
             p.votes,
             p.awardTitles,
-            teamLogosFrom(p.teamLogos),
           ),
           p.tournamentEntries,
         ),

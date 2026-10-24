@@ -1,8 +1,8 @@
 // A club of 120 with years behind it, for what opening the app costs (api.cpu.use-cases.test.ts) and what it sends
 // (bootstrap.same.use-cases.test.ts): the last eight Fridays, 40 at each and all charged, a fee on the training, and
 // three years of Kumites (a few a year, ADR 0009: twelve), each with its teams, logos, games, goals, penalties, awards
-// and sign-ups. The bootstrap sends every tournament there has been (ADR 0053): they're what make it heavy (#175).
-// For Vitest only.
+// and sign-ups. They made the bootstrap heavy when it sent every one (#175); now it sends the next one and the
+// last one played, and the rest are read when they're opened (tournaments/editions.ts). For Vitest only.
 import { expect } from "vitest";
 import { NOW, testWorld } from "../testing";
 

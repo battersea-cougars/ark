@@ -5,7 +5,7 @@
 // unless I change it." The Kumite is one club's series, so nothing about it lives on the member: a captain's new team
 // is worked out from the last one they captained in an earlier edition of the same series, its name and logo.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { testWorld } from "../testing";
+import { logoAt, testWorld } from "../testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -31,7 +31,7 @@ async function person(email: string) {
   const b = await w.signedIn(email);
   const sees = async () => (await b.call("GET", "/api/bootstrap")).body as Json;
   const member = async (name: string) => (await sees()).members.find((m: Json) => m.name === name);
-  return { call: b.call, sees, member };
+  return { call: b.call, open: b.open, sees, member };
 }
 
 async function admin() {
@@ -69,7 +69,7 @@ async function admin() {
     /** A captain's team there: its name and logo. */
     async look(id: number, captain: number) {
       const t = (await tournament(id)).teams.find((x: Json) => x.captainMemberId === captain);
-      return { name: t.name, logo: t.logo };
+      return { name: t.name, logo: await logoAt(p, t.logo) };
     },
     async teamOf(id: number, captain: number) {
       const t = await tournament(id);

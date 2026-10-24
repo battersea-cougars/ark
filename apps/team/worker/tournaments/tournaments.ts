@@ -7,7 +7,7 @@ import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
 import type { Winner } from "./awards";
 import { STATS, decidedByOf, type Award, type DecidedBy, type PlayerStat } from "../../src/lib/awards";
 import type { Game } from "./fixtures";
-import { AsIs, HttpError, bool, date, int, objectsIn, oneOf, text, time } from "../api/api.http";
+import { HttpError, bool, date, int, objectsIn, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
 import { afterFields, placeFields } from "../settings/venues";
 import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
@@ -311,8 +311,8 @@ export type TournamentTeamRow = {
   id: number;
   tournamentId: number;
   name: string;
-  /** Whether it has a logo (1 or 0): the logos are read on their own (teamLogosFrom). */
-  logo: number;
+  /** Its logo's version (api.club.ts LOGO_VERSION), or null for none: the image is at its own address (logoAddress). */
+  logo: string | null;
   captainMemberId: number | null;
   captainName: string;
   contact: string;
@@ -328,17 +328,10 @@ export type TournamentPlayerRow = {
 };
 
 /**
- * Each team's logo as JSON text, from the club read's lines of them (api.club.ts teamLogos): a team's id, a comma, its
- * logo. Each is sent on as it is (AsIs), never parsed: a year of them is most of what opening the app sends (#175).
+ * Where a team's logo is (editions.routes.ts), by its version: an address the browser keeps for good, so a new logo is
+ * a new address. Not the image itself: a year of them was most of what opening the app sent (#175).
  */
-export function teamLogosFrom(text: string | null): Map<number, string> {
-  const logos = new Map<number, string>();
-  for (const line of text ? text.split("\n") : []) {
-    const comma = line.indexOf(",");
-    logos.set(Number(line.slice(0, comma)), line.slice(comma + 1));
-  }
-  return logos;
-}
+export const logoAddress = (teamId: number, version: string) => `/api/tournament-teams/${teamId}/logo?v=${version}`;
 
 /** Tournaments as read (api.club.ts), each with its games, award winners, and teams with their players. */
 export function tournamentsFrom(
@@ -349,7 +342,6 @@ export function tournamentsFrom(
   winners: (Winner & { tournamentId: number })[],
   votes: { tournamentId: number; award: string; cast: number; mine: number | null }[] = [],
   titles: { tournamentId: number; award: string; title: string | null }[] = [],
-  logos: Map<number, string> = new Map(),
 ) {
   // Each put with its tournament (or team) in one pass, not looked for among every one there has been, for each (#175)
   const gamesOf = grouped(games, (g) => g.tournamentId);
@@ -372,7 +364,7 @@ export function tournamentsFrom(
     titles: of(titlesOf, t.id).map(({ tournamentId: _, ...x }) => x),
     teams: of(teamsOf, t.id).map(({ tournamentId: _, ...team }) => ({
       ...team,
-      logo: team.logo ? new AsIs(logos.get(team.id)!) : null,
+      logo: team.logo ? logoAddress(team.id, team.logo) : null,
       players: of(playersOf, team.id).map(({ teamId: _, ...p }) => p),
     })),
   }));
@@ -455,6 +447,8 @@ interface TeamIn {
   logo: string | null;
   /** Sent with its id and no name or logo (the editor, ADR 0030): its look is its page's, so it keeps the one it has. */
   keepsLook: boolean;
+  /** Sent with its own logo's address (ownLogo): the logo it has, kept. */
+  keepsLogo: boolean;
   captainMemberId: number | null;
   captainName: string;
   contact: string;
@@ -462,6 +456,10 @@ interface TeamIn {
 }
 
 const LOGO = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/;
+
+/** The team's logo as the app has it, its own address (logoAddress), sent back: the logo it has, kept. */
+const ownLogo = (teamId: number | null, logo: unknown) =>
+  teamId !== null && typeof logo === "string" && logo.startsWith(`/api/tournament-teams/${teamId}/logo?`);
 
 /** A team's logo: a small image the browser shrank (TeamCard, TeamLookSheet), or none (its initials show). */
 function logoOf(t: Record<string, unknown>): string | null {
@@ -490,6 +488,8 @@ export async function setTeamLook(
   if (!team) throw new HttpError(404, "No such team.");
   if (!by.admin && team.captain !== by.memberId) throw new HttpError(403, "Only its captain or an admin.");
   const name = teamNameOf(o);
+  if (ownLogo(teamId, o.logo))
+    return void (await run(db, "UPDATE tournament_teams SET name = ? WHERE id = ?", [name, teamId]));
   const logo = logoOf(o);
   // This edition's team only: it's then the one its captain brings to the series' next (team-name.ts, ADR 0060)
   await run(db, "UPDATE tournament_teams SET name = ?, logo = ? WHERE id = ?", [name, logo, teamId]);
@@ -504,14 +504,15 @@ function teamsOf(o: Record<string, unknown>, kind: Kind): TeamIn[] | null {
   if (!Array.isArray(o.teams)) throw new HttpError(400, "teams should be a list.");
   if (o.teams.length > 16) throw new HttpError(400, "Up to 16 teams.");
   const teams = objectsIn(o.teams, "teams").map((t): TeamIn => {
-    const logo = logoOf(t);
     const list = t.players ?? [];
     if (!Array.isArray(list) || list.length > 30) throw new HttpError(400, "Up to 30 players a team.");
     const id = int(t, "id", { min: 1, nullable: true });
+    const keepsLogo = ownLogo(id, t.logo);
     const team = {
       id,
       name: teamNameOf(t),
-      logo,
+      logo: keepsLogo ? null : logoOf(t),
+      keepsLogo,
       keepsLook: id !== null && t.name === undefined && t.logo === undefined,
       captainMemberId: int(t, "captainMemberId", { min: 1, nullable: true }),
       captainName: text(t, "captainName", { optional: true, max: 60 }).trim(),
@@ -654,7 +655,7 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
           [
             unseen[i] ? 1 : 0,
             t.name,
-            unseen[i] ? 1 : 0,
+            unseen[i] || t.keepsLogo ? 1 : 0,
             t.logo,
             t.logo,
             t.captainMemberId,

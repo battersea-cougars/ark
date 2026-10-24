@@ -75,7 +75,7 @@ const bound = (v: Viewer) => [
 ];
 
 /** A query's rows as one JSON array of objects, keyed by the query's column names, in the query's order. */
-const rows = (columns: string, select: string) =>
+export const rows = (columns: string, select: string) =>
   `(SELECT json_group_array(json_object(${columns
     .trim()
     .split(/\s+/)
@@ -131,6 +131,29 @@ const mine = "(v.sees_private OR m.id = v.member_id)";
 const DUES_SHOWN = `SELECT v.member_id FROM viewer v
   UNION ALL SELECT m.id FROM viewer v CROSS JOIN members m WHERE v.sees_dues AND m.id <> v.member_id`;
 
+/**
+ * Played: every game over, or an admin marked it finished (lib/edition.ts editionState, @cougars/shared/results isDone).
+ * `t`: the tournament's alias.
+ */
+export const DONE = (t: string) =>
+  `(${t}.status = 'finished' OR (EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id)
+     AND NOT EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id AND g.status <> 'done')))`;
+
+/**
+ * The tournaments the club read sends (#175): each series' front door and running pages (lib/edition.ts latestOf,
+ * currentOf), Home's and the calendar's. Every one not played yet (coming up, on now, its day passed unplayed), each
+ * series' last one played ("last time"), and any played in the last fortnight, for its after-party and Home's results.
+ * The rest are history, read when they're opened (tournaments/editions.ts): opening the app stays the same size
+ * however many there have been.
+ */
+const SHOWN_TOURNAMENTS = `SELECT id FROM (
+    SELECT t.id FROM tournaments t WHERE NOT ${DONE("t")}
+    UNION SELECT (SELECT d.id FROM tournaments d WHERE d.type_id = tt.id AND ${DONE("d")}
+                  ORDER BY d.held_on DESC, d.id DESC LIMIT 1) FROM tournament_types tt
+    UNION SELECT t.id FROM viewer v CROSS JOIN tournaments t WHERE t.held_on >= date(v.today, '-14 days'))
+  WHERE id IS NOT NULL`;
+const SHOWN = "SELECT id FROM shown";
+
 // A tournament's games, goals and penalties: nothing in them is anyone's own, so they're the same for every member,
 // in the club's read and in a live match's (`readMatch`). `where`: which.
 const games = (where = "") =>
@@ -157,6 +180,15 @@ const penalties = (where = "") =>
             recorded_by recordedBy
      FROM tournament_penalties ${where} ORDER BY at_ms IS NULL, period, at_ms, id`,
   );
+/**
+ * A team logo's version, or null for none: its length and a few characters from its middle, as a new image is all but
+ * certain to change one of them. It names the logo's address (tournaments.ts logoAddress), which the browser keeps for
+ * good (tournaments/editions.routes.ts): a new logo is a new address. `t`: the team's alias.
+ */
+export const LOGO_VERSION = (t: string) =>
+  `CASE WHEN ${t}.logo IS NOT NULL THEN length(${t}.logo) || hex(substr(${t}.logo, 1 + length(${t}.logo) / 3, 6))
+     || hex(substr(${t}.logo, 1 + 2 * length(${t}.logo) / 3, 6)) END`;
+
 const PARTS = {
   everydayRole: "json_array((SELECT m.everyday_role_id FROM members m, viewer v WHERE m.id = v.member_id))",
   members: rows(
@@ -231,35 +263,34 @@ const PARTS = {
             t.default_penalty_minutes defaultPenaltyMinutes, t.periods, t.break_minutes breakMinutes, t.kind, t.awards, t.playoffs, t.draft_state draftState,
             t.after_mode afterMode, t.after_venue_id afterVenueId, t.after_time afterTime, t.after_note afterNote,
             t.awards_revealed awardsRevealed, t.awards_next awardsNext, t.awards_confirmed_at awardsConfirmedAt
-     FROM tournaments t ORDER BY t.held_on`,
+     FROM tournaments t WHERE t.id IN (${SHOWN}) ORDER BY t.held_on`,
   ),
-  // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts). Whether
-  // each has a logo: the logos themselves are teamLogos
+  // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts). Each
+  // logo is its version (LOGO_VERSION), not the image: the image is at an address of its own (#175)
   tournamentTeams: rows(
     "id tournamentId name logo captainMemberId captainName contact pick",
-    `SELECT t.id, t.tournament_id tournamentId, t.name, t.logo IS NOT NULL logo, t.captain_member_id captainMemberId,
+    `SELECT t.id, t.tournament_id tournamentId, t.name, ${LOGO_VERSION("t")} logo, t.captain_member_id captainMemberId,
             t.captain_name captainName, CASE WHEN v.sees_contacts THEN t.contact ELSE '' END contact, t.pick
-     FROM tournament_teams t, viewer v ORDER BY t.tournament_id, coalesce(t.pick, 1000), t.id`,
+     FROM viewer v CROSS JOIN tournament_teams t WHERE t.tournament_id IN (${SHOWN})
+     ORDER BY t.tournament_id, coalesce(t.pick, 1000), t.id`,
   ),
-  // Each team's logo, as text and not JSON: a line a team, its id, a comma, and the logo as JSON text. Sent on as it
-  // is (tournaments.ts teamLogosFrom): most of the club's bytes once there's a year of tournaments, never parsed (#175)
-  teamLogos: `(SELECT group_concat(id || ',' || json_quote(logo), char(10)) FROM tournament_teams WHERE logo IS NOT NULL)`,
   tournamentPlayers: rows(
     "teamId memberId name pick pickedBy",
     `SELECT team_id teamId, member_id memberId, name, pick_number pick, picked_by pickedBy FROM tournament_team_players
+     WHERE team_id IN (SELECT id FROM tournament_teams WHERE tournament_id IN (${SHOWN}))
      ORDER BY team_id, coalesce(pick_number, position), id`,
   ),
-  games: games(),
-  goals: goals(),
-  penalties: penalties(),
+  games: games(`WHERE tournament_id IN (${SHOWN})`),
+  goals: goals(`WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id IN (${SHOWN}))`),
+  penalties: penalties(`WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id IN (${SHOWN}))`),
   // Who won each award (ADR 0044). On its evening an award's winner is a surprise until it's revealed at the
   // after-party (ADR 0074): only whoever runs tournaments is sent it before then
   winners: rows(
     "tournamentId award teamId memberId title",
     `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId, w.title
      FROM viewer v CROSS JOIN tournament_award_winners w JOIN tournaments t ON t.id = w.tournament_id
-     WHERE v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening
-        OR ${REVEAL_PLACE} < t.awards_revealed
+     WHERE w.tournament_id IN (${SHOWN})
+       AND (v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening OR ${REVEAL_PLACE} < t.awards_revealed)
      ORDER BY w.tournament_id, w.position`,
   ),
   // Which awards were given, and the judges' call's name tonight (ADR 0044): everyone's once the awards are confirmed,
@@ -267,16 +298,18 @@ const PARTS = {
   // awardsToReveal); who won each waits for the reveal
   awardTitles: rows(
     "tournamentId award title",
-    `SELECT tournament_id tournamentId, award, MAX(title) title FROM tournament_award_winners GROUP BY tournament_id, award`,
+    `SELECT tournament_id tournamentId, award, MAX(title) title FROM tournament_award_winners
+     WHERE tournament_id IN (${SHOWN}) GROUP BY tournament_id, award`,
   ),
   // A voted award's votes (ADR 0044): how many are in, and the one this member cast. Who voted for whom is never sent
   votes: rows(
     "tournamentId award cast mine",
     `SELECT x.tournament_id tournamentId, x.award, COUNT(*) "cast",
             MAX(CASE WHEN x.voter_member_id = v.member_id THEN x.candidate_member_id END) mine
-     FROM viewer v CROSS JOIN tournament_award_votes x GROUP BY x.tournament_id, x.award`,
+     FROM viewer v CROSS JOIN tournament_award_votes x WHERE x.tournament_id IN (${SHOWN})
+     GROUP BY x.tournament_id, x.award`,
   ),
-  tournamentEntries: entries("tournament_entries", "tournament_id", "SELECT id FROM tournaments"),
+  tournamentEntries: entries("tournament_entries", "tournament_id", SHOWN),
   clubEvents: rows(
     "id title startsAt endsAt venueId venue mapUrl description public signup capacity cancelledAt",
     `SELECT ce.id, ce.title, ce.starts_at startsAt, ce.ends_at endsAt, ce.venue_id venueId, ce.venue,
@@ -374,22 +407,30 @@ const PARTS = {
 } as const;
 
 export type Part = keyof typeof PARTS;
-/** The parts read as text, not JSON: as they are, or null for none. */
-const TEXT: ReadonlySet<Part> = new Set(["teamLogos"]);
 
 /** Each part's rows. Loosely typed: each domain module's shaping says what its rows are. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Parts = Record<Exclude<Part, "teamLogos">, any[]> & { teamLogos: string | null };
+export type Parts = Record<Part, any[]>;
 
-/** The parts asked for, as this viewer may see them, in one statement. */
-export async function readClub(db: D1Database, viewer: Viewer, parts: readonly Part[]): Promise<Parts> {
-  const sql = `WITH viewer (${VIEWER.join(", ")}) AS (VALUES (${VIEWER.map(() => "?").join(", ")}))
+/**
+ * The parts asked for, as this viewer may see them, in one statement. `tournament`: that one's parts alone, whatever
+ * it is (a past one opened, tournaments/editions.ts), in place of the ones the club read sends (SHOWN_TOURNAMENTS).
+ */
+export async function readClub(
+  db: D1Database,
+  viewer: Viewer,
+  parts: readonly Part[],
+  tournament?: number,
+): Promise<Parts> {
+  const shown = tournament === undefined ? SHOWN_TOURNAMENTS : "VALUES (?)";
+  const sql = `WITH viewer (${VIEWER.join(", ")}) AS (VALUES (${VIEWER.map(() => "?").join(", ")})),
+      shown (id) AS MATERIALIZED (${shown})
     SELECT ${parts.map((p) => `${PARTS[p]} AS "${p}"`).join(",\n")}`;
   const row = await db
     .prepare(sql)
-    .bind(...bound(viewer))
+    .bind(...bound(viewer), ...(tournament === undefined ? [] : [tournament]))
     .first<Record<Part, string>>();
-  return Object.fromEntries(parts.map((p) => [p, TEXT.has(p) ? row![p] : JSON.parse(row![p])])) as Parts;
+  return Object.fromEntries(parts.map((p) => [p, JSON.parse(row![p])])) as Parts;
 }
 
 /** One tournament's games, goals and penalties, and its teams in pick order (who keeps score, fixtures.ts). */

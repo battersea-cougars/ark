@@ -542,7 +542,7 @@ async function kumites() {
       scorers: { home: [pastTeams[home].captainMemberId, pastTeams[home].players[0]], away: [null] },
     })),
   );
-  await hit(
+  const recorded = await hit(
     dana,
     "POST",
     "/api/tournaments/past",
@@ -560,6 +560,18 @@ async function kumites() {
     },
     EVENING,
   );
+  const reg = await member(1);
+  // History (#175): a page of the played ones, every series' too, the all-time leaders, and the past one opened, by
+  // itself, by one of its games and by one of its teams, its crest at its own address
+  await hit(reg, "GET", `/api/tournament-types/${KUMITE_TYPE}/editions?limit=5`);
+  await hit(dana, "GET", "/api/tournaments/editions");
+  await hit(reg, "GET", `/api/tournament-types/${KUMITE_TYPE}/leaders`);
+  const past = (await hit(reg, "GET", `/api/tournaments/${recorded.body.id}`)).body.tournament;
+  await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/tournament`);
+  await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/tournament`);
+  const crest = "data:image/png;base64,iVBORw0KGgo=";
+  await hit(dana, "PUT", `/api/tournaments/${past.id}/teams/${past.teams[0].id}/look`, { name: "Crest", logo: crest });
+  await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/logo`);
   // A Kumite on a past day (dev, ADR 0123): made, then played out on that evening to its last award, at Spin kick
   const pastDay = await hit(dana, "POST", "/api/tournaments/past-day", { typeId: KUMITE_TYPE, heldOn: "2026-09-25" });
   for (let i = 0; i < 200; i++) {

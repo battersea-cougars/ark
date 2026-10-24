@@ -8,7 +8,9 @@
 // build may send a different shape).
 import { first, run } from "@cougars/shared/d1";
 import { APP_BUILD, BUILD_HEADER } from "../../src/app/build";
-import { clubTag, VERSION_HEADER } from "../../src/app/club-tag";
+import { clubTag, sameTag, VERSION_HEADER } from "../../src/app/club-tag";
+import { json } from "./api.http";
+import type { Ctx } from "./api.route";
 
 // On your own machine, the Worker's code reloads on every change, and with it this
 const STARTED = Date.now().toString(36);
@@ -67,3 +69,18 @@ export const notModified = (tag: string, version: number) =>
     status: 304,
     headers: { etag: tag, "cache-control": NOT_KEPT, [BUILD_HEADER]: APP_BUILD, [VERSION_HEADER]: String(version) },
   });
+
+/** Whose club a reply is, as whom: an admin viewing as Sam isn't sent Sam's own copy, nor their own (ADR 0024). */
+export const whoseClub = (c: Ctx) => (c.viewedBy == null ? String(c.memberId) : `${c.viewedBy}as${c.memberId}`);
+
+/**
+ * A read of part of the club on demand (a past tournament, a page of History; #175), tagged as the bootstrap is: at
+ * the data version, for this member, today, from this deploy, and `what` it is (no dots). Asked again with its tag
+ * while nothing's changed, an empty 304 after one row read; never kept by the browser, as the bootstrap isn't.
+ */
+export async function versionedRead(c: Ctx, what: string, read: () => Promise<unknown>): Promise<Response> {
+  const { version } = await dataVersion(c.env.DB);
+  const tag = bootstrapTag(buildOf(c.env), version, `${whoseClub(c)}~${what}`, c.today);
+  if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, version);
+  return tagged(json(await read()), tag, version);
+}
