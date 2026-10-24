@@ -16,7 +16,7 @@ import { gmailCredentials, type GmailEnv } from "@cougars/shared/gmail-token";
 import { mailOutcome } from "../mail/mail.health";
 import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";

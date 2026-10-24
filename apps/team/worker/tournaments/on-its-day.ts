@@ -6,7 +6,7 @@
 // kicks off a few minutes after the last ended. Then, past the matches, the awards: confirmed with a winner each (the
 // stats' and a draw's from the data, a vote's and the judges' call chosen at random), and each one revealed in turn.
 import { awardFromData, candidatesOf, decidedByOf, LIVE_OPTIONS, playersOf } from "../../src/lib/awards";
-import { londonISO } from "../../src/lib/dates";
+import { londonISO } from "@cougars/shared/london";
 import { awardsDataOf, nextAward, revealAward, setWinners, type Winner } from "./awards";
 import { randomBelow } from "./draft";
 import type { Game } from "./fixtures";

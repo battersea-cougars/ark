@@ -1,6 +1,6 @@
 // When the push outbox sends, and how much at a time (ADR 0108): every number it goes by, in one place. Change one
 // here and the outbox, its tests and the cron follow; ADR 0108 says why each is what it is.
-import { londonDate, londonISO } from "@cougars/shared/london";
+import { londonDate, londonISO, londonTime } from "@cougars/shared/london";
 
 /**
  * Quiet hours, London's wall clock (so across the clock changes): a notification that isn't about something happening
@@ -36,12 +36,6 @@ export const KEEP_DAYS = 7;
 export const PRUNE_AT_ONCE = 500;
 
 /** London's wall clock, "HH:MM", 00:00 to 23:59. */
-const london = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/London",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
 const nextDay = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 /**
@@ -50,7 +44,7 @@ const nextDay = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) + 86_40
  */
 export function quietUntil(now: Date): Date | null {
   const { from, until } = QUIET_HOURS;
-  const clock = london.format(now);
+  const clock = londonTime(now.toISOString());
   const day = londonDate(now);
   const wraps = from > until;
   const quiet = wraps ? clock >= from || clock < until : clock >= from && clock < until;

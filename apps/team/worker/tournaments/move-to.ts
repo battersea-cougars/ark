@@ -9,7 +9,7 @@
 import { batch, run, statement } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { planMove, statusNow, type MovePlan, type MoveStep, type Moving } from "../../src/lib/move-to";
 import { statusList, type Status } from "../../src/lib/tournament-front";
 import { BACK_FROM, type BackFrom } from "../../src/lib/step-back";

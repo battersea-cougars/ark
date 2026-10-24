@@ -6,7 +6,7 @@
 import { all, batch, changesOf, first, run, statement, type Param } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { QUARTER, feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } from "../../src/lib/dues";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { HttpError, isDay } from "../api/api.http";
 import { bumpDataVersion } from "../api/api.version";
 

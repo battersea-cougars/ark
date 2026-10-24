@@ -70,7 +70,7 @@ schedule, a card per tournament), Tournament Series (the series and their defaul
 - A single night the rule gives can be made ahead of the weeks (`POST /api/series/:id/sessions`), so a clash far off can
   be cancelled before the rest are made ([0122](0122-asked-about-clashes.md)).
 - **The register closes at 06:00 London the morning after** (#11): when the night's evening ends, the Kumite's
-  after-party rule (`lib/dates.ts` `londonEvening`, `lib/register-closes.ts`, shared by the app and the Worker). Till
+  after-party rule (`londonEvening` in `packages/shared/london.ts`, `lib/register-closes.ts`, shared by the app and the Worker). Till
   then whoever takes the register puts it right; from then who came, and what it charged (ADR
   [0007](0007-dues-and-payments.md)), is the record. Every change to who was there is refused (409, "The register's
   closed: it closed at 6am the morning after."): the register, an admin putting someone in or taking them off, Let

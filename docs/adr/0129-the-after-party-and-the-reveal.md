@@ -15,7 +15,7 @@ the awards' stage and the reveal. It was part of 0074 until 2026-10-24.
 
 - **The after-party** ("The evening a Kumite ends: the last step should be the after party", the user, 2026-10-22)
   starts when the last match is played (or an admin marks it finished) and lasts till 06:00 London the next morning
-  (`atAfters` in `lib/edition.ts`, `londonEvening` in `lib/dates.ts`: before 06:00 it's still the night before's
+  (`atAfters` in `lib/edition.ts`, `londonEvening` in `packages/shared/london.ts`: before 06:00 it's still the night before's
   evening). All that time the series' page is still on it, even with the next one scheduled (`currentOf`); then it moves
   on to the next one or "No Kumite yet", and it's in History. Results typed in on another day, or a tournament with only
   a season, go straight to history. Home's hero is its card ("At The Anchor · awards", the awards so far), ahead of

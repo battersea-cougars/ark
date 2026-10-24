@@ -7,7 +7,7 @@
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
-import { londonTime, londonToday } from "../../src/lib/dates";
+import { londonTime, londonToday } from "@cougars/shared/london";
 import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
 import { offTeams } from "../training/training.teams";

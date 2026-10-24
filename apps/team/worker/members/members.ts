@@ -5,7 +5,7 @@ import { ACTIONS, can, type Action } from "../../src/access/actions";
 import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
 import { tellTheyreIn } from "./members.mail";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { QUARTER, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
 
 export interface MemberJson {

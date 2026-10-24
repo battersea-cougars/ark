@@ -3,7 +3,7 @@
 // a night, under Your place (topic `places`), so a member who turned that off isn't told. Nor is one who's answered
 // already: said Out before it opened (taking it back puts them among those told), or put in by an admin.
 import { all } from "@cougars/shared/d1";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { nightPath } from "../../src/lib/night-off";
 import { notify, type PushEnv } from "../push/push";
 

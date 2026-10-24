@@ -1,6 +1,7 @@
-// Europe/London formatting. A copy of the website's helpers until dates.ts moves to shared/ (#35);
-// projects don't import each other's files (ADR 0006).
-import { londonDate } from "@cougars/shared/london";
+// Europe/London dates for members to read: the team app's own words and formats. The conversions (London's date
+// today, a wall-clock time's instant, the evening) are the one shared copy in @cougars/shared/london (#35), passed on
+// here so the app's pages import their dates from one place.
+export { londonEvening, londonISO, londonTime, londonToday } from "@cougars/shared/london";
 const TZ = "Europe/London";
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
 
@@ -50,39 +51,3 @@ export const pounds = (pence: number) =>
     currency: "GBP",
     minimumFractionDigits: pence % 100 ? 2 : 0,
   });
-
-/** The UTC instant of a London wall-clock time on a date: londonISO("2026-10-09", "19:30"). BST-safe. */
-export function londonISO(date: string, time: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  const [hh, mm] = time.split(":").map(Number);
-  const guess = Date.UTC(y, m - 1, d, hh, mm);
-  const offset = (t: number) => {
-    const p = new Intl.DateTimeFormat("en-GB", {
-      timeZone: TZ,
-      hourCycle: "h23",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).formatToParts(new Date(t));
-    const get = (type: string) => Number(p.find((x) => x.type === type)!.value);
-    return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) - t;
-  };
-  return new Date(guess - offset(guess)).toISOString();
-}
-
-/** Today's date in London, "YYYY-MM-DD". */
-/** "19:30": the London wall-clock time of an instant, for a time input. */
-export const londonTime = (iso: string) => time.format(new Date(iso));
-export const londonToday = (now = new Date()) => londonDate(now);
-
-/**
- * The evening a moment belongs to, as London's date (ADR 0074): from 06:00 it's that day's; before 06:00 it's still
- * the night before's, so a Kumite's after-party runs past midnight till the morning.
- */
-export function londonEvening(now = new Date()): string {
-  const day = londonDate(now);
-  if (now.getTime() >= Date.parse(londonISO(day, "06:00"))) return day;
-  return new Date(Date.parse(`${day}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-}

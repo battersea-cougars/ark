@@ -24,7 +24,7 @@ import {
 import type { KeyObject } from "node:crypto";
 import { SITEVERIFY } from "@cougars/shared/turnstile";
 import { authenticator } from "./testing.authenticator";
-import { londonISO } from "../src/lib/dates";
+import { londonISO } from "@cougars/shared/london";
 
 /** An issue as Sentry's API lists it, with the environment and status the fake filters by. */
 export interface SentryIssue {

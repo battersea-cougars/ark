@@ -8,7 +8,7 @@ import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import type { Action } from "../../src/access/actions";
 import { HttpError } from "../api/api.http";
 import { canGrant } from "./members";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 
 export interface ImportRow {
   row: number;

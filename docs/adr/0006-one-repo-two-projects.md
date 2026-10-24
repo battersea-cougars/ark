@@ -1,7 +1,7 @@
 # 0006. One repo: the apps in apps/, shared code in packages/; the team generator runs in the browser
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-09
+- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-24
 - **Merges:** 0021
 
 ## Context
@@ -28,6 +28,11 @@ the Sanity helpers and the Europe/London date code. Gwenda's ark repo solves the
 - **An app never imports another app's files.** Anything both need moves to `packages/shared`, which stays
   framework-free. (Use-case tests are the exception: the team app's may read through the website's modules, to show
   what a visitor sees.)
+- **London's dates as data are one copy, `packages/shared/london.ts`**: London's date of a moment (`londonDate`,
+  `londonDay`, `londonToday`), its wall clock (`londonTime`), the instant of a wall-clock time (`londonISO`) and the
+  evening a moment belongs to (`londonEvening`). The website, the team app and its Worker all use it; the Worker imports
+  it from there, and each app's `lib/dates.ts` passes it on beside its own display formats, which stay per app
+  ("Fri 4 Dec 2026" on the site, "Fri 9 Oct · 7:30pm" in the app) (#35).
 - Each project has its own Worker and deploy step
   ([ADR 0010](0010-environments-and-deploys.md)). Rules in CLAUDE.md say which project they apply to.
 - **The roadmap is GitHub milestones**, not a doc: each milestone is prefixed with its project (`Website:` or
@@ -58,3 +63,5 @@ the Sanity helpers and the Europe/London date code. Gwenda's ark repo solves the
 - 2026-10-09: The glpk.js port was dropped for a swap search ([0102](0102-balanced-teams-by-swap-search.md)).
 - 2026-10-09: The organisation became `battersea-cougars` and the repo `ark`, the name of every monorepo built this
   way (like gwenda-hackney/ark): `battersea-cougars/ark`.
+- 2026-10-24: London's date conversions became one copy in `packages/shared/london.ts`; `londonISO` had been written
+  three times (shared, the website's and the team app's `lib/dates.ts`). Display formats stay in each app (#35).

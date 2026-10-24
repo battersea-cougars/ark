@@ -26,7 +26,7 @@ import { drawOrder, finishDraft, goaliesFirst, isDrawn, openDraft, pick, randomB
 import { listGames, makeFixtures, tournamentOf, type Game } from "./fixtures";
 import { addGoal, addPenalty, clockGame, holdScoresheet } from "./scoring";
 import { awardsMove, eveningClock, type Evening } from "./on-its-day";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 
 /**
  * Whether the simulator exists on this Worker: only where the environment says, in so many words, that it isn't

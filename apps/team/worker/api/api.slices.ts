@@ -2,7 +2,7 @@
 // part as this member may see it.
 import { fromRow as agendaItem, ensureAgenda, type AgendaRow } from "@cougars/shared/agenda";
 import { can, type Action } from "../../src/access/actions";
-import { londonEvening } from "../../src/lib/dates";
+import { londonEvening } from "@cougars/shared/london";
 import { type Ctx } from "./api.route";
 import { readClub, type Part, type Parts, type Viewer } from "./api.club";
 import { chargesFrom } from "../dues/dues";

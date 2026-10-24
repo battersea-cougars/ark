@@ -6,7 +6,8 @@
 import { all, first, run, type Param } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
-import { formatDayDate, londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
+import { formatDayDate } from "../../src/lib/dates";
 import { notify, type Notice, type PushEnv } from "../push/push";
 import { invitationOnly } from "../../src/lib/motif";
 

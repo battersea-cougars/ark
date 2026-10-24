@@ -1,7 +1,7 @@
 // The team app's JSON API: a table of contents. Each feature's routes live with it ({feature}.routes.ts, ADR 0105);
 // this file mounts them and does what they share. Every route declares the action it needs (ADR 0024); a request is
 // refused unless the signed-in member's roles grant it (manage:all grants everything). Anything not listed is a 404.
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { type Ctx, type Env, type Route } from "./api.route";
 import { ACCESS, SCHEDULE, slices } from "./api.slices";
 import { audit, auditRefused } from "../settings/audit";

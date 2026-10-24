@@ -1,6 +1,5 @@
 // The club is in London: always format in Europe/London, whatever the build
 // machine's timezone is.
-import { londonDay } from "@cougars/shared/london";
 const TZ = "Europe/London";
 
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
@@ -44,26 +43,6 @@ export function formatRange(startIso: string, endIso?: string | null) {
   return sameDay ? `${start} to ${formatTime(endIso)}` : `${start} to ${formatDayDate(endIso)} · ${formatTime(endIso)}`;
 }
 
-/** "2026-10-02": the calendar day in London, like a Sanity `date` field. */
-export { londonDay };
-
-/** The UTC instant of a London wall-clock time on a date: londonISO("2026-10-09", "19:30"). BST-safe. */
-export function londonISO(date: string, time: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  const [hh, mm] = time.split(":").map(Number);
-  const guess = Date.UTC(y, m - 1, d, hh, mm);
-  // London's offset at that moment, from what the clock there reads
-  const offset = (t: number) => {
-    const p = fmt({
-      hourCycle: "h23",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).formatToParts(new Date(t));
-    const get = (type: string) => Number(p.find((x) => x.type === type)!.value);
-    return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) - t;
-  };
-  return new Date(guess - offset(guess)).toISOString();
-}
+/** "2026-10-02": the calendar day in London, like a Sanity `date` field; and the instant of a London wall-clock
+ * time. The one shared copy (@cougars/shared/london, #35), passed on so the site imports its dates from one place. */
+export { londonDay, londonISO } from "@cougars/shared/london";

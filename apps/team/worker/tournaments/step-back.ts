@@ -7,7 +7,7 @@ import { batch, statement } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
 import { can, type Action } from "../../src/access/actions";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { BACK_FROM, DRAFT_STEPS, backFrom, type BackFrom } from "../../src/lib/step-back";
 import { clearingFixtures } from "./fixtures";
 

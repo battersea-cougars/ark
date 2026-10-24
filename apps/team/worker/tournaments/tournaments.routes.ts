@@ -8,7 +8,7 @@ import { backFromIn, stepBack, whereItIs } from "./step-back";
 import { moveIn, moveTo, whereItStands } from "./move-to";
 import { closeSignup } from "./signup";
 import { draftPaused, movedTo, tournamentMade, tournamentSaved } from "../push/push.notices";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { body, json } from "../api/api.http";
 import {
   createTournament,

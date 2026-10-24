@@ -8,7 +8,7 @@
 // (the five-minute cron), so a send to the whole club is done within minutes.
 import { all, batch, statement } from "@cougars/shared/d1";
 import { bucketOf } from "../../src/lib/dues";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { HttpError } from "../api/api.http";
 import type { Env } from "../api/api.route";
 import { bankFrom, type Bank, type SettingsRow } from "../settings/settings";
