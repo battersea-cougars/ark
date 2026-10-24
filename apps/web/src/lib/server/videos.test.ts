@@ -19,6 +19,8 @@ function fakeNetwork({
   videos = [pasted] as object[],
   youtube = "ok" as "ok" | "down",
   sanityUp = true,
+  processing = [] as string[],
+  statusDown = false,
 } = {}) {
   const calls = { sanity: 0, youtube: 0 };
   const fetch = vi.fn(async (input: string | URL) => {
@@ -31,6 +33,12 @@ function fakeNetwork({
     calls.youtube++;
     if (youtube === "down") return Response.json(fixtures.quotaExceeded, { status: 403 });
     if (url.pathname.endsWith("/channels")) return Response.json(fixtures.channels);
+    if (url.pathname.endsWith("/videos")) {
+      if (statusDown) return new Response("{}", { status: 503 });
+      const ids = url.searchParams.get("id")?.split(",") ?? [];
+      const uploadStatus = (id: string) => (processing.includes(id) ? "uploaded" : "processed");
+      return Response.json({ items: ids.map((id) => ({ id, status: { uploadStatus: uploadStatus(id) } })) });
+    }
     return Response.json({ items: fixtures.playlistItems.items });
   });
   return { fetch, calls };
@@ -78,13 +86,34 @@ describe("liveVideos", () => {
     const { fetch, calls } = fakeNetwork({ club: { socials: { youtube: "https://www.youtube.com/@club" } } });
     vi.stubGlobal("fetch", fetch);
     for (let i = 0; i < 5; i++) await liveVideos(config(), { now, edge: null });
-    expect(calls).toEqual({ sanity: 1, youtube: 2 }); // channels + playlistItems
+    expect(calls).toEqual({ sanity: 1, youtube: 3 }); // channels + playlistItems + videos
     t += 61_000;
     await liveVideos(config(), { now, edge: null });
-    expect(calls).toEqual({ sanity: 2, youtube: 2 });
+    expect(calls).toEqual({ sanity: 2, youtube: 3 });
     t += 10 * 60_000;
     await liveVideos(config(), { now, edge: null });
-    expect(calls.youtube).toBe(4);
+    expect(calls.youtube).toBe(6);
+  });
+
+  it("shows a new upload only once YouTube has finished processing it, within ten minutes", async () => {
+    const club = { youtubePlaylists: [{ url: "PLabcdefghijklmnop", label: "Friday hockey" }] };
+    vi.stubGlobal("fetch", fakeNetwork({ club, processing: ["aaaaaaaaaaa"] }).fetch);
+    const titles = async () => (await liveVideos(config(), { now, edge: null })).data.map((v) => v.title);
+    expect(await titles()).not.toContain("Friday session, full game");
+    vi.stubGlobal("fetch", fakeNetwork({ club }).fetch);
+    t += 9 * 60_000;
+    expect(await titles()).not.toContain("Friday session, full game"); // still the cached list
+    t += 61_000;
+    expect(await titles()).toContain("Friday session, full game");
+  });
+
+  it("keeps the last good list when YouTube won't say which videos are ready", async () => {
+    const club = { youtubePlaylists: [{ url: "PLabcdefghijklmnop", label: "Friday hockey" }] };
+    vi.stubGlobal("fetch", fakeNetwork({ club, processing: ["aaaaaaaaaaa"] }).fetch);
+    const before = (await liveVideos(config(), { now, edge: null })).data;
+    t += 11 * 60_000;
+    vi.stubGlobal("fetch", fakeNetwork({ club, statusDown: true }).fetch);
+    expect((await liveVideos(config(), { now, edge: null })).data).toEqual(before);
   });
 
   it("reads Sanity through its API CDN", async () => {

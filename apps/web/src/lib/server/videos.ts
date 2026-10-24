@@ -2,7 +2,8 @@
 // minutes, with no rebuild. Two cached reads, merged:
 //   - Sanity: the club's YouTube settings and the `video` documents (overrides and pasted links). Fresh for a
 //     minute, so Studio changes show quickly; Sanity's API CDN is cheap.
-//   - YouTube: the club playlist or channel. Fresh for ten minutes, so a page view almost never costs quota;
+//   - YouTube: the club playlist or channel, without videos still processing (lib/youtube.ts). Fresh for ten
+//     minutes, so a page view almost never costs quota and a video shows within ten minutes of being ready;
 //     if YouTube fails, the last good list is shown for up to a day.
 // Never throws. Without an API key, or before the club has a channel, it's the Sanity videos only.
 import { cached, type CacheDeps, type CacheOptions } from "./cache";

@@ -24,8 +24,9 @@ export const embedUrl = (id: string) => `https://www.youtube-nocookie.com/embed/
 // ---------------------------------------------------------------------------------------------------------------
 // The club's videos from YouTube, read live and cached (lib/server/videos.ts, docs/adr/0016-photos-and-videos-read-live.md).
 // YouTube Data API v3 with an API key: a club playlist is read directly; a channel costs one `channels` call to find
-// its uploads playlist first. Then one `playlistItems` call per 50 videos. Each call is 1 unit of the free 10,000 a
-// day.
+// its uploads playlist first. Then, per 50 videos, one `playlistItems` call and one `videos` call asking which are
+// done processing (a video is in the playlist from the moment its upload starts). Each call is 1 unit of the free
+// 10,000 a day.
 
 export type Channel = { handle: string } | { id: string };
 
@@ -202,7 +203,26 @@ const apiGet =
       return body;
     });
 
-/** A playlist's videos in playlist order, at most `max`. Unlisted ones count when `unlisted` is set. Throws. */
+/**
+ * Which of these videos YouTube has finished processing (one `videos` call, at most 50 ids). A video sits in its
+ * playlist while it's still uploading or processing, with a grey placeholder for a thumbnail and nothing to play;
+ * its `uploadStatus` is "uploaded" then, and "processed" once it's ready. Failed, rejected and deleted uploads, and
+ * any the API doesn't return, never count. (`processingDetails` would say more, but only to the channel's owner.)
+ */
+async function processedIds(get: ReturnType<typeof apiGet>, ids: string[]): Promise<Set<string>> {
+  if (ids.length === 0) return new Set();
+  const { items = [] } = await get<{ items?: { id?: string; status?: { uploadStatus?: string } }[] }>("videos", {
+    part: "status",
+    id: ids.join(","),
+    maxResults: String(PAGE),
+  });
+  return new Set(items.flatMap((v) => (v.id && v.status?.uploadStatus === "processed" ? [v.id] : [])));
+}
+
+/**
+ * A playlist's videos in playlist order, at most `max`, leaving out any YouTube is still processing. Unlisted ones
+ * count when `unlisted` is set. Throws.
+ */
 export async function fetchPlaylistVideos(
   playlistId: string,
   key: string,
@@ -218,10 +238,12 @@ export async function fetchPlaylistVideos(
       maxResults: String(PAGE),
       ...(pageToken ? { pageToken } : {}),
     });
-    for (const item of page.items ?? []) {
-      const v = toVideo(item, { unlisted });
-      if (v) videos.push(v);
-    }
+    const listed = (page.items ?? []).flatMap((item) => toVideo(item, { unlisted }) ?? []);
+    const ready = await processedIds(
+      get,
+      listed.map((v) => youtubeId(v.youtubeUrl)!),
+    );
+    videos.push(...listed.filter((v) => ready.has(youtubeId(v.youtubeUrl)!)));
     pageToken = page.nextPageToken;
   } while (pageToken && videos.length < max);
   return videos.slice(0, max);

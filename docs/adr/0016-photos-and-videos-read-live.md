@@ -89,3 +89,8 @@ background are ready-sized files in `src/assets/`.
 - 2026-10-07: Caching moved to the shared rules for every live read ([ADR 0053](0053-live-reads-are-cached.md)).
 - 2026-10-20: Photos are the club's Instagram now ([ADR 0113](0113-photos-from-instagram.md)); Studio albums and
   their pages are gone, and the Sanity reading moved to `lib/server/sanity-live.ts`.
+- 2026-10-24: A video still uploading or processing on YouTube is left out (it showed with YouTube's grey
+  placeholder): after each page of the playlist, one `videos` call (`part=status`, per 50 videos, 1 unit) keeps only
+  those whose `uploadStatus` is "processed", so YouTube costs two calls per 50 videos every 10 minutes. A video shows
+  within the 10-minute cache of being ready; if that call fails, the last good list is shown, as for any YouTube
+  failure.
