@@ -111,7 +111,10 @@ session's fee.
 
 - **Dues are a ledger.** A member's dues (their own Dues page, and the Dues tab on their card for admins) read like a
   bank statement: every charge and payment by date, newest first, with what they owe after each (below nothing,
-  credit). Its header stays in view as it scrolls. Payments are allocated to charges behind it
+  credit). Its header stays in view as it scrolls. It's read a page at a time as it scrolls
+  (`GET /api/members/:id/ledger`, `dues.ledger.ts`), each line's balance worked out by the server: what they owe now,
+  less the lines above it. Opening the app sends only your own unpaid charges and a line per member of what they owe
+  (`dues`: in all, overdue, by age, and credit), so it's the same size however long the club's been charging (#177). Payments are allocated to charges behind it
   (`payment_allocations`) but aren't ticked off charge by charge.
 - **Adjustments, with why.** Whoever records payments can adjust what someone owes, for whatever reason, saying why
   (Adjust on the Dues tab): adding to it is a charge with a `reason`; taking some off is like money in (a payment,
@@ -165,12 +168,15 @@ session's fee.
 - **Owing is a badge, not a nag.** The Dues tab carries what you owe as a badge until it's paid, and Home's header
   as a quiet chip ("£24 to pay", opening your tab), never a row in its feed: the session you came to sign up for
   leads the page ([0118](0118-home-calls-to-action-then-feed.md)). Settling up before signing up is an open question (#66).
-- **What a session collected** is the sum of its paid charges, shown beside what it was due (the training's editor).
+- **What a session collected** is the sum of its paid charges, shown beside what it was due (the training's editor),
+  read from the server for the nights shown (`GET /api/dues/collected`): the money for who sees dues, how many were
+  charged for anyone who edits it (a tournament's fee is fixed once anyone is).
 - Who sees everyone's charges: `read:Dues` or `record:Payment`. Anyone else sees only their own (ADR 0036).
 - Marking a payment, taking one back, a lump sum, a quarter charged or taken back by hand, and a new quarterly rate
   are on the record ([0095](0095-audit-log.md)).
-- **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member and
-  bucketed by each charge's age in plain words: **Up to 30 days**, **31 to 60 days**, **61 to 90 days**, **Over 90
+- **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member (by
+  the server, from the charges not paid in full: `charges.paid_pence`, kept by triggers on `payment_allocations`, with
+  an index on what's owing) and bucketed by each charge's age in plain words: **Up to 30 days**, **31 to 60 days**, **61 to 90 days**, **Over 90
   days** (ranges say "to", never a dash). The reminders' stored stages keep their old keys (`minor`, `major`,
   `misconduct`); nobody sees them. Column totals, a drill-down to each member's charges, and CSV export. Send reminders
   is its main button; its Manage button holds the bank details.
@@ -256,3 +262,9 @@ session's fee.
   ([0118](0118-home-calls-to-action-then-feed.md)).
 - 2026-10-24: The register closes at 06:00 London the morning after (#11, the user; ADR 0030): charges follow it until
   then, and from then it's the record (was: no closing, charges follow it whenever it changes). No reopening yet.
+- 2026-10-24: Opening the app no longer sends every charge and payment there has been, everyone's to an admin (#177):
+  your own unpaid charges, and `dues`, a line per member of what they owe by age and their credit, worked out by the
+  server; a ledger is read a page at a time, newest first, its balances from the server, and what a night collected is
+  read for its editor. Each charge keeps what's paid on it and each payment what's spent (`paid_pence`,
+  `spent_pence`, by triggers), so what's owed and credit are found by index. With a year of Fridays an admin's open is
+  78 KB, not 1.7 MB (docs/load-testing.md).

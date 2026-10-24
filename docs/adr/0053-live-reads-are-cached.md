@@ -57,7 +57,13 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - **What grows with the club's history isn't in the bootstrap**: past tournaments are read when they're opened, a page
   of History at a time ([0074](0074-tournament-home-and-scheduling.md), #175), each tagged the same way (the data
   version, the member, the day, the deploy, and what it is), so asking again unchanged is an empty 304; a team's logo is
-  an address with its version in it, `private, max-age=31536000, immutable`.
+  an address with its version in it, `private, max-age=31536000, immutable`, unless it's small (2 KB or less, a
+  generated crest), when it comes as itself, so a page of twenty isn't twenty requests. The same for dues (#177,
+  [0007](0007-dues-and-payments.md)): your unpaid charges and a line per member of what they owe, a ledger a page at a
+  time; and for what looked through every edition the app held: a matchup's past meetings, the editor's "Brings" and
+  Venues' "used by" are each a small read. Each member's "played" is counted once, as each night's register closes
+  (`members.played`, up to `data_version.played_through`, by the day's first open and the hourly run), plus the night
+  or two since, so no open counts every night ever played.
 
 ## Consequences
 
@@ -91,3 +97,7 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   pages and the all-time leaders are read on demand with the same tag, logos by their own address (#175, ADR 0074).
 - 2026-10-24: A cached value can be made not fresh by a time (`freshAfter`): Refresh photos and videos in the team app
   (#109, ADR 0016). The time is a D1 read cached for 30 seconds.
+- 2026-10-24: Nor every charge and payment, nor every night's attendance counted again (#177): your unpaid charges and
+  each member's line of what they owe, a ledger a page at a time, "played" stored as registers close; the matchup's
+  meetings, the editor's Brings and Venues' used by read from the server; a logo of 2 KB or less sent as itself (was:
+  always an address, so History's twenty generated crests were twenty queued requests).

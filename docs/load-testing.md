@@ -155,6 +155,27 @@ column on a busy machine, so higher than the table above):
 | A past one opened, in full         | —                            | 0.4 ms                            |
 | A page of History                  | —                            | 0.3 ms                            |
 
+Then weeks of Fridays (2026-10-24, #177): the bootstrap sent every charge and payment there had been (everyone's to
+an admin), and counted every night each member had ever played. Now it sends your own unpaid charges and a line per
+member of what they owe (`dues`, by age, worked out from the charges not paid and the payments not spent, each found
+by index: `charges_owing`, `payments_spare`); a ledger is read a page at a time (`GET /api/members/:id/ledger`); a
+night played is counted once, as its register closes (`members.played`). `cpu` now also builds a year of Fridays
+(`LOAD_WEEKS`, 52 by default): all 120 members at each, charged £8, paying every four weeks, every fifth owing the
+last twelve. Main (c9f497b) with the same club, then this branch; "SQLite" is D1's own time on an admin's open, which
+follows the rows it reads:
+
+| Request (Worker's own CPU, median) | 8 weeks, before → after            | 52 weeks, before → after      |
+| ---------------------------------- | ---------------------------------- | ----------------------------- |
+| Bootstrap, an admin                | 3.0–3.7 → 1.3–1.7 ms (314 → 78 KB) | 24.6 → 2.6 ms (1,666 → 78 KB) |
+| Bootstrap, an admin: SQLite        | 5.3–5.7 → 3.1–3.7 ms               | 115.6 → 7.3 ms                |
+| Bootstrap, a member                | 1.5–2.2 → 1.5–1.7 ms (72 KB)       | 2.9 → 2.5–2.8 ms (73 → 72 KB) |
+| A member's ledger, its first page  | —                                  | 0.4–0.7 ms                    |
+| A tap, In or Out                   | 0.8–0.9 → 1.0–1.7 ms               | 1.8–2.1 ms after              |
+
+Flat in weeks: an admin's open is 78 KB with 8 weeks or 52, where it was 1.7 MB, 116 ms of SQLite and 24.6 ms of CPU
+(over the free plan's 10 ms). In one pair of runs, SQLite's time on an admin's open was 7.32 ms at 8 weeks and
+7.27 ms at 52. A member's own was already small: their own charges only. The ±2 ms spread is the shared machine.
+
 Busy moments:
 
 | Run                      | Requests (s)  | Errors      | Key latencies (p50 / p95)                             | Reloads | D1 rows read (of 5M) | Rows written |

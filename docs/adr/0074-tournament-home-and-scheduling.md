@@ -117,7 +117,8 @@ Running a tournament from Manage is [0127](0127-running-a-tournament-from-manage
   games or teams) reads it in full (`GET /api/tournaments/:id`, by a game or team too), showing the page's room while
   it comes, and keeps it; History, and the front page with nothing on, list the played ones a page at a time, newest
   first, as the list's end comes into view (`GET /api/tournament-types/:id/editions?before=<day>_<id>&limit=N`), with
-  the all-time leaders counted by the Worker. A team's logo is at its own address, kept by the browser.
+  the all-time leaders counted by the Worker. A team's logo is at its own address, kept by the browser; one of 2 KB
+  or less (a generated crest) comes as itself, so History's crests aren't a request each (#177).
 - The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under Friday's;
   before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
 - **Once it's started, who's in is an admin's to change**: "once the kumite goes live, the player cannot remove
@@ -225,3 +226,6 @@ blind (Chong Li's powder), and its page's foot sends the newcomer to watch the f
   stated in the Decision, and the track as it is (badges, no NOW stamp).
 - 2026-10-24: Past ones read when they're opened, History a page at a time, logos at their own address (#175, the
   user: "there's no need to load all the kumites to the UI").
+- 2026-10-24: A logo of 2 KB or less is sent as itself, not its address (#177): a page of History with twenty generated
+  crests made twenty requests that queued. Sent back as it came, the team keeps it. The matchup's past meetings and
+  the editor's Brings are read from the server, not looked for in the editions the app holds.
