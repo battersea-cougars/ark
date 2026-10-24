@@ -1,7 +1,7 @@
 # 0121. Requests at once are safe by statement, not by luck; every invocation keeps to 50 subrequests; load runs locally or on dev, never production
 
 - **Status:** Accepted
-- **Date:** 2026-10-21 · updated 2026-10-22
+- **Date:** 2026-10-21 · updated 2026-10-23
 
 ## Context
 

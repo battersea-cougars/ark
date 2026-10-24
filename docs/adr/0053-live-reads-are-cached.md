@@ -1,7 +1,7 @@
 # 0053. Live reads are cached the same way everywhere, and Sanity is read through its API CDN
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-20
+- **Date:** 2026-10-07 · updated 2026-10-21
 - **Merges:** 0041, 0054
 
 ## Context

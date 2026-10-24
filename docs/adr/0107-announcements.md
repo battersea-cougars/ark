@@ -1,7 +1,7 @@
 # 0107. Admins post announcements to the top of Home, until their last day or until each member says "Got it"
 
 - **Status:** Accepted
-- **Date:** 2026-10-10
+- **Date:** 2026-10-10 · updated 2026-10-21
 
 ## Context
 

@@ -1,7 +1,7 @@
 # 0022. The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-21
+- **Date:** 2026-10-06 · updated 2026-10-23
 - **Merges:** 0047
 
 ## Context

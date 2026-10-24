@@ -1,7 +1,7 @@
 # 0028. Auto-replies only to people Turnstile verified, and capped
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-21
+- **Date:** 2026-10-06 · updated 2026-10-23
 
 ## Context
 

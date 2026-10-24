@@ -1,7 +1,7 @@
 # 0122. Scheduling over something already on asks whether that's off; each is cancelled by its own cancel
 
 - **Status:** Accepted
-- **Date:** 2026-10-22
+- **Date:** 2026-10-22 · updated 2026-10-23
 
 ## Context
 

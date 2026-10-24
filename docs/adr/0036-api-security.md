@@ -1,7 +1,7 @@
 # 0036. Every API response sends only what that caller may see, decided on the server, and every page is hardened
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-20
+- **Date:** 2026-10-06 · updated 2026-10-21
 - **Merges:** 0092, 0099
 
 ## Context

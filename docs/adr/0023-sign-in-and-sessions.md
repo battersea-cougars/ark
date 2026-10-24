@@ -1,7 +1,7 @@
 # 0023. Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-22
+- **Date:** 2026-10-05 · updated 2026-10-23
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context

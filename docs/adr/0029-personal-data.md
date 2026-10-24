@@ -1,7 +1,7 @@
 # 0029. Personal data stays out of the repo, the roster is seeded from Secrets Manager, and nothing is kept longer than needed
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-17
+- **Date:** 2026-10-06 · updated 2026-10-23
 - **Merges:** 0033
 
 ## Context

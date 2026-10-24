@@ -1,7 +1,7 @@
 # 0042. The website's What's on and events page read one club agenda, live
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-09
+- **Date:** 2026-10-07 · updated 2026-10-22
 - **Merges:** 0045, 0062
 
 ## Context

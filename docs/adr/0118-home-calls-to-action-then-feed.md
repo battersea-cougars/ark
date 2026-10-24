@@ -1,7 +1,7 @@
 # 0118. Home: a slim hello, announcements, the calls to action, then a feed
 
 - **Status:** Accepted
-- **Date:** 2026-10-21
+- **Date:** 2026-10-21 · updated 2026-10-23
 
 ## Context
 

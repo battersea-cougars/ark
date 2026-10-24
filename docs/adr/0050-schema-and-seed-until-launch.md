@@ -1,7 +1,7 @@
 # 0050. Until launch, the database is a schema and a seed, not migrations
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-10
+- **Date:** 2026-10-07 · updated 2026-10-23
 
 ## Context
 

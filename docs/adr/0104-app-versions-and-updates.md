@@ -1,7 +1,7 @@
 # 0104. The team app has a version and a build id, and offers a reload when a newer build is out
 
 - **Status:** Accepted
-- **Date:** 2026-10-10
+- **Date:** 2026-10-10 · updated 2026-10-11
 
 ## Context
 

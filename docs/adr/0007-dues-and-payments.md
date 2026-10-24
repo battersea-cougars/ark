@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-21
+- **Date:** 2026-10-05 · updated 2026-10-22
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
