@@ -25,7 +25,7 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
   export never leaves a private temp folder.
 - **One key per environment**, random, in Bitwarden only ([docs/secrets.md#our-own-keys](../secrets.md#our-own-keys)): a dev key can't open production's
   backups.
-- **When:** nightly at 03:15 UTC (`.github/workflows/backup.yml`; production's run starts on `release`, as the
+- **When:** nightly, some time after 03:13 UTC (`.github/workflows/backup.yml`; production's run starts on `release`, as the
   website's rebuilds do), and in `deploy.yml`'s `database` job before every rebuild or migration. A backup that fails
   stops the deploy.
 - **Kept** 90 days, the most GitHub allows, named `d1-<environment>-…` on the run.
@@ -48,3 +48,5 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
 
 - 2026-10-10: Nightly and before every schema change, sealed with a per-environment key, kept 90 days as GitHub
   artifacts; the last one on the Usage page (#31).
+- 2026-10-24: The nightly run starts some time after 03:13 UTC, not at 03:15: GitHub runs schedules on the hour
+  and the quarter hours late, or drops them (#148).

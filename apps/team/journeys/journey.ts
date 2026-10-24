@@ -223,7 +223,7 @@ export async function at(who: Person, when: Date | string) {
  * server's own trigger (`/cdn-cgi/local/scheduled`), so only a local server runs it.
  */
 export async function cron(when: Date | string, run: "hourly" | "five" = "hourly") {
-  const schedule = run === "hourly" ? "0 * * * *" : "*/5 * * * *";
+  const schedule = run === "hourly" ? "7 * * * *" : "*/5 * * * *";
   const url = new URL("/cdn-cgi/local/scheduled", `http://localhost:${port}`);
   url.searchParams.set("cron", schedule);
   url.searchParams.set("time", String(new Date(when).getTime()));

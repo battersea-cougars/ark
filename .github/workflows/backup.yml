@@ -9,7 +9,7 @@ name: Back up
 # environment of the branch it's run on.
 on:
   schedule:
-    - cron: "15 3 * * *" # nightly, 03:15 UTC
+    - cron: "13 3 * * *" # nightly, some time after 03:13 UTC (off the quarter hour: GitHub runs those late)
   workflow_dispatch:
     inputs:
       why:

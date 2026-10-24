@@ -24,7 +24,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "30 4 * * *" # daily, 04:30 UTC
+    - cron: "37 4 * * *" # daily, some time after 04:37 UTC (off the half hour: GitHub runs those late)
   workflow_dispatch:
     inputs:
       apps:

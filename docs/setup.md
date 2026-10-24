@@ -108,7 +108,7 @@ first production deploy creates the D1 database and applies migrations.
 ## 5. Publish → rebuild (deferred to the team app)
 
 Not set up ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)). Studio changes reach the live site at the daily
-rebuild (04:30 UK winter, 05:30 summer) or the next release. Photos are read live and need no rebuild. To publish
+rebuild (some time after 04:37 UK in winter, 05:37 in summer) or the next release. Photos are read live and need no rebuild. To publish
 something sooner, start a production rebuild by hand: **Actions → Deploy → Run workflow → `release`**, or
 `gh workflow run deploy.yml --ref release`.
 

@@ -38,7 +38,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 | Pull request into `main` | dev         | a preview version of `web` (`pr-<n>` alias), linked on the PR               |
 | Push to `main`           | dev         | `web`, the team app as `team`, and the Studio as `studio`                   |
 | Push to `release`        | production  | `web`, the team app as `team`, and the Studio as `studio`                   |
-| Daily, 04:30 UTC         | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
+| Daily, after 04:37 UTC   | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
 
 - **One job per app, and only the apps a change touches.** `deploy.yml`'s `changes` job reads the files a push or PR
   changed (both sides of a move): `apps/web/` and the club snapshot's scripts deploy the website, `apps/team/` (and its
@@ -158,3 +158,5 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 - 2026-10-23: Deploy only what changed, more narrowly: only the scripts a deploy runs count, not all of `scripts/`;
   PR checks run the merge:check tier their files reach; `node_modules` cached by lockfile, `npm ci` only on a miss
   (#148).
+- 2026-10-24: The daily rebuild starts some time after 04:37 UTC, not at 04:30, and the nightly backup after 03:13:
+  GitHub runs schedules on the hour and the half and quarter hours late, or drops them (#148).

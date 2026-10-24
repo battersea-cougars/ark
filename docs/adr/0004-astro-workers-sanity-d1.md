@@ -23,7 +23,7 @@ eventually edit events, players and Kumite results, so it's the natural owner of
   (`prerender = false`) together.
 - **Sanity** (free plan) holds editable content. The site reads it at build time. The site still builds without
   Sanity, from `src/lib/sanity/fallback.ts`.
-- **Production rebuilds daily** (the `schedule` in `deploy.yml`, 04:30 UTC) and on every release
+- **Production rebuilds daily** (the `schedule` in `deploy.yml`, some time after 04:37 UTC) and on every release
   ([ADR 0010](0010-environments-and-deploys.md)). A Studio change is live the next morning. Anything urgent is rebuilt
   by hand: **Actions → Deploy → Run workflow → `release`** (or `gh workflow run deploy.yml --ref release`).
 - **No Sanity publish webhook.** The team app starts rebuilds when a tournament result changes, batched, as the
