@@ -15,7 +15,7 @@ any fact, one in Sanity and one in D1, would drift.
 ## Decision
 
 - **Sanity holds what the team manager edits**: club facts, videos and past events (photos are the club's Instagram,
-  [ADR 0113](0113-photos-from-instagram.md)). The site reads it at build
+  [ADR 0016](0016-photos-and-videos-read-live.md)). The site reads it at build
   time ([ADR 0004](0004-astro-workers-sanity-d1.md)), or live for videos
   ([ADR 0016](0016-photos-and-videos-read-live.md)). What the team app runs comes from D1 instead: the schedule and
   What's on ([ADR 0042](0042-website-reads-the-club-agenda.md)), the roster ([ADR 0043](0043-roster-and-names.md))
@@ -52,6 +52,6 @@ any fact, one in Sanity and one in D1, would drift.
 - 2026-10-09: Kumite results left Sanity: `kumiteResult` retired, the website reads results from D1 (0100).
 - 2026-10-18: Events, Players and Videos are off the Studio's sidebar and its "New document" menu: the first two are
   the team app's data, and videos come from the YouTube playlists. The types stay so the website's queries still read.
-- 2026-10-20: The `album` type is gone: the website's photos are the club's Instagram ([ADR 0113](0113-photos-from-instagram.md)).
+- 2026-10-20: The `album` type is gone: the website's photos are the club's Instagram ([ADR 0016](0016-photos-and-videos-read-live.md)).
 - 2026-10-23: Both projects are off `siteSettings` (neither has the document), so its one-off migration,
   `apps/studio/migrate-settings.ts`, is gone (#148).

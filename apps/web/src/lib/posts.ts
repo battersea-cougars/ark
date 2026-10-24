@@ -1,4 +1,4 @@
-// How a post from the club's Instagram is shown (lib/server/instagram.ts, ADR 0113): the words on its link to
+// How a post from the club's Instagram is shown (lib/server/instagram.ts, ADR 0016): the words on its link to
 // Instagram, and its tile's mark. Kept free of server code so the home page's script can use it too.
 import type { Post } from "./server/instagram";
 

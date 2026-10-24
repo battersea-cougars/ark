@@ -1,4 +1,4 @@
-// A sample Instagram feed (ADR 0113): what the photos look like before the club has connected its account, on a
+// A sample Instagram feed (ADR 0016): what the photos look like before the club has connected its account, on a
 // laptop, dev and PR previews. Never in production. Pictures are placeholders from picsum.photos (not hockey).
 import type { Post } from "./instagram";
 

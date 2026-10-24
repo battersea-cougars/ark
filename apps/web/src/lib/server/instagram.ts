@@ -1,4 +1,4 @@
-// The club's photos: its Instagram posts, read live (ADR 0113). Admins post on Instagram; the website shows the newest,
+// The club's photos: its Instagram posts, read live (ADR 0016). Admins post on Instagram; the website shows the newest,
 // within ten minutes. Read through Instagram's API with the club's token (instagram-token.ts), behind a circuit
 // breaker (ADR 0055) and cached (ADR 0053): fresh for ten minutes, the last good copy for three days if Instagram
 // fails. Pictures are served through our own Worker (/api/photos/<id>): Instagram's addresses expire, and visitors'

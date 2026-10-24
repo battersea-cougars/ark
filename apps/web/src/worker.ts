@@ -1,5 +1,5 @@
 // The website's Worker: Astro answers requests, and a daily cron (wrangler.jsonc triggers) deletes enquiries the
-// privacy page says we no longer keep (ADR 0029) and renews the Instagram token once a week (ADR 0113). Runs whether
+// privacy page says we no longer keep (ADR 0029) and renews the Instagram token once a week (ADR 0016). Runs whether
 // or not anything deploys. Each task fails on its own: one breaking never stops the other.
 import * as Sentry from "@sentry/cloudflare";
 import { handle } from "@astrojs/cloudflare/handler";

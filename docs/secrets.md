@@ -747,7 +747,7 @@ rebuild. Nothing needs a different value per environment.
 ## Instagram
 
 The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
-[ADR 0113](adr/0113-photos-from-instagram.md)). The club account owns the Instagram account (Professional); the
+[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The club account owns the Instagram account (Professional); the
 developer account owns the Meta app "Battersea Cougars website" at <https://developers.facebook.com>. Production
 only: without it, dev, previews and your machine show a sample feed, and production shows "No photos yet".
 

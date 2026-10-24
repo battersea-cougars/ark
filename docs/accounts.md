@@ -113,7 +113,7 @@ entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is
 
 - **The account** @batterseacougarshockey belongs to the club account, switched to a Professional account (free) so its
   posts can be read through Instagram's API. Admins post there; the website shows the newest
-  ([ADR 0113](adr/0113-photos-from-instagram.md)).
+  ([ADR 0016](adr/0016-photos-and-videos-read-live.md)).
 - **The Meta developer app** "Battersea Cougars website", owned by the developer account, with the club's Instagram
   as its tester. It issues the read-only token `INSTAGRAM_TOKEN__PRODUCTION` ([secrets.md#instagram](secrets.md#instagram)). The website renews
   it weekly and keeps the renewed one in D1, sealed with `INSTAGRAM_TOKEN_KEY__PRODUCTION`, which we make.

@@ -1,4 +1,4 @@
-// The token that reads the club's Instagram posts (lib/server/instagram.ts, ADR 0113). It lasts 60 days, and one call
+// The token that reads the club's Instagram posts (lib/server/instagram.ts, ADR 0016). It lasts 60 days, and one call
 // with the current token returns a fresh one, no sign-in. The first comes from Bitwarden (INSTAGRAM_TOKEN); the
 // website's daily cron renews it once a week and keeps the new one in D1 (sealed_tokens), the one exception to
 // secrets living only in Bitwarden (ADR 0002): nothing that runs by itself can write there.

@@ -9,7 +9,7 @@ export const prerender = false;
 export type StripPhoto = Pick<Post, "id" | "kind" | "image" | "alt" | "caption" | "href" | "count">;
 
 // The home page is prerendered without photos (its build can't read Instagram); its script fills the strip from
-// here, the club's newest twelve posts (ADR 0113).
+// here, the club's newest twelve posts (ADR 0016).
 export const GET: APIRoute = async () => {
   const { data, unavailable } = await latestPosts(instagramConfig(), {}, 12);
   const photos: StripPhoto[] = data.map(({ id, kind, image, alt, caption, href, count }) => ({

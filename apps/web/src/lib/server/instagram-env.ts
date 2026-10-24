@@ -1,4 +1,4 @@
-// The Instagram feed's settings for live routes (lib/server/instagram.ts, ADR 0113). Apart from sanity-env.ts because
+// The Instagram feed's settings for live routes (lib/server/instagram.ts, ADR 0016). Apart from sanity-env.ts because
 // it needs the database (the renewed token), which only a request has, never the build. INSTAGRAM_TOKEN and
 // INSTAGRAM_TOKEN_KEY are Worker secrets (deploy.yml); SITE_ENV is inlined at build time.
 import { env } from "cloudflare:workers";

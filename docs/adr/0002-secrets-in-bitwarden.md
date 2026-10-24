@@ -57,7 +57,7 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
    with a key of its own that is itself a Bitwarden secret. Its first value is in Bitwarden; if the sealed one won't
    open, the Worker falls back to that and logs an error. Two tokens, and only these, may be kept this way:
    - Instagram's, which lasts 60 days and is swapped for a fresh one by the website's cron
-     ([ADR 0113](0113-photos-from-instagram.md)): read-only, for public content.
+     ([ADR 0016](0016-photos-and-videos-read-live.md)): read-only, for public content.
    - Gmail's send-only token, which an admin reconnects in the team app when Google cancels it
      ([ADR 0027](0027-email-through-gmail-api.md)). It can send mail as the developer account (not read it), so it
      is the more powerful of the two; it's allowed because otherwise sign-in stops until a developer runs a script
@@ -89,7 +89,7 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   `BWS_ACCESS_TOKEN` (0002).
 - 2026-10-05: Two projects and three machine accounts shared by every app, instead of Ark's per-app pairs, to fit
   the free plan; GitHub holds one token per environment (0012).
-- 2026-10-20: One exception: Instagram's self-renewing token is kept in D1, sealed with a Bitwarden key ([ADR 0113](0113-photos-from-instagram.md)).
+- 2026-10-20: One exception: Instagram's self-renewing token is kept in D1, sealed with a Bitwarden key ([ADR 0016](0016-photos-and-videos-read-live.md)).
 - 2026-10-21: Bitwarden is also the recovery store: every secret we make goes in, even one only a provider uses (the APNs
   key Firebase holds), not only those our code reads.
 - 2026-10-22: The exception widens to one more token: Gmail's, reconnected by an admin in the team app and sealed in
