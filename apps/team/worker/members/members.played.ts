@@ -26,7 +26,8 @@ const closedThrough = (now: Date) =>
 /**
  * Count the nights whose registers have closed since the last count into each member's `played` (the day's first open
  * and the hourly check). One round trip to read where it got to, one batch to count on: the batch only counts while
- * that's still where it got to, so two at once count each night once. None if nothing new has closed.
+ * that's still where it got to, so two at once count each night once. None if nothing new has closed; everything
+ * again if the clock is behind what's counted.
  */
 export async function countPlayed(db: D1Database, now: Date): Promise<void> {
   const row = await first<{ through: string | null }>(
@@ -36,7 +37,9 @@ export async function countPlayed(db: D1Database, now: Date): Promise<void> {
   if (!row) return;
   const was = row.through ?? "";
   const through = closedThrough(now);
-  if (through <= was) return;
+  // The clock went back past what's counted (the dev clock, ADR 0123, put back after a journey): counted afresh
+  if (through < was) return recountPlayed(db, now);
+  if (through === was) return;
   const still = "(SELECT COALESCE(played_through, '') FROM data_version WHERE id = 1) = ?";
   const nights = `SELECT a.member_id FROM training_sessions s JOIN attendance a ON a.session_id = s.id
     WHERE s.held_on > ? AND s.held_on <= ? AND ${PLAYED}`;

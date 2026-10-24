@@ -116,7 +116,10 @@ they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-con
 has its own, `--own-db`) four years of played Kumites (30: two pages of History) and a year of Tuesday Skills nights,
 charged and partly paid, for its own members; `npm run seed:history -- --remove` takes it all away
 (`scripts/lib/history.mjs` says how it's marked; `--kumites`, `--weeks`, `--target`, `--shared` for main's D1). Local
-only. The tests' own such club is `apps/team/worker/api/bootstrap.testing.ts`, written the same way.
+only. The tests' own such club is `apps/team/worker/api/bootstrap.testing.ts`, written the same way. What's paid and
+spent follows the allocations it writes (the schema's triggers); members' played counts start again from every night
+either way (#177). Anything else written straight into D1 that adds or takes away nights should do the same
+(`recountPlayed`, or `UPDATE members SET played = 0` and `data_version.played_through` to null).
 
 ## Journeys
 

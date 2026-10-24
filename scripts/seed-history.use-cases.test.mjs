@@ -37,6 +37,45 @@ const sizes = (raw) =>
       .map(({ name }) => [name, raw.prepare(`SELECT COUNT(*) n FROM "${name}"`).get().n]),
   );
 
+/** Each charge's paid and each payment's spent, as stored (the schema's triggers keep them). */
+const dues = (raw) => ({
+  charges: raw.prepare("SELECT id, paid_pence n FROM charges ORDER BY id").all(),
+  payments: raw.prepare("SELECT id, spent_pence n FROM payments ORDER BY id").all(),
+});
+/** The same, added up from every allocation. */
+const duesFromAllocations = (raw) => ({
+  charges: raw
+    .prepare(
+      "SELECT c.id, COALESCE((SELECT SUM(amount_pence) FROM payment_allocations WHERE charge_id = c.id), 0) n FROM charges c ORDER BY c.id",
+    )
+    .all(),
+  payments: raw
+    .prepare(
+      "SELECT p.id, COALESCE((SELECT SUM(amount_pence) FROM payment_allocations WHERE payment_id = p.id), 0) n FROM payments p ORDER BY p.id",
+    )
+    .all(),
+});
+/** What a member owes: every charge less every payment. */
+const balanceOf = (raw, id) =>
+  raw
+    .prepare(
+      `SELECT COALESCE((SELECT SUM(amount_pence) FROM charges WHERE member_id = ?), 0)
+            - COALESCE((SELECT SUM(amount_pence) FROM payments WHERE member_id = ?), 0) n`,
+    )
+    .get(id, id).n;
+/** Each member's nights played before today, counted from every night's attendance. */
+const playedFromAttendance = (raw) =>
+  Object.fromEntries(
+    raw
+      .prepare(
+        `SELECT m.id, (SELECT COUNT(*) FROM attendance a JOIN training_sessions s ON s.id = a.session_id
+            WHERE a.member_id = m.id AND a.signup = 'in' AND COALESCE(a.attended, 1) = 1
+              AND s.held_on < ? AND s.cancelled_at IS NULL) n FROM members m WHERE m.status = 'active'`,
+      )
+      .all(TODAY)
+      .map((r) => [r.id, r.n]),
+  );
+
 let w;
 let db;
 beforeEach(() => {
@@ -84,9 +123,12 @@ describe("a seeded history", () => {
     const dana = await w.signedIn("dana@example.com");
     const boot = await dana.call("GET", "/api/bootstrap");
     expect(boot.status).toBe(200);
-    expect(JSON.stringify(boot.body)).not.toContain("base64");
-    // Her nights at Tuesday Skills are charged, and some paid
-    expect(boot.body.charges?.length ?? boot.body.dues?.charges?.length).toBeGreaterThan(0);
+    // No logo but the generated crests, each small enough to come as itself (#177)
+    expect(JSON.stringify(boot.body)).not.toMatch(/data:image\/(webp|png|jpeg)/);
+    // Her nights at Tuesday Skills are charged, and some paid: on her ledger, what's left on the club read
+    const ledger = (await dana.call("GET", `/api/members/${boot.body.me}/ledger`)).body;
+    expect(ledger.lines.some((l) => l.kind === "charge")).toBe(true);
+    expect(ledger.lines.some((l) => l.kind === "payment")).toBe(true);
 
     const seen = [];
     let next = null;
@@ -108,15 +150,62 @@ describe("a seeded history", () => {
     const champions = past.winners.find((x) => x.award === "Champions").teamId;
     expect(champions).toBe(seen.at(-1).champion);
 
+    // A page of crests is no requests: each comes as itself, and is at its address too
     const crest = seen.flatMap((e) => e.teams).find((t) => t.logo);
-    const logo = await dana.open("GET", crest.logo);
+    expect(crest.logo).toMatch(/^data:image\/svg\+xml;base64,/);
+    const logo = await dana.open("GET", `/api/tournament-teams/${crest.id}/logo`);
     expect(logo.status).toBe(200);
     expect(logo.headers.get("content-type")).toContain("image/svg+xml");
   });
 
-  it("refuses to go on twice, and --remove leaves the club as it was", async () => {
-    const before = sizes(w.db.raw);
+  it("owes exactly what each member's ledger adds up to, and each has played the nights they came to (#177)", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    // The club in use: today's first open has counted the nights closed so far
+    await dana.call("GET", "/api/bootstrap");
+    expect(w.db.raw.prepare("SELECT played_through FROM data_version").get().played_through).not.toBeNull();
     await seedHistory(db, { today: TODAY });
+    expect(dues(w.db.raw)).toEqual(duesFromAllocations(w.db.raw));
+    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    const owed = Object.fromEntries(boot.dues.map((d) => [d.memberId, d.owed - d.credit]));
+    for (const m of boot.members) {
+      // Unpaid fees' line is what the top of their ledger says, and what every charge less every payment comes to
+      const top = (await dana.call("GET", `/api/members/${m.id}/ledger?limit=1`)).body.lines[0]?.balance ?? 0;
+      expect([owed[m.id] ?? 0, top], m.name).toEqual([balanceOf(w.db.raw, m.id), balanceOf(w.db.raw, m.id)]);
+    }
+    expect(Object.fromEntries(boot.members.map((m) => [m.id, m.played]))).toEqual(playedFromAttendance(w.db.raw));
+  });
+
+  it("read back as a rebuild reads rows back (db-rebuild.mjs: parents first, the stored sums left out), comes out the same", async () => {
+    await seedHistory(db, { today: TODAY });
+    const was = dues(w.db.raw);
+    const raw = w.db.raw;
+    const rows = Object.fromEntries(
+      ["charges", "payments", "payment_allocations"].map((t) => [t, raw.prepare(`SELECT * FROM ${t}`).all()]),
+    );
+    raw.pragma("foreign_keys = OFF");
+    for (const t of ["payment_allocations", "payments", "charges"]) raw.exec(`DELETE FROM ${t}`);
+    const insert = (t, list, leave) => {
+      for (const r of list) {
+        const cols = Object.keys(r).filter((c) => c !== leave);
+        raw
+          .prepare(`INSERT INTO ${t} (${cols.join(", ")}) VALUES (${cols.map(() => "?").join(", ")})`)
+          .run(...cols.map((c) => r[c]));
+      }
+    };
+    insert("charges", rows.charges, "paid_pence");
+    insert("payments", rows.payments, "spent_pence");
+    insert("payment_allocations", rows.payment_allocations);
+    raw.pragma("foreign_keys = ON");
+    expect(dues(raw)).toEqual(was);
+  });
+
+  it("refuses to go on twice, and --remove leaves the club as it was", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    await dana.call("GET", "/api/bootstrap");
+    const before = sizes(w.db.raw);
+    const [owedBefore, playedBefore] = [dues(w.db.raw), playedFromAttendance(w.db.raw)];
+    await seedHistory(db, { today: TODAY });
+    await w.scheduled("7 * * * *", NOW);
     await expect(seedHistory(db, { today: TODAY })).rejects.toThrow(/already there/);
     const { after } = await removeHistory(db);
     expect(nothingLeft(after)).toBe(true);
@@ -125,5 +214,10 @@ describe("a seeded history", () => {
     // Everything as it was but the data version, moved on so phones reload
     expect(now).toEqual(before);
     expect(w.db.raw.pragma("foreign_key_check")).toEqual([]);
+    // What anyone owes, and played, as before (#177)
+    expect([dues(w.db.raw), playedFromAttendance(w.db.raw)]).toEqual([owedBefore, playedBefore]);
+    // Seeded, its nights counted in (the hourly run), then taken away: the counts go back with them
+    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    expect(Object.fromEntries(boot.members.map((m) => [m.id, m.played]))).toEqual(playedBefore);
   });
 });

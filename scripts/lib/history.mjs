@@ -7,6 +7,9 @@
 //   training      its own series, slug "seed-history" (Tuesday Skills, finished and paused), with its nights, their
 //                 sign-ups and charges
 //   payments      created_at is SEEDED_AT; what they paid goes with them
+// What's paid on each charge and spent of each payment follows the allocations as they go in or out (db/schema.sql's
+// triggers), so balances need nothing more. Who played what is counted again from the start after either (PLAYED_AGAIN):
+// the nights written here, or taken away, aren't ones a register closed on (apps/team/worker/members/members.played.ts).
 // The same seed makes the same past for the same club. `db` is { rows(sql), run(sql) }: a local D1 through wrangler, a
 // SQLite file, or the tests' SQLite.
 import { KUMITE_ID_TABLES, KUMITE_TABLES, NEXT_IDS_SQL, idsFrom, insertsSql, kumiteRows } from "./history.rows.mjs";
@@ -17,6 +20,13 @@ export const SERIES_SLUG = "seed-history";
 const TRAINING_TABLES = ["training_series", "series_fees", "training_sessions", "attendance", "charges"];
 const MONEY_TABLES = ["payments", "payment_allocations"];
 const ID_TABLES = ["training_series", "training_sessions", "attendance", "charges", "payments", ...KUMITE_ID_TABLES];
+
+/**
+ * Members' played counts from the start again (members.played.ts recountPlayed, in SQL): none stored and nothing
+ * counted through, so the club read counts every night until the next count stores them.
+ */
+export const PLAYED_AGAIN =
+  "UPDATE members SET played = 0; UPDATE data_version SET played_through = NULL WHERE id = 1;";
 
 // ─── What's there ───
 
@@ -46,6 +56,7 @@ export const REMOVE_SQL = [
   `DELETE FROM tournaments WHERE id IN (${TOURNAMENTS})`,
   `DELETE FROM training_sessions WHERE id IN (${SESSIONS})`,
   `DELETE FROM training_series WHERE id IN (${SERIES})`,
+  PLAYED_AGAIN.replace(/;$/, ""),
   "INSERT INTO data_version (id, version) VALUES (1, CAST(strftime('%s', 'now') AS INTEGER)) ON CONFLICT (id) DO UPDATE SET version = version + 1",
 ].join(";\n");
 
@@ -757,6 +768,7 @@ export function planHistory(club, { today, kumites: count = 30, weeks = 52, seed
 /** The plan as one SQL text, parents first, then the club's data version moved on so open apps reload. */
 export const historySql = (plan) =>
   insertsSql(plan.tables, [...TRAINING_TABLES, ...MONEY_TABLES, ...KUMITE_TABLES]) +
+  `\n${PLAYED_AGAIN}` +
   "\nINSERT INTO data_version (id, version) VALUES (1, CAST(strftime('%s', 'now') AS INTEGER))" +
   " ON CONFLICT (id) DO UPDATE SET version = version + 1;";
 

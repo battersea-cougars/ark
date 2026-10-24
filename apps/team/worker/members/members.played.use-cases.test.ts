@@ -126,3 +126,16 @@ describe("the Fridays someone played", () => {
     expect(c.stored()).toMatchObject({ Reg: 0, Walt: 0 });
   });
 });
+
+describe("the dev clock put back", () => {
+  it("after a journey's clock ran ahead, the next count is from the start, so nothing ahead of today is played", async () => {
+    const c = await club();
+    await c.night("2026-10-09");
+    await w.scheduled("7 * * * *", AFTER("2026-10-16"));
+    expect(c.stored()).toMatchObject({ Reg: 1, Walt: 1 });
+    // Back to the Friday itself: its night isn't played yet
+    await w.scheduled("7 * * * *", NIGHT("2026-10-09"));
+    expect(c.stored()).toMatchObject({ Reg: 0, Walt: 0 });
+    expect(await c.played(NIGHT("2026-10-09"))).toMatchObject({ Reg: 0, Walt: 0 });
+  });
+});
