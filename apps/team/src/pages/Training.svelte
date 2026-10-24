@@ -42,6 +42,7 @@
   import { fade } from "svelte/transition";
   import { resolve, seriesById, seriesNights, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
   import { nightOn, offWords, signedUp } from "../lib/night-off";
+  import { registerClosed, registerClosesOn } from "../lib/register-closes";
   import { router } from "../app/router.svelte";
 
   let { seriesId }: { seriesId: number } = $props();
@@ -54,6 +55,9 @@
   // or the night at the page's address, its date (/training/friday/2026-10-30)
   const nights = $derived(seriesNights(series, londonToday(), nightOn(router.path, series.slug)));
   const session = $derived(nights.shown);
+  // Its register closes at 6am the morning after (lib/register-closes.ts, #11): from then who came is the record, so
+  // nothing that changes it is offered (the server refuses it too)
+  const closed = $derived(!!session && registerClosed(session.heldOn));
   const offBefore = $derived(nights.off.filter((n) => n !== session));
   const info = $derived(session && resolve(session, series));
   const usual = $derived(seriesPlace(series));
@@ -761,10 +765,10 @@
         {#if next.going.length}
           <div class="whos-in" class:gathered={gathering}>{@render byPlan(next.going, true)}</div>
         {:else}
-          <p class="hint">Nobody yet. If you ain't first, you last. Teams come out after sign-up closes.</p>
+          <p class="hint">Nobody yet. If you ain't first, you last. Teams come out on the night.</p>
         {/if}
       {:else if shown === "waiting"}
-        {#if next.waitlist.length}{@render byPlan(next.waitlist, true, arranging)}{:else}<p class="hint">
+        {#if next.waitlist.length}{@render byPlan(next.waitlist, true, arranging && !closed)}{:else}<p class="hint">
             Nobody's waiting.
           </p>{/if}
       {:else if outs.length}
@@ -947,7 +951,12 @@
         <Icon name="chevronRight" size={18} />
       </button>
     {/if}
-    {#if session && can(perms, "record:Attendance")}
+    {#if closed}
+      <p class="tool-note hint">
+        The register closed {registerClosesOn(session!.heldOn)} morning: who came is the record.
+      </p>
+    {/if}
+    {#if session && !closed && can(perms, "record:Attendance")}
       <button class="tool" onclick={() => go(() => (registering = true))}>
         <Icon name="userPlus" size={22} />
         <span class="tool-text"
@@ -957,7 +966,7 @@
       </button>
     {/if}
     {#if can(perms, "manage:Training")}
-      {#if session && !session.cancelledAt}
+      {#if session && !session.cancelledAt && !closed}
         <button class="tool" aria-haspopup="dialog" onclick={() => go(() => (cancelAsk = true))}>
           <Icon name="x" size={22} />
           <span class="tool-text"
@@ -977,7 +986,7 @@
         </button>
       {/each}
     {/if}
-    {#if session && can(perms, "update:Event")}
+    {#if session && !closed && can(perms, "update:Event")}
       <button class="tool" class:armed={confirming === "reset"} onclick={() => twice("reset", reset)}>
         <Icon name="undo" size={22} />
         <span class="tool-text"
@@ -1110,7 +1119,7 @@
 <svelte:window onkeydown={(e) => e.key === "Escape" && show?.skip()} />
 
 {#if session && can(perms, "record:Attendance")}
-  <RegisterDrawer {seriesId} bind:open={registering} />
+  <RegisterDrawer {seriesId} night={session} bind:open={registering} />
 {/if}
 
 {#if lifted}
@@ -1122,7 +1131,7 @@
     you={id === who.id}
     showRating={ratings && onTeam.has(id)}
     bio={byId(id).bio}
-    removeLabel={can(perms, "update:Event") ? `Remove from ${series.shortName}` : undefined}
+    removeLabel={can(perms, "update:Event") && !closed ? `Remove from ${series.shortName}` : undefined}
     onremove={() => removeFromSession(id)}
     detailsHref={can(perms, "manage:Member") ? `/club/${id}` : undefined}
     onclose={() => (lifted = null)}
@@ -1491,6 +1500,10 @@
   }
   .tool.armed strong {
     color: var(--red-hot);
+  }
+  .tool-note {
+    margin: 0;
+    padding: var(--s-2) var(--s-4);
   }
   .tool-text {
     display: grid;

@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker, { SECURITY_HEADERS } from "../index";
 import { ROUTES } from "./api";
-import { testWorld } from "../testing";
+import { onTheNight, testWorld } from "../testing";
 import { parseHeadersFile } from "@cougars/shared/testing/headers-file";
 import { all } from "@cougars/shared/d1";
 
@@ -87,11 +87,12 @@ describe("what bootstrap tells a plain member about everyone else (ADR 0036)", (
     const regId = b.members.find((m: { name: string }) => m.name === "Reg Player").id;
     const past = b.sessions.find((s: { heldOn: string }) => s.heldOn < "2026-10-06");
     const next = b.sessions.find((s: { heldOn: string }) => s.heldOn >= "2026-10-06");
-    // Pat said no to the next one; at a past one, Pat didn't turn up and Dana walked in
+    // Pat said no to the next one; at a past one, on the night, Pat didn't turn up and Dana walked in
     await pat.call("POST", `/api/sessions/${next.id}/answer`, { answer: "out" });
-    await dana.call("POST", `/api/sessions/${past.id}/players`, { memberId: patId, in: true });
-    await dana.call("POST", `/api/sessions/${past.id}/register`, { memberId: patId, here: false });
-    await dana.call("POST", `/api/sessions/${past.id}/register`, { memberId: b.me, here: true });
+    const night = { now: onTheNight(past.heldOn) };
+    await dana.call("POST", `/api/sessions/${past.id}/players`, { memberId: patId, in: true }, night);
+    await dana.call("POST", `/api/sessions/${past.id}/register`, { memberId: patId, here: false }, night);
+    await dana.call("POST", `/api/sessions/${past.id}/register`, { memberId: b.me, here: true }, night);
     await dana.call("POST", `/api/members/${patId}/quarterly`, { quarterly: true });
     await reg.call("POST", `/api/sessions/${next.id}/answer`, { answer: "in" });
 

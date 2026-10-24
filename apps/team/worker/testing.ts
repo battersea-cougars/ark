@@ -24,6 +24,7 @@ import {
 import type { KeyObject } from "node:crypto";
 import { SITEVERIFY } from "@cougars/shared/turnstile";
 import { authenticator } from "./testing.authenticator";
+import { londonISO } from "../src/lib/dates";
 
 /** An issue as Sentry's API lists it, with the environment and status the fake filters by. */
 export interface SentryIssue {
@@ -62,6 +63,11 @@ const liveNamespace = (hub: LiveHub, counted: () => void) =>
 // Tuesday 6 October 2026, midday in London
 export const NOW = new Date("2026-10-06T11:00:00Z");
 export const minutes = (n: number) => new Date(NOW.getTime() + n * 60_000);
+/**
+ * A night's evening, 9pm London that day: when the register's taken. A past night's register closes at 6am the
+ * morning after (lib/register-closes.ts, #11), so a story that ticks who came to last Friday ticks it then.
+ */
+export const onTheNight = (day: string) => new Date(londonISO(day, "21:00"));
 
 /** What one Worker invocation spent: its subrequests (fetches, emails, live hub calls) and its D1 calls. */
 interface Spent {

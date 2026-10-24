@@ -141,7 +141,7 @@ export const TRAINING_ROUTES: Route[] = [
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);
-      await letIn(c.env.DB, id(c), memberId);
+      await letIn(c.env.DB, id(c), memberId, c.now);
       return ok();
     },
   },
@@ -152,7 +152,7 @@ export const TRAINING_ROUTES: Route[] = [
     action: "update:Event",
     changes: ["sessions", "charges", "credits", "payments"],
     // Start the session again: no sign-ups, no teams
-    handle: async (c) => (await resetSession(c.env.DB, id(c)), ok()),
+    handle: async (c) => (await resetSession(c.env.DB, id(c), c.now), ok()),
   },
   {
     method: "POST",

@@ -46,6 +46,7 @@
   import DateField from "./DateField.svelte";
   import { feeOn, leftOn } from "./dues";
   import { formatDayDate, londonISO, londonToday, pounds } from "./dates";
+  import { registerClosed } from "./register-closes";
   import { initials } from "./initials";
   import Select from "./Select.svelte";
 
@@ -251,9 +252,11 @@
     if (here) return { ...r, signup: "in", attended: true };
     return r.walkIn ? { ...r, signup: null, attended: null, walkIn: false } : { ...r, attended: false };
   }
+  // A night's register closes at 6am the morning after (lib/register-closes.ts, #11): its day is shown, not changed
+  const closed = (r: AttendanceRow) => registerClosed(r.heldOn);
   function toggleCame(r: AttendanceRow) {
     const was = attendance?.find((x) => x.sessionId === r.sessionId);
-    if (!was || was.cancelled) return;
+    if (!was || was.cancelled || closed(was)) return;
     const here = !came(r);
     // Back to how it was saved: nothing to send
     if (here === came(was)) delete marks[r.sessionId];
@@ -810,7 +813,7 @@
                     >
                     <span><i class="dot"></i>Not there</span>
                     <span>Played {member.player.played ?? 0} in all</span>
-                    <span class="tap">Tap a Friday to change it</span>
+                    <span class="tap">Open till 6am the morning after</span>
                   </p>
                   <!-- The quarter as a calendar: a row per month, its trainings across it week by week -->
                   <div class="months">
@@ -824,9 +827,15 @@
                           {@const o = outcome(r)}
                           <button
                             class="day {o.kind}"
+                            class:closed={closed(r)}
                             disabled={r.cancelled}
-                            title="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}"
-                            aria-label="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}"
+                            aria-disabled={closed(r) || undefined}
+                            title="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}{closed(r)
+                              ? ' (the register closed)'
+                              : ''}"
+                            aria-label="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}{closed(r)
+                              ? ' (the register closed)'
+                              : ''}"
                             onclick={() => toggleCame(r)}
                           >
                             <span class="d num">{Number(r.heldOn.slice(8))}</span>
@@ -1442,7 +1451,7 @@
     line-height: 1;
     transition: background-color var(--t-fast) var(--ease-in-out);
   }
-  .day:hover:not(:disabled) {
+  .day:hover:not(:disabled, .closed) {
     background: color-mix(in srgb, var(--fg) 14%, transparent);
   }
   .day .d {
@@ -1456,6 +1465,10 @@
   .day.noshow {
     background: color-mix(in srgb, var(--red) 30%, transparent);
     color: var(--fg);
+  }
+  /* Its register closed the morning after: shown as it was, not a tap */
+  .day.closed {
+    cursor: default;
   }
   .day.cancelled {
     opacity: 0.35;

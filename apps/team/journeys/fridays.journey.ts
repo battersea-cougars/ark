@@ -342,7 +342,19 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   await stage("6. The next day: the register, and the hourly run charging Tuesday's sign-ups", async () => {
     await moveTo("2026-10-26T08:00");
     // The register itself, through the API as the admin: the drawer is the next night's by now, so there's no tap
-    await checks(ada, "can't change Sunday's register the next morning (#11: not built yet)", async () => {
+    // It closed at 6am (#11): Sunday's own page says so, and offers nothing that would change who came
+    await checks(ada, "sees Sunday's register closed on its page, and Manage offers no Add player", async () => {
+      await open(ada, `${path}/2026-10-25`);
+      const night = ada.page.getByRole("article").filter({ hasText: "Sun 25 Oct" });
+      await expect(night).toContainText("Over: the register closed Mon morning");
+      await ada.page.getByRole("button", { name: `Manage ${SHORT}` }).click();
+      const manage = ada.page.getByRole("dialog", { name: `Manage ${SHORT}` });
+      await expect(manage).toContainText("The register closed Mon morning");
+      await expect(manage.getByRole("button", { name: /^Add player/ })).toHaveCount(0);
+      await expect(manage.getByRole("button", { name: /^Cancel this night/ })).toHaveCount(0);
+      await ada.page.keyboard.press("Escape");
+    });
+    await checks(ada, "can't change Sunday's register the next morning: the server refuses it too", async () => {
       const session = await sessionOn("2026-10-25");
       await expect(
         asMember(ada.email, { at: now })("POST", `/api/sessions/${session.id}/register`, {

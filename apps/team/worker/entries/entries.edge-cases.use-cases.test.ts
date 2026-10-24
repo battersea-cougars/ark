@@ -279,8 +279,8 @@ describe("a night that's called off", () => {
     const f = await friday({ capacity: 5 });
     for (const p of ["Reg", "Paul"]) await f.say(p, "in");
     expect(await f.charged()).toEqual([f.id.Reg, f.id.Paul].sort((a, b) => a - b));
-    // The rink called it off, put on the record the morning after
-    const after = { now: MORNING_AFTER(NEXT_FRIDAY) };
+    // The rink called it off, put on the record late that night, before its register closes at 6am (#11)
+    const after = { now: new Date(`${NEXT_FRIDAY}T22:30:00Z`) };
     await f.dana.call("POST", `/api/sessions/${f.night.id}/cancelled`, { cancelled: true }, after);
     expect(await f.charged()).toEqual([]);
     await f.dana.call("POST", `/api/sessions/${f.night.id}/cancelled`, { cancelled: false }, after);

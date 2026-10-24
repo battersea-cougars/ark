@@ -3,7 +3,7 @@
 // for anyone. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
-import { testWorld } from "../testing";
+import { onTheNight, testWorld } from "../testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -39,7 +39,12 @@ describe("keepers play training free", () => {
     const id = await ids(dana);
     const session = (await boot(dana)).sessions.find((s: Json) => s.heldOn === LAST_FRIDAY).id;
     for (const m of [id.Reg, id.Kim])
-      await dana.call("POST", `/api/sessions/${session}/register`, { memberId: m, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${session}/register`,
+        { memberId: m, here: true },
+        { now: onTheNight(LAST_FRIDAY) },
+      );
 
     expect((await chargesOf(dana, id.Reg)).map((c) => c.kind)).toEqual(["session"]);
     expect(await chargesOf(dana, id.Kim)).toEqual([]);

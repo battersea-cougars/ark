@@ -10,15 +10,21 @@
   import { formatDayDate } from "./dates";
   import { letIn, markHere } from "../app/backend.svelte";
   import { roomFor } from "./places";
+  import type { TrainingSession } from "../demo/model";
 
   // The register for the night, in a drawer over the training page: every active member, sign-ups first and
   // already ticked, everyone else below to tick as they walk in. Search narrows the list. Ticks are written to the
   // session: a walk-in joins its sign-ups (so the page counts them in), a no-show stays signed up but marked. Adding
   // someone keeps to the places (ADR 0131): on a full night they wait, and the team maker lets them in, right here.
-  let { seriesId, open = $bindable(false) }: { seriesId: number; open?: boolean } = $props();
+  // `night`: the night the page shows (its own page, a past one too); else the series' next
+  let {
+    seriesId,
+    night,
+    open = $bindable(false),
+  }: { seriesId: number; night?: TrainingSession; open?: boolean } = $props();
 
   const series = $derived(seriesById(seriesId)!);
-  const session = $derived(nextSession(series));
+  const session = $derived(night ?? nextSession(series));
   const when = $derived(session ? formatDayDate(sessionBookable(session).startsAt) : "No session coming up");
   // The night's places: the skaters', keepers' counted apart (lib/places.ts)
   const limits = $derived(session ? resolve(session, series) : { capacity: null });

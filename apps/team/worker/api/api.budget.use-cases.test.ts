@@ -176,9 +176,10 @@ async function walk() {
   const m2 = ids["Member 52"];
   await hit(dana, "PUT", `/api/members/${m2}/everyday-role`, { roleId: memberRole.id });
   await hit(dana, "GET", `/api/members/${m2}/attendance`);
-  const history = (await dana.call("GET", `/api/members/${m2}/attendance`)).body;
+  // Three nights still open: a past one's register closed the morning after (#11), so the coming ones
+  const coming = b.sessions.filter((s: Json) => s.heldOn >= NOW.toISOString().slice(0, 10)).slice(0, 3);
   await hit(dana, "PUT", `/api/members/${m2}/attendance`, {
-    marks: history.slice(0, 3).map((h: Json) => ({ sessionId: h.sessionId, here: false })),
+    marks: coming.map((s: Json) => ({ sessionId: s.id, here: false })),
   });
   await hit(dana, "PUT", `/api/members/${m2}/contact`, { email: "m52.new@example.com", phone: "07700 900001" });
   await hit(dana, "POST", `/api/members/${m2}/sign-out`);

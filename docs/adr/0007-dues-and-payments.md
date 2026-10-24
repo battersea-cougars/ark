@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-22
+- **Date:** 2026-10-05 · updated 2026-10-24
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
@@ -86,11 +86,14 @@ session's fee.
   ([0131](0131-training-sign-ups.md)): on a full night they wait, and someone waiting is never
   charged until they're in (a place comes up or the team maker lets them in). A night that's over is a record of who
   came: a walk-in ticked there is in and charged.
-- **There is no closing the register: charges follow it** (#11). From a session's day, everyone in who isn't a no-show
+- **Charges follow the register until it closes, at 06:00 London the morning after** (#11,
+  [0030](0030-training-and-tournament-schedule.md)). From a session's day, everyone in who isn't a no-show
   (walk-ins included) is charged; ticking someone in charges them at once, unticking takes an unpaid charge off.
   Anything that changes who came (a tick, a sign-up, an admin adding someone, a cancellation) works the charges out
-  again, and so does the hourly Cron Trigger, which is what charges a session's sign-ups on its day. A paid charge is
-  never taken off by this.
+  again, and so does the hourly Cron Trigger, which is what charges a session's sign-ups on its day. Once the register
+  has closed nothing changes who came, so the hourly run and each day's first open work out the same charges from it
+  every time (one per person per night). A paid charge is never taken off by this. A fee changed from an earlier date
+  still recalculates closed nights' charges: the fee isn't the register.
 - **A charge is one person for one session, tournament or quarter** (`charges`: member, session or tournament or
   quarter `2026-Q4`, amount, due_on, created_by when made by hand). Quarterly Members aren't charged for training
   sessions, and **a quarter charged pays for every training night in it**, by membership or by hand: joining
@@ -183,9 +186,10 @@ session's fee.
   it. Two people can look alike (`SAM T` and `SAM T2`), so matching is by the whole reference.
 - A reference doesn't follow a name change. If someone wants theirs changed, that's an edit by hand, and they must
   update their standing order.
-- Dues are only as good as the register; it has to be quick enough that someone does it every Friday. With no closing
-  step, a late correction just changes the charges; a night already paid for stays charged until the payment is taken
-  back.
+- Dues are only as good as the register; it has to be quick enough that someone does it every Friday. It closes on its
+  own, with no button: a correction after 6am the next morning can't be made in the app yet (an adjustment on the
+  member's dues is the way round it until reopening is built); a night already paid for stays charged until the
+  payment is taken back.
 - "Who's a Quarterly Member this quarter" is a date query on `subscriptions`; history comes for free, lapsing needs no
   update to the member, and pay-as-you-go needs no rows.
 - Someone who pays for a month at once is one payment of that amount, not a tick per night.
@@ -250,3 +254,5 @@ session's fee.
 - 2026-10-22: On Home, what you owe is at the foot (Your tab, with how much is overdue), and while some of it is
   overdue (a charge whose day has passed, `lib/dues.ts` `overdue`) a pound icon with a red dot in Home's header opens your tab
   ([0118](0118-home-calls-to-action-then-feed.md)).
+- 2026-10-24: The register closes at 06:00 London the morning after (#11, the user; ADR 0030): charges follow it until
+  then, and from then it's the record (was: no closing, charges follow it whenever it changes). No reopening yet.

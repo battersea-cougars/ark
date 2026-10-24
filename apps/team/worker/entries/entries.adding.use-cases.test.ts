@@ -179,7 +179,8 @@ describe("adding a player keeps to the places", () => {
 
   it("a night that's over is a record: ticking someone who came to a full one still says they came", async () => {
     const f = await fullFriday(LAST_FRIDAY);
-    expect((await f.register(f.id.Walt, true, NOW)).body.signup).toBe("in");
+    // Past midnight, before its register closes at 6am (#11)
+    expect((await f.register(f.id.Walt, true, new Date("2026-10-03T00:30:00Z"))).body.signup).toBe("in");
     expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul, f.id.Walt], walkIns: [f.id.Walt] });
     expect(await f.charged()).toContain(f.id.Walt);
   });

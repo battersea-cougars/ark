@@ -42,7 +42,13 @@ describe("an admin's changes are on the record", () => {
     const b = (await dana.call("GET", "/api/bootstrap")).body;
     const reg = b.members.find((m: Json) => m.name === "Reg Player").id;
     const session = b.sessions.find((s: Json) => s.heldOn === "2026-10-02").id;
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true });
+    // Past midnight, the night over, before its register closes at 6am (#11): a walk-in on the record
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: true },
+      { now: new Date("2026-10-03T00:30:00Z") },
+    );
     expect((await record(dana)).find((x) => x.action === "register.marked")).toMatchObject({
       detail: { from: [], to: [expect.objectContaining({ memberId: reg, walkIn: 1 })] },
     });

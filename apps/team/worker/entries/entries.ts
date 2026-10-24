@@ -11,6 +11,7 @@ import { londonTime, londonToday } from "../../src/lib/dates";
 import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
 import { offTeams } from "../training/training.teams";
+import { refuseClosedRegister, refuseClosedSession } from "../training/training.register";
 import { joinDraft, leaveDraft } from "../tournaments/draft";
 import { STARTED, hasStarted, startedRefusal } from "../tournaments/started";
 
@@ -386,6 +387,7 @@ export async function setPlayer(
   now: string,
 ): Promise<string | null> {
   const places = await capacity(db, kind, id, memberId);
+  if (places.night) refuseClosedRegister(places.night.heldOn, now);
   const was = await current(db, kind, id, memberId);
   if (inIt) {
     if (was?.signup === "in") return "in";
@@ -421,7 +423,8 @@ export async function setPlayer(
  * one order. One statement: refused unless they're waiting and the session's on. They're marked to be told it was the
  * team maker (`moved`).
  */
-export async function letIn(db: D1Database, sessionId: number, memberId: number) {
+export async function letIn(db: D1Database, sessionId: number, memberId: number, now: string) {
+  await refuseClosedSession(db, sessionId, now);
   const res = await run(
     db,
     `UPDATE attendance SET signup = 'in', moved = 'let-in'
@@ -479,6 +482,7 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
     const r = was.get(m.sessionId);
     if (!r) throw new HttpError(404, "No such event.");
     if (r.cancelled) throw new HttpError(409, "That session's cancelled.");
+    refuseClosedRegister(r.heldOn, now);
     if (r.signup === "in" && !r.walkIn) signedUp.push(m);
     else if (m.here) (r.heldOn >= today && r.signup !== "in" ? joining : walkIns).push(m.sessionId);
     else if (r.walkIn) off.push(m.sessionId);

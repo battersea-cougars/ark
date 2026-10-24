@@ -3,7 +3,7 @@
 // fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
-import { NOW, testWorld } from "../testing";
+import { NOW, onTheNight, testWorld } from "../testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -59,9 +59,16 @@ describe("who came is charged", () => {
     const dot = await w.signedIn("dot@example.com");
     const session = await sessionOn(dana, LAST_FRIDAY);
 
-    expect((await dot.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true })).status).toBe(
-      200,
-    );
+    expect(
+      (
+        await dot.call(
+          "POST",
+          `/api/sessions/${session}/register`,
+          { memberId: reg, here: true },
+          { now: onTheNight(LAST_FRIDAY) },
+        )
+      ).status,
+    ).toBe(200);
 
     expect(await chargesOf(dana, reg)).toEqual([
       expect.objectContaining({ kind: "session", refId: session, pence: 800, dueOn: LAST_FRIDAY, paidOn: null }),
@@ -73,8 +80,18 @@ describe("who came is charged", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     const session = await sessionOn(dana, LAST_FRIDAY);
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true });
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: false });
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: true },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: false },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     expect(await chargesOf(dana, reg)).toEqual([]);
   });
 
@@ -109,22 +126,43 @@ describe("who came is charged", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     const session = await sessionOn(dana, LAST_FRIDAY);
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true });
-    await dana.call("POST", `/api/sessions/${session}/cancelled`, { cancelled: true });
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: true },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
+    // Called off that night, before its register closed (#11)
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/cancelled`,
+      { cancelled: true },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     expect(await chargesOf(dana, reg)).toEqual([]);
   });
 
   it("Friday Training is £12 a session (the club's seed), for every night in the last year", async () => {
     const dana = await w.signedIn("dana@example.com");
     const reg = await memberId(dana, "Reg Player");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`, {
-      memberId: reg,
-      here: true,
-    });
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, "2026-09-25")}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, "2026-09-25")}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight("2026-09-25") },
+    );
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     expect((await chargesOf(dana, reg)).map((c) => [c.dueOn, c.pence])).toEqual([
       [LAST_FRIDAY, 1200],
       ["2026-09-25", 1200],
@@ -136,7 +174,12 @@ describe("who came is charged", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     const session = await sessionOn(dana, LAST_FRIDAY);
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true });
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: true },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     const series = (await boot(dana)).series[0];
     await dana.call("PUT", `/api/series/${series.id}`, {
       ...series,
@@ -153,7 +196,12 @@ describe("who came is charged", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     for (const day of ["2026-09-25", LAST_FRIDAY])
-      await dana.call("POST", `/api/sessions/${await sessionOn(dana, day)}/register`, { memberId: reg, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${await sessionOn(dana, day)}/register`,
+        { memberId: reg, here: true },
+        { now: onTheNight(day) },
+      );
     await fridayFee(dana, 1000);
     expect((await chargesOf(dana, reg)).map((c) => c.pence)).toEqual([1000, 1000]);
   });
@@ -162,10 +210,15 @@ describe("who came is charged", () => {
     const dana = await w.signedIn("dana@example.com");
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     await dana.call("POST", `/api/members/${reg}/payments`, { via: "cash", pence: 800 });
 
     await fridayFee(dana, 1000);
@@ -180,10 +233,15 @@ describe("who came is charged", () => {
     const dana = await w.signedIn("dana@example.com");
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     // Changed behind the app's back: the recalculation puts it right
     w.db.raw.exec("UPDATE charges SET amount_pence = 1");
     expect((await dana.call("POST", `/api/members/${reg}/recalculate`)).status).toBe(200);
@@ -196,7 +254,12 @@ describe("who came is charged", () => {
     await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [] });
     const reg = await memberId(dana, "Reg Player");
     const session = await sessionOn(dana, LAST_FRIDAY);
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true });
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: true },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     expect(await chargesOf(dana, reg)).toEqual([]);
   });
 
@@ -206,7 +269,12 @@ describe("who came is charged", () => {
     const reg = await memberId(dana, "Reg Player");
     await dana.call("POST", `/api/members/${reg}/quarterly`, { quarterly: true }, { now: on("2026-10-01") });
     const session = await sessionOn(dana, LAST_FRIDAY);
-    await dana.call("POST", `/api/sessions/${session}/register`, { memberId: reg, here: true });
+    await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: reg, here: true },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     expect((await chargesOf(dana, reg)).filter((c) => c.kind === "session")).toEqual([]);
   });
 
@@ -272,7 +340,12 @@ describe("the quarterly rate", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     for (const day of ["2026-09-25", LAST_FRIDAY])
-      await dana.call("POST", `/api/sessions/${await sessionOn(dana, day)}/register`, { memberId: reg, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${await sessionOn(dana, day)}/register`,
+        { memberId: reg, here: true },
+        { now: onTheNight(day) },
+      );
 
     const q = await dana.call("POST", `/api/members/${reg}/charges`, { quarter: "2026-Q4", pence: 9000 });
     expect(q.status).toBe(201);
@@ -294,10 +367,15 @@ describe("the quarterly rate", () => {
     await fridayFee(dana, 800);
     await dana.call("POST", "/api/subscription-fees", { pence: 9000, from: "2026-01-01" });
     const reg = await memberId(dana, "Reg Player");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
 
     await dana.call("POST", `/api/members/${reg}/quarterly`, { quarterly: true }, { now: on("2026-10-06") });
     await chargeDue(w.env, on("2026-10-06"));
@@ -310,10 +388,15 @@ describe("the quarterly rate", () => {
     const dana = await w.signedIn("dana@example.com");
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(LAST_FRIDAY) },
+    );
     await dana.call("POST", `/api/members/${reg}/payments`, { via: "cash", pence: 800 });
 
     await dana.call("POST", `/api/members/${reg}/charges`, { quarter: "2026-Q4", pence: 9000 });
@@ -336,7 +419,12 @@ describe("paying", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     for (const day of ["2026-09-25", LAST_FRIDAY])
-      await dana.call("POST", `/api/sessions/${await sessionOn(dana, day)}/register`, { memberId: reg, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${await sessionOn(dana, day)}/register`,
+        { memberId: reg, here: true },
+        { now: onTheNight(day) },
+      );
     return { dana, reg };
   }
 
@@ -366,7 +454,12 @@ describe("paying", () => {
     const { dana, reg } = await owing();
     const [newest] = await chargesOf(dana, reg);
     await dana.call("POST", `/api/charges/${newest.id}/payment`, { via: "cash" });
-    await dana.call("POST", `/api/sessions/${newest.refId}/register`, { memberId: reg, here: false });
+    await dana.call(
+      "POST",
+      `/api/sessions/${newest.refId}/register`,
+      { memberId: reg, here: false },
+      { now: onTheNight(newest.dueOn) },
+    );
     expect((await chargesOf(dana, reg)).map((c) => c.id)).toContain(newest.id);
   });
 
@@ -458,7 +551,12 @@ describe("adjustments", () => {
     await fridayFee(dana, 800);
     const reg = await memberId(dana, "Reg Player");
     for (const day of ["2026-09-25", LAST_FRIDAY])
-      await dana.call("POST", `/api/sessions/${await sessionOn(dana, day)}/register`, { memberId: reg, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${await sessionOn(dana, day)}/register`,
+        { memberId: reg, here: true },
+        { now: onTheNight(day) },
+      );
     return { dana, reg };
   }
   const adjust = (b: Browser, reg: number, o: Record<string, unknown>) =>
@@ -521,7 +619,12 @@ describe("who sees what", () => {
     const [regId, danaId] = [await memberId(dana, "Reg Player"), await memberId(dana, "Dana Admin")];
     const session = await sessionOn(dana, LAST_FRIDAY);
     for (const id of [regId, danaId])
-      await dana.call("POST", `/api/sessions/${session}/register`, { memberId: id, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${session}/register`,
+        { memberId: id, here: true },
+        { now: onTheNight(LAST_FRIDAY) },
+      );
 
     const reg = await w.signedIn("reg@example.com");
     const theirs = (await boot(reg)).charges as Charge[];
@@ -535,10 +638,15 @@ describe("who sees what", () => {
     await fridayFee(dana, 800);
     const [regId, danaId] = [await memberId(dana, "Reg Player"), await memberId(dana, "Dana Admin")];
     for (const id of [regId, danaId]) {
-      await dana.call("POST", `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`, {
-        memberId: id,
-        here: true,
-      });
+      await dana.call(
+        "POST",
+        `/api/sessions/${await sessionOn(dana, LAST_FRIDAY)}/register`,
+        {
+          memberId: id,
+          here: true,
+        },
+        { now: onTheNight(LAST_FRIDAY) },
+      );
       await dana.call("POST", `/api/members/${id}/payments`, { via: "transfer", pence: 2000 });
     }
 

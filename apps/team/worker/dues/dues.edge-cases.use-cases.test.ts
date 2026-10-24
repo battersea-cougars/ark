@@ -4,7 +4,7 @@
 // the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
-import { NOW, testWorld } from "../testing";
+import { NOW, onTheNight, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 
 const ROSTER = [
@@ -84,8 +84,14 @@ async function came(pence: number, days = FRIDAYS) {
   const reg = await memberId(dana, "Reg Player");
   for (const day of days)
     expect(
-      (await dana.call("POST", `/api/sessions/${await sessionOn(dana, day)}/register`, { memberId: reg, here: true }))
-        .status,
+      (
+        await dana.call(
+          "POST",
+          `/api/sessions/${await sessionOn(dana, day)}/register`,
+          { memberId: reg, here: true },
+          { now: onTheNight(day) },
+        )
+      ).status,
     ).toBe(200);
   const pay = (pence: number, more: Record<string, unknown> = {}, b = dana) =>
     b.call("POST", `/api/members/${reg}/payments`, { via: "transfer", pence, ...more });
@@ -121,10 +127,15 @@ describe("paying, to the penny", () => {
   it("credit is the member's own: it never pays anyone else's dues", async () => {
     const { dana, reg, pay } = await came(800, [FRIDAYS[2]]);
     const danaId = await memberId(dana, "Dana Admin");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: danaId,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: danaId,
+        here: true,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     expect((await pay(5000)).status).toBe(200);
     expect(credit(reg)).toBe(4200);
     expect(await chargesOf(dana, danaId)).toEqual([expect.objectContaining({ paidPence: 0, paidOn: null })]);
@@ -136,10 +147,15 @@ describe("paying, to the penny", () => {
       (await dana.call("POST", `/api/members/${reg}/adjustments`, { pence: -1000, reason: "Reffed" })).status,
     ).toBe(201);
     expect(credit(reg)).toBe(1000);
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     expect(await chargesOf(dana, reg)).toEqual([expect.objectContaining({ paidPence: 800 })]);
     expect(credit(reg)).toBe(200);
   });
@@ -178,10 +194,15 @@ describe("paying, to the penny", () => {
       ["2026-10-02", 400],
       ["2026-09-25", 800],
     ]);
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: reg,
-      here: false,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: reg,
+        here: false,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     expect((await chargesOf(dana, reg)).map((c) => c.dueOn)).toEqual(["2026-09-25"]);
     expect(credit(reg)).toBe(400);
   });
@@ -412,10 +433,15 @@ describe("who may touch money (ADR 0024)", () => {
   it("someone who only sees Unpaid fees sees everyone's charges; a member only their own", async () => {
     const { dana, reg } = await everyChange();
     const danaId = await memberId(dana, "Dana Admin");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: danaId,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: danaId,
+        here: true,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     const val = await boot(await w.signedIn("val@example.com"));
     expect(new Set((val.charges as Charge[]).map((c) => c.memberId))).toEqual(new Set([reg, danaId]));
     const dot = await boot(await w.signedIn("dot@example.com"));

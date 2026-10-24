@@ -6,6 +6,7 @@ import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, london
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
 import { nightPath, trainingNights } from "../lib/night-off";
+import { registerClosed, registerClosedWords } from "../lib/register-closes";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
 import { afterOf, placeOf, type Place } from "@cougars/shared/places";
 
@@ -87,11 +88,14 @@ export function sessionBookable(session: TrainingSession): Bookable {
     ...where(r.place),
     signup: !r.cancelled,
     started,
+    // Over, then (06:00 the morning after, #11) the register's closed: what it says is the record
     startedWords: !started
       ? undefined
-      : Date.now() >= Date.parse(endsAt)
-        ? "Over: the register says who came"
-        : "Started: the register says who's in",
+      : registerClosed(r.heldOn)
+        ? registerClosedWords(r.heldOn)
+        : Date.now() >= Date.parse(endsAt)
+          ? "Over: the register says who came"
+          : "Started: the register says who's in",
     capacity: r.capacity,
     goalieCapacity: r.goalieCapacity,
     cancelled: r.cancelled,

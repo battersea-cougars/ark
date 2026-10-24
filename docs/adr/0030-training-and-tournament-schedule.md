@@ -69,6 +69,16 @@ schedule, a card per tournament), Tournament Series (the series and their defaul
   one shows above it, struck through and Cancelled (`lib/night-off.ts`), so a Friday off doesn't just vanish.
 - A single night the rule gives can be made ahead of the weeks (`POST /api/series/:id/sessions`), so a clash far off can
   be cancelled before the rest are made ([0122](0122-asked-about-clashes.md)).
+- **The register closes at 06:00 London the morning after** (#11): when the night's evening ends, the Kumite's
+  after-party rule (`lib/dates.ts` `londonEvening`, `lib/register-closes.ts`, shared by the app and the Worker). Till
+  then whoever takes the register puts it right; from then who came, and what it charged (ADR
+  [0007](0007-dues-and-payments.md)), is the record. Every change to who was there is refused (409, "The register's
+  closed: it closed at 6am the morning after."): the register, an admin putting someone in or taking them off, Let
+  in, Reset this session, calling the night off or putting it back on, and a member's attendance (one save of many
+  nights is refused whole) (`worker/training/training.register.ts`). Teams aren't attendance and stay as they are.
+  The night's page says "Over: the register closed Mon morning" and its Manage offers none of those jobs, with a line
+  saying it closed; a member's attendance shows a closed night's day as it was, not a tap. No reopening yet:
+  `training_sessions.register_closed_at` is unused, kept for that.
 - Who signs up for a night, in what order, and when it opens: [0131](0131-training-sign-ups.md).
 
 ### A tournament owns its rules
@@ -190,3 +200,5 @@ schedule, a card per tournament), Tournament Series (the series and their defaul
   series' front page.
 - 2026-10-24: A training's sign-ups split out to ADR 0131; the tournament editor and a night's page, which had been only
   in History, are in the Decision; History a line per change.
+- 2026-10-24: A night's register closes at 06:00 London the morning after (#11): every change to who was there is
+  refused from then (409), and the night's page and Manage say it's closed. No reopening yet.

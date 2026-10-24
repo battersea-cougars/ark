@@ -734,19 +734,18 @@ describe("teams, quips, profiles and attendance", () => {
     expect(history.at(-1)).toMatchObject({ heldOn: "2026-01-02", signup: null, attended: null });
   });
 
-  it("an admin records who came to a Friday back in March, and takes it back", async () => {
+  it("an admin can't change who came to a Friday back in March: its register closed the morning after (#11)", async () => {
     const { reg } = await ids();
     const history = async () => (await call("GET", `/api/members/${reg}/attendance`)).body;
     const march = (await history()).find((r: { heldOn: string }) => r.heldOn === "2026-03-13");
-    await call("POST", `/api/sessions/${march.sessionId}/register`, { memberId: reg, here: true });
+    const res = await call("POST", `/api/sessions/${march.sessionId}/register`, { memberId: reg, here: true });
+    expect(res).toEqual({ status: 409, body: { error: "The register's closed: it closed at 6am the morning after." } });
     const played = async () => (await boot()).members.find((m: { id: number }) => m.id === reg).played;
-    expect(await played()).toBe(1);
-    expect((await history()).find((r: { heldOn: string }) => r.heldOn === "2026-03-13")).toMatchObject({
-      signup: "in",
-      attended: true,
-    });
-    await call("POST", `/api/sessions/${march.sessionId}/register`, { memberId: reg, here: false });
     expect(await played()).toBe(0);
+    expect((await history()).find((r: { heldOn: string }) => r.heldOn === "2026-03-13")).toMatchObject({
+      signup: null,
+      attended: null,
+    });
   });
 });
 

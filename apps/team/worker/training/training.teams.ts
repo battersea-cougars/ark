@@ -3,6 +3,7 @@
 // (entries.ts).
 import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
+import { refuseClosedRegister } from "./training.register";
 
 export interface TeamJson {
   name: string;
@@ -84,10 +85,16 @@ export async function removeTeams(db: D1Database, sessionId: number) {
   await run(db, "DELETE FROM session_teams WHERE session_id = ?", [sessionId]);
 }
 
-/** Start a session again: nobody in, waiting or out, and no teams. For a session set up wrong, or a test run. */
-export async function resetSession(db: D1Database, sessionId: number) {
-  const session = await all(db, "SELECT 1 FROM training_sessions WHERE id = ?", [sessionId]);
-  if (!session.length) throw new HttpError(404, "No such session.");
+/**
+ * Start a session again: nobody in, waiting or out, and no teams. For a session set up wrong, or a test run; not
+ * once its register's closed (the morning after, #11): who came, and what it charged, is the record.
+ */
+export async function resetSession(db: D1Database, sessionId: number, now: string) {
+  const session = await first<{ heldOn: string }>(db, "SELECT held_on heldOn FROM training_sessions WHERE id = ?", [
+    sessionId,
+  ]);
+  if (!session) throw new HttpError(404, "No such session.");
+  refuseClosedRegister(session.heldOn, now);
   await batch(db, [
     statement(db, "DELETE FROM session_teams WHERE session_id = ?", [sessionId]),
     statement(db, "DELETE FROM attendance WHERE session_id = ?", [sessionId]),
