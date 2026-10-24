@@ -806,10 +806,13 @@
                     </span>
                   </div>
                   <p class="legend hint">
-                    <span><i class="dot came"></i>Came {inQuarter.filter(came).length}</span>
                     <span
-                      ><i class="dot noshow"></i>No-show {inQuarter.filter((r) => r.signup === "in" && !came(r))
-                        .length}</span
+                      ><i class="dot came"><Icon name="check" size={10} /></i>Came {inQuarter.filter(came).length}</span
+                    >
+                    <span
+                      ><i class="dot noshow"><Icon name="x" size={10} /></i>No-show {inQuarter.filter(
+                        (r) => r.signup === "in" && !came(r),
+                      ).length}</span
                     >
                     <span><i class="dot"></i>Not there</span>
                     <span>Played {member.player.played ?? 0} in all</span>
@@ -839,6 +842,9 @@
                             onclick={() => toggleCame(r)}
                           >
                             <span class="d num">{Number(r.heldOn.slice(8))}</span>
+                            <!-- Not colour alone (#14): the In button's tick on Came, Out's cross on a no-show -->
+                            {#if o.kind === "came"}<span class="mark"><Icon name="check" size={10} /></span>
+                            {:else if o.kind === "noshow"}<span class="mark"><Icon name="x" size={10} /></span>{/if}
                           </button>
                         {:else}
                           {#if attendance !== null}<span class="hint">No trainings</span>{/if}
@@ -1403,19 +1409,26 @@
   .legend .tap {
     margin-left: auto;
   }
+  /* A tile in small: its colour and, as on the tiles, the tick or the cross */
   .dot {
-    display: inline-block;
-    width: 0.6rem;
-    height: 0.6rem;
+    display: inline-grid;
+    place-items: center;
+    width: 0.85rem;
+    height: 0.85rem;
     margin-right: var(--s-1);
     border-radius: 2px;
+    vertical-align: -0.1em;
     background: color-mix(in srgb, var(--fg) 12%, transparent);
+    color: var(--fg);
+  }
+  .dot :global(svg) {
+    stroke-width: 3;
   }
   .dot.came {
-    background: var(--green);
+    background: color-mix(in srgb, var(--green) 55%, transparent);
   }
   .dot.noshow {
-    background: var(--red-hot);
+    background: color-mix(in srgb, var(--red) 55%, transparent);
   }
   /* The quarter as a calendar: month names down the side, a tile per training across, filled by what happened */
   .months {
@@ -1439,6 +1452,7 @@
     min-height: 2.5rem;
   }
   .day {
+    position: relative;
     display: grid;
     place-items: center;
     width: 2.5rem;
@@ -1465,6 +1479,17 @@
   .day.noshow {
     background: color-mix(in srgb, var(--red) 30%, transparent);
     color: var(--fg);
+  }
+  /* The tick or the cross in the tile's corner, out of the date's way, so a tap changes nothing's size */
+  .day .mark {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    line-height: 0;
+  }
+  .day .mark :global(svg) {
+    stroke-width: 2.6;
   }
   /* Its register closed the morning after: shown as it was, not a tap */
   .day.closed {
