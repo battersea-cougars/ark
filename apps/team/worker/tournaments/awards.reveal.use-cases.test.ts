@@ -227,40 +227,6 @@ describe("the awards at The Anchor, one card at a time", () => {
   });
 });
 
-describe("Awards at The Anchor: everyone hears the first one, once", () => {
-  it("the first award out tells everyone with the app; the rest don't", async () => {
-    const k = await kumiteNight(w);
-    await k.confirm();
-    const mo = await w.signedIn("mo@example.com");
-    await mo.call("PUT", "/api/auth/device", { token: "mo-phone", platform: "ios" });
-    await k.reveal(0);
-    expect(w.pushes.map(({ token, title, body }) => ({ token, title, body }))).toEqual([
-      { token: "mo-phone", title: "Awards at The Anchor", body: "Kumite Autumn 2026: the first one's out." },
-    ]);
-    w.pushes.length = 0;
-    await k.roll(1);
-    await k.reveal(1);
-    expect(w.pushes).toEqual([]);
-  });
-});
-
-describe("the awards go out at the party, quiet hours or not", () => {
-  it("the first award revealed at 22:40 tells everyone at once, not at 08:00", async () => {
-    const k = await kumiteNight(w);
-    await k.confirm();
-    const fcm = await w.firebase();
-    try {
-      const mo = await w.signedIn("mo@example.com");
-      await mo.call("PUT", "/api/auth/device", { token: "mo-phone", platform: "ios" });
-      const late = { now: new Date("2026-11-13T22:40:00Z") };
-      expect((await k.dana.call("POST", `/api/tournaments/${k.id}/awards/reveal`, { next: 0 }, late)).status).toBe(200);
-      expect(fcm.asked.map((a) => `${a.token} ${a.title}`)).toEqual(["mo-phone Awards at The Anchor"]);
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-});
-
 describe("stepping back from the after-party", () => {
   it("turns every award face down again, the drum back on the first; the results and the winners stay", async () => {
     const k = await kumiteNight(w);

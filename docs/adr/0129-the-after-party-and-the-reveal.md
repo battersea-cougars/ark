@@ -72,8 +72,7 @@ the awards' stage and the reveal. It was part of 0074 until 2026-10-24.
   further behind is refused. On the record as `tournament.award_revealed` (how many out, which one) and
   `tournament.award_next`. **A member isn't sent an award's winner on its evening until it's revealed** (the club read's
   `viewer` has the evening and who runs tournaments, as the blind draft keeps its picks); from 06:00 every winner is
-  history. The first one out tells everyone with the app, once ("Awards at The Anchor", topic `announcements`); the rest
-  they see on the page.
+  history. The reveal sends no push: everyone sees it on the page.
 
 ## Consequences
 
@@ -99,3 +98,4 @@ the awards' stage and the reveal. It was part of 0074 until 2026-10-24.
 - 2026-10-23: The after-party is the evening its last match kicked off, not its date's (`playedOn`).
 - 2026-10-23: The last award out, it's Done, and the page stays its results till the morning after.
 - 2026-10-24: Split out of ADR 0074, which had grown to cover the whole tournament.
+- 2026-10-24: The awards' reveal sends no push: the user, "no push needed" (the first one out told everyone, ADR 0108).

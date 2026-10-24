@@ -89,8 +89,8 @@ Three things shape it:
   - **Quiet hours, 22:00 to 08:00 London** (`QUIET_HOURS`), on London's clock, so the night the clocks go back
     08:00 is 08:00 GMT and the night they go forward 08:00 BST: a notice that comes in them waits for 08:00. A notice
     about something happening now says `live` and goes anyway; the route marks it, never a guess by topic. Live: the
-    draft opening and pausing (on the night, `draftOpen`, `draftPaused`) and the first award at the after-party
-    (`awardsOut`). Not live: teams out, a place (in, let in, bumped), a night off, announcements, a training's sign-up
+    draft opening and pausing (on the night, `draftOpen`, `draftPaused`). The awards' reveal sends nothing.
+    Not live: teams out, a place (in, let in, bumped), a night off, announcements, a training's sign-up
     opening (at midnight, so heard at 08:00), dues. The draft's "your pick" and Chong Li's "You are next!" are on the
     page, not sent; when they are, they'll be live.
   - **The debounce, two minutes per member and thing** (`DEBOUNCE_MINUTES`; a notice's `key`, such as
@@ -200,3 +200,4 @@ Three things shape it:
   told; taking back an Out puts you among those told ([0131](0131-training-sign-ups.md)).
 - 2026-10-24: A notification about one training night opens that night's own page (`/training/{series}/{date}`,
   [0030](0030-training-and-tournament-schedule.md)), not the series' page.
+- 2026-10-24: The awards' reveal sends no push: the user, "no push needed" (`awardsOut` is gone; ADR 0129).

@@ -7,7 +7,7 @@ import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
 import { moveIn, moveTo, whereItStands } from "./move-to";
 import { closeSignup } from "./signup";
-import { awardsOut, draftPaused, movedTo, tournamentMade, tournamentSaved } from "../push/push.notices";
+import { draftPaused, movedTo, tournamentMade, tournamentSaved } from "../push/push.notices";
 import { londonToday } from "../../src/lib/dates";
 import { body, json } from "../api/api.http";
 import {
@@ -119,8 +119,6 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     // Everyone watching the after-party sees it turn over (ADR 0072)
     changes: ["tournaments"],
     calendar: false,
-    // The first one out: everyone hears the awards are on
-    notify: awardsOut,
     // { next }: the award it reveals, by its place in the reveal (a judges' call left out isn't one), the one the tap
     // saw face down (ADR 0074)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
