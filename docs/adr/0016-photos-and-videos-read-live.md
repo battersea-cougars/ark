@@ -13,8 +13,9 @@ and no CI run, and on free tiers ([ADR 0003](0003-free-tiers-only.md)).
 
 The Friday videos are uploaded **unlisted**, which a channel's public uploads list doesn't include. The club keeps
 them in playlists by kind (Friday Hockey, Kumite, and Website for anything else). YouTube has no playlist of
-playlists. The YouTube Data API v3 is free up to 10,000 quota units a day per Google Cloud project; listing a
-playlist costs 1 unit per 50 videos.
+playlists. The YouTube Data API v3 is free up to 10,000 quota units a day per Google Cloud project; reading a
+playlist costs two calls (2 units) per 50 videos: `playlistItems`, then `videos` (`part=status`) to hide videos still
+processing.
 
 Uploading through the app was planned and dropped: it needs a long-lived OAuth refresh token
 that can post as the club, a consent screen, YouTube's API compliance audit (weeks; until then API uploads are locked
@@ -118,8 +119,8 @@ background are ready-sized files in `src/assets/`.
 - A new kind of video is a new playlist on YouTube and a new entry in the Studio, with no code change. Changing the
   list or a label starts a new cache entry, so it shows within a minute.
 - Free-tier budget (checked 2026-10-05): Sanity Free allows 1M API CDN and 250k API requests a month, 100 GB of
-  assets and 100 GB of bandwidth; Workers Free allows 100k requests a day; YouTube one call per playlist (per 50
-  videos) every 10 minutes per data centre, against 10,000 units a day. A club site uses well under 1% of each.
+  assets and 100 GB of bandwidth; Workers Free allows 100k requests a day; YouTube two calls per playlist (per 50
+  videos: `playlistItems` and `videos`) every 10 minutes per data centre, against 10,000 units a day. A club site uses well under 1% of each.
   Images come from Sanity's image CDN, which counts against bandwidth.
 - Photo and video pages depend on Instagram, Sanity and YouTube at view time, softened by the last good copy.
 - No OAuth client, refresh token, consent screen or API audit. Uploading leaves the app, and the uploader picks the
