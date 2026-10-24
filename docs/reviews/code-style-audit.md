@@ -1,6 +1,6 @@
 # Code style audit, 2026-10-23
 
-The code held to [ADR 0125](adr/0125-how-code-reads.md) (how code reads) and [ADR 0105](adr/0105-code-grouped-by-feature.md)
+The code held to [ADR 0125](../adr/0125-how-code-reads.md) (how code reads) and [ADR 0105](../adr/0105-code-grouped-by-feature.md)
 (where it goes), for the pre-launch review (#148). A report: only two things were fixed here, routes outside a
 `.routes.ts` and unused code (below). The rest is paid down as each file is next worked on (ADR 0105); the big
 pages wait for the shared components (#153).

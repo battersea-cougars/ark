@@ -2,8 +2,8 @@
 
 The tournament editor (`lib/TournamentDateEditor.svelte`, in `lib/TournamentEditorPanel.svelte`) and the quick
 questions (`lib/TournamentQuickCreate.svelte`) where they overlap. Decisions stay in ADR
-[0030](adr/0030-training-and-tournament-schedule.md), [0065](adr/0065-page-frame-and-admin-actions.md) and
-[0074](adr/0074-tournament-home-and-scheduling.md); this is where it stood, what was changed and what's left to decide.
+[0030](../adr/0030-training-and-tournament-schedule.md), [0065](../adr/0065-page-frame-and-admin-actions.md) and
+[0074](../adr/0074-tournament-home-and-scheduling.md); this is where it stood, what was changed and what's left to decide.
 
 ## 2026-10-23
 

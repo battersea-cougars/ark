@@ -5,7 +5,7 @@ The pre-launch review's security parts ([#148](https://github.com/battersea-coug
 the team app's Worker (`apps/team/worker`: 118 routes in the table, sign-in's own under `/api/auth/`, the Sentry tunnel)
 and the website's live routes (`apps/web/src/pages` with `prerender = false`, and its middleware).
 
-Earlier reviews (2026-10-06, 2026-10-09) are in [ADR 0036](adr/0036-api-security.md). This one found one High, fixed,
+Earlier reviews (2026-10-06, 2026-10-09) are in [ADR 0036](../adr/0036-api-security.md). This one found one High, fixed,
 and no Medium in the code; what's left open is small or a decision.
 
 **Severity:** High, someone can do what their role shouldn't let them; Medium, a weakness that needs something else to
