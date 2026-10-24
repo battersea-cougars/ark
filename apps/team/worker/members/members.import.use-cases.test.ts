@@ -30,8 +30,7 @@ type Member = {
   roles: string[];
   paymentReference: string;
 };
-const members = async (as: Awaited<ReturnType<typeof w.signedIn>>) =>
-  (await as.call("GET", "/api/bootstrap")).body.members as Member[];
+const members = async (as: Awaited<ReturnType<typeof w.signedIn>>) => (await as.club()).body.members as Member[];
 
 describe("an admin imports members from a file", () => {
   it("checking the file says who'd be added and who's in already, and changes nothing", async () => {
@@ -186,9 +185,7 @@ describe("an admin imports the club's own spreadsheet", () => {
     const dana = await w.signedIn("dana@example.com");
     await dana.call("POST", "/api/members/import", { file: SHEET, apply: true });
     const quinn = await w.signedIn("quinn@example.com");
-    const me = (await quinn.call("GET", "/api/bootstrap")).body.members.find(
-      (m: Member) => m.name === "Quinn Quarterly",
-    );
+    const me = (await quinn.club()).body.members.find((m: Member) => m.name === "Quinn Quarterly");
     expect(me.quarterly).toBe(true);
   });
 

@@ -22,7 +22,7 @@ export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, pa
   const asked: string[] = [];
   const events: Json[] = [];
   const whole = async () => {
-    const r = await b.call("GET", "/api/bootstrap", undefined, {
+    const r = await b.club({
       headers: tag ? { "if-none-match": atVersion(tag, copy.held) } : {},
     });
     asked.push(r.status === 304 ? "whole: unchanged" : "whole");

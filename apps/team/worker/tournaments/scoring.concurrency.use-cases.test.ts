@@ -31,7 +31,7 @@ type Phone = Awaited<ReturnType<typeof w.signedIn>>;
  */
 async function gameOn() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captains = { Ants: idOf("Cara Captain"), Bees: idOf("Cole Captain"), Cats: idOf("Reg Captain") };
   const res = await dana.call("POST", "/api/tournaments", {
@@ -55,7 +55,7 @@ async function gameOn() {
   expect(res.status).toBe(201);
   const id = res.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
-  const t = ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((x: Json) => x.id === id);
+  const t = ((await dana.club()).body as Json).tournaments.find((x: Json) => x.id === id);
   const game = t.games[0];
   const keeperEmail = ROSTER.find(
     (r) => idOf(r.name) === t.teams.find((x: Json) => x.id === game.scoringTeamId).captainMemberId,

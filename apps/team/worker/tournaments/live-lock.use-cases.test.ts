@@ -43,13 +43,11 @@ async function cup() {
   for (const b of [reg, mo])
     expect((await b.call("POST", `/api/tournaments/${id}/answer`, { answer: "in" })).status).toBe(200);
   await chargeDue(w.env, DAY.now);
-  const boot = (await dana.call("GET", "/api/bootstrap", undefined, DAY)).body as Json;
+  const boot = (await dana.club(DAY)).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   /** An admin marks it live or finished, as the editor's status does. */
   const mark = async (status: "live" | "finished") => {
-    const t = ((await dana.call("GET", "/api/bootstrap", undefined, DAY)).body as Json).tournaments.find(
-      (x: Json) => x.id === id,
-    );
+    const t = ((await dana.club(DAY)).body as Json).tournaments.find((x: Json) => x.id === id);
     return dana.call("PUT", `/api/tournaments/${id}`, { ...t, status }, DAY);
   };
   /** Someone's sign-up, as stored. */
@@ -139,7 +137,7 @@ describe("the Kumite: started once a match has been played, whatever its status 
   it("fixtures set, a goalie left over says he's out; a match played, the next one can't, nor can anyone come in", async () => {
     w = testWorld(KUMITE_ROSTER);
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await dana.club()).body as Json;
     const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
     const made = await dana.call("POST", "/api/tournaments", {
       typeId: 1,
@@ -189,9 +187,7 @@ describe("the Kumite: started once a match has been played, whatever its status 
     expect(first.status).toBe(200);
 
     // A match played (its status still says sign-up open): started
-    const t = ((await dana.call("GET", "/api/bootstrap", undefined, AT)).body as Json).tournaments.find(
-      (x: Json) => x.id === id,
-    );
+    const t = ((await dana.club(AT)).body as Json).tournaments.find((x: Json) => x.id === id);
     expect(t.status).toBe("open");
     expect(
       (await dana.call("PUT", `/api/tournaments/${id}/games/${t.games[0].id}`, { homeGoals: 2, awayGoals: 1 }, AT))

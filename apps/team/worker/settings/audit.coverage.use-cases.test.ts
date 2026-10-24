@@ -31,7 +31,7 @@ describe("an admin's changes are on the record", () => {
 
   it("a training's fee changing", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const series = (await dana.call("GET", "/api/bootstrap")).body.series[0];
+    const series = (await dana.club()).body.series[0];
     await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [{ pence: 800, from: "2026-01-01" }] });
     const e = (await record(dana)).find((x) => x.action === "training.updated");
     expect(JSON.stringify(e.detail.to)).toContain("800");
@@ -39,7 +39,7 @@ describe("an admin's changes are on the record", () => {
 
   it("the register on the night: who was there, which makes the charges", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap")).body;
+    const b = (await dana.club()).body;
     const reg = b.members.find((m: Json) => m.name === "Reg Player").id;
     const session = b.sessions.find((s: Json) => s.heldOn === "2026-10-02").id;
     // Past midnight, the night over, before its register closes at 6am (#11): a walk-in on the record
@@ -56,9 +56,7 @@ describe("an admin's changes are on the record", () => {
 
   it("a member's own sign-up stays off it", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const session = (await reg.call("GET", "/api/bootstrap")).body.sessions.find(
-      (s: Json) => s.heldOn >= "2026-10-06",
-    ).id;
+    const session = (await reg.club()).body.sessions.find((s: Json) => s.heldOn >= "2026-10-06").id;
     await reg.call("POST", `/api/sessions/${session}/answer`, { answer: "in" });
     const dana = await w.signedIn("dana@example.com");
     expect((await record(dana)).map((e) => e.action)).not.toContain("signups.changed");

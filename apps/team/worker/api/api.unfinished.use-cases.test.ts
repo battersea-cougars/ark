@@ -16,12 +16,12 @@ describe("unfinished screens", () => {
   it("a member on dev is told they're there to try", async () => {
     w.env.SITE_ENV = "dev";
     const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("GET", "/api/bootstrap")).body.unfinished).toBe(true);
+    expect((await mo.club()).body.unfinished).toBe(true);
   });
 
   it("a member in production isn't", async () => {
     w.env.SITE_ENV = "production";
     const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("GET", "/api/bootstrap")).body.unfinished).toBe(false);
+    expect((await mo.club()).body.unfinished).toBe(false);
   });
 });

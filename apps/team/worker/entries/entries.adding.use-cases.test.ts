@@ -32,7 +32,7 @@ beforeEach(() => {
 
 async function as(email: string) {
   const b = await w.signedIn(email);
-  const sees = async (now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now = NOW) => (await b.club({ now })).body as Json;
   return { call: b.call, sees };
 }
 

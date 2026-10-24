@@ -77,7 +77,7 @@ describe("a member adds a passkey, and signs in with it next time", () => {
     // The next day, a new browser on the same phone: no email, no code
     const { b, res } = await passkeySignIn(phone, w.browser(), minutes(24 * 60));
     expect(res.status).toBe(200);
-    expect((await b.call("GET", "/api/bootstrap", undefined, { now: minutes(24 * 60) })).status).toBe(200);
+    expect((await b.club({ now: minutes(24 * 60) })).status).toBe(200);
     expect(w.mails.length).toBe(mailsBefore);
     expect(record("sign_in").at(-1)).toEqual({ memberId: idOf("reg@example.com"), method: "passkey" });
     expect((await myPasskeys(b))[0].lastUsedAt).toBe(minutes(24 * 60).toISOString());
@@ -189,12 +189,12 @@ describe("a passkey's sign-in is refused when it should be", () => {
     // The phone is told it's gone, so it stops offering it
     expect(res.body.unknownCredential).toBe(true);
     // Signed in still (removing a passkey isn't signing out)
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.club()).status).toBe(200);
   });
 
   it("an inactive member: refused, and being made inactive takes their passkeys away", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const reg = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === "Reg Player");
+    const reg = (await dana.club()).body.members.find((m: Json) => m.name === "Reg Player");
     const b = w.browser();
     const response = phone.get(await passkeyOptions(b), ORIGIN);
     expect((await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, status: "inactive" })).status).toBe(200);
@@ -232,7 +232,7 @@ describe("what a passkey has to do with signing out", () => {
     const reg = await w.signedIn("reg@example.com");
     await addPasskey(reg, phone);
     expect((await reg.call("POST", "/api/auth/sign-out-everywhere")).status).toBe(200);
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await reg.club()).status).toBe(401);
     expect((await passkeySignIn(phone)).res.status).toBe(200);
   });
 
@@ -282,7 +282,7 @@ describe("an admin and a member's passkeys, from their sheet", () => {
       expect.objectContaining({ memberId: idOf("reg@example.com"), from: { passkeys: 2 }, to: { passkeys: 0 } }),
     ]);
     // Their sign-ins aren't touched: that's Sign out everywhere's job
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.club()).status).toBe(200);
   });
 
   it("never an admin's, for someone who only manages members", async () => {
@@ -292,7 +292,7 @@ describe("an admin and a member's passkeys, from their sheet", () => {
       await dana.call("POST", "/api/roles", { name: "Helper", description: "", actions: ["manage:Member"] })
     ).body;
     expect(roleId).toBeGreaterThan(0);
-    const reg = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === "Reg Player");
+    const reg = (await dana.club()).body.members.find((m: Json) => m.name === "Reg Player");
     await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, roles: ["Helper", "Member"] });
     const helper = await w.signedIn("reg@example.com");
     expect((await helper.call("DELETE", `/api/members/${idOf("dana@example.com")}/passkeys`)).status).toBe(403);

@@ -2,8 +2,11 @@
 // it holds, which moves on as it reads the club in parts (catch-up.ts, ADR 0072). The deploy, the data version, who's
 // asking and the day; none has a dot in it. No imports: the load runs' phones use it too.
 
-/** The club as one member sees it, at one data version, one day, from one deploy. */
-export const clubTag = (build: string, version: number, memberId: number | string, today: string) =>
+/**
+ * The club as one member sees it, at one data version, one day, from one deploy. A page's parts are tagged the same
+ * way at their own versions (`version`: theirs, joined by dashes, #178) and what they are (`memberId`: whose, ~ which).
+ */
+export const clubTag = (build: string, version: number | string, memberId: number | string, today: string) =>
   `"${build}.${version}.${memberId}.${today}"`;
 
 /** The same tag at another data version. A weak tag (a proxy that compressed the reply) stays weak. */

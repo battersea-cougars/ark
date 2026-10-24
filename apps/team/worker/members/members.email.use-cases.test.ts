@@ -37,7 +37,7 @@ describe("changing your own email", () => {
     // Same member, same id: everything that points at him still does
     expect(idOf("reg.new@example.com")).toBe(id);
     // This browser stays signed in
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.club()).status).toBe(200);
     // The old address hears it
     // (outside production the safe inbox gets it, its subject saying who for: packages/shared/email.ts)
     const told = w.mails.find((m) => m.subject.endsWith("Your Cougars sign-in email has changed"));
@@ -58,8 +58,8 @@ describe("changing your own email", () => {
     const laptop = await w.signedIn("reg@example.com");
     const { devCode } = (await ask(phone, "reg.new@example.com")).body;
     expect((await confirm(phone, devCode)).status).toBe(200);
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(200);
-    expect((await laptop.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await phone.club()).status).toBe(200);
+    expect((await laptop.club()).status).toBe(401);
   });
 
   it("asking for an address that's someone else's sends no code, says the same, and tells that inbox why", async () => {

@@ -26,8 +26,7 @@ beforeEach(() => {
 /** A cup three teams entered, each captained by a member, with its fixtures made (and its playoffs, if any). */
 async function cup(playoffs: { name: string; home: number; away: number }[] = [], extra: object = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (as = dana, now = NOW) =>
-    (await as.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (as = dana, now = NOW) => (await as.club({ now })).body as Json;
   const boot = await sees();
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captains = { Ants: idOf("Cara Captain"), Bees: idOf("Cole Captain"), Cats: idOf("Reg Captain") };
@@ -578,7 +577,7 @@ describe("how a penalty's served is the series' setting, copied onto each tourna
 
   it("an admin sets Penalties on a series; a new series is Power play; its tournaments copy it and can differ", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const sees = async () => (await dana.club()).body as Json;
     // Left out: the standard
     let res = await dana.call("POST", "/api/tournament-types", SERIES);
     expect(res.status).toBe(201);
@@ -609,7 +608,7 @@ describe("how a penalty's served is the series' setting, copied onto each tourna
 
   it("the Kumite's penalties are a penalty shot, the player sitting out", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await dana.club()).body as Json;
     expect(boot.tournamentTypes.find((t: Json) => t.slug === "kumite").penaltyRule).toBe("sit_out");
   });
 });
@@ -633,7 +632,7 @@ describe("the usual penalty length is the series' setting, copied onto each tour
 
   it("an admin sets it on a series (Minor 2, Double minor 2+2, Major 5); a new series is a Minor; its tournaments copy it", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const sees = async () => (await dana.club()).body as Json;
     let res = await dana.call("POST", "/api/tournament-types", SERIES);
     expect((await sees()).tournamentTypes.find((t: Json) => t.id === res.body.id).defaultPenaltyMinutes).toBe(2);
     res = await dana.call("POST", "/api/tournament-types", { ...SERIES, name: "Major Cup", defaultPenaltyMinutes: 5 });
@@ -677,7 +676,7 @@ describe("the usual penalty length is the series' setting, copied onto each tour
 describe("periods: the clock runs per period, and goals and penalties say which", () => {
   it("a series sets its periods (1 to 3), and its tournaments copy them", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const sees = async () => (await dana.club()).body as Json;
     const series = {
       name: "Three Cup",
       shortName: "Three",
@@ -769,7 +768,7 @@ describe("periods: the clock runs per period, and goals and penalties say which"
 describe("a break between periods", () => {
   it("is a series setting in minutes (2 unless said, up to 15), copied onto its tournaments; the Kumite has none", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const sees = async () => (await dana.club()).body as Json;
     const series = {
       name: "Break Cup",
       shortName: "Break",

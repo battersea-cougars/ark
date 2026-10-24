@@ -32,7 +32,7 @@ afterEach(() => vi.restoreAllMocks());
 /** Friday Training, its sign-up opening `days` before each night (null: always open), as Dana saves it. */
 async function friday(days: unknown = 4) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (now = NOW) => (await dana.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now = NOW) => (await dana.club({ now })).body as Json;
   const b = await sees();
   const id = Object.fromEntries(b.members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
   const series = b.series[0];

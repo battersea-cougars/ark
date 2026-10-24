@@ -19,7 +19,7 @@ beforeEach(() => {
 describe("who gets their own email outside production", () => {
   it("nobody to start with; the app knows Dev tools are there", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    const boot = (await dana.club()).body;
     expect(boot.devTools).toBe(true);
     expect((await dana.call("GET", "/api/dev/mail")).body).toEqual({ addresses: [] });
   });
@@ -41,7 +41,7 @@ describe("who gets their own email outside production", () => {
 
   it("a member can't see or change it", async () => {
     const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("GET", "/api/bootstrap")).body.devTools).toBe(false);
+    expect((await mo.club()).body.devTools).toBe(false);
     expect((await mo.call("POST", "/api/dev/mail", { email: "mo@example.com" })).status).toBe(403);
   });
 
@@ -62,9 +62,7 @@ describe("who gets their own email outside production", () => {
     expect(
       (await dana.call("POST", "/api/roles", { name: "Boss", description: "", actions: ["manage:all"] })).status,
     ).toBe(201);
-    const mo = (await dana.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Mo Member",
-    );
+    const mo = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Mo Member");
     expect((await dana.call("PUT", `/api/members/${mo.id}`, { ...mo, roles: ["Boss", "Member"] })).status).toBe(200);
     expect([...((await mailSetup(env)).allow ?? [])].sort()).toEqual(["dana@example.com", "mo@example.com"]);
   });
@@ -72,7 +70,7 @@ describe("who gets their own email outside production", () => {
   it("doesn't exist in production", async () => {
     const dana = await w.signedIn("dana@example.com");
     w.env.SITE_ENV = "production";
-    expect((await dana.call("GET", "/api/bootstrap")).body.devTools).toBe(false);
+    expect((await dana.club()).body.devTools).toBe(false);
     expect((await dana.call("GET", "/api/dev/mail")).status).toBe(404);
     expect((await dana.call("POST", "/api/dev/mail", { email: "mo@example.com" })).status).toBe(404);
   });
@@ -82,9 +80,9 @@ describe("who gets their own email outside production", () => {
   it("doesn't exist on a deploy that never said where it is", async () => {
     const dana = await w.signedIn("dana@example.com");
     w.env.TEAM_ENV = undefined;
-    expect((await dana.call("GET", "/api/bootstrap")).body.devTools).toBe(false);
+    expect((await dana.club()).body.devTools).toBe(false);
     expect((await dana.call("GET", "/api/dev/mail")).status).toBe(404);
     w.env.SITE_ENV = "dev";
-    expect((await dana.call("GET", "/api/bootstrap")).body.devTools).toBe(true);
+    expect((await dana.club()).body.devTools).toBe(true);
   });
 });

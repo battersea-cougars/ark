@@ -37,7 +37,7 @@ beforeEach(() => {
  * no-show, Walt walked in), as Dana runs it. */
 async function friday({ capacity = 5, day = FRIDAY, signedUpAt = TUESDAY, night = ON_THE_NIGHT } = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (now: Date) => (await dana.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now: Date) => (await dana.club({ now })).body as Json;
   const b = await sees(signedUpAt);
   const id = Object.fromEntries(b.members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
   const series = b.series[0];
@@ -133,7 +133,7 @@ describe("the register closes the morning after", () => {
 
   it("a member's attendance can't change a closed night, and none of a batch with one in it is saved", async () => {
     const f = await friday();
-    const later = (await f.dana.call("GET", "/api/bootstrap", undefined, { now: CLOSED })).body.sessions.find(
+    const later = (await f.dana.club({ now: CLOSED })).body.sessions.find(
       (s: Json) => s.seriesId === f.session.seriesId && s.heldOn > FRIDAY,
     );
     const res = await f.dana.call(
@@ -150,9 +150,7 @@ describe("the register closes the morning after", () => {
     expect(res.status).toBe(409);
     expect(res.body.error).toBe(REFUSED);
     expect((await f.seen(CLOSED)).noShows).toEqual([f.id.Nina]);
-    const next = (await f.dana.call("GET", "/api/bootstrap", undefined, { now: CLOSED })).body.sessions.find(
-      (s: Json) => s.id === later.id,
-    );
+    const next = (await f.dana.club({ now: CLOSED })).body.sessions.find((s: Json) => s.id === later.id);
     expect(next.going).not.toContain(f.id.Nina);
   });
 });
@@ -175,7 +173,7 @@ describe("the morning the clocks go back", () => {
   it("a Saturday night's register closes at 06:00 GMT on Sunday, an hour later in UTC than the week before", async () => {
     const SATURDAY = "2026-10-24";
     const dana = await w.signedIn("dana@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap", undefined, { now: TUESDAY })).body as Json;
+    const b = (await dana.club({ now: TUESDAY })).body as Json;
     const series = b.series[0];
     expect(
       (
@@ -187,12 +185,8 @@ describe("the morning the clocks go back", () => {
         )
       ).status,
     ).toBe(200);
-    const night = ((await dana.call("GET", "/api/bootstrap", undefined, { now: TUESDAY })).body as Json).sessions.find(
-      (s: Json) => s.heldOn === SATURDAY,
-    );
-    const reg = (await dana.call("GET", "/api/bootstrap", undefined, { now: TUESDAY })).body.members.find(
-      (m: Json) => m.name === "Reg Player",
-    ).id;
+    const night = ((await dana.club({ now: TUESDAY })).body as Json).sessions.find((s: Json) => s.heldOn === SATURDAY);
+    const reg = (await dana.club({ now: TUESDAY })).body.members.find((m: Json) => m.name === "Reg Player").id;
     const tick = (now: string) =>
       dana.call("POST", `/api/sessions/${night.id}/register`, { memberId: reg, here: true }, { now: new Date(now) });
     expect((await tick("2026-10-25T05:59:00Z")).status).toBe(200);

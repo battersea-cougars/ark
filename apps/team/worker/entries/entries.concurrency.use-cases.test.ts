@@ -56,7 +56,7 @@ const tapAt = () => ({ now: new Date(NOW.getTime() + ++taps) });
  */
 async function friday({ places = 20, keeperPlaces = 2 as number | null } = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = new Map<string, number>(boot.members.map((m: Json) => [m.email ?? m.name, m.id]));
   const byName = new Map<string, number>(boot.members.map((m: Json) => [m.name, m.id]));
   const series = boot.series[0];
@@ -70,9 +70,7 @@ async function friday({ places = 20, keeperPlaces = 2 as number | null } = {}) {
     const r = await dana.call("POST", `/api/members/${byName.get(`Quarterly ${i}`)}/quarterly`, { quarterly: true });
     expect(r.status).toBe(200);
   }
-  const session = ((await dana.call("GET", "/api/bootstrap")).body as Json).sessions.find(
-    (s: Json) => s.heldOn >= "2026-10-06",
-  );
+  const session = ((await dana.club()).body as Json).sessions.find((s: Json) => s.heldOn >= "2026-10-06");
   const phones = new Map<string, Awaited<ReturnType<typeof w.signedIn>>>();
   for (const email of [...skaters, ...quarterlies, ...keepers]) phones.set(email, await w.signedIn(email));
   const id = (email: string) => {
@@ -92,8 +90,7 @@ async function friday({ places = 20, keeperPlaces = 2 as number | null } = {}) {
     for (const tap of given) await atOnce([tap]);
   };
   /** The night as the database has it: each list in its one order. */
-  const seen = async () =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).sessions.find((s: Json) => s.id === session.id);
+  const seen = async () => ((await dana.club()).body as Json).sessions.find((s: Json) => s.id === session.id);
   /** Each member's rows: never more than one. */
   const rows = () =>
     w.db.raw

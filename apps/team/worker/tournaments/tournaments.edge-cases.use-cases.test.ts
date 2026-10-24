@@ -23,7 +23,7 @@ beforeEach(() => {
 
 async function admin() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = async () => (await dana.club()).body as Json;
   const idOf = async (name: string) => (await boot()).members.find((m: Json) => m.name === name).id as number;
   const cup = (o: Record<string, unknown> = {}) => ({
     name: "Winter Cup",
@@ -64,9 +64,7 @@ describe("an admin names a tournament", () => {
     expect(res.status).toBe(201);
     expect((await dana.tournament(res.body.id)).name).toBe(name);
     const reg = await w.signedIn("reg@example.com");
-    expect(
-      (await reg.call("GET", "/api/bootstrap")).body.tournaments.find((t: Json) => t.id === res.body.id).name,
-    ).toBe(name);
+    expect((await reg.club()).body.tournaments.find((t: Json) => t.id === res.body.id).name).toBe(name);
   });
 
   it("up to 80 characters; one more, no name, or a name that isn't text is refused, and nothing is made", async () => {

@@ -25,6 +25,8 @@ import type { KeyObject } from "node:crypto";
 import { SITEVERIFY } from "@cougars/shared/turnstile";
 import { authenticator } from "./testing.authenticator";
 import { londonISO } from "@cougars/shared/london";
+import { HOLDS_HEADER, PAGE_PARTS } from "../src/app/club-parts";
+import { duesOf, membersOf, nightsOf, tournamentsOf } from "../src/app/club-whole";
 
 /** An issue as Sentry's API lists it, with the environment and status the fake filters by. */
 export interface SentryIssue {
@@ -93,6 +95,19 @@ export interface Reply {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   body: any;
   headers: Headers;
+}
+
+/** The bootstrap with every page's parts in place, as the app puts them together (src/app/club-whole.ts, #178). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function wholeClub(core: any, pages: any) {
+  return {
+    ...core,
+    ...pages,
+    members: membersOf(pages.members, core.people, core.viewingAs ?? core.me),
+    sessions: nightsOf(core.sessions, pages.pastSessions),
+    tournaments: tournamentsOf(core.tournaments, pages.lastPlayed),
+    dues: duesOf(core.dues, pages.clubDues),
+  };
 }
 
 /** The seeded luck of the last world that asked for it (luck()): a new world starts with the real thing. */
@@ -630,6 +645,8 @@ export function testWorld(roster: object[]) {
       // Like a real browser, a change carries the page's Origin
       const sent: Record<string, string | null> = {
         "content-type": "application/json",
+        // An app that's read every page (as it has, once it's idle, #178): a change sends back its parts of them too
+        [HOLDS_HEADER]: PAGE_PARTS.join(","),
         cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; "),
         ...(method === "GET" || method === "HEAD" ? {} : { origin: new URL(host).origin }),
         ...headers,
@@ -662,7 +679,20 @@ export function testWorld(roster: object[]) {
       const isJson = res.headers.get("content-type")?.includes("json");
       return { status: res.status, body: isJson ? await res.json() : {}, headers: res.headers, d1: spentBy.get(res)! };
     }
-    return { call, open, jar };
+    /**
+     * The club as the app holds it once its pages are read (#178): the bootstrap, then every page's parts, put together
+     * as the app puts them (src/app/club-whole.ts). The bootstrap's own reply but for its body: its status (a 304, a
+     * 401), headers and D1 calls, so what opening the app costs is still the bootstrap's.
+     */
+    async function club(options: Options = {}): Promise<Reply> {
+      const boot = await call("GET", "/api/bootstrap", undefined, options);
+      if (boot.status !== 200) return boot;
+      const { now, host } = options;
+      const pages = await call("GET", `/api/slices?names=${PAGE_PARTS.join(",")}`, undefined, { now, host });
+      if (pages.status !== 200) return boot;
+      return { ...boot, body: wholeClub(boot.body, pages.body.slices) };
+    }
+    return { call, open, club, jar };
   }
 
   /** Ask for a code, as a person (their Turnstile token, checked once turnstile() is on); the reply (with the code,

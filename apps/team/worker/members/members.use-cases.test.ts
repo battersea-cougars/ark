@@ -28,9 +28,7 @@ describe("an admin adds a member", () => {
     expect(r.status).toBe(201);
     expect(r.body.emailed).toBe(true);
 
-    const nina = (await dana.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Nina New",
-    );
+    const nina = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Nina New");
     expect(nina).toMatchObject({ id: r.body.id, status: "active", position: "G" });
 
     const mail = lastEmail()!;
@@ -67,9 +65,7 @@ describe("an admin adds a member without emailing them (#164)", () => {
     expect(r.body.emailed).toBe(false);
     expect(w.mails).toEqual([]);
 
-    const nina = (await dana.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Nina New",
-    );
+    const nina = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Nina New");
     expect(nina).toMatchObject({ id: r.body.id, status: "active" });
     const phone = w.browser();
     const { devCode } = await w.ask(phone, "nina@example.com");
@@ -110,7 +106,7 @@ describe("an admin adds a member without emailing them (#164)", () => {
     const reg = await w.signedIn("reg@example.com");
     expect((await reg.call("POST", `/api/members/${id}/app-link`)).status).toBe(403);
     expect((await dana.call("POST", "/api/members/9999/app-link")).status).toBe(404);
-    const nina = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: { id: number }) => m.id === id);
+    const nina = (await dana.club()).body.members.find((m: { id: number }) => m.id === id);
     await dana.call("PUT", `/api/members/${id}/contact`, { email: "", phone: "" });
     expect((await dana.call("POST", `/api/members/${id}/app-link`)).status).toBe(400);
     await dana.call("PUT", `/api/members/${id}/contact`, { email: "nina@example.com", phone: "" });
@@ -122,7 +118,7 @@ describe("an admin adds a member without emailing them (#164)", () => {
 
 describe("an admin edits the name a member goes by", () => {
   const members = async (who: Awaited<ReturnType<typeof w.signedIn>>) =>
-    (await who.call("GET", "/api/bootstrap")).body.members as { id: number; name: string; webName: string | null }[];
+    (await who.club()).body.members as { id: number; name: string; webName: string | null }[];
 
   it("sets it for them, and it shows everywhere in place of their full name", async () => {
     const dana = await w.signedIn("dana@example.com");
@@ -153,7 +149,7 @@ describe("an admin edits the name a member goes by", () => {
 
 describe("an admin sets another admin's everyday role (ADR 0024)", () => {
   type Row = { id: number; name: string; everydayRoleId?: number | null };
-  const boot = async (who: Awaited<ReturnType<typeof w.signedIn>>) => (await who.call("GET", "/api/bootstrap")).body;
+  const boot = async (who: Awaited<ReturnType<typeof w.signedIn>>) => (await who.club()).body;
   async function twoAdmins() {
     const dana = await w.signedIn("dana@example.com");
     const b = await boot(dana);

@@ -28,7 +28,7 @@ export const MORNING = { now: new Date("2026-11-14T06:30:00Z") };
  */
 export async function kumiteNight(w: ReturnType<typeof testWorld>, { awards }: { awards?: object[] } = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const club = (await dana.call("GET", "/api/bootstrap", undefined, EVENING)).body as Json;
+  const club = (await dana.club(EVENING)).body as Json;
   const idOf = (name: string) => club.members.find((m: Json) => m.name === name).id as number;
   const made = await dana.call("POST", "/api/tournaments", {
     typeId: KUMITE,
@@ -48,7 +48,7 @@ export async function kumiteNight(w: ReturnType<typeof testWorld>, { awards }: {
   const id = made.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`, undefined, EVENING)).status).toBe(200);
   const tournament = async (as = dana, at = EVENING) =>
-    ((await as.call("GET", "/api/bootstrap", undefined, at)).body as Json).tournaments.find((t: Json) => t.id === id);
+    ((await as.club(at)).body as Json).tournaments.find((t: Json) => t.id === id);
   const t = await tournament();
   const [ants, bees] = t.teams.map((x: Json) => x.id as number);
   /** Every match played: Ants 3, Bees 1. */

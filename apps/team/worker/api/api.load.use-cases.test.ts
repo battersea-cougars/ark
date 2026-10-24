@@ -1,5 +1,6 @@
 // Keeping the free tier's limits (ADR 0053, ADR 0055): reopening the app when nothing's changed costs one row read,
 // and nobody, signed in or not, can hammer the API. Driven through the real handler in the fake world (testing.ts).
+import { membersOf } from "../../src/app/club-whole";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuotaError, guard, resetBreakers } from "@cougars/shared/breaker";
 import type { CacheLike } from "@cougars/shared/rate-limit";
@@ -28,30 +29,30 @@ afterEach(() => {
 describe("reopening the app", () => {
   it("gets 'nothing's changed' until someone changes something", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const first = await reg.call("GET", "/api/bootstrap");
+    const first = await reg.club();
     const tag = first.headers.get("etag")!;
     expect(first.status).toBe(200);
     // Never kept in the browser's cache, where members' details would outlast signing out (#81): the app asks with
     // the tag itself
     expect(first.headers.get("cache-control")).toBe("private, no-store");
 
-    const again = await reg.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": tag } });
+    const again = await reg.club({ headers: { "if-none-match": tag } });
     expect(again.status).toBe(304);
 
     // Someone else's change is news to Reg too
     const dana = await w.signedIn("dana@example.com");
     expect((await dana.call("PUT", "/api/me", PROFILE)).status).toBe(200);
-    const after = await reg.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": tag } });
+    const after = await reg.club({ headers: { "if-none-match": tag } });
     expect(after.status).toBe(200);
     expect(after.headers.get("etag")).not.toBe(tag);
   });
 
   it("hears which build of the app answered, so an app left open knows a newer one is out (ADR 0104)", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const first = await reg.call("GET", "/api/bootstrap");
+    const first = await reg.club();
     expect(first.headers.get("x-app-build")).toBe(APP_BUILD);
     // Nothing's changed: still says which build, as the browser keeps the first reply's headers
-    const again = await reg.call("GET", "/api/bootstrap", undefined, {
+    const again = await reg.club({
       headers: { "if-none-match": first.headers.get("etag")! },
     });
     expect(again.status).toBe(304);
@@ -61,13 +62,11 @@ describe("reopening the app", () => {
   it("is never told 'nothing's changed' with another member's tag, or the next day", async () => {
     const reg = await w.signedIn("reg@example.com");
     const dana = await w.signedIn("dana@example.com");
-    const danas = (await dana.call("GET", "/api/bootstrap")).headers.get("etag")!;
-    expect((await reg.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": danas } })).status).toBe(
-      200,
-    );
-    const regs = (await reg.call("GET", "/api/bootstrap")).headers.get("etag")!;
+    const danas = (await dana.club()).headers.get("etag")!;
+    expect((await reg.club({ headers: { "if-none-match": danas } })).status).toBe(200);
+    const regs = (await reg.club()).headers.get("etag")!;
     const tomorrow = new Date("2026-10-07T11:00:00Z");
-    const next = await reg.call("GET", "/api/bootstrap", undefined, {
+    const next = await reg.club({
       now: tomorrow,
       headers: { "if-none-match": regs },
     });
@@ -87,22 +86,20 @@ describe("reopening the app", () => {
     const reg = await w.signedIn("reg@example.com");
     const lastSession = () =>
       (w.db.raw.prepare("SELECT max(held_on) last FROM training_sessions").get() as { last: string | null }).last;
-    await reg.call("GET", "/api/bootstrap");
+    await reg.club();
     const today = lastSession();
     expect(today).not.toBeNull();
 
     const nextWeek = new Date(NOW.getTime() + 7 * 86_400_000);
-    await reg.call("GET", "/api/bootstrap", undefined, { now: nextWeek });
+    await reg.club({ now: nextWeek });
     expect(lastSession()! > today!).toBe(true);
   });
 
   it("doesn't count a refused change as a change", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const tag = (await reg.call("GET", "/api/bootstrap")).headers.get("etag")!;
+    const tag = (await reg.club()).headers.get("etag")!;
     expect((await reg.call("PUT", "/api/roles/1", { name: "x" })).status).toBe(403);
-    expect((await reg.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": tag } })).status).toBe(
-      304,
-    );
+    expect((await reg.club({ headers: { "if-none-match": tag } })).status).toBe(304);
   });
 });
 
@@ -128,15 +125,15 @@ describe("rate limits", () => {
     const refused = await reg.call("PUT", "/api/me", PROFILE);
     expect(refused.status).toBe(429);
     expect(refused.body.error).toMatch(/Wait a minute/);
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200); // reading still works
+    expect((await reg.club()).status).toBe(200); // reading still works
     expect((await dana.call("PUT", "/api/me", PROFILE)).status).toBe(200);
   });
 
   it("turn away an address that keeps asking without signing in", async () => {
     stubCaches();
     const stranger = w.browser();
-    for (let i = 0; i < LIMITS.perAddress.limit; i++) await stranger.call("GET", "/api/bootstrap");
-    const refused = await stranger.call("GET", "/api/bootstrap");
+    for (let i = 0; i < LIMITS.perAddress.limit; i++) await stranger.club();
+    const refused = await stranger.club();
     expect(refused.status).toBe(429);
   });
 
@@ -144,9 +141,8 @@ describe("rate limits", () => {
     stubCaches();
     const forger = w.browser();
     forger.jar.set("session", "made-up");
-    for (let i = 0; i < LIMITS.unknownSessions.limit; i++)
-      expect((await forger.call("GET", "/api/bootstrap")).status).toBe(401);
-    const refused = await forger.call("GET", "/api/bootstrap");
+    for (let i = 0; i < LIMITS.unknownSessions.limit; i++) expect((await forger.club()).status).toBe(401);
+    const refused = await forger.club();
     expect(refused.status).toBe(429);
     expect(refused.d1.roundTrips).toBe(0);
   });
@@ -159,8 +155,8 @@ describe("rate limits", () => {
     const stranger = w.browser();
     for (let i = 0; i < LIMITS.perAddress.limit; i++) await stranger.call("GET", "/api/nope");
     expect((await stranger.call("GET", "/api/nope")).status).toBe(429);
-    expect((await stranger.call("GET", "/api/bootstrap")).status).toBe(429);
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await stranger.club()).status).toBe(429);
+    expect((await reg.club()).status).toBe(200);
     expect((await reg.call("PUT", "/api/me", PROFILE)).status).toBe(200);
   });
 
@@ -169,9 +165,9 @@ describe("rate limits", () => {
   it("let a squad on one wifi keep following, each member counted on their own", async () => {
     const reg = await w.signedIn("reg@example.com");
     const dana = await w.signedIn("dana@example.com");
-    const tag = (await reg.call("GET", "/api/bootstrap")).headers.get("etag")!;
+    const tag = (await reg.club()).headers.get("etag")!;
     stubCaches();
-    const reload = (b: typeof reg) => b.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": tag } });
+    const reload = (b: typeof reg) => b.club({ headers: { "if-none-match": tag } });
     for (let i = 0; i < LIMITS.perMember.limit; i++) expect((await reload(reg)).status).toBe(304);
     // Past what one address may ask without signing in, and Dana on the same wifi still gets through
     expect(LIMITS.perMember.limit).toBeGreaterThanOrEqual(LIMITS.perAddress.limit);
@@ -206,8 +202,9 @@ describe("making a change", () => {
     const reg = await w.signedIn("reg@example.com");
     const r = await reg.call("PUT", "/api/me", { ...PROFILE, bio: "Stops pucks." });
     expect(r.status).toBe(200);
-    expect(Object.keys(r.body.changed)).toEqual(["members"]);
-    expect(r.body.changed.members.find((m: { email: string }) => m.email === "reg@example.com").bio).toBe(
+    // Members, as Home names them and (for a phone that's read the roster) everyone (#178), and Home's For admins
+    expect(Object.keys(r.body.changed).sort()).toEqual(["forAdmins", "members", "people"]);
+    expect(r.body.changed.people.find((m: { email: string }) => m.email === "reg@example.com").bio).toBe(
       "Stops pucks.",
     );
   });
@@ -223,7 +220,8 @@ describe("making a change", () => {
   it("shows only what this member may see, as the bootstrap does", async () => {
     const reg = await w.signedIn("reg@example.com");
     const changed = (await reg.call("PUT", "/api/me", PROFILE)).body.changed;
-    const boot = (await reg.call("GET", "/api/bootstrap")).body;
-    expect(changed.members).toEqual(boot.members);
+    const boot = (await reg.club()).body;
+    // Put together as the app does (src/app/club-whole.ts): the roster, with your own row from Home's people
+    expect(membersOf(changed.members, changed.people, boot.me)).toEqual(boot.members);
   });
 });

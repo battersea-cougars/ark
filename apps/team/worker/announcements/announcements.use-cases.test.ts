@@ -22,9 +22,7 @@ beforeEach(() => {
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
 const on = (day: string) => new Date(`${day}T11:00:00Z`);
 const seen = async (b: Browser, now?: Date) =>
-  ((await b.call("GET", "/api/bootstrap", undefined, now ? { now } : {})).body.announcements as Json[]).map(
-    (a) => a.title,
-  );
+  ((await b.club(now ? { now } : {})).body.announcements as Json[]).map((a) => a.title);
 const HALL = { title: "No training on the 24th", body: "The hall's booked.", link: "", endsOn: "2026-10-24" };
 // Posted on the real clock, so it has to run past today whenever the tests run
 const RUNNING = { ...HALL, endsOn: new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10) };
@@ -35,7 +33,7 @@ describe("announcements", () => {
     const r = await dana.call("POST", "/api/announcements", HALL);
     expect(r.status).toBe(201);
     const reg = await w.signedIn("reg@example.com");
-    expect((await reg.call("GET", "/api/bootstrap")).body.announcements).toEqual([
+    expect((await reg.club()).body.announcements).toEqual([
       expect.objectContaining({ id: r.body.id, title: HALL.title, body: HALL.body, link: null, endsOn: "2026-10-24" }),
     ]);
   });
@@ -89,7 +87,7 @@ describe("announcements", () => {
     for (const title of ["First", "Second", "Third"])
       await dana.call("POST", "/api/announcements", { ...RUNNING, title }, { now: new Date() });
     const reg = await w.signedIn("reg@example.com");
-    const third = ((await reg.call("GET", "/api/bootstrap")).body.announcements as Json[])[0].id;
+    const third = ((await reg.club()).body.announcements as Json[])[0].id;
     await reg.call("POST", `/api/announcements/${third}/dismiss`);
 
     const r = await reg.call("GET", "/api/announcements");

@@ -22,7 +22,7 @@ beforeEach(async () => {
 });
 
 const idOf = async (name: string) =>
-  (await dana.call("GET", "/api/bootstrap")).body.members.find((m: { name: string }) => m.name === name).id as number;
+  (await dana.club()).body.members.find((m: { name: string }) => m.name === name).id as number;
 /** They owe this, from that day (an adjustment: a charge on their ledger, dated). */
 async function owes(name: string, pence: number, on: string, reason = "Kit") {
   const r = await dana.call("POST", `/api/members/${await idOf(name)}/adjustments`, { pence, reason, on });

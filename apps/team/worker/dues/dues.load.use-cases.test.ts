@@ -29,12 +29,12 @@ beforeEach(() => {
 });
 
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 /** A session coming up, as anyone sees it. */
 const sessionOn = async (b: Browser, day: string) =>
-  (await boot(b)).sessions.find((s: { heldOn: string }) => s.heldOn === day).id as number;
+  (await b.call("GET", "/api/bootstrap")).body.sessions.find((s: { heldOn: string }) => s.heldOn === day).id as number;
 /** A past Friday, from a member's attendance (an admin's view, which goes back to January). */
 const fridayOn = async (admin: Browser, day: string) =>
   (await admin.call("GET", `/api/members/${await memberId(admin, "Reg Player")}/attendance`)).body.find(

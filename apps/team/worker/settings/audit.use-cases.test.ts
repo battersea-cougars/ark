@@ -16,7 +16,7 @@ beforeEach(() => {
 describe("an admin reads the audit log", () => {
   it("sees who did what, newest first, with the people and roles named", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap")).body;
+    const b = (await dana.club()).body;
     const reg = b.members.find((m: { name: string }) => m.name === "Reg Player");
     const { id: roleId } = (
       await dana.call("POST", "/api/roles", { name: "Helper", description: "", actions: ["manage:Member"] })
@@ -65,9 +65,7 @@ describe("an admin reads the audit log", () => {
   it("sees what was undone that can't be put back: a session reset, with what it took away", async () => {
     const dana = await w.signedIn("dana@example.com");
     const reg = await w.signedIn("reg@example.com");
-    const session = (await reg.call("GET", "/api/bootstrap")).body.sessions.find(
-      (s: { heldOn: string }) => s.heldOn >= "2026-10-06",
-    );
+    const session = (await reg.club()).body.sessions.find((s: { heldOn: string }) => s.heldOn >= "2026-10-06");
     expect((await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" })).status).toBe(200);
     expect((await dana.call("POST", `/api/sessions/${session.id}/reset`)).status).toBe(200);
     const [latest] = (await dana.call("GET", "/api/audit?limit=1")).body.entries;

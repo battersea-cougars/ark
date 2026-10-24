@@ -51,8 +51,7 @@ async function schedule(o: { typeId?: number; status?: string; signupOpensOn?: s
   });
   expect(made.status).toBe(201);
   const id = made.body.id as number;
-  const saved = async () =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((x: Json) => x.id === id) as Json;
+  const saved = async () => ((await dana.club()).body as Json).tournaments.find((x: Json) => x.id === id) as Json;
   /** The editor's Save, everything it had with these changes. */
   const save = async (changes: object, now = NOW) =>
     dana.call("PUT", `/api/tournaments/${id}`, { ...(await saved()), ...changes }, { now });
@@ -117,7 +116,7 @@ describe("a tournament's sign-up opens and members hear it", () => {
     const reg = await w.signedIn("reg@example.com");
     expect((await reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "out" })).status).toBe(200);
     await w.scheduled("*/5 * * * *", OPENING);
-    const boot = (await k.dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await k.dana.club()).body as Json;
     const mo = boot.members.find((m: Json) => m.name === "Mo Player").id as number;
     expect(told().map((p) => p.memberId)).toEqual([mo]);
   });
@@ -129,7 +128,7 @@ describe("a tournament's sign-up opens and members hear it", () => {
     const reg = await w.signedIn("reg@example.com");
     expect((await reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "out" })).status).toBe(200);
     expect((await k.save({ status: "open" })).status).toBe(200);
-    const boot = (await k.dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await k.dana.club()).body as Json;
     const mo = boot.members.find((m: Json) => m.name === "Mo Player").id as number;
     expect(told().map((p) => p.memberId)).toEqual([mo]);
   });

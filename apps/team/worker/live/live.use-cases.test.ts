@@ -30,7 +30,7 @@ const listening = (email: string) => w.listening(email, DRAFT_DAY);
 /** A draft night, open, with Cara on the clock. */
 async function draftNight({ opened = true } = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (b: { call: typeof dana.call }) => (await b.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async (b: { call: typeof dana.call }) => (await b.club()).body as Json;
   const idOf = async (name: string) => (await sees(dana)).members.find((m: Json) => m.name === name).id as number;
   const typeId = (
     await dana.call("POST", "/api/tournament-types", {
@@ -77,7 +77,7 @@ async function draftNight({ opened = true } = {}) {
     ).toBe(200);
   // The draw (seeded) puts Cara first. Dana's session is renewed first, on the night (a new token, #72), so the
   // draw has the luck to itself
-  await dana.call("GET", "/api/bootstrap", undefined, { now: DRAFT_DAY });
+  await dana.club({ now: DRAFT_DAY });
   w.luck(1);
   const draw = () => dana.call("POST", `/api/tournaments/${id}/draft/draw`, {}, { now: DRAFT_DAY });
   const open = () => dana.call("POST", `/api/tournaments/${id}/draft/open`, {}, { now: DRAFT_DAY });

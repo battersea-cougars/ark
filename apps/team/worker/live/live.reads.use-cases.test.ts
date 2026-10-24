@@ -44,10 +44,9 @@ async function phoneOn(email: string, parts: readonly string[]) {
 /** Next Friday's session, and the admin. */
 async function friday() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const session = boot.sessions.find((s: Json) => s.heldOn >= "2026-10-06");
-  const night = async () =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).sessions.find((s: Json) => s.id === session.id);
+  const night = async () => ((await dana.club()).body as Json).sessions.find((s: Json) => s.id === session.id);
   return { dana, session, night };
 }
 
@@ -131,7 +130,7 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     await friday();
     const reg = await phoneOn("s1@example.com", ["members"]);
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await dana.club()).body as Json;
     const role = boot.roles.find((r: Json) => !r.isSystem && !r.is_system) ?? boot.roles.at(-1);
     expect((await dana.call("PUT", `/api/roles/${role.id}`, { ...role })).status).toBe(200);
     await settled();

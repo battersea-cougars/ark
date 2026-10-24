@@ -62,7 +62,7 @@ describe("an admin locked out of everything signs in with a break-glass code", (
     // No code of the usual kind was made for this browser (so none on screen here, none emailed anywhere)
     expect(asked.devCode).toBeUndefined();
     expect(res.status).toBe(200);
-    expect((await b.call("GET", "/api/bootstrap", undefined, { now: minutes(5) })).status).toBe(200);
+    expect((await b.club({ now: minutes(5) })).status).toBe(200);
     expect(w.db.raw.prepare("SELECT method FROM auth_sessions").all()).toEqual([{ method: "break_glass" }]);
 
     // Spent: it signs no one else in
@@ -157,7 +157,7 @@ describe("everyone who should know, knows", () => {
     expect(
       (await alex.call("POST", `/api/break-glass/sessions/${session.id}/end`, {}, { now: minutes(6) })).status,
     ).toBe(200);
-    expect((await danaB.call("GET", "/api/bootstrap", undefined, { now: minutes(7) })).status).toBe(401);
+    expect((await danaB.club({ now: minutes(7) })).status).toBe(401);
     expect(record("auth.break_glass").map((r) => r.step)).toEqual(["issued", "ended", "issued", "signed_in", "ended"]);
     // Still on Home, as over now
     seen = (await alex.call("GET", "/api/break-glass", undefined, { now: minutes(8) })).body.breakGlass;

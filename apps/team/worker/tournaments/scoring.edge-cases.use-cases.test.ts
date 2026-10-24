@@ -28,8 +28,7 @@ beforeEach(() => {
 /** A cup three teams entered, each captained by a member, with its fixtures made (and its playoffs, if any). */
 async function cup(playoffs: { name: string; home: number; away: number }[] = [], extra: object = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (as: Phone = dana, now = NOW) =>
-    (await as.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (as: Phone = dana, now = NOW) => (await as.club({ now })).body as Json;
   const boot = await sees();
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captains = { Ants: idOf("Cara Captain"), Bees: idOf("Cole Captain"), Cats: idOf("Reg Captain") };

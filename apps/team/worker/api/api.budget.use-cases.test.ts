@@ -7,11 +7,12 @@
 // (the tests have no waitUntil). Then the same at 120 members: a route that costs more there reads a member at a time.
 // A new route fails until it's driven here. BUDGET=1 prints the table, BUDGET=sql each dear route's statements, and
 // BUDGET=plan each statement whose query plan reads a whole table.
+import { PAGE_PARTS } from "../../src/app/club-parts";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ROUTES } from "./api";
 import { issueBreakGlass } from "../../../../scripts/lib/break-glass.mjs";
 import { nextSlots } from "../../src/lib/draft";
-import { NOW, testWorld, type D1Spent, type Reply } from "../testing";
+import { NOW, testWorld, wholeClub, type D1Spent, type Reply } from "../testing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -97,7 +98,12 @@ async function hit(as: Phone, method: string, path: string, payload?: unknown, n
   if (!was || res.d1.roundTrips > was.d1.roundTrips) spent.set(key, { d1: res.d1, path });
   return res;
 }
-const boot = async (as: Phone = dana, now: Date = NOW) => (await hit(as, "GET", "/api/bootstrap", undefined, now)).body;
+/** The club as the app holds it once its pages are read (#178): the bootstrap, then every page's parts. */
+const boot = async (as: Phone = dana, now: Date = NOW) =>
+  wholeClub(
+    (await hit(as, "GET", "/api/bootstrap", undefined, now)).body,
+    (await hit(as, "GET", `/api/slices?names=${PAGE_PARTS.join(",")}`, undefined, now)).body.slices,
+  );
 
 /** A club of `size` with a season behind it (a fee on Fridays, the last eight with 40 at each, all charged), walked. */
 async function club(size: number) {

@@ -32,7 +32,7 @@ beforeEach(() => {
 /** A captains' draft (or one teams enter) with sign-up open and Reg in. */
 async function kumite(o: { kind?: "draft" | "teams"; status?: string; signupOpensOn?: string } = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const made = await dana.call("POST", "/api/tournaments", {
     name: "Kumite Winter 2026",
@@ -56,8 +56,7 @@ async function kumite(o: { kind?: "draft" | "teams"; status?: string; signupOpen
   if ((o.status ?? "open") === "open")
     expect((await reg.call("POST", `/api/tournaments/${id}/answer`, { answer: "in" }, at)).status).toBe(200);
   const close = (as = dana) => as.call("POST", `/api/tournaments/${id}/signup/close`, {}, at);
-  const tournament = async () =>
-    ((await dana.call("GET", "/api/bootstrap", undefined, at)).body as Json).tournaments.find((x: Json) => x.id === id);
+  const tournament = async () => ((await dana.club(at)).body as Json).tournaments.find((x: Json) => x.id === id);
   return { id, dana, reg, mo, close, tournament };
 }
 

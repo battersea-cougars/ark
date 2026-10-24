@@ -23,7 +23,7 @@ const one = <T = Record<string, unknown>>(sql: string, ...p: unknown[]) => w.db.
 
 async function admin() {
   const b = await w.signedIn("dana@example.com");
-  const sees = async () => (await b.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async () => (await b.club()).body as Json;
   const member = async (name: string) => (await sees()).members.find((m: Json) => m.name === name);
   const add = (o: Record<string, unknown>) => b.call("POST", "/api/members", { position: "F", ...o });
   return { call: b.call, sees, member, add };
@@ -141,9 +141,7 @@ describe("an admin edits a member, at the edges", () => {
       INSERT INTO role_actions (role_id, action) VALUES (9, 'manage:Member');
       INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'paul@example.com';`);
     const paul = await w.signedIn("paul@example.com");
-    const reg = ((await paul.call("GET", "/api/bootstrap")).body as Json).members.find(
-      (m: Json) => m.name === "Reg Player",
-    );
+    const reg = ((await paul.club()).body as Json).members.find((m: Json) => m.name === "Reg Player");
     // The sheet sends back the rating it was given, which for them is none
     const r = await paul.call("PUT", `/api/members/${reg.id}`, { ...reg, position: "D", rating: 0, roles: ["Member"] });
     expect(r.status).toBe(200);

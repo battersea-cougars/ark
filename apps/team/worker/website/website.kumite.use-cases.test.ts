@@ -27,8 +27,7 @@ const onTheWebsite = (today: string) =>
 
 async function admin() {
   const dana = await w.signedIn("dana@example.com");
-  const series = async () =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).tournamentTypes.find((t: Json) => t.id === KUMITE);
+  const series = async () => ((await dana.club()).body as Json).tournamentTypes.find((t: Json) => t.id === KUMITE);
   return {
     series,
     /** A Kumite on `heldOn`, its awards the series' (copied in, as the editor does) or its own. */

@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body as Json;
+const boot = async (b: Browser) => (await b.club()).body as Json;
 
 /** One Friday night's juniors' session, 19:00 to 20:30: over Friday Training. */
 const JUNIORS = {

@@ -45,7 +45,7 @@ export async function clubWithHistory(
 ) {
   const w = testWorld(ROSTER);
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body;
+  const boot = (await dana.club()).body;
   const series = boot.series[0];
   expect(
     (
@@ -55,7 +55,9 @@ export async function clubWithHistory(
       })
     ).status,
   ).toBe(200);
-  const everyone: number[] = boot.members.map((m: { id: number }) => m.id).slice(1);
+  // The roster is the members' page's, not the bootstrap's (#178)
+  const roster = (await dana.call("GET", "/api/slices?names=members")).body.slices.members;
+  const everyone: number[] = roster.map((m: { id: number }) => m.id).slice(1);
   const ids = everyone.slice(0, 40);
   lastFridays(w, fridays.everyone ? everyone : ids, series.id, fridays.weeks);
   kumites(w, ids, kumiteCount);

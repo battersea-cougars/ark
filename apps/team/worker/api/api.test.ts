@@ -8,6 +8,8 @@ import { parseRoster, rosterSql } from "../../../../scripts/lib/roster.mjs";
 import { ACTIONS } from "../../src/access/actions";
 import { ROUTES, handleApi, type Env } from "./api";
 import { whatsOn } from "../../../web/src/lib/server/whats-on";
+import { wholeClub } from "../testing";
+import { PAGE_PARTS } from "../../src/app/club-parts";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -42,7 +44,12 @@ async function call(method: string, path: string, payload?: unknown, e: Env = en
   );
   return { status: res.status, body: (await res.json()) as Body };
 }
-const boot = async () => (await call("GET", "/api/bootstrap")).body;
+/** The club as the app holds it once its pages are read: the bootstrap and every page's parts (#178). */
+const boot = async () =>
+  wholeClub(
+    (await call("GET", "/api/bootstrap")).body,
+    (await call("GET", `/api/slices?names=${PAGE_PARTS.join(",")}`)).body.slices,
+  );
 /** The sessions still to come (bootstrap also sends the last four weeks, for what's just been held). */
 const ahead = (b: Body) => b.sessions.filter((s: { heldOn: string }) => s.heldOn >= "2026-10-06");
 
@@ -721,8 +728,9 @@ describe("teams, quips, profiles and attendance", () => {
     await call("POST", `/api/sessions/${s.id}/register`, { memberId: reg, here: false });
     // The Saturday after
     const later = new Date("2026-10-10T11:00:00Z");
-    const b = (await call("GET", "/api/bootstrap", undefined, env, later)).body;
-    const played = (id: number) => b.members.find((m: { id: number }) => m.id === id).played;
+    await call("GET", "/api/bootstrap", undefined, env, later);
+    const roster = (await call("GET", "/api/slices?names=members", undefined, env, later)).body.slices.members;
+    const played = (id: number) => roster.find((m: { id: number }) => m.id === id).played;
     expect([played(alt), played(reg)]).toEqual([1, 0]);
     const history = (await call("GET", `/api/members/${reg}/attendance`, undefined, env, later)).body;
     expect(history[0]).toMatchObject({

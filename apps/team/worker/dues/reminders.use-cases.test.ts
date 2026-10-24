@@ -28,7 +28,7 @@ beforeEach(async () => {
   dana = await w.signedIn("dana@example.com");
 });
 
-const boot = async (b: Browser, now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body;
+const boot = async (b: Browser, now = NOW) => (await b.club({ now })).body;
 const idOf = async (name: string) =>
   (await boot(dana)).members.find((m: { name: string }) => m.name === name).id as number;
 /** They owe this, from that day (an adjustment: a charge on their ledger, dated). */

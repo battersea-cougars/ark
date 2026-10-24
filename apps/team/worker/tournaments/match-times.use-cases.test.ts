@@ -24,7 +24,7 @@ beforeEach(() => {
 /** A two-team tournament set for 19:00 to 21:30 on a day, its fixtures made, Dana keeping score of the first match. */
 async function evening(heldOn: string) {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const res = await dana.call("POST", "/api/tournaments", {
     name: "Evening Cup",
@@ -43,8 +43,7 @@ async function evening(heldOn: string) {
   expect(res.status).toBe(201);
   const id = res.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
-  const tournament = async () =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((t: Json) => t.id === id);
+  const tournament = async () => ((await dana.club()).body as Json).tournaments.find((t: Json) => t.id === id);
   const first = (await tournament()).games[0];
   expect((await dana.call("POST", `/api/tournaments/${id}/games/${first.id}/scorer`, { action: "claim" })).status).toBe(
     200,

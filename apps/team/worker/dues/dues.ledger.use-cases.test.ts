@@ -36,12 +36,12 @@ beforeEach(() => {
  */
 async function season() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const id = Object.fromEntries(boot.members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
   const series = boot.series[0];
   const fee = { ...series, fees: [{ pence: 850, from: "2026-01-01" }] };
   expect((await dana.call("PUT", `/api/series/${series.id}`, fee)).status).toBe(200);
-  const sessions = (await dana.call("GET", "/api/bootstrap")).body.sessions as Json[];
+  const sessions = (await dana.club()).body.sessions as Json[];
   const players = ["Reg", "Paul", "Cleo", "Ada"].map((n) => ({ memberId: id[n], in: true }));
   for (const day of FRIDAYS.slice(-4)) {
     const s = sessions.find((x) => x.heldOn === day);
@@ -137,11 +137,11 @@ describe("a member's ledger, a page at a time", () => {
 describe("opening the app", () => {
   it("sends your own unpaid charges and what you owe, not your paid ones or anyone else's", async () => {
     const { id } = await season();
-    const paul = (await (await w.signedIn("paul@example.com")).call("GET", "/api/bootstrap")).body;
+    const paul = (await (await w.signedIn("paul@example.com")).club()).body;
     expect(paul.charges).toEqual([]);
     expect(paul.dues).toEqual([]);
     expect(paul).not.toHaveProperty("payments");
-    const reg = (await (await w.signedIn("reg@example.com")).call("GET", "/api/bootstrap")).body;
+    const reg = (await (await w.signedIn("reg@example.com")).club()).body;
     const unpaid = everything(id.Reg).charges.filter((c) => !c.paidOn);
     expect((reg.charges as Charge[]).map((c) => c.id).sort()).toEqual(unpaid.map((c) => c.id).sort());
     expect((reg.charges as Charge[]).find((c) => c.paidPence > 0)).toMatchObject({ pence: 850, paidPence: 300 });
@@ -167,7 +167,7 @@ describe("opening the app", () => {
 
   it("stays the same size with weeks more history paid off", async () => {
     const { dana, id } = await season();
-    const size = async () => JSON.stringify((await dana.call("GET", "/api/bootstrap")).body.dues).length;
+    const size = async () => JSON.stringify((await dana.club()).body.dues).length;
     const before = await size();
     expect((await dana.call("POST", `/api/members/${id.Reg}/payments`, { via: "cash", pence: 6500 })).status).toBe(200);
     expect((await dana.call("POST", `/api/members/${id.Ada}/payments`, { via: "cash", pence: 10_000 })).status).toBe(

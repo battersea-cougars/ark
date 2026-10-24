@@ -32,7 +32,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 let taps = 0;
 const tapAt = () => ({ now: new Date(NOW.getTime() + ++taps) });
 

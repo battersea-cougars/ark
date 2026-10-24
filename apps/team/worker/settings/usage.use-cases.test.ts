@@ -198,8 +198,7 @@ describe("the hourly check", () => {
 describe("the admins' Home says when a free limit is getting close", () => {
   const check = (now = NOW) => checkUsage(w.env, now, { send: async () => {} });
   /** Home's For admins, as the app reads it when it opens. */
-  const homeAs = async (email: string, now = NOW) =>
-    (await w.signedIn(email)).call("GET", "/api/bootstrap", undefined, { now });
+  const homeAs = async (email: string, now = NOW) => (await w.signedIn(email)).club({ now });
   const levelsAs = async (email: string, now = NOW) => (await homeAs(email, now)).body.forAdmins.usage;
 
   it("an admin sees a limit past 70%, with today's reset; a member sees none", async () => {
@@ -241,11 +240,11 @@ describe("the admins' Home says when a free limit is getting close", () => {
 
   it("an admin who opened the app before the check gets the new line on their next open, not an unchanged reply", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const before = await dana.call("GET", "/api/bootstrap");
+    const before = await dana.club();
     expect(before.body.forAdmins.usage).toEqual([]);
     cloudflare({ requests: [75_000] });
     await check();
-    const again = await dana.call("GET", "/api/bootstrap", undefined, {
+    const again = await dana.club({
       headers: { "if-none-match": before.headers.get("etag") },
     });
     expect(again.status).toBe(200);
@@ -253,7 +252,7 @@ describe("the admins' Home says when a free limit is getting close", () => {
     // An hour later, the same: nothing new, so the app's copy stands
     const version = again.headers.get("etag");
     await check(new Date(NOW.getTime() + 3_600_000));
-    const unchanged = await dana.call("GET", "/api/bootstrap", undefined, { headers: { "if-none-match": version } });
+    const unchanged = await dana.club({ headers: { "if-none-match": version } });
     expect(unchanged.status).toBe(304);
   });
 

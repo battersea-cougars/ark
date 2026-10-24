@@ -35,7 +35,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 async function phone(email: string) {
   const b = await w.signedIn(email);
   expect((await b.call("PUT", "/api/auth/device", { token: `token-${email}`, platform: "ios" })).status).toBe(200);

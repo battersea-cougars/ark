@@ -15,33 +15,71 @@ import type { Ctx } from "./api.route";
 // On your own machine, the Worker's code reloads on every change, and with it this
 const STARTED = Date.now().toString(36);
 
-/** The club's data version, and the London day the coming training sessions were last made (null: never). */
-export async function dataVersion(db: D1Database): Promise<{ version: number; sessionsMadeOn: string | null }> {
-  const row = await first<{ version: number; sessions_made_on: string | null }>(
-    db,
-    "SELECT version, sessions_made_on FROM data_version WHERE id = 1",
-  );
-  return { version: row?.version ?? 0, sessionsMadeOn: row?.sessions_made_on ?? null };
+/** The club's data version, and what's kept beside it: the day sessions were made, and each part's version (#178). */
+export interface DataVersion {
+  version: number;
+  /** The London day the coming training sessions were last made (null: never). */
+  sessionsMadeOn: string | null;
+  /** The version each family of parts last changed at through the app (src/app/club-parts.ts). */
+  parts: Record<string, number>;
+  /** The last version a change that didn't say what it changed made: every part is at least this new. */
+  untold: number;
 }
 
-/** The coming training sessions are made for this day: later opens of the app skip making them. */
+/** The club's data version, the day the coming sessions were made, and each part's version: one row read. */
+export async function dataVersion(db: D1Database): Promise<DataVersion> {
+  const row = await first<{ version: number; sessions_made_on: string | null; parts: string; untold: number }>(
+    db,
+    "SELECT version, sessions_made_on, parts, untold FROM data_version WHERE id = 1",
+  );
+  return {
+    version: row?.version ?? 0,
+    sessionsMadeOn: row?.sessions_made_on ?? null,
+    parts: JSON.parse(row?.parts ?? "{}"),
+    untold: row?.untold ?? 0,
+  };
+}
+
+/** How new what these families are made of is: the last change to any of them, or to anything unsaid. */
+export const versionOf = (at: DataVersion, families: readonly string[]) =>
+  Math.max(at.untold, ...families.map((f) => at.parts[f] ?? 0));
+
+/**
+ * The coming training sessions are made for this day: later opens of the app skip making them. The version moves on
+ * with it, unsaid, so nothing read before the day's sessions were made is taken for what's there now (#178).
+ */
 export async function sessionsMade(db: D1Database, today: string): Promise<void> {
   await run(
     db,
     `INSERT INTO data_version (id, version, sessions_made_on) VALUES (1, CAST(strftime('%s', 'now') AS INTEGER), ?)
-     ON CONFLICT (id) DO UPDATE SET sessions_made_on = excluded.sessions_made_on`,
+     ON CONFLICT (id) DO UPDATE SET sessions_made_on = excluded.sessions_made_on, version = version + 1`,
     [today],
   );
 }
 
-/** After a change: every member's bootstrap is out of date. The new version, which names this change (ADR 0072). */
-export async function bumpDataVersion(db: D1Database): Promise<number> {
-  const row = await first<{ version: number }>(
+/**
+ * After a change through the app: every member's bootstrap is out of date. The new version, which names this change
+ * (ADR 0072), and is now the version of each family it `told` it changed (#178), with the rest of the row. Anything
+ * else that moves the version on (a script, the hourly run, `told` left out) makes every part new (the schema's
+ * data_version_untold), as the reply says too.
+ */
+export async function bumpDataVersion(db: D1Database, told?: readonly string[]): Promise<DataVersion> {
+  const parts = told?.length ? `, parts = json_set(parts, ${told.map(() => "?, version + 1").join(", ")})` : "";
+  const row = await first<{ version: number; sessions_made_on: string | null; parts: string; untold: number }>(
     db,
     `INSERT INTO data_version (id, version) VALUES (1, CAST(strftime('%s', 'now') AS INTEGER))
-     ON CONFLICT (id) DO UPDATE SET version = version + 1 RETURNING version`,
+     ON CONFLICT (id) DO UPDATE SET version = version + 1${told ? ", told = version + 1" : ""}${parts}
+     RETURNING version, sessions_made_on, parts, untold`,
+    (told ?? []).map((family) => `$.${family}`),
   );
-  return row?.version ?? 0;
+  const version = row?.version ?? 0;
+  return {
+    version,
+    sessionsMadeOn: row?.sessions_made_on ?? null,
+    parts: JSON.parse(row?.parts ?? "{}"),
+    // Told nothing (or a first row): the trigger makes it every part's
+    untold: told ? (row?.untold ?? 0) : version,
+  };
 }
 
 /** The deploy: Cloudflare's version id, or (on your own machine) when this code was loaded. */

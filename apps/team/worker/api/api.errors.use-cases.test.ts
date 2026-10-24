@@ -21,7 +21,7 @@ describe("a member's request fails on the server", () => {
     // The database loses a table the club's data reads: a broken deploy
     w.db.raw.exec("DROP TABLE announcements");
 
-    const res = await reg.call("GET", "/api/bootstrap");
+    const res = await reg.club();
     expect(res.status).toBe(500);
     expect(res.body.error).toBe("Something went wrong.");
     expect(reported).toHaveLength(1);

@@ -30,16 +30,16 @@ describe("signing in with the code", () => {
     const phone = w.browser();
     const { devCode } = await w.ask(phone, "Reg@Example.com ");
     expect(devCode).toMatch(/^\d{6}$/);
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await phone.club()).status).toBe(401);
 
     expect((await verify(phone, devCode)).status).toBe(200);
-    const boot = await phone.call("GET", "/api/bootstrap");
+    const boot = await phone.club();
     expect(boot.status).toBe(200);
     expect(boot.body.members.find((m: { id: number }) => m.id === boot.body.me).name).toBe("Reg Player");
 
     // Five months on, still in; the session moved on as it was used
-    expect((await phone.call("GET", "/api/bootstrap", undefined, { now: minutes(150 * 24 * 60) })).status).toBe(200);
-    expect((await phone.call("GET", "/api/bootstrap", undefined, { now: minutes(300 * 24 * 60) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(150 * 24 * 60) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(300 * 24 * 60) })).status).toBe(200);
   });
 
   it("uses cookies no script or sibling site can touch", async () => {
@@ -206,23 +206,23 @@ describe("one member a browser at a time (ADR 0023)", () => {
     const dana = (await w.ask(shared, "dana@example.com")).devCode;
     expect((await verify(shared, reg)).status).toBe(400);
     expect((await verify(shared, dana)).status).toBe(200);
-    expect((await shared.call("GET", "/api/bootstrap")).body.actions).toContain("manage:all");
+    expect((await shared.club()).body.actions).toContain("manage:all");
   });
 });
 
 describe("signing out and being let go", () => {
   it("answers no one without a session, unless a local server is asked to be the first admin", async () => {
-    expect((await w.browser().call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await w.browser().club()).status).toBe(401);
     env.TEAM_AUTO_ADMIN = "1";
-    expect((await w.browser().call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await w.browser().club()).status).toBe(200);
     env.TEAM_ENV = "dev";
-    expect((await w.browser().call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await w.browser().club()).status).toBe(401);
   });
 
   it("gives nothing local on a public address, even to a build that says it's local by mistake (ADR 0023)", async () => {
     Object.assign(env, { TEAM_ENV: "local", TEAM_AUTO_ADMIN: "1", SITE_ENV: "dev", MAIL_SAFE_TO: "dev@example.com" });
     const deployed = { host: "https://cougars-team.example.workers.dev" };
-    expect((await w.browser().call("GET", "/api/bootstrap", undefined, deployed)).status).toBe(401);
+    expect((await w.browser().club(deployed)).status).toBe(401);
     const reply = await w.browser().call("POST", "/api/auth/start", { email: "reg@example.com" }, deployed);
     expect(reply.status).toBe(200);
     expect(reply.body.devCode).toBeUndefined();
@@ -233,7 +233,7 @@ describe("signing out and being let go", () => {
       "http://10.0.0.5:4510",
       "http://[::1]:4510",
     ])
-      expect((await w.browser().call("GET", "/api/bootstrap", undefined, { host })).status, host).toBe(200);
+      expect((await w.browser().club({ host })).status, host).toBe(200);
   });
 });
 
@@ -247,7 +247,7 @@ describe("signing in on your own machine, for scripts and tests (ADR 0023)", () 
     for (let i = 0; i < 12; i++) {
       const b = w.browser();
       expect((await devSignIn(b, "Reg@Example.com")).status).toBe(200);
-      const boot = await b.call("GET", "/api/bootstrap");
+      const boot = await b.club();
       expect(boot.status).toBe(200);
       expect(boot.body.me).toBe(reg!.id);
     }
@@ -262,7 +262,7 @@ describe("signing in on your own machine, for scripts and tests (ADR 0023)", () 
     const b = w.browser();
     expect((await b.call("POST", "/api/auth/dev", {})).status).toBe(200);
     const dana = await first<{ id: number }>(w.db, "SELECT id FROM members WHERE email = ?", ["dana@example.com"]);
-    expect((await b.call("GET", "/api/bootstrap")).body.me).toBe(dana!.id);
+    expect((await b.club()).body.me).toBe(dana!.id);
   });
 
   it("isn't there on a deployed server, nor on a public address (ADR 0023)", async () => {
@@ -288,9 +288,7 @@ describe("asking to join", () => {
     expect((await w.ask(newcomer, "nina@example.com")).devCode).toBeUndefined();
 
     const admin = await w.signedIn("dana@example.com");
-    const nina = (await admin.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Nina New",
-    );
+    const nina = (await admin.club()).body.members.find((m: { name: string }) => m.name === "Nina New");
     expect(nina).toMatchObject({ status: "pending", position: "G" });
     await admin.call("PUT", `/api/members/${nina.id}`, { ...nina, status: "active", roles: ["Member"] });
 
@@ -308,7 +306,7 @@ describe("asking to join", () => {
 describe("an admin giving a member their email", () => {
   it("lets that member sign in with it, and keeps each email to one member", async () => {
     const admin = await w.signedIn("dana@example.com");
-    const members = (await admin.call("GET", "/api/bootstrap")).body.members;
+    const members = (await admin.club()).body.members;
     const reg = members.find((m: { name: string }) => m.name === "Reg Player");
     const dana = members.find((m: { name: string }) => m.name === "Dana Admin");
     const set = (id: number, email: string) => admin.call("PUT", `/api/members/${id}/contact`, { email, phone: "" });

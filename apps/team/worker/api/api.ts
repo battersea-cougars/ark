@@ -3,7 +3,8 @@
 // refused unless the signed-in member's roles grant it (manage:all grants everything). Anything not listed is a 404.
 import { londonToday } from "@cougars/shared/london";
 import { type Ctx, type Env, type Route } from "./api.route";
-import { ACCESS, SCHEDULE, slices } from "./api.slices";
+import { ACCESS, SCHEDULE, heldBy, slices, type Slice } from "./api.slices";
+import { partsChanged } from "../../src/app/club-parts";
 import { audit, auditRefused } from "../settings/audit";
 import { carriesSession, localHere, sessionOf } from "../auth/auth";
 import { devClock } from "./api.dev-clock";
@@ -271,12 +272,13 @@ export async function handleApi(
     }
     // A change that reloads the app (viewing as someone) changes nothing in the club: no one's copy is out of date
     if (writes && res.ok && !hit.r.reloads) {
-      // A change: every member's bootstrap is out of date (ADR 0053)
-      const version = await bumpDataVersion(env.DB);
-      // ...and this member gets the parts it touched back, to put in place
+      // What it touched: the parts it declared, and the agenda with anything on the calendar
       const declared = hit.r.changes ?? [];
       const calendar = hit.r.calendar !== false && declared.some((d) => SCHEDULE.includes(d));
       const changes = calendar ? [...declared, "agenda" as const] : declared;
+      // A change: every member's bootstrap is out of date (ADR 0053), and these parts are new (#178)
+      const at = await bumpDataVersion(env.DB, changes);
+      const { version } = at;
       // ...and everyone on a live page hears which parts, and the version (ADR 0072), with a live match as it is
       // (#161), once this reply is on its way
       const told = pushedWith(ctx, hit.r, changes).then((pushed) => notifyLive(env, changes, version, pushed));
@@ -287,7 +289,9 @@ export async function handleApi(
           ? { ...ctx, actions: await actionsOf(env.DB, memberId) }
           : ctx;
         const reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        const out = json({ ...reply, changed: await slices(now, changes) }, res.status);
+        // ...the core's parts of what it touched, and the pages' this phone holds (src/app/club-parts.ts, #178)
+        const touched = partsChanged(changes, heldBy(request)) as Slice[];
+        const out = json({ ...reply, changed: await slices(now, touched, at) }, res.status);
         // Read after the version went up: the app's copy has this change's parts at least as new (src/app/catch-up.ts)
         out.headers.set(VERSION_HEADER, String(version));
         // ...keeping any cookie the handler set (a Gmail reconnect's round trip, mail/mail.ts)

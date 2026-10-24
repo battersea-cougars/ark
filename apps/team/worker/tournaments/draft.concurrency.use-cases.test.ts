@@ -51,7 +51,7 @@ async function draftNight(seed: number) {
   w.luck(seed);
   const dana = await w.signedIn("dana@example.com");
   const dev = await w.signedIn("dev@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const type = await dana.call("POST", "/api/tournament-types", {
     name: "Summer Cup",

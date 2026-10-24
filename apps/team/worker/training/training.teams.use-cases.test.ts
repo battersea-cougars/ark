@@ -23,7 +23,7 @@ beforeEach(() => {
 const opens = (friday: string) => ({ now: new Date(Date.parse(`${friday}T12:00:00Z`) - 4 * 86_400_000) });
 
 async function teamsFor(b: Awaited<ReturnType<typeof w.signedIn>>) {
-  const boot = (await b.call("GET", "/api/bootstrap")).body;
+  const boot = (await b.club()).body;
   const session = boot.sessions.at(-1);
   const id = (name: string) => boot.members.find((m: { name: string }) => m.name === name).id;
   const [tess, mo] = [id("Tess Teams"), id("Mo Member")];
@@ -39,16 +39,14 @@ async function teamsFor(b: Awaited<ReturnType<typeof w.signedIn>>) {
 describe("making Friday's teams", () => {
   it("a team maker sees ratings, and publishes teams everyone then sees", async () => {
     const tess = await w.signedIn("tess@example.com");
-    const boot = (await tess.call("GET", "/api/bootstrap")).body;
+    const boot = (await tess.club()).body;
     expect(boot.actions).toEqual(expect.arrayContaining(["generate:Teams", "publish:Teams", "read:Rating"]));
     expect(boot.members.every((m: { rating?: number }) => typeof m.rating === "number")).toBe(true);
     const { session, teams } = await teamsFor(tess);
     expect((await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams })).status).toBe(200);
 
     const mo = await w.signedIn("mo@example.com");
-    const seen = (await mo.call("GET", "/api/bootstrap")).body.sessions.find(
-      (s: { id: number }) => s.id === session.id,
-    );
+    const seen = (await mo.club()).body.sessions.find((s: { id: number }) => s.id === session.id);
     expect(seen.teams.map((t: { name: string }) => t.name)).toEqual(["Black", "White"]);
   });
 
@@ -65,15 +63,13 @@ describe("making Friday's teams", () => {
     expect((await tess.call("POST", `/api/sessions/${session.id}/teams`, { teams: moved })).status).toBe(200);
 
     const mo = await w.signedIn("mo@example.com");
-    const seen = (await mo.call("GET", "/api/bootstrap")).body.sessions.find(
-      (s: { id: number }) => s.id === session.id,
-    );
+    const seen = (await mo.club()).body.sessions.find((s: { id: number }) => s.id === session.id);
     expect(seen.teams).toEqual(moved);
   });
 
   it("a member can't make or publish them", async () => {
     const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("GET", "/api/bootstrap")).body.actions).not.toContain("publish:Teams");
+    expect((await mo.club()).body.actions).not.toContain("publish:Teams");
     const { session, teams } = await teamsFor(mo);
     expect((await mo.call("POST", `/api/sessions/${session.id}/teams`, { teams })).status).toBe(403);
   });
@@ -81,7 +77,7 @@ describe("making Friday's teams", () => {
 
 describe("starting a session again", () => {
   const fridayOf = async (b: Awaited<ReturnType<typeof w.signedIn>>, id: number) =>
-    (await b.call("GET", "/api/bootstrap")).body.sessions.find((s: { id: number }) => s.id === id);
+    (await b.club()).body.sessions.find((s: { id: number }) => s.id === id);
 
   it("an admin resets it: nobody's in or waiting, and no teams", async () => {
     const dana = await w.signedIn("dana@example.com");
@@ -107,7 +103,7 @@ describe("starting a session again", () => {
 // Members on the page see either at once, without a refresh: the change reaches their open stream (ADR 0072)
 describe("the team maker makes the teams, then clears them, with everyone watching", () => {
   const fridayOf = async (b: Awaited<ReturnType<typeof w.signedIn>>, id: number) =>
-    (await b.call("GET", "/api/bootstrap")).body.sessions.find((s: { id: number }) => s.id === id);
+    (await b.club()).body.sessions.find((s: { id: number }) => s.id === id);
 
   it("a member watching the page hears the teams come out", async () => {
     const tess = await w.signedIn("tess@example.com");
@@ -135,9 +131,7 @@ describe("the team maker makes the teams, then clears them, with everyone watchi
     expect(after.teams).toEqual([]);
     expect(after.going.length).toBe(1);
 
-    const tessId = (await tess.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Tess Teams",
-    ).id;
+    const tessId = (await tess.club()).body.members.find((m: { name: string }) => m.name === "Tess Teams").id;
     const record = w.db.raw
       .prepare("SELECT member_id memberId FROM audit_log WHERE action = 'teams.removed'")
       .all() as { memberId: number }[];
@@ -161,13 +155,11 @@ describe("the team maker lets someone in from the waiting list", () => {
   /** Next Friday, room for two: Mo and Reg are in, Wes is waiting, and Wes has the app on his phone. */
   async function fullFriday() {
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body;
+    const boot = (await dana.club()).body;
     const series = boot.series[0];
     expect((await dana.call("PUT", `/api/series/${series.id}`, { ...series, capacity: 2 })).status).toBe(200);
     const id = (name: string) => boot.members.find((m: { name: string }) => m.name === name).id as number;
-    const session = (await dana.call("GET", "/api/bootstrap")).body.sessions.find(
-      (s: { heldOn: string }) => s.heldOn >= "2026-10-06",
-    );
+    const session = (await dana.club()).body.sessions.find((s: { heldOn: string }) => s.heldOn >= "2026-10-06");
     const wes = await w.signedIn("wes@example.com");
     expect((await wes.call("PUT", "/api/auth/device", { token: "wes-phone", platform: "ios" })).status).toBe(200);
     for (const email of ["mo@example.com", "reg@example.com", "wes@example.com"])
@@ -175,7 +167,7 @@ describe("the team maker lets someone in from the waiting list", () => {
         (await (await w.signedIn(email)).call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" })).status,
       ).toBe(200);
     const seen = async () =>
-      (await (await w.signedIn("mo@example.com")).call("GET", "/api/bootstrap")).body.sessions.find(
+      (await (await w.signedIn("mo@example.com")).club()).body.sessions.find(
         (s: { id: number }) => s.id === session.id,
       );
     const letIn = async (email: string, memberId: number) =>
@@ -204,9 +196,7 @@ describe("the team maker lets someone in from the waiting list", () => {
     const f = await fullFriday();
     expect(await f.letIn("tess@example.com", f.wes)).toBe(200);
     const dana = await w.signedIn("dana@example.com");
-    const dee = (await dana.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Dana Admin",
-    ).id;
+    const dee = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Dana Admin").id;
     expect((await dana.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     expect((await f.seen()).waitlist).toEqual([dee]);
 
@@ -228,7 +218,7 @@ describe("the team maker lets someone in from the waiting list", () => {
   it("only someone waiting can be let in", async () => {
     const f = await fullFriday();
     expect(await f.letIn("tess@example.com", f.mo)).toBe(409);
-    const dana = (await (await w.signedIn("dana@example.com")).call("GET", "/api/bootstrap")).body.members.find(
+    const dana = (await (await w.signedIn("dana@example.com")).club()).body.members.find(
       (m: { name: string }) => m.name === "Dana Admin",
     ).id;
     expect(await f.letIn("tess@example.com", dana)).toBe(409);

@@ -18,7 +18,7 @@ beforeEach(() => {
 const DAY = 24 * 60;
 const verify = (b: ReturnType<typeof w.browser>, code: string, now?: Date) =>
   b.call("POST", "/api/auth/verify", { code }, { now });
-const boot = (b: ReturnType<typeof w.browser>, now?: Date) => b.call("GET", "/api/bootstrap", undefined, { now });
+const boot = (b: ReturnType<typeof w.browser>, now?: Date) => b.club({ now });
 const count = (sql: string, ...p: unknown[]) => (w.db.raw.prepare(sql).get(...p) as { n: number }).n;
 
 describe("typing the email and the code", () => {
@@ -200,9 +200,7 @@ describe("signing out", () => {
 describe("who can ask for a code", () => {
   it("a member made inactive gets no code, and is let back in by an admin making them active", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const reg = (await dana.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Reg Player",
-    );
+    const reg = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Reg Player");
     expect((await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, status: "inactive" })).status).toBe(200);
     expect((await w.ask(w.browser(), "reg@example.com")).devCode).toBeUndefined();
     expect((await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, status: "active" })).status).toBe(200);

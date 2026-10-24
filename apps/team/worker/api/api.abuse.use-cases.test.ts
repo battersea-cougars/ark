@@ -31,9 +31,7 @@ describe("live streams, a few per member", () => {
 
     // A change reaches Reg's newest streams and Pat's
     const dana = await w.signedIn("dana@example.com");
-    const session = (await dana.call("GET", "/api/bootstrap")).body.sessions.find(
-      (s: { heldOn: string }) => s.heldOn >= "2026-10-06",
-    );
+    const session = (await dana.club()).body.sessions.find((s: { heldOn: string }) => s.heldOn >= "2026-10-06");
     await (await w.signedIn("pat@example.com")).call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
     for (const phone of [pat, ...reg.slice(1)]) expect((await phone.next()).event).toBe("changed");
   });

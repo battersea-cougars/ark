@@ -39,7 +39,7 @@ afterEach(() => {
 
 /** Everyone owes a kit fee from a month ago; each has the app on this many phones (a phone and a tablet…). */
 async function everyoneOwes({ phones = 0 } = {}) {
-  const boot = (await dana.call("GET", "/api/bootstrap")).body;
+  const boot = (await dana.club()).body;
   for (let i = 1; i <= OWERS; i++) {
     const id = boot.members.find((m: { name: string }) => m.name === `Ower ${i}`).id;
     const r = await dana.call("POST", `/api/members/${id}/adjustments`, {

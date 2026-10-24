@@ -35,7 +35,7 @@ async function phone(email: string) {
 /** Friday Training, its nights opening on the Monday before, as Dana saves it. */
 async function friday() {
   const dana = await w.signedIn("dana@example.com");
-  const b = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const b = (await dana.club()).body as Json;
   const id = Object.fromEntries(b.members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
   const series = b.series[0];
   expect((await dana.call("PUT", `/api/series/${series.id}`, { ...series, signupOpensDays: 4 })).status).toBe(200);
@@ -135,7 +135,7 @@ describe("taking back your Out for a tournament", () => {
     });
     expect(made.status).toBe(201);
     const id = made.body.id as number;
-    const b = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const b = (await dana.club()).body as Json;
     const regId = b.members.find((m: Json) => m.name === "Reg Player").id as number;
     const say = async (answer: "in" | "out" | "clear") =>
       (await w.signedIn("reg@example.com")).call("POST", `/api/tournaments/${id}/answer`, { answer });
@@ -145,8 +145,7 @@ describe("taking back your Out for a tournament", () => {
           .prepare("SELECT signup FROM tournament_entries WHERE tournament_id = ? AND member_id = ?")
           .get(id, regId) as { signup: string } | undefined
       )?.signup ?? null;
-    const t = async () =>
-      ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((x: Json) => x.id === id);
+    const t = async () => ((await dana.club()).body as Json).tournaments.find((x: Json) => x.id === id);
     return { dana, id, say, entry, t };
   }
 

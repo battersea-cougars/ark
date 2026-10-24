@@ -74,8 +74,8 @@ describe("a member deletes their account", () => {
     const { reg } = await regWithHistory();
     const phone = await w.signedIn("reg@example.com");
     await reg.call("DELETE", "/api/me");
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await phone.club()).status).toBe(401);
+    expect((await reg.club()).status).toBe(401);
     await expect(w.signedIn("reg@example.com")).rejects.toThrow();
     expect(count("SELECT count(*) n FROM auth_sessions WHERE member_id = ?", idOf("Former member"))).toBe(0);
   });
@@ -83,7 +83,7 @@ describe("a member deletes their account", () => {
   it("they're gone from everyone's roster", async () => {
     await (await regWithHistory()).reg.call("DELETE", "/api/me");
     const gil = await w.signedIn("gil@example.com");
-    const names = (await gil.call("GET", "/api/bootstrap")).body.members.map((m: { name: string }) => m.name);
+    const names = (await gil.club()).body.members.map((m: { name: string }) => m.name);
     expect(names).not.toContain("Reg Player");
     expect(names).not.toContain("Former member");
   });
@@ -113,7 +113,7 @@ describe("an admin erases a member who asked", () => {
     const { reg } = await regWithHistory();
     const dana = await w.signedIn("dana@example.com");
     expect((await dana.call("DELETE", `/api/members/${idOf("Reg Player")}`)).status).toBe(200);
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await reg.club()).status).toBe(401);
     expect(count("SELECT count(*) n FROM members WHERE email = 'reg@example.com'")).toBe(0);
   });
 

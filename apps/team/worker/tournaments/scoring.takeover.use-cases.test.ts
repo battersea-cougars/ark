@@ -29,7 +29,7 @@ beforeEach(() => {
 /** A three-team cup, its fixtures made, and Mo keeping score of the first game, on, with a goal in. */
 async function moScoring() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captains = { Ants: idOf("Cara Captain"), Bees: idOf("Cole Captain"), Cats: idOf("Reg Captain") };
   const res = await dana.call("POST", "/api/tournaments", {
@@ -53,7 +53,7 @@ async function moScoring() {
   const id = res.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
   const tournament = async (as: Phone = dana) =>
-    ((await as.call("GET", "/api/bootstrap")).body as Json).tournaments.find((t: Json) => t.id === id);
+    ((await as.club()).body as Json).tournaments.find((t: Json) => t.id === id);
   const t = await tournament();
   const [first, second] = t.games as Json[];
   const path = (gameId = first.id) => `/api/tournaments/${id}/games/${gameId}`;

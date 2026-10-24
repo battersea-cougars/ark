@@ -19,9 +19,7 @@ beforeEach(() => {
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
 const HALL = { title: "No training on the 24th", body: "The hall's booked.", link: "", endsOn: "2026-10-24" };
 const seen = async (b: Browser, now?: Date) =>
-  ((await b.call("GET", "/api/bootstrap", undefined, now ? { now } : {})).body.announcements as Json[]).map(
-    (a) => a.title,
-  );
+  ((await b.club(now ? { now } : {})).body.announcements as Json[]).map((a) => a.title);
 
 describe("an announcement's last day is London's", () => {
   it("shows until midnight in London on its last day, in summer time (BST)", async () => {
@@ -60,7 +58,7 @@ describe("what an announcement can say", () => {
     const body = "é".repeat(280);
     expect((await dana.call("POST", "/api/announcements", { ...HALL, title, body })).status).toBe(201);
     const reg = await w.signedIn("reg@example.com");
-    const shown = (await reg.call("GET", "/api/bootstrap")).body.announcements[0];
+    const shown = (await reg.club()).body.announcements[0];
     expect(shown).toMatchObject({ title, body });
   });
 
@@ -139,7 +137,7 @@ describe("Got it, and looking back", () => {
     const dana = await w.signedIn("dana@example.com");
     expect((await dana.call("POST", "/api/announcements", HALL)).status).toBe(201);
     // Another admin first, so Dana may go
-    const reg = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === "Reg Player");
+    const reg = (await dana.club()).body.members.find((m: Json) => m.name === "Reg Player");
     expect((await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, roles: ["Admin"] })).status).toBe(200);
     expect((await dana.call("DELETE", "/api/me")).status).toBe(200);
     const regPhone = await w.signedIn("reg@example.com");

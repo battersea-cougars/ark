@@ -44,7 +44,7 @@ describe("two trainings put on the same evening at once", () => {
   it.each(SEEDS)("seed %i: one is saved, the other refused, never both unasked", async (seed) => {
     const dana = await w.signedIn("dana@example.com");
     const ann = await w.signedIn("ann@example.com");
-    await dana.call("GET", "/api/bootstrap", undefined, { now: NOW });
+    await dana.club({ now: NOW });
 
     w.db.interleave(seed);
     const [a, b] = await Promise.all([
@@ -54,7 +54,7 @@ describe("two trainings put on the same evening at once", () => {
     w.db.interleave(null);
 
     expect([a.status, b.status].sort()).toEqual([201, 409]);
-    const series = ((await dana.call("GET", "/api/bootstrap")).body as Json).series.map((s: Json) => s.name);
+    const series = ((await dana.club()).body as Json).series.map((s: Json) => s.name);
     expect(series).toHaveLength(2);
   });
 });

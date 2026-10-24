@@ -22,8 +22,7 @@ beforeEach(() => {
 
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
 const on = (day: string) => new Date(`${day}T11:00:00Z`);
-const boot = async (b: Browser, now?: Date) =>
-  (await b.call("GET", "/api/bootstrap", undefined, now ? { now } : {})).body as Json;
+const boot = async (b: Browser, now?: Date) => (await b.club(now ? { now } : {})).body as Json;
 const ids = async (b: Browser) =>
   Object.fromEntries((await boot(b)).members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
 const chargesOf = async (b: Browser, id: number, now?: Date) => (await ledgerCharges(b, id, now)) as Json[];

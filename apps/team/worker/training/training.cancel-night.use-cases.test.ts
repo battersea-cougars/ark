@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body as Json;
+const boot = async (b: Browser) => (await b.club()).body as Json;
 
 /** A member with the app on their phone, so they hear a night's off. */
 async function phone(email: string) {

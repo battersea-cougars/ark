@@ -23,7 +23,7 @@ beforeEach(() => {
 
 async function as(email: string) {
   const b = await w.signedIn(email);
-  const sees = async (now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now = NOW) => (await b.club({ now })).body as Json;
   return { call: b.call, sees };
 }
 
@@ -88,7 +88,7 @@ describe("what an admin may set for a training", () => {
     const dana = await admin();
     expect((await dana.call("POST", "/api/series", { ...SUNDAYS, startsOn: "2026-13-01" })).status).toBe(400);
     const reg = await w.signedIn("reg@example.com");
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.club()).status).toBe(200);
   });
 
   it("a training already saved with an impossible first session is skipped, and the app still opens for everyone (#129)", async () => {
@@ -98,9 +98,7 @@ describe("what an admin may set for a training", () => {
     w.db.raw.prepare("UPDATE training_series SET starts_on = '2026-13-01' WHERE slug = 'sunday'").run();
     vi.spyOn(console, "error").mockImplementation(() => {});
     const reg = await w.signedIn("reg@example.com");
-    expect((await reg.call("GET", "/api/bootstrap", undefined, { now: new Date("2027-02-01T12:00:00Z") })).status).toBe(
-      200,
-    );
+    expect((await reg.club({ now: new Date("2027-02-01T12:00:00Z") })).status).toBe(200);
   });
 
   it("30 February, 25:99 and a training that ends before it starts are refused (#129)", async () => {

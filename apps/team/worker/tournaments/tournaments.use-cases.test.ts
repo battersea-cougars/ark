@@ -36,7 +36,7 @@ beforeEach(() => {
 /** Someone signed in, and what's on their screen. */
 async function person(email: string) {
   const b = await w.signedIn(email);
-  const sees = async (now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now = NOW) => (await b.club({ now })).body as Json;
   const idOf = async (name: string) => (await sees()).members.find((m: Json) => m.name === name).id as number;
   return { call: b.call, open: b.open, sees, idOf };
 }

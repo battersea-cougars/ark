@@ -37,7 +37,7 @@ beforeEach(() => {
   w = testWorld(ROSTER);
 });
 
-const boot = async (b: Browser, now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body;
+const boot = async (b: Browser, now = NOW) => (await b.club({ now })).body;
 const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 const sessionOn = async (b: Browser, day: string) =>

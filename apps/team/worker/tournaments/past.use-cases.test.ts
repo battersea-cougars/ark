@@ -31,10 +31,10 @@ const rows = (sql: string, ...params: unknown[]) => w.db.raw.prepare(sql).all(..
 
 async function admin() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === `${name} Player`).id as number;
   const tournament = async (id: number) =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((t: Json) => t.id === id);
+    ((await dana.club()).body as Json).tournaments.find((t: Json) => t.id === id);
   return { dana, idOf, tournament };
 }
 

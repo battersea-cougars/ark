@@ -152,7 +152,7 @@ describe("unusual results on the website", () => {
     await dana.call("PUT", `/api/tournaments/${id}/games/${group}`, { homeGoals: 1, awayGoals: 0 });
     // Rained off before the Final
     expect(await publishedEdition(id)).toBeNull();
-    const saved = ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((t: Json) => t.id === id);
+    const saved = ((await dana.club()).body as Json).tournaments.find((t: Json) => t.id === id);
     expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...saved, status: "finished" })).status).toBe(200);
     const r = (await publishedEdition(id))!;
     expect(r.games).toHaveLength(1);

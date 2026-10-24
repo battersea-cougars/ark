@@ -20,7 +20,7 @@ beforeEach(() => {
 
 const DAY = 24 * 60;
 const memberNamed = async (b: { call: Awaited<ReturnType<typeof w.signedIn>>["call"] }, name: string) =>
-  (await b.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === name);
+  (await b.club()).body.members.find((m: Json) => m.name === name);
 const phones = () =>
   (w.db.raw.prepare("SELECT token FROM push_devices ORDER BY token").all() as Json[]).map((r) => r.token);
 const record = (action: string) =>
@@ -46,15 +46,15 @@ describe("an admin signs a member out everywhere, from their sheet", () => {
 
     expect((await dana.call("POST", `/api/members/${reg.id}/sign-out`)).status).toBe(200);
 
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
-    expect((await laptop.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await phone.club()).status).toBe(401);
+    expect((await laptop.club()).status).toBe(401);
     await expect(phone.next()).rejects.toThrow("the stream ended");
     expect(phones()).toEqual(["pats-pixel"]);
     // Nobody else is touched
-    expect((await pat.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await pat.club()).status).toBe(200);
     expect(record("member.signed_out")).toEqual([{ memberId: reg.id, from: { sessions: 2 }, to: { sessions: 0 } }]);
     // They come back the usual way, with a code
-    expect((await (await w.signedIn("reg@example.com")).call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await (await w.signedIn("reg@example.com")).club()).status).toBe(200);
   });
 
   it("only for someone who manages members, and never for someone who can do more than them", async () => {
@@ -71,7 +71,7 @@ describe("an admin signs a member out everywhere, from their sheet", () => {
     await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, roles: ["Helper", "Member"] });
     const helper = await w.signedIn("reg@example.com");
     expect((await helper.call("POST", `/api/members/${admin.id}/sign-out`)).status).toBe(403);
-    expect((await dana.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await dana.club()).status).toBe(200);
     expect((await dana.call("POST", "/api/members/999/sign-out")).status).toBe(404);
   });
 });
@@ -82,10 +82,10 @@ describe("what signs a member out on its own", () => {
     const reg = await w.signedIn("reg@example.com");
     const { id } = await memberNamed(dana, "Reg Player");
     await dana.call("PUT", `/api/members/${id}/contact`, { email: "reg@example.com", phone: "07700 900001" });
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.club()).status).toBe(200);
     await dana.call("PUT", `/api/members/${id}/contact`, { email: "reg.new@example.com", phone: "07700 900001" });
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(401);
-    expect((await (await w.signedIn("reg.new@example.com")).call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await reg.club()).status).toBe(401);
+    expect((await (await w.signedIn("reg.new@example.com")).club()).status).toBe(200);
   });
 
   it("being made inactive, so letting them back in opens none of their old sign-ins", async () => {
@@ -96,7 +96,7 @@ describe("what signs a member out on its own", () => {
     await dana.call("PUT", `/api/members/${m.id}`, { ...m, status: "inactive", roles: ["Member"] });
     expect(phones()).toEqual([]);
     await dana.call("PUT", `/api/members/${m.id}`, { ...m, status: "active", roles: ["Member"] });
-    expect((await reg.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await reg.club()).status).toBe(401);
   });
 });
 
@@ -107,8 +107,8 @@ describe("signing yourself out", () => {
     await phone.call("PUT", "/api/auth/device", { token: "regs-iphone", platform: "ios" });
     expect((await phone.call("POST", "/api/auth/sign-out")).status).toBe(200);
     expect(phones()).toEqual([]);
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
-    expect((await laptop.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await phone.club()).status).toBe(401);
+    expect((await laptop.club()).status).toBe(200);
   });
 
   it("everywhere, from the You page: every browser and phone of yours, this one too, and nobody else's", async () => {
@@ -116,10 +116,10 @@ describe("signing yourself out", () => {
     const laptop = await w.listening("reg@example.com");
     const pat = await w.signedIn("pat@example.com");
     expect((await phone.call("POST", "/api/auth/sign-out-everywhere")).status).toBe(200);
-    expect((await phone.call("GET", "/api/bootstrap")).status).toBe(401);
-    expect((await laptop.call("GET", "/api/bootstrap")).status).toBe(401);
+    expect((await phone.club()).status).toBe(401);
+    expect((await laptop.club()).status).toBe(401);
     await expect(laptop.next()).rejects.toThrow("the stream ended");
-    expect((await pat.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await pat.club()).status).toBe(200);
     expect(record("sign_out")).toEqual([{ everywhere: true, sessions: 2 }]);
   });
 });
@@ -130,25 +130,22 @@ describe("a session as it's used (#72)", () => {
     const stolen = copyOf(phone);
     const before = phone.jar.get("__Host-cougars_session");
     // A day on, the session is renewed: a new cookie, with the new token
-    const renewed = await phone.call("GET", "/api/bootstrap", undefined, { now: minutes(DAY + 1) });
+    const renewed = await phone.club({ now: minutes(DAY + 1) });
     expect(renewed.status).toBe(200);
     expect(renewed.headers.getSetCookie().join()).toMatch(/__Host-cougars_session=.+Max-Age=15552000/);
     expect(phone.jar.get("__Host-cougars_session")).not.toBe(before);
     // Requests already on their way with the old one still land
-    expect((await stolen.call("GET", "/api/bootstrap", undefined, { now: minutes(DAY + 3) })).status).toBe(200);
+    expect((await stolen.club({ now: minutes(DAY + 3) })).status).toBe(200);
     // ...but not for long
-    expect((await stolen.call("GET", "/api/bootstrap", undefined, { now: minutes(DAY + 30) })).status).toBe(401);
-    expect((await phone.call("GET", "/api/bootstrap", undefined, { now: minutes(DAY + 30) })).status).toBe(200);
+    expect((await stolen.club({ now: minutes(DAY + 30) })).status).toBe(401);
+    expect((await phone.club({ now: minutes(DAY + 30) })).status).toBe(200);
   });
 
   it("renews once when two requests arrive together with the token that's due", async () => {
     const phone = await w.signedIn("reg@example.com");
     const tab = copyOf(phone);
     const at = { now: minutes(DAY + 1) };
-    const [a, b] = await Promise.all([
-      phone.call("GET", "/api/bootstrap", undefined, at),
-      tab.call("GET", "/api/bootstrap", undefined, at),
-    ]);
+    const [a, b] = await Promise.all([phone.club(at), tab.club(at)]);
     expect([a.status, b.status]).toEqual([200, 200]);
     const set = [a, b].filter((r) => r.headers.getSetCookie().length).length;
     expect(set).toBe(1);
@@ -156,14 +153,13 @@ describe("a session as it's used (#72)", () => {
 
   it("ends a year after signing in, however much it's used", async () => {
     const phone = await w.signedIn("reg@example.com");
-    for (let day = 30; day <= 360; day += 30)
-      expect((await phone.call("GET", "/api/bootstrap", undefined, { now: minutes(day * DAY) })).status).toBe(200);
-    expect((await phone.call("GET", "/api/bootstrap", undefined, { now: minutes(366 * DAY) })).status).toBe(401);
+    for (let day = 30; day <= 360; day += 30) expect((await phone.club({ now: minutes(day * DAY) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(366 * DAY) })).status).toBe(401);
   });
 
   it("isn't renewed by a request in the same day", async () => {
     const phone = await w.signedIn("reg@example.com");
-    const r = await phone.call("GET", "/api/bootstrap", undefined, { now: new Date(NOW.getTime() + 3600_000) });
+    const r = await phone.club({ now: new Date(NOW.getTime() + 3600_000) });
     expect(r.headers.getSetCookie()).toEqual([]);
   });
 });

@@ -37,7 +37,7 @@ const rows = (sql: string, ...params: unknown[]) => w.db.raw.prepare(sql).all(..
 async function admin() {
   const dana = await w.signedIn("dana@example.com");
   const tournament = async (id: number) =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((t: Json) => t.id === id);
+    ((await dana.club()).body as Json).tournaments.find((t: Json) => t.id === id);
   /** As the app does it at Spin kick: ask again till it says it's done. */
   const playOn = async (id: number) => {
     let most = 0;

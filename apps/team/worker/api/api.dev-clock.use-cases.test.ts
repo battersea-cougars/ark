@@ -24,7 +24,7 @@ beforeEach(() => {
 
 async function fridayFor(email: string) {
   const mia = await w.signedIn(email);
-  const boot = (await mia.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await mia.club()).body as Json;
   const night = boot.sessions.find((s: Json) => s.heldOn === FRIDAY);
   const answer = (at?: string) =>
     mia.call(

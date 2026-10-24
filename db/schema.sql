@@ -748,8 +748,27 @@ CREATE TABLE data_version (
   version INTEGER NOT NULL,
   sessions_made_on TEXT,
   -- The last day whose training nights are in members.played (members.played.ts, #177): null, none yet
-  played_through TEXT
+  played_through TEXT,
+  -- The version each part of the club last changed at, through the app (#178): {"sessions": 1234, ...}, the parts a
+  -- change declared (api.ts). A page's data is tagged, and kept at the edge, by its parts' versions, so a tap on
+  -- Friday doesn't make the roster new (api.versions.ts)
+  parts TEXT NOT NULL DEFAULT '{}',
+  -- The version the app's own last change made, when it said which parts it changed
+  told INTEGER,
+  -- The last version anything else made (the seed, a script, the hourly run): every part is as new as it
+  untold INTEGER NOT NULL DEFAULT 0
 );
+
+-- A change that doesn't say which parts it changed (anything but the app's own, which sets `told` with the version)
+-- changes every part, as far as anyone can tell (#178)
+CREATE TRIGGER data_version_untold_insert AFTER INSERT ON data_version
+BEGIN
+  UPDATE data_version SET untold = NEW.version WHERE id = NEW.id;
+END;
+CREATE TRIGGER data_version_untold AFTER UPDATE OF version ON data_version WHEN NEW.told IS NOT NEW.version
+BEGIN
+  UPDATE data_version SET untold = NEW.version WHERE id = NEW.id;
+END;
 
 -- The website wants rebuilding (apps/team/worker/website.ts, ADR 0100): a finished tournament changed. One row while
 -- one is wanted; the team Worker's five-minute cron sends it to GitHub after five quiet minutes and deletes the row.

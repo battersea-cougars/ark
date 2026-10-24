@@ -62,6 +62,16 @@ async function send(b: Browser, method: string, path: string, payload?: unknown,
   return res;
 }
 
+/** SQLite's time a request takes, the mean of RUNS: what grows with the rows D1 reads. */
+async function sqlite(run: () => unknown) {
+  const before = w.db.sqlMs;
+  for (let i = 0; i < RUNS; i++) await run();
+  return (w.db.sqlMs - before) / RUNS;
+}
+/** A reply's size, in KB. */
+const kb = async (b: Browser, path: string) =>
+  ((await (await b.open("GET", path)).arrayBuffer()).byteLength / 1024).toFixed(0);
+
 /** Tournaments to delete, one a run: the scrimmage a load run leaves, its three teams and fixtures (#175). */
 function scrimmages(n: number) {
   const made = w.db.raw.prepare(
@@ -74,7 +84,7 @@ function scrimmages(n: number) {
 describe.runIf(process.env.LOAD_CPU)(
   "the Worker's CPU a request, a club of 120 with years of Kumites behind it (LOAD_CPU=1)",
   () => {
-    it("opening the app, as anyone, the club unchanged (304), a tap In then Out, a past one opened, a page of History and a tournament deleted keep under the free plan's 10 ms", async () => {
+    it("opening the app, as anyone, the club unchanged (304), a page opened, a tap In then Out, a past one opened, a page of History and a tournament deleted keep under the free plan's 10 ms", async () => {
       const bootstrap = await median((i) => send(members[i % members.length], "GET", "/api/bootstrap"));
       say("bootstrap, a member", bootstrap);
       const bytes = (await (await members[0].open("GET", "/api/bootstrap")).arrayBuffer()).byteLength;
@@ -87,6 +97,35 @@ describe.runIf(process.env.LOAD_CPU)(
       const sqlBefore = w.db.sqlMs;
       for (let i = 0; i < RUNS; i++) await send(dana, "GET", "/api/bootstrap");
       say("bootstrap, an admin, SQLite's time (rows read)", (w.db.sqlMs - sqlBefore) / RUNS);
+      say(
+        "bootstrap, a member, SQLite's time (rows read)",
+        await sqlite(() => send(members[0], "GET", "/api/bootstrap")),
+      );
+      // Each page's own (#178): the members page, an admin's; a training night's, every member's, the roster and the
+      // weeks just held as everyone of a role shares them, kept at the edge, each member's own answers from D1
+      const adminPage = "/api/slices?names=members,pastSessions,clubDues,reminders";
+      const admins = await median(() => send(dana, "GET", adminPage));
+      say("the members page, an admin (the roster, the weeks just held, everyone's dues)", admins);
+      said.push(`the members page, an admin's bytes: ${await kb(dana, adminPage)} KB`);
+      const night = "/api/slices?names=members,pastSessions";
+      const shared = await median((i) => send(members[i % members.length], "GET", night));
+      say("a training night's page, a member, its shared rows kept", shared);
+      say(
+        "a training night's page, a member, its shared rows kept, SQLite's time",
+        await sqlite(() => send(members[1], "GET", night)),
+      );
+      said.push(`a training night's page, a member's bytes: ${await kb(members[0], night)} KB`);
+      // Nothing kept: something unsaid changed (the version moved on by a script), so the next open reads D1
+      const fresh = () => w.db.raw.prepare("UPDATE data_version SET version = version + 1").run();
+      const unkept = await median((i) => (fresh(), send(members[i % members.length], "GET", night)));
+      say("a training night's page, a member, nothing kept (each read from D1)", unkept);
+      say(
+        "a training night's page, nothing kept, SQLite's time",
+        await sqlite(() => (fresh(), send(members[1], "GET", night))),
+      );
+      const pageTag = (await send(members[2], "GET", night)).headers.get("etag")!;
+      const samePage = await median(() => send(members[2], "GET", night, undefined, { "if-none-match": pageTag }));
+      say("a page, unchanged (304)", samePage);
       // A member's ledger, a page at a time (#177): what opening the app no longer sends
       const ledger = await median((i) => send(dana, "GET", `/api/members/${ids[i % ids.length]}/ledger`));
       say("a member's ledger, its first page", ledger);
@@ -119,7 +158,21 @@ describe.runIf(process.env.LOAD_CPU)(
       process.stdout.write(
         `\nWorker CPU a request, ${KUMITES} Kumites and ${WEEKS} weeks of Fridays behind the club, median of ${RUNS}:\n  ${said.join("\n  ")}\n`,
       );
-      for (const ms of [bootstrap, admin, unchanged, tap, viewing, opened, history, deleted, ledger])
+      for (const ms of [
+        bootstrap,
+        admin,
+        unchanged,
+        tap,
+        viewing,
+        opened,
+        history,
+        deleted,
+        ledger,
+        admins,
+        shared,
+        unkept,
+        samePage,
+      ])
         expect(ms).toBeLessThan(FREE_CPU_MS);
     });
   },

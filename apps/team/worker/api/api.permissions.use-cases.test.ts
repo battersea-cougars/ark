@@ -33,8 +33,7 @@ const sample = (path: RegExp) =>
     .replace(/\(\\d\+\)/g, "1")
     .replace(/\\\//g, "/");
 
-const members = async (b: Awaited<ReturnType<typeof w.signedIn>>) =>
-  (await b.call("GET", "/api/bootstrap")).body.members as Json[];
+const members = async (b: Awaited<ReturnType<typeof w.signedIn>>) => (await b.club()).body.members as Json[];
 const byName = async (b: Awaited<ReturnType<typeof w.signedIn>>, name: string) =>
   (await members(b)).find((m) => m.name === name);
 
@@ -62,9 +61,7 @@ describe("a role with one action", () => {
 
   it.each(guarded)("given %s, a member is still refused every route that asks for something else", async (action) => {
     const { reg } = await regWith([action]);
-    const memberCan = new Set(
-      (await (await w.signedIn("pat@example.com")).call("GET", "/api/bootstrap")).body.actions as string[],
-    );
+    const memberCan = new Set((await (await w.signedIn("pat@example.com")).club()).body.actions as string[]);
     for (const r of ROUTES.filter(
       (r) => r.action !== "authenticated" && r.action !== action && !memberCan.has(r.action),
     )) {
@@ -93,7 +90,7 @@ describe("roles changing under someone signed in", () => {
     const { roleId, reg } = await regWith([]);
     w.db.raw.prepare("INSERT INTO role_actions (role_id, action) VALUES (?, 'delete:Everything')").run(roleId);
     w.db.raw.prepare("INSERT INTO role_actions (role_id, action) VALUES (?, 'manage:All')").run(roleId);
-    const boot = (await reg.call("GET", "/api/bootstrap")).body;
+    const boot = (await reg.club()).body;
     expect(boot.actions).not.toContain("delete:Everything");
     expect((await reg.call("GET", "/api/audit")).status).toBe(403);
   });
@@ -103,7 +100,7 @@ describe("roles changing under someone signed in", () => {
     const pat = await byName(dana, "Pat Plain");
     expect((await dana.call("PUT", `/api/members/${pat.id}`, { ...pat, roles: [] })).status).toBe(200);
     const patPhone = await w.signedIn("pat@example.com");
-    expect((await patPhone.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await patPhone.club()).status).toBe(200);
     expect((await patPhone.call("GET", "/api/me/data")).status).toBe(200);
     expect((await patPhone.call("GET", "/api/audit")).status).toBe(403);
   });
@@ -112,7 +109,7 @@ describe("roles changing under someone signed in", () => {
 describe("an everyday role is how the app opens, not what the server allows (ADR 0024)", () => {
   it("an admin who opens the app as a member can still do an admin's job when they ask for it", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const member = (await dana.call("GET", "/api/bootstrap")).body.roles.find((r: Json) => r.name === "Member");
+    const member = (await dana.club()).body.roles.find((r: Json) => r.name === "Member");
     expect((await dana.call("PUT", "/api/me/everyday-role", { roleId: member.id })).status).toBe(200);
     expect((await dana.call("GET", "/api/audit")).status).toBe(200);
   });
@@ -128,7 +125,7 @@ describe("an everyday role is how the app opens, not what the server allows (ADR
   it("someone who manages members can't set an admin's everyday role", async () => {
     const { reg } = await regWith(["manage:Member"]);
     const dana = await byName(reg, "Dana Admin");
-    const member = (await reg.call("GET", "/api/bootstrap")).body.roles.find((r: Json) => r.name === "Member");
+    const member = (await reg.club()).body.roles.find((r: Json) => r.name === "Member");
     expect((await reg.call("PUT", `/api/members/${dana.id}/everyday-role`, { roleId: member.id })).status).toBe(403);
   });
 });
@@ -268,7 +265,7 @@ describe("the club always has someone who can do everything", () => {
     const r = await reg.call("PUT", `/api/members/${regId}`, { ...me, roles: ["Member"] });
     expect(r.status).toBe(409);
     expect(r.body.error).toMatch(/last admin/);
-    expect((await reg.call("GET", "/api/bootstrap")).body.actions).toContain("manage:all");
+    expect((await reg.club()).body.actions).toContain("manage:all");
   });
 
   it("the last one who can do everything, through a role of its own, can't take everything off that role", async () => {
@@ -276,7 +273,7 @@ describe("the club always has someone who can do everything", () => {
     const r = await reg.call("PUT", `/api/roles/${roleId}`, { name: "Bossy", actions: ["read:Event"] });
     expect(r.status).toBe(409);
     expect(r.body.error).toMatch(/Nobody else can do everything/);
-    expect((await reg.call("GET", "/api/bootstrap")).body.actions).toContain("manage:all");
+    expect((await reg.club()).body.actions).toContain("manage:all");
     // Nothing of the change went in: not its name, not its actions
     expect(w.db.raw.prepare("SELECT name FROM roles WHERE id = ?").get(roleId)).toEqual({ name: "Boss" });
   });
@@ -298,14 +295,14 @@ describe("the club always has someone who can do everything", () => {
     expect((await reg.call("PUT", `/api/members/${regId}`, { ...me, roles: ["Admin"] })).status).toBe(200);
     // And with Admin, the role of their own can go
     expect((await reg.call("PUT", `/api/roles/${roleId}`, { name: "Gaffer", actions: [] })).status).toBe(200);
-    expect((await reg.call("GET", "/api/bootstrap")).body.actions).toContain("manage:all");
+    expect((await reg.club()).body.actions).toContain("manage:all");
   });
 
   it("while someone else can do everything, the role of their own can go", async () => {
     // Ada's still an Admin here
     const { reg, roleId } = await regWith(["manage:all"], "Boss");
     expect((await reg.call("PUT", `/api/roles/${roleId}`, { name: "Boss", actions: ["read:Event"] })).status).toBe(200);
-    expect((await reg.call("GET", "/api/bootstrap")).body.actions).not.toContain("manage:all");
+    expect((await reg.club()).body.actions).not.toContain("manage:all");
   });
 
   // Two at once, each check decided in its statements (ADR 0121): whatever order their round trips interleave in, one

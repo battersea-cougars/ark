@@ -32,7 +32,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 const friday = async (b: Browser) =>

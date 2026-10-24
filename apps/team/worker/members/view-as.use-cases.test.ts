@@ -16,10 +16,16 @@ beforeEach(() => {
 });
 
 type Browser = Awaited<ReturnType<ReturnType<typeof testWorld>["signedIn"]>>;
-const bootstrap = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const bootstrap = async (b: Browser) => (await b.club()).body;
 const idOf = async (b: Browser) => (await bootstrap(b)).me as number;
-/** The club as it shows, less who's asking. */
-const club = ({ me: _, viewingAs: __, ...rest }: Record<string, unknown>) => rest;
+/**
+ * The club as it shows, less who's asking: who you are, who you're viewing as, and among Home's people who's really
+ * signed in (their name only, so the app can say who's viewing, #178).
+ */
+const club = ({ me, viewingAs, people, ...rest }: Record<string, unknown>) => ({
+  ...rest,
+  people: (people as { id: number }[]).filter((p) => p.id !== me || !viewingAs),
+});
 const RINK = { name: "Lee Valley", address: "Lea Bridge Road" };
 
 async function danaViewingAsSam() {

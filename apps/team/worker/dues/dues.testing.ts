@@ -40,8 +40,7 @@ export const paymentsOf = async (b: Asker, memberId: number, now?: Date): Promis
   (await ledgerOf(b, memberId, now)).flatMap((l) => (l.kind === "payment" ? [l.payment] : []));
 
 /** What each owes, as the club read sends it to `b` (their own, or everyone's for who sees Unpaid fees). */
-export const owedLines = async (b: Asker, now?: Date): Promise<Owed[]> =>
-  (await b.call("GET", "/api/bootstrap", undefined, { now })).body.dues;
+export const owedLines = async (b: Asker, now?: Date): Promise<Owed[]> => (await b.club({ now })).body.dues;
 
 /** A member's credit, as the club read sends it. */
 export const creditOf = async (b: Asker, memberId: number, now?: Date) =>
@@ -53,6 +52,10 @@ export const creditsOf = async (b: Asker, now?: Date) =>
 
 /** Every member's charges, paid or not, as whoever sees everyone's dues reads them: each member's ledger in turn. */
 export async function clubCharges(b: Asker, now?: Date): Promise<ChargeJson[]> {
-  const members = (await b.call("GET", "/api/bootstrap", undefined, { now })).body.members as { id: number }[];
+  // Opening the app, as a phone would: the day's first open charges what the new day makes due
+  await b.call("GET", "/api/bootstrap", undefined, { now });
+  const members = (await b.call("GET", "/api/slices?names=members", undefined, { now })).body.slices.members as {
+    id: number;
+  }[];
   return (await Promise.all(members.map((m) => chargesOf(b, m.id, now)))).flat();
 }

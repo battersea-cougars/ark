@@ -31,7 +31,7 @@ beforeEach(() => {
 /** The admin with a tournament scheduled: a draft (Cara and Cole captains) or one that teams enter. */
 async function scheduled(kind: "draft" | "teams") {
   const dana = await w.signedIn("dana@example.com");
-  const boot = async () => (await dana.call("GET", "/api/bootstrap", undefined, at)).body as Json;
+  const boot = async () => (await dana.club(at)).body as Json;
   const idOf = async (name: string) => (await boot()).members.find((m: Json) => m.name === name).id as number;
   const cara = await idOf("Cara Captain");
   const cole = await idOf("Cole Captain");

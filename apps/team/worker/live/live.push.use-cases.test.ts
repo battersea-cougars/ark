@@ -45,7 +45,7 @@ async function phoneOn(email: string, parts: readonly string[] = ["tournaments"]
 /** A cup three captains entered, held on `heldOn`, its fixtures made; the first game's keeper holding the sheet. */
 async function cupOn(heldOn = TODAY) {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const made = await dana.call("POST", "/api/tournaments", {
     name: "Summer Cup",
@@ -67,7 +67,7 @@ async function cupOn(heldOn = TODAY) {
   expect(made.status).toBe(201);
   const id = made.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
-  const t = ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((x: Json) => x.id === id);
+  const t = ((await dana.club()).body as Json).tournaments.find((x: Json) => x.id === id);
   const game = t.games[0];
   const captain = t.teams.find((x: Json) => x.id === game.scoringTeamId).captainMemberId;
   const keeperEmail = ROSTER.find((r) => idOf(r.name) === captain)!.email;
@@ -79,9 +79,8 @@ async function cupOn(heldOn = TODAY) {
     expect((await keeper.call("POST", `${path}/goals`, { teamId })).status).toBe(200);
   /** The game as a member reads it from the Worker, the yardstick for what a phone shows. */
   const asRead = async () =>
-    ((await (await w.signedIn("ash@example.com")).call("GET", "/api/bootstrap")).body as Json).tournaments.find(
-      (x: Json) => x.id === id,
-    ).games;
+    ((await (await w.signedIn("ash@example.com")).club()).body as Json).tournaments.find((x: Json) => x.id === id)
+      .games;
   const shown = (p: LivePhone) => p.club().tournaments.find((x: Json) => x.id === id).games;
   return { dana, id, game, keeperEmail, path, goal, asRead, shown };
 }
@@ -165,9 +164,7 @@ describe("a game scored live, everyone following it", () => {
 describe("what's someone's own never comes with the event", () => {
   it("an answer In (the sign-ups, what's owed) is names only: no member's data on anyone's stream", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const session = ((await dana.call("GET", "/api/bootstrap")).body as Json).sessions.find(
-      (s: Json) => s.heldOn >= TODAY,
-    );
+    const session = ((await dana.club()).body as Json).sessions.find((s: Json) => s.heldOn >= TODAY);
     const ash = await phoneOn("ash@example.com", ["sessions"]);
     const mo = await w.signedIn("mo@example.com");
     expect((await mo.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" })).status).toBe(200);
@@ -179,7 +176,7 @@ describe("what's someone's own never comes with the event", () => {
 
   it("the draft stays names only: who went when is the captains' and the admins', so everyone reads their own view", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await dana.club()).body as Json;
     const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
     const made = await dana.call("POST", "/api/tournaments", {
       name: "Winter Cup",

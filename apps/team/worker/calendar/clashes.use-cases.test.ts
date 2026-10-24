@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
-const boot = async (b: Browser, now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+const boot = async (b: Browser, now = NOW) => (await b.club({ now })).body as Json;
 const sessionOn = async (b: Browser, day: string, now = NOW) =>
   (await boot(b, now)).sessions.find((s: Json) => s.heldOn === day && s.seriesId === 1) as Json;
 

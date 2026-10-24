@@ -81,7 +81,7 @@ function played(...days: string[]) {
 
 const opened = async (email = "dana@example.com") => {
   const b = await w.signedIn(email);
-  return { b, boot: (await b.call("GET", "/api/bootstrap")).body as Json };
+  return { b, boot: (await b.club()).body as Json };
 };
 
 describe("opening the app", () => {

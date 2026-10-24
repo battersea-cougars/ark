@@ -23,7 +23,7 @@ beforeEach(() => {
 
 async function as(email: string) {
   const b = await w.signedIn(email);
-  const sees = async () => (await b.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async () => (await b.club()).body as Json;
   const kumite = async () => (await sees()).tournamentTypes.find((x: Json) => x.id === KUMITE);
   return { call: b.call, kumite };
 }

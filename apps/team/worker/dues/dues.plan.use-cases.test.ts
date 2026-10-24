@@ -21,7 +21,7 @@ beforeEach(() => {
 const on = (day: string) => new Date(`${day}T11:00:00Z`);
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
 const mine = async (b: Browser, now?: Date) => {
-  const body = (await b.call("GET", "/api/bootstrap", undefined, now ? { now } : {})).body;
+  const body = (await b.club(now ? { now } : {})).body;
   return body.members.find((m: { id: number }) => m.id === body.me) as { quarterly: boolean; quarterlyNext: boolean };
 };
 const choose = (b: Browser, quarter: string, quarterly: boolean, now?: Date) =>
@@ -47,7 +47,7 @@ describe("a member chooses next quarter's plan", () => {
   it("a Quarterly Member goes back to pay as you go from next quarter; this quarter's still covered", async () => {
     const dana = await w.signedIn("dana@example.com");
     const reg = await w.signedIn("reg@example.com");
-    const regId = (await reg.call("GET", "/api/bootstrap")).body.me;
+    const regId = (await reg.club()).body.me;
     await dana.call("POST", `/api/members/${regId}/quarterly`, { quarterly: true }, { now: on("2026-10-01") });
 
     expect((await choose(reg, "2027-Q1", false)).status).toBe(200);

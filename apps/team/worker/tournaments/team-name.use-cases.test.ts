@@ -29,7 +29,7 @@ beforeEach(() => {
 
 async function person(email: string) {
   const b = await w.signedIn(email);
-  const sees = async () => (await b.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async () => (await b.club()).body as Json;
   const member = async (name: string) => (await sees()).members.find((m: Json) => m.name === name);
   return { call: b.call, open: b.open, sees, member };
 }

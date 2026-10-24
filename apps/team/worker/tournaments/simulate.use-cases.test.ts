@@ -52,7 +52,7 @@ const rows = (sql: string, ...params: unknown[]) => w.db.raw.prepare(sql).all(..
 async function kumite({ signed = PLAYERS, seed = 7 } = {}) {
   w.luck(seed);
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap", undefined, EVENING)).body as Json;
+  const boot = (await dana.club(EVENING)).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const made = await dana.call("POST", "/api/tournaments", {
     typeId: KUMITE,
@@ -77,9 +77,7 @@ async function kumite({ signed = PLAYERS, seed = 7 } = {}) {
     expect((await p.call("POST", `/api/tournaments/${id}/answer`, { answer: "in" }, EVENING)).status).toBe(200);
   }
   const tournament = async (as: Phone = dana) =>
-    ((await as.call("GET", "/api/bootstrap", undefined, EVENING)).body as Json).tournaments.find(
-      (t: Json) => t.id === id,
-    );
+    ((await as.club(EVENING)).body as Json).tournaments.find((t: Json) => t.id === id);
   /** One request: one move on (or, asked for `moves`, up to that many: Spin kick). */
   const simulate = (as: Phone = dana, body: Record<string, unknown> = {}) =>
     as.call("POST", `/api/tournaments/${id}/simulate`, body, EVENING);
@@ -417,7 +415,7 @@ describe("who and where", () => {
     const res = await k.simulate();
     expect(res.status).toBe(404);
     expect((await k.tournament()).draftState).toBe("none");
-    expect(((await k.dana.call("GET", "/api/bootstrap")).body as Json).simulator).toBe(false);
+    expect(((await k.dana.club()).body as Json).simulator).toBe(false);
   });
 
   it("with no environment said (nor TEAM_ENV local), it's production: a 404 for an admin", async () => {
@@ -438,8 +436,8 @@ describe("who and where", () => {
     const refused = await k.simulate(member);
     expect(refused.status).toBe(403);
     expect((await k.tournament()).draftState).toBe("none");
-    expect(((await member.call("GET", "/api/bootstrap")).body as Json).simulator).toBe(false);
-    expect(((await k.dana.call("GET", "/api/bootstrap")).body as Json).simulator).toBe(true);
+    expect(((await member.club()).body as Json).simulator).toBe(false);
+    expect(((await k.dana.club()).body as Json).simulator).toBe(true);
     expect((await k.simulate()).status).toBe(200);
   });
 });

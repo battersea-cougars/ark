@@ -48,7 +48,7 @@ const rows = (sql: string, ...params: unknown[]) => w.db.raw.prepare(sql).all(..
 async function draftNight({ captains = 2, signed = PLAYERS, kind = "draft" as "draft" | "teams", seed = 1 } = {}) {
   w.luck(seed);
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captainIds = ["Cara Captain", "Cole Captain", "Cass Captain"].slice(0, captains).map(idOf);
   const made = await dana.call("POST", "/api/tournaments", {
@@ -78,8 +78,7 @@ async function draftNight({ captains = 2, signed = PLAYERS, kind = "draft" as "d
   const pick = (as: Phone, memberId: unknown, turn?: unknown) =>
     as.call("POST", `/api/tournaments/${id}/draft/picks`, turn === undefined ? { memberId } : { memberId, turn }, at);
   const undo = (as: Phone) => as.call("DELETE", `/api/tournaments/${id}/draft/picks/last`, undefined, at);
-  const tournament = async () =>
-    ((await dana.call("GET", "/api/bootstrap", undefined, at)).body as Json).tournaments.find((x: Json) => x.id === id);
+  const tournament = async () => ((await dana.club(at)).body as Json).tournaments.find((x: Json) => x.id === id);
   /** The teams in pick order: each its captain and its players' ids. */
   const teams = async () =>
     ((await tournament()).teams as Json[]).map((t) => ({
@@ -130,9 +129,7 @@ async function opened(o: Parameters<typeof draftNight>[0] = {}) {
 async function draftRunner(dana: Phone) {
   const role = await dana.call("POST", "/api/roles", { name: "Draft runner", description: "", actions: ["run:Draft"] });
   expect(role.status).toBe(201);
-  const rae = ((await dana.call("GET", "/api/bootstrap")).body as Json).members.find(
-    (m: Json) => m.name === "Rae Runner",
-  );
+  const rae = ((await dana.club()).body as Json).members.find((m: Json) => m.name === "Rae Runner");
   expect((await dana.call("PUT", `/api/members/${rae.id}`, { ...rae, roles: ["Draft runner", "Member"] })).status).toBe(
     200,
   );
@@ -511,7 +508,7 @@ describe("deleting what the draft made", () => {
     expect(t.status).toBe(201);
     expect((await reg.call("POST", `/api/tournaments/${t.body.id}/answer`, { answer: "in" })).status).toBe(200);
     await chargeDue(w.env, day);
-    const boot = async () => (await dana.call("GET", "/api/bootstrap", undefined, { now: day })).body as Json;
+    const boot = async () => (await dana.club({ now: day })).body as Json;
     const regId = (await boot()).members.find((m: Json) => m.name === "Player 2").id;
     const charge = (await chargesOf(dana, regId, day)).find((c: Json) => c.kind === "tournament");
     expect(charge).toMatchObject({ pence: 1500 });

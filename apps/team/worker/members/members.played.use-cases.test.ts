@@ -31,7 +31,7 @@ beforeEach(() => {
 
 async function club() {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (now: Date) => (await dana.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now: Date) => (await dana.club({ now })).body as Json;
   const b = await sees(TUESDAY);
   const id = Object.fromEntries(b.members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
   const sessionOn = (day: string) => b.sessions.find((s: Json) => s.heldOn === day).id as number;
@@ -78,7 +78,7 @@ describe("the Fridays someone played", () => {
     expect(await c.played(JUST_BEFORE("2026-10-09"))).toMatchObject({ Reg: 1, Walt: 1, Nina: 0, Dana: 0 });
     expect(c.stored()).toMatchObject({ Reg: 0, Walt: 0 });
     // 06:00 it closes; the hourly run counts it, once, and the card says the same
-    await c.dana.call("GET", "/api/bootstrap", undefined, { now: AFTER("2026-10-09") });
+    await c.dana.club({ now: AFTER("2026-10-09") });
     await w.scheduled("7 * * * *", AFTER("2026-10-09"));
     await w.scheduled("7 * * * *", AFTER("2026-10-09"));
     expect(c.stored()).toMatchObject({ Reg: 1, Walt: 1, Nina: 0 });

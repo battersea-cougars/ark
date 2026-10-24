@@ -60,7 +60,7 @@ describe("every route", () => {
 
   it("refuses a plain member every route their role doesn't allow", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const allowed = new Set<string>((await reg.call("GET", "/api/bootstrap")).body.actions);
+    const allowed = new Set<string>((await reg.club()).body.actions);
     for (const r of ROUTES.filter((r) => r.action !== "authenticated" && !allowed.has(r.action))) {
       const res = await reg.call(r.method, sample(r.path), r.method === "GET" ? undefined : {});
       expect(res.status, `${r.method} ${sample(r.path)} needs ${r.action}`).toBe(403);
@@ -74,13 +74,13 @@ describe("what bootstrap tells a plain member", () => {
       .browser()
       .call("POST", "/api/auth/request", { name: "Nosy Stranger", email: "nosy@example.com", position: "F" });
     const admin = await w.signedIn("dana@example.com");
-    const all = (await admin.call("GET", "/api/bootstrap")).body.members;
+    const all = (await admin.club()).body.members;
     const pat = all.find((m: { name: string }) => m.name === "Pat Plain");
     await admin.call("PUT", `/api/members/${pat.id}`, { ...pat, status: "inactive", roles: ["Member"] });
     expect(all.find((m: { name: string }) => m.name === "Nosy Stranger").email).toBe("nosy@example.com");
 
     const reg = await w.signedIn("reg@example.com");
-    const b = (await reg.call("GET", "/api/bootstrap")).body;
+    const b = (await reg.club()).body;
     const names = b.members.map((m: { name: string }) => m.name);
     expect(names).toEqual(["Dana Admin", "Reg Player"]);
     const me = b.members.find((m: { id: number }) => m.id === b.me);
@@ -95,7 +95,7 @@ describe("what bootstrap tells a plain member about everyone else (ADR 0036)", (
     const dana = await w.signedIn("dana@example.com");
     const reg = await w.signedIn("reg@example.com");
     const pat = await w.signedIn("pat@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap")).body;
+    const b = (await dana.club()).body;
     const patId = b.members.find((m: { name: string }) => m.name === "Pat Plain").id;
     const regId = b.members.find((m: { name: string }) => m.name === "Reg Player").id;
     const past = b.sessions.find((s: { heldOn: string }) => s.heldOn < "2026-10-06");
@@ -109,7 +109,7 @@ describe("what bootstrap tells a plain member about everyone else (ADR 0036)", (
     await dana.call("POST", `/api/members/${patId}/quarterly`, { quarterly: true });
     await reg.call("POST", `/api/sessions/${next.id}/answer`, { answer: "in" });
 
-    const seen = (await reg.call("GET", "/api/bootstrap")).body;
+    const seen = (await reg.club()).body;
     const at = (id: number) => seen.sessions.find((s: { id: number }) => s.id === id);
     expect(at(next.id)).toMatchObject({ going: [regId], out: [] });
     expect(at(past.id)).toMatchObject({ going: [patId, b.me], noShows: [], walkIns: [] });
@@ -120,11 +120,11 @@ describe("what bootstrap tells a plain member about everyone else (ADR 0036)", (
     expect(seen.roles.map((r: { name: string }) => r.name)).toEqual(["Member"]);
 
     // Pat sees their own no and no-show; Dana, who runs the register, sees everyone's
-    const own = (await pat.call("GET", "/api/bootstrap")).body;
+    const own = (await pat.club()).body;
     expect(own.sessions.find((s: { id: number }) => s.id === next.id).out).toEqual([patId]);
     expect(own.sessions.find((s: { id: number }) => s.id === past.id).noShows).toEqual([patId]);
     expect(own.members.find((m: { id: number }) => m.id === patId).quarterly).toBe(true);
-    const all = (await dana.call("GET", "/api/bootstrap")).body;
+    const all = (await dana.club()).body;
     expect(all.sessions.find((s: { id: number }) => s.id === past.id)).toMatchObject({
       noShows: [patId],
       walkIns: [b.me],
@@ -150,9 +150,9 @@ describe("what bootstrap tells a plain member about everyone else (ADR 0036)", (
     expect(made.status, JSON.stringify(made.body)).toBe(201);
     const team = (b: { tournaments: { name: string; teams: { contact: string }[] }[] }) =>
       b.tournaments.find((t) => t.name === "Open Cup")!.teams[0];
-    expect(team((await dana.call("GET", "/api/bootstrap")).body).contact).toBe("07700 900123");
+    expect(team((await dana.club()).body).contact).toBe("07700 900123");
     const reg = await w.signedIn("reg@example.com");
-    expect(team((await reg.call("GET", "/api/bootstrap")).body).contact).toBe("");
+    expect(team((await reg.club()).body).contact).toBe("");
   });
 });
 
@@ -161,9 +161,7 @@ describe("you can't grant what you don't have", () => {
   async function regWith(actions: string[]) {
     const admin = await w.signedIn("dana@example.com");
     const { id } = (await admin.call("POST", "/api/roles", { name: "Helper", description: "", actions })).body;
-    const reg = (await admin.call("GET", "/api/bootstrap")).body.members.find(
-      (m: { name: string }) => m.name === "Reg Player",
-    );
+    const reg = (await admin.club()).body.members.find((m: { name: string }) => m.name === "Reg Player");
     expect((await admin.call("PUT", `/api/members/${reg.id}`, { ...reg, roles: ["Helper", "Member"] })).status).toBe(
       200,
     );
@@ -172,7 +170,7 @@ describe("you can't grant what you don't have", () => {
 
   it("lets a member manager change plain members but never make an admin or touch one", async () => {
     const { reg, regId } = await regWith(["manage:Member", "read:Event"]);
-    const members = (await reg.call("GET", "/api/bootstrap")).body.members;
+    const members = (await reg.club()).body.members;
     const me = members.find((m: { id: number }) => m.id === regId);
     const pat = members.find((m: { name: string }) => m.name === "Pat Plain");
     const dana = members.find((m: { name: string }) => m.name === "Dana Admin");
@@ -226,7 +224,7 @@ describe("requests from somewhere else", () => {
       headers: { origin: null, "sec-fetch-site": "same-origin" },
     });
     expect(ownPage.status).toBe(200);
-    expect((await reg.call("GET", "/api/bootstrap", undefined, { headers: { origin: null } })).status).toBe(200);
+    expect((await reg.club({ headers: { origin: null } })).status).toBe(200);
   });
 
   it("is never framed, sniffed, told where it came from or given the camera, from the Worker or the asset layer (ADR 0036)", async () => {
@@ -268,15 +266,15 @@ describe("an everyday role (ADR 0024)", () => {
 
   it("an admin opens the app as a plain member day to day, and can go back to their full role", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap")).body;
+    const b = (await dana.club()).body;
     expect(b.everydayRole).toBeNull();
     const member = roleId(b, "Member");
     expect((await dana.call("PUT", "/api/me/everyday-role", { roleId: member })).status).toBe(200);
-    expect((await dana.call("GET", "/api/bootstrap")).body.everydayRole).toBe(member);
+    expect((await dana.club()).body.everydayRole).toBe(member);
     // Still an admin underneath: the server goes by their real role
-    expect((await dana.call("GET", "/api/bootstrap")).body.actions).toContain("manage:all");
+    expect((await dana.club()).body.actions).toContain("manage:all");
     await dana.call("PUT", "/api/me/everyday-role", { roleId: null });
-    expect((await dana.call("GET", "/api/bootstrap")).body.everydayRole).toBeNull();
+    expect((await dana.club()).body.everydayRole).toBeNull();
   });
 
   it("is never a way up: a plain member can't make Admin their everyday role", async () => {
@@ -285,7 +283,7 @@ describe("an everyday role (ADR 0024)", () => {
     const admin = w.db.raw.prepare("SELECT id FROM roles WHERE name = 'Admin'").get() as { id: number };
     const res = await reg.call("PUT", "/api/me/everyday-role", { roleId: admin.id });
     expect(res.status).toBe(403);
-    expect((await reg.call("GET", "/api/bootstrap")).body.everydayRole).toBeNull();
+    expect((await reg.club()).body.everydayRole).toBeNull();
   });
 });
 
@@ -299,7 +297,7 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
 
   it("every change to who can do what, and every refused request, says who did it, before and after", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap")).body;
+    const b = (await dana.club()).body;
     const reg = named(b.members, "Reg Player");
     const { id: roleId } = (
       await dana.call("POST", "/api/roles", { name: "Helper", description: "", actions: ["manage:Member"] })
@@ -392,13 +390,13 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
 describe("the last admin", () => {
   it("can neither lose the role nor go inactive, so the club always has one", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const b = (await dana.call("GET", "/api/bootstrap")).body;
+    const b = (await dana.club()).body;
     const me = b.members.find((m: { id: number }) => m.id === b.me);
     expect(await dana.call("PUT", `/api/members/${me.id}`, { ...me, roles: ["Member"] })).toMatchObject({
       status: 409,
       body: { error: "That's the last admin. Make someone else an admin first." },
     });
     expect((await dana.call("PUT", `/api/members/${me.id}`, { ...me, status: "inactive" })).status).toBe(409);
-    expect((await dana.call("GET", "/api/bootstrap")).status).toBe(200);
+    expect((await dana.club()).status).toBe(200);
   });
 });
