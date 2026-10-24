@@ -58,3 +58,8 @@ paths = ['''^apps/team/worker/push/webpush\.test\.ts$''']
 description = "The old team manager's Airtable base and table ids (app…, tbl…), removed since: they name a base and a table, and open nothing without a token"
 targetRules = ["airtable-api-key"]
 paths = ['''^team-manager/lib/constants\.ts$''']
+
+[[allowlists]]
+description = "The Secrets page's shape checks (#149): a regular expression describing what a PKCS#8 private key looks like (its BEGIN/END lines around base64 characters), with no key in it"
+targetRules = ["private-key"]
+paths = ['''^scripts/lib/secret-shapes\.mjs$''']
