@@ -25,7 +25,8 @@ npm run team               # the team app, http://localhost:4510 (sign in as adm
 npm test
 ```
 
-A clean clone needs nothing else: no private files, no Sanity, no secrets. More (the ports, one worktree per task,
+Before pushing, `npm run secrets:scan` checks the commits for secrets (gitleaks, redacted; `-- --since main` for just
+your branch's). A clean clone needs nothing else: no private files, no Sanity, no secrets. More (the ports, one worktree per task,
 secrets on your machine, break glass): [docs/development.md](docs/development.md).
 
 ## Docs

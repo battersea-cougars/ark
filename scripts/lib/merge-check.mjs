@@ -18,6 +18,12 @@ export const STEPS = {
   buildStudio: { name: "build Studio", cmd: ["npm", "run", "build", "-w", "@cougars/studio"] },
 };
 
+/**
+ * Every tier, docs too, scans the branch's own commits for secrets first (#104): once pushed, the public repo has them.
+ * The same scan as pr.yml's, with findings redacted (scripts/secrets-scan.mjs).
+ */
+export const SECRETS = { name: "secrets (gitleaks)", cmd: ["npm", "run", "secrets:scan", "--", "--since", "main"] };
+
 /** What a change to each app reaches. */
 const REACHES = {
   web: ["checkWeb", "buildWeb", "checkTeam", "buildTeam"],

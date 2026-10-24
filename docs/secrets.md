@@ -26,6 +26,11 @@ backups ([ADR 0002](adr/0002-secrets-in-bitwarden.md), [ADR 0010](adr/0010-envir
 - **Never in this repo:** a value, or anyone's email address or phone number; name accounts by role ("the club
   account", "the developer account"). What's safe to write: [accounts.md](accounts.md#writing-about-accounts-in-this-repo).
 
+- **Every commit is scanned for them** (gitleaks, [ADR 0002](adr/0002-secrets-in-bitwarden.md)): a PR's, a branch's
+  in `npm run merge:check`, and the whole history on every push to `main`. `npm run secrets:scan` runs it by hand
+  (`-- --since main` for just your branch's commits); it never prints what it finds, only where. A find is a secret
+  to rotate, not just to delete: the repo is public.
+
 **On your machine:** run `bw-unlock` once per container start (your master password), and the scripts find their
 token themselves ([Bitwarden](#bitwarden)).
 

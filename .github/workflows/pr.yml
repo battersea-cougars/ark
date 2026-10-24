@@ -20,11 +20,16 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      # A PR is checked out as a merge commit: its first parent is the base
+      # A PR is checked out as a merge commit: its first parent is the base. The whole history, so the secrets scan sees
+      # every commit the PR brings, not only its last
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 2
+          fetch-depth: 0
       - uses: ./.github/actions/setup
+      # Every commit the PR brings, whatever it touches (#104): gitleaks, pinned and checksum-checked, findings redacted;
+      # what it lets through, and why, is in .gitleaks.toml
+      - name: Secrets (gitleaks)
+        run: npm run secrets:scan -- --since HEAD^1
       - id: plan
         run: node scripts/ci/pr-plan.mjs HEAD^1
       - name: Format (docs)

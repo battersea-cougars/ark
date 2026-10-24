@@ -1,7 +1,7 @@
 # 0002. Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-23
+- **Date:** 2026-10-05 · updated 2026-10-24
 - **Merges:** 0012
 
 ## Context
@@ -70,6 +70,14 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
    `scripts/lib/settings.mjs`, which env-pull hands to every command and CI job beside the secrets under the same
    names, or a Worker var. One that is personal data (an email address) stays in Secrets Manager though it isn't
    secret, because this repo is public.
+10. **Every commit is scanned for secrets** with [gitleaks](https://github.com/gitleaks/gitleaks) (#104), so one
+    that slips into a commit is caught before the public repo has it: a PR's commits in `pr.yml`, a branch's in
+    `npm run merge:check` (before it reaches `main`), the whole history on every push to `main` and weekly
+    (`secrets.yml`), and `npm run secrets:scan` by hand. Its rules are gitleaks' own plus ours for formats they miss
+    (Bitwarden access tokens, Sanity tokens, Google's refresh tokens and client secrets, Turnstile's secret key);
+    what it lets through is in `.gitleaks.toml`, each with why. It always redacts what it finds. The binary is a
+    pinned release checked against its checksum (`scripts/secrets-scan.mjs`), not `gitleaks-action`, which needs a
+    licence key for an organisation's repo. A find means rotating the secret first, then taking it out of history.
 
 ## Consequences
 
@@ -107,3 +115,6 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
   ([ADR 0027](0027-email-through-gmail-api.md)).
 - 2026-10-23: How secrets work, in short, moves from the README into docs/secrets.md, so the README is only what
   the project is and how to start (#148).
+- 2026-10-24: Every commit is scanned for secrets with gitleaks: a PR's, a branch's before merging, the whole history
+  on every push to `main` and weekly; the full history was clean, with three kinds of public values let through
+  (#104).

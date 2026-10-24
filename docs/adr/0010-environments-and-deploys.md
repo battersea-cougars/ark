@@ -87,7 +87,8 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   ([ADR 0023](0023-sign-in-and-sessions.md)).
 - **CI trusts as little as it can** (#70): every action is pinned to a commit SHA (its tag in a comment), the
   Bitwarden CLI is checked against its published checksum before it runs, each workflow starts with
-  `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, and Dependabot
+  `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, every commit is scanned for secrets (gitleaks, the same way pinned
+  and checked; `pr.yml`, `secrets.yml`, [0002](0002-secrets-in-bitwarden.md)), and Dependabot
   proposes updates weekly, grouped, checked by `pr.yml`. `main` and `release` refuse force-pushes and deletion (a
   repository ruleset).
 - **Production is behind Cloudflare Access until launch**, so it can be deployed and tried for real first: the site,
@@ -168,3 +169,5 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   GitHub runs schedules on the hour and the half and quarter hours late, or drops them (#148).
 - 2026-10-24: A corner ribbon and tab-title prefix, `LOCAL` on a machine and `DEV` on dev, on the website and the team
   app; nothing in production.
+- 2026-10-24: Every commit is scanned for secrets with a pinned, checksum-checked gitleaks: `pr.yml` the PR's commits
+  (checked out whole now), `secrets.yml` the whole history on a push to `main` and weekly (#104).

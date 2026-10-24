@@ -1,0 +1,60 @@
+# What the secrets scan looks for, and the known non-secrets it lets through (#104, ADR 0002). Run it with
+# `npm run secrets:scan` (scripts/secrets-scan.mjs): it always redacts what it finds.
+#
+# gitleaks' own rules, plus ours for the formats they miss (checked against made-up tokens of each shape). A Cloudflare
+# API token has no prefix: the default rules catch one next to the word "cloudflare" (CLOUDFLARE_API_TOKEN=…) or a
+# key/token/secret name, not one on its own.
+#
+# Every allowlist says why what it lets through isn't a secret. A new one needs the same: never allowlist a real
+# secret, rotate it (docs/secrets.md).
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "bitwarden-access-token"
+description = "A Bitwarden Secrets Manager access token (BWS_ACCESS_TOKEN__*): it unlocks every secret of an environment"
+regex = '''\b0\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[A-Za-z0-9]{20,}:[A-Za-z0-9+/]{20,}={0,2}'''
+keywords = ["0."]
+
+[[rules]]
+id = "sanity-token"
+description = "A Sanity API token (SANITY_API_*_TOKEN), even with no name beside it"
+regex = '''\b(sk[A-Za-z0-9]{150,})\b'''
+entropy = 4
+keywords = ["sk"]
+
+[[rules]]
+id = "google-oauth-refresh-token"
+description = "A Google OAuth refresh token (GMAIL_REFRESH_TOKEN): it sends the club's email"
+regex = '''\b(1//0[A-Za-z0-9_-]{40,})'''
+keywords = ["1//0"]
+
+[[rules]]
+id = "google-oauth-client-secret"
+description = "A Google OAuth client secret (GMAIL_*CLIENT_SECRET)"
+regex = '''\b(GOCSPX-[A-Za-z0-9_-]{28})\b'''
+keywords = ["gocspx-"]
+
+[[rules]]
+id = "turnstile-secret-key"
+description = "A Cloudflare Turnstile secret key (TURNSTILE_SECRET_KEY). Its site key has the same shape and is public, so only one named as a secret"
+regex = '''(?i)turnstile\w*secret\w*["']?\s*[:=]\s*["']?(0x4[A-Za-z0-9_-]{20,})'''
+keywords = ["turnstile"]
+
+[[allowlists]]
+description = "Passkey providers' AAGUIDs (iCloud Keychain, 1Password, Windows Hello and the rest): public ids, from the published list of authenticators, that name who keeps a passkey"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^apps/team/worker/auth/auth\.passkeys\.ts$''']
+regexes = ['''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''']
+
+[[allowlists]]
+description = "RFC 8291's worked example of Web Push encryption (Section 5): keys published in the RFC, which the test checks our encryption against byte for byte"
+targetRules = ["generic-api-key"]
+paths = ['''^apps/team/worker/push/webpush\.test\.ts$''']
+
+[[allowlists]]
+description = "The old team manager's Airtable base and table ids (app…, tbl…), removed since: they name a base and a table, and open nothing without a token"
+targetRules = ["airtable-api-key"]
+paths = ['''^team-manager/lib/constants\.ts$''']

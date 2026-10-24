@@ -1,7 +1,7 @@
 # 0115. One task, one worktree; one switch holds the user's ports and shows a checkout
 
 - **Status:** Accepted
-- **Date:** 2026-10-20
+- **Date:** 2026-10-20 · updated 2026-10-24
 
 ## Context
 
@@ -50,7 +50,7 @@ hard-linked, and one supervisor that owns the well-known ports and switches them
 - **`npm run merge:check -- <area>/<topic>`**, in the main checkout: the branch must be on main's tip and clean. In its
   worktree (or a temporary one), never main's tree, it runs a tier picked from `git diff main...<branch>`
   (`scripts/lib/merge-check.mjs`): docs only, a format check; otherwise lint, knip and the whole test suite, then the checks
-  and builds of the apps the diff reaches. A website change also checks and builds the team app (it imports the
+  and builds of the apps the diff reaches. Every tier first scans the branch's commits for secrets (gitleaks, #104). A website change also checks and builds the team app (it imports the
   website's code); a change only in the team app or the Studio checks that one; anything outside the apps runs the
   full pre-push list. It prints "Safe to merge" or not.
 
@@ -70,3 +70,5 @@ hard-linked, and one supervisor that owns the well-known ports and switches them
 
 - 2026-10-20: Worktrees again, the ledger way: hard-linked `node_modules`, one switch on 4500/4510/4520, and
   `merge:check`; replaces `scripts/worktree.sh` and its slot ports.
+- 2026-10-24: `merge:check` scans the branch's commits for secrets first, docs-only branches too: once pushed to `main`,
+  the public repo has them (#104, [0002](0002-secrets-in-bitwarden.md)).
