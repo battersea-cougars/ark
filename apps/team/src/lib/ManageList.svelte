@@ -8,12 +8,14 @@
     run: () => void;
     /** Can't be taken back: its words in red. */
     danger?: boolean;
+    /** Its icon in a colour (a CSS colour): what kind of thing it makes, as the calendar shows that kind. */
+    tone?: string;
   }
 </script>
 
 <script lang="ts">
-  // A Manage menu's jobs (ADR 0065), thumb-sized, a filled row each, no lines: the header's gear and the draft
-  // room's. `go` runs one (the menu closes first).
+  // A Manage menu's jobs (ADR 0065), thumb-sized, a filled row each, no lines: every page's Manage menu and the
+  // calendar's New event (lib/ManageMenu opens them). `go` runs one (the menu closes first).
   import Icon from "../app/shell/Icon.svelte";
 
   let { items, go }: { items: ManageItem[]; go: (run: () => void) => void } = $props();
@@ -21,7 +23,7 @@
 
 <div class="tools">
   {#each items as item (item.label)}
-    <button class="tool" class:danger={item.danger} onclick={() => go(item.run)}>
+    <button class="tool" class:danger={item.danger} style:--tone={item.tone} onclick={() => go(item.run)}>
       <Icon name={item.icon} size={22} />
       <span class="tool-text"><strong>{item.label}</strong><span>{item.sub}</span></span>
       <Icon name="chevronRight" size={18} />
@@ -46,6 +48,10 @@
     color: var(--fg-muted);
     font: inherit;
     text-align: left;
+  }
+  .tool > :global(svg:first-child) {
+    flex-shrink: 0;
+    color: var(--tone, currentColor);
   }
   .tool:active {
     background: var(--surface-3);

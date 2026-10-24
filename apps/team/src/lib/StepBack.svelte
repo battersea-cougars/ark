@@ -4,13 +4,12 @@
   // draft reopened, sign-up open again, a draft with no picks yet) goes at once; what can be done again (the fixtures,
   // the drawn order) is a quiet question; what's gone for good (results and goals, captains' picks) says what, counted,
   // with the one red fill as the tap that does it. A sheet on a phone, a side drawer on a desktop.
+  import { londonToday, plural } from "./dates";
   import type { Tournament, TournamentType } from "../demo/model";
   import { stepBack } from "../app/backend.svelte";
   import { backFrom, backTo, type BackFrom } from "./step-back";
-  import { londonToday } from "./dates";
-  import { phone } from "./viewport.svelte";
-  import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
+  import Confirm from "./Confirm.svelte";
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
 
@@ -19,7 +18,6 @@
   // title and words mustn't turn into the next step's as it leaves
   let asked = $state<BackFrom | null>(null);
   const from = $derived(asked ?? now);
-  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
   const games = $derived(tournament.games ?? []);
   const picks = $derived(tournament.teams.reduce((n, t) => n + t.players.length, 0));
 
@@ -86,51 +84,15 @@
   }
 </script>
 
-{#snippet ask()}
+<Drawer bind:open short title={from ? backTo(from, tournament.kind) : ""} sub={`${type.shortName}: ${tournament.name}`}>
   {#if from}
-    <div class="confirm" role="alert">
-      <p>{cost.said}</p>
-      <div class="keys">
-        <button class="btn ghost" onclick={() => (open = false)}>Not now</button>
-        <button
-          class="btn {cost.level === 'lost' ? 'delete' : 'outline'}"
-          disabled={busy}
-          onclick={() => from && go(from)}>{backTo(from, tournament.kind)}</button
-        >
-      </div>
-    </div>
+    <Confirm
+      cancel="Not now"
+      confirm={backTo(from, tournament.kind)}
+      kind={cost.level === "lost" ? "danger" : "outline"}
+      {busy}
+      oncancel={() => (open = false)}
+      onconfirm={() => from && go(from)}><p>{cost.said}</p></Confirm
+    >
   {/if}
-{/snippet}
-
-{#if phone.current}
-  <Sheet bind:open title={from ? backTo(from, tournament.kind) : ""}>{@render ask()}</Sheet>
-{:else}
-  <Drawer bind:open title={from ? backTo(from, tournament.kind) : ""} sub={`${type.shortName}: ${tournament.name}`}
-    >{@render ask()}</Drawer
-  >
-{/if}
-
-<style>
-  .confirm {
-    display: grid;
-    gap: var(--s-4);
-  }
-  .confirm p {
-    margin: 0;
-    color: var(--fg-body);
-  }
-  .keys {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: var(--s-3);
-  }
-  /* What's gone for good: the one red fill is the tap that does it (as deleting a tournament or an account) */
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
-  }
-</style>
+</Drawer>

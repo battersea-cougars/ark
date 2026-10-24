@@ -2,6 +2,7 @@
   // A training series' next session. Before the teams: who's in, in order, and your answer. Once there are teams,
   // they're the page: anyone who signed up after them first (an admin slots them in or remakes them), then the
   // teams, then sign-up. A team maker's changes to the teams are saved as they're made (ADR 0076). Ratings drive the teams but only admins see them (read:Rating), as in the old app.
+  import { portal } from "../lib/overlay";
   import { goesBy, shortName } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -29,7 +30,7 @@
   import { phone } from "../lib/viewport.svelte";
   import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
   import { flip } from "svelte/animate";
-  import { clock, clockRange, formatDayDate } from "../lib/dates";
+  import { clock, clockRange, formatDayDate, londonToday } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
   import { lineUp, makeTeams, slotIn, strength, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
@@ -38,7 +39,6 @@
   import EmptyState from "../lib/EmptyState.svelte";
   import { nightOpen, nightOpensOn, opensWords } from "../lib/signup";
   import { pick } from "../lib/quips";
-  import { londonToday } from "../lib/dates";
   import { fade } from "svelte/transition";
   import { resolve, seriesById, seriesNights, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
   import { nightOn, offWords, signedUp } from "../lib/night-off";
@@ -275,10 +275,6 @@
     const avatar = row.querySelector<HTMLElement>(".avatar");
     return avatar?.offsetParent ? avatar : row;
   };
-  function portal(node: HTMLElement) {
-    document.body.append(node);
-    return { destroy: () => node.remove() };
-  }
   // A team maker moves a player between teams, or onto one from Not on a team (from ""); it's saved there and then
   const arranging = $derived(can(perms, "generate:Teams") && can(perms, "publish:Teams"));
   // Who's in, out and waiting, and the teams, live (ADR 0072): made, moved or cleared, everyone on the page sees it
@@ -1000,15 +996,12 @@
 {/snippet}
 
 {#if canManage}
-  {#if phone.current}
-    <Sheet bind:open={manageOpen} title="Manage {series.shortName}">{@render manageTools()}</Sheet>
-  {:else}
-    <Drawer
-      bind:open={manageOpen}
-      title="Manage {series.shortName}"
-      sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}>{@render manageTools()}</Drawer
-    >
-  {/if}
+  <Drawer
+    bind:open={manageOpen}
+    short
+    title="Manage {series.shortName}"
+    sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}>{@render manageTools()}</Drawer
+  >
 {/if}
 
 {#if maker && phone.current}

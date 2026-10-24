@@ -6,9 +6,8 @@
   import type { Tournament, TournamentType } from "../demo/model";
   import { simulation } from "../app/backend.svelte";
   import { formatDayDate, londonEvening, londonISO } from "./dates";
-  import { phone } from "./viewport.svelte";
-  import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
+  import Confirm from "./Confirm.svelte";
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
 
@@ -26,8 +25,8 @@
   }
 </script>
 
-{#snippet ask()}
-  <div class="confirm" role="alert">
+<Drawer bind:open short {title} sub={`${type.shortName}: ${tournament.name}`}>
+  <Confirm cancel="Not now" confirm="Play it out" kind="outline" oncancel={() => (open = false)} onconfirm={go}>
     <p>
       Whatever's left, at random and by the rules: the order drawn and every pick made, then each match scored on the
       clock, goals and the odd penalty, the playoffs too. It stops at the after-party, the awards for you to confirm and
@@ -41,36 +40,12 @@
       </p>
     {/if}
     <p class="dev">Dev only. Never in production.</p>
-    <div class="keys">
-      <button class="btn ghost" onclick={() => (open = false)}>Not now</button>
-      <button class="btn outline" onclick={go}>Play it out</button>
-    </div>
-  </div>
-{/snippet}
-
-{#if phone.current}
-  <Sheet bind:open {title}>{@render ask()}</Sheet>
-{:else}
-  <Drawer bind:open {title} sub={`${type.shortName}: ${tournament.name}`}>{@render ask()}</Drawer>
-{/if}
+  </Confirm>
+</Drawer>
 
 <style>
-  .confirm {
-    display: grid;
-    gap: var(--s-4);
-  }
-  .confirm p {
-    margin: 0;
-    color: var(--fg-body);
-  }
-  .confirm .dev {
+  :global(.confirm) .dev {
     color: var(--fg-muted);
     font-size: var(--text-sm);
-  }
-  .keys {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: var(--s-3);
   }
 </style>

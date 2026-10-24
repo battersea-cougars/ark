@@ -40,7 +40,8 @@
   import { SIMULATOR } from "../demo/data";
   import { simulating } from "../app/backend.svelte";
   import DraftJobs from "./DraftJobs.svelte";
-  import ManageList, { type ManageItem } from "./ManageList.svelte";
+  import type { ManageItem } from "./ManageList.svelte";
+  import ManageMenu from "./ManageMenu.svelte";
   import { historyItemsOf, manageItemsOf, type ManageEntry, type ManageKey } from "./manage";
   import PastKumiteRecord from "./PastKumiteRecord.svelte";
   import PastDayPlay from "./PastDayPlay.svelte";
@@ -249,10 +250,6 @@
       run: () => RUN[e.key](e),
     }));
   });
-  function go(action: () => void) {
-    menuOpen = false;
-    action();
-  }
 </script>
 
 <!-- Compact (a phone page that needs its room): no header at all; the page's tabs say where you are -->
@@ -474,8 +471,6 @@
   {/if}
 {/if}
 
-{#snippet toolList()}<ManageList items={tools} {go} />{/snippet}
-
 {#if tournament && myTeam?.id}
   <TeamLookSheet
     tournamentId={tournament.id}
@@ -491,12 +486,7 @@
 {#if picksSeen && tournament}<PickLog {tournament} bind:open={logOpen} />{/if}
 {#if tools.length}
   <!-- Every admin job for this one, thumb-sized: up from the bottom on a phone, a side drawer on a desktop -->
-  {#if phone.current}
-    <Sheet bind:open={menuOpen} title="Manage the {type.shortName}">{@render toolList()}</Sheet>
-  {:else}
-    <Drawer bind:open={menuOpen} title="Manage the {type.shortName}" sub={tournament?.name}>{@render toolList()}</Drawer
-    >
-  {/if}
+  <ManageMenu bind:open={menuOpen} title="Manage the {type.shortName}" sub={tournament?.name} items={tools} />
 {/if}
 <!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}

@@ -27,12 +27,12 @@
   import { londonISO, londonTime, londonToday } from "../lib/dates";
   import type { Bookable, OneOff } from "../demo/model";
   import PlacePicker from "../lib/PlacePicker.svelte";
-  import Drawer from "../lib/Drawer.svelte";
+  import ManageMenu from "../lib/ManageMenu.svelte";
+  import type { ManageItem } from "../lib/ManageList.svelte";
   import TrainingEditorPanel from "../lib/TrainingEditorPanel.svelte";
   import TournamentEditorPanel from "../lib/TournamentEditorPanel.svelte";
   import { editTournament } from "../lib/tournament-panel.svelte";
   import { newEventKinds, type NewEventKind } from "../lib/new-event";
-  import { phone } from "../lib/viewport.svelte";
   import { switchUpFor } from "../app/settings-entry.svelte";
   import { Edits } from "../lib/dirty.svelte";
   import SaveBar from "../lib/SaveBar.svelte";
@@ -85,6 +85,15 @@
     if (kinds.length === 1) pick(kinds[0]);
     else choosing = true;
   }
+  const kindItems: ManageItem[] = $derived(
+    kinds.map((kind) => ({
+      icon: kind.icon,
+      label: kind.label,
+      sub: kind.sub,
+      tone: kind.tone ? `var(--tone-${kind.tone})` : undefined,
+      run: () => pick(kind),
+    })),
+  );
   function pick(kind: NewEventKind) {
     choosing = false;
     switchUpFor(kind.action);
@@ -275,24 +284,9 @@
   </Sheet>
 </div>
 
-{#snippet kindList()}
-  <div class="tools">
-    {#each kinds as kind (kind.label)}
-      <button class="tool" style:--tone={kind.tone ? `var(--tone-${kind.tone})` : undefined} onclick={() => pick(kind)}>
-        <Icon name={kind.icon} size={22} />
-        <span class="tool-text"><strong>{kind.label}</strong><span>{kind.sub}</span></span>
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/each}
-  </div>
-{/snippet}
 {#if kinds.length > 1}
   <!-- What kind: up from the bottom on a phone, a side drawer on a desktop (ADR 0065, a menu of jobs) -->
-  {#if phone.current}
-    <Sheet bind:open={choosing} title="New event">{@render kindList()}</Sheet>
-  {:else}
-    <Drawer bind:open={choosing} title="New event" sub="What's going on?">{@render kindList()}</Drawer>
-  {/if}
+  <ManageMenu bind:open={choosing} title="New event" sub="What's going on?" items={kindItems} />
 {/if}
 {#if newTraining && can(perms, "manage:Training")}
   <!-- Added: it closes on the calendar, which now has its sessions -->
@@ -335,43 +329,4 @@
     resize: vertical;
   }
   /* New event's kinds, as the Manage menus' rows: an icon in its colour, what it is, a line on what it makes */
-  .tools {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.25rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .tool > :global(svg:first-child) {
-    flex-shrink: 0;
-    color: var(--tone, var(--fg-muted));
-  }
-  .tool:active {
-    background: var(--surface-3);
-  }
-  .tool-text {
-    display: grid;
-    flex: 1;
-    gap: 0.15rem;
-    min-width: 0;
-  }
-  .tool-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .tool-text span {
-    font-size: var(--text-sm);
-  }
 </style>

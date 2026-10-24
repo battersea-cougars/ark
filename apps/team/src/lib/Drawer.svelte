@@ -1,7 +1,7 @@
 <script lang="ts">
   // The app's one side drawer (ADR 0065): every job that opens over a page on a desktop or tablet, from a
   // menu (Manage) to a form (Add player) to an editor (lib/EditorPanel, in the page's column). It slides in from the
-  // right; on a phone it's the one overlay every job uses there, lib/Sheet, tall, decided as it opens and kept that
+  // right; on a phone it's the one overlay every job uses there, lib/Sheet, tall (short for a menu or a question), decided as it opens and kept that
   // way while it's open. Both keep one close contract (lib/overlay.ts): a native modal dialog, so focus stays in it
   // and the page under it is inert and doesn't scroll; Escape closes the top one only; a click on the dimmed page
   // closes it only when it was pressed and let go there; the × closes it; focus goes back to what opened it. Every
@@ -28,6 +28,7 @@
     wide = false,
     page = false,
     side = false,
+    short = false,
     fill = false,
     tone,
     edits,
@@ -48,6 +49,9 @@
     page?: boolean;
     /** From the right on a phone too, not the phone's sheet: a list worked beside the page (the draft's players). */
     side?: boolean;
+    /** A menu or a question (Manage, Back a step): on a phone a short sheet, as tall as what's in it and without
+     * the `sub` line, not the tall one a list or a form gets. */
+    short?: boolean;
     /** The body lays itself out to the drawer's height, with its own scrolling and foot (lib/Wizard). */
     fill?: boolean;
     /** A colour the contents pick up (`--tone`): a training's, a series'. */
@@ -114,13 +118,13 @@
     bind:this={sheet}
     bind:open
     {title}
-    {sub}
+    sub={short ? undefined : sub}
     {head}
     {top}
     {footer}
     {fill}
     {edits}
-    tall
+    tall={!short}
     lazy
     onclose={() => onclose?.()}>{@render children()}</Sheet
   >

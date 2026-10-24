@@ -785,11 +785,7 @@
       </button>
     </div>
   {/snippet}
-  {#if phone.current}
-    <Sheet bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Sheet>
-  {:else}
-    <Drawer bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Drawer>
-  {/if}
+  <Drawer bind:open={toolsOpen} short title="You're keeping score">{@render toolList()}</Drawer>
 
   <!-- Full time's review: look it over, put a mistake right, then seal the result -->
   {#if keeper || reviewing}

@@ -9,10 +9,9 @@
   import { STATUS_MARK, statusesOf } from "./tournament-front";
   import { kanjiFor } from "./motif";
   import { londonToday } from "./dates";
-  import { phone } from "./viewport.svelte";
   import Icon from "../app/shell/Icon.svelte";
-  import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
+  import Confirm from "./Confirm.svelte";
 
   let {
     type,
@@ -74,9 +73,16 @@
   );
 </script>
 
-{#snippet body()}
+<Drawer bind:open short {title} sub={`${type.shortName}: ${tournament.name}`}>
   {#if asked}
-    <div class="confirm" role="alert">
+    <Confirm
+      cancel="Not that one"
+      confirm={asked.plan.back ? "Move back" : "Move on"}
+      kind={asked.plan.back ? "danger" : "primary"}
+      {busy}
+      oncancel={() => (asked = null)}
+      onconfirm={go}
+    >
       <p class="lead">
         {asked.plan.back ? "Moving back undoes, in this order:" : "Moving on does, in this order:"}
       </p>
@@ -88,13 +94,7 @@
       {#if !asked.plan.back && asked.plan.steps.some((s) => s.step === "setTeams")}
         <p class="note">The captains hear that the rest were chosen at random.</p>
       {/if}
-      <div class="keys">
-        <button class="btn ghost" onclick={() => (asked = null)}>Not that one</button>
-        <button class="btn {asked.plan.back ? 'delete' : 'primary'}" disabled={busy} onclick={go}
-          >{asked.plan.back ? "Move back" : "Move on"}</button
-        >
-      </div>
-    </div>
+    </Confirm>
   {:else}
     <ol class="stages" aria-label="Its statuses">
       {#each rows as row (row.status)}
@@ -127,13 +127,7 @@
       {/each}
     </ol>
   {/if}
-{/snippet}
-
-{#if phone.current}
-  <Sheet bind:open {title}>{@render body()}</Sheet>
-{:else}
-  <Drawer bind:open {title} sub={`${type.shortName}: ${tournament.name}`}>{@render body()}</Drawer>
-{/if}
+</Drawer>
 
 <style>
   .stages {
@@ -207,14 +201,6 @@
   .sub {
     font-size: var(--text-sm);
   }
-  .confirm {
-    display: grid;
-    gap: var(--s-4);
-  }
-  .confirm p {
-    margin: 0;
-    color: var(--fg-body);
-  }
   .steps {
     display: grid;
     gap: var(--s-2);
@@ -224,19 +210,5 @@
   }
   .note {
     font-size: var(--text-sm);
-  }
-  .keys {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: var(--s-3);
-  }
-  /* What's gone for good: the one red fill is the tap that does it (as Back a step, deleting a tournament) */
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
   }
 </style>

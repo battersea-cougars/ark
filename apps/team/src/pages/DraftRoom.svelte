@@ -20,9 +20,8 @@
   import { phone } from "../lib/viewport.svelte";
   import DraftJobs from "../lib/DraftJobs.svelte";
   import StepBack from "../lib/StepBack.svelte";
-  import ManageList, { type ManageItem } from "../lib/ManageList.svelte";
-  import Sheet from "../lib/Sheet.svelte";
-  import Drawer from "../lib/Drawer.svelte";
+  import type { ManageItem } from "../lib/ManageList.svelte";
+  import ManageMenu from "../lib/ManageMenu.svelte";
   import { canEnterRoom, canFullScreen, leaveFullScreen, roomTurn, toggleFullScreen } from "../lib/draft-room";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
@@ -108,11 +107,6 @@
       jobs.push({ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() });
     return jobs;
   });
-  function go(run: () => void) {
-    menuOpen = false;
-    run();
-  }
-
   // Out: once (✕ and Back can come together), back where you came from
   let leaving = false;
   function exit() {
@@ -248,11 +242,7 @@
   {/if}
 </div>
 {#if tournament && items.length}
-  {#if phone.current}
-    <Sheet bind:open={menuOpen} title="Manage the draft"><ManageList {items} {go} /></Sheet>
-  {:else}
-    <Drawer bind:open={menuOpen} title="Manage the draft" sub={tournament.name}><ManageList {items} {go} /></Drawer>
-  {/if}
+  <ManageMenu bind:open={menuOpen} title="Manage the draft" sub={tournament.name} {items} />
 {/if}
 {#if tournament && (runs || adds)}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if tournament && runs}<StepBack bind:this={stepper} {type} {tournament} />{/if}
