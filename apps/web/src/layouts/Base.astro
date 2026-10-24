@@ -8,6 +8,8 @@ import { demo, devSanity, getSettings } from "../lib/sanity/content";
 import { jsonLd } from "../lib/structured-data";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import EnvRibbon from "../components/EnvRibbon.astro";
+import { withRibbon, type Ribbon } from "@cougars/shared/ribbon";
 // Ready-sized files used as they are: server-rendered pages (/photos, ADR 0016) can't resize at build time.
 import carbonImage from "../assets/cougars_background.webp";
 
@@ -34,7 +36,9 @@ const {
   structuredData,
   noindex = false,
 } = Astro.props;
-const fullTitle = title ? `${title} · ${site}` : `${site} · Inline hockey in Battersea, London`;
+// LOCAL or DEV, fixed at build time (astro.config.mjs); empty in production
+const ribbon = (import.meta.env.ENV_RIBBON || undefined) as Ribbon | undefined;
+const fullTitle = withRibbon(ribbon, title ? `${title} · ${site}` : `${site} · Inline hockey in Battersea, London`);
 const og = image ?? new URL(`/og/${card}.png`, Astro.site).href;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const carbon = carbonImage.src;
@@ -90,6 +94,7 @@ const carbon = carbonImage.src;
       <slot />
     </main>
     <Footer />
+    {ribbon && <EnvRibbon label={ribbon} />}
     <div class="scrollbar" data-scrollbar aria-hidden="true" transition:persist="scrollbar">
       <div class="scrollbar-thumb" data-scrollbar-thumb></div>
     </div>

@@ -3,12 +3,16 @@ import { defineConfig, envField, fontProviders } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import sitemap from "@astrojs/sitemap";
 import { sanityProject } from "@cougars/shared/sanity";
+import { ribbonFor } from "@cougars/shared/ribbon";
 import { sanityBuildCount } from "./src/lib/sanity/count.integration";
 import { securityHeaders } from "./src/lib/server/headers.integration";
 
 // The Sanity project for this build: production on `release`, otherwise dev (docs/adr/0010-environments-and-deploys.md).
 // SITE_ENV is set by deploy.yml; a laptop and scripts/deploy-dev.sh are dev.
 const sanity = sanityProject(process.env.SITE_ENV);
+// The corner ribbon (components/EnvRibbon.astro): DEV for a dev deploy, LOCAL for a build or dev server with no SITE_ENV
+// (your machine), none in production, fixed at build time so production's pages carry no ribbon at all
+const ribbon = ribbonFor(process.env.SITE_ENV, true);
 
 // Pages are prerendered at build time (content comes from Sanity; the site rebuilds
 // daily and on each release, ADR 0004). Only routes that opt out with `prerender = false`
@@ -129,6 +133,7 @@ export default defineConfig({
   devToolbar: { enabled: false },
   vite: {
     envDir: "../..",
+    define: { "import.meta.env.ENV_RIBBON": JSON.stringify(ribbon ?? "") },
     // Source maps for Sentry (ADR 0111): written but never linked from the scripts; the deploy uploads them, then
     // deletes them before the files go live
     build: {

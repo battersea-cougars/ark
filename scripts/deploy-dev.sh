@@ -16,6 +16,8 @@ subdomain=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
   node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).result?.subdomain??""))' || true)
 export SITE_URL="https://web.${subdomain:-example}.workers.dev"
 export DEMO_CONTENT=true
+# A dev build: the DEV corner ribbon, not LOCAL (packages/shared/ribbon.ts)
+export SITE_ENV=dev
 export PUBLIC_BUILD_VERSION="dev-$(git rev-parse --short HEAD)"
 
 npm run build

@@ -1,7 +1,7 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-23
+- **Date:** 2026-10-05 · updated 2026-10-24
 - **Merges:** 0005, 0013, 0017, 0075
 
 ## Context
@@ -104,6 +104,12 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   bootstrap's `unfinished` flag (true unless `SITE_ENV` is `production`) shows them on dev and locally to try, and
   production leaves them, and every link to them, out ([#63](https://github.com/battersea-cougars/ark/issues/63)). Each comes
   back for everyone when its backend lands.
+- **A corner ribbon says which copy you're on**: a small sticker-yellow band in the bottom-right corner (above the tabs
+  on a phone), and the same word in front of the tab's title, `LOCAL` on your machine and `DEV` on the dev account;
+  production has neither (`packages/shared/ribbon.ts`). Only a positive sign shows one: the website's build reads
+  `SITE_ENV` (`dev` from `deploy.yml` and `scripts/deploy-dev.sh`, none on a machine), so production's pages carry no
+  ribbon markup; the team app's reads `VITE_SITE_ENV` (`deploy.yml`), and none plus Vite's dev server is your machine.
+  Anything else, a team build on a machine included, shows nothing.
 - `DEMO_CONTENT` (sample events, videos, players and placeholder photos) is never on for production: what Sanity
   doesn't have yet, production doesn't show.
 
@@ -160,3 +166,5 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   (#148).
 - 2026-10-24: The daily rebuild starts some time after 04:37 UTC, not at 04:30, and the nightly backup after 03:13:
   GitHub runs schedules on the hour and the half and quarter hours late, or drops them (#148).
+- 2026-10-24: A corner ribbon and tab-title prefix, `LOCAL` on a machine and `DEV` on dev, on the website and the team
+  app; nothing in production.

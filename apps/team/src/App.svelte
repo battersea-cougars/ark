@@ -10,6 +10,9 @@
   import { loadedPage, loadPage, preloadPages } from "./app/pages.svelte";
   import { enterSettings } from "./app/settings-entry.svelte";
   import SimulationControl from "./lib/SimulationControl.svelte";
+  import EnvRibbon from "./app/shell/EnvRibbon.svelte";
+  import { ribbon } from "./app/shell/env-ribbon";
+  import { withRibbon } from "@cougars/shared/ribbon";
 
   // A series' address with one on is that one's own (ADR 0074): replaced before the page shows, and again when the
   // one on changes under it (the next one scheduled from No Kumite yet)
@@ -48,7 +51,10 @@
 
   $effect(() => {
     if (!route.focus && !route.hidden) remember(route.tab, route.path);
-    document.title = route.id === "home" ? "Cougars Fresh Meat" : `${route.name} · Cougars Fresh Meat`;
+    document.title = withRibbon(
+      ribbon,
+      route.id === "home" ? "Cougars Fresh Meat" : `${route.name} · Cougars Fresh Meat`,
+    );
   });
 </script>
 
@@ -61,3 +67,5 @@
 </Shell>
 <!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page -->
 <SimulationControl focus={!!route.focus} />
+<!-- LOCAL or DEV in the corner; nothing in production (ADR 0010) -->
+{#if ribbon}<EnvRibbon label={ribbon} />{/if}
