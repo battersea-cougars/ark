@@ -1,7 +1,8 @@
 // Home's greeting at the edges of its hours, in London's time either side of the clocks changing, and filled in with
 // whatever a member is called.
 import { describe, expect, it } from "vitest";
-import { fill, NAG_FROM, ordinal, slot } from "./greetings";
+import { ordinal } from "./dates";
+import { fill, NAG_FROM, slot } from "./greetings";
 
 describe("which greeting, at the edge of each hour", () => {
   // 1 December 2026 is GMT: London's clock is UTC's

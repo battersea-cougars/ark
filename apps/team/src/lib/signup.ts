@@ -1,6 +1,7 @@
 // When a tournament takes sign-ups (ADR 0074), shared by the app and the Worker: once an admin opens it by hand, or
 // from the day it's set to open, until the end of its closing day (London) or an admin closes it sooner (its own
 // record, signupClosedAt, so its dates stay as they were). And a training night's (below).
+import { dayWords } from "./dates";
 import { addDays } from "./recurrence";
 
 interface SigningUp {
@@ -33,10 +34,8 @@ export const nightOpen = (heldOn: string, days: number | null | undefined, today
   return !opens || today >= opens;
 };
 
-const weekday = (day: string, style: "long" | "short") =>
-  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: style, timeZone: "UTC" });
-const dayMonth = (day: string, style: "long" | "short") =>
-  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: style, timeZone: "UTC" });
+const weekday = (day: string, style: "long" | "short") => dayWords(day, { weekday: style });
+const dayMonth = (day: string, style: "long" | "short") => dayWords(day, { day: "numeric", month: style });
 
 /** When it opens, in words: the weekday within the week ("Monday"), else with its date ("Monday 19 October");
  * `short` for a button ("Mon", "Mon 19 Oct"). */

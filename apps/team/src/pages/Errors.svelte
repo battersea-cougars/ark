@@ -2,10 +2,10 @@
   // The apps' recent errors, from Sentry (ADR 0110): each project's open issues in this environment, newest first,
   // each a link to it in Sentry. The server asks Sentry at most every few minutes, whoever opens this, so Refresh
   // shows what it last heard. Here in Settings → System rather than Dev tools, which production doesn't have.
+  import { formatDayDate, formatTime, plural } from "../lib/dates";
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
-  import { formatDayDate, formatTime } from "../lib/dates";
 
   interface Issue {
     id: string;
@@ -66,7 +66,7 @@
     const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
     if (mins < 1) return "just now";
     if (mins < 60) return `${mins} min ago`;
-    if (mins < 24 * 60) return `${Math.round(mins / 60)} hour${Math.round(mins / 60) === 1 ? "" : "s"} ago`;
+    if (mins < 24 * 60) return `${plural(Math.round(mins / 60), "hour")} ago`;
     return `${formatDayDate(iso)}, ${formatTime(iso)}`;
   }
   /** Sentry's list of every open issue here, for a project with more than are shown. */

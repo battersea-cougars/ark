@@ -2,6 +2,7 @@
   // A tournament's playoffs (ADR 0061): the games after the round robin, by table position. A list of formats, each
   // saying what happens ("1st v 2nd"), so choosing one plainly changes the day; "Something else" opens the games to
   // edit, picking places by name (1st, 2nd…) rather than typing numbers.
+  import { ordinal } from "./dates";
   import type { Playoff } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import Select, { type SelectOption } from "./Select.svelte";
@@ -35,11 +36,13 @@
   let editing = $state(false);
   const chosen = $derived(editing || !matched ? "custom" : matched);
 
-  const nth = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
-  const PLACES: SelectOption[] = Array.from({ length: 16 }, (_, i) => ({ value: String(i + 1), label: nth(i + 1) }));
+  const PLACES: SelectOption[] = Array.from({ length: 16 }, (_, i) => ({
+    value: String(i + 1),
+    label: ordinal(i + 1),
+  }));
   const says = (games: Playoff[]) =>
     games.length
-      ? games.map((g) => `${g.name || "A game"}: ${nth(g.home)} v ${nth(g.away)}`).join(" · ")
+      ? games.map((g) => `${g.name || "A game"}: ${ordinal(g.home)} v ${ordinal(g.away)}`).join(" · ")
       : "The top of the table wins it.";
 
   function choose(id: string) {

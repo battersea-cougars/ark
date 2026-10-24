@@ -7,6 +7,7 @@ import type { Tournament } from "../demo/model";
 import { orderDrawn, playersNeeded, MIN_TEAM_SIZE } from "./draft";
 import { signupOpen, signupOver } from "./signup";
 import { statusList, statusOf, type Status } from "./tournament-front";
+import { plural } from "./dates";
 
 /** One thing a move does, in the order it does it. */
 export type MoveStep =
@@ -67,8 +68,6 @@ export interface MovePlan {
   back: boolean;
   steps: { step: MoveStep; said: string }[];
 }
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** The status it's at, read as the page reads it (lib/tournament-front.ts statusOf). */
 export const statusNow = (t: Moving, today: string) => statusOf(t as unknown as Tournament, today);

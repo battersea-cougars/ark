@@ -2,7 +2,7 @@
   // One game, as a row in a list: its kick-off, the two teams (or the places a playoff waits on, 1st v 2nd), and the
   // score once there is one. A tap on it opens the game's own page (its matchup, or the full result once played):
   // both teams, the goals, and where it's scored or an admin puts a result right (ADR 0061).
-  import { clock } from "./dates";
+  import { clock, ordinal } from "./dates";
   import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
@@ -47,7 +47,6 @@
   };
   const logoOf = (id: number) => teams.find((x) => x.id === id)?.logo ?? null;
   const toneOf = (id: number) => teamTone(teams.findIndex((x) => x.id === id));
-  const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
   // Each team's record from the group games with a result: won-drawn-lost and points, as a league writes it
   const records = $derived(
@@ -90,7 +89,7 @@
     {#if id}<a class="tn linked" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{teamName(id)}</a><span
         class="tn plain">{teamName(id)}</span
       >
-    {:else}<span class="tn">{nth(seed)}</span>{/if}
+    {:else}<span class="tn">{seed ? ordinal(seed) : ""}</span>{/if}
     {#if big && id}
       {@const r = recordOf(id)}
       {#if r}

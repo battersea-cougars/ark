@@ -2,6 +2,7 @@
   // An admin brings players in from a file, in a side drawer over Members (ADR 0065): a spreadsheet saved as CSV, or
   // the roster's JSON. Choosing the file checks it (nothing changes yet) and lists who'd be added, who's in already
   // and any rows to fix; then one tap adds them all. Nobody is emailed (worker/members/members.import.ts).
+  import { plural } from "./dates";
   import Drawer from "./Drawer.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkImport, importMembers, type ImportCheck } from "../app/backend.svelte";
@@ -143,7 +144,7 @@
 
   {#snippet footer()}
     <button class="btn primary" disabled={busy || !check?.add.length || !!check?.problems.length} onclick={add}>
-      {check?.add.length ? `Add ${check.add.length} member${check.add.length === 1 ? "" : "s"}` : "Add members"}
+      {check?.add.length ? `Add ${plural(check.add.length, "member")}` : "Add members"}
     </button>
   {/snippet}
 </Drawer>

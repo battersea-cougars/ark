@@ -5,7 +5,7 @@
 // or the code enforces: nothing invented.
 import type { Tournament } from "../demo/model";
 import { BREAK_MINUTES } from "./fixtures";
-import { clock, formatDayDate, londonISO } from "./dates";
+import { clock, formatDayDate, londonISO, ordinal, plural, pounds } from "./dates";
 import { gameLength } from "./periods";
 import { PENALTY_KINDS, PENALTY_RULES } from "./penalties";
 
@@ -29,7 +29,6 @@ export const lineText = (l: RulesLine) => l.key + l.rest;
 
 const line = (key: string, rest = ""): RulesLine => ({ key, rest });
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const capital = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 /** The day, as a line says it: "Mon 9 Nov". */
@@ -68,7 +67,7 @@ export function formatAndRules(
     ...(t.signupClosesOn
       ? [line(`Closes at the end of ${day(t.signupClosesOn)}`, ", or sooner if an admin closes it.")]
       : [line("Open up to the day", ", unless an admin closes it sooner.")]),
-    ...(t.feePence ? [line(`£${(t.feePence / 100).toFixed(t.feePence % 100 ? 2 : 0)}`, " to play.")] : []),
+    ...(t.feePence ? [line(pounds(t.feePence), " to play.")] : []),
   ];
   // The draft's own rules, as lib/draft.ts and the Worker enforce them (ADR 0060)
   const draft =
@@ -85,7 +84,7 @@ export function formatAndRules(
   const format = [
     line(
       "A round robin",
-      `: every team plays every other once${playoffs.length ? `, then ${playoffs.map((p) => `the ${p.name} (${p.home}${ordinal(p.home)} v ${p.away}${ordinal(p.away)})`).join(" and ")}` : ""}.`,
+      `: every team plays every other once${playoffs.length ? `, then ${playoffs.map((p) => `the ${p.name} (${ordinal(p.home)} v ${ordinal(p.away)})`).join(" and ")}` : ""}.`,
     ),
     // The order makeFixtures plays them in (lib/fixtures.ts fairOrder)
     line("The longest break it can", ": nobody plays twice running unless it can't be helped."),
@@ -119,9 +118,6 @@ export function formatAndRules(
     ...(house.length ? [{ id: "house" as const, title: "House rules", lines: house }] : []),
   ];
 }
-
-const ordinal = (n: number) =>
-  n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th";
 
 /** House rules, at most this long (a screen of them on a phone). */
 export const HOUSE_RULES_MAX = 2000;

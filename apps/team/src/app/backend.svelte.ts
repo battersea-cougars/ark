@@ -44,6 +44,7 @@ import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
 import { simulator, type Move, type SimulationState } from "../lib/simulation";
 import type { pastBody } from "../lib/past-kumite";
+import { plural } from "../lib/dates";
 
 /** The last save's outcome, shown briefly by the shell; `refused`, how the Worker refused it (409: something changed). */
 export const saving = $state({ busy: 0, message: "", failed: false, refused: 0 });
@@ -416,7 +417,7 @@ export const importMembers = async (file: string) => {
     () => api<{ added: string[]; skipped: number }>("POST", "/api/members/import", { file, apply: true }),
     "",
   );
-  if (r) say(`${r.added.length} member${r.added.length === 1 ? "" : "s"} added.`, false);
+  if (r) say(`${plural(r.added.length, "member")} added.`, false);
   return r;
 };
 

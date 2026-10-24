@@ -1,5 +1,6 @@
 // A captains' draft's turn order (ADR 0030), shared by the Draft page and the Worker: snake order, so the teams
 // pick 1, 2, … n, then n, … 2, 1, and round again.
+import { ordinal } from "./dates";
 
 /** A team has at least this many players, its captain included, so a draft only opens with enough to pick from. */
 export const MIN_TEAM_SIZE = 3;
@@ -26,12 +27,6 @@ export function nextSlots(taken: Iterable<number>, count: number): number[] {
   return out;
 }
 
-/** 1st, 2nd, 3rd, 4th…: a captain's place in the pick order, in words. */
-export const nth = (n: number) => {
-  const teen = n % 100 >= 11 && n % 100 <= 13;
-  return `${n}${teen ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
-};
-
 /** Whether a draft's pick order is drawn (ADR 0060): every captain has their number. */
 export const orderDrawn = (teams: { pick?: number | null }[]) =>
   teams.length > 0 && teams.every((t) => typeof t.pick === "number");
@@ -47,7 +42,7 @@ export function picksUntil(teams: number, slots: readonly number[], team: number
 
 /** A captain's place and how soon they pick: "You pick 2nd · next in 3", "· you're next", "· now", or just the place. */
 export function myTurnLine(place: number, until: number): string {
-  const said = `You pick ${nth(place)}`;
+  const said = `You pick ${ordinal(place)}`;
   if (until === 0) return `${said} · now`;
   if (until === 1) return `${said} · you're next`;
   return until === Infinity ? said : `${said} · next in ${until}`;

@@ -11,7 +11,7 @@
   import { kanjiFor } from "./motif";
   import { prefersReducedMotion } from "../app/motion";
   import type { TournamentType } from "../demo/model";
-  import { nth } from "./draft";
+  import { ordinal } from "./dates";
 
   let {
     type,
@@ -105,7 +105,7 @@
       <p class="hint" aria-live="polite">
         {#if !drawn}Waiting for the order.
         {:else if shuffling}Setting the order…
-        {:else if mine >= 0}<strong>You pick {nth(mine + 1)}</strong>.
+        {:else if mine >= 0}<strong>You pick {ordinal(mine + 1)}</strong>.
         {/if}
       </p>
     </header>{/if}

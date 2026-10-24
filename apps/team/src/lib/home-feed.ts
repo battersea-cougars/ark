@@ -6,7 +6,7 @@
 // (lib/usage-near.ts). What you owe is Home's foot (owedNotice), and a loud icon in its header while some of it is
 // overdue (lib/dues.ts overdue).
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
-import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, pounds, timeRange } from "./dates";
+import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, ordinal, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
 import { roomPath } from "./draft-room";
 import { kickOff, slotMinutes } from "./fixtures";
@@ -156,8 +156,6 @@ export interface Feed {
 export const AHEAD_DAYS = 42;
 /** At most this many upcoming rows: then "See the calendar". */
 export const UPCOMING_MAX = 7;
-
-const nth = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
 
 /** The feed: what needs you now (your move first), what's coming up, then the admins' lines. */
 /** Asking you to answer: the Kumite's an invitation to accept (invitationOnly), the rest ask plainly. */
@@ -423,7 +421,7 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
             href,
             text: `Draft${at}`,
             on,
-            sub: `${t.name} · you pick ${nth(mine + 1)}`,
+            sub: `${t.name} · you pick ${ordinal(mine + 1)}`,
             hot: false,
             icon: "draft",
             captainAt: r.allDay ? londonISO(r.day, "00:00") : r.startsAt,

@@ -3,6 +3,7 @@
   // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
   // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
   // you owe at the foot.
+  import { clock, formatDayDate, formatTime, londonEvening, londonToday, ordinal, pounds } from "../lib/dates";
   import { untrack } from "svelte";
   import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
@@ -15,7 +16,6 @@
   import type { IconName } from "../app/shell/icons";
   import EventCard from "../lib/EventCard.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
-  import { clock, formatDayDate, formatTime, londonToday, pounds } from "../lib/dates";
   import { myTurnLine } from "../lib/draft";
   import { kickOff, slotMinutes } from "../lib/fixtures";
   import { teamTone } from "../lib/team-tones";
@@ -46,7 +46,6 @@
   import type { Bookable, TrainingSession, Tournament } from "../demo/model";
   import { prefersReducedMotion } from "../app/motion";
   import { atAfters, editionState } from "../lib/edition";
-  import { londonEvening } from "../lib/dates";
   import { revealOf } from "../lib/afters";
   import { signupOpen, signupOver } from "../lib/signup";
   import { keeps, onSide } from "../lib/places";
@@ -352,14 +351,13 @@
   const myTeam = $derived(isIn && session ? db.teams[session.id]?.find((t) => t.players.includes(who.id)) : undefined);
   // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
   // table fills it), which game, where
-  const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
   function matchOf({ type, t, game, teamId }: Fight) {
     const person = (id: number | null) => PLAYERS.find((p) => p.id === id);
     const side = (id: number | null, seed: number | null) => {
       const i = t.teams.findIndex((x) => x.id === id);
       return {
         id,
-        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : nth(seed),
+        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : seed ? ordinal(seed) : "",
         logo: t.teams[i]?.logo ?? null,
         tone: teamTone(i),
       };

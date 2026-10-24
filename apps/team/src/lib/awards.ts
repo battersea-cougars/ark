@@ -11,6 +11,7 @@
 // Stats and draws are worked out here for the admin to check as they confirm; the votes are counted by the Worker
 // as they confirm (worker/tournaments/awards.ts, with the same rules from here). Then the reveal, one at a time.
 import { champion, table, type Result } from "@cougars/shared/results";
+import { plural } from "./dates";
 
 /** The stats we track that decide an award (ADR 0044). */
 export const STATS = ["table", "goals", "assists", "points", "goalsAgainst", "penaltyMinutes"] as const;
@@ -119,8 +120,6 @@ const draw = (n: number, seed: number) => {
   x = Math.imul(x, 2246822507) >>> 0;
   return x % n;
 };
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * Each player's figures for a stat, the first deciding and the next breaking a tie (higher is better), with the

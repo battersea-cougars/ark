@@ -25,7 +25,7 @@
   import StylePicker from "./StylePicker.svelte";
   import PlacePicker from "./PlacePicker.svelte";
   import Select from "./Select.svelte";
-  import { clockRange, formatDayDate, londonISO, londonToday, pounds } from "./dates";
+  import { clockRange, dayWords, formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { feeOn } from "./dues";
   import { collectedFor } from "../demo/dues.svelte";
   import { granted } from "../demo/session.svelte";
@@ -146,13 +146,7 @@
     );
   }
 
-  const fullDate = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "Europe/London",
-    });
+  const fullDate = (d: string) => dayWords(d, { day: "numeric", month: "short", year: "numeric" });
 
   // Sessions already held: what each was due, and what it has collected so far
   const held = $derived(
@@ -169,12 +163,7 @@
   );
   const pageStart = $derived(addDays(londonToday(), page * PAGE_DAYS));
   const shown = $derived(upcoming.filter((x) => x.heldOn >= pageStart && x.heldOn < addDays(pageStart, PAGE_DAYS)));
-  const shortDate = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      timeZone: "Europe/London",
-    });
+  const shortDate = (d: string) => dayWords(d, { day: "numeric", month: "short" });
   const range = $derived(`${shortDate(pageStart)} – ${shortDate(addDays(pageStart, PAGE_DAYS - 1))}`);
   async function nextPage() {
     if (typeof selected !== "number") return;

@@ -4,6 +4,7 @@
   // for want of an action, newest first, in plain words, a page at a time. A table like the app's others: a row per
   // entry (when, what, its area), a search over who and what, and chips by area. Read when the page opens; Refresh
   // reads it again.
+  import { formatDayDate, formatTime, plural, pounds } from "../lib/dates";
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
@@ -12,7 +13,6 @@
   import { flip } from "svelte/animate";
   import { cardMoveMs, easeOut, sift } from "../app/motion";
   import { ACTIONS, type Action } from "../access/actions";
-  import { formatDayDate, formatTime, pounds } from "../lib/dates";
 
   interface Entry {
     id: number;
@@ -89,7 +89,7 @@
       case "sign_out":
         return d.everywhere ? `${who} signed out everywhere` : `${who} signed out`;
       case "member.signed_out":
-        return `${who} signed ${about} out everywhere (${num(from?.sessions)} sign-in${num(from?.sessions) === 1 ? "" : "s"} ended)`;
+        return `${who} signed ${about} out everywhere (${plural(num(from?.sessions), "sign-in")} ended)`;
       case "sign_in.capped":
         return `${who}'s sign-in stopped for the day: too many wrong codes`;
       case "access.requested":
@@ -107,7 +107,7 @@
           : `${who} tried to email ${about} the app link, but it didn't go`;
       case "members.imported": {
         const added = (to?.added as string[] | undefined) ?? [];
-        return `${who} imported ${added.length} member${added.length === 1 ? "" : "s"} from a file: ${list(added)}`;
+        return `${who} imported ${plural(added.length, "member")} from a file: ${list(added)}`;
       }
       case "member.updated": {
         const changes: string[] = [];
@@ -159,7 +159,7 @@
         const ids = (to?.memberIds as number[] | undefined) ?? [];
         return ids.length === 1
           ? `${who} emailed ${about} what they owe`
-          : `${who} emailed ${ids.length} member${ids.length === 1 ? "" : "s"} what they owe`;
+          : `${who} emailed ${plural(ids.length, "member")} what they owe`;
       }
       case "settings.bank":
         return `${who} changed the club's bank details`;

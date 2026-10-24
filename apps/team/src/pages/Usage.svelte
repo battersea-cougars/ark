@@ -12,6 +12,7 @@
   import { db } from "../demo/store.svelte";
   import { saveSettings } from "../app/backend.svelte";
   import { everyHowOften } from "../lib/live-updates.svelte";
+  import { dayWords, formatStamp, londonClock } from "../lib/dates";
 
   interface Metric {
     id: string;
@@ -97,34 +98,13 @@
     w.stopped || w.p99Ms >= limit * 0.8 ? "high" : w.p99Ms >= limit * 0.5 ? "mid" : "low";
   // Nightly, so a day and a half without one means the backup job has stopped (ADR 0106)
   const STALE_MS = 36 * 3600_000;
-  const backedUp = $derived(
-    usage?.backup
-      ? new Intl.DateTimeFormat("en-GB", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-          timeZone: "Europe/London",
-        }).format(new Date(usage.backup.takenAt))
-      : "",
-  );
+  const backedUp = $derived(usage?.backup ? formatStamp(usage.backup.takenAt) : "");
   // When Sanity's quotas reset: midnight UTC on the 1st
   const sanityResets = $derived(
-    usage?.sanity
-      ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(
-          new Date(usage.sanity.resetsAt),
-        )
-      : "",
+    usage?.sanity ? dayWords(usage.sanity.resetsAt.slice(0, 10), { day: "numeric", month: "short" }) : "",
   );
   const stale = $derived(!usage?.backup || Date.now() - Date.parse(usage.backup.takenAt) > STALE_MS);
-  const resets = $derived(
-    usage
-      ? new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).format(
-          new Date(usage.resetsAt),
-        )
-      : "",
-  );
+  const resets = $derived(usage ? londonClock(usage.resetsAt) : "");
 </script>
 
 <div class="page">

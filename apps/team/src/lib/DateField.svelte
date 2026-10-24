@@ -3,9 +3,10 @@
   // picker can't be themed (and shows mm/dd/yyyy), so it isn't used. Values are plain "YYYY-MM-DD", "" for none; the
   // pop-over is fixed-position and moved to the page (or the open dialog) like Select's, so panels never clip it.
   // `required` keeps the form's own check: an invisible input over the button carries the value.
+  import { portal } from "./overlay";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
-  import { londonToday } from "./dates";
+  import { dayWords, londonToday } from "./dates";
   import { addDays, weekdayOf, WEEKDAYS } from "./recurrence";
 
   let {
@@ -31,11 +32,8 @@
     onchange?: (value: string) => void;
   } = $props();
 
-  const UTC = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", ...opts });
-  const long = UTC({ weekday: "short", day: "numeric", month: "short", year: "numeric" });
-  const monthName = UTC({ month: "long", year: "numeric" });
-  const at = (d: string) => new Date(`${d}T00:00:00Z`);
-  const said = (d: string) => long.format(at(d)).replace(/,/g, "");
+  const said = (d: string) =>
+    dayWords(d, { weekday: "short", day: "numeric", month: "short", year: "numeric" }).replace(/,/g, "");
 
   let open = $state(false);
   let trigger = $state<HTMLButtonElement>();
@@ -74,11 +72,6 @@
   }
 
   /** Moves the pop-over out to the page, or to the native modal it's in: that sits above the page. */
-  function portal(node: HTMLElement) {
-    (trigger?.closest("dialog") ?? document.body).append(node);
-    return { destroy: () => node.remove() };
-  }
-
   async function focusDay() {
     await tick();
     pop?.querySelector<HTMLElement>(`[data-day="${focus}"]`)?.focus({ preventScroll: true });
@@ -186,7 +179,7 @@
           aria-label="Last month"
           onclick={() => move(shiftMonth(focus, -1))}><Icon name="chevronLeft" size={16} /></button
         >
-        <span class="month">{monthName.format(at(`${month}-01`))}</span>
+        <span class="month">{dayWords(`${month}-01`, { month: "long", year: "numeric" })}</span>
         <button
           type="button"
           class="btn ghost sm icon"

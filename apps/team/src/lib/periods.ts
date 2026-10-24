@@ -2,6 +2,7 @@
 // the clock running per period. Goals and penalties keep their period and the time into it; game time runs on across
 // the breaks, so a penalty given late in one period carries into the next. Between periods, a break of the
 // tournament's minutes. The box score is the goals per period.
+import { ordinal } from "./dates";
 
 /** How many periods a game can have, as a series' setting shows them. */
 export const PERIOD_OPTIONS = [
@@ -31,7 +32,7 @@ export function breakLeft(
 }
 
 /** 1st, 2nd, 3rd. */
-export const periodName = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
+export const periodName = ordinal;
 
 /** Time into the whole game: the periods before, then the time into this one. Null when nobody timed it. */
 export const inGameTime = (period: number | null | undefined, atMs: number | null, periodMs: number) =>

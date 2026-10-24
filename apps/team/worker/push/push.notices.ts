@@ -1,12 +1,11 @@
 // What's news to whom (ADR 0108): each route that makes news says so with one of these (Route.notify). Read before
 // the change where it needs to compare, and after it, never in the way of the change itself.
 import { all, batch, first, statement } from "@cougars/shared/d1";
-import { formatDayDate } from "../../src/lib/dates";
+import { formatDayDate, ordinal } from "../../src/lib/dates";
 import { id, type Ctx, type Notify } from "../api/api.route";
 import { TABLES, aheadIn, type EntryKind } from "../entries/entries";
 import type { Notice } from "./push";
 import { announcementSummary } from "../announcements/announcements";
-import { nth } from "../../src/lib/draft";
 import { markTold, signupOpenNotice } from "../tournaments/signup";
 import { firstCharacters } from "../../src/lib/text";
 import { nightPath } from "../../src/lib/night-off";
@@ -252,7 +251,7 @@ export const draftOpen: Notify<string | undefined> = {
       key: `draft:${id(c)}`,
       live: true,
       title: `${x.name} Draft Open`,
-      body: `You pick ${nth(x.pick)}`,
+      body: `You pick ${ordinal(x.pick)}`,
       path: x.slug ? `/tournaments/${x.slug}/draft` : "/",
     }));
   },

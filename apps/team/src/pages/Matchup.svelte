@@ -1,11 +1,11 @@
 <script lang="ts">
+  import { clock, ordinal } from "../lib/dates";
   import { waitingFor } from "../app/editions.svelte";
   // One game's matchup (ADR 0130), from the fight card's Details: the two teams side by side, each squad in full and
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { clock } from "../lib/dates";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
@@ -40,7 +40,6 @@
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, byId);
-  const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
   // The two sides, home then away: the team (or the place a playoff waits on), its squad, its record so far
   const records = $derived(
@@ -65,7 +64,7 @@
           return {
             i,
             team: t,
-            name: t ? teamName(i) : nth(seed),
+            name: t ? teamName(i) : seed ? ordinal(seed) : "",
             captain: byId(t?.captainMemberId ?? null),
             players: t?.players ?? [],
             record: t?.id ? records.get(t.id) : undefined,
