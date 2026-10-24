@@ -45,8 +45,8 @@ personal, a member is sent **their own**, and everyone's only with the action th
 | Email, phone, payment reference  | `manage:Member`                                                                                                                        | your own                                                                                                                                      |
 | Rating                           | `read:Rating`                                                                                                                          | not sent                                                                                                                                      |
 | Member `quarterly`               | `manage:Member`                                                                                                                        | your own                                                                                                                                      |
-| Member `roles`                   | `manage:Member`, `manage:Role`, `impersonate:Member`                                                                                   | your own                                                                                                                                      |
-| `roles` (each role's actions)    | `manage:Member`, `manage:Role`, `impersonate:Member`                                                                                   | roles you could hold as you are: yours, and those that can do less (your everyday role's choices, [0024](0024-action-based-authorization.md)) |
+| Member `roles`                   | `manage:Member`, `manage:Role`                                                                                                         | your own                                                                                                                                      |
+| `roles` (each role's actions)    | `manage:Member`, `manage:Role`                                                                                                         | roles you could hold as you are: yours, and those that can do less (your everyday role's choices, [0024](0024-action-based-authorization.md)) |
 | An event's `out`                 | runs events: `record:Attendance`, `update:Event`, `generate:Teams`, `publish:Teams`, `manage:Member`, `manage:Tournament`, `run:Draft` | your own                                                                                                                                      |
 | A session's `noShows`, `walkIns` | the same                                                                                                                               | your own                                                                                                                                      |
 | An entered team's `contact`      | `manage:Tournament`                                                                                                                    | empty                                                                                                                                         |
@@ -55,8 +55,8 @@ Unchanged, because they're the point of the screen or already public: who's in a
 member's name, position, bio, website name, Cougar flag and sessions played (all on the public website roster for
 Cougars, and on the player card), and a closed draft's teams ([0060](0060-the-draft.md)).
 
-`impersonate:Member` gets everyone's roles because view as a member is worked out in the browser from their roles
-([0024](0024-action-based-authorization.md)). If it moves to the server, that action drops out of the list.
+An admin viewing the app as a member is answered as that member, by the server ([0024](0024-action-based-authorization.md)):
+what comes back is what the member may see, so `impersonate:Member` needs nobody's roles.
 
 **You can't grant what you don't have.** Only `manage:all` may give out any action. Anyone else may:
 
@@ -159,3 +159,5 @@ of future sessions is idempotent).
 - 2026-10-24: The website's headers are per environment: production's policy no longer lets in picsum, which only
   dev's demo content uses. Its `_headers` is written by the build from the middleware's code, for the environment
   built, instead of kept in `public/` (#148).
+- 2026-10-24: `impersonate:Member` no longer sees everyone's roles: viewing as a member moved to the server, which
+  answers as the member (#40, [0024](0024-action-based-authorization.md)).

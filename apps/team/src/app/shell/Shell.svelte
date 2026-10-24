@@ -8,7 +8,7 @@
   import { goesBy, shortName } from "../../lib/names";
   import { initials } from "../../lib/initials";
   import { type Snippet } from "svelte";
-  import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
+  import { granted, impersonating, me, realMember, rolesOf } from "../../demo/session.svelte";
   import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
   import { railFoot, railItems, railOn } from "../rail";
   import type { Route, TabId } from "../nav-routes";
@@ -23,7 +23,7 @@
   import Sheet from "../../lib/Sheet.svelte";
   import { phone } from "../../lib/viewport.svelte";
   import { pageBar } from "./page-bar.svelte";
-  import { saving } from "../backend.svelte";
+  import { saving, viewAs } from "../backend.svelte";
   import { update } from "../update.svelte";
 
   let { route, children }: { route: Route; children: Snippet } = $props();
@@ -102,6 +102,10 @@
   // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
   const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
   // A tournament series' pages have none: their stage track, under the header, is the way between them (ADR 0074)
+  // Viewing as someone (ADR 0024): back to yourself, on the server, then a page you can see
+  async function backToYou() {
+    if (await viewAs(null)) stayIfAllowed();
+  }
   const showBar = $derived(!route.focus && route.id !== "home" && !onTrack(route));
 
   // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
@@ -354,7 +358,7 @@
               Viewing as <strong>{goesBy(me())}</strong>
               <span class="viewing-role">· {rolesOf(me().id).join(", ")} · read-only</span>
             </span>
-            <button class="btn sm viewing-back" onclick={() => (viewAs(null), stayIfAllowed())}>
+            <button class="btn sm viewing-back" onclick={backToYou}>
               Back to {shortName(realMember())}
             </button>
           </div>

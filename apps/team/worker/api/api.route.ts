@@ -31,7 +31,10 @@ export interface Ctx {
   env: Env;
   request: Request;
   params: string[];
+  /** Who the request is answered as: the member signed in, or the one an admin is viewing the app as (ADR 0024). */
   memberId: number;
+  /** The admin viewing the app as `memberId`, who signed in; null when it's the member themselves. */
+  viewedBy: number | null;
   /** The sign-in the request came with; null for a local server's auto admin. */
   sessionId: number | null;
   actions: Set<Action>;
@@ -56,6 +59,16 @@ export interface Route {
    * in place without reloading the whole club. Every route that isn't a GET says.
    */
   changes?: readonly Slice[];
+  /**
+   * Instead of `changes`, saying why: a change after which the app reads the whole club again, so no parts come back
+   * and no one else's copy is out of date (viewing as someone, ADR 0024).
+   */
+  reloads?: string;
+  /**
+   * true: a change the API takes while an admin is viewing the app as someone (ADR 0024): only going back to
+   * yourself. Every other change is refused while viewing.
+   */
+  whileViewing?: true;
   /**
    * false: the change never moves anything on the calendar (an answer, a pick, a goal), though its parts are on it, so
    * the agenda isn't read again for it, by this member or every live page (ADR 0042, docs/load-testing.md). Anything

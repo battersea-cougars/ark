@@ -6,6 +6,7 @@ import { ok, type Route } from "../api/api.route";
 import { json } from "../api/api.http";
 import { memberExists } from "../dues/dues";
 import { mayChange } from "../members/members";
+import { refuseWhileViewing } from "../members/view-as";
 import { findSession, type AuthEnv } from "./auth";
 import {
   forgetPasskey,
@@ -59,9 +60,11 @@ export async function handlePasskeys(request: Request, env: AuthEnv, now: Date):
   // The rest are yours: signed in
   const session = await findSession(request, env, now);
   if (!session) return json({ error: "Sign in first." }, 401);
-  const mine = { memberId: session.member_id, sessionId: session.id };
+  // Viewing as a member (ADR 0024): their passkeys, as they'd see them, and no changes
   if (pathname === "/api/auth/passkeys" && m === "GET")
-    return json({ passkeys: await passkeysOf(env.DB, mine.memberId) });
+    return json({ passkeys: await passkeysOf(env.DB, session.viewing_as ?? session.member_id) });
+  await refuseWhileViewing(env.DB, session.viewing_as);
+  const mine = { memberId: session.member_id, sessionId: session.id };
   if (pathname === "/api/auth/passkeys/register-options" && m === "POST")
     return registerOptions(request, env, now, mine);
   if (pathname === "/api/auth/passkeys/register" && m === "POST") return register(request, env, now, mine);

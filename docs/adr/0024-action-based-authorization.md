@@ -1,7 +1,7 @@
 # 0024. Permissions are actions; roles are data built from actions; admins can view as a member or run as less
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-22
+- **Date:** 2026-10-06 · updated 2026-10-24
 - **Merges:** 0029 (view as a member), 0037
 
 ## Context
@@ -55,13 +55,27 @@ taps to start and stop.
 - It's a page in **Settings → System** (View as a member), where an admin looks for their tools. Picking someone
   makes the app show what they see, with their actions: their Home, their team, their tab, only the pages their
   roles allow.
-- **Read-only.** While viewing as someone you can't change anything as them: the app disables the controls (In/Out,
-  sign-up, profile, sign out).
+- **The server keeps it, on the sign-in** (`auth_sessions.viewing_as`, #40). Starting is `PUT /api/me/view-as`
+  (`impersonate:Member`) and going back `DELETE /api/me/view-as` (anyone signed in), in
+  `worker/members/view-as.routes.ts`. Either way the app reads the whole club again. It's that browser's sign-in, not
+  the admin's: it lasts through a reload, the admin's other phones are still them, and signing out ends it.
+- **The API answers as the member.** While viewing, every request is read with the member's id and their actions
+  (`Ctx.memberId`, with `Ctx.viewedBy` the admin): their Home, their team, their tab, the pages and data their roles
+  allow, exactly what their own phone is sent. The bootstrap says who you are (`me`) and who you're viewing as
+  (`viewingAs`), and its `actions` are the member's; the app shows those (`granted()`), not ones it works out.
+- **Read-only, on the server.** Every change is refused with a 403 in words, "You're viewing as Sam: go back to
+  yourself to change anything.", except going back (the route's `whileViewing`) and signing out. So are a sign-in's
+  own changes outside the API: a passkey, or a phone given to the club for notifications, so a view never registers
+  a device and nothing is pushed to it as the member. The app still disables the controls (In/Out, sign-up,
+  profile, sign out) so nobody taps into a refusal.
+- **On the record**: `view_as.started` and `view_as.ended`, by the admin, about the member
+  ([0095](0095-audit-log.md)); signing out while viewing writes the end too.
+- **It ends cleanly** when the member leaves the club (made inactive, erased, deleted) or the admin no longer holds
+  `impersonate:Member`: the next request finds out, ends it on the record, and answers as the admin again.
 - An amber banner across the top says who you're viewing as, with **Back to <you>** always available, whatever the
   member's own permissions. The badge turns amber too.
-- It's worked out in the browser (`src/demo/session.svelte.ts`) from the member's roles, which is why
-  `impersonate:Member` is one of the actions that receives everyone's roles ([0036](0036-api-security.md)). The
-  server doesn't know a view is in progress: it still answers as, and authorizes, the admin.
+- Counted, rate-limited and on the record as the admin; a live page's stream is the admin's sign-in's, and a
+  journey's clock moves with the admin's actions.
 
 **Everyday role**
 
@@ -88,12 +102,14 @@ taps to start and stop.
 - Every new route needs an action, and every new action a label; the test enforces it.
 - Mistakes in role setup are possible; the grant rules, the audit log and the last-admin guard limit the damage.
 - Admins can check roles and support members without asking for their phone.
-- View as a member and the everyday role are **screen safeguards, not security boundaries**. The server authorizes
-  by the member's real roles and sends the data those roles may see; the app simply doesn't show it. Someone with
-  the phone and devtools could still read it.
-- Because viewing as a member is client-side, an admin's preview holds the admin's own data, not exactly the
-  member's, and starting or ending it isn't recorded. If it ever needs to be exact, it moves to the server, becomes
-  read-only there, and `impersonate:Member` drops out of the actions that see everyone's roles.
+- The everyday role is a **screen safeguard, not a security boundary**. The server authorizes by the member's real
+  roles and sends the data those roles may see; the app simply doesn't show it. Someone with the phone and devtools
+  could still read it.
+- **Viewing as a member is a boundary**: the phone holds only what the member's own would, and can change nothing,
+  whatever devtools does. An admin's preview is exactly the member's, so "I can't see my team" is answered by
+  looking. `impersonate:Member` no longer receives everyone's roles ([0036](0036-api-security.md)).
+- Starting and ending are API changes, so they need the network; and viewing as someone costs a second permissions
+  read per request (the admin's and the member's).
 - An admin can hand their phone round without hiding anything by hand.
 
 ## History
@@ -116,3 +132,8 @@ taps to start and stop.
   roles looked only at the role called Admin, and a role losing `manage:all` wasn't checked, so the last one holding
   it through a role of their own could drop it. One condition (`keepsSomeoneWhoCanDoEverything`) now guards member
   edits, account deletion and role edits, inside their statements ([0121](0121-load-and-concurrency.md)).
+- 2026-10-24: Viewing as a member is enforced by the server, as first planned (#40): the sign-in records who it's
+  viewing as (`auth_sessions.viewing_as`), the API answers as that member and refuses every change but going back and
+  signing out (and a passkey or a phone for notifications), and starting and ending are on the audit log. It was
+  browser-only, in `localStorage`, with the server still answering as the admin. `impersonate:Member` drops out of
+  the actions that see everyone's roles.

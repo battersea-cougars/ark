@@ -17,8 +17,8 @@ export const CLUB_ROUTES: Route[] = [
     path: /^\/api\/live$/,
     action: "authenticated",
     // Changes as they happen, as a stream (ADR 0072): only the names of the parts that changed, from the live hub
-    // Each closed when its sign-in ends (#72)
-    handle: async (c) => liveStream(c.env, { memberId: c.memberId, sessionId: c.sessionId }),
+    // Each closed when its sign-in ends (#72): the signed-in member's, whoever they're viewing as (ADR 0024)
+    handle: async (c) => liveStream(c.env, { memberId: c.viewedBy ?? c.memberId, sessionId: c.sessionId }),
   },
   {
     method: "GET",
@@ -38,10 +38,14 @@ export const CLUB_ROUTES: Route[] = [
         await sessionsMade(db, c.today);
         ({ version } = await dataVersion(db));
       }
-      const tag = bootstrapTag(buildOf(c.env), version, c.memberId, c.today);
+      // Whose club, as whom: an admin viewing as Sam isn't sent Sam's own copy, nor their own
+      const whose = c.viewedBy == null ? c.memberId : `${c.viewedBy}as${c.memberId}`;
+      const tag = bootstrapTag(buildOf(c.env), version, whose, c.today);
       if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, version);
       const reply = json({
-        me: c.memberId,
+        // Who you are, and who the app is showing (ADR 0024): the member you're viewing as, with their actions
+        me: c.viewedBy ?? c.memberId,
+        viewingAs: c.viewedBy == null ? null : c.memberId,
         actions: [...c.actions],
         // Dev tools (ADR 0027): outside production, for whoever sets the club's settings
         devTools: devToolsHere(c.env) && (c.actions.has("manage:all") || c.actions.has("manage:Settings")),

@@ -127,7 +127,7 @@ to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
 | `fridays.journey.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
 | `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
 | `kumite.on-the-clock.journey.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
-| `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, an account deleted                    | ~15 s  |
+| `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, viewing as a member, an account gone  | ~25 s  |
 | `pages.journey.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
 | `sign-in.journey.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
 

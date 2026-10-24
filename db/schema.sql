@@ -514,7 +514,9 @@ CREATE TABLE auth_sessions (
   -- The token before the last renewal gave it a new one (#72): it still works for a few minutes after rotated_at, so
   -- requests already on their way with it, or a reply with the new cookie that never arrived, don't sign anyone out
   previous_hash TEXT,
-  rotated_at TEXT
+  rotated_at TEXT,
+  -- An admin viewing the app as this member (ADR 0024, #40): the API answers as them, read-only, until it's ended
+  viewing_as INTEGER REFERENCES members (id) ON DELETE SET NULL
 );
 
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);

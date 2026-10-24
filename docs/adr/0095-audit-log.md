@@ -1,7 +1,7 @@
 # 0095. Each change declares what it puts on the audit log, on its route, and the log has a page in plain words
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-21
+- **Date:** 2026-10-09 · updated 2026-10-24
 - **Merges:** 0098
 
 ## Context
@@ -47,7 +47,9 @@ in a table. A decorator around a handler would also see only the request and the
   `draftProgress` in tournaments/draft.ts; `tournamentSummary` in tournaments/tournaments.ts), so "what does this change touch" is answered once.
 - On the record from declarations: `member.updated` (status, roles), `member.email`, `member.added`,
   `member.quarterly`, `role.created`, `role.updated`, `dev_mail.changed`, `tournament.deleted`, `session.reset`,
-  `draft.reset`. From the wrapper itself: `refused` (every 403, with the method, path and missing action).
+  `draft.reset`, `view_as.started`, `view_as.ended` (an admin viewing the app as a member, about them,
+  [0024](0024-action-based-authorization.md)). From the wrapper itself: `refused` (every 403 for want of an action,
+  with the method, path and missing action; a change refused while viewing as someone isn't one).
 - **Not declarative, and staying that way:** sign-in's own events (`sign_in`, `sign_out`, `sign_in.capped`,
   `access.requested`), written by explicit `audit()` calls in `worker/auth/auth.ts`. Sign-in routes run before anyone is
   known and aren't in the route table; their events are what happened, not a change to compare.
@@ -91,3 +93,6 @@ in a table. A decorator around a handler would also see only the request and the
   foot of the rows; notable entries get an icon, not a fill. The API is unchanged: search and chips sift what's read.
 - 2026-10-21: Refused requests go on the record at most once a minute per member, every one still in the log, so a loop
   can't spend the day's D1 writes (#73); an admin signing a member out everywhere is `member.signed_out` (#72).
+- 2026-10-24: Viewing as a member is on the record (#40): `view_as.started` and `view_as.ended`, by the admin, about the
+  member, in words on the page ("Dana started viewing the app as Sam"); the end is also written when signing out, or
+  the member leaving the club, ends it.

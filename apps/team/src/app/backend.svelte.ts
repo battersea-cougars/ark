@@ -122,6 +122,8 @@ function whole(b: Bootstrap) {
   hydrate(b);
   copyAll();
   copy.wholeAt(versionOf(b) ?? 0);
+  // ...and who you are in it, and who you're viewing as (ADR 0024)
+  startSession();
 }
 
 /** When the whole club was last read or found unchanged: a live page opening just after doesn't ask again. */
@@ -149,7 +151,6 @@ export const copy = new ClubCopy({
 export function start(b: Bootstrap) {
   whole(b);
   checked.at = Date.now();
-  startSession();
 }
 
 /** Reload the whole club into the app. */
@@ -274,6 +275,13 @@ export const askEmailCode = (email: string) =>
 /** The code from the new address: it's your sign-in email from now on. */
 export const confirmEmailCode = (code: string) =>
   save(() => api<{ email: string }>("POST", "/api/me/email/confirm", { code }), "Email changed");
+/** View the app as a member, read-only, or (null) go back to yourself (ADR 0024): the server answers this sign-in as
+ * them until then, and the whole club is read again as whoever it's now shown as. Whether it took. */
+export const viewAs = async (memberId: number | null) =>
+  (await save(
+    () => (memberId === null ? api("DELETE", "/api/me/view-as") : api("PUT", "/api/me/view-as", { memberId })),
+    "",
+  )) !== null;
 /** The role the app opens as (ADR 0024); null for your full role. */
 export const saveEverydayRole = (roleId: number | null) => save(() => api("PUT", "/api/me/everyday-role", { roleId }));
 /** Another member's everyday role, or null for their full role (ADR 0024). */

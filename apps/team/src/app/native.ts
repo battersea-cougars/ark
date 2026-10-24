@@ -84,9 +84,10 @@ async function register() {
  */
 export async function startInApp(navigate: (path: string) => void) {
   if (!inApp) return;
-  const [{ App }, { FirebaseMessaging }] = await Promise.all([
+  const [{ App }, { FirebaseMessaging }, { impersonating }] = await Promise.all([
     import("@capacitor/app"),
     import("@capacitor-firebase/messaging"),
+    import("../demo/session.svelte"),
   ]);
   const go = (url: string) => {
     const u = new URL(url, location.origin);
@@ -97,6 +98,9 @@ export async function startInApp(navigate: (path: string) => void) {
     const path = (notification.data as { path?: string } | undefined)?.path;
     if (path) go(path);
   });
-  await FirebaseMessaging.addListener("tokenReceived", () => void register().catch(() => {}));
-  if ((await FirebaseMessaging.checkPermissions()).receive === "granted") await register().catch(() => {});
+  // Not while viewing the app as someone (ADR 0024): the club would refuse it, and the phone isn't theirs
+  const mayRegister = () => !impersonating();
+  await FirebaseMessaging.addListener("tokenReceived", () => void (mayRegister() && register().catch(() => {})));
+  if (mayRegister() && (await FirebaseMessaging.checkPermissions()).receive === "granted")
+    await register().catch(() => {});
 }

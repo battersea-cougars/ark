@@ -4,6 +4,7 @@
 // from a tap, given to the club for this sign-in (PUT /api/auth/device), and given again each start, so whoever signs
 // in on this browser next gets them; turned off, it's unsubscribed and forgotten.
 import { api } from "./api";
+import { impersonating } from "../demo/session.svelte";
 
 declare const __VAPID_PUBLIC_KEY__: string | undefined;
 /** The club's VAPID public key (wrangler.jsonc, built in): none yet, no Web Push. */
@@ -108,6 +109,7 @@ export async function startWebPush(navigate: (path: string) => void) {
     const path = e.data?.type === "notification-tap" ? e.data.path : null;
     if (typeof path === "string" && path.startsWith("/")) navigate(path);
   });
-  if (Notification.permission !== "granted" || !(await current())) return;
+  // Not while viewing the app as someone (ADR 0024): the club would refuse it
+  if (impersonating() || Notification.permission !== "granted" || !(await current())) return;
   await give(await subscribe(await worker()));
 }

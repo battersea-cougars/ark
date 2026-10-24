@@ -3,7 +3,8 @@
 // sends them the app link from their card later (#164); makes Mo a Session lead, and Mo has the night's jobs
 // (Make teams, Add player) till she takes it away; can't make herself a Member, as she's the last admin. Rae deletes
 // her own account from her You page, can't sign in again, and is gone from the club's lists. Hal, a plain member,
-// can't open Settings → Members. The Roles page shows what a role can do.
+// can't open Settings → Members. Ada views the app as Hal (#40): the server answers as Hal through a reload, refuses
+// a change, and she goes back to herself from the banner, all on the record. The Roles page shows what a role can do.
 //
 // The member Ada adds is new every run (their email has the time in it). Rae can leave only once a database: on one a
 // run has been through already she's gone, and her stage says so and checks only that she stays gone.
@@ -217,10 +218,49 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
     await expect(hal.page.getByRole("grid")).toHaveCount(0);
   });
 
+  await stage("3. Ada views the app as Hal, read-only", async () => {
+    const halId = (await byEmail(hal.email))!.id;
+    await does(ada, "views the app as Hal from Settings → View as a member", async () => {
+      await ada.page.goto("/settings/view-as");
+      await ada.page.getByRole("button", { name: /Hal Holiday/ }).click();
+      await expect(ada.page.getByRole("status").filter({ hasText: "Viewing as" })).toContainText("Hal Holiday");
+    });
+    await checks(ada, "still sees Hal's app after a reload, and Hal's Settings: Not for this role", async () => {
+      await ada.page.goto("/settings/members");
+      await expect(ada.page.getByRole("status").filter({ hasText: "Viewing as" })).toContainText("Hal Holiday");
+      await expect(ada.page.getByRole("heading", { name: "Not for this role" })).toBeVisible();
+    });
+    await checks(ada, "can't change anything as Hal: the server refuses it, and says how to go back", async () => {
+      expectRefusal(403);
+      const refused = await ada.page.evaluate(async () => {
+        const res = await fetch("/api/me", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ bio: "Not Hal" }),
+        });
+        return { status: res.status, error: ((await res.json()) as { error: string }).error };
+      });
+      expect(refused).toEqual({
+        status: 403,
+        error: "You're viewing as Hal: go back to yourself to change anything.",
+      });
+    });
+    await does(ada, "goes back to herself from the banner", async () => {
+      await ada.page.getByRole("button", { name: "Back to Ada" }).click();
+      await expect(ada.page.getByRole("status").filter({ hasText: "Viewing as" })).toHaveCount(0);
+      await ada.page.goto("/settings/members");
+      await expect(ada.page.getByRole("row", { name: /^Hal Holiday/ })).toBeVisible();
+    });
+    await checks(ada, "both are on the record, about Hal", async () => {
+      expect(await recorded("view_as.started", halId)).toBeTruthy();
+      expect(await recorded("view_as.ended", halId)).toBeTruthy();
+    });
+  });
+
   const raeEmail = "rae@example.com";
   const raeHere = (await byEmail(raeEmail))?.status === "active";
   await stage(
-    `3. Rae deletes her own account${raeHere ? "" : " (gone already: a database a run's been through)"}`,
+    `4. Rae deletes her own account${raeHere ? "" : " (gone already: a database a run's been through)"}`,
     async () => {
       if (raeHere) {
         const rae = await signIn(browser, "Leaving", "Rae Retiring", raeEmail);

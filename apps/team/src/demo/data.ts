@@ -41,6 +41,10 @@ export let UNFINISHED = false;
 export let SIMULATOR = false;
 /** The role you run the app as day to day, if not your full one (ADR 0024). Read once by session.svelte.ts startSession. */
 export let EVERYDAY_ROLE: number | null = null;
+/** The member the server answers this sign-in as, when an admin is viewing the app as them (ADR 0024). */
+export let VIEWING_AS: number | null = null;
+/** What the server lets this sign-in do: while viewing as someone, the member's actions (ADR 0024). */
+export let ACTIONS: Action[] = [];
 
 const EMAILS = new Map<number, string | null>();
 const REFERENCES = new Map<number, string | null>();
@@ -122,7 +126,10 @@ export const CREDITS: { memberId: number; pence: number }[] = [];
 
 /** What /api/bootstrap sends (apps/team/worker/api/api.ts). */
 export interface Bootstrap {
+  /** Who you are: whoever signed in, even while viewing as someone. */
   me: number;
+  /** The member you're viewing the app as (ADR 0024): the server answers as them, read-only. */
+  viewingAs?: number | null;
   actions: Action[];
   devTools?: boolean;
   /** Screens still on demo data (Upload) are shown: not in production (#63). */
@@ -200,12 +207,14 @@ export const TEAMS: Record<number, Team[]> = {};
 const fill = <T>(list: T[], items: T[]) => list.splice(0, list.length, ...items);
 
 /** The parts of the club's data that a change sends back (worker/api/api.ts SLICES): all of it but who you are. */
-export type Slices = Partial<Omit<Bootstrap, "me" | "actions" | "devTools" | "unfinished" | "simulator">>;
+export type Slices = Partial<Omit<Bootstrap, "me" | "viewingAs" | "actions" | "devTools" | "unfinished" | "simulator">>;
 
 /** Put the club's data in place (app/backend.svelte.ts copies it into the store). Runs before the app mounts, and again
  * whenever the whole club is reloaded. */
 export function hydrate(b: Bootstrap) {
   REAL_ID = b.me;
+  VIEWING_AS = b.viewingAs ?? null;
+  ACTIONS = b.actions;
   DEV_TOOLS = !!b.devTools;
   UNFINISHED = !!b.unfinished;
   SIMULATOR = !!b.simulator;

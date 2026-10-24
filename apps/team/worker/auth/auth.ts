@@ -23,6 +23,7 @@ import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
 import { forgetDevice, registerDevice } from "../push/push";
 import { endSessions } from "./auth.sessions";
+import { refuseWhileViewing } from "../members/view-as";
 import { mustBeHuman, type TurnstileEnv } from "./auth.turnstile";
 import { brokeGlass, claimBreakGlass } from "./auth.break-glass";
 import type { LiveEnv } from "../live/live";
@@ -179,6 +180,8 @@ interface SessionRow {
   last_seen_at: string;
   created_at: string;
   token_hash: string;
+  /** The member this sign-in is viewing the app as (ADR 0024), or null. */
+  viewing_as: number | null;
 }
 
 /** Whether a request carries a session cookie at all: one without can be nobody's session, and isn't looked up. */
@@ -198,7 +201,7 @@ export async function findSession(
   const hash = await sha256(value);
   const row = await first<SessionRow>(
     env.DB,
-    `SELECT s.id, s.member_id, s.last_seen_at, s.created_at, s.token_hash FROM auth_sessions s
+    `SELECT s.id, s.member_id, s.last_seen_at, s.created_at, s.token_hash, s.viewing_as FROM auth_sessions s
        JOIN members m ON m.id = s.member_id
      WHERE (s.token_hash = ? OR (s.previous_hash = ? AND s.rotated_at > ?))
        AND s.revoked_at IS NULL AND s.expires_at > ? AND m.status = 'active'`,
@@ -216,10 +219,10 @@ export async function sessionOf(
   request: Request,
   env: AuthEnv,
   now: Date,
-): Promise<{ memberId: number; sessionId: number; setCookie?: string } | null> {
+): Promise<{ memberId: number; sessionId: number; viewingAs: number | null; setCookie?: string } | null> {
   const row = await findSession(request, env, now);
   if (!row) return null;
-  const who = { memberId: row.member_id, sessionId: row.id };
+  const who = { memberId: row.member_id, sessionId: row.id, viewingAs: row.viewing_as };
   // Not due, or this is the token before a renewal that's just happened: as it is
   if (row.hash !== row.token_hash || now.getTime() - Date.parse(row.last_seen_at) < RENEW_AFTER_MS) return who;
   const fresh = token();
@@ -511,7 +514,11 @@ export async function device(request: Request, env: AuthEnv, now: Date): Promise
   const row = await findSession(request, env, now);
   if (!row) return json({ error: "Sign in first." }, 401);
   if (request.method === "DELETE") await forgetDevice(env.DB, row.id, await body(request));
-  else await registerDevice(env.DB, row.id, await body(request), now.toISOString());
+  else {
+    // A phone viewing as a member never hears the club as them, nor gives itself to the club meanwhile (ADR 0024)
+    await refuseWhileViewing(env.DB, row.viewing_as);
+    await registerDevice(env.DB, row.id, await body(request), now.toISOString());
+  }
   return json({ ok: true });
 }
 
@@ -527,6 +534,13 @@ export async function signOut(request: Request, env: AuthEnv, now: Date, everywh
       now.toISOString(),
       everywhere ? { memberId: row.member_id } : { sessionId: row.id },
     );
+    // Viewing as someone ends with the sign-in (ADR 0024)
+    if (row.viewing_as != null)
+      await audit(env.DB, now, row.member_id, "view_as.ended", {
+        memberId: row.viewing_as,
+        from: row.viewing_as,
+        to: null,
+      });
     await audit(env.DB, now, row.member_id, "sign_out", everywhere ? { everywhere, sessions } : {});
   }
   return withCookies(json({ ok: true }), [setCookie(request, "session", "", 0)]);

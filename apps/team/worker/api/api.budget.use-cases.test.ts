@@ -169,6 +169,9 @@ async function walk() {
   const memberRole = b.roles.find((r: Json) => r.name === "Member");
   await hit(dana, "PUT", "/api/me/everyday-role", { roleId: memberRole.id });
   await hit(dana, "PUT", "/api/me/everyday-role", { roleId: null });
+  // Viewing the app as a member, and back (ADR 0024)
+  await hit(dana, "PUT", "/api/me/view-as", { memberId: ids["Member 1"] });
+  await hit(dana, "DELETE", "/api/me/view-as");
   await hit(reg, "GET", "/api/me/notifications");
   await hit(reg, "PUT", "/api/me/notifications", { announcements: false });
 

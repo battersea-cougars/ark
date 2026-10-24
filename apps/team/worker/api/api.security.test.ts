@@ -31,8 +31,21 @@ const sample = (path: RegExp) =>
 
 describe("every change", () => {
   it("says which parts of the club it touches, so the app gets them back (ADR 0053)", () => {
-    const silent = ROUTES.filter((r) => r.method !== "GET" && !r.changes?.length).map((r) => `${r.method} ${r.path}`);
+    const silent = ROUTES.filter((r) => r.method !== "GET" && !r.changes?.length && !r.reloads).map(
+      (r) => `${r.method} ${r.path}`,
+    );
     expect(silent).toEqual([]);
+  });
+
+  it("or, reloading the app instead, says why: only viewing as someone (ADR 0024)", () => {
+    const reloads = ROUTES.filter((r) => r.reloads !== undefined).map((r) => `${r.method} ${r.path}`);
+    expect(reloads).toEqual(["PUT /^\\/api\\/me\\/view-as$/", "DELETE /^\\/api\\/me\\/view-as$/"]);
+    for (const r of ROUTES) if (r.reloads !== undefined) expect(r.reloads.trim().length).toBeGreaterThan(10);
+  });
+
+  it("only going back to yourself is taken while viewing as someone (ADR 0024)", () => {
+    const taken = ROUTES.filter((r) => r.whileViewing).map((r) => `${r.method} ${r.path}`);
+    expect(taken).toEqual(["DELETE /^\\/api\\/me\\/view-as$/"]);
   });
 });
 

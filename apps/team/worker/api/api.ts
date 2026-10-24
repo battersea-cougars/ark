@@ -27,6 +27,8 @@ import { PASSKEY_ROUTES } from "../auth/auth.passkeys.routes";
 import { BREAK_GLASS_ROUTES } from "../auth/auth.break-glass.routes";
 import { actionsOf, firstAdmin } from "../members/members";
 import { ROLES_ROUTES } from "../members/roles.routes";
+import { VIEW_AS_ROUTES } from "../members/view-as.routes";
+import { answeredAs, viewingRefusal } from "../members/view-as";
 import { SCORING_ROUTES } from "../tournaments/scoring.routes";
 import { SETTINGS_ROUTES } from "../settings/settings.routes";
 import { PAST_ROUTES } from "../tournaments/past.routes";
@@ -58,6 +60,8 @@ export const ROUTES: Route[] = [
   // People: members and roles
   ...MEMBERS_ROUTES,
   ...ROLES_ROUTES,
+  // An admin viewing the app as a member, read-only (ADR 0024)
+  ...VIEW_AS_ROUTES,
   // Ways in: a member's passkeys from their sheet, and the week's break-glass sign-ins (ADR 0023)
   ...PASSKEY_ROUTES,
   ...BREAK_GLASS_ROUTES,
@@ -85,7 +89,7 @@ async function whoIs(
   request: Request,
   env: Env,
   now: Date,
-): Promise<{ memberId: number; sessionId?: number; setCookie?: string } | null> {
+): Promise<{ memberId: number; sessionId?: number; viewingAs?: number | null; setCookie?: string } | null> {
   const session = await sessionOf(request, env, now);
   if (session) return session;
   // Only on a private address (ADR 0023): a build that said "local" by mistake still opens to nobody
@@ -179,26 +183,30 @@ export async function handleApi(
       await unknown();
       return json({ error: "Sign in first." }, 401);
     }
-    const { memberId } = who;
-    member = memberId;
+    // Who signed in: counted, on the record, and the one whose clock a journey moves
+    const signedIn = who.memberId;
+    member = signedIn;
     renewal = who.setCookie;
-    await enforce("member", String(memberId), LIMITS.perMember, "That's a lot of requests at once. Wait a minute.");
+    await enforce("member", String(signedIn), LIMITS.perMember, "That's a lot of requests at once. Wait a minute.");
     const writes = request.method !== "GET";
     if (writes)
       await enforce(
         "writes",
-        String(memberId),
+        String(signedIn),
         LIMITS.writesPerMember,
         "That's a lot of changes at once. Wait a minute.",
       );
-    const actions = await actionsOf(env.DB, memberId);
+    const signedInActions = await actionsOf(env.DB, signedIn);
     // A journey may move the club's clock, on dev (an admin) or your own machine only (api.dev-clock.ts)
-    now = devClock(request, env, actions) ?? now;
+    now = devClock(request, env, signedInActions) ?? now;
+    // An admin viewing the app as a member (ADR 0024) is answered as that member, and changes nothing but going back
+    const { viewing, memberId, actions } = await answeredAs(env.DB, now, who, signedInActions);
+    if (viewing && writes && !hit.r.whileViewing) throw new HttpError(403, viewingRefusal(viewing));
     const { action } = hit.r;
     if (action !== "authenticated" && !actions.has("manage:all") && !actions.has(action)) {
       // Refused for want of an action: on the record (ADR 0024), so poking at admin routes is seen, once a minute at
       // most per member (#73); every one is in the log
-      await auditRefused(env.DB, now, memberId, { method: request.method, path: url.pathname, action });
+      await auditRefused(env.DB, now, signedIn, { method: request.method, path: url.pathname, action });
       return json({ error: "Your role can't do that." }, 403);
     }
     const ctx: Ctx = {
@@ -206,6 +214,7 @@ export async function handleApi(
       request,
       params: hit.m!.slice(1),
       memberId,
+      viewedBy: viewing ? signedIn : null,
       sessionId: who.sessionId ?? null,
       actions,
       today: londonToday(now),
@@ -230,7 +239,7 @@ export async function handleApi(
         .catch(() => ({}))) as Record<string, unknown>;
       const after = await record.subject(ctx, reply);
       if (JSON.stringify(before ?? null) !== JSON.stringify(after ?? null))
-        await audit(env.DB, now, memberId, record.event, {
+        await audit(env.DB, now, signedIn, record.event, {
           ...record.about?.(ctx, reply),
           from: before ?? null,
           to: after ?? null,
@@ -255,7 +264,8 @@ export async function handleApi(
       if (waitUntil) waitUntil(told);
       else await told;
     }
-    if (writes && res.ok) {
+    // A change that reloads the app (viewing as someone) changes nothing in the club: no one's copy is out of date
+    if (writes && res.ok && !hit.r.reloads) {
       // A change: every member's bootstrap is out of date (ADR 0053)
       const version = await bumpDataVersion(env.DB);
       // ...and this member gets the parts it touched back, to put in place

@@ -94,6 +94,10 @@
         return `${who}'s sign-in stopped for the day: too many wrong codes`;
       case "access.requested":
         return `${who} asked to join`;
+      case "view_as.started":
+        return `${who} started viewing the app as ${about}`;
+      case "view_as.ended":
+        return `${who} stopped viewing the app as ${about}`;
       case "member.added":
         // Whether they were emailed the app link (#164); entries from before don't say
         return `${who} added ${about} (${str(to?.email)})${to?.emailed === true ? ", and emailed them the app link" : to?.emailed === false ? ", without emailing them" : ""}`;
@@ -328,7 +332,7 @@
   const iconOf = Object.fromEntries(AREAS) as Record<Area, IconName>;
   function areaOf(action: string): Area | null {
     if (/^(charge|payment|dues|fees)\.|^member\.(paid|plan|quarterly)$/.test(action)) return "Money";
-    if (/^(sign_in|sign_out|access|member|members|role|refused)\b/.test(action)) return "Members";
+    if (/^(sign_in|sign_out|access|member|members|role|refused|view_as)\b/.test(action)) return "Members";
     if (/^(training|session|sessions|teams|register|signups)\./.test(action)) return "Training";
     if (/^(tournament|tournament_series|draft|game|fixtures|team)\./.test(action)) return "Kumite";
     if (/^(venue|settings|quip|dev_mail|mail|announcement|event)\./.test(action)) return "Settings";
