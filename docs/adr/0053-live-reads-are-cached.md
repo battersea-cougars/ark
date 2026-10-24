@@ -49,6 +49,10 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   an empty 304 after one row read when nothing has changed, at the data version the app's copy holds
   (`x-club-version`), since a live page moves that on by reading only the parts that changed
   ([0072](0072-live-updates.md)); a weak tag (`W/`, a proxy that compressed the reply) matches too.
+- **What grows with the club's history isn't in the bootstrap**: past tournaments are read when they're opened, a page
+  of History at a time ([0074](0074-tournament-home-and-scheduling.md), #175), each tagged the same way (the data
+  version, the member, the day, the deploy, and what it is), so asking again unchanged is an empty 304; a team's logo is
+  an address with its version in it, `private, max-age=31536000, immutable`.
 
 ## Consequences
 
@@ -78,3 +82,5 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   pages now read only the parts that changed (#112, ADR 0072); the reply says its version (`x-club-version`).
 - 2026-10-24: The bootstrap is `private, no-store`, not `no-cache`: the browser's disk cache kept the club's data
   after signing out (#81). The app keeps the tag in memory, so its checks are still 304s; opening it reads the club.
+- 2026-10-24: The bootstrap sends each series' next one and last one played, not every tournament; past ones, History's
+  pages and the all-time leaders are read on demand with the same tag, logos by their own address (#175, ADR 0074).

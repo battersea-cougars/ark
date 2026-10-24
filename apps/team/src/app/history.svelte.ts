@@ -25,7 +25,12 @@ export interface EditionSummary {
   going: number;
   teams: { id: number; name: string; logo: string | null; captainMemberId: number | null }[];
   champion: number | null;
-  final: { homeTeamId: number | null; awayTeamId: number | null; homeGoals: number | null; awayGoals: number | null } | null;
+  final: {
+    homeTeamId: number | null;
+    awayTeamId: number | null;
+    homeGoals: number | null;
+    awayGoals: number | null;
+  } | null;
   games: number;
 }
 
@@ -49,7 +54,10 @@ export class PastList {
   async refresh() {
     this.loading = true;
     try {
-      const { data, tag } = await readTagged<{ editions: EditionSummary[]; next: string | null }>(this.#path, this.#tag);
+      const { data, tag } = await readTagged<{ editions: EditionSummary[]; next: string | null }>(
+        this.#path,
+        this.#tag,
+      );
       this.#tag = tag;
       if (data) [this.editions, this.next] = [data.editions, data.next];
       this.read = true;
@@ -68,6 +76,7 @@ export class PastList {
         null,
       );
       if (!data) return;
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity -- not shown: the store is what pages read
       const seen = new Set(this.editions.map((e) => e.id));
       this.editions = [...this.editions, ...data.editions.filter((e) => !seen.has(e.id))];
       this.next = data.next;
@@ -77,6 +86,7 @@ export class PastList {
   }
 }
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not shown: the store is what pages read
 const lists = new Map<number | null, PastList>();
 /** The series' list, kept while the app's open. */
 export function pastList(typeId: number | null) {
@@ -85,6 +95,7 @@ export function pastList(typeId: number | null) {
   return list;
 }
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not shown: the store is what pages read
 const leaders = new Map<number, { rows: LeaderRow[]; tag: string | null }>();
 /** Every played edition's leaders in the series, counted by the Worker. */
 export async function allTimeLeaders(typeId: number): Promise<LeaderRow[]> {

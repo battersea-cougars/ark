@@ -112,6 +112,12 @@ Running a tournament from Manage is [0127](0127-running-a-tournament-from-manage
   All Kumites"). Its after-party's view, any day after its evening, is its results (`lib/EditionResults`: the champions,
   the final, every fight, the board, the leaders, the awards); its draft, once it's all played, is everyone's to look
   back on, not just its captains'. Its teams' and games' pages work from there too and go back to its page, not today's.
+- **Past ones are read when they're opened** (#175): the app opens with each series' ones still to play, its last one
+  played and any from the last fortnight, never every one there's been. A past one's page (or a link to one of its
+  games or teams) reads it in full (`GET /api/tournaments/:id`, by a game or team too), showing the page's room while
+  it comes, and keeps it; History, and the front page with nothing on, list the played ones a page at a time, newest
+  first, as the list's end comes into view (`GET /api/tournament-types/:id/editions?before=<day>_<id>&limit=N`), with
+  the all-time leaders counted by the Worker. A team's logo is at its own address, kept by the browser.
 - The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under Friday's;
   before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
 - **Once it's started, who's in is an admin's to change**: "once the kumite goes live, the player cannot remove
@@ -217,3 +223,5 @@ blind (Chong Li's powder), and its page's foot sends the newcomer to watch the f
 - 2026-10-24: Split: Manage's jobs to ADR 0127, scheduling to 0128, the after-party and reveal to 0129; History
   shortened to a line per change; the invitation, the stamps and the record's format, which had been only in History,
   stated in the Decision, and the track as it is (badges, no NOW stamp).
+- 2026-10-24: Past ones read when they're opened, History a page at a time, logos at their own address (#175, the
+  user: "there's no need to load all the kumites to the UI").

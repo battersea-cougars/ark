@@ -142,6 +142,19 @@ Twelve Kumites are 1.5 MB a bootstrap, three quarters of it logos. What's left i
 (parsing D1's JSON, writing the reply's, encoding it), so the next cut is sending less, not doing less with it.
 Cloudflare's CPU for the same requests reads several times this machine's (a goal 15 ms on dev, a tap 1 ms here).
 
+Then sending less (2026-10-24, #175): the bootstrap sends each series' next one and its last one played, and team logos
+by their own address, not the image. Past ones are read when opened. The same test, the same afternoon (the "before"
+column on a busy machine, so higher than the table above):
+
+| Request (Worker's own CPU, median) | Four Kumites, before → after | Twelve, before → after            |
+| ---------------------------------- | ---------------------------- | --------------------------------- |
+| Bootstrap, a member                | 9.7 → 1.7 ms (516 → 71 KB)   | 24.9 → 1.6–1.9 ms (1,455 → 71 KB) |
+| Bootstrap, an admin                | 11.4 → 1.9 ms                | 28.2 → 1.9–2.7 ms                 |
+| Viewing as a member                | 9.1 → 1.1 ms                 | 21.4 → 1.2–2.0 ms                 |
+| A tournament deleted               | 7.7 → 1.2 ms                 | 12.1 → 1.2–2.3 ms                 |
+| A past one opened, in full         | —                            | 0.4 ms                            |
+| A page of History                  | —                            | 0.3 ms                            |
+
 Busy moments:
 
 | Run                      | Requests (s)  | Errors      | Key latencies (p50 / p95)                             | Reloads | D1 rows read (of 5M) | Rows written |

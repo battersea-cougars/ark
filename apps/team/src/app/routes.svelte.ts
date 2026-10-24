@@ -12,7 +12,8 @@ import { frontDoorTo } from "../lib/edition-address";
 import { editions, type EditionBy } from "./editions.svelte";
 
 /** Of a series' pages, the ones on their way (app/editions.svelte.ts): their pages are there, loading, till they come. */
-const asked = (slug: string, by: EditionBy) => editions.asking.filter((a) => a.slug === slug && a.by === by).map((a) => a.n);
+const asked = (slug: string, by: EditionBy) =>
+  editions.asking.filter((a) => a.slug === slug && a.by === by).map((a) => a.n);
 
 const config = (): NavConfig => ({
   series: db.series,

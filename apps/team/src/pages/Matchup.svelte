@@ -25,7 +25,9 @@
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
   // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
-  const waiting = $derived(!!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId));
+  const waiting = $derived(
+    !!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId),
+  );
 
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(
@@ -109,9 +111,9 @@
   />
 
   {#if waiting}
-  <!-- Its tournament on its way (#175): the room the page takes -->
-  <div class="waiting" aria-busy="true" aria-label="Loading"></div>
-{:else if !tournament || !game}
+    <!-- Its tournament on its way (#175): the room the page takes -->
+    <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+  {:else if !tournament || !game}
     <p class="note">There's no such game.</p>
   {:else}
     <!-- The two teams, face to face: the score once it's played, else the kick-off -->

@@ -69,7 +69,9 @@
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
   // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
-  const waiting = $derived(!!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId));
+  const waiting = $derived(
+    !!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId),
+  );
 
   const type = $derived(typeById(typeId)!);
   // The game's own tournament: the current one, or a past one's (History)

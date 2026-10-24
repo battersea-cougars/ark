@@ -107,3 +107,7 @@ Usage page and count in its 70% and 90% check ([ADR 0059](0059-usage-page-and-ch
   and 7–11 ms with twelve (10–15 before, docs/load-testing.md); what's left is in proportion to the bytes sent (1.5 MB
   with twelve, three quarters logos), so the next step is sending less: logos by their own cached URL, past
   tournaments when they're opened.
+- 2026-10-24: Sending less (#175): the bootstrap no longer sends past tournaments (read when opened, History a page at a
+  time, ADR 0074) or logos (their own cached address). With twelve Kumites a member's open is 71 KB, not 1.5 MB, and
+  1.6–1.9 ms of the Worker's own CPU locally with four or twelve (it no longer grows with them); a past one opened and
+  a page of History are under 0.5 ms each.

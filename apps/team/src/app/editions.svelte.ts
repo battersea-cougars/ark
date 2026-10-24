@@ -26,7 +26,9 @@ export interface Asked {
 /** What's on its way, what isn't there (a 404: gone, or never was), and a beat for each change to the kept ones. */
 export const editions = $state({ asking: [] as Asked[], gone: [] as Asked[], round: 0 });
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not shown: the store is what pages read
 const kept = new Map<number, { tournament: Tournament; tag: string | null; fresh: boolean }>();
+// eslint-disable-next-line svelte/prefer-svelte-reactivity -- not shown: the store is what pages read
 const inFlight = new Set<string>();
 const keyOf = (a: Asked) => `${a.by}:${a.n}`;
 const same = (a: Asked) => (b: Asked) => a.by === b.by && a.n === b.n;
@@ -34,6 +36,7 @@ const same = (a: Asked) => (b: Asked) => a.by === b.by && a.n === b.n;
 /** The club's tournaments in the store, the ones read on demand after them (the club's own wins: it's newer). */
 export function showTournaments() {
   const club = structuredClone(TOURNAMENTS);
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity -- not shown: the store is what pages read
   const ids = new Set(club.map((t) => t.id));
   db.tournaments = [...club, ...[...kept.values()].filter((k) => !ids.has(k.tournament.id)).map((k) => k.tournament)];
 }

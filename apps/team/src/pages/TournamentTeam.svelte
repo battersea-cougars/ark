@@ -23,7 +23,9 @@
 
   let { typeId, teamId }: { typeId: number; teamId?: number } = $props();
   // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
-  const waiting = $derived(!!teamId && !db.tournaments.some((t) => t.teams.some((x) => x.id === teamId)) && waitingFor("team", teamId));
+  const waiting = $derived(
+    !!teamId && !db.tournaments.some((t) => t.teams.some((x) => x.id === teamId)) && waitingFor("team", teamId),
+  );
 
   const type = $derived(typeById(typeId)!);
   // The team's own tournament (a past one's team, from History), else the current one: yours is My team
@@ -67,9 +69,9 @@
   <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} back={{ href: edition }} />
 
   {#if waiting}
-  <!-- Its tournament on its way (#175): the room the page takes -->
-  <div class="waiting" aria-busy="true" aria-label="Loading"></div>
-{:else if !tournament || !team}
+    <!-- Its tournament on its way (#175): the room the page takes -->
+    <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+  {:else if !tournament || !team}
     <EmptyState icon="teams" title={teamId ? "Not found" : "No team yet"}>
       {teamId
         ? "There's no such team in this one."
