@@ -1,4 +1,4 @@
-// The Kumite's Manage menu at each stage, for each of who looks (ADR 0074): only what makes sense where it stands.
+// The Kumite's Manage menu at each stage, for each of who looks (ADR 0127): only what makes sense where it stands.
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
 import { historyItemsOf, manageItemsOf, manageStageOf, type Manager } from "./manage";

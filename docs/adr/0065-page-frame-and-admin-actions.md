@@ -169,7 +169,7 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 
 - The tournament pages open the tournament editor in place (`TournamentEditorPanel`), on the tab the action needs;
   Settings → Tournaments uses the same panel. A new date in a series opens on its quick questions
-  (`TournamentQuickCreate`, [0074](0074-tournament-home-and-scheduling.md)).
+  (`TournamentQuickCreate`, [0128](0128-scheduling-a-tournament.md)).
 - The Calendar is where an admin puts any date on: its **New event** button (in words on a phone too) opens one
   sheet asking what kind (a one-off, a training, a series' next date, a tournament), only the kinds their full role
   can create (`lib/new-event.ts`), each in the editor Settings uses (`TrainingEditorPanel`, `TournamentEditorPanel`),
@@ -190,7 +190,7 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - 2026-10-08: One page frame on a desktop (76rem, a 52rem reading width, `.page.full`), every title at one height,
   editors in the page's column (was 0078).
 - 2026-10-09: A main button beside Manage when the page is waiting for it; Manage keeps only what has no page of its
-  own (was 0087, now in 0074).
+  own (was 0087, now in 0127 and 0128).
 - 2026-10-09: Which overlay for what, from a survey of every one: drawer, sheet or panel by what's inside; drawers
   moved to `<body>`; a pop-over's Escape leaves the drawer under it open (was 0103).
 - 2026-10-10: On a phone the bar hides on scrolling down and comes back on scrolling up (#83); a page's search stays

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A tournament's sign-up (ADR 0030, 0074): when it opens, and with `more` (the editor, or the wizard's Advanced)
+  // A tournament's sign-up (ADR 0030, 0128): when it opens, and with `more` (the editor, or the wizard's Advanced)
   // when it closes, its places, its fee and whether it's on the website. Two to a row, in pairs: opens and closes,
   // places and fee, then the website, so what `more` shows comes in beside and under what's there, never above it. Its
   // stage isn't here: it moves on from its own page (Manage: Close sign-up, Move to…).

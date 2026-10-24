@@ -1,4 +1,4 @@
-// Stepping a tournament back one step of its workflow (ADR 0074, 0060), shared by the app (what Manage offers, and
+// Stepping a tournament back one step of its workflow (ADR 0127, 0060), shared by the app (what Manage offers, and
 // what it'll cost) and the Worker (which step it's at, so a tap from a page that's out of date is refused). The steps
 // are the tournament's statuses (Sign-up open, Draft open, Teams set, Fixtures set, the day, the after-party's awards
 // revealed) and the draft's own (the order drawn, the draft open); teams that enter skip the draft's. Each step back
@@ -53,7 +53,7 @@ export function backFrom(t: Stepping, today: string): BackFrom | null {
 }
 
 /**
- * "Back to …": the status it goes back to, as the track names it (ADR 0074), and within a status the draft's own steps
+ * "Back to …": the status it goes back to, as the track names it (ADR 0127), and within a status the draft's own steps
  * (the order drawn, before the draw).
  */
 export const BACK_TO: Record<BackFrom, string> = {

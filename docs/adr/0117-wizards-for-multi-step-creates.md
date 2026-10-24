@@ -5,7 +5,7 @@
 
 ## Context
 
-Scheduling the next Kumite (ADR [0074](0074-tournament-home-and-scheduling.md)) asked its questions one under another
+Scheduling the next Kumite (ADR [0128](0128-scheduling-a-tournament.md)) asked its questions one under another
 in a tall panel: the season, day and hours, sign-up, the draft's day, then the captains at the bottom. On a phone the
 captains' search came last, under everything else, and its matches opened in a small pop-over, so there was little
 room to find people. The user asked for the Ledger app's wizard instead: a job that moves on to the next step with a

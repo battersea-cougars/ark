@@ -1,4 +1,4 @@
-// The evening a tournament ends (ADR 0074): its last match played, it's at its afterwards (The Anchor) till 06:00
+// The evening a tournament ends (ADR 0129): its last match played, it's at its afterwards (The Anchor) till 06:00
 // London the next morning, then it's history. The status's rule, its place on the track, and the awards revealed one
 // at a time.
 import { describe, expect, it } from "vitest";

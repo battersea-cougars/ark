@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A draft's day (ADR 0060, 0074): a reminder for the captains, opened on the night. In the wizard's Teams step and
+  // A draft's day (ADR 0060, 0128): a reminder for the captains, opened on the night. In the wizard's Teams step and
   // the editor's Draft & teams tab alike.
   import FormSection from "./FormSection.svelte";
   import DateField from "./DateField.svelte";

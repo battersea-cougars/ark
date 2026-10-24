@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A card's big words (ADR 0074, the after-party's awards): the poster's italic capitals, in whatever colour the card
+  // A card's big words (ADR 0129, the after-party's awards): the poster's italic capitals, in whatever colour the card
   // gives them. Words wrap whole, and the face shrinks so the longest word fits its line (and the text, about `lines`
   // lines). Still: whatever shows it rolls it into view (lib/AwardStage, the awards page's card).
   let {

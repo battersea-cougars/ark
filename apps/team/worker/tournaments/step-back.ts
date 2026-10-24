@@ -1,4 +1,4 @@
-// An admin steps a tournament back one step of its workflow (ADR 0074, 0060; lib/step-back.ts names the steps). The
+// An admin steps a tournament back one step of its workflow (ADR 0127, 0060; lib/step-back.ts names the steps). The
 // request says which step it's leaving (`from`): read here from the tournament as it is, and refused if it's moved on
 // since, so a tap from a page that's out of date never takes a second step. Each step back is one batch whose
 // statements only do anything while the tournament is still at that step, so two taps at once step back once

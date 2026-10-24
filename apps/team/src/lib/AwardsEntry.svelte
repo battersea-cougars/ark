@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The awards at the after-party (ADR 0074): one big card for everyone. Before they're confirmed, everyone who played
+  // The awards at the after-party (ADR 0129): one big card for everyone. Before they're confirmed, everyone who played
   // votes on it (Vote opens the ballot, lib/VoteSheet), and whoever runs it confirms them on it too (how many have
   // voted, what's still to choose); anyone else is waiting. Then where the reveal's at. Always the way to the awards'
   // own page, the stage (pages/Awards).

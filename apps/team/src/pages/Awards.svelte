@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The awards (ADR 0074, 0044): a page of their own, a stage. One card, centred, big: the award now, sealed (its
+  // The awards (ADR 0129, 0044): a page of their own, a stage. One card, centred, big: the award now, sealed (its
   // name, and "?" for who took it), then revealed. Whoever runs it has one button under the card: Confirm the awards
   // (the drawer) till they're confirmed, then Reveal (The champions for the finale), then Next award, which dissolves
   // the card as the next one zooms in, sealed. Everyone else's place under it says Waiting for the reveal, and their

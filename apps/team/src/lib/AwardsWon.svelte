@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The awards once every one's out (ADR 0074): the champions the hero, their card big and ringed in brass (none
+  // The awards once every one's out (ADR 0129): the champions the hero, their card big and ringed in brass (none
   // without them), then every other award a smaller card in a grid, face up, in the admin's order. The finished
   // Kumite's page (the after-party) shows it; the awards page's end too, its stage holding the hero (`hero` false).
   import type { Tournament, TournamentType } from "../demo/model";

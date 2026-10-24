@@ -1,4 +1,4 @@
-// The evening a Kumite ends (ADR 0074, 0044): the last match played, everyone's at The Anchor. Once the awards are
+// The evening a Kumite ends (ADR 0129, 0044): the last match played, everyone's at The Anchor. Once the awards are
 // confirmed, whoever runs it reveals them one at a time, in the order listed, on one card, a drum: a tap turns the
 // sealed card face up, Next award rolls on to the next, sealed. Members see each award's winner only once it's out
 // (the Worker doesn't send it before then), and every phone follows the drum. A double tap moves it once. Stepping

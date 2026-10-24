@@ -36,7 +36,7 @@
   // Confirmed, else (once it's done) what the data says, provisionally
   const done = $derived(editionState(tournament) === "done");
   // Its evening, an award not yet revealed at the after-party is face down for everyone but whoever reveals it
-  // (ADR 0074): no provisional pick in its place
+  // (ADR 0129): no provisional pick in its place
   const tonight = $derived(atAfters(tournament, londonEvening()));
   const revealed = $derived(revealOf(tournament).awards);
   const faceDown = (award: string) => !admin && tonight && !revealed.find((a) => a.name === award)?.revealed;

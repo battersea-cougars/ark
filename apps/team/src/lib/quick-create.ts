@@ -1,4 +1,4 @@
-// The next date in a series, asked as a wizard (TournamentQuickCreate, ADR 0074): its steps, and what stops each one.
+// The next date in a series, asked as a wizard (TournamentQuickCreate, ADR 0128): its steps, and what stops each one.
 // The steps are the full editor's tabs, by the same names (lib/TournamentDateEditor), then a look over it.
 import { feePence, formDay, type TournamentForm } from "./tournament-form";
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // One award on the awards page's stage (ADR 0074): a card, its size fixed, so nothing round it moves. The award's
+  // One award on the awards page's stage (ADR 0129): a card, its size fixed, so nothing round it moves. The award's
   // name big in brass stays put; under it the winner's area, the Kumite's 封 seal stamped over it while it's sealed (a
   // "?" for a series without the motif). Revealed, the seal beats and its ink drains away (the "?" fades) and the
   // winner (a team's crest and name, or a player's name and their team) rolls into that area alone, clipped to it,

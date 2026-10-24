@@ -1,4 +1,4 @@
-// A tournament's Manage menu (ADR 0065, 0074): which jobs it offers, by where the tournament stands and who's
+// A tournament's Manage menu (ADR 0065, 0127): which jobs it offers, by where the tournament stands and who's
 // looking, so nothing's offered that makes no sense there. lib/TournamentHead.svelte wires each to what it does.
 //
 // Where it stands (manageStageOf): sign-up; the draft (the order drawn, the draft open); the teams set (a draft

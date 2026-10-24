@@ -141,7 +141,7 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   website.
 - **Sign-up closes** (`signup_closes_on`) at the end of that day (London). After it the server refuses "I'm in"
   (409); saying out is still fine, and an admin can still add someone. Empty: open up to the day. When it opens is
-  ADR [0074](0074-tournament-home-and-scheduling.md).
+  ADR [0128](0128-scheduling-a-tournament.md).
 
 ### Teams entering or captains drafting
 
@@ -205,7 +205,7 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
   `tournament_teams` and players, replacing `tournament_captains` (was 0052). Its draft parts (picking from midnight
   on the day, the editor replacing teams on save) were superseded the same day by ADR 0060.
 - 2026-10-07: The calendar and the website read one agenda pushed from all three sources (ADR 0042).
-- 2026-10-09: The draft has a day, not a time; sign-up opens on a day; a series has usual hours (ADR 0074).
+- 2026-10-09: The draft has a day, not a time; sign-up opens on a day; a series has usual hours (ADR 0128).
 - 2026-10-09: `date_confirmed` dropped: a TBC tick beside a set day left it showing TBC. A date is a day or a season;
   the quick form asks the season first, the day optional; season and year are one pick.
 - 2026-10-10: A training's sign-ups are one order, Quarterly Members first, then those paying as they go: a

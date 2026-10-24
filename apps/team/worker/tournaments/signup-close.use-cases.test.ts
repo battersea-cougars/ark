@@ -1,4 +1,4 @@
-// An admin closes a tournament's sign-up now (ADR 0074), from its page while sign-up's open, without waiting for its
+// An admin closes a tournament's sign-up now (ADR 0127), from its page while sign-up's open, without waiting for its
 // closing day: members can't say they're in any more, and a captains' draft moves on to Draft open, where the order's
 // drawn. It's recorded on its own (when it closed), its dates left as they were, so a later save of the tournament
 // never finds it closing before it opens. It's one guarded statement, so two taps at once close it once (ADR 0121);

@@ -5,7 +5,7 @@
 
 ## Context
 
-The after-party ([0074](0074-tournament-home-and-scheduling.md)) only shows once a Kumite's last match is played,
+The after-party ([0129](0129-the-after-party-and-the-reveal.md)) only shows once a Kumite's last match is played,
 on its evening. Trying it meant drafting four teams and scoring every match by hand, goal by goal, on the clock. The
 user wanted a way to play a Kumite on to the after-party in one go, on dev and locally, without it ever being
 something production can do.

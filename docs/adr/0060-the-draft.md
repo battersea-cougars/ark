@@ -240,7 +240,7 @@ A draft's captains are its teams, so fixtures can be made before, during or afte
   clear them without reopening too (0061).
 - 2026-10-22: Each step a card in the middle, themed by the motif (籤, 開, the 決 seal; two characters added to the
   Kumite's font); the draw plays in its card and hands over to the next step, the players and teams coming in after.
-- 2026-10-22: The draft's steps back ([0074](0074-tournament-home-and-scheduling.md)): open → the drawn order (the
+- 2026-10-22: The draft's steps back ([0127](0127-running-a-tournament-from-manage.md)): open → the drawn order (the
   picks off, captains told it's paused) and drawn → before the draw, from the Draft page's Manage, for whoever runs
   it; closed → open is Reopen (Back to the draft).
 - 2026-10-22: Once everyone's picked, and once it's closed, the page is the teams: no ticker, no Next line, no

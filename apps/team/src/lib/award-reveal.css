@@ -1,5 +1,5 @@
 /*
- * The awards' reveal (ADR 0074): every beat's timing and motion in one place, to tune or swap. The awards page sets
+ * The awards' reveal (ADR 0129): every beat's timing and motion in one place, to tune or swap. The awards page sets
  * `.award-reveal` on the stage (`.finale` while the champions' card is up); its card (lib/AwardStage) and the button
  * under it (pages/Awards) use these. Each beat plays from the change of state, so every phone sees the same moments.
  *

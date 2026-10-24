@@ -1,5 +1,5 @@
 <script lang="ts">
-  // One step back in a tournament's workflow (ADR 0074, lib/step-back.ts), from whichever Manage offers it: the
+  // One step back in a tournament's workflow (ADR 0127, lib/step-back.ts), from whichever Manage offers it: the
   // tournament's own, or the Draft page's for the draft's steps. How much it asks follows what's lost: nothing (the
   // draft reopened, sign-up open again, a draft with no picks yet) goes at once; what can be done again (the fixtures,
   // the drawn order) is a quiet question; what's gone for good (results and goals, captains' picks) says what, counted,

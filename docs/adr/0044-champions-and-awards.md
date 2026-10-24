@@ -93,7 +93,7 @@ counted, for one edition and across a series' editions (#47). The website's stat
 ### Revealed at the after-party
 
 - Then the reveal: the evening a tournament ends, whoever runs it reveals the confirmed winners one at a time, in the
-  order listed, at its after-party (ADR [0074](0074-tournament-home-and-scheduling.md)): `tournaments.awards_revealed`
+  order listed, at its after-party (ADR [0129](0129-the-after-party-and-the-reveal.md)): `tournaments.awards_revealed`
   counts how many are out, and until an award is out a member isn't sent its winner that evening (nor shown a
   provisional pick in its place). From 06:00 the next morning every confirmed winner is everyone's again.
 

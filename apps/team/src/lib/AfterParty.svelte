@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The after-party (ADR 0074): the evening a tournament ends, its last status. Everyone's at the afterwards (the
+  // The after-party (ADR 0129): the evening a tournament ends, its last status. Everyone's at the afterwards (the
   // Kumite's The Anchor), so the page is the pub after the film's last match: warm brass on the carbon, the Kumite's
   // motif kept. Where everyone is; the awards, a big card to their own page (pages/Awards, the stage where they're
   // revealed one at a time), with everyone who played voting on it and whoever runs it confirming them on it too

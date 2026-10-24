@@ -1,4 +1,4 @@
-// An admin moves the Kumite to any of its statuses at once (Move to…, ADR 0074): Sign-up open, Draft open, Teams set,
+// An admin moves the Kumite to any of its statuses at once (Move to…, ADR 0127): Sign-up open, Draft open, Teams set,
 // Fixtures set, KUMITE!, The Anchor. Back undoes every step in between, in one go; forward does the jobs in between, the
 // draft's rest chosen at random (one keeper a team, the captains on their own), its captains told. The page says the
 // status it saw, so a second admin's move from a page that's out of date is refused; every move is one entry on the

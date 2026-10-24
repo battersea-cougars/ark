@@ -1,4 +1,4 @@
-// When a tournament's sign-up opens (ADR 0074, 0108), members hear it once: on the day it's set to open, from the cron,
+// When a tournament's sign-up opens (ADR 0128, 0108), members hear it once: on the day it's set to open, from the cron,
 // or straight away when an admin opens it by hand. The Kumite is invitation-only, as in Bloodsport, so its notification
 // is an invitation ("An invitation has arrived"); any other tournament says its sign-up's open. Opened again (Back to
 // Sign-up open), it isn't news. Driven through the real handlers and the cron in the fake world (ADR 0031).

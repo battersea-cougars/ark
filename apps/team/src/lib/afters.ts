@@ -1,4 +1,4 @@
-// The after-party (ADR 0074): the evening a tournament ends, everyone at its afterwards (the Kumite's The Anchor), and
+// The after-party (ADR 0129): the evening a tournament ends, everyone at its afterwards (the Kumite's The Anchor), and
 // whoever runs it reveals the awards one at a time, in the order listed (ADR 0044). How many are out is the
 // tournament's (`awardsRevealed`); the Worker sends a member an award's winner only once it's out.
 import type { Tournament } from "../demo/model";
@@ -37,7 +37,7 @@ export function revealOf(
 }
 
 /**
- * The awards page's one card (ADR 0074): which award it shows and which face. Before any's out, the first, sealed;
+ * The awards page's one card (ADR 0129): which award it shows and which face. Before any's out, the first, sealed;
  * each reveal turns it face up; Next award moves on to the next, sealed; after the last it stays on the last (the
  * champions, as the Kumite lists them), face up.
  */
@@ -56,7 +56,7 @@ export const isFinale = (a: { decidedBy?: { kind: string; stat?: string } } & { 
 export type Card = { at: number; face: "sealed" | "up" };
 
 /**
- * What's under the awards page's card (ADR 0074): whoever runs it (`manage`) has the one button, everyone else a
+ * What's under the awards page's card (ADR 0129): whoever runs it (`manage`) has the one button, everyone else a
  * line. Before they're confirmed, Confirm the awards (everyone else is waiting); sealed, Reveal (The champions for
  * the finale); face up, Next award, till the last; then nothing, and the winners listed under it.
  */
@@ -92,7 +92,7 @@ export function toConfirmOf(t: Pick<Tournament, "awards" | "teams" | "votes">, c
 }
 
 /**
- * The beat a change of card plays (ADR 0074), so every phone sees the same moments: the card it showed sealed now
+ * The beat a change of card plays (ADR 0129), so every phone sees the same moments: the card it showed sealed now
  * face up is the reveal; one face up now the next one sealed is the next card coming in. Anything else (the page
  * opened late, a reload, a step back, a phone that missed a step) plays nothing: it's just where it is.
  */

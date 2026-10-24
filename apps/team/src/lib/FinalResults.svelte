@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The day's end, as the after-party and the awards page show it (ADR 0074): the final table with the stats we
+  // The day's end, as the after-party and the awards page show it (ADR 0129): the final table with the stats we
   // track (played, won, drawn, lost, goal difference, points), the champions first; then the day's results, one line
   // a match, the score in the middle. Brass on the carbon: the page round it sets --brass and --brass-ink.
   import type { Tournament, TournamentType } from "../demo/model";

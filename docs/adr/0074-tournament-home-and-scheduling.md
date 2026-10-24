@@ -1,642 +1,219 @@
-# 0074. A tournament's home follows the day in three acts, and the next one is scheduled from it in a few questions
+# 0074. A tournament's page follows its status: one page per edition, a track of its statuses, a view for each
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-23
-- **Merges:** 0086, 0087, 0088, 0089, 0091
+- **Date:** 2026-10-08 · updated 2026-10-24
+- **Merges:** 0086
 
 ## Context
 
-The Kumite's home stacked cards whatever the day: a date card with sign-up, the draft, the games, the teams, and once
-it was won a champions card above a "Date TBC" card. The settings (status, date confirmed) said one thing and the
-results another. Past Kumites were a list at the bottom.
+The Kumite's home stacked cards whatever the day: a date card with sign-up, the draft, the games, the teams, and once it
+was won a champions card above a "Date TBC" card. The settings (status, date confirmed) said one thing and the results
+another. Past Kumites were a list at the bottom.
 
-Scheduling the next one was the last item in the Manage menu and opened the full editor on four tabs, with the day
-next to series, name, type and season, and the draft's day and captains on the fourth. Sign-up was a status an admin
-had to remember to set. Every new one started at 11:00–16:00, though the Kumite is usually instead of Friday
-training, at its time. And a tournament made by mistake couldn't be removed.
-
-The story: an admin opens the Kumite page and sees the last one. They schedule the next: its day, when sign-up opens,
-the draft's day, its captains. The page then shows the new one, its day obvious, the draft's day obvious or TBC.
+Running a tournament from Manage is [0127](0127-running-a-tournament-from-manage.md), scheduling one
+[0128](0128-scheduling-a-tournament.md), and its after-party and the awards' reveal
+[0129](0129-the-after-party-and-the-reveal.md): all three were part of this record until 2026-10-24.
 
 ## Decision
 
 ### The page follows the tournament, not its settings
 
-- **Its state comes from its games** (`lib/edition.ts`): under way once a game's being scored or has a result, done
-  once every game's played (or an admin marked it finished). Before then, sign-up open or coming up. The day shows
-  once it's confirmed or the games have been played; the season always.
-- **The header carries the when and the where** on every tournament page (`TournamentHead.svelte`), two fixed lines.
-  The first: within a week, how far off leads, big, in the club's red ("TOMORROW · Fri 23 Oct · 7 to 9:30pm"; Today,
+- **Its state comes from its games** (`lib/edition.ts`): under way once a game's being scored or has a result, done once
+  every game's played (or an admin marked it finished). Before then, sign-up open or coming up. The day shows once it's
+  confirmed or the games have been played; the season always.
+- **The header carries the when and the where** on every tournament page (`TournamentHead.svelte`), two fixed lines. The
+  first: within a week, how far off leads, big, in the club's red ("TOMORROW · Fri 23 Oct · 7 to 9:30pm"; Today,
   Tomorrow, This Friday, In 7 days; `countdownOf` in `lib/edition.ts`; a phone drops the hours to keep it one line);
   further off, the date leads with "in 24 days" quiet after it. The second: the place on the map (pin) and, beside it,
   where everyone goes after (a pint glass: "📍Battersea Sports Centre · 🍺The Anchor"); just a season, "Day to be set".
   Its actions, the same on every status: **Rules** (one sheet, a topic a page: Sign-up, The draft, Format, Points,
   Penalties, House rules; `formatAndRules` in `lib/format-rules.ts`, from what's stored and enforced, nothing invented;
   a series' house rules are plain text an admin writes, `tournament_types.house_rules`) and **Manage** (the gear).
-- **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date
-  or just a season is enough). One whose day passed unplayed is still the one, until an admin plays it, moves it or
-  deletes it. The series' other pages show the same one; there's no switcher. Once the last game's
-  played it's history: nothing's on.
-- **With nothing on, the series is one page.** No Fight card, The board, Teams, Draft or History (they're for one
-  that's running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down
-  the side like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard."
-  An admin's **Next Kumite** is on it. Under it, every past one, newest first.
+- **A series opens on its next one** (`currentOf`): the one under way, else the next one not done (a tentative date or
+  just a season is enough). One whose day passed unplayed is still the one, until an admin plays it, moves it or deletes
+  it. The series' other pages show the same one; there's no switcher. Once the last game's played it's history:
+  nothing's on.
+- **With nothing on, the series is one page.** No Fight card, The board, Teams, Draft or History (they're for one that's
+  running), so no strip of pages. The front page says so big, in the series' motif: for the Kumite, 組手 down the side
+  like a film poster with a 拳 hanko stamped on it, the gong, "No Kumite yet. The gong's quiet. Train hard." An admin's
+  **Next Kumite** is on it. Under it, every past one, newest first.
 - **One page, by status** (`Games.svelte`): "Fight Card is confusing if we think of the kumite in stages. It should
-  really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). The tournament
-  is one page: the header, the track of its statuses, then that status's view. Its draft, teams, fixtures and board
-  are no longer pages of their own.
+  really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). The tournament is
+  one page: the header, the track of its statuses, then that status's view. Its draft, teams, fixtures and board are no
+  longer pages of their own.
 - **Every edition has its own address** ("this page is the layout for that specific kumite — the url should reflect
   that", the user, 2026-10-23): `/tournaments/:slug/:id`, its statuses under it (`/:id/sign-up`, `/draft`, `/teams`,
   `/schedule`, `/day`, `/afters`; `lib/edition-address.ts`). The id decides what everything on the page shows: the page
   hands its edition to each status's view (the draft, the teams, the fixtures) rather than each looking up the one on.
-  The series' address, `/tournaments/:slug`, is its front door: with one on it's replaced by that one's address, and
-  so are its old status addresses (`/tournaments/kumite/draft` → `/tournaments/kumite/12/draft`), so the pushes,
-  Home's cards and emails that use them keep working and the address always says which one (`frontDoorTo`,
-  `App.svelte`); with nothing on, it stays No Kumite yet. An edition that's gone goes back to the front door. Not a
-  tab of its own: the Kumite tab opens the front door, so it never sticks on last week's.
-- **The statuses** (`statusOf`, `statusesOf` in `lib/tournament-front.ts`): **Sign-up open** → **Draft open** →
-  **Teams set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started) →
-  **THE ANCHOR** (the after-party, named after its afterwards; **AFTERS** when it has none); teams that enter skip the
-  draft. "Teams set" for both, draft or not: "Teams finalised" didn't fit a phone's track. A draft leaves Sign-up open
-  when sign-up closes (its closing day gone by, or an admin's **Close sign-up**); Draft open is where the order's
-  drawn and the draft opened.
-- **The after-party** ("The evening a Kumite ends: the last step should be the after party", the user, 2026-10-22)
-  starts when the last match is played (or an admin marks it finished) and lasts till 06:00 London the next morning
-  (`atAfters` in `lib/edition.ts`, `londonEvening` in `lib/dates.ts`: before 06:00 it's still the night before's
-  evening). All that time the series' page is still on it, even with the next one scheduled (`currentOf`); then it
-  moves on to the next one or "No Kumite yet", and it's in History. Results typed in on another day, or a tournament
-  with only a season, go straight to history. Home's hero is its card ("At The Anchor · awards", the awards so far),
-  ahead of everything else, as it's on now (`lib/home-feed.ts`, lead kind `afters`).
+  The series' address, `/tournaments/:slug`, is its front door: with one on it's replaced by that one's address, and so
+  are its old status addresses (`/tournaments/kumite/draft` → `/tournaments/kumite/12/draft`), so the pushes, Home's
+  cards and emails that use them keep working and the address always says which one (`frontDoorTo`, `App.svelte`); with
+  nothing on, it stays No Kumite yet. An edition that's gone goes back to the front door. Not a tab of its own: the
+  Kumite tab opens the front door, so it never sticks on last week's.
+- **The statuses** (`statusOf`, `statusesOf` in `lib/tournament-front.ts`): **Sign-up open** → **Draft open** → **Teams
+  set** → **Fixtures set** → **KUMITE!** (the series' own name, on the day or once a match has started) → **THE ANCHOR**
+  (the after-party, named after its afterwards; **AFTERS** when it has none); teams that enter skip the draft. "Teams
+  set" for both, draft or not: "Teams finalised" didn't fit a phone's track. A draft leaves Sign-up open when sign-up
+  closes (its closing day gone by, or an admin's **Close sign-up**); Draft open is where the order's drawn and the draft
+  opened.
+- **The after-party** is the last status: from the last match played (or an admin's finish) till 06:00 London the next
+  morning, the series' page stays on it, even with the next one scheduled; then it's in History. Its view, the awards'
+  stage and the reveal are [0129](0129-the-after-party-and-the-reveal.md).
 - **The track** (`lib/StageTrack`) is a journey: one line through the statuses, filled to where it is and faint after,
-  a node each (done: filled with a tick; where it is: a bigger bright node with a red NOW stamp over it, pulsing in
-  red the whole time the Kumite's running on its day; ahead: hollow). Shape and fill say it without colour. A phone
+  a node each (done: a tick; where it is: lit, pulsing while the Kumite runs on its day; ahead: hollow), each status's
+  name a badge under its node (upright, done quiet, ahead faint). Fill, tick and size say it without colour. A phone
   shows the short names (Sign-up, Draft, Teams, Fixtures, Kumite!). It's also the navigation: a status it's reached
   opens its view, read-only if it's gone by, at its own address under the edition's (`/sign-up`, `/draft`, `/teams`,
-  `/schedule`, `/day`, `/afters`; `viewOf`, `statusHref`); the one being looked at has a solid red bar under it, as a lit tab. Red bar: what you're
-  looking at; node and NOW: where it is. One fixed height, no Next line under it.
+  `/schedule`, `/day`, `/afters`; `viewOf`, `statusHref`); the one being looked at has its badge brought forward (the
+  header stamp's red, bigger, transform only). Badge forward: what you're looking at; lit node and fill: where it is.
+  One fixed height.
 - **The view** has the same shape whatever the status: its one action card for whoever runs it (`lib/DraftStep`:
   Shuffle, Open the draft, Seal the teams, Make the fixtures), members seeing the card without the button or nothing,
   then what it's about. Every other admin job is in Manage. Moving between statuses (a tap on the track, or the status
   moving on: the draft opened, closed, the fixtures made, the day starting) the header and the track stay still, the
-  track's marks slide, and the view slides in from the way you went (forward from the right), the one leaving the
-  other way, stacked in one cell so the area never collapses; less motion, at once. The draw's shuffle stays the draw
-  to open: the same view from sign-up through the picking, for those who run it.
+  track's marks slide, and the view slides in from the way you went (forward from the right), the one leaving the other
+  way, stacked in one cell so the area never collapses; less motion, at once. The draw's shuffle stays the draw to open:
+  the same view from sign-up through the picking, for those who run it.
 
-  | Status       | For whoever runs it               | What's on it                                                                                                                                                          |
-  | ------------ | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-  | Sign-up open | Close sign-up (small, not a card) | the Friday card (`lib/EventCard`: are you in, In / Out, your place), then who's in, waiting and out (`lib/WhosIn`)                                                    |
-  | Draft open   | Draw the order, Open, Seal        | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                                                       |
-  | Teams set    | Make the fixtures                 | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page                              |
-  | Fixtures set | (made again from Manage)          | the matches, a plain list in order of play, each card opening its matchup                                                                                             |
-  | KUMITE!      |                                   | your turn to keep score, a switch (Fight card / The board), the matches as a carousel (`lib/MatchCarousel`) or the board in its place, then where everyone goes after |
-
-| THE ANCHOR | Confirm the awards, then the reveal | where everyone is (🍺 The Anchor · celebration and awards, Map), The awards (a big card to their own page, the stage), Cast your vote till they're confirmed, the final table, the results |
+  | Status       | For whoever runs it                                                                  | What's on it                                                                                                                                                          |
+  | ------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Sign-up open | Close sign-up (small, not a card)                                                    | the Friday card (`lib/EventCard`: are you in, In / Out, your place), the Kumite's invitation (below), then who's in, waiting and out (`lib/WhosIn`)                   |
+  | Draft open   | Draw the order, Open, Seal                                                           | the draft (order, ticker, players, teams) for its captains and whoever runs it; everyone else is fighting blind                                                       |
+  | Teams set    | Make the fixtures                                                                    | every team top to bottom in full (captain, players with positions, the pick quietly, no goalie said), yours first, each opening its page                              |
+  | Fixtures set | (made again from Manage)                                                             | the matches, a plain list in order of play, each card opening its matchup                                                                                             |
+  | KUMITE!      |                                                                                      | your turn to keep score, a switch (Fight card / The board), the matches as a carousel (`lib/MatchCarousel`) or the board in its place, then where everyone goes after |
+  | THE ANCHOR   | Confirm the awards, then the reveal ([0129](0129-the-after-party-and-the-reveal.md)) | where everyone is, The awards, Cast your vote till they're confirmed, the final table, the results                                                                    |
 
 - **Fighting blind**: a draft is its captains' and whoever runs it (ADR [0060](0060-the-draft.md)), so anyone else's
   Draft open view is a card with a blindfold, "Fighting blind" and a line from Settings → Quips ("Fighting blind", the
   first one: "Can't see the draft? Neither could Dux. He did all right."). The Worker never sends them the picks.
-- **The KUMITE! carousel**: every match in order, the one that matters (`currentMatchOf`: on now, else up next, else
-  the last) near the top, brought forward (full size, bright, raised), a sliver of the one before over it and the ones
-  after below, smaller and dim, the depth following the scroll; a thumb scrolls it a match a snap, a desktop has
-  arrows, ↑/↓ and the wheel. It glides to the new current match unless someone's just been looking along it; Back to
-  now when the one in front isn't it, and back by itself once it's been left alone 8 seconds; a tap on a peeking one brings it forward. On a phone a card's stamp (KUMITE!, You
-  are next!, a result) is a sticker on its top edge, so no card is taller for one; the names are one line, plain text
-  (the card opens the match, whose page links both teams, with a chevron); where a team is a link it looks like one.
+- **The KUMITE! carousel**: every match in order, the one that matters (`currentMatchOf`: on now, else up next, else the
+  last) near the top, brought forward (full size, bright, raised), a sliver of the one before over it and the ones after
+  below, smaller and dim, the depth following the scroll; a thumb scrolls it a match a snap, a desktop has arrows, ↑/↓
+  and the wheel. It glides to the new current match unless someone's just been looking along it; Back to now when the
+  one in front isn't it, and back by itself once it's been left alone 8 seconds; a tap on a peeking one brings it
+  forward. On a phone a card's stamp (KUMITE!, You are next!, a result) is a sticker on its top edge, so no card is
+  taller for one; the names are one line, plain text (the card opens the match, whose page links both teams, with a
+  chevron); where a team is a link it looks like one.
 - **The board on the day**: a switch above the fight card, the app's Tabs (Fight card / The board), Fight card first;
   The board shows the table as it stands in the carousel's place, not under it, so the page has one scroll and the
-  carousel the other. The switch never moves, and the cell keeps the carousel's height, so Your next and where
-  everyone goes after stay put; the one coming in slides from its side (less motion: at once). The choice holds while
-  the app's open, never stored. Everyone sees it, once there are matches.
-- **Manage** (the gear) holds every job, a row each, never a menu inside the menu, in the order they're needed: the
-  step it's at first, then Back a step and Move to…, then a captain's own, the settings last. Which jobs it offers
-  follow where the tournament stands, so nothing's there that makes no sense for it (`src/lib/manage.ts
-manageItemsOf`, pinned stage by stage and role by role in `manage.test.ts`). The day is split at the first match
-  started: before it, the fixtures; after it, live.
-
-  | Job                                    | Sign-up | Draft (order drawn, open) | Teams set | Fixtures | Live | After-party     | Who                           |
-  | -------------------------------------- | ------- | ------------------------- | --------- | -------- | ---- | --------------- | ----------------------------- |
-  | The draft's jobs (`lib/draft-jobs.ts`) | Add     | all                       |           |          |      |                 | as each job says              |
-  | Make the fixtures again                |         |                           |           | yes      |      |                 | admin                         |
-  | Confirm the awards / Change the awards |         |                           |           |          |      | till the reveal | admin, awards listed          |
-  | Play out the Kumite (dev only)         | yes     | yes                       | yes       | yes      | yes  |                 | admin                         |
-  | Back to …                              | closed  | yes                       | yes       | yes      | yes  | yes             | admin; runner the draft's     |
-  | Move to… (a captains' draft)           | yes     | yes                       | yes       | yes      | yes  | yes             | admin                         |
-  | Your team (its name and crest)         |         | yes                       | yes       | yes      |      |                 | its captain                   |
-  | Pick log (a captains' draft)           |         | open                      | yes       | yes      |      |                 | whoever runs it, or a captain |
-  | Settings                               | yes     | yes                       | yes       | yes      | yes  | yes             | admin                         |
-
-  The draft's jobs: Undo the last pick, naming it; Add a player; Close it now, only to close early leaving the rest
-  out, the Seal card closing it once everyone's picked; Reset the draft, in red words. The awards are confirmed once
-  every match is played, never before (Confirm till they're confirmed, then Change, till the reveal starts, which the
-  Worker refuses after). Your team and the Pick log are the draft's: once a match is on they go, the pick log staying
-  on the draft's own page (the track's Draft open). A captain sees the gear for those even with nothing else in it.
-  Back a step is the gear's alone, one on the page, for whoever runs the draft too (the draft's three steps). The
-  draft room's gear has the same draft items and Back. A drawer opens only from a tap.
-
-- **The after-party's view** (`lib/AfterParty.svelte`) is the pub after the film's last match: brass on the carbon
-  (a warm glow in place of the red, award names in brass), the motif kept (賞 beside the awards, 優勝 beside the final
-  table). **Two steps** (ADR [0044](0044-champions-and-awards.md)). First the awards are confirmed: everyone who played
-  sees **Cast your vote** (on the KUMITE! day too, once the last match is done) while voting's open; whoever runs it
-  (`manage:Tournament`) confirms them. Then **the reveal**, on the awards' own page. The view has where everyone is,
-  then **The awards**, one big card (`lib/AwardsEntry`): for whoever runs it, till they're confirmed, **Confirm the
-  awards** (how many have voted for each voted award, what's still to choose, the judges' call; opening the drawer),
-  for everyone else Waiting for the reveal; then where the reveal's at; and the way to the page. Then the final table
-  (`lib/BoardTable`, with the stats we track: played, won, drawn, lost, goal difference, points; the champions first,
-  with their ink stamp, then the final's loser, then the table: `finalOrder` in `lib/afters.ts`), and the day's
-  results, a line a match. The page follows the live hub all evening, as it does a match (ADR
-  [0072](0072-live-updates.md)).
-- **The awards' page** (`/tournaments/:slug/awards`, `pages/Awards.svelte`; its way back the Kumite) is a stage ("lets
-  do a full page for the awards", the user, 2026-10-23): **one card, centred, big** (`lib/AwardStage`), the award now,
-  its size fixed, in a room the finale's size from the start, so nothing round it moves and nothing scrolls. Sealed:
-  the award's confirmed name big in brass (the judges' call's name tonight included), what it's for, and over the
-  winner's area the 封 ("sealed") hanko, big, red, worn ink, askew (a series without the motif: a "?"). Under the card, whoever runs it has one button (`cueOf` in `lib/afters.ts`): Confirm the awards
-  (the same drawer) till they're confirmed, then **Reveal** (a tap on the sealed card too), **Next award** once it's
-  out, nothing after the last; everyone else's place says **Waiting for the reveal**, with Cast your vote under it
-  till they're confirmed. **The reveal:** the seal beats like a heart, twice, then its ink drains away, patchy,
-  from the edges in (the "?" fades in its place); then the
-  winner (a team's crest
-  and name, or a player's name and their team) rolls into the winner's area alone, clipped to it, a short motor's roll
-  (slow to start, quicker, a knock as it stops), the award's name staying put; then the 賞 hanko lands
-  (`lib/HankoPress`, the draft's seal with its ink specks). **Next award** dissolves the card (fading, a touch of blur)
-  as the next zooms in from small and faint, landing with a little overshoot, its name settling a beat after,
-  sealed. A judges' call left out as they confirm (ADR [0044](0044-champions-and-awards.md)) isn't on the stage, nor
-  counted: the reveal is the awards given, in order (`awardsToReveal`). **The champions** (the award the table decides, by `decidedBy`, wherever the admin lists it: the reveal
-  keeps their order, the Kumite's champions last) are the finale: a bigger card, ringed in brass, the crest and name
-  a size up; its button says **The champions**, and on it the page darkens round the card and one gong ring of brass
-  goes out from it, a bigger, heavier seal beats twice and drains away, slower, "And your Kumite champions…" holds over the winner's
-  area a moment longer, the crest and name roll in,
-  heavier, 優勝 slams down, and the dark eases out to a warm brass glow. **After the last**, once its beat's landed (the
-  button's place coming back says so), the end: the champions the hero, on the stage as their finale left them
-  (wherever they're listed; the last out, if it wasn't them, dissolving as they come back up; no champions award, no
-  hero); every other award under them a smaller card (`AwardStage` `small`, one card look) in a grid, face up, in the
-  admin's order, a big tie's names in full; then the final table and the day's results, as the after-party has them
-  (`lib/FinalResults`, shared). Live, these fade in after the beat, nothing scrolled to; opened late or reloaded,
-  it's all there at once. The same for everyone. Every beat plays from the
-  change of state (`beatOf`: sealed to face up is the reveal, face up to the next sealed is Next award), so every
-  phone sees the same moments; opened late, reloaded, or a step missed, it's just where it is, nothing replayed; the
-  button stays under the card, dimmed and untappable while the beat plays, lit once it's landed. Every beat's timing is one block (`lib/award-reveal.css`: keyframes and
-  custom properties: the dissolve, the zoom, the heartbeat, the fade, the delay after it, the roll, the hanko, the
-  champions' line, the spotlight), to tune or swap. Reduced motion: crossfades only, no heartbeat, ring, roll or zoom,
-  the champions' line still shown.
-- **Revealing is the server's** (`tournaments.awards_revealed`, how many are out, and `awards_next`, the stage moved
-  on to the next, sealed; `drumOf` in `lib/afters.ts`, the card it shows):
-  `POST /api/tournaments/:id/awards/reveal { next }` names the award the tap saw sealed, by its place in the list;
-  `POST /api/tournaments/:id/awards/next { at }` moves on, `at` how many were out. Only once the last match is played
-  and the awards are confirmed (409 otherwise); each one `UPDATE` guarded on the count and the card where the tap saw
-  them, so a double tap or two phones at once move it once, the second tap finding it moved and doing nothing (ADR
-  [0121](0121-load-and-concurrency.md)); a tap from a page further behind is refused. On the record as `tournament.award_revealed` (how many out, which one) and
-  `tournament.award_next`. **A member isn't sent an award's winner on its evening until it's revealed** (the club
-  read's `viewer` has the evening and who runs tournaments, as the blind draft keeps its picks); from 06:00 every
-  winner is history. The first one out tells everyone with the app, once ("Awards at The Anchor", topic
-  `announcements`); the rest they see on the page.
-- **History** is a quiet link at the foot; so is, on the Kumite, "Don't get the references? You've got some training
-  to do." (the film, "Required viewing").
-- **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front
-  page itself when nothing's on): each
-  with how it ended (the day, the champions, the final's score), each opening its own page (`/tournaments/:slug/:id`;
-  History's old `/history/:id` goes there): the same page as the one on, its header and its track, every status it
-  reached a tap away and read-only where it's over, its eyebrow the way back to the list ("‹ All Kumites"). Its
-  after-party's view, any day after its evening, is its results (`lib/EditionResults`: the champions, the final, every
-  fight, the board, the leaders, the awards); its draft, once it's all played, is everyone's to look back on, not just
-  its captains'. Its teams' and games' pages work from there too and go back to its page, not today's.
-- The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under
-  Friday's; before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
+  carousel the other. The switch never moves, and the cell keeps the carousel's height, so Your next and where everyone
+  goes after stay put; the one coming in slides from its side (less motion: at once). The choice holds while the app's
+  open, never stored. Everyone sees it, once there are matches.
+- **Manage** (the gear) holds every admin job, following where the tournament stands: what it offers at each stage, a
+  step back and Move to… are [0127](0127-running-a-tournament-from-manage.md). Scheduling the next one, sign-up's
+  opening day and deleting one are [0128](0128-scheduling-a-tournament.md).
+- **History** is a quiet link at the foot; so is, on the Kumite, "Don't get the references? You've got some training to
+  do." (the film, "Required viewing").
+- **Past ones are History**, a row at the foot of the front page while the next one's on or coming up (the front page
+  itself when nothing's on): each with how it ended (the day, the champions, the final's score), each opening its own
+  page (`/tournaments/:slug/:id`; History's old `/history/:id` goes there): the same page as the one on, its header and
+  its track, every status it reached a tap away and read-only where it's over, its eyebrow the way back to the list ("‹
+  All Kumites"). Its after-party's view, any day after its evening, is its results (`lib/EditionResults`: the champions,
+  the final, every fight, the board, the leaders, the awards); its draft, once it's all played, is everyone's to look
+  back on, not just its captains'. Its teams' and games' pages work from there too and go back to its page, not today's.
+- The app's **Home asks about each series' next one** while it takes sign-ups, a card with In and Out under Friday's;
+  before then it's teased as a line in Home's feed ([0118](0118-home-calls-to-action-then-feed.md)).
 - **Once it's started, who's in is an admin's to change**: "once the kumite goes live, the player cannot remove
   themselves. only the admin can adjust it. it has fees implications" (the user, 2026-10-23). Started is what the page
-  calls under way (`hasStarted` in `lib/edition.ts`, `worker/tournaments/started.ts`): marked live or finished
-  (KUMITE!, The Anchor), or a match being played or played, whatever its status says. From then a member's own In or
-  Out (`POST /api/tournaments/:id/answer`) is refused with a 409 ("The Kumite's started: ask an admin to take you
-  off."), inside the statements that write it ([0121](0121-load-and-concurrency.md)), so one landing as it goes live
-  is refused or done whole; their place, their team and their charge ([0007](0007-dues-and-payments.md): charged from
-  its day, an unpaid one goes when they do) stay as they are. The app shows where they stand without the button: the
-  header's answer sheet says "The Kumite's started · Ask an admin to change it" in Can't make it's place, a card's In
-  and Out are that line, the same height. An admin's Add player and take-off (`/players`, update:Event) work as ever.
-  Before it starts nothing changes: a drafted player already goes through an admin once the draft's closed, a captain
-  always.
-
+  calls under way (`hasStarted` in `lib/edition.ts`, `worker/tournaments/started.ts`): marked live or finished (KUMITE!,
+  The Anchor), or a match being played or played, whatever its status says. From then a member's own In or Out (`POST
+/api/tournaments/:id/answer`) is refused with a 409 ("The Kumite's started: ask an admin to take you off."), inside
+  the statements that write it ([0121](0121-load-and-concurrency.md)), so one landing as it goes live is refused or done
+  whole; their place, their team and their charge ([0007](0007-dues-and-payments.md): charged from its day, an unpaid
+  one goes when they do) stay as they are. The app shows where they stand without the button: the header's answer sheet
+  says "The Kumite's started · Ask an admin to change it" in Can't make it's place, a card's In and Out are that line,
+  the same height. An admin's Add player and take-off (`/players`, update:Event) work as ever. Before it starts nothing
+  changes: a drafted player already goes through an admin once the draft's closed, a captain always.
 - **Your next match on Home** too: it's Home's lead card when it's your soonest thing (ADR 0118), with its day and
   pitch.
-- **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first
-  word ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the
-  first keeps its own, a later one takes its next letters, never another team's own.
-- **After:** the champions (crest, name, how they won it), the final, every match, the awards: its own page's after
-  view, reached from Past Kumites, with the series' page back to nothing on.
+- **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first word
+  ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the first keeps
+  its own, a later one takes its next letters, never another team's own.
+- **The Kumite's sign-up is an invitation** (`lib/KumiteInvite`; only the Kumite, `invitationOnly` in `lib/motif.ts`:
+  every other tournament and Friday stay plain): Bloodsport's Kumite is invitation-only, so a member who hasn't answered
+  gets a dark card sealed with the club's red wax (招), "You've been invited to the Kumite", the day, time and place,
+  Accept or Decline (the same calls as In and Out). Accepting breaks the seal and the card becomes your pass:
+  "Admission", your name as a poster, "By invitation only" and your number (your place in the sign-up order), an
+  ADMITTED ink stamp (a faint RESERVE on a reserve's); across its middle TELL NO ONE., then "Not your mates. Not your
+  mum. No one…" landing a phrase at a time, then the switch, an aside ("ok, tell your mates. We need 6 more.", or full,
+  "maybe tell your physio. That knee's dodgy."); on its torn-off stub "Can't make it?" and Punk out ("Punk out? Tanaka
+  will be disappointed."). Declined, a quiet line and Accept. Every face takes the same space. The pass stays on the
+  Sign-up view once you're in or a reserve, through the day; Punk out goes once it's started. The words are a secret
+  invitation, not a real fight: no "fighter" in what members read; the header's answer is "Admitted · No. 2". Home asks
+  "You've been invited to the Kumite".
+- **Ink stamps** (`lib/InkStamp`) say a status and a match's state: the header's status is one stamp in the club's red,
+  its kanji in a block of ink, patchy and askew (KUMITE! filled; the after-party and Done in bone; no green). A Kumite's
+  match up next always says You are next! (with 次 when it's your team's, faint otherwise); a win is bone with 勝, a draw
+  faint with 分; the match being played wears 組手 KUMITE!, glowing and breathing while it's on; the champions wear 優勝. A
+  card's stamp sits in one fixed box, so nothing shifts as one gives way to the next. The stage track's badges stand
+  upright (slanted they read as buttons); the header's stamp keeps its tilt.
+- **A record is written 1-0-0 · 3 Pts** (won-drawn-lost, then points), on the match cards, the matchup, the teams' list
+  and the board, all through `lib/TeamRecord`; the board's rows each link to the team.
+- **Your answer** is a badge in the header (You're in, Waiting, You're out) opening a sheet with Can't make it; the
+  In/Out card is only for those who haven't answered.
 
 ### The Kumite's motif
 
-It's Bloodsport (`lib/motif.ts`): kanji beside its section headings (組手, 決勝, 試合, 闘, 賞), a red 優勝 hanko
-seal on the champions' crest, and a gong for its matches. The kanji come from Noto Serif JP Black (SIL Open Font
-License) cut to just those characters (under 5 KB, self-hosted). Other series have no motif. Its draft for the
-uninvited is Dux fighting blind (Chong Li's powder), and its page's foot sends the newcomer to watch the film.
+It's Bloodsport (`lib/motif.ts`): kanji beside its section headings (組手, 決勝, 試合, 闘, 賞), a red 優勝 hanko seal on the
+champions' crest, and a gong for its matches. The kanji come from Noto Serif JP Black (SIL Open Font License) cut to
+just those characters (under 5 KB, self-hosted). Other series have no motif. Its draft for the uninvited is Dux fighting
+blind (Chong Li's powder), and its page's foot sends the newcomer to watch the film.
 
-### An admin's jobs
-
-- **Manage** on the series page (a bottom sheet on a phone, a side drawer on a desktop, ADR
-  [0065](0065-page-frame-and-admin-actions.md)) holds what has no page of its own: the tournament's settings (day,
-  sign-up, captains and draft day, rules, awards) and Confirm the awards. The draft is run on its own tab and the
-  fight card made on its own, so neither is in the menu.
-- **An admin can always step it back one step** (Manage: one item, "Back to …", while there's a step before it).
-  The steps are the front page's track and the draft's own (`src/lib/step-back.ts`, the same for the app and the
-  Worker); teams that enter skip the draft's:
-
-  | It's at                      | Back to                     | What goes                                                           | Asked                   |
-  | ---------------------------- | --------------------------- | ------------------------------------------------------------------- | ----------------------- |
-  | awards revealed (The Anchor) | before the awards           | the reveals: every award face down again (results, winners stay)    | no                      |
-  | a match started or played    | the fight card, not started | results, goals, penalties, clocks, scoresheets; the playoffs' teams | red, counted            |
-  | the fight card out           | the teams                   | the fixtures (made again the same)                                  | quietly                 |
-  | a draft closed               | the draft, open             | nothing                                                             | no                      |
-  | the draft open               | the drawn order             | the picks so far ("Draft paused" to its captains)                   | red, counted (none: no) |
-  | the order drawn              | before the draw             | the order                                                           | quietly                 |
-  | sign-up closed               | sign-up open                | the admin's close, and a closing day gone by                        | no                      |
-
-  **Close sign-up** (`POST /api/tournaments/:id/signup/close`, manage:Tournament, audited `tournament.signup_closed`)
-  records when, on its own (`signup_closed_at`), its dates left as they were; sign-up is over once that's set or its
-  closing day's gone by (`lib/signup.ts signupOver`, the app and the Worker alike): one guarded statement, only while
-  sign-up is open with nothing drawn or made (ADR 0121); Back to Sign-up open clears it. A save checks the sign-up
-  dates against each other only when they change, so dates already stored closing before they open never stop one.
-
-  `POST /api/tournaments/:id/step-back { from }` says which step it's leaving; it's refused (409) if the tournament
-  has moved on since, so a tap from a page that's out of date never takes a second step. Each is one batch whose
-  statements only do anything while it's still at that step, so two taps at once step back once
-  ([0121](0121-load-and-concurrency.md)). An admin (`manage:Tournament`) steps back any step; whoever runs the draft
-  (`run:Draft`) the draft's three, from the Draft page's Manage. It's on the record as `tournament.stepped_back`, with
-  the step and the picks, order, matches, results and goals before and after. Only an open draft stepped back is
-  news: each captain hears "<tournament> Draft Paused"; nothing else is sent. The awards an admin confirmed stay.
-
-- **An admin can move a captains' draft to any status at once** (Manage: "Move to…", beside the step back): a sheet
-  on a phone, a side drawer on a desktop, listing its six statuses (Sign-up open, Draft open, Teams set, Fixtures set,
-  KUMITE!, The Anchor), the one it's at marked, each saying what moving there will do or why it can't. A tap asks
-  first, listing every step in order. The plan is `src/lib/move-to.ts planMove`, the same for the app and the Worker:
-  - **Back** any number of statuses is the steps back above, in order, in one batch: "3 results and 11 goals deleted,
-    the fixtures cleared, the draft reopened"; its confirm's tap is the red-filled "Move back". Off the day (KUMITE!
-    or The Anchor) the status goes back to open; The Anchor back to KUMITE! is "the day under way again" (marked
-    finished undone; every match played, their results go too). On its day, Fixtures set is KUMITE!, so it isn't one
-    to move back to.
-  - **Forward** is the jobs in between, as an admin would do them: sign-up closed (if open), the order drawn, then
-    the draft opened (Draft open); or, for Teams set and on, **everyone still to pick chosen at random** (the user,
-    2026-10-23: in production too), for the team on the clock in snake order, a goalie first while the team has none,
-    never a second (one a team), captains on their own teams, a goalie no team can take left out
-    (`draft.ts setTeamsAtRandom`, the simulator's choosing as a real use case), each pick naming the admin, and the
-    draft closed; the fixtures made in a fair order (Fixtures set); marked under way, status `live`, so the first
-    match can start (KUMITE!); marked finished, status `finished` (The Anchor; matches not played stay unplayed; the
-    awards are still confirmed and revealed by hand). Refused before anything changes when it can't be done (too few
-    signed up for the draft, too few teams for the playoffs).
-
-  `POST /api/tournaments/:id/move { from, to }` (manage:Tournament) sends the status the admin's page saw; it's
-  refused (409) if the tournament has moved on since, so of two admins at once one moves and the other is told to
-  look again. Back is one batch whose every statement only does anything while it's at that step; a step that finds
-  nothing to do means someone got there first, and it's a 409 (ADR [0121](0121-load-and-concurrency.md)); forward is
-  the jobs' own use cases in turn, each with its own guards, the random picks and the close one batch. One entry on
-  the record, `tournament.moved`: the status and the picks, matches, results and goals before and after, and what was
-  done, in words. Live to every open page; captains hear a draft opened or paused as they would from the Draft page,
-  and "<tournament> Teams Set: the draft's closed, the rest were chosen at random" when it was.
-
-- **When nothing's coming up** (the last one's been played, or there's never been one), an admin sees **Next
-  Kumite** as the main button on the page, in the big "No Kumite yet". This is the one admin button on the page
-  outside Manage.
-
-### Scheduling the next one in a few questions
-
-- A new date in a series opens on its questions as a wizard, a step at a time (`TournamentQuickCreate.svelte`, ADR
-  [0117](0117-wizards-for-multi-step-creates.md)):
-  1. **When:** the season, a day or none for TBC, and Starts and Ends filled in from the series.
-  2. **Sign-up:** when sign-up opens (today by default) and, a draft series only, the draft's day (optional).
-  3. **Captains** (a draft series only, optional): the whole club in a list as Add player has it, a search narrowing
-     it and an Add on each row (Added once picked; Enter adds the first match). The captains so far sit above the
-     search as chips with a ×, on one line that scrolls sideways so the list never moves. They're a set, not an
-     order: the pick order is drawn when the draft starts. Too few for the playoffs is said at the foot.
-  4. **Check:** each answer in words, with Change back to its step.
-- Only the season is needed, so every step is open from the start; hours the wrong way round, or sign-up or the
-  draft after the day, hold it on that step and the foot says why.
-- **Schedule it** creates it and closes the panel on the page, which now shows the new one.
-- **The rest comes from the series:** its name, fee, place, rules, awards and playoffs; status planned. The server
-  fills in what a new one leaves out (hours, status, the series' fee, rules), so the quick form sends only what it
-  asked.
-- **Advanced** (at the wizard's foot, and on Check) opens the full editor with the answers filled in. **Back to the questions** returns to them, keeping
-  what was changed there. A one-off tournament (no series) and Settings → Tournaments use the full editor.
-- **A series has usual hours** (`tournament_types.default_start_time`, `default_end_time`, defaulting to
-  11:00–16:00), set in its settings (Settings → Tournament Series → When, where and fee) beside its place and fee.
-  Each new tournament starts with them and can change them. The seed has the Kumite at Friday training's hours
-  (19:30–21:30). A tournament's hours change only when an admin edits them: the matches starting early or late, or on
-  another day, never move them (each match keeps its own actual start, [0061](0061-fixtures-games-and-scoring.md)).
-- **The draft has a day, not a time** (`draft_on`). It's a reminder for the captains, on their calendar as a day; an
-  admin messages them when it opens (ADR [0060](0060-the-draft.md)).
-
-### Afterwards, and where it is
+### Where it is, and where everyone goes after
 
 - **The header's place opens the map**, and beside it where everyone goes after (see the header above).
 - **A series has an afterwards** (`tournament_types.after_venue_id`, `after_time`, `after_note`): a saved venue, an
-  optional time and what for. The Kumite's is The Anchor, for the celebration and awards (the seed), so every Kumite
-  has it without anyone retyping it. Set in the series' Defaults (Afterwards), beside its place and hours.
+  optional time and what for. The Kumite's is The Anchor, for the celebration and awards (the seed), so every Kumite has
+  it without anyone retyping it. Set in the series' Defaults (Afterwards), beside its place and hours.
 - **A tournament follows it, or not** (`tournaments.after_mode`): `usual` (its series', the default), `own` (its own
-  `after_venue_id`, `after_time`, `after_note`) or `none` (not this time). Its editor's Details has Afterwards: Usual,
-  a venue, or None this time. A save that leaves it out keeps what it had. Only a saved venue counts, and the API
-  refuses one that doesn't exist. One rule, `afterOf` in `packages/shared/places.ts`, for the app and the agenda.
-- **The page says it in the header** before the day and on it; in the KUMITE! view, once the last match is on, it's
-  Then (`afterMomentOf`), with a Map button; once every match is played it's the after-party's own status, its view
-  leading with it as Now.
+  `after_venue_id`, `after_time`, `after_note`) or `none` (not this time). Its editor's Details has Afterwards: Usual, a
+  venue, or None this time. A save that leaves it out keeps what it had. Only a saved venue counts, and the API refuses
+  one that doesn't exist. One rule, `afterOf` in `packages/shared/places.ts`, for the app and the agenda.
+- **The page says it in the header** before the day and on it; in the KUMITE! view, once the last match is on, it's Then
+  (`afterMomentOf`), with a Map button; once every match is played it's the after-party's own status, its view leading
+  with it as Now.
 - **The day's calendar entry says it** in its description ("Afterwards: The Anchor, from 9:45pm. Celebration and
   awards."), so the website's What's on does too.
 
-### Sign-up opens on a day
-
-- `tournaments.signup_opens_on`: from that day (London) members can say they're in, until the end of the closing day
-  (`signup_closes_on`, ADR [0030](0030-training-and-tournament-schedule.md)). An admin can still open it by hand
-  (status `open`).
-- **One rule** shared by the app and the Worker (`lib/signup.ts`, `signupOpen`): open by hand, or planned and past its
-  opening day; never after its closing day. The Worker refuses an early "in" with the day it opens.
-- The full editor has it on Sign-up, beside the closing day. It can't be after the tournament's day, and sign-up
-  can't close before it opens.
-
-### Deleting a tournament
-
-- **Delete is in the tournament's editor** (Settings → Tournaments, or from its page): a quiet red Delete at the start
-  of the footer. Tapping it asks there, in so many words ("Delete it? Its teams, sign-ups and results go too."), with
-  Keep it and a red Delete, the one red fill.
-- **The database deletes it, not the Worker** (`DELETE /api/tournaments/:id`, `manage:Tournament`): one
-  `DELETE FROM tournaments`, and the schema's `ON DELETE CASCADE`s take its sign-ups, teams and their players, games
-  and goals, and the awards' winners. D1 enforces foreign keys, as does the SQLite the tests use. Work the database
-  can do stays out of a Worker's CPU time (ADR [0059](0059-usage-page-and-check.md)).
-- **Its agenda rows go by syncing it away.** The agenda points at a tournament by `source` and `source_id`, with no
-  foreign key, so the Worker removes them (ADR [0042](0042-website-reads-the-club-agenda.md)).
-
 ## Consequences
 
-- A tournament's status matters less: an admin needn't mark it live or finished, or open sign-up, for the page to
-  move on.
-- A past one has an address of its own, so it can be shared.
-- Scheduling the next one is one button and up to four steps.
-- Tournaments made before sign-up had a day have no opening day, so they wait for an admin as before. A series made
-  before it had hours keeps 11:00–16:00 until an admin sets them.
-- There's no undo for a delete. A played tournament's results go with it, so the question says so.
-- A new table that belongs to a tournament needs `ON DELETE CASCADE` to its tournament (or its team or game), or a
-  delete leaves it behind; the use-case test checks no team's players are left over.
+- A tournament's status matters less: an admin needn't mark it live or finished, or open sign-up, for the page to move
+  on.
+- Every edition has an address of its own, so it can be shared, and a past one reads as it did on the night.
+- The page's look is the Kumite's own (the motif, the invitation, the stamps); another series gets the plain page.
 
 ## History
 
-- 2026-10-08: The home page follows the day in three acts, its state from its games; the header carries the when;
-  past ones move to History; the series opens on its next one with Last time; Manage gathers an admin's jobs; the
-  Kumite gets its motif (was 0074).
-- 2026-10-08: The before act says less: no lede, no "not final" hint, captains as discs, and Last time goes once the
-  next one is set (was 0086).
-- 2026-10-09: The next one is scheduled in three questions from a Next Kumite button when nothing's coming up; Manage
-  keeps only what has no page; the draft has a day, not a time (`draft_time` dropped). It also amended ADR 0065 to
-  allow that button outside Manage (was 0087).
-- 2026-10-09: An admin deletes a tournament, the cascade doing the work (was 0088).
-- 2026-10-09: Sign-up opens on a day, asked as a new second question (was 0089).
-- 2026-10-09: A series has usual hours, shown in the first question; the Kumite at Friday training's (was 0091).
-- 2026-10-20: With nothing on, the series is one page: no Fight card, board, Teams, Draft or History; a big "No Kumite
-  yet" in the motif with an admin's Next Kumite, and every past one under it. The last one played no longer holds the
-  front page (`currentOf`); its after act is its own page in History.
-- 2026-10-21: The questions are a wizard (lib/Wizard, ADR 0117): When, Sign-up (with the draft's day), Captains with
-  the whole step to find them in, then Check. Captains can be moved up the pick order.
-- 2026-10-21: Captains are picked from the whole club's list with an Add on each row, shown as chips; no pick order
-  is set here, since it's drawn when the draft starts.
-- 2026-10-21: Home asks "Are you in for the Kumite?" right after Friday while sign-up is open, and teases it in its
-  feed before ([0118](0118-home-calls-to-action-then-feed.md)).
-- 2026-10-21: A running one's tabs follow its stage (sign-up, the draft, the teams, the fixtures) and say less
-  (Kumite, Fights, Board), so they fit an iPhone: My team is no longer a tab (Teams has yours first), nor History
-  while one's running (a row at the foot of the front page); hidden pages keep their links, under the front page.
-- 2026-10-21: The front page follows the stage, each leading with one thing: sign-up (are you in), the draft (the
-  draft card, your sign-up a line), the teams set (your team, then the others, "Draft done" in a line), the fixtures
-  out (your next fight, then the first up and the teams); what's had its day goes. The header's stamp is the stage
-  (Sign-up open, Draft live, Teams set, Fight night, KUMITE! on the day). Your next fight is on Home too.
-- 2026-10-21: The fixtures out, the front page leads with the date (the day, its hours and how far off, under the
-  title) and one fight card: every game a compact row in order of play (time, the two teams, the game's number), yours
-  in red, the next marked Up next, the score once there is one; more than six, yours and the next, then Full fight
-  card. It replaces "Your next fight" and "First up" there (Home keeps its own). The stamp says FIXTURES OUT until
-  the day, then KUMITE!; no more Fight night. Crests skip a generic first word ("Team Charlie" CH) and never share
-  initials within a tournament. The teams lose See all, every team being on the page.
-- 2026-10-22: Each stage is obvious: a track of the stages (Sign-up, Draft, Teams, Fight card, KUMITE!) leads the
-  front page with what's next under it. The teams are no longer listed on the front page (their tab, and a quiet
-  link at the foot); before the day it shows the first match (and yours), on the day only the match on now and the
-  next (no latest results, no separate Your next fight). The tab is "Fight card", not "Fights", and History's page
-  says "Fight card", not "Every fight".
-- 2026-10-22: Back a step, from any step, in Manage: one item, asking as much as it costs; one route that says the
-  step it's leaving and is one batch.
-- 2026-10-22: The header's place is a map link. A series has an afterwards (a saved venue, an optional time, what
-  for), the Kumite's The Anchor for the celebration and awards; a tournament keeps its series', has its own, or none
-  this time. The front page says it before the day as a quiet line, as Then once the last match is on, and as Now
-  that evening; the day's calendar entry says it too.
-- 2026-10-22: The track of its stages replaces the tabs as the series' navigation, under the header on every running
-  page (the front page, Draft, Teams, Fight card, The board): each step opens its page (Sign-up the front page till the
-  fight card's out, then KUMITE! does), the page you're on marked apart from the stage it's at; no strip, and no bar
-  above the header on a phone. The board and History are links from the front page (the board from the fight card too).
-- 2026-10-22: One page, by status ("It should really be a status: Draft Open, Draft Completed, Fixtures Created,
-  Kumite!", the user): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!. The draft, teams, fight card and
-  board pages go; their addresses show their status on the one page. The track is a journey with a NOW node (pulsing
-  while it runs) and the navigation (a red bar for the status you're looking at); views slide between statuses. The
-  header leads with how far off within a week and carries the afterwards beside the place; Rules (a topic each, with
-  house rules) and Manage are its only buttons, the draft's own Rules, Pick log and Manage going into them. Members
-  fight blind through the draft; the teams set are listed in full; the fixtures are a list, the day a carousel.
-- 2026-10-22: "When undoing some of kumite steps as admin - the drawer keeps opening on its own" and "even when picking
-  a player during the draft - the drawer opened" (the user): the draft handed its Manage opener up from an effect that
-  returned it, so Svelte ran it as the effect's teardown on every change (a pick, a step back). The effect returns
-  nothing now (lib/effects.test.ts keeps it so), and Back a step is one, in the gear, for whoever runs the draft too;
-  its question keeps the step it asked about while it closes.
-- 2026-10-22: The track keeps its nodes (done: a crisp tick; where it is: lit, pulsing while the Kumite runs) with each
-  status's name a badge under it; the badge of the status you're looking at comes forward (red, bigger, transform
-  only), no NOW stamp and no red bar, and the track measures the same on every view. Your answer is a badge in the
-  header (You're in, Waiting, You're out) opening a popover (a sheet on a phone) with Can't make it, saying what it
-  means for your team; the In/Out card is only for those who haven't answered. A match card's stamp sits inside it, top
-  right, and the live card has no Live button (the card opens the live page). The KUMITE! carousel has more depth and a
-  sheen on the match in front. The fixtures made while you watch are dealt in, the status's badge stamped in.
-- 2026-10-22: "Why is add player behind the manage draft setting?" (the user): no Manage the draft drawer inside the
-  gear. The draft's jobs are the gear's own rows (lib/draft-jobs.ts, done by lib/DraftJobs.svelte), the step's jobs
-  first, then Back, Your team and Pick log, the settings last; Confirm the awards only once there are results.
-- 2026-10-22: "The evening a Kumite ends: the last step should be the after party. Something in theme with The Anchor
-  in mind. The admin reveals the award winners one at a time." (the user). A sixth status, the after-party (THE
-  ANCHOR, or AFTERS), from the last match played till 06:00 the next morning, the page and Home's hero holding it
-  meanwhile; its view in brass (where everyone is, the awards face down and turned over one at a time live, the final
-  table champions first, the results). Revealing is server state (`awards_revealed`), one guarded statement a tap,
-  audited; members aren't sent a winner before it's out; the first out is pushed once. Back a step from it turns every
-  award face down again and keeps the results: going back to KUMITE! itself would mean un-playing the last match, which
-  is the results step, still there once nothing's revealed.
-- 2026-10-22: On dev and locally, Manage → Play out the Kumite plays the rest at random through the real draft and
-  scoring, to the after-party with the awards provisional, to try it without scoring every match
-  ([0123](0123-dev-only-tools.md)).
-- 2026-10-23: "When in sign-up mode, the CTA for the admin is 'Draw the order' for the draft, which is confusing since
-  we're in sign-up. There should be a smaller CTA instead that closes the sign-up and advances to the draft." (the
-  user). Sign-up open's admin action is a small Close sign-up under the card, not the draw's step card; closing it
-  (now, a route of its own, or by its closing day) moves a draft on to Draft open, where Draw the order is; Back to
-  Sign-up open opens it again.
-- 2026-10-23: "As a member, the sign-up card should be styled like the Friday training card." (the user). Sign-up
-  open is the Friday card (lib/EventCard: are you in, In / Out, your number), then Who's in with the Kumite's kanji.
-- 2026-10-23: The header's status "lacks imagination" next to your answer, both green (the user). The status is one
-  ink stamp in the club's red, the status's kanji in a block of ink, the ink patchy, the edge uneven, askew; every
-  status alike, KUMITE! filled; the after-party and Done in bone; no green. Your answer is your choice, not a status:
-  a tick (red) or a cross, plain words, a caret; it steps aside while the sign-up card is on the page. Rules is a
-  topic a page ("Pages would be better" than scrolling to it): the tabs, a swipe on a phone, the topics either side at
-  the foot; it opens on the status's topic; each rule leads with its fact in bold, its figures standing out.
-- 2026-10-23: Close sign-up moved the closing day to yesterday, so sign-up that opened today then closed before it
-  opened, and every later save of the tournament (starting a match moves it to now) was refused. An early close is now
-  its own record, `signup_closed_at`, the dates left alone; Back to Sign-up open clears it; and a save checks the
-  sign-up dates against each other only when it changes them, so a tournament already stored that way still saves.
-- 2026-10-23: The Kumite's sign-up is an invitation, as an object (Bloodsport's Kumite is invitation-only): a dark card
-  sealed with the club's red wax (招), "You've been invited to the Kumite", the day, time and place, Accept or Decline
-  (the same calls as In and Out). Accepting breaks the seal and the card becomes your fighter's pass: Fighter No. 07
-  (your place in the sign-up order), your name in the poster type, 組手, the day, Withdraw with a confirm; on the
-  waitlist a reserve's pass; declined, a quiet line and Accept. Every face takes the same space. Who's in is The
-  fighters, numbered, with Reserves and Declined; the header's answer says Fighter No. 7, Reserve No. 3 or Declined;
-  Home asks "You've been invited to the Kumite" / "Accept the invitation". A tournament's sign-up opening is now told
-  to members once (topic `places`): on its opening day by the cron, or as an admin opens it by hand (or makes it open),
-  marked `signup_told_at`; the Kumite's reads "An invitation has arrived", "The Cougars Kumite, Fri 23 Oct.". Only the
-  Kumite (lib/motif.ts invitationOnly); every other tournament and Friday stay plain.
-- 2026-10-23: One ink stamp (lib/InkStamp) for the status and the match cards: a Kumite's match up next always
-  says You are next! (Chong Li's line, the club's joke, never "Up next"), a red stamp with 次 stamped down as it shows
-  when it's your team's, faint otherwise; a win bone with 勝, a draw faint with 分 (red stays for yours and what's on). One vocabulary for a record: the table's columns, W D L then Pts, the same letters and figures under a team on
-  a card and its matchup (lib/TeamRecord: 1W 0D 0L · 3 Pts), never "1-0-0" or "1W 0D 0L" without points. The board's
-  rows are each a link to the team, the chevron at the row's end, a long name cut short. A page under the series' front
-  page (a team, a match, History, an edition) has its way back as the header's eyebrow, "‹ The Cougars Kumite", a
-  quiet button top left over the title, in place of a link under the header.
-- 2026-10-23: An admin can move a captains' draft to any status at once (Manage, Move to…): back any number of
-  statuses is the steps back in order, in one batch, its confirm listing what's undone with a red-filled Move back;
-  forward does the jobs in between, and Teams set chooses everyone still to pick at random, in production too (one
-  goalie a team, captains told). `POST /api/tournaments/:id/move { from, to }`, refused with a 409 when the page is out
-  of date, audited `tournament.moved` (from, to, what was done).
-- 2026-10-23: Once a tournament's started (marked live or finished, or a match played), a member can't say they're out
-  or in: the server refuses it in the statement that writes it, and the app shows their place with "Ask an admin to
-  change it"; an admin's Add player and take-off are unchanged ("it has fees implications", the user).
-- 2026-10-23: The KUMITE! carousel goes back to the current match by itself, 8 seconds after it was last touched,
-  scrolled or hovered, so a phone left on an old match catches up.
-- 2026-10-23: The match being played wears the status's live ink stamp (組手 KUMITE!, the block of red) in place of
-  the outlined badge with a dot, and it breathes, its glow swelling and fading, for as long as the match is on.
-- 2026-10-23: No "fighter" in what members read (the user's call): the header's answer is "You're in · No. 7", the
-  pass "Your pass" with "You're in · No. 07", Who's in keeps its own heading, the invitation counts "12 in". Reserves
-  are still Reserve No. 3. The carousel's sliver of the match before is 4.5rem, so Back to now (and opening) shows
-  enough of it to read as a card above the one in front.
-- 2026-10-23: The champions wear an ink stamp like the match cards' (bone, 優勝, "Kumite Champions": the series' short
-  name), on the board and the after-party's final table, in place of the trophy badge; on the final table the points
-  keep their own last column, so the champions' stamp never pushes theirs out of line, and they read Pts as
-  everywhere else.
-- 2026-10-23: The pass speaks for a secret, invitation-only night, not a real fight (it's a hockey tournament
-  playing at being the Kumite): "Admission", "Admitted · No. 02" (the header's answer "Admitted · No. 2"), signed off
-  "Tell no one." in place of "See you on the mat."; the number a size smaller, so it no longer dwarfs the name.
-- 2026-10-23: "When the admin is revealing the awards … bring each card up one at a time", then "how about the admin
-  taps the card to reveal" (the user). The after-party's awards come up one at a time: what's out face up, the next one
-  sealed (the question mark and 賞), the rest empty numbered slots with their room kept, so nothing moves. Whoever runs
-  it taps the sealed card itself to reveal it (Tap to reveal: the award's name; Enter or Space too), in place of the
-  Reveal the next award card, which stays only to confirm the awards first; everyone else's sealed card says Waiting for
-  the reveal. Each reveal flips the card over for everyone watching, brings it into view, and the next sealed card rises
-  in; with reduced motion the face and the next card fade in instead.
-- 2026-10-23: The pass is stamped: an ADMITTED ink stamp (招, red, askew) lands in its corner as it turns over, a
-  faint RESERVE for a reserve, in place of the red 組手 seal; the name is a poster, the page titles' heavy italic
-  capitals with the red slash under them; "No. 02" is a small line under "By invitation only", not the headline. Who's
-  in's rows turn the player's card over (PlayerCardZoom), as Friday's do.
-- 2026-10-23: The pass's middle is its one rule as a poster: TELL NO ONE. in worn italic capitals, "Not your mates.
-  Not your mum. No one." under it; its foot is a stub torn off along a dashed line, with "Can't make it?" and Punk out
-  (in place of Withdraw), whose confirm asks "Punk out? Tanaka will be disappointed." (Dux's master in the film).
-- 2026-10-23: The pass's rule gets its switch a beat after the bait: "…OK, tell your mates. We need 6 more." (the
-  places left), or, full, "…OK, tell your mum. She can watch."
-- 2026-10-23: The pass's rule is revealed a phrase at a time as it shows, each pressed down like an ink stamp (TELL NO
-  ONE., then Not your mates., Not your mum., No one.), the switch last after a beat; with less motion, all at once.
-- 2026-10-23: The rule's phrases are rubber-stamped words (the poster face in worn ink, each askew), one to a line,
-  pressed down about a second apart for the drama: TELL NO ONE., Not your mates., Not your mum., No one., then the
-  switch.
-- 2026-10-23: A tournament's hours change only when an admin edits them, never by its matches starting early, late or
-  on another day; the card shows a match's actual start once it's on (0061).
-- 2026-10-23: No stamp effect on the bait after all: under TELL NO ONE. the phrases take turns in one place, each
-  shown and gone before the next (Not your mates., Not your mum., No one.), then the switch, which stays; with less
-  motion they're all shown, one to a line.
-- 2026-10-23: Then the reveal the user settled on: TELL NO ONE. and each phrase under it fly in and land like a stamp
-  (InkStamp's land, without the ink), one at a time about a second apart, the switch last after a beat, and all of
-  them stay; with less motion all are there at once.
-- 2026-10-23: Slower, and the bait on one line (Not your mates. Not your mum. No one.) with the switch under it: the
-  phrases land about 1.4s apart, the switch 2s after the last.
-- 2026-10-23: The bait's phrases in the club's red (said in earnest); the switch an aside, small italic in the body
-  face, quiet grey, fading in after them, no stamp.
-- 2026-10-23: The switch drops its "…OK": "Unless they can skate. We need 6 more.", or, full, "Except your mum. She
-  can watch."
-- 2026-10-23: Full, the switch is "Except your physio. That knee's dodgy."
-- 2026-10-23: Back to "ok", lower case, no ellipsis: "ok, tell your mates. We need 6 more.", or, full, "ok, tell your
-  physio. That knee's dodgy."
-- 2026-10-23: "No one…" trails off into the switch, and the three land a second apart.
-- 2026-10-23: The match being played wears a stamp like the rest (組手 KUMITE!, red outline, worn ink), glowing and
-  breathing, not a filled block. A card's stamp sits in one fixed box whichever it is, so nothing shifts as one gives
-  way to the next, and the one taking over flies in and lands (one already there when the page opens just sits).
-- 2026-10-23: A record is written 1-0-0 (won-drawn-lost) then the points, 1-0-0 · 3 Pts, on the match cards, the
-  matchup and the teams' list, all through lib/TeamRecord (the user's call, replacing 1W 0D 0L); one line on a phone.
-- 2026-10-23: On the day the board's there from the fixtures (everyone on nothing), moving live as each result comes
-  in, and a "The board" button under the carousel brings it into view.
-- 2026-10-23: Your pass stays on the Sign-up view once you're in or a reserve, after sign-up closes and through the
-  day, not only while it's open (Punk out goes once it's started, as before).
-- 2026-10-23: A split-flap board, like the old scoreboards, in place of the flip and the burn: an award turned over
-  stays put, its face becomes a dark board, and the award's name and then the winner (a team, "Shared by 3", "Nobody
-  this time") clack in, each character a flap turning through a few others (seeded by the text, so everyone watching
-  sees the same) and settling left to right, then the 賞 hanko lands; about 2s, long names clacking faster and wrapping
-  whole words, shrinking to fit; with reduced motion the words are just there. `lib/SplitFlap` is shared, for the draft
-  or a scoreboard later. "That's the Kumite. See you at the next one." is gone (the user), and the after-party's brass
-  glow fades out inside its own box on every side, with no edge.
-- 2026-10-23: The awards' board, simpler: no flaps and no fade to black. The face-up card, its words on dark tiles
-  (lib/BoardWords), rolls down over the sealed one in one roll, like a scoreboard's drum (slow to start, quicker, a
-  knock as it stops), then the 賞 hanko lands. Every winner's name sits on the same line across the cards (a line under
-  it always kept), a team's crest level with its name.
-- 2026-10-23: The awards' words drop the clock-like tiles: the poster's italic capitals (the award in brass, the
-  winner bone), fitting the card.
-- 2026-10-23: A sealed award card says which award it is, big, for everyone (the brass capitals the face-up card has,
-  in the same place); the question mark is who took it, and the admin's cue is just "Tap to reveal".
-- 2026-10-23: One machine: the sealed card rolls down and away on the same drum as the face-up one rolls in.
-- 2026-10-23: Full, the switch is "maybe tell your physio. That knee's dodgy."
-- 2026-10-23: Each award says how it's decided (ADR 0044); the Kumite's are listed joke first, champions last (The
-  Judges' Call, Top scorer, Best goalie, Champions). The after-party is two steps: Confirm the awards (Cast your vote
-  for members meanwhile, the votes counted and the judges' call made as it's confirmed, which closes voting), then the
-  reveal. The reveal is one card, a drum: Tap to reveal rolls it face up, Next award on to the next, sealed, every
-  phone following ("it still changes state slighty and there seems to be some auto scrolling going on … maybe
-  instead we just do it one card at a time", the user); no scrolling, no dimmed cards; the winners so far under it.
-  The champions (the table's award) are the finale's bigger card, its room kept from the start. The final table
-  has the stats we track (`lib/BoardTable`), not points alone.
-- 2026-10-23: "the worfklow is still not there. lets do a full page for the awards. the admin can have a button under
-  the award to go to the next award. dissolve the last, and zoom ireavel the next card. the admin then clicks to
-  reveal … make the ? part of the card disappear, then start the roll maybe?" and "the whole workflow needs to be a
-  little more dramatic" (the user). The awards get a page of their own, a stage (`/tournaments/:slug/awards`): one
-  card, the admin's button under it (Reveal, Next award, The champions), everyone else Waiting for the reveal; the
-  "?" beats and fades, then only the winner rolls in; Next award dissolves the card as the next zooms in; the
-  champions' finale darkens the page round the card, a gong ring, "And your Kumite champions…", 優勝 slammed down,
-  then a brass glow. Every beat's timing in `lib/award-reveal.css`. The after-party keeps where everyone is, a big
-  The awards card (Confirm the awards on it till they're confirmed), Cast your vote, the final table and the
-  results; the drum and the winners so far move to the page. The reveal keeps the admin's order ("ohh - it's
-  configrable! no that is better", the user): the champions' finale is theirs wherever they're listed. A judges' call
-  left out as they confirm isn't revealed at all: the reveal is the awards given (`awardsToReveal` in
-  `lib/awards.ts`, the Worker's count and the page's alike; everyone's sent which awards were given, never who to).
-- 2026-10-23: The board is a switch above the fight card (Fight card / The board), in the cards' place, so there's
-  one scroll; the ghost "The board" link under the carousel and the board under it are gone.
-- 2026-10-23: Manage follows the stage (`lib/manage.ts`, the table above, tested stage by stage and role by role):
-  live, it offered Confirm the awards (once any match had a result), Your team and the Pick log; now the awards are
-  the after-party's alone (Change the awards once confirmed, till the reveal), and Your team and the Pick log end when
-  the first match starts. Whoever runs the draft gets Back to Draft open from Teams set too, as the Worker allows.
-- 2026-10-23: The awards page's end, as the user asked: the champions the hero, up on the stage; every other award
-  a smaller card in a grid under them, face up; then the final table and the results (`lib/FinalResults`, the
-  after-party's too). The winners list and its link are gone.
-- 2026-10-23: The awards page's button stays in place while a beat plays, dimmed and untappable, and lights up once it's
-  landed; it no longer vanished and came back, which read as a delay.
-- 2026-10-23: The finished Kumite's page (the after-party, every award out) shows the awards themselves, the champions
-  the hero and the rest in a grid (`lib/AwardsWon`, the awards page's end too), in place of the awards card; the awards
-  page's end has the way back to the Kumite's page in its button's place.
-- 2026-10-23: After Next award the button wakes once the card's landed (`--next-beat-ms`, under a second), not after a
-  reveal's full wait.
-- 2026-10-23: The sealed award card's "?" is the 封 hanko (`awardSealed` in `lib/motif.ts`, added to the kanji
-  subset): stamped over the winner's area, it keeps the heartbeat, then breaks in two down a jagged crack and the halves
-  fall away (`--break-ms`, in place of the fade, `lib/award-reveal.css`); the champions' bigger and heavier. Less motion,
-  a crossfade; a series without the motif keeps the "?"; the grid's cards, face up, never show it.
-- 2026-10-23: Close sign-up is back for whoever runs it on the Kumite's sign-up view, under the invitation (it had
-  gone with the invitation card, 88e4cdd); it stays the view's, not Manage's, like each step's action.
-- 2026-10-23: The 封 seal no longer cracks in two (too literal): after its heartbeat its worn ink drains away from the
-  edges in (`--drain-ms`), slower for the champions.
-- 2026-10-23: The stage track's badges stand upright: no italic, and the one you're on no longer tilts (bigger only, in
-  the red outline). Slanted, they read as buttons; the header's stamp keeps its tilt, being ink.
-- 2026-10-23: The after-party (The Anchor, its awards) is the evening it was played, not the evening of its date: its
-  last match's kick-off's (lib/edition.ts playedOn). A match starts on any day, so a Kumite dated next summer (or by
-  season only) played tonight went straight to history, "No Kumite yet", its awards unreachable. Results typed in
-  with no match kicked off keep to its own day.
-- 2026-10-23: The last award revealed, it's Done (the stamp), but its page stays its results, the track and every
-  status to look back through, till the morning after its evening (lib/edition.ts atAfters); then the series' page
-  is back to Nothing on the card with Next Kumite, and it's first in Past Kumites.
-- 2026-10-23: Every edition has its own address, `/tournaments/:slug/:id`, its statuses under it ("I should always be
-  able to enter prior kumite and see that timeline", the user): the one page, its track and every status it reached,
-  for the one on or any past one, the id deciding what each view shows. The series' address (and its old status
-  addresses) is replaced by the one on's; with nothing on it's No Kumite yet. Past Kumites and History open a past
-  one's page; `/history/:id` goes there, and the separate History page per edition (`pages/Edition`) is gone: its
-  results are the after view's once the evening's over (`lib/EditionResults`). A past one's draft is everyone's. Its
-  teams', matchups' and games' ways back go to their own edition's page; their addresses stay as they were.
-- 2026-10-23: A Kumite whose day passed unplayed stays the one its pages are on until an admin plays, moves or deletes
-  it; it had vanished ("No Kumite yet") once an earlier one was done (#169).
+- 2026-10-08: The page follows the day, its state from its games; the header carries the when; past ones move to
+  History; the series opens on its next one; the Kumite gets its motif (was 0074).
+- 2026-10-08: The before act says less: no lede, captains as discs (was 0086).
+- 2026-10-20: With nothing on, the series is one page: a big "No Kumite yet" with every past one under it.
+- 2026-10-21: Home asks about the Kumite while sign-up is open, and teases it before
+  ([0118](0118-home-calls-to-action-then-feed.md)).
+- 2026-10-21: The front page follows the stage, each leading with one thing; crests skip a generic first word and never
+  share initials.
+- 2026-10-22: A track of the stages leads the page and replaces the tabs as its navigation.
+- 2026-10-22: The header's place is a map link; a series has an afterwards, The Anchor for the Kumite, which a
+  tournament keeps, replaces or skips.
+- 2026-10-22: One page, by status (Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!); members fight blind
+  through the draft; the fixtures are a list and the day a carousel; Rules and Manage are the header's only buttons.
+- 2026-10-22: The track's status names are badges under the nodes, the one you're looking at brought forward (no NOW
+  stamp or red bar); your answer is a badge in the header, the In/Out card only for those who haven't answered.
+- 2026-10-23: Sign-up open is the Friday card; the header's status is an ink stamp; Rules is a topic a page.
+- 2026-10-23: The Kumite's sign-up is an invitation that becomes your pass; a tournament's opening is told once.
+- 2026-10-23: One ink stamp for the status and the match cards (You are next!, 勝, 分).
+- 2026-10-23: Once it's started, who's in is an admin's to change ("it has fees implications", the user).
+- 2026-10-23: The carousel goes back to the current match by itself after 8 seconds.
+- 2026-10-23: No "fighter" in what members read; the pass is "Admission", stamped ADMITTED, its rule TELL NO ONE.
+  landing a phrase at a time, then the switch; Punk out on its stub.
+- 2026-10-23: The champions and the match being played wear ink stamps; a stamp sits in one fixed box.
+- 2026-10-23: A record is written 1-0-0 · 3 Pts, through `lib/TeamRecord`.
+- 2026-10-23: The board is a switch above the fight card on the day, in its place, live from the fixtures.
+- 2026-10-23: The track's badges stand upright.
+- 2026-10-23: Every edition has its own address (`/tournaments/:slug/:id`), its statuses under it; the series' address
+  is its front door; a past one's draft is everyone's.
+- 2026-10-23: A Kumite whose day passed unplayed stays the one until an admin plays, moves or deletes it (#169).
+- 2026-10-24: Split: Manage's jobs to ADR 0127, scheduling to 0128, the after-party and reveal to 0129; History
+  shortened to a line per change; the invitation, the stamps and the record's format, which had been only in History,
+  stated in the Decision, and the track as it is (badges, no NOW stamp).

@@ -1,4 +1,4 @@
-// Moving a captains' draft to any of its statuses at once (ADR 0074): Sign-up open, Draft open, Teams set, Fixtures
+// Moving a captains' draft to any of its statuses at once (ADR 0127): Sign-up open, Draft open, Teams set, Fixtures
 // set, KUMITE!, The Anchor. Shared by the app (the list in Manage, what each move will do, in words) and the Worker
 // (the same plan, then done). Back is the steps back (lib/step-back.ts) in order, as many as it takes; forward is the
 // jobs in between, as an admin would do them by hand: sign-up closed, the order drawn, the draft opened, the rest

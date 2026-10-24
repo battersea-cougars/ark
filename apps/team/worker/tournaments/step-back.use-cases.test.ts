@@ -1,4 +1,4 @@
-// An admin steps a tournament back one step of its workflow (ADR 0074, 0060), whatever step it's at: the stages its
+// An admin steps a tournament back one step of its workflow (ADR 0127, 0060), whatever step it's at: the stages its
 // front page shows (sign-up, the draft, the teams, the fight card, the day) and the draft's own (the order drawn, the
 // draft open). Each step back undoes the step before it and no more, says which step it's leaving (`from`), so a tap
 // on a page that's out of date is refused, and is one batch. Driven through the real Worker handlers in the fake
