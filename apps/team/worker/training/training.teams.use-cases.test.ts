@@ -194,7 +194,7 @@ describe("the team maker lets someone in from the waiting list", () => {
     expect(after.going).toEqual([f.mo, f.reg, f.wes]);
     expect(after.waitlist).toEqual([]);
     expect(w.pushes).toEqual([
-      expect.objectContaining({ token: "wes-phone", title: "You're in", path: "/training/friday" }),
+      expect.objectContaining({ token: "wes-phone", title: "You're in", path: `/training/friday/${f.session.heldOn}` }),
     ]);
     const record = w.db.raw.prepare("SELECT action FROM audit_log WHERE action = 'signups.changed'").all();
     expect(record).toHaveLength(1);

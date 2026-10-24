@@ -27,7 +27,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 /** What members' phones were told about tournaments (a training night opening the same Monday is its own news). */
-const told = () => w.pushes.filter((p) => p.path !== "/training/friday");
+const told = () => w.pushes.filter((p) => !p.path.startsWith("/training/friday/"));
 
 /** A phone with the app, signed in as this member. */
 async function phone(email: string) {

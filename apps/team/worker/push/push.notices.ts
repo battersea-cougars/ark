@@ -9,8 +9,9 @@ import { announcementSummary } from "../announcements/announcements";
 import { nth } from "../../src/lib/draft";
 import { markTold, signupOpenNotice } from "../tournaments/signup";
 import { firstCharacters } from "../../src/lib/text";
+import { nightPath } from "../../src/lib/night-off";
 
-/** A training night as a notification names it (its day), and where it is in the app. */
+/** A training night as a notification names it (its day), and where it is in the app: its own page. */
 async function sessionOf(db: D1Database, sessionId: number) {
   const s = await first<{ heldOn: string; slug: string }>(
     db,
@@ -18,7 +19,7 @@ async function sessionOf(db: D1Database, sessionId: number) {
      WHERE s.id = ?`,
     [sessionId],
   );
-  return s && { name: formatDayDate(s.heldOn), path: `/training/${s.slug}` };
+  return s && { name: formatDayDate(s.heldOn), path: nightPath(s.slug, s.heldOn) };
 }
 
 /** Who's in and who's waiting for an event, in its one order (aheadIn). */
@@ -40,7 +41,9 @@ interface Moved {
   eventId: number;
   name: string;
   heldOn: string | null;
-  path: string;
+  /** A training night's series (its page is the night's own, nightPath); for the rest, `path` is where it is */
+  slug: string | null;
+  path: string | null;
 }
 
 /**
@@ -58,17 +61,17 @@ async function placesMoved(c: Ctx): Promise<Notice[]> {
   const [taken] = await batch<Moved>(db, [
     statement(
       db,
-      `SELECT a.member_id memberId, a.moved, 'session' kind, s.id eventId, ts.name, s.held_on heldOn,
-         '/training/' || ts.slug path
+      `SELECT a.member_id memberId, a.moved, 'session' kind, s.id eventId, ts.name, s.held_on heldOn, ts.slug,
+         NULL path
        FROM attendance a JOIN training_sessions s ON s.id = a.session_id JOIN training_series ts ON ts.id = s.series_id
        WHERE a.moved ${where}
        UNION ALL
-       SELECT e.member_id, e.moved, 'tournament', t.id, t.name, NULL, COALESCE('/tournaments/' || ty.slug, '/')
+       SELECT e.member_id, e.moved, 'tournament', t.id, t.name, NULL, NULL, COALESCE('/tournaments/' || ty.slug, '/')
        FROM tournament_entries e JOIN tournaments t ON t.id = e.tournament_id
          LEFT JOIN tournament_types ty ON ty.id = t.type_id
        WHERE e.moved ${where}
        UNION ALL
-       SELECT e.member_id, e.moved, 'event', t.id, t.title, NULL, '/calendar'
+       SELECT e.member_id, e.moved, 'event', t.id, t.title, NULL, NULL, '/calendar'
        FROM club_event_entries e JOIN club_events t ON t.id = e.event_id
        WHERE e.moved ${where}
        ORDER BY kind, eventId, moved, memberId`,
@@ -101,7 +104,7 @@ async function placesMoved(c: Ctx): Promise<Notice[]> {
         says: "waitlist",
         title: "On the waitlist",
         body: `You're on the waitlist for ${formatDayDate(m.heldOn!)}, ${place}: a Quarterly Member took the last place.`,
-        path: m.path,
+        path: pathOf(m),
       });
       continue;
     }
@@ -113,13 +116,16 @@ async function placesMoved(c: Ctx): Promise<Notice[]> {
       says: "in",
       title: "You're in",
       body: youreIn(m),
-      path: m.path,
+      path: pathOf(m),
     };
     (notice.to as number[]).push(m.memberId);
     up.set(key, notice);
   }
   return [...up.values(), ...down];
 }
+
+/** Where a move is in the app: a training night's own page, or the event's. */
+const pathOf = (m: Moved) => (m.slug ? nightPath(m.slug, m.heldOn!) : (m.path ?? "/"));
 
 /** A member's place on one event, for the debounce: in, bumped and in again within it is one thing, and nothing new. */
 const placeKey = (m: Moved) => `places:${m.kind}:${m.eventId}`;

@@ -103,7 +103,7 @@ describe("what the club tells them", () => {
         token: "token-reg@example.com",
         title: "Teams are out",
         body: "Fri 9 Oct: you're on Black.",
-        path: "/training/friday",
+        path: `/training/friday/${NEXT_FRIDAY}`,
       }),
     ]);
   });
@@ -153,7 +153,11 @@ describe("what the club tells them", () => {
     await dana.call("POST", `/api/sessions/${session.id}/cancelled`, { cancelled: true });
 
     expect(w.pushes).toEqual([
-      expect.objectContaining({ token: "token-reg@example.com", title: "Fri 9 Oct is off", path: "/training/friday" }),
+      expect.objectContaining({
+        token: "token-reg@example.com",
+        title: "Fri 9 Oct is off",
+        path: `/training/friday/${NEXT_FRIDAY}`,
+      }),
     ]);
     // Putting it back on isn't news to send
     w.pushes.length = 0;
@@ -286,7 +290,7 @@ describe("a place taken by a Quarterly Member", () => {
         token: "token-reg@example.com",
         title: "On the waitlist",
         body: "You're on the waitlist for Fri 9 Oct, first in line: a Quarterly Member took the last place.",
-        path: "/training/friday",
+        path: `/training/friday/${NEXT_FRIDAY}`,
       }),
     ]);
 

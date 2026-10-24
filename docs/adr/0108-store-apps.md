@@ -198,3 +198,5 @@ Three things shape it:
   so it costs no round trip. "Sign-up's open" (a training night's, a tournament's, the Kumite's invitation) skips
   those who've answered already, read in the statement that marks it told: one who said Out, or was put in, isn't
   told; taking back an Out puts you among those told ([0030](0030-training-and-tournament-schedule.md)).
+- 2026-10-24: A notification about one training night opens that night's own page (`/training/{series}/{date}`,
+  [0030](0030-training-and-tournament-schedule.md)), not the series' page.

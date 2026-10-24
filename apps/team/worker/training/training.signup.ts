@@ -4,6 +4,7 @@
 // already: said Out before it opened (taking it back puts them among those told), or put in by an admin.
 import { all } from "@cougars/shared/d1";
 import { londonToday } from "../../src/lib/dates";
+import { nightPath } from "../../src/lib/night-off";
 import { notify, type PushEnv } from "../push/push";
 
 const longDay = (day: string) =>
@@ -44,7 +45,7 @@ export async function announceOpenSignups(env: PushEnv, now: Date) {
       key: `signup-open:${n.slug}:${n.heldOn}`,
       title: `${n.name}: sign-up's open`,
       body: `Say you're in for ${longDay(n.heldOn)}.`,
-      path: `/training/${n.slug}`,
+      path: nightPath(n.slug, n.heldOn),
     })),
     now,
     0,

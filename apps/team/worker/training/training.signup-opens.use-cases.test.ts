@@ -137,7 +137,8 @@ describe("members hear it's open", () => {
     expect(w.pushes[0]).toMatchObject({
       title: "Friday Training: sign-up's open",
       body: "Say you're in for Friday 16 October.",
-      path: `/training/${f.series.slug}`,
+      // The night's own page, not the series'
+      path: `/training/${f.series.slug}/2026-10-16`,
     });
   });
 

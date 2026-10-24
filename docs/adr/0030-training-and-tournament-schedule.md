@@ -288,3 +288,6 @@ Tournaments (the schedule, a card per tournament), Tournament Series (the series
 - 2026-10-23: A member's own In or Out locks once training has started, not only once it's over (decided with #11);
   the page shows the night as started, then over, with no In or Out, which had stayed and then refused (#167). The
   register and admins still change who's in.
+- 2026-10-24: A notification about one night (you're in, on the waitlist, it's off, the teams are out, its sign-up's
+  open) opens that night's page (`nightPath`, lib/night-off.ts, shared with the Worker), not the series' front page,
+  which by then may be showing the next night. No email links to a night.

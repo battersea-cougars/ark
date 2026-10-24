@@ -65,7 +65,12 @@ async function fullFriday() {
 }
 
 const youreIn = (email: string, body = PLACE) =>
-  expect.objectContaining({ token: `token-${email}`, title: "You're in", body, path: "/training/friday" });
+  expect.objectContaining({
+    token: `token-${email}`,
+    title: "You're in",
+    body,
+    path: `/training/friday/${NEXT_FRIDAY}`,
+  });
 
 describe("moving up off a training's waiting list", () => {
   it("someone says they're out: the first waiting hears they're in, and nobody else hears a thing", async () => {
@@ -246,7 +251,7 @@ describe("bumped to the waiting list", () => {
         token: "token-mo@example.com",
         title: "On the waitlist",
         body: "You're on the waitlist for Fri 9 Oct, first in line: a Quarterly Member took the last place.",
-        path: "/training/friday",
+        path: `/training/friday/${NEXT_FRIDAY}`,
       }),
     ]);
   });
