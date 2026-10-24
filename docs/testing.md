@@ -123,6 +123,7 @@ to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
 | Journey                          | The story                                                                                                 | Time   |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
 | `calendar.journey.ts`            | A one-off on the calendar, the clash prompt, called off; the locker room; notification switches; how soon | ~45 s  |
+| `fees.journey.ts`                | A Friday's fee as it changes: from a Friday, the day after, a day apart, back in time, £0, the clocks     | ~1.2 m |
 | `fridays.journey.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
 | `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
 | `kumite.on-the-clock.journey.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
@@ -145,7 +146,7 @@ than the retention allows (`retention.forget`), and everyone's signed out.
 
 ```sh
 npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
-npm run journeys -- --core          # the core run: all but the Kumite on the clock (about 5 minutes)
+npm run journeys -- --core          # the core run: all but the Kumite on the clock (about 6 minutes)
 npm run journeys -- --file-issue    # and a run with failures files one GitHub issue (label regression)
 npm run journeys -- --keep          # leave the app up after, to look around (npm run app stop team)
 ```
@@ -157,9 +158,10 @@ nightly on `main`, the full one on a push to `release`, either by hand) a failin
 failing at the same commit comments on it. A step that fails because of a known bug is
 `knownBug(…)`, as `it.fails` is below.
 
-**How long.** The full run is 9½ to 12½ minutes (23 October 2026, the machine shared), most of it the simulator's
-pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fridays`,
-`kumite`, `members`, `pages`, `sign-in`: about 5 minutes, `--core`) every night on `main`, and the **full** run, with
+**How long.** The full run is 10½ to 13½ minutes (23 October 2026, the machine shared; the Fees journey added a
+minute on the 24th), most of it the simulator's
+pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fees`,
+`fridays`, `kumite`, `members`, `pages`, `sign-in`: about 6 minutes, `--core`) every night on `main`, and the **full** run, with
 `kumite.on-the-clock` (its three played-out Kumites), before a release (a push to `release`).
 
 ## Known bugs

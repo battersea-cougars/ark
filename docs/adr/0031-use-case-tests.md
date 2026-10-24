@@ -78,7 +78,7 @@ How to write them: [docs/testing.md](../testing.md).
   (label `regression`) to review: fix the code, or change what the journey expects. `npm run journeys` locally prints
   it and files nothing unless asked.
 - **Two runs: core and full.** The core run (`npm run journeys -- --core`) is every journey but the Kumite on the
-  clock, about 5 minutes; the full run adds it (its three played-out Kumites), 9½ to 12½.
+  clock, about 6 minutes; the full run adds it (its three played-out Kumites), 10½ to 13½.
 - **CI** (`.github/workflows/journeys.yml`): the core run nightly on `main` (some time after 02:41 UTC), so a broken
   flow shows up the morning after it merged, not at the release; the full run on a push to `release`, beside the
   deploy, never required by it; either by hand (`workflow_dispatch`). A run failing at a commit an open issue is
@@ -93,7 +93,7 @@ How to write them: [docs/testing.md](../testing.md).
 - Use cases are slower than unit tests (a fresh SQLite per world), still well under a second each.
 - A broken flow shows up as a step with a role and an expected/actual, before a release, without holding it up.
 - A journey run is minutes, not seconds, so it never runs on every push; the use cases stay the everyday net. A full
-  run is 9½ to 12½ minutes and the core one about 5, on GitHub's free runners for a public repo: no Actions minutes
+  run is 10½ to 13½ minutes and the core one about 6, on GitHub's free runners for a public repo: no Actions minutes
   spent. A break that only the Kumite on the clock sees waits for the release's run.
 - Journeys meet the real clock unless they move both: a dev-only header the Worker reads, so the API has a way in
   that production fails closed on (`api.dev-clock.use-cases`). A journey that moves the clock leaves what it made
@@ -118,3 +118,5 @@ How to write them: [docs/testing.md](../testing.md).
 - 2026-10-24: ADR 0124 (test levels) merged in. The fake world's facts brought up to date: it is `testWorld` in
   `apps/team/worker/testing.ts`, its D1 is the schema and seed, and it fakes Gmail, Turnstile, Sentry, Firebase and
   web push.
+- 2026-10-24: The Fees journey (a Friday's fee as it changes: from that Friday, the day after, a day apart, back in
+  time over a closed and paid night, £0, the clocks) joins the core run, about 6 minutes now (was 5).
