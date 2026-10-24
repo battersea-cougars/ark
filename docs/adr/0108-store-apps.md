@@ -1,7 +1,7 @@
 # 0108. The team app in the app stores: a native shell that loads the live app, with notifications; iOS first, Android-ready
 
 - **Status:** Accepted
-- **Date:** 2026-10-11 · updated 2026-10-23
+- **Date:** 2026-10-11 · updated 2026-10-24
 
 ## Context
 

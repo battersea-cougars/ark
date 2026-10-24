@@ -1,7 +1,7 @@
 # 0106. The database is backed up nightly and before every schema change, sealed, kept 90 days as GitHub artifacts
 
 - **Status:** Accepted
-- **Date:** 2026-10-10
+- **Date:** 2026-10-10 · updated 2026-10-24
 
 ## Context
 
