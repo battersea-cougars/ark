@@ -1,7 +1,8 @@
-// Settings → Website (#107): the website's state and Rebuild now, for whoever may edit the website (ADR 0024).
+// Settings → Website (#107): the website's state, Rebuild now and Refresh photos and videos (#109), for whoever may edit
+// the website (ADR 0024).
 import { type Route } from "../api/api.route";
 import { json } from "../api/api.http";
-import { websiteTime } from "@cougars/shared/website-times";
+import { markWebsiteTime, websiteTime } from "@cougars/shared/website-times";
 import { rebuildNow } from "./website";
 import { websiteStatus } from "./website.status";
 
@@ -23,6 +24,18 @@ export const WEBSITE_ROUTES: Route[] = [
     handle: async (c) => {
       const result = await rebuildNow(c.env, new Date(c.now));
       return json({ result, ...(await websiteStatus(c.env)) });
+    },
+  },
+  {
+    method: "POST",
+    path: /^\/api\/website\/refresh-media$/,
+    action: "edit:Content",
+    // The website reads YouTube and Instagram again on its next visit, within a minute (ADR 0016)
+    audit: { event: "website.media_refreshed", subject: (c) => websiteTime(c.env.DB, "media_refreshed") },
+    changes: ["settings"],
+    handle: async (c) => {
+      await markWebsiteTime(c.env.DB, "media_refreshed", new Date(c.now));
+      return json(await websiteStatus(c.env));
     },
   },
 ];

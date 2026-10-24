@@ -34,6 +34,9 @@ export interface InstagramConfig {
   token: () => Promise<string | null>;
   /** The sample feed when there's no token: anywhere but production */
   fake?: boolean;
+  /** When an admin last pressed Refresh photos and videos (ms, 0 for never; media-refresh.ts): the feed read before
+   * then is read again. */
+  refreshedAt?: () => Promise<number>;
 }
 
 type Deps = CacheDeps & { fetch?: typeof globalThis.fetch };
@@ -117,15 +120,17 @@ async function readFeed(token: string, fetch?: typeof globalThis.fetch): Promise
   };
 }
 
-const feed = (token: string, { fetch, ...cacheDeps }: Deps) =>
-  cached("instagram:feed", INSTAGRAM_CACHE, () => guard("instagram", () => readFeed(token, fetch)), cacheDeps);
+async function feed(token: string, config: InstagramConfig, { fetch, ...cacheDeps }: Deps) {
+  const options = { ...INSTAGRAM_CACHE, freshAfter: (await config.refreshedAt?.()) ?? 0 };
+  return cached("instagram:feed", options, () => guard("instagram", () => readFeed(token, fetch)), cacheDeps);
+}
 
 /** The newest posts, newest first. Never throws: Instagram failing with nothing cached is `unavailable`. */
 export async function latestPosts(config: InstagramConfig, deps: Deps = {}, limit = FEED_SIZE): Promise<Live<Post[]>> {
   const token = await config.token();
   if (!token) return { data: config.fake ? FAKE_POSTS.slice(0, limit) : [], unavailable: false };
   try {
-    return { data: (await feed(token, deps)).posts.slice(0, limit), unavailable: false };
+    return { data: (await feed(token, config, deps)).posts.slice(0, limit), unavailable: false };
   } catch (error) {
     logFailure(log, "instagram.feed_error", error);
     return { data: [], unavailable: true };
@@ -145,7 +150,7 @@ export async function postImage(config: InstagramConfig, id: string, deps: Deps 
   const fetch = deps.fetch ?? globalThis.fetch;
   let address: string | undefined;
   try {
-    address = (await feed(token, deps)).pictures[id];
+    address = (await feed(token, config, deps)).pictures[id];
   } catch (error) {
     // Warnings, not reported, here and below: one picture missing; the feed's own failure is reported by latestPosts
     log.warn("instagram.picture_feed_error", error, { id });

@@ -1,4 +1,5 @@
-// What Settings → Website shows (#107): when the site was last rebuilt from the app, whether one is on its way, and
+// What Settings → Website shows (#107): when the site was last rebuilt from the app, whether one is on its way, when
+// its photos and videos were last refreshed (#109), and
 // where the site and its Studio are for this environment (ADR 0010, ADR 0112).
 import { first } from "@cougars/shared/d1";
 import { websiteTime } from "@cougars/shared/website-times";
@@ -16,6 +17,8 @@ export interface WebsiteStatus {
   lastRebuildAt: string | null;
   /** One is waiting to be sent: a result changed in the last five minutes, or GitHub couldn't be reached. */
   rebuildWanted: boolean;
+  /** When an admin last pressed Refresh photos and videos (#109). */
+  mediaRefreshedAt: string | null;
   /** This Worker asks GitHub (a laptop's never does). */
   canRebuild: boolean;
   siteUrl: string;
@@ -26,9 +29,16 @@ const addressesOf = (env: WebsiteEnv) =>
   env.SITE_ENV === "production" ? ADDRESSES.production : env.SITE_ENV === "dev" ? ADDRESSES.dev : ADDRESSES.local;
 
 export async function websiteStatus(env: WebsiteEnv): Promise<WebsiteStatus> {
-  const [lastRebuildAt, wanted] = await Promise.all([
+  const [lastRebuildAt, mediaRefreshedAt, wanted] = await Promise.all([
     websiteTime(env.DB, "rebuild_sent"),
+    websiteTime(env.DB, "media_refreshed"),
     first<{ id: number }>(env.DB, "SELECT id FROM website_rebuild WHERE id = 1"),
   ]);
-  return { lastRebuildAt, rebuildWanted: !!wanted, canRebuild: canRebuild(env), ...addressesOf(env) };
+  return {
+    lastRebuildAt,
+    rebuildWanted: !!wanted,
+    mediaRefreshedAt,
+    canRebuild: canRebuild(env),
+    ...addressesOf(env),
+  };
 }

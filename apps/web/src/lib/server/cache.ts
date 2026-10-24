@@ -21,6 +21,11 @@ export interface CacheOptions {
   ttlMs: number;
   /** How long an expired value may still be served when the source fails. */
   staleMs?: number;
+  /**
+   * A value read before this time (ms) isn't fresh, however young: an admin asked for the source to be read again
+   * (Refresh photos and videos, media-refresh.ts). It's still the last good copy if the source fails.
+   */
+  freshAfter?: number;
 }
 
 /** What the cache needs from the outside world, so tests can control time and the edge cache. */
@@ -52,19 +57,20 @@ const defaultEdge = (): Pick<Cache, "match" | "put"> | null =>
  */
 export async function cached<T>(
   key: string,
-  { ttlMs, staleMs = 0 }: CacheOptions,
+  { ttlMs, staleMs = 0, freshAfter = 0 }: CacheOptions,
   load: () => Promise<T>,
   { now = Date.now, edge = defaultEdge() }: CacheDeps = {},
 ): Promise<T> {
+  const fresh = (e: Entry<T>) => now() - e.at < ttlMs && e.at >= freshAfter;
   const hit = memory.get(key) as Entry<T> | undefined;
-  if (hit && now() - hit.at < ttlMs) return hit.value;
+  if (hit && fresh(hit)) return hit.value;
 
   const pending = inFlight.get(key) as Promise<T> | undefined;
   if (pending) return pending;
 
   const refresh = (async () => {
     const shared = await edgeGet<T>(edge, key);
-    if (shared && now() - shared.at < ttlMs) {
+    if (shared && fresh(shared)) {
       remember(key, shared);
       return shared.value;
     }

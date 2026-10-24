@@ -42,7 +42,8 @@
       <h2 class="title">Videos</h2>
       <p class="hint">
         Upload on YouTube, as the club channel: Unlisted, and add it to one playlist: Friday Hockey, Kumite, or Website
-        for anything else. It's on the website within about 10 minutes.
+        for anything else. It's on the website within about 10 minutes, or at once when an admin presses Refresh photos
+        and videos in Settings → Website.
       </p>
       <a class="btn outline block" href="https://www.youtube.com/upload" target="_blank" rel="noopener noreferrer">
         <Icon name="play" size={18} /> Upload on YouTube

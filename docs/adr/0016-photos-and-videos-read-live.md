@@ -112,6 +112,15 @@ call shows the last good list for all); Sanity videos fresh a minute, kept an ho
 reached and there's no good copy, the page shows a friendly "won't load right now" state (503, not cached), never an
 error page ([ADR 0055](0055-degrade-instead-of-break.md)).
 
+**Refresh photos and videos** (#109). For a video or post that should show now, not within ten minutes, an admin
+(`edit:Content`) presses it in the team app's Settings → Website. The time goes in D1 (`website_times.media_refreshed`);
+the website reads it through the cache for half a minute (`lib/server/media-refresh.ts`), and a YouTube or Instagram
+copy read before it isn't fresh any more (`cache.ts` `freshAfter`), so the next visit in each data centre reads the
+source again: on the site within a minute. The copy stays the last good one, so a press while YouTube or Instagram is
+down still shows the old list. The cache keys don't change, and Cloudflare's purge can't reach the isolates' memory,
+which is why it's a time and not a purge. Nothing pressed, the caches are as above. Sanity's videos are fresh for a
+minute anyway.
+
 Pages on the Worker can't use build-time image resizing (`imageService: "compile"`), so the shared layout's logo and
 background are ready-sized files in `src/assets/`.
 
@@ -159,3 +168,6 @@ background are ready-sized files in `src/assets/`.
   within the 10-minute cache of being ready; if that call fails, the last good list is shown, as for any YouTube
   failure.
 - 2026-10-24: ADR 0113 (photos from Instagram) merged in.
+- 2026-10-24: Refresh photos and videos in the team app's Settings → Website (#109): the website's YouTube and
+  Instagram copies from before the press aren't fresh, so a new video or post shows within a minute; the last good copy
+  is kept. One D1 read per half minute per data centre for the press's time.

@@ -32,12 +32,17 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
 - **Every live read on the website goes through `lib/server/cache.ts`**: in memory, then the Workers Cache API, with
   the last good copy kept for a failure:
 
-  | Read                                 | Fresh for  | Last good copy kept |
-  | ------------------------------------ | ---------- | ------------------- |
-  | YouTube playlists                    | 10 minutes | a day               |
-  | Sanity: videos                       | 1 minute   | an hour             |
-  | Sanity: photos                       | 1 minute   | a day               |
-  | D1: What's on, events, a player card | 1 minute   | an hour             |
+  | Read                                           | Fresh for  | Last good copy kept |
+  | ---------------------------------------------- | ---------- | ------------------- |
+  | YouTube playlists                              | 10 minutes | a day               |
+  | Sanity: videos                                 | 1 minute   | an hour             |
+  | Sanity: photos                                 | 1 minute   | a day               |
+  | D1: What's on, events, a player card           | 1 minute   | an hour             |
+  | D1: when photos and videos were last refreshed | 30 seconds | a day               |
+
+  An admin's Refresh photos and videos (team app, Settings → Website, #109) makes YouTube's and Instagram's copies from
+  before it not fresh (`freshAfter`), without changing their keys, so the last good copy is still there for a failure
+  ([0016](0016-photos-and-videos-read-live.md)).
 
 - Live pages send the same `Cache-Control` everywhere (`no-store` only when their source is unreachable).
 - Build-time content in `lib/sanity/content.ts` is read once per build, every five minutes on a Worker, and every
@@ -84,3 +89,5 @@ The team app reloads the whole club (`/api/bootstrap`) when it opens and when it
   after signing out (#81). The app keeps the tag in memory, so its checks are still 304s; opening it reads the club.
 - 2026-10-24: The bootstrap sends each series' next one and last one played, not every tournament; past ones, History's
   pages and the all-time leaders are read on demand with the same tag, logos by their own address (#175, ADR 0074).
+- 2026-10-24: A cached value can be made not fresh by a time (`freshAfter`): Refresh photos and videos in the team app
+  (#109, ADR 0016). The time is a D1 read cached for 30 seconds.

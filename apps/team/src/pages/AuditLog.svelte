@@ -195,6 +195,9 @@
       // Settings → Website (#107): Rebuild now, when GitHub was asked
       case "website.rebuilt":
         return `${who} rebuilt the website`;
+      // Refresh photos and videos (#109)
+      case "website.media_refreshed":
+        return `${who} refreshed the website's photos and videos`;
       case "tournament.deleted":
         return `${who} deleted the tournament ${str(from?.name)} (${str(from?.heldOn)})`;
       case "session.reset":

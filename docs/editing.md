@@ -71,7 +71,7 @@ introduction, the league, the team photo, and **Show on the website**, which put
 
 ## Videos
 
-1. Upload the video to the club YouTube channel. It's on the website **within about 10 minutes**:
+1. Upload the video to the club YouTube channel. It's on the website **within about 10 minutes** (at once with **Refresh photos and videos**, below):
    - **Public** videos appear by themselves.
    - **Unlisted** videos appear if they're in one of the club playlists: **Friday Hockey**, **Kumite**, or
      **Website** for anything else. Add each video to one of them on YouTube. On the website it's labelled with its
@@ -86,6 +86,8 @@ You don't upload video files to the website. YouTube hosts them for free.
 
 The website's photos are the club's **Instagram**. Post on Instagram as usual and the photos are on the website
 **within ten minutes**: the newest 48 on the Photos page, the newest 12 on the home page. Nothing to do in the Studio.
+To show a new post or video **at once**, press **Refresh photos and videos** in the team app's **Settings → Website**:
+it's on the website within a minute.
 
 - The **caption** you write on Instagram shows under the photo, and its first sentence is read out to people who
   can't see the picture, so a short description first helps ("Cougars celebrating a goal. What a night!").

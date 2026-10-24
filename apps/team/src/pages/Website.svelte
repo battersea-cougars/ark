@@ -1,7 +1,8 @@
 <script lang="ts">
   // Settings → Website (#107): where the club's website is managed from the app. Studio changes go live at the next
   // rebuild: every morning, after a tournament result, or now, with Rebuild now (the same rebuild, sent at once,
-  // ADR 0100). The Studio links here, and this page links to the Studio and the site.
+  // ADR 0100). The Studio links here, and this page links to the Studio and the site. Refresh photos and videos (#109)
+  // makes the website read YouTube and Instagram again at once, instead of within ten minutes.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -10,6 +11,7 @@
   interface Status {
     lastRebuildAt: string | null;
     rebuildWanted: boolean;
+    mediaRefreshedAt: string | null;
     canRebuild: boolean;
     siteUrl: string;
     studioUrl: string;
@@ -46,6 +48,22 @@
         return { ok: false, text: "This copy of the app doesn't rebuild the website (it's on a laptop)." };
       default:
         return { ok: false, text: "GitHub couldn't be reached. It's kept, and tried again within five minutes." };
+    }
+  }
+
+  let refreshing = $state(false);
+  let refreshed = $state<{ ok: boolean; text: string } | null>(null);
+
+  async function refreshMedia() {
+    refreshing = true;
+    refreshed = null;
+    try {
+      status = await api<Status>("POST", "/api/website/refresh-media", {});
+      refreshed = { ok: true, text: "Done: the website shows the newest photos and videos within a minute." };
+    } catch (e) {
+      refreshed = { ok: false, text: e instanceof Error ? e.message : String(e) };
+    } finally {
+      refreshing = false;
     }
   }
 
@@ -96,6 +114,26 @@
     </section>
 
     <section class="part">
+      <h2 class="section-title">Refresh photos and videos</h2>
+      <p class="hint">
+        A video added to a playlist on YouTube, or a post on Instagram, is on the website within ten minutes by itself.
+        To show it now, refresh: it needs no rebuild.
+      </p>
+      <dl class="facts">
+        <dt>Last refreshed</dt>
+        <dd>{status.mediaRefreshedAt ? when(status.mediaRefreshedAt) : "Not yet"}</dd>
+      </dl>
+      <div>
+        <button class="btn" onclick={refreshMedia} disabled={refreshing}>
+          <Icon name="refresh" size={16} />{refreshing ? "Refreshing…" : "Refresh photos and videos"}
+        </button>
+      </div>
+      <p class="said" class:ok={refreshed?.ok} role="status">
+        {#if refreshed}<Icon name={refreshed.ok ? "check" : "alert"} size={18} />{refreshed.text}{/if}
+      </p>
+    </section>
+
+    <section class="part">
       <h2 class="section-title">Where each part comes from</h2>
       <dl class="facts">
         <dt>The Studio</dt>
@@ -103,9 +141,9 @@
         <dt>This app</dt>
         <dd>What's on (at once), the roster and results (at the next rebuild; a result asks for one by itself)</dd>
         <dt>YouTube</dt>
-        <dd>Videos, from the club's playlists, within ten minutes</dd>
+        <dd>Videos, from the club's playlists, within ten minutes (at once with a refresh)</dd>
         <dt>Instagram</dt>
-        <dd>Photos, the newest posts, within ten minutes</dd>
+        <dd>Photos, the newest posts, within ten minutes (at once with a refresh)</dd>
       </dl>
       <div class="links">
         <a class="btn" href={status.studioUrl} target="_blank" rel="noopener noreferrer">
