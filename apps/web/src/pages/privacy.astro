@@ -80,10 +80,18 @@ const email = s.contactEmail;
 
       <h2>How the club sends email</h2>
       <p>
-        The club's email (replies to enquiries, and for members of the club's team app, sign-in codes and club notices
-        such as reminders) is sent through Google's Gmail API from a Gmail account the club runs. The club gives this
-        site and the team app permission only to <em>send</em> email from that account. They don't read, keep or share
-        anything from it, and no one else's Google account is ever connected.
+        The club's email is sent through Google's Gmail API from a Gmail account the club runs. That's the reply to a
+        Try a session enquiry and the club's copy of it, and, for members of the club's team app, sign-in codes, a
+        welcome when they join, reminders of what they owe, and notices to the club's admins.
+      </p>
+      <p>
+        The club gives this website and the team app permission only to <em>send</em> email from that account (Google's
+        "Send email on your behalf"). They can't read its email, contacts or anything else in it. The only things they
+        get from Google are that permission and the account's own email address, used to check the right account was
+        connected and to show the club's admins which account is sending. The permission is kept encrypted (in the
+        club's database or its password manager) until it's replaced or the club withdraws it in its Google account.
+        Nothing from Google is sold, used for advertising, or shared, and no one else's Google account is ever
+        connected.
       </p>
       <p>
         The club's use and transfer to any other app of information received from Google APIs will adhere to the{" "}

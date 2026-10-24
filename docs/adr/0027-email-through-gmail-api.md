@@ -155,3 +155,7 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   not members of the role named Admin, so a custom or renamed role that can do everything can sign in on dev too (#44).
 - 2026-10-24: Dev tools exist only where `SITE_ENV` says dev or on your own machine, not wherever it doesn't say
   production: a deploy that skipped `target.mjs` showed them (#81, [0123](0123-dev-only-tools.md)).
+- 2026-10-24: The privacy page says which emails go through Gmail (the enquiry reply and the club's copy, sign-in
+  codes, welcomes, what members owe, admins' notices) and exactly what the apps get from Google: permission to send and
+  the account's address, the permission kept encrypted until it's replaced or withdrawn; nothing read, sold or shared,
+  as Google's verification of the `gmail.send` scope asks (#156).
