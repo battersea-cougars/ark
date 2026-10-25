@@ -237,7 +237,7 @@ export function beersFor(pence: number, day: string): number {
 
 /**
  * What you owe, at Home's foot: none when you're square. Overdue is also the loud icon in Home's header. With the
- * club's pub, the amount in beers there too.
+ * club's pub, what that comes to in beers there (about so many: the same money, not another way to pay).
  */
 export function owedNotice(
   owes: Owes,
@@ -253,7 +253,7 @@ export function owedNotice(
       ? "charge"
       : "charges";
   const late = owes.overdue && owes.overdue > 0 ? ` · ${pounds(owes.overdue)} overdue` : "";
-  const text = `${pounds(owes.pence)} to pay${pub ? `, or ${pub.beers} beers at ${pub.name}` : ""}`;
+  const text = `${pounds(owes.pence)} to pay${pub ? `, about ${pub.beers} beers at ${pub.name}` : ""}`;
   return { text, sub: `Your tab${n ? ` · ${n} ${what}` : ""}${late}`, href: "/me/tab" };
 }
 

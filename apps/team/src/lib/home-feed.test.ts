@@ -227,7 +227,7 @@ describe("what you owe, in the locker room", () => {
 
   it("in beers at the club's pub too: a lot of them, the same all day", () => {
     expect(owedNotice({ pence: 2200, kinds: ["quarterly"] }, { name: "The Anchor", beers: 27 })?.text).toBe(
-      "£22 to pay, or 27 beers at The Anchor",
+      "£22 to pay, about 27 beers at The Anchor",
     );
     const beers = ["2026-10-23", "2026-10-24", "2026-11-01"].flatMap((d) =>
       [100, 2200, 9999].map((p) => beersFor(p, d)),
