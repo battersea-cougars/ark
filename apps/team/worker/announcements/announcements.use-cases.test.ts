@@ -26,6 +26,8 @@ const seen = async (b: Browser, now?: Date) =>
     (a) => a.title,
   );
 const HALL = { title: "No training on the 24th", body: "The hall's booked.", link: "", endsOn: "2026-10-24" };
+// Posted on the real clock, so it has to run past today whenever the tests run
+const RUNNING = { ...HALL, endsOn: new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10) };
 
 describe("announcements", () => {
   it("an admin posts one and every member sees it at the top of Home", async () => {
@@ -58,7 +60,7 @@ describe("announcements", () => {
   it("two at a time, newest first: a third pushes the oldest off", async () => {
     const dana = await w.signedIn("dana@example.com");
     for (const title of ["First", "Second", "Third"])
-      await dana.call("POST", "/api/announcements", { ...HALL, title }, { now: new Date() });
+      await dana.call("POST", "/api/announcements", { ...RUNNING, title }, { now: new Date() });
     expect(await seen(dana)).toEqual(["Third", "Second"]);
   });
 
@@ -85,7 +87,7 @@ describe("announcements", () => {
     const kit = { ...HALL, title: "Kit orders close Friday", endsOn: "2026-10-03" };
     const old = (await dana.call("POST", "/api/announcements", kit, { now: on("2026-10-01") })).body.id;
     for (const title of ["First", "Second", "Third"])
-      await dana.call("POST", "/api/announcements", { ...HALL, title }, { now: new Date() });
+      await dana.call("POST", "/api/announcements", { ...RUNNING, title }, { now: new Date() });
     const reg = await w.signedIn("reg@example.com");
     const third = ((await reg.call("GET", "/api/bootstrap")).body.announcements as Json[])[0].id;
     await reg.call("POST", `/api/announcements/${third}/dismiss`);
@@ -96,7 +98,13 @@ describe("announcements", () => {
     expect(r.body.announcements.map((a: Json) => a.title)).toEqual(["Third", "Second", "First", kit.title]);
     expect(r.body.more).toBe(false);
     expect(r.body.announcements[0]).toEqual(
-      expect.objectContaining({ title: "Third", body: HALL.body, endsOn: HALL.endsOn, by: "Dana Admin", gotIt: true }),
+      expect.objectContaining({
+        title: "Third",
+        body: HALL.body,
+        endsOn: RUNNING.endsOn,
+        by: "Dana Admin",
+        gotIt: true,
+      }),
     );
     expect(r.body.announcements[0].createdAt).toEqual(expect.any(String));
     expect(r.body.announcements.slice(1).map((a: Json) => a.gotIt)).toEqual([false, false, false]);
@@ -110,7 +118,7 @@ describe("announcements", () => {
     const dana = await w.signedIn("dana@example.com");
     const ids: number[] = [];
     for (const title of ["One", "Two", "Three", "Four"])
-      ids.push((await dana.call("POST", "/api/announcements", { ...HALL, title }, { now: new Date() })).body.id);
+      ids.push((await dana.call("POST", "/api/announcements", { ...RUNNING, title }, { now: new Date() })).body.id);
     await dana.call("DELETE", `/api/announcements/${ids[1]}`);
     const reg = await w.signedIn("reg@example.com");
     const first = (await reg.call("GET", "/api/announcements?limit=2")).body;
