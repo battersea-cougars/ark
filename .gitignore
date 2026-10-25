@@ -36,3 +36,7 @@ apps/team/native/server.js
 
 # The journeys' runs (npm run journeys, ADR 0031): the summary, traces and screenshots of failures, sign-ins
 .journeys/
+
+# Cline's settings and state (API keys included), linked from ~/.cline/data by
+# .devcontainer/post-start.sh so they outlive a container rebuild. Never committed.
+.cline-local/

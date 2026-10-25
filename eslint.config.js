@@ -6,7 +6,15 @@ import globals from "globals";
 
 export default [
   {
-    ignores: [".worktrees/", "**/dist/", "**/.astro/", "**/.wrangler/", "**/.sanity/", "**/worker-configuration.d.ts"],
+    ignores: [
+      ".worktrees/",
+      ".cline-local/",
+      "**/dist/",
+      "**/.astro/",
+      "**/.wrangler/",
+      "**/.sanity/",
+      "**/worker-configuration.d.ts",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "codebase-rag": {
+      "type": "http",
+      "url": "http://172.17.0.1:8765/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CODEBASE_RAG_TOKEN:-}",
+        "X-Codebase-Root": "/src",
+        "X-Codebase-Path-Map": "/src:/data/das974/cougars"
+      }
+    }
+  }
+}

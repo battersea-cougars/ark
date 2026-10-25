@@ -5,3 +5,7 @@ services:
     working_dir: /src
     init: true
     command: sleep infinity
+    # Gitignored, optional: CODEBASE_RAG_TOKEN for the host's codebase-rag MCP (.mcp.json).
+    env_file:
+      - path: .env.local
+        required: false

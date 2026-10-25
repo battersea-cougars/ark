@@ -7,3 +7,4 @@ package-lock.json
 # The store app's Xcode project: Xcode and Capacitor write these (ADR 0108)
 apps/team/ios/
 apps/team/native/server.js
+.cline-local
