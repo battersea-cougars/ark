@@ -121,6 +121,9 @@ function kumites(w: ReturnType<typeof testWorld>, ids: number[], count: number) 
   const nextId = idsFrom(db.prepare(NEXT_IDS_SQL(KUMITE_ID_TABLES)).get() as Record<string, number>);
   const tables: Record<string, object[]> = {};
   for (let n = 1; n <= count; n++) {
+    const heldOn = `2025-${String(n).padStart(2, "0")}-14`;
+    // Each match kicked off on its day, as seed:history has it: when it was played says it's long past (#182)
+    const kickedOff = `${heldOn}T11:00:00.000Z`;
     const squads = Array.from({ length: 6 }, (_, i) => ids.slice(0, 48).filter((_, p) => p % 6 === i));
     const teams = squads.map((squad, i) => ({
       name: `Team ${i + 1}`,
@@ -143,7 +146,7 @@ function kumites(w: ReturnType<typeof testWorld>, ids: number[], count: number) 
         away_goals: 3,
         status: "done",
         period: 2,
-        started_at: at,
+        started_at: kickedOff,
         goals: Array.from({ length: 7 }, (_, g) => {
           const [side, squad] = g % 2 ? ["away", squads[away]] : ["home", squads[home]];
           return {
@@ -173,7 +176,7 @@ function kumites(w: ReturnType<typeof testWorld>, ids: number[], count: number) 
         tournament: {
           type_id: 1,
           name: `Kumite ${n}`,
-          held_on: `2025-${String(n).padStart(2, "0")}-14`,
+          held_on: heldOn,
           start_time: "11:00",
           end_time: "16:00",
           status: "finished",

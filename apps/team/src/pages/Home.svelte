@@ -265,7 +265,7 @@
     };
   };
   const bookables = $derived.by(() => {
-    const all = [...calendar(today).filter((ev) => /^(session|tournament|oneoff):\d+$/.test(ev.key))];
+    const all = [...calendar().filter((ev) => /^(session|tournament|oneoff):\d+$/.test(ev.key))];
     for (const { t } of tournaments) {
       const ev = tournamentBookable(t);
       if (!all.some((x) => x.key === ev.key)) all.push(ev);

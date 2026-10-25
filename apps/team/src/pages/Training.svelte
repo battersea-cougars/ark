@@ -30,7 +30,7 @@
   import { phone } from "../lib/viewport.svelte";
   import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
   import { flip } from "svelte/animate";
-  import { clock, clockRange, formatDayDate, londonToday } from "../lib/dates";
+  import { clock, clockRange, formatDayDate, londonEvening, londonToday } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
   import { lineUp, makeTeams, slotIn, strength, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
@@ -53,7 +53,7 @@
   const series = $derived((last.series = seriesById(seriesId) ?? last.series)!);
   // The next night that's on, and those off from today to it: struck through above it, never just gone
   // or the night at the page's address, its date (/training/friday/2026-10-30)
-  const nights = $derived(seriesNights(series, londonToday(), nightOn(router.path, series.slug)));
+  const nights = $derived(seriesNights(series, londonEvening(), nightOn(router.path, series.slug)));
   const session = $derived(nights.shown);
   // Its register closes at 6am the morning after (lib/register-closes.ts, #11): from then who came is the record, so
   // nothing that changes it is offered (the server refuses it too)

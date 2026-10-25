@@ -7,6 +7,7 @@
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
+import { doneSql } from "@cougars/shared/results";
 import { londonTime, londonToday } from "@cougars/shared/london";
 import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
@@ -243,7 +244,7 @@ const PARENTS = { session: "training_sessions", tournament: "tournaments", event
  * waiting move up as there's now room for, in the order `movingUp` keeps (a training's a side at a time, Quarterly
  * Members first). `scope` picks the events, as SQL on `s` (the training session, with `ts` its series) or `t` (the
  * tournament or club event). One statement, so the room is counted as it's taken (ADR 0121); send it in the batch
- * that freed the places. A night that's over, or called off, is left as it is. Whoever moves up is marked to be told
+ * that freed the places. A night that's over, or called off, or a tournament that's been played, is left as it is. Whoever moves up is marked to be told
  * (`moved`), as by `movingUp`.
  */
 export function fillingUp(
@@ -271,7 +272,8 @@ export function fillingUp(
       [today, ...scope.params],
     );
   }
-  const live = kind === "tournament" ? "t.held_on >= ?" : "t.cancelled_at IS NULL AND t.starts_at >= ?";
+  // A tournament until it's played, whatever its date (ADR 0074, #182); a club event, by its time: it has no status
+  const live = kind === "tournament" ? `NOT ${doneSql("t")}` : "t.cancelled_at IS NULL AND t.starts_at >= ?";
   return statement(
     db,
     `UPDATE ${table} SET signup = 'in', moved = 'place', signed_up_at = ? WHERE id IN (
@@ -282,7 +284,7 @@ export function fillingUp(
          FROM ${table} e JOIN ${PARENTS[kind]} t ON t.id = e.${key}
          WHERE e.signup = 'waitlist' AND ${live} AND (${scope.sql}))
        WHERE places IS NULL OR rn <= places - taken)`,
-    [now, kind === "tournament" ? today : now, ...scope.params],
+    [now, ...(kind === "tournament" ? [] : [now]), ...scope.params],
   );
 }
 

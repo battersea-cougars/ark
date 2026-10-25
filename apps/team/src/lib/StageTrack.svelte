@@ -13,7 +13,6 @@
   import { statusesOf, type Status } from "./tournament-front";
   import { statusHref } from "./edition-address";
   import { editionState } from "./edition";
-  import { londonISO } from "./dates";
   import { tournamentAfter } from "../demo/schedule.svelte";
 
   let {
@@ -53,12 +52,9 @@
       lastNow = at;
     });
   });
-  // The Kumite running, on its day from its start (or the first match started) till the last match is played: its node
-  // pulses, as the Live dot does, between matches too
-  const live = $derived(
-    steps.some((s) => s.status === "day" && s.state === "now") &&
-      (editionState(t) === "live" || Date.now() >= Date.parse(londonISO(t.heldOn, t.startTime))),
-  );
+  // The Kumite running, from its first match started till the last is played: its node pulses, as the Live dot does,
+  // between matches too. Its start time gone by with nothing started isn't running: it's still next (#182)
+  const live = $derived(steps.some((s) => s.status === "day" && s.state === "now") && editionState(t) === "live");
 </script>
 
 <!-- stage-track: the shell keeps it in place between the series' pages, as it does the header -->

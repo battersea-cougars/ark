@@ -7,9 +7,12 @@
 import { first } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 
+/** SQL: the tournament `t` (its alias) has started, whatever its date says (ADR 0074, #182). */
+export const startedSql = (t: string) => `(${t}.status IN ('live', 'finished')
+  OR EXISTS (SELECT 1 FROM tournament_games sg WHERE sg.tournament_id = ${t}.id AND sg.status <> 'next'))`;
+
 /** SQL: the tournament whose id is the one parameter has started. */
-export const STARTED = `EXISTS (SELECT 1 FROM tournaments st WHERE st.id = ? AND (st.status IN ('live', 'finished')
-  OR EXISTS (SELECT 1 FROM tournament_games sg WHERE sg.tournament_id = st.id AND sg.status <> 'next')))`;
+export const STARTED = `EXISTS (SELECT 1 FROM tournaments st WHERE st.id = ? AND ${startedSql("st")})`;
 
 /** Whether it's started, for the words of a refusal (the write itself keeps to STARTED). */
 export async function hasStarted(db: D1Database, tournamentId: number) {

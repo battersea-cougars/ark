@@ -13,6 +13,8 @@ import { kickOff, slotMinutes } from "./fixtures";
 import { signupOpen } from "./signup";
 import { invitationOnly } from "./motif";
 import { myTeamIndex, nextFightOf } from "./tournament-front";
+import { tournamentPhase, type Phase } from "./phase";
+import { hasStarted } from "./edition";
 import { usageRow, type UsageLevel } from "./usage-near";
 
 export type FeedIcon = "draft" | "teams" | "pound" | "mail" | "alert";
@@ -61,6 +63,8 @@ export interface UpcomingEvent extends Pick<
   | "timeText"
   | "opens"
 > {
+  /** Past, on or next by its status (lib/phase.ts); unset, its time decides (a row with no status). */
+  phase?: Phase;
   standing: Standing | null;
   /** Taking sign-ups now, and you may sign up: only then does Home ask "Are you in?". */
   asking: boolean;
@@ -268,6 +272,9 @@ export function whenSaid(startsAt: string, today: string): string {
 }
 
 const dayOf = (iso: string) => londonToday(new Date(iso));
+/** Past by its status (ADR 0074, #182); only an event with none goes by its end. */
+const isPast = (event: UpcomingEvent, nowMs: number) =>
+  event.phase ? event.phase === "past" : Date.parse(event.endsAt) <= nowMs;
 const plusDays = (day: string, n: number) =>
   new Date(Date.parse(`${day}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
@@ -282,30 +289,35 @@ const fightAt = ({ t, game }: Fight) => londonISO(t.heldOn, kickOff(t.startTime,
  * else on the schedule is the event itself, yours to answer or not yours (the Kumite you're not in, a social with no
  * sign-up): it still leads, its card saying where you stand, and so does one you've said you're out of (its card shows
  * your Out, and In is still there). The evening a tournament ends, its after-party: it's on now. The soonest leads, and at the same moment a match, then a draft, then the
- * schedule's order. A cancelled one, one with no day yet, or one that's over never does. The one Home pinned this
- * visit stays while it's still on, so nothing swaps under your thumb.
+ * schedule's order; what's on now (a tournament under way before its day) counts as now. A cancelled one, one with no
+ * day yet, or one that's past never does: past by its status, not its time (lib/phase.ts, #182), so a night past its
+ * end is still the one till its register closes, and a Kumite whose day went by unplayed is still next. The one Home
+ * pinned this visit stays while it's still on, so nothing swaps under your thumb.
  */
 export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lead | null {
   const { events = [], today, pinned } = input;
   const nowMs = Date.parse(input.now ?? londonISO(today, "00:00"));
+  const nowIso = new Date(nowMs).toISOString();
+  /** When it sorts: what's on now is now, whatever day it was set for */
+  const sortsAt = (at: string, phase?: Phase) => (phase === "on" && Date.parse(at) > nowMs ? nowIso : at);
   const next: Lead[] = [];
   for (const fight of fights) {
-    if (fight.t.season || fight.t.heldOn < today) continue;
-    next.push({ kind: "fight", key: `fight:${fight.t.id}`, at: fightAt(fight), fight });
+    if (fight.t.season) continue;
+    const at = sortsAt(fightAt(fight), tournamentPhase(fight.t));
+    next.push({ kind: "fight", key: `fight:${fight.t.id}`, at, fight });
   }
   for (const item of rows) if (item.captainAt) next.push({ kind: "draft", key: item.key, at: item.captainAt, item });
   // The after-party is on now: it leads, and its tournament's own row doesn't
   const afters = input.afters ?? [];
-  for (const { type, t } of afters)
-    next.push({ kind: "afters", key: `afters:${t.id}`, at: new Date(nowMs).toISOString(), type, t });
+  for (const { type, t } of afters) next.push({ kind: "afters", key: `afters:${t.id}`, at: nowIso, type, t });
   const fought = new Set([...fights.map((f) => tournamentKey(f.t)), ...afters.map((a) => tournamentKey(a.t))]);
   for (const event of events) {
     if (event.cancelled || event.season || event.dateTbc || fought.has(event.key)) continue;
-    if (Date.parse(event.endsAt) <= nowMs) continue;
+    if (isPast(event, nowMs)) continue;
     // A sign-up still to open is yours to answer when it does
     const toCome = !!event.opens || (!!event.signupOpensOn && event.signupOpensOn > today);
     const role: Role = event.standing === "out" ? "out" : event.standing || event.asking || toCome ? "yours" : "notIn";
-    next.push({ kind: "event", key: event.key, at: event.startsAt, event, role });
+    next.push({ kind: "event", key: event.key, at: sortsAt(event.startsAt, event.phase), event, role });
   }
   const held = pinned && next.find((l) => l.key === pinned);
   if (held) return held;
@@ -315,7 +327,9 @@ export function leadOf(input: FeedInput, fights: Fight[], rows: FeedItem[]): Lea
 
 // Coming up: each training's and each tournament series' next one, the club's events in the next few weeks; the lead
 // isn't repeated (for a fight, its tournament). Dated ones by date, a season-only tournament after them; capped
-function upcomingRows({ events = [], today, types }: FeedInput, lead: Lead | null, fights: Fight[]): UpcomingRow[] {
+function upcomingRows(input: FeedInput, lead: Lead | null, fights: Fight[]): UpcomingRow[] {
+  const { events = [], today, types } = input;
+  const nowMs = Date.parse(input.now ?? londonISO(today, "00:00"));
   const shown = !lead
     ? []
     : lead.kind === "event"
@@ -327,8 +341,9 @@ function upcomingRows({ events = [], today, types }: FeedInput, lead: Lead | nul
           : [];
   const until = plusDays(today, AHEAD_DAYS);
   const seen = new Set<string>();
+  // Not past by its status (#182); one with none, from today
   const sorted = events
-    .filter((e) => dayOf(e.startsAt) >= today)
+    .filter((e) => (e.phase ? !isPast(e, nowMs) : dayOf(e.startsAt) >= today))
     .sort((a, b) => Number(!!a.season) - Number(!!b.season) || a.startsAt.localeCompare(b.startsAt));
   const picked: UpcomingEvent[] = [];
   for (const e of sorted) {
@@ -390,14 +405,15 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
     .flatMap((r): FeedItem[] => {
       const t = tournaments.find((x) => x.id === r.sourceId);
       const type = t && types.find((y) => y.id === t.typeId);
-      if (!t || !type) return [];
+      // Played (early, maybe: its reminders' days still ahead), it's past (#182)
+      if (!t || !type || tournamentPhase(t) === "past") return [];
       // The day is the row's date block; the line says the time, if it has one
       const on = { at: r.startsAt };
       const at = r.allDay ? "" : ` at ${formatTime(r.startsAt)}`;
       if (r.kind === "signup_closes") {
         // The next of a series taking sign-ups is already asked: the lead, or its row in what's coming up
         if (upcoming.some((u) => u.t.id === t.id)) return [];
-        if (!signupOpen(t, today) || t.going.includes(me) || t.waitlist.includes(me)) return [];
+        if (!signupOpen(t, today) || hasStarted(t) || t.going.includes(me) || t.waitlist.includes(me)) return [];
         return [
           {
             key: r.key,

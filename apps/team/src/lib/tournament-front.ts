@@ -4,6 +4,7 @@
 // match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { atAfters, editionState, stageOf } from "./edition";
+import { gamePhase } from "./phase";
 import { revealOf } from "./afters";
 import { signupOpen, signupOver } from "./signup";
 import { orderDrawn } from "./draft";
@@ -261,6 +262,7 @@ export function afterNoteWords(note: string) {
  * order), else, every one played, the last (the final).
  */
 export function currentMatchOf<G extends Pick<TournamentGame, "status" | "position">>(games: readonly G[]) {
+  // By its status, never its kick-off (lib/phase.ts, #182): one running late is still the one, the next stays next
   const ordered = [...games].sort((a, b) => a.position - b.position);
-  return ordered.find((g) => g.status === "live") ?? ordered.find((g) => g.status !== "done") ?? ordered.at(-1);
+  return ordered.find((g) => gamePhase(g) === "on") ?? ordered.find((g) => gamePhase(g) !== "past") ?? ordered.at(-1);
 }

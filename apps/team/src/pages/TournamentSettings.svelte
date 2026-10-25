@@ -8,7 +8,7 @@
   import { editTournament } from "../lib/tournament-panel.svelte";
   import { tournamentPlace, typeById } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import { londonToday, pounds } from "../lib/dates";
+  import { pounds } from "../lib/dates";
   import { EDITION_LABEL, editionState, editionWhen } from "../lib/edition";
   import type { Tournament } from "../demo/model";
   import SearchField from "../lib/SearchField.svelte";
@@ -34,7 +34,8 @@
     if (await loadEdition(id)) editTournament(id);
   };
   // Dates still to come first, soonest first; then the finished ones, latest first
-  const done = (t: Tournament) => editionState(t) === "done" || t.heldOn < londonToday();
+  // Played is done, whatever its date; one whose day went by unplayed is still to come (#182)
+  const done = (t: Tournament) => editionState(t) === "done";
   const dates = $derived(
     [...all].sort((a, b) => {
       if (done(a) !== done(b)) return done(a) ? 1 : -1;

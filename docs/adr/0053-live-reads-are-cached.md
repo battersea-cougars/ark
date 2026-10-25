@@ -51,7 +51,9 @@ week of history, though Home shows only what's next.
 - **Opening the app reads the core; each page reads its own parts when it's opened** (#178). The bootstrap sends
   who you are and what you may do (viewing as included), the club's settings and menus (series, tournament types,
   venues, roles, fees, quips) and what Home needs: the nights from tonight with their sign-ups and teams, the
-  tournaments not played yet and those of the last fortnight, the events to come, the agenda, the announcements, your
+  tournaments not played yet and those played in the last fortnight (by their day or when a match kicked off, so one
+  played early or late is there, as past), the events to come, the agenda from London's evening (and the day of a
+  tournament whose day went by unplayed: it's still next, [0074](0074-tournament-home-and-scheduling.md)), the announcements, your
   own charges and dues line, and Home's people (you in full; who you really are while viewing as someone; whoever is
   in those next things, their names and cards, nothing private). For admins also says what the club is owed in all
   and who's asking to join. It doesn't grow with the roster or the history (17 KB on a club of 120 with a year of
@@ -166,3 +168,6 @@ week of history, though Home shows only what's next.
   answers. Home's people come with a tap only when it was someone's first answer; the club's total owed and everyone's
   dues only for who sees them; tags name London's evening too, as the night just held moves into the weeks just held at
   06:00 (#178). A tap is back on a par with main (its reply 3.7 KB, was 16.2 KB just after the split, 6.4 KB on main).
+- 2026-10-25: Played in the last fortnight goes by when a match kicked off as well as the day, so a Kumite played weeks
+  late still has its after-party; the agenda is sent from London's evening (last night's, till 06:00) and with the day
+  of a tournament not played yet whose day has gone by: the app decides by status what's past (ADR 0074, #182).

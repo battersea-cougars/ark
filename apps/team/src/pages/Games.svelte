@@ -66,6 +66,7 @@
   import AfterParty from "../lib/AfterParty.svelte";
   import EditionResults from "../lib/EditionResults.svelte";
   import { atAfters } from "../lib/edition";
+  import { tournamentPhase } from "../lib/phase";
   import { editionPath, editionRest } from "../lib/edition-address";
   import Draft from "./Draft.svelte";
   import Schedule from "./Schedule.svelte";
@@ -109,10 +110,11 @@
   const today = $derived(londonToday());
 
   const games = $derived(tournament?.games ?? []);
-  // Everyone sees the score as it happens: on the day, until the last game's over, from the hub's stream, with a
-  // check on the admins' beat as the fallback (ADR 0061, 0072); then the awards turned over at the after-party
+  // Everyone sees the score as it happens: while it's under way, whatever its date (#182), and on its day before the
+  // first match, until the last game's over, from the hub's stream, with a check on the admins' beat as the fallback
+  // (ADR 0061, 0072); then the awards turned over at the after-party
   const following = $derived(
-    games.some((g) => g.status === "live") ||
+    (!!tournament && tournamentPhase(tournament) === "on") ||
       (tournament?.heldOn === today && games.some((g) => g.status !== "done")) ||
       tonight,
   );

@@ -13,6 +13,9 @@
 // the weeks just held, each series' last one played and everyone's dues are the pages' (/api/slices). The club put
 // together from the core and every page (src/app/club-whole.ts), in the bootstrap's old order and without what's new in
 // For admins, is still the #177 pins, unchanged: splitting the club lost and changed nothing.
+// Re-pinned 2026-10-25 (#182), the club put together only: the history's matches kick off on their own day now (they
+// were stamped with the moment the test wrote them), as seed:history writes them, since when a match was played says
+// whether it was in the last fortnight. Opening the app (the core) is byte for byte as before.
 import { createHash } from "node:crypto";
 import { beforeAll, expect, it } from "vitest";
 import { clubWithHistory } from "./bootstrap.testing";
@@ -73,28 +76,28 @@ beforeAll(async () => {
 it("an admin opening the app is sent the core as pinned, and the whole club once its pages are read", async () => {
   expect(await seen(club.dana)).toEqual({
     core: "1117ccb19f83fb34a213c5c92c6430b4a19215c2d0072529a2ce8acbe47bd9ce",
-    whole: "43630c668d309e20d3bd7fc49bd00eb19b652e28e487478b8b5130e286aa19fb",
+    whole: "0b388100ff2e71b05e90c6ec9915c8b8da0a489cee81389865ab5a58ea6dcd92",
   });
 });
 
 it("a session lead (sees the register) is sent the core and the club as pinned", async () => {
   expect(await as("m2@example.com")).toEqual({
     core: "770c4f0f0dd9c32a3b61d6af91cecd58eefe530f6d975cf7552bd6264d1adcf3",
-    whole: "a2fcf41c91b8977b3e2117d65b8417bddac54fcfb9ae5110d7eb3067bf9174aa",
+    whole: "a7b8c7879be0c116fef618075cc964163b9be4bb3493ece008cc73245c285cce",
   });
 });
 
 it("a member is sent the core and the club as pinned", async () => {
   expect(await as("m30@example.com")).toEqual({
     core: "aecfc0840d0999eae5c4e112be546a63e50ec9a73c6ba24f672a8f53ad8f7898",
-    whole: "ac717a43dfdabaae51cf201df536aa0d0763658cf0bac96ef08429a3a353a80d",
+    whole: "c4259bbf76b3455af3c5558456ecf2adfd9647998069c33b4188c1c8612aa22d",
   });
 });
 
 it("a Kumite captain (every draft's Team 1) is sent the core and the club as pinned", async () => {
   expect(await as(emailOf(club.ids[0]))).toEqual({
     core: "4d60f23ed11829c20024f8cbad8d737f5b1f4635a5bff299a3ca35fd7f3c03f9",
-    whole: "4a67178f5b6299388112724d8470efada138a384ec4f5d487506dd62f2740094",
+    whole: "3e163460db48166c2c63e9df73ed8e854334e8fd283bda546a813ab054ce0700",
   });
 });
 
@@ -104,6 +107,6 @@ it("an admin viewing as a member is sent the club as that member is", async () =
   expect((await club.dana.call("DELETE", "/api/me/view-as")).status).toBe(200);
   expect(viewing).toEqual({
     core: "d7a4f277089007d695d8df934797cc609a1c67f711815ee8373fa16fdc88af29",
-    whole: "97a83fa1cdff92dca8501e4dac41a8761c43a3bbb41693a2a8ee657eb67acd96",
+    whole: "e996afa11150c959f45a27651c6c9cf00b84b5994155ae1290a7bfb620f62ad6",
   });
 });

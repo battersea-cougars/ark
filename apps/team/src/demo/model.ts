@@ -6,6 +6,7 @@ import type { PenaltyRule } from "../lib/penalties";
 import type { IconName } from "../app/shell/icons";
 import type { DatedFee } from "../lib/dues";
 import type { Weekday } from "../lib/recurrence";
+import type { Phase } from "../lib/phase";
 import type { Season } from "@cougars/shared/seasons";
 import type { AfterMode, Venue } from "@cougars/shared/places";
 
@@ -301,6 +302,8 @@ export interface Bookable {
   started?: boolean;
   /** That line, where it isn't "Ask an admin to change it": a training's, started or over. */
   startedWords?: string;
+  /** Past, on or next, by its status, never its date (lib/phase.ts, ADR 0074): what Home and the calendar go by. */
+  phase: Phase;
   entries: Entries;
 }
 

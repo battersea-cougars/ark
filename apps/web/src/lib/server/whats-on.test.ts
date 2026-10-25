@@ -58,6 +58,13 @@ describe("what's on", () => {
     expect(kumite).toMatchObject({ season: "Summer 2027", dateTbc: true });
   });
 
+  it("leaves out a Kumite played early, its day still ahead: it's been, whatever its date (ADR 0074, #182)", async () => {
+    db.raw.exec(`UPDATE tournaments SET season = NULL, held_on = '2026-10-30';
+      INSERT INTO tournament_games (tournament_id, stage, round, position, status) VALUES (1, 'group', 1, 1, 'done')`);
+    await syncAll(db);
+    expect((await whatsOn(db, NOW)).map((i) => i.title)).not.toContain("The Cougars Kumite");
+  });
+
   it("leaves out what isn't public", async () => {
     db.raw.exec("UPDATE training_series SET public = 0; UPDATE tournaments SET public = 0");
     await syncAll(db);

@@ -7,6 +7,7 @@ import { all, batch, first, statement, type Param } from "./d1";
 import { afterOf, placeOf, type After, type AfterMode, type OwnPlace, type Venue } from "./places";
 import { seasonLabel, type Season } from "./seasons";
 import { londonDay, londonISO } from "./london";
+import { doneSql } from "./results";
 
 export type AgendaKind = "training" | "tournament" | "draft" | "signup_closes" | "event";
 type Source = "session" | "tournament" | "club_event";
@@ -457,8 +458,13 @@ export const fromRow = (r: AgendaRow): AgendaItem =>
     audience: r.audience,
   });
 
-/** What's on from a London day, soonest first. Who sees what is up to the reader (captains' rows, the website). */
+/**
+ * What's on from a London day, soonest first: not a tournament that's been played, whatever its date (one played
+ * early, ADR 0074, #182). Who sees what is up to the reader (captains' rows, the website).
+ */
 export async function readAgenda(db: D1Database, from: string) {
   await ensureAgenda(db);
-  return (await all<AgendaRow>(db, "SELECT * FROM agenda WHERE day >= ? ORDER BY starts_at, id", [from])).map(fromRow);
+  const played = `a.source = 'tournament' AND EXISTS (SELECT 1 FROM tournaments t WHERE t.id = a.source_id AND ${doneSql("t")})`;
+  const sql = `SELECT a.* FROM agenda a WHERE a.day >= ? AND NOT (${played}) ORDER BY a.starts_at, a.id`;
+  return (await all<AgendaRow>(db, sql, [from])).map(fromRow);
 }

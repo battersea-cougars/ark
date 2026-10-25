@@ -3,6 +3,7 @@
 // members.ts, ...). Who's asking is a row of its own (`viewer`), so what they may not see never leaves the database
 // (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
+import { doneSql } from "@cougars/shared/results";
 import { quarterlyOn } from "../entries/entries";
 import { REVEAL_PLACE } from "../tournaments/awards";
 import { playedOf } from "../members/members.played";
@@ -244,19 +245,19 @@ const PEOPLE = `m.id IN (v.member_id, v.viewed_by)
  * Played: every game over, or an admin marked it finished (lib/edition.ts editionState, @cougars/shared/results isDone).
  * `t`: the tournament's alias.
  */
-export const DONE = (t: string) =>
-  `(${t}.status = 'finished' OR (EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id)
-     AND NOT EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id AND g.status <> 'done')))`;
+export const DONE = doneSql;
 
 /**
  * The tournaments opening the app sends (#175, #178): Home's and the calendar's. Every one not played yet (coming up,
- * on now, its day passed unplayed), and any played in the last fortnight, for its after-party and Home's results.
- * The rest are a page's or history: each series' last one played ("last time", LAST_PLAYED), read when its front door
- * is opened, and the ones before, read when they're opened (tournaments/editions.ts). Opening the app stays the same
- * size however many there have been.
+ * on now, its day passed unplayed), and any played in the last fortnight, for its after-party and Home's results:
+ * by its day, or by when a match kicked off, so one played weeks late still has its evening (ADR 0074, #182). One
+ * played early is sent, done, and the app shows it as past. The rest are a page's or history: each series' last one
+ * played ("last time", LAST_PLAYED), read when its front door is opened, and the ones before, read when they're opened
+ * (tournaments/editions.ts). Opening the app stays the same size however many there have been.
  */
 const SHOWN_TOURNAMENTS = `SELECT t.id FROM tournaments t WHERE NOT ${DONE("t")}
-    UNION SELECT t.id FROM viewer v CROSS JOIN tournaments t WHERE t.held_on >= date(v.today, '-14 days')`;
+    UNION SELECT t.id FROM viewer v CROSS JOIN tournaments t WHERE t.held_on >= date(v.today, '-14 days')
+      OR (SELECT max(g.started_at) FROM tournament_games g WHERE g.tournament_id = t.id) >= date(v.today, '-14 days')`;
 /** Each series' last one played, unless opening the app sends it anyway: its front door's "last time" (#178). */
 const LAST_PLAYED = `SELECT id FROM (
     SELECT (SELECT d.id FROM tournaments d WHERE d.type_id = tt.id AND ${DONE("d")}
@@ -510,15 +511,22 @@ const PARTS = {
   ),
   // Why the club's email is failing, if it is (mail_health, ADR 0027), for whoever looks after it
   mailFailure: rows("failure", "SELECT h.failure FROM mail_health h, viewer v WHERE h.id = 1 AND v.keeps_email"),
-  // What's on from today (ADR 0042). A draft night is for whoever runs the draft and that tournament's captains.
+  // What's on (ADR 0042): from London's evening (last night's, till 06:00: its register's still open), and the day of
+  // a tournament not played yet whose day has gone by, which is still next (ADR 0074, #182). The app decides by each
+  // thing's status what's past (lib/phase.ts). A draft night is for whoever runs the draft and that tournament's
+  // captains.
   agenda: rows(
     `source source_id kind group_key title starts_at ends_at day all_day date_tbc season venue map_url description
      public cancelled audience`,
     `SELECT a.* FROM viewer v CROSS JOIN agenda a
-     WHERE a.day >= v.today
+     WHERE a.day >= v.evening
        AND (a.audience <> 'captains' OR v.runs_draft OR (a.source = 'tournament' AND a.source_id IN
              (SELECT tournament_id FROM tournament_teams WHERE captain_member_id = v.member_id)))
-     ORDER BY a.starts_at, a.id`,
+     UNION ALL
+     SELECT a.* FROM viewer v CROSS JOIN tournaments t
+       CROSS JOIN agenda a ON a.day = t.held_on AND a.source = 'tournament' AND a.source_id = t.id
+     WHERE t.held_on < v.evening AND a.kind = 'tournament' AND NOT ${DONE("t")}
+     ORDER BY starts_at, id`,
   ),
 } as const;
 
@@ -645,25 +653,28 @@ export interface MatchRows {
 
 /**
  * A live match (ADR 0072, #161): one tournament's games as every member sees them, read with no viewer since nothing
- * in them is anyone's own, in one statement; null when the tournament isn't on today (a result put right afterwards).
+ * in them is anyone's own, in one statement; null when the tournament isn't on (under way: lib/phase.ts), whatever its
+ * date: one played early is live, a result put right once it's all played isn't (ADR 0074, #182).
  */
-export async function readMatch(db: D1Database, tournamentId: number, today: string): Promise<MatchRows | null> {
+export async function readMatch(db: D1Database, tournamentId: number): Promise<MatchRows | null> {
   const ofGames = "WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)";
   const teams = rows(
     "id tournamentId",
     `SELECT id, tournament_id tournamentId FROM tournament_teams WHERE tournament_id = ?
      ORDER BY coalesce(pick, 1000), id`,
   );
-  // Each ? in turn: the day's check, then the games, goals, penalties and teams of this tournament
+  // Each ? in turn: whether it's on, then the games, goals, penalties and teams of this tournament
   const row = await db
     .prepare(
-      `SELECT EXISTS (SELECT 1 FROM tournaments WHERE id = ? AND held_on = ?) today,
+      `SELECT EXISTS (SELECT 1 FROM tournaments t WHERE t.id = ? AND NOT ${DONE("t")}
+                AND (t.status = 'live' OR EXISTS (SELECT 1 FROM tournament_games g
+                  WHERE g.tournament_id = t.id AND g.status <> 'next'))) "on",
               ${games("WHERE tournament_id = ?")} games, ${goals(ofGames)} goals, ${penalties(ofGames)} penalties,
               ${teams} teams`,
     )
-    .bind(tournamentId, today, tournamentId, tournamentId, tournamentId, tournamentId)
-    .first<Record<"today" | "games" | "goals" | "penalties" | "teams", string | number>>();
-  if (!row?.today) return null;
+    .bind(tournamentId, tournamentId, tournamentId, tournamentId, tournamentId)
+    .first<Record<"on" | "games" | "goals" | "penalties" | "teams", string | number>>();
+  if (!row?.on) return null;
   const parsed = (k: "games" | "goals" | "penalties" | "teams") => JSON.parse(String(row[k]));
   return { games: parsed("games"), goals: parsed("goals"), penalties: parsed("penalties"), teams: parsed("teams") };
 }

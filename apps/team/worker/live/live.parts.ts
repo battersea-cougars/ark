@@ -1,5 +1,5 @@
 // What a change sends down the live streams besides the names of the parts it changed (ADR 0072, #161), and who it
-// goes to: the one place that's decided. A live match, a tournament's games on its day, is the same for every member
+// goes to: the one place that's decided. A live match, a tournament's games while it's on (whatever its date), is the same for every member
 // (nothing in a game is anyone's own), so it's built once and goes to everyone: at the rink, where the whole squad
 // shares one wifi address, a goal is then no read at all on the phones following it. Everything else stays names only,
 // each phone reading its own view: what's someone's own (dues, sign-ups, members, roles) and the draft, whose picks
@@ -26,9 +26,9 @@ export async function pushedWith(c: Ctx, route: Route, changes: readonly string[
   }
 }
 
-/** A tournament's games on its day, as every member sees them; null on any other day. */
+/** A tournament's games while it's on, as every member sees them; null once it's all played, or before it starts. */
 async function liveMatch(c: Ctx, tournamentId: number) {
-  const rows = await readMatch(c.env.DB, tournamentId, c.today);
+  const rows = await readMatch(c.env.DB, tournamentId);
   if (!rows) return null;
   const games = gamesFrom(rows.games, rows.goals, rows.teams, rows.penalties);
   return { tournamentId, games: games.map(({ tournamentId: _, ...g }) => g) };

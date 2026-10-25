@@ -151,16 +151,31 @@ describe("a game scored live, everyone following it", () => {
     expect(cup.shown(keeper)).toEqual(await cup.asRead());
   });
 
-  it("a game scored on another day (a result put right afterwards) is names only: the phones read it", async () => {
-    const cup = await cupOn("2026-10-03");
+  it("a game played before its tournament's day is live all the same: the goal reaches the phones with the game", async () => {
+    // Status, not the date, says it's on (ADR 0074, #182): set for the 9th, played today
+    const cup = await cupOn("2026-10-09");
     const mo = await phoneOn("mo@example.com");
     await cup.goal();
+    await settled();
+    expect(mo.asked.slice(1)).toEqual([]);
+    expect(cup.shown(mo)[0].homeGoals).toBe(1);
+  });
+
+  it("a result put right once it's all played is names only: the phones read it", async () => {
+    const cup = await cupOn("2026-10-03");
+    for (const g of (await cup.asRead()) as Json[])
+      expect((await cup.dana.call("PUT", `${cup.path.replace(/\/\d+$/, "")}/${g.id}`, score(1, 0))).status).toBe(200);
+    const mo = await phoneOn("mo@example.com");
+    expect((await cup.dana.call("PUT", cup.path, score(2, 0))).status).toBe(200);
     await settled();
     expect(mo.events.every((e: Json) => e.parts === undefined)).toBe(true);
     // Of the family, the parts this phone holds (it's read every page, #178): Home's people and each series' last one
     expect(mo.asked.slice(1)).toEqual(["parts: tournaments, people, lastPlayed"]);
   });
 });
+
+/** A result as the scoresheet's editor sends it. */
+const score = (homeGoals: number, awayGoals: number) => ({ homeGoals, awayGoals });
 
 describe("what's someone's own never comes with the event", () => {
   it("an answer In (the sign-ups, what's owed) is names only: no member's data on anyone's stream", async () => {

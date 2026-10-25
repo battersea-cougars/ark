@@ -1,7 +1,7 @@
 # 0074. A tournament's page follows its status: one page per edition, a track of its statuses, a view for each
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-24
+- **Date:** 2026-10-08 · updated 2026-10-25
 - **Merges:** 0086
 
 ## Context
@@ -21,6 +21,18 @@ Running a tournament from Manage is [0127](0127-running-a-tournament-from-manage
 - **Its state comes from its games** (`lib/edition.ts`): under way once a game's being scored or has a result, done once
   every game's played (or an admin marked it finished). Before then, sign-up open or coming up. The day shows once it's
   confirmed or the games have been played; the season always.
+- **Status, not the date, says whether something is past, on or next** (#182): "status decides whether an event or
+  game is past, on or next, never its date or time" (the user, 2026-10-25). Done is past, whatever its date: a Kumite
+  played early is History on its pages, gone from Home's lead, Coming up, the calendar and the website's What's on, and
+  its sign-up opening day tells nobody. Live is on, even running late: a game set for 1:00 that starts at 1:45 is the
+  current one, and the one after doesn't become current; a tournament under way before its day leads Home and its
+  matches go to the phones live. Not started, its time gone by, is still next until it's played, closed or cancelled:
+  a Kumite whose day passed unplayed stays on Home and the calendar. A training night counts as held once its
+  register closes (06:00 the morning after, `lib/register-closes.ts`), not when its time's up, so Home and its page
+  stay on it till then. The date is for showing and sorting; only what has no status (a social) goes by its time. One
+  helper says it for each kind (`lib/phase.ts`: `tournamentPhase`, `gamePhase`, `nightPhase`, `timedPhase`), on each
+  thing the schedule shows (`Bookable.phase`); the Worker's SQL keeps to the same rule (`doneSql` in
+  `@cougars/shared/results`, `startedSql` in `worker/tournaments/started.ts`).
 - **The header carries the when and the where** on every tournament page (`TournamentHead.svelte`), two fixed lines. The
   first: within a week, how far off leads, big, in the club's red ("TOMORROW · Fri 23 Oct · 7 to 9:30pm"; Today,
   Tomorrow, This Friday, In 7 days; `countdownOf` in `lib/edition.ts`; a phone drops the hours to keep it one line);
@@ -229,3 +241,7 @@ blind (Chong Li's powder), and its page's foot sends the newcomer to watch the f
 - 2026-10-24: A logo of 2 KB or less is sent as itself, not its address (#177): a page of History with twenty generated
   crests made twenty requests that queued. Sent back as it came, the team keeps it. The matchup's past meetings and
   the editor's Brings are read from the server, not looked for in the editions the app holds.
+- 2026-10-25: Status, not the date, says whether something is past, on or next (#182): a Kumite played early was "on
+  the 30th" on Home while its page showed History. One helper (`lib/phase.ts`) for Home, the calendar, the series'
+  pages and the matches; the Worker's pushes, live matches, waiting list, bootstrap and the website's What's on keep
+  to the same rule; a training night is held once its register closes.

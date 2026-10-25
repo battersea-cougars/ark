@@ -10,6 +10,7 @@ import { londonToday } from "@cougars/shared/london";
 import { formatDayDate } from "../../src/lib/dates";
 import { notify, type Notice, type PushEnv } from "../push/push";
 import { invitationOnly } from "../../src/lib/motif";
+import { startedSql } from "./started";
 
 /** Sign-up closed, and the agenda told (`agenda` false: the caller syncs it once at the end, as Move to does). */
 export async function closeSignup(db: D1Database, tournamentId: number, today: string, now: string, agenda = true) {
@@ -64,17 +65,21 @@ export function signupOpenNotice(t: Opened): Notice {
   };
 }
 
-/** Marks the tournaments matching `where` told, and returns them: only those nobody's told yet, still to come. */
+/**
+ * Marks the tournaments matching `where` told, and returns them: only those nobody's told yet, not started (one played
+ * early is past, whatever its date, ADR 0074, #182), their sign-up not over.
+ */
 export const markTold = (db: D1Database, where: string, args: Param[], now: Date) =>
   all<Opened>(
     db,
     `UPDATE tournaments SET signup_told_at = ?
-     WHERE signup_told_at IS NULL AND held_on >= ? AND (signup_closes_on IS NULL OR signup_closes_on >= ?) AND ${where}
+     WHERE signup_told_at IS NULL AND NOT ${startedSql("tournaments")}
+       AND (signup_closes_on IS NULL OR signup_closes_on >= ?) AND ${where}
      RETURNING id, name, held_on heldOn,
        (SELECT slug FROM tournament_types ty WHERE ty.id = type_id) slug,
        (SELECT name FROM tournament_types ty WHERE ty.id = type_id) series,
        (SELECT json_group_array(member_id) FROM tournament_entries e WHERE e.tournament_id = tournaments.id) answered`,
-    [now.toISOString(), londonToday(now), londonToday(now), ...args],
+    [now.toISOString(), londonToday(now), ...args],
   );
 
 /**

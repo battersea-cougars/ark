@@ -7,20 +7,23 @@ interface Night {
   seriesId: number;
   heldOn: string;
   cancelledAt?: string | null;
+  registerClosedAt?: string | null;
   going: number[];
   waitlist: number[];
 }
 
 /**
  * A training's page: `shown`, its next night that isn't cancelled (or the next at all, if they all are), and `off`,
- * the nights from today to that one that are cancelled (the shown one too, if it is), in date order. `on`: a night's
- * own page, that night alone (the next one's, if there's none that day).
+ * the nights from `evening` to that one that are cancelled (the shown one too, if it is), in date order. A night is
+ * still next until its register closes (lib/phase.ts): `evening` is London's evening (lib/dates.ts londonEvening), so
+ * last night's is still it till 06:00, unless its register's closed. `on`: a night's own page, that night alone (the
+ * next one's, if there's none that day).
  */
-export function trainingNights<S extends Night>(sessions: S[], seriesId: number, today: string, on?: string) {
+export function trainingNights<S extends Night>(sessions: S[], seriesId: number, evening: string, on?: string) {
   const that = on ? sessions.find((s) => s.seriesId === seriesId && s.heldOn === on) : undefined;
   if (that) return { shown: that, off: that.cancelledAt ? [that] : [] };
   const future = sessions
-    .filter((s) => s.seriesId === seriesId && s.heldOn >= today)
+    .filter((s) => s.seriesId === seriesId && s.heldOn >= evening && !s.registerClosedAt)
     .sort((a, b) => a.heldOn.localeCompare(b.heldOn));
   const shown = future.find((s) => !s.cancelledAt) ?? future[0];
   const off = shown ? future.filter((s) => s.cancelledAt && s.heldOn <= shown.heldOn) : [];
