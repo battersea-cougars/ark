@@ -146,6 +146,7 @@ to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
 | `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, viewing as a member, an account gone  | ~25 s  |
 | `pages.journey.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
 | `sign-in.journey.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
+| `status-over-date.journey.ts`    | Status, not the date: a Kumite played early, a training night not closed yet, a game running late         | ~20 s  |
 
 Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
 screen) fails the step it happened in; the allowlist, each with its reason, is in `journey.ts`. A step refused on
@@ -177,7 +178,7 @@ failing at the same commit comments on it. A step that fails because of a known 
 **How long.** The full run is 10½ to 13½ minutes (23 October 2026, the machine shared; the Fees journey added a
 minute on the 24th), most of it the simulator's
 pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fees`,
-`fridays`, `kumite`, `members`, `pages`, `sign-in`: about 6 minutes, `--core`) every night on `main`, and the **full** run, with
+`fridays`, `kumite`, `members`, `pages`, `sign-in`, `status-over-date`: about 6 minutes, `--core`) every night on `main`, and the **full** run, with
 `kumite.on-the-clock` (its three played-out Kumites), before a release (a push to `release`).
 
 ## Known bugs
