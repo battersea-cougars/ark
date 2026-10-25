@@ -20,7 +20,7 @@ import { settingsFrom } from "../settings/settings";
 import { teamsFrom } from "../training/training.teams";
 import { prefsFrom } from "../push/push.prefs";
 import { levelsFrom } from "../settings/usage.levels";
-import { FAMILIES, HOLDS_HEADER, PAGE_PARTS } from "../../src/app/club-parts";
+import { FAMILIES, HOLDS_HEADER, PAGE_PARTS, partsChanged } from "../../src/app/club-parts";
 
 // ─── The club, in parts ───
 // The bootstrap is all of them; a change's reply is the ones it touched. Each is what this member may see (ADR 0036).
@@ -194,6 +194,11 @@ export const SLICES = {
   agenda: { parts: ["agenda"], shape: (_c: Ctx, p: Parts) => (p.agenda as AgendaRow[]).map(agendaItem) },
 } satisfies Record<string, { parts: readonly Part[]; shape: (c: Ctx, p: Parts) => unknown }>;
 export type Slice = keyof typeof SLICES;
+/**
+ * What a change can say it changed: a part, or a family of parts (src/app/club-parts.ts). `tonight` is the nights from
+ * tonight alone, a training answer's: one already held takes no answers (#178).
+ */
+export type Changed = Slice | "tonight";
 
 /**
  * Each event with its answers: who's in and who's waiting, for everyone (that's what a sign-up is for); who said
@@ -236,7 +241,7 @@ export function draftSeenBy<T extends ReturnType<typeof tournamentsFrom>[number]
 }
 
 /** Anything on the calendar changed: the agenda comes back with it (ADR 0042). */
-export const SCHEDULE: readonly Slice[] = [
+export const SCHEDULE: readonly Changed[] = [
   "series",
   "sessions",
   "venues",
@@ -257,7 +262,7 @@ const MADE_OF: Partial<Record<Slice, readonly string[]>> = {
   everydayRole: ["members"],
   people: ["members", "sessions", "tournaments", "clubEvents"],
   roles: ["members"],
-  sessions: ["members"],
+  sessions: ["members", "tonight"],
   pastSessions: ["sessions", "members"],
   tournaments: ["members"],
   lastPlayed: ["tournaments", "members"],
@@ -305,9 +310,17 @@ export async function slices(
   return Object.fromEntries(names.map((n) => [n, SLICES[n].shape(c, parts)]));
 }
 
+/**
+ * What a change sends back to this member (#178): the core's parts of the families it changed, and the pages' the phone
+ * holds. Everyone's dues and the club's total owed only for who sees them (club-parts.ts partsChanged).
+ */
+export function touchedFor(c: Ctx, changes: readonly Changed[], held: readonly string[]): Slice[] {
+  return partsChanged(changes, held, holdsAny(c, SEES_DUES)) as Slice[];
+}
+
 /** The pages' parts a phone says it holds (HOLDS_HEADER): a change sends them back too. */
 export const heldBy = (request: Request) =>
   (request.headers.get(HOLDS_HEADER) ?? "").split(",").filter((name) => PAGE_PARTS.includes(name));
 
 // Who can see what depends on roles: after a change to members or roles, read the parts with the actions as they are now
-export const ACCESS: readonly Slice[] = ["members", "roles", "everydayRole"];
+export const ACCESS: readonly Changed[] = ["members", "roles", "everydayRole"];

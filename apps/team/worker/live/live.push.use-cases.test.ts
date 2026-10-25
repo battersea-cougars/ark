@@ -157,7 +157,8 @@ describe("a game scored live, everyone following it", () => {
     await cup.goal();
     await settled();
     expect(mo.events.every((e: Json) => e.parts === undefined)).toBe(true);
-    expect(mo.asked.slice(1)).toEqual(["parts: tournaments"]);
+    // Of the family, the parts this phone holds (it's read every page, #178): Home's people and each series' last one
+    expect(mo.asked.slice(1)).toEqual(["parts: tournaments, people, lastPlayed"]);
   });
 });
 
@@ -170,7 +171,7 @@ describe("what's someone's own never comes with the event", () => {
     expect((await mo.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
     expect(ash.events).toHaveLength(1);
-    expect(ash.events[0]).toEqual({ changed: expect.arrayContaining(["sessions"]), versions: [expect.any(Number)] });
+    expect(ash.events[0]).toEqual({ changed: expect.arrayContaining(["tonight"]), versions: [expect.any(Number)] });
     expect(ash.asked.slice(1)).toEqual([expect.stringMatching(/^parts: sessions/)]);
   });
 
@@ -203,6 +204,6 @@ describe("what's someone's own never comes with the event", () => {
     await settled();
     expect(ash.events.length).toBeGreaterThan(0);
     expect(ash.events.every((e: Json) => e.parts === undefined)).toBe(true);
-    expect(ash.asked.slice(1)).toEqual(["parts: tournaments"]);
+    expect(ash.asked.slice(1)).toEqual(["parts: tournaments, people, lastPlayed"]);
   });
 });

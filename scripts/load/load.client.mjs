@@ -99,7 +99,13 @@ export async function phone(target, email, stats, { address } = {}) {
       return true;
     },
     visible: () => true,
-    partsOf: (families) => partsChanged(families, holds),
+    // Everyone's dues and the club's total owed only for who sees them, as the app's copy
+    partsOf: (families) =>
+      partsChanged(
+        families,
+        holds,
+        ["manage:all", "read:Dues", "record:Payment"].some((a) => club?.actions?.includes(a)),
+      ),
   });
 
   async function call(label, method, path, payload, headers = {}) {

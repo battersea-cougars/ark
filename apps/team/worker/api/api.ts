@@ -3,8 +3,7 @@
 // refused unless the signed-in member's roles grant it (manage:all grants everything). Anything not listed is a 404.
 import { londonToday } from "@cougars/shared/london";
 import { type Ctx, type Env, type Route } from "./api.route";
-import { ACCESS, SCHEDULE, heldBy, slices, type Slice } from "./api.slices";
-import { partsChanged } from "../../src/app/club-parts";
+import { ACCESS, SCHEDULE, heldBy, slices, touchedFor } from "./api.slices";
 import { audit, auditRefused } from "../settings/audit";
 import { carriesSession, localHere, sessionOf } from "../auth/auth";
 import { devClock } from "./api.dev-clock";
@@ -226,6 +225,7 @@ export async function handleApi(
       today: londonToday(now),
       now: now.toISOString(),
       waitUntil,
+      alsoChanged: [],
     };
     // On the record (ADR 0095): what the change is to, before it
     const record = writes && hit.r.audit && "event" in hit.r.audit ? hit.r.audit : null;
@@ -273,7 +273,7 @@ export async function handleApi(
     // A change that reloads the app (viewing as someone) changes nothing in the club: no one's copy is out of date
     if (writes && res.ok && !hit.r.reloads) {
       // What it touched: the parts it declared, and the agenda with anything on the calendar
-      const declared = hit.r.changes ?? [];
+      const declared = [...(hit.r.changes ?? []), ...ctx.alsoChanged];
       const calendar = hit.r.calendar !== false && declared.some((d) => SCHEDULE.includes(d));
       const changes = calendar ? [...declared, "agenda" as const] : declared;
       // A change: every member's bootstrap is out of date (ADR 0053), and these parts are new (#178)
@@ -290,7 +290,7 @@ export async function handleApi(
           : ctx;
         const reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
         // ...the core's parts of what it touched, and the pages' this phone holds (src/app/club-parts.ts, #178)
-        const touched = partsChanged(changes, heldBy(request)) as Slice[];
+        const touched = touchedFor(now, changes, heldBy(request));
         const out = json({ ...reply, changed: await slices(now, touched, at) }, res.status);
         // Read after the version went up: the app's copy has this change's parts at least as new (src/app/catch-up.ts)
         out.headers.set(VERSION_HEADER, String(version));

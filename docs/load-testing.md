@@ -193,15 +193,30 @@ machine; SQLite is D1's own time:
 | A training night's page, a member, its shared rows kept  | — → 0.80 ms (0.29 ms SQLite) |
 | A training night's page, nothing kept (D1 for all of it) | — → 1.23 ms (1.24 ms SQLite) |
 | A page, unchanged (304)                                  | — → 0.09 ms                  |
-| A tap, In or Out                                         | 0.88 → 1.94–1.96 ms          |
+| A tap, In or Out (see below: now on a par with main)     | 0.88 → 1.94–1.96 ms          |
 | A tournament deleted                                     | 0.98 → 2.18–2.52 ms          |
 
 The core is the same size with four weeks of history as with fifty-two (a use case holds it within 1 KB) and doesn't
 grow with the roster: it names only the people in your next things. A page opened by phones of one role reads its
-shared rows from D1 once; the next phone's open is about a quarter of D1's time, its own answers only. A tap's reply
-costs more than before: it now reads tonight's nights and the weeks just held as two parts, each with your own
-answers overlaid, and Home's people (0.25 ms of it); still a fifth of the free plan's 10 ms. Whole-club equality: the
-core and every page put together are byte for byte the bootstrap #177 sent (bootstrap.same).
+shared rows from D1 once; the next phone's open is about a quarter of D1's time, its own answers only. Whole-club equality:
+the core and every page put together are byte for byte the bootstrap #177 sent (bootstrap.same).
+
+A tap's reply, made as small as it was (2026-10-25, #178). As first split, a tap read tonight's nights and the weeks
+just held as two parts, each with your own answers overlaid, Home's people, the club's total owed and everyone's dues:
+1.94–1.96 ms where main took 0.88. A training answer can't change a night already held (its register closed at 06:00
+the morning after), so it now names `tonight` alone; Home's people come only with someone's first answer; and the club's
+total owed and everyone's dues only for who sees them. The register and an admin updating attendance still name
+`sessions`, the weeks just held with them. `cpu` now also says a tap's SQLite time and its reply's size. Main
+(5da1c56), the first split (91b3bab) and this, each run in turn three times on a machine other sessions were loading
+(load average 13 to 34), so the medians are a comparison, not the quiet machine's numbers above:
+
+| A tap, In or Out (a member's)         | Main    | First split | Now     |
+| ------------------------------------- | ------- | ----------- | ------- |
+| Worker's own CPU, median of 3 medians | 1.94 ms | 2.28 ms     | 1.63 ms |
+| SQLite's time                         | 30.5 ms | 29.9 ms     | 27.0 ms |
+| Its reply                             | 6.4 KB  | 16.2 KB     | 3.7 KB  |
+
+On a par with main, or a little under it: main's reply carried the four weeks just held, which a tap now doesn't.
 
 Busy moments:
 

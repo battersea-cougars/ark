@@ -140,6 +140,13 @@ describe.runIf(process.env.LOAD_CPU)(
         send(members[i % members.length], "POST", `/api/sessions/${friday}/answer`, { answer: i % 2 ? "out" : "in" }),
       );
       say("a tap, In or Out (the charges worked out again)", tap);
+      // What a tap's reply carries (#178): tonight's nights, your own charges and dues, not the weeks just held
+      const tapReply = (i: number) =>
+        send(members[i % members.length], "POST", `/api/sessions/${friday}/answer`, { answer: i % 2 ? "out" : "in" });
+      let taps = 0;
+      say("a tap, SQLite's time", await sqlite(() => tapReply(taps++)));
+      const tapped = await members[3].open("POST", `/api/sessions/${friday}/answer`, {}, { answer: "in" });
+      said.push(`a tap's reply: ${((await tapped.arrayBuffer()).byteLength / 1024).toFixed(1)} KB`);
       expect((await dana.call("PUT", "/api/me/view-as", { memberId: ids[5] })).status).toBe(200);
       const viewing = await median(() => send(dana, "GET", "/api/bootstrap"));
       say("bootstrap, an admin viewing as a member", viewing);

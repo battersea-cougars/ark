@@ -16,6 +16,9 @@ export const FAMILIES: Record<string, { core: readonly string[]; pages: readonly
   members: { core: ["people", "forAdmins"], pages: ["members"] },
   // Who's signed up names people on Home
   sessions: { core: ["sessions", "people"], pages: ["pastSessions"] },
+  // The nights from tonight alone: a training answer's, since a night already held takes none (its register closed
+  // the morning after). Home's people only when the answer was someone's first: the route says `people` then
+  tonight: { core: ["sessions"], pages: [] },
   tournaments: { core: ["tournaments", "people"], pages: ["lastPlayed"] },
   clubEvents: { core: ["clubEvents", "people"], pages: [] },
   // What the club is owed in all, on an admin's Home
@@ -26,21 +29,30 @@ export const FAMILIES: Record<string, { core: readonly string[]; pages: readonly
 /** The pages' own parts: never in the core, read when a page that shows them is opened. */
 export const PAGE_PARTS: readonly string[] = Object.values(FAMILIES).flatMap((f) => f.pages);
 
+/** What's owed beyond your own: everyone's, and the club's total on For admins. Only for who sees everyone's dues. */
+const DUES_FOR_ADMINS: Record<string, readonly string[]> = { dues: ["forAdmins", "clubDues"] };
+
 /**
  * The parts a change to these families changed: the core's, and of the pages' only those `held` (all of them, if
- * not said). A name that isn't a family is a part of its own (`settings`, `quips`).
+ * not said). A name that isn't a family is a part of its own (`settings`, `quips`). `seesDues` false: what's owed
+ * changing changes only your own line (everyone's, and the club's total, are empty for you either way, #178).
  */
-export function partsChanged(names: readonly string[], held?: ReadonlySet<string> | readonly string[]): string[] {
+export function partsChanged(
+  names: readonly string[],
+  held?: ReadonlySet<string> | readonly string[],
+  seesDues = true,
+): string[] {
   const holds = held && new Set(held);
   const out = new Set<string>();
+  const unseen = (name: string, part: string) => !seesDues && DUES_FOR_ADMINS[name]?.includes(part);
   for (const name of names) {
     const family = FAMILIES[name];
     if (!family) {
       out.add(name);
       continue;
     }
-    for (const part of family.core) out.add(part);
-    for (const part of family.pages) if (!holds || holds.has(part)) out.add(part);
+    for (const part of family.core) if (!unseen(name, part)) out.add(part);
+    for (const part of family.pages) if ((!holds || holds.has(part)) && !unseen(name, part)) out.add(part);
   }
   return [...out];
 }

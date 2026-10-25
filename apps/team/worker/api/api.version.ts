@@ -7,6 +7,7 @@
 // own view, ADR 0036), the day (a view depends on it: what's upcoming, who's a Quarterly Member) and the deploy (a new
 // build may send a different shape).
 import { first, run } from "@cougars/shared/d1";
+import { londonEvening } from "@cougars/shared/london";
 import { APP_BUILD, BUILD_HEADER } from "../../src/app/build";
 import { clubTag, sameTag, VERSION_HEADER } from "../../src/app/club-tag";
 import { json } from "./api.http";
@@ -108,6 +109,15 @@ export const notModified = (tag: string, version: number) =>
     headers: { etag: tag, "cache-control": NOT_KEPT, [BUILD_HEADER]: APP_BUILD, [VERSION_HEADER]: String(version) },
   });
 
+/**
+ * The day a reply is for, as its tag says it: London's day, and London's evening (till 06:00, the night before), since
+ * at 06:00 the night just held moves from Home's next nights to the weeks just held, with nothing changed (#178).
+ */
+export const dayOf = (c: Ctx) => {
+  const evening = londonEvening(new Date(c.now));
+  return evening === c.today ? c.today : `${c.today}~${evening}`;
+};
+
 /** Whose club a reply is, as whom: an admin viewing as Sam isn't sent Sam's own copy, nor their own (ADR 0024). */
 export const whoseClub = (c: Ctx) => (c.viewedBy == null ? String(c.memberId) : `${c.viewedBy}as${c.memberId}`);
 
@@ -118,7 +128,7 @@ export const whoseClub = (c: Ctx) => (c.viewedBy == null ? String(c.memberId) : 
  */
 export async function versionedRead(c: Ctx, what: string, read: () => Promise<unknown>): Promise<Response> {
   const { version } = await dataVersion(c.env.DB);
-  const tag = bootstrapTag(buildOf(c.env), version, `${whoseClub(c)}~${what}`, c.today);
+  const tag = bootstrapTag(buildOf(c.env), version, `${whoseClub(c)}~${what}`, dayOf(c));
   if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, version);
   return tagged(json(await read()), tag, version);
 }

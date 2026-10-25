@@ -28,6 +28,7 @@ import {
   REMINDERS,
   SUBSCRIPTION_FEES,
   FOR_ADMINS,
+  ACTIONS,
 } from "../demo/data";
 import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
@@ -148,6 +149,10 @@ onParts((slices, version, fresh) => {
   apply((fresh ? slices : newer) as Slices);
 });
 
+/** Whether the server lets this sign-in see everyone's dues (ADR 0007): what a change to them means to this copy. */
+const seesDues = () =>
+  ACTIONS.includes("manage:all") || ACTIONS.includes("read:Dues") || ACTIONS.includes("record:Payment");
+
 /** When the whole club was last read or found unchanged: a live page opening just after doesn't ask again. */
 export const checked = { at: 0 };
 
@@ -170,7 +175,7 @@ export const copy = new ClubCopy({
   },
   visible: () => document.visibilityState === "visible",
   // A family's parts the app holds: the core's, and the pages' it's read (#178)
-  partsOf: (families) => partsChanged(families, held.parts()),
+  partsOf: (families) => partsChanged(families, held.parts(), seesDues()),
   // ...and a page's that changed while no page in view shows it: read again when one opens
   letGo,
 });

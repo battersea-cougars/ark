@@ -2,6 +2,10 @@
 // (src/app/catch-up.ts) reading through the real Worker, its stream from the real hub, and a live match the hub
 // pushes put in place as the app does (#161).
 import { ClubCopy, withMatch } from "../../src/app/catch-up";
+import { partsChanged } from "../../src/app/club-parts";
+
+/** Whether these actions see everyone's dues (ADR 0007), as the app's copy asks. */
+const seesDues = (actions: string[]) => ["manage:all", "read:Dues", "record:Payment"].some((a) => actions.includes(a));
 import { atVersion } from "../../src/app/club-tag";
 import type { testWorld } from "../testing";
 
@@ -47,6 +51,8 @@ export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, pa
     },
     visible: () => inView,
     waitMs: 100,
+    // As the app's copy: of each family the hub names, its parts; this phone holds every page's (club() reads them)
+    partsOf: (families) => partsChanged(families, undefined, seesDues(club?.actions ?? [])),
   });
   await whole();
   copy.follow(parts);

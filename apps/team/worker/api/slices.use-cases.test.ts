@@ -233,26 +233,67 @@ describe("a page's own data", () => {
     expect(boSees.find((s: Json) => s.id === friday.id).out ?? []).not.toContain(ashId);
   });
 
-  it("comes back with a change that touched it, for a phone that holds it", async () => {
+  it("a tap comes back with tonight's nights, not the weeks just held, and Home's people only for someone new to them", async () => {
     const dana = await w.signedIn("dana@example.com");
     const ash = await w.signedIn("ash@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body;
-    const friday = boot.sessions.find((s: Json) => s.heldOn >= "2026-10-06");
-    const holding = await ash.call(
-      "POST",
-      `/api/sessions/${friday.id}/answer`,
-      { answer: "in" },
-      { headers: { "x-club-holds": "pastSessions,members" } },
+    const friday = (await dana.call("GET", "/api/bootstrap")).body.sessions.find((s: Json) => s.heldOn >= "2026-10-06");
+    const lee = await w.listening("lee@example.com");
+    const holding = { headers: { "x-club-holds": "pastSessions,members,lastPlayed" } };
+    const tap = async (answer: string) =>
+      Object.keys((await ash.call("POST", `/api/sessions/${friday.id}/answer`, { answer }, holding)).body.changed);
+    // Ash's first answer: Ash is new to everyone's next things, so Home's people come too
+    const first = await tap("in");
+    expect(first).toEqual(expect.arrayContaining(["sessions", "people"]));
+    expect(first).not.toContain("pastSessions");
+    // A tap can't change a night already held (its register closed the morning after): the hub says tonight's only
+    const heard = (await lee.next()).data.changed;
+    expect(heard).toEqual(expect.arrayContaining(["tonight", "people"]));
+    expect(heard).not.toContain("sessions");
+    // Out, then in again: the same people, so they don't come
+    for (const answer of ["out", "in"]) {
+      const again = await tap(answer);
+      expect(again).toContain("sessions");
+      expect(again).not.toContain("people");
+      expect(again).not.toContain("pastSessions");
+    }
+  });
+
+  it("the register and an admin updating attendance mark the weeks just held changed, and the night just held moves into them at 06:00", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const idOf = (email: string) =>
+      (w.db.raw.prepare("SELECT id FROM members WHERE email = ?").get(email) as { id: number }).id;
+    const friday = (await dana.call("GET", "/api/bootstrap")).body.sessions.find(
+      (s: Json) => s.heldOn === "2026-10-09",
     );
-    expect(Object.keys(holding.body.changed)).toEqual(expect.arrayContaining(["sessions", "pastSessions"]));
-    const notHolding = await ash.call(
+    const lee = await w.listening("lee@example.com");
+    // Friday night, 22:00 in London: the register, and an admin updating Bo's attendance
+    const night = { now: new Date("2026-10-09T21:00:00Z"), headers: { "x-club-holds": "pastSessions,members" } };
+    const ticked = await dana.call(
       "POST",
-      `/api/sessions/${friday.id}/answer`,
-      { answer: "out" },
-      { headers: { "x-club-holds": null } },
+      `/api/sessions/${friday.id}/register`,
+      { memberId: idOf("ash@example.com"), here: true },
+      night,
     );
-    expect(Object.keys(notHolding.body.changed)).toContain("sessions");
-    expect(Object.keys(notHolding.body.changed)).not.toContain("pastSessions");
+    expect(ticked.status).toBe(200);
+    expect(Object.keys(ticked.body.changed)).toEqual(expect.arrayContaining(["sessions", "pastSessions"]));
+    expect((await lee.next()).data.changed).toContain("sessions");
+    const marks = { marks: [{ sessionId: friday.id, here: true }] };
+    const updated = await dana.call("PUT", `/api/members/${idOf("bo@example.com")}/attendance`, marks, night);
+    expect(updated.status).toBe(200);
+    expect(Object.keys(updated.body.changed)).toEqual(expect.arrayContaining(["sessions", "pastSessions"]));
+    // 05:00 on Saturday: the register's still open, so the night is still the core's, not the weeks just held
+    const early = await dana.call("GET", "/api/slices?names=pastSessions", undefined, {
+      now: new Date("2026-10-10T04:00:00Z"),
+    });
+    expect(early.body.slices.pastSessions.map((s: Json) => s.id)).not.toContain(friday.id);
+    // 06:30: it's closed, and in the weeks just held, with who came, though nothing changed since: not a 304
+    const after = await dana.call("GET", "/api/slices?names=pastSessions", undefined, {
+      now: new Date("2026-10-10T05:30:00Z"),
+      headers: { "if-none-match": early.headers.get("etag")! },
+    });
+    expect(after.status).toBe(200);
+    const held = after.body.slices.pastSessions.find((s: Json) => s.id === friday.id);
+    expect(held.going).toEqual(expect.arrayContaining([idOf("ash@example.com"), idOf("bo@example.com")]));
   });
 });
 

@@ -76,7 +76,9 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     expect((await mo.change("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
     // An answer moves nothing on the calendar, so the agenda isn't read again (api.route.ts `calendar`)
-    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, dues"]);
+    // Tonight's nights, not the weeks just held (#178); your own charges and dues line (a member sees no one else's,
+    // nor the club's total); and Home's people, since it was Mo's first answer
+    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, dues, people"]);
     expect(reg.club().sessions.find((s: Json) => s.id === f.session.id).going).toHaveLength(1);
   });
 
@@ -153,7 +155,8 @@ describe("the hub, in a burst", () => {
     const versions = [...first.data.versions, ...second.data.versions];
     expect(versions).toHaveLength(6);
     expect(new Set(versions).size).toBe(6);
-    expect(second.data.changed).toContain("sessions");
+    // A training answer names tonight's nights alone (#178)
+    expect(second.data.changed).toContain("tonight");
     expect(first.data.versions.length + second.data.versions.length).toBe(6);
     await reg.close();
   });
@@ -169,7 +172,7 @@ describe("the hub, in a burst", () => {
       expect((await mo.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
       expect(vi.getTimerCount()).toBe(0);
       const e = await reg.next();
-      expect(e.data.changed).toContain("sessions");
+      expect(e.data.changed).toContain("tonight");
     } finally {
       vi.useRealTimers();
     }

@@ -9,7 +9,7 @@ import { countPlayed } from "../members/members.played";
 import { HttpError, json } from "./api.http";
 import { liveStream } from "../live/live";
 import { ensureSessions } from "../training/training";
-import { bootstrapTag, buildOf, dataVersion, notModified, sessionsMade, tagged, whoseClub } from "./api.version";
+import { bootstrapTag, buildOf, dataVersion, dayOf, notModified, sessionsMade, tagged, whoseClub } from "./api.version";
 import { clubTag, sameTag } from "../../src/app/club-tag";
 
 export const CLUB_ROUTES: Route[] = [
@@ -42,7 +42,7 @@ export const CLUB_ROUTES: Route[] = [
         at = await dataVersion(db);
       }
       const { version } = at;
-      const tag = bootstrapTag(buildOf(c.env), version, whoseClub(c), c.today);
+      const tag = bootstrapTag(buildOf(c.env), version, whoseClub(c), dayOf(c));
       if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, version);
       const reply = json({
         // Who you are, and who the app is showing (ADR 0024): the member you're viewing as, with their actions
@@ -74,7 +74,7 @@ export const CLUB_ROUTES: Route[] = [
         throw new HttpError(400, "Which parts of the club?");
       const at = await dataVersion(c.env.DB);
       const asked = names as Slice[];
-      const tag = clubTag(buildOf(c.env), versionsOf(at, asked), `${whoseClub(c)}~${asked.join("+")}`, c.today);
+      const tag = clubTag(buildOf(c.env), versionsOf(at, asked), `${whoseClub(c)}~${asked.join("+")}`, dayOf(c));
       if (sameTag(c.request.headers.get("if-none-match"), tag)) return notModified(tag, at.version);
       return tagged(json({ version: at.version, slices: await slices(c, asked, at) }), tag, at.version);
     },

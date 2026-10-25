@@ -1,7 +1,7 @@
 # 0053. Live reads are cached the same way everywhere, and Sanity is read through its API CDN
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-24
+- **Date:** 2026-10-07 · updated 2026-10-25
 - **Merges:** 0041, 0054
 
 ## Context
@@ -65,7 +65,12 @@ week of history, though Home shows only what's next.
   the weeks just held...); anything else that moves the version on (a script, the hourly run, the day's first open,
   which makes the day's sessions) makes every part new (`untold`, by trigger). A page's read is tagged by its parts'
   versions, the member and the day: asked again with its tag while they're unchanged, it's an empty 304, whatever else
-  changed. A tap on Friday doesn't make the roster or last year's Kumite new.
+  changed. A tap on Friday doesn't make the roster or last year's Kumite new. A training answer names only `tonight`
+  (the nights from tonight: a night already held takes no answers, its register closed at 06:00 the morning after),
+  and Home's `people` only when it was someone's first answer; the register and an admin updating attendance still
+  name `sessions`, the weeks just held with them. A tag names London's evening as well as the day: at 06:00 the night
+  just held moves from the core's nights to the weeks just held with nothing changed. Everyone's dues and the club's
+  total owed change only for who sees them: a payment or a tap doesn't read them again for anyone else.
 - **What's the same for everyone who sees the club alike is kept at the edge** (`worker/api/api.edge.ts`): the roster
   as all of a role see it, a night's sign-ups and teams, a Kumite's teams, games and awards. Read from D1 once, kept in
   the isolate's memory and Cloudflare's Cache API, keyed by the deploy, the parts, their versions and what the viewer
@@ -124,8 +129,9 @@ week of history, though Home shows only what's next.
 - A route that declares too little of what it changed now leaves that part stale until its next declared change, the
   next day or the next deploy, for every phone and the edge, not just until the next whole read (#178): the parts'
   versions are only as good as the declarations ([0057](0057-team-app-loading-and-changes.md)).
-- A tap's reply costs a little more of the Worker's time (about 1 ms more: two parts of nights, your own rows overlaid,
-  Home's people), well under the free plan's 10 ms (docs/load-testing.md).
+- A tap costs what it did before the split, its reply smaller (3.7 KB, was 6.4 KB): it names tonight's nights alone,
+  Home's people only for a first answer (docs/load-testing.md). A route that could change a held night must still name
+  `sessions`.
 - D1 allows five terms in a compound SELECT and the tests' SQLite doesn't hold the club read to it, so a use case does.
 - A page that reads more of the club is a line in `page-data.svelte.ts` NEEDS; a new page's part is a family in
   `club-parts.ts`, a slice in `api.slices.ts` and its merge in `club-whole.ts`.
@@ -156,3 +162,7 @@ week of history, though Home shows only what's next.
   (#178). Was: the whole club on every open. Each part has its own version, so a page's read is a 304 while its parts
   are unchanged; what's the same for everyone of a role is kept at the edge by those versions; nothing is kept on disk,
   so offline at the rink is what the open app holds (Home, your next night, the Kumite on, the roster once prefetched).
+- 2026-10-25: A training answer names `tonight` (the nights from tonight), not `sessions`: a night already held takes no
+  answers. Home's people come with a tap only when it was someone's first answer; the club's total owed and everyone's
+  dues only for who sees them; tags name London's evening too, as the night just held moves into the weeks just held at
+  06:00 (#178). A tap is back on a par with main (its reply 3.7 KB, was 16.2 KB just after the split, 6.4 KB on main).

@@ -290,7 +290,18 @@ export function fillingUp(
  * A member says in or out for themselves. In on a full event is the waitlist. Not once a tournament's started: who's
  * in then is an admin's to change (tournaments/started.ts), decided in the statements that write it.
  */
-export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
+/**
+ * A member's own In, Out or taking back their Out. Whether they're new to the event's answers (they hadn't answered,
+ * and now have): Home's people, everyone's next things, have one more in them (#178).
+ */
+export async function answer(
+  db: D1Database,
+  kind: EntryKind,
+  id: number,
+  memberId: number,
+  a: Answer,
+  now: string,
+): Promise<boolean> {
   const places = await capacity(db, kind, id, memberId);
   // Once training's started, who's in is the register's (ADR 0007, 0131, #167): who's there, and what it charges, is
   // the register's and the admins' to change, not a member's own In or Out; once it's over, it's the record (#128)
@@ -299,10 +310,13 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   if (places.night && nightPast(places.night, places.night.startTime, now))
     throw new HttpError(409, "Training's started: the register says who's in.");
   if (places.endsAt && places.endsAt <= now) throw new HttpError(409, "That's over now.");
-  if (a === "clear") return takeBack(db, kind, id, memberId);
+  if (a === "clear") {
+    await takeBack(db, kind, id, memberId);
+    return false;
+  }
   const was = await current(db, kind, id, memberId);
   if (a === "out") {
-    if (was?.signup === "out") return;
+    if (was?.signup === "out") return false;
     // Drafted: off their team while the draft's open; once it's closed (or a captain), through an admin
     const offTeam = kind === "tournament" ? await leaveDraft(db, id, memberId) : [];
     // Out, and the first waiting in, at once (whatever they were when read: another of their taps may have moved
@@ -314,9 +328,9 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
       movingUp(db, kind, id, places, now, true),
     ]);
     if (kind === "tournament" && !done[offTeam.length].meta.changes) throw await startedRefusal(db, id, "take you off");
-    return;
+    return !was;
   }
-  if (was?.signup === "in" || was?.signup === "waitlist") return;
+  if (was?.signup === "in" || was?.signup === "waitlist") return false;
   // A training's night takes sign-ups from its opening day (lib/signup.ts); saying you're out is always fine
   if (places.night) {
     const today = londonToday(new Date(now));
@@ -354,6 +368,7 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   if (kind === "tournament" && !joined.meta.changes && (await hasStarted(db, id)))
     throw await startedRefusal(db, id, "put you in");
   if (kind === "session" && places.limit !== null && !places.keeper) await bump(db, id, memberId);
+  return !was && Boolean(joined.meta.changes);
 }
 
 /**

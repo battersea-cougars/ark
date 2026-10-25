@@ -2,7 +2,7 @@
 // action it needs, what it changes and what it puts on the record; and the small helpers every feature's routes share.
 // The routes themselves live with their feature ({feature}.routes.ts); api.ts mounts them.
 import { type Action } from "../../src/access/actions";
-import type { Slice } from "./api.slices";
+import type { Changed } from "./api.slices";
 import { type AuthEnv } from "../auth/auth";
 import { HttpError, body, json } from "./api.http";
 import { all, first } from "@cougars/shared/d1";
@@ -42,6 +42,8 @@ export interface Ctx {
   now: string;
   /** Work that goes on after the reply (an email); without it (tests), it's done before. */
   waitUntil?: (p: Promise<unknown>) => void;
+  /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`, #178). */
+  alsoChanged: Changed[];
 }
 
 export interface Route {
@@ -58,7 +60,7 @@ export interface Route {
    * A change: the parts of the club it can touch. They come back with the reply, as `changed`, so the app puts them
    * in place without reloading the whole club. Every route that isn't a GET says.
    */
-  changes?: readonly Slice[];
+  changes?: readonly Changed[];
   /**
    * Instead of `changes`, saying why: a change after which the app reads the whole club again, so no parts come back
    * and no one else's copy is out of date (viewing as someone, ADR 0024).
