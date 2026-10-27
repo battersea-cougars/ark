@@ -96,7 +96,13 @@ function tournamentsSeenBy(c: Ctx, p: Parts, part: (name: (typeof TOURNAMENT_PAR
 /** Training nights from their rows: each with its answers and its published teams. */
 function nightsFrom(sessions: Parts["sessions"], entries: Parts["sessionEntries"], teamRows: Parts["sessionTeams"]) {
   const teams = teamsFrom(teamRows);
-  return withEntries(sessions as SessionRow[], entries).map((s) => ({ ...s, teams: teams.get(s.id) ?? [] }));
+  return withEntries(sessions as SessionRow[], entries).map((s) => ({
+    ...s,
+    // Why it's off (#186): called off by hand, and the tournaments it's off for
+    offByHand: !!s.offByHand,
+    offFor: s.offFor ? String(s.offFor).split(",").map(Number) : [],
+    teams: teams.get(s.id) ?? [],
+  }));
 }
 
 /** What the club is owed in all (nothing owed: none, by nobody). */

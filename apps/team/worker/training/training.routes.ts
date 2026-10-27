@@ -5,8 +5,16 @@ import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route"
 import { seriesFeeChange } from "../dues/dues";
 import { letIn, mark } from "../entries/entries";
 import { HttpError, body, json } from "../api/api.http";
-import { createSeries, moreSessions, nightOf, setSessionCancelled, updateSeries } from "./training";
+import { createSeries, moreSessions, nightOf, updateSeries } from "./training";
+import { backOn, callOff } from "./training.nights-off";
 import { publishTeams, removeTeams, resetSession, sessionSignups } from "./training.teams";
+
+/** What a night's called off for: a tournament on its day (the clash sheet's Cancel), or null, by hand. */
+function offFor(b: Record<string, unknown>) {
+  if (b.tournamentId == null) return null;
+  if (!Number.isInteger(b.tournamentId)) throw new HttpError(400, "tournamentId should be a tournament's id.");
+  return b.tournamentId as number;
+}
 
 export const TRAINING_ROUTES: Route[] = [
   {
@@ -93,7 +101,8 @@ export const TRAINING_ROUTES: Route[] = [
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.cancelled !== "boolean") throw new HttpError(400, "cancelled should be true or false.");
-      await setSessionCancelled(c.env.DB, id(c), b.cancelled, c.now);
+      if (!b.cancelled) return (await backOn(c.env.DB, id(c), c.now), ok());
+      await callOff(c.env.DB, id(c), offFor(b), c.now);
       return ok();
     },
   },

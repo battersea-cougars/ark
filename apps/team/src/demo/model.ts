@@ -79,6 +79,9 @@ export interface TrainingSession extends Entries {
   capacity?: number | null;
   note?: string | null;
   cancelledAt?: string | null;
+  /** Why it's off (#186, ADR 0122): called off by hand, and the tournaments on its day it's off for. */
+  offByHand?: boolean;
+  offFor?: number[];
   /** The fee for this session: written when the register closes, or an admin's override. */
   feePence?: number | null;
   /** Who came, once the register is closed. */

@@ -7,7 +7,6 @@ import { WEEKDAYS, addDays, datesToMake, type Weekday } from "../../src/lib/recu
 import { HttpError, bool, date, int, oneOf, text, time } from "../api/api.http";
 import { freeSlug, slugify } from "../api/api.slugs";
 import { fillingUp } from "../entries/entries";
-import { refuseClosedSession } from "./training.register";
 import type { SeriesRef } from "../dues/dues";
 import { scribe } from "@cougars/shared/scribe";
 import { placeFields } from "../settings/venues";
@@ -193,6 +192,10 @@ export interface SessionRow {
   capacity: number | null;
   note: string | null;
   cancelledAt: string | null;
+  /** Called off by hand (1), as the row has it; true or false once shaped (api.slices.ts). */
+  offByHand: number | boolean;
+  /** The tournaments it's off for, "3,5" as the row has it; ids once shaped. */
+  offFor: string | number[] | null;
   registerClosedAt: string | null;
 }
 
@@ -347,18 +350,4 @@ export async function updateSeries(
   );
   await ensureSessions(db, today);
   await syncSeries(db, id);
-}
-
-/**
- * Cancel one session (Christmas, Easter), or restore it. It stays a row, so whoever signed up can be told. Not once
- * its register's closed (the morning after, #11): either way would change what it charged.
- */
-export async function setSessionCancelled(db: D1Database, id: number, cancelled: boolean, now: string) {
-  await refuseClosedSession(db, id, now);
-  const res = await run(db, "UPDATE training_sessions SET cancelled_at = ? WHERE id = ?", [cancelled ? now : null, id]);
-  if (!res.meta.changes) throw new HttpError(404, "No such session.");
-  const s = await first<{ seriesId: number }>(db, "SELECT series_id seriesId FROM training_sessions WHERE id = ?", [
-    id,
-  ]);
-  if (s) await syncSeries(db, s.seriesId);
 }

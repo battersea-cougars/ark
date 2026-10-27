@@ -102,10 +102,26 @@ export function answerAll(rows: Row[], picks: Record<string, Answer>, to: "cance
   return { ...picks, ...Object.fromEntries(set.map((c) => [c.key, to])) };
 }
 
-/** The days of the training's own nights to call off: those over something kept on that the admin chose to skip. */
-export function nightsToSkip(rows: Row[], picks: Record<string, Answer>) {
-  const days = rows.filter((c) => picks[c.key] === "skip").flatMap((c) => c.nights ?? []);
-  return [...new Set(days)].sort();
+/** A night of the training's own to call off, and the tournament it's off for (#186), if that's what it's over. */
+export interface Skip {
+  day: string;
+  tournamentId: number | null;
+}
+
+/**
+ * The training's own nights to call off: those over something kept on that the admin chose to skip, each once for
+ * each thing it's over, by day. Over a tournament, it's off for that tournament, so it comes back when the tournament
+ * goes or moves (ADR 0122).
+ */
+export function nightsToSkip(rows: Row[], picks: Record<string, Answer>): Skip[] {
+  const skips = rows
+    .filter((c) => picks[c.key] === "skip")
+    .flatMap((c) => {
+      const tournament = /^tournament:(\d+)$/.exec(c.key);
+      return (c.nights ?? []).map((day) => ({ day, tournamentId: tournament ? Number(tournament[1]) : null }));
+    });
+  const once = new Map(skips.map((s) => [`${s.day}:${s.tournamentId}`, s]));
+  return [...once.values()].sort((a, b) => a.day.localeCompare(b.day) || (a.tournamentId ?? 0) - (b.tournamentId ?? 0));
 }
 
 /** "Skip Juniors that night", short enough to sit beside Keep both (lib/Choice keeps a row to 40 letters). */

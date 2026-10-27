@@ -67,6 +67,9 @@ schedule, a card per tournament), Tournament Series (the series and their defaul
 - **A night is cancelled, and put back on, from its training's page** (Manage → Cancel this night / It's back on,
   `manage:Training`), a confirm first saying how many signed up hear it's off. Any night off between today and the next
   one shows above it, struck through and Cancelled (`lib/night-off.ts`), so a Friday off doesn't just vanish.
+  Putting it back on lifts whatever kept it off, by hand or for a Kumite; a night off for a Kumite comes back by
+  itself when that Kumite is deleted or moved, unless something else keeps it off ([0122](0122-asked-about-clashes.md),
+  #186).
 - A single night the rule gives can be made ahead of the weeks (`POST /api/series/:id/sessions`), so a clash far off can
   be cancelled before the rest are made ([0122](0122-asked-about-clashes.md)).
 - **The register closes at 06:00 London the morning after** (#11): when the night's evening ends, the Kumite's
@@ -202,3 +205,6 @@ schedule, a card per tournament), Tournament Series (the series and their defaul
   in History, are in the Decision; History a line per change.
 - 2026-10-24: A night's register closes at 06:00 London the morning after (#11): every change to who was there is
   refused from then (409), and the night's page and Manage say it's closed. No reopening yet.
+- 2026-10-27: Putting a night back on lifts every reason it was off; one off for a Kumite comes back when the Kumite
+  goes or moves, unless a hand cancellation or another Kumite still keeps it off ([0122](0122-asked-about-clashes.md),
+  #186).

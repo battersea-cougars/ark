@@ -58,7 +58,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "dues", "members"],
+    changes: ["tournaments", "charges", "dues", "members", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     // Made with its sign-up open: everyone hears it
@@ -76,7 +76,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "dues", "members"],
+    changes: ["tournaments", "charges", "dues", "members", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     // A limit raised lets the first waiting in, and they hear it; a sign-up opened by hand is told to everyone
@@ -88,9 +88,10 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     path: /^\/api\/tournaments\/(\d+)$/,
     audit: { event: "tournament.deleted", subject: (c) => tournamentSummary(c.env.DB, id(c)) },
     action: "manage:Tournament",
-    changes: ["tournaments", "charges", "dues"],
+    // The training nights it kept off come back (#186)
+    changes: ["tournaments", "charges", "dues", "sessions"],
     // Gone, with its teams, sign-ups, games, awards and charges (Settings → Tournaments)
-    handle: async (c) => (await deleteTournament(c.env.DB, id(c)), ok()),
+    handle: async (c) => (await deleteTournament(c.env.DB, id(c), c.now), ok()),
   },
   {
     method: "PUT",

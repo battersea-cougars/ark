@@ -178,12 +178,12 @@
     if (chosen === null) return;
     if (date.id) {
       if ((await (edits ? edits.run(() => updateTournament(t)) : updateTournament(t))) !== null)
-        await cancelClashes(chosen ?? []);
+        await cancelClashes(chosen ?? [], date.id);
       return;
     }
     const created = await (edits ? edits.run(() => createTournament(t)) : createTournament(t));
     if (!created) return;
-    await cancelClashes(chosen ?? []);
+    await cancelClashes(chosen ?? [], created.id);
     // The blank form gives way to the new date's editor, in the same panel
     oncreated?.(created.id);
   }

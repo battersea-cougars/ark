@@ -153,7 +153,11 @@ CREATE TABLE training_sessions (
   capacity INTEGER,
   goalie_capacity INTEGER,
   note TEXT,
+  -- Off (#186, ADR 0122): set while anything keeps it off, an admin calling it off by hand (called_off_at) or a
+  -- tournament on its day (training_session_offs), and only then. Everything that asks whether a night's on reads this
   cancelled_at TEXT,
+  -- When an admin called it off by hand, from its page; null when that's not why it's off
+  called_off_at TEXT,
   register_closed_at TEXT,
   -- When members were told its sign-up opened (ADR 0030, 0108): taken by the cron run that tells them, so it's once
   signup_told_at TEXT,
@@ -276,6 +280,17 @@ CREATE TABLE tournaments (
 );
 
 CREATE INDEX tournaments_held_on ON tournaments (held_on);
+
+-- A training night off for a tournament on its day (#186, ADR 0122): the clash sheet's Cancel, or a training skipping
+-- its night. The night comes back when nothing keeps it off: its tournaments gone or moved off its day, and not called
+-- off by hand (training_sessions.called_off_at)
+CREATE TABLE training_session_offs (
+  session_id INTEGER NOT NULL REFERENCES training_sessions (id) ON DELETE CASCADE,
+  tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
+  PRIMARY KEY (session_id, tournament_id)
+);
+
+CREATE INDEX training_session_offs_tournament ON training_session_offs (tournament_id);
 
 CREATE TABLE club_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

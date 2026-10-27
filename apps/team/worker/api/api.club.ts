@@ -207,10 +207,14 @@ const memberRows = ({ mine, seesRoles, who }: MemberView) =>
 /** Training nights (`which`: NEXT_NIGHTS or PAST_NIGHTS), by their day's index. */
 const nights = (which: string) =>
   rows(
-    "id seriesId heldOn movedFrom startTime endTime venueId venue mapUrl capacity note cancelledAt registerClosedAt feePence",
+    "id seriesId heldOn movedFrom startTime endTime venueId venue mapUrl capacity note cancelledAt offByHand offFor registerClosedAt feePence",
     `SELECT s.id, s.series_id seriesId, s.held_on heldOn, s.moved_from movedFrom, s.start_time startTime,
             s.end_time endTime, s.venue_id venueId, s.venue, s.map_url mapUrl, s.capacity, s.note,
-            s.cancelled_at cancelledAt, s.register_closed_at registerClosedAt, s.fee_pence feePence
+            s.cancelled_at cancelledAt, s.called_off_at IS NOT NULL offByHand,
+            -- Why it's off (#186): the tournaments it's off for, by id ("3,5"); only a night that's off has any
+            CASE WHEN s.cancelled_at IS NOT NULL THEN
+              (SELECT group_concat(o.tournament_id) FROM training_session_offs o WHERE o.session_id = s.id) END offFor,
+            s.register_closed_at registerClosedAt, s.fee_pence feePence
      FROM viewer v CROSS JOIN training_sessions s WHERE ${which} ORDER BY s.held_on, s.id`,
   );
 

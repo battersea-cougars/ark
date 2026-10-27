@@ -1,7 +1,7 @@
 # 0122. Scheduling over something already on asks whether that's off; each is cancelled by its own cancel
 
 - **Status:** Accepted
-- **Date:** 2026-10-22 · updated 2026-10-24
+- **Date:** 2026-10-22 · updated 2026-10-27
 
 ## Context
 
@@ -55,6 +55,21 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
   not made yet is made first (`POST /api/series/:id/sessions { heldOn }`, the one date the rule gives, the same night
   if it's made already); `ensureSessions` skips a date already made, cancelled or not, so it stays off when the weeks
   ahead reach it.
+- **Why a night's off is kept, one reason apart from another** (#186): a night is off while anything keeps it off,
+  and only then (`training_sessions.cancelled_at`, which everything else reads). The reasons: called off by hand,
+  from its page (`called_off_at`), and off for a tournament on its day (`training_session_offs`). A night cancelled
+  from a tournament's clash sheet (its editor, the wizard) or skipped by a training over a tournament goes off for that
+  tournament: the cancel names it (`POST /api/sessions/:id/cancelled { cancelled: true, tournamentId }`, refused 400
+  unless the tournament is on the night's London day). A night already off on a tournament's day when it's saved is off
+  for it too, so a second Kumite that Friday (never asked: the night's off already) keeps it off when the first goes.
+  - **A tournament deleted, or moved off the day** (another day, or just a season), takes its reason away
+    (`worker/training/training.nights-off.ts`, in the save's own round trip): the night comes back on, unless another
+    tournament that day or a hand cancellation still keeps it off, or its register's closed (the record stays). Moving
+    only its hours keeps it. Coming back on isn't news: nobody's told, and whoever was in is in again.
+  - **It's back on**, on the night's page, puts it back on whatever kept it off: the admin's Keep both after all, so
+    the tournament's reason goes too and deleting it later changes nothing. Manage says why it's off ("Fri 4 Dec,
+    off for The Cougars Kumite", "called off", or both).
+  - One-offs don't keep reasons: a night cancelled from a one-off's sheet is called off by hand.
 - **A training's save holds to what was asked** ([0121](0121-load-and-concurrency.md)): it sends the keys of every
   clash the sheet showed (`clashes: ["session:12", "tournament:5", "session:1@2027-03-12"]`). The Worker finds what's
   on its new nights again and refuses (409) anything not among them, and the same condition goes on the end of every
@@ -100,3 +115,7 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
 - 2026-10-24: A clash question that can't be asked is reported (`reportCaught`, ADR 0110), the save still going
   ahead; the Kumite on the clock journey schedules a Kumite on a Friday at 11:00 through the wizard and is asked about
   Friday Training (closing schedules nothing, Keep both schedules it), as the user had not been.
+- 2026-10-27: Why a night's off is kept (#186): called off by hand, or off for a tournament on its day, apart. On dev
+  several Kumites, nights cancelled and more Kumites left Fridays Cancelled for good: the Kumite's Cancel was a plain
+  cancel, so deleting or moving the Kumite left its night off, and nothing said why. A tournament deleted or moved off
+  the day brings its night back unless something else still keeps it off; It's back on lifts every reason.

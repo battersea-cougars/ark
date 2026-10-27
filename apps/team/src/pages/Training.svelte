@@ -42,6 +42,7 @@
   import { fade } from "svelte/transition";
   import { resolve, seriesById, seriesNights, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
   import { nightOn, offWords, signedUp } from "../lib/night-off";
+  import { offWhy } from "../lib/off-why";
   import { registerClosed, registerClosesOn } from "../lib/register-closes";
   import { router } from "../app/router.svelte";
 
@@ -59,6 +60,8 @@
   // nothing that changes it is offered (the server refuses it too)
   const closed = $derived(!!session && registerClosed(session.heldOn));
   const offBefore = $derived(nights.off.filter((n) => n !== session));
+  // The tournaments a night's off for, by name (lib/night-off.ts offWhy)
+  const tournamentName = (id: number) => db.tournaments.find((t) => t.id === id)?.name;
   const info = $derived(session && resolve(session, series));
   const usual = $derived(seriesPlace(series));
   const who = $derived(me());
@@ -976,7 +979,8 @@
           <Icon name="refresh" size={22} />
           <span class="tool-text"
             ><strong>It's back on</strong><span
-              >{formatDayDate(sessionBookable(night).startsAt)}: on again, sign-ups as they were.</span
+              >{formatDayDate(sessionBookable(night).startsAt)}, {offWhy(night, tournamentName)}: on again, sign-ups as
+              they were.</span
             ></span
           >
         </button>

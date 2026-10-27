@@ -14,6 +14,7 @@ import { afterFields, placeFields } from "../settings/venues";
 import { HOUSE_RULES_MAX } from "../../src/lib/format-rules";
 import { AFTER_MODES, type AfterMode } from "@cougars/shared/places";
 import { fillingUp } from "../entries/entries";
+import { nightsOffFor, offOnItsDays, settle, tournamentMoved } from "../training/training.nights-off";
 import { broughtTeam, carriedNames, teamNameOf } from "./team-name";
 import { shortName } from "../../src/lib/names";
 import { grouped } from "../../src/lib/grouped";
@@ -775,10 +776,13 @@ function rulesOf(o: Record<string, unknown>, series: Rules | null) {
  * teams and their players, games and goals, the awards' winners), so the database does the work, not the Worker
  * (ADR 0059). The agenda points at it by source, not a foreign key, so its rows go by syncing it away.
  */
-export async function deleteTournament(db: D1Database, id: number) {
+export async function deleteTournament(db: D1Database, id: number, now: string) {
+  const nightsOff = await nightsOffFor(db, id);
   const res = await run(db, "DELETE FROM tournaments WHERE id = ?", [id]);
   if (!res.meta.changes) throw new HttpError(404, "No such tournament.");
   await syncTournament(db, id);
+  // The training nights it kept off are back on, unless something else keeps them off (#186)
+  await settle(db, nightsOff, now);
 }
 
 /**
@@ -814,6 +818,8 @@ export async function createTournament(db: D1Database, given: Record<string, unk
   const id = Number(res.meta.last_row_id);
   await setTeams(db, id, kind, teams);
   await syncTournament(db, id);
+  // A training night already off on its day is off for it too (#186)
+  await offOnItsDays(db, id);
   return { id };
 }
 
@@ -879,6 +885,8 @@ export async function updateTournament(
   if (!res.meta.changes) throw new HttpError(404, "No such tournament.");
   await setTeams(db, id, kind, teams);
   await syncTournament(db, id);
+  // Moved off a day, the training night it kept off there is back on, unless something else keeps it off (#186)
+  await tournamentMoved(db, id, now);
 }
 
 /** A tournament's name and day, while it exists (the record, ADR 0095). */

@@ -100,11 +100,19 @@ describe("answering the clash sheet", () => {
     expect(answerOfAll(rows, { "session:1": "keep", "session:2": "cancel" })).toBe("");
   });
 
-  it("the training's nights to skip, each once", () => {
+  it("the training's nights to skip, each once for what it's over: a tournament's, off for it (#186)", () => {
     const quiz = { key: "club_event:3", canCancel: false, nights: ["2026-10-16"] };
     expect(
-      nightsToSkip([...rows, quiz], { "tournament:5": "skip", "club_event:3": "skip", "session:1": "cancel" }),
-    ).toEqual(["2026-10-16", "2026-10-17"]);
+      nightsToSkip([...rows, quiz, kumite], {
+        "tournament:5": "skip",
+        "club_event:3": "skip",
+        "session:1": "cancel",
+      }),
+    ).toEqual([
+      { day: "2026-10-16", tournamentId: null },
+      { day: "2026-10-16", tournamentId: 5 },
+      { day: "2026-10-17", tournamentId: 5 },
+    ]);
     expect(nightsToSkip(rows, { "tournament:5": "keep" })).toEqual([]);
   });
 

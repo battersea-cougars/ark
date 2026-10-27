@@ -172,7 +172,7 @@
     const chosen = window ? await clashSheet?.ask(window, t.name) : [];
     if (chosen === null) return void (creating = false);
     const created = await createTournament(t);
-    if (created) await cancelClashes(chosen ?? []);
+    if (created) await cancelClashes(chosen ?? [], created.id);
     creating = false;
     if (created) oncreated(created.id);
     else failed = saving.message || "Couldn't schedule it. Try again?";

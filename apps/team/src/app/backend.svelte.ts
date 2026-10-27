@@ -34,7 +34,7 @@ import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
-import type { ClashQuestion } from "../lib/clashes";
+import type { ClashQuestion, Skip } from "../lib/clashes";
 import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, held, readSlices, versionOf } from "./api";
 import { ClubCopy, withMatch } from "./catch-up";
 import { partsChanged } from "./club-parts";
@@ -572,9 +572,10 @@ export const updateSeries = (s: TrainingSeries, clashes?: string[]) =>
   save(() => api("PUT", `/api/series/${s.id}`, { ...seriesBody(s), clashes }));
 /** The next 12 weeks of a training's sessions, past the last one made. */
 export const moreSessions = (seriesId: number) => save(() => api("POST", `/api/series/${seriesId}/more`), "");
-export const setCancelled = (sessionId: number, cancelled: boolean) =>
+/** A night off (by hand, or for a tournament on its day: #186) or back on, whatever kept it off. */
+export const setCancelled = (sessionId: number, cancelled: boolean, tournamentId?: number) =>
   save(
-    () => api("POST", `/api/sessions/${sessionId}/cancelled`, { cancelled }),
+    () => api("POST", `/api/sessions/${sessionId}/cancelled`, { cancelled, tournamentId }),
     cancelled ? "Session cancelled" : "Session restored",
   );
 
@@ -842,29 +843,31 @@ export async function findClashes(q: ClashQuestion) {
 }
 /**
  * Call off what the admin chose, after their save went in: each by its own cancel (the members told, nobody charged),
- * a training night past the weeks made ahead made first. How many went off.
+ * a training night past the weeks made ahead made first. Saving a tournament (`tournamentId`), a night goes off for
+ * it, so it comes back when the tournament's deleted or moved (#186). How many went off.
  */
-export async function cancelClashes(chosen: Clash[]) {
+export async function cancelClashes(chosen: Clash[], tournamentId?: number) {
   let off = 0;
   for (const c of chosen) {
     if (c.source === "club_event" && c.id) {
       if ((await setClubEventCancelled(c.id, true)) !== null) off++;
-    } else if (c.source === "session" && (await cancelNight(c.seriesId!, c.day, c.id))) off++;
+    } else if (c.source === "session" && (await cancelNight(c.seriesId!, c.day, c.id, tournamentId))) off++;
   }
   return off;
 }
 /**
  * A training skipping its own nights over something that stays on (the Kumite), after its save went in: each night
- * made if it isn't yet (the same one if it is), then off by its own cancel. How many went off.
+ * made if it isn't yet (the same one if it is), then off by its own cancel, for the tournament it's over. How many
+ * went off.
  */
-export async function skipNights(seriesId: number, days: string[]) {
+export async function skipNights(seriesId: number, skips: Skip[]) {
   let off = 0;
-  for (const day of days) if (await cancelNight(seriesId, day)) off++;
+  for (const s of skips) if (await cancelNight(seriesId, s.day, null, s.tournamentId ?? undefined)) off++;
   return off;
 }
 /** One training night off by its own cancel; one the weeks ahead haven't made yet is made first. */
-async function cancelNight(seriesId: number, day: string, id: number | null = null) {
+async function cancelNight(seriesId: number, day: string, id: number | null, tournamentId?: number) {
   const night =
     id ?? (await save(() => api<{ id: number }>("POST", `/api/series/${seriesId}/sessions`, { heldOn: day }), ""))?.id;
-  return !!night && (await setCancelled(night, true)) !== null;
+  return !!night && (await setCancelled(night, true, tournamentId)) !== null;
 }
