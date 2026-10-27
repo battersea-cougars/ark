@@ -144,6 +144,7 @@ to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
 | `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
 | `kumite.on-the-clock.journey.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
 | `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, viewing as a member, an account gone  | ~25 s  |
+| `nights-and-kumites.journey.ts`  | Several Kumites on Fridays, nights off for them and by hand, deleted and moved, each night back on        | ~15 s  |
 | `pages.journey.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
 | `sign-in.journey.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
 | `status-over-date.journey.ts`    | Status, not the date: a Kumite played early, a training night not closed yet, a game running late         | ~20 s  |
