@@ -79,8 +79,12 @@ export async function remindPlans(env: Env, now: Date) {
     emailed,
   );
   const pushed = claimed.filter((c) => c.via === "push").map((c) => c.memberId);
-  // One notice for them all: the words are the same for everyone. Queued for the next push drain, a minute away
-  if (pushed.length) await notify(env, [{ ...planNotice(letter(byId.get(pushed[0])!)), to: pushed }], now, 0);
+  // One notice for them all: the words are the same for everyone. Queued for the next push drain, a minute away; one
+  // that can't be queued is reported, and the record is still written
+  if (pushed.length)
+    await notify(env, [{ ...planNotice(letter(byId.get(pushed[0])!)), to: pushed }], now, 0).catch((e) =>
+      log.error("plan.push_failed", e, { quarter }),
+    );
   await record(env.DB, quarter, claimed, failed, now);
 }
 
