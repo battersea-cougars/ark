@@ -35,6 +35,11 @@ export interface TestD1 {
    * and each batch, is still atomic. `null` turns it off (the default: in order, at once).
    */
   interleave(seed: number | null): void;
+  /**
+   * D1 failing, as it can (a network blip, an overloaded database): from here on a round trip with a statement this
+   * matches throws, as D1's binding does, and does nothing. `null` (the default): D1 answers.
+   */
+  failing: RegExp | null;
 }
 
 /**
@@ -62,7 +67,7 @@ function seeded(seed: number) {
 export function createTestD1(): D1Database & TestD1 {
   const sqlite = new Database(":memory:");
   for (const file of sources()) sqlite.exec(readFileSync(file, "utf8"));
-  const d1 = { roundTrips: 0, statements: 0, sqlMs: 0, onRoundTrip: null } as D1Database & TestD1;
+  const d1 = { roundTrips: 0, statements: 0, sqlMs: 0, onRoundTrip: null, failing: null } as D1Database & TestD1;
   let luck: (() => number) | null = null;
   /**
    * On the way to D1, or back, when interleaving: a few turns of the event loop, mostly none to two but now and then
@@ -79,6 +84,7 @@ export function createTestD1(): D1Database & TestD1 {
     d1.statements += sql.length;
     d1.onRoundTrip?.(sql);
     if (luck) await travel();
+    if (d1.failing && sql.some((s) => d1.failing!.test(s))) throw new Error("D1_ERROR: Network connection lost.");
     const t = performance.now();
     let out: T;
     try {

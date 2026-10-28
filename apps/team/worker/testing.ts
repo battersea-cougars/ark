@@ -571,6 +571,32 @@ export function testWorld(roster: object[]) {
   }
 
   /**
+   * Sentry's ingest on (ADR 0110): a DSN, so the Worker's Sentry is on, and the envelopes it sends answered. `checkIns`:
+   * each cron check-in it sent, in order, by monitor and status; `events`: how many other events (errors) came with them.
+   */
+  function sentryIngest() {
+    env.SENTRY_DSN = "https://publickey@o1.ingest.de.sentry.io/1";
+    const world = { checkIns: [] as { monitor: string; status: string }[], events: 0 };
+    serve((url, init) => {
+      if (!url.startsWith("https://o1.ingest.de.sentry.io/api/1/envelope/")) return null;
+      const body = init.body instanceof Uint8Array ? new TextDecoder().decode(init.body) : String(init.body);
+      // An envelope: its header, then each item's header and its payload, a line each
+      const [, ...lines] = body.split("\n").filter(Boolean);
+      for (let i = 0; i + 1 < lines.length; i += 2) {
+        const { type } = JSON.parse(lines[i]);
+        if (type !== "check_in") {
+          world.events++;
+          continue;
+        }
+        const { monitor_slug: monitor, status } = JSON.parse(lines[i + 1]);
+        world.checkIns.push({ monitor, status });
+      }
+      return Response.json({});
+    });
+    return world;
+  }
+
+  /**
    * Luck, seeded: from here on every `crypto.getRandomValues` (the draft's draw, sign-in codes, tokens) comes from a
    * small seeded generator (mulberry32), so a draw comes out the same each run. Unseeded, it's the real thing.
    */
@@ -753,6 +779,7 @@ export function testWorld(roster: object[]) {
     serve,
     turnstile,
     sentry,
+    sentryIngest,
     /** A device's passkeys (testing.authenticator.ts): real keys, real signatures. */
     authenticator,
     cron,

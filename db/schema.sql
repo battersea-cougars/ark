@@ -923,6 +923,19 @@ CREATE TABLE sentry_issues (
   failure   TEXT CHECK (failure IN ('down', 'refused'))   -- the last ask's failure; null when it answered
 );
 
+-- The hourly run's last try (apps/team/worker/cron/hourly.ts, ADR 0110): one row, for the UTC hour it's on. The run
+-- every minute catches the hour up while it isn't done: a try at 12, 17, 27, 37 and 47 past, each claimed here first so
+-- two runs at once take it once. `attempt`: 0 the hour's own run at :07, then each catch-up. `outcome`: null while
+-- it's still to do; done when a try's jobs all succeeded, failed when the last try's didn't.
+CREATE TABLE hourly_run (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  hour        TEXT NOT NULL,                                -- 2026-10-28T10
+  attempt     INTEGER NOT NULL,
+  tried_at    TEXT NOT NULL,
+  outcome     TEXT CHECK (outcome IN ('done', 'failed')),
+  finished_at TEXT
+);
+
 -- Backups of this database (scripts/db-backup.mjs, ADR 0106): when, why (nightly, before a deploy changes the schema)
 -- and how big, sealed. The file itself is a CI artifact; this is so the Usage page can say when the last one was.
 CREATE TABLE backups (

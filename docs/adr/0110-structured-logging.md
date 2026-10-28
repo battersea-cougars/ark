@@ -1,7 +1,7 @@
 # 0110. The apps log through scribe, one JSON line per event; errors and down alerts go to Sentry; nothing private in either
 
 - **Status:** Accepted
-- **Date:** 2026-10-17 · updated 2026-10-24
+- **Date:** 2026-10-17 · updated 2026-10-28
 - **Merges:** 0111
 
 ## Context
@@ -64,9 +64,19 @@ smaller (5k errors a month, one user) but plain about it.
   than 10 times in 5 minutes, new or not (at most one email an hour per issue). They go by the event's `environment`
   tag. Sentry's own default alert is never made.
 - **A cron that stops is noticed:** the team Worker's hourly run checks in with a Sentry cron monitor (`team-hourly`,
-  `Sentry.withMonitor` in `apps/team/worker/index.ts`); an hour without a check-in opens an issue, so the alerts email.
-  The free plan has one cron monitor, so it's the hourly run (dues, the allowance check); the five-minutely run stops
-  with it if the Worker's crons stop. A job that fails inside a run is reported by its own `cron.failed` line.
+  `apps/team/worker/cron/hourly.ts`). The free plan has one cron monitor, so it's the hourly run (dues, the allowance
+  check); the five-minutely run stops with it if the Worker's crons stop. A job that fails inside a run is reported by
+  its own `cron.failed` line.
+- **A missed or failed hour is caught up before it's an alert.** Cloudflare's crons don't retry, so a deploy or a blip
+  at :07 used to be an alert. Each UTC hour's run is kept in one D1 row (`hourly_run`): its last try and whether the
+  hour is done. While it isn't (the :07 run never came, or one of its jobs failed), the run every minute does the
+  hourly run again, from 12, 17, 27, 37 and 47 past (5, 10, 20, then every 10 minutes after :07), one try each, each
+  claimed in one statement first so two runs at once take it once. Every hourly job is safe to run twice (each claims
+  or converges on its own). The monitor hears once an hour, a single check-in: `ok` when a try's jobs all succeeded,
+  however late; `error` when the 47-past try fails too (the hour is marked failed); nothing for a try that fails
+  before then. Its margin is 50 minutes, so it waits for the catch-up, and it opens an issue only after **two hours in
+  a row** fail or are missed (`failure_issue_threshold: 2`); one good hour resolves it (`recovery_threshold: 1`).
+  `scripts/sentry-setup.mjs` sets these (Sentry's monitor config fields, as its `ConfigValidator` names them).
 - **Servers:** each Worker is wrapped in `@sentry/cloudflare`'s `withSentry` (`apps/web/src/worker.ts`,
   `apps/team/worker/index.ts`), so an error nothing caught is reported, and every `error` or `fatal` log line is
   reported through scribe's reporter (`packages/shared/scribe.sentry.ts`). Environment from `SITE_ENV`,
@@ -158,3 +168,7 @@ smaller (5k errors a month, one user) but plain about it.
 - 2026-10-24: Every caught failure in the team app's browser code checked (#148): a background job that carries on
   reports through `reportUnexpected` (not the server's answer, not the network), the rest say why not. The brake's
   "resting" is a 429 `ApiError`, so it isn't reported. The Worker's lines were checked on 2026-10-23.
+- 2026-10-28: The hourly run is caught up when it's missed or a job fails: the run every minute tries again from 12 to
+  47 past, claimed in D1 (`hourly_run`), and checks in once (ok, or an error after the last try). The monitor waits 50
+  minutes and alerts only after two hours in a row fail (was: 10 minutes, the first miss). A Sentry alert for a
+  briefly-down app at :07 was the reason; `task()` swallowed each job's error, so the monitor only ever saw misses.

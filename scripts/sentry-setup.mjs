@@ -87,13 +87,25 @@ for (const want of PROJECTS) {
 // When the team Worker's crons stop (a broken deploy, a trigger lost): the hourly run checks in with Sentry, and a missed
 // check-in opens an issue, so the alerts below email. One cron monitor is all the free plan has, so it's the hourly
 // run, the one that charges dues and watches the free allowance; the five-minutely run stops with it if the Worker's
-// crons stop at all. The Worker checks in by this slug (apps/team/worker/index.ts).
+// crons stop at all. The Worker checks in by this slug (apps/team/worker/cron/hourly.ts), once an hour: ok when the
+// hour's jobs are done, error when its last try failed too. A missed or failed :07 run is caught up by the run every
+// minute, up to 47 past (HOURLY_TRIES), so the margin waits 50 minutes for it, and an issue opens only when two hours
+// in a row fail or are missed, caught up or not: a deploy or a blip at :07 isn't an alert. One good hour resolves it.
+// The fields are Sentry's ConfigValidator's (src/sentry/monitors/validators.py, checked 2026-10-28); minutes.
 const CRON = {
   project: "team",
   name: "team hourly cron",
   slug: "team-hourly",
   type: "cron_job",
-  config: { schedule_type: "crontab", schedule: "7 * * * *", checkin_margin: 10, max_runtime: 10, timezone: "UTC" },
+  config: {
+    schedule_type: "crontab",
+    schedule: "7 * * * *",
+    checkin_margin: 50,
+    max_runtime: 10,
+    timezone: "UTC",
+    failure_issue_threshold: 2,
+    recovery_threshold: 1,
+  },
 };
 const crons = await sentry("GET", `/organizations/${ORG}/monitors/`);
 const cron = crons.find((m) => m.slug === CRON.slug);

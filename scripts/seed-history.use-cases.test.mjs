@@ -211,8 +211,8 @@ describe("a seeded history", () => {
     expect(nothingLeft(after)).toBe(true);
     expect(nothingLeft(await leftovers(db))).toBe(true);
     const now = sizes(w.db.raw);
-    // Everything as it was but the data version, moved on so phones reload
-    expect(now).toEqual(before);
+    // Everything as it was but the data version, moved on so phones reload, and the hourly run's own row (ADR 0110)
+    expect({ ...now, hourly_run: 0 }).toEqual(before);
     expect(w.db.raw.pragma("foreign_key_check")).toEqual([]);
     // What anyone owes, and played, as before (#177)
     expect([dues(w.db.raw), playedFromAttendance(w.db.raw)]).toEqual([owedBefore, playedBefore]);

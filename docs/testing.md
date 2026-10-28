@@ -81,14 +81,14 @@ Which level checks what, feature by feature, and the overlaps found: [testing-ma
 
 `testWorld(roster)` (`apps/team/worker/testing.ts`) gives each test a fresh world:
 
-| Service        | Faked as                                                                                                                                  |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| D1             | In-memory SQLite built as a fresh database starts: the schema and club seed, then any migrations (`packages/shared/testing/d1-sqlite.ts`) |
-| Gmail API      | An outbox: `w.mails`                                                                                                                      |
-| Turnstile      | A token list: tokens the test marks as passed verify, everything else fails                                                               |
-| Sentry         | Its issues API, each project's open issues as the test sets them                                                                          |
-| Firebase, push | FCM and a web push service; what reaches a phone lands in `pushes`                                                                        |
-| Passkeys       | `w.authenticator()`: a device's real keys (ES256, or RS256 for Windows Hello) signing real WebAuthn answers (`testing.authenticator.ts`)  |
+| Service        | Faked as                                                                                                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1             | In-memory SQLite built as a fresh database starts: the schema and club seed, then any migrations (`packages/shared/testing/d1-sqlite.ts`); `w.db.failing = /…/` makes the statements it matches fail, as D1 can |
+| Gmail API      | An outbox: `w.mails`                                                                                                                                                                                            |
+| Turnstile      | A token list: tokens the test marks as passed verify, everything else fails                                                                                                                                     |
+| Sentry         | Its issues API, each project's open issues as the test sets them; its ingest (`w.sentryIngest()`), the cron check-ins the Worker sends                                                                          |
+| Firebase, push | FCM and a web push service; what reaches a phone lands in `pushes`                                                                                                                                              |
+| Passkeys       | `w.authenticator()`: a device's real keys (ES256, or RS256 for Windows Hello) signing real WebAuthn answers (`testing.authenticator.ts`)                                                                        |
 
 Some services are turned on by the test that needs them (`w.sentry()`, `w.firebase()`…). The world answers every
 `fetch` the Worker makes. Any outside call it doesn't know **throws with its URL**: a new integration shows up as a
