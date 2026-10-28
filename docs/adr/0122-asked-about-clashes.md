@@ -119,3 +119,8 @@ charges gone (only uncancelled nights are charged, [0007](0007-dues-and-payments
   several Kumites, nights cancelled and more Kumites left Fridays Cancelled for good: the Kumite's Cancel was a plain
   cancel, so deleting or moving the Kumite left its night off, and nothing said why. A tournament deleted or moved off
   the day brings its night back unless something else still keeps it off; It's back on lifts every reason.
+- 2026-10-28: The rule held against random sequences of everything admins do (Kumites made, moved, finished early
+  and deleted, two on a day, past midnight, a season; nights called off and back on; one-offs; the clock past 06:00
+  and across the clock changes), checked after every step (`training.nights-off.sequences.test.ts`). A Kumite has no
+  cancel of its own: deleting it is how it's called off. A Kumite finished early keeps its night off until it's
+  deleted or moved.

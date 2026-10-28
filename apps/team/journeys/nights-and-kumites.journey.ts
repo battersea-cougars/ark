@@ -185,11 +185,34 @@ test("Nights and Kumites", async ({ browser }) => {
     await checks(ada, "on the Kumite's page, the one on is the soonest not played: 4 Dec's, made last", async () => {
       const soonest = (await kumites())
         .filter((t) => t.status !== "finished")
-        .sort((x, y) => x.heldOn.localeCompare(y.heldOn))[0];
+        .sort((x, y) => x.heldOn.localeCompare(y.heldOn) || x.id - y.id)[0];
       // Another journey's Kumite left before ours would be the one on: ours are from 4 Dec
       expect(soonest.id).toBe(c);
       await ada.page.goto("/tournaments/kumite");
       await expect(ada.page.getByRole("main")).toContainText(DEC_4.says);
+    });
+
+    // Found by the random sequences: two on one Friday, the evening's made first. A shortcut: the afternoon's made
+    // through the API; 4 Dec's night is off already, so it isn't asked about, and it's off for both
+    const afternoon = (await api("POST", "/api/tournaments", {
+      ...body(`Afternoon Kumite ${TAG}`, DEC_4.day),
+      startTime: "12:00",
+      endTime: "16:00",
+    })) as { id: number };
+    for (const who of [ada, fay])
+      await checks(
+        who,
+        "with an afternoon Kumite on 4 Dec too, the Kumite's page and Home are on that one",
+        async () => {
+          await who.page.goto("/tournaments/kumite");
+          await expect(who.page.getByRole("main")).toContainText("12 to 4pm");
+          await who.page.goto("/");
+          await expect(who.page.getByRole("main")).toContainText(`Afternoon Kumite ${TAG}`);
+        },
+      );
+    await remove(afternoon.id);
+    await checks(ada, "the afternoon one deleted, 4 Dec's training is still off for the evening's", async () => {
+      expect(await offDays()).toEqual(FRIDAYS.map((f) => f.day));
     });
   });
 
