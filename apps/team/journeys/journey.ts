@@ -243,6 +243,42 @@ export async function cron(when: Date | string, run: "hourly" | "five" = "hourly
   if (!res.ok) throw new Error(`cron ${schedule} at ${new Date(when).toISOString()}: ${res.status}`);
 }
 
+/** What the local server queued for someone's phones or browsers (push_outbox, ADR 0108). */
+export interface Queued {
+  key: string;
+  title: string;
+  body: string;
+  path: string;
+}
+
+/**
+ * The fake push outbox: no Firebase on a local server, so nothing leaves it, and what it would have sent stays in its
+ * D1 (`push_outbox`, a row per member per notification, ADR 0108), read here as wrangler reads the checkout's own D1.
+ * Only for a member with a device: the outbox has nobody else's.
+ */
+export function pushOutboxOf(email: string): Queued[] {
+  if (!/^[\w.+-]+@[\w.-]+$/.test(email)) throw new Error(`pushOutboxOf: not an email: ${email}`);
+  const sql = `SELECT o.key, o.title, o.body, o.path FROM push_outbox o JOIN members m ON m.id = o.member_id
+    WHERE m.email = '${email}' ORDER BY o.id`;
+  const said = execFileSync(
+    "npx",
+    [
+      "wrangler",
+      "d1",
+      "execute",
+      "DB",
+      "--local",
+      "-c",
+      join(root, "apps/web/wrangler.jsonc"),
+      "--json",
+      "--command",
+      sql,
+    ],
+    { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+  );
+  return (JSON.parse(said.slice(said.indexOf("["))) as { results: Queued[] }[])[0].results;
+}
+
 /** A London wall-clock time as an instant: `london("2026-10-25T01:30")`, BST or GMT as London had it then. */
 export function london(wall: string): Date {
   const [day, time = "12:00"] = wall.split("T");
