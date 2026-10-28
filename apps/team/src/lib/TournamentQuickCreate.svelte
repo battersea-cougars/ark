@@ -12,7 +12,8 @@
   // what it takes from the series ("£10 · 24 places · change it"), and "change it" turns Advanced on at that field.
   // The series' usual values stay in the series' settings.
   import { tick } from "svelte";
-  import { cancelClashes, createTournament, saving } from "../app/backend.svelte";
+  import { createTournament, saving } from "../app/backend.svelte";
+  import { cancelClashes } from "../app/clashes.backend";
   import ClashSheet from "./ClashSheet.svelte";
   import { tournamentWindow } from "./clashes";
   import { kindLabel, type TournamentType } from "../demo/model";

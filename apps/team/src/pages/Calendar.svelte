@@ -7,13 +7,8 @@
   import DateField from "../lib/DateField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import Sheet from "../lib/Sheet.svelte";
-  import {
-    cancelClashes,
-    createClubEvent,
-    setClubEventCancelled,
-    updateClubEvent,
-    type ClubEventBody,
-  } from "../app/backend.svelte";
+  import { cancelClashes } from "../app/clashes.backend";
+  import { createClubEvent, setClubEventCancelled, updateClubEvent, type ClubEventBody } from "../app/backend.svelte";
   import ClashSheet from "../lib/ClashSheet.svelte";
   import { eventWindow } from "../lib/clashes";
   import { can } from "../access/actions";

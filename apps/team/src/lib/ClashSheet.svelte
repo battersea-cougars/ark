@@ -10,7 +10,7 @@
   import Choice from "./Choice.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
-  import { findClashes, type Clash } from "../app/backend.svelte";
+  import { findClashes, type Clash } from "../app/clashes.backend";
   import { reportCaught } from "../app/errors.early";
   import { db } from "../demo/store.svelte";
   import { formatDayDate, timeRange } from "./dates";

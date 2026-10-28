@@ -10,15 +10,8 @@
   import type { TrainingSeries } from "../demo/model";
   import { resolve } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import {
-    cancelClashes,
-    createSeries,
-    moreSessions,
-    saving,
-    setCancelled,
-    skipNights,
-    updateSeries,
-  } from "../app/backend.svelte";
+  import { createSeries, moreSessions, saving, setCancelled, updateSeries } from "../app/backend.svelte";
+  import { cancelClashes, skipNights } from "../app/clashes.backend";
   import ClashSheet from "./ClashSheet.svelte";
   import { trainingQuestion } from "./clashes";
   import Icon from "../app/shell/Icon.svelte";

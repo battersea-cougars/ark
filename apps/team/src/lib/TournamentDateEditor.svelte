@@ -17,7 +17,8 @@
   // Not here: its stage (Coming up, Sign-up open, …), moved on from its own page (Manage, ADR 0074), and a team's
   // name and logo, edited on the team's page (Edit the team).
   import { tick } from "svelte";
-  import { cancelClashes, createTournament, updateTournament } from "../app/backend.svelte";
+  import { createTournament, updateTournament } from "../app/backend.svelte";
+  import { cancelClashes } from "../app/clashes.backend";
   import ClashSheet from "./ClashSheet.svelte";
   import { tournamentWindow } from "./clashes";
   import type { TournamentTeam } from "../demo/model";
