@@ -15,9 +15,11 @@
 
 <style>
   .env-ribbon {
-    /* --box: the corner it clips to; --in: how far in from each edge the band's middle crosses them */
-    --box: 8rem;
-    --in: 3rem;
+    /* --in: the band's middle sits --in in from each edge, so it meets the edges 2 × --in from the corner and is 2√2 ×
+       --in long across it: enough for "LOCAL · own data" (about 7.5rem). --box, the corner it's clipped to, reaches
+       past where the band meets the edges, so its ends are cut by the screen's edges, not the box's */
+    --in: 4rem;
+    --box: calc(var(--in) * 2 + 1.5rem);
     position: fixed;
     right: env(safe-area-inset-right, 0px);
     bottom: env(safe-area-inset-bottom, 0px);
@@ -28,15 +30,15 @@
     pointer-events: none;
   }
   span {
-    /* Centred on the corner's diagonal; as wide as the box is across there (2√2 × --in), its ends clipped */
+    /* Centred on the corner's diagonal, longer than the corner is across there, its ends clipped */
     position: absolute;
     top: 100%;
     left: 100%;
     display: grid;
-    gap: 0.15rem;
+    gap: 0.2rem;
     box-sizing: border-box;
-    width: calc(var(--in) * 2.83);
-    padding: 0.25rem 0.6rem;
+    width: calc(var(--in) * 4);
+    padding: 0.3rem 0.6rem;
     transform: translate(calc(-50% - var(--in)), calc(-50% - var(--in))) rotate(-45deg);
     background: var(--action);
     color: var(--on-action);
@@ -62,8 +64,7 @@
   }
   @media (max-width: 900px) {
     .env-ribbon {
-      --box: 7rem;
-      --in: 2.65rem;
+      --in: 3.6rem;
       bottom: var(--tab-h);
     }
     b {
