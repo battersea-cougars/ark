@@ -14,7 +14,7 @@ describe("the deploy's smoke test of the form", () => {
     expect(isSmoke(request("anything"), undefined)).toBe(false);
   });
 
-  it("sends its emails only to the sending account, even in production", () => {
+  it("sends its emails only to the sending account, even in production, naming the environment", () => {
     const mail: Mail = { to: ["club@example.com"], subject: "New enquiry: Smoke", text: "Hi" };
     const config = smokeMailConfig({
       siteEnv: "production",
@@ -24,7 +24,7 @@ describe("the deploy's smoke test of the form", () => {
     });
     const safe = safeMail(mail, { siteEnv: config.siteEnv, safeTo: "sender@example.com", club: config.club });
     expect(safe.to).toEqual(["sender@example.com"]);
-    expect(safe.subject).toBe("[smoke, for club@example.com] New enquiry: Smoke");
+    expect(safe.subject).toBe("[production smoke test, for club@example.com] New enquiry: Smoke");
   });
 
   it("without Gmail set up, logs to the safe place rather than the club", async () => {

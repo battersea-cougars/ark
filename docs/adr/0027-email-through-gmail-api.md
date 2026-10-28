@@ -159,3 +159,6 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   codes, welcomes, what members owe, admins' notices) and exactly what the apps get from Google: permission to send and
   the account's address, the permission kept encrypted until it's replaced or withdrawn; nothing read, sold or shared,
   as Google's verification of the `gmail.send` scope asks (#156).
+- 2026-10-28: The form's smoke test (the real enquiry and its emails) runs on production deploys only; dev and PR
+  previews check the pages and the join API without it, and the use cases cover the form. Its emails' subject names the
+  environment ("[production smoke test, for …]"), so the inbox says which deploy sent them. The user's call.

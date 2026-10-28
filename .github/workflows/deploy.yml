@@ -291,9 +291,10 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       # A key for this deploy's smoke test of the form only (apps/web/src/lib/server/smoke.ts): random, made here, never
-      # stored, and spent right after the test. PR previews share dev's Worker, so they skip the form test.
+      # stored, and spent right after the test. Production only: the form test sends real emails, so it's for the live
+      # site; dev and PR previews check the pages and the API without it, and the use cases cover the form (2026-10-28)
       - name: Smoke key
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/release'
         working-directory: apps/web
         run: |
           key=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')
@@ -306,7 +307,7 @@ jobs:
 
       # Spent, pass or fail: the Worker gets a new random key that nobody ever sees, so this deploy's key opens nothing
       - name: Spend the smoke key
-        if: always() && github.event_name != 'pull_request'
+        if: always() && github.ref == 'refs/heads/release'
         working-directory: apps/web
         run: openssl rand -base64 32 | tr -d '\n' | npx wrangler secret put SMOKE_TOKEN -c dist/server/wrangler.json
 
