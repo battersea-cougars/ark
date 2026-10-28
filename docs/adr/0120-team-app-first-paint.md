@@ -63,7 +63,7 @@ preloaded with `font-display: swap`. The splash paints before any script.
   Sentry stay `import()`s.
 - **A budget**: `scripts/team-app-budget.mjs`, run by the team app's `build` script (so by `pr.yml` and the deploy's
   build), follows the build manifest (`build.manifest`) from the entry through its static imports and fails past
-  **100 kB gzipped** (76 kB when set). Over it: load what Home doesn't need at once with `import()`, or raise it there
+  **105 kB gzipped** (76 kB when set at 100 kB; 105 since 2026-10-28). Over it: load what Home doesn't need at once with `import()`, or raise it there
   with a reason. `public/.assetsignore` keeps the manifest off the site.
 - **The lead card lands from opacity 0.01**, not 0: it looks the same, and Chrome counts it from the frame it lands
   in.
@@ -108,3 +108,6 @@ preloaded with `font-display: swap`. The splash paints before any script.
   `import()` behind the bootstrap's `simulator`, and its store and runner moved out of the backend to
   `app/simulation.svelte.ts`. With opening the app reading its pages' parts (#178, ADR 0053), first paint is 99.8 kB
   (101.1 kB before the move).
+- 2026-10-28: The budget is 105 kB, up from 100. The production deploy's build came out at 100.1 kB, about 0.4 kB more
+  than the same code built locally (99.7 kB), and failed; the user had settled on no more trimming before launch.
+  Making room again is #180.
