@@ -29,7 +29,8 @@ Running a tournament from Manage is [0127](0127-running-a-tournament-from-manage
   matches go to the phones live. Not started, its time gone by, is still next until it's played, closed or cancelled:
   a Kumite whose day passed unplayed stays on Home and the calendar. A training night counts as held once its
   register closes (06:00 the morning after, `lib/register-closes.ts`), not when its time's up, so Home and its page
-  stay on it till then. The date is for showing and sorting; only what has no status (a social) goes by its time. One
+  stay on it till then. The date is for showing and sorting, then the hours: two on one day, the earlier first on
+  its pages, Home and the calendar alike (`lib/edition.ts byWhen`, #186); only what has no status (a social) goes by its time. One
   helper says it for each kind (`lib/phase.ts`: `tournamentPhase`, `gamePhase`, `nightPhase`, `timedPhase`), on each
   thing the schedule shows (`Bookable.phase`); the Worker's SQL keeps to the same rule (`doneSql` in
   `@cougars/shared/results`, `startedSql` in `worker/tournaments/started.ts`).
@@ -245,3 +246,6 @@ blind (Chong Li's powder), and its page's foot sends the newcomer to watch the f
   the 30th" on Home while its page showed History. One helper (`lib/phase.ts`) for Home, the calendar, the series'
   pages and the matches; the Worker's pushes, live matches, waiting list, bootstrap and the website's What's on keep
   to the same rule; a training night is held once its register closes.
+- 2026-10-28: Two Kumites on one day are in order by their hours too, on the series' pages and History as on Home
+  and the calendar (`byWhen`): the Kumite's page opened on whichever was made first while Home led with the earlier
+  one (#186, found by the random sequences in `training.nights-off.sequences.test.ts`).

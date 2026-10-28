@@ -321,3 +321,153 @@ describe("several Kumites, made in any order, are in order (#182: status, then t
     expect(currentOf(now)?.id).toBe(middle);
   });
 });
+
+describe("found by the random sequences (training.nights-off.sequences.test.ts), each at its smallest", () => {
+  // Seeds 12 and 22: two Kumites on one Friday, the evening one made first. Home led with the afternoon one (the
+  // soonest), the Kumite's page opened on the evening one (by its day alone, then whichever came first)
+  it("two Kumites the same Friday, the evening's made first: the Kumite's page is on the afternoon's, as Home is", async () => {
+    const c = await club();
+    const evening = await c.kumite("Evening Kumite", F1, "keep");
+    const afternoon = (
+      await c.dana.call("POST", "/api/tournaments", {
+        typeId: 1,
+        name: "Afternoon Kumite",
+        heldOn: F1,
+        startTime: "12:00",
+        endTime: "16:00",
+        location: "The Rink",
+        feePence: 0,
+        kind: "teams",
+        teams: [],
+      })
+    ).body.id as number;
+    const sent = ((await c.boot()).tournaments as Tournament[]).filter((t) => [evening, afternoon].includes(t.id));
+    expect(currentOf(sent)?.id).toBe(afternoon);
+    // Whichever order they come in
+    expect(currentOf([...sent].reverse())?.id).toBe(afternoon);
+  });
+});
+
+describe("overlapping dates", () => {
+  /** A Kumite at these hours (an end before its start runs past midnight), asked about and answered as the app does. */
+  async function kumiteAt(
+    c: Awaited<ReturnType<typeof club>>,
+    name: string,
+    day: string,
+    hours: [string, string],
+    answer: "cancel" | "keep" = "cancel",
+    id?: number,
+  ) {
+    const payload = {
+      typeId: 1,
+      name,
+      heldOn: day,
+      startTime: hours[0],
+      endTime: hours[1],
+      location: "The Rink",
+      feePence: 0,
+      kind: "teams",
+      teams: [],
+    };
+    const saved = id
+      ? await c.dana.call("PUT", `/api/tournaments/${id}`, payload)
+      : await c.dana.call("POST", "/api/tournaments", payload);
+    expect(saved.status, JSON.stringify(saved.body)).toBeLessThan(300);
+    const tournamentId = id ?? (saved.body.id as number);
+    const startsAt = londonISO(day, hours[0]);
+    const end = londonISO(day, hours[1]);
+    const endsAt = hours[1] < hours[0] ? new Date(Date.parse(end) + 86_400_000).toISOString() : end;
+    const q = new URLSearchParams({ startsAt, endsAt, except: `tournament:${tournamentId}` });
+    const asked = ((await c.dana.call("GET", `/api/calendar/clashes?${q}`)).body.clashes as Json[]).filter(
+      (x) => x.source === "session",
+    );
+    if (answer === "cancel")
+      for (const x of asked) {
+        const night = x.id ?? (await c.dana.call("POST", `/api/series/1/sessions`, { heldOn: x.day })).body.id;
+        await c.dana.call("POST", `/api/sessions/${night}/cancelled`, { cancelled: true, tournamentId });
+      }
+    return { id: tournamentId, asked: asked.map((x) => x.day as string) };
+  }
+  const EVENING: [string, string] = ["18:00", "22:00"];
+
+  it("a Kumite moved onto a night already called off: off for both; the Kumite deleted, still off by hand", async () => {
+    const c = await club();
+    await c.byHand(F2);
+    const k = await kumiteAt(c, "Kumite", F1, EVENING);
+    const moved = await kumiteAt(c, "Kumite", F2, EVENING, "cancel", k.id);
+    // Not asked about the 16th: it's off already
+    expect(moved.asked).toEqual([]);
+    expect(await c.off()).toEqual([F2]);
+    expect(await c.nightOn(F2)).toMatchObject({ offByHand: true, offFor: [k.id] });
+    await c.remove(k.id);
+    expect(await c.off()).toEqual([F2]);
+  });
+
+  it("a Kumite moved away from its Friday and back: on while it's away, asked again when it's back", async () => {
+    const c = await club();
+    const k = await kumiteAt(c, "Kumite", F1, EVENING);
+    await kumiteAt(c, "Kumite", SATURDAY, EVENING, "cancel", k.id);
+    expect(await c.off()).toEqual([]);
+    const back = await kumiteAt(c, "Kumite", F1, EVENING, "cancel", k.id);
+    expect(back.asked).toEqual([F1]);
+    expect(await c.off()).toEqual([F1]);
+  });
+
+  it("two Kumites swapped: each Friday ends up off for the one on it now", async () => {
+    const c = await club();
+    const a = await kumiteAt(c, "Kumite A", F1, EVENING);
+    const b = await kumiteAt(c, "Kumite B", F2, EVENING);
+    // A to the 16th: the 9th's back on; the 16th was off already, so it's off for A too
+    await kumiteAt(c, "Kumite A", F2, EVENING, "cancel", a.id);
+    expect(await c.off()).toEqual([F2]);
+    // B to the 9th: asked about it, cancelled; the 16th stays off for A
+    await kumiteAt(c, "Kumite B", F1, EVENING, "cancel", b.id);
+    expect(await c.off()).toEqual([F1, F2]);
+    expect(await c.nightOn(F1)).toMatchObject({ offFor: [b.id] });
+    expect(await c.nightOn(F2)).toMatchObject({ offFor: [a.id] });
+  });
+
+  it("a Kumite on the Thursday running past midnight into Friday: asked about Friday; its hours moved back, Friday's on", async () => {
+    const c = await club();
+    const k = await kumiteAt(c, "Late Kumite", "2026-10-15", ["21:00", "01:00"]);
+    expect(k.asked).toEqual([F2]);
+    expect(await c.off()).toEqual([F2]);
+    await kumiteAt(c, "Late Kumite", "2026-10-15", ["18:00", "23:00"], "cancel", k.id);
+    expect(await c.off()).toEqual([]);
+  });
+
+  it("the clocks going back (Sunday 25 October): a Kumite on Friday 23rd past midnight, and one on the Saturday into Sunday", async () => {
+    const c = await club();
+    const fri = await kumiteAt(c, "Friday Kumite", F3, ["21:00", "01:00"]);
+    expect(fri.asked).toEqual([F3]);
+    // Saturday into Sunday, the night the clocks go back: no training either day
+    const sat = await kumiteAt(c, "Saturday Kumite", "2026-10-24", ["21:00", "01:00"]);
+    expect(sat.asked).toEqual([]);
+    expect(await c.off()).toEqual([F3]);
+    await c.remove(fri.id);
+    expect(await c.off()).toEqual([]);
+  });
+
+  it("a Kumite played early (#182), then deleted: its Friday, still to come, is back on", async () => {
+    const c = await club();
+    const k = await kumiteAt(c, "Kumite", F3, EVENING);
+    // Finished on the 9th, its day the 23rd
+    await c.move(k.id, "Kumite", F3, { status: "finished", startTime: "18:00", endTime: "22:00" });
+    expect(await c.off()).toEqual([F3]);
+    await c.remove(k.id);
+    expect(await c.off()).toEqual([]);
+  });
+
+  it("a Kumite deleted after its night's register closed: the night stays as it was, the record", async () => {
+    const c = await club();
+    const k = await kumiteAt(c, "Kumite", F1, EVENING);
+    const night = await c.nightOn(F1);
+    const saturday = { now: new Date(londonISO("2026-10-10", "07:00")) };
+    expect((await c.dana.call("DELETE", `/api/tournaments/${k.id}`, undefined, saturday)).status).toBe(200);
+    const row = w.db.raw.prepare("SELECT cancelled_at c FROM training_sessions WHERE id = ?").get(night.id) as Json;
+    expect(row.c).not.toBeNull();
+    // And It's back on is refused, as every change to a closed night is
+    const back = await c.dana.call("POST", `/api/sessions/${night.id}/cancelled`, { cancelled: false }, saturday);
+    expect(back.status).toBe(409);
+  });
+});

@@ -9,7 +9,7 @@
   import { tournamentPlace, typeById } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
   import { pounds } from "../lib/dates";
-  import { EDITION_LABEL, editionState, editionWhen } from "../lib/edition";
+  import { EDITION_LABEL, byWhen, editionState, editionWhen } from "../lib/edition";
   import type { Tournament } from "../demo/model";
   import SearchField from "../lib/SearchField.svelte";
   import { listScroll } from "../lib/list-scroll";
@@ -39,7 +39,7 @@
   const dates = $derived(
     [...all].sort((a, b) => {
       if (done(a) !== done(b)) return done(a) ? 1 : -1;
-      return done(a) ? b.heldOn.localeCompare(a.heldOn) : a.heldOn.localeCompare(b.heldOn);
+      return done(a) ? byWhen(b, a) : byWhen(a, b);
     }),
   );
   const when = (t: Tournament) => {

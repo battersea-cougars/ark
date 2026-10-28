@@ -67,12 +67,19 @@ export function editionWhen(t: Pick<Tournament, "season" | "heldOn" | "startTime
 }
 
 /**
+ * Soonest first: by its day, then its hours (two on one Friday: the afternoon's before the evening's, as Home has them,
+ * #186), then the one made first. For latest first, swap them.
+ */
+export const byWhen = (a: Tournament, b: Tournament) =>
+  a.heldOn.localeCompare(b.heldOn) || a.startTime.localeCompare(b.startTime) || a.id - b.id;
+
+/**
  * Which edition of a series to open on, by what's happened rather than the dates: the one under way, else the first
  * that isn't done (just a season is enough; one whose fixed day passed unplayed still is, until an admin plays it,
  * moves it or deletes it, #169), else the last one played.
  */
 export function latestOf(editions: Tournament[]): Tournament | undefined {
-  const mine = [...editions].sort((a, b) => a.heldOn.localeCompare(b.heldOn));
+  const mine = [...editions].sort(byWhen);
   return (
     mine.find((t) => editionState(t) === "live") ??
     mine.find((t) => editionState(t) !== "done") ??
@@ -117,9 +124,7 @@ export function currentOf(editions: Tournament[], evening?: string): Tournament 
 
 /** The last one played, other than this: "last time", on the next one's page. */
 export const previousOf = (editions: Tournament[], t: Tournament) =>
-  editions
-    .filter((x) => x.id !== t.id && editionState(x) === "done")
-    .sort((a, b) => b.heldOn.localeCompare(a.heldOn))[0];
+  editions.filter((x) => x.id !== t.id && editionState(x) === "done").sort((a, b) => byWhen(b, a))[0];
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
