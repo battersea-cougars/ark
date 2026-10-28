@@ -163,6 +163,12 @@
       }
       case "settings.bank":
         return `${who} changed the club's bank details`;
+      // The reminder of next quarter's plan (#187): how many days before a quarter it goes ({ days })
+      case "settings.plan_reminder":
+        return `${who} set the Quarterly reminder to ${plural(Number(to?.days ?? 0), "day")} before each quarter`;
+      // The app told a Quarterly Member next quarter's fee is due ({ memberId, quarter, via: push or email })
+      case "dues.plan_reminded":
+        return `The app told ${about} their ${str(d.quarter)} fee is due, by ${d.via === "push" ? "notification" : "email"}`;
       case "fees.quarterly":
         return `${who} changed the quarterly membership's price: ${rates(d.from)} → ${rates(d.to)}`;
       case "role.created":

@@ -835,7 +835,10 @@ CREATE TABLE club_settings (
   -- fees. Shown on every member's Dues page and in reminders; none yet means no reminder goes out.
   bank_name TEXT,
   bank_sort_code TEXT,
-  bank_account TEXT
+  bank_account TEXT,
+  -- How many days before a quarter starts its Quarterly Members are told its fee is due, and that they can still
+  -- switch (apps/team/worker/dues/plan-reminders.ts, #187), set on Settings → Membership
+  plan_reminder_days INTEGER NOT NULL DEFAULT 5 CHECK (plan_reminder_days BETWEEN 1 AND 30)
 );
 
 -- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by), at most
@@ -867,6 +870,18 @@ CREATE TABLE dev_mail_recipients (
   email TEXT PRIMARY KEY,
   added_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
   added_at TEXT NOT NULL
+);
+
+-- Next quarter's plan, told a few days before it starts (apps/team/worker/dues/plan-reminders.ts, ADR 0007, #187):
+-- one row per member per quarter, claimed before it's sent so two runs tell once. `via`: push (their phone or
+-- browser) or email (no app). An email that fails is deleted, so it's tried again; the row is the record of who was
+-- told, for which quarter, how and when.
+CREATE TABLE plan_reminders (
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  quarter TEXT NOT NULL,
+  via TEXT NOT NULL CHECK (via IN ('push', 'email')),
+  told_at TEXT NOT NULL,
+  PRIMARY KEY (member_id, quarter)
 );
 
 -- The usage check's warnings (apps/team/worker/settings/usage.ts, ADR 0059): one email per metric per day (UTC); for

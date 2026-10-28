@@ -73,10 +73,16 @@ export interface Bank {
   account: string;
 }
 /**
- * The club's settings for the app: how often live pages check for updates (ADR 0072), and the club's bank details
- * (ADR 0007), null until whoever sets fees fills them in.
+ * The club's settings for the app: how often live pages check for updates (ADR 0072), the club's bank details
+ * (ADR 0007), null until whoever sets fees fills them in, and how many days before a quarter its Quarterly Members are
+ * told its fee is due (#187; the server's, from the bootstrap).
  */
-export const SETTINGS: { liveRefreshSeconds: number; bank: Bank | null } = { liveRefreshSeconds: 10, bank: null };
+export const SETTINGS: ClubSettings = { liveRefreshSeconds: 10, bank: null };
+export interface ClubSettings {
+  liveRefreshSeconds: number;
+  bank: Bank | null;
+  planReminderDays?: number;
+}
 export const ONE_OFFS: OneOff[] = [];
 /** What your phone tells you: a choice per topic, on until you turn it off (ADR 0108). */
 export const NOTIFICATIONS: NotificationPrefs = allOn();
@@ -162,7 +168,7 @@ export interface Bootstrap {
   announcements: Announcement[];
   /** What's on from today (ADR 0042). */
   agenda: AgendaRow[];
-  settings: { liveRefreshSeconds: number; bank: Bank | null };
+  settings: ClubSettings;
   charges: Charge[];
   /** When each was last reminded of what they owe (a page's, #178): for who sees everyone's dues. */
   reminders?: { memberId: number; at: string }[];

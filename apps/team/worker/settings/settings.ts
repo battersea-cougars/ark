@@ -1,13 +1,16 @@
 // The club's settings for the app (ADR 0072): one row. For now, how often live pages (a game being scored, the
 // tournament's home, the draft room) check for updates. Each check is a request against the club's free daily
 // allowance, so it's the admins' call: faster feels live, slower lasts the day. No row yet means the default. And the
-// club's bank details (ADR 0007), where members pay: on every member's Dues page and in reminders.
-import { run } from "@cougars/shared/d1";
+// club's bank details (ADR 0007), where members pay: on every member's Dues page and in reminders; and how many days
+// before a quarter its Quarterly Members are told its fee is due (#187).
+import { first, run } from "@cougars/shared/d1";
 import { HttpError, int } from "../api/api.http";
 
 export const LIVE_REFRESH_DEFAULT = 10;
 export const LIVE_REFRESH_MIN = 5;
 export const LIVE_REFRESH_MAX = 120;
+/** Days before a quarter starts that its Quarterly Members are told (dues/plan-reminders.ts): five unless set. */
+export const PLAN_REMINDER_DAYS = { default: 5, min: 1, max: 30 } as const;
 
 /** Where members pay by transfer. The sort code as a bank prints it, 12-34-56. */
 export interface Bank {
@@ -20,6 +23,8 @@ export interface Settings {
   liveRefreshSeconds: number;
   /** Null until whoever sets fees fills them in: no reminder goes out without them. */
   bank: Bank | null;
+  /** How many days before a quarter starts its Quarterly Members are told its fee is due. */
+  planReminderDays: number;
 }
 
 export interface SettingsRow {
@@ -27,6 +32,7 @@ export interface SettingsRow {
   bank_name: string | null;
   bank_sort_code: string | null;
   bank_account: string | null;
+  plan_reminder_days: number;
 }
 
 /** The bank details in a settings row, if they're all there. */
@@ -41,7 +47,11 @@ export const bankFrom = (r: Partial<SettingsRow> | null | undefined): Bank | nul
 
 /** The club's settings as read (api.club.ts): its one row, or the defaults before anyone has set them. */
 export function settingsFrom(rows: SettingsRow[]): Settings {
-  return { liveRefreshSeconds: rows[0]?.live_refresh_seconds ?? LIVE_REFRESH_DEFAULT, bank: bankFrom(rows[0]) };
+  return {
+    liveRefreshSeconds: rows[0]?.live_refresh_seconds ?? LIVE_REFRESH_DEFAULT,
+    bank: bankFrom(rows[0]),
+    planReminderDays: rows[0]?.plan_reminder_days ?? PLAN_REMINDER_DAYS.default,
+  };
 }
 
 /** { name, sortCode, account }: where members pay. A UK sort code is six digits and an account number eight. */
@@ -71,3 +81,21 @@ export async function saveSettings(db: D1Database, o: Record<string, unknown>) {
     [seconds],
   );
 }
+
+/** { days }: how many days before a quarter starts its Quarterly Members are told its fee is due (#187). */
+export async function savePlanReminder(db: D1Database, o: Record<string, unknown>) {
+  const days = int(o, "days", { min: PLAN_REMINDER_DAYS.min, max: PLAN_REMINDER_DAYS.max })!;
+  await run(
+    db,
+    `INSERT INTO club_settings (id, plan_reminder_days) VALUES (1, ?)
+     ON CONFLICT (id) DO UPDATE SET plan_reminder_days = excluded.plan_reminder_days`,
+    [days],
+  );
+}
+
+/** The lead time as the record keeps it, before and after a change. */
+export const planReminderDays = async (db: D1Database) => ({
+  days:
+    (await first<{ days: number }>(db, "SELECT plan_reminder_days days FROM club_settings WHERE id = 1"))?.days ??
+    PLAN_REMINDER_DAYS.default,
+});

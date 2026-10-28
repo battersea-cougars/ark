@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-10-28
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
@@ -67,6 +67,20 @@ session's fee.
   from its first day, or keeps theirs running; pay as you go ends theirs on this quarter's last day. **The server
   checks the date** (`PUT /api/me/plan`, London time): only next quarter, and only before it starts, whatever the app
   showed, so a page left open past the start can't change it. It's on the record (`member.plan`).
+- **A few days before each quarter, its Quarterly Members are told** (#187, `apps/team/worker/dues/plan-reminders.ts`,
+  from the hourly Cron Trigger): everyone who'll be Quarterly next quarter (they chose it, or their subscription runs on
+  into it), never a keeper or anyone paying as they go. "Next quarter's fee is due": "Your Quarterly membership for
+  2027-Q1 (£90) is charged on Fri 1 Jan. Want to pay as you go instead? Change it on your Dues page by Thu 31 Dec." The
+  amount is the quarterly rate in force on the quarter's first day; the change-by day is the day before, the last the
+  server takes. Five days before unless the club sets another (Settings → Membership → Reminder, 1 to 30 days,
+  `club_settings.plan_reminder_days`, `manage:Fees`, on the record as `settings.plan_reminder`); from 10:00 to 20:00
+  London, from that day until the quarter starts, so a run missed is made up the next hour, and someone who goes
+  Quarterly after the day hears it then. On their phone or browser if they have the app (topic `dues`, so their Dues
+  switch turns it off; tapping it opens their Dues page at next quarter's plan, `/me/tab?plan=next`), by email if they
+  haven't, at most 10 emails a run. Once per member per quarter: claimed in `plan_reminders` (member, quarter, how,
+  when) in one statement before it's sent, so two runs tell once; an email that fails is let go of and tried the next
+  hour. Each is on the audit log too (`dues.plan_reminded`, by the app). No rate in force on the day: nobody's
+  charged, so nobody's told. Switching to pay as you go after it is as ever: no quarter charge.
 - **The Cougars are `members.cougar`**: whether someone is on the official team. Admins set it on the member sheet; the
   roster seed sets it when it first adds a player (`"cougar": true`) and never changes it after. The team generator
   puts every Cougar on one team first, then balances the rest by rating.
@@ -145,7 +159,8 @@ session's fee.
   ([0108](0108-store-apps.md)): the dues code tells a member through one call (`worker/tell/tell.ts`), which sends the
   email under the mail rules ([0027](0027-email-through-gmail-api.md)) and the notification through `notify`, so a
   new channel (web push, #24) doesn't touch the dues code.
-- **Nothing reminds anyone on its own, for now.** No cron sends reminders: an admin decides when. A configurable
+- **Nothing reminds anyone of what they owe on its own, for now.** No cron sends these reminders: an admin decides
+  when. (Next quarter's plan reminder, above, is another thing: it's about the plan, not money owed.) A configurable
   schedule (how often, by how late, at what time of day) is a later issue,
   [#143](https://github.com/battersea-cougars/ark/issues/143). How firm the email is still follows the age of the
   member's oldest unpaid charge (Unpaid fees' buckets).
@@ -268,3 +283,12 @@ session's fee.
   read for its editor. Each charge keeps what's paid on it and each payment what's spent (`paid_pence`,
   `spent_pence`, by triggers), so what's owed and credit are found by index. With a year of Fridays an admin's open is
   78 KB, not 1.7 MB (docs/load-testing.md).
+- 2026-10-28: Next quarter's plan, a few days before it starts (#187): every member who'll be Quarterly next quarter is
+  told, automatically, that its fee is due (the quarter, the rate on its first day, the charge day) and that they can
+  still switch to pay as you go on their Dues page until the day before; five days before unless the club sets
+  another on Settings → Membership, from 10:00 London; a notification for anyone with the app (topic `dues`), an email
+  for anyone without; once per member per quarter, claimed in `plan_reminders` before it's sent, and on the audit log.
+  This is separate from the dues reminders, which stay manual only and at most once a week each, as decided on
+  2026-10-22: those are about money owed, this is about next quarter's plan. "A few days before the qtr starts,
+  anyone set to use quarterly membership for the upcoming period should get a reminder that the fee will be due, and
+  that they have a few days to modify their subscription type."

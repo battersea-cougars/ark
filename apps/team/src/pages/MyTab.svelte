@@ -29,6 +29,8 @@
   const thisQuarter = $derived(quarterOf(today));
   const next = $derived(nextQuarter(thisQuarter));
   const nextStarts = $derived(quarterStart(next));
+  // The last day it takes a change: the day before next quarter starts (the reminder says the same, #187)
+  const changeBy = $derived(new Date(Date.parse(`${nextStarts}T12:00:00Z`) - 86_400_000).toISOString());
   const myRow = $derived(db.members.find((m) => m.player.id === who.id));
   const rate = $derived(feeOn(db.fees, nextStarts));
   // What a night costs then, on the main training (the first that's running)
@@ -40,6 +42,15 @@
   const keeper = $derived(myRow?.plan === "Keeper");
   // Where to pay (ADR 0007)
   const bank = $derived(db.settings.bank);
+
+  // ?plan=next (the reminder a few days before the quarter, #187): next quarter's plan is scrolled into view, and the
+  // address goes back to the plain page so a reload doesn't scroll again
+  const askedForPlan = new URLSearchParams(location.search).get("plan") === "next";
+  if (askedForPlan) history.replaceState(history.state, "", location.pathname);
+  let planRow = $state<HTMLElement>();
+  $effect(() => {
+    if (askedForPlan && planRow) planRow.scrollIntoView({ block: "center" });
+  });
 </script>
 
 <div class="page">
@@ -96,10 +107,10 @@
           </span>
         </div>
       {:else}
-        <div class="row next">
+        <div class="row next" bind:this={planRow}>
           <span class="grow">
             <span class="title">Next quarter · {quarterMonths(next)}</span>
-            <span class="sub">Change it until {formatDayDate(`${nextStarts}T12:00:00Z`)}</span>
+            <span class="sub">Change it by {formatDayDate(changeBy)}</span>
           </span>
           <div class="seg block tiles" role="group" aria-label="Next quarter's plan">
             {#each [["Pay as you go", false], ["Subscription", true]] as const as [plan, quarterly] (plan)}

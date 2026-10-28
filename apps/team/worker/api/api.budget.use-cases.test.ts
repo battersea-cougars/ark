@@ -354,6 +354,7 @@ async function walk() {
   await hit(dana, "GET", "/api/audit");
   await hit(dana, "PUT", "/api/settings", { liveRefreshSeconds: 10 });
   await hit(dana, "PUT", "/api/settings/bank", { name: "Cougars", sortCode: "12-34-56", account: "12345678" });
+  await hit(dana, "PUT", "/api/settings/plan-reminder", { days: 5 });
   await hit(dana, "GET", "/api/dev/mail");
   await hit(dana, "POST", "/api/dev/mail", { email: "mo@example.com" });
   await hit(dana, "DELETE", "/api/dev/mail", { email: "mo@example.com" });

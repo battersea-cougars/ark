@@ -43,7 +43,8 @@ Three things shape it:
     ([0121](0121-load-and-concurrency.md)). Every route that can move someone says `notify: places`: an answer, an
     admin putting someone in or taking them off, Let in, the register (a night's, or a member's Fridays), a limit raised
     (a training, a tournament, a club event), an account deleted. Home asks once, a row in its feed
-    ([0118](0118-home-calls-to-action-then-feed.md)) saying what they're for, before the phone's own question; "Not now" is remembered. A reminder of what you owe
+    ([0118](0118-home-calls-to-action-then-feed.md)) saying what they're for, before the phone's own question; "Not now" is remembered. Next quarter's fee a few days before it starts, to its Quarterly Members (topic `dues`, from the hourly cron, an
+    email instead for anyone without the app, #187). A reminder of what you owe
     ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
@@ -205,3 +206,6 @@ Three things shape it:
 - 2026-10-24: The awards' reveal sends no push: the user, "no push needed" (`awardsOut` is gone; ADR 0129).
 - 2026-10-24: The `usage` topic ("Free limits", admins only): the hourly check's 70% and 90% of a free limit, queued
   for the next drain and waiting out quiet hours, unless the limit resets before they end ([0059](0059-usage-page-and-check.md), #157).
+- 2026-10-28: Next quarter's plan reminder on the `dues` topic (#187, ADR 0007): a few days before a quarter, each
+  member who'll be Quarterly then, on their devices if they have any, by email if not (not both); queued from the
+  hourly cron for the next drain; tapping it opens `/me/tab?plan=next`.

@@ -18,6 +18,8 @@
 // whether it was in the last fortnight. Opening the app (the core) is byte for byte as before.
 // Re-pinned 2026-10-27 (#186): each training night says why it's off, `offByHand` and `offFor` (the tournaments it's
 // off for). With those two left out, every pin is byte for byte as before (checked).
+// Re-pinned 2026-10-28 (#187): the club's settings say how many days before a quarter its Quarterly Members are told
+// its fee is due (`planReminderDays`, 5 unless set). Without it, every pin is byte for byte as before.
 import { createHash } from "node:crypto";
 import { beforeAll, expect, it } from "vitest";
 import { clubWithHistory } from "./bootstrap.testing";
@@ -77,29 +79,29 @@ beforeAll(async () => {
 
 it("an admin opening the app is sent the core as pinned, and the whole club once its pages are read", async () => {
   expect(await seen(club.dana)).toEqual({
-    core: "52f0540dc01104d5530260a179206b3199779358cc328fe903a8ca8d11a2fef1",
-    whole: "0d0f4490202c2c852421fc038b900a5ddce34fe6e041b48771c9f5d156f19f46",
+    core: "7daf3dda0c112d17e067be45972520a3e713f435325628b36e9b1dcafa63445b",
+    whole: "2945b8b61c9039677bcd1bd5bf26e69183191f110fd9c1b2b54bf7f3ec521d68",
   });
 });
 
 it("a session lead (sees the register) is sent the core and the club as pinned", async () => {
   expect(await as("m2@example.com")).toEqual({
-    core: "118d06cb0e6a99abf6a8d5f9310c0ceade083ec956da61367e807cc5f89f4526",
-    whole: "4660c79f243b59dffb5062fc56fa6b2c5bdd57315ad3bc56d4e5a148624f549a",
+    core: "ad2f411d45908e5f8087845241412d94b34db7a1e39b669e703a672e4e473381",
+    whole: "d4923854522ca260f7d2e677f7814bb161cee203f8ffd8af6f856fb4bf8fea15",
   });
 });
 
 it("a member is sent the core and the club as pinned", async () => {
   expect(await as("m30@example.com")).toEqual({
-    core: "f99a9ca9ca9eaa2a9c61be759cfbaef86a80e6952220cebd7b9c1973b488884f",
-    whole: "c3a9c7e6ec4817595789318ac8e1681037ab4c212cfb1ca41601b4a920d4530e",
+    core: "f22d238423d41a9c6a3458e5ce42ac0c3a1fa37f04041c3a976b54fa5fc21831",
+    whole: "43cb0919e6010dc56e3fd67a0ae7aefade1f5d3f22fa9d97f6bc39051d0169c8",
   });
 });
 
 it("a Kumite captain (every draft's Team 1) is sent the core and the club as pinned", async () => {
   expect(await as(emailOf(club.ids[0]))).toEqual({
-    core: "338a6ef6e9b681a0b21099adc361155b3d7ef62aa09b14dad667f5b96b1dd895",
-    whole: "b2ae3b82031b5aa56b970d11734bb323345fcfc8fbd4131540d4d27a7efd515a",
+    core: "369ff6087f58ff18b7494a83c9e733e564ad2cc33806675b421e37369636f02b",
+    whole: "997a0bbb7d5bf5877c4efeab2209e0dfead3e687468c831748c7a4e3e3e776d2",
   });
 });
 
@@ -108,7 +110,7 @@ it("an admin viewing as a member is sent the club as that member is", async () =
   const viewing = await seen(club.dana);
   expect((await club.dana.call("DELETE", "/api/me/view-as")).status).toBe(200);
   expect(viewing).toEqual({
-    core: "d8475430ed20822b13d3069c1a3b9fea3652a5b8fe4c0f88cd54b5bd2f281380",
-    whole: "473a5071c09a7198244183c3da5eec200b3d83ae920726992d8ef80a54ea12aa",
+    core: "57ce7a610822e86ef6206e9c45a55f24714b9012cd93d03ea73f60160e44ebf4",
+    whole: "b1a0ea410b6570baad2fef2b462a4f194d70e65a604f7fe43ca1f89a49aabbae",
   });
 });

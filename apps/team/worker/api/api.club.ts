@@ -493,8 +493,8 @@ const PARTS = {
      ORDER BY a.created_at DESC, a.id DESC LIMIT 2`,
   ),
   settings: rows(
-    "live_refresh_seconds bank_name bank_sort_code bank_account",
-    "SELECT live_refresh_seconds, bank_name, bank_sort_code, bank_account FROM club_settings WHERE id = 1",
+    "live_refresh_seconds bank_name bank_sort_code bank_account plan_reminder_days",
+    "SELECT live_refresh_seconds, bank_name, bank_sort_code, bank_account, plan_reminder_days FROM club_settings WHERE id = 1",
   ),
   // What this member chooses to hear on their phone (ADR 0108): the topics they've switched
   notifications: rows(
