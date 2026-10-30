@@ -55,7 +55,7 @@ beforeEach(() => {
       return Response.json({
         result: { club: { socials: {}, youtubePlaylists: [{ url: "PLfridayfridayfriday", label: "Friday" }] } },
       });
-    if (url.hostname === "graph.instagram.com") return Response.json({ data: posts.map(media) });
+    if (url.hostname === "graph.facebook.com") return Response.json({ data: posts.map(media) });
     if (youtube === "down") return new Response("{}", { status: 503 });
     if (url.pathname.endsWith("/videos")) {
       const ids = url.searchParams.get("id")?.split(",") ?? [];
@@ -76,7 +76,9 @@ const website = (at: Date) => {
         await liveVideos({ sanity: { projectId: "proj", dataset: "production" }, youtubeKey: "k", refreshedAt }, deps)
       ).data.map((v) => v.title),
     photos: async () =>
-      (await latestPosts({ token: async () => "token", refreshedAt }, deps)).data.map((p) => p.caption),
+      (await latestPosts({ account: "17841400000000001", token: async () => "token", refreshedAt }, deps)).data.map(
+        (p) => p.caption,
+      ),
   };
 };
 

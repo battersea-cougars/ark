@@ -1,7 +1,7 @@
 # 0016. Photos and videos are read live on the Worker: photos are the club's Instagram, videos its YouTube playlists
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-10-30
 - **Merges:** 0015, 0019, 0039, 0040, 0113
 
 ## Context
@@ -26,9 +26,9 @@ published. Nobody did (production had no albums), while the club posts its photo
 put the same photos means one of them goes stale.
 
 Instagram's simple read-only API (Basic Display) closed in December 2024. What's left for reading an account's own
-posts is the Instagram API with Instagram Login: a Professional account (free), a Meta developer app, and a token
-that lasts 60 days. One call with the current token returns a fresh one, no sign-in, as long as it's done before
-the 60 days are up.
+posts is the Instagram API, through a Meta developer app and a Professional account (free). Meta's dashboard now
+sets that app up with a business portfolio, and its tokens are a portfolio's system-user tokens, which never expire.
+(It used to offer an Instagram Login token lasting 60 days, swapped weekly for a fresh one.)
 
 ## Decision
 
@@ -52,27 +52,27 @@ expired picture address is asked for again. So visitors' browsers never contact 
 and the privacy page are unchanged ([0036](0036-api-security.md)). Pictures come in one size (Instagram's 1080 px),
 not resized.
 
-**The home page stays prerendered.** Its build can't read Instagram (the token lives in D1), so the strip holds
+**The home page stays prerendered.** Its build can't read Instagram (the token is a Worker secret, and the build has none), so the strip holds
 twelve empty tiles and its script fills them from `/api/photos/latest`; nothing moves when they arrive. Without
 JavaScript, a line points at Instagram.
 
-**The token renews itself** (`lib/server/instagram-token.ts`):
+**The token is the club's, and never expires.** `INSTAGRAM_TOKEN` in Bitwarden, one value for both environments (there's
+no dev Instagram: dev and your machine show the club's real posts, [ADR 0010](0010-environments-and-deploys.md)), a Worker secret, read
+by `lib/server/instagram-env.ts`:
 
-- The first token is `INSTAGRAM_TOKEN__PRODUCTION` in Bitwarden, a Worker secret.
-- The website's daily cron (`src/worker.ts`) renews it once a week and keeps the new one in D1, table
-  `sealed_tokens`, the one exception to secrets living only in Bitwarden ([0002](0002-secrets-in-bitwarden.md)):
-  nothing that runs by itself can write to Bitwarden.
-- **Sealed in the Worker** before it's written: AES-GCM (Web Crypto) with `INSTAGRAM_TOKEN_KEY__PRODUCTION`
-  (32 random bytes, a Worker secret of its own: one key, one job, never `BACKUP_KEY`), the row's name bound in as
-  associated data. D1's own encryption at rest only protects Cloudflare's disks; this keeps the token from anyone who
-  can query the database or read an export or backup. Changed, or moved to another row, it won't open.
-- If it won't open, the Bitwarden token is used and an error is logged. A refused renewal is an error with the days
-  left. Errors reach Sentry, whose alert emails ([0110](0110-structured-logging.md)). The token is never logged.
-- What the token can do is read the club's own posts, which are public anyway: it can't post or reach messages. A
-  leak is revoked in the Meta app.
+- It's a **system user's** token in the club's Meta business portfolio, the portfolio that owns the Instagram
+  account. A system user belongs to the portfolio, not a person, so the token outlives anyone leaving; the
+  portfolio has more than one admin.
+- The system user has the Meta app ("Develop app") and the Instagram account ("Content"), and the token only
+  `instagram_basic`: it reads the club's own posts, which are public anyway, and can't post or reach messages.
+- It's read through the Graph API (`graph.facebook.com`, `/<account>/media`), with the account's ID in
+  `instagram-env.ts` (not a secret). No renewal, nothing in D1, no sealing key.
+- If it's revoked or stops working, the feed fails like any Instagram failure: the last good copy for three days,
+  and an error in Sentry. A new one is generated on the system user and set in Bitwarden, then a deploy.
 
-**Before the club connects Instagram**, a sample feed (`lib/server/instagram.fake.ts`, placeholder pictures from
-picsum) stands in on a laptop, dev and PR previews (`SITE_ENV` isn't `production`); production shows its empty state.
+**Without the token** (a checkout with no Bitwarden access, a PR preview), a sample feed
+(`lib/server/instagram.fake.ts`, placeholder pictures from picsum) stands in anywhere but production
+(`SITE_ENV` isn't `production`); production shows its empty state.
 
 ### Videos
 
@@ -171,3 +171,8 @@ background are ready-sized files in `src/assets/`.
 - 2026-10-24: Refresh photos and videos in the team app's Settings → Website (#109): the website's YouTube and
   Instagram copies from before the press aren't fresh, so a new video or post shows within a minute; the last good copy
   is kept. One D1 read per half minute per data centre for the press's time.
+- 2026-10-30: The Instagram token is the club portfolio's system-user token, read through the Graph API: it never
+  expires, so the weekly renewal, the sealed copy in D1 and `INSTAGRAM_TOKEN_KEY` are gone. Meta's dashboard no longer
+  offers the Instagram Login token, and a system user belongs to the club, not the person who set it up.
+- 2026-10-30: The Instagram token is one value for both environments (plain `INSTAGRAM_TOKEN`): dev and your machine
+  show the club's real posts, so photo changes can be seen locally; the sample feed is only for a checkout without it.

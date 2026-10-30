@@ -4,7 +4,7 @@ import { captureLogs } from "@cougars/shared/testing/scribe";
 import { clearCache } from "./cache";
 import { FAKE_POSTS, latestPosts, postImage, type InstagramConfig } from "./instagram";
 
-// The club's account on Instagram's API: three posts, newest first, as /me/media answers
+// The club's account on Meta's Graph API: three posts, newest first, as /<account>/media answers
 const MEDIA = [
   {
     id: "1803",
@@ -37,10 +37,10 @@ function fakeInstagram({ down = false, expired = false } = {}) {
   const calls = { feed: 0, media: 0, cdn: 0 };
   const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input);
-    if (url.hostname === "graph.instagram.com") {
+    if (url.hostname === "graph.facebook.com") {
       if (down)
         return Response.json({ error: { message: "Application request limit reached", code: 4 } }, { status: 403 });
-      if (url.pathname.endsWith("/me/media")) {
+      if (url.pathname.endsWith(`/${ACCOUNT}/media`)) {
         calls.feed++;
         return Response.json({ data: MEDIA });
       }
@@ -58,7 +58,12 @@ function fakeInstagram({ down = false, expired = false } = {}) {
   return { fetch, calls };
 }
 
-const config = (extra: Partial<InstagramConfig> = {}): InstagramConfig => ({ token: async () => "token", ...extra });
+const ACCOUNT = "17841400000000001";
+const config = (extra: Partial<InstagramConfig> = {}): InstagramConfig => ({
+  account: ACCOUNT,
+  token: async () => "token",
+  ...extra,
+});
 
 describe("the club's Instagram on the website", () => {
   let t = 0;
@@ -121,7 +126,7 @@ describe("the club's Instagram on the website", () => {
 
   it("is a sample feed outside production until the club has connected Instagram, and empty in production", async () => {
     const { fetch, calls } = fakeInstagram();
-    const notSetUp = { token: async () => null };
+    const notSetUp = { account: ACCOUNT, token: async () => null };
     expect((await latestPosts({ ...notSetUp, fake: true }, deps(fetch))).data).toEqual(FAKE_POSTS);
     expect(await latestPosts(notSetUp, deps(fetch))).toEqual({ data: [], unavailable: false });
     expect(calls.feed).toBe(0);
@@ -159,7 +164,7 @@ describe("a post's picture", () => {
     const { fetch, calls } = fakeInstagram();
     expect((await postImage(config(), "999", deps(fetch))).status).toBe(404);
     expect((await postImage(config(), "../me", deps(fetch))).status).toBe(404);
-    expect((await postImage({ token: async () => null, fake: true }, "1803", deps(fetch))).status).toBe(404);
+    expect((await postImage(config({ token: async () => null, fake: true }), "1803", deps(fetch))).status).toBe(404);
     expect(calls.cdn).toBe(0);
   });
 });

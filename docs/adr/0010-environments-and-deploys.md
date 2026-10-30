@@ -1,7 +1,7 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-10-30
 - **Merges:** 0005, 0013, 0017, 0075
 
 ## Context
@@ -40,6 +40,13 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 | Push to `release`        | production  | `web`, the team app as `team`, and the Studio as `studio`                   |
 | Daily, after 04:37 UTC   | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
 
+- **The club's outside accounts have no dev copy.** There's one club Instagram, one YouTube channel, one Google
+  project: we can't make dev versions of them, and a fake one would show nothing real. So dev, PR previews and your
+  machine read the **real** accounts, read-only, and show the club's real photos and videos, as production does.
+  Only credentials that can read and nothing more are shared like this: Instagram's token is one value for both
+  (plain `INSTAGRAM_TOKEN`), YouTube's key is one each (`__DEV` and `__PRODUCTION`, so a leaked dev key is revoked
+  alone), of the same channel. Anything that writes to an outside account (Gmail's send-only token is the one
+  exception, ADR 0027) is decided case by case. What dev keeps apart is our own data: its D1, its Sanity project.
 - **One job per app, and only the apps a change touches.** `deploy.yml`'s `changes` job reads the files a push or PR
   changed (both sides of a move): `apps/web/` and the club snapshot's scripts deploy the website, `apps/team/` (and its
   build's budget and dev-server scripts) the team app, `apps/studio/` the Studio, and shared code, `db/`, the
@@ -178,3 +185,6 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   its own local D1, since several worktrees' apps run at once.
 - 2026-10-24: Every commit is scanned for secrets with a pinned, checksum-checked gitleaks: `pr.yml` the PR's commits
   (checked out whole now), `secrets.yml` the whole history on a push to `main` and weekly (#104).
+- 2026-10-30: The club's outside accounts (Instagram, YouTube) have no dev copy: dev, previews and your machine
+  read the real ones, read-only, so a change to the photos or videos can be seen locally. Instagram's token becomes one
+  value for both environments.

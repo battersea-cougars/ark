@@ -71,7 +71,7 @@ export function shapeWarnings(name, value) {
     ],
     [/^CF_ACCESS_CLIENT_ID/, /^[0-9a-f]{32}\.access$/, "an Access client ID is 32 hex digits and .access"],
     [/^CF_ACCESS_CLIENT_SECRET/, /^[0-9a-f]{64}$/, "an Access client secret is 64 hex digits"],
-    [/^(BACKUP_KEY|GMAIL_TOKEN_KEY|INSTAGRAM_TOKEN_KEY)/, KEY_32_BYTES, "our keys are 32 random bytes, base64"],
+    [/^(BACKUP_KEY|GMAIL_TOKEN_KEY)/, KEY_32_BYTES, "our keys are 32 random bytes, base64"],
     [/^VAPID_PRIVATE_KEY/, /^[A-Za-z0-9_-]{43}$/, "a VAPID private key is 32 bytes, base64url (43 characters)"],
   ];
   const warnings = [];

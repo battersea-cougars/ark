@@ -58,10 +58,9 @@ export default defineConfig({
       SANITY_API_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       // The club's YouTube videos, read live on the Worker (lib/server/videos.ts). Without it: Sanity videos only.
       YOUTUBE_API_KEY: envField.string({ context: "server", access: "secret", optional: true }),
-      // The club's Instagram posts, the site's photos (lib/server/instagram.ts, ADR 0016). Worker secrets: the first
-      // token, and the key the renewed one is sealed with in D1. Without a token: the sample feed, except in production.
+      // The club's Instagram posts, the site's photos (lib/server/instagram.ts, ADR 0016). A Worker secret: the club
+      // portfolio's system-user token, which never expires. Without it: the sample feed, except in production.
       INSTAGRAM_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
-      INSTAGRAM_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Which site this build is (deploy.yml sets it): production, or dev for everything else
       SITE_ENV: envField.enum({ values: ["production", "dev"], context: "server", access: "public", default: "dev" }),
       // Enquiry emails through the Gmail API (packages/shared/email.ts, docs/secrets.md#gmail): the Web client and the

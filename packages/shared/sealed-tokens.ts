@@ -1,5 +1,5 @@
 // Tokens kept in D1 (sealed_tokens) because nothing that writes them can write to Bitwarden (ADR 0002 point 8): the
-// website's renewed Instagram token (ADR 0016) and the Gmail token an admin reconnects in the team app (ADR 0027).
+// Gmail token an admin reconnects in the team app (ADR 0027).
 //
 // Sealed in the Worker before it's written: AES-GCM (Web Crypto) with a key of the token's own (a Worker secret,
 // 32 random bytes, base64), the row's name bound in as associated data. So someone with the database (the dashboard,

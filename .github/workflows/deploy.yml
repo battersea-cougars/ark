@@ -254,7 +254,8 @@ jobs:
 
       # Secrets the Worker reads at request time, from this environment's Secrets Manager project (docs/secrets.md).
       # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample
-      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies).
+      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies). Instagram's token is
+      # one plain value, so dev shows the club's real posts too (ADR 0010).
       - name: Worker secrets
         if: github.event_name != 'pull_request'
         working-directory: apps/web
@@ -262,7 +263,7 @@ jobs:
           # Where its errors go (ADR 0110): the web project's DSN, as the Worker's SENTRY_DSN
           SENTRY_DSN="${SENTRY_DSN_WEB:-}"
           for name in YOUTUBE_API_KEY GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY \
-            TURNSTILE_SECRET_KEY SENTRY_DSN INSTAGRAM_TOKEN INSTAGRAM_TOKEN_KEY; do
+            TURNSTILE_SECRET_KEY SENTRY_DSN INSTAGRAM_TOKEN; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/server/wrangler.json
             else
@@ -270,14 +271,14 @@ jobs:
             fi
           done
 
-      # Once, 2026-10-23: the Gmail Desktop client is gone. Deletes only what's there; drop this step once both
-      # environments have deployed.
+      # Once, 2026-10-23: the Gmail Desktop client is gone; 2026-10-30: the Instagram token no longer renews, so it has
+      # no sealing key. Deletes only what's there; drop this step once both environments have deployed.
       - name: Retire old Worker secrets
         if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: |
           have=$(npx wrangler secret list -c dist/server/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
-          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET; do
+          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET INSTAGRAM_TOKEN_KEY; do
             if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/server/wrangler.json; fi
           done
 

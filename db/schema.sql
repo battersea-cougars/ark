@@ -22,12 +22,12 @@ CREATE INDEX enquiries_auto_replied_at ON enquiries (auto_replied_at);
 
 CREATE INDEX enquiries_email ON enquiries (email);
 
--- Tokens a Worker writes, which can't go to Bitwarden (packages/shared/sealed-tokens.ts, ADR 0002): Instagram's, which
--- the website renews by itself (ADR 0113), and Gmail's, which an admin reconnects in the team app (ADR 0027). Sealed
+-- Tokens a Worker writes, which can't go to Bitwarden (packages/shared/sealed-tokens.ts, ADR 0002): Gmail's, which an
+-- admin reconnects in the team app (ADR 0027). Sealed
 -- in the Worker (AES-GCM, with a key only it has, the row's name bound in), so this table never holds one anyone can
 -- read or move.
 CREATE TABLE sealed_tokens (
-  name        TEXT PRIMARY KEY,   -- instagram | gmail
+  name        TEXT PRIMARY KEY,   -- gmail
   sealed      TEXT NOT NULL,      -- base64: 12-byte IV, then the ciphertext
   expires_at  TEXT,               -- null: until it's cancelled (gmail)
   renewed_at  TEXT NOT NULL
