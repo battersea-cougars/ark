@@ -44,7 +44,7 @@ const { instagram } = Astro.props;
     margin: 0;
     padding: 0;
     display: grid;
-    /* Columns the twelve fill evenly with the big first tile (4 cells + 11 = 15): five, three, or two without the last */
+    /* Five, three or two columns; the script shows only the photos that fill whole rows (lib/full-rows.ts) */
     grid-template-columns: repeat(5, 1fr);
     gap: 0.5rem;
   }
@@ -56,9 +56,6 @@ const { instagram } = Astro.props;
   @media (max-width: 36rem) {
     .strip :global(.gallery) {
       grid-template-columns: repeat(2, 1fr);
-    }
-    .strip :global(.gallery li:nth-child(12)) {
-      display: none;
     }
   }
   .strip :global(.gallery li) {
@@ -92,6 +89,7 @@ const { instagram } = Astro.props;
 
 <script>
   import type { StripPhoto } from "../pages/api/photos/latest";
+  import { keepFullRows } from "../lib/full-rows";
 
   function item(p: StripPhoto): HTMLLIElement {
     const li = document.createElement("li");
@@ -124,6 +122,8 @@ const { instagram } = Astro.props;
     }
     list.replaceChildren(...photos.map(item));
     list.removeAttribute("aria-busy");
+    // Whole rows only: the first photo is four cells, three more than the rest
+    keepFullRows(list, 3);
   }
 
   document.addEventListener("astro:page-load", fill);

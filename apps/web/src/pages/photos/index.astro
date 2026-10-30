@@ -67,9 +67,14 @@ if (unavailable) Astro.response.status = 503;
 </Base>
 
 <script>
+  import { keepFullRows } from "../../lib/full-rows";
+
   // A photo that won't load (gone from Instagram since the page was made) leaves the grid instead of an empty tile
   const drop = (img: HTMLImageElement) => img.closest("li")?.remove();
   document.addEventListener("astro:page-load", () => {
+    const grid = document.querySelector<HTMLElement>("[data-gallery]");
+    // Whole rows only (lib/full-rows.ts)
+    if (grid) keepFullRows(grid);
     for (const img of document.querySelectorAll<HTMLImageElement>("[data-gallery] img")) {
       if (img.complete && !img.naturalWidth) drop(img);
       else img.addEventListener("error", () => drop(img), { once: true });
