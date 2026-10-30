@@ -191,3 +191,5 @@ background are ready-sized files in `src/assets/`.
   masonry, where a ragged end is fine.
 - 2026-10-30: /photos/ is justified rows too, the same as the home strip (`lib/justify.ts`), so its bottom is straight;
   the masonry (`lib/masonry.ts`) is gone.
+- 2026-10-30: /photos/ shows "More on Instagram" only when Instagram has older photos than the page (more than the
+  feed's 48, or a next page from Instagram); while the page shows them all, the button would lead nowhere new.

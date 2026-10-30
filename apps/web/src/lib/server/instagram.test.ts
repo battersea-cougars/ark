@@ -40,7 +40,7 @@ const MEDIA = [
   },
 ];
 
-function fakeInstagram({ down = false, expired = false } = {}) {
+function fakeInstagram({ down = false, expired = false, older = false } = {}) {
   const calls = { feed: 0, media: 0, cdn: 0 };
   const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input);
@@ -49,7 +49,11 @@ function fakeInstagram({ down = false, expired = false } = {}) {
         return Response.json({ error: { message: "Application request limit reached", code: 4 } }, { status: 403 });
       if (url.pathname.endsWith(`/${ACCOUNT}/media`)) {
         calls.feed++;
-        return Response.json({ data: MEDIA });
+        // `older`: the account has more posts than were asked for, so Instagram offers the next page
+        return Response.json({
+          data: MEDIA,
+          ...(older && { paging: { next: `https://graph.facebook.com/v23.0/${ACCOUNT}/media?after=X` } }),
+        });
       }
       calls.media++; // one post, asked again for a fresh picture address
       return Response.json({
@@ -116,6 +120,17 @@ describe("the club's Instagram on the website", () => {
     });
   });
 
+  it("says there are more on Instagram only when it has left some out", async () => {
+    // All of them shown: nothing more to see there
+    expect((await latestPosts(config(), deps(fakeInstagram().fetch))).more).toBe(false);
+    // Fewer asked for than there are photos
+    clearCache();
+    expect((await latestPosts(config(), deps(fakeInstagram().fetch), 2)).more).toBe(true);
+    // Older posts than the feed reads
+    clearCache();
+    expect((await latestPosts(config(), deps(fakeInstagram({ older: true }).fetch))).more).toBe(true);
+  });
+
   it("asks Instagram once every ten minutes, however many people look", async () => {
     const { fetch, calls } = fakeInstagram();
     for (let i = 0; i < 5; i++) await latestPosts(config(), deps(fetch));
@@ -134,14 +149,14 @@ describe("the club's Instagram on the website", () => {
 
     clearCache();
     resetBreakers();
-    expect(await latestPosts(config(), deps(down.fetch))).toEqual({ data: [], unavailable: true });
+    expect(await latestPosts(config(), deps(down.fetch))).toEqual({ data: [], unavailable: true, more: false });
   });
 
   it("is a sample feed outside production until the club has connected Instagram, and empty in production", async () => {
     const { fetch, calls } = fakeInstagram();
     const notSetUp = { account: ACCOUNT, token: async () => null };
     expect((await latestPosts({ ...notSetUp, fake: true }, deps(fetch))).data).toEqual(FAKE_POSTS);
-    expect(await latestPosts(notSetUp, deps(fetch))).toEqual({ data: [], unavailable: false });
+    expect(await latestPosts(notSetUp, deps(fetch))).toEqual({ data: [], unavailable: false, more: false });
     expect(calls.feed).toBe(0);
   });
 });

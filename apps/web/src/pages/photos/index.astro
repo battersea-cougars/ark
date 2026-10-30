@@ -12,7 +12,7 @@ import { instagramConfig } from "../../lib/server/instagram-env";
 
 export const prerender = false;
 
-const { data: posts, unavailable } = await latestPosts(instagramConfig());
+const { data: posts, unavailable, more } = await latestPosts(instagramConfig());
 const s = await getSettings();
 const day = s.training[0]?.day ?? "Friday";
 const instagram = s.socials.instagram;
@@ -43,7 +43,8 @@ if (unavailable) Astro.response.status = 503;
             </li>
           ))}
         </ul>
-        {instagram && (
+        {/* Only when Instagram has older photos than these */}
+        {instagram && more && (
           <p class="more">
             <a class="btn" href={instagram} rel="noopener" target="_blank">
               More on Instagram

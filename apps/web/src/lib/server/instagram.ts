@@ -71,6 +71,8 @@ interface Media {
 interface Feed {
   posts: Post[];
   pictures: Record<string, string>;
+  /** Instagram has older photos than these */
+  older?: boolean;
 }
 
 /** Instagram's refusal as an error the breaker understands: its rate limits pause it for an hour. */
@@ -116,7 +118,7 @@ function toPosts(m: Media): { post: Post; picture: string }[] {
 }
 
 async function readFeed(account: string, token: string, fetch?: typeof globalThis.fetch): Promise<Feed> {
-  const { data } = await api<{ data: Media[] }>(
+  const { data, paging } = await api<{ data: Media[]; paging?: { next?: string } }>(
     `/${account}/media`,
     {
       fields: "id,caption,media_type,media_url,permalink,timestamp,children{id,media_type,media_url}",
@@ -125,10 +127,12 @@ async function readFeed(account: string, token: string, fetch?: typeof globalThi
     token,
     fetch,
   );
-  const photos = data.flatMap(toPosts).slice(0, FEED_SIZE);
+  const all = data.flatMap(toPosts);
+  const photos = all.slice(0, FEED_SIZE);
   return {
     posts: photos.map((p) => p.post),
     pictures: Object.fromEntries(photos.map((p) => [p.post.id, p.picture])),
+    older: Boolean(paging?.next) || all.length > FEED_SIZE,
   };
 }
 
@@ -142,15 +146,23 @@ async function feed(token: string, config: InstagramConfig, { fetch, ...cacheDep
   );
 }
 
-/** The newest posts, newest first. Never throws: Instagram failing with nothing cached is `unavailable`. */
-export async function latestPosts(config: InstagramConfig, deps: Deps = {}, limit = FEED_SIZE): Promise<Live<Post[]>> {
+/**
+ * The newest posts, newest first, and whether Instagram has `more` than these. Never throws: Instagram failing with
+ * nothing cached is `unavailable`.
+ */
+export async function latestPosts(
+  config: InstagramConfig,
+  deps: Deps = {},
+  limit = FEED_SIZE,
+): Promise<Live<Post[]> & { more: boolean }> {
   const token = await config.token();
-  if (!token) return { data: config.fake ? FAKE_POSTS.slice(0, limit) : [], unavailable: false };
+  if (!token) return { data: config.fake ? FAKE_POSTS.slice(0, limit) : [], unavailable: false, more: false };
   try {
-    return { data: (await feed(token, config, deps)).posts.slice(0, limit), unavailable: false };
+    const { posts, older } = await feed(token, config, deps);
+    return { data: posts.slice(0, limit), unavailable: false, more: Boolean(older) || posts.length > limit };
   } catch (error) {
     logFailure(log, "instagram.feed_error", error);
-    return { data: [], unavailable: true };
+    return { data: [], unavailable: true, more: false };
   }
 }
 
