@@ -69,6 +69,10 @@ const { instagram } = Astro.props;
     grid-column: span 2;
     grid-row: span 2;
   }
+  /* Masonry sets its rows (grid-row-end); a span here as well would win, and leave it two 4px rows tall */
+  .strip :global(.gallery[data-masonry] li:first-child) {
+    grid-row-start: auto;
+  }
   .strip :global(.gallery a) {
     position: relative;
     display: block;
