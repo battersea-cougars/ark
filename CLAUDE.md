@@ -19,8 +19,9 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
   `db/schema.sql` uses `--own-db`.
 - Never start a server with `&`, `nohup` or `setsid`, and never stop anything on 4500/4510/4520 except through
   `npm run app`. Stop only your own processes, by PID.
-- Finishing: rebase on main, then the coordinator runs `npm run merge:check -- <area>/<topic>` in the main checkout,
-  `git merge --ff-only`, and `npm run worktree -- remove <area>/<topic>`. Don't push unless asked.
+- Finishing: by pull request ([ADR 0010](docs/adr/0010-environments-and-deploys.md)): push the branch, open a PR into
+  `main`, and merge it once its checks pass and the user says so; then `npm run worktree -- remove <area>/<topic>`.
+  Going live is a PR from `main` into `release` (the ruleset allows nothing else). Don't push unless asked.
 
 ## Hard rules
 
