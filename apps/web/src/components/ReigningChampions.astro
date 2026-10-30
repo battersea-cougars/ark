@@ -21,59 +21,57 @@ const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winner
 ---
 
 {seal && <style is:inline set:html={kanjiFace} />}
-{
-  reigning && (
-    <section class="reigning" aria-labelledby="reigning-title">
-      <p class="kicker">Reigning champions</p>
-      <div class="champ">
-        {crest && (
-          <span class="crest">
-            <TeamCrest team={crest} size="8rem" />
-            {seal && (
-              <span class="seal-spot">
-                <Kanji text={seal} seal />
-              </span>
-            )}
-          </span>
-        )}
-        <div class="words">
-          <span class="eyebrow label">
-            <Icon name="trophy" size={18} />
-            {reigning.name}
-          </span>
-          <h2 class="team" id="reigning-title">
-            {reigning.champions ?? "–"}
-          </h2>
-          {reigning.championsHow && <span class="how">{reigning.championsHow}</span>}
-        </div>
-      </div>
-      {others.length > 0 && (
-        <dl class="honours">
-          {others.map((a) => (
-            <div>
-              <dt class="label">{a.name}</dt>
-              <dd>{a.winners.map((w) => w.name).join(", ")}</dd>
-            </div>
-          ))}
-        </dl>
+{reigning && (
+  <section class="reigning" aria-labelledby="reigning-title">
+    <p class="kicker">Reigning champions</p>
+    <div class="champ">
+      {crest && (
+        <span class="crest">
+          <TeamCrest team={crest} size="8rem" />
+          {seal && (
+            <span class="seal-spot">
+              <Kanji text={seal} seal />
+            </span>
+          )}
+        </span>
       )}
-      <div class="actions">
-        <a class="btn" href={`/results/${reigning.id}/`}>
-          The full result
-        </a>
-        {past.length > 0 ? (
-          <a class="more" href="/results/">
-            All past champions
-          </a>
-        ) : (
-          <a class="more" href="/results/">
-            All results
-          </a>
-        )}
+      <div class="words">
+        <span class="eyebrow label">
+          <Icon name="trophy" size={18} />
+          {reigning.name}
+        </span>
+        <h2 class="team" id="reigning-title">
+          {reigning.champions ?? "–"}
+        </h2>
+        {reigning.championsHow && <span class="how">{reigning.championsHow}</span>}
       </div>
-    </section>
-  )
-}
+    </div>
+    {others.length > 0 && (
+      <dl class="honours">
+        {others.map((a) => (
+          <div>
+            <dt class="label">{a.name}</dt>
+            <dd>{a.winners.map((w) => w.name).join(", ")}</dd>
+          </div>
+        ))}
+      </dl>
+    )}
+    <div class="actions">
+      <a class="btn" href={`/results/${reigning.id}/`}>
+        The full result
+      </a>
+      {past.length > 0 ? (
+        <a class="more" href="/results/">
+          All past champions
+        </a>
+      ) : (
+        <a class="more" href="/results/">
+          All results
+        </a>
+      )}
+    </div>
+  </section>
+)}
 
 <style>
   .reigning {
