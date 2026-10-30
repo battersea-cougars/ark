@@ -28,7 +28,7 @@ const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winner
         <span class="team">
           {crest && (
             <span class="crest">
-              <TeamCrest team={crest} size="3.5rem" />
+              <TeamCrest team={crest} size="6rem" />
               {seal && (
                 <span class="seal-spot">
                   <Kanji text={seal} seal />
@@ -88,7 +88,7 @@ const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winner
     line-height: 1;
     text-transform: uppercase;
   }
-  /* The crest with the victory seal on its corner, a size down from the result page's */
+  /* The crest with the victory seal hanging off its corner, as the team app's champion card */
   .crest {
     position: relative;
     flex-shrink: 0;
@@ -96,10 +96,8 @@ const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winner
   }
   .seal-spot {
     position: absolute;
-    right: -0.9rem;
-    bottom: -0.7rem;
-    scale: 0.7;
-    transform-origin: bottom right;
+    right: -1rem;
+    bottom: -0.75rem;
   }
   .how {
     color: var(--text-2);

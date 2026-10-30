@@ -7,6 +7,10 @@ import { champion, isDone, table } from "@cougars/shared/results";
 import { isSeason, seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { teamInitials } from "@cougars/shared/team-initials";
 
+/** The team app's team colours, in its order (lib/team-tones.ts): green and red last, as they already mean something. */
+const TEAM_TONES = ["blue", "amber", "violet", "teal", "green", "red"] as const;
+export type TeamTone = (typeof TEAM_TONES)[number];
+
 export interface PublishedAward {
   name: string;
   about: string;
@@ -21,6 +25,8 @@ export interface PublishedTeam {
   crest: string | null;
   /** Its initials, for a crest without a logo: no two of the tournament's teams share them, as in the team app. */
   initials: string;
+  /** Its colour by its place in the tournament's teams, as the team app's (lib/team-tones.ts): its initials are in it. */
+  tone: TeamTone;
   /** Captain first, then the players in order. */
   players: string[];
 }
@@ -232,11 +238,12 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
       championsCrest: championId ? (crestOf.get(championId) ?? null) : null,
       championsHow: championId ? howTheyWon(championId, final, standings) : "",
       awards,
-      teams: teams.map((x) => ({
+      teams: teams.map((x, i) => ({
         id: x.id,
         name: nameOf.get(x.id)!,
         crest: crestOf.get(x.id) ?? null,
         initials: teamInitials(nameOf.get(x.id)!, names),
+        tone: TEAM_TONES[i % TEAM_TONES.length],
         players: [
           ...(x.captainName
             ? [onTheWebsite(x.captainName, x.captainWebName)]

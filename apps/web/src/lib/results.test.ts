@@ -217,6 +217,11 @@ describe("a past Kumite's results, as the team app shows them", () => {
     ]);
   });
 
+  it("each team's crest is in its colour by its place, as in the team app: blue, amber, violet, then on", () => {
+    const [e] = editionsFrom(kumite(roundRobin));
+    expect(e.teams.map((t) => t.tone)).toEqual(["blue", "amber", "violet"]);
+  });
+
   it("an award won by a team carries the team, for its crest; one won by a player names only them", () => {
     const winner = (award: string, teamId: number | null, memberName: string | null) => ({
       tournamentId: 1,

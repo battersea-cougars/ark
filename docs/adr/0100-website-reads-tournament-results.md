@@ -96,3 +96,5 @@ Three ways were open:
   seal); the board counts the group games only, as the app's; the leaders rank by points; crests without a logo show
   the app's initials (moved to `@cougars/shared/team-initials`). The champions board on the home page and `/kumite/`
   wears the same crest and seal.
+- 2026-10-30: A crest's initials are in the team's colour by its place, as the team app's (blue, amber, violet, teal,
+  green, red); the champions board's crest is the champion card's size, its 優勝 seal full size on the corner.

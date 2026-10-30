@@ -1,17 +1,17 @@
 ---
-// A team's crest, as the team app's (lib/TeamCrest): its logo, or its initials on a dark tile, no two of a
-// tournament's alike (results.ts). Decoration beside the team's name, so screen readers skip it.
+// A team's crest, as the team app's (lib/TeamCrest): its logo, or its initials in the team's colour on a dark tile,
+// no two of a tournament's alike (results.ts). Decoration beside the team's name, so screen readers skip it.
 import type { PublishedTeam } from "../../lib/results";
 
 interface Props {
-  team: Pick<PublishedTeam, "crest" | "initials"> | undefined;
+  team: Pick<PublishedTeam, "crest" | "initials" | "tone"> | undefined;
   size?: string;
 }
 const { team, size = "2.75rem" } = Astro.props;
 ---
 
 {team && (
-  <span class="crest" style={`--size:${size}`} aria-hidden="true">
+  <span class:list={["crest", team.tone]} style={`--size:${size}`} aria-hidden="true">
     {team.crest ? <img src={team.crest} alt="" width="64" height="64" loading="lazy" /> : team.initials}
   </span>
 )}
@@ -26,10 +26,29 @@ const { team, size = "2.75rem" } = Astro.props;
     overflow: hidden;
     border-radius: 0.375rem;
     background: var(--card);
-    color: var(--text);
+    color: var(--tone, var(--text));
     font-family: var(--display);
     font-size: calc(var(--size) * 0.42);
     line-height: 1;
+  }
+  /* The team app's tones (app.css --tone-*), for the initials only: the tile stays dark */
+  .blue {
+    --tone: #67b0f9;
+  }
+  .amber {
+    --tone: #da9e3f;
+  }
+  .violet {
+    --tone: #be95ec;
+  }
+  .teal {
+    --tone: #2fbfb8;
+  }
+  .green {
+    --tone: #69c27e;
+  }
+  .red {
+    --tone: #f18b71;
   }
   img {
     width: 100%;
