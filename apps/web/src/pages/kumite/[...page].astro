@@ -3,7 +3,8 @@ import type { GetStaticPaths } from "astro";
 import Base from "../../layouts/Base.astro";
 import KumitePoster from "../../components/KumitePoster.astro";
 import EventList from "../../components/EventList.astro";
-import HonoursBoard from "../../components/HonoursBoard.astro";
+import ReigningChampions from "../../components/ReigningChampions.astro";
+import Icon from "../../components/Icon.astro";
 import { getEvents, getResults, getSections, getSettings, upcoming } from "../../lib/sanity/content";
 
 // /kumite/ only, and only while the Kumite is switched on in the Studio (ADR 0109)
@@ -48,6 +49,11 @@ const nextUp = next[0];
           </p>
         )
       )}
+      {kumiteResults.length > 0 && (
+        <div class="block champions" data-reveal>
+          <ReigningChampions results={kumiteResults} />
+        </div>
+      )}
       <div class="cols">
         <section data-reveal>
           <p class="kicker">Rules of the Kumite</p>
@@ -65,7 +71,10 @@ const nextUp = next[0];
           <ul class="list awards">
             {s.kumite.awards.map((a) => (
               <li>
-                <span class="belt" aria-hidden="true" />
+                {/* The team app's marks: the trophy for the champions, the medal for every other award */}
+                <span class="mark">
+                  <Icon name={/champion/i.test(a.name) ? "trophy" : "medal"} size={30} />
+                </span>
                 <span class="award">
                   <strong>{a.name}</strong>
                   {a.about && <span class="about">{a.about}</span>}
@@ -75,12 +84,6 @@ const nextUp = next[0];
           </ul>
         </section>
       </div>
-
-      {kumiteResults.length > 0 && (
-        <section class="block" data-reveal>
-          <HonoursBoard results={kumiteResults} />
-        </section>
-      )}
 
       {next.length > 1 && (
         <section class="block">
@@ -172,17 +175,16 @@ const nextUp = next[0];
   .awards strong {
     font-weight: inherit;
   }
-  /* Tiny title belt */
-  .belt {
+  .mark {
     flex-shrink: 0;
-    width: 2.2rem;
-    height: 0.7rem;
-    background:
-      radial-gradient(circle, var(--yellow) 0 0.42rem, transparent 0.45rem) center / 100% 300% no-repeat,
-      var(--red);
+    display: inline-grid;
+    color: var(--yellow);
   }
   .block {
     margin-top: clamp(4rem, 9vw, 6rem);
+  }
+  .champions {
+    margin-bottom: clamp(4rem, 9vw, 6rem);
   }
   .block .label {
     margin-bottom: 1.5rem;

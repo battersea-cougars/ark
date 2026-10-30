@@ -14,7 +14,7 @@ import Empty from "../components/Empty.astro";
 import KumitePoster from "../components/KumitePoster.astro";
 import PlayerCard from "../components/PlayerCard.astro";
 import VideoReel from "../components/VideoReel.astro";
-import HonoursBoard from "../components/HonoursBoard.astro";
+import ReigningChampions from "../components/ReigningChampions.astro";
 import Lightbox from "../components/Lightbox.astro";
 import PhotoStrip from "../components/PhotoStrip.astro";
 
@@ -235,7 +235,7 @@ const searchLogo = (await getImage({ src: logo, width: 512, format: "png" })).sr
           </a>
         </div>
         <div data-reveal style="--i:1">
-          <HonoursBoard results={kumiteResults} />
+          <ReigningChampions results={kumiteResults} />
         </div>
       </div>
     </section>

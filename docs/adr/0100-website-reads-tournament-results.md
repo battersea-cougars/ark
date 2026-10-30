@@ -98,3 +98,7 @@ Three ways were open:
   wears the same crest and seal.
 - 2026-10-30: A crest's initials are in the team's colour by its place, as the team app's (blue, amber, violet, teal,
   green, red); the champions board's crest is the champion card's size, its 優勝 seal full size on the corner.
+- 2026-10-30: The champions board becomes Reigning champions, a section of its own (the crest big with its seal, the
+  name, how they won it, the night's other winners), with a button to the full result and a link to all past
+  champions (/results/) instead of a list under it; on /kumite/ it comes straight after the intro. The Glory list's
+  awards wear the team app's trophy (the champions) and medal (the rest) in sticker yellow.

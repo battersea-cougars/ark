@@ -1,0 +1,150 @@
+---
+// The reigning Kumite champions (ADR 0100): a section of their own, as the team app's champion card shows them (the
+// crest big with the 優勝 seal, the name, how they won it), with the night's other award winners, a clear way to the
+// full result, and one to every past champion (/results/). As of this build: the team app starts a rebuild when a
+// result changes.
+import type { PublishedEdition } from "../lib/results";
+import Icon from "./Icon.astro";
+import Kanji from "./results/Kanji.astro";
+import TeamCrest from "./results/TeamCrest.astro";
+import { kanjiFace, kanjiFor } from "./results/motif";
+
+interface Props {
+  /** Newest first, as getResults() returns them. */
+  results: PublishedEdition[];
+}
+const { results } = Astro.props;
+const [reigning, ...past] = results;
+const crest = reigning?.teams.find((t) => t.id === reigning.championsId);
+const seal = reigning ? kanjiFor(reigning.series, "champions") : "";
+const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winners.length) ?? [];
+---
+
+{seal && <style is:inline set:html={kanjiFace} />}
+{
+  reigning && (
+    <section class="reigning" aria-labelledby="reigning-title">
+      <p class="kicker">Reigning champions</p>
+      <div class="champ">
+        {crest && (
+          <span class="crest">
+            <TeamCrest team={crest} size="8rem" />
+            {seal && (
+              <span class="seal-spot">
+                <Kanji text={seal} seal />
+              </span>
+            )}
+          </span>
+        )}
+        <div class="words">
+          <span class="eyebrow label">
+            <Icon name="trophy" size={18} />
+            {reigning.name}
+          </span>
+          <h2 class="team" id="reigning-title">
+            {reigning.champions ?? "–"}
+          </h2>
+          {reigning.championsHow && <span class="how">{reigning.championsHow}</span>}
+        </div>
+      </div>
+      {others.length > 0 && (
+        <dl class="honours">
+          {others.map((a) => (
+            <div>
+              <dt class="label">{a.name}</dt>
+              <dd>{a.winners.map((w) => w.name).join(", ")}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div class="actions">
+        <a class="btn" href={`/results/${reigning.id}/`}>
+          The full result
+        </a>
+        {past.length > 0 ? (
+          <a class="more" href="/results/">
+            All past champions
+          </a>
+        ) : (
+          <a class="more" href="/results/">
+            All results
+          </a>
+        )}
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .reigning {
+    display: grid;
+    gap: 2rem;
+  }
+  .reigning .kicker {
+    margin: 0;
+  }
+  /* As the team app's champion card: on the page, not in a card */
+  .champ {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.5rem 2.5rem;
+  }
+  .crest {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .seal-spot {
+    position: absolute;
+    right: -1rem;
+    bottom: -0.75rem;
+  }
+  .words {
+    display: grid;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+  /* The trophy line in the sticker yellow: an accent in the words, not a fill */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--yellow);
+  }
+  .team {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(3rem, 8vw, 5.5rem);
+    font-weight: 400;
+    line-height: 0.92;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .how {
+    color: var(--text-2);
+    font-size: 1.1rem;
+  }
+  .honours {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem 3rem;
+    margin: 0;
+  }
+  .honours div {
+    display: grid;
+    gap: 0.3rem;
+  }
+  .honours dt {
+    color: var(--text-3);
+  }
+  .honours dd {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.25rem 2rem;
+  }
+</style>
