@@ -182,5 +182,6 @@ background are ready-sized files in `src/assets/`.
 - 2026-10-30: The photo lists (/photos/, /api/photos/latest) are never kept stale by browsers (`max-age=0`, no
   `stale-while-revalidate`): an archived post's picture stopped loading while the old list still named it. A photo that
   won't load leaves the grid or strip instead of an empty tile.
-- 2026-10-30: The home strip and /photos/ show only whole rows (`lib/full-rows.ts`): the last row's leftovers are
-  hidden, worked out again when the columns change, so no photo hangs alone at the end.
+- 2026-10-30: The home strip and /photos/ are masonry (`lib/masonry.ts`): every photo its own shape (square,
+  portrait or landscape, as on Instagram), in order left to right, packed with no gaps, the home strip's first photo
+  still big. Worked out again as pictures load, the width changes or a photo leaves; without JavaScript, square tiles.

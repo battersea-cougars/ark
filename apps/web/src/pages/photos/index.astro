@@ -67,14 +67,14 @@ if (unavailable) Astro.response.status = 503;
 </Base>
 
 <script>
-  import { keepFullRows } from "../../lib/full-rows";
+  import { masonry } from "../../lib/masonry";
 
   // A photo that won't load (gone from Instagram since the page was made) leaves the grid instead of an empty tile
   const drop = (img: HTMLImageElement) => img.closest("li")?.remove();
   document.addEventListener("astro:page-load", () => {
     const grid = document.querySelector<HTMLElement>("[data-gallery]");
-    // Whole rows only (lib/full-rows.ts)
-    if (grid) keepFullRows(grid);
+    // Masonry: each photo its own shape, packed (lib/masonry.ts)
+    if (grid) masonry(grid);
     for (const img of document.querySelectorAll<HTMLImageElement>("[data-gallery] img")) {
       if (img.complete && !img.naturalWidth) drop(img);
       else img.addEventListener("error", () => drop(img), { once: true });
@@ -97,6 +97,12 @@ if (unavailable) Astro.response.status = 503;
     overflow: hidden;
     aspect-ratio: 1;
     background: var(--rule);
+  }
+  /* Masonry (lib/masonry.ts): the tile is as tall as its rows, the photo its own shape */
+  .grid[data-masonry] li,
+  .grid[data-masonry] a {
+    height: 100%;
+    aspect-ratio: auto;
   }
   .grid img {
     width: 100%;
