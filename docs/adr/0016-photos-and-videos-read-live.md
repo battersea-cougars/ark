@@ -34,11 +34,12 @@ sets that app up with a business portfolio, and its tokens are a portfolio's sys
 
 ### Photos
 
-**Admins manage the photos on Instagram; the website shows the newest posts.** Albums are gone from the Studio and
-the site. `/photos/` is a grid of the latest 48 posts, the home page's strip the latest 12; each opens in the
-lightbox with its caption and a link to the post ("Watch it on Instagram" for a video, "All 4 on Instagram" for an
-album, whose first photo is shown). An old album's address (`/photos/<album>/`, Wix's `/gallery/<album>`) goes to
-`/photos/` (301).
+**Admins manage the photos on Instagram; the website shows the newest photos.** Albums are gone from the Studio and
+the site. Every photo is a tile of its own: a post with several photos gives one tile each, and videos are left out
+(the website can't play them; the videos page is YouTube's). `/photos/` is a grid of the latest 48 photos, the home
+page's strip the latest 12; each opens in the lightbox with its post's caption and a link to the post ("On
+Instagram"), and the arrows step through the grid. An old album's address (`/photos/<album>/`, Wix's
+`/gallery/<album>`) goes to `/photos/` (301).
 
 **Read live, like the videos.** `lib/server/instagram.ts` reads `/me/media` behind the circuit breaker
 ([0055](0055-degrade-instead-of-break.md)), cached ([0053](0053-live-reads-are-cached.md)): fresh for ten minutes, so a post is on the site within ten minutes; the last
@@ -176,3 +177,5 @@ background are ready-sized files in `src/assets/`.
   offers the Instagram Login token, and a system user belongs to the club, not the person who set it up.
 - 2026-10-30: The Instagram token is one value for both environments (plain `INSTAGRAM_TOKEN`): dev and your machine
   show the club's real posts, so photo changes can be seen locally; the sample feed is only for a checkout without it.
+- 2026-10-30: Every photo is a tile of its own: a post with several gives one each, and Instagram videos are left out
+  (no ▶ or 1/4 marks); the lightbox takes a photo's click before the page router, which had dimmed the page.

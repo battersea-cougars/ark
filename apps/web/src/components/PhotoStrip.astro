@@ -88,32 +88,17 @@ const { instagram } = Astro.props;
     transform: scale(1.05);
     filter: none;
   }
-  .strip :global(.mark) {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    padding: 0.2rem 0.45rem;
-    background: rgb(0 0 0 / 0.6);
-    color: #fff;
-  }
 </style>
 
 <script>
   import type { StripPhoto } from "../pages/api/photos/latest";
-  import { postLabel, postMark } from "../lib/posts";
 
   function item(p: StripPhoto): HTMLLIElement {
     const li = document.createElement("li");
     const a = Object.assign(document.createElement("a"), { href: p.image });
-    Object.assign(a.dataset, { photo: "", caption: p.caption ?? "", post: p.href, postLabel: postLabel(p) });
+    Object.assign(a.dataset, { photo: "", caption: p.caption ?? "", post: p.href });
     const img = Object.assign(document.createElement("img"), { src: p.image, alt: p.alt, loading: "lazy" });
     a.appendChild(img);
-    const mark = postMark(p);
-    if (mark) {
-      const span = Object.assign(document.createElement("span"), { className: "mark label", textContent: mark });
-      span.setAttribute("aria-label", p.kind === "video" ? "Video" : `${p.count} photos`);
-      a.appendChild(span);
-    }
     li.appendChild(a);
     return li;
   }

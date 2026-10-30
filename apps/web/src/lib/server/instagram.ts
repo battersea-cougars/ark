@@ -12,9 +12,9 @@ export { FAKE_POSTS };
 
 const log = scribe.logger("instagram");
 
+/** One photo: a post's, or one of a post with several. Videos aren't here: the website can't play them. */
 export interface Post {
   id: string;
-  kind: "image" | "video" | "album";
   /** The picture: our own address for it, or the sample's */
   image: string;
   caption: string | null;
@@ -23,8 +23,6 @@ export interface Post {
   /** The post on Instagram */
   href: string;
   takenAt: string;
-  /** An album's number of photos */
-  count?: number;
 }
 
 export type Live<T> = { data: T; unavailable: boolean };
@@ -44,7 +42,7 @@ export interface InstagramConfig {
 type Deps = CacheDeps & { fetch?: typeof globalThis.fetch };
 
 const API = "https://graph.facebook.com/v23.0";
-/** As many as /photos/ shows; the home page takes the first twelve */
+/** As many photos as /photos/ shows; the home page takes the first twelve */
 export const FEED_SIZE = 48;
 export const INSTAGRAM_CACHE: CacheOptions = { ttlMs: 10 * 60_000, staleMs: 3 * 24 * 60 * 60_000 };
 const TIMEOUT_MS = 8000;
@@ -57,10 +55,9 @@ interface Media {
   caption?: string;
   media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
   media_url?: string;
-  thumbnail_url?: string;
   permalink: string;
   timestamp: string;
-  children?: { data: { id: string }[] };
+  children?: { data: Pick<Media, "id" | "media_type" | "media_url">[] };
 }
 /** What's cached: the posts, and where each picture is on Instagram's servers today */
 interface Feed {
@@ -86,39 +83,44 @@ async function api<T>(path: string, params: Record<string, string>, token: strin
   return body;
 }
 
-const picture = (m: Pick<Media, "media_type" | "media_url" | "thumbnail_url">) =>
-  m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url;
+/** A post's photos, each with its own picture address: one, or each of a post with several; none for a video. */
+const photosOf = (m: Media) =>
+  m.media_type === "CAROUSEL_ALBUM"
+    ? (m.children?.data ?? []).filter((c) => c.media_type === "IMAGE" && c.media_url)
+    : m.media_type === "IMAGE" && m.media_url
+      ? [m]
+      : [];
 
-function toPost(m: Media): Post {
+function toPosts(m: Media): { post: Post; picture: string }[] {
   const caption = m.caption?.trim() || null;
   const first = caption?.split(/(?<=[.!?])\s/)[0].slice(0, 160);
-  const kind = m.media_type === "VIDEO" ? "video" : m.media_type === "CAROUSEL_ALBUM" ? "album" : "image";
-  return {
-    id: m.id,
-    kind,
-    image: `/api/photos/${m.id}`,
-    caption,
-    alt: first || "A photo from the club's Instagram",
-    href: m.permalink,
-    takenAt: new Date(m.timestamp).toISOString(),
-    ...(kind === "album" ? { count: m.children?.data.length ?? 1 } : {}),
-  };
+  return photosOf(m).map((photo) => ({
+    post: {
+      id: photo.id,
+      image: `/api/photos/${photo.id}`,
+      caption,
+      alt: first || "A photo from the club's Instagram",
+      href: m.permalink,
+      takenAt: new Date(m.timestamp).toISOString(),
+    },
+    picture: photo.media_url!,
+  }));
 }
 
 async function readFeed(account: string, token: string, fetch?: typeof globalThis.fetch): Promise<Feed> {
   const { data } = await api<{ data: Media[] }>(
     `/${account}/media`,
     {
-      fields: "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,children{id}",
+      fields: "id,caption,media_type,media_url,permalink,timestamp,children{id,media_type,media_url}",
       limit: String(FEED_SIZE),
     },
     token,
     fetch,
   );
-  const usable = data.filter((m) => picture(m));
+  const photos = data.flatMap(toPosts).slice(0, FEED_SIZE);
   return {
-    posts: usable.map(toPost),
-    pictures: Object.fromEntries(usable.map((m) => [m.id, picture(m)!])),
+    posts: photos.map((p) => p.post),
+    pictures: Object.fromEntries(photos.map((p) => [p.post.id, p.picture])),
   };
 }
 
@@ -174,14 +176,9 @@ export async function postImage(config: InstagramConfig, id: string, deps: Deps 
     // Instagram's addresses are signed and expire: ask for this post's current one
     try {
       const fresh = await guard("instagram", () =>
-        api<Pick<Media, "media_type" | "media_url" | "thumbnail_url">>(
-          `/${id}`,
-          { fields: "media_type,media_url,thumbnail_url" },
-          token,
-          fetch,
-        ),
+        api<Pick<Media, "media_url">>(`/${id}`, { fields: "media_url" }, token, fetch),
       );
-      const url = picture(fresh);
+      const url = fresh.media_url;
       if (url) res = await get(url);
     } catch (error) {
       log.warn("instagram.picture_refresh_error", error, { id });

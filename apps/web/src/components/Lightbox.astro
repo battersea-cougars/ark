@@ -2,7 +2,7 @@
 // Full-screen photo viewer for any `[data-gallery]` on the page: links inside it
 // (`a[data-photo]`) open here instead of navigating. Without JS the links just open
 // the full-size image. Arrow keys and the buttons step through that gallery. A photo from
-// Instagram (`data-post`, `data-post-label`) links to its post under the caption.
+// Instagram (`data-post`) links to its post under the caption.
 ---
 
 <dialog class="lightbox" aria-label="Photo viewer" data-lightbox>
@@ -86,7 +86,9 @@
 </style>
 
 <script>
-  // Delegated, so it works after view-transition page swaps without re-binding.
+  // Delegated, so it works after view-transition page swaps without re-binding. In the capture phase, so a photo's
+  // click is ours before the page router (ClientRouter) sees its link: it would start a page change to the picture
+  // behind the viewer, leaving the page dimmed and the buttons gone.
   let links: HTMLAnchorElement[] = [];
   let index = 0;
   const dialog = () => document.querySelector<HTMLDialogElement>("[data-lightbox]");
@@ -103,25 +105,29 @@
     const post = d.querySelector<HTMLAnchorElement>("[data-post]")!;
     post.hidden = !link.dataset.post;
     post.href = link.dataset.post ?? "";
-    post.textContent = link.dataset.postLabel ?? "On Instagram";
+    post.textContent = "On Instagram";
   };
 
-  document.addEventListener("click", (e) => {
-    const target = e.target as Element;
-    const link = target.closest<HTMLAnchorElement>("[data-gallery] a[data-photo]");
-    const d = dialog();
-    if (link && d) {
-      e.preventDefault();
-      links = [...link.closest("[data-gallery]")!.querySelectorAll<HTMLAnchorElement>("a[data-photo]")];
-      show(links.indexOf(link));
-      d.showModal();
-      return;
-    }
-    if (!d?.open) return;
-    if (target.closest("[data-close]") || target === d) d.close();
-    const step = target.closest<HTMLElement>("[data-step]")?.dataset.step;
-    if (step) show(index + Number(step));
-  });
+  document.addEventListener(
+    "click",
+    (e) => {
+      const target = e.target as Element;
+      const link = target.closest<HTMLAnchorElement>("[data-gallery] a[data-photo]");
+      const d = dialog();
+      if (link && d) {
+        e.preventDefault();
+        links = [...link.closest("[data-gallery]")!.querySelectorAll<HTMLAnchorElement>("a[data-photo]")];
+        show(links.indexOf(link));
+        d.showModal();
+        return;
+      }
+      if (!d?.open) return;
+      if (target.closest("[data-close]") || target === d) d.close();
+      const step = target.closest<HTMLElement>("[data-step]")?.dataset.step;
+      if (step) show(index + Number(step));
+    },
+    true,
+  );
 
   document.addEventListener("keydown", (e) => {
     if (!dialog()?.open) return;
