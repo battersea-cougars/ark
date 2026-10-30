@@ -11,7 +11,7 @@ import { imageUrl, objectPosition } from "../lib/sanity/images";
 import { clubData } from "../lib/structured-data";
 import WhatsOn from "../components/WhatsOn.astro";
 import Empty from "../components/Empty.astro";
-import KumitePoster from "../components/KumitePoster.astro";
+import KumiteTeaser from "../components/KumiteTeaser.astro";
 import PlayerCard from "../components/PlayerCard.astro";
 import VideoReel from "../components/VideoReel.astro";
 import ReigningChampions from "../components/ReigningChampions.astro";
@@ -217,27 +217,13 @@ const searchLogo = (await getImage({ src: logo, width: 512, format: "png" })).sr
   <!-- Off the record: the Kumite, underground, while it's on the website (ADR 0109) -->
   {s.kumite.onWebsite && (
     <section class="night kumite" id="kumite" data-time="--:--" data-title="Off the record" data-night>
-      <KumitePoster next={kumite} href="/kumite/" />
-      <div class="wrap section kumite-more">
-        <div data-reveal>
-          <p class="kicker">How it works</p>
-          <ol class="rules">
-            {s.kumite.format.map((line, i) => (
-              <li>
-                <span class="num">{String(i + 1).padStart(2, "0")}</span>
-                {line}
-              </li>
-            ))}
-          </ol>
-          <p class="awards label">Awards: {s.kumite.awards.map((a) => a.name).join(" · ")}</p>
-          <a class="more" href="/kumite/">
-            Enter the Kumite
-          </a>
-        </div>
-        <div data-reveal style="--i:1">
+      <!-- A teaser here; the full poster, the rules and the awards are the Kumite page's -->
+      <KumiteTeaser next={kumite} />
+      {kumiteResults.length > 0 && (
+        <div class="wrap section kumite-more" data-reveal>
           <ReigningChampions results={kumiteResults} />
         </div>
-      </div>
+      )}
     </section>
   )}
 
@@ -547,41 +533,8 @@ const searchLogo = (await getImage({ src: logo, width: 512, format: "png" })).sr
   }
 
   /* ---------- Kumite: underground ---------- */
-  .kumite :global(.poster) {
-    border-block: 0;
-  }
   .kumite-more {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem clamp(3rem, 7vw, 6rem);
-    align-items: start;
     padding-top: clamp(3rem, 6vw, 4.5rem);
-  }
-  .rules {
-    list-style: none;
-    margin: 1.5rem 0;
-    padding: 0;
-    border-top: 1px solid var(--rule);
-  }
-  .rules li {
-    display: flex;
-    gap: 1.25rem;
-    align-items: baseline;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--rule);
-    font-size: clamp(1.1rem, 1.6vw, 1.3rem);
-  }
-  .rules .num {
-    font-size: 1.4rem;
-    color: var(--red-hot);
-  }
-  .awards {
-    display: block;
-    margin: 0 0 2rem;
-    line-height: 1.8;
-  }
-  .kumite .more {
-    color: var(--text);
   }
 
   /* ---------- Small screens ---------- */

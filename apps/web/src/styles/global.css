@@ -627,8 +627,8 @@ html.is-navigating main {
     animation: page-slam 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.12s both;
   }
 }
-/* The Kumite poster on the home page and the Kumite page's header are nearly the same picture, so a crossfade looks like
-   nothing happened (components/KumitePoster.astro). Instead you go through it: the poster you pressed rushes at you
+/* The Kumite's teaser on the home page (components/KumiteTeaser.astro) becomes the full poster at the Kumite page's
+   head (components/KumitePoster.astro). You go through it: the teaser you pressed rushes at you
    and blurs away, and the Kumite page's cuts in like a CRT changing channel (a flash, a flicker, then it settles),
    while it travels to its place and the rest of the page crossfades. Reversed in effect going back. */
 ::view-transition-group(kumite-poster) {

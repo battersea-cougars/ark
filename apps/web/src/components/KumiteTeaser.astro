@@ -1,0 +1,121 @@
+---
+// The Kumite's teaser, the home page's feature (ADR 0109): less than the poster, as a trailer is less than the film.
+// Dark, the brush 組手 big and faint behind, Coming soon, the title, one line (the poster's statement), the next date,
+// and a way to the full poster on /kumite/ (KumitePoster), which keeps the credits, the reveal and the rating.
+import { getImage } from "astro:assets";
+import background from "../assets/cougars_background.png";
+// The poster's brush face (the nine characters it uses), for 組手
+import brush from "../assets/fonts/YujiBoku-kumite.woff2?url";
+import type { ClubEvent } from "../lib/sanity/types";
+import { formatDayDate } from "../lib/dates";
+import { getSettings } from "../lib/sanity/content";
+
+interface Props {
+  next?: ClubEvent;
+}
+const { next } = Astro.props;
+const bg = (await getImage({ src: background, width: 1600, format: "webp", quality: 60 })).src;
+const { kumite } = await getSettings();
+// The next Kumite as the team app has it (ADR 0042), else Sanity's event, as the poster reads it
+const upcoming =
+  kumite.next ?? (next ? { startsAt: next.startsAt, venue: next.location ?? "", dateTbc: false, season: null } : null);
+const dated = upcoming && !upcoming.dateTbc && !upcoming.season;
+const when = upcoming?.season ?? (dated ? formatDayDate(upcoming.startsAt) : "Date to be announced");
+const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) format("woff2");font-display:block}`;
+---
+
+<style is:inline set:html={brushFace} />
+<!-- Named as the poster is (transition:name): going to /kumite/ runs the poster's cut, teaser into poster -->
+<div class="teaser crt" style={`--bg:url(${bg})`} data-reveal transition:name="kumite-poster">
+  <span class="kanji" lang="ja" aria-hidden="true">
+    組手
+  </span>
+  <span class="sticker flag">Coming soon</span>
+  <h2 class="title">
+    <span class="the">The Cougars</span>
+    <span class="word">Kumite</span>
+  </h2>
+  <p class="statement">{kumite.posterStatement}</p>
+  <p class="when label">
+    {dated ? "Next fight night" : "Next Kumite"} · <span class="date">{when}</span>
+  </p>
+  <a class="btn" href="/kumite/">
+    See the full poster
+  </a>
+</div>
+
+<style>
+  .teaser {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    justify-items: center;
+    gap: 1rem;
+    padding: clamp(3.5rem, 8vw, 6rem) var(--gutter);
+    overflow: clip;
+    text-align: center;
+    background:
+      radial-gradient(ellipse 55% 50% at 50% 50%, rgb(229 19 31 / 0.22), transparent 70%),
+      linear-gradient(to bottom, rgb(11 11 12 / 0.88), rgb(11 11 12 / 0.96)),
+      var(--bg) center / cover;
+  }
+  .teaser > * {
+    position: relative;
+    z-index: 2;
+  }
+  /* 組手 behind it all, big and faint: the poster's brush, centred instead of down the side */
+  .teaser > .kanji {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    z-index: 0;
+    translate: -50% -50%;
+    font-family: "Kumite Brush", serif;
+    font-size: clamp(9rem, 34vw, 24rem);
+    line-height: 1;
+    white-space: nowrap;
+    color: rgb(229 19 31 / 0.12);
+    pointer-events: none;
+  }
+  .flag {
+    rotate: -4deg;
+  }
+  .title {
+    display: grid;
+    justify-items: center;
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 400;
+    line-height: 0.85;
+    text-transform: uppercase;
+  }
+  .the {
+    font-size: clamp(1rem, 2.2vw, 1.6rem);
+    letter-spacing: 0.2em;
+    color: var(--text-2);
+  }
+  .word {
+    display: inline-block;
+    transform: skewX(-10deg);
+    font-size: clamp(4.5rem, 16vw, 12rem);
+    background: linear-gradient(to bottom, #ff3030 0%, #f0101c 50%, #a80c15 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0.03em 0 #3d0306) drop-shadow(0 0 0.25em rgb(229 19 31 / 0.35));
+  }
+  .statement {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(1.4rem, 3.4vw, 2.4rem);
+    transform: skewX(-10deg);
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .when {
+    margin: 0.5rem 0 1rem;
+    color: var(--text-2);
+  }
+  .date {
+    color: var(--yellow);
+  }
+</style>
