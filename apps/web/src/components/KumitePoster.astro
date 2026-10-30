@@ -33,13 +33,14 @@ const LETTER_MS = 35;
 const PAUSE_MS = 900;
 const typed = [...kumite.posterStatement].map((ch, i) => ({ ch, at: i * LETTER_MS }));
 const revealAt = typed.length * LETTER_MS + PAUSE_MS;
-// The venue, a secret at first: each letter a box showing a Chinese fight word in its place, spinning, until a moment
-// after it comes on screen, when the boxes land on their letters in a random order and stay (the script). Letters and
-// characters share the box, so nothing moves.
-const HANZI = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
+// The venue, in two tongues: each letter a box, first holding a character of a Chinese line ("this location is
+// strictly secret, not to be passed on"), then, spinning, landing on its letter in a random order, and back, over and
+// over (the script). Letters and characters share the box, so nothing moves.
+const SECRET = "此處地點絕對保密不得外傳";
+let n = 0;
 const venue = (upcoming?.venue || "Battersea Sports Centre")
   .split(" ")
-  .map((word, w) => [...word].map((ch, i) => ({ ch, han: HANZI[(ch.charCodeAt(0) * 7 + i * 13 + w) % HANZI.length] })));
+  .map((word) => [...word].map((ch) => ({ ch, han: SECRET[n++ % SECRET.length] })));
 const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) format("woff2");font-display:block}`;
 const credits = [
   ["A", "Battersea Cougars", "production"],
@@ -133,7 +134,7 @@ const credits = [
             <>
               <span class="word-cells">
                 {word.map(({ ch, han }) => (
-                  <span class="c han" data-ch={ch}>
+                  <span class="c han" data-ch={ch} data-han={han}>
                     {han}
                   </span>
                 ))}
@@ -465,44 +466,53 @@ const credits = [
   };
   document.addEventListener("astro:page-load", update);
 
-  // The scrambled venue: its characters spin, and a moment after it comes on screen each box spins a little longer
-  // and lands on its letter, in a random order; once, and it stays. Without motion it shows the venue at once.
+  // The venue's loop: the Chinese line holds, then each box spins and lands on its letter in a random order; the
+  // English holds, then back to the Chinese the same way; again. It starts once it's on screen and stops when the
+  // page goes. Without motion it just shows the venue.
   document.addEventListener("astro:page-load", () => {
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const HANZI = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
-    const anyHan = () => HANZI[Math.floor(Math.random() * HANZI.length)];
-    const land = (c: HTMLElement) => {
-      c.classList.remove("han");
-      c.textContent = c.dataset.ch ?? "";
+    const SPIN = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
+    const HOLD_CHINESE = 2200;
+    const HOLD_ENGLISH = 3500;
+    const SCRAMBLE = 600;
+    const show = (c: HTMLElement, english: boolean) => {
+      c.classList.toggle("han", !english);
+      c.textContent = (english ? c.dataset.ch : c.dataset.han) ?? "";
     };
     for (const cipher of document.querySelectorAll<HTMLElement>("[data-cipher]")) {
       const cells = [...cipher.querySelectorAll<HTMLElement>(".c")];
       if (still) {
-        cells.forEach(land);
+        cells.forEach((c) => show(c, true));
         continue;
       }
-      // When each box lands on its letter; none until it has been seen
-      let landAt: number[] | null = null;
-      const beat = window.setInterval(() => {
-        if (!cipher.isConnected) return window.clearInterval(beat);
+      let english = false;
+      // When each box lands on the other tongue
+      let landAt: number[] = [];
+      const turn = () => {
+        if (!cipher.isConnected) return;
+        english = !english;
         const now = performance.now();
-        let spinning = 0;
-        for (const [i, c] of cells.entries()) {
-          if (!c.classList.contains("han")) continue;
-          if (landAt && landAt[i] <= now) land(c);
-          else {
+        landAt = cells.map(() => now + Math.random() * SCRAMBLE);
+        const spin = window.setInterval(() => {
+          if (!cipher.isConnected) return window.clearInterval(spin);
+          const t = performance.now();
+          let spinning = 0;
+          cells.forEach((c, i) => {
+            if (landAt[i] <= t) return show(c, english);
             spinning++;
-            c.textContent = anyHan();
-          }
-        }
-        if (!spinning) window.clearInterval(beat);
-      }, 50);
+            c.classList.add("han");
+            c.textContent = SPIN[Math.floor(Math.random() * SPIN.length)];
+          });
+          if (spinning) return;
+          window.clearInterval(spin);
+          window.setTimeout(turn, english ? HOLD_ENGLISH : HOLD_CHINESE);
+        }, 50);
+      };
       const seen = new IntersectionObserver(
         ([e]) => {
           if (!e.isIntersecting) return;
           seen.disconnect();
-          const start = performance.now() + 500;
-          landAt = cells.map(() => start + Math.random() * 600);
+          window.setTimeout(turn, HOLD_CHINESE);
         },
         { threshold: 1 },
       );
