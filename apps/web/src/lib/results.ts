@@ -4,6 +4,7 @@
 // (@cougars/shared/names): no full name leaves this module.
 import { onTheWebsite, publicName, shortOnTheWebsite } from "@cougars/shared/names";
 import { champion, isDone, table } from "@cougars/shared/results";
+import { championsFirst, isChampions } from "./awards";
 import { isSeason, seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { teamInitials } from "@cougars/shared/team-initials";
 
@@ -213,13 +214,11 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
       decidedBy?: { kind: string; stat?: string };
     }[];
     // The champions' award: the one the table decides (ADR 0044), else (saved before it said how) by its name
-    const champs =
-      list.find((a) => a.decidedBy?.kind === "stat" && a.decidedBy.stat === "table")?.name ??
-      list.find((a) => !a.decidedBy && /champion/i.test(a.name))?.name ??
-      "Champions";
+    const champs = list.find(isChampions)?.name ?? "Champions";
     const confirmed = winners.find((w) => w.award === champs && w.teamId)?.teamId ?? null;
     const championId = confirmed ?? champion(teamIds, games, points);
-    const awards = awardsOf(list, winners, nameOf);
+    // The champions first on the website, though the app reveals them last (lib/awards.ts)
+    const awards = awardsOf(championsFirst(list), winners, nameOf);
     // The board, as the team app's (lib/BoardTable): the group games; the playoffs decide the champions, not places
     const groupGames = games.filter((g) => g.stage === "group");
     const standings = table(teamIds, groupGames, points).map((r) => ({ ...r, name: nameOf.get(r.teamId)! }));

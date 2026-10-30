@@ -6,6 +6,7 @@ import EventList from "../../components/EventList.astro";
 import ReigningChampions from "../../components/ReigningChampions.astro";
 import Icon from "../../components/Icon.astro";
 import { getEvents, getResults, getSections, getSettings, upcoming } from "../../lib/sanity/content";
+import { isChampions } from "../../lib/awards";
 
 // /kumite/ only, and only while the Kumite is switched on in the Studio (ADR 0109)
 export const getStaticPaths = (async () =>
@@ -73,7 +74,7 @@ const nextUp = next[0];
               <li>
                 {/* The team app's marks: the trophy for the champions, the medal for every other award */}
                 <span class="mark">
-                  <Icon name={/champion/i.test(a.name) ? "trophy" : "medal"} size={30} />
+                  <Icon name={isChampions(a) ? "trophy" : "medal"} size={30} />
                 </span>
                 <span class="award">
                   <strong>{a.name}</strong>
