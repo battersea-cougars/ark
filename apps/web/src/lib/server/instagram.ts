@@ -46,6 +46,14 @@ const API = "https://graph.facebook.com/v23.0";
 export const FEED_SIZE = 48;
 export const INSTAGRAM_CACHE: CacheOptions = { ttlMs: 10 * 60_000, staleMs: 3 * 24 * 60 * 60_000 };
 const TIMEOUT_MS = 8000;
+/**
+ * A list of the photos (/photos/, /api/photos/latest): browsers ask again every time, never showing an old list while
+ * they fetch a new one, so a photo archived on Instagram goes from the page with the feed (ten minutes); the edge may
+ * keep it five. Our own feed cache keeps Instagram's load down.
+ */
+export const PHOTO_LIST_CACHE_CONTROL = "public, max-age=0, s-maxage=300";
+const UNAVAILABLE = "no-store";
+export const photoListCacheControl = (unavailable: boolean) => (unavailable ? UNAVAILABLE : PHOTO_LIST_CACHE_CONTROL);
 /** Browsers keep a picture a week: a post's picture never changes */
 const IMAGE_CACHE_CONTROL = "public, max-age=604800, immutable";
 const INSTAGRAM_CDN = /(^|\.)(cdninstagram\.com|fbcdn\.net)$/;

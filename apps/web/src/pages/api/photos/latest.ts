@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
-import { latestPosts, type Post } from "../../../lib/server/instagram";
+import { latestPosts, photoListCacheControl, type Post } from "../../../lib/server/instagram";
 import { instagramConfig } from "../../../lib/server/instagram-env";
-import { cacheControl } from "../../../lib/server/sanity-env";
 
 export const prerender = false;
 
@@ -15,6 +14,6 @@ export const GET: APIRoute = async () => {
   const photos: StripPhoto[] = data.map(({ id, image, alt, caption, href }) => ({ id, image, alt, caption, href }));
   return Response.json(
     { photos, unavailable },
-    { status: unavailable ? 503 : 200, headers: { "Cache-Control": cacheControl(unavailable) } },
+    { status: unavailable ? 503 : 200, headers: { "Cache-Control": photoListCacheControl(unavailable) } },
   );
 };
