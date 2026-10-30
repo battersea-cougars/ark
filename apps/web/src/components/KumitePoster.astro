@@ -1,7 +1,7 @@
 ---
 // The Kumite, sold like an 80s fight-film release with Bloodsport's underground-tournament
-// mystique, and the joke that it is open to anyone: struck-out "invitation only", a redacted
-// location that reveals itself on hover, a billing block. The header of /kumite/ (an <h1>); the home page shows its
+// mystique, and the joke that it is open to anyone: struck-out "invitation only", a redacted location stamped
+// Undisclosed that reveals itself on hover, a billing block. The header of /kumite/ (an <h1>); the home page shows its
 // teaser (KumiteTeaser), which cuts into it. Kumite is 組手 in Japanese: the kanji run down the side in brush, the club
 // is spelt in katakana. As the page opens, under the title the statement types itself out ("Only one team walks
 // away."), a pause, then the reveal ("Champions") is slammed down from the screen as an ink stamp with 優勝, as the team
@@ -119,7 +119,13 @@ const credits = [
     </span>
     {dated && <span class="label togo" data-togo hidden />}
     <span class="where label">
-      Location: <span class="redacted">{upcoming?.venue || "Battersea Sports Centre"}</span>
+      Location:{" "}
+      <span class="redacted">
+        {upcoming?.venue || "Battersea Sports Centre"}
+        <span class="undisclosed" aria-hidden="true">
+          Undisclosed
+        </span>
+      </span>
     </span>
   </div>
 
@@ -205,9 +211,40 @@ const credits = [
     transition: transform 0.45s var(--ease-smooth);
     transform-origin: right center;
   }
+  /* Stamped across the bar in the poster's red ink, askew, like the Champions stamp: the place is a secret */
+  .undisclosed {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    padding: 0.18em 0.5em 0.1em;
+    translate: -50% -50%;
+    rotate: -5deg;
+    border: 0.12em solid #ff2a35;
+    border-radius: 0.2em 0.1em 0.25em 0.12em;
+    color: #ff2a35;
+    font-family: var(--display);
+    font-size: 1.15em;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    -webkit-mask-size: 140px 70px;
+    mask-size: 140px 70px;
+    transition:
+      opacity 0.3s ease,
+      scale 0.3s ease;
+  }
   .poster:hover .redacted::after,
   .redacted:hover::after {
     transform: scaleX(0);
+  }
+  .poster:hover .undisclosed,
+  .redacted:hover .undisclosed {
+    opacity: 0;
+    scale: 1.3;
   }
   .poster .defs {
     position: absolute;
