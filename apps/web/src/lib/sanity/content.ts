@@ -108,6 +108,9 @@ export const getKumite = fromFacts((f) => {
 });
 
 /** Every club fact in one object. */
+/** Running on a developer's machine (the LOCAL ribbon, astro.config.mjs), not a deploy. */
+const onMachine = (JSON.parse(import.meta.env.ENV_RIBBON || "null") as { env?: string } | null)?.env === "LOCAL";
+
 export const getSettings = async (): Promise<SiteSettings> => {
   const [club, fridays, pub, team, kumite] = await Promise.all([
     getClub(),
@@ -116,6 +119,10 @@ export const getSettings = async (): Promise<SiteSettings> => {
     getTeam(),
     getKumite(),
   ]);
+  // On your machine every section is on, whatever the Studio's switches say (ADR 0109), so any part can be looked at
+  // locally; dev and production follow the Studio
+  if (onMachine)
+    return { ...club, ...fridays, pub, team: { ...team, onWebsite: true }, kumite: { ...kumite, onWebsite: true } };
   return { ...club, ...fridays, pub, team, kumite };
 };
 

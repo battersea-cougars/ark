@@ -39,3 +39,5 @@ them back later; the team manager should be able to bring them back from the Stu
   schedules a Kumite.
 - 2026-10-17: The Kumite is switched back on in production's Studio: only the fake Kumite (the seed's) was meant to
   go, and it's deleted from the database. The team stays off.
+- 2026-10-30: On your machine (the LOCAL ribbon) every section is on, whatever the switches say, so the Kumite and
+  team pages can be looked at locally; dev and production follow the Studio.
