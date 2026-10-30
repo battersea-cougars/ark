@@ -1,6 +1,6 @@
 ---
 // The Kumite's teaser, the home page's feature (ADR 0109): less than the poster, as a trailer is less than the film.
-// Dark, the brush 組手 big and faint behind, Coming soon, the title, one line (the poster's statement), the next date,
+// Dark, the brush 組手 big and faint behind, the team app's ink stamp (Coming soon), the title, the next date,
 // and Enter the Kumite, to the full poster on /kumite/ (KumitePoster), which keeps the credits, the reveal and the rating.
 import { getImage } from "astro:assets";
 import background from "../assets/cougars_background.png";
@@ -9,6 +9,7 @@ import brush from "../assets/fonts/YujiBoku-kumite.woff2?url";
 import type { ClubEvent } from "../lib/sanity/types";
 import { formatDayDate } from "../lib/dates";
 import { getSettings } from "../lib/sanity/content";
+import InkStamp from "./InkStamp.astro";
 
 interface Props {
   next?: ClubEvent;
@@ -30,12 +31,12 @@ const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) forma
   <span class="kanji" lang="ja" aria-hidden="true">
     組手
   </span>
-  <span class="sticker flag">Coming soon</span>
+  <!-- The team app's ink stamp, with its kanji for a Kumite that's coming: 開, open -->
+  <InkStamp text="Coming soon" kanji="開" tilt={-4} />
   <h2 class="title">
     <span class="the">The Cougars</span>
     <span class="word">Kumite</span>
   </h2>
-  <p class="statement">{kumite.posterStatement}</p>
   <p class="when label">
     {dated ? "Next fight night" : "Next Kumite"} · <span class="date">{when}</span>
   </p>
@@ -76,9 +77,6 @@ const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) forma
     color: rgb(229 19 31 / 0.12);
     pointer-events: none;
   }
-  .flag {
-    rotate: -4deg;
-  }
   .title {
     display: grid;
     justify-items: center;
@@ -102,14 +100,6 @@ const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) forma
     background-clip: text;
     color: transparent;
     filter: drop-shadow(0 0.03em 0 #3d0306) drop-shadow(0 0 0.25em rgb(229 19 31 / 0.35));
-  }
-  .statement {
-    margin: 0;
-    font-family: var(--display);
-    font-size: clamp(1.4rem, 3.4vw, 2.4rem);
-    transform: skewX(-10deg);
-    text-transform: uppercase;
-    color: var(--text);
   }
   .when {
     margin: 0.5rem 0 1rem;

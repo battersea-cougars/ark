@@ -1,0 +1,82 @@
+---
+// An ink stamp, as the team app's (apps/team/src/lib/InkStamp.svelte, ADR 0074): a kanji pressed in a block of ink, the
+// word beside it in the display face, the ink a little patchy (a noise mask), the edge uneven, askew. Only the ink
+// changes: the club's red, faint for what's quiet, bone for what's done, live a whole block of red.
+import { kanjiFace } from "./results/motif";
+
+interface Props {
+  text: string;
+  /** In the block of ink: one of the Kumite's (results/motif.ts, the team app's lib/motif.ts). */
+  kanji?: string;
+  tone?: "red" | "faint" | "bone" | "live";
+  /** Askew, in degrees. */
+  tilt?: number;
+}
+const { text, kanji = "", tone = "red", tilt = -3 } = Astro.props;
+---
+
+{kanji && <style is:inline set:html={kanjiFace} />}
+<span class:list={["ink", tone]} style={`--tilt:${tilt}deg`}>
+  {kanji && (
+    <span class="mark" lang="ja" aria-hidden="true">
+      {kanji}
+    </span>
+  )}
+  <span class="word">{text}</span>
+</span>
+
+<style>
+  .ink {
+    --ink: var(--red-hot);
+    display: inline-flex;
+    align-items: stretch;
+    flex: none;
+    max-width: 100%;
+    overflow: hidden;
+    border: 2px solid var(--ink);
+    border-radius: 0.45rem 0.25rem 0.5rem 0.3rem / 0.3rem 0.5rem 0.25rem 0.45rem;
+    color: var(--ink);
+    font-family: var(--display);
+    font-size: 1.2rem;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transform: rotate(var(--tilt));
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    -webkit-mask-size: 140px 70px;
+    mask-size: 140px 70px;
+  }
+  .mark {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    padding: 0 0.3rem;
+    background: var(--ink);
+    color: #0b0b0c;
+    font-family: "Kumite Kanji", "Noto Serif JP", serif;
+    font-size: 0.9em;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+  .word {
+    padding: 0.22rem 0.55rem 0.14rem;
+  }
+  .faint {
+    --ink: var(--text-3);
+  }
+  .bone {
+    --ink: var(--text);
+  }
+  .live {
+    --ink: var(--red);
+    background: var(--red);
+    color: #fff;
+  }
+  .live .mark {
+    background: color-mix(in srgb, #0b0b0c 82%, var(--red));
+    color: var(--red-hot);
+  }
+</style>
