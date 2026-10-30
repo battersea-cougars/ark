@@ -148,7 +148,7 @@ rules.
 
 **www**: `www.batterseacougars.com` answers too (the deploy attaches both names), so a rule redirects it to the bare
 domain (301, path and query kept), and search engines see one copy of each page. Every production deploy writes it
-(`scripts/redirect-setup.mjs`, the same rule each time), which needs **Single Redirect Write** on the production
+(`scripts/redirect-setup.mjs`, the same rule each time), which needs **Dynamic URL Redirects: Edit** (Rules & Configuration) on the production
 token; by hand: `node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`. Seen under Rules → Redirect Rules.
 
 **Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics).
