@@ -90,7 +90,7 @@ jobs:
           # imports the dev-server helper. Nothing else in scripts/ (the show switch, setup and load scripts) deploys.
           shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/|scripts/ci/(target|smoke-test)\.mjs|scripts/ci/link-deployment\.sh|scripts/env-pull\.mjs|scripts/lib/(bitwarden|settings)\.mjs'
           declare -A pattern=(
-            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
+            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/redirect-setup\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
             [team]="^(apps/team/|scripts/team-app-budget\.mjs|scripts/lib/dev-server\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
             [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/lib/backup\.mjs|scripts/seed-roster\.mjs|scripts/lib/(roster|anonymize)|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
@@ -257,6 +257,12 @@ jobs:
           out=$(npx wrangler deploy --message "$PUBLIC_BUILD_VERSION" 2>&1 | tee /dev/stderr)
           url=$(echo "$out" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)
           echo "url=${SITE_URL:-$url}" >> "$GITHUB_OUTPUT"
+
+      # www. to the bare domain, a zone rule (scripts/redirect-setup.mjs): written on every production deploy, so it's
+      # always there; the same rule each time
+      - name: www redirect
+        if: github.ref == 'refs/heads/release'
+        run: node scripts/redirect-setup.mjs
 
       # Secrets the Worker reads at request time, from this environment's Secrets Manager project (docs/secrets.md).
       # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample

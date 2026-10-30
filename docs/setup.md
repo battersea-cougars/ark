@@ -147,9 +147,9 @@ Write** on the production token; change the number there and run it again. Seen 
 rules.
 
 **www**: `www.batterseacougars.com` answers too (the deploy attaches both names), so a rule redirects it to the bare
-domain (301, path and query kept), and search engines see one copy of each page. It's written by
-`node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`, which needs **Single
-Redirect Write** on the production token. Seen under Rules → Redirect Rules.
+domain (301, path and query kept), and search engines see one copy of each page. Every production deploy writes it
+(`scripts/redirect-setup.mjs`, the same rule each time), which needs **Single Redirect Write** on the production
+token; by hand: `node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`. Seen under Rules → Redirect Rules.
 
 **Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics).
 It counts page views without cookies (the privacy page says so). Its API refuses the account tokens we use, so it's set
