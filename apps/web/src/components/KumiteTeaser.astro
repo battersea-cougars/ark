@@ -1,7 +1,7 @@
 ---
 // The Kumite's teaser, the home page's feature (ADR 0109): less than the poster, as a trailer is less than the film.
 // Dark, the brush 組手 big and faint behind, Coming soon, the title, one line (the poster's statement), the next date,
-// and a way to the full poster on /kumite/ (KumitePoster), which keeps the credits, the reveal and the rating.
+// and Enter the Kumite, to the full poster on /kumite/ (KumitePoster), which keeps the credits, the reveal and the rating.
 import { getImage } from "astro:assets";
 import background from "../assets/cougars_background.png";
 // The poster's brush face (the nine characters it uses), for 組手
@@ -40,7 +40,7 @@ const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) forma
     {dated ? "Next fight night" : "Next Kumite"} · <span class="date">{when}</span>
   </p>
   <a class="btn" href="/kumite/">
-    See the full poster
+    Enter the Kumite
   </a>
 </div>
 

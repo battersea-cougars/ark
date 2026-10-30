@@ -42,5 +42,5 @@ them back later; the team manager should be able to bring them back from the Stu
 - 2026-10-30: On your machine (the LOCAL ribbon) every section is on, whatever the switches say, so the Kumite and
   team pages can be looked at locally; dev and production follow the Studio.
 - 2026-10-30: The home page's Kumite is a teaser (components/KumiteTeaser.astro: 組手, the title, the poster's
-  statement, the next date, See the full poster) with the reigning champions; the full poster, the rules and the
+  statement, the next date, Enter the Kumite) with the reigning champions; the full poster, the rules and the
   awards are the Kumite page's. Pressing through runs the poster's cut, teaser into poster.
