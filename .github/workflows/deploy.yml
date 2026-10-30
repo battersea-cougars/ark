@@ -258,12 +258,6 @@ jobs:
           url=$(echo "$out" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)
           echo "url=${SITE_URL:-$url}" >> "$GITHUB_OUTPUT"
 
-      # www. to the bare domain, a zone rule (scripts/redirect-setup.mjs): written on every production deploy, so it's
-      # always there; the same rule each time
-      - name: www redirect
-        if: github.ref == 'refs/heads/release'
-        run: node scripts/redirect-setup.mjs
-
       # Secrets the Worker reads at request time, from this environment's Secrets Manager project (docs/secrets.md).
       # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample
       # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies). Instagram's token is
@@ -341,6 +335,12 @@ jobs:
         run: |
           gh pr comment "${{ github.event.number }}" --repo "${{ github.repository }}" --edit-last --body "$BODY" ||
             gh pr comment "${{ github.event.number }}" --repo "${{ github.repository }}" --body "$BODY"
+
+      # www. to the bare domain, a zone rule (scripts/redirect-setup.mjs): written on every production deploy, so it's
+      # always there; the same rule each time. Last, so it can't hold up the smoke test
+      - name: www redirect
+        if: github.ref == 'refs/heads/release'
+        run: node scripts/redirect-setup.mjs
 
   # The team app (ADR 0010): its own worker `team` on the environment's account and D1, from main (dev) or release
   # (production, at team.<the site's domain>). PRs get no preview (a Worker with a Durable Object can't have preview
