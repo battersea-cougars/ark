@@ -4,8 +4,8 @@
 // location that reveals itself on hover, a billing block. The header of /kumite/ (an <h1>); the home page shows its
 // teaser (KumiteTeaser), which cuts into it. Kumite is 組手 in Japanese: the kanji run down the side in brush, the club
 // is spelt in katakana. As the page opens, under the title the statement types itself out ("Only one team walks
-// away."), a pause, then the reveal ("Champions.") comes out of a blur letter by letter and a red seal (優勝) is stamped
-// beside it; once, and it stays. The tagline, statement and reveal are Studio settings (Kumite).
+// away."), a pause, then the reveal ("Champions") is slammed down from the screen as an ink stamp with 優勝, as the team
+// app's stamps; once, and it stays. The tagline, statement and reveal are Studio settings (Kumite).
 import { getImage } from "astro:assets";
 import background from "../assets/cougars_background.png";
 // Only the nine characters the poster uses (Yuji Boku, SIL OFL), so it's a 5 KB file
@@ -27,13 +27,12 @@ const { kumite } = await getSettings();
 const upcoming =
   kumite.next ?? (next ? { startsAt: next.startsAt, venue: next.location ?? "", dateTbc: false, season: null } : null);
 const dated = upcoming && !upcoming.dateTbc && !upcoming.season;
-// The statement, one span per letter so it types out; then the reveal, one span per letter so each comes out of its own
-// blur, with a little drift each way, the same every build. TYPE_MS a letter, then PAUSE_MS before the reveal.
-const TYPE_MS = 65;
+// The statement, one span per letter so it types out quickly (LETTER_MS each, `--d` its moment); then, after PAUSE_MS,
+// the reveal is stamped down (an ink stamp, as the team app's).
+const LETTER_MS = 35;
 const PAUSE_MS = 900;
-const typed = [...kumite.posterStatement];
-const revealAt = typed.length * TYPE_MS + PAUSE_MS;
-const letters = [...kumite.posterReveal].map((ch, i) => ({ ch, dx: `${(((i * 37) % 11) - 5) * 0.05}em` }));
+const typed = [...kumite.posterStatement].map((ch, i) => ({ ch, at: i * LETTER_MS }));
+const revealAt = typed.length * LETTER_MS + PAUSE_MS;
 const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) format("woff2");font-display:block}`;
 const credits = [
   ["A", "Battersea Cougars", "production"],
@@ -81,36 +80,33 @@ const credits = [
   <p
     class="drama gone"
     aria-label={`${kumite.posterStatement} ${kumite.posterReveal}`}
-    style={`--type:${TYPE_MS}ms;--at:${revealAt}ms`}
+    style={`--at:${revealAt}ms`}
     data-dissolve
   >
     <span class="statement" aria-hidden="true">
-      {typed.map((ch, i) => (
-        <span class="ty" style={`--i:${i}`}>
+      {typed.map(({ ch, at }) => (
+        <span class="ty" style={`--d:${at}ms`}>
           {ch === " " ? "\u00a0" : ch}
         </span>
       ))}
     </span>
     <span class="reveal" aria-hidden="true">
-      {letters.map(({ ch, dx }, i) => (
-        <span class="ch" style={`--i:${i};--dx:${dx}`}>
-          {ch === " " ? "\u00a0" : ch}
+      <span class="ink-stamp">
+        <span class="ink-kanji" lang="ja">
+          優勝
         </span>
-      ))}
-      <span class="hanko" lang="ja" style={`--n:${letters.length}`}>
-        優勝
+        <span class="ink-word">{kumite.posterReveal.replace(/\.$/, "")}</span>
       </span>
     </span>
   </p>
   <noscript>
     <style>
-      .drama.gone .ty,
-      .drama.gone .ch,
-      .drama.gone .hanko {
+      .drama.gone .ty {
         opacity: 1;
-        filter: none;
-        transform: none;
-        scale: 1;
+      }
+      .drama.gone .ink-stamp {
+        opacity: 1;
+        transform: rotate(-4deg);
       }
     </style>
   </noscript>
@@ -297,58 +293,48 @@ const credits = [
   /* The statement types itself out: each letter there in an instant, a beat after the one before. Hidden, a letter
      still keeps its space, so nothing moves */
   .ty {
-    transition: opacity 0.05s linear calc(var(--i) * var(--type));
+    transition: opacity 0.05s linear var(--d);
   }
   .drama.gone .ty {
     opacity: 0;
     transition: none;
   }
-  /* Then, after a pause, each letter of the reveal comes out of a blur, a beat after the one before */
-  .ch {
-    display: inline-block;
+  /* Then, after a pause, the reveal: an ink stamp as the team app's (lib/InkStamp), 優勝 in a block of ink and the word
+     beside it, slammed down from the screen: huge and faint as if held up to the lens, then onto the poster with a
+     little bounce, askew. Its space is kept all along (a transform), so nothing moves */
+  .ink-stamp {
+    --ink: #ff2a35;
+    display: inline-flex;
+    align-items: stretch;
+    border: 0.08em solid var(--ink);
+    border-radius: 0.3em 0.15em 0.35em 0.2em / 0.2em 0.35em 0.15em 0.3em;
+    color: var(--ink);
+    transform: rotate(-4deg);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    -webkit-mask-size: 140px 70px;
+    mask-size: 140px 70px;
     transition:
-      opacity 0.8s ease,
-      filter 0.8s ease,
-      transform 1.1s cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: calc(var(--at) + var(--i) * 55ms);
+      opacity 0.1s ease-out var(--at),
+      transform 0.38s cubic-bezier(0.25, 1.45, 0.45, 1) var(--at);
   }
-  .drama.gone .ch {
+  .drama.gone .ink-stamp {
     opacity: 0;
+    transform: scale(3.2) rotate(-14deg);
     transition: none;
-    filter: blur(0.25em);
-    transform: translate(var(--dx), -0.3em) scale(1.12);
   }
-  /* A red seal (優勝, read top to bottom), stamped beside the reveal once its letters have landed */
-  .hanko {
-    position: absolute;
-    top: 50%;
-    left: calc(100% + 0.5em);
-    display: grid;
+  .ink-kanji {
+    display: inline-grid;
     place-items: center;
-    width: 1.35em;
-    height: 2.5em;
-    translate: 0 -50%;
-    rotate: 8deg;
-    border: 0.07em solid #e5131f;
-    border-radius: 0.12em;
+    padding: 0 0.25em;
+    background: var(--ink);
+    color: #0b0b0c;
     font-family: "Kumite Brush", serif;
-    font-size: 0.5em;
-    line-height: 1;
-    writing-mode: vertical-rl;
-    letter-spacing: 0.05em;
-    color: #e5131f;
-    background: rgb(229 19 31 / 0.08);
-    mix-blend-mode: screen;
+    font-size: 0.8em;
+    letter-spacing: 0;
   }
-  .hanko {
-    transition:
-      opacity 0.12s ease-out calc(var(--at) + var(--n) * 55ms + 0.5s),
-      scale 0.22s cubic-bezier(0.2, 1.6, 0.4, 1) calc(var(--at) + var(--n) * 55ms + 0.5s);
-  }
-  .drama.gone .hanko {
-    opacity: 0;
-    scale: 1.6;
-    transition: none;
+  .ink-word {
+    padding: 0.12em 0.4em 0.06em;
   }
   .tagline {
     max-width: 34rem;
@@ -463,7 +449,7 @@ const credits = [
   document.addEventListener("astro:page-load", update);
 
   // The statement and the reveal (Studio → Kumite), once, as the poster first comes on screen: typed out, a pause, then
-  // the reveal out of a blur and the seal stamped (the timing is the CSS's). They start hidden (`gone` in the markup, so
+  // the reveal stamped down (the timing is the CSS's). They start hidden (`gone` in the markup, so
   // nothing flashes first); without motion they just show, and without JavaScript the <noscript> style shows them.
   document.addEventListener("astro:page-load", () => {
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
