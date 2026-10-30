@@ -56,7 +56,8 @@ not resized.
 twelve empty tiles and its script fills them from `/api/photos/latest`; nothing moves when they arrive. Without
 JavaScript, a line points at Instagram.
 
-**The token is the club's, and never expires.** `INSTAGRAM_TOKEN__PRODUCTION` in Bitwarden, a Worker secret, read
+**The token is the club's, and never expires.** `INSTAGRAM_TOKEN` in Bitwarden, one value for both environments (there's
+no dev Instagram: dev and your machine show the club's real posts, [ADR 0010](0010-environments-and-deploys.md)), a Worker secret, read
 by `lib/server/instagram-env.ts`:
 
 - It's a **system user's** token in the club's Meta business portfolio, the portfolio that owns the Instagram
@@ -69,8 +70,9 @@ by `lib/server/instagram-env.ts`:
 - If it's revoked or stops working, the feed fails like any Instagram failure: the last good copy for three days,
   and an error in Sentry. A new one is generated on the system user and set in Bitwarden, then a deploy.
 
-**Before the club connects Instagram**, a sample feed (`lib/server/instagram.fake.ts`, placeholder pictures from
-picsum) stands in on a laptop, dev and PR previews (`SITE_ENV` isn't `production`); production shows its empty state.
+**Without the token** (a checkout with no Bitwarden access, a PR preview), a sample feed
+(`lib/server/instagram.fake.ts`, placeholder pictures from picsum) stands in anywhere but production
+(`SITE_ENV` isn't `production`); production shows its empty state.
 
 ### Videos
 
@@ -172,3 +174,5 @@ background are ready-sized files in `src/assets/`.
 - 2026-10-30: The Instagram token is the club portfolio's system-user token, read through the Graph API: it never
   expires, so the weekly renewal, the sealed copy in D1 and `INSTAGRAM_TOKEN_KEY` are gone. Meta's dashboard no longer
   offers the Instagram Login token, and a system user belongs to the club, not the person who set it up.
+- 2026-10-30: The Instagram token is one value for both environments (plain `INSTAGRAM_TOKEN`): dev and your machine
+  show the club's real posts, so photo changes can be seen locally; the sample feed is only for a checkout without it.

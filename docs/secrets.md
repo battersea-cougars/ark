@@ -786,23 +786,26 @@ rebuild. Nothing needs a different value per environment.
 The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
 [ADR 0016](adr/0016-photos-and-videos-read-live.md)). The club's Meta business portfolio owns the Instagram account
 (Professional), the Meta app and the system user `photosreader` that the token belongs to ([accounts.md](accounts.md#instagram)).
-Production only: without it, dev, previews and your machine show a sample feed, and production shows "No photos yet".
+One value for both environments: there's one club Instagram and no dev copy of it, so dev, previews and your machine
+read the real account, read-only ([ADR 0010](adr/0010-environments-and-deploys.md)). Without the token, a checkout
+shows a sample feed, and production "No photos yet".
 
-### Production
+### Both environments (one value)
 
-#### `INSTAGRAM_TOKEN__PRODUCTION`
+#### `INSTAGRAM_TOKEN`
 
 A system-user token that reads the club's posts. Never expires; nothing renews it.
 
 - **Comes from:** business.facebook.com, the club's portfolio → **Settings → Users → System users → photosreader →
   Generate token**: the app, expiration **Never**, permission `instagram_basic` only. `photosreader` (role Employee)
   has the app (Develop app) and the Instagram account (Content) assigned.
-- **Used by:** the website Worker (`/photos/`, the home strip, `/api/photos/<id>`), through the Graph API.
+- **Used by:** the website Worker in both environments (`/photos/`, the home strip, `/api/photos/<id>`), through the
+  Graph API; on your machine, the website started by `npm run app`.
 - **Gets there by:** CI pull, then `deploy.yml` puts it on the Worker as a secret.
 - **Expires:** no. If it's revoked or stops working, the site keeps the last good posts for three days and Sentry
   reports `instagram.feed_error`.
 - **Changing or revoking it:** **photosreader → Revoke tokens**, then **Generate token** as above,
-  `npm run secret:set INSTAGRAM_TOKEN__PRODUCTION`, and a production deploy. Any admin of the club's portfolio can.
+  `npm run secret:set INSTAGRAM_TOKEN`, and a deploy of each environment. Any admin of the club's portfolio can.
 - **Setting it up from nothing:** the Instagram account a Professional account, in the club's portfolio; a Meta app
   connected to that portfolio (an admin with full control: **Settings → Accounts → Apps → Add**); then the system
   user and its two assets as above. The account's Graph API ID is in `apps/web/src/lib/server/instagram-env.ts`.
@@ -1001,7 +1004,7 @@ Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names
    says the team app's, for [`settings.mjs`](#plain-settings); then the read-only
    [`SENTRY_ISSUES_TOKEN`](#sentry_issues_token).
 9. **Web Push:** `webpush-setup.mjs` ([Web Push](#web-push)).
-10. **Instagram**, production only: [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production).
+10. **Instagram**: [`INSTAGRAM_TOKEN`](#instagram_token), one value for both.
 11. **Apple**, when the store app is built: the [App Store Connect key](#app_store_connect_key) (its IDs into
     `settings.mjs`), `store-setup.mjs`
     ([`APPLE_TEAM_ID`](#apple_team_id)), the [push key](#apple-push-key-recovery-copy), and the
@@ -1055,7 +1058,7 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
-| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production)                                                 | Instagram  | prod | yes                              | Website: photos                           |
+| [`INSTAGRAM_TOKEN`](#instagram_token)                                                                         | Instagram  | both | yes                              | Website: photos                           |
 | [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
 | [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes                              | Database backups                          |
 | [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes                              | Database backups                          |

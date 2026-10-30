@@ -254,7 +254,8 @@ jobs:
 
       # Secrets the Worker reads at request time, from this environment's Secrets Manager project (docs/secrets.md).
       # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample
-      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies).
+      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies). Instagram's token is
+      # one plain value, so dev shows the club's real posts too (ADR 0010).
       - name: Worker secrets
         if: github.event_name != 'pull_request'
         working-directory: apps/web

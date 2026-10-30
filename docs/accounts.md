@@ -27,7 +27,7 @@ Accounts are named here by role, never by address:
 | [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner                           | The Gmail API app, YouTube API keys, Firebase                            | `GMAIL_WEB_CLIENT_ID`/`_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_*`                                                                          |
 | [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                                       | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                        |
 | [YouTube](#youtube)           | The club account owns the channel; managers upload                                                               | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                   |
-| [Instagram](#instagram)       | The club's Meta business portfolio owns @batterseacougarshockey (Professional), the Meta app and its system user | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN__PRODUCTION`                                                                                                                |
+| [Instagram](#instagram)       | The club's Meta business portfolio owns @batterseacougarshockey (Professional), the Meta app and its system user | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN`                                                                                                                            |
 | [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                                     | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_ISSUES_TOKEN`, `SENTRY_DSN_WEB`                                                                                 |
 | [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                                              | The store app (iOS)                                                      | `APP_STORE_CONNECT_KEY`, `FIREBASE_IOS_CONFIG`, `APP_REVIEW_*__PRODUCTION` (when the store app ships)                                        |
 
@@ -115,7 +115,8 @@ entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is
   posts can be read through Instagram's API. Admins post there; the website shows the newest
   ([ADR 0016](adr/0016-photos-and-videos-read-live.md)).
 - **The club's Meta business portfolio** (business.facebook.com) owns the Instagram account, the Meta app that reads
-  it, and the system user `photosreader` whose token is `INSTAGRAM_TOKEN__PRODUCTION`
+  it, and the system user `photosreader` whose token is `INSTAGRAM_TOKEN` (dev and production
+  both read it: there's no dev Instagram)
   ([secrets.md#instagram](secrets.md#instagram)). It has more than one admin with full control, so nobody leaving
   takes anything with them; add a new admin before an old one goes. Only an admin with full control can add apps.
 
