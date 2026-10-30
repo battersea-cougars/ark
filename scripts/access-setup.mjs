@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Production behind Cloudflare Access until launch (ADR 0010): batterseacougars.com, www. and team. ask for an email
-// and a one-time code, and let in only the emails on the Admins policy (managed in the dashboard; a first run starts it
+// The team app behind Cloudflare Access until launch (ADR 0010): team. asks for an email and a one-time code (the
+// website, batterseacougars.com and www., has been open since 2026-10-30), and let in only the emails on the Admins policy (managed in the dashboard; a first run starts it
 // from the admins in the production roster, TEAM_ROSTER, ADR 0029), plus CI's service token for the deploy's smoke
-// tests. The two health checks the down alerts read (ADR 0110) are open. Safe to run again: it finds what's there by
+// tests. The team app's health check, which the down alerts read (ADR 0110), is open. Safe to run again: it finds what's there by
 // name and puts it right. The service token's ID and secret go straight into Secrets Manager
 // (CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION); nothing is printed.
 //   node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs
@@ -11,13 +11,14 @@
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const ZONE = "batterseacougars.com";
-const HOSTS = [ZONE, `www.${ZONE}`, `team.${ZONE}`];
+// The website is open (2026-10-30); only the team app waits for its launch
+const HOSTS = [`team.${ZONE}`];
 const APP = "Cougars before launch";
 const ADMINS = "Admins (production roster)";
 const CI = "CI smoke tests";
-// The down alerts' health checks (ADR 0110) go round the gate: these two paths only, which say nothing but "ok"
+// The down alerts' health check (ADR 0110) goes round the gate: this path only, which says nothing but "ok"
 const HEALTH = "Health checks";
-const HEALTH_PATHS = [`${ZONE}/health`, `team.${ZONE}/api/health`];
+const HEALTH_PATHS = [`team.${ZONE}/api/health`];
 const remove = process.argv.includes("--remove");
 
 const { CLOUDFLARE_API_TOKEN: token, CLOUDFLARE_ACCOUNT_ID: account, TEAM_ROSTER: roster } = process.env;
@@ -54,7 +55,7 @@ if (remove) {
     if (found) await cf("DELETE", `${path}/${found.id}`);
     console.log(`${name}: ${found ? "removed" : "not there"}.`);
   }
-  console.log("Production is open to everyone. Remove CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION from Secrets Manager.");
+  console.log("The team app is open to everyone. Remove CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION from Secrets Manager.");
   process.exit(0);
 }
 

@@ -285,7 +285,7 @@ production's website sends no auto-replies, and production's team app refuses si
 
 #### `CF_ACCESS_CLIENT_ID__PRODUCTION`, `CF_ACCESS_CLIENT_SECRET__PRODUCTION`
 
-Until launch, production is behind [Cloudflare Access](#cloudflare-access). The deploy's smoke tests send this service
+Until launch, production's team app is behind [Cloudflare Access](#cloudflare-access). The deploy's smoke tests send this service
 token as two headers to get past it. Without it, production's smoke tests fail. Goes away at launch. The client ID is
 **not a secret on its own** (half of a pair, useless without the secret).
 
@@ -379,7 +379,8 @@ security_ in the new dashboard) → **Add widget**: name `cougars-website`, host
 
 ### Cloudflare Access
 
-Until launch, production is behind Cloudflare Access ([setup.md](setup.md)): only people on its list get in, and CI
+Until launch, production's team app is behind Cloudflare Access ([setup.md](setup.md)) (the website is open): only
+people on its list get in, and CI
 gets past it with the service token above. At launch the gate and the token go.
 
 ---

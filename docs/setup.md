@@ -129,8 +129,8 @@ separate Cloudflare account, and a domain can only point at workers in its own.
 The form rate limit and the edge cache start working on the domain: Cloudflare's Cache API is disabled on
 `*.workers.dev`. At launch, switch the Google Auth Platform **Branding** URLs to the domain ([secrets.md#gmail](secrets.md#gmail)).
 
-**Before launch, behind Cloudflare Access**: `batterseacougars.com`, `www.` and `team.` ask for an email and a
-one-time code, and let in only the emails on the **Admins (production roster)** policy, plus CI's service token for the
+**Before launch, behind Cloudflare Access**: `team.` asks for an email and a one-time code (the website,
+`batterseacougars.com` and `www.`, has been open since 2026-10-30), and let in only the emails on the **Admins (production roster)** policy, plus CI's service token for the
 deploy's smoke tests. Who's on that list is managed by hand: Zero Trust → **Access → Policies → Admins (production
 roster) → Edit**, the _Include_ emails. Zero Trust is on (Free plan); the rest is
 `node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs`. Its first run starts the list

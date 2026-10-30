@@ -98,8 +98,8 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   and checked; `pr.yml`, `secrets.yml`, [0002](0002-secrets-in-bitwarden.md)), and Dependabot
   proposes updates weekly, grouped, checked by `pr.yml`. `main` and `release` refuse force-pushes and deletion (a
   repository ruleset).
-- **Production is behind Cloudflare Access until launch**, so it can be deployed and tried for real first: the site,
-  `www.` and the team app ask for an email and a one-time code and let in only the emails on its Admins policy, which
+- **The team app is behind Cloudflare Access until launch**, so it can be deployed and tried for real first (the
+  website, `batterseacougars.com` and `www.`, has been open since 2026-10-30): it asks for an email and a one-time code and let in only the emails on its Admins policy, which
   is managed by hand in the Zero Trust dashboard (`scripts/access-setup.mjs` starts it once, docs/setup.md). CI gets past it with a service token
   (`CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION`) for the smoke tests. Until the `production` environment's variable
   `LAUNCHED` is `true`, production's database rebuilds like dev's ([ADR 0050](0050-schema-and-seed-until-launch.md)).
@@ -188,3 +188,6 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 - 2026-10-30: The club's outside accounts (Instagram, YouTube) have no dev copy: dev, previews and your machine
   read the real ones, read-only, so a change to the photos or videos can be seen locally. Instagram's token becomes one
   value for both environments.
+- 2026-10-30: The website (`batterseacougars.com`, `www.`) is open to everyone; only the team app stays behind Access
+  until launch (`access-setup.mjs` gates `team.` alone). The database isn't launched yet: production still rebuilds
+  until `LAUNCHED`.
