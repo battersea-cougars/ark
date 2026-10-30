@@ -1,7 +1,7 @@
 # 0002. Secrets live in Bitwarden, in two projects shared by every app; `.env` is local overrides only
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-10-30
 - **Merges:** 0012
 
 ## Context
@@ -55,13 +55,11 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 8. **One exception: a token a Worker has to write.** A Worker can't write to Bitwarden, so a token that the app
    itself makes or renews is kept in D1 (`sealed_tokens`), sealed in the Worker (AES-GCM, `packages/shared/sealed-tokens.ts`)
    with a key of its own that is itself a Bitwarden secret. Its first value is in Bitwarden; if the sealed one won't
-   open, the Worker falls back to that and logs an error. Two tokens, and only these, may be kept this way:
-   - Instagram's, which lasts 60 days and is swapped for a fresh one by the website's cron
-     ([ADR 0016](0016-photos-and-videos-read-live.md)): read-only, for public content.
-   - Gmail's send-only token, which an admin reconnects in the team app when Google cancels it
-     ([ADR 0027](0027-email-through-gmail-api.md)). It can send mail as the developer account (not read it), so it
-     is the more powerful of the two; it's allowed because otherwise sign-in stops until a developer runs a script
-     and deploys. Bitwarden keeps the client and the first token, which is how a developer gets back in.
+   open, the Worker falls back to that and logs an error. One token, and only this one, is kept this way: Gmail's
+   send-only token, which an admin reconnects in the team app when Google cancels it
+   ([ADR 0027](0027-email-through-gmail-api.md)). It can send mail as the developer account (not read it); it's
+   allowed because otherwise sign-in stops until a developer runs a script and deploys. Bitwarden keeps the client
+   and the first token, which is how a developer gets back in.
 
    Anything else a Worker would write stays out: ask first.
 
@@ -127,3 +125,5 @@ ownership is visible in Bitwarden. We have two apps, the website and the team ap
 - 2026-10-24: Secrets are handed over on a local Secrets page (`localhost:4500/__secrets`): stored straight to
   Bitwarden, checked by fingerprint, shapes questioned before saving, apps restarted after; `.env` with a secret in it
   stops lint and the apps (point 11, #149). A hook for agents was built and left out: the user's call.
+- 2026-10-30: The exception narrows to Gmail's token alone: Instagram's is now a system-user token that never
+  expires, kept only in Bitwarden ([ADR 0016](0016-photos-and-videos-read-live.md)).

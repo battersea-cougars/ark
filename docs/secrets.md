@@ -784,37 +784,28 @@ rebuild. Nothing needs a different value per environment.
 ## Instagram
 
 The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
-[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The club account owns the Instagram account (Professional); the
-developer account owns the Meta app "Battersea Cougars website" at <https://developers.facebook.com>. Production
-only: without it, dev, previews and your machine show a sample feed, and production shows "No photos yet".
+[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The club's Meta business portfolio owns the Instagram account
+(Professional), the Meta app and the system user `photosreader` that the token belongs to ([accounts.md](accounts.md#instagram)).
+Production only: without it, dev, previews and your machine show a sample feed, and production shows "No photos yet".
 
 ### Production
 
 #### `INSTAGRAM_TOKEN__PRODUCTION`
 
-The first read-only token. The Worker renews it weekly by itself and keeps the renewed one in D1, sealed with
-[`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token_key__production) (the exception to Bitwarden-only, ADR 0002
-point 8). **Not in Bitwarden yet.**
+A system-user token that reads the club's posts. Never expires; nothing renews it.
 
-- **Comes from:** Meta: the app "Battersea Cougars website" (developer account) → **API setup with Instagram login**
-  → Generate access tokens, for the club's Instagram account (permission `instagram_business_basic` only: read its own
-  posts).
-- **Used by:** the website Worker (`/photos/`, the home strip, `/api/photos/<id>`); its cron renews it.
+- **Comes from:** business.facebook.com, the club's portfolio → **Settings → Users → System users → photosreader →
+  Generate token**: the app, expiration **Never**, permission `instagram_basic` only. `photosreader` (role Employee)
+  has the app (Develop app) and the Instagram account (Content) assigned.
+- **Used by:** the website Worker (`/photos/`, the home strip, `/api/photos/<id>`), through the Graph API.
 - **Gets there by:** CI pull, then `deploy.yml` puts it on the Worker as a secret.
-- **Expires:** after 60 days, but the Worker renews it weekly, so never in practice. If renewal fails, Sentry alerts
-  with the days left.
-- **Changing or revoking it:** the Meta app → **API setup with Instagram login** → remove the account, then make a
-  new token as below.
-- **Setting it up**, once:
-  1. As the club account in the Instagram app: **Settings → Account type and tools → Switch to professional
-     account** (Creator or Business; free, posts unchanged).
-  2. As the developer account at developers.facebook.com: **My Apps → Create app** ("Battersea Cougars website", use
-     case **Manage messaging & content on Instagram**), then **Instagram → API setup with Instagram login**.
-  3. **App roles → Roles → Add people → Instagram Tester**: the club's Instagram account; accept it in Instagram
-     (**Settings → Website permissions → Apps and websites → Tester invites**).
-  4. Back in **API setup with Instagram login → Generate access tokens → Add account**, sign in as the club's
-     Instagram, and copy the token.
-  5. `npm run secret:set INSTAGRAM_TOKEN__PRODUCTION`, then run a production deploy.
+- **Expires:** no. If it's revoked or stops working, the site keeps the last good posts for three days and Sentry
+  reports `instagram.feed_error`.
+- **Changing or revoking it:** **photosreader → Revoke tokens**, then **Generate token** as above,
+  `npm run secret:set INSTAGRAM_TOKEN__PRODUCTION`, and a production deploy. Any admin of the club's portfolio can.
+- **Setting it up from nothing:** the Instagram account a Professional account, in the club's portfolio; a Meta app
+  connected to that portfolio (an admin with full control: **Settings → Accounts → Apps → Add**); then the system
+  user and its two assets as above. The account's Graph API ID is in `apps/web/src/lib/server/instagram-env.ts`.
 
 ---
 
@@ -882,18 +873,6 @@ Seals the Gmail token an admin reconnects in production, in D1 (AES-GCM, `packag
 - **Expires:** no.
 - **Changing it:** set a new value and deploy. The sealed token then won't open: the Workers fall back to
   `GMAIL_REFRESH_TOKEN` (an error says so), and an admin reconnects to seal a fresh one.
-
-#### `INSTAGRAM_TOKEN_KEY__PRODUCTION`
-
-Seals the renewed Instagram token in D1 (AES-GCM; see [Instagram](#instagram)). Production only.
-
-- **Comes from:** we make it: `openssl rand -base64 32 | npm run secret:set INSTAGRAM_TOKEN_KEY__PRODUCTION`.
-- **Used by:** the website Worker (`apps/web/src/lib/server/instagram-token.ts`).
-- **Gets there by:** CI pull, then `deploy.yml` puts it on the Worker.
-- **Expires:** no.
-- **Changing it:** set a new value and deploy. The sealed token then won't open: the Worker falls back to the
-  Bitwarden token (an error says so) and seals a fresh one at the next weekly renewal. If the Bitwarden one has
-  expired by then, make a new token.
 
 ### Dev
 
@@ -1012,8 +991,7 @@ Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names
    [`settings.mjs`](#plain-settings), then the analytics token. Then `turnstile-setup.mjs`
    ([Turnstile](#turnstile)), and, for production before launch, `access-setup.mjs`
    ([Cloudflare Access](#cf_access_client_id__production-cf_access_client_secret__production)).
-3. **Our own keys:** [`BACKUP_KEY`](#our-own-keys), `GMAIL_TOKEN_KEY` and `INSTAGRAM_TOKEN_KEY`, for each
-   environment.
+3. **Our own keys:** [`BACKUP_KEY`](#our-own-keys) and `GMAIL_TOKEN_KEY`, for each environment.
 4. **The roster:** [`TEAM_ROSTER__PRODUCTION`](#team_roster__production).
 5. **Google:** [Gmail](#gmail) steps 1 to 8, then the [YouTube](#youtube) keys, then `firebase-setup.mjs`
    ([Firebase](#firebase)).
@@ -1077,12 +1055,11 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
-| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production) (not set yet)                                   | Instagram  | prod | yes                              | Website: photos                           |
+| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token__production)                                                 | Instagram  | prod | yes                              | Website: photos                           |
 | [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
 | [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes                              | Database backups                          |
 | [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes                              | Database backups                          |
 | [`GMAIL_TOKEN_KEY__PRODUCTION`](#gmail_token_key__production)                                                 | Us         | prod | yes                              | Website, team app: reconnected email      |
 | [`GMAIL_TOKEN_KEY`](#gmail_token_key)                                                                         | Us         | dev  | yes                              | Website, team app: reconnected email      |
-| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token_key__production)                                         | Us         | prod | yes                              | Website: photos                           |
 | [`SMOKE_TOKEN`](#smoke_token) (never stored)                                                                  | Us         | both | yes                              | Deploy smoke test of the form             |
 | [`TEAM_ROSTER__PRODUCTION`](#team_roster__production)                                                         | Club data  | prod | personal data                    | Deploys (D1 seed), `access-setup.mjs`     |

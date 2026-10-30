@@ -1,5 +1,5 @@
 // The club's photos: its Instagram posts, read live (ADR 0016). Admins post on Instagram; the website shows the newest,
-// within ten minutes. Read through Instagram's API with the club's token (instagram-token.ts), behind a circuit
+// within ten minutes. Read through Meta's Graph API with the club's token (instagram-env.ts), behind a circuit
 // breaker (ADR 0055) and cached (ADR 0053): fresh for ten minutes, the last good copy for three days if Instagram
 // fails. Pictures are served through our own Worker (/api/photos/<id>): Instagram's addresses expire, and visitors'
 // browsers never contact Meta. Before the club connects its account, a sample feed stands in outside production.
@@ -30,7 +30,9 @@ export interface Post {
 export type Live<T> = { data: T; unavailable: boolean };
 
 export interface InstagramConfig {
-  /** The token to read with, or null before the club has connected Instagram (instagram-token.ts) */
+  /** The club's Instagram account, by its ID on the Graph API */
+  account: string;
+  /** The token to read with, or null before the club has connected Instagram */
   token: () => Promise<string | null>;
   /** The sample feed when there's no token: anywhere but production */
   fake?: boolean;
@@ -41,7 +43,7 @@ export interface InstagramConfig {
 
 type Deps = CacheDeps & { fetch?: typeof globalThis.fetch };
 
-const API = "https://graph.instagram.com/v23.0";
+const API = "https://graph.facebook.com/v23.0";
 /** As many as /photos/ shows; the home page takes the first twelve */
 export const FEED_SIZE = 48;
 export const INSTAGRAM_CACHE: CacheOptions = { ttlMs: 10 * 60_000, staleMs: 3 * 24 * 60 * 60_000 };
@@ -103,9 +105,9 @@ function toPost(m: Media): Post {
   };
 }
 
-async function readFeed(token: string, fetch?: typeof globalThis.fetch): Promise<Feed> {
+async function readFeed(account: string, token: string, fetch?: typeof globalThis.fetch): Promise<Feed> {
   const { data } = await api<{ data: Media[] }>(
-    "/me/media",
+    `/${account}/media`,
     {
       fields: "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,children{id}",
       limit: String(FEED_SIZE),
@@ -122,7 +124,12 @@ async function readFeed(token: string, fetch?: typeof globalThis.fetch): Promise
 
 async function feed(token: string, config: InstagramConfig, { fetch, ...cacheDeps }: Deps) {
   const options = { ...INSTAGRAM_CACHE, freshAfter: (await config.refreshedAt?.()) ?? 0 };
-  return cached("instagram:feed", options, () => guard("instagram", () => readFeed(token, fetch)), cacheDeps);
+  return cached(
+    "instagram:feed",
+    options,
+    () => guard("instagram", () => readFeed(config.account, token, fetch)),
+    cacheDeps,
+  );
 }
 
 /** The newest posts, newest first. Never throws: Instagram failing with nothing cached is `unavailable`. */
