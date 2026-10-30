@@ -33,14 +33,13 @@ const LETTER_MS = 35;
 const PAUSE_MS = 900;
 const typed = [...kumite.posterStatement].map((ch, i) => ({ ch, at: i * LETTER_MS }));
 const revealAt = typed.length * LETTER_MS + PAUSE_MS;
-// The venue, a secret: each letter a cell showing a Chinese character in its place (fight words, flickering, see the
-// script) until the poster is hovered, when the letters decode left to right. A cell keeps its letter's width, so
-// nothing moves.
+// The venue, a secret at first: each letter a box showing a Chinese fight word in its place, spinning, until a moment
+// after it comes on screen, when the boxes land on their letters in a random order and stay (the script). Letters and
+// characters share the box, so nothing moves.
 const HANZI = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
 const venue = (upcoming?.venue || "Battersea Sports Centre")
   .split(" ")
   .map((word, w) => [...word].map((ch, i) => ({ ch, han: HANZI[(ch.charCodeAt(0) * 7 + i * 13 + w) % HANZI.length] })));
-let cell = 0;
 const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) format("woff2");font-display:block}`;
 const credits = [
   ["A", "Battersea Cougars", "production"],
@@ -134,8 +133,8 @@ const credits = [
             <>
               <span class="word-cells">
                 {word.map(({ ch, han }) => (
-                  <span class="c" data-han={han} style={`--i:${cell++}`}>
-                    {ch}
+                  <span class="c han" data-ch={ch}>
+                    {han}
                   </span>
                 ))}
               </span>{" "}
@@ -212,32 +211,28 @@ const credits = [
   .word-cells {
     white-space: nowrap;
   }
-  /* A letter, hidden behind a Chinese character in the poster's red until the poster is hovered (a cell keeps its
-     letter's width; the character is drawn over it), decoding left to right */
-  .cipher .c {
-    position: relative;
+  /* One box per letter, as wide as a Chinese character, so the letter and the character swap in place */
+  .cipher {
     display: inline-block;
-    color: transparent;
-    transition: color 0.15s calc(var(--i) * 35ms);
-  }
-  .cipher .c::after {
-    content: attr(data-han);
-    position: absolute;
-    inset: 50% auto auto 50%;
-    translate: -50% -50%;
-    font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-    font-size: 0.8em;
-    font-weight: 700;
+    line-height: 1.3em;
+    vertical-align: top;
     letter-spacing: 0;
-    color: #ff2a35;
-    text-shadow: 0 0 0.4em rgb(229 19 31 / 0.5);
-    transition: opacity 0.15s calc(var(--i) * 35ms);
   }
-  .poster:hover .cipher .c {
+  .cipher .c {
+    display: inline-block;
+    width: 1.1em;
+    height: 1.3em;
+    line-height: 1.3em;
+    vertical-align: top;
+    overflow: hidden;
+    text-align: center;
     color: var(--text);
   }
-  .poster:hover .cipher .c::after {
-    opacity: 0;
+  .cipher .c.han {
+    font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-weight: 700;
+    color: #ff2a35;
+    text-shadow: 0 0 0.4em rgb(229 19 31 / 0.5);
   }
   .poster .defs {
     position: absolute;
@@ -470,21 +465,48 @@ const credits = [
   };
   document.addEventListener("astro:page-load", update);
 
-  // The scrambled venue flickers: a few of its characters change every beat, until the poster is hovered (then the CSS
-  // decodes it). Still, without motion.
+  // The scrambled venue: its characters spin, and a moment after it comes on screen each box spins a little longer
+  // and lands on its letter, in a random order; once, and it stays. Without motion it shows the venue at once.
   document.addEventListener("astro:page-load", () => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const HANZI = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
+    const anyHan = () => HANZI[Math.floor(Math.random() * HANZI.length)];
+    const land = (c: HTMLElement) => {
+      c.classList.remove("han");
+      c.textContent = c.dataset.ch ?? "";
+    };
     for (const cipher of document.querySelectorAll<HTMLElement>("[data-cipher]")) {
       const cells = [...cipher.querySelectorAll<HTMLElement>(".c")];
+      if (still) {
+        cells.forEach(land);
+        continue;
+      }
+      // When each box lands on its letter; none until it has been seen
+      let landAt: number[] | null = null;
       const beat = window.setInterval(() => {
         if (!cipher.isConnected) return window.clearInterval(beat);
-        if (cipher.closest(".poster")?.matches(":hover")) return;
-        for (let n = 0; n < 3; n++) {
-          const c = cells[Math.floor(Math.random() * cells.length)];
-          c.dataset.han = HANZI[Math.floor(Math.random() * HANZI.length)];
+        const now = performance.now();
+        let spinning = 0;
+        for (const [i, c] of cells.entries()) {
+          if (!c.classList.contains("han")) continue;
+          if (landAt && landAt[i] <= now) land(c);
+          else {
+            spinning++;
+            c.textContent = anyHan();
+          }
         }
-      }, 110);
+        if (!spinning) window.clearInterval(beat);
+      }, 70);
+      const seen = new IntersectionObserver(
+        ([e]) => {
+          if (!e.isIntersecting) return;
+          seen.disconnect();
+          const start = performance.now() + 1200;
+          landAt = cells.map(() => start + Math.random() * 1600);
+        },
+        { threshold: 1 },
+      );
+      seen.observe(cipher);
     }
   });
 
