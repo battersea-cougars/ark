@@ -1,7 +1,7 @@
 ---
 // The Kumite, sold like an 80s fight-film release with Bloodsport's underground-tournament
-// mystique, and the joke that it is open to anyone: struck-out "invitation only", a redacted location stamped
-// Undisclosed that reveals itself on hover, a billing block. The header of /kumite/ (an <h1>); the home page shows its
+// mystique, and the joke that it is open to anyone: struck-out "invitation only", a venue scrambled into Chinese
+// characters that decodes itself on hover, a billing block. The header of /kumite/ (an <h1>); the home page shows its
 // teaser (KumiteTeaser), which cuts into it. Kumite is 組手 in Japanese: the kanji run down the side in brush, the club
 // is spelt in katakana. As the page opens, under the title the statement types itself out ("Only one team walks
 // away."), a pause, then the reveal ("Champions") is slammed down from the screen as an ink stamp with 優勝, as the team
@@ -33,6 +33,14 @@ const LETTER_MS = 35;
 const PAUSE_MS = 900;
 const typed = [...kumite.posterStatement].map((ch, i) => ({ ch, at: i * LETTER_MS }));
 const revealAt = typed.length * LETTER_MS + PAUSE_MS;
+// The venue, a secret: each letter a cell showing a Chinese character in its place (fight words, flickering, see the
+// script) until the poster is hovered, when the letters decode left to right. A cell keeps its letter's width, so
+// nothing moves.
+const HANZI = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
+const venue = (upcoming?.venue || "Battersea Sports Centre")
+  .split(" ")
+  .map((word, w) => [...word].map((ch, i) => ({ ch, han: HANZI[(ch.charCodeAt(0) * 7 + i * 13 + w) % HANZI.length] })));
+let cell = 0;
 const brushFace = `@font-face{font-family:"Kumite Brush";src:url(${brush}) format("woff2");font-display:block}`;
 const credits = [
   ["A", "Battersea Cougars", "production"],
@@ -65,7 +73,6 @@ const credits = [
       <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G" />
     </filter>
   </svg>
-  <span class="sticker flag">Special event</span>
   <p class="presents">
     <s>By invitation only</s>
     <span>Open to anyone</span>
@@ -119,11 +126,21 @@ const credits = [
     </span>
     {dated && <span class="label togo" data-togo hidden />}
     <span class="where label">
-      Location:{" "}
-      <span class="redacted">
-        {upcoming?.venue || "Battersea Sports Centre"}
-        <span class="undisclosed" aria-hidden="true">
-          Undisclosed
+      Where:{" "}
+      <span class="cipher" data-cipher>
+        <span class="visually-hidden">{upcoming?.venue || "Battersea Sports Centre"}</span>
+        <span aria-hidden="true">
+          {venue.map((word) => (
+            <>
+              <span class="word-cells">
+                {word.map(({ ch, han }) => (
+                  <span class="c" data-han={han} style={`--i:${cell++}`}>
+                    {ch}
+                  </span>
+                ))}
+              </span>{" "}
+            </>
+          ))}
         </span>
       </span>
     </span>
@@ -168,12 +185,6 @@ const credits = [
     z-index: 2;
     margin: 0;
   }
-  .poster .flag {
-    position: absolute;
-    top: clamp(1.25rem, 3vw, 2.25rem);
-    right: clamp(1.25rem, 4vw, 3rem);
-    rotate: 5deg;
-  }
   .presents {
     display: flex;
     flex-wrap: wrap;
@@ -198,53 +209,35 @@ const credits = [
     margin-top: 0.6rem;
     color: var(--text-3);
   }
-  .redacted {
+  .word-cells {
+    white-space: nowrap;
+  }
+  /* A letter, hidden behind a Chinese character in the poster's red until the poster is hovered (a cell keeps its
+     letter's width; the character is drawn over it), decoding left to right */
+  .cipher .c {
     position: relative;
+    display: inline-block;
+    color: transparent;
+    transition: color 0.15s calc(var(--i) * 35ms);
+  }
+  .cipher .c::after {
+    content: attr(data-han);
+    position: absolute;
+    inset: 50% auto auto 50%;
+    translate: -50% -50%;
+    font-family: "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 0;
+    color: #ff2a35;
+    text-shadow: 0 0 0.4em rgb(229 19 31 / 0.5);
+    transition: opacity 0.15s calc(var(--i) * 35ms);
+  }
+  .poster:hover .cipher .c {
     color: var(--text);
   }
-  .redacted::after {
-    content: "";
-    position: absolute;
-    inset: -0.15em -0.3em;
-    background: #050505;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
-    transition: transform 0.45s var(--ease-smooth);
-    transform-origin: right center;
-  }
-  /* Stamped across the bar in the poster's red ink, askew, like the Champions stamp: the place is a secret */
-  .undisclosed {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    z-index: 1;
-    padding: 0.18em 0.5em 0.1em;
-    translate: -50% -50%;
-    rotate: -5deg;
-    border: 0.12em solid #ff2a35;
-    border-radius: 0.2em 0.1em 0.25em 0.12em;
-    color: #ff2a35;
-    font-family: var(--display);
-    font-size: 1.15em;
-    letter-spacing: 0.12em;
-    line-height: 1;
-    text-transform: uppercase;
-    white-space: nowrap;
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    -webkit-mask-size: 140px 70px;
-    mask-size: 140px 70px;
-    transition:
-      opacity 0.3s ease,
-      scale 0.3s ease;
-  }
-  .poster:hover .redacted::after,
-  .redacted:hover::after {
-    transform: scaleX(0);
-  }
-  .poster:hover .undisclosed,
-  .redacted:hover .undisclosed {
+  .poster:hover .cipher .c::after {
     opacity: 0;
-    scale: 1.3;
   }
   .poster .defs {
     position: absolute;
@@ -460,14 +453,6 @@ const credits = [
   a.poster:hover .enter {
     translate: 6px 0;
   }
-  @media (max-width: 40rem) {
-    .poster .flag {
-      position: relative;
-      top: auto;
-      right: auto;
-      justify-self: center;
-    }
-  }
 </style>
 
 <script>
@@ -484,6 +469,24 @@ const credits = [
     }
   };
   document.addEventListener("astro:page-load", update);
+
+  // The scrambled venue flickers: a few of its characters change every beat, until the poster is hovered (then the CSS
+  // decodes it). Still, without motion.
+  document.addEventListener("astro:page-load", () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const HANZI = "戰鬥拳武龍虎秘密禁血勝敗冠軍決影夜暗殺門場隱藏";
+    for (const cipher of document.querySelectorAll<HTMLElement>("[data-cipher]")) {
+      const cells = [...cipher.querySelectorAll<HTMLElement>(".c")];
+      const beat = window.setInterval(() => {
+        if (!cipher.isConnected) return window.clearInterval(beat);
+        if (cipher.closest(".poster")?.matches(":hover")) return;
+        for (let n = 0; n < 3; n++) {
+          const c = cells[Math.floor(Math.random() * cells.length)];
+          c.dataset.han = HANZI[Math.floor(Math.random() * HANZI.length)];
+        }
+      }, 110);
+    }
+  });
 
   // The statement and the reveal (Studio → Kumite), once, as the poster first comes on screen: typed out, a pause, then
   // the reveal stamped down (the timing is the CSS's). They start hidden (`gone` in the markup, so
