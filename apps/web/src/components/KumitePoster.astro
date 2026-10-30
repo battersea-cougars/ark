@@ -496,13 +496,13 @@ const credits = [
           }
         }
         if (!spinning) window.clearInterval(beat);
-      }, 70);
+      }, 50);
       const seen = new IntersectionObserver(
         ([e]) => {
           if (!e.isIntersecting) return;
           seen.disconnect();
-          const start = performance.now() + 1200;
-          landAt = cells.map(() => start + Math.random() * 1600);
+          const start = performance.now() + 500;
+          landAt = cells.map(() => start + Math.random() * 600);
         },
         { threshold: 1 },
       );
