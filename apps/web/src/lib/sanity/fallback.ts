@@ -60,10 +60,9 @@ export const FALLBACK_TEAM: Team = {
 export const FALLBACK_KUMITE: Kumite = {
   onWebsite: false,
   intro:
-    "Four times a year we hold the Kumite, our in-house tournament, a special event apart from regular " +
-    "Friday hockey. Everyone who signs up is drafted into balanced teams, every team plays every other " +
-    "team, and one team walks away as champions. Anyone can play.",
-  tagline: "Four times a year. Drafted teams, everyone plays everyone.",
+    "Our in-house tournament, apart from Friday hockey. Sign up, get drafted into a balanced team, play every " +
+    "other team. Only one team walks away. Anyone can play.",
+  tagline: "Drafted teams, everyone plays everyone.",
   posterStatement: "One team walks away.",
   posterReveal: "Champions.",
   format: [

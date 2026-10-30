@@ -39,13 +39,13 @@ const day = s.training[0]?.day ?? "Friday";
   title="Events"
   card="events"
   description={
-    s.kumite.onWebsite ? "Tournaments, socials and the quarterly Cougars Kumite." : "Tournaments and socials."
+    s.kumite.onWebsite ? "Tournaments, socials and the Cougars Kumite." : "Tournaments and socials."
   }
 >
   <PageHeader
     eyebrow="What's on"
     title="Events"
-    lede={`Special events on top of regular ${day} hockey: ${s.kumite.onWebsite ? "the quarterly Kumite, " : ""}tournaments and socials.`}
+    lede={`Special events on top of regular ${day} hockey: ${s.kumite.onWebsite ? "the Kumite, " : ""}tournaments and socials.`}
   />
   <div class="wrap page-body">
     {unavailable ? (
