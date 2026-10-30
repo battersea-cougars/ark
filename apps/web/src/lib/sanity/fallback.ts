@@ -62,9 +62,9 @@ export const FALLBACK_KUMITE: Kumite = {
   onWebsite: false,
   intro:
     "Our in-house tournament, apart from Friday hockey. Sign up, get drafted into a balanced team, play every " +
-    "other team. Only one team walks away. Anyone can play.",
+    "other team. One team takes the title. Anyone can play.",
   tagline: "Drafted teams, everyone plays everyone.",
-  posterStatement: "One team walks away.",
+  posterStatement: "Only one team walks away.",
   posterReveal: "Champions.",
   format: [
     "Players are drafted into balanced teams on the day",
