@@ -33,6 +33,12 @@ any fact, one in Sanity and one in D1, would drift.
   with a write token per project ([ADR 0010](0010-environments-and-deploys.md)) documented in the README when it lands. Schemas avoid anything that would block an API write
   (read-only fields, values only the Studio can make).
 - **Ops-only data lives in D1**: enquiries, attendance, payments, ratings. It is never shown publicly as is.
+- **Until launch, the repo owns the words.** Nobody edits the Studio yet, so the singletons' words (the Kumite's
+  intro, tagline, poster lines and format; Team's intro; the Pub's about; Fridays' kit notes) live in `fallback.ts`,
+  and every website deploy sends them to its environment's Sanity before the build (`scripts/sanity-copy.mjs`;
+  `main` to dev, `release` to production). A copy change is a commit. Only the words: switches, the contact email,
+  links, photos and awards stay the Studio's. **At launch** the step comes out of `deploy.yml` and the Studio owns
+  the words, as below.
 - **Fallbacks.** Each singleton merges with its own defaults (`apps/web/src/lib/sanity/fallback.ts`) field by
   field: a missing required field falls back; an optional field left empty stays empty.
 
@@ -55,3 +61,5 @@ any fact, one in Sanity and one in D1, would drift.
 - 2026-10-20: The `album` type is gone: the website's photos are the club's Instagram ([ADR 0016](0016-photos-and-videos-read-live.md)).
 - 2026-10-23: Both projects are off `siteSettings` (neither has the document), so its one-off migration,
   `apps/studio/migrate-settings.ts`, is gone (#148).
+- 2026-10-30: Until launch the repo owns the words: every website deploy sends `fallback.ts`'s copy to Sanity
+  (`scripts/sanity-copy.mjs`, an Editor token per project); at launch the Studio takes them over.

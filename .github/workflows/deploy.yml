@@ -90,7 +90,7 @@ jobs:
           # imports the dev-server helper. Nothing else in scripts/ (the show switch, setup and load scripts) deploys.
           shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/|scripts/ci/(target|smoke-test)\.mjs|scripts/ci/link-deployment\.sh|scripts/env-pull\.mjs|scripts/lib/(bitwarden|settings)\.mjs'
           declare -A pattern=(
-            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
+            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
             [team]="^(apps/team/|scripts/team-app-budget\.mjs|scripts/lib/dev-server\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
             [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/lib/backup\.mjs|scripts/seed-roster\.mjs|scripts/lib/(roster|anonymize)|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
@@ -219,6 +219,12 @@ jobs:
 
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      # Until launch the website's words live in the repo (ADR 0014): sent to this environment's Sanity before the build
+      # reads them. Not from a PR (previews share dev's Sanity). At launch this step goes and the Studio owns the words.
+      - name: Words to Sanity
+        if: github.event_name != 'pull_request'
+        run: node scripts/sanity-copy.mjs
 
       # The roster is a snapshot of this environment's D1 (scripts/club-snapshot.mjs, apps/web's prebuild, ADR 0043).
       - name: Build

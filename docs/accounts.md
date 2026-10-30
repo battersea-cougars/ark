@@ -79,7 +79,9 @@ entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is
   20 seats.
 - **The Studio** is self-hosted at studio.batterseacougars.com ([ADR 0112](adr/0112-self-hosted-studio.md)); its
   CORS origins were added by hand (`setup.md`).
-- **Token:** `SANITY_DEPLOY_TOKEN__PRODUCTION` (role Deploy Studio), for the schema deploy. No write token exists.
+- **Tokens:** `SANITY_DEPLOY_TOKEN__PRODUCTION` (role Deploy Studio), for the schema deploy; until launch,
+  `SANITY_CONTENT_TOKEN__PRODUCTION` and `__DEV` (role Editor), for the deploy that sends the website's words
+  ([secrets.md](secrets.md#sanity_content_token__production)).
 
 ## Google Cloud
 

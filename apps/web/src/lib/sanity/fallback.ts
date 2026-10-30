@@ -1,5 +1,6 @@
 // Default club facts (from the old Wix site, rewritten), one object per Sanity singleton. Used field by field
-// wherever Sanity has no value yet, and by apps/studio/seed.ts to seed the singletons. Every claim here is
+// wherever Sanity has no value yet, and by apps/studio/seed.ts to seed the singletons. Until launch the words here are
+// the website's words: every deploy sends them to Sanity (scripts/sanity-copy.mjs, ADR 0014), so change them here. Every claim here is
 // listed in docs/club-facts.md for the team manager to confirm.
 import type { Club, Fridays, Kumite, Pub, Team } from "./types";
 

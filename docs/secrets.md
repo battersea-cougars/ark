@@ -740,6 +740,32 @@ deployed with Cloudflare's token. Without it, the schema deploy step fails.
 - **Changing it:** add a new Deploy Studio token with the same name, update Bitwarden, push `release` (or re-run the
   job), delete the old token.
 
+#### `SANITY_CONTENT_TOKEN__PRODUCTION`
+
+Until launch, lets the website's deploy write its words (the Kumite's intro and the like) into production Sanity
+([ADR 0014](adr/0014-sanity-public-content.md)). Without it the deploy leaves Sanity's words as they are.
+
+- **Comes from:** Sanity: manage → project **Cougars** → API → Tokens, role **Editor**, named
+  `SANITY_CONTENT_TOKEN__PRODUCTION`.
+- **Used by:** the `web` job in `deploy.yml` (`scripts/sanity-copy.mjs`), on pushes to `release`.
+- **Gets there by:** CI pull.
+- **Expires:** no. **At launch** the step goes: delete the token in Sanity and Bitwarden.
+- **Changing it:** add a new Editor token with the same name, update Bitwarden, delete the old one.
+
+### Dev
+
+#### `SANITY_CONTENT_TOKEN__DEV`
+
+The same for dev Sanity (**Cougars Dev**), on pushes to `main`.
+
+- **Comes from:** Sanity: manage → project **Cougars Dev** → API → Tokens, role **Editor**, named
+  `SANITY_CONTENT_TOKEN__DEV`.
+- **Used by:** the `web` job in `deploy.yml`, on pushes to `main`; by hand, `node scripts/env-pull.mjs -- node
+scripts/sanity-copy.mjs`.
+- **Gets there by:** CI pull.
+- **Expires:** no. **At launch**, deleted with production's.
+- **Changing it:** as production's.
+
 ---
 
 ## GitHub
@@ -998,7 +1024,8 @@ Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names
 4. **The roster:** [`TEAM_ROSTER__PRODUCTION`](#team_roster__production).
 5. **Google:** [Gmail](#gmail) steps 1 to 8, then the [YouTube](#youtube) keys, then `firebase-setup.mjs`
    ([Firebase](#firebase)).
-6. **Sanity:** [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production).
+6. **Sanity:** [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production), and until launch the two
+   [content tokens](#sanity_content_token__production).
 7. **GitHub:** the Cougars rebuilds App and its [key](#github_app_private_key).
 8. **Sentry:** [`SENTRY_AUTH_TOKEN`](#sentry_auth_token), then `sentry-setup.mjs`, which stores the website's DSN and
    says the team app's, for [`settings.mjs`](#plain-settings); then the read-only
@@ -1057,6 +1084,8 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`SENTRY_DSN_WEB`](#sentry_dsn_web)                                                                           | Sentry     | both | no                               | Website Worker                            |
 | [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |
+| [`SANITY_CONTENT_TOKEN__PRODUCTION`](#sanity_content_token__production)                                       | Sanity     | prod | yes                              | Website words, until launch               |
+| [`SANITY_CONTENT_TOKEN__DEV`](#sanity_content_token__dev)                                                     | Sanity     | dev  | yes                              | Website words, until launch               |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
 | [`INSTAGRAM_TOKEN`](#instagram_token)                                                                         | Instagram  | both | yes                              | Website: photos                           |
 | [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
