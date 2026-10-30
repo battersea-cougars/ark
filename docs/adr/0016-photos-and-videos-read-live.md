@@ -185,3 +185,7 @@ background are ready-sized files in `src/assets/`.
 - 2026-10-30: The home strip and /photos/ are masonry (`lib/masonry.ts`): every photo its own shape (square,
   portrait or landscape, as on Instagram), in order left to right, packed with no gaps, the home strip's first photo
   still big. Worked out again as pictures load, the width changes or a photo leaves; without JavaScript, square tiles.
+- 2026-10-30: The home strip is justified rows (`lib/justify.ts`), not masonry: its photos, in order, split into rows as
+  even as their shapes allow, each row scaled to exactly the strip's width, so all of them show in their own shapes
+  with both sides and the bottom straight (masonry left the strip's bottom ragged). No big first photo. /photos/ stays
+  masonry, where a ragged end is fine.

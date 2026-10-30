@@ -44,7 +44,7 @@ const { instagram } = Astro.props;
     margin: 0;
     padding: 0;
     display: grid;
-    /* Five, three or two columns; once filled, masonry (lib/masonry.ts): each photo its own height, packed */
+    /* Five, three or two columns of squares to wait in; once filled, justified rows (lib/justify.ts) */
     grid-template-columns: repeat(5, 1fr);
     gap: 0.5rem;
   }
@@ -62,16 +62,17 @@ const { instagram } = Astro.props;
     aspect-ratio: 1;
     background: var(--rule);
   }
-  .strip :global(.gallery[data-masonry] li) {
-    aspect-ratio: auto;
-  }
   .strip :global(.gallery li:first-child) {
     grid-column: span 2;
     grid-row: span 2;
   }
-  /* Masonry sets its rows (grid-row-end); a span here as well would win, and leave it two 4px rows tall */
-  .strip :global(.gallery[data-masonry] li:first-child) {
-    grid-row-start: auto;
+  /* Justified (lib/justify.ts): rows of photos, each its own shape, every row exactly the strip's width */
+  .strip :global(.gallery[data-justified]) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .strip :global(.gallery[data-justified] li) {
+    aspect-ratio: auto;
   }
   .strip :global(.gallery a) {
     position: relative;
@@ -96,7 +97,7 @@ const { instagram } = Astro.props;
 
 <script>
   import type { StripPhoto } from "../pages/api/photos/latest";
-  import { masonry } from "../lib/masonry";
+  import { justify } from "../lib/justify";
 
   function item(p: StripPhoto): HTMLLIElement {
     const li = document.createElement("li");
@@ -129,8 +130,8 @@ const { instagram } = Astro.props;
     }
     list.replaceChildren(...photos.map(item));
     list.removeAttribute("aria-busy");
-    // Masonry: each photo its own shape, packed (lib/masonry.ts)
-    masonry(list);
+    // Justified rows: each photo its own shape, the edges straight (lib/justify.ts)
+    justify(list);
   }
 
   document.addEventListener("astro:page-load", fill);
