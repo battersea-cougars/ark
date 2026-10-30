@@ -67,14 +67,14 @@ if (unavailable) Astro.response.status = 503;
 </Base>
 
 <script>
-  import { masonry } from "../../lib/masonry";
+  import { justify } from "../../lib/justify";
 
   // A photo that won't load (gone from Instagram since the page was made) leaves the grid instead of an empty tile
   const drop = (img: HTMLImageElement) => img.closest("li")?.remove();
   document.addEventListener("astro:page-load", () => {
     const grid = document.querySelector<HTMLElement>("[data-gallery]");
-    // Masonry: each photo its own shape, packed (lib/masonry.ts)
-    if (grid) masonry(grid);
+    // Justified rows: each photo its own shape, the edges straight (lib/justify.ts)
+    if (grid) justify(grid);
     for (const img of document.querySelectorAll<HTMLImageElement>("[data-gallery] img")) {
       if (img.complete && !img.naturalWidth) drop(img);
       else img.addEventListener("error", () => drop(img), { once: true });
@@ -98,9 +98,12 @@ if (unavailable) Astro.response.status = 503;
     aspect-ratio: 1;
     background: var(--rule);
   }
-  /* Masonry (lib/masonry.ts): the tile is as tall as its rows, the photo its own shape */
-  .grid[data-masonry] li,
-  .grid[data-masonry] a {
+  /* Justified (lib/justify.ts): rows of photos, each its own shape, every row exactly the page's width */
+  .grid[data-justified] {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .grid[data-justified] a {
     height: 100%;
     aspect-ratio: auto;
   }

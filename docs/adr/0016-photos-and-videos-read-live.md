@@ -189,3 +189,5 @@ background are ready-sized files in `src/assets/`.
   even as their shapes allow, each row scaled to exactly the strip's width, so all of them show in their own shapes
   with both sides and the bottom straight (masonry left the strip's bottom ragged). No big first photo. /photos/ stays
   masonry, where a ragged end is fine.
+- 2026-10-30: /photos/ is justified rows too, the same as the home strip (`lib/justify.ts`), so its bottom is straight;
+  the masonry (`lib/masonry.ts`) is gone.

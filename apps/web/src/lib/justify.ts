@@ -1,4 +1,4 @@
-// A justified photo strip (the home page's latest photos): photos in rows, each row scaled to exactly the strip's
+// Justified photos (the home page's strip, /photos/): photos in rows, each row scaled to exactly the strip's
 // width, so both sides and the bottom are straight, every photo shows, and each keeps its own shape (square, portrait
 // or landscape, as on Instagram). The photos are split into rows, in order, as evenly as their shapes allow, so the
 // rows come out alike in height; the last row is full like the rest. Worked out again as pictures load, the width
