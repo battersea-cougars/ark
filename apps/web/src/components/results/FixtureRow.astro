@@ -1,0 +1,123 @@
+---
+// One game played, as a row, as the team app's (lib/FixtureRow): which game, the two teams with their crests, the
+// score between them, the winner's name bright and the loser's faded. Big (the final): bigger crests, each team's
+// record from the group games under its name, and the score under the game's name. Each side's penalty minutes, if
+// any, under the score (ADR 0061). Every row has the same columns, so the teams and the scores line up down a list.
+import type { PublishedEdition, PublishedGame } from "../../lib/results";
+import FixtureSide from "./FixtureSide.astro";
+
+interface Props {
+  r: PublishedEdition;
+  game: PublishedGame;
+  big?: boolean;
+}
+const { r, game: g, big = false } = Astro.props;
+const resultOf = (side: "home" | "away") =>
+  g.homeGoals === g.awayGoals ? "drawn" : g.homeGoals > g.awayGoals === (side === "home") ? "won" : "lost";
+const which = g.name || `Game ${g.position}`;
+const pim = g.homePim + g.awayPim > 0 ? `PIM ${g.homePim}–${g.awayPim}` : "";
+---
+
+<div class:list={["fixture", { big }]}>
+  {!big && <span class="n">{which}</span>}
+  <FixtureSide r={r} id={g.homeId} name={g.home} result={resultOf("home")} big={big} />
+  <span class="mid">
+    {big && <span class="when">{which}</span>}
+    <span class="score num">
+      {g.homeGoals}
+      <span class="dash">–</span>
+      {g.awayGoals}
+    </span>
+    {pim && <span class="pim">{pim}</span>}
+  </span>
+  <FixtureSide r={r} id={g.awayId} name={g.away} result={resultOf("away")} big={big} right />
+</div>
+
+<style>
+  .fixture {
+    display: grid;
+    grid-template-columns: 5.5rem minmax(0, 1fr) 5rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+  }
+  /* Big: home, the middle (which game over the score), away; the middle the same width in every row */
+  .fixture.big {
+    grid-template-columns: minmax(0, 1fr) 7rem minmax(0, 1fr);
+    min-height: 5rem;
+  }
+  .n {
+    color: var(--text-3);
+    font-size: 0.85rem;
+  }
+  .mid {
+    display: grid;
+    justify-items: center;
+    gap: 0.2rem;
+    color: var(--text);
+    text-align: center;
+  }
+  .big :global(.tn) {
+    font-size: 1.15rem;
+  }
+  /* The score: the display face, the dash spaced and quieter so 0–0 reads */
+  .score {
+    font-size: 1.4rem;
+    letter-spacing: 0.03em;
+    line-height: 1;
+  }
+  .big .score {
+    font-size: 1.6rem;
+  }
+  .dash {
+    padding: 0 0.2em;
+    color: var(--text-3);
+  }
+  .when,
+  .pim {
+    color: var(--text-3);
+    font-size: 0.8rem;
+  }
+  .pim {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Phones: two lines, which game, then the teams either side of the score, so the names get the row's width; the
+     crests only on the big rows */
+  @media (max-width: 600px) {
+    .fixture:not(.big) {
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      gap: 0.5rem 0.75rem;
+    }
+    .fixture:not(.big) .n {
+      grid-column: 1 / -1;
+    }
+    .fixture:not(.big) :global(.crest) {
+      display: none;
+    }
+    /* Big: each side stacks, its crest over its name, so the name gets the side's whole width; the middle narrows */
+    .fixture.big {
+      grid-template-columns: minmax(0, 1fr) 5.5rem minmax(0, 1fr);
+      align-items: start;
+      gap: 0.5rem;
+    }
+    .big :global(.team) {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .big :global(.team.right) {
+      align-items: flex-end;
+    }
+    .big .mid {
+      align-self: center;
+    }
+    .big :global(.side) {
+      width: 100%;
+    }
+    .big :global(.tn) {
+      font-size: 1.05rem;
+      line-height: 1.2;
+    }
+  }
+</style>

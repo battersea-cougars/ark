@@ -21,7 +21,7 @@
   );
   const team = (id: number) => tournament.teams.find((t) => t.id === id);
   const indexOf = (id: number) => tournament.teams.findIndex((t) => t.id === id);
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(tournament.teams, byId));
 </script>
 

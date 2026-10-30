@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { initials } from "./initials";
 import { goesBy, matchesName, nameOfTeam, shortName } from "./names";
-import { teamInitials } from "./logo";
+import { teamInitials } from "@cougars/shared/team-initials";
 
 describe("a member's initials, on their avatar", () => {
   // #140: the first character was one UTF-16 unit, half an emoji, a broken character on the avatar

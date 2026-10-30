@@ -147,8 +147,8 @@ Running a tournament from Manage is [0127](0127-running-a-tournament-from-manage
   changes: a drafted player already goes through an admin once the draft's closed, a captain always.
 - **Your next match on Home** too: it's Home's lead card when it's your soonest thing (ADR 0118), with its day and
   pitch.
-- **Crests tell teams apart** (`teamInitials` in `lib/logo.ts`): without a logo, the initials skip a generic first word
-  ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the first keeps
+- **Crests tell teams apart** (`teamInitials` in `@cougars/shared/team-initials`, shared with the website's
+  results): without a logo, the initials skip a generic first word ("Team Charlie" is CH, "Team Cal" CA, "The Dim Maks" DM), and within a tournament no two share them: the first keeps
   its own, a later one takes its next letters, never another team's own.
 - **The Kumite's sign-up is an invitation** (`lib/KumiteInvite`; only the Kumite, `invitationOnly` in `lib/motif.ts`:
   every other tournament and Friday stay plain): Bloodsport's Kumite is invitation-only, so a member who hasn't answered
@@ -249,3 +249,5 @@ blind (Chong Li's powder), and its page's foot sends the newcomer to watch the f
 - 2026-10-28: Two Kumites on one day are in order by their hours too, on the series' pages and History as on Home
   and the calendar (`byWhen`): the Kumite's page opened on whichever was made first while Home led with the earlier
   one (#186, found by the random sequences in `training.nights-off.sequences.test.ts`).
+- 2026-10-30: A team's initials (`teamInitials`) moved from `lib/logo.ts` to `@cougars/shared/team-initials`, so the
+  website's results show a crest without a logo exactly as the app does (ADR 0100).

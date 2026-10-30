@@ -100,10 +100,10 @@ describe("tournament results on the website", () => {
     const r = (await publishedEdition(id))!;
     const g = r.games[0];
     expect(g.home === "Ants" ? [g.homePim, g.awayPim] : [g.awayPim, g.homePim]).toEqual([2, 7]);
-    expect(r.scorers).toEqual(
+    expect(r.leaders).toEqual(
       expect.arrayContaining([
-        { name: "Reg P.", team: "Ants", goals: 0, assists: 1, pim: 2 },
-        { name: "Mo M.", team: "Bees", goals: 0, assists: 0, pim: 5 },
+        { name: "Reg P.", team: "Ants", goals: 0, assists: 1, points: 1, pim: 2 },
+        { name: "Mo M.", team: "Bees", goals: 0, assists: 0, points: 0, pim: 5 },
       ]),
     );
     expect(JSON.stringify(r)).not.toMatch(FULL_NAMES);
@@ -130,10 +130,10 @@ describe("tournament results on the website", () => {
     const g = r.games[0];
     expect(g.home === "Ants" ? [g.homeGoals, g.awayGoals] : [g.awayGoals, g.homeGoals]).toEqual([2, 1]);
     // By the name they chose; else first name and initial
-    expect(r.scorers).toEqual([
-      { name: "The Wall", team: "Ants", goals: 2, assists: 0, pim: 0 },
-      { name: "Cole C.", team: "Bees", goals: 1, assists: 0, pim: 0 },
-      { name: "Reg P.", team: "Ants", goals: 0, assists: 1, pim: 0 },
+    expect(r.leaders).toEqual([
+      { name: "The Wall", team: "Ants", goals: 2, assists: 0, points: 2, pim: 0 },
+      { name: "Cole C.", team: "Bees", goals: 1, assists: 0, points: 1, pim: 0 },
+      { name: "Reg P.", team: "Ants", goals: 0, assists: 1, points: 1, pim: 0 },
     ]);
     expect(r.teams.map((x) => [x.name, x.players])).toEqual([
       ["Ants", ["The Wall", "Reg P."]],
@@ -159,8 +159,8 @@ describe("tournament results on the website", () => {
     ).toBe(200);
     const r = (await publishedEdition(id))!;
     expect(r.awards).toEqual([
-      { name: "Champions", about: "Top of the table.", winners: ["Ants"] },
-      { name: "Top scorer", about: "Most goals.", winners: ["Cara C."] },
+      { name: "Champions", about: "Top of the table.", winners: [{ name: "Ants", teamId: ants }] },
+      { name: "Top scorer", about: "Most goals.", winners: [{ name: "Cara C.", teamId: null }] },
     ]);
     expect((await publishedEditions())[0].awards).toEqual(r.awards);
   });
@@ -179,10 +179,10 @@ describe("tournament results on the website", () => {
   it("a player who changes the name they go by changes it on the results too", async () => {
     const { id, play } = await cup();
     await play();
-    expect((await publishedEdition(id))!.scorers[0].name).toBe("Cara C.");
+    expect((await publishedEdition(id))!.leaders[0].name).toBe("Cara C.");
     const cara = await w.signedIn("cara@example.com");
     await cara.call("PUT", "/api/me", { position: "F", webName: "Cara Captain" });
-    expect((await publishedEdition(id))!.scorers[0].name).toBe("Cara Captain");
+    expect((await publishedEdition(id))!.leaders[0].name).toBe("Cara Captain");
   });
 
   it("a team's crest is published only once its tournament is on the website", async () => {

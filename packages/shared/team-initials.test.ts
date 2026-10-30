@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { teamInitials } from "./logo";
+import { teamInitials } from "./team-initials";
 
 describe("teamInitials: a crest without a logo", () => {
   it("skips a generic first word: Team Charlie is CH, Team Cal CA, The Dim Maks DM", () => {

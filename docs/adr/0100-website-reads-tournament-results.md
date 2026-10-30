@@ -31,8 +31,16 @@ Three ways were open:
   page (#48).
 - **One rule set.** The table, the champion and "done" live in `@cougars/shared/results`, used by the Worker, the app
   and the website, so they can't disagree.
-- **Static pages.** `/results/` lists every published tournament, newest first; `/results/<id>/` shows its champions,
-  awards with their winners, the table, every score, the scorers and the teams. Where there were penalties, each
+- **Static pages.** `/results/` lists every published tournament, newest first; `/results/<id>/` shows it as the team
+  app shows a past one (`lib/EditionResults`, [0074](0074-tournament-home-and-scheduling.md)), in its order and look
+  (`apps/web/src/components/results/`): the champions (crest big, how they won it: "Beat Ants 3–1 in the final", or
+  "Top of the table, 9 points from 4"), the final (big), the fight card (every game in the order played, crests,
+  the winner bright and the loser faded), the board (the group games' table, as the app's: the playoffs decide the
+  champions, not places; the champions stamped), the leaders (most points, goals and assists together, then goals;
+  one table with every column, as the app's tabs need JavaScript), the awards (a team's with its crest), then who
+  played. A Kumite's is underground (`.night`) and in its motif: kanji by the titles (決勝, 試合, 賞) and the 優勝
+  seal on the champions' crest, in the team app's own kanji font (Noto Serif JP Black, cut to its characters). A team
+  without a logo shows its initials, worked out by the same rule as the app (`@cougars/shared/team-initials`). Where there were penalties, each
   game says its penalty minutes a side ("PIM 4–2") and the scorers become Players, with a PIM column (who and how
   long only: what for and when stay in the app). The champions board on the home page
   and `/kumite/` is built in. Crests are written as files (`/crests/<team id>.webp`), only for published teams, never
@@ -83,3 +91,8 @@ Three ways were open:
   a result, and PIM in the `/team/` stats and on a card.
 - 2026-10-24: Rebuild now in Settings → Website sends the rebuild at once (#107); each one sent is timed, so the page
   says when, and a second press within five minutes asks for nothing.
+- 2026-10-30: A result's page follows the team app's past-Kumite view: champions with how they won it, the final,
+  the fight card, the board, the leaders, the awards, in the app's order, look and Kumite motif (kanji, the 優勝
+  seal); the board counts the group games only, as the app's; the leaders rank by points; crests without a logo show
+  the app's initials (moved to `@cougars/shared/team-initials`). The champions board on the home page and `/kumite/`
+  wears the same crest and seal.

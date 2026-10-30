@@ -43,7 +43,7 @@ const results = await getResults();
                 .filter((a) => a.name !== "Champions" && a.winners.length)
                 .map((a) => (
                   <span class="muted">
-                    {a.name}: {a.winners.join(", ")}
+                    {a.name}: {a.winners.map((w) => w.name).join(", ")}
                   </span>
                 ))}
             </a>

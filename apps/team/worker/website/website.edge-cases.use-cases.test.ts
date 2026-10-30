@@ -93,7 +93,7 @@ async function cup(changes: object = {}) {
 }
 
 describe("unusual results on the website", () => {
-  it("a goalless draw is a played game: 0–0 on the website, a point each, and nobody on the scorers' list", async () => {
+  it("a goalless draw is a played game: 0–0 on the website, a point each, and nobody among the leaders", async () => {
     const { id, dana } = await cup();
     const game = (w.db.raw.prepare("SELECT id FROM tournament_games WHERE tournament_id = ?").get(id) as Json).id;
     expect(
@@ -105,7 +105,7 @@ describe("unusual results on the website", () => {
       ["Ants", 1, 1],
       ["Bees", 1, 1],
     ]);
-    expect(r.scorers).toEqual([]);
+    expect(r.leaders).toEqual([]);
   });
 
   it("a score typed in without who scored shows the score, and lists nobody for those goals", async () => {
@@ -114,7 +114,7 @@ describe("unusual results on the website", () => {
     await dana.call("PUT", `/api/tournaments/${id}/games/${game}`, { homeGoals: 3, awayGoals: 1 });
     const r = (await publishedEdition(id))!;
     expect(r.games[0].homeGoals + r.games[0].awayGoals).toBe(4);
-    expect(r.scorers).toEqual([]);
+    expect(r.leaders).toEqual([]);
     expect(r.champions).not.toBeNull();
   });
 

@@ -73,7 +73,7 @@
     }
     return out;
   });
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 

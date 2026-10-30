@@ -100,7 +100,7 @@
     const team = t.teams.find((x) => x.id === id);
     return nameOfTeam(team, t.teams, byId);
   };
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 

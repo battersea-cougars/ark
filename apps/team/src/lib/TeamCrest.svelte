@@ -1,7 +1,7 @@
 <script lang="ts">
   // A team's crest: its logo, or its initials on a grey tile in the team's colour. With `onclick` it's a button (its captain or an admin
   // changes the look).
-  import { teamInitials } from "./logo";
+  import { teamInitials } from "@cougars/shared/team-initials";
 
   let {
     name,
@@ -12,7 +12,7 @@
     onclick,
   }: {
     name: string;
-    /** Its tournament's team names, in order: no two of their crests share initials (logo.ts). */
+    /** Its tournament's team names, in order: no two of their crests share initials (@cougars/shared/team-initials). */
     among?: readonly string[];
     logo: string | null;
     size?: string;

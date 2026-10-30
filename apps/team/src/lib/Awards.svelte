@@ -62,7 +62,7 @@
   };
   // The judges' call is named on the night: its name, with what it is under it
   const titleOf = (award: string) => tournament.titles?.find((w) => w.award === award)?.title;
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 

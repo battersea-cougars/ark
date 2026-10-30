@@ -82,7 +82,7 @@
     fit();
     return { update: () => requestAnimationFrame(fit), destroy: () => ro.disconnect() };
   }
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
   const seal = $derived(kanjiFor(type, "fist"));
   const choose = $derived(kanjiFor(type, "choose"));

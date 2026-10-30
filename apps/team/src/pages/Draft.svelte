@@ -729,7 +729,7 @@
   $effect(() => {
     if (open || waiting) return checkForUpdates();
   });
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, (id) => (id ? byId(id) : undefined)));
   // What the status shows (lib/draft-room.ts): the picking's only in the draft room; while it's picked, the Kumite's
   // page has a summary of it (who's picking, the last pick, the way in)

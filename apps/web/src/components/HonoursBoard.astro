@@ -1,7 +1,11 @@
 ---
-// Kumite champions (ADR 0100): the reigning team (the newest result) up top with its award winners, earlier ones as a
-// compact list, each linking to its result. As of this build: the team app starts a rebuild when a result changes.
+// Kumite champions (ADR 0100): the reigning team (the newest result) up top, as its result page and the team app show
+// champions (its crest with the 優勝 seal, how they won it), with its award winners; earlier ones as a compact list,
+// each linking to its result. As of this build: the team app starts a rebuild when a result changes.
 import type { PublishedEdition } from "../lib/results";
+import Kanji from "./results/Kanji.astro";
+import TeamCrest from "./results/TeamCrest.astro";
+import { kanjiFace, kanjiFor } from "./results/motif";
 
 interface Props {
   /** Newest first, as getResults() returns them. */
@@ -9,9 +13,12 @@ interface Props {
 }
 const { results } = Astro.props;
 const [reigning, ...past] = results;
+const crest = reigning?.teams.find((t) => t.id === reigning.championsId);
+const seal = reigning ? kanjiFor(reigning.series, "champions") : "";
 const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winners.length) ?? [];
 ---
 
+{seal && <style is:inline set:html={kanjiFace} />}
 <div class="board">
   {reigning && (
     <>
@@ -19,14 +26,22 @@ const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winner
       <a class="reigning" href={`/results/${reigning.id}/`}>
         <span class="label">Reigning · {reigning.season}</span>
         <span class="team">
-          {reigning.championsCrest && (
-            <img src={reigning.championsCrest} alt="" width="48" height="48" loading="lazy" />
+          {crest && (
+            <span class="crest">
+              <TeamCrest team={crest} size="3.5rem" />
+              {seal && (
+                <span class="seal-spot">
+                  <Kanji text={seal} seal />
+                </span>
+              )}
+            </span>
           )}
           {reigning.champions ?? "–"}
         </span>
+        {reigning.championsHow && <span class="how">{reigning.championsHow}</span>}
         {others.map((a) => (
           <span class="muted">
-            {a.name}: {a.winners.join(", ")}
+            {a.name}: {a.winners.map((w) => w.name).join(", ")}
           </span>
         ))}
       </a>
@@ -66,17 +81,28 @@ const others = reigning?.awards.filter((a) => a.name !== "Champions" && a.winner
   .team {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1.25rem;
     margin: 0.1rem 0 0.3rem;
     font-family: var(--display);
     font-size: clamp(2.2rem, 4.5vw, 3.4rem);
     line-height: 1;
     text-transform: uppercase;
   }
-  .team img {
-    width: 0.9em;
-    height: 0.9em;
-    object-fit: contain;
+  /* The crest with the victory seal on its corner, a size down from the result page's */
+  .crest {
+    position: relative;
+    flex-shrink: 0;
+    font-size: 1rem;
+  }
+  .seal-spot {
+    position: absolute;
+    right: -0.9rem;
+    bottom: -0.7rem;
+    scale: 0.7;
+    transform-origin: bottom right;
+  }
+  .how {
+    color: var(--text-2);
   }
   .past {
     list-style: none;

@@ -5,12 +5,13 @@
 import { onTheWebsite, publicName, shortOnTheWebsite } from "@cougars/shared/names";
 import { champion, isDone, table } from "@cougars/shared/results";
 import { isSeason, seasonLabel, seasonOf } from "@cougars/shared/seasons";
+import { teamInitials } from "@cougars/shared/team-initials";
 
 export interface PublishedAward {
   name: string;
   about: string;
-  /** Who won it, confirmed: a team's name or a player's. Empty until an admin confirms. */
-  winners: string[];
+  /** Who won it, confirmed: a team (its id, for its crest) or a player (no id). Empty until an admin confirms. */
+  winners: { name: string; teamId: number | null }[];
 }
 
 export interface PublishedTeam {
@@ -18,6 +19,8 @@ export interface PublishedTeam {
   name: string;
   /** Its crest's address (/crests/<id>.webp), or null for none. */
   crest: string | null;
+  /** Its initials, for a crest without a logo: no two of the tournament's teams share them, as in the team app. */
+  initials: string;
   /** Captain first, then the players in order. */
   players: string[];
 }
@@ -28,6 +31,8 @@ export interface PublishedGame {
   /** A playoff's name ("Final"); "" for a group game. */
   name: string;
   position: number;
+  homeId: number;
+  awayId: number;
   home: string;
   away: string;
   homeGoals: number;
@@ -47,10 +52,15 @@ export interface PublishedEdition {
   season: string;
   /** The champions' team name; null if the day didn't decide one. */
   champions: string | null;
+  /** The champions' team id, for their crest. */
+  championsId: number | null;
   /** The champions' crest's address, if they have one. */
   championsCrest: string | null;
+  /** How they won it, as the team app says: "Beat Bees 3–1 in the final", or "Top of the table, 9 points from 4". */
+  championsHow: string;
   awards: PublishedAward[];
   teams: PublishedTeam[];
+  /** The board: the group games' table (the playoffs decide the champions, not places). */
   table: {
     teamId: number;
     name: string;
@@ -62,9 +72,22 @@ export interface PublishedEdition {
     ga: number;
     pts: number;
   }[];
+  /** Every game played, in the order they were played (the fight card). */
   games: PublishedGame[];
-  /** Everyone with a goal, an assist or a penalty: most goals, then most assists, then fewest penalty minutes. */
-  scorers: { name: string; team: string; goals: number; assists: number; pim: number }[];
+  /** The final (the last playoff), once played; null without playoffs. */
+  final: PublishedGame | null;
+  /** Everyone with a goal, an assist or a penalty, as the team app's leaders: most points (goals and assists
+   * together), then most goals, then fewest penalty minutes. */
+  leaders: PublishedLeader[];
+}
+
+export interface PublishedLeader {
+  name: string;
+  team: string;
+  goals: number;
+  assists: number;
+  points: number;
+  pim: number;
 }
 
 /** The snapshot's rows, as scripts/lib/results-sql.mjs reads them. */
@@ -190,17 +213,13 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
       "Champions";
     const confirmed = winners.find((w) => w.award === champs && w.teamId)?.teamId ?? null;
     const championId = confirmed ?? champion(teamIds, games, points);
-    const awards = list.map((a) => ({
-      // The judges' call goes by the name it was given on the night
-      name: winners.find((w) => w.award === a.name && w.title)?.title ?? a.name,
-      about: a.about ?? "",
-      winners: winners
-        .filter((w) => w.award === a.name)
-        .map((w) =>
-          w.teamId ? (nameOf.get(w.teamId) ?? "") : w.memberName ? onTheWebsite(w.memberName, w.memberWebName) : "",
-        )
-        .filter(Boolean),
-    }));
+    const awards = awardsOf(list, winners, nameOf);
+    // The board, as the team app's (lib/BoardTable): the group games; the playoffs decide the champions, not places
+    const groupGames = games.filter((g) => g.stage === "group");
+    const standings = table(teamIds, groupGames, points).map((r) => ({ ...r, name: nameOf.get(r.teamId)! }));
+    const played = playedGames(games, nameOf, pimOf);
+    const final = finalOf(played);
+    const names = teams.map((x) => nameOf.get(x.id)!);
 
     editions.push({
       id: t.id,
@@ -209,12 +228,15 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
       heldOn: t.heldOn,
       season: seasonLabel(isSeason(t.season) ? t.season : seasonOf(t.heldOn).season, t.heldOn),
       champions: championId ? (nameOf.get(championId) ?? null) : null,
+      championsId: championId,
       championsCrest: championId ? (crestOf.get(championId) ?? null) : null,
+      championsHow: championId ? howTheyWon(championId, final, standings) : "",
       awards,
       teams: teams.map((x) => ({
         id: x.id,
         name: nameOf.get(x.id)!,
         crest: crestOf.get(x.id) ?? null,
+        initials: teamInitials(nameOf.get(x.id)!, names),
         players: [
           ...(x.captainName
             ? [onTheWebsite(x.captainName, x.captainWebName)]
@@ -227,26 +249,10 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
             .filter(Boolean),
         ],
       })),
-      table: table(teamIds, games, points).map((r) => ({ ...r, name: nameOf.get(r.teamId)! })),
-      games: games.flatMap((g) =>
-        g.status === "done" && g.homeTeamId && g.awayTeamId && g.homeGoals != null && g.awayGoals != null
-          ? [
-              {
-                id: g.id,
-                stage: g.stage,
-                name: g.name,
-                position: g.position,
-                home: nameOf.get(g.homeTeamId)!,
-                away: nameOf.get(g.awayTeamId)!,
-                homeGoals: g.homeGoals,
-                awayGoals: g.awayGoals,
-                homePim: pimOf(g.id, g.homeTeamId),
-                awayPim: pimOf(g.id, g.awayTeamId),
-              },
-            ]
-          : [],
-      ),
-      scorers: scorersOf(
+      table: standings,
+      games: played,
+      final,
+      leaders: leadersOf(
         rows.goals.filter((o) => o.tournamentId === t.id),
         penalties,
         nameOf,
@@ -257,6 +263,73 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
 }
 
 type TeamRow = ResultRows["teams"][number];
+
+/** Each award and who won it, confirmed: a team by its name (and id, for its crest), a player by theirs. */
+function awardsOf(
+  list: { name: string; about?: string }[],
+  winners: ResultRows["winners"],
+  nameOf: Map<number, string>,
+) {
+  return list.map((a) => ({
+    // The judges' call goes by the name it was given on the night
+    name: winners.find((w) => w.award === a.name && w.title)?.title ?? a.name,
+    about: a.about ?? "",
+    winners: winners
+      .filter((w) => w.award === a.name)
+      .map((w) => ({
+        name: w.teamId ? (nameOf.get(w.teamId) ?? "") : w.memberName ? onTheWebsite(w.memberName, w.memberWebName) : "",
+        teamId: w.teamId,
+      }))
+      .filter((w) => w.name),
+  }));
+}
+type GameRow = ResultRows["games"][number];
+
+/** The games played, with a score, in the order they were played. */
+function playedGames(
+  games: GameRow[],
+  nameOf: Map<number, string>,
+  pimOf: (gameId: number, teamId: number) => number,
+): PublishedGame[] {
+  return games
+    .flatMap((g) =>
+      g.status === "done" && g.homeTeamId && g.awayTeamId && g.homeGoals != null && g.awayGoals != null
+        ? [
+            {
+              id: g.id,
+              stage: g.stage,
+              name: g.name,
+              position: g.position,
+              homeId: g.homeTeamId,
+              awayId: g.awayTeamId,
+              home: nameOf.get(g.homeTeamId)!,
+              away: nameOf.get(g.awayTeamId)!,
+              homeGoals: g.homeGoals,
+              awayGoals: g.awayGoals,
+              homePim: pimOf(g.id, g.homeTeamId),
+              awayPim: pimOf(g.id, g.awayTeamId),
+            },
+          ]
+        : [],
+    )
+    .sort((a, b) => a.position - b.position);
+}
+
+/** The final: the last playoff played, as the team app has it (lib/EditionResults). */
+function finalOf(games: PublishedGame[]): PublishedGame | null {
+  return games.filter((g) => g.stage === "playoff").at(-1) ?? null;
+}
+
+/** How the champions won it, in the team app's words (lib/ChampionCard): the final, else the top of the table. */
+function howTheyWon(championId: number, final: PublishedGame | null, standings: PublishedEdition["table"]) {
+  if (final && (final.homeId === championId || final.awayId === championId)) {
+    const home = final.homeId === championId;
+    const [us, them] = home ? [final.homeGoals, final.awayGoals] : [final.awayGoals, final.homeGoals];
+    return `Beat ${home ? final.away : final.home} ${us}–${them} in the final`;
+  }
+  const top = standings[0];
+  return top?.teamId === championId ? `Top of the table, ${top.pts} points from ${top.p}` : "";
+}
 
 /** A team's name: its own, else "Team" and its captain's short name (first name and initial, if two would match). */
 function teamNamer(teams: TeamRow[]) {
@@ -272,19 +345,26 @@ function teamNamer(teams: TeamRow[]) {
   };
 }
 
-function scorersOf(
+function leadersOf(
   goals: ResultRows["goals"],
   penalties: NonNullable<ResultRows["penalties"]>,
   teamName: Map<number, string>,
 ) {
-  const by = new Map<number, { name: string; team: string; goals: number; assists: number; pim: number }>();
+  const by = new Map<number, PublishedLeader>();
   const tally = (id: number | null, name: string | null, webName: string | null, teamId: number) => {
     if (!id || !name) return null;
     let s = by.get(id);
     if (!s)
       by.set(
         id,
-        (s = { name: onTheWebsite(name, webName), team: teamName.get(teamId) ?? "", goals: 0, assists: 0, pim: 0 }),
+        (s = {
+          name: onTheWebsite(name, webName),
+          team: teamName.get(teamId) ?? "",
+          goals: 0,
+          assists: 0,
+          points: 0,
+          pim: 0,
+        }),
       );
     return s;
   };
@@ -299,7 +379,9 @@ function scorersOf(
     const s = tally(p.memberId, p.memberName, p.memberWebName, p.teamId);
     if (s) s.pim += p.minutes;
   }
+  // Points as hockey counts them: goals and assists together
+  for (const s of by.values()) s.points = s.goals + s.assists;
   return [...by.values()].sort(
-    (a, b) => b.goals - a.goals || b.assists - a.assists || a.pim - b.pim || a.name.localeCompare(b.name),
+    (a, b) => b.points - a.points || b.goals - a.goals || a.pim - b.pim || a.name.localeCompare(b.name),
   );
 }

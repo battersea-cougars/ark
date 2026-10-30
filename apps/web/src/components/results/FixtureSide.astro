@@ -1,0 +1,74 @@
+---
+// One side of a game's row (FixtureRow): the crest and the name (the away side mirrored), the winner bright and the
+// loser faded, and on a big row its record from the group games under the name.
+import type { PublishedEdition } from "../../lib/results";
+import TeamCrest from "./TeamCrest.astro";
+
+interface Props {
+  r: PublishedEdition;
+  id: number;
+  name: string;
+  result: "won" | "lost" | "drawn";
+  right?: boolean;
+  big?: boolean;
+}
+const { r, id, name, result, right = false, big = false } = Astro.props;
+const rec = big ? r.table.find((t) => t.teamId === id && t.p > 0) : undefined;
+---
+
+<span class:list={["team", result, { right }]}>
+  <TeamCrest team={r.teams.find((t) => t.id === id)} size={big ? "2.75rem" : "2rem"} />
+  <span class="side">
+    <span class="tn">{name}</span>
+    {rec && (
+      <span class="rec">
+        {rec.w}W {rec.d}D {rec.l}L · {rec.pts} Pts
+      </span>
+    )}
+  </span>
+</span>
+
+<style>
+  .team {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    color: var(--text-2);
+    font-weight: 500;
+  }
+  .right {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+  .side {
+    display: grid;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+  .tn {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  /* The record: one quiet line under the name */
+  .rec {
+    overflow: hidden;
+    color: var(--text-3);
+    font-size: 0.8rem;
+    font-weight: 400;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  /* Who won it: the winner's name bright and bold, the loser's faded */
+  .won .tn {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .lost {
+    color: var(--text-3);
+  }
+  .lost :global(.crest) {
+    opacity: 0.55;
+  }
+</style>
