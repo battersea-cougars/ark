@@ -66,8 +66,10 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   `web (production)`, `team (dev)`, `team (production)`, `studio (dev)`, `studio (production)` (`scripts/ci/link-deployment.sh`), and each run's summary
   lists them. Jobs read their GitHub environment's secrets with `deployment: false`, so `preview` and `production`
   list nothing of their own.
-- **Never deploy production by hand.** Going live is on purpose: fast-forward `release` to `main`
-  (`git push origin main:release`). GitHub enforces it: the `production` environment accepts deployments from
+- **Never deploy production by hand.** Going live is on purpose: a pull request from `main` into `release`, merged
+  once its PR checks pass (a merge commit, so `release` keeps `main`'s commits as they are). Work reaches `main` by
+  pull request too. GitHub enforces it: `release` takes changes only through a pull request whose checks pass
+  (a ruleset, `scripts/branch-rules.mjs`), the `production` environment accepts deployments from
   `release` only, and the `preview` environment holds only the dev Bitwarden token ([ADR 0002](0002-secrets-in-bitwarden.md)).
   `scripts/ci/target.mjs` points a build at one environment; only CI runs it for production.
 - A scheduled or dispatched rebuild runs on the default branch, so its only job starts the workflow again on `release`.
@@ -97,7 +99,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, every commit is scanned for secrets (gitleaks, the same way pinned
   and checked; `pr.yml`, `secrets.yml`, [0002](0002-secrets-in-bitwarden.md)), and Dependabot
   proposes updates weekly, grouped, checked by `pr.yml`. `main` and `release` refuse force-pushes and deletion (a
-  repository ruleset).
+  repository ruleset, `scripts/branch-rules.mjs`).
 - **The team app is behind Cloudflare Access until launch**, so it can be deployed and tried for real first (the
   website, `batterseacougars.com` and `www.`, has been open since 2026-10-30): it asks for an email and a one-time code and let in only the emails on its Admins policy, which
   is managed by hand in the Zero Trust dashboard (`scripts/access-setup.mjs` starts it once, docs/setup.md). CI gets past it with a service token
@@ -191,3 +193,6 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 - 2026-10-30: The website (`batterseacougars.com`, `www.`) is open to everyone; only the team app stays behind Access
   until launch (`access-setup.mjs` gates `team.` alone). The database isn't launched yet: production still rebuilds
   until `LAUNCHED`.
+- 2026-10-30: Changes go by pull request: work into `main`, and `main` into `release` to go live (was
+  `git push origin main:release`). A ruleset makes `release` take changes only through a pull request whose PR checks
+  pass; `pr.yml` checks PRs into `release` too. Both rulesets are written by `scripts/branch-rules.mjs`.

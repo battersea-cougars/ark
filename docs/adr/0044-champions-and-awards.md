@@ -143,3 +143,5 @@ counted, for one edition and across a series' editions (#47). The website's stat
   defaults.
 - 2026-10-24: ADR 0119 (leaderboards) merged in. The body brought up to date with the History (the seed's awards and
   lines, nobody voted, the judges' call optional).
+- 2026-10-30: The website lists the awards with the champions first (`lib/awards.ts`), the rest in the team app's order;
+  the app still reveals them last, for the night.

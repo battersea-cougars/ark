@@ -1,8 +1,10 @@
 name: PR checks
 
 on:
+  # PRs into main, and the release PR (main into release), which the release branch's ruleset requires to pass
+  # (scripts/branch-rules.mjs)
   pull_request:
-    branches: [main]
+    branches: [main, release]
 
 permissions:
   contents: read
