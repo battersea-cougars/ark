@@ -238,4 +238,14 @@ describe("a past Kumite's results, as the team app shows them", () => {
       { name: "Top scorer", about: "Most goals", winners: [{ name: "Sam J.", teamId: null }] },
     ]);
   });
+
+  it("lists the champions first, though the team app reveals them last", () => {
+    const night = kumite(roundRobin);
+    // The order the team app stores them in, for the night's reveal: the champions last
+    night.tournaments[0].awards = JSON.stringify([
+      { name: "Top scorer", about: "Most goals" },
+      { name: "Champions", decidedBy: { kind: "stat", stat: "table" } },
+    ]);
+    expect(editionsFrom(night)[0].awards.map((a) => a.name)).toEqual(["Champions", "Top scorer"]);
+  });
 });

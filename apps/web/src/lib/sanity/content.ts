@@ -15,6 +15,7 @@ import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } fro
 import type { ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
 import { scribe } from "@cougars/shared/scribe";
 import { logFailure } from "@cougars/shared/breaker";
+import { championsFirst } from "../awards";
 
 const log = scribe.logger("content");
 
@@ -102,7 +103,8 @@ export const getKumite = fromFacts((f) => {
   const fromApp = snapshot?.awards;
   return {
     ...k,
-    awards: fromApp?.length ? fromApp : k.awards.map((name): Award => ({ name })),
+    // The champions first (lib/awards.ts), though the team app keeps them last for its reveal
+    awards: championsFirst(fromApp?.length ? fromApp : k.awards.map((name): Award => ({ name }))),
     next: snapshot?.next ?? null,
   };
 });
