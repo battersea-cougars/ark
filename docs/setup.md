@@ -102,7 +102,7 @@ In `battersea-cougars/ark` → **Settings**:
    node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh
    ```
 
-`main` deploys dev; `git push origin main:release` deploys production ([ADR 0010](adr/0010-environments-and-deploys.md)). The
+`main` deploys dev; a pull request from `main` into `release`, merged, deploys production ([ADR 0010](adr/0010-environments-and-deploys.md)). The
 first production deploy creates the D1 database and applies migrations.
 
 ## 5. Publish → rebuild (deferred to the team app)
