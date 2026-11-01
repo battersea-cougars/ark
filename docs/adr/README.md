@@ -87,6 +87,7 @@ record per topic** ([0001](0001-record-decisions.md)). Read the relevant one bef
 | #                                                | Decision                                                                                                          |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | [0069](0069-members.md)                          | Admins add members; the members table is in Settings; a member's details save with a button                       |
+| [0133](0133-member-photos.md)                    | A member puts up their own photo from their phone; it's kept small in D1 and shown in the app only                |
 | [0030](0030-training-and-tournament-schedule.md) | The schedule lives in D1: training repeats as a series, tournaments are scheduled one by one and own their rules  |
 | [0131](0131-training-sign-ups.md)                | A training's sign-ups are one order, Quarterly Members first; keepers have their own places; nights open on a day |
 | [0076](0076-training-teams.md)                   | Training teams: a Session lead role, made by dragging, saved as you change them                                   |

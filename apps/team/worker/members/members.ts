@@ -25,6 +25,8 @@ export interface MemberJson {
   webName: string | null;
   /** Only for the member themselves and those who manage members; null otherwise. */
   phone: string | null;
+  /** When their photo was set (ADR 0133): it's at /api/members/<id>/photo?v=<this>. Null: none, their initials show. */
+  photoAt: string | null;
   /** Training sessions they came to: in, not a no-show, held before today and not cancelled. */
   played: number;
   /** A Quarterly Member today: a subscription covers it (ADR 0007). Only your own, unless you manage members. */
@@ -77,6 +79,7 @@ export function membersFrom(
     bio: string;
     web_name: string | null;
     phone: string | null;
+    photo_at: string | null;
     played: number;
     quarterly: number;
     quarterlyNext: number;
@@ -97,6 +100,7 @@ export function membersFrom(
     // Public anyway (the website roster), so everyone may see it
     webName: m.web_name,
     phone: m.phone,
+    photoAt: m.photo_at,
     played: m.played,
     quarterly: Boolean(m.quarterly),
     quarterlyNext: Boolean(m.quarterlyNext),

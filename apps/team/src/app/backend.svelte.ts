@@ -304,6 +304,9 @@ export const chooseNotification = (topic: Topic, on: boolean) =>
 /** Your own phone, position, bio and the name you go by. */
 export const saveProfile = (p: { position: Position; phone: string; bio: string; webName: string }) =>
   save(() => api("PUT", "/api/me", p));
+/** Your profile photo (ADR 0133), shrunk on your phone (lib/photo.ts); null takes it down. */
+export const savePhoto = (photo: string | null) =>
+  save(() => api("PUT", "/api/me/photo", { photo }), photo ? "Photo saved" : "Photo removed");
 /** A code to the address you want to sign in with (ADR 0023): what to say, and the code itself on your own machine. Quiet: the form says. */
 export const askEmailCode = (email: string) =>
   save(() => api<{ message: string; devCode?: string }>("POST", "/api/me/email", { email }), "");

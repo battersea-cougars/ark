@@ -49,7 +49,7 @@
   import { feeOn } from "./dues";
   import { formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { registerClosed } from "./register-closes";
-  import { initials } from "./initials";
+  import Avatar from "./Avatar.svelte";
   import Select from "./Select.svelte";
 
   // Opens in the page's own column (desktop), the same width as the cards under it
@@ -554,7 +554,7 @@
     <!-- The header is the player: who they are, then their details in one row -->
     <header class="panel-head">
       <div class="who">
-        <span class="avatar big">{initials(goesBy(member.player))}</span>
+        <Avatar player={member.player} big />
         <div class="titles">
           <p class="eyebrow">
             Member · {POSITIONS[draft.position]}{draft.position === "G"
@@ -1214,7 +1214,7 @@
     .panel-head {
       padding: var(--s-4);
     }
-    .avatar.big {
+    .panel-head :global(.avatar.big) {
       display: none;
     }
   }

@@ -30,6 +30,8 @@ export interface Player {
   webName?: string | null;
   /** Training sessions they came to. */
   played?: number;
+  /** When their profile photo was set (ADR 0133, lib/photo.ts); null: none, their initials show. */
+  photoAt?: string | null;
 }
 
 /** Everyone in the club. Filled by hydrate(). */
@@ -197,6 +199,7 @@ interface MemberJson {
   bio: string;
   webName: string | null;
   phone: string | null;
+  photoAt: string | null;
   played: number;
   quarterly: boolean;
   quarterlyNext: boolean;
@@ -272,8 +275,8 @@ function putMembers(members: MemberJson[]) {
     EMAILS.set(m.id, m.email);
     REFERENCES.set(m.id, m.paymentReference);
     PHONES.set(m.id, m.phone);
-    const { id, name, position, rating, cougar, bio, webName, played } = m;
-    return { id, name, position, rating, cougar, bio, webName, played };
+    const { id, name, position, rating, cougar, bio, webName, played, photoAt } = m;
+    return { id, name, position, rating, cougar, bio, webName, played, photoAt };
   });
   fill(PLAYERS, players);
   fill(

@@ -183,14 +183,14 @@ interface MemberView {
 /** Members' rows as a view says (`m`: the member, `v`: the viewer). */
 const memberRows = ({ mine, seesRoles, who }: MemberView) =>
   rows(
-    "id name email position rating cougar status payment_reference roles bio web_name phone played quarterly quarterlyNext everyday_role_id",
+    "id name email position rating cougar status payment_reference roles bio web_name phone photo_at played quarterly quarterlyNext everyday_role_id",
     `SELECT m.id, m.name, CASE WHEN ${mine} THEN m.email END email, m.position,
             CASE WHEN v.sees_ratings THEN m.rating ELSE 0 END rating, m.cougar, m.status,
             CASE WHEN ${mine} THEN m.payment_reference END payment_reference,
             CASE WHEN ${seesRoles} THEN
               (SELECT group_concat(name) FROM (SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                 WHERE mr.member_id = m.id ORDER BY r.is_system DESC, r.id DESC)) END roles,
-            m.bio, m.web_name, CASE WHEN ${mine} THEN m.phone END phone,
+            m.bio, m.web_name, CASE WHEN ${mine} THEN m.phone END phone, m.photo_at,
             ${playedOf("m", "v")} played,
             (${mine}) AND EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.member_id = m.id AND sub.starts_on <= v.today
               AND (sub.ends_on IS NULL OR sub.ends_on >= v.today)) quarterly,
