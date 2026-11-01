@@ -6,6 +6,12 @@
 
 export type Param = string | number | null;
 
+/**
+ * D1 refusing a statement because the database is being exported (`wrangler d1 export`: the nightly backup, ADR 0106).
+ * It holds the database for the export, half a minute or so, and refuses everything else meanwhile.
+ */
+export const exporting = (error: unknown) => error instanceof Error && /long-running export/.test(error.message);
+
 export async function all<T>(db: D1Database, sql: string, params: Param[] = []): Promise<T[]> {
   const { results } = await db
     .prepare(sql)

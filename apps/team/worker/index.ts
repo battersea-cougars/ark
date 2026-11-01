@@ -17,7 +17,8 @@ import { scribe } from "@cougars/shared/scribe";
 import { flushSanityRequests, hasPendingSanityRequests } from "@cougars/shared/sanity-requests";
 import { consoleAdapter } from "@cougars/shared/scribe.console";
 import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
-import { claimHour, finishHour } from "./cron/hourly";
+import { claimHour, finishHour, type HourTry } from "./cron/hourly";
+import { exporting } from "@cougars/shared/d1";
 
 // The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0110)
 scribe.configure({ adapter: consoleAdapter, report: sentryReporter(Sentry) });
@@ -121,10 +122,18 @@ async function everyRun(env: Env, now: Date) {
 
 /**
  * The hourly run, or its catch-up (cron/hourly.ts): claimed, the five-minutely jobs, then the hour's. False if this
- * run had nothing to do: the hour is done, or this try was taken.
+ * run had nothing to do: the hour is done, or this try was taken. While the database is being backed up (ADR 0106) D1
+ * refuses everything, so the run does nothing and says so: the next minute's tries again (#197).
  */
 async function hourly(env: Env, now: Date, trigger: "hourly" | "catch-up"): Promise<boolean> {
-  const tried = await claimHour(env.DB, now, trigger);
+  let tried: HourTry | null;
+  try {
+    tried = await claimHour(env.DB, now, trigger);
+  } catch (e) {
+    if (!exporting(e)) throw e;
+    log.warn("cron.exporting", { trigger });
+    return true;
+  }
   if (!tried) {
     // The hour's own run still does what every run does, even with the hour done
     if (trigger === "hourly") await everyRun(env, now);
@@ -156,13 +165,17 @@ async function hourlyJobs(env: Env, now: Date): Promise<string[]> {
   return failed;
 }
 
-/** One cron job, run on its own: a failure is logged and the next job still runs. True if it succeeded. */
+/**
+ * One cron job, run on its own: a failure is logged and the next job still runs. True if it succeeded. D1 refusing it
+ * for a backup's export (ADR 0106) is only a warning: it's ours, it's over in a minute, and the job runs again (#197).
+ */
 async function task(name: string, job: () => Promise<unknown>): Promise<boolean> {
   try {
     await job();
     return true;
   } catch (e) {
-    log.error("cron.failed", e, { task: name });
+    if (exporting(e)) log.warn("cron.exporting", { task: name });
+    else log.error("cron.failed", e, { task: name });
     return false;
   }
 }

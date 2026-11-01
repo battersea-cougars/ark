@@ -158,3 +158,51 @@ describe("the clocks go back", () => {
     expect(heard()).toEqual(["ok", "ok"]);
   });
 });
+
+describe("the nightly backup's export (ADR 0106, #197)", () => {
+  /** D1 busy exporting: it refuses every statement, as it does for the half minute a backup takes. */
+  const exporting = (busy = true) => {
+    w.db.failure = "D1_ERROR: Currently processing a long-running export.";
+    w.db.failing = busy ? /./ : null;
+  };
+  const errors = () => logs.entries.filter((e) => e.level === "error" || e.level === "fatal");
+
+  it("a backup at 28 past, the hour done: the minute does nothing, and it's a warning, not an error", async () => {
+    await hourly("11:07");
+    exporting();
+    await everyMinute("11", 28, 28);
+    expect(logs.messages()).toContain("cron.exporting");
+    expect(errors()).toEqual([]);
+    exporting(false);
+    await everyMinute("11", 29, 59);
+    expect(errors()).toEqual([]);
+    expect(heard()).toEqual(["ok"]);
+  });
+
+  it("a backup over the :07 run: nothing's reported, and at 12 past the hour's done and heard ok", async () => {
+    oldCode();
+    exporting();
+    await hourly("11:07");
+    expect(logs.messages()).toContain("cron.exporting");
+    expect(errors()).toEqual([]);
+    exporting(false);
+    await everyMinute("11", 8, 12);
+    expect(oldCodes()).toBe(0);
+    expect(heard()).toEqual(["ok"]);
+  });
+
+  it("a backup starting mid-try: the jobs it refuses are warnings, and the next try does the hour", async () => {
+    oldCode();
+    // Only the forgetting meets the export: the claim before it went through
+    w.db.failure = "D1_ERROR: Currently processing a long-running export.";
+    w.db.failing = /DELETE FROM login_challenges/;
+    await hourly("11:07");
+    expect(oldCodes()).toBe(1);
+    expect(logs.entries.find((e) => e.msg === "cron.exporting")?.fields).toMatchObject({ task: "retention.forget" });
+    expect(errors()).toEqual([]);
+    exporting(false);
+    await everyMinute("11", 8, 12);
+    expect(oldCodes()).toBe(0);
+    expect(heard()).toEqual(["ok"]);
+  });
+});
