@@ -20,13 +20,14 @@ export const championOf = (t: Tournament) =>
 
 /**
  * Where it stands, by its games more than its settings: under way once a game's being scored or has a result, done
- * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up.
+ * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up, as of `today`
+ * (London's, unless a caller asks about another day).
  */
-export function editionState(t: Tournament): EditionState {
+export function editionState(t: Tournament, today = londonToday()): EditionState {
   const games = t.games ?? [];
   if (isDone(t.status, games)) return "done";
   if (t.status === "live" || games.some((g) => g.status !== "next")) return "live";
-  return signupOpen(t, londonToday()) ? "open" : "planned";
+  return signupOpen(t, today) ? "open" : "planned";
 }
 
 /**

@@ -227,7 +227,7 @@ export function stageBadge(
     return afterMomentOf(t, evening) === "now" && !revealOf(t).all
       ? { label, tone: "done", mark }
       : { label: "Done", tone: "done", mark };
-  if (status === "signup" && editionState(t) !== "open") return { label: "Coming up", tone: "quiet", mark };
+  if (status === "signup" && editionState(t, today) !== "open") return { label: "Coming up", tone: "quiet", mark };
   return { label, tone: status === "day" ? "live" : "on", mark };
 }
 
