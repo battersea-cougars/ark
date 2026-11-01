@@ -1,5 +1,5 @@
 ---
-// The home page's latest photos: the club's newest Instagram posts (ADR 0113). The page is prerendered, and its build
+// The home page's latest photos: the club's newest Instagram posts (ADR 0016). The page is prerendered, and its build
 // can't read Instagram, so it holds twelve empty tiles in place and its script fills them from /api/photos/latest;
 // nothing moves when they arrive. Without JavaScript, or with no posts, the tiles give way to a line pointing at
 // Instagram. The Lightbox listens with a delegated handler, so the filled-in photos open in it.
@@ -44,7 +44,7 @@ const { instagram } = Astro.props;
     margin: 0;
     padding: 0;
     display: grid;
-    /* Columns the twelve fill evenly with the big first tile (4 cells + 11 = 15): five, three, or two without the last */
+    /* Five, three or two columns of squares to wait in; once filled, justified rows (lib/justify.ts) */
     grid-template-columns: repeat(5, 1fr);
     gap: 0.5rem;
   }
@@ -57,9 +57,6 @@ const { instagram } = Astro.props;
     .strip :global(.gallery) {
       grid-template-columns: repeat(2, 1fr);
     }
-    .strip :global(.gallery li:nth-child(12)) {
-      display: none;
-    }
   }
   .strip :global(.gallery li) {
     aspect-ratio: 1;
@@ -68,6 +65,14 @@ const { instagram } = Astro.props;
   .strip :global(.gallery li:first-child) {
     grid-column: span 2;
     grid-row: span 2;
+  }
+  /* Justified (lib/justify.ts): rows of photos, each its own shape, every row exactly the strip's width */
+  .strip :global(.gallery[data-justified]) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .strip :global(.gallery[data-justified] li) {
+    aspect-ratio: auto;
   }
   .strip :global(.gallery a) {
     position: relative;
@@ -88,32 +93,20 @@ const { instagram } = Astro.props;
     transform: scale(1.05);
     filter: none;
   }
-  .strip :global(.mark) {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    padding: 0.2rem 0.45rem;
-    background: rgb(0 0 0 / 0.6);
-    color: #fff;
-  }
 </style>
 
 <script>
   import type { StripPhoto } from "../pages/api/photos/latest";
-  import { postLabel, postMark } from "../lib/posts";
+  import { justify } from "../lib/justify";
 
   function item(p: StripPhoto): HTMLLIElement {
     const li = document.createElement("li");
     const a = Object.assign(document.createElement("a"), { href: p.image });
-    Object.assign(a.dataset, { photo: "", caption: p.caption ?? "", post: p.href, postLabel: postLabel(p) });
+    Object.assign(a.dataset, { photo: "", caption: p.caption ?? "", post: p.href });
     const img = Object.assign(document.createElement("img"), { src: p.image, alt: p.alt, loading: "lazy" });
+    // A photo that won't load (gone from Instagram since the list was read) leaves the strip instead of an empty tile
+    img.addEventListener("error", () => li.remove(), { once: true });
     a.appendChild(img);
-    const mark = postMark(p);
-    if (mark) {
-      const span = Object.assign(document.createElement("span"), { className: "mark label", textContent: mark });
-      span.setAttribute("aria-label", p.kind === "video" ? "Video" : `${p.count} photos`);
-      a.appendChild(span);
-    }
     li.appendChild(a);
     return li;
   }
@@ -137,6 +130,8 @@ const { instagram } = Astro.props;
     }
     list.replaceChildren(...photos.map(item));
     list.removeAttribute("aria-busy");
+    // Justified rows: each photo its own shape, the edges straight (lib/justify.ts)
+    justify(list);
   }
 
   document.addEventListener("astro:page-load", fill);

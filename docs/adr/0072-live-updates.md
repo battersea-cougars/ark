@@ -1,7 +1,7 @@
 # 0072. Live pages are pushed to over SSE from a Durable Object; polling at the admins' pace is the fallback
 
 - **Status:** Accepted
-- **Date:** 2026-10-08 · updated 2026-10-21
+- **Date:** 2026-10-08 · updated 2026-10-24
 - **Merges:** 0096
 
 ## Context
@@ -27,9 +27,12 @@ The club may one day pay for hosting, when checking more often costs next to not
   the streams. The free-tiers rule ([0003](0003-free-tiers-only.md)) forbids Durable Objects that store rows; a
   fan-out object is fine.
 - **`GET /api/live` is a Server-Sent Events stream** for any signed-in member. Its events are only the names of the
-  club's parts that changed ([0057](0057-team-app-loading-and-changes.md)'s slices), never data; what a member sees
-  still comes from their own bootstrap. A server without a hub answers 503. The hub sends a comment every 30 seconds
-  so dead phones are dropped.
+  club's parts that changed ([0057](0057-team-app-loading-and-changes.md)'s slices) and the data versions, not data;
+  what a member sees comes from their own reads, **except a live match** (below). A server without a hub answers 503. The hub sends a `ping` event every 30 seconds
+  and one as each stream opens (`HEARTBEAT_MS`, in `src/lib/live-stream.ts`), so dead phones are dropped, and a page
+  that hears nothing for a beat and a half (`SILENCE_MS`, 45 seconds) knows its stream is dead even when the browser
+  never says so: it stops saying "Live", closes it, and reconnects on the usual backoff, reading what it missed. No
+  watch while the page is out of view (its stream is closed then).
 - **Each stream is a member's and a sign-in's.** One member holds at most three (`STREAMS_PER_MEMBER`); a fourth
   closes their oldest, so a stale one never shuts out the page in front of them and nobody holds dozens (#73). Ending
   a sign-in (signing out, an admin's Sign out everywhere, a new email, being made inactive, deleting the account)
@@ -40,9 +43,22 @@ The club may one day pay for hosting, when checking more often costs next to not
 - **The hub sends at most one event a second**: the first change after a quiet second goes out at once; the ones
   after it wait for the end of that second and go out together, naming every part and every version in them. So a
   burst (a Friday's taps) is one event a second, not one a tap.
+- **A live match comes with its event** (#161). A change to a game as it's played (the scoring routes, `liveMatch`
+  in `api.route.ts`: the scoresheet, the clock, goals, penalties, full time, a typed-in result) on its tournament's
+  day changes nothing but that tournament's games, and nothing in a game is anyone's own. So the Worker reads the
+  match once (`readMatch`, with no viewer), as every member sees it, and hands the hub the part, the version and its
+  audience, **every member**; the hub sends it in that second's event (`parts: [{ version, match }]`) down those
+  members' streams only, holding it in memory for the second at most. A phone holding the version just before puts
+  the games in place as they are and reads nothing; any other phone (a version it never heard of, a tournament it
+  hasn't got, a newer copy of its own) ignores the data and reads as below, so a missed event costs a read, never a
+  wrong screen. Who gets a part is decided in one place, `live/live.parts.ts`; everything else stays **names only**:
+  what's someone's own (dues, sign-ups, members, roles), a game on another day, and the draft, whose picks only its
+  captains and whoever runs it see ([0060](0060-the-draft.md); its own stream is #162).
 - **A page reads only the parts an event names, not the whole club** (#112). The app's copy of the club
   (`app/catch-up.ts`) knows the data version it holds all of; an event naming a part a page follows makes it read
-  the parts it lacks (`GET /api/slices?names=…`, each as this member may see it, with the version read first), one
+  the parts it lacks (`GET /api/slices?names=…`, each as this member may see it, with the version read first): of each
+  family the event names, the core's parts and the pages' the phone holds (`src/app/club-parts.ts`, #178); a page's
+  part no page in view shows is let go, and read again when one opens ([0053](0053-live-reads-are-cached.md)). One
   read at a time, after a random wait of up to a second, so a burst is one read a phone and the phones don't all ask
   in the same instant. Nothing is read while the page is out of view. A change's own reply carries its version
   (`x-club-version`), so the phone that made it reads nothing more. A change to members or roles (what someone may
@@ -112,3 +128,14 @@ The club may one day pay for hosting, when checking more often costs next to not
   read doesn't check again (#112). Before, every event was a whole-club reload on every phone.
 - 2026-10-21: A member holds at most three streams (a fourth closes their oldest), and a stream closes when its sign-in
   ends; the hub knows each stream's member and session (#72, #73).
+- 2026-10-23: The heartbeat is a `ping` event, not an SSE comment (which a browser never passes to the page), sent as
+  each stream opens and every 30 seconds; a page that hears nothing for 45 seconds treats its stream as dead (not
+  "Live", closed, reconnected with the backoff and a catch-up). Before, a silently dead connection (a phone that
+  changed networks, a proxy holding the socket) could say "Live" for minutes after updates stopped.
+- 2026-10-23: A live match's part is pushed with its event, to every member, instead of every phone reading it: a
+  game's change on its day is one D1 read in the Worker and none on the phones, so a squad on the rink's one wifi
+  address stays far under the domain's 150 requests in 10 seconds (#161). Everything else stays names only, the
+  draft too (#162).
+- 2026-10-24: An event's names are families: a phone reads the core's parts of each and the pages' it holds, and lets
+  go of a page's part no page in view shows, read again when one opens (#178, ADR 0053). A phone on Home through a
+  Friday's taps reads the next nights and Home's people, not the weeks just held each time.

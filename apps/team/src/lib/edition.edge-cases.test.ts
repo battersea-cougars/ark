@@ -3,19 +3,10 @@
 // a series opens on when there's none, or one on today. Pure logic; "now" is set with fake timers, never the real clock.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tournament } from "../demo/model";
-import { currentOf, editionState, latestOf, stageOf } from "./edition";
+import { atAfters, currentOf, editionState, latestOf, stageOf } from "./edition";
 import { stageBadge } from "./tournament-front";
+import { game } from "./kumite.testing";
 
-const game = (position: number, status: "next" | "live" | "done") => ({
-  id: position,
-  stage: "group" as const,
-  position,
-  homeTeamId: 1,
-  awayTeamId: 2,
-  homeGoals: status === "next" ? null : 1,
-  awayGoals: status === "next" ? null : 0,
-  status,
-});
 const cup = (o: Partial<Tournament> = {}) =>
   ({
     id: 1,
@@ -103,7 +94,7 @@ describe("an admin's status against the games", () => {
     at("2026-10-06T11:00:00Z");
     const t = cup({ status: "open", games: [game(1, "done")] as never });
     expect(editionState(t)).toBe("done");
-    expect(stageBadge(t, { shortName: "Cup" }, "2026-10-06")).toEqual({ label: "Done", tone: "done" });
+    expect(stageBadge(t, { shortName: "Cup" }, "2026-10-06")).toMatchObject({ label: "Done", tone: "done" });
   });
 });
 
@@ -118,31 +109,99 @@ describe("stageOf: games come first", () => {
     at("2027-08-31T10:00:00Z");
     expect(stageBadge(t, { shortName: "Cup" }, "2027-08-31").label).not.toBe("Cup!");
     const dated = cup({ heldOn: "2027-08-31", games: [game(1, "next")] as never });
-    expect(stageBadge(dated, { shortName: "Cup" }, "2027-08-31")).toEqual({ label: "Cup!", tone: "live" });
+    expect(stageBadge(dated, { shortName: "Cup" }, "2027-08-31")).toMatchObject({ label: "Cup!", tone: "live" });
   });
 });
 
 describe("which edition a series opens on, at the edges", () => {
-  it("one on today, not yet played, is the next one; the day after, unplayed, it isn't", () => {
+  it("one on today, not yet played, is the next one; the day after, unplayed, it still is (#169)", () => {
     at("2026-10-06T11:00:00Z");
     const old = cup({ id: 1, heldOn: "2026-06-01", status: "finished" });
     const today = cup({ id: 2, heldOn: "2026-10-06" });
-    expect(latestOf([old, today], "2026-10-06")?.id).toBe(2);
-    expect(currentOf([old, today], "2026-10-06")?.id).toBe(2);
-    expect(latestOf([old, today], "2026-10-07")?.id).toBe(1);
-    expect(currentOf([old, today], "2026-10-07")).toBeUndefined();
+    expect(latestOf([old, today])?.id).toBe(2);
+    expect(currentOf([old, today])?.id).toBe(2);
+    expect(latestOf([old, today])?.id).toBe(2);
+    expect(currentOf([old, today])?.id).toBe(2);
+  });
+
+  it("one played earlier, then one whose Saturday passed unplayed: the unplayed one is on (#169)", () => {
+    at("2026-11-15T11:00:00Z");
+    const tonight = cup({ id: 1, heldOn: "2026-10-23", status: "finished" });
+    const missed = cup({ id: 2, heldOn: "2026-11-14" });
+    const next = cup({ id: 3, heldOn: "2027-03-13" });
+    expect(currentOf([tonight, missed], "2026-11-15")?.id).toBe(2);
+    expect(currentOf([tonight, missed, next], "2026-11-15")?.id).toBe(2);
   });
 
   it("only one that came and went unplayed, and none played: that one, the last there is", () => {
     at("2026-10-06T11:00:00Z");
     const missed = cup({ id: 3, heldOn: "2026-09-01" });
-    expect(latestOf([missed], "2026-10-06")?.id).toBe(3);
+    expect(latestOf([missed])?.id).toBe(3);
   });
 
   it("two under way at once: the earlier", () => {
     at("2026-10-06T11:00:00Z");
     const a = cup({ id: 1, heldOn: "2026-10-10", status: "live" });
     const b = cup({ id: 2, heldOn: "2026-10-03", games: [game(1, "live")] as never });
-    expect(latestOf([a, b], "2026-10-06")?.id).toBe(2);
+    expect(latestOf([a, b])?.id).toBe(2);
+  });
+});
+
+describe("the after-party is the evening it was played, whatever its date says (ADR 0074)", () => {
+  const played = (startedAt: (string | null)[], o: Partial<Tournament> = {}) =>
+    cup({
+      games: startedAt.map((s, k) => ({ ...game(k + 1, "done"), startedAt: s })) as never,
+      ...o,
+    });
+
+  it("played today, its day still next summer: tonight's the after-party, and it's still the one on", () => {
+    const t = played(["2026-10-23T14:06:00Z", "2026-10-23T14:07:00Z"], {
+      season: { name: "Summer", year: 2027 } as never,
+      heldOn: "2027-08-31",
+    });
+    expect(atAfters(t, "2026-10-23")).toBe(true);
+    expect(currentOf([t], "2026-10-23")?.id).toBe(1);
+    expect(atAfters(t, "2026-10-24")).toBe(false);
+  });
+
+  it("the final kicked off after midnight: still that evening's after-party, till 06:00", () => {
+    expect(atAfters(played(["2026-11-14T23:40:00Z", "2026-11-15T00:30:00Z"]), "2026-11-14")).toBe(true);
+  });
+
+  it("results typed in, no match kicked off: its own day's, and on another day straight to history", () => {
+    expect(atAfters(played([null, null]), "2026-11-14")).toBe(true);
+    expect(atAfters(played([null, null]), "2026-11-20")).toBe(false);
+    expect(atAfters(played([null], { season: { name: "Summer", year: 2027 } as never }), "2027-08-31")).toBe(false);
+  });
+});
+
+describe("every award revealed: done, its results on its page that evening, then history (ADR 0074)", () => {
+  const champs = { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } };
+  const night = (revealed: number) =>
+    cup({
+      games: [{ ...game(1, "done"), startedAt: "2026-11-14T20:00:00Z" }] as never,
+      awards: [champs, { ...champs, name: "Top scorer" }] as never,
+      awardsRevealed: revealed,
+    });
+  const kumite = { shortName: "Kumite" } as never;
+
+  it("an award still to reveal: at The Anchor", () => {
+    expect(currentOf([night(1)], "2026-11-14")?.id).toBe(1);
+    expect(stageBadge(night(1), kumite, "2026-11-14", "The Anchor").label).toBe("The Anchor");
+  });
+
+  // The evening goes on past midnight, till 06:00 (#168: the header said Done at 00:30, the track The Anchor)
+  it("half past midnight, an award still to reveal: still The Anchor, by the evening, not the date", () => {
+    expect(stageBadge(night(1), kumite, "2026-11-15", "The Anchor", "2026-11-14").label).toBe("The Anchor");
+    expect(stageBadge(night(1), kumite, "2026-11-15", "The Anchor", "2026-11-15").label).toBe("Done");
+  });
+
+  it("the last one revealed: still its page that evening, its results, the stamp Done", () => {
+    expect(currentOf([night(2)], "2026-11-14")?.id).toBe(1);
+    expect(stageBadge(night(2), kumite, "2026-11-14", "The Anchor").label).toBe("Done");
+  });
+
+  it("the morning after: history, nothing on", () => {
+    expect(currentOf([night(2)], "2026-11-15")).toBeUndefined();
   });
 });

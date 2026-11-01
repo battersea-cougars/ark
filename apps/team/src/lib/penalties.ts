@@ -1,4 +1,4 @@
-// Penalties (ADR 0061), shared by the Worker and the app: what can be called, the penalty clock, and the minutes each
+// Penalties (ADR 0130), shared by the Worker and the app: what can be called, the penalty clock, and the minutes each
 // player and team has spent in the box. The clock is worked out, never stored: a penalty runs in game time from when
 // it was given (or, a player's second, from when their first ends), so it pauses when the game clock does, and a
 // minor ends early at a power-play goal against its team. Penalties called on both teams at once cancel out
@@ -25,11 +25,10 @@ export const INFRACTIONS = [
   { value: "bench-minor", label: "Bench minor", bench: true, minorOnly: true },
   { value: "other", label: "Other", bench: false, minorOnly: false },
 ] as const;
-export type Infraction = (typeof INFRACTIONS)[number]["value"];
 export const infractionOf = (value: string) => INFRACTIONS.find((i) => i.value === value);
 
 /**
- * How a penalty's served, a series' setting each tournament copies (ADR 0061): a power play (the player in the box,
+ * How a penalty's served, a series' setting each tournament copies (ADR 0130): a power play (the player in the box,
  * the team a player short, a power-play goal ending a minor), or a penalty shot for the other team (not recorded)
  * with the player sitting out for the length: nobody's short, and goals don't end it.
  */
@@ -62,7 +61,7 @@ export const PENALTY_KINDS = [
   { minutes: 4, name: "Double minor", length: "2+2 min" },
   { minutes: 5, name: "Major", length: "5 min" },
 ] as const;
-/** The usual length, a series' setting each tournament copies (ADR 0061): the penalty sheet starts on it. */
+/** The usual length, a series' setting each tournament copies (ADR 0130): the penalty sheet starts on it. */
 export const PENALTY_LENGTH_OPTIONS = PENALTY_KINDS.map((k) => ({
   value: String(k.minutes),
   label: k.name,

@@ -1,7 +1,8 @@
 // Home's greeting at the edges of its hours, in London's time either side of the clocks changing, and filled in with
 // whatever a member is called.
 import { describe, expect, it } from "vitest";
-import { fill, NAG_FROM, ordinal, slot } from "./greetings";
+import { ordinal } from "./dates";
+import { fill, NAG_FROM, slot } from "./greetings";
 
 describe("which greeting, at the edge of each hour", () => {
   // 1 December 2026 is GMT: London's clock is UTC's
@@ -60,8 +61,8 @@ describe("filling a greeting in", () => {
     expect(fill("{unknown} {name}", v)).toBe("{unknown} Zoë");
   });
 
-  // #118: replaceAll reads $& and $$ in the name as patterns
-  it.fails("a name with a dollar sign in it is greeted as written (known bug #118)", () => {
+  // #118: replaceAll read $& and $$ in the name as patterns
+  it("a name with a dollar sign in it is greeted as written (#118)", () => {
     expect(fill("Hi {name}!", { name: "Ca$$h", visits: 1, day: "" })).toBe("Hi Ca$$h!");
     expect(fill("Hi {name}!", { name: "Jo $& Co", visits: 1, day: "" })).toBe("Hi Jo $& Co!");
   });

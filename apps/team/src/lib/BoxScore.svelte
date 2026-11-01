@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A game's box score (ADR 0061): each team's goals per period, then the total (just the total for a one-period
+  // A game's box score (ADR 0130): each team's goals per period, then the total (just the total for a one-period
   // game). No shots: we don't count them. Once it's over, the winner's row is bright and the loser's fades, as on the
   // fight card.
   import TeamCrest from "./TeamCrest.svelte";
@@ -21,7 +21,7 @@
   );
   const team = (id: number) => tournament.teams.find((t) => t.id === id);
   const indexOf = (id: number) => tournament.teams.findIndex((t) => t.id === id);
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(tournament.teams, byId));
 </script>
 

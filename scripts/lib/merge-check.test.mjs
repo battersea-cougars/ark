@@ -1,4 +1,4 @@
-// What `npm run merge:check` runs for a branch (ADR 0115): docs alone get a format check; code gets lint, the tests,
+// What `npm run merge:check` runs for a branch (ADR 0115): docs alone get a format check; code gets lint, knip, the tests,
 // and the checks and builds of every app the diff can reach.
 import { describe, expect, it } from "vitest";
 import { plan } from "./merge-check.mjs";
@@ -13,7 +13,7 @@ describe("merge:check's tier", () => {
   });
 
   it("is everything for a change outside the apps: shared code, scripts, the schema, root config", () => {
-    const every = ["lint", "test", "checkWeb", "checkTeam", "buildWeb", "buildTeam", "buildStudio"];
+    const every = ["lint", "knip", "test", "checkWeb", "checkTeam", "buildWeb", "buildTeam", "buildStudio"];
     for (const file of [
       "packages/shared/d1.ts",
       "scripts/app.mjs",
@@ -27,18 +27,19 @@ describe("merge:check's tier", () => {
   it("checks the team app too when the website changes, as the team app imports it", () => {
     expect(plan(["apps/web/src/lib/server/whats-on.ts"])).toEqual({
       tier: "web",
-      steps: ["lint", "test", "checkWeb", "checkTeam", "buildWeb", "buildTeam"],
+      steps: ["lint", "knip", "test", "checkWeb", "checkTeam", "buildWeb", "buildTeam"],
     });
   });
 
   it("checks only the app changed when nothing imports it", () => {
     expect(plan(["apps/team/src/app/App.svelte", "docs/testing.md"]).steps).toEqual([
       "lint",
+      "knip",
       "test",
       "checkTeam",
       "buildTeam",
     ]);
-    expect(plan(["apps/studio/schemaTypes/settings.ts"]).steps).toEqual(["lint", "test", "buildStudio"]);
-    expect(plan(["apps/studio/README.md"]).steps).toEqual(["lint", "test", "buildStudio"]);
+    expect(plan(["apps/studio/schemaTypes/settings.ts"]).steps).toEqual(["lint", "knip", "test", "buildStudio"]);
+    expect(plan(["apps/studio/README.md"]).steps).toEqual(["lint", "knip", "test", "buildStudio"]);
   });
 });

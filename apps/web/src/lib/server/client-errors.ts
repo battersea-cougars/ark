@@ -1,4 +1,4 @@
-// A visitor's browser hit an error in our own scripts (ADR 0111). The page's tiny catcher (layouts/Base.astro) posts a
+// A visitor's browser hit an error in our own scripts (ADR 0110). The page's tiny catcher (layouts/Base.astro) posts a
 // short report to /api/client-error; this turns it into a Sentry event the Worker sends, under the deploy's release, so
 // Sentry maps the minified stack back to source with the uploaded source maps. The website loads no Sentry SDK.
 import { mask } from "@cougars/shared/scribe";

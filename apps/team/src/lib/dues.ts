@@ -127,6 +127,26 @@ export interface AgedRow {
   oldest: 0 | 1 | 2 | 3;
 }
 
+/**
+ * A member's line of what they owe (#177), as the club read sends it: your own, or everyone's for who sees Unpaid fees,
+ * worked out by the server from the charges not paid and the payments not spent (worker/dues/dues.ledger.ts): what's
+ * left (in all, overdue, by age as Unpaid fees' columns), the oldest's bucket, and their credit.
+ */
+export interface Owed {
+  memberId: number;
+  owed: number;
+  overdue: number;
+  credit: number;
+  amounts: [number, number, number, number];
+  oldest: 0 | 1 | 2 | 3;
+}
+
+/** Unpaid fees' rows from the club's lines: everyone who owes, as the server put them (worst first). */
+export const agedOf = (lines: Owed[]): AgedRow[] =>
+  lines
+    .filter((l) => l.owed > 0)
+    .map(({ memberId, amounts, owed, oldest }) => ({ memberId, amounts: [...amounts], total: owed, oldest }));
+
 /** What's still to pay on a charge. */
 export const leftOn = (c: Charge) => (c.paidOn ? 0 : Math.max(0, c.pence - (c.paidPence ?? 0)));
 

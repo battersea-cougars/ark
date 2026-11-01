@@ -8,33 +8,35 @@
 // Every token (nonce, code, session) is random and stored only as its SHA-256 hash. The reply to an email
 // never says whether it's a member's. Guesses are counted before a code is checked, in one statement, so requests
 // sent all at once can't get past the limits, and a code is spent the same way, so it signs in once.
+import { bumpDataVersion } from "../api/api.version";
 import { all, first, run } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import { isProduction, mailPausedUntil, sendMail, type MailConfig } from "@cougars/shared/email";
 import { clubContact } from "@cougars/shared/club-contact";
+import { gmailCredentials, type GmailEnv } from "@cougars/shared/gmail-token";
+import { mailOutcome } from "../mail/mail.health";
 import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
 import { firstAdmin } from "../members/members";
 import { forgetDevice, registerDevice } from "../push/push";
 import { endSessions } from "./auth.sessions";
+import { refuseWhileViewing } from "../members/view-as";
 import { mustBeHuman, type TurnstileEnv } from "./auth.turnstile";
+import { brokeGlass, claimBreakGlass } from "./auth.break-glass";
 import type { LiveEnv } from "../live/live";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
 
-export interface AuthEnv extends LiveEnv, TurnstileEnv {
+export interface AuthEnv extends LiveEnv, TurnstileEnv, GmailEnv {
   DB: D1Database;
   /** "local" only under `vite` on your machine: no email leaves it, even with Gmail set up; the code is shown on screen. */
   TEAM_ENV?: string;
   SITE_ENV?: string;
-  GMAIL_CLIENT_ID?: string;
-  GMAIL_CLIENT_SECRET?: string;
-  GMAIL_REFRESH_TOKEN?: string;
   MAIL_SAFE_TO?: string;
   /**
    * App Review's account in the store app (ADR 0108), production only: a reviewer can't read our email, so this one
@@ -78,7 +80,7 @@ export async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", encoder.encode(value));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-function token(): string {
+export function token(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
@@ -114,13 +116,17 @@ export function privateHost(hostname: string): boolean {
 export const localHere = (env: { TEAM_ENV?: string }, request: Request) =>
   env.TEAM_ENV === "local" && privateHost(new URL(request.url).hostname);
 /**
+ * The app's cookies: the session, a code's nonce, a passkey sign-in's nonce (auth.passkeys.ts), and a Gmail reconnect
+ * on its way through Google (mail/mail.ts).
+ */
+type CookieBase = "session" | "nonce" | "passkey" | "gmail";
+/**
  * A cookie's name here. On https it carries the __Host- prefix: the browser then insists on Secure, Path=/ and no
  * Domain, so no sibling subdomain can set or shadow it. Plain http (a local server on the LAN) can't use it.
  */
-const cookieName = (request: Request, base: "session" | "nonce") =>
-  `${isHttps(request) ? "__Host-" : ""}cougars_${base}`;
+export const cookieName = (request: Request, base: CookieBase) => `${isHttps(request) ? "__Host-" : ""}cougars_${base}`;
 
-function cookie(request: Request, name: string): string | null {
+export function cookie(request: Request, name: string): string | null {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [k, ...v] = part.trim().split("=");
     if (k === name) return v.join("=") || null;
@@ -128,22 +134,24 @@ function cookie(request: Request, name: string): string | null {
   return null;
 }
 /** A private cookie: not for scripts, not sent cross-site, Secure wherever the page is https. */
-function setCookie(request: Request, base: "session" | "nonce", value: string, maxAge: number): string {
+export function setCookie(request: Request, base: CookieBase, value: string, maxAge: number): string {
   const secure = isHttps(request) ? "; Secure" : "";
   return `${cookieName(request, base)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-const addMs = (now: Date, ms: number) => new Date(now.getTime() + ms).toISOString();
+export const addMs = (now: Date, ms: number) => new Date(now.getTime() + ms).toISOString();
 
 const TOO_MANY_TRIES = "Too many tries from here. Wait a few minutes.";
 
-export const mailConfig = (env: AuthEnv): MailConfig => ({
+/**
+ * The token (an admin's reconnected one in D1, else the deployed one, @cougars/shared/gmail-token), and how each send
+ * went written down for Settings → Email and the admins' Home (mail/mail.ts).
+ */
+export const mailConfig = async (env: AuthEnv): Promise<MailConfig> => ({
   siteEnv: env.SITE_ENV,
-  gmail:
-    env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET && env.GMAIL_REFRESH_TOKEN
-      ? { clientId: env.GMAIL_CLIENT_ID, clientSecret: env.GMAIL_CLIENT_SECRET, refreshToken: env.GMAIL_REFRESH_TOKEN }
-      : null,
+  gmail: (await gmailCredentials(env))?.gmail ?? null,
   safeTo: env.MAIL_SAFE_TO ?? null,
+  onOutcome: (outcome) => mailOutcome(env, outcome),
 });
 
 /**
@@ -151,14 +159,15 @@ export const mailConfig = (env: AuthEnv): MailConfig => ({
  * production who gets their own email (Dev tools, ADR 0027).
  */
 export async function mailSetup(env: AuthEnv): Promise<MailConfig> {
-  const config = { ...mailConfig(env), club: await clubContact(env.SITE_ENV) };
+  const config = { ...(await mailConfig(env)), club: await clubContact(env.SITE_ENV) };
   if (isProduction(env.SITE_ENV)) return config;
-  // The admins always (so they can sign in here and open Dev tools), and whoever Dev tools lists
+  // Whoever can do everything always (so they can sign in here and open Dev tools), by what their roles hold, not
+  // what they're called (ADR 0024); and whoever Dev tools lists
   const rows = await all<{ email: string }>(
     env.DB,
     `SELECT lower(m.email) AS email FROM members m
-       JOIN member_roles mr ON mr.member_id = m.id JOIN roles r ON r.id = mr.role_id
-      WHERE r.name = 'Admin' AND m.status = 'active' AND m.email IS NOT NULL
+       JOIN member_roles mr ON mr.member_id = m.id JOIN role_actions ra ON ra.role_id = mr.role_id
+      WHERE ra.action = 'manage:all' AND m.status = 'active' AND m.email IS NOT NULL
      UNION SELECT email FROM dev_mail_recipients`,
   );
   return { ...config, allow: rows.map((r) => r.email) };
@@ -172,19 +181,28 @@ interface SessionRow {
   last_seen_at: string;
   created_at: string;
   token_hash: string;
+  /** The member this sign-in is viewing the app as (ADR 0024), or null. */
+  viewing_as: number | null;
 }
+
+/** Whether a request carries a session cookie at all: one without can be nobody's session, and isn't looked up. */
+export const carriesSession = (request: Request) => Boolean(cookie(request, cookieName(request, "session")));
 
 /**
  * The live session a request's cookie is for: its current token, or the one before a renewal for a few minutes after
  * (ROTATE_GRACE_MS). An inactive member's session isn't one.
  */
-async function findSession(request: Request, env: AuthEnv, now: Date): Promise<(SessionRow & { hash: string }) | null> {
+export async function findSession(
+  request: Request,
+  env: AuthEnv,
+  now: Date,
+): Promise<(SessionRow & { hash: string }) | null> {
   const value = cookie(request, cookieName(request, "session"));
   if (!value) return null;
   const hash = await sha256(value);
   const row = await first<SessionRow>(
     env.DB,
-    `SELECT s.id, s.member_id, s.last_seen_at, s.created_at, s.token_hash FROM auth_sessions s
+    `SELECT s.id, s.member_id, s.last_seen_at, s.created_at, s.token_hash, s.viewing_as FROM auth_sessions s
        JOIN members m ON m.id = s.member_id
      WHERE (s.token_hash = ? OR (s.previous_hash = ? AND s.rotated_at > ?))
        AND s.revoked_at IS NULL AND s.expires_at > ? AND m.status = 'active'`,
@@ -202,10 +220,10 @@ export async function sessionOf(
   request: Request,
   env: AuthEnv,
   now: Date,
-): Promise<{ memberId: number; sessionId: number; setCookie?: string } | null> {
+): Promise<{ memberId: number; sessionId: number; viewingAs: number | null; setCookie?: string } | null> {
   const row = await findSession(request, env, now);
   if (!row) return null;
-  const who = { memberId: row.member_id, sessionId: row.id };
+  const who = { memberId: row.member_id, sessionId: row.id, viewingAs: row.viewing_as };
   // Not due, or this is the token before a renewal that's just happened: as it is
   if (row.hash !== row.token_hash || now.getTime() - Date.parse(row.last_seen_at) < RENEW_AFTER_MS) return who;
   const fresh = token();
@@ -228,7 +246,17 @@ export async function giveReference(db: D1Database, memberId: number, name: stri
   await run(db, sql, [...candidates, memberId]);
 }
 
-async function startSession(request: Request, env: AuthEnv, now: Date, memberId: number, method: string) {
+/**
+ * A new sign-in for a member, however they proved it's them (a code, a passkey, break glass, dev): the session's
+ * cookie, and the sign-in nonces' cookies cleared. On the record as `sign_in` with its method.
+ */
+export async function startSession(
+  request: Request,
+  env: AuthEnv,
+  now: Date,
+  memberId: number,
+  method: SignInMethod,
+): Promise<{ cookies: string[]; sessionId: number }> {
   // Someone made before references read as names (migration 0012) gets theirs the next time they sign in
   const unreferenced = await first<{ name: string }>(
     env.DB,
@@ -237,10 +265,10 @@ async function startSession(request: Request, env: AuthEnv, now: Date, memberId:
   );
   if (unreferenced) await giveReference(env.DB, memberId, unreferenced.name);
   const value = token();
-  await run(
+  const session = await first<{ id: number }>(
     env.DB,
     `INSERT INTO auth_sessions (member_id, token_hash, method, user_agent, created_at, last_seen_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
     [
       memberId,
       await sha256(value),
@@ -252,37 +280,25 @@ async function startSession(request: Request, env: AuthEnv, now: Date, memberId:
     ],
   );
   await audit(env.DB, now, memberId, "sign_in", { method });
-  return [setCookie(request, "session", value, SESSION_DAYS * 86_400), setCookie(request, "nonce", "", 0)];
+  return {
+    sessionId: session!.id,
+    cookies: [
+      setCookie(request, "session", value, SESSION_DAYS * 86_400),
+      setCookie(request, "nonce", "", 0),
+      setCookie(request, "passkey", "", 0),
+    ],
+  };
 }
 
-const withCookies = (res: Response, cookies: string[]) => {
+/** How a member proved it's them: an emailed code, a passkey, a break-glass code from the terminal, or dev's sign-in. */
+export type SignInMethod = "code" | "passkey" | "break_glass" | "dev";
+
+export const withCookies = (res: Response, cookies: string[]) => {
   for (const c of cookies) res.headers.append("set-cookie", c);
   return res;
 };
 
-// ─── The routes, before anyone is signed in ───
-
-type Waiter = (p: Promise<unknown>) => void;
-
-/** Sign-in's own routes, answered without a session. Null for anything else. */
-export async function handleAuth(
-  request: Request,
-  env: AuthEnv,
-  now: Date,
-  waitUntil?: Waiter,
-): Promise<Response | null> {
-  const { pathname } = new URL(request.url);
-  const m = request.method;
-  if (pathname === "/api/auth/start" && m === "POST") return start(request, env, now, waitUntil);
-  if (pathname === "/api/auth/verify" && m === "POST") return verify(request, env, now);
-  if (pathname === "/api/auth/sign-out" && m === "POST") return signOut(request, env, now);
-  if (pathname === "/api/auth/sign-out-everywhere" && m === "POST") return signOut(request, env, now, true);
-  if (pathname === "/api/auth/device" && (m === "PUT" || m === "DELETE")) return device(request, env, now);
-  if (pathname === "/api/auth/request" && m === "POST") return requestAccess(request, env, now);
-  // Your own machine only: anywhere else it isn't there at all (null: the API's 404)
-  if (pathname === "/api/auth/dev" && m === "POST" && localHere(env, request)) return devSignIn(request, env, now);
-  return null;
-}
+export type Waiter = (p: Promise<unknown>) => void;
 
 const EMAIL = /^[^\s@,<>]+@[^\s@,<>]+\.[^\s@,<>]+$/;
 /** An email address from a request body: trimmed, lower case, and shaped like one. */
@@ -305,53 +321,82 @@ async function failuresToday(db: D1Database, nonceHash: string, now: Date) {
 /**
  * Email in: a nonce cookie in this browser (the one it already has, so an earlier code in the same browser keeps
  * working), and a code to the member, if it's a member's.
+ *
+ * The reply is the same for anyone, and so is the work before it (#81): a stranger's address and a member's each look
+ * up the member and the browser's live codes, then reply. Making and emailing a member's code happens after the
+ * reply (waitUntil), so how long the reply takes says nothing about whose address it was.
  */
-async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
+export async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   await enforce("sign-in", addressOf(request), LIMITS.signIn, TOO_MANY_TRIES);
   const sent = await body(request);
   const address = email(sent);
   // A person, not a script (#13): Turnstile, but for App Review's one address, whose code is fixed and never emailed
   const local = localHere(env, request);
   if (!isReview(env, address)) await mustBeHuman(env, request, sent, { action: "sign-in", local });
-  // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now. The same for everyone,
-  // member or not, so it gives nothing away.
-  if (!local && mailConfig(env).gmail && (await mailPausedUntil()))
-    throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
   let nonce = cookie(request, cookieName(request, "nonce")) ?? token();
   const res = (devCode?: string) =>
     withCookies(json({ ok: true, message: SAME_REPLY, ...(devCode ? { devCode } : {}) }), [
       setCookie(request, "nonce", nonce, CHALLENGE_MINUTES * 60),
     ]);
 
-  const member = await first<{ id: number; name: string }>(
-    env.DB,
-    `SELECT id, name FROM members WHERE email = ? AND status = 'active'`,
-    [address],
-  );
-  if (!member) return res();
+  const member = await first<{ id: number }>(env.DB, `SELECT id FROM members WHERE email = ? AND status = 'active'`, [
+    address,
+  ]);
   // One member a browser at a time (ADR 0023): asking for another account's code starts a fresh nonce, so the earlier
-  // account's codes die with the old one, and every guess under a nonce counts against the one account it's for
+  // account's codes die with the old one, and every guess under a nonce counts against the one account it's for.
+  // Asked for a stranger too (member 0 is nobody), so both do the same work before the reply.
   const another = await first(
     env.DB,
     `SELECT 1 FROM login_challenges WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ? AND member_id != ?`,
-    [await sha256(nonce), now.toISOString(), member.id],
+    [await sha256(nonce), now.toISOString(), member?.id ?? 0],
   );
-  if (another) nonce = token();
+  if (member && another) nonce = token();
   const nonceHash = await sha256(nonce);
+  // Gmail is paused (circuit breaker, ADR 0055): no code could reach anyone, so say so now; only a break-glass code
+  // made at a terminal (auth.break-glass.ts) still works, as it's never emailed. Claimed for a stranger too (it
+  // matches nothing), so the same for everyone, member or not, and it gives nothing away.
+  if (!local && (await mailPausedUntil()) && (await mailConfig(env)).gmail) {
+    if (await claimBreakGlass(env.DB, now, member?.id ?? 0, nonceHash)) return res();
+    throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
+  }
+  if (!member) return res();
+  const issuing = issueCode(env, now, member.id, address, nonceHash, local);
+  // On your own machine the code comes back to the screen, so the reply waits for it
+  if (local) return res(await issuing);
+  const sending = issuing.catch((e) => log.error("sign_in.code_failed", e));
+  if (waitUntil) waitUntil(sending);
+  else await sending;
+  return res();
+}
+
+/**
+ * A member's code, made and emailed after the reply, within this browser's and their inbox's limits; or a
+ * break-glass code made for this admin at a terminal (auth.break-glass.ts), claimed by the first browser to ask, with
+ * nothing emailed, so it works while Gmail is down. The code itself only on your own machine, to show on screen.
+ */
+async function issueCode(
+  env: AuthEnv,
+  now: Date,
+  memberId: number,
+  address: string,
+  nonceHash: string,
+  local: boolean,
+): Promise<string | undefined> {
+  if (await claimBreakGlass(env.DB, now, memberId, nonceHash)) return;
   const counts = await first<{ hour: number; day: number; everywhere: number }>(
     env.DB,
     `SELECT coalesce(sum(nonce_hash = ? AND created_at > ?), 0) AS hour,
             coalesce(sum(nonce_hash = ?), 0) AS day, count(*) AS everywhere
      FROM login_challenges WHERE member_id = ? AND created_at > ?`,
-    [nonceHash, addMs(now, -3600_000), nonceHash, member.id, addMs(now, -86_400_000)],
+    [nonceHash, addMs(now, -3600_000), nonceHash, memberId, addMs(now, -86_400_000)],
   );
   // This browser's own limits: it waits, and nobody else does
-  if ((counts?.hour ?? 0) >= MAX_CHALLENGES_PER_HOUR || (counts?.day ?? 0) >= MAX_CHALLENGES_PER_DAY) return res();
-  if ((await failuresToday(env.DB, nonceHash, now)) >= MAX_FAILURES_PER_DAY) return res();
+  if ((counts?.hour ?? 0) >= MAX_CHALLENGES_PER_HOUR || (counts?.day ?? 0) >= MAX_CHALLENGES_PER_DAY) return;
+  if ((await failuresToday(env.DB, nonceHash, now)) >= MAX_FAILURES_PER_DAY) return;
   // The member's inbox has had enough for today: on the record, for an admin to see
   if ((counts?.everywhere ?? 0) >= MAX_CHALLENGES_PER_MEMBER_DAY) {
-    await audit(env.DB, now, member.id, "sign_in.capped");
-    return res();
+    await audit(env.DB, now, memberId, "sign_in.capped");
+    return;
   }
 
   const review = isReview(env, address);
@@ -359,24 +404,18 @@ async function start(request: Request, env: AuthEnv, now: Date, waitUntil?: Wait
   await run(
     env.DB,
     `INSERT INTO login_challenges (member_id, code_hash, nonce_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`,
-    [member.id, await sha256(theCode), nonceHash, addMs(now, CHALLENGE_MINUTES * 60_000), now.toISOString()],
+    [memberId, await sha256(theCode), nonceHash, addMs(now, CHALLENGE_MINUTES * 60_000), now.toISOString()],
   );
   // On your own machine nothing is emailed, even with Gmail set up: the code comes back to the screen
-  if (local) return res(theCode);
+  if (local) return theCode;
   // App Review has its code already: nothing to email
-  if (review) return res();
+  if (review) return;
   const mail = { to: [address], ...signInEmail(theCode, CHALLENGE_MINUTES) };
   const setup = await mailSetup(env);
   // Outside production, a code that goes to its member also goes to the dev mailbox, just in case (ADR 0027): the same
   // email with no allow list lands in the safe inbox. One that went there already isn't sent twice.
-  const copy = !isProduction(env.SITE_ENV) && setup.allow?.includes(address);
-  const sending = (async () => {
-    await sendMail(mail, setup);
-    if (copy) await sendMail(mail, { ...setup, allow: [] });
-  })().catch((e) => log.error("sign_in.email_failed", e));
-  if (waitUntil) waitUntil(sending);
-  else await sending;
-  return res();
+  await sendMail(mail, setup);
+  if (!isProduction(env.SITE_ENV) && setup.allow?.includes(address)) await sendMail(mail, { ...setup, allow: [] });
 }
 
 /** App Review's account (ADR 0108), when production has one set up. */
@@ -390,6 +429,7 @@ interface Challenge {
   member_id: number;
   code_hash: string;
   attempts: number;
+  kind: "code" | "break_glass";
 }
 
 /** This browser's live challenges: every code it asked for in the last 15 minutes, still unused. */
@@ -399,7 +439,7 @@ async function liveChallenges(request: Request, env: AuthEnv, now: Date): Promis
   const nonceHash = await sha256(nonce);
   const rows = await all<Challenge>(
     env.DB,
-    `SELECT id, member_id, code_hash, attempts FROM login_challenges
+    `SELECT id, member_id, code_hash, attempts, kind FROM login_challenges
      WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ? ORDER BY id DESC`,
     [nonceHash, now.toISOString()],
   );
@@ -422,7 +462,7 @@ async function spend(env: AuthEnv, now: Date, c: Challenge, nonceHash: string): 
 }
 
 /** The 6-digit code, typed in the browser that asked. Any of its live codes will do. */
-async function verify(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function verify(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   const typed = text(await body(request), "code", { max: 20 }).replace(/\s/g, "");
   const live = await liveChallenges(request, env, now);
   if (!live) throw new HttpError(400, ELSEWHERE);
@@ -445,7 +485,11 @@ async function verify(request: Request, env: AuthEnv, now: Date): Promise<Respon
   if (match && (await spend(env, now, match, nonceHash))) {
     // A right code isn't a wrong one
     await run(env.DB, `UPDATE login_challenges SET attempts = attempts - 1 WHERE id = ?`, [counted.id]);
-    return withCookies(json({ ok: true }), await startSession(request, env, now, match.member_id, "code"));
+    const method = match.kind === "break_glass" ? "break_glass" : "code";
+    const { cookies, sessionId } = await startSession(request, env, now, match.member_id, method);
+    // Break glass: on the record, and every admin hears of it (auth.break-glass.ts)
+    if (method === "break_glass") await brokeGlass(env, now, match.member_id, sessionId, waitUntil);
+    return withCookies(json({ ok: true }), cookies);
   }
   if (match) throw new HttpError(400, ELSEWHERE);
   const left = await first<{ n: number }>(
@@ -467,7 +511,7 @@ async function verify(request: Request, env: AuthEnv, now: Date): Promise<Respon
  * member's inbox and their account, and on your own machine there's neither. A real session, so the app behaves as
  * it does for anyone; on the record as `sign_in` with method `dev`. Only ever answered by localHere.
  */
-async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   // No email: the first admin, as TEAM_AUTO_ADMIN does, so a script needs nobody's address written into it
   const b = await body(request);
   const memberId = b.email
@@ -475,7 +519,7 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
         ?.id
     : await firstAdmin(env.DB);
   if (memberId == null) throw new HttpError(404, "No active member has that email.");
-  return withCookies(json({ ok: true, memberId }), await startSession(request, env, now, memberId, "dev"));
+  return withCookies(json({ ok: true, memberId }), (await startSession(request, env, now, memberId, "dev")).cookies);
 }
 
 /**
@@ -483,11 +527,15 @@ async function devSignIn(request: Request, env: AuthEnv, now: Date): Promise<Res
  * browser's `{ platform: "web", subscription }`; DELETE `{ token }` when a browser's switch is turned off. Here, beside
  * signing in and out, because a device belongs to a sign-in: signing out forgets it.
  */
-async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function device(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   const row = await findSession(request, env, now);
   if (!row) return json({ error: "Sign in first." }, 401);
   if (request.method === "DELETE") await forgetDevice(env.DB, row.id, await body(request));
-  else await registerDevice(env.DB, row.id, await body(request), now.toISOString());
+  else {
+    // A phone viewing as a member never hears the club as them, nor gives itself to the club meanwhile (ADR 0024)
+    await refuseWhileViewing(env.DB, row.viewing_as);
+    await registerDevice(env.DB, row.id, await body(request), now.toISOString());
+  }
   return json({ ok: true });
 }
 
@@ -495,7 +543,7 @@ async function device(request: Request, env: AuthEnv, now: Date): Promise<Respon
  * Sign this browser out, or (`everywhere`, from the You page) every browser and phone you're signed in on (#72). Its
  * phones stop hearing from the club and its live pages close (auth.sessions.ts).
  */
-async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = false): Promise<Response> {
+export async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = false): Promise<Response> {
   const row = await findSession(request, env, now);
   if (row) {
     const sessions = await endSessions(
@@ -503,6 +551,13 @@ async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = f
       now.toISOString(),
       everywhere ? { memberId: row.member_id } : { sessionId: row.id },
     );
+    // Viewing as someone ends with the sign-in (ADR 0024)
+    if (row.viewing_as != null)
+      await audit(env.DB, now, row.member_id, "view_as.ended", {
+        memberId: row.viewing_as,
+        from: row.viewing_as,
+        to: null,
+      });
     await audit(env.DB, now, row.member_id, "sign_out", everywhere ? { everywhere, sessions } : {});
   }
   return withCookies(json({ ok: true }), [setCookie(request, "session", "", 0)]);
@@ -512,7 +567,7 @@ async function signOut(request: Request, env: AuthEnv, now: Date, everywhere = f
  * Someone new asks to join: a pending member an admin approves. The reply never says the email was taken, and a full
  * list is full for everyone, member or not (#13). Turnstile first, so a script can't fill the list.
  */
-async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise<Response> {
+export async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise<Response> {
   await enforce("join", addressOf(request), LIMITS.join, TOO_MANY_TRIES);
   const b = await body(request);
   const name = text(b, "name", { max: 80 });
@@ -534,6 +589,9 @@ async function requestAccess(request: Request, env: AuthEnv, now: Date): Promise
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
+  // A new member, pending: the roster, and the admins' Home, are new (#178). The API's own changes do this in
+  // handleApi; this one's at sign-in
+  await bumpDataVersion(env.DB, ["members"]);
   await audit(env.DB, now, id, "access.requested");
   // The admins hear at once, with a link to their sheet (ADR 0069)
   await tellAdminsOfRequest(env, { id, name, position }, new URL(request.url).origin);

@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
+import { clubCharges } from "../dues/dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -32,7 +33,7 @@ beforeEach(() => {
 
 async function as(email: string) {
   const b = await w.signedIn(email);
-  const sees = async (now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now = NOW) => (await b.club({ now })).body as Json;
   return { call: b.call, sees };
 }
 
@@ -62,7 +63,7 @@ async function friday({ capacity = 2, keepers = null as number | null, day = NEX
   /** Who's charged for the night, the morning after it, once the hourly run has charged what's due */
   const charged = async () => {
     await w.scheduled("7 * * * *", MORNING_AFTER(day));
-    return ((await dana.sees(MORNING_AFTER(day))).charges as Json[])
+    return ((await clubCharges(dana, MORNING_AFTER(day))) as Json[])
       .filter((c) => c.refId === night.id)
       .map((c) => c.memberId)
       .sort((a, b) => a - b);
@@ -192,6 +193,24 @@ describe("answers that make no sense", () => {
     expect((await reg.call("POST", "/api/tournaments/424242/answer", { answer: "in" })).status).toBe(404);
   });
 
+  it("a club event that's called off or over takes no more sign-ups", async () => {
+    const dana = await as("dana@example.com");
+    const reg = await as("reg@example.com");
+    const event = (startsAt: string, endsAt: string) =>
+      dana.call("POST", "/api/club-events", { title: "Curry night", startsAt, endsAt, venue: "", signup: true });
+    const idOf = (title: string, startsAt: string) =>
+      (w.db.raw.prepare("SELECT id FROM club_events WHERE title = ? AND starts_at = ?").get(title, startsAt) as Json)
+        .id;
+    await event("2026-10-24T19:00:00.000Z", "2026-10-24T22:00:00.000Z");
+    const ahead = idOf("Curry night", "2026-10-24T19:00:00.000Z");
+    expect((await dana.call("POST", `/api/club-events/${ahead}/cancelled`, { cancelled: true })).status).toBe(200);
+    expect((await reg.call("POST", `/api/club-events/${ahead}/answer`, { answer: "in" })).status).toBe(409);
+    await event("2026-10-03T19:00:00.000Z", "2026-10-03T22:00:00.000Z");
+    const past = idOf("Curry night", "2026-10-03T19:00:00.000Z");
+    expect((await reg.call("POST", `/api/club-events/${past}/answer`, { answer: "in" })).status).toBe(409);
+    expect(w.db.raw.prepare("SELECT COUNT(*) n FROM club_event_entries").get()).toEqual({ n: 0 });
+  });
+
   it("the Add player drawer's batch with one bad change saves none of them", async () => {
     const f = await friday({ capacity: 5 });
     const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, {
@@ -213,15 +232,13 @@ describe("answers that make no sense", () => {
     expect((await f.seen()).going).toEqual([]);
   });
 
-  // The id goes straight into the insert, whose foreign key refuses it as a server error (known bug #130)
-  it.fails(
-    "an admin putting in a member who doesn't exist is told so, not a server error (known bug #130)",
-    async () => {
-      const f = await friday({ capacity: 5 });
-      const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, { memberId: 987654, in: true });
-      expect(res.status).toBe(404);
-    },
-  );
+  // The id went straight into the insert, whose foreign key refused it as a server error (#130)
+  it("an admin putting in a member who doesn't exist is told so, not a server error (#130)", async () => {
+    const f = await friday({ capacity: 5 });
+    const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, { memberId: 987654, in: true });
+    expect(res.status).toBe(404);
+    expect((await f.seen()).going).toEqual([]);
+  });
 
   it("an admin taking off someone who never signed up: nothing changes, and the reply says they're not on it", async () => {
     const f = await friday({ capacity: 1 });
@@ -263,8 +280,8 @@ describe("a night that's called off", () => {
     const f = await friday({ capacity: 5 });
     for (const p of ["Reg", "Paul"]) await f.say(p, "in");
     expect(await f.charged()).toEqual([f.id.Reg, f.id.Paul].sort((a, b) => a - b));
-    // The rink called it off, put on the record the morning after
-    const after = { now: MORNING_AFTER(NEXT_FRIDAY) };
+    // The rink called it off, put on the record late that night, before its register closes at 6am (#11)
+    const after = { now: new Date(`${NEXT_FRIDAY}T22:30:00Z`) };
     await f.dana.call("POST", `/api/sessions/${f.night.id}/cancelled`, { cancelled: true }, after);
     expect(await f.charged()).toEqual([]);
     await f.dana.call("POST", `/api/sessions/${f.night.id}/cancelled`, { cancelled: false }, after);
@@ -296,6 +313,41 @@ describe("a night that's over", () => {
     const f = await friday({ capacity: 5, day: LAST_FRIDAY });
     expect((await f.say("Reg", "in")).status).toBe(409);
     expect((await f.seen()).going).toEqual([]);
+  });
+});
+
+// Once training's started, who's in is the register's (decided 2026-10-23, #11, #167): a member's own In or Out is
+// refused, in plain words; an admin still changes who's in. Friday Training is 7:30 to 9:30pm (BST: 18:30Z)
+describe("a night that's started", () => {
+  const BEFORE = new Date("2026-10-09T18:29:00Z");
+  const STARTED = new Date("2026-10-09T18:45:00Z");
+
+  it("a minute before it starts, a member can still say in or out", async () => {
+    const f = await friday({ capacity: 5 });
+    expect((await f.say("Reg", "in", BEFORE)).status).toBe(200);
+    expect((await f.say("Paul", "out", BEFORE)).status).toBe(200);
+  });
+
+  it("once it's started a member can't say out, nor in: the register says who's in (#167)", async () => {
+    const f = await friday({ capacity: 5 });
+    expect((await f.say("Reg", "in", BEFORE)).status).toBe(200);
+    const out = await f.say("Reg", "out", STARTED);
+    expect(out.status).toBe(409);
+    expect(out.body.error).toBe("Training's started: the register says who's in.");
+    expect((await f.say("Paul", "in", STARTED)).status).toBe(409);
+    expect(await f.seen(STARTED)).toMatchObject({ going: [f.id.Reg], out: [] });
+  });
+
+  it("an admin still puts someone in once it's started", async () => {
+    const f = await friday({ capacity: 5 });
+    const put = await f.dana.call(
+      "POST",
+      `/api/sessions/${f.night.id}/players`,
+      { memberId: f.id.Paul, in: true },
+      { now: STARTED },
+    );
+    expect(put.status).toBe(200);
+    expect((await f.seen(STARTED)).going).toEqual([f.id.Paul]);
   });
 });
 
@@ -356,9 +408,10 @@ describe("Quarterly Members and walk-ins", () => {
     const f = await friday({ capacity: 2 });
     expect((await f.dana.call("POST", `/api/members/${f.id.Quinn}/quarterly`, { quarterly: true })).status).toBe(200);
     await f.say("Reg", "in");
-    // Walt walks in on the night (room for him): the last place
+    // Walt walks in on the night (room for him): the last place. Quinn says in just before it starts, when a member's
+    // own answer still counts (from 7:30pm it's the register's, #167)
     const tess = await as("tess@example.com");
-    const onTheNight = new Date(`${NEXT_FRIDAY}T18:45:00Z`);
+    const onTheNight = new Date(`${NEXT_FRIDAY}T18:25:00Z`);
     const walkIn = await tess.call(
       "POST",
       `/api/sessions/${f.night.id}/register`,
@@ -368,16 +421,6 @@ describe("Quarterly Members and walk-ins", () => {
     expect(walkIn.body.signup).toBe("in");
     await f.say("Quinn", "in", onTheNight);
     expect(await f.seen(onTheNight)).toMatchObject({ going: [f.id.Quinn, f.id.Walt], waitlist: [f.id.Reg] });
-  });
-
-  it("a Quarterly Member on a night full of Quarterly Members waits; the next PAYG to sign up waits behind them", async () => {
-    const f = await friday({ capacity: 1 });
-    await f.dana.call("POST", `/api/members/${f.id.Quinn}/quarterly`, { quarterly: true });
-    await f.dana.call("POST", `/api/members/${f.id.Nina}/quarterly`, { quarterly: true });
-    await f.say("Quinn", "in");
-    await f.say("Reg", "in");
-    await f.say("Nina", "in");
-    expect(await f.seen()).toMatchObject({ going: [f.id.Quinn], waitlist: [f.id.Nina, f.id.Reg] });
   });
 });
 

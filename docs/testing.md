@@ -15,7 +15,8 @@ next to the code runs without editing config.
 | `npx vitest run -t "walk-in"`  | tests whose name matches            |
 | VS Code test explorer (Vitest) | any file or single test             |
 
-Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build`.
+Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio`
+(as `pr.yml`, which runs only the part a change can reach: the tiers of `npm run merge:check`, ADR 0115).
 
 ## Signed in, in a real browser
 
@@ -31,12 +32,20 @@ Each run is a fresh session of its own, with no code and no caps, so it never si
 a local server answers it ([ADR 0023](adr/0023-sign-in-and-sessions.md)). Don't change shared local data to stage a
 screen; pick a member who already shows it.
 
+### Screenshots go in `.shots/`
+
+Every screenshot taken to test something (an agent's check, a Playwright script, `small-screens.mjs`) goes in
+`.shots/` at the root of the checkout, which git ignores, or in your own temp folder: never next to the code, never
+committed (#148). The journeys keep their failures' screenshots and traces in `.journeys/` (also ignored,
+[ADR 0031](adr/0031-use-case-tests.md)). Pictures the apps use live in their `src/assets/` or `public/`, and the brand's in
+`brand/`.
+
 ### Small screens
 
 `scripts/small-screens.mjs` visits every team-app page (the route tree from `nav-routes.ts`, a couple of each kind)
 and its main sheets, drawers and editor tabs in WebKit at phone widths, and lists what doesn't fit: the page scrolling
 sideways, anything past the right edge, words cut short by an ellipsis, and small tap targets. Screenshots go to
-`<out>/<width>/<page>.png` (the system's temp folder unless `--out`). It only opens things (never Keep score, In or
+`<out>/<width>/<page>.png` (`.shots/small-screens` unless `--out`). It only opens things (never Keep score, In or
 Save); a state that isn't in the local data (a game nobody's scoring, or one you're scoring) is faked in the browser's
 copy of `/api/bootstrap`.
 
@@ -66,32 +75,39 @@ rules, the team solver, standings, slugs, permissions. Don't add them by default
 
 Don't mock our own code. If a test needs to stub one of our functions, it's testing at the wrong level.
 
+Which level checks what, feature by feature, and the overlaps found: [testing-map.md](testing-map.md).
+
 ## The fake world
 
-`packages/shared/testing/fake-world.ts` gives each test a fresh world:
+`testWorld(roster)` (`apps/team/worker/testing.ts`) gives each test a fresh world:
 
-| Service        | Faked as                                                                               |
-| -------------- | -------------------------------------------------------------------------------------- |
-| D1             | In-memory SQLite with every migration applied (`packages/shared/testing/d1-sqlite.ts`) |
-| Gmail API      | An outbox: `world.mail.sent()`                                                         |
-| Sanity         | Documents in memory, queried with groq-js (the real GROQ engine)                       |
-| YouTube        | Upload sessions and playlist items                                                     |
-| Turnstile      | A token list: tokens the test marks as passed verify, everything else fails            |
-| Google sign-in | An OAuth server that signs in whichever verified email the test chooses                |
+| Service        | Faked as                                                                                                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1             | In-memory SQLite built as a fresh database starts: the schema and club seed, then any migrations (`packages/shared/testing/d1-sqlite.ts`); `w.db.failing = /…/` makes the statements it matches fail, as D1 can |
+| Gmail API      | An outbox: `w.mails`                                                                                                                                                                                            |
+| Turnstile      | A token list: tokens the test marks as passed verify, everything else fails                                                                                                                                     |
+| Sentry         | Its issues API, each project's open issues as the test sets them; its ingest (`w.sentryIngest()`), the cron check-ins the Worker sends                                                                          |
+| Firebase, push | FCM and a web push service; what reaches a phone lands in `pushes`                                                                                                                                              |
+| Passkeys       | `w.authenticator()`: a device's real keys (ES256, or RS256 for Windows Hello) signing real WebAuthn answers (`testing.authenticator.ts`)                                                                        |
 
-It replaces global `fetch` while installed. Any outside call it doesn't know **throws with its URL**: a new
-integration shows up as a failing test, not a silent network call. Every world has fresh random secrets, so
-module-level caches never carry one test's data into another.
+Some services are turned on by the test that needs them (`w.sentry()`, `w.firebase()`…). The world answers every
+`fetch` the Worker makes. Any outside call it doesn't know **throws with its URL**: a new integration shows up as a
+failing test, not a silent network call. Every world has fresh random secrets, so module-level caches never carry one
+test's data into another.
 
 ```ts
-const world = await createFakeWorld();
-world.install();
-const alex = await world.signIn("alex@example.com", { roles: ["Admin"] });
-const res = await world.call(alex, "POST", "/api/training", { name: "Sunday Skills", weekdays: ["sun"] });
+const w = testWorld(ROSTER);
+const dana = await w.signedIn("dana@example.com");
+const res = await dana.call("POST", "/api/training", { name: "Sunday Skills", weekdays: ["sun"] });
 expect(res.status).toBe(201);
-expect(world.db.all("SELECT held_on FROM training_sessions")).toHaveLength(12);
-world.restore();
 ```
+
+Opening the app sends only the core (ADR 0053, #178); a page reads its own parts. `b.club()` is the club as the app
+holds it once its pages are read: the bootstrap, then every page's parts, put together as the app puts them
+(`src/app/club-whole.ts`), with the bootstrap's own status, headers and D1 calls, so a story about what opening the
+app costs still counts the bootstrap's. Use `b.call("GET", "/api/bootstrap")` for a story about the bootstrap itself.
+Every test browser says it holds every page's parts (`x-club-holds`), as an app that's been idle has, so a change's
+reply brings them back. The journeys' shortcuts do the same with `clubVia(asMember(...))`.
 
 Give each area a small helper for the person doing it (`admin(world)`, `member(world, "Jo")`) with the actions
 they take and a `sees()` for what's on their screen, so the test reads like the use case.
@@ -102,6 +118,69 @@ Two requests' statements interleave on D1 between their awaits; the fake D1 does
 (`w.db.interleave(seed)`), and each feature's `*.concurrency.use-cases.test.ts` fires requests together under several
 seeds. Load runs against a Worker of your own (`npm run load -- friday-rush`, never dev or production). How, and what
 they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-concurrency.md)).
+
+**A club with years behind it, by hand**: `npm run seed:history` gives a local D1 (the checkout shown on 4510, if it
+has its own, `--own-db`) four years of played Kumites (30: two pages of History) and a year of Tuesday Skills nights,
+charged and partly paid, for its own members; `npm run seed:history -- --remove` takes it all away
+(`scripts/lib/history.mjs` says how it's marked; `--kumites`, `--weeks`, `--target`, `--shared` for main's D1). Local
+only. The tests' own such club is `apps/team/worker/api/bootstrap.testing.ts`, written the same way. What's paid and
+spent follows the allocations it writes (the schema's triggers); members' played counts start again from every night
+either way (#177). Anything else written straight into D1 that adds or takes away nights should do the same
+(`recountPlayed`, or `UPDATE members SET played = 0` and `data_version.played_through` to null).
+
+## Journeys
+
+Use cases stop at the API; **journeys** drive the real team app in a browser (Playwright, Chromium) through a whole
+workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
+mustn't ([ADR 0031](adr/0031-use-case-tests.md): which check goes at which level). They live in `apps/team/journeys/`,
+one `{workflow}.journey.ts` each, run in this order on one fresh database (which workflow each covers, and what's left
+to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
+
+| Journey                          | The story                                                                                                 | Time   |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
+| `calendar.journey.ts`            | A one-off on the calendar, the clash prompt, called off; the locker room; notification switches; how soon | ~45 s  |
+| `fees.journey.ts`                | A Friday's fee as it changes: from a Friday, the day after, a day apart, back in time, £0, the clocks     | ~1.2 m |
+| `fridays.journey.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
+| `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
+| `kumite.on-the-clock.journey.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
+| `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, viewing as a member, an account gone  | ~25 s  |
+| `nights-and-kumites.journey.ts`  | Several Kumites on Fridays, nights off for them and by hand, deleted and moved, each night back on        | ~15 s  |
+| `pages.journey.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
+| `sign-in.journey.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
+| `status-over-date.journey.ts`    | Status, not the date: a Kumite played early, a training night not closed yet, a game running late         | ~20 s  |
+
+Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
+screen) fails the step it happened in; the allowlist, each with its reason, is in `journey.ts`. A step refused on
+purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error.
+
+**Both clocks move.** `at(person, when)` puts someone at a moment: their browser's clock (Playwright's) and the
+server's for every request they make (the `x-dev-now` header, `worker/api/api.dev-clock.ts`: on your own machine and
+dev only, as the simulator is; who's signed in stays on the real clock). `london("2026-10-25T01:30")` is a London wall
+time as an instant, BST or GMT as it was. `cron(when)` runs the Worker's hourly (or five-minute) job at a moment
+through the dev server's own trigger: that's what charges a night's sign-ups the next day and a quarter on its first
+day. A journey moves forward only: a page opened at an earlier moment than one already used works the charges out
+for that day again. Never run the hourly cron far into the future while anyone's signed in: it forgets sessions older
+than the retention allows (`retention.forget`), and everyone's signed out.
+
+```sh
+npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
+npm run journeys -- --core          # the core run: all but the Kumite on the clock (about 6 minutes)
+npm run journeys -- --file-issue    # and a run with failures files one GitHub issue (label regression)
+npm run journeys -- --keep          # leave the app up after, to look around (npm run app stop team)
+```
+
+It takes the checkout's own local D1 (`--own-db`) and starts it afresh every run, so it refuses the main checkout.
+Failures don't stop the run: each failing step is in `.journeys/summary.md` (stage, role, expected and what
+happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`: the core run
+nightly on `main`, the full one on a push to `release`, either by hand) a failing run opens one issue, and a later run
+failing at the same commit comments on it. A step that fails because of a known bug is
+`knownBug(…)`, as `it.fails` is below.
+
+**How long.** The full run is 10½ to 13½ minutes (23 October 2026, the machine shared; the Fees journey added a
+minute on the 24th), most of it the simulator's
+pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fees`,
+`fridays`, `kumite`, `members`, `pages`, `sign-in`, `status-over-date`: about 6 minutes, `--core`) every night on `main`, and the **full** run, with
+`kumite.on-the-clock` (its three played-out Kumites), before a release (a push to `release`).
 
 ## Known bugs
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Sign in to the team app on your own machine without a code (ADR 0023), for tests, scripts and agents driving a
-// headless browser. Writes a Playwright storage state, so a browser opens already signed in, and prints the cookie
-// for curl. Only your own dev server answers it (TEAM_ENV "local", a private address); a deployed one says 404.
+// headless browser. Writes a Playwright storage state, so a browser opens already signed in. It never prints the
+// session's cookie, which would land in a terminal's or an agent's transcript: scripts read the storage state.
+// Only your own dev server answers it (TEAM_ENV "local", a private address); a deployed one says 404.
 //
 //   node scripts/dev-sign-in.mjs                          the first admin
 //   node scripts/dev-sign-in.mjs reg@example.com          any active member
@@ -61,4 +62,3 @@ writeFileSync(out, JSON.stringify({ cookies: session, origins: [] }, null, 2));
 const { memberId } = await res.json();
 console.log(`Signed in as member ${memberId} on ${url.origin}.`);
 console.log(`Playwright storage state: ${out}`);
-console.log(`curl: -H 'cookie: ${session.map((c) => `${c.name}=${c.value}`).join("; ")}'`);

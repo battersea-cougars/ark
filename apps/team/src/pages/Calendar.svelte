@@ -7,13 +7,8 @@
   import DateField from "../lib/DateField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import Sheet from "../lib/Sheet.svelte";
-  import {
-    cancelClashes,
-    createClubEvent,
-    setClubEventCancelled,
-    updateClubEvent,
-    type ClubEventBody,
-  } from "../app/backend.svelte";
+  import { cancelClashes } from "../app/clashes.backend";
+  import { createClubEvent, setClubEventCancelled, updateClubEvent, type ClubEventBody } from "../app/backend.svelte";
   import ClashSheet from "../lib/ClashSheet.svelte";
   import { eventWindow } from "../lib/clashes";
   import { can } from "../access/actions";
@@ -27,12 +22,16 @@
   import { londonISO, londonTime, londonToday } from "../lib/dates";
   import type { Bookable, OneOff } from "../demo/model";
   import PlacePicker from "../lib/PlacePicker.svelte";
-  import Drawer from "../lib/Drawer.svelte";
+  import ManageMenu from "../lib/ManageMenu.svelte";
+  import type { ManageItem } from "../lib/ManageList.svelte";
   import TrainingEditorPanel from "../lib/TrainingEditorPanel.svelte";
-  import TournamentEditorPanel, { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import TournamentEditorPanel from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { newEventKinds, type NewEventKind } from "../lib/new-event";
-  import { phone } from "../lib/viewport.svelte";
   import { switchUpFor } from "../app/settings-entry.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
+  import { byMonth } from "../lib/months";
 
   const perms = $derived(granted());
 
@@ -66,19 +65,8 @@
   ]);
   const items = $derived(calendar().filter((e) => filter === "all" || e.filter === filter));
 
-  // Group by month for the running order
-  const months = $derived.by(() => {
-    const out: { label: string; events: typeof items }[] = [];
-    for (const e of items) {
-      const label = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "Europe/London" }).format(
-        new Date(e.startsAt),
-      );
-      const last = out.at(-1);
-      if (last?.label === label) last.events.push(e);
-      else out.push({ label, events: [e] });
-    }
-    return out;
-  });
+  // Group by month for the running order, each month in its year (lib/months.ts)
+  const months = $derived(byMonth(items));
 
   // ─── New event: what kind ───
   // Your full role's kinds, so the button shows in your everyday role too and switches you up as you pick one (as
@@ -88,10 +76,19 @@
   // A new training's editor, open over the calendar
   let newTraining = $state(false);
   function newEvent() {
-    // One kind isn't a menu (ADR 0103): straight to it
+    // One kind isn't a menu (ADR 0065): straight to it
     if (kinds.length === 1) pick(kinds[0]);
     else choosing = true;
   }
+  const kindItems: ManageItem[] = $derived(
+    kinds.map((kind) => ({
+      icon: kind.icon,
+      label: kind.label,
+      sub: kind.sub,
+      tone: kind.tone ? `var(--tone-${kind.tone})` : undefined,
+      run: () => pick(kind),
+    })),
+  );
   function pick(kind: NewEventKind) {
     choosing = false;
     switchUpFor(kind.action);
@@ -117,10 +114,15 @@
   /** The one-off being edited; null while adding a new one. */
   let editing = $state<OneOff | null>(null);
   let draft = $state(blank());
+  // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => draft);
 
   function startAdding() {
     editing = null;
     draft = blank();
+    edits.reset();
+    edits.fresh = true;
     adding = true;
   }
   function startEditing(o: OneOff) {
@@ -137,6 +139,8 @@
       public: o.public,
       signup: o.signup,
     };
+    edits.reset();
+    edits.fresh = false;
     adding = true;
   }
   const oneOff = (event: Bookable) => (event.kind === "social" ? (event.entries as OneOff) : null);
@@ -164,7 +168,9 @@
     const window = eventWindow({ id: editing?.id, startsAt, endsAt }, editing ?? undefined);
     const chosen = window ? await clashSheet?.ask(window, draft.title) : [];
     if (chosen === null) return;
-    const done = editing ? await updateClubEvent(editing.id, body) : await createClubEvent(body);
+    const id = editing?.id;
+    // Saved, it closes; the shell says so
+    const done = await edits.run(() => (id ? updateClubEvent(id, body) : createClubEvent(body)));
     if (done === null) return;
     adding = false;
     await cancelClashes(chosen ?? []);
@@ -211,7 +217,7 @@
     {/snippet}
   </PageHeader>
 
-  {#each months as month (month.label)}
+  {#each months as month (month.key)}
     <h2 class="section-title">{month.label}</h2>
     {#each month.events as event (event.key)}
       {@const o = oneOff(event)}
@@ -237,8 +243,8 @@
     <p class="hint">Nothing coming up{filter === "all" ? "" : " for this one"}.</p>
   {/each}
   <!-- A one-off event, in a sheet (a modal on desktop): the list stays where it is -->
-  <Sheet bind:open={adding} title={editing ? "Edit event" : "Add an event"}>
-    <form class="form" onsubmit={save}>
+  <Sheet bind:open={adding} title={editing ? "Edit event" : "Add an event"} {edits}>
+    <form class="form" id="event-form" onsubmit={save}>
       {#if !editing}
         <p class="hint">A one-off: a social, a kit day. One date, on the calendar and, if you like, the website.</p>
       {/if}
@@ -261,34 +267,21 @@
       >
       <label class="check"><input type="checkbox" bind:checked={draft.public} /> Show on the website</label>
       <label class="check"><input type="checkbox" bind:checked={draft.signup} /> Members say in or out</label>
-      <button class="btn primary">{editing ? "Save" : "Add to calendar"}</button>
       {#if editing}
         <button type="button" class="btn" onclick={toggleCancelled}>
           {editing.cancelledAt ? "It's back on" : "Cancel this event"}
         </button>
       {/if}
     </form>
+    {#snippet footer()}
+      <SaveBar {edits} form="event-form" label={editing ? "Save" : "Add to calendar"} />
+    {/snippet}
   </Sheet>
 </div>
 
-{#snippet kindList()}
-  <div class="tools">
-    {#each kinds as kind (kind.label)}
-      <button class="tool" style:--tone={kind.tone ? `var(--tone-${kind.tone})` : undefined} onclick={() => pick(kind)}>
-        <Icon name={kind.icon} size={22} />
-        <span class="tool-text"><strong>{kind.label}</strong><span>{kind.sub}</span></span>
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/each}
-  </div>
-{/snippet}
 {#if kinds.length > 1}
-  <!-- What kind: up from the bottom on a phone, a side drawer on a desktop (ADR 0103, a menu of jobs) -->
-  {#if phone.current}
-    <Sheet bind:open={choosing} title="New event">{@render kindList()}</Sheet>
-  {:else}
-    <Drawer bind:open={choosing} title="New event" sub="What's going on?">{@render kindList()}</Drawer>
-  {/if}
+  <!-- What kind: up from the bottom on a phone, a side drawer on a desktop (ADR 0065, a menu of jobs) -->
+  <ManageMenu bind:open={choosing} title="New event" sub="What's going on?" items={kindItems} />
 {/if}
 {#if newTraining && can(perms, "manage:Training")}
   <!-- Added: it closes on the calendar, which now has its sessions -->
@@ -331,43 +324,4 @@
     resize: vertical;
   }
   /* New event's kinds, as the Manage menus' rows: an icon in its colour, what it is, a line on what it makes */
-  .tools {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.25rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-  .tool > :global(svg:first-child) {
-    flex-shrink: 0;
-    color: var(--tone, var(--fg-muted));
-  }
-  .tool:active {
-    background: var(--surface-3);
-  }
-  .tool-text {
-    display: grid;
-    flex: 1;
-    gap: 0.15rem;
-    min-width: 0;
-  }
-  .tool-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .tool-text span {
-    font-size: var(--text-sm);
-  }
 </style>

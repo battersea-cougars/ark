@@ -3,24 +3,27 @@
   // captain and every player with their position (the pick quietly beside them), a team with no goalie said so, and
   // its record once there are results; yours first and marked. Each a card that opens its own page (TournamentTeam),
   // where its captain (or an admin) edits it.
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { typeById } from "../demo/schedule.svelte";
+  import type { Tournament } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
+  import TeamRecord from "../lib/TeamRecord.svelte";
   import { table } from "../lib/fixtures";
   import { teamHref, teamTone } from "../lib/team-tones";
   import EmptyState from "../lib/EmptyState.svelte";
-  import { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
   import { formatDayDate, londonISO } from "../lib/dates";
 
-  let { typeId }: { typeId: number } = $props();
+  // `tournament`: the edition its page is for (pages/Games)
+  let { typeId, tournament }: { typeId: number; tournament: Tournament | undefined } = $props();
 
   const type = $derived(typeById(typeId)!);
-  const tournament = $derived(currentTournament(typeId));
   const teams = $derived(tournament?.teams ?? []);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
   const isMine = (i: number) =>
@@ -54,7 +57,7 @@
               key: `c${t.captainMemberId ?? t.captainName}`,
               id: t.captainMemberId,
               name: cap ? goesByOf(cap) : t.captainName,
-              position: cap?.position ?? "",
+              position: cap?.position,
               captain: true,
               pick: null as number | null,
             },
@@ -66,14 +69,14 @@
           key: `p${p.memberId ?? p.name}${k}`,
           id: p.memberId,
           name: m ? goesByOf(m) : p.name,
-          position: m?.position ?? "",
+          position: m?.position,
           captain: false,
           pick: typeof p.pick === "number" ? p.pick : null,
         };
       }),
     ];
   };
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
@@ -111,13 +114,13 @@
               >{#if isMine(i)}<strong class="yours">Your team</strong> ·
               {/if}{squad.length}
               {squad.length === 1 ? "player" : "players"}{#if played && r}
-                · {r.w}W {r.d}D {r.l}L · {r.pts} pts{/if}</span
+                · <TeamRecord w={r.w} d={r.d} l={r.l} pts={r.pts} />{/if}</span
             >
           </span>
           <Icon name="chevronRight" size={20} />
         </span>
         {#if !squad.some((p) => p.position === "G")}
-          <span class="warn"><Icon name="alert" size={14} />No goalie</span>
+          <span class="warn"><Icon name="alert" size={14} />No keeper</span>
         {/if}
         <ol class="squad">
           {#each squad as p (p.key)}
@@ -130,7 +133,9 @@
               <span class="who"
                 >{p.name}{#if p.id === me().id}<small>you</small>{/if}</span
               >
-              <span class="pos" class:g={p.position === "G"}>{p.position}</span>
+              <span class="pos" class:g={p.position === "G"}
+                >{#if p.position}<PositionIcon position={p.position} />{/if}</span
+              >
             </li>
           {/each}
         </ol>

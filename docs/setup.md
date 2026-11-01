@@ -8,7 +8,7 @@ previews, your machine).
 
 All secrets go into **Bitwarden Secrets Manager** and nowhere else. **Name every token exactly like its
 secret**, for example a Cloudflare token called `CLOUDFLARE_API_TOKEN__PRODUCTION`. Each secret is described in
-[README.md#secrets](../README.md#secrets); the rules are in [ADR 0002](adr/0002-secrets-in-bitwarden.md).
+[secrets.md](secrets.md); the rules are in [ADR 0002](adr/0002-secrets-in-bitwarden.md).
 
 ## 1. Cloudflare: two accounts (hosting + database)
 
@@ -23,8 +23,8 @@ Do this twice: once for **Cougars** (production), once for **Cougars Dev** (dev)
    login). Scope **Entire _account_**; permissions **Workers Admin** (Editor can't create a new worker) and **D1 Write**. Name it
    `CLOUDFLARE_API_TOKEN__PRODUCTION` on Cougars, `CLOUDFLARE_API_TOKEN__DEV` on Cougars Dev. Copy it.
 
-Bitwarden secrets (step 3): `CLOUDFLARE_API_TOKEN__PRODUCTION`, `CLOUDFLARE_ACCOUNT_ID__PRODUCTION` in
-`cougars`; `CLOUDFLARE_API_TOKEN__DEV`, `CLOUDFLARE_ACCOUNT_ID__DEV` in `cougars-dev`.
+Bitwarden secrets (step 3): `CLOUDFLARE_API_TOKEN__PRODUCTION` in `cougars`; `CLOUDFLARE_API_TOKEN__DEV` in
+`cougars-dev`. The account IDs aren't secret: they go in `scripts/lib/settings.mjs` (`CLOUDFLARE_ACCOUNT_ID`), committed.
 
 ## 2. Sanity (content editing)
 
@@ -57,8 +57,6 @@ To set up a project from scratch (or check one):
    npm run seed -w @cougars/studio                                    # Cougars Dev
    SANITY_STUDIO_SITE_ENV=production npm run seed -w @cougars/studio  # Cougars
    ```
-   A project that still has the old `siteSettings` document is migrated instead: run
-   `npm run migrate-settings -w @cougars/studio` (a dry run), then again with `-- --commit`.
 5. **Members**: invite the club's editors to **Cougars** with the _Editor_ role (the Free plan includes 20
    seats), and to **Cougars Dev** if they want somewhere to practise. Vision, the query tool, only appears for
    administrators.
@@ -70,7 +68,7 @@ To set up a project from scratch (or check one):
 2. Create two projects: **`cougars`** (production values, `NAME__PRODUCTION`) and **`cougars-dev`** (dev values,
    `NAME__DEV`, and shared plain `NAME`s). Add the secrets from steps 1, 2 and 5 with exactly those names.
 3. **Machine accounts**, each with one access token (names and the matrix are in
-   [README.md#bitwarden-tokens](../README.md#bitwarden-tokens)):
+   [secrets.md#bitwarden](secrets.md#bitwarden)):
    - `cougars-ci`: `cougars` and `cougars-dev`. Token `BWS_ACCESS_TOKEN__PRODUCTION`, in GitHub environment `production`.
    - `cougars-ci-dev`: `cougars-dev` only. Token `BWS_ACCESS_TOKEN__DEV`, in GitHub environment `preview`.
    - `cougars-ci` and `cougars-ci-dev` get **Can read** only.
@@ -104,13 +102,13 @@ In `battersea-cougars/ark` → **Settings**:
    node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh
    ```
 
-`main` deploys dev; `git push origin main:release` deploys production ([ADR 0010](adr/0010-environments-and-deploys.md)). The
+`main` deploys dev; a pull request from `main` into `release`, merged, deploys production ([ADR 0010](adr/0010-environments-and-deploys.md)). The
 first production deploy creates the D1 database and applies migrations.
 
 ## 5. Publish → rebuild (deferred to the team app)
 
 Not set up ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)). Studio changes reach the live site at the daily
-rebuild (04:30 UK winter, 05:30 summer) or the next release. Photos are read live and need no rebuild. To publish
+rebuild (some time after 04:37 UK in winter, 05:37 in summer) or the next release. Photos are read live and need no rebuild. To publish
 something sooner, start a production rebuild by hand: **Actions → Deploy → Run workflow → `release`**, or
 `gh workflow run deploy.yml --ref release`.
 
@@ -125,14 +123,14 @@ and keep two-factor login on the account, which controls the domain.
 Nothing is done by hand: `deploy.yml` sets production's `SITE_URL` to `https://batterseacougars.com`, and
 `scripts/ci/target.mjs` attaches it and `www.` to the `cougars` worker as custom domains, so the first `release`
 deploy creates the DNS records and certificates. That needs the zone permissions on
-[`CLOUDFLARE_API_TOKEN__PRODUCTION`](../README.md#cloudflare_api_token__production). Dev stays on workers.dev: it's a
+[`CLOUDFLARE_API_TOKEN__PRODUCTION`](secrets.md#cloudflare_api_token__production). Dev stays on workers.dev: it's a
 separate Cloudflare account, and a domain can only point at workers in its own.
 
 The form rate limit and the edge cache start working on the domain: Cloudflare's Cache API is disabled on
-`*.workers.dev`. At launch, switch the Google Auth Platform **Branding** URLs to the domain (README.md#gmail).
+`*.workers.dev`. At launch, switch the Google Auth Platform **Branding** URLs to the domain ([secrets.md#gmail](secrets.md#gmail)).
 
-**Before launch, behind Cloudflare Access**: `batterseacougars.com`, `www.` and `team.` ask for an email and a
-one-time code, and let in only the emails on the **Admins (production roster)** policy, plus CI's service token for the
+**Before launch, behind Cloudflare Access**: `team.` asks for an email and a one-time code (the website,
+`batterseacougars.com` and `www.`, has been open since 2026-10-30), and let in only the emails on the **Admins (production roster)** policy, plus CI's service token for the
 deploy's smoke tests. Who's on that list is managed by hand: Zero Trust → **Access → Policies → Admins (production
 roster) → Edit**, the _Include_ emails. Zero Trust is on (Free plan); the rest is
 `node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs`. Its first run starts the list
@@ -149,13 +147,21 @@ Write** on the production token; change the number there and run it again. Seen 
 rules.
 
 **www**: `www.batterseacougars.com` answers too (the deploy attaches both names), so a rule redirects it to the bare
-domain (301, path and query kept), and search engines see one copy of each page. It's written by
-`node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`, which needs **Single
-Redirect Write** on the production token. Seen under Rules → Redirect Rules.
+domain (301, path and query kept), and search engines see one copy of each page. Every production deploy writes it
+(`scripts/redirect-setup.mjs`, the same rule each time), which needs **Dynamic URL Redirects: Edit** (Rules & Configuration) on the production
+token; by hand: `node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs`. Seen under Rules → Redirect Rules.
 
-**Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics),
-with automatic setup, so Cloudflare adds its script to the site's pages and there's nothing in the code. It also reaches
-`team.batterseacougars.com`, whose CSP refuses it (harmless console errors): excluding it needs a paid rule, so it's
-tracked in #92. It counts page views without cookies (the privacy page says so). Its API refuses the
-account tokens we use, so it's set up by hand. The website's content security policy allows
-its script (`static.cloudflareinsights.com`) and its beacon (`cloudflareinsights.com`) (ADR 0036).
+**Web Analytics**: on for batterseacougars.com (added 2026-10-10 in the dashboard: Analytics & Logs → Web Analytics).
+It counts page views without cookies (the privacy page says so). Its API refuses the account tokens we use, so it's set
+up by hand. The beacon is in the website's own pages (`apps/web/src/layouts/Base.astro`, `lib/analytics.ts`, #92), in
+production only, so it never reaches `team.batterseacougars.com`, whose CSP refuses it; Cloudflare's rule excluding a
+hostname from automatic setup needs a paid plan. To set it up, once:
+
+1. Analytics & Logs → Web Analytics → batterseacougars.com → **Manage site**: copy the **token** from the JS snippet
+   (`data-cf-beacon='{"token": "…"}'`). It's public: it's in every page.
+2. Put it in `.github/workflows/deploy.yml` as `WEB_ANALYTICS_TOKEN` (the website's build job) and release.
+3. Then, on the same page, turn **automatic setup off** (Enable with JS snippet installation), so Cloudflare stops
+   adding its own beacon to the zone's pages, the team app's included. Until then a page would count twice.
+
+The website's content security policy allows its script (`static.cloudflareinsights.com`) and its beacon
+(`cloudflareinsights.com`) (ADR 0036).

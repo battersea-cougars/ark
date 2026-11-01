@@ -87,6 +87,15 @@ export function text(o: Record<string, unknown>, key: string, { optional = false
   if (!v.trim() && !optional) throw new HttpError(400, `${key} is needed.`);
   return v.trim();
 }
+/**
+ * A list's items as objects (each a row of a form's list: a team, a match, a vote), or a 400 naming the list: a null,
+ * a number or a list among them would otherwise fail its field readers as a server error.
+ */
+export function objectsIn(list: unknown[], key: string): Record<string, unknown>[] {
+  if (!list.every((v) => v !== null && typeof v === "object" && !Array.isArray(v)))
+    throw new HttpError(400, `${key} should be a list of objects.`);
+  return list as Record<string, unknown>[];
+}
 type IntRange = { min?: number; max?: number };
 /** A whole number from the request, in range; null only when it may be left out (`nullable`). */
 export function int(o: Record<string, unknown>, key: string, range: IntRange & { nullable: true }): number | null;

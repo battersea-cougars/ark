@@ -1,7 +1,7 @@
 # 0014. Sanity holds the site's editable content; only club facts are editable
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-20
+- **Date:** 2026-10-05 · updated 2026-10-23
 - **Builds on:** [0004](0004-astro-workers-sanity-d1.md)
 
 ## Context
@@ -15,7 +15,7 @@ any fact, one in Sanity and one in D1, would drift.
 ## Decision
 
 - **Sanity holds what the team manager edits**: club facts, videos and past events (photos are the club's Instagram,
-  [ADR 0113](0113-photos-from-instagram.md)). The site reads it at build
+  [ADR 0016](0016-photos-and-videos-read-live.md)). The site reads it at build
   time ([ADR 0004](0004-astro-workers-sanity-d1.md)), or live for videos
   ([ADR 0016](0016-photos-and-videos-read-live.md)). What the team app runs comes from D1 instead: the schedule and
   What's on ([ADR 0042](0042-website-reads-the-club-agenda.md)), the roster ([ADR 0043](0043-roster-and-names.md))
@@ -33,6 +33,12 @@ any fact, one in Sanity and one in D1, would drift.
   with a write token per project ([ADR 0010](0010-environments-and-deploys.md)) documented in the README when it lands. Schemas avoid anything that would block an API write
   (read-only fields, values only the Studio can make).
 - **Ops-only data lives in D1**: enquiries, attendance, payments, ratings. It is never shown publicly as is.
+- **Until launch, the repo owns the words.** Nobody edits the Studio yet, so the singletons' words (the Kumite's
+  intro, tagline, poster lines and format; Team's intro; the Pub's about; Fridays' kit notes) live in `fallback.ts`,
+  and every website deploy sends them to its environment's Sanity before the build (`scripts/sanity-copy.mjs`;
+  `main` to dev, `release` to production). A copy change is a commit. Only the words: switches, the contact email,
+  links, photos and awards stay the Studio's. **At launch** the step comes out of `deploy.yml` and the Studio owns
+  the words, as below.
 - **Fallbacks.** Each singleton merges with its own defaults (`apps/web/src/lib/sanity/fallback.ts`) field by
   field: a missing required field falls back; an optional field left empty stays empty.
 
@@ -42,7 +48,6 @@ any fact, one in Sanity and one in D1, would drift.
 - Facts live in one place. A Studio change reaches the prerendered pages at the daily rebuild
   ([ADR 0004](0004-astro-workers-sanity-d1.md)).
 - The Studio's required fields and the website's list of optional fields (`merge.ts`) must be kept in step.
-- Moving off `siteSettings` needs a one-off migration per dataset (`apps/studio/migrate-settings.ts`).
 
 ## History
 
@@ -53,4 +58,8 @@ any fact, one in Sanity and one in D1, would drift.
 - 2026-10-09: Kumite results left Sanity: `kumiteResult` retired, the website reads results from D1 (0100).
 - 2026-10-18: Events, Players and Videos are off the Studio's sidebar and its "New document" menu: the first two are
   the team app's data, and videos come from the YouTube playlists. The types stay so the website's queries still read.
-- 2026-10-20: The `album` type is gone: the website's photos are the club's Instagram ([ADR 0113](0113-photos-from-instagram.md)).
+- 2026-10-20: The `album` type is gone: the website's photos are the club's Instagram ([ADR 0016](0016-photos-and-videos-read-live.md)).
+- 2026-10-23: Both projects are off `siteSettings` (neither has the document), so its one-off migration,
+  `apps/studio/migrate-settings.ts`, is gone (#148).
+- 2026-10-30: Until launch the repo owns the words: every website deploy sends `fallback.ts`'s copy to Sanity
+  (`scripts/sanity-copy.mjs`, an Editor token per project); at launch the Studio takes them over.

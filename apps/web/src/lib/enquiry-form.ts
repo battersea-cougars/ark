@@ -1,5 +1,5 @@
 // The "Try a session" form's rules, in one place for both sides: the server checks every enquiry with them
-// (pages/api/join.ts), and the page checks each field as it's filled in (pages/join/index.astro), so the two can't
+// (pages/api/join.ts), and the page checks each field as it's filled in (pages/join/[...refused].astro), so the two can't
 // disagree. No server code here: it runs in the browser too.
 
 export const EXPERIENCE = {
@@ -8,6 +8,17 @@ export const EXPERIENCE = {
   regular: "Play regularly",
 } as const;
 export type Experience = keyof typeof EXPERIENCE;
+
+/**
+ * Why a form sent without JavaScript came back, each with a page of its own (pages/join/[...refused].astro, rendered
+ * at build time): the plain POST's 303 goes there, so a visitor with no script sees what went wrong.
+ */
+export const JOIN_REFUSED = {
+  invalid: "Please check the form and try again.",
+  rate: "Too many submissions — please try again in a few minutes.",
+} as const;
+export type JoinRefusal = keyof typeof JOIN_REFUSED;
+export const refusedAt = (why: JoinRefusal) => `/join/${why}/`;
 
 export interface Enquiry {
   name: string;

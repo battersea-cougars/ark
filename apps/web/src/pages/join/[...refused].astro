@@ -1,0 +1,384 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import { getSettings, kitText } from "../../lib/sanity/content";
+import { EXPERIENCE, JOIN_REFUSED, type JoinRefusal } from "../../lib/enquiry-form";
+import { TURNSTILE_SITE_KEY } from "astro:env/client";
+
+// The form at /join/, and again at /join/invalid/ and /join/rate/ saying what went wrong: where a plain POST without
+// JavaScript comes back to (pages/api/join.ts), so the message is in the page, not left to its script
+export function getStaticPaths() {
+  return [undefined, ...(Object.keys(JOIN_REFUSED) as JoinRefusal[])].map((refused) => ({ params: { refused } }));
+}
+const refused = Astro.params.refused as JoinRefusal | undefined;
+
+const s = await getSettings();
+const slot = s.training[0];
+---
+
+<Base
+  title="Try a session"
+  card="join"
+  noindex={Boolean(refused)}
+  description={`New to inline hockey? Try a session at ${s.venue.name}${s.firstSessionKit ? ", with spare kit to borrow" : ""}.`}
+>
+  <PageHeader
+    eyebrow="Join the club"
+    title="Try a session"
+    lede="Never played, or played for years: tell us a little about yourself and we'll be in touch."
+  />
+  <div class="wrap layout page-body">
+    <!-- The browser's own checks without JavaScript; the script turns them off for its own (noValidate) -->
+    <form method="post" action="/api/join" class="form" data-reveal>
+      <p class="alert" role="alert" tabindex="-1" hidden={!refused}>
+        {refused && JOIN_REFUSED[refused]}
+      </p>
+      <!-- Filled from ?about= (the home page's What's on): what they're asking about -->
+      <p class="about label" hidden></p>
+      <input type="hidden" name="source" value="/join/" />
+      <div class="hp" aria-hidden="true">
+        <label>
+          Leave this empty <input name="website" tabindex="-1" autocomplete="off" />
+        </label>
+      </div>
+
+      <label class="field">
+        <span class="label">Name</span>
+        <input name="name" required maxlength="100" autocomplete="name" />
+        <small class="err" data-for="name"></small>
+      </label>
+      <label class="field">
+        <span class="label">Email</span>
+        <input name="email" type="email" required maxlength="200" autocomplete="email" />
+        <small class="err" data-for="email"></small>
+      </label>
+      <label class="field">
+        <span class="label">
+          Phone <em>optional</em>
+        </span>
+        <input name="phone" type="tel" maxlength="40" autocomplete="tel" inputmode="tel" />
+        <small class="err" data-for="phone"></small>
+      </label>
+      <fieldset class="field">
+        <legend class="label">Played before?</legend>
+        <div class="choices">
+          {Object.entries(EXPERIENCE).map(([value, label]) => (
+            <label class="choice">
+              <input type="radio" name="experience" value={value} />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <label class="field">
+        <span class="label">
+          Anything else <em>optional</em>
+        </span>
+        <textarea name="message" rows="3" maxlength="2000"></textarea>
+      </label>
+      <!-- Cloudflare Turnstile: checks a person is sending this (ADR 0028). Without JavaScript the form still works. -->
+      <div class="turnstile" data-turnstile data-sitekey={TURNSTILE_SITE_KEY}></div>
+      <div class="submit">
+        <button class="btn btn--primary" type="submit">
+          Send
+        </button>
+        <p class="muted small">
+          We only use your details to get in touch about the club.{" "}
+          <a class="link" href="/privacy/">
+            Privacy
+          </a>
+        </p>
+      </div>
+    </form>
+
+    <aside class="info" data-reveal style="--i:1">
+      {slot && (
+        <div>
+          <p class="label">When</p>
+          <p>
+            {slot.day}s, {slot.start}–{slot.end}
+          </p>
+        </div>
+      )}
+      <div>
+        <p class="label">Where</p>
+        <p>
+          <a class="link" href={s.venue.mapUrl} rel="noopener" target="_blank">
+            {s.venue.name} ↗
+          </a>
+          <br />
+          <span class="muted">{s.venue.address}</span>
+        </p>
+      </div>
+      <div>
+        <p class="label">Kit</p>
+        <p class="muted">{kitText(s)}</p>
+      </div>
+      {s.contactEmail && (
+        <div>
+          <p class="label">Email</p>
+          <p>
+            <a class="link" href={`mailto:${s.contactEmail}`}>
+              {s.contactEmail}
+            </a>
+          </p>
+        </div>
+      )}
+    </aside>
+  </div>
+</Base>
+
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 3rem clamp(3rem, 8vw, 7rem);
+    align-items: start;
+  }
+  @media (max-width: 52rem) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  .form {
+    display: grid;
+    gap: 2rem;
+  }
+  .field {
+    position: relative;
+    display: grid;
+    gap: 0.5rem;
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  em {
+    font-style: normal;
+    color: var(--text-3);
+    opacity: 0.7;
+    margin-left: 0.4em;
+  }
+  input:not([type="radio"]),
+  textarea {
+    width: 100%;
+    padding: 0.6rem 0;
+    font: inherit;
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--rule-strong);
+    border-radius: 0;
+    outline: none;
+    transition: border-color 0.3s var(--ease-smooth);
+  }
+  /* Several lines, underlined like the other fields; a faint fill only while you're typing in it. Fixed height until
+     dragged, so typing never moves what's below. */
+  textarea {
+    display: block;
+    padding-inline: 0.5rem;
+    resize: vertical;
+    transition:
+      border-color 0.3s var(--ease-smooth),
+      background 0.3s var(--ease-smooth);
+  }
+  textarea:focus {
+    background: color-mix(in srgb, var(--text) 4%, transparent);
+  }
+  input:focus,
+  textarea:focus {
+    border-bottom-color: var(--text);
+  }
+  [aria-invalid="true"] {
+    border-bottom-color: var(--red) !important;
+  }
+  legend {
+    padding: 0;
+    margin-bottom: 0.75rem;
+  }
+  .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .choice input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .choice span {
+    display: inline-block;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--rule-strong);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition:
+      border-color 0.3s var(--ease-smooth),
+      background 0.3s var(--ease-smooth);
+  }
+  .choice span:hover {
+    border-color: var(--text-3);
+  }
+  .choice input:checked + span {
+    border-color: var(--text);
+    background: rgb(236 232 225 / 0.08);
+  }
+  .choice input:focus-visible + span {
+    outline: 1px solid var(--text);
+    outline-offset: 3px;
+  }
+  /* In the gap under its field, so an error appearing moves nothing */
+  .err {
+    position: absolute;
+    top: calc(100% + 0.3rem);
+    left: 0;
+    color: var(--red);
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+  .about {
+    margin: 0 0 0.5rem;
+    color: var(--red);
+  }
+  .alert {
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--red-soft);
+    background: rgb(229 19 31 / 0.08);
+  }
+  .submit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 2rem;
+  }
+  .small {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .turnstile:empty {
+    display: none;
+  }
+  .hp {
+    position: absolute;
+    left: -9999px;
+  }
+  .info {
+    display: grid;
+    gap: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+  }
+  .info p {
+    margin: 0.4rem 0 0;
+  }
+</style>
+
+<script>
+  import { JOIN_REFUSED, parseEnquiry } from "../../lib/enquiry-form";
+
+  // Turnstile, rendered by hand so it also appears after a client-side page change (ClientRouter).
+  type Turnstile = { render: (el: HTMLElement, o: object) => string; reset: (id: string) => void };
+  const w = window as unknown as { turnstile?: Turnstile };
+  let widget: string | undefined;
+  function renderTurnstile() {
+    const el = document.querySelector<HTMLElement>("[data-turnstile]");
+    if (!el || el.childElementCount) return;
+    // Its own action, ENQUIRY_ACTION (shared/turnstile.ts): the team app's tokens aren't this form's, nor this its
+    const render = () => {
+      widget = w.turnstile!.render(el, { sitekey: el.dataset.sitekey, theme: "dark", action: "enquiry" });
+    };
+    if (w.turnstile) return render();
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.onload = render;
+    document.head.appendChild(script);
+  }
+  document.addEventListener("astro:page-load", renderTurnstile);
+  renderTurnstile();
+  // A Turnstile token works once: get a fresh one after a submit that didn't go through.
+  const resetTurnstile = () => widget && w.turnstile?.reset(widget);
+
+  const form = document.querySelector<HTMLFormElement>("form.form")!;
+  // Each field's checked here, with the server's rules, rather than by the browser's own bubbles
+  form.noValidate = true;
+  const alert = form.querySelector<HTMLElement>(".alert")!;
+  const params = new URLSearchParams(location.search);
+  const showAlert = (msg: string) => {
+    alert.textContent = msg;
+    alert.hidden = false;
+  };
+
+  // Asking about something on the calendar: say what, and start the message with it
+  const about = params.get("about")?.trim().slice(0, 120);
+  if (about) {
+    const line = form.querySelector<HTMLElement>(".about")!;
+    line.textContent = `About: ${about}`;
+    line.hidden = false;
+    const message = form.querySelector<HTMLTextAreaElement>("textarea[name=message]")!;
+    if (!message.value) message.value = `About ${about}: `;
+  }
+
+  // Each field checked with the server's own rules (lib/enquiry-form.ts): when you leave it, and again as you fix it
+  const fieldError = (name: string) => {
+    const result = parseEnquiry(new FormData(form));
+    return result.ok ? "" : (result.errors[name] ?? "");
+  };
+  const show = (name: string, msg: string) => {
+    const err = form.querySelector(`.err[data-for="${name}"]`);
+    if (err) err.textContent = msg;
+    const input = form.querySelector(`[name="${name}"]`);
+    if (msg) input?.setAttribute("aria-invalid", "true");
+    else input?.removeAttribute("aria-invalid");
+  };
+  const checked = ["name", "email", "phone"];
+  form.addEventListener("focusout", (e) => {
+    const name = (e.target as HTMLInputElement).name;
+    // Leaving an empty field you never typed in isn't a mistake yet
+    if (checked.includes(name) && (e.target as HTMLInputElement).value) show(name, fieldError(name));
+  });
+  form.addEventListener("input", (e) => {
+    const input = e.target as HTMLInputElement;
+    if (checked.includes(input.name) && input.hasAttribute("aria-invalid")) show(input.name, fieldError(input.name));
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    // Wrong before it's sent: say where, and send nothing
+    const local = parseEnquiry(new FormData(form));
+    if (!local.ok) {
+      for (const name of checked) show(name, local.errors[name] ?? "");
+      showAlert(JOIN_REFUSED.invalid);
+      form.querySelector<HTMLElement>("[aria-invalid]")?.focus();
+      return;
+    }
+    const button = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    button.disabled = true;
+    form.querySelectorAll(".err").forEach((el) => (el.textContent = ""));
+    form.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    alert.hidden = true;
+    try {
+      const res = await fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { Accept: "application/json" },
+      });
+      const body = (await res.json()) as { ok: boolean; error?: string; errors?: Record<string, string> };
+      if (body.ok) return location.assign("/join/thanks/");
+      for (const [field, msg] of Object.entries(body.errors ?? {})) {
+        form.querySelector(`.err[data-for="${field}"]`)!.textContent = msg;
+        form.querySelector(`[name="${field}"]`)?.setAttribute("aria-invalid", "true");
+      }
+      resetTurnstile();
+      showAlert(body.error ?? JOIN_REFUSED.invalid);
+      (form.querySelector<HTMLElement>("[aria-invalid]") ?? alert).focus();
+    } catch {
+      resetTurnstile();
+      showAlert("Something went wrong sending the form. Please try again or email us.");
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>

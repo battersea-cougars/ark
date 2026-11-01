@@ -1,4 +1,4 @@
-// When the app breaks for a member, the developer hears of it (ADR 0111, #75): a request that fails is reported with
+// When the app breaks for a member, the developer hears of it (ADR 0110, #75): a request that fails is reported with
 // what was asked (method, path, the route it matched) and who asked, by their number only, never their name or email.
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Entry } from "@cougars/shared/scribe";
@@ -21,7 +21,7 @@ describe("a member's request fails on the server", () => {
     // The database loses a table the club's data reads: a broken deploy
     w.db.raw.exec("DROP TABLE announcements");
 
-    const res = await reg.call("GET", "/api/bootstrap");
+    const res = await reg.club();
     expect(res.status).toBe(500);
     expect(res.body.error).toBe("Something went wrong.");
     expect(reported).toHaveLength(1);

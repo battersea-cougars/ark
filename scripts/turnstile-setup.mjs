@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Make an environment's Turnstile widget through Cloudflare's API (README#turnstile, ADR 0028), or find the one that's
+// Make an environment's Turnstile widget through Cloudflare's API (docs/secrets.md#turnstile, ADR 0028), or find the one that's
 // there, and store its secret key straight in Secrets Manager: nobody sees it. Prints the site key (public), which goes
 // in deploy.yml. Safe to run again: it changes nothing that's already right.
 //   node scripts/env-pull.mjs -- node scripts/turnstile-setup.mjs dev

@@ -3,7 +3,8 @@
 // busy the machine is. Beside the fake D1's interleaving (`interleave(seed)`, which counts turns), that made one seed
 // a different order of events from run to run: a race found once couldn't be replayed, and a busy machine explored
 // orders a quiet one never did (ADR 0121). Here the hashes (session tokens, codes), the RS256 signatures (Google's
-// and GitHub's tokens) and Web Push's work (ECDH P-256, HKDF, AES-GCM, ES256: worker/push/webpush.ts) are worked out
+// and GitHub's tokens), Web Push's work (ECDH P-256, HKDF, AES-GCM, ES256: worker/push/webpush.ts) and a passkey's
+// signature checked (ES256, RS256: worker/auth/auth.passkeys.ts) are worked out
 // on the spot, the same bytes as WebCrypto's, and the promise is already settled, so a seed is one order of events.
 // Anything else goes to the real thing.
 import {
@@ -16,6 +17,7 @@ import {
   generateKeyPairSync,
   hkdfSync,
   sign,
+  verify,
   type KeyObject,
 } from "node:crypto";
 
@@ -59,6 +61,7 @@ export function settledCrypto(subtle: SubtleCrypto = crypto.subtle) {
     digest: subtle.digest,
     importKey: subtle.importKey,
     sign: subtle.sign,
+    verify: subtle.verify,
     generateKey: subtle.generateKey,
     exportKey: subtle.exportKey,
     deriveBits: subtle.deriveBits,
@@ -99,6 +102,11 @@ export function settledCrypto(subtle: SubtleCrypto = crypto.subtle) {
       const jwk = key as unknown as import("node:crypto").JsonWebKey;
       make = () =>
         jwk.d ? createPrivateKey({ key: jwk, format: "jwk" }) : createPublicKey({ key: jwk, format: "jwk" });
+    }
+    // A passkey's RS256 public key (auth.passkeys.ts), as @simplewebauthn/server imports it
+    else if ((format as string) === "jwk" && name === "RSASSA-PKCS1-V1_5" && !(key as JsonWebKey).d) {
+      const jwk = key as unknown as import("node:crypto").JsonWebKey;
+      make = () => createPublicKey({ key: jwk, format: "jwk" });
     }
     if (!make) return passOn("importKey", args);
     return now(() => asCryptoKey(make(), alg as Alg, extractable, usages));
@@ -168,6 +176,20 @@ export function settledCrypto(subtle: SubtleCrypto = crypto.subtle) {
       });
     },
   );
+
+  // A passkey's signature checked (ES256 and RS256, auth.passkeys.ts): with a key made here, worked out here
+  own("verify", function (alg: Alg, key: CryptoKey, signature: BufferSource, data: BufferSource) {
+    const keyObject = keys.get(key);
+    const name = nameOf(alg);
+    const hash =
+      name === "ECDSA"
+        ? hashOf((alg as { hash?: AlgorithmIdentifier }).hash)
+        : hashOf((key.algorithm as RsaHashedKeyAlgorithm).hash ?? "");
+    if (!keyObject || !hash || (name !== "ECDSA" && name !== "RSASSA-PKCS1-V1_5"))
+      return real.verify.call(subtle, alg, key, signature, data);
+    const how = name === "ECDSA" ? { key: keyObject, dsaEncoding: "ieee-p1363" as const } : keyObject;
+    return now(() => verify(hash, bytes(data), how, bytes(signature)));
+  });
 
   own("sign", function (alg: Alg, key: CryptoKey, data: BufferSource) {
     const keyObject = keys.get(key);

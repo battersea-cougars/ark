@@ -1,6 +1,6 @@
 // Bitwarden Secrets Manager is the single source of truth for secrets
 // (docs/adr/0002-secrets-in-bitwarden.md). Every secret is documented in
-// README.md#secrets.
+// docs/secrets.md.
 //
 // Naming rule (from gwenda-hackney/ark): NAME applies to both environments;
 // NAME__PRODUCTION / NAME__DEV override it for that one. Code only ever reads NAME.
@@ -69,7 +69,7 @@ export function ensureToken() {
   if (!token) {
     throw new Error(
       `No Bitwarden token. Run bw-unlock, and check your vault has the secure note ${VAULT_NOTE} ` +
-        "with a line COUGARS_LOCAL_BW_TOKEN=... (README.md#bitwarden-tokens).",
+        "with a line COUGARS_LOCAL_BW_TOKEN=... (docs/secrets.md#bitwarden).",
     );
   }
   process.env.COUGARS_LOCAL_BW_TOKEN = token;
@@ -116,6 +116,20 @@ export function setSecret(key, value) {
   if (existing) bws(["secret", "edit", existing.id, `--value=${value}`]);
   else bws(["secret", "create", "--", key, value, project.id]);
   return existing ? "Updated" : "Created";
+}
+
+/**
+ * Every secret this token can see, with its project's name and when it last changed. The values are for the caller
+ * to fingerprint (the Secrets page, #149): never print them.
+ */
+export function listSecrets() {
+  const projects = new Map(bws(["project", "list"]).map((p) => [p.id, p.name.trim()]));
+  return bws(["secret", "list"]).map((s) => ({
+    key: s.key,
+    value: s.value,
+    project: projects.get(s.projectId) ?? "",
+    updated: s.revisionDate,
+  }));
 }
 
 export function loadSecrets(environment) {

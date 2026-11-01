@@ -41,6 +41,7 @@ export async function auditRefused(
        SELECT 1 FROM audit_log WHERE at > ? AND action = 'refused' AND member_id = ?)`,
     [now.toISOString(), memberId, JSON.stringify(detail), new Date(now.getTime() - 60_000).toISOString(), memberId],
   );
+  // A warning, not reported: a member trying what their role can't is on the audit log for an admin, not a fault
   log.warn("refused", { member: memberId, ...detail, recorded: res.meta.changes === 1 });
 }
 

@@ -3,8 +3,12 @@
 // you in. The draft on: the draft. The teams set: your team, and the fight card to come. The fixtures out: the first
 // match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
-import { editionState, stageOf } from "./edition";
-import { signupOpen } from "./signup";
+import { atAfters, editionState, stageOf } from "./edition";
+import { gamePhase } from "./phase";
+import { revealOf } from "./afters";
+import { signupOpen, signupOver } from "./signup";
+import { orderDrawn } from "./draft";
+import type { MotifKey } from "./motif";
 
 /** Your team in it, as its captain or a player: its place in the teams, or -1. */
 export const myTeamIndex = (t: Tournament, me: number) =>
@@ -26,7 +30,7 @@ export function nextFightOf(t: Tournament, me: number): TournamentGame | undefin
  */
 export type Status = "signup" | "draft" | "teams" | "fixtures" | "day" | "afters";
 
-/** Each status's address under the tournament's page; the one it's at is the page itself. Old pages' addresses. */
+/** Each status's address under its edition's page (lib/edition-address.ts); the one it's at is the page itself. */
 export const STATUS_PATH: Record<Status, string> = {
   signup: "sign-up",
   draft: "draft",
@@ -76,13 +80,15 @@ export function statusLabel(
 }
 
 /**
- * The status it's at: sign-up until the draft opens (or, teams that enter, a team's in); the draft open; complete
+ * The status it's at: sign-up until it closes (an admin's Close sign-up, or past its closing day) or, teams that
+ * enter, a team's in; a captains' draft is then at Draft open, where the order's drawn and the draft opened; complete
  * (closed, or the teams in); the fixtures out; then, on its day or once a match has started, the day itself; the last
  * match played, the after-party (the page shows it that evening only: lib/edition.ts atAfters).
  */
 export function statusOf(t: Tournament, today: string): Status {
   if (editionState(t) === "done") return "afters";
   const stage = stageOf(t);
+  if (stage === "signup" && t.kind === "draft" && (signupOver(t, today) || orderDrawn(t.teams))) return "draft";
   if (stage !== "fixtures") return stage;
   const state = editionState(t);
   return state === "live" || state === "done" || (!t.season && t.heldOn === today) ? "day" : "fixtures";
@@ -123,10 +129,15 @@ export function viewOf(t: Tournament, today: string, rest: string): Status {
   return asked && reached(t, today, asked) ? asked : statusOf(t, today);
 }
 
-/** The address that shows a status: the page itself for the one it's at, else the status's own. */
-export function statusHref(slug: string, t: Tournament, today: string, s: Status) {
-  const base = `/tournaments/${slug}`;
-  return s === statusOf(t, today) ? base : `${base}/${STATUS_PATH[s]}`;
+/**
+ * What the page's pane shows for a status: the draft is its captains' and whoever runs it (ADR 0060), everyone else
+ * fights blind until it's done. Whoever runs it sees the draft before there are captains too: it asks them to name them.
+ * Once it's all played, its draft is everyone's to look back on.
+ */
+export function paneOf(t: Tournament, view: Status, me: number, runsDraft: boolean): Status | "blind" {
+  if (view !== "draft" || t.kind !== "draft") return view === "draft" ? "blind" : view;
+  if (editionState(t) === "done") return "draft";
+  return runsDraft || t.teams.some((x) => x.captainMemberId === me) ? "draft" : "blind";
 }
 
 /** What happens next, under the track: what, its day (a YYYY-MM-DD) and time, or in words when it has no day. */
@@ -183,29 +194,41 @@ export function onTheDayOf(t: Tournament, me: number) {
   return { now, after, live: !!live, yours: yours && yours !== now && yours !== after ? yours : undefined };
 }
 
-export type BadgeTone = "open" | "live" | "set" | "done" | "quiet";
+export type BadgeTone = "on" | "live" | "quiet" | "done";
+
+/** Each status's kanji on its stamp (lib/motif.ts): open, the lots drawn, decided, the matches, the Kumite, the prize. */
+export const STATUS_MARK: Record<Status, MotifKey> = {
+  signup: "open",
+  draft: "draw",
+  teams: "sealed",
+  fixtures: "fights",
+  day: "onTheMat",
+  afters: "awards",
+};
 
 /**
- * The stamp in a tournament's header (every page of the series): its stage, in words. Sign-up open (or coming up), the
- * draft live, the teams set, the fixtures out, then on the day its own name shouted, KUMITE!; under way on another
- * day, on now; every game played, done.
+ * The stamp in a tournament's header (every page of the series): the status it's at, as the track says it, with the
+ * status's kanji (ADR 0074). Every one the same ink stamp ("on"); before sign-up opens it's Coming up, faint; the day
+ * (KUMITE!, or a match under way) the loudest; every match played, the after-party's name that evening, then Done.
+ * `evening`: the evening it is now (lib/dates.ts londonEvening), which runs past midnight till 06:00 (#168).
  */
-export function stageBadge(t: Tournament, type: Pick<TournamentType, "shortName">, today: string) {
-  const state = editionState(t);
-  const badge = (label: string, tone: BadgeTone) => ({ label, tone });
-  if (state === "done") return badge("Done", "done");
-  switch (stageOf(t)) {
-    case "signup":
-      return state === "open" ? badge("Sign-up open", "open") : badge("Coming up", "quiet");
-    case "draft":
-      return badge("Draft live", "live");
-    case "teams":
-      return badge("Teams set", "set");
-    case "fixtures":
-      if (!t.season && t.heldOn === today) return badge(`${type.shortName}!`, "live");
-      if (state === "live") return badge("On now", "live");
-      return badge("Fixtures set", "set");
-  }
+export function stageBadge(
+  t: Tournament,
+  type: Pick<TournamentType, "shortName">,
+  today: string,
+  afterName?: string | null,
+  evening = today,
+): { label: string; tone: BadgeTone; mark: MotifKey } {
+  const status = statusOf(t, today);
+  const mark = STATUS_MARK[status];
+  const { label } = statusLabel(status, t, type, afterName);
+  // At The Anchor until the last award's out: then Done, though its page stays its results that evening
+  if (status === "afters")
+    return afterMomentOf(t, evening) === "now" && !revealOf(t).all
+      ? { label, tone: "done", mark }
+      : { label: "Done", tone: "done", mark };
+  if (status === "signup" && editionState(t, today) !== "open") return { label: "Coming up", tone: "quiet", mark };
+  return { label, tone: status === "day" ? "live" : "on", mark };
 }
 
 /** When the afterwards shows on the front page (ADR 0074). */
@@ -219,11 +242,11 @@ export type AfterMoment =
 
 /**
  * Where the afterwards goes on the front page: a quiet line before the day; nothing on the day while the matches are
- * what matters, until the last one's on, when it's next; then, the day done, it's now (that day only).
+ * what matters, until the last one's on, when it's next; then, the day done, it's now (that evening only, past midnight till 06:00: `evening`, lib/dates.ts londonEvening).
  */
-export function afterMomentOf(t: Tournament, today: string): AfterMoment | null {
+export function afterMomentOf(t: Tournament, evening: string): AfterMoment | null {
   const state = editionState(t);
-  if (state === "done") return !t.season && t.heldOn === today ? "now" : null;
+  if (state === "done") return atAfters(t, evening) ? "now" : null;
   if (state !== "live") return "before";
   return (t.games ?? []).filter((g) => g.status !== "done").length <= 1 ? "next" : null;
 }
@@ -239,6 +262,7 @@ export function afterNoteWords(note: string) {
  * order), else, every one played, the last (the final).
  */
 export function currentMatchOf<G extends Pick<TournamentGame, "status" | "position">>(games: readonly G[]) {
+  // By its status, never its kick-off (lib/phase.ts, #182): one running late is still the one, the next stays next
   const ordered = [...games].sort((a, b) => a.position - b.position);
-  return ordered.find((g) => g.status === "live") ?? ordered.find((g) => g.status !== "done") ?? ordered.at(-1);
+  return ordered.find((g) => gamePhase(g) === "on") ?? ordered.find((g) => gamePhase(g) !== "past") ?? ordered.at(-1);
 }

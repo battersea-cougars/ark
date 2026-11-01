@@ -4,7 +4,7 @@ import { captureLogs } from "@cougars/shared/testing/scribe";
 import { clearCache } from "./cache";
 import { FAKE_POSTS, latestPosts, postImage, type InstagramConfig } from "./instagram";
 
-// The club's account on Instagram's API: three posts, newest first, as /me/media answers
+// The club's account on Meta's Graph API: three posts, newest first, as /<account>/media answers
 const MEDIA = [
   {
     id: "1803",
@@ -25,24 +25,35 @@ const MEDIA = [
   },
   {
     id: "1801",
+    caption: "Social night. Mostly upright.",
     media_type: "CAROUSEL_ALBUM",
     media_url: "https://scontent-lhr8-1.cdninstagram.com/v/social-1.jpg",
     permalink: "https://www.instagram.com/p/CCC/",
     timestamp: "2026-10-18T22:30:00+0000",
-    children: { data: [{ id: "a" }, { id: "b" }, { id: "c" }] },
+    children: {
+      data: [
+        { id: "18011", media_type: "IMAGE", media_url: "https://scontent-lhr8-1.cdninstagram.com/v/social-1.jpg" },
+        { id: "18012", media_type: "VIDEO", media_url: "https://scontent-lhr8-1.cdninstagram.com/v/social-2.mp4" },
+        { id: "18013", media_type: "IMAGE", media_url: "https://scontent-lhr8-1.cdninstagram.com/v/social-3.jpg" },
+      ],
+    },
   },
 ];
 
-function fakeInstagram({ down = false, expired = false } = {}) {
+function fakeInstagram({ down = false, expired = false, older = false } = {}) {
   const calls = { feed: 0, media: 0, cdn: 0 };
   const fetch = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input);
-    if (url.hostname === "graph.instagram.com") {
+    if (url.hostname === "graph.facebook.com") {
       if (down)
         return Response.json({ error: { message: "Application request limit reached", code: 4 } }, { status: 403 });
-      if (url.pathname.endsWith("/me/media")) {
+      if (url.pathname.endsWith(`/${ACCOUNT}/media`)) {
         calls.feed++;
-        return Response.json({ data: MEDIA });
+        // `older`: the account has more posts than were asked for, so Instagram offers the next page
+        return Response.json({
+          data: MEDIA,
+          ...(older && { paging: { next: `https://graph.facebook.com/v23.0/${ACCOUNT}/media?after=X` } }),
+        });
       }
       calls.media++; // one post, asked again for a fresh picture address
       return Response.json({
@@ -58,7 +69,12 @@ function fakeInstagram({ down = false, expired = false } = {}) {
   return { fetch, calls };
 }
 
-const config = (extra: Partial<InstagramConfig> = {}): InstagramConfig => ({ token: async () => "token", ...extra });
+const ACCOUNT = "17841400000000001";
+const config = (extra: Partial<InstagramConfig> = {}): InstagramConfig => ({
+  account: ACCOUNT,
+  token: async () => "token",
+  ...extra,
+});
 
 describe("the club's Instagram on the website", () => {
   let t = 0;
@@ -72,13 +88,12 @@ describe("the club's Instagram on the website", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the newest posts first, each picture served by us, with its caption and a link to the post", async () => {
+  it("shows the newest photos first, each served by us, with its post's caption and a link to the post", async () => {
     const { fetch } = fakeInstagram();
     const { data, unavailable } = await latestPosts(config(), deps(fetch));
     expect(unavailable).toBe(false);
-    expect(data.map((p) => p.id)).toEqual(["1803", "1802", "1801"]);
     expect(data[0]).toMatchObject({
-      kind: "image",
+      id: "1803",
       image: "/api/photos/1803",
       caption: "Friday night under the lights. Same time next week?",
       alt: "Friday night under the lights.",
@@ -87,15 +102,33 @@ describe("the club's Instagram on the website", () => {
     });
   });
 
-  it("shows a video by its cover picture and an album by its first, saying how many", async () => {
+  it("leaves out videos, which the website can't play", async () => {
     const { fetch } = fakeInstagram();
-    const [, video, album] = (await latestPosts(config(), deps(fetch))).data;
-    expect(video).toMatchObject({
-      kind: "video",
-      image: "/api/photos/1802",
-      href: "https://www.instagram.com/reel/BBB/",
+    const ids = (await latestPosts(config(), deps(fetch))).data.map((p) => p.id);
+    expect(ids).not.toContain("1802");
+    expect(ids).not.toContain("18012");
+  });
+
+  it("shows each photo of a post with several as a photo of its own, linking to the post", async () => {
+    const { fetch } = fakeInstagram();
+    const { data } = await latestPosts(config(), deps(fetch));
+    expect(data.map((p) => p.id)).toEqual(["1803", "18011", "18013"]);
+    expect(data[2]).toMatchObject({
+      image: "/api/photos/18013",
+      caption: "Social night. Mostly upright.",
+      href: "https://www.instagram.com/p/CCC/",
     });
-    expect(album).toMatchObject({ kind: "album", count: 3, caption: null, alt: "A photo from the club's Instagram" });
+  });
+
+  it("says there are more on Instagram only when it has left some out", async () => {
+    // All of them shown: nothing more to see there
+    expect((await latestPosts(config(), deps(fakeInstagram().fetch))).more).toBe(false);
+    // Fewer asked for than there are photos
+    clearCache();
+    expect((await latestPosts(config(), deps(fakeInstagram().fetch), 2)).more).toBe(true);
+    // Older posts than the feed reads
+    clearCache();
+    expect((await latestPosts(config(), deps(fakeInstagram({ older: true }).fetch))).more).toBe(true);
   });
 
   it("asks Instagram once every ten minutes, however many people look", async () => {
@@ -116,14 +149,14 @@ describe("the club's Instagram on the website", () => {
 
     clearCache();
     resetBreakers();
-    expect(await latestPosts(config(), deps(down.fetch))).toEqual({ data: [], unavailable: true });
+    expect(await latestPosts(config(), deps(down.fetch))).toEqual({ data: [], unavailable: true, more: false });
   });
 
   it("is a sample feed outside production until the club has connected Instagram, and empty in production", async () => {
     const { fetch, calls } = fakeInstagram();
-    const notSetUp = { token: async () => null };
+    const notSetUp = { account: ACCOUNT, token: async () => null };
     expect((await latestPosts({ ...notSetUp, fake: true }, deps(fetch))).data).toEqual(FAKE_POSTS);
-    expect(await latestPosts(notSetUp, deps(fetch))).toEqual({ data: [], unavailable: false });
+    expect(await latestPosts(notSetUp, deps(fetch))).toEqual({ data: [], unavailable: false, more: false });
     expect(calls.feed).toBe(0);
   });
 });
@@ -148,6 +181,12 @@ describe("a post's picture", () => {
     expect(await res.text()).toBe("jpeg bytes");
   });
 
+  it("is served for each photo of a post with several", async () => {
+    const { fetch } = fakeInstagram();
+    expect((await postImage(config(), "18013", deps(fetch))).status).toBe(200);
+    expect((await postImage(config(), "18012", deps(fetch))).status).toBe(404);
+  });
+
   it("is fetched from a fresh address when Instagram's has expired", async () => {
     const { fetch, calls } = fakeInstagram({ expired: true });
     const res = await postImage(config(), "1803", deps(fetch));
@@ -159,7 +198,7 @@ describe("a post's picture", () => {
     const { fetch, calls } = fakeInstagram();
     expect((await postImage(config(), "999", deps(fetch))).status).toBe(404);
     expect((await postImage(config(), "../me", deps(fetch))).status).toBe(404);
-    expect((await postImage({ token: async () => null, fake: true }, "1803", deps(fetch))).status).toBe(404);
+    expect((await postImage(config({ token: async () => null, fake: true }), "1803", deps(fetch))).status).toBe(404);
     expect(calls.cdn).toBe(0);
   });
 });

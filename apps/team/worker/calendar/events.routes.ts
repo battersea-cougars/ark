@@ -1,7 +1,8 @@
 // Club events: one-offs on the calendar (ADR 0042), and what's already on when something new would be (ADR 0122).
+import { places } from "../push/push.notices";
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
-import { findClashes } from "./clashes";
+import { clashesOver, findClashes, trainingAsked, trainingNights } from "./clashes";
 import { createClubEvent, setClubEventCancelled, updateClubEvent } from "./events";
 
 export const EVENTS_ROUTES: Route[] = [
@@ -10,9 +11,16 @@ export const EVENTS_ROUTES: Route[] = [
     path: /^\/api\/calendar\/clashes$/,
     // What's on the calendar, which every member sees; whether it's theirs to cancel is in each answer
     action: "read:Event",
-    // ?startsAt=&endsAt=[&except=tournament:5]: asked before a save, so the admin can say what's off (ADR 0122)
+    // ?startsAt=&endsAt=[&except=tournament:5]: asked before a save, so the admin can say what's off (ADR 0122).
+    // A training's editor asks with its rule (?weekdays=fri&repeatEvery=&startsOn=&endsOn=&startTime=&endTime=
+    // [&series=1]): what's on over the nights the save adds or moves
     handle: async (c) => {
       const q = new URL(c.request.url).searchParams;
+      if (q.has("weekdays")) {
+        const t = trainingAsked(q);
+        const nights = await trainingNights(c.env.DB, t, t.seriesId, c.today);
+        return json({ clashes: await clashesOver(c.env.DB, nights, `series:${t.seriesId ?? 0}`, c.today, c.actions) });
+      }
       const window = { startsAt: q.get("startsAt") ?? "", endsAt: q.get("endsAt") ?? "", except: q.get("except") };
       return json({ clashes: await findClashes(c.env.DB, window, c.today, c.actions) });
     },
@@ -41,6 +49,8 @@ export const EVENTS_ROUTES: Route[] = [
     },
     action: "update:Event",
     changes: ["clubEvents"],
+    // A limit raised lets the first waiting in, and they hear it
+    notify: places,
     handle: async (c) => (await updateClubEvent(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {

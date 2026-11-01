@@ -1,17 +1,18 @@
-// Whether a branch is safe to merge, mechanically (ADR 0115, README.md#worktrees).
+// Whether a branch is safe to merge, mechanically (ADR 0115, docs/development.md#worktrees).
 //
 //   npm run merge:check -- <area>/<topic>
 //
 // In the main checkout. The branch must be on main's tip (a fast-forward) and its worktree clean. `git diff
 // main...<branch>` picks the tier (scripts/lib/merge-check.mjs): docs only, a format check of the changed files;
-// otherwise lint, the tests, and the checks and builds of the apps the diff reaches. Steps run in two lanes side by
+// otherwise lint, knip, the tests, and the checks and builds of the apps the diff reaches. Either way the branch's
+// commits are scanned for secrets first (gitleaks, redacted). Steps run in two lanes side by
 // side, each printing pass or FAIL as it ends; a failure's output is printed whole at the end. It runs in the
 // branch's worktree, or a temporary checkout of it (.worktrees/.merge-check-*, removed after): never in the main
 // checkout's tree.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { STEPS, plan } from "./lib/merge-check.mjs";
+import { SECRETS, STEPS, plan } from "./lib/merge-check.mjs";
 import { checkouts, folderOf, install, mainCheckout } from "./lib/worktrees.mjs";
 
 const branch = process.argv[2];
@@ -56,15 +57,14 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
   });
 console.log(`in ${tree}\n`);
 
+const FIRST_LANE = ["lint", "knip", "test"];
 const present = files.filter((f) => existsSync(join(tree, f)));
 const format = { name: "format (changed files)", cmd: ["npx", "prettier", "--check", "--ignore-unknown", ...present] };
-// Lane one: lint and the tests; lane two: the checks and builds, which share no output with them
+// Lane one: the secrets scan, lint, knip and the tests; lane two: the checks and builds, which share no output with them
+const firstLane = steps.filter((k) => FIRST_LANE.includes(k)).map((k) => STEPS[k]);
+const secondLane = steps.filter((k) => !FIRST_LANE.includes(k)).map((k) => STEPS[k]);
 const lanes =
-  tier === "docs"
-    ? [present.length ? [format] : []]
-    : [steps.filter((k) => k === "lint" || k === "test"), steps.filter((k) => k !== "lint" && k !== "test")].map(
-        (lane) => lane.map((k) => STEPS[k]),
-      );
+  tier === "docs" ? [[SECRETS, ...(present.length ? [format] : [])]] : [[SECRETS, ...firstLane], secondLane];
 
 const started = Date.now();
 let results;

@@ -1,4 +1,4 @@
-// The desktop rail (the dock, mid-left): member pages, Home, a tile per training, Calendar, a tile per tournament type,
+// The desktop rail (the dock, mid-left): member pages, Home, a tile per training, a tile per tournament type, Calendar,
 // then the club. At its foot, set apart, the Settings gear for whoever can set something up (what only some can do:
 // Members, Unpaid fees, Quips, Upload); your own things (Dues) are on your You page, the avatar top right.
 import { can, type Action } from "../access/actions";
@@ -21,11 +21,11 @@ export function railItems(routes: Route[], folds: Fold[], granted: ReadonlySet<A
   return [
     ...(home ? [item(home)] : []),
     ...routes.filter((r) => r.tab === "training" && allowed(r)).map(item),
-    ...(calendar ? [item(calendar)] : []),
     ...folds.flatMap((f) => {
       const first = routes.find((r) => r.fold === f.id && allowed(r));
       return first ? [{ id: f.id, name: f.name, icon: f.icon, href: first.path }] : [];
     }),
+    ...(calendar ? [item(calendar)] : []),
     ...routes.filter((r) => r.group === "Club" && allowed(r)).map(item),
   ];
 }

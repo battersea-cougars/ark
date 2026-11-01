@@ -5,11 +5,15 @@
 	<!-- Notifications (ADR 0108): Apple's push service, through Firebase -->
 	<key>aps-environment</key>
 	<string>production</string>
-	<!-- Links to the team app (an email's "Open the app") open the app, not Safari -->
+	<!-- Links to the team app (an email's "Open the app") open the app, not Safari; and passkeys (webcredentials,
+	     ADR 0023): the app may use the team app's passkeys, which belong to its domain. Both domains each, the same
+	     ones as store.links.ts answers for (store.links.use-cases.test.ts holds them together) -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:team.batterseacougars.com</string>
 		<string>applinks:team.cougars-dev.workers.dev</string>
+		<string>webcredentials:team.batterseacougars.com</string>
+		<string>webcredentials:team.cougars-dev.workers.dev</string>
 	</array>
 </dict>
 </plist>

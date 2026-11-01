@@ -7,7 +7,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 
 const MAGIC = Buffer.from("CGBK1");
 const keyFrom = (secret, salt) => {
-  if (!secret) throw new Error("No BACKUP_KEY: run through scripts/env-pull.mjs (README#backup_key).");
+  if (!secret) throw new Error("No BACKUP_KEY: run through scripts/env-pull.mjs (docs/secrets.md#backup_key).");
   return scryptSync(secret, salt, 32);
 };
 

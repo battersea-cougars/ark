@@ -2,7 +2,7 @@
 // user). The data moves at once; what's shown follows this, a step at a time: the pick burns into its team's card
 // (the team picking keeps its light, nothing scrolls), a moment held, then the carousels glide to the next team
 // together, and only when they've arrived does the light move to it (and the bar say so); then, on a phone, if it's
-// your turn, the players slide in. A pick landing meanwhile waits for the one before to finish.
+// your turn, the Your pick button comes up. A pick landing meanwhile waits for the one before to finish.
 
 export type TurnStepKind = "burn" | "hold" | "scroll" | "highlight" | "players";
 

@@ -1,4 +1,4 @@
-// Scribe's errors to Sentry (ADR 0111): every error or fatal line becomes a Sentry issue, and every event is cleaned
+// Scribe's errors to Sentry (ADR 0110): every error or fatal line becomes a Sentry issue, and every event is cleaned
 // of private details before it leaves, the same way as the log (scribe.ts). Takes the app's own Sentry SDK
 // (@sentry/cloudflare in a Worker, @sentry/svelte in the team app), so this package depends on neither.
 import { clean, type Entry, type Reporter } from "./scribe";
@@ -26,7 +26,7 @@ export const sentryReporter =
 export const scrubEvent = <T>(event: T): T => clean(event) as T;
 
 /**
- * What Sentry may collect, everywhere (ADR 0111): nothing about a person. Sentry's defaults send request bodies (the join
+ * What Sentry may collect, everywhere (ADR 0110): nothing about a person. Sentry's defaults send request bodies (the join
  * form: a name, an email, a phone), cookies, headers, query strings (the team app's ?email=), SQL values and stack
  * variables; all off. A stack trace and its source lines are what's left, and beforeSend cleans even those.
  */

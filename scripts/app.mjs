@@ -1,4 +1,4 @@
-// Show the user a checkout's apps on their ports (ADR 0115, README.md#worktrees): 4500 the website, 4510 the team
+// Show the user a checkout's apps on their ports (ADR 0115, docs/development.md#worktrees): 4500 the website, 4510 the team
 // app, 4520 the Studio. The one way to run them: the supervisor (scripts/app-supervisor.mjs) runs each app, keeps it
 // up and stops it, so nothing is started with & or nohup, and nothing is left behind.
 //
@@ -19,6 +19,7 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync, readFileSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
+import { envProblems } from "./lib/env-guard.mjs";
 import { alive, appLog, ask, showPaths, sleep } from "./lib/show.mjs";
 import { SERVICES, checkoutOf, mainCheckout, publicPorts } from "./lib/worktrees.mjs";
 
@@ -28,7 +29,13 @@ const words = args.filter((a) => !a.startsWith("--"));
 const COMMANDS = ["main", "status", "restart", "stop", "logs", "down", "dev"];
 const sub = COMMANDS.includes(words[0]) ? words[0] : "show";
 const services = words.filter((w) => w in SERVICES);
-const unknown = words.filter((w) => !(w in SERVICES) && !COMMANDS.includes(w));
+// Asking for help, or a flag it doesn't know, never shows anything: `npm run app -- --help` once switched 4510 over
+if (args.some((a) => ["--help", "-h", "help"].includes(a))) usage("what it does", 0);
+const FLAGS = ["--private", "--own-db", "--shared-db", "--follow"];
+const unknown = [
+  ...words.filter((w) => !(w in SERVICES) && !COMMANDS.includes(w)),
+  ...args.filter((a) => a.startsWith("--") && !FLAGS.includes(a)),
+];
 if (unknown.length) usage(`unknown: ${unknown.join(" ")}`);
 
 const main = mainCheckout();
@@ -124,6 +131,7 @@ switch (sub) {
     const swap = !flag("--private");
     const ownDb = flag("--own-db") ? true : flag("--shared-db") ? false : undefined;
     if (sub === "dev" && services.length !== 1) usage("dev takes one of web, team, studio");
+    refuseSecretsInEnv([...new Set([main, here])]);
     if (swap)
       console.log(`app: ${Object.values(ports).join("/")} now show ${nameOf(dir)} (each says so while it starts)`);
     const a = await request({
@@ -190,7 +198,18 @@ switch (sub) {
   }
 }
 
-function usage(why) {
+/** A secret in .env stops the apps starting (ADR 0002, #149): it says where, never what. */
+function refuseSecretsInEnv(dirs) {
+  const problems = envProblems(dirs);
+  if (!problems.length) return;
+  for (const p of problems) console.error(`app: ${p}`);
+  console.error(
+    "app: .env is for non-secret settings only. Store each in Bitwarden (localhost:4500/__secrets), then delete the line.",
+  );
+  process.exit(1);
+}
+
+function usage(why, code = 2) {
   console.error(`app: ${why}`);
   console.error(
     "Usage: npm run app [-- [web|team|studio…] [--private] [--own-db|--shared-db]]\n" +
@@ -198,5 +217,5 @@ function usage(why) {
       "       npm run app restart|stop [web|team|studio]\n" +
       "       npm run app logs <web|team|studio> [--follow]",
   );
-  process.exit(2);
+  process.exit(code);
 }

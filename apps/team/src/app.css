@@ -21,7 +21,7 @@
   src: url("./assets/fonts/Anton.woff2") format("woff2");
   font-display: swap;
 }
-/* The Kumite's kanji (Bloodsport): Noto Serif JP Black, cut to the fourteen characters the motif uses (lib/motif.ts),
+/* The Kumite's kanji (Bloodsport): Noto Serif JP Black, cut to the nineteen characters the motif uses (lib/motif.ts),
    about 5 KB. Add a character there, cut the font again with it (Google Fonts' text= subset) */
 @font-face {
   font-family: "Kumite Kanji";
@@ -29,7 +29,8 @@
   font-weight: 900;
   font-display: swap;
   unicode-range:
-    U+512a, U+52dd, U+5408, U+624b, U+62f3, U+6b66, U+6c7a, U+7c64, U+7d44, U+8840, U+8a66, U+8cde, U+958b, U+95d8;
+    U+512a, U+5206, U+52dd, U+5408, U+5c01, U+624b, U+62db, U+62f3, U+6b21, U+6b66, U+6c7a, U+7c64, U+7d44, U+8840,
+    U+8a66, U+8cde, U+9078, U+958b, U+95d8;
 }
 
 :root {
@@ -89,7 +90,7 @@
   --fg: #efe8e1; /* bone: titles, the active item, 14.7:1 on a panel */
   --fg-body: #d8d1ca; /* running text */
   --fg-muted: #a6a09a; /* hints, 6.9:1 */
-  --fg-subtle: #75716b; /* placeholders and disabled only, 3.7:1 */
+  --fg-subtle: #8a857f; /* the quietest words: placeholders, steps ahead, 4.5:1 on a field */
 
   /* ─── Colour ─── */
   --red: #e5131f;
@@ -623,9 +624,10 @@ h3 {
   .view > .page.fill {
     padding-right: 0;
   }
-  /* (not a sheet declared in the page: lib/Sheet sizes its own dialog) */
-  .page:not(.full) > :not(.tone, dialog),
-  .page:not(.full) > .tone > :not(dialog) {
+  /* (not a sheet declared in the page: lib/Sheet sizes its own dialog; nor inside an editor drawer, .drawer.page,
+     which a pop-over moves into: a day picker's month stretched to the frame's width, its days 115px) */
+  .page:not(.full, dialog) > :not(.tone, dialog),
+  .page:not(.full, dialog) > .tone > :not(dialog) {
     width: 100%;
     max-width: 52rem;
   }
@@ -957,6 +959,19 @@ button.row:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: transparent;
 }
+/* What's gone for good (#153): the one red fill is the tap that does it, in a confirm (deleting, resetting, a step
+   back that loses results). Quiet, a ghost with danger, it's the red words that ask first. :not(.ghost) gives the fill
+   the weight to hold on touch screens, where a quiet button rests with a faint fill (below) */
+.btn.danger:not(.ghost) {
+  background: var(--red);
+  color: var(--on-red);
+}
+.btn.danger:not(.ghost):hover:not(:disabled) {
+  background: var(--red-hot);
+}
+.btn.ghost.danger {
+  color: var(--red-hot);
+}
 .btn.ghost {
   color: var(--fg-muted);
 }
@@ -964,10 +979,13 @@ button.row:hover:not(:disabled) {
   background: color-mix(in srgb, var(--fg) 7%, transparent);
   color: var(--fg);
 }
-/* A quiet button that can't be used just fades: a fill would read as pressed */
-.btn.ghost:disabled {
+/* A quiet button that can't be used just fades: a fill would read as pressed. aria-disabled is the same, for a
+   button that's off only for now and keeps focus (one that went disabled under the finger dropped it) */
+.btn.ghost:disabled,
+.btn.ghost[aria-disabled="true"] {
   background: transparent;
   opacity: 0.35;
+  cursor: not-allowed;
 }
 /* An edged or filled kind that can't be used reads as off: its colours give way. (.btn:disabled alone sits above the
    kinds at the same weight, so a disabled main button kept its look and seemed live) */
@@ -1385,6 +1403,23 @@ input[type="checkbox"] {
   50% {
     opacity: 0.35;
   }
+}
+
+/* A captain, said in a row: the red C the team lists use, and the word, no pill (colour is an accent) */
+.captain-mark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.captain-mark .c {
+  color: var(--red-hot);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
 }
 
 /* Initials in a disc. In a row, quiet; big (a profile, the member editor, the back of a card), the club's red with

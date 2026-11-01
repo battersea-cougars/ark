@@ -63,7 +63,7 @@
   {#snippet top()}
     <label class="search">
       <Icon name="search" size={18} />
-      <input class="input" placeholder="Find a player" bind:value={search} />
+      <input class="input" aria-label="Find a player" placeholder="Find a player" bind:value={search} />
     </label>
   {/snippet}
 

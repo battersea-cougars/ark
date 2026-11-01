@@ -124,7 +124,7 @@ export async function devTarget({ members, log = console.log }) {
     d1: null,
     cron: null,
     // Dev's own Cron Triggers run on their schedule (every five minutes, and at :07); a run can't start them
-    crons: async () => ["dev's own schedule (*/5, :07)"],
+    crons: async () => ["dev's own schedule (every minute, */5, :07)"],
     leave: club.leave,
     stop: () => club.leave(),
   };

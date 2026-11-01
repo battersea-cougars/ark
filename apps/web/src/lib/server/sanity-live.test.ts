@@ -41,7 +41,7 @@ describe("reading Sanity from the Worker", () => {
   });
 });
 
-// Sanity has no usage API, so we count our own requests (ADR 0116): per project, UTC day and quota (the API or its
+// Sanity has no usage API, so we count our own requests (ADR 0059): per project, UTC day and quota (the API or its
 // CDN), only the answers Sanity counts (not a 4xx or 5xx), and into the database in one round trip after the request.
 describe("the website counts what it asks Sanity", () => {
   const DAY = new Date("2026-10-20T09:30:00Z");

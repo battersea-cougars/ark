@@ -3,7 +3,8 @@
 // for anyone. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
-import { testWorld } from "../testing";
+import { onTheNight, testWorld } from "../testing";
+import { chargesOf as ledgerCharges } from "./dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -21,12 +22,10 @@ beforeEach(() => {
 
 type Browser = Awaited<ReturnType<typeof w.signedIn>>;
 const on = (day: string) => new Date(`${day}T11:00:00Z`);
-const boot = async (b: Browser, now?: Date) =>
-  (await b.call("GET", "/api/bootstrap", undefined, now ? { now } : {})).body as Json;
+const boot = async (b: Browser, now?: Date) => (await b.club(now ? { now } : {})).body as Json;
 const ids = async (b: Browser) =>
   Object.fromEntries((await boot(b)).members.map((m: Json) => [m.name.split(" ")[0], m.id])) as Record<string, number>;
-const chargesOf = async (b: Browser, id: number, now?: Date) =>
-  ((await boot(b, now)).charges as Json[]).filter((c) => c.memberId === id);
+const chargesOf = async (b: Browser, id: number, now?: Date) => (await ledgerCharges(b, id, now)) as Json[];
 
 describe("keepers play training free", () => {
   it("a keeper at Friday's session isn't charged; a skater beside them is", async () => {
@@ -39,7 +38,12 @@ describe("keepers play training free", () => {
     const id = await ids(dana);
     const session = (await boot(dana)).sessions.find((s: Json) => s.heldOn === LAST_FRIDAY).id;
     for (const m of [id.Reg, id.Kim])
-      await dana.call("POST", `/api/sessions/${session}/register`, { memberId: m, here: true });
+      await dana.call(
+        "POST",
+        `/api/sessions/${session}/register`,
+        { memberId: m, here: true },
+        { now: onTheNight(LAST_FRIDAY) },
+      );
 
     expect((await chargesOf(dana, id.Reg)).map((c) => c.kind)).toEqual(["session"]);
     expect(await chargesOf(dana, id.Kim)).toEqual([]);

@@ -14,41 +14,56 @@ import { enquiryMail } from "../../lib/server/enquiry-mail";
 import { clubInbox, mailConfig, smokeToken, turnstileSecret } from "../../lib/server/mail-env";
 import { isSmoke, smokeMailConfig, SMOKE_HEADER } from "../../lib/server/smoke";
 import { autoReplyMail } from "../../lib/server/auto-reply";
-import { TURNSTILE_FIELD, verifyTurnstile } from "@cougars/shared/turnstile";
+import { ENQUIRY_ACTION, TURNSTILE_FIELD, verifyTurnstile } from "@cougars/shared/turnstile";
 import { getSettings } from "../../lib/sanity/content";
 import { sendMail } from "@cougars/shared/email";
 import { scribe } from "@cougars/shared/scribe";
+import { withinLimit } from "../../lib/server/body-limit";
+import { refusedAt } from "../../lib/enquiry-form";
 
 const log = scribe.logger("join");
 
 export const prerender = false;
 
-// Works without JavaScript: a plain form POST gets a 303 redirect. The
-// enhanced form on /join sends `Accept: application/json` and gets JSON back.
+/** The most the form may send: its fields at their longest are under 4 KB, with Turnstile's token. */
+const MAX_FORM = 16 * 1024;
+
+// Works without JavaScript: a plain form POST gets a 303 redirect, to the thanks page or to the form saying what went
+// wrong (refusedAt). The enhanced form on /join sends `Accept: application/json` and gets JSON back.
 export const POST: APIRoute = async ({ request, redirect, clientAddress, locals }) => {
   const wantsJson = request.headers.get("accept")?.includes("application/json");
   const reply = (status: number, body: Record<string, unknown>, location: string) =>
     wantsJson ? Response.json(body, { status }) : redirect(location, 303);
 
-  const form = await request.formData();
+  // Plenty for the form's fields; anything bigger is refused before it's read (#73)
+  const sent = await withinLimit(request, MAX_FORM);
+  if (!sent) return reply(413, { ok: false, error: "That's too much to send." }, refusedAt("invalid"));
+  const form = await sent.formData();
   if (isSpam(form)) return reply(200, { ok: true }, "/join/thanks");
 
-  const { allowed } = await rateLimit(await caches.open("rate-limit"), "join", clientAddress ?? "unknown", {
-    limit: 5,
-    windowSeconds: 15 * 60,
-  });
-  if (!allowed)
-    return reply(429, { ok: false, error: "Too many submissions, please try again later." }, "/join?error=rate");
-
+  // Refused before the limit: an invalid form writes and sends nothing, so it uses up nobody's tries (the deploy's
+  // smoke test posts an empty one)
   const parsed = parseEnquiry(form);
-  if (!parsed.ok) return reply(400, { ok: false, errors: parsed.errors }, "/join?error=invalid");
+  if (!parsed.ok) return reply(400, { ok: false, errors: parsed.errors }, refusedAt("invalid"));
 
   // The deploy's smoke test (lib/server/smoke.ts): the whole path, its emails to the sending account only, then gone.
   // A smoke header with the wrong key (an old deploy's, or this one's before it has spread) is refused, never taken as
-  // an ordinary enquiry: the club must never get a smoke test's email.
+  // an ordinary enquiry: the club must never get a smoke test's email. This deploy's key isn't held to the limit: its
+  // retries while the key spreads would use it up and fail the deploy.
   if (request.headers.has(SMOKE_HEADER) && !isSmoke(request, smokeToken()))
     return Response.json({ ok: false, error: "Not this deploy's smoke key." }, { status: 403 });
-  if (isSmoke(request, smokeToken())) {
+  const smoke = isSmoke(request, smokeToken());
+
+  if (!smoke) {
+    const { allowed } = await rateLimit(await caches.open("rate-limit"), "join", clientAddress ?? "unknown", {
+      limit: 5,
+      windowSeconds: 15 * 60,
+    });
+    if (!allowed)
+      return reply(429, { ok: false, error: "Too many submissions, please try again later." }, refusedAt("rate"));
+  }
+
+  if (smoke) {
     const id = await saveEnquiry(env.DB, parsed.enquiry, { verified: true });
     try {
       const sent = await emailAfterEnquiry(parsed.enquiry, id, true, { smoke: true });
@@ -60,7 +75,11 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   }
 
   // A person, says Turnstile? Only they can get an auto-reply; everyone else's enquiry still counts.
-  const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress);
+  // Rendered for the enquiry form only: a token from the team app's sign-in or Ask to join widgets (the same account's)
+  // isn't one (ADR 0028)
+  const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress, {
+    action: ENQUIRY_ACTION,
+  });
   const id = await saveEnquiry(env.DB, parsed.enquiry, { verified });
   log.info("enquiry.created", { id, source: parsed.enquiry.source, verified });
   // Emails go out after the answer: the enquiry is already saved, so a failed email never loses it.
@@ -79,7 +98,7 @@ async function emailAfterEnquiry(
   { smoke = false } = {},
 ): Promise<{ autoReply: Sent; club: Sent }> {
   const club = await clubInbox();
-  const config = smoke ? smokeMailConfig(mailConfig(club)) : mailConfig(club);
+  const config = smoke ? smokeMailConfig(await mailConfig(club)) : await mailConfig(club);
   const sent: { autoReply: Sent; club: Sent } = { autoReply: "skipped", club: "skipped" };
   let autoReply = "No automatic reply was sent: the form wasn't verified as sent by a person.";
   if (verified && !smoke && !(await autoReplyAllowed(env.DB, enquiry.email))) {

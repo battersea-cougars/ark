@@ -34,7 +34,7 @@ export const RESULTS_SQL = {
     LEFT JOIN members m ON m.id = o.member_id
     WHERE g.tournament_id IN (${PUBLIC}) AND g.status = 'done'`,
   winners: `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, m.name memberName,
-      m.web_name memberWebName
+      m.web_name memberWebName, w.title
     FROM tournament_award_winners w LEFT JOIN members m ON m.id = w.member_id
     WHERE w.tournament_id IN (${PUBLIC}) ORDER BY w.award, w.position`,
 };

@@ -5,7 +5,7 @@
 
 ## Context
 
-Scheduling the next Kumite (ADR [0074](0074-tournament-home-and-scheduling.md)) asked its questions one under another
+Scheduling the next Kumite (ADR [0128](0128-scheduling-a-tournament.md)) asked its questions one under another
 in a tall panel: the season, day and hours, sign-up, the draft's day, then the captains at the bottom. On a phone the
 captains' search came last, under everything else, and its matches opened in a small pop-over, so there was little
 room to find people. The user asked for the Ledger app's wizard instead: a job that moves on to the next step with a
@@ -28,7 +28,7 @@ button, each step with the space to itself.
     steps after it are shut and Next is off. Enter goes on when it can, except from a button, a search that picks
     on Enter, or the last step.
 - **It fills what holds it**: `EditorPanel` and `Sheet` take `fill`, handing the wizard their height and edges, so a
-  phone gets the tall bottom sheet (ADR [0103](0103-drawers-sheets-and-panels.md)) and a desktop the panel, the same
+  phone gets the tall bottom sheet (ADR [0065](0065-page-frame-and-admin-actions.md)) and a desktop the panel, the same
   height on every step.
 - **The last step is a check**: each answer in words, with Change going back to its step.
 - First used by the next date in a series (`TournamentQuickCreate`): When · Sign-up · Captains (a draft series only)

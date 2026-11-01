@@ -74,7 +74,7 @@
   </div>
   {#snippet footer()}
     <button class="btn ghost" type="button" onclick={() => (asking = false)}>Keep my account</button>
-    <button class="btn delete" type="button" disabled={busy} onclick={remove}>Delete my account</button>
+    <button class="btn danger" type="button" disabled={busy} onclick={remove}>Delete my account</button>
   {/snippet}
 </Sheet>
 
@@ -103,13 +103,6 @@
   }
   .ask p {
     margin: 0;
-  }
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
   }
   .error {
     color: var(--red-hot);

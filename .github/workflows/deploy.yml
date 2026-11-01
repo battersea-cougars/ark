@@ -24,13 +24,13 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "30 4 * * *" # daily, 04:30 UTC
+    - cron: "37 4 * * *" # daily, some time after 04:37 UTC (off the half hour: GitHub runs those late)
   workflow_dispatch:
     inputs:
       apps:
         description: Which apps to deploy
         type: choice
-        options: [all, web, team]
+        options: [all, web, team, studio]
         default: all
 
 concurrency:
@@ -64,9 +64,9 @@ jobs:
   # count for every app). A manual run: the `apps` input, and `all` also rebuilds the database (say, to seed a roster
   # change).
   changes:
-    # Forks don't get secrets; their PRs are covered by pr.yml. The schedule only starts `rebuild`.
+    # Forks and Dependabot don't get secrets; their PRs are covered by pr.yml. The schedule only starts `rebuild`.
     if: >-
-      github.event_name != 'schedule' &&
+      github.event_name != 'schedule' && github.actor != 'dependabot[bot]' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
@@ -84,19 +84,23 @@ jobs:
           BEFORE: ${{ github.event.before }}
           APPS: ${{ inputs.apps || 'all' }}
         run: |
-          shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/'
+          # Every app: the install, shared code, the schema, this workflow and its actions, and the scripts every job
+          # runs (target, smoke test, deployment links; the secrets step's env-pull). Then each app's own: the
+          # website's build reads D1 through the club snapshot; the team app's build checks its budget and its config
+          # imports the dev-server helper. Nothing else in scripts/ (the show switch, setup and load scripts) deploys.
+          shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/|scripts/ci/(target|smoke-test)\.mjs|scripts/ci/link-deployment\.sh|scripts/env-pull\.mjs|scripts/lib/(bitwarden|settings)\.mjs'
           declare -A pattern=(
-            [web]="^(apps/web/|scripts/|$shared)"
-            [team]="^(apps/team/|scripts/ci/|$shared)"
+            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/redirect-setup\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
+            [team]="^(apps/team/|scripts/team-app-budget\.mjs|scripts/lib/dev-server\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
-            [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/seed-roster\.mjs|scripts/lib/roster|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
+            [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/lib/backup\.mjs|scripts/seed-roster\.mjs|scripts/lib/(roster|anonymize)|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
           )
           # A PR is checked out as a merge commit: its first parent is the base. A new branch has no `before`.
           base=
           [ "$EVENT" = pull_request ] && base=$(git rev-parse HEAD^1)
           [ "$EVENT" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null && base=$BEFORE
           if [ -n "$base" ]; then
-            files=$(git diff --name-only "$base" HEAD)
+            files=$(git diff --name-only --no-renames "$base" HEAD) # both sides of a move
             echo "Changed since ${base:0:7}:"; echo "$files"
           fi
           for app in web team studio database; do
@@ -189,8 +193,11 @@ jobs:
       SITE_URL: ${{ github.ref == 'refs/heads/release' && 'https://batterseacougars.com' || '' }}
       # Dev: sample content where Sanity's dev dataset is empty, and noindex. Never on production.
       DEMO_CONTENT: ${{ github.ref == 'refs/heads/release' && 'false' || 'true' }}
-      # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, README#turnstile)
+      # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, docs/secrets.md#turnstile)
       TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
+      # Cloudflare Web Analytics' site token (public, in every page; lib/analytics.ts, #92), production only. Empty until
+      # it's copied from the dashboard (docs/setup.md, Web Analytics); then automatic setup is turned off.
+      WEB_ANALYTICS_TOKEN: ""
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -201,7 +208,8 @@ jobs:
           # Each GitHub environment holds only its own: BWS_ACCESS_TOKEN__PRODUCTION or BWS_ACCESS_TOKEN__DEV
           token: ${{ secrets.BWS_ACCESS_TOKEN__PRODUCTION || secrets.BWS_ACCESS_TOKEN__DEV }}
 
-      # Dev (no domain of its own) lives at web.<account subdomain>.workers.dev
+      # Dev (no domain of its own) lives at web.<account subdomain>.workers.dev. The account's ID is a committed setting
+      # (scripts/lib/settings.mjs) that env-pull exported, as it does for every job.
       - name: Site URL
         if: env.SITE_URL == ''
         run: |
@@ -212,13 +220,19 @@ jobs:
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
+      # Until launch the website's words live in the repo (ADR 0014): sent to this environment's Sanity before the build
+      # reads them. Not from a PR (previews share dev's Sanity). At launch this step goes and the Studio owns the words.
+      - name: Words to Sanity
+        if: github.event_name != 'pull_request'
+        run: node scripts/sanity-copy.mjs
+
       # The roster is a snapshot of this environment's D1 (scripts/club-snapshot.mjs, apps/web's prebuild, ADR 0043).
       - name: Build
         run: npm run build
         env:
           CLUB_SNAPSHOT_ENV: ${{ env.SITE_ENV }}
 
-      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0111). A PR
+      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0110). A PR
       # preview only deletes them.
       - name: Source maps
         env:
@@ -244,22 +258,34 @@ jobs:
           url=$(echo "$out" | grep -oE 'https://[^ ]+\.workers\.dev' | head -1)
           echo "url=${SITE_URL:-$url}" >> "$GITHUB_OUTPUT"
 
-      # Secrets the Worker reads at request time, from this environment's Secrets Manager project (README#secrets).
+      # Secrets the Worker reads at request time, from this environment's Secrets Manager project (docs/secrets.md).
       # PR previews share dev's. One that isn't there yet is skipped: the site does without (no live YouTube; sample
-      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies).
+      # Instagram posts outside production, none in it; emails logged, not sent; no auto-replies). Instagram's token is
+      # one plain value, so dev shows the club's real posts too (ADR 0010).
       - name: Worker secrets
         if: github.event_name != 'pull_request'
         working-directory: apps/web
         run: |
-          # Where its errors go (ADR 0111): the web project's DSN, as the Worker's SENTRY_DSN
+          # Where its errors go (ADR 0110): the web project's DSN, as the Worker's SENTRY_DSN
           SENTRY_DSN="${SENTRY_DSN_WEB:-}"
-          for name in YOUTUBE_API_KEY GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN TURNSTILE_SECRET_KEY SENTRY_DSN \
-            INSTAGRAM_TOKEN INSTAGRAM_TOKEN_KEY; do
+          for name in YOUTUBE_API_KEY GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY \
+            TURNSTILE_SECRET_KEY SENTRY_DSN INSTAGRAM_TOKEN; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/server/wrangler.json
             else
               echo "$name: not in Secrets Manager for $SITE_ENV, skipped"
             fi
+          done
+
+      # Once, 2026-10-23: the Gmail Desktop client is gone; 2026-10-30: the Instagram token no longer renews, so it has
+      # no sealing key. Deletes only what's there; drop this step once both environments have deployed.
+      - name: Retire old Worker secrets
+        if: github.event_name != 'pull_request'
+        working-directory: apps/web
+        run: |
+          have=$(npx wrangler secret list -c dist/server/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
+          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET INSTAGRAM_TOKEN_KEY; do
+            if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/server/wrangler.json; fi
           done
 
       - name: Upload preview
@@ -272,9 +298,10 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
       # A key for this deploy's smoke test of the form only (apps/web/src/lib/server/smoke.ts): random, made here, never
-      # stored, and spent right after the test. PR previews share dev's Worker, so they skip the form test.
+      # stored, and spent right after the test. Production only: the form test sends real emails, so it's for the live
+      # site; dev and PR previews check the pages and the API without it, and the use cases cover the form (2026-10-28)
       - name: Smoke key
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/release'
         working-directory: apps/web
         run: |
           key=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')
@@ -287,7 +314,7 @@ jobs:
 
       # Spent, pass or fail: the Worker gets a new random key that nobody ever sees, so this deploy's key opens nothing
       - name: Spend the smoke key
-        if: always() && github.event_name != 'pull_request'
+        if: always() && github.ref == 'refs/heads/release'
         working-directory: apps/web
         run: openssl rand -base64 32 | tr -d '\n' | npx wrangler secret put SMOKE_TOKEN -c dist/server/wrangler.json
 
@@ -308,6 +335,12 @@ jobs:
         run: |
           gh pr comment "${{ github.event.number }}" --repo "${{ github.repository }}" --edit-last --body "$BODY" ||
             gh pr comment "${{ github.event.number }}" --repo "${{ github.repository }}" --body "$BODY"
+
+      # www. to the bare domain, a zone rule (scripts/redirect-setup.mjs): written on every production deploy, so it's
+      # always there; the same rule each time. Last, so it can't hold up the smoke test
+      - name: www redirect
+        if: github.ref == 'refs/heads/release'
+        run: node scripts/redirect-setup.mjs
 
   # The team app (ADR 0010): its own worker `team` on the environment's account and D1, from main (dev) or release
   # (production, at team.<the site's domain>). PRs get no preview (a Worker with a Durable Object can't have preview
@@ -342,12 +375,12 @@ jobs:
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      # The app in the browser reports its errors too (ADR 0111): the team project's DSN, built in; and Turnstile's
-      # public site key for the sign-in page (#13)
+      # The app in the browser reports its errors too (ADR 0110): the team project's DSN, built in (a committed setting,
+      # scripts/lib/settings.mjs, which env-pull exported); and Turnstile's public site key for the sign-in page (#13)
       - name: Build
         run: VITE_SENTRY_DSN="${SENTRY_DSN_TEAM:-}" VITE_SITE_ENV="$SITE_ENV" VITE_RELEASE="$PUBLIC_BUILD_VERSION" VITE_TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY" npm run build -w @cougars/team
 
-      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0111). A PR
+      # Source maps to Sentry under this build's release, then off the files before they go live (ADR 0110). A PR
       # preview only deletes them.
       - name: Source maps
         env:
@@ -363,6 +396,17 @@ jobs:
       - name: Target ${{ env.SITE_ENV }}
         run: node scripts/ci/target.mjs "$SITE_ENV" team
 
+      # Once, 2026-10-23: the Worker secrets it no longer has. The Gmail Desktop client is gone, and the Apple team ID and
+      # Sentry DSN are vars now, which can't share a name with a secret. Deletes only what's there; drop this step once
+      # both environments have deployed.
+      - name: Retire old Worker secrets
+        working-directory: apps/team
+        run: |
+          have=$(npx wrangler secret list -c dist/cougars_team/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
+          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET APPLE_TEAM_ID SENTRY_DSN; do
+            if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/cougars_team/wrangler.json; fi
+          done
+
       # `wrangler deploy`, not a previews-only upload, so the live hub's Durable Object migration is applied (ADR 0072)
       - name: Deploy
         id: deploy
@@ -373,13 +417,13 @@ jobs:
           [ -n "$SITE_URL" ] && url="https://team.${SITE_URL#https://}"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+      # Its plain settings (the account ID, the Apple team ID, the Sentry DSN) are vars, from target.mjs
       - name: Worker secrets
         working-directory: apps/team
         run: |
-          # Where its errors go (ADR 0111): the team project's DSN, as the Worker's SENTRY_DSN
-          SENTRY_DSN="${SENTRY_DSN_TEAM:-}"
-          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY \
-            FIREBASE_SERVICE_ACCOUNT VAPID_PRIVATE_KEY APPLE_TEAM_ID APP_REVIEW_EMAIL APP_REVIEW_CODE SENTRY_DSN TURNSTILE_SECRET_KEY; do
+          for name in GMAIL_REFRESH_TOKEN GMAIL_WEB_CLIENT_ID GMAIL_WEB_CLIENT_SECRET GMAIL_TOKEN_KEY \
+            CLOUDFLARE_ANALYTICS_TOKEN GITHUB_APP_PRIVATE_KEY FIREBASE_SERVICE_ACCOUNT VAPID_PRIVATE_KEY \
+            APP_REVIEW_EMAIL APP_REVIEW_CODE TURNSTILE_SECRET_KEY SENTRY_ISSUES_TOKEN; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" -c dist/cougars_team/wrangler.json
             else

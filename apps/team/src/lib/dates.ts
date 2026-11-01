@@ -1,6 +1,8 @@
-// Europe/London formatting. A copy of the website's helpers until dates.ts moves to shared/ (#35);
-// projects don't import each other's files (ADR 0006).
-import { londonDate } from "@cougars/shared/london";
+// Europe/London dates, money and numbers for members to read: the team app's own words and formats, the one copy of
+// each (#153; scripts/team-one-home.test.mjs fails on a date formatted in a component, an ordinal or plural by hand).
+// The conversions (London's date today, a wall-clock time's instant, the evening) are the one shared copy in
+// @cougars/shared/london (#35), passed on here so the app's pages import their dates from one place.
+export { londonEvening, londonISO, londonTime, londonToday } from "@cougars/shared/london";
 const TZ = "Europe/London";
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
 
@@ -17,6 +19,11 @@ export const formatDayDate = (iso: string) =>
     .join(" ");
 /** "7:30pm", "7pm": a London time to read. 12-hour for everyone until members can choose (#94). */
 export const formatTime = (iso: string) => clock(time.format(new Date(iso)));
+/** "19:05": a London time on the 24-hour clock, for a time stamp on an admin's screen (Usage, the app's brake). */
+export const londonClock = (when: string | number) => time.format(new Date(when));
+const stamp = fmt({ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+/** "Fri 23 Oct, 14:05": when something happened, to the minute, in London (the last backup). */
+export const formatStamp = (iso: string) => stamp.format(new Date(iso));
 /** "19:30" (a wall-clock time as stored) to read: "7:30pm" */
 export function clock(hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
@@ -36,6 +43,11 @@ export function clockRange(from: string, to: string): string {
 export const timeRange = (fromIso: string, toIso: string) =>
   clockRange(time.format(new Date(fromIso)), time.format(new Date(toIso)));
 
+/** A calendar day as stored ("2026-10-23", no time, no zone) in words: `dayWords(day, { weekday: "short" })` is "Fri".
+ * Read at its noon, so no clock change or zone moves it to the day before or after. */
+export const dayWords = (day: string, opts: Intl.DateTimeFormatOptions) =>
+  new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { ...opts, timeZone: "UTC" });
+
 /** { weekday: "Fri", day: "9", month: "Oct" } for date badges. */
 export function dateBadge(iso: string) {
   const p = parts.formatToParts(new Date(iso));
@@ -51,38 +63,15 @@ export const pounds = (pence: number) =>
     minimumFractionDigits: pence % 100 ? 2 : 0,
   });
 
-/** The UTC instant of a London wall-clock time on a date: londonISO("2026-10-09", "19:30"). BST-safe. */
-export function londonISO(date: string, time: string): string {
-  const [y, m, d] = date.split("-").map(Number);
-  const [hh, mm] = time.split(":").map(Number);
-  const guess = Date.UTC(y, m - 1, d, hh, mm);
-  const offset = (t: number) => {
-    const p = new Intl.DateTimeFormat("en-GB", {
-      timeZone: TZ,
-      hourCycle: "h23",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).formatToParts(new Date(t));
-    const get = (type: string) => Number(p.find((x) => x.type === type)!.value);
-    return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute")) - t;
-  };
-  return new Date(guess - offset(guess)).toISOString();
+// Numbers in words, the one copy (#153), beside the dates and money they're read with: ordinals ("21st", never "21th")
+// and counts with their noun. Plain functions, for the app and the Worker.
+
+/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st, 22nd, 101st. */
+export function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10];
+  return `${n}${suffix ?? "th"}`;
 }
 
-/** Today's date in London, "YYYY-MM-DD". */
-/** "19:30": the London wall-clock time of an instant, for a time input. */
-export const londonTime = (iso: string) => time.format(new Date(iso));
-export const londonToday = (now = new Date()) => londonDate(now);
-
-/**
- * The evening a moment belongs to, as London's date (ADR 0074): from 06:00 it's that day's; before 06:00 it's still
- * the night before's, so a Kumite's after-party runs past midnight till the morning.
- */
-export function londonEvening(now = new Date()): string {
-  const day = londonDate(now);
-  if (now.getTime() >= Date.parse(londonISO(day, "06:00"))) return day;
-  return new Date(Date.parse(`${day}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
-}
+/** A count and its noun: "1 goal", "3 goals", "2 matches" (`many` for the irregular ones). */
+export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

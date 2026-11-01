@@ -1,14 +1,14 @@
-// Scoring a game as it's played (ADR 0061). Each game suggests a team sitting it out to keep score (scorekeepers in
+// Scoring a game as it's played (ADR 0130). Each game suggests a team sitting it out to keep score (scorekeepers in
 // lib/fixtures.ts), but one person keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can
 // score that game until they let it go, or an admin does (someone had to leave: anyone can take it on from there).
 // The holder starts and pauses the clock, logs each goal as it goes in (who scored, who assisted, when in game
 // time), and each penalty (who, 2 or 5 minutes, what for, when), takes back the last of either, and calls full time,
 // which makes the score the result. One game at a time. The score is on the game as it changes, so everyone sees it
 // as it happens.
-import { batch, run, statement } from "@cougars/shared/d1";
+import { batch, first, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { fillPlayoffs, listGames, tournamentOf, type Game, type TournamentRow } from "./fixtures";
-import { HttpError, int, oneOf } from "../api/api.http";
+import { HttpError, int, oneOf, text } from "../api/api.http";
 import { INFRACTIONS, infractionOf, PENALTY_MINUTES } from "../../src/lib/penalties";
 import { periodName } from "../../src/lib/periods";
 
@@ -78,6 +78,63 @@ export async function holdScoresheet(
   await run(db, "UPDATE tournament_games SET keeper_member_id = NULL WHERE id = ?", [gameId]);
 }
 
+/**
+ * An admin's say over the scoresheet (#116), from whoever their page saw holding it (`from`, or null for nobody):
+ * take it over (theirs from now, from where the game is: their phone dies, they've had to go) or free it (nobody's,
+ * for anyone to take on: an admin who isn't at the rink). Decided in its statement (ADR 0121): only while it's still
+ * `from`'s and the game isn't over, so two admins at once leave one scorekeeper and the other's told who has it. The
+ * read before is only for the words.
+ */
+export async function overrideScoresheet(
+  db: D1Database,
+  tournamentId: number,
+  gameId: number,
+  o: Record<string, unknown>,
+  who: Who,
+) {
+  const action = oneOf(o, "action", ["takeover", "free"] as const);
+  const from = o.from == null ? null : int(o, "from");
+  const { game, games } = await gameOf(db, tournamentId, gameId);
+  if (game.status === "done") throw new HttpError(409, "That game's over: no scoresheet to take.");
+  const to = action === "takeover" ? who.memberId : null;
+  if (game.keeperId === to) return;
+  // Nobody holding it, taking over is taking it on: the game up next only, as anyone's would be
+  if (to !== null && from === null) {
+    const upNext = games.find((g) => g.status !== "done");
+    if (upNext?.id !== gameId) throw new HttpError(409, `Game ${upNext?.position ?? ""} is up next: score that one.`);
+  }
+  const res = await run(
+    db,
+    `UPDATE tournament_games SET keeper_member_id = ?
+     WHERE id = ? AND keeper_member_id IS ? AND status != 'done'`,
+    [to, gameId, from],
+  );
+  if (res.meta.changes) return;
+  // Moved on since their page read it: who has it now, in words
+  const now = await first<{ status: string; keeper: string | null; keeperId: number | null }>(
+    db,
+    `SELECT g.status, g.keeper_member_id keeperId, m.name keeper
+     FROM tournament_games g LEFT JOIN members m ON m.id = g.keeper_member_id WHERE g.id = ?`,
+    [gameId],
+  );
+  if (now?.status === "done") throw new HttpError(409, "That game's over: no scoresheet to take.");
+  if (now?.keeperId === to) return;
+  throw new HttpError(409, now?.keeper ? `${now.keeper} has it now.` : "Nobody has it now: look again.");
+}
+
+/**
+ * A scorekeeper's write that changed nothing: refused for why. The sheet's gone to someone else (an admin took it
+ * over, ADR 0130) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
+ */
+async function refusal(db: D1Database, gameId: number, who: Who, moved: HttpError | null) {
+  const g = await first<{ keeper: number | null }>(
+    db,
+    "SELECT keeper_member_id keeper FROM tournament_games WHERE id = ?",
+    [gameId],
+  );
+  return g?.keeper !== who.memberId ? new HttpError(403, "Someone else is keeping score.") : moved;
+}
+
 /** Time left on the clock now. */
 const leftNow = (g: Game, now: Date) =>
   Math.max(0, (g.clockLeftMs ?? 0) - (g.clockStartedAt ? now.getTime() - Date.parse(g.clockStartedAt) : 0));
@@ -99,6 +156,14 @@ export async function clockGame(
   const action = oneOf(o, "action", ["start", "pause", "set", "period", "end"] as const);
   const { game, games } = await scorable(db, tournamentId, gameId, who);
   const t = await tournamentOf(db, tournamentId);
+  // Each write goes only while this member still holds the sheet: an admin taking it over between the read and the
+  // write leaves their phone's tap refused, never landed (ADR 0121)
+  const held = `AND keeper_member_id = ${Number(who.memberId)}`;
+  const landed = async (res: D1Result, moved: HttpError | null = null) => {
+    if (res.meta.changes) return;
+    const why = await refusal(db, gameId, who, moved);
+    if (why) throw why;
+  };
   if (action === "start") {
     if (game.status === "done") throw new HttpError(409, "That game's over.");
     // The game up next (or on now): the first in the day's order that isn't over
@@ -110,28 +175,39 @@ export async function clockGame(
     if (game.status === "next") {
       const other = games.find((g) => g.status === "live");
       if (other) throw new HttpError(409, `Game ${other.position}'s still on. Call full time on it first.`);
-      await run(
-        db,
-        `UPDATE tournament_games SET status = 'live', home_goals = 0, away_goals = 0, clock_left_ms = ?,
-           clock_started_at = ? WHERE id = ?`,
-        [t.gameMinutes * 60_000, now.toISOString(), gameId],
+      await landed(
+        await run(
+          db,
+          // Kick-off: when it actually started, kept from the first Start on (ADR 0121: set once, in its statement)
+          `UPDATE tournament_games SET status = 'live', home_goals = 0, away_goals = 0, clock_left_ms = ?,
+             clock_started_at = ?, started_at = COALESCE(started_at, ?) WHERE id = ? AND status = 'next' ${held}`,
+          [t.gameMinutes * 60_000, now.toISOString(), now.toISOString(), gameId],
+        ),
+        new HttpError(409, "The clock's already running."),
       );
     } else
       // Starting the next period ends the break before it
-      await run(db, "UPDATE tournament_games SET clock_started_at = ?, period_ended_at = NULL WHERE id = ?", [
-        now.toISOString(),
-        gameId,
-      ]);
+      await landed(
+        await run(
+          db,
+          `UPDATE tournament_games SET clock_started_at = ?, period_ended_at = NULL WHERE id = ? AND status = 'live' ${held}`,
+          [now.toISOString(), gameId],
+        ),
+        new HttpError(409, "That game's over."),
+      );
     return;
   }
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   if (action === "set") {
     const leftMs = int(o, "leftMs", { max: 60 * 60_000 })!;
-    await run(db, "UPDATE tournament_games SET clock_left_ms = ?, clock_started_at = ? WHERE id = ?", [
-      leftMs,
-      game.clockStartedAt ? now.toISOString() : null,
-      gameId,
-    ]);
+    await landed(
+      await run(
+        db,
+        `UPDATE tournament_games SET clock_left_ms = ?, clock_started_at = ? WHERE id = ? AND status = 'live' ${held}`,
+        [leftMs, game.clockStartedAt ? now.toISOString() : null, gameId],
+      ),
+      tooLate(false),
+    );
     return;
   }
   if (action === "period") {
@@ -140,31 +216,41 @@ export async function clockGame(
     if (ending < game.period) return;
     if (ending > game.period) throw new HttpError(409, `It's the ${periodName(game.period)} period.`);
     if (game.period >= t.periods) throw new HttpError(409, "That's the last period: call full time.");
-    // Only from the period said: the same end sent by two phones at once moves on once
-    await run(
-      db,
-      `UPDATE tournament_games SET period = period + 1, clock_left_ms = ?, clock_started_at = NULL, period_ended_at = ?
-       WHERE id = ? AND period = ? AND status = 'live'`,
-      [t.gameMinutes * 60_000, now.toISOString(), gameId, ending],
+    // Only from the period said: the same end sent by two phones at once moves on once (the second changes
+    // nothing, and that's fine)
+    await landed(
+      await run(
+        db,
+        `UPDATE tournament_games SET period = period + 1, clock_left_ms = ?, clock_started_at = NULL, period_ended_at = ?
+         WHERE id = ? AND period = ? AND status = 'live' ${held}`,
+        [t.gameMinutes * 60_000, now.toISOString(), gameId, ending],
+      ),
     );
     return;
   }
   if (action === "pause") {
     if (!game.clockStartedAt) return;
-    await run(db, "UPDATE tournament_games SET clock_left_ms = ?, clock_started_at = NULL WHERE id = ?", [
-      leftNow(game, now),
-      gameId,
-    ]);
+    await landed(
+      await run(
+        db,
+        `UPDATE tournament_games SET clock_left_ms = ?, clock_started_at = NULL WHERE id = ? AND status = 'live' ${held}`,
+        [leftNow(game, now), gameId],
+      ),
+      tooLate(false),
+    );
     return;
   }
   // Full time. A playoff needs a winner: level, it plays on and the next goal wins (it's then a full time like any other)
   if (game.stage === "playoff" && (game.homeGoals ?? 0) === (game.awayGoals ?? 0))
     throw new HttpError(409, "It's level, and a playoff needs a winner: play on, next goal wins.");
-  await run(
+  const res = await run(
     db,
-    "UPDATE tournament_games SET status = 'done', clock_left_ms = ?, clock_started_at = NULL WHERE id = ?",
+    `UPDATE tournament_games SET status = 'done', clock_left_ms = ?, clock_started_at = NULL
+     WHERE id = ? AND status = 'live' ${held}`,
     [leftNow(game, now), gameId],
   );
+  // Full time twice (two phones at once) is called once; the second's fine
+  if (!res.meta.changes) return void (await landed(res));
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
 
@@ -238,12 +324,22 @@ export async function addGoal(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
-  // The goal and the score it makes in one batch: full time landing between them would make the result without it
+  const tapId = tapOf(o);
+  // A goal missed on a finished playoff never leaves it level (#159, as taking one off can't, #123), decided in the
+  // statement that adds it (ADR 0121): two admins adding one each to a 3–1 Final at once can't make it 3–3. Params:
+  // the game and this team, then the game and the other
+  const playoff = done && game.stage === "playoff";
+  const goals = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND team_id = ?)";
+  const other = teamId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;
+  // The goal and the score it makes in one batch: full time landing between them would make the result without it.
+  // The same tap twice is one goal (#114): the second's insert does nothing
   const [res] = await batch(db, [
     statement(
       db,
-      `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, created_at)
-       SELECT ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
+      `INSERT INTO tournament_goals (game_id, team_id, scorer_member_id, assist_member_id, at_ms, period, tap_id,
+         created_at)
+       SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}${playoff ? ` AND ${goals} + 1 != ${goals}` : ""}
+       ON CONFLICT (game_id, tap_id) DO NOTHING`,
       [
         gameId,
         teamId,
@@ -251,43 +347,73 @@ export async function addGoal(
         assistId,
         atMs,
         periodOf(o, done, atMs, game, t),
+        tapId,
         now.toISOString(),
         gameId,
         who.memberId,
+        ...(playoff ? [gameId, teamId, gameId, other] : []),
       ],
     ),
     recount(db, game),
   ]);
-  if (!res.meta.changes) throw tooLate(done);
+  if (!res.meta.changes) {
+    if (await tapped(db, "tournament_goals", gameId, tapId)) return;
+    if (playoff && (await first(db, "SELECT 1 FROM tournament_games WHERE id = ? AND status = 'done'", [gameId])))
+      throw leavesItLevel();
+    throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
+  }
   if (done && game.stage === "group") await fillPlayoffs(db, tournamentId, t);
 }
 
-/** Any goal off a finished game: it wasn't one, or it was the other side's. */
+/** A finished playoff left level by a goal added or taken off: it needs a winner. */
+const leavesItLevel = () =>
+  new HttpError(409, "That would leave it level, and a playoff needs a winner: put the right score in instead.");
+
+/**
+ * Any goal off a finished game: it wasn't one, or it was the other side's. Never one that leaves a playoff level (a
+ * playoff needs a winner, as full time and a typed-in result say, #123), decided in the statement that takes it off
+ * (ADR 0121): two admins taking a goal each off a 2–1 Final at once leave it 1–1 for neither.
+ */
 export async function removeGoal(db: D1Database, tournamentId: number, gameId: number, goalId: number, who: Who) {
   const game = await correctable(db, tournamentId, gameId, who);
+  // Params: the game, the goal, the team. Each side's goals but this one
+  const others = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND id != ? AND team_id = ?)";
   const [res] = await batch(db, [
-    statement(db, "DELETE FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]),
+    game.stage === "playoff"
+      ? statement(db, `DELETE FROM tournament_goals WHERE id = ? AND game_id = ? AND ${others} != ${others}`, [
+          goalId,
+          gameId,
+          ...[gameId, goalId, game.homeTeamId],
+          ...[gameId, goalId, game.awayTeamId],
+        ])
+      : statement(db, "DELETE FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]),
     recount(db, game),
   ]);
-  if (!res.meta.changes) throw new HttpError(404, "No such goal.");
+  if (!res.meta.changes) {
+    const there = await first(db, "SELECT 1 FROM tournament_goals WHERE id = ? AND game_id = ?", [goalId, gameId]);
+    throw there ? leavesItLevel() : new HttpError(404, "No such goal.");
+  }
   // The playoffs from the table
   if (game.stage === "group") await fillPlayoffs(db, tournamentId, await tournamentOf(db, tournamentId));
 }
 
-/** The last goal comes off: logged by mistake. */
-export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who) {
+/**
+ * The last goal comes off: logged by mistake. The page says which (`goalId`, the last it shows, #114), so Undo
+ * tapped twice takes that one off once; unsaid, the last logged.
+ */
+export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who, goalId: number | null) {
   const { game } = await scorable(db, tournamentId, gameId, who);
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   // As a goal goes in: off, and the score with it, in one batch
   const [res] = await batch(db, [
     statement(
       db,
-      `DELETE FROM tournament_goals WHERE id = (SELECT max(id) FROM tournament_goals WHERE game_id = ?) AND ${stillAsFound(false)}`,
-      [gameId, gameId, who.memberId],
+      `DELETE FROM tournament_goals WHERE ${whichOff(goalId, "tournament_goals")} AND ${stillAsFound(false)}`,
+      [...whichOffParams(goalId, gameId), gameId, who.memberId],
     ),
     recount(db, game),
   ]);
-  if (!res.meta.changes) throw new HttpError(409, "No goals to take back.");
+  if (!res.meta.changes) await nothingTakenBack(db, gameId, who, goalId, "No goals to take back.");
 }
 
 /**
@@ -333,11 +459,13 @@ export async function addPenalty(
       ? null
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
+  const tapId = tapOf(o);
+  // The same tap twice is one penalty (#114)
   const res = await run(
     db,
     `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, period, recorded_by,
-       created_at)
-     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)}`,
+       tap_id, created_at)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${stillAsFound(done)} ON CONFLICT (game_id, tap_id) DO NOTHING`,
     [
       gameId,
       teamId,
@@ -347,12 +475,16 @@ export async function addPenalty(
       atMs,
       periodOf(o, done, atMs, game, t),
       who.memberId,
+      tapId,
       now.toISOString(),
       gameId,
       who.memberId,
     ],
   );
-  if (!res.meta.changes) throw tooLate(done);
+  if (!res.meta.changes) {
+    if (await tapped(db, "tournament_penalties", gameId, tapId)) return;
+    throw done ? tooLate(done) : await refusal(db, gameId, who, tooLate(done));
+  }
 }
 
 /** Any penalty off a finished game: an admin putting it right. */
@@ -362,16 +494,53 @@ export async function removePenalty(db: D1Database, tournamentId: number, gameId
   if (!res.meta.changes) throw new HttpError(404, "No such penalty.");
 }
 
-/** The last penalty comes off: logged by mistake. */
-export async function undoPenalty(db: D1Database, tournamentId: number, gameId: number, who: Who) {
+/** The last penalty comes off: logged by mistake. Which, as for goals (`penaltyId`, #114). */
+export async function undoPenalty(
+  db: D1Database,
+  tournamentId: number,
+  gameId: number,
+  who: Who,
+  penaltyId: number | null,
+) {
   const { game } = await scorable(db, tournamentId, gameId, who);
   if (game.status !== "live") throw new HttpError(409, "That game isn't on.");
   const res = await run(
     db,
-    `DELETE FROM tournament_penalties WHERE id = (SELECT max(id) FROM tournament_penalties WHERE game_id = ?) AND ${stillAsFound(false)}`,
-    [gameId, gameId, who.memberId],
+    `DELETE FROM tournament_penalties WHERE ${whichOff(penaltyId, "tournament_penalties")} AND ${stillAsFound(false)}`,
+    [...whichOffParams(penaltyId, gameId), gameId, who.memberId],
   );
-  if (!res.meta.changes) throw new HttpError(409, "No penalties to take back.");
+  if (!res.meta.changes) await nothingTakenBack(db, gameId, who, penaltyId, "No penalties to take back.");
+}
+
+/** Which tap a goal or penalty is (#114): the phone's id for it, made when the button's pressed; none from an admin. */
+const tapOf = (o: Record<string, unknown>) => (o.tapId == null ? null : text(o, "tapId", { max: 64 }));
+
+/** This tap's already in: sent twice (two phones, a retry), it counted the first time. The read is only for that. */
+const tapped = async (
+  db: D1Database,
+  table: "tournament_goals" | "tournament_penalties",
+  gameId: number,
+  tapId: string | null,
+) => tapId !== null && !!(await first(db, `SELECT 1 FROM ${table} WHERE game_id = ? AND tap_id = ?`, [gameId, tapId]));
+
+/** SQL for the one an Undo takes off: the one it names, in this game, or else the game's last logged. */
+const whichOff = (named: number | null, table: "tournament_goals" | "tournament_penalties") =>
+  named !== null ? "id = ? AND game_id = ?" : `id = (SELECT max(id) FROM ${table} WHERE game_id = ?)`;
+const whichOffParams = (named: number | null, gameId: number) => (named !== null ? [named, gameId] : [gameId]);
+
+/**
+ * An Undo that took nothing off, and why: the sheet's someone else's now, or the game's over; else the one it named is
+ * already off (Undo tapped twice: done once, and that's fine), or there was nothing to take back.
+ */
+async function nothingTakenBack(db: D1Database, gameId: number, who: Who, named: number | null, nothing: string) {
+  const g = await first<{ keeper: number | null; status: string }>(
+    db,
+    "SELECT keeper_member_id keeper, status FROM tournament_games WHERE id = ?",
+    [gameId],
+  );
+  if (g?.keeper !== who.memberId) throw new HttpError(403, "Someone else is keeping score.");
+  if (g.status !== "live") throw tooLate(false);
+  if (named === null) throw new HttpError(409, nothing);
 }
 
 /** The score on the game, from its goals: what everyone sees. Sent in the same batch as the change to its goals, so

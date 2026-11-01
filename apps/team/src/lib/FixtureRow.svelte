@@ -2,17 +2,18 @@
   // One game, as a row in a list: its kick-off, the two teams (or the places a playoff waits on, 1st v 2nd), and the
   // score once there is one. A tap on it opens the game's own page (its matchup, or the full result once played):
   // both teams, the goals, and where it's scored or an admin puts a result right (ADR 0061).
-  import { clock } from "./dates";
+  import { clock, ordinal } from "./dates";
   import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
-  import { kickOff, slotMinutes, table } from "./fixtures";
+  import { matchTime, table } from "./fixtures";
   import TeamCrest from "./TeamCrest.svelte";
   import RollNumber from "./RollNumber.svelte";
   import { teamHref, teamTone } from "./team-tones";
   import { typeById } from "../demo/schedule.svelte";
   import { leftOf, mmss, ticking } from "./game-clock.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import TeamRecord from "./TeamRecord.svelte";
 
   let {
     tournament,
@@ -46,7 +47,6 @@
   };
   const logoOf = (id: number) => teams.find((x) => x.id === id)?.logo ?? null;
   const toneOf = (id: number) => teamTone(teams.findIndex((x) => x.id === id));
-  const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
   // Each team's record from the group games with a result: won-drawn-lost and points, as a league writes it
   const records = $derived(
@@ -78,7 +78,7 @@
   const playable = $derived(g.status !== "done" && !!g.homeTeamId && !!g.awayTeamId);
   // A live game's clock ticks here
   $effect(() => (live ? ticking() : undefined));
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
 
@@ -89,14 +89,12 @@
     {#if id}<a class="tn linked" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{teamName(id)}</a><span
         class="tn plain">{teamName(id)}</span
       >
-    {:else}<span class="tn">{nth(seed)}</span>{/if}
+    {:else}<span class="tn">{seed ? ordinal(seed) : ""}</span>{/if}
     {#if big && id}
       {@const r = recordOf(id)}
       {#if r}
-        <!-- Won-drawn-lost and points, as a league writes it: 1-1-0 · 2 pts -->
-        <span class="rec num" aria-label="{r.w} won, {r.d} drawn, {r.l} lost, {r.pts} points"
-          >{r.w}-{r.d}-{r.l} · {r.pts} {r.pts === 1 ? "pt" : "pts"}</span
-        >
+        <!-- Won, drawn, lost and points, in the table's words (lib/TeamRecord): 1W 0D 0L · 3 Pts -->
+        <span class="rec"><TeamRecord w={r.w} d={r.d} l={r.l} pts={r.pts} /></span>
       {/if}
     {/if}
   </span>
@@ -107,7 +105,7 @@
   {#if live}{#if !feature}<span class="badge red live">{chant}</span>{/if}<span class="clock num"
       >{mmss(leftOf(g))}</span
     >
-  {:else}{clock(kickOff(tournament.startTime, slotMinutes(tournament), g.position))}{/if}
+  {:else}{clock(matchTime(tournament, g))}{/if}
 {/snippet}
 
 <!-- Every row has the same columns, so the teams, the score and the button line up down a list. Big: the time sits
@@ -126,15 +124,9 @@
     {@render side(g.homeTeamId, g.homeSeed)}
   </span>
   <!-- On now, a big row opens the live page (the clock, the goals as they go in); otherwise the matchup -->
-  <a
-    class="mid num"
-    href={(big && live) || scoresheet ? clockHref : gameHref}
-    aria-label={scoresheet
-      ? `Game ${g.position}, your scoresheet`
-      : big && live
-        ? `Game ${g.position}, live`
-        : `Game ${g.position}`}
-  >
+  <a class="mid num" href={(big && live) || scoresheet ? clockHref : gameHref}>
+    <!-- Its name is which game, then what it shows (the time, the score), as a screen reader reads it -->
+    <span class="sr-only">Game {g.position}{scoresheet ? ", your scoresheet" : big && live ? ", live" : ""}: </span>
     {#if big}<span class="when hint">{@render when()}</span>{/if}
     <span class="score">
       {#if g.homeGoals !== null}<RollNumber value={g.homeGoals} /><span class="dash">–</span><RollNumber
@@ -251,10 +243,11 @@
   }
   /* The record: one quiet line under the name */
   .rec {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
+    display: block;
+    overflow: hidden;
     font-weight: 400;
     white-space: nowrap;
+    text-overflow: ellipsis;
   }
   .fixture.done .team.won .tn {
     font-weight: 700;

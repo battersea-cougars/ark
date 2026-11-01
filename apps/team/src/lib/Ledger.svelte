@@ -3,21 +3,25 @@
   // first, with what they owe after each. Its header stays in view as it scrolls, under whatever is pinned above it
   // (--below; on a page, the shell's top bar). Whoever records payments can take back a payment or a quarter charged
   // by hand, each with a second tap so a stray one can't.
+  import { untrack } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { removeCharge, removePayment } from "../app/backend.svelte";
-  import { chargesFor, labelFor } from "../demo/dues.svelte";
+  import { ledgerOf } from "../app/ledger.svelte";
   import { db } from "../demo/store.svelte";
-  import { ledger } from "./dues";
+  import { reportUnexpected } from "../app/errors.early";
+  import { labelFor } from "../demo/dues.svelte";
   import { formatDayDate, pounds } from "./dates";
+  import { loadMore } from "./load-more";
 
   let { memberId, editable = false }: { memberId: number; editable?: boolean } = $props();
 
-  const lines = $derived(
-    ledger(
-      chargesFor(memberId),
-      db.payments.filter((p) => p.memberId === memberId),
-    ),
-  );
+  // Read a page at a time, newest first (#177, app/ledger.svelte.ts): again when dues change, as far as it was read
+  const book = $derived(ledgerOf(memberId));
+  $effect(() => {
+    void [db.dues, db.charges];
+    untrack(() => book.show()).catch((e) => reportUnexpected(e, "Couldn't read the ledger"));
+  });
+  const lines = $derived(book.lines);
   const day = (d: string) => formatDayDate(`${d}T12:00:00Z`);
   /** Owed after it, or below nothing, credit. */
   const balance = (p: number) => (p < 0 ? `${pounds(-p)} credit` : pounds(p));
@@ -91,10 +95,13 @@
           {/if}
         </tr>
       {:else}
-        <tr><td colspan={editable ? 6 : 5} class="none">Nothing charged or paid yet.</td></tr>
+        <!-- Its first page on its way: a row's space, said once it's come -->
+        <tr><td colspan={editable ? 6 : 5} class="none">{book.read ? "Nothing charged or paid yet." : "\u00a0"}</td></tr
+        >
       {/each}
     </tbody>
   </table>
+  {#if book.next}<div class="more" use:loadMore={() => book.more()}></div>{/if}
 </div>
 
 <style>
@@ -200,6 +207,9 @@
   }
   .none {
     color: var(--fg-muted);
+  }
+  .more {
+    height: 1px;
   }
   @media (max-width: 600px) {
     th,

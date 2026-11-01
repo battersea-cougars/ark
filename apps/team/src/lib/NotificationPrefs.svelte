@@ -9,8 +9,12 @@
   import { turnOff, turnOn, webPush, webPushHere } from "../app/web-push";
   import { db } from "../demo/store.svelte";
   import { TOPICS, type Topic } from "./notification-topics";
+  import { can } from "../access/actions";
+  import { realGranted } from "../demo/session.svelte";
 
   let { disabled = false }: { disabled?: boolean } = $props();
+  // A topic for one job (the email stopping, a break-glass sign-in) is only for whoever does it to switch
+  const topics = $derived(TOPICS.filter((t) => !("action" in t) || can(realGranted(), t.action)));
 
   function flip(topic: Topic) {
     const on = !db.notifications[topic];
@@ -39,6 +43,7 @@
       }
     } catch {
       failed = true;
+      // The failure is said (failed); as for this browser, off unless it can say otherwise
       deviceOn = (await webPush().catch(() => "off")) === "on";
     } finally {
       busy = false;
@@ -82,7 +87,7 @@
         <p class="hint" id="notify-device">{deviceHint}</p>
       </li>
     {/if}
-    {#each TOPICS as t (t.topic)}
+    {#each topics as t (t.topic)}
       <li>
         <button
           type="button"

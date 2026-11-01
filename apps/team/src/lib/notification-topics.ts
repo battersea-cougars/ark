@@ -12,6 +12,27 @@ export const TOPICS = [
   { topic: "announcements", label: "Locker room", hint: "What the club posts on Home." },
   { topic: "dues", label: "Dues", hint: "What you owe the club, when it's due." },
   { topic: "draft", label: "The draft", hint: "A draft you captain is open, and where you pick." },
+  // Only for whoever looks after the club's email (ADR 0027): the You page shows it to them alone
+  {
+    topic: "email",
+    label: "Email has stopped",
+    hint: "Google cancelled the app's access to send email, so nobody gets a sign-in code until it's reconnected.",
+    action: "manage:Settings",
+  },
+  // Only ever sent to admins (a break-glass sign-in, ADR 0023), so only they see its switch
+  {
+    topic: "security",
+    label: "Break-glass sign-ins",
+    hint: "Someone got in with a code made at a terminal, not by email or passkey.",
+    action: "manage:all",
+  },
+  // Only for whoever watches the club's free allowance (ADR 0059, #157): admins, so only they see its switch
+  {
+    topic: "usage",
+    label: "Free limits",
+    hint: "The club's free Cloudflare or Sanity allowance is at 70% or 90%, or a request was stopped for its CPU time.",
+    action: "read:Usage",
+  },
 ] as const;
 
 export type Topic = (typeof TOPICS)[number]["topic"];

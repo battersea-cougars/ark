@@ -10,6 +10,7 @@ import { fillingUp } from "../entries/entries";
 import type { SeriesRef } from "../dues/dues";
 import { scribe } from "@cougars/shared/scribe";
 import { placeFields } from "../settings/venues";
+import { answeredGuard, trainingNights } from "../calendar/clashes";
 
 interface SeriesRow {
   id: number;
@@ -106,14 +107,17 @@ export async function ensureSessions(db: D1Database, today: string) {
         ),
       };
     } catch (error) {
-      log.error("A training's rule makes no dates: skipped", error, { seriesId: s.id, rule });
+      // Reported: that training gets no new nights till its rule's fixed. The other trainings go on
+      log.error("training.rule_unreadable", error, { seriesId: s.id, rule });
       return { id: s.id, dates: [] };
     }
   });
   const fresh = made.flatMap((s) => s.dates.map((d) => [s.id, d]));
   if (fresh.length) await run(db, INSERT_SESSIONS, [JSON.stringify(fresh)]);
-  // Only when there are new ones: this runs on every load of the app
-  for (const s of made) if (s.dates.length) await syncSeries(db, s.id);
+  // Only when there are new ones: this runs on every load of the app. Every series with new ones at once (ADR 0003)
+  const grown = made.filter((s) => s.dates.length).map((s) => s.id);
+  if (grown.length) await syncSeries(db, ...grown);
+  return grown;
 }
 
 /**
@@ -188,6 +192,10 @@ export interface SessionRow {
   capacity: number | null;
   note: string | null;
   cancelledAt: string | null;
+  /** Called off by hand (1), as the row has it; true or false once shaped (api.slices.ts). */
+  offByHand: number | boolean;
+  /** The tournaments it's off for, "3,5" as the row has it; ids once shaped. */
+  offFor: string | number[] | null;
   registerClosedAt: string | null;
 }
 
@@ -240,24 +248,38 @@ const seriesParams = (f: Awaited<ReturnType<typeof seriesFields>>): Param[] => [
   f.active ? 1 : 0,
 ];
 
+/** A save with nothing to keep to (ADR 0122): no condition. */
+const ANY = { sql: "1", params: [] as Param[] };
+const SOMETHING_NEW = "Something else is on then now. Have a look again.";
+const timesOf = (f: Awaited<ReturnType<typeof seriesFields>>) => ({
+  ...f,
+  weekdays: f.weekdays.split(",") as Weekday[],
+});
+
 /** A new training, with whatever goes with it (`also`) in the same batch: all of it checked first, so a refusal makes
  * nothing (#131). */
 export async function createSeries(db: D1Database, o: Record<string, unknown>, today: string, also: Also = () => []) {
   const f = await seriesFields(db, o);
   const slug = await freeSlug(db, "training_series", slugify(f.shortName || f.name));
+  // Over something already on (ADR 0122): what was asked about holds to the write, or nothing is made
+  const clear =
+    (await answeredGuard(db, await trainingNights(db, timesOf(f), null, today), o.clashes, null, today)) ?? ANY;
   const [res] = await batch(db, [
     statement(
       db,
       `INSERT INTO training_series (name, short_name, icon, tone, repeat_every, weekdays, starts_on, ends_on, start_time,
          end_time, venue_id, venue, map_url, capacity, goalie_capacity, signup_opens_days, public, active, slug)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [...seriesParams(f), slug],
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${clear.sql}`,
+      [...seriesParams(f), slug, ...clear.params],
     ),
+    // Not made, it has no id: its fees go nowhere
     ...also({ sql: "(SELECT id FROM training_series WHERE slug = ?)", params: [slug] }),
   ]);
-  await ensureSessions(db, today);
-  await syncSeries(db, Number(res.meta.last_row_id));
-  return { id: Number(res.meta.last_row_id), slug };
+  if (!res.meta.changes) throw new HttpError(409, SOMETHING_NEW);
+  const id = Number(res.meta.last_row_id);
+  // Its sessions made, and on the agenda with them; one with none yet goes on it still (its rows, none)
+  if (!(await ensureSessions(db, today)).includes(id)) await syncSeries(db, id);
+  return { id, slug };
 }
 
 /**
@@ -278,17 +300,20 @@ export async function updateSeries(
   if (!(await first(db, "SELECT 1 FROM training_series WHERE id = ?", [id])))
     throw new HttpError(404, "No such training.");
   const f = await seriesFields(db, o);
-  await batch(db, [
+  // Moved over something already on (ADR 0122): what was asked about holds to every statement, or nothing changes
+  const clear = (await answeredGuard(db, await trainingNights(db, timesOf(f), id, today), o.clashes, id, today)) ?? ANY;
+  const [res] = await batch(db, [
     statement(
       db,
       `UPDATE training_series SET name = ?, short_name = ?, icon = ?, tone = ?, repeat_every = ?, weekdays = ?,
          starts_on = ?, ends_on = ?, start_time = ?, end_time = ?, venue_id = ?, venue = ?, map_url = ?, capacity = ?, goalie_capacity = ?,
-         signup_opens_days = ?, public = ?, active = ? WHERE id = ?`,
-      [...seriesParams(f), id],
+         signup_opens_days = ?, public = ?, active = ? WHERE id = ? AND ${clear.sql}`,
+      [...seriesParams(f), id, ...clear.params],
     ),
-    ...also({ sql: "?", params: [id] }),
-    fillingUp(db, "session", { sql: "s.series_id = ?", params: [id] }, today, now),
+    ...also({ sql: `(SELECT ? WHERE ${clear.sql})`, params: [id, ...clear.params] }),
+    fillingUp(db, "session", { sql: `s.series_id = ? AND ${clear.sql}`, params: [id, ...clear.params] }, today, now),
   ]);
+  if (!res.meta.changes) throw new HttpError(409, SOMETHING_NEW);
   const keep = new Set(
     f.active
       ? datesToMake(
@@ -325,14 +350,4 @@ export async function updateSeries(
   );
   await ensureSessions(db, today);
   await syncSeries(db, id);
-}
-
-/** Cancel one session (Christmas, Easter), or restore it. It stays a row, so whoever signed up can be told. */
-export async function setSessionCancelled(db: D1Database, id: number, cancelled: boolean, now: string) {
-  const res = await run(db, "UPDATE training_sessions SET cancelled_at = ? WHERE id = ?", [cancelled ? now : null, id]);
-  if (!res.meta.changes) throw new HttpError(404, "No such session.");
-  const s = await first<{ seriesId: number }>(db, "SELECT series_id seriesId FROM training_sessions WHERE id = ?", [
-    id,
-  ]);
-  if (s) await syncSeries(db, s.seriesId);
 }

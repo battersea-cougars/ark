@@ -1,7 +1,7 @@
 <script lang="ts">
   import { POSITIONS, type Player } from "../demo/data";
-  import { goesBy } from "./names";
   import Avatar from "./Avatar.svelte";
+  import { goesBy } from "./names";
 
   let {
     player,

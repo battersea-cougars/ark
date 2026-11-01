@@ -7,15 +7,44 @@
 // version it never heard of (a change that told nobody, a stream that dropped) leaves it short, and the next whole
 // check reads the club; a whole check at the version held is a 304.
 //
+// A live match comes with its event (#161): it's the same for every member, so the Worker builds it once and the hub
+// sends it along. A copy that holds the version just before puts it in place as it is, and reads nothing; any other
+// copy reads as the names say, so a missed event costs a read, never a wrong screen.
+//
 // One read at a time, after a short random wait, so a burst of events is one read, and 120 phones don't all ask in
 // the same instant. Nothing while the page is out of view: coming back checks the whole club anyway.
 //
+// The hub names families (`members`, `sessions`: club-parts.ts); the copy counts in the parts it holds: the core's,
+// and those of the pages' it's read (#178). A page's part it doesn't hold is read fresh when a page wants it.
+//
 // No imports, and only what Node can run as it is: the load runs' phones use this too (scripts/load/load.client.mjs).
 
-/** What changed, as the hub says it: the parts, and the data versions that changed them. */
+/** A live match as the hub sends it (#161): a tournament's games, as every member sees them. */
+export interface PushedMatch {
+  tournamentId: number;
+  games: unknown[];
+}
+
+/** What the hub sends with a change, besides its names: the data version the change made, and the match. */
+export interface Pushed {
+  version: number;
+  match: PushedMatch;
+}
+
+/** What changed, as the hub says it: the parts, the data versions that changed them, and any match sent along. */
 export interface Heard {
   changed: readonly string[];
   versions: readonly number[];
+  parts?: readonly Pushed[];
+}
+
+/** The part of the club a match goes into: the change that made it changed nothing else (api/api.ts). */
+const MATCH_IN = "tournaments";
+
+/** The tournaments with this match's games in place, or null when its tournament isn't among them (read instead). */
+export function withMatch<T extends { id: number }>(tournaments: T[] | undefined, match: PushedMatch): T[] | null {
+  if (!tournaments?.some((t) => t.id === match.tournamentId)) return null;
+  return tournaments.map((t) => (t.id === match.tournamentId ? { ...t, games: match.games } : t));
 }
 
 /** How the copy reads and stores; the app's are in backend.svelte.ts, the load runs' phones have their own. */
@@ -26,14 +55,28 @@ export interface CopyIO {
   readWhole(): Promise<void>;
   /** Put these parts in place. */
   apply(slices: Record<string, unknown>): void;
+  /** Put a match the hub sent in place (`withMatch`); false: the copy has no such tournament. None: always read. */
+  applyMatch?(match: PushedMatch): boolean;
   /** Whether the page is in view. */
   visible(): boolean;
+  /**
+   * The parts the copy holds of these families (club-parts.ts partsChanged, #178): the core's, and the pages' it's
+   * read. None said, a family is a part of its own.
+   */
+  partsOf?(families: readonly string[]): string[];
+  /**
+   * Of these changed parts, the ones the app lets go rather than read now: a page's, held but shown by no page in
+   * view (#178). The app reads them again when a page that shows them opens; the copy stops counting them.
+   */
+  letGo?(parts: readonly string[]): readonly string[];
+  /** A read or its parts that failed: the page's beat catches up, so this only hears of it. */
+  failed?(error: unknown): void;
   /** The longest random wait before a read, in ms. */
   waitMs?: number;
   random?: () => number;
 }
 
-/** Parts that change what someone may see (their roles and actions): those come with the whole club. */
+/** Families that change what someone may see (their roles and actions): those come with the whole club. */
 const WHOLE: readonly string[] = ["members", "roles", "everydayRole"];
 
 export class ClubCopy {
@@ -51,6 +94,8 @@ export class ClubCopy {
   private stopped = false;
   /** An event that didn't say its versions (a Worker from before they did): only the whole club can tell. */
   private unsure = false;
+  /** A change to what someone may do (members, roles) past the version held: the club is read whole. */
+  private access = false;
 
   constructor(io: CopyIO) {
     this.io = io;
@@ -66,6 +111,7 @@ export class ClubCopy {
 
   /** The whole club is in the copy, as at this version: what was read in parts before it is gone with it. */
   wholeAt(version: number) {
+    this.access = false;
     this.held = version;
     this.fresh.clear();
     for (const v of this.heard.keys()) if (v <= version) this.heard.delete(v);
@@ -83,12 +129,34 @@ export class ClubCopy {
     return Object.fromEntries(newer);
   }
 
-  /** The hub says this changed: read what a page follows, soon (and whatever else the copy lacks, in the same read). */
-  hear({ changed, versions = [] }: Partial<Heard> & Pick<Heard, "changed">) {
-    for (const v of versions) if (v > this.held) this.heard.set(v, changed);
+  /**
+   * The hub says this changed: a match it sent that follows on from the version held goes in place; anything else
+   * the copy now lacks is read, soon, if a page follows it (with whatever else it lacks, in the same read).
+   */
+  hear({ changed, versions = [], parts = [] }: Partial<Heard> & Pick<Heard, "changed">) {
+    const changing = this.partsOf(changed);
+    const away = new Set(versions.some((v) => v > this.held) ? (this.io.letGo?.(changing) ?? []) : []);
+    if (away.size) this.forget(away);
+    const held = changing.filter((p) => !away.has(p));
+    for (const v of versions) if (v > this.held) this.heard.set(v, held);
+    if (versions.some((v) => v > this.held) && changed.some((c) => WHOLE.includes(c))) this.access = true;
     this.advance();
-    if (!versions.length && changed.some((c) => this.followed().has(c))) this.unsure = true;
+    for (const part of [...parts].sort((a, b) => a.version - b.version)) this.take(part);
+    if (!versions.length && held.some((c) => this.followed().has(c))) this.unsure = true;
     if (this.unsure || this.lacking(true).length) this.soon();
+  }
+
+  /**
+   * A match sent with its change. That change changed only the match's tournament (api/api.ts), so it's all of it:
+   * holding the version just before, and nothing newer of the tournaments, the copy puts it in place and moves on.
+   */
+  private take({ version, match }: Pushed) {
+    if (version <= this.held) return;
+    this.heard.set(version, [MATCH_IN]);
+    if (version !== this.held + 1 || (this.fresh.get(MATCH_IN) ?? 0) >= version) return this.advance();
+    if (!this.io.applyMatch?.(match)) return;
+    this.fresh.set(MATCH_IN, version);
+    this.advance();
   }
 
   /** The parts the copy lacks a change to; `followed`, only if a page follows one of them. */
@@ -101,8 +169,23 @@ export class ClubCopy {
     return names.some((n) => wanted.has(n)) ? names : [];
   }
 
+  /** What the pages in view follow, as the parts the copy holds of those families. */
   private followed() {
-    return new Set([...this.following].flat());
+    return new Set(this.partsOf([...this.following].flat()));
+  }
+
+  /** Parts no longer held: no change waits on them, and nothing read of them counts. */
+  private forget(parts: ReadonlySet<string>) {
+    for (const [v, names] of this.heard)
+      this.heard.set(
+        v,
+        names.filter((n) => !parts.has(n)),
+      );
+    for (const name of parts) this.fresh.delete(name);
+  }
+
+  private partsOf(families: readonly string[]) {
+    return this.io.partsOf ? this.io.partsOf(families) : [...families];
   }
 
   /** Stop: nothing more is read (the tests, a load run's phone closing). */
@@ -140,7 +223,7 @@ export class ClubCopy {
     this.flying = true;
     let ok = false;
     try {
-      if (this.unsure || names.some((n) => WHOLE.includes(n))) {
+      if (this.unsure || this.access) {
         this.unsure = false;
         await this.io.readWhole();
       } else {
@@ -148,8 +231,10 @@ export class ClubCopy {
         this.io.apply(this.partsAt(version, slices));
       }
       ok = true;
-    } catch {
-      // Refused, offline, or the brake says wait: the page's own check on its beat catches up
+    } catch (e) {
+      // Refused, offline, or the brake says wait: the page's own check on its beat catches up. Anything else (code
+      // that threw on the parts) is ours to hear of
+      this.io.failed?.(e);
     } finally {
       this.flying = false;
     }

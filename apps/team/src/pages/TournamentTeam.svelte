@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { waitingFor } from "../app/editions.svelte";
   // A team in a tournament: its crest and name, the squad, and its games. Every team has one, reached from wherever
   // the team's shown, with a way back to them all; yours is also My team (no teamId: the one you're on). Its captain
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
   // initials). A draft's players only show once it's closed, to anyone outside it (ADR 0060).
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
@@ -10,6 +12,7 @@
   import { granted, me } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import Icon from "../app/shell/Icon.svelte";
   import FixtureRow from "../lib/FixtureRow.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
@@ -19,12 +22,18 @@
   import { teamTone } from "../lib/team-tones";
 
   let { typeId, teamId }: { typeId: number; teamId?: number } = $props();
+  // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
+  const waiting = $derived(
+    !!teamId && !db.tournaments.some((t) => t.teams.some((x) => x.id === teamId)) && waitingFor("team", teamId),
+  );
 
   const type = $derived(typeById(typeId)!);
   // The team's own tournament (a past one's team, from History), else the current one: yours is My team
   const tournament = $derived(
     (teamId && db.tournaments.find((t) => t.teams.some((x) => x.id === teamId))) || currentTournament(typeId),
   );
+  // Its edition's page (lib/edition-address.ts): the way back, all its teams, its fight card
+  const edition = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const teams = $derived(tournament?.teams ?? []);
   const isMine = (t: (typeof teams)[number]) =>
     t.captainMemberId === me().id || t.players.some((p) => p.memberId === me().id);
@@ -52,24 +61,26 @@
   );
 
   let lookOpen = $state(false);
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <div class="page">
-  <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} />
+  <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} back={{ href: edition }} />
 
-  {#if !tournament || !team}
+  {#if waiting}
+    <!-- Its tournament on its way (#175): the room the page takes -->
+    <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+  {:else if !tournament || !team}
     <EmptyState icon="teams" title={teamId ? "Not found" : "No team yet"}>
       {teamId
         ? "There's no such team in this one."
         : "You're not on a team in this one. Captains pick theirs on draft night."}
       {#snippet action()}
-        <a class="btn outline" href="/tournaments/{type.slug}/teams"><Icon name="teams" size={18} />All teams</a>
+        <a class="btn outline" href="{edition}/teams"><Icon name="teams" size={18} />All teams</a>
       {/snippet}
     </EmptyState>
   {:else}
-    <a class="back" href="/tournaments/{type.slug}/teams"><Icon name="chevronLeft" size={16} />All teams</a>
     <section class="hero">
       <TeamCrest
         among={crestNames}
@@ -82,8 +93,11 @@
       <div class="who">
         <h2 class="display">{team.name || fallback}</h2>
         <p class="hint">
-          Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{#if !drafting}&nbsp;· {team.players.length + 1}
-            {team.players.length ? "players" : "player so far"}{/if}
+          <!-- A team whose captain's gone (an account deleted, #160) keeps its place: an admin names another -->
+          {#if captain}Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{:else}No captain{admin
+              ? ": name one"
+              : " yet"}{/if}{#if !drafting}&nbsp;· {team.players.length + (captain ? 1 : 0)}
+            {team.players.length + (captain ? 1 : 0) === 1 ? "player so far" : "players"}{/if}
         </p>
       </div>
       {#if canEdit && team.id}
@@ -105,7 +119,7 @@
             <span class="name"
               >{captain.name}{#if captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
             >
-            <span class="pos-badge">{captain.position}</span>
+            <span class="pos-badge"><PositionIcon position={captain.position} /></span>
           </li>
         {/if}
         {#each team.players as p (p.memberId ?? p.name)}
@@ -115,7 +129,7 @@
             <span class="name"
               >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
             >
-            {#if m}<span class="pos-badge">{m.position}</span>{/if}
+            {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
           </li>
         {/each}
         {#if drafting}
@@ -131,9 +145,7 @@
     <section class="part">
       <div class="part-head">
         <h2 class="section-title">{mine ? "Your games" : "Their games"}</h2>
-        <a class="btn ghost sm" href="/tournaments/{type.slug}/schedule"
-          >Full fight card<Icon name="chevronRight" size={16} /></a
-        >
+        <a class="btn ghost sm" href="{edition}/schedule">Full fight card<Icon name="chevronRight" size={16} /></a>
       </div>
       {#if games.length}
         <div class="list">
@@ -164,19 +176,6 @@
 {/if}
 
 <style>
-  .back {
-    display: inline-flex;
-    justify-self: start;
-    align-items: center;
-    gap: var(--s-1);
-    margin-bottom: calc(-1 * var(--s-2));
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-  }
-  .back:hover {
-    color: var(--fg);
-  }
   .edit {
     display: flex;
     flex-wrap: wrap;
@@ -256,5 +255,8 @@
     font-weight: 500;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+  .waiting {
+    min-height: 60vh;
   }
 </style>

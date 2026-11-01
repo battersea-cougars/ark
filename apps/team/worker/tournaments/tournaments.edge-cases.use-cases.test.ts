@@ -23,7 +23,7 @@ beforeEach(() => {
 
 async function admin() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = async () => (await dana.club()).body as Json;
   const idOf = async (name: string) => (await boot()).members.find((m: Json) => m.name === name).id as number;
   const cup = (o: Record<string, unknown> = {}) => ({
     name: "Winter Cup",
@@ -64,9 +64,7 @@ describe("an admin names a tournament", () => {
     expect(res.status).toBe(201);
     expect((await dana.tournament(res.body.id)).name).toBe(name);
     const reg = await w.signedIn("reg@example.com");
-    expect(
-      (await reg.call("GET", "/api/bootstrap")).body.tournaments.find((t: Json) => t.id === res.body.id).name,
-    ).toBe(name);
+    expect((await reg.club()).body.tournaments.find((t: Json) => t.id === res.body.id).name).toBe(name);
   });
 
   it("up to 80 characters; one more, no name, or a name that isn't text is refused, and nothing is made", async () => {
@@ -172,9 +170,8 @@ describe("an admin sets a tournament's teams", () => {
     expect((await dana.boot()).tournaments.filter((t: Json) => t.name === "Winter Cup")).toEqual([]);
   });
 
-  // The tournament goes in before its teams are checked against the members, so a refusal there leaves it behind,
-  // with no teams. https://github.com/battersea-cougars/ark/issues/132
-  it.fails("a create refused for a captain who isn't a member leaves nothing behind (known bug #132)", async () => {
+  // Its teams are checked against the members before it goes in (#132: a refusal there left it behind, with no teams)
+  it("a create refused for a captain who isn't a member leaves nothing behind", async () => {
     const dana = await admin();
     const cara = await dana.idOf("Cara Captain");
     const nobody = await dana.create({
@@ -205,26 +202,45 @@ describe("an admin sets a tournament's teams", () => {
     expect(two.body.error).toBe("Someone is on two teams.");
   });
 
-  it("once its draft has started, a draft stays a draft; before, it can become one teams enter", async () => {
+  it("its type changes only while it has no teams: a draft with captains named, or teams that entered, keeps its type", async () => {
     const dana = await admin();
     const [cara, cole] = [await dana.idOf("Cara Captain"), await dana.idOf("Cole Captain")];
-    const made = await dana.create({ kind: "draft", teams: [{ captainMemberId: cara }, { captainMemberId: cole }] });
-    const id = made.body.id as number;
-    // Not started yet: it can change, its teams named
+    // No teams yet: either way round
+    const bare = (await dana.create({ kind: "draft", teams: [] })).body.id as number;
+    const empty = await dana.tournament(bare);
+    expect((await dana.call("PUT", `/api/tournaments/${bare}`, { ...empty, kind: "teams" })).status).toBe(200);
+    expect((await dana.call("PUT", `/api/tournaments/${bare}`, { ...empty, kind: "draft" })).status).toBe(200);
+    // Captains named: it's a draft with teams, and stays one
+    const id = (await dana.create({ kind: "draft", teams: [{ captainMemberId: cara }, { captainMemberId: cole }] }))
+      .body.id as number;
     const before = await dana.tournament(id);
     const named = before.teams.map((t: Json, i: number) => ({ ...t, name: `Team ${i + 1}` }));
-    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, kind: "teams", teams: named })).status).toBe(
-      200,
-    );
-    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, kind: "draft", teams: named })).status).toBe(
-      200,
-    );
-    // Drawn: still not started. Opened: it stays a draft
-    expect((await dana.call("POST", `/api/tournaments/${id}/draft/draw`, {})).status).toBe(200);
-    w.db.raw.prepare("UPDATE tournaments SET draft_state = 'open' WHERE id = ?").run(id);
-    const res = await dana.call("PUT", `/api/tournaments/${id}`, { ...(await dana.tournament(id)), kind: "teams" });
+    const res = await dana.call("PUT", `/api/tournaments/${id}`, { ...before, kind: "teams", teams: named });
     expect(res.status).toBe(409);
-    expect(res.body.error).toBe("The draft has started: it stays a draft.");
+    expect(res.body.error).toBe("It has teams: its type stays.");
+    // …and a save that leaves the type alone is fine
+    expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...before, capacity: 30 })).status).toBe(200);
+  });
+
+  it("a list holding a null, a number or a list where a team, player, award or playoff goes is refused, not a server error", async () => {
+    const dana = await admin();
+    const cara = await dana.idOf("Cara Captain");
+    for (const bad of [null, 1, "Ants", []]) {
+      for (const o of [
+        { kind: "teams", teams: [bad] },
+        { kind: "teams", teams: [{ name: "Ants", captainMemberId: cara, players: [bad] }] },
+        { awards: [bad] },
+        { playoffs: [bad] },
+      ]) {
+        const res = await dana.create(o);
+        expect([res.status, typeof res.body.error]).toEqual([400, "string"]);
+      }
+      for (const o of [{ awards: [bad] }, { playoffs: [bad] }]) {
+        const res = await dana.series(o);
+        expect([res.status, typeof res.body.error]).toEqual([400, "string"]);
+      }
+    }
+    expect((await dana.boot()).tournaments.filter((t: Json) => t.name === "Winter Cup")).toEqual([]);
   });
 
   it("a change to a tournament that isn't there is a 404", async () => {

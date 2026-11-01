@@ -2,22 +2,9 @@
 // everyone out (the draft closed, or stepped back to before it opened).
 import { describe, expect, it } from "vitest";
 import { canEnterRoom, draftShows, roomPath, roomTurn } from "./draft-room";
+import { CARA, COLE, snakeDraft as draft } from "./kumite.testing";
 
-const CARA = 1;
-const COLE = 2;
 const REG = 3;
-/** Two captains, Cara picking first, six signed up besides them; `picked` of them taken so far, in snake order. */
-function draft(picked = 0, draftState = "open") {
-  const pool = [10, 11, 12, 13, 14, 15];
-  const teams = [
-    { captainMemberId: CARA, players: [] as { memberId: number; pick: number }[] },
-    { captainMemberId: COLE, players: [] as { memberId: number; pick: number }[] },
-  ];
-  // A B B A A B
-  const order = [0, 1, 1, 0, 0, 1];
-  for (let n = 0; n < picked; n++) teams[order[n]].players.push({ memberId: pool[n], pick: n + 1 });
-  return { kind: "draft", draftState, teams, going: [CARA, COLE, ...pool] };
-}
 const name = (i: number) => ["Team Cara", "Team Cole"][i];
 
 describe("who the draft room is for", () => {
@@ -63,16 +50,16 @@ describe("where the picking is", () => {
 
 describe("the room's bar", () => {
   it("says it's your pick, or whose it is and how long till yours", () => {
-    expect(roomTurn(draft(0), CARA, name)).toEqual({ said: "Your pick", you: true, team: 0, inPicks: null });
+    expect(roomTurn(draft(0), CARA, name)).toEqual({ said: "Your choice", you: true, team: 0, inPicks: null });
     expect(roomTurn(draft(0), COLE, name)).toEqual({
-      said: "Team Cara is picking",
+      said: "Team Cara is choosing",
       you: false,
       team: 0,
       inPicks: 1,
     });
     // Whoever runs it waits for nobody
     expect(roomTurn(draft(1), REG, name)).toEqual({
-      said: "Team Cole is picking",
+      said: "Team Cole is choosing",
       you: false,
       team: 1,
       inPicks: null,
@@ -81,7 +68,7 @@ describe("the room's bar", () => {
 
   it("says everyone's picked once the pool's empty", () => {
     expect(roomTurn(draft(6), CARA, name)).toEqual({
-      said: "Everyone's picked",
+      said: "Everyone's chosen",
       you: false,
       team: null,
       inPicks: null,

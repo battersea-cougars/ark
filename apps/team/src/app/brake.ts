@@ -8,6 +8,8 @@
 //     midnight UTC, and the app says when that is. Any other 429 that isn't ours (ours say why, as JSON), such as
 //     a bot challenge or a platform blip, only slows the background checks for a minute.
 
+import { londonClock } from "../lib/dates";
+
 const FIRST_WAIT_MS = 10_000;
 const MAX_WAIT_MS = 5 * 60_000;
 /** Our own per-minute limit (worker/api/api.limits.ts): try again once the minute's up. */
@@ -15,8 +17,6 @@ const LIMITED_WAIT_MS = 60_000;
 const DAY_MS = 86_400_000;
 
 const nextMidnightUtc = (t: number) => Math.floor(t / DAY_MS) * DAY_MS + DAY_MS;
-const londonTime = (t: number) =>
-  new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).format(t);
 
 export class Brake {
   private readonly now: () => number;
@@ -36,7 +36,7 @@ export class Brake {
   take(): string | null {
     const t = this.now();
     if (t < this.restingUntil)
-      return `The club's app has used today's free allowance. It's back at ${londonTime(this.restingUntil)}.`;
+      return `The club's app has used today's free allowance. It's back at ${londonClock(this.restingUntil)}.`;
     const day = Math.floor(t / DAY_MS);
     if (day !== this.day) [this.day, this.calls] = [day, 0];
     if (this.calls >= this.perDay)

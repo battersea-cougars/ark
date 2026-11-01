@@ -11,22 +11,7 @@ import {
   playersShort,
   running,
 } from "./penalties";
-
-const MIN = 60_000;
-const pen = (
-  id: number,
-  teamId: number,
-  atMs: number | null,
-  minutes: 2 | 4 | 5 = 2,
-  memberId: number | null = null,
-) => ({
-  id,
-  teamId,
-  memberId,
-  minutes,
-  atMs,
-});
-const goal = (teamId: number, atMs: number | null) => ({ teamId, atMs });
+import { goalAt as goal, MIN, penalty as pen } from "./kumite.testing";
 
 describe("the penalty clock", () => {
   it("counts down in game time: two minutes from when it was given", () => {

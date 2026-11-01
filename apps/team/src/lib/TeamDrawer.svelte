@@ -62,7 +62,7 @@
   {#snippet top()}
     <label class="search">
       <Icon name="search" size={18} />
-      <input class="input" placeholder="Find a player" bind:value={search} />
+      <input class="input" aria-label="Find a player" placeholder="Find a player" bind:value={search} />
     </label>
   {/snippet}
 
@@ -71,7 +71,7 @@
     {#if team.captainMemberId && byId(team.captainMemberId)}
       <div class="row">
         <Person player={byId(team.captainMemberId)!} />
-        <span class="state"><span class="badge red">Captain</span></span>
+        <span class="state"><span class="captain-mark"><span class="c" aria-hidden="true">C</span>Captain</span></span>
       </div>
     {/if}
     {#each on as p (p.id)}{@render row(p, "off")}{/each}

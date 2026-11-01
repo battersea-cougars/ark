@@ -48,17 +48,20 @@ const query = (sql) => JSON.parse(d1(["--json", "--command", sql]));
 // The schema's tables and columns, from an empty copy of it, parents before the tables that point at them
 const empty = new Database(":memory:");
 empty.exec(schema);
-const columns = new Map(
-  empty
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
-    .all()
-    .map(({ name }) => [
-      name,
-      empty
-        .prepare(`PRAGMA table_info("${name}")`)
-        .all()
-        .map((c) => c.name),
-    ]),
+const info = (name) => empty.prepare(`PRAGMA table_info("${name}")`).all();
+const names = empty
+  .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+  .all()
+  .map(({ name }) => name);
+const columns = new Map(names.map((name) => [name, info(name).map((c) => c.name)]));
+// The columns a row must bring: NOT NULL with no default (a key it can't make up: not the rowid's)
+const required = new Map(
+  names.map((name) => [
+    name,
+    info(name)
+      .filter((c) => c.notnull && c.dflt_value === null && !(c.pk && c.type.toUpperCase() === "INTEGER"))
+      .map((c) => c.name),
+  ]),
 );
 const order = [];
 const visit = (table, seen = new Set()) => {
@@ -84,6 +87,9 @@ const dir = mkdtempSync(join(tmpdir(), "db-rebuild-"));
 writeFileSync(join(dir, "backup.json"), JSON.stringify(rows), { mode: 0o600 });
 console.log(`Backed up ${ours.length} tables to ${join(dir, "backup.json")}`);
 
+// Kept by the schema's triggers from the rows that go back (a charge's paid_pence from its allocations, #177): read
+// back as they were, the triggers would add them again
+const DERIVED = { charges: ["paid_pence"], payments: ["spent_pence"] };
 const literal = (v) => (v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const sql = ["PRAGMA defer_foreign_keys = true;"];
 // Children first, so nothing cascades into a table that's still to be read back
@@ -92,9 +98,16 @@ sql.push(schema);
 for (const table of order) {
   const list = rows[table] ?? [];
   if (!list.length) continue;
-  const keep = Object.keys(list[0]).filter((c) => columns.get(table).includes(c));
-  const gone = Object.keys(list[0]).filter((c) => !keep.includes(c));
+  const keep = Object.keys(list[0]).filter((c) => columns.get(table).includes(c) && !DERIVED[table]?.includes(c));
+  const gone = Object.keys(list[0]).filter((c) => !keep.includes(c) && !DERIVED[table]?.includes(c));
   if (gone.length) console.log(`${table}: dropping ${gone.join(", ")} (not in the schema)`);
+  // A column the schema now requires that the old rows don't have: they can't be read back (an outbox's pending rows
+  // after its shape changed), so they go, said out loud, rather than the whole rebuild failing
+  const missing = required.get(table).filter((c) => !keep.includes(c));
+  if (missing.length) {
+    console.log(`${table}: ${list.length} rows not kept (the schema now requires ${missing.join(", ")})`);
+    continue;
+  }
   for (const r of list)
     sql.push(`INSERT INTO "${table}" (${keep.join(", ")}) VALUES (${keep.map((c) => literal(r[c])).join(", ")});`);
 }
@@ -104,5 +117,7 @@ sql.push(seed);
 const file = join(dir, "rebuild.sql");
 writeFileSync(file, sql.join("\n"), { mode: 0o600 });
 d1(["--file", file]);
-const kept = order.reduce((n, t) => n + (rows[t]?.length ?? 0), 0);
+const kept = order
+  .filter((t) => required.get(t).every((c) => !rows[t]?.length || c in rows[t][0]))
+  .reduce((n, t) => n + (rows[t]?.length ?? 0), 0);
 console.log(`Rebuilt from db/schema.sql: ${kept} rows kept, club seed topped up.`);

@@ -1,15 +1,24 @@
+<script lang="ts" module>
+  // Fight card or the board, on the day: remembered while the app's open, not stored
+  const dayView = $state({ board: false });
+</script>
+
 <script lang="ts">
-  // A tournament series' page (ADR 0074): one page for the one on or coming up (lib/edition.ts currentOf), by status.
+  // A tournament's page (ADR 0074): one page for one edition, by status, at its own address (/tournaments/kumite/12,
+  // lib/edition-address.ts), the one on or a past one. The series' own address shows the one on (lib/edition.ts
+  // currentOf) and is replaced by its address (App.svelte), so the address always says which one.
   // The header (its day, its place on the map, where everyone goes after), then the track of its statuses (Sign-up
   // open, Draft open, Teams set, Fixtures set, KUMITE!; teams that enter skip the draft), then the status's view, each
   // the same shape: its one action card for whoever runs it (members see the card without the button, or nothing),
-  // then what it's about. Sign-up: are you in, and who's in. Draft open: the draft, for its captains and whoever runs
-  // it; everyone else is fighting blind. Teams set: every team, in full. Fixtures set: the matches, a list. KUMITE!:
-  // your turn to keep score, the matches as a carousel with the one on now in front, where everyone goes after, the
-  // board. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
+  // then what it's about. Sign-up: are you in (the Kumite's an invitation, then your fighter's pass), and who's in (the
+  // Kumite's fighters). Draft open: the draft, for its captains and whoever runs it; everyone else is fighting blind.
+  // Teams set: every team, in full. Fixtures set: the matches, a list. KUMITE!:
+  // your turn to keep score, the matches as a carousel with the one on now in front (or the board in its place, a
+  // switch over them), where everyone goes after. Then, the evening the last match is played, the after-party (The Anchor, lib/AfterParty): the awards
   // revealed one at a time, the final table, the results; at 06:00 the next morning it's history. A status it's been
-  // through opens from the track, read-only, at its own address (/sign-up, /draft, /teams, /schedule, /afters); the
-  // page's own address is the status it's at. Moving between them the header and the track stay still
+  // through opens from the track, read-only, at its own address (/12/sign-up, /12/draft, /12/teams, /12/schedule,
+  // /12/day, /12/afters); the edition's own address is the status it's at. A past one's the same page, every status it
+  // reached a tap away, its after-party's view its results (lib/EditionResults), its way back the list of them. Moving between them the header and the track stay still
   // and the view slides in from the way you went. History is a quiet link at the foot.
   // Once the after-party's over it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
@@ -17,25 +26,48 @@
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { currentTournament, pastTournaments, tournamentAfter, typeById } from "../demo/schedule.svelte";
+  import {
+    currentTournament,
+    pastTournaments,
+    tournamentAfter,
+    tournamentBookable,
+    typeById,
+  } from "../demo/schedule.svelte";
   import SignUpLine from "../lib/SignUpLine.svelte";
+  import EventCard from "../lib/EventCard.svelte";
+  import KumiteInvite from "../lib/KumiteInvite.svelte";
+  import { closeSignup } from "../app/backend.svelte";
+  import { signupOpen } from "../lib/signup";
   import Kanji from "../lib/Kanji.svelte";
   import { kanjiFor } from "../lib/motif";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import PastEditions from "../lib/PastEditions.svelte";
-  import Leaderboard from "../lib/Leaderboard.svelte";
-  import { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import AllTimeLeaders from "../lib/AllTimeLeaders.svelte";
+  import { waitingFor } from "../app/editions.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { checkForUpdates } from "../lib/live-updates.svelte";
-  import { clock, londonToday } from "../lib/dates";
+  import { clock, londonEvening, londonToday } from "../lib/dates";
   import { kickOff, slotMinutes } from "../lib/fixtures";
-  import { afterMomentOf, myTeamIndex, onTheDayOf, statusList, statusOf, viewOf } from "../lib/tournament-front";
+  import {
+    afterMomentOf,
+    myTeamIndex,
+    onTheDayOf,
+    paneOf,
+    statusList,
+    statusOf,
+    viewOf,
+  } from "../lib/tournament-front";
   import type { After } from "@cougars/shared/places";
   import YourTeam from "../lib/YourTeam.svelte";
   import BoardTable from "../lib/BoardTable.svelte";
   import WhosIn from "../lib/WhosIn.svelte";
   import DraftStep from "../lib/DraftStep.svelte";
   import AfterParty from "../lib/AfterParty.svelte";
+  import EditionResults from "../lib/EditionResults.svelte";
+  import { atAfters } from "../lib/edition";
+  import { tournamentPhase } from "../lib/phase";
+  import { editionPath, editionRest } from "../lib/edition-address";
   import Draft from "./Draft.svelte";
   import Schedule from "./Schedule.svelte";
   import TournamentTeams from "./TournamentTeams.svelte";
@@ -47,14 +79,30 @@
   import { untrack } from "svelte";
   import { cubicOut } from "svelte/easing";
 
-  let { typeId }: { typeId: number } = $props();
+  // `tournamentId`: the edition its address names; none, the series' address, which shows the one on
+  let { typeId, tournamentId }: { typeId: number; tournamentId?: number } = $props();
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
-  const tournament = $derived(currentTournament(typeId));
+  const current = $derived(currentTournament(typeId));
+  const tournament = $derived(
+    tournamentId === undefined ? current : db.tournaments.find((t) => t.id === tournamentId && t.typeId === typeId),
+  );
+  // A past one the app hasn't yet, on its way (#175, app/editions.svelte.ts): its page waits for it, not No Kumite yet
+  const loading = $derived(tournamentId !== undefined && !tournament && waitingFor("tournament", tournamentId));
   const past = $derived(tournament ? [] : pastTournaments(typeId));
   // While one's on, the past ones are History: not a tab, a link at the foot here
-  const earlier = $derived(tournament ? pastTournaments(typeId).length : 0);
+  const earlier = $derived(current ? pastTournaments(typeId).length : 0);
+  // A past one (or one still to come after the one on): its way back is the list of them all, History while one's
+  // on, else the front page
+  const elsewhere = $derived(!!tournament && tournament.id !== current?.id);
+  const back = $derived(
+    elsewhere
+      ? { href: `/tournaments/${type.slug}${current ? "/history" : ""}`, label: `All ${type.shortName}s` }
+      : undefined,
+  );
+  // Its after-party's evening (lib/edition.ts atAfters): The Anchor; any other day, a past one's results
+  const tonight = $derived(!!tournament && atAfters(tournament, londonEvening()));
   const kumite = $derived(!!kanjiFor(type, "onTheMat"));
   const teams = $derived(tournament?.teams ?? []);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
@@ -62,12 +110,13 @@
   const today = $derived(londonToday());
 
   const games = $derived(tournament?.games ?? []);
-  // Everyone sees the score as it happens: on the day, until the last game's over, from the hub's stream, with a
-  // check on the admins' beat as the fallback (ADR 0061, 0072); then the awards turned over at the after-party
+  // Everyone sees the score as it happens: while it's under way, whatever its date (#182), and on its day before the
+  // first match, until the last game's over, from the hub's stream, with a check on the admins' beat as the fallback
+  // (ADR 0061, 0072); then the awards turned over at the after-party
   const following = $derived(
-    games.some((g) => g.status === "live") ||
+    (!!tournament && tournamentPhase(tournament) === "on") ||
       (tournament?.heldOn === today && games.some((g) => g.status !== "done")) ||
-      (!!tournament && statusOf(tournament, today) === "afters"),
+      tonight,
   );
   $effect(() => {
     if (following) return checkForUpdates();
@@ -88,26 +137,34 @@
   const at = (position: number) =>
     tournament ? clock(kickOff(tournament.startTime, slotMinutes(tournament), position)) : "";
 
-  // The status it's at, and the one showing: the page's own address shows the one it's at; /draft, /teams,
-  // /schedule, /sign-up one it's been through (lib/tournament-front.ts viewOf)
-  const base = $derived(`/tournaments/${type.slug}`);
-  const rest = $derived(router.path.startsWith(base + "/") ? router.path.slice(base.length + 1) : "");
+  // The status it's at, and the one showing: the edition's own address shows the one it's at; /draft, /teams,
+  // /schedule, /sign-up under it one it's been through (lib/tournament-front.ts viewOf)
+  const base = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
+  const rest = $derived(editionRest(router.path, base));
   const status = $derived(tournament ? statusOf(tournament, today) : "signup");
   const view = $derived(tournament ? viewOf(tournament, today, rest) : "signup");
   const drafted = $derived(tournament?.kind === "draft");
-  // You've answered: in, waiting or out (the header carries it, ADR 0074)
-  const answered = $derived(
-    !!tournament && [tournament.going, tournament.waitlist, tournament.out ?? []].some((l) => l.includes(me().id)),
+  // Sign-up open now: the Friday card's question, Are you in? (lib/EventCard), or the Kumite's invitation to accept
+  // (lib/KumiteInvite), and an admin's Close sign-up
+  const open = $derived(!!tournament && status === "signup" && signupOpen(tournament, today));
+  // Your pass stays on the Sign-up view once you're in (or a reserve), whatever the status: it's your ticket
+  const holdsPass = $derived(
+    !!tournament && (tournament.going.includes(me().id) || tournament.waitlist.includes(me().id)),
   );
-  // The draft is its captains' and whoever runs it (ADR 0060): everyone else fights blind until it's done
-  const inDraft = $derived(teams.some((t) => t.captainMemberId === me().id) || can(perms, "run:Draft"));
-  // Which view's in the pane. One Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
+  let closing = $state(false);
+  async function close() {
+    if (!tournament || closing) return;
+    closing = true;
+    try {
+      await closeSignup(tournament.id);
+    } finally {
+      closing = false;
+    }
+  }
+  // Which view's in the pane (lib/tournament-front.ts paneOf). Sign-up is everyone's, the draft's runner too (they
+  // close it, ADR 0074); then one Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
   // the teams (complete) are another, so closing it slides on to them
-  const pane = $derived.by(() => {
-    if (!drafted || !inDraft || teams.length < 2) return view === "draft" ? "blind" : view;
-    if (view === "draft" || (view === "signup" && status === "signup")) return "draft";
-    return view;
-  });
+  const pane = $derived(tournament ? paneOf(tournament, view, me().id, can(perms, "run:Draft")) : view);
   // The draft being picked, on a phone: the header makes room, the track stays, the players scroll inside
   let picking = $state(false);
   const compact = $derived(phone.current && pane === "draft" && picking);
@@ -148,7 +205,7 @@
   // Where everyone goes afterwards, and whether it's for later or next (lib/tournament-front.ts); the evening's done,
   // it's the after-party's own view
   const after = $derived.by(() => {
-    const moment = tournament ? afterMomentOf(tournament, today) : null;
+    const moment = tournament ? afterMomentOf(tournament, londonEvening()) : null;
     const place = tournament && moment ? tournamentAfter(tournament) : null;
     return place && moment ? { place, moment } : null;
   });
@@ -156,6 +213,17 @@
   const links = $derived(
     earlier ? [{ href: `/tournaments/${type.slug}/history`, label: "History", icon: "medal" as const }] : [],
   );
+  // On the day, the fight card or the board, a switch over them: one in the other's place, so there's one scroll. The
+  // board slides in from the right, the fight card back from the left (less motion: at once). Kept for the session
+  const showIn = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 260,
+    easing: cubicOut,
+    css: (t: number, u: number) => `transform: translateX(${u * 32 * (dayView.board ? 1 : -1)}px); opacity: ${t}`,
+  });
+  const showOut = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 180,
+    css: (t: number, u: number) => `transform: translateX(${-u * 24 * (dayView.board ? 1 : -1)}px); opacity: ${t}`,
+  });
 </script>
 
 <!-- On the day, once the last match is on (Then) or played (Now): where everyone goes, big, on the page -->
@@ -178,18 +246,12 @@
 <!-- Running, the page is the full frame whatever the status (the draft needs it), so moving between statuses never
      changes its width; the other views keep the usual reading width themselves -->
 <div class="page" class:full={!!tournament} class:fit={compact}>
-  <TournamentHead
-    {type}
-    {tournament}
-    title="The {type.shortName}"
-    manage
-    note={tournament ? undefined : "Between bouts."}
-    track
-    viewing={view}
-    {compact}
-  />
+  <TournamentHead {type} {tournament} title="The {type.shortName}" manage {back} track viewing={view} {compact} />
 
-  {#if !tournament}
+  {#if loading}
+    <!-- The one opened on its way: the room its page takes, so nothing jumps when it comes -->
+    <div class="loading" aria-busy="true" aria-label="Loading"></div>
+  {:else if !tournament}
     <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
          stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, 0074) -->
     <section class="no-bout">
@@ -212,13 +274,16 @@
       </div>
     </section>
     {#if past.length}
+      <!-- Under it, the record: each heading says what it is in a line, so neither reads as the next one's -->
       <section class="part">
         <h2 class="section-title">Past {type.shortName}s<Kanji text={kanjiFor(type, "martial")} /></h2>
-        <PastEditions {type} {past} />
+        <p class="part-line">Who won each one. Open one for its results and awards.</p>
+        <PastEditions {type} />
       </section>
       <section class="part">
         <h2 class="section-title">All-time leaders</h2>
-        <Leaderboard games={past.flatMap((t) => t.games ?? [])} label="All-time leaders" />
+        <p class="part-line">Every {type.shortName} played, added up.</p>
+        <AllTimeLeaders typeId={type.id} />
       </section>
     {/if}
   {:else}
@@ -231,17 +296,39 @@
           out:paneOut
         >
           {#if pane === "signup"}
-            <!-- Sign-up: are you in, and who's coming (a status gone by: your answer, one line) -->
-            <!-- Not answered yet, sign-up open: are you in, the view's one action. Answered: it's the header's badge -->
-            {#if !answered && status === "signup"}<SignUpLine
-                {tournament}
+            <!-- Sign-up open, as Friday's training says it (lib/EventCard): are you in or out, your place, then who's
+                 in. Not open yet, or a status gone by: a line. Then who's in -->
+            {#if (open || holdsPass) && kumite && can(perms, "signup:Event")}
+              <!-- The Kumite's is an invitation (lib/KumiteInvite): sealed till you answer, then your pass, which stays
+                   here once sign-up's closed too -->
+              <KumiteInvite {tournament} {type} />
+            {:else if open}
+              <EventCard
+                event={tournamentBookable(tournament)}
                 canSignUp={can(perms, "signup:Event")}
-              />{/if}
+                beckon
+                roster={false}
+                place={false}
+              />
+            {:else if status === "signup"}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
+            {#if open && manage}
+              <!-- An admin's, under the invitation or the card alike: a small one, not the step card. Closing it moves
+                   the Kumite on to the draft, where the order's drawn (ADR 0074); Back to Sign-up open, in Manage,
+                   opens it again -->
+              <div class="close-signup">
+                <span class="hint"
+                  >{drafted
+                    ? "Everyone had their say? Close it, then draw the order."
+                    : "Everyone had their say? Close it to new names."}</span
+                >
+                <button class="btn sm outline" disabled={closing} onclick={close}
+                  ><Icon name="x" size={14} />Close sign-up</button
+                >
+              </div>
+            {/if}
             <WhosIn {tournament} />
           {:else if pane === "draft"}
-            <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking.
-                 While it's still sign-up, your answer first -->
-            {#if view === "signup" && !answered}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
+            <!-- The draft, for its captains and whoever runs it: from the draw (the shuffle) through the picking -->
             <!-- Before it opens, the draw's card says it all: no line of its own over it ("Draft today") -->
             <div
               class="draft-at"
@@ -249,14 +336,13 @@
             >
               <Draft
                 {typeId}
-                signup={view === "signup"}
+                {tournament}
                 onpicking={(v) => {
                   picking = v;
                 }}
               />
             </div>
             <!-- The draft done: its teams and how the picks went are Draft's two tabs -->
-            {#if view === "signup"}<WhosIn {tournament} />{/if}
           {:else if pane === "blind"}
             <!-- Everyone else: the draft's the captains' (ADR 0060). Chong Li's powder; Dux fought blind -->
             <DraftStep {type} mark="open" icon="blindfold" title="Fighting blind">
@@ -266,10 +352,10 @@
             <!-- Teams set: yours first, then the teams; the next step's card for whoever runs it -->
             {#if mine >= 0}<YourTeam {type} {tournament} index={mine} />{/if}
             <!-- The next step's card (Make the fixtures) for whoever runs it, then every team, a card each to open -->
-            {#if !games.length}<Schedule {typeId} />{/if}
-            <TournamentTeams {typeId} />
+            {#if !games.length}<Schedule {typeId} {tournament} />{/if}
+            <TournamentTeams {typeId} {tournament} />
           {:else if pane === "fixtures"}
-            <Schedule {typeId} deal={dealing} />
+            <Schedule {typeId} {tournament} deal={dealing} />
           {:else if pane === "day"}
             <!-- The day: your team's turn to keep score (once you hold it, your game's card wears the whistle
                  instead), the match on now and the next, then every match -->
@@ -285,8 +371,44 @@
                 <a class="btn sm outline" href="/tournaments/{type.slug}/games/{duty.id}/live">Keep score</a>
               </div>
             {/if}
-            <!-- Every match, the one on now (or up next) brought forward -->
-            <Schedule {typeId} carousel />
+            <!-- Every match, the one on now (or up next) brought forward; or the table as it stands in its place (ADR
+                 0074), there from the first match (everyone on nothing), moving live as each result comes in -->
+            {#if games.length}
+              <div class="tablist day-tabs" role="tablist" aria-label="On the day">
+                <button
+                  role="tab"
+                  id="day-tab-card"
+                  aria-selected={!dayView.board}
+                  aria-controls="day-panel"
+                  onclick={() => (dayView.board = false)}>Fight card</button
+                >
+                <button
+                  role="tab"
+                  id="day-tab-board"
+                  aria-selected={dayView.board}
+                  aria-controls="day-panel"
+                  onclick={() => (dayView.board = true)}>The board</button
+                >
+              </div>
+            {/if}
+            <!-- Both in one cell, the carousel's height kept, so nothing under it moves as they swap -->
+            <div
+              class="day-shows"
+              class:held={games.length > 0}
+              id="day-panel"
+              role="tabpanel"
+              aria-labelledby={dayView.board ? "day-tab-board" : "day-tab-card"}
+            >
+              {#key dayView.board && games.length > 0}
+                <div class="day-show" in:showIn out:showOut>
+                  {#if dayView.board && games.length}
+                    <BoardTable {type} {tournament} />
+                  {:else}
+                    <Schedule {typeId} {tournament} carousel />
+                  {/if}
+                </div>
+              {/key}
+            </div>
             {#if day?.yours}
               <p class="yours">
                 <Icon name="user" size={16} />Your next:
@@ -297,16 +419,12 @@
             {/if}
             <!-- The last match on, then where everyone goes (every one played, it's the after-party) -->
             {#if after?.moment === "next"}{@render afterNow(after.place, false)}{/if}
-            <!-- The table as it stands, under the matches (ADR 0074): no page of its own -->
-            {#if games.some((g) => g.stage === "group" && g.status === "done")}
-              <section class="part">
-                <h2 class="section-title">The board<Kanji text={kanjiFor(type, "results")} /></h2>
-                <BoardTable {type} {tournament} />
-              </section>
-            {/if}
-          {:else if pane === "afters"}
+          {:else if pane === "afters" && tonight}
             <!-- The evening it ends: everyone at the afterwards, the awards turned over one at a time -->
             <AfterParty {type} {tournament} after={tournamentAfter(tournament)} {manage} />
+          {:else if pane === "afters"}
+            <!-- Any day after: what it came to, the champions, the final, every match, the board, the awards -->
+            <EditionResults {type} {tournament} />
           {/if}
         </div>
       {/key}
@@ -385,11 +503,14 @@
     text-underline-offset: 2px;
   }
   /* Nothing on: the page's one big moment. The kanji down the side, quiet; the words beside them */
+  .loading {
+    min-height: 60vh;
+  }
   .no-bout {
     display: flex;
     align-items: center;
     gap: clamp(var(--s-4), 5vw, var(--s-10));
-    padding-block: clamp(var(--s-6), 6vw, var(--s-10));
+    padding-block: var(--s-2) clamp(var(--s-6), 5vw, var(--s-8));
   }
   .poster {
     position: relative;
@@ -459,7 +580,27 @@
   .part .section-title {
     margin: 0;
   }
+  .part-line {
+    margin: calc(-1 * var(--s-2)) 0 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
 
+  /* An admin's Close sign-up: a quiet line under the card, the button small at its end */
+  .close-signup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-2) var(--s-4);
+    margin: 0;
+  }
+  .close-signup .hint {
+    font-size: var(--text-sm);
+  }
+  .close-signup .btn {
+    gap: var(--s-1);
+  }
   /* Your turn to keep score: a line between rules, not a card */
   .duty {
     display: flex;
@@ -482,6 +623,23 @@
     font-size: var(--text-sm);
   }
 
+  /* On the day, Fight card or The board: Tabs over them, the one showing in the other's place. The cell keeps the
+     carousel's band (lib/MatchCarousel), so what's under it stays put */
+  .day-tabs {
+    margin-bottom: calc(-1 * var(--s-3));
+  }
+  .day-shows {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+  }
+  .day-shows.held {
+    min-height: min(72vh, 40rem);
+  }
+  .day-show {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
   /* Your next match on the day, when it's neither on now nor next: one line */
   .yours {
     display: flex;

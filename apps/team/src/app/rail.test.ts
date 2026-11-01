@@ -27,8 +27,8 @@ const member = new Set<Action>(["read:Event", "signup:Event"]);
 const rail = (granted: Set<Action>) => railItems(routes, buildFolds(config), granted);
 
 describe("the desktop rail", () => {
-  it("is member pages, the same for an admin and a member: Home, the trainings, Calendar, the tournaments, the club", () => {
-    const names = ["Home", "Friday Training", "Calendar", "The Cougars Kumite", "The club"];
+  it("is member pages, the same for an admin and a member: Home, the trainings, the tournaments, Calendar, the club", () => {
+    const names = ["Home", "Friday Training", "The Cougars Kumite", "Calendar", "The club"];
     expect(rail(member).map((i) => i.name)).toEqual(names);
     expect(rail(admin).map((i) => i.name)).toEqual(names);
   });

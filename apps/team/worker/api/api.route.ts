@@ -2,7 +2,7 @@
 // action it needs, what it changes and what it puts on the record; and the small helpers every feature's routes share.
 // The routes themselves live with their feature ({feature}.routes.ts); api.ts mounts them.
 import { type Action } from "../../src/access/actions";
-import type { Slice } from "./api.slices";
+import type { Changed } from "./api.slices";
 import { type AuthEnv } from "../auth/auth";
 import { HttpError, body, json } from "./api.http";
 import { all, first } from "@cougars/shared/d1";
@@ -17,7 +17,9 @@ export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<
   /** Read-only (Account Analytics: Read), for the Usage page and the hourly check (ADR 0059). */
   CLOUDFLARE_ANALYTICS_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
-  /** Where errors go (ADR 0111); a Worker secret from the deploy. Unset (your machine, tests): nowhere but the log. */
+  /** Read-only (Issue & Event: Read), for Settings → Errors: the apps' open issues in Sentry (ADR 0110). */
+  SENTRY_ISSUES_TOKEN?: string;
+  /** Where errors go (ADR 0110); a Worker secret from the deploy. Unset (your machine, tests): nowhere but the log. */
   SENTRY_DSN?: string;
   /** The release Sentry files errors under: the deploy's build version (scripts/ci/target.mjs). */
   BUILD_VERSION?: string;
@@ -29,7 +31,10 @@ export interface Ctx {
   env: Env;
   request: Request;
   params: string[];
+  /** Who the request is answered as: the member signed in, or the one an admin is viewing the app as (ADR 0024). */
   memberId: number;
+  /** The admin viewing the app as `memberId`, who signed in; null when it's the member themselves. */
+  viewedBy: number | null;
   /** The sign-in the request came with; null for a local server's auto admin. */
   sessionId: number | null;
   actions: Set<Action>;
@@ -37,6 +42,8 @@ export interface Ctx {
   now: string;
   /** Work that goes on after the reply (an email); without it (tests), it's done before. */
   waitUntil?: (p: Promise<unknown>) => void;
+  /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`, #178). */
+  alsoChanged: Changed[];
 }
 
 export interface Route {
@@ -45,16 +52,37 @@ export interface Route {
   /** The action this route needs; "authenticated" for any signed-in member. */
   action: Action | "authenticated";
   /**
+   * Only on a Worker whose environment this says yes to (a dev-only tool, ADR 0123): anywhere else the route isn't
+   * there at all, so it answers 404 whoever asks, before anything else is read.
+   */
+  only?: (env: Env) => boolean;
+  /**
    * A change: the parts of the club it can touch. They come back with the reply, as `changed`, so the app puts them
    * in place without reloading the whole club. Every route that isn't a GET says.
    */
-  changes?: readonly Slice[];
+  changes?: readonly Changed[];
+  /**
+   * Instead of `changes`, saying why: a change after which the app reads the whole club again, so no parts come back
+   * and no one else's copy is out of date (viewing as someone, ADR 0024).
+   */
+  reloads?: string;
+  /**
+   * true: a change the API takes while an admin is viewing the app as someone (ADR 0024): only going back to
+   * yourself. Every other change is refused while viewing.
+   */
+  whileViewing?: true;
   /**
    * false: the change never moves anything on the calendar (an answer, a pick, a goal), though its parts are on it, so
    * the agenda isn't read again for it, by this member or every live page (ADR 0042, docs/load-testing.md). Anything
    * else that changes a calendar part brings the agenda with it.
    */
   calendar?: false;
+  /**
+   * true: a change to a match as it's played, touching nothing but its tournament's games. On the tournament's day the
+   * match goes with the live hub's event to every member, so the phones following it read nothing (ADR 0072, #161;
+   * live/live.parts.ts).
+   */
+  liveMatch?: true;
   /**
    * On the record (ADR 0095): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
    * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says

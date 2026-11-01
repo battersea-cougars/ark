@@ -11,19 +11,22 @@ export interface RateLimitOptions {
   limit: number;
   windowSeconds: number;
   now?: number;
+  /** false: only says whether it's used up, without counting this one. */
+  spend?: boolean;
 }
 
 export async function rateLimit(
   cache: CacheLike,
   bucket: string,
   ip: string,
-  { limit, windowSeconds, now = Date.now() }: RateLimitOptions,
+  { limit, windowSeconds, now = Date.now(), spend = true }: RateLimitOptions,
 ): Promise<{ allowed: boolean }> {
   const window = Math.floor(now / 1000 / windowSeconds);
   const key = `https://rate-limit.internal/${bucket}/${encodeURIComponent(ip)}/${window}`;
   const hit = await cache.match(key);
   const count = hit ? Number(await hit.text()) || 0 : 0;
   if (count >= limit) return { allowed: false };
+  if (!spend) return { allowed: true };
   await cache.put(key, new Response(String(count + 1), { headers: { "Cache-Control": `max-age=${windowSeconds}` } }));
   return { allowed: true };
 }

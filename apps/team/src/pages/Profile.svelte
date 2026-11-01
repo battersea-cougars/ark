@@ -1,7 +1,7 @@
 <script lang="ts">
   // You (ADR 0022): only your own things. Your card (photo, name, position, roles), the switch between your everyday role and
   // your full one, your details (your sign-in email, changed with a code to the new address; phone, position, bio, the
-  // name you go by, your default Kumite team name: your name is an admin's to change, since the roster goes by it), notifications, your dues, your data, and sign out. The phone's last tab
+  // name you go by: your name is an admin's to change, since the roster goes by it), notifications, your dues, your data, and sign out. The phone's last tab
   // and a desktop's avatar, top right, open it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton)
   // and at the foot of a desktop's dock, never listed here.
   import Icon from "../app/shell/Icon.svelte";
@@ -20,17 +20,16 @@
   import YourData from "../lib/YourData.svelte";
   import ChangeEmail from "../lib/ChangeEmail.svelte";
   import NotificationPrefs from "../lib/NotificationPrefs.svelte";
+  import Passkeys from "../lib/Passkeys.svelte";
   import { phone } from "../lib/viewport.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { APP_BUILD, APP_VERSION } from "../app/build";
   import SettingsButton from "../lib/SettingsButton.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
 
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
-  // The name your team takes when you're a Kumite captain (ADR 0060): empty, "Team" and your name. Renaming your team
-  // in a Kumite changes it too, so it's always your latest
-  const teamNameWas = who.kumiteTeamName ?? "";
-  let teamName = $state(teamNameWas);
 
   // The name you go by, in the app and on the website (ADR 0043): ready-made forms of your name, or a nickname. Saved as the text itself;
   // the default (first name and initial) is saved as nothing, so it follows a change to your name.
@@ -56,6 +55,9 @@
         : (NAME_FORMS.find((f) => f.id === nameForm)?.label ?? ""),
   );
   const locked = impersonating();
+  // Your details' unsaved changes: Save lights up, and leaving the page asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => ({ form, nameForm, nickname }));
   const BIO_MAX = 160;
 
   // Your everyday role (ADR 0024): anyone with more than Member can open the app as a lesser role, so ratings and admin
@@ -78,7 +80,7 @@
   }
   const owed = $derived(owedBy(who.id));
 
-  // Your photo (ADR 0123): from the phone's camera or its photos (a plain file picker offers both), shrunk here to a
+  // Your photo (ADR 0133): from the phone's camera or its photos (a plain file picker offers both), shrunk here to a
   // small square and saved at once, apart from the details' Save. It's in the club's copy, so it shows everywhere.
   const hasPhoto = $derived(!!db.members.find((m) => m.player.id === who.id)?.player.photoAt);
   let photoFile = $state<HTMLInputElement | undefined>();
@@ -105,19 +107,20 @@
   }
   // Off this device, or every browser and phone you're signed in on (#72); the app reloads to the sign-in screen
   async function signOut(everywhere = false) {
+    // Offline or already signed out: the reload shows which
     await api("POST", everywhere ? "/api/auth/sign-out-everywhere" : "/api/auth/sign-out").catch(() => {});
     location.replace("/");
   }
   function save(e: SubmitEvent) {
     e.preventDefault();
-    const kumiteTeamName = teamName.trim().replace(/\s+/g, " ");
-    saveProfile({
-      ...form,
-      phone: form.phone.trim(),
-      bio: form.bio.trim(),
-      webName,
-      ...(kumiteTeamName !== teamNameWas && { kumiteTeamName }),
-    });
+    edits.run(() =>
+      saveProfile({
+        ...form,
+        phone: form.phone.trim(),
+        bio: form.bio.trim(),
+        webName,
+      }),
+    );
   }
 </script>
 
@@ -210,16 +213,15 @@
           placeholder="Shoots left. Blames the wheels."
           bind:value={form.bio}></textarea>
       </label>
-      <label class="field">
-        <span>Default Kumite team name <span class="hint">· your team's when you captain one</span></span>
-        <input class="input" maxlength="40" placeholder={`Team ${shortName(who)}`} bind:value={teamName} />
-      </label>
-      <button class="btn primary">Save</button>
+      <SaveBar {edits} />
     </fieldset>
     {#if locked}<p class="hint">Read-only while you're viewing as {shortName(who)}.</p>{/if}
   </form>
 
   <NotificationPrefs disabled={locked} />
+
+  <!-- Your passkeys (ADR 0023): only your own, so not while you're viewing as someone -->
+  {#if !locked}<Passkeys />{/if}
 
   <div class="list">
     <a class="row" href="/me/tab">

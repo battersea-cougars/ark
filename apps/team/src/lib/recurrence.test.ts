@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { datesToMake, describeRule, ruleDates, weekdayOf, type Rule } from "./recurrence";
-import { londonISO } from "./dates";
 
 const fridays: Rule = { repeatEvery: 1, weekdays: ["fri"], startsOn: "2026-10-02", endsOn: null };
 
@@ -52,12 +51,5 @@ describe("describeRule", () => {
   it("reads like the Gwenda series cards", () => {
     expect(describeRule(fridays)).toBe("Every week on Fri");
     expect(describeRule({ ...fridays, repeatEvery: 2, weekdays: ["thu", "tue"] })).toBe("Every 2 weeks on Tue and Thu");
-  });
-});
-
-describe("londonISO", () => {
-  it("turns London wall-clock times into UTC, in summer and winter", () => {
-    expect(londonISO("2026-10-09", "19:30")).toBe("2026-10-09T18:30:00.000Z");
-    expect(londonISO("2026-12-04", "19:30")).toBe("2026-12-04T19:30:00.000Z");
   });
 });

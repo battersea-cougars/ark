@@ -4,12 +4,13 @@
 import VideoReel from "../../components/VideoReel.astro";
 import { getSettings } from "../../lib/sanity/content";
 import { liveVideos } from "../../lib/server/videos";
-import { cacheControl, videosConfig } from "../../lib/server/sanity-env";
+import { cacheControl } from "../../lib/server/sanity-env";
+import { liveVideosConfig } from "../../lib/server/videos-env";
 
 export const prerender = false;
 export const partial = true;
 
-const { data: videos, unavailable } = await liveVideos(videosConfig());
+const { data: videos, unavailable } = await liveVideos(liveVideosConfig());
 const day = (await getSettings()).training[0]?.day ?? "Friday";
 
 Astro.response.headers.set("Cache-Control", cacheControl(unavailable));

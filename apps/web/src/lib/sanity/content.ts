@@ -14,6 +14,8 @@ import { crestFiles, editionsFrom, type ResultRows } from "../results";
 import { listOr, mergeClub, mergeFridays, mergeKumite, mergePub, mergeTeam } from "./merge";
 import type { ClubEvent, Player, SiteSettings, Sponsor, Award } from "./types";
 import { scribe } from "@cougars/shared/scribe";
+import { logFailure } from "@cougars/shared/breaker";
+import { championsFirst } from "../awards";
 
 const log = scribe.logger("content");
 
@@ -31,7 +33,7 @@ const lastGood = new Map<string, unknown>();
 async function fetchOr<T>(query: string, fallback: T): Promise<T> {
   if (!SANITY_PROJECT_ID) return fallback;
   try {
-    // Through the same reader, circuit breaker and count as the live reads (ADR 0055, ADR 0116). Every link an editor
+    // Through the same reader, circuit breaker and count as the live reads (ADR 0055, ADR 0059). Every link an editor
     // typed is checked there, once, for every page (lib/links.ts)
     const result = await sanityQuery<T | null>(sanityConfig(), query);
     if (import.meta.env.DEV) devSanity.problem = "";
@@ -42,7 +44,7 @@ async function fetchOr<T>(query: string, fallback: T): Promise<T> {
     // the fallback rather than an error page (ADR 0055): degraded, not broken.
     if (!onWorker && !import.meta.env.DEV) throw error;
     if (import.meta.env.DEV) devSanity.problem = String(error);
-    log.error("content.sanity_error", error);
+    logFailure(log, "content.sanity_error", error);
     return ((lastGood.get(query) as T | null | undefined) ?? fallback) as T;
   }
 }
@@ -63,7 +65,7 @@ const memo = <T>(fn: () => Promise<T>) => {
   };
 };
 
-// Club facts, one Sanity singleton each, read together in one request (ADR 0116) and merged field by field with their
+// Club facts, one Sanity singleton each, read together in one request (ADR 0059) and merged field by field with their
 // fallbacks.
 type Facts = Partial<Record<"club" | "fridays" | "pub" | "team" | "kumite", unknown>>;
 const getFacts = memo(() => fetchOr<Facts | null>(q.FACTS, null));
@@ -81,8 +83,9 @@ export const getClub = fromFacts((f) => mergeClub(FALLBACK_CLUB, f?.club ?? null
 export const getFridays = fromFacts((f) => mergeFridays(FALLBACK_FRIDAYS, f?.fridays ?? null));
 export const getPub = fromFacts((f) => mergePub(FALLBACK_PUB, f?.pub ?? null));
 export const getTeam = fromFacts((f) => mergeTeam(FALLBACK_TEAM, f?.team ?? null));
-// The Kumite's awards come from the team app (ADR 0044), through the build's club snapshot; Sanity's list (names
-// only) until the snapshot has them.
+// The Kumite's awards come from the team app (ADR 0044), through the build's club snapshot: a Kumite's own (the next
+// public one's, else the last held's; the series' before there's been one, scripts/lib/kumite-sql.mjs). Sanity's list
+// (names only) until the snapshot has them.
 /** The next Kumite as the team app has it (ADR 0042): when, where, or that it's TBC or only a season so far. */
 export interface NextKumite {
   startsAt: string;
@@ -100,12 +103,16 @@ export const getKumite = fromFacts((f) => {
   const fromApp = snapshot?.awards;
   return {
     ...k,
-    awards: fromApp?.length ? fromApp : k.awards.map((name): Award => ({ name })),
+    // The champions first (lib/awards.ts), though the team app keeps them last for its reveal
+    awards: championsFirst(fromApp?.length ? fromApp : k.awards.map((name): Award => ({ name }))),
     next: snapshot?.next ?? null,
   };
 });
 
 /** Every club fact in one object. */
+/** Running on a developer's machine (the LOCAL ribbon, astro.config.mjs), not a deploy. */
+const onMachine = (JSON.parse(import.meta.env.ENV_RIBBON || "null") as { env?: string } | null)?.env === "LOCAL";
+
 export const getSettings = async (): Promise<SiteSettings> => {
   const [club, fridays, pub, team, kumite] = await Promise.all([
     getClub(),
@@ -114,6 +121,10 @@ export const getSettings = async (): Promise<SiteSettings> => {
     getTeam(),
     getKumite(),
   ]);
+  // On your machine every section is on, whatever the Studio's switches say (ADR 0109), so any part can be looked at
+  // locally; dev and production follow the Studio
+  if (onMachine)
+    return { ...club, ...fridays, pub, team: { ...team, onWebsite: true }, kumite: { ...kumite, onWebsite: true } };
   return { ...club, ...fridays, pub, team, kumite };
 };
 

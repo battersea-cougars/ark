@@ -44,7 +44,8 @@ const checks = [
     },
   ],
   // A real enquiry, marked with this deploy's smoke key: saved, both emails sent (to the sending account only, even in
-  // production), then deleted (apps/web/src/lib/server/smoke.ts). Skipped where there's no key (PR previews).
+  // production), then deleted (apps/web/src/lib/server/smoke.ts). Production only: skipped where there's no key (dev,
+  // PR previews).
   ...(process.env.SMOKE_TOKEN
     ? [
         [

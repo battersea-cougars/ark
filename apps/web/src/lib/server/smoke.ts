@@ -18,11 +18,12 @@ export function isSmoke(request: Request, token: string | undefined): boolean {
 
 /**
  * How a smoke test's emails go: as anywhere outside production, every one to the sending account itself (safeMail),
- * never to the club or the address on the form, whatever environment this is.
+ * never to the club or the address on the form, whatever environment this is. Their subject names the environment
+ * ("[production smoke test, for …]"), so the inbox says which deploy sent them.
  */
 export const smokeMailConfig = (config: MailConfig): MailConfig => ({
   ...config,
-  siteEnv: "smoke",
+  siteEnv: `${config.siteEnv || "unset"} smoke test`,
   safeTo: null,
   allow: [],
 });

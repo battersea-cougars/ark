@@ -21,6 +21,11 @@ export interface CacheOptions {
   ttlMs: number;
   /** How long an expired value may still be served when the source fails. */
   staleMs?: number;
+  /**
+   * A value read before this time (ms) isn't fresh, however young: an admin asked for the source to be read again
+   * (Refresh photos and videos, media-refresh.ts). It's still the last good copy if the source fails.
+   */
+  freshAfter?: number;
 }
 
 /** What the cache needs from the outside world, so tests can control time and the edge cache. */
@@ -52,19 +57,20 @@ const defaultEdge = (): Pick<Cache, "match" | "put"> | null =>
  */
 export async function cached<T>(
   key: string,
-  { ttlMs, staleMs = 0 }: CacheOptions,
+  { ttlMs, staleMs = 0, freshAfter = 0 }: CacheOptions,
   load: () => Promise<T>,
   { now = Date.now, edge = defaultEdge() }: CacheDeps = {},
 ): Promise<T> {
+  const fresh = (e: Entry<T>) => now() - e.at < ttlMs && e.at >= freshAfter;
   const hit = memory.get(key) as Entry<T> | undefined;
-  if (hit && now() - hit.at < ttlMs) return hit.value;
+  if (hit && fresh(hit)) return hit.value;
 
   const pending = inFlight.get(key) as Promise<T> | undefined;
   if (pending) return pending;
 
   const refresh = (async () => {
     const shared = await edgeGet<T>(edge, key);
-    if (shared && now() - shared.at < ttlMs) {
+    if (shared && fresh(shared)) {
       remember(key, shared);
       return shared.value;
     }
@@ -76,6 +82,7 @@ export async function cached<T>(
     } catch (error) {
       const last = [hit, shared].filter((e): e is Entry<T> => !!e).sort((a, b) => b.at - a.at)[0];
       if (last && now() - last.at < ttlMs + staleMs) {
+        // A warning, not reported: the last good copy is served. Once that's too old the caller reports the failure.
         // A paused source (circuit breaker) was logged once when it paused
         if ((error as Error)?.name !== "BreakerOpen") log.warn("cache.stale", error, { key });
         return last.value;
@@ -109,13 +116,6 @@ async function edgePut<T>(edge: CacheDeps["edge"], key: string, entry: Entry<T>,
   } catch {
     // as above
   }
-}
-
-/** A short, stable name for a query and its parameters, for cache keys. */
-export function hashKey(text: string): string {
-  let h = 0x811c9dc5; // FNV-1a
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
-  return (h >>> 0).toString(36);
 }
 
 /** Forget everything (tests). */

@@ -2,6 +2,8 @@
 // their full name), everywhere the app shows them, as on the website. Their full name stays for sign-in, payment
 // references and an admin's views, and search finds either.
 
+import { folded } from "./text";
+
 interface Named {
   name: string;
   webName?: string | null;
@@ -13,10 +15,10 @@ export const goesBy = (p: Named) => p.webName?.trim() || p.name;
 /** The short form: on their trading card, in "Team …", greetings and lists of first names. A chosen name whole, else their first name. */
 export const shortName = (p: Named) => p.webName?.trim() || p.name.trim().split(/\s+/)[0];
 
-/** Search: either name, any part of it. */
+/** Search: either name, any part of it, accents and case aside ("zoe" finds Zoë). */
 export const matchesName = (p: Named, query: string) => {
-  const q = query.trim().toLowerCase();
-  return !q || p.name.toLowerCase().includes(q) || !!p.webName?.toLowerCase().includes(q);
+  const q = folded(query.trim());
+  return !q || folded(p.name).includes(q) || (!!p.webName && folded(p.webName).includes(q));
 };
 
 /** For a lookup that may find no one: their name, or nothing. */
@@ -54,7 +56,7 @@ export function nameOfTeam<T extends Captained>(
   return `Team ${twins.some((c) => initial(c) === initial(captain)) ? goesBy({ name: captain.name }) : initial(captain)}`;
 }
 
-/** Every team's name in a tournament, in its order: what their crests are told apart among (logo.ts teamInitials). */
+/** Every team's name in a tournament, in its order: what their crests are told apart among (@cougars/shared/team-initials). */
 export const teamNamesOf = <T extends Captained>(
   teams: readonly T[],
   person: (id: number | null) => Named | undefined,

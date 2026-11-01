@@ -1,4 +1,4 @@
-// The app's own errors to Sentry (ADR 0111), in the browser and the store app alike: anything thrown that nothing
+// The app's own errors to Sentry (ADR 0110), in the browser and the store app alike: anything thrown that nothing
 // caught. Through the Worker's /api/errors (the app talks only to its own origin, and ad blockers leave that alone).
 // Errors only, nothing about the member: the same settings and clean-up as the Workers (packages/shared/scribe.sentry.ts).
 // A build without a DSN (your machine) never loads this.
@@ -12,6 +12,15 @@ const MECHANISM: Record<How, { type: string; handled: boolean }> = {
   onerror: { type: "auto.browser.global_handlers.onerror", handled: false },
   onunhandledrejection: { type: "auto.browser.global_handlers.onunhandledrejection", handled: false },
   start: { type: "app.start", handled: true },
+  caught: { type: "app.caught", handled: true },
+};
+
+/** When it happened: the start-up, before Sentry was up, or caught by the app as it ran. */
+const PHASE: Record<How, string> = {
+  onerror: "early",
+  onunhandledrejection: "early",
+  start: "start",
+  caught: "caught",
 };
 
 export function startErrorReports(dsn: string) {
@@ -30,7 +39,7 @@ export function startErrorReports(dsn: string) {
   handOff((error, how) =>
     Sentry.captureException(error, {
       mechanism: MECHANISM[how],
-      captureContext: { tags: { phase: how === "start" ? "start" : "early" } },
+      captureContext: { tags: { phase: PHASE[how] } },
     }),
   );
 }

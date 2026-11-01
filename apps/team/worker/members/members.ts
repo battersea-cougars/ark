@@ -1,13 +1,12 @@
 // Members and roles (ADR 0024). A member's permissions are the union of their roles' actions; actions no longer in
 // the catalog are ignored.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
-import { ACTIONS, type Action } from "../../src/access/actions";
+import { ACTIONS, can, type Action } from "../../src/access/actions";
 import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
 import { tellTheyreIn } from "./members.mail";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { QUARTER, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
-import { teamNameOf } from "../tournaments/team-name";
 
 export interface MemberJson {
   id: number;
@@ -26,12 +25,7 @@ export interface MemberJson {
   webName: string | null;
   /** Only for the member themselves and those who manage members; null otherwise. */
   phone: string | null;
-  /**
-   * The name their team takes when they're named a Kumite captain (ADR 0060, tournaments/team-name.ts): "" the
-   * automatic "Team <first name>". Your own, or anyone's for those who manage members; null otherwise.
-   */
-  kumiteTeamName: string | null;
-  /** When their photo was set (ADR 0123): it's at /api/members/<id>/photo?v=<this>. Null: none, their initials show. */
+  /** When their photo was set (ADR 0133): it's at /api/members/<id>/photo?v=<this>. Null: none, their initials show. */
   photoAt: string | null;
   /** Training sessions they came to: in, not a no-show, held before today and not cancelled. */
   played: number;
@@ -85,7 +79,6 @@ export function membersFrom(
     bio: string;
     web_name: string | null;
     phone: string | null;
-    kumite_team_name: string | null;
     photo_at: string | null;
     played: number;
     quarterly: number;
@@ -107,7 +100,6 @@ export function membersFrom(
     // Public anyway (the website roster), so everyone may see it
     webName: m.web_name,
     phone: m.phone,
-    kumiteTeamName: m.kumite_team_name,
     photoAt: m.photo_at,
     played: m.played,
     quarterly: Boolean(m.quarterly),
@@ -148,6 +140,44 @@ export async function actionsOf(db: D1Database, memberId: number): Promise<Set<A
   return new Set(rows.map((r) => r.action).filter(isAction));
 }
 
+// ─── The club always keeps someone who can do everything (ADR 0024) ───
+
+/** A condition put on the end of a statement's `WHERE`, with its parameters. */
+export interface Guard {
+  sql: string;
+  params: Param[];
+}
+
+const DOES_EVERYTHING = `SELECT 1 FROM members m JOIN member_roles mr ON mr.member_id = m.id
+  JOIN role_actions ra ON ra.role_id = mr.role_id WHERE ra.action = 'manage:all' AND m.status = 'active'`;
+
+/**
+ * The last member who can do everything (`manage:all`, through Admin or any other role) can't lose it (#135, #136),
+ * as a condition on each statement of the change that might take it (ADR 0121): so two changes at once can't each
+ * see the other still there. A member's change goes while another active member can do everything, or while they
+ * can't now, or while the roles they're given (if they stay active) still can. A role's change goes while an
+ * active member can do everything through another role, or while this one can't now. Taking it away only makes it
+ * truer, so it holds for every statement of a batch that it held for the first.
+ */
+export function keepsSomeoneWhoCanDoEverything(
+  going: { member: number; keeping?: number[] } | { role: number },
+): Guard {
+  if ("role" in going)
+    return {
+      sql: `(EXISTS (${DOES_EVERYTHING} AND mr.role_id != ?)
+             OR NOT EXISTS (SELECT 1 FROM role_actions WHERE role_id = ? AND action = 'manage:all'))`,
+      params: [going.role, going.role],
+    };
+  return {
+    sql: `(EXISTS (${DOES_EVERYTHING} AND m.id != ?)
+           OR NOT EXISTS (SELECT 1 FROM member_roles mr JOIN role_actions ra ON ra.role_id = mr.role_id
+                          WHERE mr.member_id = ? AND ra.action = 'manage:all')
+           OR EXISTS (SELECT 1 FROM role_actions WHERE action = 'manage:all'
+                        AND role_id IN (SELECT value FROM json_each(?))))`,
+    params: [going.member, going.member, JSON.stringify(going.keeping ?? [])],
+  };
+}
+
 /** The first admin: the local stand-in for whoever is signed in, until sign-in arrives. */
 export async function firstAdmin(db: D1Database): Promise<number | null> {
   const row = await first<{ id: number }>(
@@ -160,14 +190,16 @@ export async function firstAdmin(db: D1Database): Promise<number | null> {
 
 /**
  * An admin adds someone to the club (ADR 0069): in straight away (no asking to join), with a payment reference, and
- * an email with a link to the app that fills in their address on the sign-in screen. The email going astray doesn't
- * undo the add: `emailed` says whether it went, so the admin can tell them another way.
+ * an email with a link to the app that fills in their address on the sign-in screen, unless `emailThem` is false
+ * (#164: they'll be told in person, or later from their card). The email going astray doesn't undo the add:
+ * `emailed` says whether it went, so the admin can tell them another way.
  */
 export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin: string, by: By) {
   const now = new Date(by.now);
   const name = text(o, "name", { max: 80 });
   const address = email(o);
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
+  const emailThem = o.emailThem === undefined ? true : bool(o, "emailThem");
   if (await first(env.DB, "SELECT 1 FROM members WHERE email = ?", [address]))
     throw new HttpError(409, "Someone in the club has that email already.");
   const res = await run(
@@ -177,8 +209,24 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
-  const emailed = await tellTheyreIn(env, name, address, origin);
+  const emailed = emailThem && (await tellTheyreIn(env, name, address, origin));
   return { id, emailed };
+}
+
+/**
+ * An admin sends a member the app link after all (#164): the same "You're in" email as an add, once per tap. Only to
+ * someone in the club (active) with an email; whether it went is in the reply, as for an add.
+ */
+export async function sendAppLink(env: AuthEnv, id: number, origin: string): Promise<{ emailed: boolean }> {
+  const m = await first<{ name: string; email: string | null; status: string }>(
+    env.DB,
+    "SELECT name, email, status FROM members WHERE id = ?",
+    [id],
+  );
+  if (!m) throw new HttpError(404, "No such member.");
+  if (m.status !== "active") throw new HttpError(409, "They're not in the club, so there's no link to send.");
+  if (!m.email) throw new HttpError(400, "They've no email: add one on their card first.");
+  return { emailed: await tellTheyreIn(env, m.name, m.email, origin) };
 }
 
 /**
@@ -192,12 +240,17 @@ export async function updateMember(
   by: By,
 ): Promise<{ letIn: boolean; shutOut: boolean }> {
   const caller = by.actions;
-  const existing = await first<{ id: number; status: string }>(db, "SELECT id, status FROM members WHERE id = ?", [id]);
+  const existing = await first<{ id: number; status: string; rating: number }>(
+    db,
+    "SELECT id, status, rating FROM members WHERE id = ?",
+    [id],
+  );
   if (!existing) throw new HttpError(404, "No such member.");
   await mayChange(db, caller, id);
   const name = text(o, "name");
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
-  const rating = int(o, "rating", { max: 100 });
+  // A rating is only theirs to change who may see it (ADR 0036): anyone else was sent none, and sends that back
+  const rating = can(caller, "read:Rating") ? int(o, "rating", { max: 100 }) : existing.rating;
   const cougar = bool(o, "cougar");
   const status = oneOf(o, "status", ["pending", "active", "inactive"] as const);
   const roles = o.roles;
@@ -224,30 +277,15 @@ export async function updateMember(
     )
       throw new HttpError(403, "You can't give someone a role that can do more than you.");
   }
-  // Never leave the club without an admin: neither by taking the role off the last one nor by making them inactive.
-  // Decided inside the statements that write it (ADR 0121): while it's taken off an admin, every statement goes only
-  // while another active admin's there, so two admins demoting each other at once can't both go (#135). The read
-  // before is for the refusal's words.
-  const admin = known.find((k) => k.name === "Admin");
-  let guard: { sql: string; params: Param[] } | null = null;
-  if (admin && (!ids.includes(admin.id) || status !== "active")) {
-    const was = await first<{ n: number }>(
-      db,
-      "SELECT count(*) n FROM member_roles WHERE role_id = ? AND member_id = ?",
-      [admin.id, id],
-    );
-    if (was?.n)
-      guard = {
-        sql: `EXISTS (SELECT 1 FROM member_roles mr JOIN members m ON m.id = mr.member_id
-                WHERE mr.role_id = ? AND mr.member_id != ? AND m.status = 'active')`,
-        params: [admin.id, id],
-      };
-  }
+  // Never leave the club without someone who can do everything: neither by taking their roles off the last one nor
+  // by making them inactive. Decided inside the statements that write it (ADR 0121), so two admins demoting each
+  // other at once can't both go (#135). The read before is for the refusal's words.
+  const guard = keepsSomeoneWhoCanDoEverything({ member: id, keeping: status === "active" ? ids : [] });
   const lastAdmin = "That's the last admin. Make someone else an admin first.";
-  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
-  // A statement written as `… WHERE …`, kept to while there's another admin when this one's going
+  if (!(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
+  // A statement written as `… WHERE …`, kept to while someone can still do everything
   const guarded = (sql: string, params: Param[]) =>
-    guard ? statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]) : statement(db, sql, params);
+    statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]);
   const statements = [
     guarded("UPDATE members SET name = ?, position = ?, rating = ?, cougar = ?, status = ? WHERE id = ?", [
       name,
@@ -263,11 +301,6 @@ export async function updateMember(
     const webName = o.webName === null ? "" : text(o, "webName", { optional: true, max: 40 }).trim();
     statements.push(guarded("UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]));
   }
-  // Their default Kumite team name (ADR 0060), when it's sent: an admin's to set, as theirs on their profile
-  if ("kumiteTeamName" in o)
-    statements.push(
-      guarded("UPDATE members SET kumite_team_name = ? WHERE id = ?", [teamNameOf(o, "kumiteTeamName"), id]),
-    );
   statements.push(guarded("DELETE FROM member_roles WHERE member_id = ?", [id]));
   for (const roleId of ids)
     statements.push(guarded("INSERT INTO member_roles (member_id, role_id) SELECT ?, ? WHERE 1", [id, roleId]));
@@ -315,30 +348,36 @@ export async function updateRole(db: D1Database, id: number, o: Record<string, u
     throw new HttpError(403, "A role can't do more than you can.");
   if (await first(db, "SELECT 1 FROM roles WHERE name = ? AND id != ?", [f.name, id]))
     throw new HttpError(409, "That name is taken.");
-  await batch(db, [
-    statement(db, "UPDATE roles SET name = ?, description = ? WHERE id = ?", [f.name, f.description, id]),
-    statement(db, "DELETE FROM role_actions WHERE role_id = ?", [id]),
-    ...f.actions.map((a) => statement(db, "INSERT INTO role_actions (role_id, action) VALUES (?, ?)", [id, a])),
+  // Never the last role anyone can do everything through, decided in its statements (ADR 0121, #136)
+  const lastOne = "Nobody else can do everything. Make someone else an admin first.";
+  const guard = f.actions.includes("manage:all") ? null : keepsSomeoneWhoCanDoEverything({ role: id });
+  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastOne);
+  const guarded = (sql: string, params: Param[]) =>
+    guard ? statement(db, `${sql} AND ${guard.sql}`, [...params, ...guard.params]) : statement(db, sql, params);
+  const [written] = await batch(db, [
+    guarded("UPDATE roles SET name = ?, description = ? WHERE id = ?", [f.name, f.description, id]),
+    guarded("DELETE FROM role_actions WHERE role_id = ?", [id]),
+    ...f.actions.map((a) => guarded("INSERT INTO role_actions (role_id, action) SELECT ?, ? WHERE 1", [id, a])),
   ]);
+  if (!written.meta.changes) throw new HttpError(409, lastOne);
 }
 
 /**
- * Your own profile: phone, position, bio, how your name shows on the website (empty: first name and initial) and,
- * when it's sent, your default Kumite team name (empty: "Team <first name>", ADR 0060). Your name and email stay with
- * admins (the roster seed matches by name).
+ * Your own profile: phone, position, bio and how your name shows on the website (empty: first name and initial). Your
+ * name and email stay with admins (the roster seed matches by name).
  */
 export async function updateProfile(db: D1Database, id: number, o: Record<string, unknown>) {
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
   const phone = text(o, "phone", { optional: true, max: 30 });
   const bio = text(o, "bio", { optional: true, max: 160 });
   const webName = text(o, "webName", { optional: true, max: 40 }).trim();
-  const teamName = "kumiteTeamName" in o ? teamNameOf(o, "kumiteTeamName") : null;
-  await run(
-    db,
-    `UPDATE members SET position = ?, phone = ?, bio = ?, web_name = ?, kumite_team_name = coalesce(?, kumite_team_name)
-     WHERE id = ?`,
-    [position, phone || null, bio, webName || null, teamName, id],
-  );
+  await run(db, "UPDATE members SET position = ?, phone = ?, bio = ?, web_name = ? WHERE id = ?", [
+    position,
+    phone || null,
+    bio,
+    webName || null,
+    id,
+  ]);
 }
 
 /** The role someone runs the app as day to day (ADR 0024); null means their full role. */

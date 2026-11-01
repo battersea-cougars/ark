@@ -1,4 +1,4 @@
-// A sample Instagram feed (ADR 0113): what the photos look like before the club has connected its account, on a
+// A sample Instagram feed (ADR 0016): what the photos look like before the club has connected its account, on a
 // laptop, dev and PR previews. Never in production. Pictures are placeholders from picsum.photos (not hockey).
 import type { Post } from "./instagram";
 
@@ -20,16 +20,13 @@ const CAPTIONS = [
 const day = (n: number) => new Date(Date.UTC(2026, 9, 31 - n * 3, 21)).toISOString();
 
 export const FAKE_POSTS: Post[] = CAPTIONS.map((caption, i) => {
-  const kind = i === 1 ? "video" : i === 5 ? "album" : "image";
   const first = caption?.split(/(?<=[.!?])\s/)[0];
   return {
     id: `fake-${i + 1}`,
-    kind,
     image: `https://picsum.photos/seed/cougars-ig-${i + 1}/1080/1080`,
     caption,
     alt: first ?? "A photo from the club's Instagram",
     href: "https://www.instagram.com/batterseacougarshockey/",
     takenAt: day(i),
-    ...(kind === "album" ? { count: 4 } : {}),
   };
 });

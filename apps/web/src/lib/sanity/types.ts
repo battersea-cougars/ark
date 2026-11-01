@@ -69,6 +69,8 @@ export interface Kumite {
 export interface Award {
   name: string;
   about?: string | null;
+  /** How the team app decides it (the table for the champions); absent on Sanity's names and older awards */
+  decidedBy?: { kind: string; stat?: string } | null;
 }
 
 /** Every club fact in one object, the shape pages read through getSettings(). */

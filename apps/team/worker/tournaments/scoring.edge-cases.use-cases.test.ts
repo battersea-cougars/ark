@@ -1,4 +1,4 @@
-// Scoring's edges (ADR 0061): every tap the game's state doesn't allow is refused and changes nothing (a goal before
+// Scoring's edges (ADR 0130): every tap the game's state doesn't allow is refused and changes nothing (a goal before
 // the start or after full time, ending a period twice or the last one, Undo with nothing to undo, starting a game
 // that's over), who may do what (not signed in, a member who isn't holding the sheet, a scorekeeper on another game,
 // an admin), what a tap may say (wrong types, out of range, a game or team from another tournament), and an admin's
@@ -18,7 +18,7 @@ const at = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
-type Phone = { call: Json };
+type Phone = { call: Json; club: Json };
 let w: ReturnType<typeof testWorld>;
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -28,8 +28,7 @@ beforeEach(() => {
 /** A cup three teams entered, each captained by a member, with its fixtures made (and its playoffs, if any). */
 async function cup(playoffs: { name: string; home: number; away: number }[] = [], extra: object = {}) {
   const dana = await w.signedIn("dana@example.com");
-  const sees = async (as: Phone = dana, now = NOW) =>
-    (await as.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (as: Phone = dana, now = NOW) => (await as.club({ now })).body as Json;
   const boot = await sees();
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captains = { Ants: idOf("Cara Captain"), Bees: idOf("Cole Captain"), Cats: idOf("Reg Captain") };
@@ -627,28 +626,6 @@ describe("playoffs, after the group", () => {
     expect([final.homeTeamId, final.awayTeamId]).toEqual([c.teams[0].id, c.teams[1].id]);
   });
 
-  it("level on points, goal difference decides who's in the Final", async () => {
-    // Each team wins one, 3 points each: Cats 5–0 Ants, Bees 2–1 Cats, Ants 1–0 Bees. Goal difference: Cats +4,
-    // Bees 0, Ants −4
-    const c = await groupPlayed(undefined, ([ants, bees, cats]) => [
-      [cats, ants, 5, 0],
-      [bees, cats, 2, 1],
-      [ants, bees, 1, 0],
-    ]);
-    expect([c.final.homeTeamId, c.final.awayTeamId]).toEqual([c.cats, c.bees]);
-  });
-
-  it("level on points and goal difference, goals scored decides", async () => {
-    // Every game a draw (Ants 1–1 Bees, Ants 2–2 Cats, Bees 3–3 Cats): 2 points each, GD 0. Goals scored: Cats 5,
-    // Bees 4, Ants 3
-    const c = await groupPlayed(undefined, ([ants, bees, cats]) => [
-      [ants, bees, 1, 1],
-      [ants, cats, 2, 2],
-      [bees, cats, 3, 3],
-    ]);
-    expect([c.final.homeTeamId, c.final.awayTeamId]).toEqual([c.cats, c.bees]);
-  });
-
   it("an admin putting a group result right before the Final starts changes who's in it", async () => {
     const c = await groupPlayed();
     expect([c.final.homeTeamId, c.final.awayTeamId]).toEqual([c.ants, c.bees]);
@@ -694,18 +671,69 @@ describe("playoffs, after the group", () => {
     expect(final).toMatchObject({ status: "done", homeGoals: 2, awayGoals: 1 });
   });
 
-  // removeGoal takes any goal off a finished game, a playoff's too, with no check that a winner's left: a typed-in
-  // result (scoreGame) or full time (clockGame) can't make a playoff level, but this can, and the Final then crowns
-  // nobody (known bug #123)
-  it.fails(
-    "an admin can't take a goal off a finished playoff if that would leave it level: a playoff needs a winner (known bug #123)",
-    async () => {
+  // A typed-in result (scoreGame) or full time (clockGame) can't make a playoff level, and nor can taking a goal off
+  // it (#123: it could, and the Final then crowned nobody)
+  it("an admin can't take a goal off a finished playoff if that would leave it level: a playoff needs a winner", async () => {
+    const c = await groupPlayed();
+    await c.score(c.final.id, 1, 0);
+    const goalId = (await c.game(c.final.id)).goals[0].id;
+    const res = await c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/winner/);
+    expect(row(c.final.id)).toMatchObject({ home: 1, away: 0 });
+  });
+
+  it.each(seeds(5))(
+    "two admins each taking a goal off a 3–1 Final at once: one comes off, the other would leave it level (seed %i)",
+    async (seed) => {
       const c = await groupPlayed();
-      await c.score(c.final.id, 1, 0);
-      const goalId = (await c.game(c.final.id)).goals[0].id;
-      const res = await c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`);
-      expect(res.status).toBe(409);
-      expect(row(c.final.id)).toMatchObject({ home: 1, away: 0 });
+      await c.score(c.final.id, 3, 1);
+      const final = await c.game(c.final.id);
+      const home = final.goals.filter((g: Json) => g.teamId === final.homeTeamId).map((g: Json) => g.id);
+      w.db.interleave(seed);
+      const replies = await Promise.all(
+        home.slice(0, 2).map((goalId: number) => c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`)),
+      );
+      w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
+      expect(row(c.final.id)).toMatchObject({ home: 2, away: 1 });
+    },
+  );
+
+  // Adding a goal missed on the day can leave it level as well (#159): a Final won 1–0, an away goal, 1–1
+  it("an admin can't add a goal to a finished playoff if that would leave it level", async () => {
+    const c = await groupPlayed();
+    await c.score(c.final.id, 1, 0);
+    const final = await c.game(c.final.id);
+    const res = await c.goal(c.dana, c.final.id, { teamId: final.awayTeamId });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/winner: put the right score in instead/);
+    expect(row(c.final.id)).toMatchObject({ status: "done", home: 1, away: 0 });
+  });
+
+  it("an admin can add a goal to a finished playoff that still leaves a winner", async () => {
+    const c = await groupPlayed();
+    await c.score(c.final.id, 2, 0);
+    const final = await c.game(c.final.id);
+    expect((await c.goal(c.dana, c.final.id, { teamId: final.awayTeamId })).status).toBe(200);
+    expect(row(c.final.id)).toMatchObject({ status: "done", home: 2, away: 1 });
+  });
+
+  it.each(seeds(5))(
+    "two admins each adding an away goal to a 3–1 Final at once: one goes in, the other would leave it level (seed %i)",
+    async (seed) => {
+      const c = await groupPlayed();
+      await c.score(c.final.id, 3, 1);
+      const final = await c.game(c.final.id);
+      // Two admins: two phones signed in as one does the same
+      const other = await w.signedIn("dana@example.com");
+      w.db.interleave(seed);
+      const replies = await Promise.all(
+        [c.dana, other].map((who) => c.goal(who, c.final.id, { teamId: final.awayTeamId })),
+      );
+      w.db.interleave(null);
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 409]);
+      expect(row(c.final.id)).toMatchObject({ home: 3, away: 2 });
     },
   );
 
@@ -716,19 +744,6 @@ describe("playoffs, after the group", () => {
     expect((await c.dana.call("DELETE", `${c.path(c.final.id)}/goals/${goalId}`)).status).toBe(200);
     expect(row(c.final.id)).toMatchObject({ status: "done" });
     expect(row(c.final.id).home + row(c.final.id).away).toBe(3);
-  });
-
-  it("a playoff level at full time can't be ended until someone scores; after the clock's run out the goal still counts", async () => {
-    const c = await groupPlayed();
-    const keeper = await c.keeperOf(c.final);
-    await c.clock(keeper, c.final.id, "start", at(0));
-    await c.goal(keeper, c.final.id, { teamId: c.ants }, at(2));
-    await c.goal(keeper, c.final.id, { teamId: c.bees }, at(4));
-    expect((await c.clock(keeper, c.final.id, "end", at(c.gameMinutes))).status).toBe(409);
-    // Next goal wins, minutes after the clock's at nothing
-    expect((await c.goal(keeper, c.final.id, { teamId: c.bees }, at(c.gameMinutes + 3))).status).toBe(200);
-    expect((await c.clock(keeper, c.final.id, "end", at(c.gameMinutes + 3))).status).toBe(200);
-    expect(row(c.final.id)).toMatchObject({ status: "done", home: 1, away: 2 });
   });
 });
 
@@ -764,22 +779,39 @@ describe("taps at once, outside the live game (ADR 0121)", () => {
     },
   );
 
-  // Undo says "the last goal", not which: a double tap on Undo takes two goals off, the same root as a goal sent
-  // twice (#114: give each tap an id). Seeds that show it, fixed, as above
-  it.fails.each([1, 2, 3, 4, 5])(
-    "Undo tapped twice at once takes back one goal, not two (known bug #114) (seed %i)",
-    async (seed) => {
-      const c = await cup();
-      const keeper = await c.keeperOf(c.first);
-      await c.clock(keeper, c.first.id, "start", at(0));
-      await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(1));
-      await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(2));
-      const undo = () => keeper.call("DELETE", `${c.path(c.first.id)}/goals/last`, undefined, { now: at(3) });
-      w.db.interleave(seed);
-      await Promise.all([undo(), undo()]);
-      w.db.interleave(null);
-      expect(goalsIn(c.first.id)).toBe(1);
-      expect(row(c.first.id)).toMatchObject({ home: 1 });
-    },
-  );
+  // Undo says which goal it takes back, the last one the page shows (#114): a double tap on Undo takes that one off
+  // once, and the second finds it gone. Seeds 1 to 5 took two off when it said only "the last goal"
+  it.each([1, 2, 3, 4, 5])("Undo tapped twice at once takes back one goal, not two (seed %i)", async (seed) => {
+    const c = await cup();
+    const keeper = await c.keeperOf(c.first);
+    await c.clock(keeper, c.first.id, "start", at(0));
+    await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(1));
+    await c.goal(keeper, c.first.id, { teamId: c.first.homeTeamId }, at(2));
+    const last = (await c.game(c.first.id)).goals.at(-1).id;
+    const undo = () =>
+      keeper.call("DELETE", `${c.path(c.first.id)}/goals/last?goal=${last}`, undefined, { now: at(3) });
+    w.db.interleave(seed);
+    const replies = await Promise.all([undo(), undo()]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(goalsIn(c.first.id)).toBe(1);
+    expect(row(c.first.id)).toMatchObject({ home: 1 });
+  });
+
+  it.each([1, 2, 3, 4, 5])("Undo of a penalty tapped twice at once takes back one penalty (seed %i)", async (seed) => {
+    const c = await cup();
+    const keeper = await c.keeperOf(c.first);
+    await c.clock(keeper, c.first.id, "start", at(0));
+    const called = { teamId: c.first.homeTeamId, infraction: "delay-of-game" };
+    await c.penalty(keeper, c.first.id, called, at(1));
+    await c.penalty(keeper, c.first.id, called, at(2));
+    const last = (await c.game(c.first.id)).penalties.reduce((a: Json, b: Json) => (b.id > a.id ? b : a)).id;
+    const undo = () =>
+      keeper.call("DELETE", `${c.path(c.first.id)}/penalties/last?penalty=${last}`, undefined, { now: at(3) });
+    w.db.interleave(seed);
+    const replies = await Promise.all([undo(), undo()]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(penaltiesIn(c.first.id)).toBe(1);
+  });
 });

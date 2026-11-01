@@ -1,20 +1,11 @@
-// Who's signed in, and who they're viewing the app as. Real sessions are ADR 0023; impersonation is
-// ADR 0024: an admin sees exactly what a member sees, read-only. An everyday role is ADR 0024: someone with more than
-// Member can run the app as a lesser role, and switch up to their full role until they switch back or close the app.
+// Who's signed in, and who they're viewing the app as. Real sessions are ADR 0023; viewing as a member is
+// ADR 0024: an admin sees exactly what a member sees, read-only. The server keeps it, on the sign-in, and answers as
+// the member (the bootstrap's viewingAs and actions); starting and ending are backend.svelte.ts's viewAs. An everyday
+// role is ADR 0024 too: someone with more than Member can run the app as a lesser role, and switch up to their full
+// role until they switch back or close the app.
 import type { Action } from "../access/actions";
-import { EVERYDAY_ROLE, PLAYERS, REAL_ID, type Player } from "./data";
+import { ACTIONS, EVERYDAY_ROLE, PLAYERS, REAL_ID, VIEWING_AS, type Player } from "./data";
 import { db } from "./store.svelte";
-
-const KEY = "team.demo.viewAs";
-
-function readAs(): number | null {
-  try {
-    const id = Number(localStorage.getItem(KEY));
-    return PLAYERS.some((p) => p.id === id) && id !== REAL_ID ? id : null;
-  } catch {
-    return null;
-  }
-}
 
 // Switched up to your full role: this tab only, so the app always opens in your everyday role
 const ELEVATED = "team.fullRole";
@@ -26,11 +17,18 @@ function readElevated(): boolean {
   }
 }
 
-export const session = $state({ as: null as number | null, everyday: null as number | null, elevated: readElevated() });
+export const session = $state({
+  as: null as number | null,
+  /** What the server lets the member you're viewing as do. */
+  asActions: [] as Action[],
+  everyday: null as number | null,
+  elevated: readElevated(),
+});
 
-/** Once the club's data is in (app/backend.svelte.ts start): who you're viewing as, and your everyday role. */
+/** Whenever the whole club is in (app/backend.svelte.ts): who you're viewing as, and your everyday role. */
 export function startSession() {
-  session.as = readAs();
+  session.as = VIEWING_AS;
+  session.asActions = VIEWING_AS === null ? [] : [...ACTIONS];
   session.everyday = EVERYDAY_ROLE;
 }
 
@@ -72,12 +70,19 @@ export function shownRoles(id: number): string[] {
   return role.name === "Member" ? ["Member"] : [role.name, "Member"];
 }
 
-/** What the app lets the shown member do. While viewing as someone, that's their actions, not yours; in your everyday
- * role, that role's and Member's. */
+/** What the app lets the shown member do. While viewing as someone, that's their actions, as the server grants them;
+ * in your everyday role, that role's and Member's. */
 export const granted = (): ReadonlySet<Action> => {
+  if (impersonating()) return viewedActions();
   const role = everydayRole();
   return role ? everydayActions(role.actions) : actionsOf(me().id);
 };
+
+/** The member you're viewing as: what the server lets them do. */
+function viewedActions(): ReadonlySet<Action> {
+  const actions = session.asActions;
+  return new Set(actions);
+}
 
 function everydayActions(roleActions: readonly Action[]): ReadonlySet<Action> {
   const actions = [...roleActions, ...(db.roles.find((r) => r.name === "Member")?.actions ?? [])];
@@ -94,15 +99,6 @@ export function setElevated(on: boolean) {
     // Private mode: lasts until reload.
   }
 }
-/** What you can do yourself: decides whether "View as" is offered at all. */
-export const realGranted = (): ReadonlySet<Action> => actionsOf(REAL_ID);
-
-export function viewAs(id: number | null) {
-  session.as = id === REAL_ID ? null : id;
-  try {
-    if (session.as === null) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, String(session.as));
-  } catch {
-    // Private mode: lasts until reload.
-  }
-}
+/** What you can do yourself: decides whether "View as" is offered at all. While viewing as someone, the server
+ * answers as them, so that's what this sign-in can do. */
+export const realGranted = (): ReadonlySet<Action> => (impersonating() ? granted() : actionsOf(REAL_ID));

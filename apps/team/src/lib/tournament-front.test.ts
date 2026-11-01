@@ -7,81 +7,39 @@ import {
   nextFightOf,
   nextOf,
   onTheDayOf,
+  paneOf,
   reached,
   stageBadge,
   statusesOf,
-  statusHref,
   statusOf,
   viewOf,
 } from "./tournament-front";
+import { game, kumite as draft, team } from "./kumite.testing";
 
 const ME = 7;
 const TODAY = "2026-10-21";
 const kumite = { id: 1, slug: "kumite", shortName: "Kumite" } as TournamentType;
 const cup = { id: 2, slug: "cup", shortName: "Cup" } as TournamentType;
 
-const game = (
-  position: number,
-  home: number | null,
-  away: number | null,
-  status: "next" | "live" | "done" = "next",
-) => ({
-  id: 100 + position,
-  stage: "group" as const,
-  position,
-  homeTeamId: home,
-  awayTeamId: away,
-  homeSeed: null,
-  awaySeed: null,
-  homeGoals: status === "next" ? null : 1,
-  awayGoals: status === "next" ? null : 0,
-  status,
-});
-const team = (id: number, captain: number, players: number[] = []) => ({
-  id,
-  name: "",
-  logo: null,
-  captainMemberId: captain,
-  captainName: "",
-  contact: "",
-  players: players.map((memberId) => ({ memberId, name: "" })),
-});
-const draft = (o: Partial<Tournament> = {}) =>
-  ({
-    id: 10,
-    typeId: 1,
-    kind: "draft",
-    status: "open",
-    heldOn: "2026-11-14",
-    season: null,
-    signupOpensOn: null,
-    signupClosesOn: null,
-    going: [],
-    waitlist: [],
-    teams: [],
-    games: [],
-    draftState: "scheduled",
-    ...o,
-  }) as unknown as Tournament;
 const teamsSet = (o: Partial<Tournament> = {}) =>
   draft({ draftState: "closed", teams: [team(1, 2, [3]), team(2, 4, [ME])], ...o });
 const fixtures = (o: Partial<Tournament> = {}) =>
   teamsSet({
     teams: [team(1, 2, [3]), team(2, 4, [ME]), team(3, 5)],
-    games: [game(1, 1, 3), game(2, 2, 3)] as never,
+    games: [game(1, "next", 1, 3), game(2, "next", 2, 3)] as never,
     ...o,
   });
 
 describe("nextFightOf: your team's next game", () => {
   it("the first game in the day's order your team's in and hasn't finished", () => {
     expect(nextFightOf(fixtures(), ME)?.id).toBe(102);
-    const played = fixtures({ games: [game(1, 2, 1, "done"), game(2, 1, 3), game(3, 3, 2)] as never });
+    const played = fixtures({ games: [game(1, "done", 2, 1), game(2, "next", 1, 3), game(3, "next", 3, 2)] as never });
     expect(nextFightOf(played, ME)?.id).toBe(103);
   });
 
   it("none when you're not on a team, or your games are over (a playoff waiting on seeds isn't yours yet)", () => {
     expect(nextFightOf(fixtures(), 99)).toBeUndefined();
-    const over = fixtures({ games: [game(1, 2, 1, "done"), game(2, null, null)] as never });
+    const over = fixtures({ games: [game(1, "done", 2, 1), game(2, "next", null, null)] as never });
     expect(nextFightOf(over, ME)).toBeUndefined();
   });
 
@@ -135,7 +93,7 @@ describe("nextOf: what happens next, under the track", () => {
   });
 
   it("under way: how far it's got", () => {
-    const going = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "live"), game(3, 1, 2)] as never });
+    const going = fixtures({ games: [game(1, "done", 1, 3), game(2, "live", 2, 3), game(3, "next", 1, 2)] as never });
     expect(nextOf(going, TODAY)).toEqual({ label: "1 of 3 played", on: null });
   });
 });
@@ -143,8 +101,8 @@ describe("nextOf: what happens next, under the track", () => {
 describe("onTheDayOf: the match on now and the next, nothing else", () => {
   const day = (statuses: ("next" | "live" | "done")[]) =>
     fixtures({
-      games: [game(1, 1, 3), game(2, 1, 3), game(3, 3, 1), game(4, 2, 3)].map((g, i) =>
-        game(g.position, g.homeTeamId, g.awayTeamId, statuses[i]),
+      games: [game(1, "next", 1, 3), game(2, "next", 1, 3), game(3, "next", 3, 1), game(4, "next", 2, 3)].map((g, i) =>
+        game(g.position, statuses[i], g.homeTeamId, g.awayTeamId),
       ) as never,
     });
 
@@ -169,28 +127,34 @@ describe("onTheDayOf: the match on now and the next, nothing else", () => {
   });
 });
 
-describe("stageBadge: the stamp says where it is", () => {
-  it("sign-up open (coming up before it opens), the draft live, the teams set", () => {
-    expect(stageBadge(draft(), kumite, TODAY)).toEqual({ label: "Sign-up open", tone: "open" });
-    expect(stageBadge(draft({ status: "planned", signupOpensOn: "2026-11-01" }), kumite, TODAY).label).toBe(
-      "Coming up",
-    );
-    expect(stageBadge(draft({ draftState: "open" }), kumite, TODAY)).toEqual({ label: "Draft live", tone: "live" });
-    expect(stageBadge(teamsSet(), kumite, TODAY)).toEqual({ label: "Teams set", tone: "set" });
+describe("stageBadge: the stamp says the status, as the track does", () => {
+  const stamp = (t: Tournament, type = kumite, today = TODAY) => {
+    const b = stageBadge(t, type, today, "The Anchor");
+    return [b.label, b.tone, b.mark];
+  };
+  it("sign-up open (coming up before it opens), the draft open once sign-up's closed, the teams set", () => {
+    expect(stamp(draft())).toEqual(["Sign-up open", "on", "open"]);
+    expect(stamp(draft({ status: "planned", signupOpensOn: "2026-11-01" }))).toEqual(["Coming up", "quiet", "open"]);
+    expect(stamp(draft({ signupClosesOn: "2026-10-20" }))).toEqual(["Draft open", "on", "draw"]);
+    expect(stamp(draft({ draftState: "open" }))).toEqual(["Draft open", "on", "draw"]);
+    expect(stamp(teamsSet())).toEqual(["Teams set", "on", "sealed"]);
   });
 
-  it("fixtures out: Fixtures set before the day, for every type; on the day itself its own name shouted", () => {
-    expect(stageBadge(fixtures(), kumite, TODAY)).toEqual({ label: "Fixtures set", tone: "set" });
-    expect(stageBadge(fixtures(), cup, TODAY).label).toBe("Fixtures set");
-    expect(stageBadge(fixtures({ heldOn: TODAY }), kumite, TODAY)).toEqual({ label: "Kumite!", tone: "live" });
-    expect(stageBadge(fixtures({ heldOn: TODAY }), cup, TODAY).label).toBe("Cup!");
+  it("fixtures out: Fixtures set before the day, for every type; on the day its own name shouted, the loudest", () => {
+    expect(stamp(fixtures())).toEqual(["Fixtures set", "on", "fights"]);
+    expect(stamp(fixtures(), cup)[0]).toBe("Fixtures set");
+    expect(stamp(fixtures({ heldOn: TODAY }))).toEqual(["Kumite!", "live", "onTheMat"]);
+    expect(stamp(fixtures({ heldOn: TODAY }), cup)[0]).toBe("Cup!");
+    // Under way on another day: it's the day all the same
+    const going = fixtures({ games: [game(1, "done", 1, 3), game(2, "next", 2, 3)] as never });
+    expect(stamp(going)).toEqual(["Kumite!", "live", "onTheMat"]);
   });
 
-  it("under way on another day: on now; every game played: done", () => {
-    const going = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3)] as never });
-    expect(stageBadge(going, kumite, TODAY)).toEqual({ label: "On now", tone: "live" });
-    const over = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
-    expect(stageBadge(over, kumite, TODAY)).toEqual({ label: "Done", tone: "done" });
+  it("every match played: the after-party's name that evening, then Done", () => {
+    const over = (heldOn: string) =>
+      fixtures({ heldOn, games: [game(1, "done", 1, 3), game(2, "done", 2, 3)] as never });
+    expect(stamp(over(TODAY))).toEqual(["The Anchor", "done", "awards"]);
+    expect(stamp(over("2026-10-01"))).toEqual(["Done", "done", "awards"]);
   });
 });
 
@@ -203,19 +167,19 @@ describe("afterwards on the front page (ADR 0074)", () => {
 
   it("isn't shown on the day while more than one match is left: the matches are", () => {
     expect(
-      afterMomentOf(fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "live"), game(2, 2, 3)] as never }), TODAY),
+      afterMomentOf(fixtures({ heldOn: TODAY, games: [game(1, "live", 1, 3), game(2, "next", 2, 3)] as never }), TODAY),
     ).toBe(null);
   });
 
   it("is what's next once the last match is on", () => {
-    const last = fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "done"), game(2, 2, 3, "live")] as never });
+    const last = fixtures({ heldOn: TODAY, games: [game(1, "done", 1, 3), game(2, "live", 2, 3)] as never });
     expect(afterMomentOf(last, TODAY)).toBe("next");
-    const upNext = fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "done"), game(2, 2, 3)] as never });
+    const upNext = fixtures({ heldOn: TODAY, games: [game(1, "done", 1, 3), game(2, "next", 2, 3)] as never });
     expect(afterMomentOf(upNext, TODAY)).toBe("next");
   });
 
   it("is what's on now once every match is played, that day only", () => {
-    const done = fixtures({ heldOn: TODAY, games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
+    const done = fixtures({ heldOn: TODAY, games: [game(1, "done", 1, 3), game(2, "done", 2, 3)] as never });
     expect(afterMomentOf(done, TODAY)).toBe("now");
     expect(afterMomentOf(done, "2026-10-22")).toBe(null);
     // Marked finished by an admin before the day (or just a season): nothing to go to now
@@ -254,11 +218,27 @@ describe("statusesOf: one page, by status (ADR 0074)", () => {
 
   it("is at sign-up till the draft opens; then open, the teams set once it's closed, the fixtures out, the day", () => {
     expect(now(draft())).toBe("signup");
+    // Sign-up closed (an admin's Close sign-up, or past its closing day): on to the draft, where the order's drawn
+    expect(now(draft({ signupClosesOn: "2026-10-20" }))).toBe("draft");
+    expect(now(draft({ signupClosesOn: TODAY }))).toBe("signup");
+    // The order drawn already (before Close sign-up was a step): the draft's under way
+    expect(
+      now(
+        draft({
+          teams: [
+            { ...team(1, 2), pick: 1 },
+            { ...team(2, 3), pick: 2 },
+          ] as never,
+        }),
+      ),
+    ).toBe("draft");
+    // Teams that enter wait at sign-up for the teams, closed or not
+    expect(now(draft({ kind: "teams", signupClosesOn: "2026-10-20" }))).toBe("signup");
     expect(now(draft({ draftState: "open" }))).toBe("draft");
     expect(now(teamsSet())).toBe("teams");
     expect(now(fixtures())).toBe("fixtures");
     expect(now(fixtures({ heldOn: TODAY }))).toBe("day");
-    expect(now(fixtures({ games: [game(1, 1, 3, "live"), game(2, 2, 3)] as never }))).toBe("day");
+    expect(now(fixtures({ games: [game(1, "live", 1, 3), game(2, "next", 2, 3)] as never }))).toBe("day");
     // Just a season: no date to be on, so only a started match makes it the day
     expect(now(fixtures({ heldOn: TODAY, season: "summer" as never }))).toBe("fixtures");
     // Teams that enter: in once a team has entered
@@ -274,7 +254,7 @@ describe("statusesOf: one page, by status (ADR 0074)", () => {
       "ahead",
       "ahead",
     ]);
-    const over = fixtures({ games: [game(1, 1, 3, "done"), game(2, 2, 3, "done")] as never });
+    const over = fixtures({ games: [game(1, "done", 1, 3), game(2, "done", 2, 3)] as never });
     expect(statusesOf(over, kumite, TODAY).map((s) => s.state)).toEqual([
       "done",
       "done",
@@ -333,24 +313,45 @@ describe("viewOf: which status the page shows for its address", () => {
     expect(viewOf(teamsSet(), TODAY, "schedule")).toBe("teams");
     expect(viewOf(teamsSet(), TODAY, "nonsense")).toBe("teams");
   });
-
-  it("the track's links: the status it's at is the page itself; one gone by, its own address", () => {
-    expect(statusHref("kumite", fixtures(), TODAY, "fixtures")).toBe("/tournaments/kumite");
-    expect(statusHref("kumite", fixtures(), TODAY, "draft")).toBe("/tournaments/kumite/draft");
-    expect(statusHref("kumite", fixtures(), TODAY, "signup")).toBe("/tournaments/kumite/sign-up");
-  });
 });
 
 describe("currentMatchOf: the match the carousel brings forward", () => {
   it("the one on now, whatever's before it", () => {
-    expect(currentMatchOf([game(1, 1, 2, "done"), game(3, 1, 3), game(2, 2, 3, "live")])?.position).toBe(2);
+    expect(currentMatchOf([game(1, "done", 1, 2), game(3, "next", 1, 3), game(2, "live", 2, 3)])?.position).toBe(2);
   });
   it("between matches, the next in the day's order", () => {
-    expect(currentMatchOf([game(2, 2, 3), game(1, 1, 2, "done"), game(3, 1, 3)])?.position).toBe(2);
+    expect(currentMatchOf([game(2, "next", 2, 3), game(1, "done", 1, 2), game(3, "next", 1, 3)])?.position).toBe(2);
   });
   it("before the first, the first; every one played, the last (the final)", () => {
-    expect(currentMatchOf([game(2, 2, 3), game(1, 1, 2)])?.position).toBe(1);
-    expect(currentMatchOf([game(1, 1, 2, "done"), game(2, 2, 3, "done")])?.position).toBe(2);
+    expect(currentMatchOf([game(2, "next", 2, 3), game(1, "next", 1, 2)])?.position).toBe(1);
+    expect(currentMatchOf([game(1, "done", 1, 2), game(2, "done", 2, 3)])?.position).toBe(2);
     expect(currentMatchOf([])).toBeUndefined();
+  });
+});
+
+describe("paneOf: the draft is its captains' and whoever runs it (ADR 0060)", () => {
+  const live = draft({ draftState: "open", teams: [team(1, 2), team(2, 4)] });
+
+  it("everyone else fights blind; a captain and whoever runs it see the draft", () => {
+    expect(paneOf(live, "draft", ME, false)).toBe("blind");
+    expect(paneOf(live, "draft", 2, false)).toBe("draft");
+    expect(paneOf(live, "draft", ME, true)).toBe("draft");
+  });
+
+  it("no captains yet: whoever runs it still sees the draft, which asks them to name the captains", () => {
+    const captainless = draft({ draftState: "none", teams: [] });
+    expect(paneOf(captainless, "draft", ME, true)).toBe("draft");
+    expect(paneOf(captainless, "draft", ME, false)).toBe("blind");
+  });
+
+  it("once it's all played, a past one's draft is everyone's to look back on: the order, the picks, the teams", () => {
+    const played = teamsSet({ status: "finished", games: [game(1, "done", 1, 2)] as never });
+    expect(paneOf(played, "draft", ME, false)).toBe("draft");
+    expect(paneOf(teamsSet(), "draft", ME, false)).toBe("blind");
+  });
+
+  it("any other status is everyone's", () => {
+    expect(paneOf(live, "signup", ME, false)).toBe("signup");
+    expect(paneOf(teamsSet(), "teams", ME, false)).toBe("teams");
   });
 });

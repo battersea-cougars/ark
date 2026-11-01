@@ -5,7 +5,8 @@
   // as the draft's ticker lifts the pick on the clock. A thumb scrolls it, a match a snap; on a desktop the arrows
   // beside it, ↑/↓ once it's focused, or the wheel. It opens on the current match and glides to the new one when that
   // changes, unless someone's just been looking along it. A tap on the one in front opens it; on one peeking, brings
-  // it forward. Back to now, when the one in front isn't the current one. Less motion: no scaling, a plain snap.
+  // it forward. Back to now, when the one in front isn't the current one, and on its own once they've left it alone a
+  // while. Less motion: no scaling, a plain snap.
   import type { Tournament } from "../demo/model";
   import GameCard from "./GameCard.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -22,10 +23,13 @@
   // When someone last moved it themselves: a change to the current match doesn't pull it away from them for a while
   let touched = 0;
   const LEAVE_ALONE_MS = 5000;
+  // Left on another match: after this long untouched it glides back to the current one by itself
+  const DRIFT_BACK_MS = 8000;
+  let driftBack: ReturnType<typeof setTimeout> | undefined;
 
   const items = () => [...(box?.querySelectorAll<HTMLElement>(":scope > .item") ?? [])];
   /** Where the one in front sits: near the band's top, a sliver of the one before showing over it. */
-  const SLIVER = 40;
+  const SLIVER = 72; // the band's 4.5rem top padding and scroll-padding: enough of the one before to read as a card
   const still = prefersReducedMotion;
   /** Bring a match forward: scroll it to the front place (snap does the rest). */
   function bring(i: number, smooth = !prefersReducedMotion) {
@@ -47,14 +51,15 @@
       const k = Math.abs(d);
       // 0 in front, 1 a neighbour, 2 the next ones: the depth follows the scroll, not just the snap
       el.style.setProperty("--k", String(Math.min(2, k)));
-      // Smaller, dimmer and further back the further from the front: a neighbour 0.82 and 0.45, the next 0.68 and
-      // 0.3, softly blurred; each shrinks toward the front, so the one before keeps its foot in view as the sliver
+      // Smaller, dimmer and further back the further from the front: a neighbour 0.82 and 0.8, the next 0.68 and
+      // 0.5, softly blurred; each shrinks toward the front, so the one before keeps its foot in view as the sliver.
+      // Dimmed by brightness more than see-through, so a neighbour still reads as a card on a phone's carbon
       const near = Math.min(k, 1);
       const far = Math.max(Math.min(k, 2) - 1, 0);
       el.style.transformOrigin = d < 0 ? "center bottom" : "center top";
       el.style.transform = still ? "" : `scale(${1 - near * 0.18 - far * 0.14})`;
-      el.style.opacity = String(1 - near * 0.55 - far * 0.15);
-      el.style.filter = still ? "" : `brightness(${1 - near * 0.25}) blur(${far * 1.5}px)`;
+      el.style.opacity = String(1 - near * 0.2 - far * 0.3);
+      el.style.filter = still ? "" : `brightness(${1 - near * 0.35}) blur(${far * 1.5}px)`;
       if (Math.abs(d) < bestD) {
         bestD = Math.abs(d);
         best = i;
@@ -65,13 +70,24 @@
   const onScroll = () => {
     if (!frame) frame = requestAnimationFrame(measure);
   };
-  const byHand = () => (touched = Date.now());
+  function backToNow() {
+    touched = 0;
+    bring(games.findIndex((g) => g.id === current?.id));
+  }
+  function byHand() {
+    touched = Date.now();
+    clearTimeout(driftBack);
+    driftBack = setTimeout(() => {
+      if (!atNow && !document.hidden) backToNow();
+    }, DRIFT_BACK_MS);
+  }
 
   onMount(() => {
     void tick().then(() => {
       bring(Math.max(0, games.indexOf(current!)), false);
       measure();
     });
+    return () => clearTimeout(driftBack);
   });
   // The current match moved on (a result in, the next one started): glide to it, unless they're looking elsewhere
   let lastCurrent: number | undefined;
@@ -111,7 +127,9 @@
     bind:this={box}
     onscroll={onScroll}
     ontouchstart={byHand}
+    ontouchmove={byHand}
     onwheel={byHand}
+    onpointermove={byHand}
     onkeydown={key}
     tabindex="0"
     aria-label="Matches, in order of play"
@@ -139,15 +157,8 @@
     >
   </div>
   <!-- Always there, shown only when the one in front isn't the current one, so nothing moves when it appears -->
-  <button
-    class="btn sm now"
-    class:shown={!atNow}
-    tabindex={atNow ? -1 : 0}
-    aria-hidden={atNow}
-    onclick={() => {
-      touched = 0;
-      bring(games.findIndex((g) => g.id === current?.id));
-    }}><Icon name="clock" size={14} />Back to now</button
+  <button class="btn sm now" class:shown={!atNow} tabindex={atNow ? -1 : 0} aria-hidden={atNow} onclick={backToNow}
+    ><Icon name="clock" size={14} />Back to now</button
   >
 </div>
 
@@ -168,15 +179,15 @@
     height: var(--band);
     margin: 0;
     /* The one in front near the top, a sliver of the one before over it; room under the last to bring it up */
-    padding: 2.5rem var(--s-2) calc(var(--band) - 16rem);
-    scroll-padding-top: 2.5rem;
+    padding: 4.5rem var(--s-2) calc(var(--band) - 16rem);
+    scroll-padding-top: 4.5rem;
     overflow-y: auto;
     overscroll-behavior: contain;
     list-style: none;
     scroll-snap-type: y mandatory;
     scrollbar-width: none;
     /* The sliver of the one before dimmed, not gone; the ones after fading out at the foot, so the list plainly goes on */
-    mask-image: linear-gradient(rgb(0 0 0 / 0.55), #000 2.5rem, #000 86%, transparent);
+    mask-image: linear-gradient(rgb(0 0 0 / 0.7), #000 4.5rem, #000 86%, transparent);
   }
   .band::-webkit-scrollbar {
     display: none;
@@ -192,7 +203,6 @@
   }
   .item :global(.game-card) {
     border-radius: var(--r-lg);
-    background: var(--surface-1);
     backdrop-filter: none;
     box-shadow: 0 calc(24px * (1 - min(var(--k, 0), 1))) calc(48px * (1 - min(var(--k, 0), 1))) -10px rgb(0 0 0 / 0.7);
   }
@@ -201,7 +211,8 @@
   .item.front :global(.game-card) {
     overflow: hidden;
     background:
-      linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.01) 55%, transparent), var(--surface-1);
+      linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.01) 55%, transparent),
+      var(--card-fill, var(--surface-1));
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.12),
       0 24px 48px -10px rgb(0 0 0 / 0.7);

@@ -6,6 +6,7 @@ import {
   AHEAD_DAYS,
   homeFeed,
   owedNotice,
+  tournamentTitle,
   UPCOMING_MAX,
   whenSaid,
   type FeedInput,
@@ -102,18 +103,18 @@ describe("what's coming up, at the edges", () => {
     expect(rows.map((r) => r.key)).not.toContain(`e${UPCOMING_MAX}`);
   });
 
-  it("a cancelled one says Cancelled, whatever you'd said", () => {
+  it("a cancelled one wears Cancelled, whatever you'd said", () => {
     const rows = up([ev("off", day(2), { cancelled: true, standing: "in", asking: true })]);
-    expect(rows[0].sub).toBe("8pm · Cancelled");
+    expect(rows[0].sub).toBe("8pm");
+    expect(rows[0].cancelled).toBe(true);
   });
 
-  it("asks Are you in? from the day sign-up opens, and says when it opens before that", () => {
+  it("a tournament still to open its sign-up says when it opens, though it's asking", () => {
     const t = (signupOpensOn: string) =>
       ev("tournament:1", day(30), { kind: "tournament", filter: "type:1", asking: true, signupOpensOn });
     // A training night sooner is the lead, so the tournament is a row
     const fri = ev("session:1", day(1), { kind: "training", filter: "series:1", asking: true });
     const row = (e: UpcomingEvent) => up([fri, e]).find((r) => r.key === "tournament:1");
-    expect(row(t(TODAY))?.sub).toBe("7pm · Are you in?");
     expect(row(t("2026-10-22"))?.sub).toBe("7pm · Sign-up opens 22 Oct");
   });
 
@@ -135,10 +136,11 @@ describe("what's coming up, at the edges", () => {
     it("a tournament past its last day says Sign-up closed", () => {
       expect(row({ kind: "tournament", filter: "type:1", signupClosed: true })).toBe("8pm · Sign-up closed");
     });
-    it("in, out or waiting says so, whatever the sign-up", () => {
-      expect(row({ standing: "in", signupClosed: true })).toBe("8pm · You're in");
-      expect(row({ standing: "out", opens: "Mon" })).toBe("8pm · You're out");
-      expect(row({ standing: "waitlist" })).toBe("8pm · You're on the waitlist");
+    it("in, out or waiting says so (as its standing, after the time), whatever the sign-up", () => {
+      const stands = (over: Partial<UpcomingEvent>) => up([ev("x", day(3), over)])[0];
+      expect(stands({ standing: "in", signupClosed: true })).toMatchObject({ sub: "8pm", standing: { is: "in" } });
+      expect(stands({ standing: "out", opens: "Mon" })).toMatchObject({ sub: "8pm", standing: { is: "out" } });
+      expect(stands({ standing: "waitlist" })).toMatchObject({ sub: "8pm", standing: { is: "waitlist" } });
     });
     it("a social with no sign-up: just where", () => {
       expect(row({ asking: false })).toBe("8pm · The Lock");
@@ -147,7 +149,7 @@ describe("what's coming up, at the edges", () => {
 
   it("a date still to be confirmed shows no time, only how it stands", () => {
     const rows = up([ev("tbc", day(5), { dateTbc: true, standing: "waitlist" })]);
-    expect(rows[0].sub).toBe("You're on the waitlist");
+    expect(rows[0]).toMatchObject({ sub: "", standing: { is: "waitlist" } });
   });
 
   it("the lead isn't a row as well, and nothing else is left out", () => {
@@ -225,5 +227,33 @@ describe("when the hero's heading says it is", () => {
     expect(whenSaid("2026-10-21T23:30:00Z", TODAY)).toBe("this Thursday");
     expect(whenSaid("2026-10-23T09:00:00Z", TODAY)).toBe("this Friday");
     expect(whenSaid("2026-10-28T19:00:00Z", TODAY)).toBe("on Wed 28 Oct");
+  });
+});
+
+// The Kumite is invitation-only, as in Bloodsport (ADR 0074): Home asks you to accept the invitation, not "Are you in?".
+// Only the Kumite: any other tournament, and every training, asks plainly
+describe("the Kumite's sign-up is an invitation", () => {
+  const cup = { id: 2, slug: "summer-cup", name: "The Summer Cup", shortName: "Cup" } as TournamentType;
+  const fri = ev("session:1", day(1), { kind: "training", filter: "series:1", asking: true });
+  const row = (filter: string, over: Partial<UpcomingEvent> = {}) =>
+    up([fri, ev("tournament:1", day(30), { kind: "tournament", filter, asking: true, ...over })], {
+      types: [type, cup],
+    }).find((r) => r.key === "tournament:1")?.sub;
+
+  it("its row asks you to accept the invitation", () => {
+    expect(row("type:1")).toBe("7pm · Accept the invitation");
+  });
+  it("another tournament's row still asks Are you in?", () => {
+    expect(row("type:2")).toBe("7pm · Are you in?");
+  });
+  it("once you've answered, or before it opens, the row says what it always did", () => {
+    expect(row("type:1", { asking: false, signupOpensOn: "2026-10-30" })).toBe("7pm · Sign-up opens 30 Oct");
+  });
+  it("the hero's heading: You've been invited to the Kumite, while it's yours to accept", () => {
+    expect(tournamentTitle(type, true)).toBe("You've been invited to the Kumite");
+    expect(tournamentTitle(type, false)).toBe("The Kumite");
+    expect(tournamentTitle(cup, true)).toBe("Are you in for the Cup?");
+    expect(tournamentTitle(undefined, true)).toBe("Are you in?");
+    expect(tournamentTitle(undefined, false)).toBe("Up next");
   });
 });

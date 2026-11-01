@@ -9,8 +9,10 @@
   import { kanjiFor } from "./motif";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
-  import { nameOfTeam } from "./names";
+  import { goesBy, nameOfTeam } from "./names";
   import Icon from "../app/shell/Icon.svelte";
+  import InkStamp from "./InkStamp.svelte";
+  import { myTeamIndex } from "./tournament-front";
 
   let {
     tournament,
@@ -27,6 +29,12 @@
   const live = $derived(g.status === "live");
   // You hold its scoresheet: a whistle in the header says so, and the card opens the scoresheet
   const keeping = $derived(g.status !== "done" && g.keeperId === me().id);
+  // Who's scoring it, until it's over (#116): whoever else holds the sheet (yours is the red whistle, not said twice)
+  const scorer = $derived.by(() => {
+    if (g.status === "done" || !g.keeperId || keeping) return "";
+    const p = PLAYERS.find((x) => x.id === g.keeperId);
+    return p ? goesBy(p) : "";
+  });
   const playoff = $derived(g.stage === "playoff");
   const count = $derived(tournament.games?.length ?? 0);
   // 決勝 is the Final's own; any other playoff (a semi-final, 3rd place) gets the fights'
@@ -38,6 +46,16 @@
   const upNext = $derived(
     g.status === "next" && !(tournament.games ?? []).some((x) => x.status === "next" && x.position < g.position),
   );
+  // Your team's in it: its stamp is the club's red, the one other accent on the card than the match on now. Every
+  // Kumite match up next still says You are next!, the line from the film, whoever's playing
+  // A stamp that takes over from another while the card's on screen (You are next! to KUMITE! to the result) flies in
+  // and lands; one already there when the page opens just sits. Read as each stamp is made, so it's that moment's
+  const born = Date.now();
+  const arriving = () => Date.now() - born > 800;
+  const yours = $derived.by(() => {
+    const id = tournament.teams[myTeamIndex(tournament, me().id)]?.id;
+    return !!id && (g.homeTeamId === id || g.awayTeamId === id);
+  });
   // Played: who won it, for the stamp in the middle (a draw says so)
   const winner = $derived.by(() => {
     if (!done || g.homeGoals === null || g.awayGoals === null || g.homeGoals === g.awayGoals) return null;
@@ -51,14 +69,44 @@
   });
 </script>
 
-<!-- On now, it's the main draw: bigger, its KUMITE! stamp pulsing, and the whole card opens the live page -->
+<!-- On now, it's the main draw: bigger, its KUMITE! stamp glowing, and the whole card opens the live page -->
 <div class="list game-card" class:live class:done>
-  <GameHead {stage} {kanji} {playoff} {place} opens={!live && !keeping}>
+  <GameHead {stage} {kanji} {playoff} {place} {scorer} opens={!live && !keeping}>
     {#snippet centre()}
-      {#if live}<span class="chant">{type?.shortName ?? "Live"}!</span>
-      {:else if upNext}<span class="chant result next">{type?.slug === "kumite" ? "You are next!" : "Up next"}</span>
-      {:else if done && winner}<span class="chant result">{winner} wins</span>
-      {:else if done}<span class="chant result draw">Draw</span>{/if}
+      {#if live}<span class="stamp-at glowing"
+          ><InkStamp
+            size="card"
+            tone="red"
+            kanji={kanjiFor(type, "onTheMat")}
+            icon="swords"
+            text="{type?.shortName ?? 'Live'}!"
+            land={arriving()}
+          /></span
+        >
+      {:else if upNext}<span class="stamp-at"
+          ><InkStamp
+            size="card"
+            tone={yours ? "red" : "faint"}
+            kanji={kanjiFor(type, "next")}
+            icon={yours ? "user" : undefined}
+            text={type?.slug === "kumite" ? "You are next!" : "Up next"}
+            tilt={yours ? -5 : -3}
+            land={yours || arriving()}
+          /></span
+        >
+      {:else if done && winner}<span class="stamp-at"
+          ><InkStamp
+            size="card"
+            tone="bone"
+            kanji={kanjiFor(type, "won")}
+            icon="trophy"
+            text="{winner} wins"
+            land={arriving()}
+          /></span
+        >
+      {:else if done}<span class="stamp-at"
+          ><InkStamp size="card" tone="faint" kanji={kanjiFor(type, "drawn")} text="Draw" land={arriving()} /></span
+        >{/if}
     {/snippet}
     {#snippet action()}
       {#if keeping}<span class="keeping" title="You're keeping score" aria-label="You're keeping score"
@@ -89,47 +137,33 @@
   }
   /* The stamp, top right in the head row (no taller than it): on the game on now, KUMITE! outlined in the club's red,
      a little askew, its dot pulsing, which says it's live */
-  .chant {
+  /* The match on now, Up next and the results: ink stamps (lib/InkStamp), as the page's status is. The club's red is your team's You are
+     next! (stamped down as it shows) and the match on now's; a win in bone, a draw and Up next faint (ADR 0084: colour
+     is an accent). A long winner's name is cut short; the stamp's size is the same on every card */
+  /* One box whichever stamp it holds (KUMITE!, You are next!, a result), so the head never shifts as one gives way to
+     the next */
+  .stamp-at {
     display: inline-flex;
+    justify-content: flex-end;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.35rem 0.75rem 0.27rem;
-    border: 2.5px solid currentColor;
-    border-radius: 0.35rem;
-    color: var(--red-hot);
-    font-family: var(--font-display);
-    font-size: 1.2rem;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    transform: rotate(-4deg);
-    box-shadow: 0 0 18px -6px color-mix(in srgb, var(--red-hot) 60%, transparent);
+    width: 15rem;
+    height: 2.25rem;
+    min-width: 0;
   }
-  .chant::before {
-    content: "";
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 50%;
-    background: currentColor;
-    animation: pulse 1.4s var(--ease-in-out) infinite;
+  /* The match being played: a stamp like the rest, glowing (on the box: the stamp's worn-ink mask would clip its own
+     glow), breathing while it's on */
+  .glowing {
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red-hot) 55%, transparent));
   }
-  /* Played: the result, the same stamp, still (no pulse), each in its accent: the winner in amber (gold), a draw in
-     violet; red stays the live game's. The card steps back so what's to come leads */
-  .result {
-    color: var(--tone-amber);
-    font-size: 1rem;
-    box-shadow: none;
+  @media (prefers-reduced-motion: no-preference) {
+    .glowing {
+      animation: glow 1.6s var(--ease-in-out) infinite;
+    }
   }
-  .result::before {
-    display: none;
-  }
-  .result.draw {
-    color: var(--tone-violet);
-  }
-  /* The next to be played, in blue: not live yet, so still */
-  .result.next {
-    color: var(--tone-blue);
+  @keyframes glow {
+    50% {
+      filter: drop-shadow(0 0 14px color-mix(in srgb, var(--red-hot) 90%, transparent)) brightness(1.15);
+    }
   }
   .keeping {
     display: inline-flex;
@@ -138,16 +172,31 @@
   }
   /* A phone: the stamp's a sticker on the card's edge, a size down; Live a compact pill, its hit area kept */
   @media (max-width: 600px) {
-    .chant {
-      padding: 0.25rem 0.55rem 0.18rem;
-      font-size: 1rem;
+    .stamp-at {
+      width: 10.5rem;
+      height: 2rem;
     }
-    .result {
-      font-size: 0.85rem;
+  }
+  /* A card reads as a card on any screen: its own fill, the page's carbon shut out (no see-through glass, which a
+     phone's frost tint left near the page's own black), a lit top edge, no border. Played, a step quieter, still
+     solid */
+  .game-card {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015) 60%, transparent), var(--card-fill);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
+    --card-fill: var(--surface-1);
+  }
+  /* A touch screen (a phone outdoors, at the rink): a step lighter, so the edge holds against the carbon */
+  @media (pointer: coarse) {
+    .game-card {
+      --card-fill: color-mix(in srgb, var(--surface-2) 70%, var(--surface-1));
     }
   }
   .game-card.done {
-    background: color-mix(in srgb, var(--panel-bg) 45%, transparent);
+    background: var(--card-fill);
+    box-shadow: none;
   }
   @media (hover: hover) {
     .game-card:hover {

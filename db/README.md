@@ -14,6 +14,9 @@ Not live yet, so there are no migrations ([ADR 0050](../docs/adr/0050-schema-and
   up to a private temp file), the tables are made again, the rows go back (new columns take their defaults), then
   the club seed tops up. Local: `npm run db:rebuild:local`. Dev: every deploy (`.github/workflows/deploy.yml`), or
   `node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh`.
+- `npm run seed:history` adds a made-up past to a local D1 (years of Kumites, a year of training, charges and payments,
+  for its own members), marked so `npm run seed:history -- --remove` takes it all away; local only, main's shared D1
+  only with `--shared` (docs/testing.md).
 - Production starts fresh: schema, club seed, and a roster of just its admins, who bring the members in with Import
   members in the team app ([ADR 0050](../docs/adr/0050-schema-and-seed-until-launch.md)). It never rebuilds:
   `deploy.yml` refuses until launch.

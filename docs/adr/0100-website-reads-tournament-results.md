@@ -1,7 +1,7 @@
 # 0100. Tournament results are built into the website from D1, and the team app rebuilds it when one changes
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-21
+- **Date:** 2026-10-09 · updated 2026-10-24
 
 ## Context
 
@@ -31,8 +31,16 @@ Three ways were open:
   page (#48).
 - **One rule set.** The table, the champion and "done" live in `@cougars/shared/results`, used by the Worker, the app
   and the website, so they can't disagree.
-- **Static pages.** `/results/` lists every published tournament, newest first; `/results/<id>/` shows its champions,
-  awards with their winners, the table, every score, the scorers and the teams. Where there were penalties, each
+- **Static pages.** `/results/` lists every published tournament, newest first; `/results/<id>/` shows it as the team
+  app shows a past one (`lib/EditionResults`, [0074](0074-tournament-home-and-scheduling.md)), in its order and look
+  (`apps/web/src/components/results/`): the champions (crest big, how they won it: "Beat Ants 3–1 in the final", or
+  "Top of the table, 9 points from 4"), the final (big), the fight card (every game in the order played, crests,
+  the winner bright and the loser faded), the board (the group games' table, as the app's: the playoffs decide the
+  champions, not places; the champions stamped), the leaders (most points, goals and assists together, then goals;
+  one table with every column, as the app's tabs need JavaScript), the awards (a team's with its crest), then who
+  played. A Kumite's is underground (`.night`) and in its motif: kanji by the titles (決勝, 試合, 賞) and the 優勝
+  seal on the champions' crest, in the team app's own kanji font (Noto Serif JP Black, cut to its characters). A team
+  without a logo shows its initials, worked out by the same rule as the app (`@cougars/shared/team-initials`). Where there were penalties, each
   game says its penalty minutes a side ("PIM 4–2") and the scorers become Players, with a PIM column (who and how
   long only: what for and when stay in the app). The champions board on the home page
   and `/kumite/` is built in. Crests are written as files (`/crests/<team id>.webp`), only for published teams, never
@@ -42,10 +50,14 @@ Three ways were open:
   or after it (the last game scored, a goal corrected, awards confirmed, renamed, made private, deleted) marks a
   rebuild wanted (`website_rebuild`, `apps/team/worker/website/website.ts`). A cron every five minutes sends it once there's
   been no change for five minutes, so a results day is one rebuild. As the club's GitHub App, **Cougars rebuilds**,
-  owned by the organisation so it outlives any maintainer (README#github_app_private_key), it runs `deploy.yml` for
+  owned by the organisation so it outlives any maintainer ([docs/secrets.md#github_app_private_key](../secrets.md#github_app_private_key)), it runs `deploy.yml` for
   the website (`workflow_dispatch`, `apps: web`) from its environment's branch: `main` for dev, `release` for
   production. The App can start workflows and nothing else, and each token it takes asks for only that: a leaked key
   can't push code (#71). If GitHub can't be reached, the next check tries again. A laptop's server never asks.
+- **Rebuild now.** Settings → Website (`edit:Content`, #107) sends the same rebuild at once, for Studio changes
+  ([ADR 0004](0004-astro-workers-sanity-d1.md)); within five minutes of the last one sent it says that one's still
+  building and asks for nothing. The time of each one sent is kept (`website_times.rebuild_sent`) and shown there; a
+  press is on the record (`website.rebuilt`).
 - **Names.** Every player is shown by the name they chose on their profile (`members.web_name`), else first name and
   initial (`@cougars/shared/names`, as on the roster). That includes members who aren't Cougars, and players from
   outside the club, who have no profile. A team with no name of its own is "Team" and its captain's chosen name, else
@@ -77,3 +89,16 @@ Three ways were open:
   App needs Actions: write, not Contents: write (#71).
 - 2026-10-21: Penalties reach the website: each game's penalty minutes a side, a player's PIM beside their goals on
   a result, and PIM in the `/team/` stats and on a card.
+- 2026-10-24: Rebuild now in Settings → Website sends the rebuild at once (#107); each one sent is timed, so the page
+  says when, and a second press within five minutes asks for nothing.
+- 2026-10-30: A result's page follows the team app's past-Kumite view: champions with how they won it, the final,
+  the fight card, the board, the leaders, the awards, in the app's order, look and Kumite motif (kanji, the 優勝
+  seal); the board counts the group games only, as the app's; the leaders rank by points; crests without a logo show
+  the app's initials (moved to `@cougars/shared/team-initials`). The champions board on the home page and `/kumite/`
+  wears the same crest and seal.
+- 2026-10-30: A crest's initials are in the team's colour by its place, as the team app's (blue, amber, violet, teal,
+  green, red); the champions board's crest is the champion card's size, its 優勝 seal full size on the corner.
+- 2026-10-30: The champions board becomes Reigning champions, a section of its own (the crest big with its seal, the
+  name, how they won it, the night's other winners), with a button to the full result and a link to all past
+  champions (/results/) instead of a list under it; on /kumite/ it comes straight after the intro. The Glory list's
+  awards wear the team app's trophy (the champions) and medal (the rest) in sticker yellow.

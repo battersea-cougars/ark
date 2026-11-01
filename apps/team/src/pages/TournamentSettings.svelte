@@ -4,23 +4,42 @@
   // tournament's editor; "New tournament" opens a blank one, which can start from a series' defaults.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
-  import TournamentEditorPanel, { editTournament } from "../lib/TournamentEditorPanel.svelte";
+  import TournamentEditorPanel from "../lib/TournamentEditorPanel.svelte";
+  import { editTournament } from "../lib/tournament-panel.svelte";
   import { tournamentPlace, typeById } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import { londonToday, pounds } from "../lib/dates";
-  import { EDITION_LABEL, editionState, editionWhen } from "../lib/edition";
+  import { pounds } from "../lib/dates";
+  import { EDITION_LABEL, byWhen, editionState, editionWhen } from "../lib/edition";
   import type { Tournament } from "../demo/model";
   import SearchField from "../lib/SearchField.svelte";
   import { listScroll } from "../lib/list-scroll";
   import { flip } from "svelte/animate";
+  import { pastList, rowOf } from "../app/history.svelte";
+  import { loadEdition } from "../app/editions.svelte";
+  import { loadMore } from "../lib/load-more";
   import { cardMoveMs, easeOut, sift } from "../app/motion";
 
+  // The older played ones, read a page at a time as the list's end comes into view (#175): the app has only each
+  // series' last one played. Opening one reads it whole for its editor
+  const older = pastList(null);
+  $effect(() => {
+    void db.tournaments;
+    void older.refresh().catch(() => {});
+  });
+  const all = $derived([
+    ...db.tournaments,
+    ...older.editions.filter((e) => !db.tournaments.some((t) => t.id === e.id)).map(rowOf),
+  ]);
+  const open = async (id: number) => {
+    if (await loadEdition(id)) editTournament(id);
+  };
   // Dates still to come first, soonest first; then the finished ones, latest first
-  const done = (t: Tournament) => editionState(t) === "done" || t.heldOn < londonToday();
+  // Played is done, whatever its date; one whose day went by unplayed is still to come (#182)
+  const done = (t: Tournament) => editionState(t) === "done";
   const dates = $derived(
-    [...db.tournaments].sort((a, b) => {
+    [...all].sort((a, b) => {
       if (done(a) !== done(b)) return done(a) ? 1 : -1;
-      return done(a) ? b.heldOn.localeCompare(a.heldOn) : a.heldOn.localeCompare(b.heldOn);
+      return done(a) ? byWhen(b, a) : byWhen(a, b);
     }),
   );
   const when = (t: Tournament) => {
@@ -91,7 +110,7 @@
                 in:sift
                 out:sift={{ out: true }}
               >
-                <button class="table-row" class:past={done(t)} onclick={() => editTournament(t.id)}>
+                <button class="table-row" class:past={done(t)} onclick={() => open(t.id)}>
                   <span class="name">
                     <span class="ico tone" style:--tone="var(--tone-{type?.tone ?? 'red'})"
                       ><Icon name={type?.icon ?? "trophy"} size={18} /></span
@@ -115,6 +134,7 @@
             {:else}
               <p class="hint none">No tournaments match “{query.trim()}”.</p>
             {/each}
+            {#if older.next}<div class="more" use:loadMore={() => older.more()}></div>{/if}
           </div>
         </div>
       </div>
@@ -126,6 +146,9 @@
 <TournamentEditorPanel />
 
 <style>
+  .more {
+    height: 1px;
+  }
   /* The tournament, when, where, its fee, how many are in, its teams, where it stands, and the chevron's room */
   .hybrid {
     /* Every column can give way (minmax 0), so the table never runs past its glass; text ends in an ellipsis */

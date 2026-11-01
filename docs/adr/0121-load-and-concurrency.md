@@ -1,7 +1,7 @@
 # 0121. Requests at once are safe by statement, not by luck; every invocation keeps to 50 subrequests; load runs locally or on dev, never production
 
 - **Status:** Accepted
-- **Date:** 2026-10-21 · updated 2026-10-22
+- **Date:** 2026-10-21 · updated 2026-10-23
 
 ## Context
 
@@ -24,19 +24,31 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   it is only for the words of a refusal. As found (docs/load-testing.md has each, with its test):
   - Sign-ups: out and the first waiting moving up are one batch (an admin taking someone off too), so nobody
     signing up between takes the place; joining never rewrites an answer already in or waiting (a double tap kept
-    its place); a drafted player saying they're out comes off their team in the same batch. A limit raised fills its
+    its place); a drafted player saying they're out comes off their team in the same batch. A member's own answer to a
+    tournament goes only while it hasn't started, inside each of that batch's statements (`STARTED`,
+    `worker/tournaments/started.ts`), so an Out landing as it goes live is refused whole or done whole. A limit raised fills its
     room in the batch that saves it (#127).
   - The draft: a pick says which turn it's for (`turn`, the slot the page saw on the clock), so a tap landing after
     the turn moved on is refused, not spent on the captain's next pick; the pick goes in only while that slot is
-    still the first free pick number; one goalie a team is inside the statements. Close draft & make fixtures claims
-    the close (`UPDATE … WHERE draft_state = 'open'`, its changes checked) before making them, so two taps make one set.
+    still the first free pick number, and only while the draft's open; a reset is one batch that closes it first,
+    so a pick landing during it never outlives it (#126); one goalie a team is inside the statements. Close draft &
+    make fixtures claims the close (`UPDATE … WHERE draft_state = 'open'`, its changes checked) before making them,
+    so two taps make one set.
   - Scoring: the end of a period moves on only from the period said; a goal, penalty or Undo lands only while the
     game is on and theirs to score, never after full time; a goal (or its Undo) and the score it makes are one batch,
-    so full time never reads a goal without its score; an admin's typed-in result and its goals are one batch, each
-    side's goals matched against the count inside its statement, so the same result saved twice adds them once (#124).
-  - Members: the last admin (ADR [0024](0024-action-based-authorization.md)) is kept inside the statements that take
-    Admin off, make inactive or erase: each goes only while another active admin's there, so two admins demoting or
-    erasing each other at once leave one, the other refused (#135).
+    so full time never reads a goal without its score; each goal and penalty tap has an id made on the phone
+    (`tap_id`, UNIQUE in its game, `ON CONFLICT DO NOTHING`), and an Undo names the one it takes back, so the same tap
+    from two phones, or sent again, counts once (#114); an admin's goal comes off a finished playoff only while
+    the rest still leave a winner, inside its DELETE (#123); an admin's typed-in result and its goals are one batch,
+    each side's goals matched against the count inside its statement, so the same result saved twice adds them once
+    (#124).
+    An admin's take-over (or freeing) of the scoresheet goes only while it's still held by whoever their page saw
+    and the game isn't over, so two admins at once leave one scorekeeper; every scorekeeper's write, the clock's
+    included, goes only while they still hold the sheet, so the old phone's tap is refused after a take-over (#116).
+  - Members: the last who can do everything (`manage:all` through any role, ADR [0024](0024-action-based-authorization.md))
+    is kept inside the statements that change a member's roles, make them inactive, erase them or take `manage:all`
+    off a role: each goes only while someone else active can still do everything, so two admins demoting or erasing
+    each other at once, or a role and its holder changed at once, leave one, the other refused (#135, #136).
   - Dues: an allocation of credit goes in only while its payment and charge are as they were read; a charge marked
     paid is one payment only while what's left on it is as read, its allocation in the same batch (#119); a dues
     reminder is taken by the run that sends it (`dues_reminders.sending`).
@@ -51,8 +63,9 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - **A test's time limit is 30 s** (`vitest.config.ts`): it catches a hang, not a slow machine; the club-sized tests
   take 1–2.5 s on a quiet one and went past Vitest's 5 s with other suites running.
 - **A Worker invocation keeps to 50 subrequests**, counted by the fake world (fetches, emails, live hub calls): a
-  request's push send is 40 phones (`SEND_AT_ONCE`); a cron run drains 25 (`DRAIN_AT_ONCE`) and sends 10 reminder
-  emails (`REMINDERS.perRun`), whose phones wait for the next drain (`tell`). The worst five-minute run is about 35
+  request's push send is 40 phones (`SEND_AT_ONCE`); a five-minute cron run drains 25 (`DRAIN_AT_ONCE`) and sends 10
+  reminder emails (`REMINDERS.perRun`), whose phones wait for the next drain (`tell`); the run every minute between
+  does nothing but drain 40, with Google's token 41 ([0108](0108-store-apps.md)). The worst five-minute run is about 35
   (25 phones, 10 emails, Google's and Gmail's tokens, the club's address from Sanity, a website rebuild's 2).
 - **Load runs on your own machine, or on dev once the user's been told, never on production** (`npm run load`,
   docs/load-testing.md): locally, the built Worker under `wrangler dev` with its own D1 in a temp folder, 120 members
@@ -70,8 +83,8 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 ## Consequences
 
 - A rule that's checked and then written is a bug waiting for a busy Friday; review asks where the check is.
-- Pushes from a club-wide send reach the last of 200 phones in about 35 minutes (it was 20), and a reminder's phone
-  hears it with the next drain, up to five minutes after the email.
+- Pushes from a club-wide send reach the last of 200 phones in about five minutes (the minute drain; it was 35), and a
+  reminder's phone hears it with the next drain, within a minute of the email.
 - The load runs show that the Worker's CPU (1–3 ms a request) and requests (a few per cent of the day) have room,
   but **D1 rows read did not**: every live page reloaded the whole club on every change, so a draft night spent about
   87% of the free day's rows and a full Friday rush modelled at about 200% (#112). Live pages now read only the
@@ -81,7 +94,7 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   still the line to watch on a draft night.
 - The load runs' phones use the app's own copy of the club (`apps/team/src/app/catch-up.ts`), so what they read is
   what the app reads. A rink's wifi is one address for the
-  per-address limit (#113). A goal sent twice is two goals (#114).
+  per-address limit (#113).
 
 ## History
 
@@ -115,3 +128,20 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
   #131), and a limit raised moves the first waiting up in that batch (#127).
 - 2026-10-22: Marking a charge paid from two phones at once (or a double tap) recorded two payments for it; the
   payment now goes in only while the charge still has what was read left, with its allocation in one batch (#119).
+- 2026-10-22: The last-admin condition counts `manage:all` through any role, and guards role edits too (#136).
+- 2026-10-22: A push drain every minute between the five-minute runs, 40 phones and nothing else (41 subrequests), for
+  quiet hours and the debounce ([0108](0108-store-apps.md)): 200 phones in about five minutes, not 35.
+- 2026-10-22: Taking over a scoresheet decided in its statement (two admins at once: one scorekeeper), and the clock's
+  writes, like goals', only while the tapper holds the sheet (#116), with their seeds' tests.
+- 2026-10-23: A member's own In or Out for a tournament that's started is decided in its statements (ADR 0074), with a
+  test of an Out landing as it goes live.
+- 2026-10-23: The same goal or penalty from two phones (or a retry) was two; each tap now has an id from the phone and
+  a repeat does nothing, and an Undo names the goal or penalty the page shows last, so a double tap takes one off
+  (#114).
+- 2026-10-23: An admin taking a goal off a finished playoff is decided in its DELETE: only while the other goals still
+  leave a winner, so two at once can't make it level (#123).
+- 2026-10-23: A draft's reset is one batch, closed to picks first, and a pick goes in only while the draft's open
+  (#126): a pick landing between the reset's statements had outlived it.
+- 2026-10-23: An admin's replacement (putOnTeam) decided in its statements: the INSERT only while they're on no team
+  of the tournament, a move only from the team read, so two at once (a double tap, two admins) can't leave someone on
+  two teams or one twice (5 of 20 seeds did, #148), with their seeds' tests.

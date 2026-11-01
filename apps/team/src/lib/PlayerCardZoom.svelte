@@ -12,7 +12,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCard from "./PlayerCard.svelte";
   import Avatar from "./Avatar.svelte";
-  import { portal } from "./portal";
+  import { portal } from "./overlay";
 
   let {
     player,

@@ -1,0 +1,142 @@
+---
+// The leaders, as the team app's (lib/Leaderboard), for the points board: each player's place, name and team, then
+// goals, assists, penalty minutes (only if anyone had any, ADR 0100) and points, the points bright. The team app's
+// tabs re-sort it by each stat; here, without JavaScript, every column is in the one table.
+import type { PublishedEdition } from "../../lib/results";
+
+interface Props {
+  r: PublishedEdition;
+}
+const { r } = Astro.props;
+const rows = r.leaders;
+const anyPim = rows.some((s) => s.pim > 0);
+// A place shows where the points change: level players share the one above
+const placeOf = (i: number) => (i === 0 || rows[i - 1].points !== rows[i].points ? i + 1 : "");
+---
+
+<table>
+  <thead>
+    <tr>
+      <th class="l" scope="col">
+        Player
+      </th>
+      <th scope="col">
+        <abbr title="Goals">G</abbr>
+      </th>
+      <th scope="col">
+        <abbr title="Assists">A</abbr>
+      </th>
+      {anyPim && (
+        <th scope="col">
+          <abbr title="Penalty minutes">PIM</abbr>
+        </th>
+      )}
+      <th class="on" scope="col">
+        <abbr title="Points">Pts</abbr>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {rows.map((s, i) => (
+      <tr class:list={{ top: i === 0 }}>
+        <th class="l" scope="row">
+          <span class="line">
+            <span class="pos num">{placeOf(i)}</span>
+            <span class="who">
+              <span class="name">{s.name}</span>
+              {s.team && <span class="team">{s.team}</span>}
+            </span>
+          </span>
+        </th>
+        <td class="num">{s.goals}</td>
+        <td class="num">{s.assists}</td>
+        {anyPim && <td class="num">{s.pim}</td>}
+        <td class="num on">{s.points}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
+
+<style>
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    padding: 0.75rem;
+    color: var(--text-3);
+    font-weight: 400;
+    text-align: right;
+    white-space: nowrap;
+  }
+  tbody tr + tr > * {
+    border-top: 1px solid var(--rule);
+  }
+  thead th {
+    padding-bottom: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  abbr {
+    text-decoration: none;
+  }
+  /* The board's own column, points: bright, the rest quieter */
+  .on {
+    padding-right: 1rem;
+    color: var(--text);
+  }
+  thead .on {
+    font-weight: 700;
+  }
+  .l {
+    width: 100%;
+    max-width: 0;
+    padding-left: 1rem;
+    color: var(--text);
+    text-align: left;
+  }
+  tbody .l {
+    font-weight: 500;
+  }
+  /* Its place, then the name and team beside it */
+  .line {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .pos {
+    flex: none;
+    width: 1.75rem;
+    color: var(--text-3);
+  }
+  /* The leader's place in bone, as the board's */
+  .top .pos {
+    color: var(--text);
+  }
+  .who {
+    display: grid;
+    min-width: 0;
+  }
+  .name,
+  .team {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .team {
+    color: var(--text-3);
+    font-size: 0.8rem;
+    font-weight: 400;
+  }
+  @media (max-width: 600px) {
+    th,
+    td {
+      padding-inline: 0.5rem;
+    }
+    .l {
+      padding-left: 0.75rem;
+    }
+  }
+</style>

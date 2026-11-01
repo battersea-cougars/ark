@@ -27,7 +27,7 @@ export async function postAnnouncement(
   if (link && !/^https:\/\/[^\s]+$/i.test(link)) throw new HttpError(400, "A link should start with https://.");
   const endsOn = isDay(o.endsOn) ? o.endsOn : "";
   if (!endsOn) throw new HttpError(400, "Say which day it ends.");
-  if (endsOn < today) throw new HttpError(400, "That day's gone: pick today or later.");
+  if (endsOn < today) throw new HttpError(400, "That day's gone: choose today or later.");
   const res = await run(
     db,
     "INSERT INTO announcements (title, body, link, ends_on, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)",

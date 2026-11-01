@@ -1,14 +1,23 @@
-// The club's settings that aren't a feature of their own: venues, live refresh, quips, dev tools (ADR 0027), usage (ADR 0059) and the audit log (ADR 0095).
+// The club's settings that aren't a feature of their own: venues, live refresh, the plan reminder's lead time, quips, dev tools (ADR 0027), usage (ADR 0059), the apps' errors (ADR 0110) and the audit log (ADR 0095).
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { AUDIT_PAGE, readAudit } from "./audit";
 import { addDevMail, devMailList, removeDevMail } from "./devtools";
 import { HttpError, body, json } from "../api/api.http";
 import { createQuip, deleteQuip, updateQuip } from "./quips";
-import { createVenue, updateVenue } from "./venues";
-import { saveBank, saveSettings } from "./settings";
+import { createVenue, updateVenue, venuesUsed } from "./venues";
+import { versionedRead } from "../api/api.version";
+import { planReminderDays, saveBank, savePlanReminder, saveSettings } from "./settings";
 import { readUsage } from "./usage";
+import { readErrors } from "./errors";
 
 export const SETTINGS_ROUTES: Route[] = [
+  {
+    method: "GET",
+    path: /^\/api\/venues\/used$/,
+    action: "manage:Venue",
+    // What picks each venue, for Settings → Venues (#177)
+    handle: (c) => versionedRead(c, "venuesUsed", async () => ({ used: await venuesUsed(c.env.DB) })),
+  },
   {
     method: "POST",
     path: /^\/api\/venues$/,
@@ -37,6 +46,13 @@ export const SETTINGS_ROUTES: Route[] = [
     action: "read:Usage",
     // Today's use of the club's free Cloudflare allowance (ADR 0059)
     handle: async (c) => json(await readUsage(c.env, new Date(c.now))),
+  },
+  {
+    method: "GET",
+    path: /^\/api\/sentry\/issues$/,
+    action: "read:Errors",
+    // The apps' open issues in Sentry, at most a few minutes old (ADR 0110). Not /api/errors: that's the tunnel
+    handle: async (c) => json(await readErrors(c.env, new Date(c.now))),
   },
   {
     method: "GET",
@@ -83,6 +99,16 @@ export const SETTINGS_ROUTES: Route[] = [
     changes: ["settings"],
     // { name, sortCode, account }: where members pay (ADR 0007), on their Dues page and in reminders
     handle: async (c) => (await saveBank(c.env.DB, await body(c.request)), ok()),
+  },
+  {
+    method: "PUT",
+    path: /^\/api\/settings\/plan-reminder$/,
+    audit: { event: "settings.plan_reminder", subject: (c) => planReminderDays(c.env.DB) },
+    action: "manage:Fees",
+    changes: ["settings"],
+    // { days }: how many days before a quarter its Quarterly Members are told its fee is due (ADR 0007, #187),
+    // on Settings → Membership
+    handle: async (c) => (await savePlanReminder(c.env.DB, await body(c.request)), ok()),
   },
   // Dev tools (ADR 0027): who gets their own email outside production. Not there at all in production.
   {

@@ -3,27 +3,11 @@
 import { describe, expect, it } from "vitest";
 import { initials } from "./initials";
 import { goesBy, matchesName, nameOfTeam, shortName } from "./names";
-import { findPeople } from "./person-search";
-import { teamInitials } from "./logo";
+import { teamInitials } from "@cougars/shared/team-initials";
 
 describe("a member's initials, on their avatar", () => {
-  it.each([
-    ["Jo Bloggs", "JB"],
-    ["Jo  Bloggs", "JB"],
-    ["Jean Paul Sartre", "JP"],
-    ["Mary-Jane Watson", "MW"],
-    ["Émile Zola", "ÉZ"],
-    ["Cher", "C"],
-    [" Jo", "J"],
-    ["", ""],
-  ])("%j is %j", (name, expected) => {
-    expect(initials(name)).toBe(expected);
-  });
-
-  // https://github.com/battersea-cougars/ark/issues/140
-  // Known bug #140: the first character is taken as one UTF-16 unit, so an emoji (two) is cut in half
-  // and the avatar shows a broken character
-  it.fails("a name that starts with an emoji keeps the emoji whole (known bug #140)", () => {
+  // #140: the first character was one UTF-16 unit, half an emoji, a broken character on the avatar
+  it("a name that starts with an emoji keeps the emoji whole (#140)", () => {
     expect(initials("🦁 Leo")).toBe("🦁L");
   });
 });
@@ -48,6 +32,12 @@ describe("the name someone goes by", () => {
     expect(matchesName({ name: "Jo Bloggs", webName: null }, "BLOG")).toBe(true);
     expect(matchesName({ name: "Jo Bloggs", webName: null }, "")).toBe(true);
     expect(matchesName({ name: "Jo Bloggs", webName: null }, "zz")).toBe(false);
+  });
+
+  it("search finds a name with an accent typed without it (#118)", () => {
+    expect(matchesName({ name: "Zoë Adams", webName: null }, "zoe")).toBe(true);
+    expect(matchesName({ name: "Jo Bloggs", webName: "Seán" }, "sean")).toBe(true);
+    expect(matchesName({ name: "Seán Byrne", webName: null }, "seán")).toBe(true);
   });
 });
 
@@ -77,37 +67,6 @@ describe("a team named for its captain", () => {
   });
 });
 
-describe("finding someone by typing", () => {
-  const pool = [
-    { id: 1, name: "Zed Adams" },
-    { id: 2, name: "Adam Zed" },
-    { id: 3, name: "Madam X" },
-    { id: 4, name: "Bob" },
-  ];
-
-  it("names that start with it first, then a word that does, then any that has it", () => {
-    expect(findPeople(pool, "adam").map((p) => p.id)).toEqual([2, 1, 3]);
-  });
-
-  it("typing in capitals or with spaces round it finds the same", () => {
-    expect(findPeople(pool, "  ADAM ").map((p) => p.id)).toEqual([2, 1, 3]);
-  });
-
-  it("nothing typed is everyone, up to the limit; nothing matching is nobody", () => {
-    expect(findPeople(pool, "")).toHaveLength(4);
-    expect(findPeople(pool, "", 2)).toHaveLength(2);
-    expect(findPeople(pool, "zz")).toEqual([]);
-  });
-
-  it("the limit keeps the best matches", () => {
-    expect(findPeople(pool, "adam", 1).map((p) => p.id)).toEqual([2]);
-  });
-
-  it("an empty club finds nobody", () => {
-    expect(findPeople([], "jo")).toEqual([]);
-  });
-});
-
 describe("a team's initials, when it has no logo", () => {
   it.each([
     // A generic first word (Team, The, FC, Club) is skipped, so two "Team" sides don't share a crest
@@ -122,9 +81,11 @@ describe("a team's initials, when it has no logo", () => {
     expect(teamInitials(name)).toBe(expected);
   });
 
-  // https://github.com/battersea-cougars/ark/issues/140
-  // Known bug #140: the same as a member's: an emoji is cut in half
-  it.fails("a team named with an emoji keeps it whole (known bug #140)", () => {
-    expect(teamInitials("Team 🦁")).toBe("T🦁");
+  // #140: the same as a member's, an emoji was cut in half ("Team" is generic, so "Team 🦁" is known by its 🦁)
+  it("a team named with an emoji keeps it whole (#140)", () => {
+    expect(teamInitials("🦁 Pride")).toBe("🦁P");
+    expect(teamInitials("Team 🦁")).toBe("🦁");
+    expect(teamInitials("🦁🐯")).toBe("🦁🐯");
+    expect(teamInitials("🦁 Pride", ["🦁 Pride", "🦁 Paws"])).toBe("🦁P");
   });
 });

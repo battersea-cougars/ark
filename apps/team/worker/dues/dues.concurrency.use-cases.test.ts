@@ -31,7 +31,7 @@ beforeEach(() => {
 /** Friday's fee is £8; every player's in, and each has paid £20 ahead (credit, until Friday's charge comes due). */
 async function paidAhead() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body;
+  const boot = (await dana.club()).body;
   const series = boot.series[0];
   expect(
     (await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [{ pence: 800, from: "2026-01-01" }] }))

@@ -1,7 +1,7 @@
 # 0007. Dues are charges per session and tournament, paid by bank transfer with a name reference
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-21
+- **Date:** 2026-10-05 · updated 2026-10-28
 - **Merges:** 0026, 0032, 0034, 0038
 
 ## Context
@@ -67,6 +67,20 @@ session's fee.
   from its first day, or keeps theirs running; pay as you go ends theirs on this quarter's last day. **The server
   checks the date** (`PUT /api/me/plan`, London time): only next quarter, and only before it starts, whatever the app
   showed, so a page left open past the start can't change it. It's on the record (`member.plan`).
+- **A few days before each quarter, its Quarterly Members are told** (#187, `apps/team/worker/dues/plan-reminders.ts`,
+  from the hourly Cron Trigger): everyone who'll be Quarterly next quarter (they chose it, or their subscription runs on
+  into it), never a keeper or anyone paying as they go. "Next quarter's fee is due": "Your Quarterly membership for
+  2027-Q1 (£90) is charged on Fri 1 Jan. Want to pay as you go instead? Change it on your Dues page by Thu 31 Dec." The
+  amount is the quarterly rate in force on the quarter's first day; the change-by day is the day before, the last the
+  server takes. Five days before unless the club sets another (Settings → Membership → Reminder, 1 to 30 days,
+  `club_settings.plan_reminder_days`, `manage:Fees`, on the record as `settings.plan_reminder`); from 10:00 to 20:00
+  London, from that day until the quarter starts, so a run missed is made up the next hour, and someone who goes
+  Quarterly after the day hears it then. On their phone or browser if they have the app (topic `dues`, so their Dues
+  switch turns it off; tapping it opens their Dues page at next quarter's plan, `/me/tab?plan=next`), by email if they
+  haven't, at most 10 emails a run. Once per member per quarter: claimed in `plan_reminders` (member, quarter, how,
+  when) in one statement before it's sent, so two runs tell once; an email that fails is let go of and tried the next
+  hour. Each is on the audit log too (`dues.plan_reminded`, by the app). No rate in force on the day: nobody's
+  charged, so nobody's told. Switching to pay as you go after it is as ever: no quarter charge.
 - **The Cougars are `members.cougar`**: whether someone is on the official team. Admins set it on the member sheet; the
   roster seed sets it when it first adds a player (`"cougar": true`) and never changes it after. The team generator
   puts every Cougar on one team first, then balances the rest by rating.
@@ -75,7 +89,7 @@ session's fee.
   were a keeper stays, and charges nothing). There's no plan for them to choose: the server refuses next quarter's
   plan for a keeper and an admin making one Quarterly (409). Tournaments they enter are charged as for anyone. It
   follows the position, so making someone a keeper takes their unpaid training charges off at the next
-  recalculation; a paid one stays, as always. A keeper isn't in the Quarterly-first sign-up order either (ADR 0030).
+  recalculation; a paid one stays, as always. A keeper isn't in the Quarterly-first sign-up order either (ADR 0131).
 - The two are independent: a Cougar may or may not be a Quarterly Member, and the other way round. In the app,
   "Cougar" always means the official team; quarterly membership is shown as "Quarterly".
 
@@ -83,14 +97,17 @@ session's fee.
 
 - **Attendance comes from the register**: on the night one screen lists who signed up, marks no-shows and adds
   walk-ins. Someone signed up counts as there unless marked a no-show. A walk-in keeps to the places like a sign-up
-  ([0030](0030-training-and-tournament-schedule.md)): on a full night they wait, and someone waiting is never
+  ([0131](0131-training-sign-ups.md)): on a full night they wait, and someone waiting is never
   charged until they're in (a place comes up or the team maker lets them in). A night that's over is a record of who
   came: a walk-in ticked there is in and charged.
-- **There is no closing the register: charges follow it** (#11). From a session's day, everyone in who isn't a no-show
+- **Charges follow the register until it closes, at 06:00 London the morning after** (#11,
+  [0030](0030-training-and-tournament-schedule.md)). From a session's day, everyone in who isn't a no-show
   (walk-ins included) is charged; ticking someone in charges them at once, unticking takes an unpaid charge off.
   Anything that changes who came (a tick, a sign-up, an admin adding someone, a cancellation) works the charges out
-  again, and so does the hourly Cron Trigger, which is what charges a session's sign-ups on its day. A paid charge is
-  never taken off by this.
+  again, and so does the hourly Cron Trigger, which is what charges a session's sign-ups on its day. Once the register
+  has closed nothing changes who came, so the hourly run and each day's first open work out the same charges from it
+  every time (one per person per night). A paid charge is never taken off by this. A fee changed from an earlier date
+  still recalculates closed nights' charges: the fee isn't the register.
 - **A charge is one person for one session, tournament or quarter** (`charges`: member, session or tournament or
   quarter `2026-Q4`, amount, due_on, created_by when made by hand). Quarterly Members aren't charged for training
   sessions, and **a quarter charged pays for every training night in it**, by membership or by hand: joining
@@ -108,7 +125,10 @@ session's fee.
 
 - **Dues are a ledger.** A member's dues (their own Dues page, and the Dues tab on their card for admins) read like a
   bank statement: every charge and payment by date, newest first, with what they owe after each (below nothing,
-  credit). Its header stays in view as it scrolls. Payments are allocated to charges behind it
+  credit). Its header stays in view as it scrolls. It's read a page at a time as it scrolls
+  (`GET /api/members/:id/ledger`, `dues.ledger.ts`), each line's balance worked out by the server: what they owe now,
+  less the lines above it. Opening the app sends only your own unpaid charges and a line per member of what they owe
+  (`dues`: in all, overdue, by age, and credit), so it's the same size however long the club's been charging (#177). Payments are allocated to charges behind it
   (`payment_allocations`) but aren't ticked off charge by charge.
 - **Adjustments, with why.** Whoever records payments can adjust what someone owes, for whatever reason, saying why
   (Adjust on the Dues tab): adding to it is a charge with a `reason`; taking some off is like money in (a payment,
@@ -139,7 +159,8 @@ session's fee.
   ([0108](0108-store-apps.md)): the dues code tells a member through one call (`worker/tell/tell.ts`), which sends the
   email under the mail rules ([0027](0027-email-through-gmail-api.md)) and the notification through `notify`, so a
   new channel (web push, #24) doesn't touch the dues code.
-- **Nothing reminds anyone on its own, for now.** No cron sends reminders: an admin decides when. A configurable
+- **Nothing reminds anyone of what they owe on its own, for now.** No cron sends these reminders: an admin decides
+  when. (Next quarter's plan reminder, above, is another thing: it's about the plan, not money owed.) A configurable
   schedule (how often, by how late, at what time of day) is a later issue,
   [#143](https://github.com/battersea-cougars/ark/issues/143). How firm the email is still follows the age of the
   member's oldest unpaid charge (Unpaid fees' buckets).
@@ -162,12 +183,15 @@ session's fee.
 - **Owing is a badge, not a nag.** The Dues tab carries what you owe as a badge until it's paid, and Home's header
   as a quiet chip ("£24 to pay", opening your tab), never a row in its feed: the session you came to sign up for
   leads the page ([0118](0118-home-calls-to-action-then-feed.md)). Settling up before signing up is an open question (#66).
-- **What a session collected** is the sum of its paid charges, shown beside what it was due (the training's editor).
+- **What a session collected** is the sum of its paid charges, shown beside what it was due (the training's editor),
+  read from the server for the nights shown (`GET /api/dues/collected`): the money for who sees dues, how many were
+  charged for anyone who edits it (a tournament's fee is fixed once anyone is).
 - Who sees everyone's charges: `read:Dues` or `record:Payment`. Anyone else sees only their own (ADR 0036).
 - Marking a payment, taking one back, a lump sum, a quarter charged or taken back by hand, and a new quarterly rate
   are on the record ([0095](0095-audit-log.md)).
-- **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member and
-  bucketed by each charge's age in plain words: **Up to 30 days**, **31 to 60 days**, **61 to 90 days**, **Over 90
+- **Unpaid fees** (`read:Dues`), the club's aged-receivables report, is just the unpaid charges, summed per member (by
+  the server, from the charges not paid in full: `charges.paid_pence`, kept by triggers on `payment_allocations`, with
+  an index on what's owing) and bucketed by each charge's age in plain words: **Up to 30 days**, **31 to 60 days**, **61 to 90 days**, **Over 90
   days** (ranges say "to", never a dash). The reminders' stored stages keep their old keys (`minor`, `major`,
   `misconduct`); nobody sees them. Column totals, a drill-down to each member's charges, and CSV export. Send reminders
   is its main button; its Manage button holds the bank details.
@@ -183,9 +207,10 @@ session's fee.
   it. Two people can look alike (`SAM T` and `SAM T2`), so matching is by the whole reference.
 - A reference doesn't follow a name change. If someone wants theirs changed, that's an edit by hand, and they must
   update their standing order.
-- Dues are only as good as the register; it has to be quick enough that someone does it every Friday. With no closing
-  step, a late correction just changes the charges; a night already paid for stays charged until the payment is taken
-  back.
+- Dues are only as good as the register; it has to be quick enough that someone does it every Friday. It closes on its
+  own, with no button: a correction after 6am the next morning can't be made in the app yet (an adjustment on the
+  member's dues is the way round it until reopening is built); a night already paid for stays charged until the
+  payment is taken back.
 - "Who's a Quarterly Member this quarter" is a date query on `subscriptions`; history comes for free, lapsing needs no
   update to the member, and pay-as-you-go needs no rows.
 - Someone who pays for a month at once is one payment of that amount, not a tick per night.
@@ -250,3 +275,20 @@ session's fee.
 - 2026-10-22: On Home, what you owe is at the foot (Your tab, with how much is overdue), and while some of it is
   overdue (a charge whose day has passed, `lib/dues.ts` `overdue`) a pound icon with a red dot in Home's header opens your tab
   ([0118](0118-home-calls-to-action-then-feed.md)).
+- 2026-10-24: The register closes at 06:00 London the morning after (#11, the user; ADR 0030): charges follow it until
+  then, and from then it's the record (was: no closing, charges follow it whenever it changes). No reopening yet.
+- 2026-10-24: Opening the app no longer sends every charge and payment there has been, everyone's to an admin (#177):
+  your own unpaid charges, and `dues`, a line per member of what they owe by age and their credit, worked out by the
+  server; a ledger is read a page at a time, newest first, its balances from the server, and what a night collected is
+  read for its editor. Each charge keeps what's paid on it and each payment what's spent (`paid_pence`,
+  `spent_pence`, by triggers), so what's owed and credit are found by index. With a year of Fridays an admin's open is
+  78 KB, not 1.7 MB (docs/load-testing.md).
+- 2026-10-28: Next quarter's plan, a few days before it starts (#187): every member who'll be Quarterly next quarter is
+  told, automatically, that its fee is due (the quarter, the rate on its first day, the charge day) and that they can
+  still switch to pay as you go on their Dues page until the day before; five days before unless the club sets
+  another on Settings → Membership, from 10:00 London; a notification for anyone with the app (topic `dues`), an email
+  for anyone without; once per member per quarter, claimed in `plan_reminders` before it's sent, and on the audit log.
+  This is separate from the dues reminders, which stay manual only and at most once a week each, as decided on
+  2026-10-22: those are about money owed, this is about next quarter's plan. "A few days before the qtr starts,
+  anyone set to use quarterly membership for the upcoming period should get a reminder that the fee will be due, and
+  that they have a few days to modify their subscription type."

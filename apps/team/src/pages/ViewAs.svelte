@@ -3,7 +3,8 @@
   // looks for it; the bar across the top while you're viewing brings you back.
   import { matchesName, goesBy } from "../lib/names";
   import { db } from "../demo/store.svelte";
-  import { realMember, viewAs } from "../demo/session.svelte";
+  import { realMember } from "../demo/session.svelte";
+  import { viewAs } from "../app/backend.svelte";
   import { navigate } from "../app/router.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import Person from "../lib/Person.svelte";
@@ -17,9 +18,8 @@
       .filter((m) => matchesName(m.player, query))
       .sort((a, b) => goesBy(a.player).localeCompare(goesBy(b.player))),
   );
-  function become(id: number) {
-    viewAs(id);
-    navigate("/");
+  async function become(id: number) {
+    if (await viewAs(id)) navigate("/");
   }
 </script>
 

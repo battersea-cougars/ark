@@ -1,6 +1,5 @@
+import { firstCharacter } from "./text";
+
+/** A member's initials, for their avatar: their first two names' first characters, in capitals ("🦁 Leo" is "🦁L"). */
 export const initials = (name: string) =>
-  name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2);
+  name.split(/\s+/).filter(Boolean).slice(0, 2).map(firstCharacter).join("").toUpperCase();

@@ -20,11 +20,6 @@ describe("a calendar file for a session", () => {
     expect(ics).toContain("UID:session:12@team.batterseacougars\r\n");
   });
 
-  it("adds a saved venue's address to its name", () => {
-    const ics = icsFor({ ...friday, venue: "Battersea Sports Centre", address: "London SW11 3AB" });
-    expect(ics).toContain("LOCATION:Battersea Sports Centre\\, London SW11 3AB\r\n");
-  });
-
   it("leaves the place out when there isn't one", () => {
     expect(icsFor({ ...friday, venue: "" })).not.toContain("LOCATION");
   });

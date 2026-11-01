@@ -3,11 +3,18 @@ import { defineConfig, envField, fontProviders } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
 import sitemap from "@astrojs/sitemap";
 import { sanityProject } from "@cougars/shared/sanity";
+import { ribbonFor } from "@cougars/shared/ribbon";
+import { localCheckout } from "@cougars/shared/ribbon.checkout";
 import { sanityBuildCount } from "./src/lib/sanity/count.integration";
+import { securityHeaders } from "./src/lib/server/headers.integration";
 
 // The Sanity project for this build: production on `release`, otherwise dev (docs/adr/0010-environments-and-deploys.md).
 // SITE_ENV is set by deploy.yml; a laptop and scripts/deploy-dev.sh are dev.
 const sanity = sanityProject(process.env.SITE_ENV);
+// The corner ribbon (components/EnvRibbon.astro): DEV for a dev deploy, LOCAL for a build or dev server with no SITE_ENV
+// (your machine), none in production, fixed at build time so production's pages carry no ribbon at all. On your
+// machine it names the checkout (its branch, own data when on its own D1), read from git once here; a deploy never asks.
+const ribbon = ribbonFor(process.env.SITE_ENV, true, process.env.SITE_ENV ? null : localCheckout());
 
 // Pages are prerendered at build time (content comes from Sanity; the site rebuilds
 // daily and on each release, ADR 0004). Only routes that opt out with `prerender = false`
@@ -25,11 +32,15 @@ export default defineConfig({
   // Old Wix addresses. /gallery/<album> is a server route (pages/gallery/[slug].ts): a config redirect to a
   // server-rendered page would point at a prerendered file that doesn't exist.
   redirects: { "/gallery": "/photos" },
-  // Not in the sitemap: the thanks page (noindex) and the pieces the home page fetches (the reel, What's on). The
-  // build's Sanity requests are counted into the environment's D1 (ADR 0116).
+  // Not in the sitemap: the thanks page and the form saying what went wrong (noindex), and the pieces the home page
+  // fetches (the reel, What's on). The build's Sanity requests are counted into the environment's D1 (ADR 0059), and
+  // its _headers written for the environment (ADR 0036).
   integrations: [
-    sitemap({ filter: (page) => !/\/(join\/thanks|videos\/reel|whats-on)(\/|$)/.test(new URL(page).pathname) }),
+    sitemap({
+      filter: (page) => !/\/(join\/(thanks|invalid|rate)|videos\/reel|whats-on)(\/|$)/.test(new URL(page).pathname),
+    }),
     sanityBuildCount(),
+    securityHeaders(),
   ],
   adapter: cloudflare({
     // Resize local assets at build time with sharp; Sanity's CDN resizes CMS
@@ -47,17 +58,19 @@ export default defineConfig({
       SANITY_API_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       // The club's YouTube videos, read live on the Worker (lib/server/videos.ts). Without it: Sanity videos only.
       YOUTUBE_API_KEY: envField.string({ context: "server", access: "secret", optional: true }),
-      // The club's Instagram posts, the site's photos (lib/server/instagram.ts, ADR 0113). Worker secrets: the first
-      // token, and the key the renewed one is sealed with in D1. Without a token: the sample feed, except in production.
+      // The club's Instagram posts, the site's photos (lib/server/instagram.ts, ADR 0016). A Worker secret: the club
+      // portfolio's system-user token, which never expires. Without it: the sample feed, except in production.
       INSTAGRAM_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
-      INSTAGRAM_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Which site this build is (deploy.yml sets it): production, or dev for everything else
       SITE_ENV: envField.enum({ values: ["production", "dev"], context: "server", access: "public", default: "dev" }),
-      // Enquiry emails through the Gmail API (packages/shared/email.ts, README.md#gmail). Worker secrets; without them the
-      // email is logged instead of sent.
-      GMAIL_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
-      GMAIL_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
+      // Enquiry emails through the Gmail API (packages/shared/email.ts, docs/secrets.md#gmail): the Web client and the
+      // deployed token it made. Worker secrets; without them the email is logged instead of sent. The token an admin
+      // reconnects in the team app wins over the deployed one: kept in D1, sealed with GMAIL_TOKEN_KEY
+      // (packages/shared/gmail-token.ts, ADR 0027).
       GMAIL_REFRESH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
+      GMAIL_WEB_CLIENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
+      GMAIL_WEB_CLIENT_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
+      GMAIL_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Where every email goes outside production; unset, the sending account itself (the developer Gmail account).
       MAIL_SAFE_TO: envField.string({ context: "server", access: "public", optional: true }),
       // Cloudflare Turnstile on /join (packages/shared/turnstile.ts, ADR 0028). The site key is public, one per Cloudflare
@@ -67,8 +80,11 @@ export default defineConfig({
       TURNSTILE_SECRET_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // The deploy's smoke test of the form (lib/server/smoke.ts): unset, there's no smoke path at all
       SMOKE_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
-      // Where the Worker's errors go (ADR 0111, src/worker.ts reads it): a Worker secret; unset, only the log
+      // Where the Worker's errors go (ADR 0110, src/worker.ts reads it): a Worker secret; unset, only the log
       SENTRY_DSN: envField.string({ context: "server", access: "secret", optional: true }),
+      // Cloudflare Web Analytics' site token (lib/analytics.ts, #92): public, in every page; production's, set in
+      // deploy.yml. Unset, the pages carry no beacon of their own.
+      WEB_ANALYTICS_TOKEN: envField.string({ context: "server", access: "public", optional: true }),
       PUBLIC_BUILD_VERSION: envField.string({ context: "client", access: "public", default: "dev" }),
       // Sample content + noindex for dev builds (local, PR previews, scripts/deploy-dev.sh). Never in production.
       DEMO_CONTENT: envField.boolean({ context: "server", access: "public", default: false }),
@@ -121,7 +137,8 @@ export default defineConfig({
   devToolbar: { enabled: false },
   vite: {
     envDir: "../..",
-    // Source maps for Sentry (ADR 0111): written but never linked from the scripts; the deploy uploads them, then
+    define: { "import.meta.env.ENV_RIBBON": JSON.stringify(ribbon ? JSON.stringify(ribbon) : "") },
+    // Source maps for Sentry (ADR 0110): written but never linked from the scripts; the deploy uploads them, then
     // deletes them before the files go live
     build: {
       sourcemap: "hidden",

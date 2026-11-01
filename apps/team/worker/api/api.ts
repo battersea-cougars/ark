@@ -1,11 +1,13 @@
 // The team app's JSON API: a table of contents. Each feature's routes live with it ({feature}.routes.ts, ADR 0105);
 // this file mounts them and does what they share. Every route declares the action it needs (ADR 0024); a request is
 // refused unless the signed-in member's roles grant it (manage:all grants everything). Anything not listed is a 404.
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { type Ctx, type Env, type Route } from "./api.route";
-import { ACCESS, SCHEDULE, slices } from "./api.slices";
+import { ACCESS, SCHEDULE, heldBy, slices, touchedFor } from "./api.slices";
 import { audit, auditRefused } from "../settings/audit";
-import { handleAuth, localHere, sessionOf } from "../auth/auth";
+import { carriesSession, localHere, sessionOf } from "../auth/auth";
+import { devClock } from "./api.dev-clock";
+import { handleAuth } from "../auth/auth.routes";
 import { CLUB_ROUTES } from "./bootstrap.routes";
 import { ANNOUNCEMENTS_ROUTES } from "../announcements/announcements.routes";
 import { DRAFT_ROUTES } from "../tournaments/draft.routes";
@@ -17,26 +19,35 @@ import { EVENTS_ROUTES } from "../calendar/events.routes";
 import { HttpError, json, sameOrigin, withinLimit } from "./api.http";
 import { LIMITS, addressOf, enforce } from "./api.limits";
 import { notifyLive } from "../live/live";
+import { pushedWith } from "../live/live.parts";
+import { MAIL_ROUTES } from "../mail/mail.routes";
 import { ME_ROUTES } from "../members/me.routes";
 import { MEMBERS_ROUTES } from "../members/members.routes";
+import { PASSKEY_ROUTES } from "../auth/auth.passkeys.routes";
+import { BREAK_GLASS_ROUTES } from "../auth/auth.break-glass.routes";
 import { actionsOf, firstAdmin } from "../members/members";
 import { ROLES_ROUTES } from "../members/roles.routes";
+import { VIEW_AS_ROUTES } from "../members/view-as.routes";
+import { answeredAs, viewingRefusal } from "../members/view-as";
 import { SCORING_ROUTES } from "../tournaments/scoring.routes";
 import { SETTINGS_ROUTES } from "../settings/settings.routes";
+import { PAST_ROUTES } from "../tournaments/past.routes";
+import { SIMULATE_ROUTES } from "../tournaments/simulate.routes";
 import { TOURNAMENTS_ROUTES } from "../tournaments/tournaments.routes";
+import { EDITIONS_ROUTES } from "../tournaments/editions.routes";
 import { TRAINING_ROUTES } from "../training/training.routes";
 import { notify } from "../push/push";
 import { PUSH_ROUTES } from "../push/push.routes";
 import { bumpDataVersion } from "./api.version";
 import { VERSION_HEADER } from "../../src/app/club-tag";
 import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website";
+import { WEBSITE_ROUTES } from "../website/website.routes";
 import { scribe } from "@cougars/shared/scribe";
 import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
 
 const log = scribe.logger("api");
 
-export type { Audit, Ctx, Env, Route } from "./api.route";
-export type { Slice } from "./api.slices";
+export type { Env, Route } from "./api.route";
 
 /**
  * Every route, by feature (ADR 0105). Each feature's file says what it covers; the wrapper below (handleApi) does what
@@ -51,6 +62,11 @@ export const ROUTES: Route[] = [
   // People: members and roles
   ...MEMBERS_ROUTES,
   ...ROLES_ROUTES,
+  // An admin viewing the app as a member, read-only (ADR 0024)
+  ...VIEW_AS_ROUTES,
+  // Ways in: a member's passkeys from their sheet, and the week's break-glass sign-ins (ADR 0023)
+  ...PASSKEY_ROUTES,
+  ...BREAK_GLASS_ROUTES,
   // Fridays: training nights, sign-ups, and what they cost
   ...TRAINING_ROUTES,
   ...ENTRIES_ROUTES,
@@ -58,11 +74,19 @@ export const ROUTES: Route[] = [
   ...REMINDERS_ROUTES,
   // The Kumite and other tournaments: editions, the draft, scoring games
   ...TOURNAMENTS_ROUTES,
+  ...EDITIONS_ROUTES,
   ...DRAFT_ROUTES,
   ...SCORING_ROUTES,
+  // A Kumite from before the app, recorded after the fact (ADR 0126)
+  ...PAST_ROUTES,
+  // Dev only (ADR 0123): the Kumite played on to its after-party
+  ...SIMULATE_ROUTES,
   // Everything else on the calendar, and the club's own settings
   ...EVENTS_ROUTES,
   ...SETTINGS_ROUTES,
+  ...MAIL_ROUTES,
+  // The club's website: its rebuilds and its links (#107)
+  ...WEBSITE_ROUTES,
 ];
 
 /** Who's asking: their session, or (on your own machine, when asked for) the first admin. */
@@ -70,7 +94,7 @@ async function whoIs(
   request: Request,
   env: Env,
   now: Date,
-): Promise<{ memberId: number; sessionId?: number; setCookie?: string } | null> {
+): Promise<{ memberId: number; sessionId?: number; viewingAs?: number | null; setCookie?: string } | null> {
   const session = await sessionOf(request, env, now);
   if (session) return session;
   // Only on a private address (ADR 0023): a build that said "local" by mistake still opens to nobody
@@ -91,6 +115,8 @@ async function health(env: Env): Promise<Response> {
   }
 }
 
+const FROM_HERE = "Too many requests from here. Wait a minute.";
+
 /** What sign-in's routes and the app's error reports may send: a form, a Sentry envelope (#73). */
 const MAX_AUTH_BODY = 16 * 1024;
 const MAX_ERRORS_BODY = 256 * 1024;
@@ -106,20 +132,39 @@ export async function handleApi(
   // Up means it can read the database: a deploy whose D1 binding is broken fails its smoke test (ADR 0010)
   if (url.pathname === "/api/health") return health(env);
   if (!sameOrigin(request)) return json({ error: "That came from somewhere else." }, 403);
-  const match = ROUTES.map((r) => ({ r, m: url.pathname.match(r.path) })).filter((x) => x.m);
+  // A route that's only on some Workers (a dev-only tool) isn't there at all on the rest: a 404
+  const match = ROUTES.filter((r) => !r.only || r.only(env))
+    .map((r) => ({ r, m: url.pathname.match(r.path) }))
+    .filter((x) => x.m);
   const hit = match.find((x) => x.r.method === request.method);
+  // Generous limits (ADR 0055); sign-in and changes have tighter ones of their own. Someone not signed in is counted
+  // by their address; a member as themselves, as a squad on the rink's wifi shares one address (#113)
+  const address = addressOf(request);
+  // A request with a session cookie is counted apart from the strangers', so one device using their allowance up
+  // (sign-in, error reports, pages that aren't there) never turns away the signed-in phones on its wifi; a cookie
+  // that's nobody's spends an allowance of its own
+  const withSession = carriesSession(request);
+  const unknown = withSession
+    ? (spend = true) => enforce("api-unknown-session", address, LIMITS.unknownSessions, FROM_HERE, spend)
+    : (spend = true) => enforce("api", address, LIMITS.perAddress, FROM_HERE, spend);
   try {
-    // A generous limit per address (ADR 0055); sign-in and changes have tighter ones of their own
-    await enforce("api", addressOf(request), LIMITS.perAddress, "Too many requests from here. Wait a minute.");
-    // A body over its route's limit is refused before anything reads it, signed in or not (#73)
+    // A ceiling over everyone on one address, first
+    await enforce("api-address", address, LIMITS.addressCeiling, FROM_HERE);
+    // Sign-in, the app's error reports and a route that isn't there have no member to count by. Anything else is
+    // counted once it's known who's asking, but an address already over its allowance for unknown sessions gets no
+    // further: a made-up session is never looked up
     const errors = url.pathname === "/api/errors";
-    const max = errors ? MAX_ERRORS_BODY : url.pathname.startsWith("/api/auth/") ? MAX_AUTH_BODY : hit?.r.maxBody;
+    const signingIn = url.pathname.startsWith("/api/auth/");
+    if (errors || signingIn || !hit) await enforce("api", address, LIMITS.perAddress, FROM_HERE);
+    else await unknown(false);
+    // A body over its route's limit is refused before anything reads it, signed in or not (#73)
+    const max = errors ? MAX_ERRORS_BODY : signingIn ? MAX_AUTH_BODY : hit?.r.maxBody;
     request = await withinLimit(request, max);
   } catch (e) {
     if (e instanceof HttpError) return json({ error: e.message }, e.status);
     throw e;
   }
-  // The app's own errors on their way to Sentry (ADR 0111), signed in or not: an error at sign-in counts too
+  // The app's own errors on their way to Sentry (ADR 0110), signed in or not: an error at sign-in counts too
   if (url.pathname === "/api/errors") return sentryTunnel(request, env.SENTRY_DSN);
   if (url.pathname.startsWith("/api/auth/")) {
     try {
@@ -131,27 +176,42 @@ export async function handleApi(
     }
   }
   if (!hit) return json({ error: match.length ? "Method not allowed." : "Not found." }, match.length ? 405 : 404);
+  // Who's signed in is the real clock's, whatever a journey says (below)
+  const signedInAt = now;
   // Who it was, for the log if it fails: their number only, never their name or email (ADR 0110)
   let member: number | undefined;
+  // A renewed session's cookie goes back on a refusal too, or the member is signed out once the old one's grace ends
+  let renewal: string | undefined;
   try {
-    const who = await whoIs(request, env, now);
-    if (!who) return json({ error: "Sign in first." }, 401);
-    const { memberId } = who;
-    member = memberId;
+    const who = await whoIs(request, env, signedInAt);
+    if (!who) {
+      await unknown();
+      return json({ error: "Sign in first." }, 401);
+    }
+    // Who signed in: counted, on the record, and the one whose clock a journey moves
+    const signedIn = who.memberId;
+    member = signedIn;
+    renewal = who.setCookie;
+    await enforce("member", String(signedIn), LIMITS.perMember, "That's a lot of requests at once. Wait a minute.");
     const writes = request.method !== "GET";
     if (writes)
       await enforce(
         "writes",
-        String(memberId),
+        String(signedIn),
         LIMITS.writesPerMember,
         "That's a lot of changes at once. Wait a minute.",
       );
-    const actions = await actionsOf(env.DB, memberId);
+    const signedInActions = await actionsOf(env.DB, signedIn);
+    // A journey may move the club's clock, on dev (an admin) or your own machine only (api.dev-clock.ts)
+    now = devClock(request, env, signedInActions) ?? now;
+    // An admin viewing the app as a member (ADR 0024) is answered as that member, and changes nothing but going back
+    const { viewing, memberId, actions } = await answeredAs(env.DB, now, who, signedInActions);
+    if (viewing && writes && !hit.r.whileViewing) throw new HttpError(403, viewingRefusal(viewing));
     const { action } = hit.r;
     if (action !== "authenticated" && !actions.has("manage:all") && !actions.has(action)) {
       // Refused for want of an action: on the record (ADR 0024), so poking at admin routes is seen, once a minute at
       // most per member (#73); every one is in the log
-      await auditRefused(env.DB, now, memberId, { method: request.method, path: url.pathname, action });
+      await auditRefused(env.DB, now, signedIn, { method: request.method, path: url.pathname, action });
       return json({ error: "Your role can't do that." }, 403);
     }
     const ctx: Ctx = {
@@ -159,11 +219,13 @@ export async function handleApi(
       request,
       params: hit.m!.slice(1),
       memberId,
+      viewedBy: viewing ? signedIn : null,
       sessionId: who.sessionId ?? null,
       actions,
       today: londonToday(now),
       now: now.toISOString(),
       waitUntil,
+      alsoChanged: [],
     };
     // On the record (ADR 0095): what the change is to, before it
     const record = writes && hit.r.audit && "event" in hit.r.audit ? hit.r.audit : null;
@@ -183,7 +245,7 @@ export async function handleApi(
         .catch(() => ({}))) as Record<string, unknown>;
       const after = await record.subject(ctx, reply);
       if (JSON.stringify(before ?? null) !== JSON.stringify(after ?? null))
-        await audit(env.DB, now, memberId, record.event, {
+        await audit(env.DB, now, signedIn, record.event, {
           ...record.about?.(ctx, reply),
           from: before ?? null,
           to: after ?? null,
@@ -208,15 +270,18 @@ export async function handleApi(
       if (waitUntil) waitUntil(told);
       else await told;
     }
-    if (writes && res.ok) {
-      // A change: every member's bootstrap is out of date (ADR 0053)
-      const version = await bumpDataVersion(env.DB);
-      // ...and this member gets the parts it touched back, to put in place
-      const declared = hit.r.changes ?? [];
+    // A change that reloads the app (viewing as someone) changes nothing in the club: no one's copy is out of date
+    if (writes && res.ok && !hit.r.reloads) {
+      // What it touched: the parts it declared, and the agenda with anything on the calendar
+      const declared = [...(hit.r.changes ?? []), ...ctx.alsoChanged];
       const calendar = hit.r.calendar !== false && declared.some((d) => SCHEDULE.includes(d));
       const changes = calendar ? [...declared, "agenda" as const] : declared;
-      // ...and everyone on a live page hears which parts, and the version (ADR 0072), once this reply is on its way
-      const told = notifyLive(env, changes, version);
+      // A change: every member's bootstrap is out of date (ADR 0053), and these parts are new (#178)
+      const at = await bumpDataVersion(env.DB, changes);
+      const { version } = at;
+      // ...and everyone on a live page hears which parts, and the version (ADR 0072), with a live match as it is
+      // (#161), once this reply is on its way
+      const told = pushedWith(ctx, hit.r, changes).then((pushed) => notifyLive(env, changes, version, pushed));
       if (waitUntil) waitUntil(told);
       else await told;
       if (changes.length) {
@@ -224,9 +289,13 @@ export async function handleApi(
           ? { ...ctx, actions: await actionsOf(env.DB, memberId) }
           : ctx;
         const reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        const out = json({ ...reply, changed: await slices(now, changes) }, res.status);
+        // ...the core's parts of what it touched, and the pages' this phone holds (src/app/club-parts.ts, #178)
+        const touched = touchedFor(now, changes, heldBy(request));
+        const out = json({ ...reply, changed: await slices(now, touched, at) }, res.status);
         // Read after the version went up: the app's copy has this change's parts at least as new (src/app/catch-up.ts)
         out.headers.set(VERSION_HEADER, String(version));
+        // ...keeping any cookie the handler set (a Gmail reconnect's round trip, mail/mail.ts)
+        for (const set of res.headers.getSetCookie()) out.headers.append("set-cookie", set);
         if (who.setCookie) out.headers.append("set-cookie", who.setCookie);
         return out;
       }
@@ -238,7 +307,11 @@ export async function handleApi(
     renewed.headers.append("set-cookie", who.setCookie);
     return renewed;
   } catch (e) {
-    if (e instanceof HttpError) return json({ error: e.message }, e.status);
+    if (e instanceof HttpError) {
+      const refused = json({ error: e.message }, e.status);
+      if (renewal) refused.headers.append("set-cookie", renewal);
+      return refused;
+    }
     log.error("request.failed", e, { method: request.method, path: url.pathname, route: hit.r.path.source, member });
     return json({ error: "Something went wrong." }, 500);
   }

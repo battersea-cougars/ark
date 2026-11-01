@@ -6,7 +6,7 @@
 //   npm run load -- baseline             one phone at a time: what each request costs on its own
 //   npm run load -- friday-rush          120 members open the app and tap In within 10 s; the crons; teams published
 //   npm run load -- live-draft           8 captains picking, 60 players watching the draft room live
-//   npm run load -- scoring              1 scorekeeper, 80 members following the game live
+//   npm run load -- scoring              1 scorekeeper, 80 members following the game live (--followers 20)
 //   npm run load -- all                  each, one after another, each on a fresh Worker
 //   npm run load -- soak --minutes 60    the scenarios in turn, with a pause between, the crons running
 //   npm run load -- cpu                  the Worker's own CPU a request (the fake world, D1's time taken off)
@@ -29,7 +29,7 @@ import { devHandles, devTarget, localTarget, ownTarget } from "./load.target.mjs
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
 const value = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
-const valued = new Set(["--members", "--target", "--minutes", "--pause", "--budget", "--from", "--to"]);
+const valued = new Set(["--members", "--followers", "--target", "--minutes", "--pause", "--budget", "--from", "--to"]);
 const asked = args.find((a, i) => !a.startsWith("--") && !valued.has(args[i - 1]));
 const where = value("--target", "own");
 const members = Number(value("--members", 120));
@@ -187,6 +187,7 @@ async function runOne(name, build) {
       roster: target.roster,
       stats,
       shared: flag("--one-address"),
+      followers: Number(value("--followers", 80)),
       notes,
       cpu: target.cpu,
       d1: target.d1,

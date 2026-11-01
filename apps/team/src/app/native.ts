@@ -2,6 +2,7 @@
 // Everything here asks `inApp` first and falls back to what a browser does, so the web app is unchanged; it only asks
 // "is this the app", never "is this an iPhone", so Android works the same when it comes.
 import { Capacitor } from "@capacitor/core";
+import { reportUnexpected } from "./errors.early";
 
 export const inApp = Capacitor.isNativePlatform();
 
@@ -19,6 +20,7 @@ export async function keepAwake(): Promise<() => void> {
     await KeepAwake.keepAwake();
     return () => void KeepAwake.allowSleep();
   }
+  // Refused (battery saver, a hidden tab): the screen may sleep, as it would anyway
   const lock = await navigator.wakeLock?.request("screen").catch(() => null);
   return () => void lock?.release();
 }
@@ -84,9 +86,10 @@ async function register() {
  */
 export async function startInApp(navigate: (path: string) => void) {
   if (!inApp) return;
-  const [{ App }, { FirebaseMessaging }] = await Promise.all([
+  const [{ App }, { FirebaseMessaging }, { impersonating }] = await Promise.all([
     import("@capacitor/app"),
     import("@capacitor-firebase/messaging"),
+    import("../demo/session.svelte"),
   ]);
   const go = (url: string) => {
     const u = new URL(url, location.origin);
@@ -97,6 +100,11 @@ export async function startInApp(navigate: (path: string) => void) {
     const path = (notification.data as { path?: string } | undefined)?.path;
     if (path) go(path);
   });
-  await FirebaseMessaging.addListener("tokenReceived", () => void register().catch(() => {}));
-  if ((await FirebaseMessaging.checkPermissions()).receive === "granted") await register().catch(() => {});
+  // Not while viewing the app as someone (ADR 0024): the club would refuse it, and the phone isn't theirs
+  const mayRegister = () => !impersonating();
+  // Not registered, the phone hears nothing and nobody would know: Sentry hears of it (not the network's failing)
+  const unregistered = (e: unknown) => reportUnexpected(e, "Couldn't give the club this phone's notifications");
+  await FirebaseMessaging.addListener("tokenReceived", () => void (mayRegister() && register().catch(unregistered)));
+  if (mayRegister() && (await FirebaseMessaging.checkPermissions()).receive === "granted")
+    await register().catch(unregistered);
 }

@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// One-time: let the website and the team app send email as the developer Gmail account, through the Gmail API (not
+// First-time setup, and the terminal fallback when no admin can sign in: let the website and the team app send email
+// as the developer Gmail account, through the Gmail API (not
 // SMTP, not a password). One token for both environments: production sends from the same account, as the club's
 // address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
 //   node scripts/gmail-auth.mjs              sign in as the developer account -> GMAIL_REFRESH_TOKEN
-// Needs GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Bitwarden (README.md#gmail). Opens Google's consent page, catches
-// the answer on http://localhost:4590, swaps it for a refresh token (send-only), and saves that straight to
-// Bitwarden. Nothing is printed or written to disk. Re-run it to replace a token (e.g. after a password change).
+// Needs the Web client, GMAIL_WEB_CLIENT_ID and GMAIL_WEB_CLIENT_SECRET, in Bitwarden, with http://localhost:4590/
+// among its authorised redirect URIs (docs/secrets.md#gmail): the Workers refresh the token with that client, the only
+// one there is. Opens Google's consent page, catches the answer on http://localhost:4590, swaps it for a refresh token
+// (send-only), and saves that straight to Bitwarden. Nothing is printed or written to disk. When Google cancels the token (a password change), an admin
+// reconnects it in the team app instead (Settings → Email, ADR 0027), which needs no deploy; re-running this needs one,
+// and only counts in an environment with no reconnected token in D1.
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { ensureToken, loadSecrets, setSecret } from "./lib/bitwarden.mjs";
@@ -36,9 +40,9 @@ if (process.argv.length > 2) {
 const key = "GMAIL_REFRESH_TOKEN";
 
 ensureToken();
-const { GMAIL_CLIENT_ID: clientId, GMAIL_CLIENT_SECRET: clientSecret } = loadSecrets("dev");
+const { GMAIL_WEB_CLIENT_ID: clientId, GMAIL_WEB_CLIENT_SECRET: clientSecret } = loadSecrets("dev");
 if (!clientId || !clientSecret) {
-  throw new Error("GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET aren't in Bitwarden yet (README.md#gmail).");
+  throw new Error("GMAIL_WEB_CLIENT_ID and GMAIL_WEB_CLIENT_SECRET aren't in Bitwarden yet (docs/secrets.md#gmail).");
 }
 
 const state = randomBytes(16).toString("hex");
@@ -69,7 +73,11 @@ const code = await new Promise((resolve, reject) => {
   });
   server.listen(PORT, () => {
     console.log(`\nSign in as the developer Gmail account (not the club's):\n\n${consent}\n`);
-    console.log('Google warns the app isn\'t verified: choose "Advanced", then "Go to … (unsafe)", then Continue.\n');
+    console.log('Google warns the app isn\'t verified: choose "Advanced", then "Go to … (unsafe)", then Continue.');
+    console.log(
+      `If Google says redirect_uri_mismatch, add ${REDIRECT} to the Web client's Authorised redirect URIs ` +
+        "(Google Auth Platform → Clients → GMAIL_WEB_CLIENT_ID), wait a few minutes, and run this again.\n",
+    );
   });
 });
 

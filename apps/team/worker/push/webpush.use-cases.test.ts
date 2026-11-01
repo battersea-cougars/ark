@@ -32,7 +32,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 const friday = async (b: Browser) =>
@@ -177,7 +177,7 @@ describe("what the club tells a browser, as it tells a phone", () => {
           token: reg.subscription.endpoint,
           title: "Teams are out",
           body: "Fri 9 Oct: you're on Black.",
-          path: "/training/friday",
+          path: `/training/friday/${NEXT_FRIDAY}`,
         }),
         expect.objectContaining({ token: "token-alt@example.com", body: "Fri 9 Oct: you're on White." }),
       ]),
@@ -198,7 +198,11 @@ describe("what the club tells a browser, as it tells a phone", () => {
 
     await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "out" });
     expect(w.pushes).toEqual([
-      expect.objectContaining({ token: alt.subscription.endpoint, title: "You're in", path: "/training/friday" }),
+      expect.objectContaining({
+        token: alt.subscription.endpoint,
+        title: "You're in",
+        path: `/training/friday/${NEXT_FRIDAY}`,
+      }),
     ]);
   });
 
@@ -214,7 +218,7 @@ describe("what the club tells a browser, as it tells a phone", () => {
       expect.objectContaining({
         token: reg.subscription.endpoint,
         title: "Fri 9 Oct is off",
-        path: "/training/friday",
+        path: `/training/friday/${NEXT_FRIDAY}`,
       }),
     ]);
   });
@@ -245,7 +249,8 @@ describe("what the club tells a browser, as it tells a phone", () => {
 
 describe("through the push service", () => {
   const waiting = () =>
-    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE state IN ('queued', 'claimed')").get() as { n: number })
+      .n;
 
   it("a browser the push service says is gone (410) is forgotten, with what was still waiting for it", async () => {
     const reg = await browser("reg@example.com");

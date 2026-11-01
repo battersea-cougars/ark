@@ -5,7 +5,7 @@ import type { Stage } from "../app/nav-routes";
 import { isDone } from "@cougars/shared/results";
 import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { champion } from "./fixtures";
-import { clockRange, formatDayDate, londonISO, londonToday } from "./dates";
+import { clockRange, formatDayDate, londonEvening, londonISO, londonToday } from "./dates";
 import { signupOpen } from "./signup";
 
 export type EditionState = "live" | "done" | "open" | "planned";
@@ -20,13 +20,23 @@ export const championOf = (t: Tournament) =>
 
 /**
  * Where it stands, by its games more than its settings: under way once a game's being scored or has a result, done
- * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up.
+ * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up, as of `today`
+ * (London's, unless a caller asks about another day).
  */
-export function editionState(t: Tournament): EditionState {
+export function editionState(t: Tournament, today = londonToday()): EditionState {
   const games = t.games ?? [];
   if (isDone(t.status, games)) return "done";
   if (t.status === "live" || games.some((g) => g.status !== "next")) return "live";
-  return signupOpen(t, londonToday()) ? "open" : "planned";
+  return signupOpen(t, today) ? "open" : "planned";
+}
+
+/**
+ * Started: under way or done (editionState). From then who's in is an admin's to change, not a member's own In or Out
+ * (ADR 0074; the server keeps to it, worker/tournaments/started.ts): it's what the fees follow.
+ */
+export function hasStarted(t: Tournament) {
+  const state = editionState(t);
+  return state === "live" || state === "done";
 }
 
 /**
@@ -47,7 +57,7 @@ export const EDITION_LABEL: Record<EditionState, string> = {
 };
 
 /** When: the day and hours once there's a day (null while it's just a season), and the season always. */
-export function editionWhen(t: Tournament) {
+export function editionWhen(t: Pick<Tournament, "season" | "heldOn" | "startTime" | "endTime">) {
   const season = seasonLabel(t.season ?? seasonOf(t.heldOn).season, t.heldOn);
   const dated = !t.season;
   return {
@@ -58,28 +68,47 @@ export function editionWhen(t: Tournament) {
 }
 
 /**
- * Which edition of a series to open on, by what's happened rather than the dates: the one under way, else the next one
- * that isn't done (just a season is enough; one whose fixed day passed unplayed isn't), else the
- * last one played.
+ * Soonest first: by its day, then its hours (two on one Friday: the afternoon's before the evening's, as Home has them,
+ * #186), then the one made first. For latest first, swap them.
  */
-export function latestOf(editions: Tournament[], today: string): Tournament | undefined {
-  const mine = [...editions].sort((a, b) => a.heldOn.localeCompare(b.heldOn));
-  const ahead = (t: Tournament) => editionState(t) !== "done" && (!!t.season || t.heldOn >= today);
+export const byWhen = (a: Tournament, b: Tournament) =>
+  a.heldOn.localeCompare(b.heldOn) || a.startTime.localeCompare(b.startTime) || a.id - b.id;
+
+/**
+ * Which edition of a series to open on, by what's happened rather than the dates: the one under way, else the first
+ * that isn't done (just a season is enough; one whose fixed day passed unplayed still is, until an admin plays it,
+ * moves it or deletes it, #169), else the last one played.
+ */
+export function latestOf(editions: Tournament[]): Tournament | undefined {
+  const mine = [...editions].sort(byWhen);
   return (
     mine.find((t) => editionState(t) === "live") ??
-    mine.find(ahead) ??
+    mine.find((t) => editionState(t) !== "done") ??
     mine.findLast((t) => editionState(t) === "done") ??
     mine.at(-1)
   );
 }
 
 /**
- * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening of its day,
- * which runs till 06:00 the next morning (`evening`, lib/dates.ts londonEvening). Results typed in on another day, or
- * one with only a season, go straight to history.
+ * The evening it was played: its last match's kick-off's (till 06:00 the next morning, lib/dates.ts londonEvening),
+ * whatever its date says, as a match starts on any day (ADR 0074). None kicked off (results typed in): its own day, if
+ * it has one; just a season, none.
  */
-export const atAfters = (t: Tournament, evening: string) =>
-  editionState(t) === "done" && !t.season && t.heldOn === evening;
+export function playedOn(t: Tournament): string | null {
+  const last = (t.games ?? [])
+    .flatMap((g) => (g.startedAt ? [g.startedAt] : []))
+    .sort()
+    .at(-1);
+  if (last) return londonEvening(new Date(last));
+  return t.season ? null : t.heldOn;
+}
+
+/**
+ * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening it was played
+ * (`evening`, lib/dates.ts londonEvening), the awards revealed or not: once they are, its page is its results, Done.
+ * Results typed in on another day, or one with only a season, go straight to history.
+ */
+export const atAfters = (t: Tournament, evening: string) => editionState(t) === "done" && playedOn(t) === evening;
 
 /**
  * The one on or coming up, which a series' running pages show (its fight card, board, teams, draft): its latest, unless
@@ -87,18 +116,16 @@ export const atAfters = (t: Tournament, evening: string) =>
  * evening one's played, it's still on, at its after-party, till the morning (`evening`: London's evening now), even
  * with the next one scheduled.
  */
-export function currentOf(editions: Tournament[], today: string, evening?: string): Tournament | undefined {
+export function currentOf(editions: Tournament[], evening?: string): Tournament | undefined {
   const tonight = evening ? editions.find((t) => atAfters(t, evening)) : undefined;
   if (tonight) return tonight;
-  const latest = latestOf(editions, today);
+  const latest = latestOf(editions);
   return latest && editionState(latest) !== "done" ? latest : undefined;
 }
 
 /** The last one played, other than this: "last time", on the next one's page. */
 export const previousOf = (editions: Tournament[], t: Tournament) =>
-  editions
-    .filter((x) => x.id !== t.id && editionState(x) === "done")
-    .sort((a, b) => b.heldOn.localeCompare(a.heldOn))[0];
+  editions.filter((x) => x.id !== t.id && editionState(x) === "done").sort((a, b) => byWhen(b, a))[0];
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

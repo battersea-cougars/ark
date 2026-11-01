@@ -1,11 +1,14 @@
 <script lang="ts">
+  import { waitingFor } from "../app/editions.svelte";
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
-  // One game, full screen (ADR 0061). For everyone, the live scoreboard: the clock, the score, each goal as it went
+  // One game, full screen (ADR 0130). For everyone, the live scoreboard: the clock, the score, each goal as it went
   // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
   // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
   // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
   // assisted, a quieter Penalty (who, 2 or 5 minutes, what for) whose clock runs beside the team, take the last goal or
-  // penalty back, and Full time, which makes the score the result; the clock's start and pause is
+  // penalty back, and Full time, which opens the review (lib/SealResult): the score, every goal and penalty, the last
+  // goal to take back, and Seal the result, which makes the score the result; the clock's start and pause is
   // one big button right under the clock, with clear space before the goals, so it's easy to hit and hard to hit by
   // mistake.
   //
@@ -15,39 +18,41 @@
   // same person may have it open twice), while the page is in view.
   import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { can } from "../access/actions";
   import Icon from "../app/shell/Icon.svelte";
   import BackBar from "../app/shell/BackBar.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import Sheet from "../lib/Sheet.svelte";
+  import ManageList, { type ManageItem } from "../lib/ManageList.svelte";
   import { phone } from "../lib/viewport.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
+  import SealResult from "../lib/SealResult.svelte";
   import { PLAYERS, type Player } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
-  import { goBack, router } from "../app/router.svelte";
-  import { routes } from "../app/routes.svelte";
+  import { goBack, navigate, router } from "../app/router.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import {
     addGoal,
     addPenalty,
     clockGame,
     nextPeriod,
     holdScoresheet,
+    overrideScoresheet,
     removeGoal,
     removePenalty,
     undoPenalty,
     scoreGame,
     setGameClock,
     undoGoal,
-    updateTournament,
   } from "../app/backend.svelte";
-  import { clock, formatDayDate, londonISO, londonTime, londonToday } from "../lib/dates";
+  import { clock, londonTime } from "../lib/dates";
   import { checkForUpdates, liveFeed } from "../lib/live-updates.svelte";
   import LiveNote from "../lib/LiveNote.svelte";
   import { breakLeftOf, leftOf, mmss, ticking } from "../lib/game-clock.svelte";
-  import { kickOff, slotMinutes, startingNow } from "../lib/fixtures";
+  import { kickOff, slotMinutes } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { inGameTime, periodName } from "../lib/periods";
@@ -63,6 +68,10 @@
   } from "../lib/penalties";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
+  // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
+  const waiting = $derived(
+    !!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId),
+  );
 
   const type = $derived(typeById(typeId)!);
   // The game's own tournament: the current one, or a past one's (History)
@@ -92,7 +101,7 @@
 
   // The clock, ticking while this page is up
   $effect(() => ticking());
-  // The clock counts down each period in turn (ADR 0061): full is a period's length
+  // The clock counts down each period in turn (ADR 0130): full is a period's length
   const full = $derived((tournament?.gameMinutes ?? 12) * 60_000);
   const periods = $derived(tournament?.periods ?? 1);
   const period = $derived(game?.period ?? 1);
@@ -113,14 +122,27 @@
   // A playoff can't end level (worker/tournaments/scoring.ts): level at time up, it plays on and the next goal wins
   const level = $derived(!!game && game.stage === "playoff" && (game.homeGoals ?? 0) === (game.awayGoals ?? 0));
   // A period's over (its time's up, or the scorekeeper says so): the next starts paused at its full length. Sent from
-  // the scorekeeper's phone when the clock hits zero; saying it twice is harmless (the Worker knows the period's done)
-  let endedPeriod = 0;
+  // the scorekeeper's phone when the clock hits zero, and again until the server has it (the period moves on): once
+  // a tap on its way (a goal at the buzzer) has gone, and a few seconds after one that didn't go through. Saying it
+  // twice is harmless (the Worker knows the period's done)
   const endPeriod = () => tournament && game && act(() => nextPeriod(tournament.id, game.id, period));
+  const RETRY_MS = 3000;
+  let endRetry = $state(0);
+  let endWaiting = false;
   $effect(() => {
-    if (periodUp && keeper && endedPeriod !== period) {
-      endedPeriod = period;
-      endPeriod();
-    }
+    void endRetry;
+    if (!periodUp || !keeper || busy || endWaiting || !tournament || !game) return;
+    const [t, g, p] = [tournament.id, game.id, period];
+    untrack(() =>
+      act(async () => {
+        if ((await nextPeriod(t, g, p)) !== null) return;
+        endWaiting = true;
+        setTimeout(() => {
+          endWaiting = false;
+          endRetry++;
+        }, RETRY_MS);
+      }),
+    );
   });
   // A buzz when time runs out on the scorekeeper's phone
   let buzzed = false;
@@ -144,6 +166,7 @@
   let sleep: (() => void) | null = null;
   $effect(() => {
     if (keeper && running && !sleep)
+      // Refused: the screen may sleep, as it would anyway
       keepAwake()
         .then((s) => (sleep = s))
         .catch(() => {});
@@ -161,49 +184,110 @@
     }
   }
   const take = () => tournament && game && act(() => holdScoresheet(tournament.id, game.id, "claim"));
-  const letGo = () => tournament && game && act(() => holdScoresheet(tournament.id, game.id, "release"));
-  const games = $derived(`/tournaments/${type.slug}`);
-  // Back where you came from (the Fight card, a team, the home page), named for it; else the tournament's home
-  const back = $derived.by(() => {
-    const from = router.from ? routes().find((r) => r.path === router.from) : undefined;
-    return from ? { href: from.path, label: from.name } : { href: games, label: `The ${type.shortName}` };
+  const letGo = () => {
+    handingOver = true;
+    if (tournament && game) act(() => holdScoresheet(tournament.id, game.id, "release"));
+  };
+
+  // An admin's say over someone else's scoresheet (#116), behind Manage in the bar (ADR 0065): take it over (their
+  // phone died, they've gone) or free it (for an admin who isn't at the rink). Each asks first, the yes in red. Sent
+  // with who the page saw holding it: if it's changed hands since, the Worker says who has it now
+  const manageable = $derived(admin && !!game && !over && !keeper && !!holder);
+  let manageOpen = $state(false);
+  let asking = $state<"takeover" | "free" | null>(null);
+  const manageItems = $derived.by((): ManageItem[] => {
+    if (!holder) return [];
+    const name = goesBy(holder);
+    return [
+      {
+        icon: "whistle",
+        label: "Take over scoring",
+        sub: `${name}'s phone stops scoring and yours starts, from where the game is.`,
+        run: () => (asking = "takeover"),
+      },
+      {
+        icon: "signOut",
+        label: "Free the scoresheet",
+        sub: `${name}'s off it, and anyone can take it on. For when you're not at the rink.`,
+        run: () => (asking = "free"),
+      },
+    ];
   });
-  // Starting the first game on another day than the tournament's: asked first, as it moves the tournament's day to
-  // today and its hours so this game kicks off now (lib/fixtures.ts startingNow)
-  const offDay = $derived(!!tournament && !!game && game.status === "next" && tournament.heldOn !== londonToday());
-  let askingDay = $state(false);
+  function manage(run: () => void) {
+    manageOpen = false;
+    run();
+  }
+  function override() {
+    const action = asking;
+    asking = null;
+    if (action && tournament && game)
+      act(() => overrideScoresheet(tournament.id, game.id, action, game.keeperId ?? null));
+  }
+  // Remembered while the sheet goes: who it was taken from, for the question's words as it slides away
+  let askedOf = $state("");
+  $effect(() => {
+    if (asking && holder) askedOf = goesBy(holder);
+  });
+
+  // This phone was the scoresheet and isn't any more, not by its own Hand over: an admin took it over or freed it.
+  // The page hears it live (ADR 0072); its tools and pickers close, the phone buzzes, and the line under the clock
+  // says so, until the sheet's this phone's again
+  let handingOver = false;
+  let wasKeeper = false;
+  let lost = $state<{ to: string | null } | null>(null);
+  $effect(() => {
+    const now = keeper;
+    if (now) lost = null;
+    else if (wasKeeper && !over && !handingOver) {
+      lost = { to: holder ? goesBy(holder) : null };
+      toolsOpen = false;
+      reviewing = false;
+      picking = null;
+      calling = null;
+      setting = false;
+      buzz([120, 60, 120]);
+    }
+    if (!now) handingOver = false;
+    wasKeeper = now;
+  });
+  const games = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
+  // Back is always to its edition's own page (the Fight card), wherever the game was opened from (a matchup, a
+  // team, the home page, a push): a history step when that's where it came from, so the page is as it was left
+  const back = $derived({ href: games, label: `The ${type.shortName}` });
+  const toGames = () => (router.from === games ? goBack(games) : navigate(games));
+  // When it's set to kick off on the day: the card's time until it starts (lib/fixtures.ts kickOff)
+  const setFor = $derived(
+    tournament && game ? kickOff(tournament.startTime, slotMinutes(tournament), game.position) : "",
+  );
+  // A match starts whenever its scorekeeper starts it, on the tournament's day or not: the day stays as an admin set
+  // it, and the match keeps when it really started
   const startPause = () => {
     if (!tournament || !game || over) return;
-    if (offDay && !running) return void (askingDay = true);
     act(() => clockGame(tournament.id, game.id, running ? "pause" : "start"));
   };
-  /** Yes: the tournament moves to now, then the clock starts. */
-  const startToday = () =>
-    tournament &&
-    game &&
-    act(async () => {
-      const moved = startingNow(
-        $state.snapshot(tournament),
-        game.position,
-        londonToday(),
-        londonTime(new Date().toISOString()),
-      );
-      askingDay = false;
-      if (await updateTournament(moved)) await clockGame(tournament.id, game.id, "start");
-    });
-  // Full time asks once: it can't be taken back here
-  let confirmEnd = $state(false);
+  // Full time opens the review, the confirmation: the match stays live for everyone until it's sealed. Called early,
+  // the clock stops while it's looked over (Keep scoring, then Start again, carries on)
+  let reviewing = $state(false);
   function end() {
     if (!tournament || !game) return;
-    if (!confirmEnd) {
-      // Asks for a few seconds, then lets it be
-      confirmEnd = true;
-      setTimeout(() => (confirmEnd = false), 4000);
-      return;
-    }
-    confirmEnd = false;
     toolsOpen = false;
-    act(() => clockGame(tournament.id, game.id, "end"));
+    reviewing = true;
+    if (running && left > 0) act(() => clockGame(tournament.id, game.id, "pause"));
+  }
+  // Seal the result: full time, the score's the result (a level playoff's refused, and plays on)
+  async function seal() {
+    if (!tournament || !game || busy) return false;
+    busy = true;
+    try {
+      return (await clockGame(tournament.id, game.id, "end")) !== null;
+    } finally {
+      busy = false;
+    }
+  }
+  const takeBackGoal = () => tournament && game && lastGoal && act(() => undoGoal(tournament.id, game.id, lastGoal.id));
+  function setTimeFromReview() {
+    reviewing = false;
+    openSet();
   }
 
   // The tools behind Scoring in the bar: what the scorekeeper needs now and then, kept away from the big buttons
@@ -309,7 +393,7 @@
     whenSec = 0;
     whenPeriod = 1;
   };
-  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0061)
+  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0130)
   const usualPenalty = $derived(tournament?.defaultPenaltyMinutes ?? 2);
   // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes; back from one,
   // the usual length again
@@ -326,8 +410,8 @@
   const callNeeds = $derived.by(() => {
     if (!calling) return "";
     const rule = infractionOf(calling.infraction);
-    if (!rule) return "Pick what it's for";
-    return !rule.bench && calling.memberId === null ? "Pick who it's on" : "";
+    if (!rule) return "Choose what it's for";
+    return !rule.bench && calling.memberId === null ? "Choose who it's on" : "";
   });
   function savePenalty(known = true) {
     if (!calling || !tournament || !game || callNeeds) return;
@@ -377,14 +461,14 @@
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
   const scoreOf = (i: number) => (i === 0 ? game?.homeGoals : game?.awayGoals) ?? 0;
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <BackBar
   href={back.href}
   label={back.label}
-  onclick={() => goBack(games)}
+  onclick={toGames}
   title={game ? `Game ${game.position}` : "Game"}
   right={over
     ? "Full time"
@@ -395,8 +479,18 @@
           ? "Break"
           : "Paused"
       : "Not started"}
-  action={keeper && !over ? scoring_ : undefined}
+  action={keeper && !over ? scoring_ : manageable ? manage_ : undefined}
 />
+<!-- An admin's tools for someone else's scoresheet: the page's one Manage (ADR 0065) -->
+{#snippet manage_()}
+  <button
+    class="btn sm ghost icon"
+    aria-haspopup="dialog"
+    aria-label="Manage the scoresheet"
+    title="Manage"
+    onclick={() => (manageOpen = true)}><Icon name="settings" size={18} /></button
+  >
+{/snippet}
 <!-- Keeping score: said in the bar, in red, and a tap opens the scorekeeper's tools, so the clock gets the screen -->
 {#snippet scoring_()}
   <button class="btn ghost sm keeping" aria-label="You're keeping score: tools" onclick={() => (toolsOpen = true)}
@@ -404,11 +498,14 @@
   >
 {/snippet}
 
-{#if !tournament || !game}
+{#if waiting}
+  <!-- Its tournament on its way (#175): the room the page takes -->
+  <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+{:else if !tournament || !game}
   <p class="note missing">No such game.</p>
 {:else}
   <div class="game">
-    <!-- The clock: to read, and for the scorekeeper, a tap sets it (ADR 0103). Its start and pause is the big button
+    <!-- The clock: to read, and for the scorekeeper, a tap sets it (ADR 0065). Its start and pause is the big button
          under it -->
     <svelte:element
       this={settable ? "button" : "div"}
@@ -425,10 +522,11 @@
       <span class="time display num">{onBreak ? mmss(breakMs!) : mmss(left)}</span>
       <span class="meter"><span style:transform="scaleX({onBreak ? breakMs! / breakFull : left / full})"></span></span>
       <span class="cue hint">
-        {#if over}Full time
-        {:else if game.status === "next"}Kick-off {clock(
-            kickOff(tournament.startTime, slotMinutes(tournament), game.position),
-          )}
+        {#if over}Full time{#if game.startedAt}
+            · Started {clock(londonTime(game.startedAt))}{#if londonTime(game.startedAt) !== setFor}, set for {clock(
+                setFor,
+              )}{/if}{/if}
+        {:else if game.status === "next"}Kick-off {clock(setFor)}
         {:else if timeUp && level}Level: next goal wins
         {:else if timeUp}{keeper ? "Time's up: call full time" : "Time's up"}
         {:else if onBreak}Break · {periodName(period)} period next
@@ -450,12 +548,18 @@
       <!-- Who's keeping score, for everyone following: taken on here, on purpose, never by the big button (someone
            watching from home shouldn't take it by accident). One person holds it until they hand it over -->
       <div class="keep-line">
-        {#if holder}
+        {#if lost?.to && holder}
+          <!-- This phone's sheet was taken over: said here, where the big button was -->
+          <span class="hint lost"
+            ><Icon name="whistle" size={16} />{goesBy(holder)}'s taken over scoring. You're off the clock.</span
+          >
+        {:else if holder}
           <span class="hint"><i class="rec" aria-hidden="true"></i>Score kept by {goesBy(holder)}</span>
-          {#if admin}<button class="btn ghost sm" disabled={busy} onclick={letGo}>Let it go</button>{/if}
         {:else if upNext && game.homeTeamId && game.awayTeamId}
-          <span class="hint"
-            >Nobody's keeping score{game.scoringTeamId ? ` · ${teamName(game.scoringTeamId)}'s turn` : ""}</span
+          <span class="hint" class:lost={lost && !lost.to}
+            >{lost && !lost.to
+              ? "An admin freed your scoresheet. Keep score to take it back"
+              : `Nobody's keeping score${game.scoringTeamId ? ` · ${teamName(game.scoringTeamId)}'s turn` : ""}`}</span
           >
           <button class="btn outline sm" disabled={busy} onclick={take}
             ><Icon name="whistle" size={16} />Keep score</button
@@ -474,24 +578,11 @@
           <Icon name="whistle" size={26} />Play on: next goal wins
         </div>
       {:else if keeper && timeUp}
-        <!-- Time's up: the big button is full time. Tap twice: it can't be taken back here (Set the time for more) -->
-        <button class="btn control full-time" class:confirming={confirmEnd} disabled={busy} onclick={end}>
+        <!-- Time's up: the big button is full time, which opens the review to seal the result -->
+        <button class="btn control full-time" disabled={busy} onclick={end}>
           <Icon name="whistle" size={26} />
-          {confirmEnd ? "Tap again: full time" : "Full time"}
+          Full time
         </button>
-      {:else if keeper && askingDay && tournament}
-        <!-- Not the tournament's day: say so, and what starting now does, before it does it -->
-        <div class="ask-day" role="alert">
-          <p>
-            The {type.shortName} is on {formatDayDate(londonISO(tournament.heldOn, tournament.startTime))}. Start this
-            game now? Its day moves to today, {formatDayDate(new Date().toISOString())}, and its times so this game
-            starts now.
-          </p>
-          <div class="ask-actions">
-            <button class="btn ghost" disabled={busy} onclick={() => (askingDay = false)}>Not yet</button>
-            <button class="btn primary" disabled={busy} onclick={startToday}>Start it today</button>
-          </div>
-        </div>
       {:else if keeper}
         <button class="btn control" class:start={!running} class:pause={running} disabled={busy} onclick={startPause}>
           <Icon name={running ? "pause" : "play"} size={26} />
@@ -596,7 +687,7 @@
                     <span class="pname">{goesBy(p)}</span>
                     {#if scored}<span class="badge">{scored > 1 ? `${scored} goals` : "Goal"}</span>{/if}
                     {#if pim}<span class="badge">PIM {pim}</span>{/if}
-                    <span class="pos">{p.position}</span>
+                    <span class="pos"><PositionIcon position={p.position} /></span>
                   </li>
                 {/each}
               </ol>
@@ -631,8 +722,8 @@
     </div>
   </div>
 
-  <!-- The tools: big rows, one tap each (full time asks again), each done right here. Up from the bottom on a phone,
-       a side drawer on a desktop (ADR 0103) -->
+  <!-- The tools: big rows, one tap each (full time opens its review), each done right here. Up from the bottom on a phone,
+       a side drawer on a desktop (ADR 0065) -->
   {#snippet toolList()}
     <div class="tools">
       <p class="hint tools-note">Only you can run the clock and log goals and penalties, until you hand it over.</p>
@@ -640,7 +731,7 @@
         <button
           class="tool"
           disabled={busy || !lastGoal}
-          onclick={() => tool(() => act(() => undoGoal(tournament.id, game.id)))}
+          onclick={() => lastGoal && tool(() => act(() => undoGoal(tournament.id, game.id, lastGoal.id)))}
         >
           <Icon name="undo" size={22} />
           <span class="tool-text"
@@ -654,7 +745,7 @@
         <button
           class="tool"
           disabled={busy || !lastPenalty}
-          onclick={() => tool(() => act(() => undoPenalty(tournament.id, game.id)))}
+          onclick={() => lastPenalty && tool(() => act(() => undoPenalty(tournament.id, game.id, lastPenalty.id)))}
         >
           <Icon name="undo" size={22} />
           <span class="tool-text"
@@ -675,13 +766,13 @@
             >
           </button>
         {/if}
-        <button class="tool" class:danger={confirmEnd} disabled={busy || level} onclick={end}>
+        <button class="tool" disabled={busy || level} onclick={end}>
           <Icon name="whistle" size={22} />
           <span class="tool-text"
-            ><strong>{confirmEnd ? "Tap again: full time" : "Full time now"}</strong><span
+            ><strong>Full time now</strong><span
               >{level
                 ? "Not while it's level: a playoff needs a winner."
-                : "The score's the result. Can't be taken back."}</span
+                : "Stops the clock to look it over, then seal the result."}</span
             ></span
           >
         </button>
@@ -694,13 +785,55 @@
       </button>
     </div>
   {/snippet}
-  {#if phone.current}
-    <Sheet bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Sheet>
-  {:else}
-    <Drawer bind:open={toolsOpen} title="You're keeping score">{@render toolList()}</Drawer>
+  <Drawer bind:open={toolsOpen} short title="You're keeping score">{@render toolList()}</Drawer>
+
+  <!-- Full time's review: look it over, put a mistake right, then seal the result -->
+  {#if keeper || reviewing}
+    <SealResult
+      bind:open={reviewing}
+      {type}
+      {tournament}
+      {game}
+      {busy}
+      {level}
+      onseal={seal}
+      ontakeback={takeBackGoal}
+      onsettime={setTimeFromReview}
+    />
   {/if}
 
-  <!-- Set the score, in a sheet (a short form, ADR 0103): each side's goals, up and down -->
+  <!-- An admin's Manage: a sheet on a phone, a side drawer on a desktop (ADR 0065) -->
+  {#snippet manageList()}<ManageList items={manageItems} go={manage} />{/snippet}
+  {#if phone.current}
+    <Sheet bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}">{@render manageList()}</Sheet
+    >
+  {:else}
+    <Drawer bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}"
+      >{@render manageList()}</Drawer
+    >
+  {/if}
+
+  <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0084) -->
+  <Sheet
+    bind:open={() => !!asking, (v) => !v && (asking = null)}
+    title={asking === "free" ? "Free the scoresheet?" : `Take over Game ${game.position}?`}
+  >
+    <p class="ask">
+      {#if asking === "free"}
+        {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
+      {:else}
+        {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
+      {/if}
+    </p>
+    {#snippet footer()}
+      <button class="btn ghost" type="button" onclick={() => (asking = null)}>Leave it</button>
+      <button class="btn yes" type="button" disabled={busy} onclick={override}
+        >{asking === "free" ? "Free it" : "Take over"}</button
+      >
+    {/snippet}
+  </Sheet>
+
+  <!-- Set the score, in a sheet (a short form, ADR 0065): each side's goals, up and down -->
   <Sheet bind:open={scoring} title="Set the score">
     <p class="hint">Goals go on, nobody said who, or the latest come off to match.</p>
     <div class="score-set">
@@ -821,7 +954,7 @@
       <div class="names">
         {#each roster(picking.team).filter((p) => p.id !== picking?.scorer) as p (p.id)}
           <button class="name-pick" onclick={() => choose(p.id)}
-            ><span>{goesBy(p)}</span><small>{p.position}</small></button
+            ><span>{goesBy(p)}</span><small><PositionIcon position={p.position} size={12} /></small></button
           >
         {/each}
       </div>
@@ -840,7 +973,7 @@
     {/snippet}
   </Drawer>
 
-  <!-- A penalty: what for, who, the length, each a tap, in a drawer (a tall sheet on a phone, ADR 0103) like a
+  <!-- A penalty: what for, who, the length, each a tap, in a drawer (a tall sheet on a phone, ADR 0065) like a
        goal's. Stamped with the game clock; an admin putting a result right says when -->
   <Drawer
     bind:open={() => !!calling, (v) => !v && (calling = null)}
@@ -1137,6 +1270,23 @@
   .keep-line .btn {
     gap: var(--s-1);
   }
+  /* This phone lost the sheet: the words in the club's red, the whistle with them */
+  .keep-line .lost {
+    color: var(--red-hot);
+  }
+  .ask {
+    margin: 0;
+    color: var(--fg-muted);
+    line-height: 1.5;
+  }
+  /* The armed "are you sure": the one red fill (ADR 0084) */
+  .yes {
+    background: var(--red);
+    color: var(--on-red);
+  }
+  .yes:hover:not(:disabled) {
+    background: var(--red-hot);
+  }
   .rec {
     width: 0.5rem;
     height: 0.5rem;
@@ -1195,11 +1345,6 @@
     background: var(--surface-2);
     color: var(--red-hot);
     font-size: 1.4rem;
-  }
-  .control.full-time.confirming {
-    border-color: var(--red);
-    background: var(--red);
-    color: var(--on-red);
   }
   /* Quieter than Goal: a ghost button under it, words and a flag */
   .penalty {
@@ -1384,10 +1529,6 @@
   .tool:disabled {
     opacity: 0.5;
   }
-  .tool.danger {
-    background: var(--red);
-    color: var(--on-red);
-  }
   .tool-text {
     display: grid;
     gap: 0.15rem;
@@ -1396,10 +1537,6 @@
     color: var(--fg);
     font-size: var(--text-md);
     font-weight: 600;
-  }
-  .tool.danger .tool-text strong,
-  .tool.danger .tool-text span {
-    color: var(--on-red);
   }
   .tool-text span {
     font-size: var(--text-sm);
@@ -1458,21 +1595,7 @@
     width: 100%;
     height: 3.5rem;
   }
-  /* The question before starting on another day: in the big button's place, the same width */
-  .ask-day {
-    display: grid;
-    gap: var(--s-3);
-    width: min(100%, 26rem);
-    justify-self: center;
-    color: var(--fg-body);
-    text-align: center;
-  }
-  .ask-day p {
-    margin: 0;
-  }
-  .ask-actions {
-    display: flex;
-    justify-content: center;
-    gap: var(--s-2);
+  .waiting {
+    min-height: 60vh;
   }
 </style>

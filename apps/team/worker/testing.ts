@@ -13,6 +13,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { drainPush, pushOutbox, type Sent } from "./push/push";
 import {
   createDecipheriv,
+  createHash,
   createPublicKey,
   diffieHellman,
   generateKeyPairSync,
@@ -22,6 +23,26 @@ import {
 } from "node:crypto";
 import type { KeyObject } from "node:crypto";
 import { SITEVERIFY } from "@cougars/shared/turnstile";
+import { authenticator } from "./testing.authenticator";
+import { londonISO } from "@cougars/shared/london";
+import { HOLDS_HEADER, PAGE_PARTS } from "../src/app/club-parts";
+import { wholeClub } from "../src/app/club-whole";
+
+/** An issue as Sentry's API lists it, with the environment and status the fake filters by. */
+export interface SentryIssue {
+  id: string;
+  shortId: string;
+  title: string;
+  culprit: string | null;
+  count: string;
+  userCount: number;
+  level: string;
+  status: "unresolved" | "resolved" | "ignored";
+  environment: string;
+  firstSeen: string;
+  lastSeen: string;
+  permalink: string;
+}
 
 /** The token a person's Turnstile widget gives, rendered for this form (testWorld's turnstile()). */
 export const humanToken = (action: string) => `person:${action}`;
@@ -44,14 +65,40 @@ const liveNamespace = (hub: LiveHub, counted: () => void) =>
 // Tuesday 6 October 2026, midday in London
 export const NOW = new Date("2026-10-06T11:00:00Z");
 export const minutes = (n: number) => new Date(NOW.getTime() + n * 60_000);
+/**
+ * A night's evening, 9pm London that day: when the register's taken. A past night's register closes at 6am the
+ * morning after (lib/register-closes.ts, #11), so a story that ticks who came to last Friday ticks it then.
+ */
+export const onTheNight = (day: string) => new Date(londonISO(day, "21:00"));
+
+/** What one Worker invocation spent: its subrequests (fetches, emails, live hub calls) and its D1 calls. */
+interface Spent {
+  fetches: number;
+  d1: D1Spent;
+}
+/** D1 calls: round trips (a batch is one, as Workers counts its 50 queries, ADR 0123) and the statements in them. */
+export interface D1Spent {
+  roundTrips: number;
+  statements: number;
+  /** Each round trip's statements, in order, the start of each: what to look at when a count goes up. */
+  sql: string[][];
+}
+const fresh = (): Spent => ({ fetches: 0, d1: { roundTrips: 0, statements: 0, sql: [] } });
+/** The D1 calls each reply's request made, everything it awaited included (ADR 0003). */
+const spentBy = new WeakMap<Response, D1Spent>();
 
 export interface Reply {
   status: number;
+  /** The D1 calls the request made, start to finish: the tests have no waitUntil, so work after the reply counts too. */
+  d1: D1Spent;
   // The tests read whatever the API sent back; its shapes are checked by the assertions themselves.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   body: any;
   headers: Headers;
 }
+
+/** The bootstrap with every page's parts in place, as the app puts them together (#178). */
+export { wholeClub };
 
 /** The seeded luck of the last world that asked for it (luck()): a new world starts with the real thing. */
 let seeded: { mockRestore(): void } | null = null;
@@ -64,11 +111,18 @@ export function testWorld(roster: object[]) {
   db.raw.exec(FIRST_KUMITE_SQL);
   // The live hub (ADR 0072) as the Worker reaches it: one object, behind a namespace that always finds it
   const live = new LiveHub();
-  /** The subrequests of the invocation running, however many run at once (each its own count, ADR 0003). */
-  const running = new AsyncLocalStorage<{ fetches: number }>();
+  /** The subrequests and D1 calls of the invocation running, however many run at once (each its own count, ADR 0003). */
+  const running = new AsyncLocalStorage<Spent>();
   const counted = () => {
     const mine = running.getStore();
     if (mine) mine.fetches++;
+  };
+  db.onRoundTrip = (sql) => {
+    const mine = running.getStore();
+    if (!mine) return;
+    mine.d1.roundTrips++;
+    mine.d1.statements += sql.length;
+    mine.d1.sql.push(sql.map((s) => s.replace(/\s+/g, " ").trim().slice(0, 120)));
   };
   const env: Env = { DB: db, TEAM_ENV: "local", LIVE: liveNamespace(live, counted) };
   // The club's email, faked: each one the app would have sent, whole, in order (packages/shared/email.ts outbox).
@@ -87,15 +141,13 @@ export function testWorld(roster: object[]) {
   let invocations: number[] | null = null;
   /**
    * Run one Worker invocation, counting its subrequests (the free plan allows 50, ADR 0003): fetches, emails and calls
-   * to the live hub. Counted once a push service is on (`invocations`).
+   * to the live hub, listed once a push service is on (`invocations`); and its D1 calls, always (`spent.d1`).
    */
-  async function invocation<T>(run: () => Promise<T>): Promise<T> {
-    if (!invocations) return run();
-    const mine = { fetches: 0 };
+  async function invocation<T>(run: () => Promise<T>, spent: Spent = fresh()): Promise<T> {
     try {
-      return await running.run(mine, run);
+      return await running.run(spent, run);
     } finally {
-      invocations.push(mine.fetches);
+      invocations?.push(spent.fetches);
     }
   }
 
@@ -160,7 +212,8 @@ export function testWorld(roster: object[]) {
       invocations: [] as number[],
     };
     world.invocations = serve((url: string, init: RequestInit) => {
-      if (url === "https://oauth2.googleapis.com/token") {
+      // Google's token endpoint, for the service account's signed assertion (Gmail's refresh tokens are gmail()'s)
+      if (url === "https://oauth2.googleapis.com/token" && String(init.body).includes("jwt-bearer")) {
         world.fetches++;
         return Response.json({ access_token: "access", expires_in: 3600 });
       }
@@ -299,6 +352,149 @@ export function testWorld(roster: object[]) {
   }
 
   /**
+   * Gmail on (ADR 0027): the one client, the Web client, with the deployed refresh token it made (from Bitwarden,
+   * scripts/gmail-auth.mjs), the key an admin's reconnected token is sealed with; then Google's token endpoint, its
+   * consent page and Gmail's send. Google knows each refresh token's client and account; `cancel()` cancels them (a password
+   * change), with their access tokens. `busy`: Gmail rate-limits every send. Each email Gmail took is in `sent`, with
+   * the refresh token it went with. Every world has fresh tokens, so email.ts's cached access token never carries over.
+   */
+  function gmail({ account = "dev@example.com" } = {}) {
+    const deployed = `deployed-${randomUUID()}`;
+    const web = { id: `web-${randomUUID()}.apps.googleusercontent.com`, secret: `web-secret-${randomUUID()}` };
+    Object.assign(env, {
+      GMAIL_REFRESH_TOKEN: deployed,
+      GMAIL_WEB_CLIENT_ID: web.id,
+      GMAIL_WEB_CLIENT_SECRET: web.secret,
+      GMAIL_TOKEN_KEY: Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64"),
+    });
+    const SEND = "https://www.googleapis.com/auth/gmail.send";
+    const refreshTokens = new Map<string, { client: string; account: string }>([
+      [deployed, { client: web.id, account }],
+    ]);
+    const accessTokens = new Map<string, string>();
+    const codes = new Map<
+      string,
+      { account: string; scope: string; redirect: string; challenge: string; client: string }
+    >();
+    const idToken = (email: string) =>
+      `x.${Buffer.from(JSON.stringify({ email, email_verified: true })).toString("base64url")}.x`;
+    const header = (raw: string, name: string) => {
+      const line = raw.split("\r\n").find((l) => l.toLowerCase().startsWith(`${name.toLowerCase()}: `));
+      const value = line?.slice(name.length + 2) ?? "";
+      const encoded = /^=\?UTF-8\?B\?(.*)\?=$/.exec(value);
+      return encoded ? Buffer.from(encoded[1], "base64").toString() : value;
+    };
+    const world = {
+      account,
+      deployed,
+      web,
+      /** Each email Gmail took: who it was from and to, its subject, and the refresh token behind it. */
+      sent: [] as { from: string; to: string[]; subject: string; token: string }[],
+      busy: false,
+      /** Google cancels these refresh tokens (all of them, if none named), and their access tokens with them. */
+      cancel(...tokens: string[]) {
+        for (const t of tokens.length ? tokens : [...refreshTokens.keys()]) {
+          refreshTokens.delete(t);
+          for (const [access, of] of accessTokens) if (of === t) accessTokens.delete(access);
+        }
+      },
+      /** The refresh tokens Google would still take. */
+      live: () => [...refreshTokens.keys()],
+      /**
+       * Google's consent page, as the admin goes through it from the app's link: they sign in as `as`, and tick
+       * "Send email on your behalf" (`send`) or not, or press Cancel (`deny`). Where Google sends the browser back.
+       */
+      consent(link: string, { as = account, send = true, deny = false } = {}): string {
+        const u = new URL(link);
+        if (u.origin + u.pathname !== "https://accounts.google.com/o/oauth2/v2/auth")
+          throw new Error(`Not Google: ${link}`);
+        const q = u.searchParams;
+        if (q.get("client_id") !== web.id) throw new Error(`Not the Web client: ${q.get("client_id")}`);
+        const back = new URL(q.get("redirect_uri")!);
+        back.searchParams.set("state", q.get("state") ?? "");
+        if (deny) {
+          back.searchParams.set("error", "access_denied");
+          return back.pathname + back.search;
+        }
+        const asked = (q.get("scope") ?? "").split(" ");
+        const scope = asked.filter((s) => s !== SEND || send).join(" ");
+        const code = `code-${randomUUID()}`;
+        codes.set(code, {
+          account: as,
+          scope,
+          redirect: q.get("redirect_uri")!,
+          challenge: q.get("code_challenge") ?? "",
+          client: web.id,
+        });
+        back.searchParams.set("code", code);
+        back.searchParams.set("scope", scope);
+        return back.pathname + back.search;
+      },
+    };
+    serve((url, init) => {
+      if (url === "https://oauth2.googleapis.com/token") {
+        const p = new URLSearchParams(String(init.body));
+        if (p.get("grant_type") === "refresh_token") {
+          const known = refreshTokens.get(p.get("refresh_token") ?? "");
+          if (!known || known.client !== p.get("client_id") || p.get("client_secret") !== web.secret)
+            return Response.json(
+              { error: "invalid_grant", error_description: "Token has been expired or revoked." },
+              { status: 400 },
+            );
+          const access = `access-${randomUUID()}`;
+          accessTokens.set(access, p.get("refresh_token")!);
+          return Response.json({ access_token: access, expires_in: 3599, id_token: idToken(known.account) });
+        }
+        if (p.get("grant_type") === "authorization_code") {
+          const c = codes.get(p.get("code") ?? "");
+          codes.delete(p.get("code") ?? "");
+          const verifier = createHash("sha256")
+            .update(p.get("code_verifier") ?? "")
+            .digest("base64url");
+          if (
+            !c ||
+            p.get("client_id") !== c.client ||
+            p.get("client_secret") !== web.secret ||
+            p.get("redirect_uri") !== c.redirect ||
+            verifier !== c.challenge
+          )
+            return Response.json({ error: "invalid_grant" }, { status: 400 });
+          const refresh = `reconnected-${randomUUID()}`;
+          refreshTokens.set(refresh, { client: c.client, account: c.account });
+          const access = `access-${randomUUID()}`;
+          accessTokens.set(access, refresh);
+          return Response.json({
+            access_token: access,
+            expires_in: 3599,
+            refresh_token: refresh,
+            scope: c.scope,
+            id_token: idToken(c.account),
+          });
+        }
+        return null;
+      }
+      if (url !== "https://gmail.googleapis.com/gmail/v1/users/me/messages/send") return null;
+      const bearer = new Headers(init.headers).get("authorization")?.replace(/^Bearer /, "") ?? "";
+      const token = accessTokens.get(bearer);
+      if (!token) return Response.json({ error: { code: 401, message: "Invalid Credentials" } }, { status: 401 });
+      if (world.busy)
+        return Response.json(
+          { error: { message: "User-rate limit exceeded", errors: [{ reason: "rateLimitExceeded" }] } },
+          { status: 429 },
+        );
+      const raw = Buffer.from(JSON.parse(String(init.body)).raw, "base64url").toString();
+      world.sent.push({
+        from: header(raw, "From"),
+        to: header(raw, "To").split(", "),
+        subject: header(raw, "Subject"),
+        token,
+      });
+      return Response.json({ id: `msg-${world.sent.length}` });
+    });
+    return world;
+  }
+
+  /**
    * Cloudflare Turnstile on (#13): the team app has a secret, and siteverify answers. A browser's widget gives
    * `humanToken(action)`, which Cloudflare confirms for that action; any other token, or none, it says no to. `down`:
    * Cloudflare can't be reached. `asked`: each check, as Cloudflare got it.
@@ -316,6 +512,86 @@ export function testWorld(roster: object[]) {
       return Response.json(
         known ? { success: true, action } : { success: false, "error-codes": ["invalid-input-response"] },
       );
+    });
+    return world;
+  }
+
+  /**
+   * Sentry's API on (ADR 0110): the read-only token, and each project's issues as Sentry lists them
+   * (`GET /api/0/projects/battersea-cougars/{project}/issues/`), the open ones in the environment asked for. A test
+   * puts issues in `issues.team` or `issues.web` (`issue()` makes one), and says `down` (no answer) or `refuses` (the
+   * token isn't let in). `asked`: each request's project and query, as Sentry got them.
+   */
+  function sentry() {
+    env.SENTRY_ISSUES_TOKEN = "sentry-issues-test-token";
+    const world = {
+      issues: { team: [] as SentryIssue[], web: [] as SentryIssue[] },
+      asked: [] as { project: string; query: string; statsPeriod: string | null }[],
+      down: false,
+      refuses: false,
+    };
+    serve((url, init) => {
+      const m = /^https:\/\/de\.sentry\.io\/api\/0\/projects\/battersea-cougars\/(team|web)\/issues\/(\?.*)?$/.exec(
+        url,
+      );
+      if (!m) return null;
+      const q = new URL(url).searchParams;
+      world.asked.push({ project: m[1], query: q.get("query") ?? "", statsPeriod: q.get("statsPeriod") });
+      if (world.down) throw new Error("connect ETIMEDOUT");
+      const auth = new Headers(init.headers).get("authorization");
+      if (world.refuses || auth !== `Bearer ${env.SENTRY_ISSUES_TOKEN}`)
+        return Response.json({ detail: "Invalid token" }, { status: 401 });
+      const environment = /environment:(\S+)/.exec(q.get("query") ?? "")?.[1];
+      const open = world.issues[m[1] as "team" | "web"].filter(
+        (i) => i.status === "unresolved" && (!environment || i.environment === environment),
+      );
+      // Sentry gives its fields, not the environment it was filtered by
+      return Response.json(open.map(({ environment: _e, ...i }) => i));
+    });
+    let n = 0;
+    /** An issue as Sentry has it: `count` a string, as Sentry gives it. */
+    const issue = (o: Partial<SentryIssue> & { title: string }): SentryIssue => {
+      n++;
+      return {
+        id: String(4000 + n),
+        shortId: `TEAM-${n}`,
+        culprit: "GET /api/bootstrap",
+        count: "1",
+        userCount: 1,
+        level: "error",
+        status: "unresolved",
+        environment: "dev",
+        firstSeen: NOW.toISOString(),
+        lastSeen: NOW.toISOString(),
+        permalink: `https://battersea-cougars.sentry.io/issues/${4000 + n}/`,
+        ...o,
+      };
+    };
+    return Object.assign(world, { issue });
+  }
+
+  /**
+   * Sentry's ingest on (ADR 0110): a DSN, so the Worker's Sentry is on, and the envelopes it sends answered. `checkIns`:
+   * each cron check-in it sent, in order, by monitor and status; `events`: how many other events (errors) came with them.
+   */
+  function sentryIngest() {
+    env.SENTRY_DSN = "https://publickey@o1.ingest.de.sentry.io/1";
+    const world = { checkIns: [] as { monitor: string; status: string }[], events: 0 };
+    serve((url, init) => {
+      if (!url.startsWith("https://o1.ingest.de.sentry.io/api/1/envelope/")) return null;
+      const body = init.body instanceof Uint8Array ? new TextDecoder().decode(init.body) : String(init.body);
+      // An envelope: its header, then each item's header and its payload, a line each
+      const [, ...lines] = body.split("\n").filter(Boolean);
+      for (let i = 0; i + 1 < lines.length; i += 2) {
+        const { type } = JSON.parse(lines[i]);
+        if (type !== "check_in") {
+          world.events++;
+          continue;
+        }
+        const { monitor_slug: monitor, status } = JSON.parse(lines[i + 1]);
+        world.checkIns.push({ monitor, status });
+      }
+      return Response.json({});
     });
     return world;
   }
@@ -346,13 +622,13 @@ export function testWorld(roster: object[]) {
     });
   }
 
-  /** The cron triggers' notification drain (index.ts `scheduled`, every five minutes and hourly), at this time. */
+  /** The cron triggers' notification drain (index.ts `scheduled`: a five-minute run's batch), at this time. */
   const cron = (now: Date) => invocation(() => drainPush(env, now));
   /**
    * One run of a Cron Trigger, whole, as Cloudflare runs it (index.ts `scheduled`, inside Sentry's wrapper, which
    * wants the execution context): every job it does, in one invocation, with what it left to waitUntil finished in it.
    */
-  const scheduled = (trigger: "*/5 * * * *" | "7 * * * *", now: Date) =>
+  const scheduled = (trigger: "* * * * *" | "*/5 * * * *" | "7 * * * *", now: Date) =>
     invocation(async () => {
       const after: Promise<unknown>[] = [];
       const ctx = { waitUntil: (p: Promise<unknown>) => void after.push(p), passThroughOnException() {} };
@@ -385,21 +661,27 @@ export function testWorld(roster: object[]) {
       // Like a real browser, a change carries the page's Origin
       const sent: Record<string, string | null> = {
         "content-type": "application/json",
+        // An app that's read every page (as it has, once it's idle, #178): a change sends back its parts of them too
+        [HOLDS_HEADER]: PAGE_PARTS.join(","),
         cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; "),
         ...(method === "GET" || method === "HEAD" ? {} : { origin: new URL(host).origin }),
         ...headers,
       };
-      const res = await invocation(() =>
-        handleApi(
-          new Request(`${host}${path}`, {
-            method,
-            headers: Object.entries(sent).filter((e): e is [string, string] => e[1] !== null),
-            body: payload === undefined ? undefined : JSON.stringify(payload),
-          }),
-          env,
-          now,
-        ),
+      const spent = fresh();
+      const res = await invocation(
+        () =>
+          handleApi(
+            new Request(`${host}${path}`, {
+              method,
+              headers: Object.entries(sent).filter((e): e is [string, string] => e[1] !== null),
+              body: payload === undefined ? undefined : JSON.stringify(payload),
+            }),
+            env,
+            now,
+          ),
+        spent,
       );
+      spentBy.set(res, spent.d1);
       for (const c of res.headers.getSetCookie()) {
         const [pair, ...attrs] = c.split("; ");
         const [k, v] = pair.split("=");
@@ -411,9 +693,22 @@ export function testWorld(roster: object[]) {
     async function call(method: string, path: string, payload?: unknown, options: Options = {}): Promise<Reply> {
       const res = await open(method, path, options, payload);
       const isJson = res.headers.get("content-type")?.includes("json");
-      return { status: res.status, body: isJson ? await res.json() : {}, headers: res.headers };
+      return { status: res.status, body: isJson ? await res.json() : {}, headers: res.headers, d1: spentBy.get(res)! };
     }
-    return { call, open, jar };
+    /**
+     * The club as the app holds it once its pages are read (#178): the bootstrap, then every page's parts, put together
+     * as the app puts them (src/app/club-whole.ts). The bootstrap's own reply but for its body: its status (a 304, a
+     * 401), headers and D1 calls, so what opening the app costs is still the bootstrap's.
+     */
+    async function club(options: Options = {}): Promise<Reply> {
+      const boot = await call("GET", "/api/bootstrap", undefined, options);
+      if (boot.status !== 200) return boot;
+      const { now, host } = options;
+      const pages = await call("GET", `/api/slices?names=${PAGE_PARTS.join(",")}`, undefined, { now, host });
+      if (pages.status !== 200) return boot;
+      return { ...boot, body: wholeClub(boot.body, pages.body.slices) };
+    }
+    return { call, open, club, jar };
   }
 
   /** Ask for a code, as a person (their Turnstile token, checked once turnstile() is on); the reply (with the code,
@@ -439,7 +734,7 @@ export function testWorld(roster: object[]) {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
     let buffered = "";
-    /** The next event (not a comment), as {event, data}. */
+    /** The next event (not a comment, nor the hub's heartbeat), as {event, data}. */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async function next(): Promise<{ event: string; data: any }> {
       for (;;) {
@@ -455,8 +750,9 @@ export function testWorld(roster: object[]) {
               ?.slice(name.length + 1)
               .trim();
           const data = field("data");
-          if (data === undefined) continue;
-          return { event: field("event") ?? "message", data: JSON.parse(data) };
+          const event = field("event") ?? "message";
+          if (data === undefined || event === "ping") continue;
+          return { event, data: JSON.parse(data) };
         }
         const { value, done } = await reader.read();
         if (done) throw new Error("the stream ended");
@@ -477,10 +773,34 @@ export function testWorld(roster: object[]) {
     mails,
     pushes,
     firebase,
+    gmail,
     webPush,
+    /** Another outside service, answered by the test: its answer to a URL it knows, or null for the next one's. */
+    serve,
     turnstile,
+    sentry,
+    sentryIngest,
+    /** A device's passkeys (testing.authenticator.ts): real keys, real signatures. */
+    authenticator,
     cron,
     scheduled,
     luck,
   };
+}
+
+/**
+ * A team's logo as its crest shows it: the club read sends its address (#175), or a small one itself (#177), read here and given back as the
+ * data: URL it was saved as, so a use case can say which image it is. Null for none.
+ */
+export async function logoAt(
+  b: { open: (method: string, path: string) => Promise<Response> },
+  address: string | null,
+): Promise<string | null> {
+  if (address === null) return null;
+  // A small one comes as itself (#177)
+  if (address.startsWith("data:")) return address;
+  const res = await b.open("GET", address);
+  if (!res.ok) throw new Error(`${address}: ${res.status}`);
+  const bytes = Buffer.from(await res.arrayBuffer()).toString("base64");
+  return `data:${res.headers.get("content-type")};base64,${bytes}`;
 }

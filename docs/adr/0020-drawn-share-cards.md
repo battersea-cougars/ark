@@ -34,5 +34,5 @@ as soon as a time, venue or event changes, and the team manager shouldn't have t
 ## History
 
 - 2026-10-06: Share pictures are drawn at build time.
-- 2026-10-20: The VHS frame (PLAY ▶, SP, scan lines) became a scoreboard line ([ADR 0114](0114-website-look.md)).
+- 2026-10-20: The VHS frame (PLAY ▶, SP, scan lines) became a scoreboard line ([ADR 0009](0009-site-design-direction.md)).
 - 2026-10-20: The scoreboard line is in Anton, red, without the light; VT323 and its TTF copy dropped.

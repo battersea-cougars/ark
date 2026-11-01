@@ -1,12 +1,12 @@
 // Sign-ups (ADR 0036): in or out of a session, a tournament or a club event, and an admin putting someone in.
 import { id, memberIdIn, ok, rowsOf, type Route } from "../api/api.route";
-import { type Slice } from "../api/api.slices";
+import { type Changed } from "../api/api.slices";
 import { TABLES, answer, setPlayer, type EntryKind } from "./entries";
 import { HttpError, body, json } from "../api/api.http";
 import { places } from "../push/push.notices";
 
 // The same routes for each kind of event
-const KINDS: [string, EntryKind, Slice][] = [
+const KINDS: [string, EntryKind, Changed][] = [
   ["sessions", "session", "sessions"],
   ["tournaments", "tournament", "tournaments"],
   ["club-events", "event", "clubEvents"],
@@ -17,17 +17,21 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     path: new RegExp(`^/api/${path}/(\\d+)/answer$`),
     audit: { none: "a member's own sign-up: the sign-ups are their own record (signed_up_at)" },
     action: "signup:Event",
-    changes: slice === "clubEvents" ? [slice] : [slice, "charges", "credits", "payments"],
+    // A training night's answer changes tonight's nights only: one already held takes no answers, its register closed
+    // the morning after (#178), so the weeks just held aren't read again for it
+    changes: slice === "clubEvents" ? [slice] : [slice === "sessions" ? "tonight" : slice, "charges", "dues"],
     // Who's in: nothing on the calendar moves
     calendar: false,
     // Out of a full event: the first waiting is in, and hears it. A Quarterly Member in for a full training: the one
     // whose place they took is waiting now, and hears that
-    notify: places(kind),
-    // You, in or out
+    notify: places,
+    // You, in or out; "clear" takes back your Out, back to not answered
     handle: async (c) => {
       const b = await body(c.request);
-      if (b.answer !== "in" && b.answer !== "out") throw new HttpError(400, "In or out?");
-      await answer(c.env.DB, kind, id(c), c.memberId, b.answer, c.now);
+      if (b.answer !== "in" && b.answer !== "out" && b.answer !== "clear") throw new HttpError(400, "In or out?");
+      // Someone new to a night's answers is new to everyone's Home's people (#178); otherwise they're as they were
+      if ((await answer(c.env.DB, kind, id(c), c.memberId, b.answer, c.now)) && slice === "sessions")
+        c.alsoChanged.push("people");
       return ok();
     },
   },
@@ -40,14 +44,14 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
         `SELECT member_id memberId, signup FROM ${TABLES[kind].table} WHERE ${TABLES[kind].key} = ? ORDER BY member_id`,
       ),
     },
-    notify: places(kind),
+    notify: places,
     action: "update:Event",
     // A past session's line-up is what a player's "played" counts
     changes:
       slice === "sessions"
-        ? ["sessions", "members", "charges", "credits", "payments"]
+        ? ["sessions", "members", "charges", "dues"]
         : slice === "tournaments"
-          ? [slice, "charges", "credits", "payments"]
+          ? [slice, "charges", "dues"]
           : [slice],
     calendar: false,
     // An admin puts someone in (a training's places kept: in, or waiting), or takes them off; the reply says where

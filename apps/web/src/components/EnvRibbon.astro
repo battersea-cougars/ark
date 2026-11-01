@@ -1,0 +1,81 @@
+---
+import { ribbonHead, type Ribbon } from "@cougars/shared/ribbon";
+
+// Which copy of the site this is, in the bottom-right corner (ADR 0010): LOCAL (and below it the checkout's branch) or
+// DEV. Base.astro leaves it out in production, so the live site has none of it. Never in the way: taps go through it,
+// and it sits clear of the phone's home bar.
+interface Props {
+  ribbon: Ribbon;
+}
+const { ribbon } = Astro.props;
+---
+
+<div class="env-ribbon" aria-hidden="true" transition:persist="env-ribbon">
+  <span>
+    <b>{ribbonHead(ribbon)}</b>
+    {ribbon.branch && <i>{ribbon.branch}</i>}
+  </span>
+</div>
+
+<style>
+  .env-ribbon {
+    /* --in: the band's middle sits --in in from each edge, so it meets the edges 2 × --in from the corner and is 2√2 ×
+       --in long across it: enough for "LOCAL · own data" (about 7.5rem). --box, the corner it's clipped to, reaches
+       past where the band meets the edges, so its ends are cut by the screen's edges, not the box's */
+    --in: 4rem;
+    --box: calc(var(--in) * 2 + 1.5rem);
+    position: fixed;
+    right: env(safe-area-inset-right, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 180;
+    width: var(--box);
+    height: var(--box);
+    overflow: hidden;
+    pointer-events: none;
+  }
+  span {
+    /* Centred on the corner's diagonal, longer than the corner is across there, its ends clipped */
+    position: absolute;
+    top: 100%;
+    left: 100%;
+    display: grid;
+    gap: 0.2rem;
+    box-sizing: border-box;
+    width: calc(var(--in) * 4);
+    padding: 0.3rem 0.6rem;
+    transform: translate(calc(-50% - var(--in)), calc(-50% - var(--in))) rotate(-45deg);
+    background: var(--yellow);
+    color: #0d0d0f;
+    text-align: center;
+    box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+  }
+  b,
+  i {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-style: normal;
+  }
+  b {
+    font:
+      700 0.625rem/1 var(--sans),
+      sans-serif;
+    letter-spacing: 0.14em;
+  }
+  /* The branch, nearer the corner where the band is shorter */
+  i {
+    padding-inline: 0.3rem;
+    font:
+      600 0.6rem/1 var(--sans),
+      sans-serif;
+    letter-spacing: 0.02em;
+  }
+  @media (max-width: 720px) {
+    .env-ribbon {
+      --in: 3.6rem;
+    }
+    b {
+      letter-spacing: 0.06em;
+    }
+  }
+</style>

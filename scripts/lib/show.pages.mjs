@@ -1,4 +1,4 @@
-// The show switch's two pages (ADR 0115): the holding page a public port answers with while the shown app isn't
+// The show switch's two pages (ADR 0115; the third, /__secrets, is secrets-page.mjs): the holding page a public port answers with while the shown app isn't
 // answering (it looks again every 2 s), and the control page at /__app on each public port.
 
 const esc = (s) =>
@@ -39,6 +39,7 @@ button.main{background:var(--accent);color:#131211}button:disabled{opacity:.4;cu
 </style></head><body><main>
 <h1>Cougars apps</h1>
 <p class="sub" id="sub"></p>
+<p class="sub"><a href="/__secrets">Secrets: hand one to Bitwarden, check what's there →</a></p>
 <div id="list"></div>
 <pre id="log"></pre>
 </main><script>

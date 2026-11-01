@@ -16,10 +16,20 @@ export const KUMITE_KANJI = {
   awards: "賞",
   /** Victory, the champions. */
   champions: "優勝",
+  /** Sealed: an award not yet revealed, its winner under a seal that breaks on Reveal (lib/AwardStage). */
+  awardSealed: "封",
   /** The draft's steps (its step card): lots, drawn for the order; open, the gong; decided, the teams sealed. */
   draw: "籤",
   open: "開",
   sealed: "決",
+  /** The invitation's wax seal: "invite". Its sign-up is an invitation (invitationOnly). */
+  invite: "招",
+  /** Choose: the seal on your turn's button in the draft room. Yes, the pick decided, reuses 決. */
+  choose: "選",
+  /** A match card's stamps (lib/GameCard): next, You are next!; victory, a win; parted, a draw. */
+  next: "次",
+  won: "勝",
+  drawn: "分",
   /** Blood, martial, fist: kept for the draft and the board. */
   blood: "血",
   martial: "武",
@@ -31,3 +41,7 @@ export type MotifKey = keyof typeof KUMITE_KANJI;
 /** The kanji for this series and part of the page, or nothing for a series without the motif. */
 export const kanjiFor = (type: Pick<TournamentType, "slug"> | undefined, key: MotifKey) =>
   type?.slug === "kumite" ? KUMITE_KANJI[key] : "";
+
+/** The Kumite is invitation-only, as in Bloodsport: its sign-up is an invitation you accept or decline, its players
+ * are fighters with a number (lib/KumiteInvite), and Home and its notification say so. Every other series asks plainly. */
+export const invitationOnly = (type: Pick<TournamentType, "slug"> | undefined) => type?.slug === "kumite";

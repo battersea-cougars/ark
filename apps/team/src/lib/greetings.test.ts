@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fill, NAG_FROM, ordinal, slot } from "./greetings";
+import { ordinal } from "./dates";
+import { fill, NAG_FROM, slot } from "./greetings";
 
 describe("Home's greeting", () => {
   it("goes by the hour in London, not the device", () => {

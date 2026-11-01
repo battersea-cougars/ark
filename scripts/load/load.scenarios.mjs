@@ -99,7 +99,9 @@ async function fridayRush({ target, roster, stats, shared, notes }) {
  */
 async function liveDraft({ target, roster, stats, shared, notes }) {
   const admin = await adminPhone(target, roster, stats, shared);
-  const club = await admin.boot("setup");
+  await admin.boot("setup");
+  // The roster is the members' page's (#178)
+  const club = await admin.page("setup", ["members"]);
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const type = must(
     await admin.call("setup", "POST", "/api/tournament-types", {
@@ -172,7 +174,10 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
     return { teams, made, pool, team: teams[onTheClock(teams.length, made)] };
   };
   // Everyone watching: the stream, reloading on each pick
-  const stops = watching.map((p) => (p.boot("bootstrap: open the draft"), p.follow(["tournaments"])));
+  // Opening the draft room: the core, then the Kumite's pages' parts (#178), as the app reads them
+  const opened = (p) =>
+    p.boot("bootstrap: open the draft").then(() => p.page("page: the draft room", ["members", "lastPlayed"]));
+  const stops = watching.map((p) => (opened(p), p.follow(["tournaments"])));
   // The captains: on each change, the one on the clock thinks a moment and picks
   const busy = new Set();
   const turn = async (cap) => {
@@ -195,6 +200,7 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
   };
   for (const cap of captainPhones) {
     await cap.boot("bootstrap: open the draft");
+    await cap.page("page: the draft room", ["members", "lastPlayed"]);
     stops.push(cap.follow(["tournaments"], () => turn(cap)));
     turn(cap);
   }
@@ -231,10 +237,16 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
   );
 }
 
-/** A game scored live: one scorekeeper, 80 members following the game page. */
-async function scoring({ target, roster, stats, shared, notes }) {
+/**
+ * A game scored live: one scorekeeper, `followers` members (80, at most the roster's less ten) following the game
+ * page. Besides the run's totals, what each of the scorekeeper's changes cost once everyone's on the page: the
+ * requests and D1 rows read a change, and how long until every phone shows it (from the tap to the game on its screen).
+ */
+async function scoring({ target, roster, stats, shared, followers = 80, notes, d1 }) {
   const admin = await adminPhone(target, roster, stats, shared);
-  const club = await admin.boot("setup");
+  await admin.boot("setup");
+  // The roster is the members' page's (#178)
+  const club = await admin.page("setup", ["members"]);
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const captains = roster.slice(1, 4);
   const t = must(
@@ -268,39 +280,106 @@ async function scoring({ target, roster, stats, shared, notes }) {
   const keeper = await adminPhone(target, [keeperName], stats, shared, "10.9.9.8");
   const viewers = await phones(
     target,
-    roster.slice(10, 90).map((r) => r.email),
+    roster.slice(10, 10 + Math.min(followers, roster.length - 10)).map((r) => r.email),
     stats,
     { shared },
   );
-  const stops = viewers.map((p) => (p.boot("bootstrap: open the game"), p.follow(["tournaments"])));
+  // The game as each phone shows it, each time it changes: when the phone first had each state
+  const shown = (c) => JSON.stringify(c?.tournaments?.find((y) => y.id === t.id)?.games.find((y) => y.id === game.id));
+  const seen = viewers.map(() => []);
+  // Everyone opens the game page first: the changes' cost is counted from once they're all on it
+  await Promise.all(
+    viewers.map((p) =>
+      p.boot("bootstrap: open the game").then(() => p.page("page: the game", ["members", "lastPlayed"])),
+    ),
+  );
+  const stops = viewers.map((p, i) =>
+    p.follow(["tournaments"], (c) => seen[i].push({ at: performance.now(), game: shown(c) })),
+  );
   await sleep(2000);
+  // From here, the scorekeeper's changes: their cost, and each one's state of the game and when it was sent
+  const from = { rows: d1 ? (await d1()).rowsRead : null, requests: stats.rows.length };
+  const sent = [];
   const path = `/api/tournaments/${t.id}/games/${game.id}`;
-  must(await keeper.change("claim the sheet", "POST", `${path}/scorer`, { action: "claim" }), "claim");
-  must(await keeper.change("clock", "POST", `${path}/clock`, { action: "start" }), "start");
+  const score = async (label, method, where, payload) => {
+    const at = performance.now();
+    const r = await keeper.change(label, method, where, payload);
+    sent.push({ at, game: shown(r.body?.changed) });
+    return r;
+  };
+  must(await score("claim the sheet", "POST", `${path}/scorer`, { action: "claim" }), "claim");
+  must(await score("clock", "POST", `${path}/clock`, { action: "start" }), "start");
   const home = game.homeTeamId;
   const away = game.awayTeamId;
   for (let i = 0; i < 12; i++) {
     await sleep(2500);
-    await keeper.change("goal", "POST", `${path}/goals`, { teamId: i % 3 ? home : away });
+    await score("goal", "POST", `${path}/goals`, { teamId: i % 3 ? home : away });
     if (i % 4 === 1)
-      await keeper.change("penalty", "POST", `${path}/penalties`, {
+      await score("penalty", "POST", `${path}/penalties`, {
         teamId: i % 2 ? away : home,
         infraction: "delay-of-game",
       });
     if (i === 5) {
-      await keeper.change("clock", "POST", `${path}/clock`, { action: "period", period: 1 });
+      await score("clock", "POST", `${path}/clock`, { action: "period", period: 1 });
       await sleep(1000);
-      await keeper.change("clock", "POST", `${path}/clock`, { action: "start" });
+      await score("clock", "POST", `${path}/clock`, { action: "start" });
     }
-    if (i === 8) await keeper.change("undo goal", "DELETE", `${path}/goals/last`);
+    if (i === 8) await score("undo goal", "DELETE", `${path}/goals/last`);
   }
-  await keeper.change("clock", "POST", `${path}/clock`, { action: "end" });
+  await score("clock", "POST", `${path}/clock`, { action: "end" });
   await sleep(4000);
+  const changes = sent.length;
+  const during = stats.rows
+    .slice(from.requests)
+    // A stream opening is the page's, not a change's
+    .filter(
+      (r) => !r.label.startsWith("live: event") && !["live: change to screen", "live: connect"].includes(r.label),
+    );
+  const reads = during.filter((r) => r.label.startsWith("live: read")).length;
+  const rows = d1 ? (await d1()).rowsRead - from.rows : null;
+  notes.push(
+    `Scoring, ${viewers.length} following: ${changes} changes; a change ${(during.length / changes).toFixed(1)} requests, ` +
+      `${(reads / changes).toFixed(1)} reads on the phones` +
+      (rows === null ? "" : `, ${Math.round(rows / changes)} D1 rows read`) +
+      `; at most ${peakIn10s(stats, during)} requests in 10 s (the domain's rule: 150 an address)`,
+  );
+  notes.push(toEveryScreen(sent, seen));
   const g = (await admin.boot("setup")).tournaments.find((y) => y.id === t.id).games.find((y) => y.id === game.id);
   notes.push(`Full time: ${g.homeGoals}–${g.awayGoals}, ${g.status}`);
   await Promise.all(stops.map((s) => s()));
   notes.push(
     `The game's tournament deleted: ${(await admin.call("setup", "DELETE", `/api/tournaments/${t.id}`)).status}`,
+  );
+}
+
+/** The most of these requests sent in one of the clock's 10-second windows, as the domain's rule counts them. */
+function peakIn10s(stats, rows) {
+  const windows = new Map();
+  for (const r of rows) {
+    const w = Math.floor((stats.startedAt + r.at - r.ms) / 10_000);
+    windows.set(w, (windows.get(w) ?? 0) + 1);
+  }
+  return Math.max(0, ...windows.values());
+}
+
+/**
+ * How long each change took to reach the screens: from the tap to the last phone showing it (or anything after it,
+ * once it's moved on), and to each phone. `sent`: each change's game and when it was sent; `seen`: each phone's.
+ */
+function toEveryScreen(sent, seen) {
+  const toEvery = sent.map((s, k) => {
+    const states = new Set(sent.slice(k).map((later) => later.game));
+    const times = seen.map((list) => list.find((v) => v.at >= s.at && states.has(v.game))?.at ?? Infinity);
+    return { last: Math.max(...times) - s.at, each: times.map((at) => at - s.at) };
+  });
+  const sorted = (xs) => xs.filter(Number.isFinite).sort((a, b) => a - b);
+  const at = (xs, p) => Math.round(xs[Math.min(xs.length - 1, Math.floor(p * xs.length))] ?? NaN);
+  const lasts = sorted(toEvery.map((c) => c.last));
+  const each = sorted(toEvery.flatMap((c) => c.each));
+  const missed = toEvery.reduce((n, c) => n + c.each.filter((v) => !Number.isFinite(v)).length, 0);
+  return (
+    `A change to every screen (tap to the last phone): p50 ${at(lasts, 0.5)} ms, p95 ${at(lasts, 0.95)} ms; ` +
+    `to each phone p50 ${at(each, 0.5)} ms, p95 ${at(each, 0.95)} ms; never shown ${missed}`
   );
 }
 

@@ -106,4 +106,32 @@ describe("WebCrypto in tests", () => {
       true,
     );
   });
+
+  it("checks a passkey's signature as WebCrypto does, at once: ES256 and RS256 from a JWK (worker/auth/auth.passkeys.ts)", async () => {
+    const cases = [
+      { gen: { name: "ECDSA", namedCurve: "P-256" }, use: { name: "ECDSA", hash: "SHA-256" } },
+      {
+        gen: {
+          name: "RSASSA-PKCS1-v1_5",
+          modulusLength: 2048,
+          publicExponent: new Uint8Array([1, 0, 1]),
+          hash: "SHA-256",
+        },
+        use: { name: "RSASSA-PKCS1-v1_5" },
+      },
+    ];
+    for (const { gen, use } of cases) {
+      const pair = (await proto.generateKey.call(crypto.subtle, gen, true, ["sign", "verify"])) as CryptoKeyPair;
+      const jwk = (await proto.exportKey.call(crypto.subtle, "jwk", pair.publicKey)) as JsonWebKey;
+      const signature = await real.sign(use as never, pair.privateKey, data);
+      const imported = crypto.subtle.importKey("jwk", jwk, { ...gen, hash: "SHA-256" } as never, false, ["verify"]);
+      expect(await settles(imported)).toBe(true);
+      const good = crypto.subtle.verify(use as never, await imported, signature, data);
+      expect(await settles(good)).toBe(true);
+      expect(await good).toBe(true);
+      expect(await crypto.subtle.verify(use as never, await imported, signature, new TextEncoder().encode("no"))).toBe(
+        false,
+      );
+    }
+  });
 });

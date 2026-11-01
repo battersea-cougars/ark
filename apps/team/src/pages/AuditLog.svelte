@@ -4,6 +4,7 @@
   // for want of an action, newest first, in plain words, a page at a time. A table like the app's others: a row per
   // entry (when, what, its area), a search over who and what, and chips by area. Read when the page opens; Refresh
   // reads it again.
+  import { formatDayDate, formatTime, plural, pounds } from "../lib/dates";
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
@@ -12,7 +13,6 @@
   import { flip } from "svelte/animate";
   import { cardMoveMs, easeOut, sift } from "../app/motion";
   import { ACTIONS, type Action } from "../access/actions";
-  import { formatDayDate, formatTime, pounds } from "../lib/dates";
 
   interface Entry {
     id: number;
@@ -51,6 +51,22 @@
   const label = (a: unknown) => (typeof a === "string" && a in ACTIONS ? ACTIONS[a as Action].name : String(a));
   const list = (v: unknown) => (Array.isArray(v) && v.length ? v.map(label).join(", ") : "nothing");
   const str = (v: unknown) => (typeof v === "string" && v ? v : "none");
+  // Why a reconnect didn't take (Settings → Email)
+  const RECONNECT_TRIED: Record<string, string> = {
+    denied: "Google's page was cancelled",
+    "no-send": '"Send email on your behalf" wasn\'t ticked',
+    club: "it was the club's own account",
+    expired: "it took too long, or came back to another browser",
+    failed: "Google gave no new token",
+  };
+  // Why a test email didn't go (Settings → Email)
+  const TEST_RESULT: Record<string, string> = {
+    logged: "no email is set up there, so it was logged",
+    cancelled: "Google had cancelled the token",
+    paused: "Gmail was busy",
+    failed: "Gmail didn't take it",
+    refused: "the app refused to send it",
+  };
   /** A count and its noun: 1 match, 2 matches. */
   const count = (n: unknown, one: string, many = `${one}s`) => `${Number(n ?? 0)} ${Number(n ?? 0) === 1 ? one : many}`;
   const num = (v: unknown) => (typeof v === "number" ? v : 0);
@@ -73,16 +89,25 @@
       case "sign_out":
         return d.everywhere ? `${who} signed out everywhere` : `${who} signed out`;
       case "member.signed_out":
-        return `${who} signed ${about} out everywhere (${num(from?.sessions)} sign-in${num(from?.sessions) === 1 ? "" : "s"} ended)`;
+        return `${who} signed ${about} out everywhere (${plural(num(from?.sessions), "sign-in")} ended)`;
       case "sign_in.capped":
         return `${who}'s sign-in stopped for the day: too many wrong codes`;
       case "access.requested":
         return `${who} asked to join`;
+      case "view_as.started":
+        return `${who} started viewing the app as ${about}`;
+      case "view_as.ended":
+        return `${who} stopped viewing the app as ${about}`;
       case "member.added":
-        return `${who} added ${about} (${str(to?.email)})`;
+        // Whether they were emailed the app link (#164); entries from before don't say
+        return `${who} added ${about} (${str(to?.email)})${to?.emailed === true ? ", and emailed them the app link" : to?.emailed === false ? ", without emailing them" : ""}`;
+      case "member.app_link":
+        return to?.emailed
+          ? `${who} emailed ${about} the app link`
+          : `${who} tried to email ${about} the app link, but it didn't go`;
       case "members.imported": {
         const added = (to?.added as string[] | undefined) ?? [];
-        return `${who} imported ${added.length} member${added.length === 1 ? "" : "s"} from a file: ${list(added)}`;
+        return `${who} imported ${plural(added.length, "member")} from a file: ${list(added)}`;
       }
       case "member.updated": {
         const changes: string[] = [];
@@ -134,10 +159,16 @@
         const ids = (to?.memberIds as number[] | undefined) ?? [];
         return ids.length === 1
           ? `${who} emailed ${about} what they owe`
-          : `${who} emailed ${ids.length} member${ids.length === 1 ? "" : "s"} what they owe`;
+          : `${who} emailed ${plural(ids.length, "member")} what they owe`;
       }
       case "settings.bank":
         return `${who} changed the club's bank details`;
+      // The reminder of next quarter's plan (#187): how many days before a quarter it goes ({ days })
+      case "settings.plan_reminder":
+        return `${who} set the Quarterly reminder to ${plural(Number(to?.days ?? 0), "day")} before each quarter`;
+      // The app told a Quarterly Member next quarter's fee is due ({ memberId, quarter, via: push or email })
+      case "dues.plan_reminded":
+        return `The app told ${about} their ${str(d.quarter)} fee is due, by ${d.via === "push" ? "notification" : "email"}`;
       case "fees.quarterly":
         return `${who} changed the quarterly membership's price: ${rates(d.from)} → ${rates(d.to)}`;
       case "role.created":
@@ -156,6 +187,23 @@
           .filter(Boolean)
           .join("; ");
       }
+      // The club's email (ADR 0027): a new Gmail token, kept sealed in the database ({ account })
+      case "mail.reconnected":
+        return `${who} reconnected the club's email, sending as ${str(to?.account)}`;
+      // A trip through Google that didn't reconnect ({ outcome }: denied, no-send, club, expired, failed)
+      case "mail.reconnect_tried":
+        return `${who} tried to reconnect the club's email: ${RECONNECT_TRIED[str(to?.outcome)] ?? "it didn't work"}`;
+      // "Send a test email" ({ to, result: sent, logged, cancelled, paused, failed, refused })
+      case "mail.test_sent":
+        return to?.result === "sent"
+          ? `${who} sent a test email to ${str(to?.to)}`
+          : `${who} tried a test email to ${str(to?.to)}: ${TEST_RESULT[str(to?.result)] ?? "it didn't go"}`;
+      // Settings → Website (#107): Rebuild now, when GitHub was asked
+      case "website.rebuilt":
+        return `${who} rebuilt the website`;
+      // Refresh photos and videos (#109)
+      case "website.media_refreshed":
+        return `${who} refreshed the website's photos and videos`;
       case "tournament.deleted":
         return `${who} deleted the tournament ${str(from?.name)} (${str(from?.heldOn)})`;
       case "session.reset":
@@ -231,6 +279,11 @@
         return `${who} cleared the Fight Card for ${str(from?.name)}: ${count(from?.games, "match", "matches")}, ${count(from?.results, "result")}`;
       case "draft.finished":
         return `${who} closed the draft for ${str(to?.name)}: ${count(to?.games, "match", "matches")} on the Fight Card`;
+      case "game.keeper_changed":
+        // An admin's say over someone's scoresheet (#116): taken over, or freed
+        return to?.keeper
+          ? `${who} took over scoring Game ${Number(to.game)}${from?.keeper ? ` from ${str(from.keeper)}` : ""}`
+          : `${who} freed Game ${Number(from?.game)}'s scoresheet${from?.keeper ? ` from ${str(from.keeper)}` : ""}`;
       case "game.scored":
         return `${who} recorded a result: ${Number(to?.homeGoals ?? 0)}–${Number(to?.awayGoals ?? 0)}`;
       case "tournament_series.created":
@@ -242,9 +295,30 @@
       case "tournament.updated":
         return `${who} edited ${str(to?.name ?? from?.name)}`;
       case "tournament.winners":
-        return `${who} set a tournament's winners`;
+        return `${who} confirmed a tournament's awards`;
+      case "tournament.award_next":
+        return `${who} rolled ${str(to?.name)}'s after-party on to the next award`;
       case "tournament.award_revealed":
         return `${who} revealed ${str(to?.award)} at ${str(to?.name)}'s after-party: ${Number(to?.revealed ?? 0)} out`;
+      case "tournament.moved": {
+        // Move to… (ADR 0074): from one status to another in one go, and what it did on the way
+        const STAGE: Record<string, string> = {
+          signup: "Sign-up open",
+          draft: "Draft open",
+          teams: "Teams set",
+          fixtures: "Fixtures set",
+          day: "the day",
+          afters: "the after-party",
+        };
+        const done = Array.isArray(d.done) ? (d.done as string[]).join(", ") : "";
+        return `${who} moved ${str(to?.name ?? from?.name)} from ${STAGE[str(from?.stage)] ?? str(from?.stage)} to ${STAGE[str(to?.stage)] ?? str(to?.stage)}${done ? `: ${done}` : ""}`;
+      }
+      case "tournament.simulated":
+        return `${who} played ${str(to?.name)} on at random (dev only): ${Number(to?.played ?? 0)} of ${Number(to?.games ?? 0)} matches played`;
+      case "tournament.recorded":
+        return `${who} recorded a past one, ${str(to?.name)} on ${str(to?.heldOn)}: ${Number(to?.games ?? 0)} matches, ${Number(to?.goals ?? 0)} goals, ${Number(to?.winners ?? 0)} awards`;
+      case "tournament.past_day":
+        return `${who} made ${str(to?.name)} on a past day to play out (dev only): ${Number(to?.signedUp ?? 0)} in`;
       case "fixtures.made":
         return `${who} made the fight card: ${Number(to?.games ?? 0)} games`;
       case "team.players":
@@ -270,10 +344,10 @@
   const iconOf = Object.fromEntries(AREAS) as Record<Area, IconName>;
   function areaOf(action: string): Area | null {
     if (/^(charge|payment|dues|fees)\.|^member\.(paid|plan|quarterly)$/.test(action)) return "Money";
-    if (/^(sign_in|sign_out|access|member|members|role|refused)\b/.test(action)) return "Members";
+    if (/^(sign_in|sign_out|access|member|members|role|refused|view_as)\b/.test(action)) return "Members";
     if (/^(training|session|sessions|teams|register|signups)\./.test(action)) return "Training";
     if (/^(tournament|tournament_series|draft|game|fixtures|team)\./.test(action)) return "Kumite";
-    if (/^(venue|settings|quip|dev_mail|announcement|event)\./.test(action)) return "Settings";
+    if (/^(venue|settings|quip|dev_mail|mail|announcement|event)\./.test(action)) return "Settings";
     return null;
   }
   let area = $state<Area | null>(null);

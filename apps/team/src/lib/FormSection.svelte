@@ -5,13 +5,24 @@
    */
   import type { Snippet } from "svelte";
 
-  let { title, description, children }: { title: string; description?: string; children: Snippet } = $props();
+  let {
+    title,
+    description,
+    stacked = false,
+    children,
+  }: {
+    title: string;
+    description?: string;
+    /** The line under the heading, not beside it: for a list that starts right under it. */
+    stacked?: boolean;
+    children: Snippet;
+  } = $props();
 
   const headingId = `sec-${Math.random().toString(36).slice(2, 9)}`;
 </script>
 
 <section class="form-section" aria-labelledby={headingId}>
-  <header class="form-heading">
+  <header class="form-heading" class:stacked>
     <h2 id={headingId}>{title}</h2>
     {#if description}<p class="description">{description}</p>{/if}
   </header>
@@ -39,6 +50,10 @@
     flex-wrap: wrap;
     align-items: baseline;
     gap: var(--s-1) var(--s-3);
+  }
+  .form-heading.stacked {
+    display: grid;
+    gap: var(--s-1);
   }
   h2 {
     color: var(--fg);

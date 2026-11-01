@@ -1,12 +1,14 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
-import { revealAward, setWinners } from "./awards";
+import { castVotes, nextAward, revealAward, revealedSubject, setWinners } from "./awards";
 import { putOnTeam, takeOffTeam } from "./draft";
 import { FIXTURES_TALLY, clearFixtures, makeFixtures } from "./fixtures";
 import { backFromIn, stepBack, whereItIs } from "./step-back";
-import { awardsOut, draftPaused } from "../push/push.notices";
-import { londonToday } from "../../src/lib/dates";
+import { moveIn, moveTo, whereItStands } from "./move-to";
+import { closeSignup } from "./signup";
+import { draftPaused, movedTo, tournamentMade, tournamentSaved } from "../push/push.notices";
+import { londonToday } from "@cougars/shared/london";
 import { body, json } from "../api/api.http";
 import {
   createTournament,
@@ -56,9 +58,11 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "credits", "payments", "members"],
+    changes: ["tournaments", "charges", "dues", "members", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
+    // Made with its sign-up open: everyone hears it
+    notify: tournamentMade,
     handle: async (c) => json(await createTournament(c.env.DB, await body(c.request)), 201),
   },
   {
@@ -72,9 +76,11 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "credits", "payments", "members"],
+    changes: ["tournaments", "charges", "dues", "members", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
+    // A limit raised lets the first waiting in, and they hear it; a sign-up opened by hand is told to everyone
+    notify: tournamentSaved,
     handle: async (c) => (await updateTournament(c.env.DB, id(c), await body(c.request), c.today, c.now), ok()),
   },
   {
@@ -82,9 +88,10 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     path: /^\/api\/tournaments\/(\d+)$/,
     audit: { event: "tournament.deleted", subject: (c) => tournamentSummary(c.env.DB, id(c)) },
     action: "manage:Tournament",
-    changes: ["tournaments", "charges", "credits", "payments"],
+    // The training nights it kept off come back (#186)
+    changes: ["tournaments", "charges", "dues", "sessions"],
     // Gone, with its teams, sign-ups, games, awards and charges (Settings → Tournaments)
-    handle: async (c) => (await deleteTournament(c.env.DB, id(c)), ok()),
+    handle: async (c) => (await deleteTournament(c.env.DB, id(c), c.now), ok()),
   },
   {
     method: "PUT",
@@ -92,13 +99,14 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     audit: {
       event: "tournament.winners",
       subject: rowsOf(
-        "SELECT award, team_id teamId, member_id memberId, position FROM tournament_award_winners WHERE tournament_id = ? ORDER BY award, position",
+        "SELECT award, team_id teamId, member_id memberId, position, title FROM tournament_award_winners WHERE tournament_id = ? ORDER BY award, position",
       ),
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
-    // { winners: [{ award, teamId | memberId }] }: who won the tournament's awards (ADR 0044)
-    handle: async (c) => (await setWinners(c.env.DB, id(c), await body(c.request)), ok()),
+    // { winners: [{ award, teamId | memberId, title? }] }: confirming the awards (ADR 0044), voting closed with it; a
+    // vote level after its tie-break comes back as `tied`, nothing saved, for the admin to choose
+    handle: async (c) => json({ ok: true, ...(await setWinners(c.env.DB, id(c), await body(c.request), c.now)) }),
   },
   {
     method: "POST",
@@ -106,20 +114,43 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     // How many are out, and the one just revealed
     audit: {
       event: "tournament.award_revealed",
-      subject: rowOf(
-        `SELECT id, name, awards_revealed revealed,
-                CASE WHEN awards_revealed > 0 THEN json_extract(awards, '$[' || (awards_revealed - 1) || '].name') END award
-         FROM tournaments WHERE id = ?`,
-      ),
+      subject: (c) => revealedSubject(c.env.DB, id(c)),
     },
     action: "manage:Tournament",
     // Everyone watching the after-party sees it turn over (ADR 0072)
     changes: ["tournaments"],
     calendar: false,
-    // The first one out: everyone hears the awards are on
-    notify: awardsOut,
-    // { next }: the award it reveals, by its place in the list, the one the tap saw face down (ADR 0074)
+    // { next }: the award it reveals, by its place in the reveal (a judges' call left out isn't one), the one the tap
+    // saw face down (ADR 0074)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/awards\/next$/,
+    // Where the after-party's drum is: the award just out, or rolled on to the next, sealed
+    audit: {
+      event: "tournament.award_next",
+      subject: rowOf("SELECT id, name, awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?"),
+    },
+    action: "manage:Tournament",
+    // Everyone watching sees the drum roll on (ADR 0072)
+    changes: ["tournaments"],
+    calendar: false,
+    // { at }: how many were out when the tap saw it, so a double tap rolls it once (ADR 0074)
+    handle: async (c) => (await nextAward(c.env.DB, id(c), await body(c.request)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/votes$/,
+    // A secret ballot: the record says a vote was cast, never for whom (ADR 0044)
+    audit: { none: "a member's own vote, secret" },
+    // Whoever played (worker/tournaments/awards.ts castVotes decides)
+    action: "authenticated",
+    // The admin's count of votes in moves for everyone watching (ADR 0072)
+    changes: ["tournaments"],
+    calendar: false,
+    // { votes: [{ award, memberId }] }: one an award, never for yourself, till the awards are confirmed
+    handle: async (c) => (await castVotes(c.env.DB, id(c), c.memberId, await body(c.request), c.now), ok()),
   },
   {
     method: "POST",
@@ -134,6 +165,21 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments"],
     // The round robin and its playoffs, once the teams are set (ADR 0061)
     handle: async (c) => (await makeFixtures(c.env.DB, id(c)), ok()),
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/signup\/close$/,
+    // When it closed, before and after (null, then now), and its closing day, left as it was
+    audit: {
+      event: "tournament.signup_closed",
+      subject: rowOf(
+        "SELECT id, name, status, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt FROM tournaments WHERE id = ?",
+      ),
+    },
+    action: "manage:Tournament",
+    changes: ["tournaments"],
+    // Sign-up closed now, not on its closing day: a draft moves on to Draft open (ADR 0074)
+    handle: async (c) => (await closeSignup(c.env.DB, id(c), c.today, c.now), ok()),
   },
   {
     method: "POST",
@@ -153,6 +199,25 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       await stepBack(c.env.DB, id(c), backFromIn(await body(c.request)), c, c.now);
       return ok();
     },
+  },
+  {
+    method: "POST",
+    path: /^\/api\/tournaments\/(\d+)\/move$/,
+    // One entry: the status and the picks, matches, results and goals each side, and what the move did, in words
+    audit: {
+      event: "tournament.moved",
+      subject: async (c) => {
+        const { moving: _m, counts: _c, ...it } = await whereItStands(c.env.DB, id(c), londonToday(new Date(c.now)));
+        return it;
+      },
+      about: (_c, reply) => ({ done: reply.done, leftOut: reply.leftOut }),
+    },
+    action: "manage:Tournament",
+    changes: ["tournaments"],
+    // A draft opened, paused, or its teams set at random: its captains hear it
+    notify: movedTo,
+    // { from, to }: the status the admin's page saw, and the one to move to (lib/move-to.ts), refused if it's moved on
+    handle: async (c) => json(await moveTo(c.env.DB, id(c), moveIn(await body(c.request)), c, c.now)),
   },
   {
     method: "DELETE",

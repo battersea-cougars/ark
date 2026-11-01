@@ -4,22 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { penaltyEnds, playersShort, running } from "./penalties";
 import { inGameTime } from "./periods";
-
-const MIN = 60_000;
-const pen = (
-  id: number,
-  teamId: number,
-  atMs: number | null,
-  minutes: 2 | 4 | 5 = 2,
-  memberId: number | null = null,
-) => ({
-  id,
-  teamId,
-  memberId,
-  minutes,
-  atMs,
-});
-const goal = (teamId: number, atMs: number | null) => ({ teamId, atMs });
+import { goalAt as goal, MIN, penalty as pen } from "./kumite.testing";
 
 describe("the penalty clock at its edges", () => {
   it("is on from the moment it's called, and off the moment its two minutes are up", () => {

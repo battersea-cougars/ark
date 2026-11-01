@@ -1,6 +1,5 @@
 // One easing for the whole app (matches --ease in app.css). Reduced motion zeroes every duration.
 import { flushSync } from "svelte";
-import { cubicOut } from "svelte/easing";
 
 export const prefersReducedMotion =
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -41,8 +40,6 @@ export function eject(_node: Element, { delay = 0, out = false, x = 28 } = {}) {
       ` opacity: ${Math.min(1, t * 1.4).toFixed(3)};`,
   };
 }
-
-export { cubicOut };
 
 /**
  * Trading cards dealt in and folded away, as a filter or search changes which show (Teammates): one arriving tilts a

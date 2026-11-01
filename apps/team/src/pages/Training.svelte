@@ -2,6 +2,7 @@
   // A training series' next session. Before the teams: who's in, in order, and your answer. Once there are teams,
   // they're the page: anyone who signed up after them first (an admin slots them in or remakes them), then the
   // teams, then sign-up. A team maker's changes to the teams are saved as they're made (ADR 0076). Ratings drive the teams but only admins see them (read:Rating), as in the old app.
+  import { portal } from "../lib/overlay";
   import { goesBy, shortName } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -17,9 +18,11 @@
   import PlayerCard from "../lib/PlayerCard.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import RegisterDrawer from "../lib/RegisterDrawer.svelte";
-  import { letIn, publishTeams, removeTeams, resetSession, saving, setPlayer } from "../app/backend.svelte";
+  import { letIn, publishTeams, removeTeams, resetSession, setCancelled, setPlayer } from "../app/backend.svelte";
   import EditorPanel from "../lib/EditorPanel.svelte";
   import TrainingEditor from "../lib/TrainingEditor.svelte";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
   import Sheet from "../lib/Sheet.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import { listScroll } from "../lib/list-scroll";
@@ -27,7 +30,7 @@
   import { phone } from "../lib/viewport.svelte";
   import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
   import { flip } from "svelte/animate";
-  import { clock, clockRange, formatDayDate } from "../lib/dates";
+  import { clock, clockRange, formatDayDate, londonEvening, londonToday } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
   import { lineUp, makeTeams, slotIn, strength, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
@@ -36,9 +39,12 @@
   import EmptyState from "../lib/EmptyState.svelte";
   import { nightOpen, nightOpensOn, opensWords } from "../lib/signup";
   import { pick } from "../lib/quips";
-  import { londonToday } from "../lib/dates";
   import { fade } from "svelte/transition";
-  import { nextSession, resolve, seriesById, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
+  import { resolve, seriesById, seriesNights, seriesPlace, sessionBookable } from "../demo/schedule.svelte";
+  import { nightOn, offWords, signedUp } from "../lib/night-off";
+  import { offWhy } from "../lib/off-why";
+  import { registerClosed, registerClosesOn } from "../lib/register-closes";
+  import { router } from "../app/router.svelte";
 
   let { seriesId }: { seriesId: number } = $props();
 
@@ -46,7 +52,16 @@
   // The last series found: while this page slides out, the next page's params (no seriesId) arrive here too
   const last: { series?: ReturnType<typeof seriesById> } = {};
   const series = $derived((last.series = seriesById(seriesId) ?? last.series)!);
-  const session = $derived(nextSession(series));
+  // The next night that's on, and those off from today to it: struck through above it, never just gone
+  // or the night at the page's address, its date (/training/friday/2026-10-30)
+  const nights = $derived(seriesNights(series, londonEvening(), nightOn(router.path, series.slug)));
+  const session = $derived(nights.shown);
+  // Its register closes at 6am the morning after (lib/register-closes.ts, #11): from then who came is the record, so
+  // nothing that changes it is offered (the server refuses it too)
+  const closed = $derived(!!session && registerClosed(session.heldOn));
+  const offBefore = $derived(nights.off.filter((n) => n !== session));
+  // The tournaments a night's off for, by name (lib/night-off.ts offWhy)
+  const tournamentName = (id: number) => db.tournaments.find((t) => t.id === id)?.name;
   const info = $derived(session && resolve(session, series));
   const usual = $derived(seriesPlace(series));
   const who = $derived(me());
@@ -70,7 +85,7 @@
     const lines = db.quips.filter((q) => q.kind === "empty" && q.text.trim());
     slackers = { night, text: pick(lines)?.text ?? SLACKERS };
   });
-  // Quarterly skaters: above those paying as they go, in and waiting (ADR 0030), badged so the order reads; and those
+  // Quarterly skaters: above those paying as they go, in and waiting (ADR 0131), badged so the order reads; and those
   // who said they're out, for whoever sees who's out
   const ahead = $derived(new Set(session?.quarterly ?? []));
   // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position, skaters as the session says
@@ -263,10 +278,6 @@
     const avatar = row.querySelector<HTMLElement>(".avatar");
     return avatar?.offsetParent ? avatar : row;
   };
-  function portal(node: HTMLElement) {
-    document.body.append(node);
-    return { destroy: () => node.remove() };
-  }
   // A team maker moves a player between teams, or onto one from Not on a team (from ""); it's saved there and then
   const arranging = $derived(can(perms, "generate:Teams") && can(perms, "publish:Teams"));
   // Who's in, out and waiting, and the teams, live (ADR 0072): made, moved or cleared, everyone on the page sees it
@@ -408,6 +419,8 @@
   );
   // The training's own settings (days, times, place, fee), opened over this page (ADR 0065)
   let settingsOpen = $state(false);
+  // What's unsaved in the training's editor, and when it was saved (lib/dirty.svelte.ts)
+  const settingsEdits = new Edits();
   // A tool that opens something else, or runs at once: the sheet gets out of the way first
   function go(run: () => void) {
     manageOpen = false;
@@ -423,6 +436,14 @@
     confirming = null;
     manageOpen = false;
     run();
+  }
+  // Cancel this night (ADR 0065): asked first, saying who hears it's off; then the night's own cancel, as the
+  // training editor's (ADR 0030). The page moves on to the next night, this one struck through above it.
+  let cancelAsk = $state(false);
+  const cancelDay = $derived(session ? formatDayDate(sessionBookable(session).startsAt) : "");
+  function callOff() {
+    cancelAsk = false;
+    if (session) void setCancelled(session.id, true);
   }
   // Taking the teams away: each team falls away in turn before Who's in rises in their place; then it's saved
   let clearing = $state(false);
@@ -484,7 +505,7 @@
   >
 {/snippet}
 
-<!-- A Quarterly Member: ahead in the queue (ADR 0030), said in a word at every width -->
+<!-- A Quarterly Member: ahead in the queue (ADR 0131), said in a word at every width -->
 {#snippet quarterlyBadge()}
   <span class="badge plan" title="Quarterly Member: ahead in the queue"
     >Quarterly<span class="sr-only"> Member, ahead in the queue</span></span
@@ -743,10 +764,10 @@
         {#if next.going.length}
           <div class="whos-in" class:gathered={gathering}>{@render byPlan(next.going, true)}</div>
         {:else}
-          <p class="hint">Nobody yet. If you ain't first, you last. Teams come out after sign-up closes.</p>
+          <p class="hint">Nobody yet. If you ain't first, you last. Teams come out on the night.</p>
         {/if}
       {:else if shown === "waiting"}
-        {#if next.waitlist.length}{@render byPlan(next.waitlist, true, arranging)}{:else}<p class="hint">
+        {#if next.waitlist.length}{@render byPlan(next.waitlist, true, arranging && !closed)}{:else}<p class="hint">
             Nobody's waiting.
           </p>{/if}
       {:else if outs.length}
@@ -762,6 +783,10 @@
       An admin sets the dates under Settings → Training.
     </EmptyState>
   {:else}
+    {#each offBefore as night (night.id)}
+      <!-- A night off before this one (a Kumite Friday): struck through, Cancelled, so it never just vanishes -->
+      <EventCard event={{ ...sessionBookable(night), href: undefined }} compact roster={false} place={false} />
+    {/each}
     {#if info && (info.place?.name !== usual?.name || info.startTime !== series.startTime)}
       <p class="note">
         This week: {formatDayDate(sessionBookable(session).startsAt)}, {clock(info.startTime)} at {info.place?.name ??
@@ -822,7 +847,7 @@
         {@render search()}
         {#if arranging}
           <p class="hint move-hint">
-            Drag a player by the grip to another team, or tap them to pick one. Everyone sees it straight away.
+            Drag a player by the grip to another team, or tap them to choose one. Everyone sees it straight away.
           </p>
         {/if}
       </div>
@@ -925,7 +950,12 @@
         <Icon name="chevronRight" size={18} />
       </button>
     {/if}
-    {#if session && can(perms, "record:Attendance")}
+    {#if closed}
+      <p class="tool-note hint">
+        The register closed {registerClosesOn(session!.heldOn)} morning: who came is the record.
+      </p>
+    {/if}
+    {#if session && !closed && can(perms, "record:Attendance")}
       <button class="tool" onclick={() => go(() => (registering = true))}>
         <Icon name="userPlus" size={22} />
         <span class="tool-text"
@@ -934,7 +964,29 @@
         <Icon name="chevronRight" size={18} />
       </button>
     {/if}
-    {#if session && can(perms, "update:Event")}
+    {#if can(perms, "manage:Training")}
+      {#if session && !session.cancelledAt && !closed}
+        <button class="tool" aria-haspopup="dialog" onclick={() => go(() => (cancelAsk = true))}>
+          <Icon name="x" size={22} />
+          <span class="tool-text"
+            ><strong>Cancel this night</strong><span>{cancelDay}: whoever's in or waiting hears it's off.</span></span
+          >
+          <Icon name="chevronRight" size={18} />
+        </button>
+      {/if}
+      {#each nights.off as night (night.id)}
+        <button class="tool" onclick={() => go(() => void setCancelled(night.id, false))}>
+          <Icon name="refresh" size={22} />
+          <span class="tool-text"
+            ><strong>It's back on</strong><span
+              >{formatDayDate(sessionBookable(night).startsAt)}, {offWhy(night, tournamentName)}: on again, sign-ups as
+              they were.</span
+            ></span
+          >
+        </button>
+      {/each}
+    {/if}
+    {#if session && !closed && can(perms, "update:Event")}
       <button class="tool" class:armed={confirming === "reset"} onclick={() => twice("reset", reset)}>
         <Icon name="undo" size={22} />
         <span class="tool-text"
@@ -948,15 +1000,12 @@
 {/snippet}
 
 {#if canManage}
-  {#if phone.current}
-    <Sheet bind:open={manageOpen} title="Manage {series.shortName}">{@render manageTools()}</Sheet>
-  {:else}
-    <Drawer
-      bind:open={manageOpen}
-      title="Manage {series.shortName}"
-      sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}>{@render manageTools()}</Drawer
-    >
-  {/if}
+  <Drawer
+    bind:open={manageOpen}
+    short
+    title="Manage {series.shortName}"
+    sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}>{@render manageTools()}</Drawer
+  >
 {/if}
 
 {#if maker && phone.current}
@@ -968,6 +1017,16 @@
     {/if}
     {@render makeButton("")}
   </div>
+{/if}
+
+{#if session && !session.cancelledAt && can(perms, "manage:Training")}
+  <Sheet bind:open={cancelAsk} title="Cancel {cancelDay}?">
+    <p class="ask">{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p>
+    {#snippet footer()}
+      <button class="btn ghost" type="button" onclick={() => (cancelAsk = false)}>Keep it on</button>
+      <button class="btn clear-yes" type="button" onclick={callOff}>Cancel this night</button>
+    {/snippet}
+  </Sheet>
 {/if}
 
 {#if maker && teams}
@@ -1035,10 +1094,11 @@
     icon={series.icon}
     tone={series.tone}
     onclose={() => (settingsOpen = false)}
+    edits={settingsEdits}
   >
-    <TrainingEditor seriesId={series.id} />
+    <TrainingEditor seriesId={series.id} edits={settingsEdits} />
     {#snippet footer()}
-      <button class="btn primary" type="submit" form="training-form" disabled={saving.busy > 0}>Save</button>
+      <SaveBar edits={settingsEdits} form="training-form" />
     {/snippet}
   </EditorPanel>
 {/if}
@@ -1056,7 +1116,7 @@
 <svelte:window onkeydown={(e) => e.key === "Escape" && show?.skip()} />
 
 {#if session && can(perms, "record:Attendance")}
-  <RegisterDrawer {seriesId} bind:open={registering} />
+  <RegisterDrawer {seriesId} night={session} bind:open={registering} />
 {/if}
 
 {#if lifted}
@@ -1068,7 +1128,7 @@
     you={id === who.id}
     showRating={ratings && onTeam.has(id)}
     bio={byId(id).bio}
-    removeLabel={can(perms, "update:Event") ? `Remove from ${series.shortName}` : undefined}
+    removeLabel={can(perms, "update:Event") && !closed ? `Remove from ${series.shortName}` : undefined}
     onremove={() => removeFromSession(id)}
     detailsHref={can(perms, "manage:Member") ? `/club/${id}` : undefined}
     onclose={() => (lifted = null)}
@@ -1437,6 +1497,10 @@
   }
   .tool.armed strong {
     color: var(--red-hot);
+  }
+  .tool-note {
+    margin: 0;
+    padding: var(--s-2) var(--s-4);
   }
   .tool-text {
     display: grid;

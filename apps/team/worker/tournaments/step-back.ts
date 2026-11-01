@@ -1,57 +1,64 @@
-// An admin steps a tournament back one step of its workflow (ADR 0074, 0060; lib/step-back.ts names the steps). The
+// An admin steps a tournament back one step of its workflow (ADR 0127, 0060; lib/step-back.ts names the steps). The
 // request says which step it's leaving (`from`): read here from the tournament as it is, and refused if it's moved on
 // since, so a tap from a page that's out of date never takes a second step. Each step back is one batch whose
 // statements only do anything while the tournament is still at that step, so two taps at once step back once
 // (ADR 0121). The draft's own steps are for whoever runs the draft too; the rest are an admin's.
-import { all, batch, first, statement } from "@cougars/shared/d1";
+import { batch, statement } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
 import { can, type Action } from "../../src/access/actions";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { BACK_FROM, DRAFT_STEPS, backFrom, type BackFrom } from "../../src/lib/step-back";
 import { clearingFixtures } from "./fixtures";
 
 /** The tournament as the steps read it, and what each step back would take: for the check and the record. */
 export async function whereItIs(db: D1Database, tournamentId: number, today: string) {
-  const t = await first<{
-    name: string;
-    kind: string;
-    draftState: string;
-    status: string;
-    signupClosesOn: string | null;
-    awardsRevealed: number;
-  }>(
-    db,
-    `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, awards_revealed awardsRevealed
-     FROM tournaments WHERE id = ?`,
-    [tournamentId],
-  );
-  if (!t) throw new HttpError(404, "No such tournament.");
-  const [teams, games, goals] = await Promise.all([
-    all<{ pick: number | null }>(db, "SELECT pick FROM tournament_teams WHERE tournament_id = ?", [tournamentId]),
-    all<{ status: string; homeGoals: number | null }>(
+  // One round trip, read together (ADR 0003)
+  const [tournament, teamRows, gameRows, goalCount, pickCount] = await batch(db, [
+    statement(
       db,
-      "SELECT status, home_goals homeGoals FROM tournament_games WHERE tournament_id = ?",
+      `SELECT name, kind, draft_state draftState, status, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt,
+         awards_revealed awardsRevealed
+       FROM tournaments WHERE id = ?`,
       [tournamentId],
     ),
-    first<{ n: number }>(
+    statement(db, "SELECT pick FROM tournament_teams WHERE tournament_id = ?", [tournamentId]),
+    statement(db, "SELECT status, home_goals homeGoals FROM tournament_games WHERE tournament_id = ?", [tournamentId]),
+    statement(
       db,
       `SELECT COUNT(*) n FROM tournament_goals WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)`,
       [tournamentId],
     ),
+    statement(
+      db,
+      `SELECT COUNT(*) n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
+       WHERE t.tournament_id = ?`,
+      [tournamentId],
+    ),
   ]);
-  const picks = await first<{ n: number }>(
-    db,
-    `SELECT COUNT(*) n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
-     WHERE t.tournament_id = ?`,
-    [tournamentId],
-  );
+  const t = tournament.results[0] as
+    | {
+        name: string;
+        kind: string;
+        draftState: string;
+        status: string;
+        signupClosesOn: string | null;
+        signupClosedAt: string | null;
+        awardsRevealed: number;
+      }
+    | undefined;
+  if (!t) throw new HttpError(404, "No such tournament.");
+  const teams = teamRows.results as { pick: number | null }[];
+  const games = gameRows.results as { status: string; homeGoals: number | null }[];
+  const goals = goalCount.results[0] as { n: number } | undefined;
+  const picks = pickCount.results[0] as { n: number } | undefined;
   return {
     name: t.name,
     step: backFrom({ ...t, teams, games }, today),
     draftState: t.draftState,
     status: t.status,
     signupClosesOn: t.signupClosesOn,
+    signupClosedAt: t.signupClosedAt,
     awardsRevealed: t.awardsRevealed,
     drawn: teams.filter((x) => x.pick !== null).length,
     picks: picks?.n ?? 0,
@@ -66,11 +73,17 @@ const PLAYED =
   "SELECT 1 FROM tournament_games WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next')";
 
 /** Each step back, as the statements that take it: the last one's changes say whether it was still there to take. */
-function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, D1PreparedStatement[]> {
+export function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, D1PreparedStatement[]> {
   const games = "SELECT id FROM tournament_games WHERE tournament_id = ?";
   return {
     // The after-party's awards face down again, the results and the winners kept: only while some are out
-    awards: [statement(db, "UPDATE tournaments SET awards_revealed = 0 WHERE id = ? AND awards_revealed > 0", [id])],
+    awards: [
+      statement(
+        db,
+        "UPDATE tournaments SET awards_revealed = 0, awards_next = 0 WHERE id = ? AND awards_revealed > 0",
+        [id],
+      ),
+    ],
     // Every match as it was before it started: no score, clock, scoresheet or period; the playoffs wait for the table
     // again. Their goals and penalties go first; the reset is last, and finds nothing on a second tap
     results: [
@@ -79,7 +92,7 @@ function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, 
       statement(
         db,
         `UPDATE tournament_games SET home_goals = NULL, away_goals = NULL, status = 'next', clock_left_ms = NULL,
-           clock_started_at = NULL, keeper_member_id = NULL, period = 1, period_ended_at = NULL,
+           clock_started_at = NULL, keeper_member_id = NULL, period = 1, period_ended_at = NULL, started_at = NULL,
            home_team_id = CASE WHEN stage = 'playoff' THEN NULL ELSE home_team_id END,
            away_team_id = CASE WHEN stage = 'playoff' THEN NULL ELSE away_team_id END
          WHERE tournament_id = ? AND (home_goals IS NOT NULL OR status <> 'next'
@@ -117,15 +130,18 @@ function stepsBack(db: D1Database, id: number, today: string): Record<BackFrom, 
         [id, id],
       ),
     ],
-    // Sign-up open again, with no closing day (set one in its settings): only while it's past it and nothing's drawn
+    // Sign-up open again: an admin's close undone, and a closing day gone by gone (set one in its settings); only while
+    // it's closed and nothing's drawn
     signup: [
       statement(
         db,
-        `UPDATE tournaments SET status = 'open', signup_closes_on = NULL
-         WHERE id = ? AND signup_closes_on < ? AND NOT EXISTS (SELECT 1 FROM tournament_games WHERE tournament_id = ?)
+        `UPDATE tournaments SET status = 'open', signup_closed_at = NULL,
+           signup_closes_on = CASE WHEN signup_closes_on < ? THEN NULL ELSE signup_closes_on END
+         WHERE id = ? AND (signup_closed_at IS NOT NULL OR signup_closes_on < ?)
+           AND NOT EXISTS (SELECT 1 FROM tournament_games WHERE tournament_id = ?)
            AND (kind <> 'draft' OR (draft_state = 'none'
              AND NOT EXISTS (SELECT 1 FROM tournament_teams WHERE tournament_id = ? AND pick IS NOT NULL)))`,
-        [id, today, id, id],
+        [today, id, today, id, id],
       ),
     ],
   };

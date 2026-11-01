@@ -1,4 +1,4 @@
-// The browser's errors reach Sentry through the app's own address (ADR 0111): the app's CSP talks only to its own
+// The browser's errors reach Sentry through the app's own address (ADR 0110): the app's CSP talks only to its own
 // origin, and ad blockers stop requests to sentry.io. The SDK posts its envelope here (its `tunnel` option); this passes
 // it on to Sentry's ingest for our project, and only ours, so it's no relay for anyone else.
 const MAX_BYTES = 200_000;

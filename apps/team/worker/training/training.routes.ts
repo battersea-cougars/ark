@@ -5,8 +5,16 @@ import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route"
 import { seriesFeeChange } from "../dues/dues";
 import { letIn, mark } from "../entries/entries";
 import { HttpError, body, json } from "../api/api.http";
-import { createSeries, moreSessions, nightOf, setSessionCancelled, updateSeries } from "./training";
+import { createSeries, moreSessions, nightOf, updateSeries } from "./training";
+import { backOn, callOff } from "./training.nights-off";
 import { publishTeams, removeTeams, resetSession, sessionSignups } from "./training.teams";
+
+/** What a night's called off for: a tournament on its day (the clash sheet's Cancel), or null, by hand. */
+function offFor(b: Record<string, unknown>) {
+  if (b.tournamentId == null) return null;
+  if (!Number.isInteger(b.tournamentId)) throw new HttpError(400, "tournamentId should be a tournament's id.");
+  return b.tournamentId as number;
+}
 
 export const TRAINING_ROUTES: Route[] = [
   {
@@ -23,7 +31,7 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "manage:Training",
-    changes: ["series", "sessions", "charges", "credits", "payments"],
+    changes: ["series", "sessions", "charges", "dues"],
     handle: async (c) => {
       const b = await body(c.request);
       // A new training is free until whoever sets fees says otherwise; its fees go in with it, or neither (#131)
@@ -45,7 +53,9 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "manage:Training",
-    changes: ["series", "sessions", "charges", "credits", "payments"],
+    changes: ["series", "sessions", "charges", "dues"],
+    // A limit raised lets the first waiting in on each night, and they hear it
+    notify: places,
     // Its fees too, for whoever sets fees (ADR 0007)
     handle: async (c) => {
       const b = await body(c.request);
@@ -86,12 +96,13 @@ export const TRAINING_ROUTES: Route[] = [
       subject: rowOf("SELECT id, held_on heldOn, cancelled_at cancelledAt FROM training_sessions WHERE id = ?"),
     },
     action: "manage:Training",
-    changes: ["sessions", "members", "charges", "credits", "payments"],
+    changes: ["sessions", "members", "charges", "dues"],
     notify: sessionOff,
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.cancelled !== "boolean") throw new HttpError(400, "cancelled should be true or false.");
-      await setSessionCancelled(c.env.DB, id(c), b.cancelled, c.now);
+      if (!b.cancelled) return (await backOn(c.env.DB, id(c), c.now), ok());
+      await callOff(c.env.DB, id(c), offFor(b), c.now);
       return ok();
     },
   },
@@ -134,12 +145,12 @@ export const TRAINING_ROUTES: Route[] = [
     },
     // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
     action: "publish:Teams",
-    changes: ["sessions", "charges", "credits", "payments"],
-    notify: places("session", "You've been let in"),
+    changes: ["sessions", "charges", "dues"],
+    notify: places,
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);
-      await letIn(c.env.DB, id(c), memberId);
+      await letIn(c.env.DB, id(c), memberId, c.now);
       return ok();
     },
   },
@@ -148,9 +159,9 @@ export const TRAINING_ROUTES: Route[] = [
     path: /^\/api\/sessions\/(\d+)\/reset$/,
     audit: { event: "session.reset", subject: (c) => sessionSignups(c.env.DB, id(c)) },
     action: "update:Event",
-    changes: ["sessions", "charges", "credits", "payments"],
+    changes: ["sessions", "charges", "dues"],
     // Start the session again: no sign-ups, no teams
-    handle: async (c) => (await resetSession(c.env.DB, id(c)), ok()),
+    handle: async (c) => (await resetSession(c.env.DB, id(c), c.now), ok()),
   },
   {
     method: "POST",
@@ -165,11 +176,11 @@ export const TRAINING_ROUTES: Route[] = [
     },
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007)
-    changes: ["sessions", "members", "charges", "credits", "payments"],
+    changes: ["sessions", "members", "charges", "dues"],
     // A walk-in taken off frees a place
-    notify: places("session"),
+    notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team
-    // maker's Let in (ADR 0030); the reply says where they went: { signup: "in" | "waitlist" | null }
+    // maker's Let in (ADR 0131); the reply says where they went: { signup: "in" | "waitlist" | null }
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.here !== "boolean") throw new HttpError(400, "here should be true or false.");

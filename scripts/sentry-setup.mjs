@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// Sentry for the club's errors and down alerts (ADR 0111), made through its API and safe to run again: it changes nothing
+// Sentry for the club's errors and down alerts (ADR 0110), made through its API and safe to run again: it changes nothing
 // that's already right.
-//   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, DSNs into Secrets Manager
+//   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, the DSNs
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs --uptime   also the uptime monitors (once /health is live)
-// Needs SENTRY_AUTH_TOKEN (README#secrets). The organisation is the developer account's, in the EU region.
+// Needs SENTRY_AUTH_TOKEN (docs/secrets.md#sentry_auth_token). The organisation is the developer account's, in the EU region.
 //
 // Each app is a project. Three alerts email: a new issue in production, a new issue in dev, and a spike in production.
-// The team Worker's hourly cron has a cron monitor. The DSNs go to Secrets Manager, not the repo; the deploy hands them
-// to the apps.
+// The team Worker's hourly cron has a cron monitor. The website's DSN goes to Secrets Manager (SENTRY_DSN_WEB); the
+// team app's is in its browser code anyway, so it's committed (SENTRY_DSN_TEAM, scripts/lib/settings.mjs): this checks
+// it and says what to put there if it differs. The deploy hands them to the apps.
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const ORG = "battersea-cougars";
@@ -15,11 +16,12 @@ const API = "https://de.sentry.io/api/0";
 const SITE = "https://batterseacougars.com";
 
 const PROJECTS = [
-  { slug: "web", platform: "javascript-astro", dsnSecret: "SENTRY_DSN_WEB", health: `${SITE}/health` },
+  { slug: "web", platform: "javascript-astro", dsn: "SENTRY_DSN_WEB", secret: true, health: `${SITE}/health` },
   {
     slug: "team",
     platform: "javascript-svelte",
-    dsnSecret: "SENTRY_DSN_TEAM",
+    dsn: "SENTRY_DSN_TEAM",
+    secret: false,
     health: `${SITE.replace("://", "://team.")}/api/health`,
   },
 ];
@@ -57,7 +59,9 @@ for (const want of PROJECTS) {
   } else console.log(`The project ${want.slug} is there.`);
 
   const [key] = await sentry("GET", `/projects/${ORG}/${want.slug}/keys/`);
-  console.log(`  ${setSecret(want.dsnSecret, key.dsn.public)} ${want.dsnSecret} in Secrets Manager.`);
+  if (want.secret) console.log(`  ${setSecret(want.dsn, key.dsn.public)} ${want.dsn} in Secrets Manager.`);
+  else if (process.env[want.dsn] === key.dsn.public) console.log(`  ${want.dsn} in scripts/lib/settings.mjs is right.`);
+  else console.log(`  Put ${want.dsn}: "${key.dsn.public}" in scripts/lib/settings.mjs and commit it (not secret).`);
 
   if (!uptime) continue;
   // Down alerts: Sentry checks the health route every 10 minutes (about 290 requests a day for both, ADR 0003) and opens
@@ -83,13 +87,25 @@ for (const want of PROJECTS) {
 // When the team Worker's crons stop (a broken deploy, a trigger lost): the hourly run checks in with Sentry, and a missed
 // check-in opens an issue, so the alerts below email. One cron monitor is all the free plan has, so it's the hourly
 // run, the one that charges dues and watches the free allowance; the five-minutely run stops with it if the Worker's
-// crons stop at all. The Worker checks in by this slug (apps/team/worker/index.ts).
+// crons stop at all. The Worker checks in by this slug (apps/team/worker/cron/hourly.ts), once an hour: ok when the
+// hour's jobs are done, error when its last try failed too. A missed or failed :07 run is caught up by the run every
+// minute, up to 47 past (HOURLY_TRIES), so the margin waits 50 minutes for it, and an issue opens only when two hours
+// in a row fail or are missed, caught up or not: a deploy or a blip at :07 isn't an alert. One good hour resolves it.
+// The fields are Sentry's ConfigValidator's (src/sentry/monitors/validators.py, checked 2026-10-28); minutes.
 const CRON = {
   project: "team",
   name: "team hourly cron",
   slug: "team-hourly",
   type: "cron_job",
-  config: { schedule_type: "crontab", schedule: "7 * * * *", checkin_margin: 10, max_runtime: 10, timezone: "UTC" },
+  config: {
+    schedule_type: "crontab",
+    schedule: "7 * * * *",
+    checkin_margin: 50,
+    max_runtime: 10,
+    timezone: "UTC",
+    failure_issue_threshold: 2,
+    recovery_threshold: 1,
+  },
 };
 const crons = await sentry("GET", `/organizations/${ORG}/monitors/`);
 const cron = crons.find((m) => m.slug === CRON.slug);

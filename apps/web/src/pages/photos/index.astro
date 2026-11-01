@@ -1,5 +1,5 @@
 ---
-// The club's photos: its newest Instagram posts (ADR 0113), so admins post there and the site follows within ten
+// The club's photos: its newest Instagram posts (ADR 0016), so admins post there and the site follows within ten
 // minutes. Rendered on the Worker at request time. Each opens in the lightbox, with a link to the post; a video plays
 // on Instagram. Without JavaScript a tile opens the picture itself.
 import Base from "../../layouts/Base.astro";
@@ -7,19 +7,17 @@ import PageHeader from "../../components/PageHeader.astro";
 import Empty from "../../components/Empty.astro";
 import Lightbox from "../../components/Lightbox.astro";
 import { getSettings } from "../../lib/sanity/content";
-import { latestPosts } from "../../lib/server/instagram";
+import { latestPosts, photoListCacheControl } from "../../lib/server/instagram";
 import { instagramConfig } from "../../lib/server/instagram-env";
-import { cacheControl } from "../../lib/server/sanity-env";
-import { postLabel, postMark } from "../../lib/posts";
 
 export const prerender = false;
 
-const { data: posts, unavailable } = await latestPosts(instagramConfig());
+const { data: posts, unavailable, more } = await latestPosts(instagramConfig());
 const s = await getSettings();
 const day = s.training[0]?.day ?? "Friday";
 const instagram = s.socials.instagram;
 
-Astro.response.headers.set("Cache-Control", cacheControl(unavailable));
+Astro.response.headers.set("Cache-Control", photoListCacheControl(unavailable));
 if (unavailable) Astro.response.status = 503;
 ---
 
@@ -39,24 +37,14 @@ if (unavailable) Astro.response.status = 503;
         <ul class="grid" data-gallery>
           {posts.map((p, i) => (
             <li data-reveal style={`--i:${i % 3}`}>
-              <a
-                href={p.image}
-                data-photo
-                data-caption={p.caption ?? ""}
-                data-post={p.href}
-                data-post-label={postLabel(p)}
-              >
+              <a href={p.image} data-photo data-caption={p.caption ?? ""} data-post={p.href}>
                 <img src={p.image} alt={p.alt} width="540" height="540" loading={i < 6 ? "eager" : "lazy"} />
-                {postMark(p) && (
-                  <span class="mark label" aria-label={p.kind === "video" ? "Video" : `${p.count} photos`}>
-                    {postMark(p)}
-                  </span>
-                )}
               </a>
             </li>
           ))}
         </ul>
-        {instagram && (
+        {/* Only when Instagram has older photos than these */}
+        {instagram && more && (
           <p class="more">
             <a class="btn" href={instagram} rel="noopener" target="_blank">
               More on Instagram
@@ -79,6 +67,22 @@ if (unavailable) Astro.response.status = 503;
   <Lightbox />
 </Base>
 
+<script>
+  import { justify } from "../../lib/justify";
+
+  // A photo that won't load (gone from Instagram since the page was made) leaves the grid instead of an empty tile
+  const drop = (img: HTMLImageElement) => img.closest("li")?.remove();
+  document.addEventListener("astro:page-load", () => {
+    const grid = document.querySelector<HTMLElement>("[data-gallery]");
+    // Justified rows: each photo its own shape, the edges straight (lib/justify.ts)
+    if (grid) justify(grid);
+    for (const img of document.querySelectorAll<HTMLImageElement>("[data-gallery] img")) {
+      if (img.complete && !img.naturalWidth) drop(img);
+      else img.addEventListener("error", () => drop(img), { once: true });
+    }
+  });
+</script>
+
 <style>
   .grid {
     list-style: none;
@@ -95,6 +99,15 @@ if (unavailable) Astro.response.status = 503;
     aspect-ratio: 1;
     background: var(--rule);
   }
+  /* Justified (lib/justify.ts): rows of photos, each its own shape, every row exactly the page's width */
+  .grid[data-justified] {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .grid[data-justified] a {
+    height: 100%;
+    aspect-ratio: auto;
+  }
   .grid img {
     width: 100%;
     height: 100%;
@@ -107,14 +120,6 @@ if (unavailable) Astro.response.status = 503;
   .grid a:hover img {
     transform: scale(1.05);
     filter: none;
-  }
-  .mark {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    padding: 0.2rem 0.45rem;
-    background: rgb(0 0 0 / 0.6);
-    color: #fff;
   }
   .more {
     margin: 2.5rem 0 0;

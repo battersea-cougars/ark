@@ -1,24 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  champion,
-  kickOff,
-  roundRobin,
-  scorekeepers,
-  slotMinutes,
-  table,
-  startingNow,
-  teamsForPlayoffs,
-} from "./fixtures";
-
-describe("roundRobin", () => {
-  it("has every team play every other exactly once, nobody twice in a round", () => {
-    const rounds = roundRobin([1, 2, 3, 4, 5]);
-    const pairs = rounds.flat();
-    expect(pairs).toHaveLength(10);
-    expect(new Set(pairs.map(([a, b]) => [a, b].sort().join("-"))).size).toBe(10);
-    for (const r of rounds) expect(new Set(r.flat()).size).toBe(r.flat().length);
-  });
-});
+import { champion, kickOff, roundRobin, scorekeepers, slotMinutes, table, teamsForPlayoffs } from "./fixtures";
 
 describe("table", () => {
   it("ranks by points, then goal difference, and leaves out games without a result", () => {
@@ -48,20 +29,6 @@ describe("a game's slot, with periods", () => {
     expect(slotMinutes({ gameMinutes: 12, periods: 3, breakMinutes: 2 })).toBe(40);
     expect(slotMinutes({ gameMinutes: 12, periods: 1, breakMinutes: 2 })).toBe(12);
     expect(kickOff("11:00", slotMinutes({ gameMinutes: 12, periods: 3, breakMinutes: 2 }), 2)).toBe("11:45");
-  });
-
-  it("starting a game now moves the day back by whole slots", () => {
-    const t = {
-      startTime: "11:00",
-      endTime: "16:00",
-      gameMinutes: 10,
-      periods: 3,
-      signupOpensOn: null,
-      signupClosesOn: null,
-      draftOn: null,
-    };
-    // Game 2 now at 12:00: game 1 started a 30-minute slot and a 5-minute break before
-    expect(startingNow(t, 2, "2026-10-09", "12:00")).toMatchObject({ startTime: "11:25" });
   });
 });
 
@@ -143,36 +110,6 @@ describe("champion", () => {
 
   it("no games, no champion", () => {
     expect(champion(teams, [])).toBeNull();
-  });
-});
-
-describe("starting a game on another day than the tournament's", () => {
-  const t = {
-    heldOn: "2026-10-30",
-    startTime: "11:00",
-    endTime: "16:00",
-    gameMinutes: 12,
-    signupOpensOn: "2026-10-09",
-    signupClosesOn: "2026-10-28",
-    draftOn: "2026-10-23",
-  };
-
-  it("moves its day to today and its hours so this game kicks off now, the day as long as before", () => {
-    // Game 3 at 18:40: games 1 and 2 (12 minutes and a 5-minute break each) would have started 34 minutes before
-    expect(startingNow(t, 3, "2026-10-09", "18:40")).toMatchObject({
-      heldOn: "2026-10-09",
-      startTime: "18:06",
-      endTime: "23:06",
-      season: null,
-    });
-  });
-
-  it("brings its sign-up and draft days no later than the new day", () => {
-    expect(startingNow(t, 1, "2026-10-09", "10:00")).toMatchObject({
-      signupOpensOn: "2026-10-09",
-      signupClosesOn: "2026-10-09",
-      draftOn: "2026-10-09",
-    });
   });
 });
 

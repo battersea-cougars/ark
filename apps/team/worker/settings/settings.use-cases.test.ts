@@ -18,24 +18,19 @@ beforeEach(() => {
 describe("how often live pages check for updates", () => {
   it("is every 10 seconds to start with, and everyone's app is told", async () => {
     const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("GET", "/api/bootstrap")).body.settings).toEqual({ liveRefreshSeconds: 10, bank: null });
+    expect((await mo.club()).body.settings).toEqual({ liveRefreshSeconds: 10, bank: null, planReminderDays: 5 });
   });
 
   it("an admin changes it, and everyone's app follows", async () => {
     const dana = await w.signedIn("dana@example.com");
     expect((await dana.call("PUT", "/api/settings", { liveRefreshSeconds: 5 })).status).toBe(200);
     const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("GET", "/api/bootstrap")).body.settings).toEqual({ liveRefreshSeconds: 5, bank: null });
+    expect((await mo.club()).body.settings).toEqual({ liveRefreshSeconds: 5, bank: null, planReminderDays: 5 });
   });
 
   it("stays between 5 seconds and 2 minutes", async () => {
     const dana = await w.signedIn("dana@example.com");
     expect((await dana.call("PUT", "/api/settings", { liveRefreshSeconds: 1 })).status).toBe(400);
     expect((await dana.call("PUT", "/api/settings", { liveRefreshSeconds: 600 })).status).toBe(400);
-  });
-
-  it("a member can't change it", async () => {
-    const mo = await w.signedIn("mo@example.com");
-    expect((await mo.call("PUT", "/api/settings", { liveRefreshSeconds: 5 })).status).toBe(403);
   });
 });

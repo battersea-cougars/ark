@@ -13,7 +13,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { londonToday, timeRange } from "./dates";
+  import { londonTime, londonToday, timeRange } from "./dates";
   import DateBlock from "./DateBlock.svelte";
   import { initials } from "./initials";
   import { phone } from "./viewport.svelte";
@@ -40,8 +40,8 @@
     feature?: boolean;
     /** Calendar rows: the title links to its page, and the date gets a bar in the type's colour. */
     compact?: boolean;
-    /** Called after a tap on In or Out with where the member ended up. */
-    onanswer?: (status: "in" | "waitlist" | "out") => void;
+    /** Called after a tap on In or Out with where the member ended up ("none": an Out taken back). */
+    onanswer?: (status: "in" | "waitlist" | "out" | "none") => void;
     /** A link row along the bottom of the card (Home: where you stand, and the way to the teams). */
     footer?: Snippet;
     /** The session you're being asked about (Home's next one, a training's page): until you're in, In pulses once,
@@ -122,17 +122,25 @@
       .join(" · "),
   );
 
-  // How soon, in days on London's calendar: Today, Tomorrow, In 3 days, In 2 weeks
+  // How soon, in days on London's calendar: Today (Tonight, from 5pm), Tomorrow, In 3 days, In 2 weeks. Today's the
+  // loud one: the poster face in the club's red, never lost beside the time
   const soon = $derived.by(() => {
     if (event.dateTbc || event.cancelled) return "";
+    // On now, or Now (the after-party): that already says when
+    if (/\bnow$/i.test(event.timeText ?? "")) return "";
     const day = (iso: string) => Date.parse(`${iso}T12:00:00Z`) / 86_400_000;
     const n = Math.round(day(londonToday(new Date(event.startsAt))) - day(londonToday()));
     if (n < 0) return "";
-    return n === 0 ? "Today" : n === 1 ? "Tomorrow" : n < 14 ? `In ${n} days` : `In ${Math.floor(n / 7)} weeks`;
+    if (n === 0) return Number(londonTime(event.startsAt).slice(0, 2)) >= 17 ? "Tonight" : "Today";
+    return n === 1 ? "Tomorrow" : n < 14 ? `In ${n} days` : `In ${Math.floor(n / 7)} weeks`;
   });
 
+  const isToday = $derived(soon === "Today" || soon === "Tonight");
+
   // Not in yet, whether unanswered or out: In pulses once to ask, and again if you say out
-  const beckoning = $derived(beckon && canSignUp && event.signup && !event.opens && !inIt && !waiting && !locked);
+  const beckoning = $derived(
+    beckon && canSignUp && event.signup && !event.opens && !event.started && !inIt && !waiting && !locked,
+  );
 
   // Faces slide, never pop: each has a slot in its row (a translate, so the row's neighbours glide along when one
   // arrives), and yours travels from the in row to the out row and back when you change your answer. A face with
@@ -153,8 +161,15 @@
   // The card answers at once; the server's word (in, or the waitlist) arrives with the refresh.
   function setIn(going: boolean) {
     if (locked) return;
-    // Tapping the answer you've already given changes nothing: no call to the server, no new quip on Home
-    if (going ? inIt || waiting : out) return;
+    // Tapping In when you're in changes nothing: no call to the server, no new quip on Home
+    if (going && (inIt || waiting)) return;
+    // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0131, 0108)
+    if (!going && out) {
+      void answerFor(event.key, "clear");
+      entries.out = (entries.out ?? []).filter((x) => x !== id);
+      onanswer?.("none");
+      return;
+    }
     void answerFor(event.key, going ? "in" : "out");
     const wasIn = inIt;
     entries.going = entries.going.filter((x) => x !== id);
@@ -180,7 +195,7 @@
       onanswer?.("out");
       return;
     }
-    // A training's list is one order, Quarterly skaters first (ADR 0030): the card places you as the server will
+    // A training's list is one order, Quarterly skaters first (ADR 0131): the card places you as the server will
     const ahead = entries.quarterly ?? [];
     const skater = (pid: number) => PLAYERS.find((p) => p.id === pid)?.position !== "G";
     const quarterly =
@@ -260,14 +275,14 @@
       {#if glance}
         <!-- A phone: when goes under the title, so the card has no row just for it -->
         <p class="when phone-when">
-          <span class="time num">{hours}</span>{#if soon}<span class="soon">{soon}</span>{/if}
+          <span class="time num">{hours}</span>{#if soon}<span class="soon" class:now={isToday}>{soon}</span>{/if}
           {#if links}<span class="links">{@render links()}</span>{/if}
         </p>
       {:else}
         <p class="when">
           <span class="time num">{hours}</span>
           {#if place && event.venue}<span class="venue"><Icon name="pin" size={13} />{event.venue}</span>{/if}
-          {#if soon}<span class="soon">{soon}</span>{/if}
+          {#if soon}<span class="soon" class:now={isToday}>{soon}</span>{/if}
         </p>
       {/if}
     </div>
@@ -280,7 +295,7 @@
       {:else if glance}
         <!-- Home's lead: when, on the right (under the title on a phone) -->
         <span class="time num">{hours}</span>
-        {#if soon}<span class="soon">{soon}</span>{/if}
+        {#if soon}<span class="soon" class:now={isToday}>{soon}</span>{/if}
       {:else if event.signup}
         {#if inIt}<span class="badge green num">You're in · number {queue(entries.going).indexOf(id) + 1}</span>
         {:else if waiting}<span class="badge amber num"
@@ -332,7 +347,11 @@
         </div>
       {/if}
       <div class="reply">
-        {#if canSignUp}
+        {#if canSignUp && event.started}
+          <!-- A tournament that's started (ADR 0074), or a training night (ADR 0030): who's in is an admin's or the
+               register's to change, so a line where In and Out were, the same height, so nothing moves as it starts -->
+          <p class="answer settled">{event.startedWords ?? "Ask an admin to change it"}</p>
+        {:else if canSignUp}
           <div class="answer" role="group" aria-label="Are you in?">
             <!-- A night whose sign-up isn't open yet says when, in In's place (ADR 0030); an admin's put in still shows -->
             {#if event.opens && !inIt && !waiting}
@@ -351,7 +370,14 @@
                 {:else}{waiting ? "Waitlist" : full && !inIt ? "Join waitlist" : "In"}{/if}
               </button>
             {/if}
-            <button class="no" aria-pressed={out} disabled={locked} onclick={() => setIn(false)}>
+            <!-- Pressed, Out takes itself back: not answered again -->
+            <button
+              class="no"
+              aria-pressed={out}
+              title={out ? "Take back your Out" : undefined}
+              disabled={locked}
+              onclick={() => setIn(false)}
+            >
               {#if out}<Icon name="x" size={glance ? 18 : 16} />{/if}{glance && out ? "I'm out" : "Out"}
             </button>
           </div>
@@ -372,7 +398,9 @@
     gap: var(--s-5);
     padding: var(--s-5) var(--s-6);
   }
-  .event.cancelled {
+  /* Called off: the details step back, the Cancelled badge that says why stays readable */
+  .event.cancelled > :not(.top),
+  .event.cancelled .top > :not(.side) {
     opacity: 0.55;
   }
   .event.cancelled h3 {
@@ -522,6 +550,16 @@
     font-size: var(--text-md);
     font-weight: 500;
     white-space: nowrap;
+  }
+  /* Today: the poster's italic capitals in the club's red, the loudest word on the card */
+  .soon.now {
+    color: var(--red);
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-style: italic;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
   }
   .reply {
     display: flex;
@@ -726,6 +764,18 @@
     cursor: not-allowed;
     opacity: 0.6;
   }
+  /* Started: a quiet line in the tiles' place, as tall as they are */
+  .answer.settled {
+    display: flex;
+    align-items: center;
+    min-height: 2.5rem;
+    margin: 0;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .glance .answer.settled {
+    min-height: 3rem;
+  }
   /* Not open yet: when it opens, in In's tile, two lines if need be, so the tile keeps its size */
   .answer > .yes.opens {
     white-space: normal;
@@ -824,8 +874,8 @@
     .glance .phone-when .time {
       font-size: var(--text-sm);
     }
-    /* No room for how soon beside the icons: the date says it */
-    .glance .phone-when .soon {
+    /* No room for how soon beside the icons: the date says it; but not today's, which always shows */
+    .glance .phone-when .soon:not(.now) {
       display: none;
     }
     .glance .phone-when .links {

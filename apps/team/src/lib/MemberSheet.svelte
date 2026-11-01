@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { Edits } from "./dirty.svelte";
+  import SaveBar from "./SaveBar.svelte";
+  import { portal, requestClose } from "./overlay";
   import { goesBy, shortName } from "./names";
   // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
   // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
@@ -23,22 +26,29 @@
     eraseMember,
     saveMember,
     signOutMember,
+    sendAppLink,
+    removeMemberPasskeys,
     setQuarterly,
     setMemberEveryday,
     type AttendanceRow,
   } from "../app/backend.svelte";
   import { POSITIONS, REAL_ID, emailFor, phoneFor, referenceFor, type Position } from "../demo/data";
-  import { chargesFor, creditOf, owedBy } from "../demo/dues.svelte";
+  import { creditOf, owedBy } from "../demo/dues.svelte";
+  import { ledgerOf } from "../app/ledger.svelte";
   import { db } from "../demo/store.svelte";
   import { granted, me, session } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import Ledger from "./Ledger.svelte";
+  import { api } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
+  import type { Passkey } from "../app/passkeys";
   import Sheet from "./Sheet.svelte";
   import RemindReview from "./RemindReview.svelte";
   import MoneyField from "./MoneyField.svelte";
   import DateField from "./DateField.svelte";
-  import { feeOn, leftOn } from "./dues";
+  import { feeOn } from "./dues";
   import { formatDayDate, londonISO, londonToday, pounds } from "./dates";
+  import { registerClosed } from "./register-closes";
   import Avatar from "./Avatar.svelte";
   import Select from "./Select.svelte";
 
@@ -73,8 +83,6 @@
   const current = () => ({
     name: member.player.name,
     webName: member.player.webName ?? "",
-    // The name their team takes as a Kumite captain (ADR 0060); empty: "Team" and their name
-    kumiteTeamName: member.player.kumiteTeamName ?? "",
     role: member.roles[0] ?? "Member",
     // The role their app opens as: "full", or a role's id
     everyday: member.everydayRoleId == null ? "full" : String(member.everydayRoleId),
@@ -104,17 +112,18 @@
   // Attendance taps, held until Save too: a session's id → whether they came
   let marks = $state<Record<number, boolean>>({});
   const ratingOk = $derived(Number.isInteger(draft.rating) && draft.rating >= 0 && draft.rating <= 100);
-  const changed = $derived(
-    tidyName(draft.name) !== saved.name ||
-      (Object.keys(saved) as (keyof typeof saved)[]).some(
-        (k) => k !== "name" && String(draft[k]).trim() !== String(saved[k]),
-      ) ||
-      Object.keys(marks).length > 0,
-  );
+  // Unsaved changes (lib/dirty.svelte.ts): their details as they'd be saved (names tidied, spaces trimmed) and the
+  // Fridays tapped, against what they were when it opened or last saved. Closing with some asks first, in the footer
+  const edits = new Edits();
+  edits.watch(() => ({
+    details: Object.fromEntries(
+      Object.entries(draft).map(([k, v]) => [k, k === "name" ? tidyName(String(v)) : String(v).trim()]),
+    ),
+    marks,
+  }));
+  const changed = $derived(edits.dirty);
   let busy = $state(false);
   const canSave = $derived(changed && ratingOk && !!tidyName(draft.name) && !busy);
-  // Closing with changes: the footer asks, Save or Discard
-  let asking = $state(false);
 
   // Only what changed goes to the server (app/backend.svelte.ts). A member has one role of their own, plus Member.
   async function saveDetails(): Promise<boolean> {
@@ -125,7 +134,6 @@
         ...draft,
         name: tidyName(draft.name),
         webName: tidyName(draft.webName),
-        kumiteTeamName: tidyName(draft.kumiteTeamName),
         email: draft.email.trim(),
         phone: draft.phone.trim(),
       };
@@ -133,7 +141,6 @@
       if (
         d.name !== saved.name ||
         d.webName !== saved.webName ||
-        d.kumiteTeamName !== saved.kumiteTeamName ||
         d.role !== saved.role ||
         d.position !== saved.position ||
         d.rating !== saved.rating ||
@@ -142,8 +149,6 @@
         Object.assign(member.player, {
           name: d.name,
           webName: d.webName || null,
-          // Sent only once it's been changed or there was one (backend saveMember)
-          kumiteTeamName: d.kumiteTeamName !== saved.kumiteTeamName ? d.kumiteTeamName : member.player.kumiteTeamName,
           position: d.position,
           rating: d.rating,
           cougar: d.cougar,
@@ -188,11 +193,12 @@
       busy = false;
     }
   }
+  /** Back to what's saved, without closing. */
   function discard() {
     draft = { ...saved };
     marks = {};
-    asking = false;
   }
+  const saveIt = () => canSave && edits.run(saveDetails);
 
   // Their attendance, a quarter at a time (Jan–Mar, Apr–Jun…), from the first quarter any training ran to this one.
   // Tap a Friday to say whether they came; it shows at once and is sent with Save.
@@ -212,7 +218,11 @@
   const load = (id: number, y: number) =>
     attendanceOf(id, String(y))
       .then((rows) => y === year && (attendance = rows))
-      .catch(() => y === year && (attendance = []));
+      // Shown as none: Sentry hears of a failure that isn't the network's or the club's refusal
+      .catch((e) => {
+        reportUnexpected(e, "Couldn't read a member's attendance");
+        if (y === year) attendance = [];
+      });
   $effect(() => {
     const y = year;
     attendance = null;
@@ -248,19 +258,22 @@
     if (here) return { ...r, signup: "in", attended: true };
     return r.walkIn ? { ...r, signup: null, attended: null, walkIn: false } : { ...r, attended: false };
   }
+  // A night's register closes at 6am the morning after (lib/register-closes.ts, #11): its day is shown, not changed
+  const closed = (r: AttendanceRow) => registerClosed(r.heldOn);
   function toggleCame(r: AttendanceRow) {
     const was = attendance?.find((x) => x.sessionId === r.sessionId);
-    if (!was || was.cancelled) return;
+    if (!was || was.cancelled || closed(was)) return;
     const here = !came(r);
     // Back to how it was saved: nothing to send
     if (here === came(was)) delete marks[r.sessionId];
     else marks[r.sessionId] = here;
   }
 
-  const charges = $derived(chargesFor(memberId));
+  // Their ledger, read when the Dues tab shows it (#177): what they've paid in all, and the quarters charged lately
+  const book = $derived(ledgerOf(memberId));
   const owed = $derived(owedBy(memberId));
   // Everything paid towards their charges, part payments too, and money not yet spent on one
-  const paidTotal = $derived(charges.reduce((s, c) => s + c.pence - leftOn(c), 0));
+  const paidTotal = $derived(book.paid);
   const credit = $derived(creditOf(memberId));
 
   // Dues (ADR 0007): who sees Unpaid fees sees a member's charges; who records payments marks them
@@ -277,7 +290,7 @@
   const chargeOptions = $derived(
     [0, 1, 2, 3, 4].map((back) => {
       const n = thisQuarter - back;
-      const taken = charges.some((c) => c.quarter === quarterKey(n));
+      const taken = book.quarters.includes(quarterKey(n));
       return { value: String(n), label: `${quarterName(n)}${taken ? " (charged)" : ""}`, disabled: taken };
     }),
   );
@@ -361,11 +374,6 @@
   // Shallow depth: a light turn, not a heavy swing
   const DEPTH = "perspective(2400px)";
 
-  function portal(node: HTMLElement) {
-    document.body.append(node);
-    return { destroy: () => node.remove() };
-  }
-
   // Where the tapped card lies, before anything paints over it
   $effect.pre(() => {
     if (!closing && !prefersReducedMotion) from = rectOf(source);
@@ -436,6 +444,16 @@
     if (done) shut();
   }
 
+  // The link to the app, sent after all (#164): someone added without it, or whose email went astray. One email a
+  // tap, to the address saved (not one typed and unsaved)
+  let sendingLink = $state(false);
+  async function sendLink() {
+    if (sendingLink) return;
+    sendingLink = true;
+    await sendAppLink(member.player.id, shortName(member.player));
+    sendingLink = false;
+  }
+
   // Signing them out everywhere (#72): a lost phone, a shared laptop. They sign in again with a code.
   let signingOut = $state(false);
   async function signOutEverywhere() {
@@ -444,17 +462,39 @@
     signingOut = false;
   }
 
-  // Closing with changes asks first (the footer); Discard or Save goes on to close
+  // Their passkeys (ADR 0023): by device and the day they added it; an admin removes them all (a lost or sold phone).
+  // Their sign-ins stay: that's Sign out everywhere, beside it
+  let theirPasskeys = $state<Passkey[] | null>(null);
+  $effect(() => {
+    const id = memberId;
+    if (id === me().id) return;
+    theirPasskeys = null;
+    // A slow answer for someone no longer shown is dropped, as their attendance's is
+    api<{ passkeys: Passkey[] }>("GET", `/api/members/${id}/passkeys`)
+      .then((r) => id === memberId && (theirPasskeys = r.passkeys))
+      // Their line is left out: Sentry hears of a failure that isn't the network's or the club's refusal
+      .catch((e) => {
+        reportUnexpected(e, "Couldn't read a member's passkeys");
+        if (id === memberId) theirPasskeys = null;
+      });
+  });
+  const passkeysLine = $derived(
+    theirPasskeys === null
+      ? ""
+      : theirPasskeys.length
+        ? `Passkeys: ${theirPasskeys.map((p) => `${p.name}, ${formatDayDate(p.createdAt)}`).join("; ")}`
+        : "No passkeys: they sign in with a code.",
+  );
+  let removingPasskeys = $state(false);
+  async function removePasskeys() {
+    removingPasskeys = true;
+    if (await removeMemberPasskeys(memberId)) theirPasskeys = [];
+    removingPasskeys = false;
+  }
+
+  // Closing with changes asks first (the footer, lib/SaveBar); Discard goes on to close
   function close() {
-    if (changed) return void (asking = true);
-    shut();
-  }
-  async function saveAndClose() {
-    if (await saveDetails()) shut();
-  }
-  function discardAndClose() {
-    discard();
-    shut();
+    requestClose(shut, edits.guard);
   }
 
   async function shut() {
@@ -689,26 +729,32 @@
                       <span>{draft.cougar ? "On the Cougars" : "Not on it"}</span>
                     </button>
                   </div>
-                  <label class="field">
-                    Default Kumite team name
-                    <input
-                      class="input"
-                      maxlength="40"
-                      autocomplete="off"
-                      placeholder={`Team ${shortName(member.player)}`}
-                      bind:value={draft.kumiteTeamName}
-                    />
-                  </label>
                 </div>
               </div>
               {#if member.player.id !== me().id}
                 <!-- A member who asked the club by email to delete their account (#30): as if they'd done it -->
                 <div class="group">
                   <h3 class="eyebrow">Their account</h3>
+                  {#if saved.email}
+                    <!-- Added quietly, or the first email went astray (#164): the same "You're in" email -->
+                    <button class="btn ghost sm start" type="button" disabled={sendingLink} onclick={sendLink}
+                      >Send them the app link</button
+                    >
+                  {/if}
                   <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out (#72) -->
                   <button class="btn ghost sm start" type="button" disabled={signingOut} onclick={signOutEverywhere}
                     >Sign out everywhere</button
                   >
+                  <!-- Their passkeys (ADR 0023): a line of what they have, kept in place so it never moves the rest -->
+                  <p class="hint passkeys-line">{passkeysLine}</p>
+                  {#if theirPasskeys?.length}
+                    <button
+                      class="btn ghost sm start"
+                      type="button"
+                      disabled={removingPasskeys}
+                      onclick={removePasskeys}>Remove their passkeys</button
+                    >
+                  {/if}
                   <button
                     class="btn ghost sm danger"
                     type="button"
@@ -723,7 +769,7 @@
                     </p>
                     {#snippet footer()}
                       <button class="btn ghost" type="button" onclick={() => (erasing = false)}>Keep it</button>
-                      <button class="btn delete" type="button" disabled={busy} onclick={erase}>Delete it</button>
+                      <button class="btn danger" type="button" disabled={busy} onclick={erase}>Delete it</button>
                     {/snippet}
                   </Sheet>
                 </div>
@@ -766,14 +812,17 @@
                     </span>
                   </div>
                   <p class="legend hint">
-                    <span><i class="dot came"></i>Came {inQuarter.filter(came).length}</span>
                     <span
-                      ><i class="dot noshow"></i>No-show {inQuarter.filter((r) => r.signup === "in" && !came(r))
-                        .length}</span
+                      ><i class="dot came"><Icon name="check" size={10} /></i>Came {inQuarter.filter(came).length}</span
+                    >
+                    <span
+                      ><i class="dot noshow"><Icon name="x" size={10} /></i>No-show {inQuarter.filter(
+                        (r) => r.signup === "in" && !came(r),
+                      ).length}</span
                     >
                     <span><i class="dot"></i>Not there</span>
                     <span>Played {member.player.played ?? 0} in all</span>
-                    <span class="tap">Tap a Friday to change it</span>
+                    <span class="tap">Open till 6am the morning after</span>
                   </p>
                   <!-- The quarter as a calendar: a row per month, its trainings across it week by week -->
                   <div class="months">
@@ -787,12 +836,21 @@
                           {@const o = outcome(r)}
                           <button
                             class="day {o.kind}"
+                            class:closed={closed(r)}
                             disabled={r.cancelled}
-                            title="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}"
-                            aria-label="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}"
+                            aria-disabled={closed(r) || undefined}
+                            title="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}{closed(r)
+                              ? ' (the register closed)'
+                              : ''}"
+                            aria-label="{r.series}, {formatDayDate(londonISO(r.heldOn, '12:00'))}: {o.label}{closed(r)
+                              ? ' (the register closed)'
+                              : ''}"
                             onclick={() => toggleCame(r)}
                           >
                             <span class="d num">{Number(r.heldOn.slice(8))}</span>
+                            <!-- Not colour alone (#14): the In button's tick on Came, Out's cross on a no-show -->
+                            {#if o.kind === "came"}<span class="mark"><Icon name="check" size={10} /></span>
+                            {:else if o.kind === "noshow"}<span class="mark"><Icon name="x" size={10} /></span>{/if}
                           </button>
                         {:else}
                           {#if attendance !== null}<span class="hint">No trainings</span>{/if}
@@ -968,20 +1026,18 @@
     </div>
 
     <!-- Always at the bottom: Save and Discard for their details; closing with changes asks here -->
-    <footer class="panel-foot" class:asking>
-      <p class="foot-note hint" role="status">
-        {#if asking}Save your changes to {shortName(member.player)}?{:else if !ratingOk}A rating is a whole number, 0 to
-          100{:else if changed}Unsaved changes{/if}
-      </p>
-      {#if asking}
-        <button class="btn ghost" onclick={() => (asking = false)}>Keep editing</button>
-        <button class="btn" onclick={discardAndClose}>Discard</button>
-        <button class="btn primary" disabled={!canSave} onclick={saveAndClose}>Save</button>
-      {:else}
-        <button class="btn ghost" disabled={!changed || busy} onclick={discard}>Discard</button>
-        <button class="btn primary" disabled={!canSave} onclick={saveDetails}>Save</button>
-      {/if}
+    <footer class="panel-foot">
+      <SaveBar
+        {edits}
+        onsave={saveIt}
+        ready={ratingOk && !!tidyName(draft.name)}
+        problem={ratingOk ? "" : "A rating is a whole number, 0 to 100"}
+        start={changed ? undo : undefined}
+      />
     </footer>
+    {#snippet undo()}
+      <button class="btn ghost" disabled={busy} onclick={discard}>Undo changes</button>
+    {/snippet}
   </div>
 </div>
 
@@ -1122,6 +1178,11 @@
     display: grid;
     gap: var(--s-3);
   }
+  .passkeys-line {
+    min-height: 1.45em;
+    margin: 0;
+    font-size: var(--text-sm);
+  }
   .fields {
     display: grid;
     gap: var(--s-4);
@@ -1183,12 +1244,6 @@
     padding-bottom: max(var(--s-3), env(safe-area-inset-bottom));
     border-top: 1px solid var(--border);
     background: var(--surface-1);
-  }
-  .foot-note {
-    margin: 0 auto 0 0;
-  }
-  .asking .foot-note {
-    color: var(--fg);
   }
   @media (max-width: 600px) {
     .body {
@@ -1360,19 +1415,26 @@
   .legend .tap {
     margin-left: auto;
   }
+  /* A tile in small: its colour and, as on the tiles, the tick or the cross */
   .dot {
-    display: inline-block;
-    width: 0.6rem;
-    height: 0.6rem;
+    display: inline-grid;
+    place-items: center;
+    width: 0.85rem;
+    height: 0.85rem;
     margin-right: var(--s-1);
     border-radius: 2px;
+    vertical-align: -0.1em;
     background: color-mix(in srgb, var(--fg) 12%, transparent);
+    color: var(--fg);
+  }
+  .dot :global(svg) {
+    stroke-width: 3;
   }
   .dot.came {
-    background: var(--green);
+    background: color-mix(in srgb, var(--green) 55%, transparent);
   }
   .dot.noshow {
-    background: var(--red-hot);
+    background: color-mix(in srgb, var(--red) 55%, transparent);
   }
   /* The quarter as a calendar: month names down the side, a tile per training across, filled by what happened */
   .months {
@@ -1396,6 +1458,7 @@
     min-height: 2.5rem;
   }
   .day {
+    position: relative;
     display: grid;
     place-items: center;
     width: 2.5rem;
@@ -1408,7 +1471,7 @@
     line-height: 1;
     transition: background-color var(--t-fast) var(--ease-in-out);
   }
-  .day:hover:not(:disabled) {
+  .day:hover:not(:disabled, .closed) {
     background: color-mix(in srgb, var(--fg) 14%, transparent);
   }
   .day .d {
@@ -1423,6 +1486,21 @@
     background: color-mix(in srgb, var(--red) 30%, transparent);
     color: var(--fg);
   }
+  /* The tick or the cross in the tile's corner, out of the date's way, so a tap changes nothing's size */
+  .day .mark {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    line-height: 0;
+  }
+  .day .mark :global(svg) {
+    stroke-width: 2.6;
+  }
+  /* Its register closed the morning after: shown as it was, not a tap */
+  .day.closed {
+    cursor: default;
+  }
   .day.cancelled {
     opacity: 0.35;
     text-decoration: line-through;
@@ -1431,16 +1509,6 @@
   .start,
   .danger {
     justify-self: start;
-  }
-  .danger {
-    color: var(--red-hot);
-  }
-  .delete {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .delete:hover:not(:disabled) {
-    background: var(--red-hot);
   }
   .erase-note {
     margin: 0;

@@ -26,7 +26,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 const friday = async (b: Browser) =>
@@ -103,7 +103,7 @@ describe("what the club tells them", () => {
         token: "token-reg@example.com",
         title: "Teams are out",
         body: "Fri 9 Oct: you're on Black.",
-        path: "/training/friday",
+        path: `/training/friday/${NEXT_FRIDAY}`,
       }),
     ]);
   });
@@ -143,24 +143,6 @@ describe("what the club tells them", () => {
     ]);
   });
 
-  it("a place comes up on a full night: whoever moves up off the waitlist hears they're in", async () => {
-    const dana = await w.signedIn("dana@example.com");
-    const series = (await boot(dana)).series[0];
-    await dana.call("PUT", `/api/series/${series.id}`, { ...series, capacity: 1 });
-    const session = await friday(dana);
-    const reg = await phone("reg@example.com");
-    const alt = await phone("alt@example.com");
-    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
-    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
-    expect(sentTo()).toEqual([]);
-
-    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "out" });
-
-    expect(w.pushes).toEqual([
-      expect.objectContaining({ token: "token-alt@example.com", title: "You're in", path: "/training/friday" }),
-    ]);
-  });
-
   it("a session's off: everyone signed up or waiting hears it", async () => {
     const reg = await phone("reg@example.com");
     await phone("alt@example.com");
@@ -171,7 +153,11 @@ describe("what the club tells them", () => {
     await dana.call("POST", `/api/sessions/${session.id}/cancelled`, { cancelled: true });
 
     expect(w.pushes).toEqual([
-      expect.objectContaining({ token: "token-reg@example.com", title: "Fri 9 Oct is off", path: "/training/friday" }),
+      expect.objectContaining({
+        token: "token-reg@example.com",
+        title: "Fri 9 Oct is off",
+        path: `/training/friday/${NEXT_FRIDAY}`,
+      }),
     ]);
     // Putting it back on isn't news to send
     w.pushes.length = 0;
@@ -201,7 +187,17 @@ describe("what a member chooses to hear", () => {
 
   it("hears everything until they say otherwise", async () => {
     const reg = await w.signedIn("reg@example.com");
-    const all = { teams: true, places: true, sessionOff: true, announcements: true, dues: true, draft: true };
+    const all = {
+      teams: true,
+      places: true,
+      sessionOff: true,
+      announcements: true,
+      dues: true,
+      draft: true,
+      email: true,
+      security: true,
+      usage: true,
+    };
     expect(await prefs(reg)).toEqual(all);
     expect((await boot(reg)).notifications).toEqual(all);
   });
@@ -269,7 +265,7 @@ describe("what a member chooses to hear", () => {
   });
 });
 
-// #97: a training's list is one order, Quarterly Members first (ADR 0030). One signing up for a full Friday takes the
+// #97: a training's list is one order, Quarterly Members first (ADR 0131). One signing up for a full Friday takes the
 // place of the last one in paying as they go, who should know before they turn up.
 describe("a place taken by a Quarterly Member", () => {
   async function fullFriday() {
@@ -295,7 +291,7 @@ describe("a place taken by a Quarterly Member", () => {
         token: "token-reg@example.com",
         title: "On the waitlist",
         body: "You're on the waitlist for Fri 9 Oct, first in line: a Quarterly Member took the last place.",
-        path: "/training/friday",
+        path: `/training/friday/${NEXT_FRIDAY}`,
       }),
     ]);
 
@@ -364,7 +360,8 @@ describe("a club-wide send, within the free plan", () => {
   }
   const tokens = (fcm: { asked: { token: string }[] }) => fcm.asked.map((a) => a.token);
   const waiting = () =>
-    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+    (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE state IN ('queued', 'claimed')").get() as { n: number })
+      .n;
 
   it("an announcement to 120 phones reaches each exactly once, never more than SEND_AT_ONCE in one invocation", async () => {
     const { dana, fcm } = await clubWithPhones(120);

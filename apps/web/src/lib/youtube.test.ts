@@ -113,14 +113,27 @@ describe("tidyTitle", () => {
   });
 });
 
+// YouTube's `videos` answer for the ids asked about: each one done processing unless `statuses` says otherwise
+// ("uploaded" while it's still processing, "failed", "rejected", "deleted"). An id mapped to null isn't returned.
+function videoStatuses(url: URL, statuses: Record<string, string | null> = {}) {
+  const ids = url.searchParams.get("id")?.split(",") ?? [];
+  const items = ids
+    .filter((id) => statuses[id] !== null)
+    .map((id) => ({ kind: "youtube#video", id, status: { uploadStatus: statuses[id] ?? "processed" } }));
+  return Response.json({ kind: "youtube#videoListResponse", items });
+}
+const isVideos = (url: URL) => url.pathname === "/youtube/v3/videos";
+const playlistCalls = (calls: URL[]) => calls.filter((c) => c.pathname.endsWith("/playlistItems"));
+
 // The network boundary: a fake fetch that answers like the YouTube API and records what was asked.
-function fakeYouTube(pages: number, perPage = 2) {
+function fakeYouTube(pages: number, perPage = 2, statuses: Record<string, string | null> = {}) {
   const calls: URL[] = [];
   const pub = fixtures.playlistItems.items[0];
   const fetch = vi.fn(async (input: string | URL) => {
     const url = new URL(input);
     calls.push(url);
     if (url.pathname.endsWith("/channels")) return Response.json(fixtures.channels);
+    if (isVideos(url)) return videoStatuses(url, statuses);
     const page = Number(url.searchParams.get("pageToken") ?? 0);
     const items = Array.from({ length: perPage }, (_, i) => {
       const id = `vid${page}x${i}`.padEnd(11, "0");
@@ -158,21 +171,65 @@ describe("fetchChannelVideos", () => {
     vi.stubGlobal("fetch", fetch);
     const videos = await fetchChannelVideos({ handle: "c00" }, "k");
     expect(videos).toHaveLength(6);
-    expect(calls.map((c) => c.searchParams.get("pageToken"))).toEqual([null, null, "1", "2"]);
+    expect(playlistCalls(calls).map((c) => c.searchParams.get("pageToken"))).toEqual([null, "1", "2"]);
   });
 
   it("stops at the cap", async () => {
     const { fetch, calls } = fakeYouTube(10, 2);
     vi.stubGlobal("fetch", fetch);
     expect(await fetchChannelVideos({ handle: "c00" }, "k", { max: 5 })).toHaveLength(5);
-    expect(calls).toHaveLength(1 + 3);
+    expect(calls).toHaveLength(1 + 3 + 3); // channels, then playlistItems and videos per page
+  });
+
+  it("leaves out a video still processing on YouTube, and shows it once it's done", async () => {
+    const processing = fakeYouTube(1, 3, { vid0x100000: "uploaded" });
+    vi.stubGlobal("fetch", processing.fetch);
+    const before = await fetchChannelVideos({ handle: "c00" }, "k");
+    expect(before.map((v) => v._id)).toEqual(["youtube-vid0x000000", "youtube-vid0x200000"]);
+    const videosCall = processing.calls.find(isVideos)!;
+    expect(videosCall.searchParams.get("part")).toBe("status");
+    expect(videosCall.searchParams.get("id")).toBe("vid0x000000,vid0x100000,vid0x200000");
+
+    vi.stubGlobal("fetch", fakeYouTube(1, 3).fetch);
+    expect(await fetchChannelVideos({ handle: "c00" }, "k")).toHaveLength(3);
+  });
+
+  it("never shows a video whose upload failed, was rejected or is gone", async () => {
+    const statuses = { vid0x000000: "failed", vid0x100000: "rejected", vid0x200000: "deleted", vid0x300000: null };
+    vi.stubGlobal("fetch", fakeYouTube(1, 5, statuses).fetch);
+    expect((await fetchChannelVideos({ handle: "c00" }, "k")).map((v) => v._id)).toEqual(["youtube-vid0x400000"]);
+  });
+
+  it("asks about at most 50 videos at a time, one call per page", async () => {
+    const { fetch, calls } = fakeYouTube(3, 50);
+    vi.stubGlobal("fetch", fetch);
+    expect(await fetchChannelVideos({ handle: "c00" }, "k", { max: 120 })).toHaveLength(120);
+    const asked = calls.filter(isVideos).map((c) => c.searchParams.get("id")!.split(","));
+    expect(asked.map((ids) => ids.length)).toEqual([50, 50, 50]);
+  });
+
+  it("fills up to the cap past videos still processing", async () => {
+    vi.stubGlobal("fetch", fakeYouTube(3, 2, { vid0x000000: "uploaded", vid1x000000: "uploaded" }).fetch);
+    const videos = await fetchChannelVideos({ handle: "c00" }, "k", { max: 3 });
+    expect(videos.map((v) => v._id)).toEqual(["youtube-vid0x100000", "youtube-vid1x100000", "youtube-vid2x000000"]);
+  });
+
+  it("throws when YouTube won't say which videos are ready", async () => {
+    const { fetch } = fakeYouTube(1);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => (isVideos(new URL(input)) ? new Response("{}", { status: 500 }) : fetch(input))),
+    );
+    await expect(fetchChannelVideos({ handle: "c00" }, "k")).rejects.toThrow(/YouTube videos: 500/);
   });
 
   it("drops private and deleted items from the real response shape", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
-        Response.json(url.includes("/channels") ? fixtures.channels : fixtures.playlistItems),
+        isVideos(new URL(url))
+          ? videoStatuses(new URL(url))
+          : Response.json(url.includes("/channels") ? fixtures.channels : fixtures.playlistItems),
       ),
     );
     // The fixture's nextPageToken leads back to the same page; the cap ends it.
@@ -244,11 +301,12 @@ describe("fetchSourceVideos", () => {
       "fetch",
       vi.fn(async (input: string) => {
         calls.push(new URL(input));
+        if (isVideos(new URL(input))) return videoStatuses(new URL(input));
         return Response.json({ items: fixtures.playlistItems.items });
       }),
     );
     const videos = await fetchSourceVideos({ playlists: [{ id: "PLabcdefghijklmnop", label: null }] }, "k");
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2); // playlistItems, then videos for which are ready
     expect(calls[0].pathname).toBe("/youtube/v3/playlistItems");
     expect(calls[0].searchParams.get("playlistId")).toBe("PLabcdefghijklmnop");
     // public, private, deleted, unlisted, ...: the public and the unlisted ones
@@ -262,10 +320,12 @@ describe("fetchSourceVideos", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string) =>
-        // The Kumite playlist holds the first public video again, plus nothing else.
-        Response.json({
-          items: new URL(input).searchParams.get("playlistId") === "PLkumite00000" ? items.slice(0, 1) : items,
-        }),
+        isVideos(new URL(input))
+          ? videoStatuses(new URL(input))
+          : // The Kumite playlist holds the first public video again, plus nothing else.
+            Response.json({
+              items: new URL(input).searchParams.get("playlistId") === "PLkumite00000" ? items.slice(0, 1) : items,
+            }),
       ),
     );
     const playlists = [
@@ -281,7 +341,9 @@ describe("fetchSourceVideos", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) =>
-        Response.json(url.includes("/channels") ? fixtures.channels : { items: fixtures.playlistItems.items }),
+        isVideos(new URL(url))
+          ? videoStatuses(new URL(url))
+          : Response.json(url.includes("/channels") ? fixtures.channels : { items: fixtures.playlistItems.items }),
       ),
     );
     const videos = await fetchSourceVideos({ channel: { handle: "club" } }, "k");

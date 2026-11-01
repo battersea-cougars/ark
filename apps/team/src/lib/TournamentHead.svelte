@@ -14,10 +14,18 @@
   import { PLAYERS } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
-  import TournamentEditorPanel, { editTournament } from "./TournamentEditorPanel.svelte";
+  import { editTournament } from "./tournament-panel.svelte";
   import { tournamentAfter, tournamentPlace } from "../demo/schedule.svelte";
-  import { countdownOf, editionWhen } from "./edition";
-  import { stageBadge, type Status } from "./tournament-front";
+  import { countdownOf, editionWhen, hasStarted } from "./edition";
+  import { stageBadge, statusOf, type Status } from "./tournament-front";
+  import { invitationOnly, kanjiFor, type MotifKey } from "./motif";
+  import { fighterLabel, fighterOf } from "./fighters";
+  import Kanji from "./Kanji.svelte";
+  import type { IconName } from "../app/shell/icons";
+  import type { RulesTopic } from "./format-rules";
+  import { signupOpen } from "./signup";
+  import { prefersReducedMotion } from "../app/motion";
+  import { cubicOut } from "svelte/easing";
   import { makeFixtures } from "../app/backend.svelte";
   import { formatAndRules } from "./format-rules";
   import StageTrack from "./StageTrack.svelte";
@@ -25,12 +33,19 @@
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
   import { phone } from "./viewport.svelte";
-  import { londonToday } from "./dates";
+  import { londonEvening, londonToday } from "./dates";
   import StepBack from "./StepBack.svelte";
+  import MoveTo from "./MoveTo.svelte";
+  import SimulateRest from "./SimulateRest.svelte";
+  import { SIMULATOR } from "../demo/data";
+  import { simulating } from "../app/simulation.svelte";
   import DraftJobs from "./DraftJobs.svelte";
-  import ManageList, { type ManageItem } from "./ManageList.svelte";
-  import { draftJobsOf } from "./draft-jobs";
-  import { BACK_SAYS, backFrom, backTo } from "./step-back";
+  import type { ManageItem } from "./ManageList.svelte";
+  import ManageMenu from "./ManageMenu.svelte";
+  import { historyItemsOf, manageItemsOf, type ManageEntry, type ManageKey } from "./manage";
+  import PastKumiteRecord from "./PastKumiteRecord.svelte";
+  import PastDayPlay from "./PastDayPlay.svelte";
+  import InkStamp, { type InkTone } from "./InkStamp.svelte";
 
   let {
     type,
@@ -41,6 +56,7 @@
     compact = false,
     track = false,
     viewing = null,
+    back,
   }: {
     type: TournamentType;
     tournament?: Tournament;
@@ -55,12 +71,21 @@
     track?: boolean;
     /** The status whose view the page is showing (the track's lit one); none on a page that isn't one (the board). */
     viewing?: Status | null;
+    /** A page under the series' front page (a team, a match, History): the eyebrow is the way back, "‹ The Cougars
+     *  Kumite", top left over the title on every screen. Its label when it isn't the series (an edition's page). */
+    back?: { href: string; label?: string };
   } = $props();
 
-  // Where it's got to, as the stamp says it (lib/tournament-front.ts): sign-up open, the draft live, the teams set,
-  // the fixtures out, KUMITE! on the day, done
-  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday()) : null);
   const when = $derived(tournament ? editionWhen(tournament) : null);
+  // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
+  const after = $derived(tournament ? tournamentAfter(tournament) : null);
+  // Where it's got to, as the stamp says it (lib/tournament-front.ts): the status, as the track names it, with its
+  // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor (that
+  // evening, past midnight till 06:00, as the track and Home say it, #168)
+  const stage = $derived(tournament ? stageBadge(tournament, type, londonToday(), after?.name, londonEvening()) : null);
+  const mark = $derived(stage ? kanjiFor(type, stage.mark) : "");
+  // The status's ink (lib/InkStamp): the club's red, Coming up faint, KUMITE! a block of red, the after-party and Done bone
+  const INK = { on: "red", quiet: "faint", live: "live", done: "bone" } as const satisfies Record<string, InkTone>;
   // Where it is, opening the map (its venue's link, else a search for its name)
   const place = $derived(tournament ? tournamentPlace(tournament) : null);
   // How far off the day is (lib/edition.ts countdownOf): within a week it leads the line, big, in the club's red
@@ -70,8 +95,6 @@
   );
   const lead = $derived(countdown && "lead" in countdown ? countdown.lead : "");
   const quiet = $derived(countdown && "quiet" in countdown ? countdown.quiet : "");
-  // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
-  const after = $derived(tournament ? tournamentAfter(tournament) : null);
   const admin = $derived(offer && can(granted(), "manage:Tournament"));
   // Whoever runs the draft takes back the draft's own steps too (the drawn order, the picks): from here, the one
   // Back on the page (lib/StepBack), not one of the draft's as well
@@ -92,108 +115,159 @@
   let logOpen = $state(false);
   let menuOpen = $state(false);
   let rulesOpen = $state(false);
-  // Your answer, as a badge in the header once you've given it (ADR 0074): in, waiting or out
+  // Your answer once you've given it (ADR 0074): in, waiting or out, as the Friday card's answer says it (a tick, a
+  // cross), never like the status's stamp; it opens a small sheet to change it. Not while the sign-up card is on the
+  // page under it, where you answer (pages/Games)
+  const signingUp = $derived(
+    !!tournament &&
+      viewing === "signup" &&
+      statusOf(tournament, londonToday()) === "signup" &&
+      signupOpen(tournament, londonToday()),
+  );
   const answered = $derived.by(() => {
-    if (!tournament || !track) return null;
+    if (!tournament || !track || signingUp) return null;
     const id = me().id;
-    if (tournament.going.includes(id)) return { label: "You're in", tone: "in", going: true };
-    if (tournament.waitlist.includes(id)) return { label: "Waiting", tone: "wait", going: true };
-    if (tournament.out?.includes(id)) return { label: "You're out", tone: "out", going: false };
+    // The Kumite's by invitation: your fighter's number, a reserve's, or Declined (lib/fighters.ts)
+    const f = invitationOnly(type) ? fighterOf(tournament, id) : null;
+    if (f?.is === "fighter")
+      return { label: fighterLabel(f), short: `No. ${f.no}`, tone: "in", icon: "check" as const };
+    if (f?.is === "reserve")
+      return { label: fighterLabel(f), short: `Res. ${f.no}`, tone: "wait", icon: "clock" as const };
+    if (f) return { label: "Declined", short: "Declined", tone: "out", icon: "x" as const };
+    if (tournament.going.includes(id)) return { label: "You're in", short: "In", tone: "in", icon: "check" as const };
+    if (tournament.waitlist.includes(id))
+      return { label: "Waiting", short: "Waiting", tone: "wait", icon: "clock" as const };
+    if (tournament.out?.includes(id)) return { label: "You're out", short: "Out", tone: "out", icon: "x" as const };
     return null;
   });
   let answerOpen = $state(false);
   let answerAt = $state<HTMLElement | undefined>();
-  function jump(topic: string) {
-    document
-      .querySelector(`[data-topic="${CSS.escape(topic)}"]`)
-      ?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }
+  // Rules, a topic a page (ADR 0074): the tabs change the page, which slides in the way you went; on a phone a swipe
+  // does too. It opens on the topic for the status it's at, and keeps to the one you're on while it's open
   const rules = $derived(tournament ? formatAndRules(tournament, type.houseRules) : []);
+  const TOPIC_FOR: Record<Status, RulesTopic[]> = {
+    signup: ["signup"],
+    draft: ["draft", "signup"],
+    teams: ["format"],
+    fixtures: ["format"],
+    day: ["points"],
+    afters: ["points"],
+  };
+  const TOPIC_LOOK: Record<RulesTopic, { mark: MotifKey; icon: IconName }> = {
+    signup: { mark: "open", icon: "userPlus" },
+    draft: { mark: "draw", icon: "draft" },
+    format: { mark: "fights", icon: "swords" },
+    points: { mark: "results", icon: "medal" },
+    penalties: { mark: "blood", icon: "whistle" },
+    house: { mark: "martial", icon: "rules" },
+  };
+  let topic = $state<RulesTopic>("signup");
+  let topicDir = $state(1);
+  const topicAt = $derived(
+    Math.max(
+      0,
+      rules.findIndex((x) => x.id === topic),
+    ),
+  );
+  function openRules() {
+    const at = tournament ? statusOf(tournament, londonToday()) : "signup";
+    topic = TOPIC_FOR[at].find((id) => rules.some((x) => x.id === id)) ?? rules[0]?.id ?? "signup";
+    rulesOpen = true;
+  }
+  function toTopic(i: number) {
+    const next = rules[i];
+    if (!next || i === topicAt) return;
+    topicDir = i > topicAt ? 1 : -1;
+    topic = next.id;
+  }
+  // A swipe across the page (not down it) turns it
+  let swipeFrom: { x: number; y: number } | null = null;
+  function swipeEnd(e: TouchEvent) {
+    const t = e.changedTouches[0];
+    if (!swipeFrom || !t) return;
+    const dx = t.clientX - swipeFrom.x;
+    const dy = t.clientY - swipeFrom.y;
+    swipeFrom = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) toTopic(topicAt + (dx < 0 ? 1 : -1));
+  }
+  const topicIn = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 280,
+    easing: cubicOut,
+    css: (t: number, u: number) => `transform: translateX(${u * 40 * topicDir}px); opacity: ${t}`,
+  });
+  const topicOut = (_node: Element) => ({
+    duration: prefersReducedMotion ? 0 : 180,
+    css: (t: number, u: number) => `transform: translateX(${-u * 28 * topicDir}px); opacity: ${t}`,
+  });
+  // A rule's figures stand out (places, £, minutes, points): split into words and figures, a figure every other part
+  const figures = (text: string) =>
+    text.split(/(£?\d+(?:[.:]\d+)?(?:am|pm|st|nd|rd|th)?(?:-minute)?(?: × \d+-minute)?)/);
   let stepper = $state<ReturnType<typeof StepBack>>();
-  // What an admin does to this edition that has no tab of its own (ADR 0074): its settings (day, sign-up, captains,
-  // draft day, rules), then the awards. The draft and the fight card are run on their own tabs, not from here. A bottom
-  // sheet on a phone (where it's mostly done, at the rink), a side drawer on a desktop. The next one isn't here: it's
-  // the front page's own button once nothing's on (ADR 0074)
-  // The draft's own jobs (lib/draft-jobs.ts): items here, not a menu inside the menu
+  let mover = $state<ReturnType<typeof MoveTo>>();
+  let simulator = $state<ReturnType<typeof SimulateRest>>();
+  // What an admin does to this edition that has no tab of its own (ADR 0074), and a captain's own: which, by where
+  // it stands, is lib/manage.ts; here, what each does. A bottom sheet on a phone (where it's mostly done, at the
+  // rink), a side drawer on a desktop. The next one isn't here: it's the front page's own button once nothing's on
   const adds = $derived(offer && can(granted(), "update:Event"));
   let drafter = $state<ReturnType<typeof DraftJobs>>();
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  // The series' history's own (a past one recorded; on dev, one on a past day), with nothing on too (ADR 0126)
+  let recorder = $state<ReturnType<typeof PastKumiteRecord>>();
+  let pastDay = $state<ReturnType<typeof PastDayPlay>>();
   const tools = $derived.by(() => {
-    if (!tournament) return [] as ManageItem[];
+    if (!offer) return [] as ManageItem[];
     const t = tournament;
-    // What the step it's at needs, first: the draft's jobs; the fixtures made again (none played); the awards, once
-    // there are results
-    const now: ManageItem[] = draftJobsOf(
-      t,
-      { runs: runner, adds },
-      {
-        player: (id, name) => goesByOf(byId(id)) || name || "",
-        team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
-      },
-    ).map((j) => ({ ...j, run: () => drafter?.run(j.job) }));
-    const games = t.games ?? [];
-    if (admin && games.length && !games.some((g) => g.status !== "next" || g.homeGoals !== null))
-      now.push({
-        icon: "refresh",
-        label: "Make the fixtures again",
-        sub: "A new order of play, the same teams",
-        run: () => void makeFixtures(t.id),
-      });
-    if (admin && t.awards.length && games.some((g) => g.homeGoals !== null))
-      now.push({
-        icon: "medal",
-        label: "Confirm the awards",
-        sub: "From the results; the Dim Mak's a draw",
-        run: () => enterAwards(t.id),
-      });
-    // Then back a step (ADR 0074): one item, whatever step it's at, while there's one before it; the draft's own
-    // steps for whoever runs it too
-    const from = backFrom(t, londonToday());
-    const back: ManageItem[] =
-      from && (admin || (runner && (from === "draft" || from === "order")))
-        ? [{ icon: "undo", label: backTo(from, t.kind), sub: BACK_SAYS[from], run: () => stepper?.start() }]
-        : [];
-    // Then yours: your team, the pick log; the settings last
-    const yours: ManageItem[] = [
-      ...(myTeam
-        ? [{ icon: "teams" as const, label: "Your team", sub: "Its name and crest", run: () => (lookOpen = true) }]
-        : []),
-      ...(picksSeen
-        ? [{ icon: "list" as const, label: "Pick log", sub: "Every pick, round by round", run: () => (logOpen = true) }]
-        : []),
-    ];
-    const settings: ManageItem[] = admin
-      ? [
+    const entries = !t
+      ? historyItemsOf(type, { admin, simulator: SIMULATOR })
+      : manageItemsOf(
+          t,
+          type,
+          { admin, runsDraft: runner, adds, me: me().id, simulator: SIMULATOR && simulating.id !== t.id },
+          londonToday(),
           {
-            icon: "settings",
-            label: `${type.shortName} settings`,
-            sub:
-              t.kind === "draft"
-                ? "Day, sign-up, captains and draft day, rules, awards"
-                : "Day, sign-up, teams, rules, awards",
-            run: () => editTournament(t.id),
+            player: (id, name) => goesByOf(byId(id)) || name || "",
+            team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
           },
-        ]
-      : [];
-    return [...now, ...back, ...yours, ...settings];
+        );
+    const RUN: Record<ManageKey, (e: ManageEntry) => void> = {
+      draftJob: (e) => e.job && drafter?.run(e.job),
+      remake: () => t && void makeFixtures(t.id),
+      awards: () => t && enterAwards(t.id),
+      simulate: () => simulator?.start(),
+      back: () => stepper?.start(),
+      move: () => mover?.start(),
+      team: () => (lookOpen = true),
+      log: () => (logOpen = true),
+      settings: () => t && editTournament(t.id),
+      record: () => recorder?.start(),
+      pastDay: () => pastDay?.start(),
+    };
+    return entries.map((e): ManageItem => ({
+      icon: e.icon,
+      label: e.label,
+      sub: e.sub,
+      danger: e.danger,
+      run: () => RUN[e.key](e),
+    }));
   });
-  function go(action: () => void) {
-    menuOpen = false;
-    action();
-  }
 </script>
 
 <!-- Compact (a phone page that needs its room): no header at all; the page's tabs say where you are -->
 {#if !compact}<div class="tone" style:--tone="var(--tone-{type.tone})">
     <!-- A phone's eyebrow is the series' short name, so it and its stamp and buttons stay one line -->
-    <PageHeader {title} eyebrow={phone.current ? type.shortName : type.name} eyebrowIcon={type.icon}>
+    <PageHeader
+      {title}
+      eyebrow={back?.label ?? (phone.current ? type.shortName : type.name)}
+      eyebrowIcon={type.icon}
+      eyebrowHref={back?.href}
+    >
       {#snippet badge()}
         {#if stage}
-          <!-- Where it stands, as a stamp (the Kumite's hanko, in the club's display face): cream done, red live (the
-               draft, the day), green open, the teams and fixtures set plain -->
-          <span class="stamp {stage.tone}" class:on-track={track}>
-            {stage.label}
-          </span>
+          <!-- Where it stands, as an ink stamp in the club's red (the Kumite's hanko: its kanji pressed in a block,
+               the word beside it, the ink a little patchy, the edge uneven, askew). Every status the same stamp;
+               Coming up faint; KUMITE! the loudest, the block of ink filled; the evening's after-party and Done
+               in bone -->
+          <InkStamp text={stage.label} kanji={mark} tone={INK[stage.tone]} label="Status: {stage.label}" />
         {/if}
         {#if answered}
           <!-- Your answer, once you've given it (ADR 0074): a sticker that opens a small sheet to change it -->
@@ -202,8 +276,15 @@
               class="answered {answered.tone}"
               aria-haspopup="dialog"
               aria-expanded={answerOpen}
-              aria-label="{answered.label}: change it"
-              onclick={() => (answerOpen = !answerOpen)}>{answered.label}<Icon name="chevronDown" size={14} /></button
+              aria-label="{answered.label}: {tournament && hasStarted(tournament)
+                ? 'ask an admin to change it'
+                : 'change it'}"
+              onclick={() => (answerOpen = !answerOpen)}
+              ><span class="said"><Icon name={answered.icon} size={14} /></span><span class="long"
+                >{answered.label}</span
+              ><span class="short">{answered.short}</span><span class="caret"
+                ><Icon name="chevronDown" size={14} /></span
+              ></button
             >
             {#if answerOpen && !phone.current && tournament}
               <!-- A desktop: a small popover under the badge, pointing at it -->
@@ -224,7 +305,7 @@
             aria-haspopup="dialog"
             aria-label="Rules"
             title="Rules"
-            onclick={() => (rulesOpen = true)}><Icon name="rules" size={18} /></button
+            onclick={openRules}><Icon name="rules" size={18} /></button
           >
         {/if}
         {#if tools.length}
@@ -316,33 +397,79 @@
   }}
 />
 
-{#snippet rulesList()}
-  <div class="rules-list">
-    <!-- One Rules, a topic each (ADR 0074): a jump to each, then the topics -->
-    <nav class="topics" aria-label="Topics">
-      {#each rules as section (section.title)}
-        <button type="button" class="btn sm ghost" onclick={() => jump(section.title)}>{section.title}</button>
-      {/each}
-    </nav>
-    {#each rules as section (section.title)}
-      <section data-topic={section.title}>
-        <h3 class="eyebrow">{section.title}</h3>
-        <ul>
-          {#each section.lines as line, i (i)}<li>{line}</li>{/each}
-        </ul>
-      </section>
+{#snippet topicTabs()}
+  <!-- One topic a page (ADR 0074): the app's tabs, one row, scrolling sideways when they don't fit -->
+  <div class="tablist rules-tabs" role="tablist" aria-label="Topics">
+    {#each rules as section, i (section.id)}
+      <button
+        type="button"
+        role="tab"
+        id="rules-tab-{section.id}"
+        aria-selected={section.id === topic}
+        aria-controls="rules-page"
+        onclick={() => toTopic(i)}>{section.title}</button
+      >
     {/each}
+  </div>
+{/snippet}
+{#snippet topicSteps()}
+  <!-- The topics either side, small, at the foot: back and on, the way a swipe goes -->
+  <nav class="topic-steps" aria-label="Other topics">
+    {#if rules[topicAt - 1]}<button type="button" class="step-to" onclick={() => toTopic(topicAt - 1)}
+        ><Icon name="chevronLeft" size={16} />{rules[topicAt - 1].title}</button
+      >{:else}<span></span>{/if}
+    {#if rules[topicAt + 1]}<button type="button" class="step-to on" onclick={() => toTopic(topicAt + 1)}
+        >{rules[topicAt + 1].title}<Icon name="chevronRight" size={16} /></button
+      >{/if}
+  </nav>
+{/snippet}
+{#snippet rulesList()}
+  <!-- The topic showing, from its top: its heading (the kanji on the Kumite, else its icon), then its rules, each
+       its fact first in bold, the figures standing out. A swipe across turns the page -->
+  <div
+    class="rules-pages"
+    id="rules-page"
+    role="tabpanel"
+    tabindex="-1"
+    aria-labelledby="rules-tab-{topic}"
+    ontouchstart={(e) => (swipeFrom = { x: e.touches[0].clientX, y: e.touches[0].clientY })}
+    ontouchend={swipeEnd}
+  >
+    {#key topic}
+      {@const section = rules[topicAt]}
+      {#if section}
+        <section class="rules-page" in:topicIn out:topicOut>
+          <h3 class="topic-title">
+            {#if kanjiFor(type, TOPIC_LOOK[section.id].mark)}<Kanji
+                text={kanjiFor(type, TOPIC_LOOK[section.id].mark)}
+              />
+            {:else}<Icon name={TOPIC_LOOK[section.id].icon} size={20} />{/if}<span>{section.title}</span>
+          </h3>
+          <ol class="rules-items">
+            {#each section.lines as l, i (i)}
+              <li>
+                {#if l.key}<strong
+                    >{#each figures(l.key) as part, j (j)}{#if j % 2}<span class="fig">{part}</span
+                        >{:else}{part}{/if}{/each}</strong
+                  >{/if}{#each figures(l.rest) as part, j (j)}{#if j % 2}<span class="fig">{part}</span
+                    >{:else}{part}{/if}{/each}
+              </li>
+            {/each}
+          </ol>
+        </section>
+      {/if}
+    {/key}
   </div>
 {/snippet}
 {#if tournament && track}
   {#if phone.current}
-    <Sheet bind:open={rulesOpen} title="Rules">{@render rulesList()}</Sheet>
+    <Sheet bind:open={rulesOpen} title="Rules" top={topicTabs} footer={topicSteps} tall>{@render rulesList()}</Sheet>
   {:else}
-    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name}>{@render rulesList()}</Drawer>
+    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name} top={topicTabs} footer={topicSteps}
+      >{@render rulesList()}</Drawer
+    >
   {/if}
 {/if}
-
-{#snippet toolList()}<ManageList items={tools} {go} />{/snippet}
 
 {#if tournament && myTeam?.id}
   <TeamLookSheet
@@ -359,19 +486,22 @@
 {#if picksSeen && tournament}<PickLog {tournament} bind:open={logOpen} />{/if}
 {#if tools.length}
   <!-- Every admin job for this one, thumb-sized: up from the bottom on a phone, a side drawer on a desktop -->
-  {#if phone.current}
-    <Sheet bind:open={menuOpen} title="Manage the {type.shortName}">{@render toolList()}</Sheet>
-  {:else}
-    <Drawer bind:open={menuOpen} title="Manage the {type.shortName}" sub={tournament?.name}>{@render toolList()}</Drawer
-    >
-  {/if}
+  <ManageMenu bind:open={menuOpen} title="Manage the {type.shortName}" sub={tournament?.name} items={tools} />
 {/if}
 <!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
+{#if admin && tournament?.kind === "draft"}<MoveTo bind:this={mover} {type} {tournament} afterName={after?.name} />{/if}
+{#if admin && SIMULATOR && tournament}<SimulateRest bind:this={simulator} {type} {tournament} />{/if}
+{#if admin}<PastKumiteRecord bind:this={recorder} {type} />{/if}
+{#if admin && SIMULATOR}<PastDayPlay bind:this={pastDay} {type} />{/if}
 {#if (runner || adds) && tournament?.kind === "draft"}<DraftJobs bind:this={drafter} {type} {tournament} />{/if}
 {#if can(granted(), "manage:Tournament")}<AwardsDrawer />{/if}
 
-{#if can(granted(), "manage:Tournament")}<TournamentEditorPanel />{/if}
+<!-- The editor, for whoever can edit a tournament: fetched once they're on the page, so nobody else downloads it -->
+{#if can(granted(), "manage:Tournament")}
+  {#await import("./TournamentEditorPanel.svelte") then { default: TournamentEditorPanel }}<TournamentEditorPanel
+    />{/await}
+{/if}
 
 <style>
   .tone {
@@ -386,67 +516,116 @@
   .rules {
     margin-left: auto;
   }
-  .rules-list {
-    display: grid;
-    gap: var(--s-5);
+  /* ─── Rules: one topic a page ─── */
+  /* The tabs, outside the sheet's scroll (its top): one row, sideways when they don't fit */
+  .rules-tabs {
+    min-width: 0;
+    margin-inline: calc(var(--s-1) * -1);
   }
-  .topics {
+  /* The page: one cell, so the topic leaving and the one coming overlap as they slide; never wider than the sheet */
+  .rules-pages {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    overflow-x: clip;
+    touch-action: pan-y;
+  }
+  .rules-page {
+    grid-area: 1 / 1;
+    display: grid;
+    align-content: start;
+    gap: var(--s-4);
+    min-width: 0;
+    max-width: 38rem;
+    padding-top: var(--s-2);
+  }
+  .topic-title {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--s-1);
-  }
-  .rules-list section {
-    scroll-margin-top: var(--s-4);
-    display: grid;
-    gap: var(--s-2);
-  }
-  .rules-list h3 {
-    margin: 0;
-  }
-  .rules-list ul {
-    display: grid;
-    gap: var(--s-2);
-    margin: 0;
-    padding-left: 1.1rem;
-    color: var(--fg-body, var(--fg));
-  }
-  .stamp {
-    display: inline-flex;
     align-items: center;
-    align-self: center;
-    padding: 0.2rem 0.6rem 0.15rem;
-    border: 2.5px solid currentColor;
-    border-radius: 0.3rem;
-    color: var(--fg-muted);
+    gap: var(--s-3);
+    margin: 0;
+    color: var(--fg);
     font-family: var(--font-display);
-    font-size: 1.35rem;
+    font-size: 1.6rem;
+    font-style: italic;
+    font-weight: 400;
     line-height: 1;
-    letter-spacing: 0.06em;
     text-transform: uppercase;
-    white-space: nowrap;
-    transform: rotate(-4deg);
   }
-  .stamp.done {
-    color: var(--primary);
+  .topic-title :global(.kanji) {
+    margin: 0;
+    color: var(--red-hot);
+    font-size: 1.35rem;
+    font-style: normal;
   }
-  .stamp.live {
+  .topic-title :global(svg) {
+    flex: none;
     color: var(--red-hot);
   }
-  .stamp.open {
-    color: var(--green-ink);
+  /* The rules: a mark each (the tabs' red slash, small), the fact first in bold, the figures in bone */
+  .rules-items {
+    display: grid;
+    gap: var(--s-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
   }
-  .stamp.set {
+  .rules-items li {
+    position: relative;
+    padding-left: var(--s-5);
+  }
+  .rules-items li::before {
+    content: "";
+    position: absolute;
+    left: 0.2rem;
+    top: 0.45em;
+    width: 3px;
+    height: 0.75em;
+    background: var(--red);
+    transform: skewX(-24deg);
+  }
+  .rules-items strong {
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .fig {
+    color: var(--fg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  /* The topics either side, at the foot: small, quiet, the next one on the right */
+  .topic-steps {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-3);
+  }
+  .step-to {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-1);
+    min-height: 2.75rem;
+    padding: 0 var(--s-2);
+    border: 0;
+    background: none;
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .step-to:hover {
     color: var(--fg);
   }
-  /* A phone: the track under the header says the status, so the stamp makes way for your answer */
-  @media (max-width: 600px) {
-    .stamp.on-track {
-      display: none;
-    }
+  .step-to.on {
+    margin-left: auto;
   }
+
   .answer-at {
     position: relative;
     display: inline-flex;
+    flex: none;
   }
   /* The desktop's popover: under the badge, an arrow at it, a panel like Manage's */
   .popover {
@@ -473,41 +652,63 @@
     background: var(--surface-1);
     transform: rotate(45deg);
   }
-  /* Your answer: a sticker, like the stamp but filled and quieter, a caret saying it opens */
+  /* Your answer: your choice, not a status, said as the Friday card says it: a tick (in the club's red) or a cross,
+     the word in plain type, a caret saying it opens. No fill, no stamp; under the pointer, a faint one */
   .answered {
     display: inline-flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.3rem;
     min-height: 1.75rem;
-    padding: 0.1rem 0.45rem 0.05rem 0.55rem;
+    padding: 0 0.4rem;
     border: 0;
-    border-radius: 0.3rem;
-    font-family: var(--font-display);
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--fg);
+    font-family: var(--font);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: normal;
     line-height: 1;
-    text-transform: uppercase;
+    text-transform: none;
     white-space: nowrap;
-    transform: rotate(-3deg);
+    transition: background-color var(--t-fast) var(--ease-in-out);
   }
-  .answered.in {
-    background: color-mix(in srgb, var(--green-ink) 22%, transparent);
-    color: var(--green-ink);
+  .answered:hover,
+  .answered[aria-expanded="true"] {
+    background: var(--row-hover);
   }
-  .answered.wait {
-    background: color-mix(in srgb, var(--tone-amber) 20%, transparent);
-    color: var(--tone-amber);
+  .answered .said {
+    display: inline-flex;
+    color: var(--red-hot);
   }
-  .answered.out {
-    background: var(--surface-2);
+  .answered.wait .said,
+  .answered.out .said {
     color: var(--fg-muted);
   }
-  /* On a phone it sits in the eyebrow line: no taller than the line, so the header's height never changes */
+  .answered.out {
+    color: var(--fg-muted);
+  }
+  .answered .caret {
+    display: inline-flex;
+    color: var(--fg-subtle);
+  }
+  .answered .short {
+    display: none;
+  }
+  /* On a phone the stamp sits in the eyebrow line: no taller than the line, so the header's height never changes,
+     and your answer says it in a word */
   @media (max-width: 900px) {
-    .stamp {
-      padding: 0.05rem 0.4rem 0;
-      border-width: 1.5px;
-      font-size: 0.85rem;
+    .answered {
+      min-height: 1.5rem;
+      font-size: var(--text-xs);
+    }
+  }
+  @media (max-width: 600px) {
+    .answered .long {
+      display: none;
+    }
+    .answered .short {
+      display: inline;
     }
   }
   /* The header's line clamps to two lines on a phone, and WebKit's clamp cuts the countdown short ("TOD…") on one

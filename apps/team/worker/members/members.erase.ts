@@ -1,14 +1,14 @@
 // A member's right to go, and to see what's held about them (#30, ADR 0029). Erasing keeps the member's row, so the
 // club's records still add up (a payment, last Friday's numbers, a goal), but empties everything that says who they
 // were: they become "Former member", with no email, phone, photo, bio or bank reference, and no way back in. Their roles,
-// sessions, sign-in codes, notification choices and places for what's still to come go. Earlier audit entries stop
-// naming them.
+// sessions, sign-in codes, notification choices, award votes and places for what's still to come go (on a team too;
+// a team they captain stays, with no captain).
+// Earlier audit entries stop naming them.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fillingUp } from "../entries/entries";
 import { HttpError, json } from "../api/api.http";
-import { actionsOf } from "./members";
+import { keepsSomeoneWhoCanDoEverything } from "./members";
 import { prefsFrom } from "../push/push.prefs";
-import { carriedName } from "../tournaments/team-name";
 
 export const FORMER_MEMBER = "Former member";
 
@@ -20,19 +20,12 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     [id],
   );
   if (!m) throw new HttpError(404, "No such member.");
-  // Never the last admin, decided inside the batch that erases them (ADR 0121): while they can do everything, every
-  // statement goes only while someone else active can too, so two admins erasing themselves at once can't both go
-  // (#135). The read before is for the refusal's words.
+  // Never the last who can do everything, through any role, decided inside the batch that erases them (ADR 0121):
+  // every statement goes only while someone else active can too, so two admins erasing themselves at once can't both
+  // go (#135, #136). The read before is for the refusal's words.
   const lastAdmin = "You're the club's last admin: make someone else an admin first.";
-  const guard = (await actionsOf(db, id)).has("manage:all")
-    ? {
-        sql: `EXISTS (SELECT 1 FROM members m JOIN member_roles mr ON mr.member_id = m.id
-                JOIN role_actions ra ON ra.role_id = mr.role_id
-              WHERE ra.action = 'manage:all' AND m.status = 'active' AND m.id != ?)`,
-        params: [id],
-      }
-    : null;
-  if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
+  const guard = keepsSomeoneWhoCanDoEverything({ member: id });
+  if (!(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
 
   // What they're signed up for still to come: a place they give up goes to the first waiting, in the same batch, as
   // when they say out (ADR 0030, 0121, #137)
@@ -64,11 +57,11 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
 
   // Each statement is written as `… WHERE …`, so the guard goes on the end
   const q = (sql: string, ...params: unknown[]) =>
-    guard ? db.prepare(`${sql} AND ${guard.sql}`).bind(...params, ...guard.params) : db.prepare(sql).bind(...params);
+    db.prepare(`${sql} AND ${guard.sql}`).bind(...params, ...guard.params);
   const scrubbed = "[erased]";
   const [erased] = await db.batch([
     q(
-      `UPDATE members SET name = ?, email = NULL, phone = NULL, photo = NULL, photo_at = NULL, bio = '', web_name = NULL, kumite_team_name = NULL,
+      `UPDATE members SET name = ?, email = NULL, phone = NULL, photo = NULL, photo_at = NULL, bio = '', web_name = NULL,
          payment_reference = NULL, everyday_role_id = NULL, cougar = 0, status = 'erased' WHERE id = ?`,
       FORMER_MEMBER,
       id,
@@ -77,7 +70,10 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     q("DELETE FROM auth_sessions WHERE member_id = ?", id),
     q("DELETE FROM login_challenges WHERE member_id = ?", id),
     q("DELETE FROM email_changes WHERE member_id = ?", id),
+    q("DELETE FROM passkeys WHERE member_id = ?", id),
     q("DELETE FROM notification_prefs WHERE member_id = ?", id),
+    // The votes they cast for an award (ADR 0044): theirs, secret, so they go
+    q("DELETE FROM tournament_award_votes WHERE voter_member_id = ?", id),
     // Places for what's still to come are given up; what's been played stays, about nobody
     q(
       "DELETE FROM attendance WHERE member_id = ? AND session_id IN (SELECT id FROM training_sessions WHERE held_on >= ?)",
@@ -86,6 +82,21 @@ export async function eraseMember(db: D1Database, id: number, today: string, now
     ),
     q(
       "DELETE FROM tournament_entries WHERE member_id = ? AND tournament_id IN (SELECT id FROM tournaments WHERE held_on >= ?)",
+      id,
+      today,
+    ),
+    // And their place on a team for one still to come, as when they say out (#138): never a ghost in a lineup
+    q(
+      `DELETE FROM tournament_team_players WHERE member_id = ? AND team_id IN (SELECT tt.id FROM tournament_teams tt
+         JOIN tournaments t ON t.id = tt.tournament_id WHERE t.held_on >= ?)`,
+      id,
+      today,
+    ),
+    // A team they captain keeps its place, with no captain, as a team whose captain is gone: an admin names another
+    // (#160). One already played keeps them, about nobody
+    q(
+      `UPDATE tournament_teams SET captain_member_id = NULL WHERE captain_member_id = ?
+         AND tournament_id IN (SELECT id FROM tournaments WHERE held_on >= ?)`,
       id,
       today,
     ),
@@ -133,7 +144,7 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       statement(
         db,
         `SELECT name, web_name goesBy, email, phone, position, bio, cougar, status, joined_on joinedOn,
-            payment_reference paymentReference, ${carriedName()} kumiteTeamName, photo FROM members m WHERE id = ?`,
+            payment_reference paymentReference, photo FROM members m WHERE id = ?`,
         [id],
       ),
       statement(
@@ -183,14 +194,24 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
       ),
       statement(db, "SELECT at, action FROM audit_log WHERE member_id = ? ORDER BY id", [id]),
       statement(db, "SELECT topic, enabled FROM notification_prefs WHERE member_id = ? ORDER BY topic", [id]),
+      // The votes you cast for an award (ADR 0044): secret from everyone else, yours to see
+      statement(
+        db,
+        `SELECT t.name tournament, v.award, c.name votedFor, v.cast_at castAt FROM tournament_award_votes v
+         JOIN tournaments t ON t.id = v.tournament_id JOIN members c ON c.id = v.candidate_member_id
+         WHERE v.voter_member_id = ? ORDER BY v.cast_at`,
+        [id],
+      ),
+      // Your passkeys (ADR 0023): what each is called and when; the public key is no use to anyone, so it isn't here
+      statement(
+        db,
+        "SELECT name, created_at addedAt, last_used_at lastUsedAt FROM passkeys WHERE member_id = ? ORDER BY id",
+        [id],
+      ),
     ])
   ).map((r) => r.results);
-  const [roles, training, tournaments, events, plans, charges, payments, devices, record, notifications] = rows;
-  const data = {
-    about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
-    downloadedOn: today,
-    profile: profile[0] ?? null,
-    roles: (roles as { name: string }[]).map((r) => r.name),
+  const [
+    roles,
     training,
     tournaments,
     events,
@@ -198,6 +219,25 @@ export async function memberData(db: D1Database, id: number, today: string): Pro
     charges,
     payments,
     devices,
+    record,
+    notifications,
+    votes,
+    passkeys,
+  ] = rows;
+  const data = {
+    about: "Everything the Battersea Cougars team app holds about you, on the day you downloaded it.",
+    downloadedOn: today,
+    profile: profile[0] ?? null,
+    roles: (roles as { name: string }[]).map((r) => r.name),
+    training,
+    tournaments,
+    votes,
+    events,
+    plans,
+    charges,
+    payments,
+    devices,
+    passkeys,
     record,
     // What your phone tells you: every kind of notification, on unless you turned it off
     notifications: prefsFrom(notifications as { topic: string; enabled: number }[]),

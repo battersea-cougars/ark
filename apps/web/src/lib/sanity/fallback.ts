@@ -1,5 +1,6 @@
 // Default club facts (from the old Wix site, rewritten), one object per Sanity singleton. Used field by field
-// wherever Sanity has no value yet, and by apps/studio/seed.ts to seed the singletons. Every claim here is
+// wherever Sanity has no value yet, and by apps/studio/seed.ts to seed the singletons. Until launch the words here are
+// the website's words: every deploy sends them to Sanity (scripts/sanity-copy.mjs, ADR 0014), so change them here. Every claim here is
 // listed in docs/club-facts.md for the team manager to confirm.
 import type { Club, Fridays, Kumite, Pub, Team } from "./types";
 
@@ -60,11 +61,10 @@ export const FALLBACK_TEAM: Team = {
 export const FALLBACK_KUMITE: Kumite = {
   onWebsite: false,
   intro:
-    "Four times a year we hold the Kumite, our in-house tournament, a special event apart from regular " +
-    "Friday hockey. Everyone who signs up is drafted into balanced teams, every team plays every other " +
-    "team, and one team walks away as champions. Anyone can play.",
-  tagline: "Four times a year. Drafted teams, everyone plays everyone.",
-  posterStatement: "One team walks away.",
+    "Our in-house tournament, apart from Friday hockey. Sign up, get drafted into a balanced team, play every " +
+    "other team. One team takes the title. Anyone can play.",
+  tagline: "Drafted teams, everyone plays everyone.",
+  posterStatement: "Only one team walks away.",
   posterReveal: "Champions.",
   format: [
     "Players are drafted into balanced teams on the day",

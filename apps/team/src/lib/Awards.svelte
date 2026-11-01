@@ -14,8 +14,9 @@
   import { typeById } from "../demo/schedule.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { teamTone } from "./team-tones";
-  import { awardFromData } from "./awards";
+  import { awardFromData, decidedByOf } from "./awards";
   import { atAfters, editionState } from "./edition";
+  import { revealOf } from "./afters";
   import { londonEvening } from "./dates";
 
   let { tournament }: { tournament: Tournament } = $props();
@@ -35,20 +36,33 @@
   // Confirmed, else (once it's done) what the data says, provisionally
   const done = $derived(editionState(tournament) === "done");
   // Its evening, an award not yet revealed at the after-party is face down for everyone but whoever reveals it
-  // (ADR 0074): no provisional pick in its place
+  // (ADR 0129): no provisional pick in its place
   const tonight = $derived(atAfters(tournament, londonEvening()));
-  const faceDown = (award: string) =>
-    !admin && tonight && awards.findIndex((a) => a.name === award) >= (tournament.awardsRevealed ?? 0);
+  const revealed = $derived(revealOf(tournament).awards);
+  const faceDown = (award: string) => !admin && tonight && !revealed.find((a) => a.name === award)?.revealed;
   const winnersOf = (award: string) => {
     const saved = (tournament.winners ?? []).filter((w) => w.award === award);
     if (saved.length) return { list: saved, provisional: false };
     if (faceDown(award)) return { list: [], provisional: false, faceDown: true };
-    const data = done ? awardFromData(award, tournament, { positionOf: (id) => byId(id)?.position }) : null;
+    const a = awards.find((x) => x.name === award);
+    const data = done && a ? awardFromData(a, tournament, { positionOf: (id) => byId(id)?.position }) : null;
     return { list: data?.winners ?? [], provisional: !!data };
   };
   const anyProvisional = $derived(awards.some((a) => winnersOf(a.name).provisional));
-  const unconfirmed = $derived(done && awards.length > 0 && !(tournament.winners ?? []).length);
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  const unconfirmed = $derived(done && awards.length > 0 && !tournament.awardsConfirmedAt);
+  // Still to come, for an award decided at the reveal: a vote's, or the admin's call
+  const laterWords = (award: string) => {
+    const a = awards.find((x) => x.name === award);
+    const how = a && decidedByOf(a);
+    return how?.kind === "vote"
+      ? "Voted for at the after-party"
+      : how?.kind === "live"
+        ? "The judges' call"
+        : "To be decided";
+  };
+  // The judges' call is named on the night: its name, with what it is under it
+  const titleOf = (award: string) => tournament.titles?.find((w) => w.award === award)?.title;
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
@@ -68,8 +82,9 @@
         {@const w = winnersOf(a.name)}
         <li class="award">
           <span class="what">
-            <span class="award-name">{a.name}</span>
-            {#if a.about}<span class="hint">{a.about}</span>{/if}
+            <span class="award-name">{titleOf(a.name) ?? a.name}</span>
+            {#if titleOf(a.name)}<span class="hint">{a.name}</span>
+            {:else if a.about}<span class="hint">{a.about}</span>{/if}
           </span>
           <span class="winners">
             {#if w.list.length > 2}
@@ -100,7 +115,7 @@
                   </span>
                 {/if}
               {:else}
-                <span class="hint">{"faceDown" in w ? "Still face down" : "To be decided"}</span>
+                <span class="hint">{"faceDown" in w ? "Still face down" : laterWords(a.name)}</span>
               {/each}
             {/if}
           </span>

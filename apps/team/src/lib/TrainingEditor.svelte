@@ -1,21 +1,27 @@
 <script lang="ts">
   // One training's editor, inside the panel a card opens (Settings → Training). A series is a rule (every N weeks on
   // some days, from a first date, optionally to a last one) plus what every session shares (ADR 0030). Saving makes
-  // its sessions; each one can then be cancelled on its own.
+  // its sessions; each one can then be cancelled on its own. A save that puts nights on over something already on (the
+  // Kumite, another training, a one-off) asks first whether that's off (ADR 0122, ClashSheet).
+  import type { Edits } from "./dirty.svelte";
   import TimeSelect from "./TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
   import { tick } from "svelte";
   import type { TrainingSeries } from "../demo/model";
   import { resolve } from "../demo/schedule.svelte";
   import { db } from "../demo/store.svelte";
-  import { createSeries, moreSessions, setCancelled, updateSeries } from "../app/backend.svelte";
+  import { createSeries, moreSessions, saving, setCancelled, updateSeries } from "../app/backend.svelte";
+  import { cancelClashes, skipNights } from "../app/clashes.backend";
+  import ClashSheet from "./ClashSheet.svelte";
+  import { trainingQuestion } from "./clashes";
   import Icon from "../app/shell/Icon.svelte";
   import StylePicker from "./StylePicker.svelte";
   import PlacePicker from "./PlacePicker.svelte";
   import Select from "./Select.svelte";
-  import { clockRange, formatDayDate, londonISO, londonToday, pounds } from "./dates";
+  import { clockRange, dayWords, formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { feeOn } from "./dues";
-  import { collectedFor } from "../demo/dues.svelte";
+  import { readCollected, type Collected } from "../app/ledger.svelte";
+  import { reportUnexpected } from "../app/errors.early";
   import { granted } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import { WEEKDAYS, addDays, describeRule, weekdayOf } from "./recurrence";
@@ -31,35 +37,18 @@
     sun: "Sunday",
   };
 
-  let { seriesId, oncreated }: { seriesId?: number; oncreated?: (id: number) => void } = $props();
+  let {
+    seriesId,
+    edits,
+    oncreated,
+  }: {
+    seriesId?: number;
+    /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
+    edits?: Edits;
+    oncreated?: (id: number) => void;
+  } = $props();
 
   const selected = $derived<number | "new">(seriesId ?? "new");
-  let form = $state<TrainingSeries | null>(null);
-
-  // When a night's sign-up opens (ADR 0030): days before it, at midnight; any time is always open, and nobody's told
-  const OPENS = [
-    { value: "", label: "Any time" },
-    { value: "0", label: "On the day" },
-    ...Array.from({ length: 14 }, (_, i) => ({ value: String(i + 1), label: `${i + 1} ${i ? "days" : "day"} before` })),
-  ];
-  const opensDays = $derived(form?.signupOpensDays ?? null);
-  /** "Friday's opens Monday, at midnight; members are told." */
-  const opensHint = $derived.by(() => {
-    if (!form || opensDays === null) return "Members can say they're in for any night, however far off.";
-    const nights = WEEKDAYS.filter((d) => form!.weekdays.includes(d));
-    const opensOn = (d: (typeof WEEKDAYS)[number]) => WEEKDAYS[(WEEKDAYS.indexOf(d) - (opensDays % 7) + 7) % 7];
-    const when =
-      opensDays === 0
-        ? "Each night's opens on the day"
-        : opensDays < 7 && nights.length
-          ? nights.map((d) => `${LONG_DAYS[d]}'s opens ${LONG_DAYS[opensOn(d)]}`).join(", ")
-          : `Each night's opens ${opensDays} days before`;
-    return `${when}, at midnight; members are told.`;
-  });
-  // Upcoming sessions, 12 weeks a page; paging past the last one made asks the server to make the next 12
-  const PAGE_DAYS = 12 * 7;
-  let page = $state(0);
-  let fetching = $state(false);
 
   const blank = (): TrainingSeries => {
     const today = londonToday();
@@ -88,23 +77,60 @@
     };
   };
 
-  $effect(() => {
+  /** The saved training (or a blank, for a new one), as the form starts from it. */
+  const starting = (): TrainingSeries | null => {
     const s = selected === "new" ? blank() : db.series.find((x) => x.id === selected);
-    form = s ? structuredClone($state.snapshot(s)) : null;
+    return s ? structuredClone($state.snapshot(s)) : null;
+  };
+  const feeText = (f: TrainingSeries | null) => (f ? String(feeOn(f.fees, londonToday()) / 100) : "");
+  // The form takes its starting values as it opens (the panel mounts a fresh editor for each training), and again
+  // only after its own save: the club read again (a refused save, coming back to the tab, a live change) never puts
+  // the saved copy over what's being typed, nor a refused save's retry sends the saved copy back
+  let form = $state<TrainingSeries | null>(starting());
+  // The fee, going forward: a new amount applies from its date, to nights already held too (ADR 0007).
+  // svelte-ignore state_referenced_locally
+  let feeAmount = $state(feeText(form));
+  let feeFrom = $state(londonToday());
+  /** Saved: what's on screen is the saved copy, as the server has it now. */
+  function reload() {
+    form = starting();
+    feeAmount = feeText(form);
+    feeFrom = londonToday();
+    edits?.reset();
+  }
+
+  // When a night's sign-up opens (ADR 0131): days before it, at midnight; any time is always open, and nobody's told
+  const OPENS = [
+    { value: "", label: "Any time" },
+    { value: "0", label: "On the day" },
+    ...Array.from({ length: 14 }, (_, i) => ({ value: String(i + 1), label: `${i + 1} ${i ? "days" : "day"} before` })),
+  ];
+  const opensDays = $derived(form?.signupOpensDays ?? null);
+  /** "Friday's opens Monday, at midnight; members are told." */
+  const opensHint = $derived.by(() => {
+    if (!form || opensDays === null) return "Members can say they're in for any night, however far off.";
+    const nights = WEEKDAYS.filter((d) => form!.weekdays.includes(d));
+    const opensOn = (d: (typeof WEEKDAYS)[number]) => WEEKDAYS[(WEEKDAYS.indexOf(d) - (opensDays % 7) + 7) % 7];
+    const when =
+      opensDays === 0
+        ? "Each night's opens on the day"
+        : opensDays < 7 && nights.length
+          ? nights.map((d) => `${LONG_DAYS[d]}'s opens ${LONG_DAYS[opensOn(d)]}`).join(", ")
+          : `Each night's opens ${opensDays} days before`;
+    return `${when}, at midnight; members are told.`;
   });
+  // Upcoming sessions, 12 weeks a page; paging past the last one made asks the server to make the next 12
+  const PAGE_DAYS = 12 * 7;
+  let page = $state(0);
+  let fetching = $state(false);
 
   // Dues (ADR 0007): whoever sets fees sets a training's; whoever sees dues sees what each night collected
   const setsFees = $derived(can(granted(), "manage:Fees"));
   const seesDues = $derived(can(granted(), "read:Dues") || can(granted(), "record:Payment"));
 
-  // The fee, going forward: a new amount applies from its date; sessions already held keep theirs (ADR 0007).
   const current = $derived(form ? feeOn(form.fees, londonToday()) : 0);
-  let feeAmount = $state("");
-  let feeFrom = $state(londonToday());
-  $effect(() => {
-    feeAmount = form ? String(feeOn(form.fees, londonToday()) / 100) : "";
-    feeFrom = londonToday();
-  });
+  // svelte-ignore state_referenced_locally
+  edits?.watch(() => ({ form, feeAmount, feeFrom }), { fresh: !seriesId });
   function applyFee() {
     if (!form) return;
     const pence = Math.round(Number(feeAmount) * 100);
@@ -114,13 +140,7 @@
     );
   }
 
-  const fullDate = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone: "Europe/London",
-    });
+  const fullDate = (d: string) => dayWords(d, { day: "numeric", month: "short", year: "numeric" });
 
   // Sessions already held: what each was due, and what it has collected so far
   const held = $derived(
@@ -132,17 +152,25 @@
       : [],
   );
 
+  // What each collected, read from the server for whoever sees dues (#177), again after a change to dues
+  let collected = $state<Collected[]>([]);
+  $effect(() => {
+    void db.dues;
+    const ids = held.map((s) => s.id);
+    if (!seesDues || !ids.length) return;
+    readCollected({ sessions: ids })
+      .then((r) => (collected = r.sessions))
+      .catch((e) => reportUnexpected(e, "Couldn't read what the nights collected"));
+  });
+  const NOTHING = { due: 0, paid: 0, people: 0, paidPeople: 0 };
+  const collectedFor = (id: number) => collected.find((c) => c.refId === id) ?? NOTHING;
+
   const upcoming = $derived(
     typeof selected === "number" ? db.sessions.filter((s) => s.seriesId === selected && s.heldOn >= londonToday()) : [],
   );
   const pageStart = $derived(addDays(londonToday(), page * PAGE_DAYS));
   const shown = $derived(upcoming.filter((x) => x.heldOn >= pageStart && x.heldOn < addDays(pageStart, PAGE_DAYS)));
-  const shortDate = (d: string) =>
-    new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      timeZone: "Europe/London",
-    });
+  const shortDate = (d: string) => dayWords(d, { day: "numeric", month: "short" });
   const range = $derived(`${shortDate(pageStart)} – ${shortDate(addDays(pageStart, PAGE_DAYS - 1))}`);
   async function nextPage() {
     if (typeof selected !== "number") return;
@@ -186,14 +214,35 @@
     if (!form.weekdays.length || !form.startsOn) return showMissing("schedule");
     if (!form.shortName) form.shortName = form.name.split(" ")[0];
     applyFee();
-    if (selected === "new") {
-      const created = await createSeries(form);
-      // The blank form gives way to the new training's editor, in the same panel
-      if (created) oncreated?.(created.id);
-    } else {
-      await updateSeries(form);
+    // Over something already on? Asked first; closing the question saves nothing. What was asked about goes with the
+    // save, which is refused if something else went on then since: asked again, once (ADR 0122)
+    const question = trainingQuestion(
+      form,
+      db.series.find((x) => x.id === form!.id),
+    );
+    for (let tries = 0; tries < 2; tries++) {
+      const chosen = question ? await clashSheet?.ask(question, form.name, form.shortName) : [];
+      if (chosen === null) return;
+      const asked = question ? (clashSheet?.asked() ?? []) : undefined;
+      const f = form;
+      const change = () => (selected === "new" ? createSeries(f, asked) : updateSeries(f, asked));
+      const done = await (edits ? edits.run(change) : change());
+      if (done === null) {
+        if (saving.refused === 409 && question) continue;
+        return;
+      }
+      // Then what was chosen goes off by its own cancel: theirs, and this training's own nights it skips
+      const skip = question ? (clashSheet?.skipped() ?? []) : [];
+      await cancelClashes(chosen ?? []);
+      const id = selected === "new" ? (done as { id: number }).id : form.id;
+      if (skip.length) await skipNights(id, skip);
+      // The blank form gives way to the new training's editor, in the same panel; a saved one shows what's saved
+      if (selected === "new") oncreated?.((done as { id: number }).id);
+      else reload();
+      return;
     }
   }
+  let clashSheet = $state<ClashSheet | undefined>();
 
   // Cancelling keeps the session (a row in D1), so whoever signed up can be told.
   function toggleCancel(id: number) {
@@ -272,8 +321,8 @@
               <div class="span-12 tuck">
                 <p class="hint small">
                   Leave places empty for no limit.{#if setsFees}
-                    {current ? `${pounds(current)} now.` : "Free now."} A new fee applies from its date; sessions already
-                    held keep theirs. Subscribers aren't charged.{/if}
+                    {current ? `${pounds(current)} now.` : "Free now."} A new fee applies from its date, to nights already
+                    held too. Subscribers aren't charged.{/if}
                 </p>
                 {#if setsFees && form.fees.length > 1}
                   <p class="hint small">
@@ -405,7 +454,7 @@
                   <h2>Held</h2>
                   <div class="nights-grid">
                     {#each held as session (session.id)}
-                      {@const c = collectedFor("session", session.id)}
+                      {@const c = collectedFor(session.id)}
                       <div class="night">
                         <span class="when"
                           >{formatDayDate(londonISO(session.heldOn, session.startTime ?? form.startTime))}</span
@@ -435,6 +484,7 @@
     </form>
   {/if}
 </div>
+<ClashSheet bind:this={clashSheet} />
 
 <style>
   .nights {

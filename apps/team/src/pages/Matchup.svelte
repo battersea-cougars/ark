@@ -1,38 +1,47 @@
 <script lang="ts">
-  // One game's matchup (ADR 0061), from the fight card's Details: the two teams side by side, each squad in full and
+  import { clock, ordinal } from "../lib/dates";
+  import { waitingFor } from "../app/editions.svelte";
+  // One game's matchup (ADR 0130), from the fight card's Details: the two teams side by side, each squad in full and
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
-  import { clock } from "../lib/dates";
+  import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
+  import { editionPath } from "../lib/edition-address";
   import Icon from "../app/shell/Icon.svelte";
+  import TeamRecord from "../lib/TeamRecord.svelte";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamHref, teamTone } from "../lib/team-tones";
   import { kickOff, slotMinutes, table } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
-  import { meetings } from "../lib/matchups";
+  import { meetings, type PastMeeting } from "../lib/matchups";
+  import { readTagged } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
   import { editionWhen } from "../lib/edition";
 
   let { typeId, gameId }: { typeId: number; gameId: number } = $props();
+  // A past one's, the app hasn't it yet: on its way (app/editions.svelte.ts)
+  const waiting = $derived(
+    !!gameId && !db.tournaments.some((t) => t.games?.some((g) => g.id === gameId)) && waitingFor("game", gameId),
+  );
 
   const type = $derived(typeById(typeId)!);
   const tournament = $derived(
     db.tournaments.find((t) => t.games?.some((g) => g.id === gameId)) ?? currentTournament(typeId),
   );
   const game = $derived(tournament?.games?.find((g) => g.id === gameId));
-  // Back to its fight card: the one on now's, else the past one's own page (its every fight)
+  // Back to its edition's page (lib/edition-address.ts): the one on now's, else the past one's, named
   const onNow = $derived(!!tournament && tournament.id === currentTournament(typeId)?.id);
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, byId);
-  const nth = (n: number | null) => (n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : `${n}th`);
 
   // The two sides, home then away: the team (or the place a playoff waits on), its squad, its record so far
   const records = $derived(
@@ -57,7 +66,7 @@
           return {
             i,
             team: t,
-            name: t ? teamName(i) : nth(seed),
+            name: t ? teamName(i) : seed ? ordinal(seed) : "",
             captain: byId(t?.captainMemberId ?? null),
             players: t?.players ?? [],
             record: t?.id ? records.get(t.id) : undefined,
@@ -68,40 +77,49 @@
   const played = $derived(game?.status === "done");
   const href = $derived(`/tournaments/${type.slug}/games/${gameId}`);
 
-  // When these captains' sides last met, in past ones of this series
+  // When these captains' sides last met, in past ones of this series: read from the server (#177), which has them all
+  let met = $state<{ gameId: number; editions: PastMeeting[] }>({ gameId: 0, editions: [] });
+  $effect(() => {
+    const id = gameId;
+    if (!id || !tournament?.typeId) return;
+    readTagged<{ editions: PastMeeting[] }>(`/api/tournament-games/${id}/meetings`, null)
+      .then(({ data }) => data && (met = { gameId: id, editions: data.editions }))
+      .catch((e) => reportUnexpected(e, "Couldn't read when they last met"));
+  });
   const past = $derived.by(() => {
     const [a, b] = sides.map((s) => s.team?.captainMemberId ?? null);
-    if (!tournament || !a || !b) return [];
-    return meetings(
-      db.tournaments.filter((t) => t.typeId === tournament.typeId),
-      tournament,
-      a,
-      b,
-    ).slice(0, 5);
+    if (!tournament || !a || !b || met.gameId !== gameId) return [];
+    return meetings(met.editions, tournament, a, b).slice(0, 5);
   });
   const tally = $derived({
     a: past.filter((m) => m.for > m.against).length,
     d: past.filter((m) => m.for === m.against).length,
     b: past.filter((m) => m.for < m.against).length,
   });
-  const nameOf = (t: { teams: typeof teams }, id: number | null) => {
+  const nameOf = (t: { teams: { id: number; name: string; captainMemberId: number | null }[] }, id: number | null) => {
     const team = t.teams.find((x) => x.id === id);
     return nameOfTeam(team, t.teams, byId);
   };
-  // The tournament's team names, which its crests are told apart among (logo.ts)
+  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <div class="page">
-  <TournamentHead {type} {tournament} title="Matchup" />
+  <TournamentHead
+    {type}
+    {tournament}
+    title="Matchup"
+    back={!tournament
+      ? { href: `/tournaments/${type.slug}` }
+      : { href: editionPath(type.slug, tournament.id), label: onNow ? undefined : tournament.name }}
+  />
 
-  {#if !tournament || !game}
+  {#if waiting}
+    <!-- Its tournament on its way (#175): the room the page takes -->
+    <div class="waiting" aria-busy="true" aria-label="Loading"></div>
+  {:else if !tournament || !game}
     <p class="note">There's no such game.</p>
   {:else}
-    <a class="back" href="/tournaments/{type.slug}{onNow ? '' : `/history/${tournament.id}`}"
-      ><Icon name="chevronLeft" size={16} />{onNow ? `The ${type.shortName}` : tournament.name}</a
-    >
-
     <!-- The two teams, face to face: the score once it's played, else the kick-off -->
     <section class="face">
       {#each sides as s, k (k)}
@@ -118,15 +136,14 @@
               tone={teamTone(s.i)}
               size="4.5rem"
             />{/if}
-          <!-- Plainly a way to the team, pointer or not: its name with a chevron -->
-          <span class="side-name display"
-            >{s.name}{#if s.team?.id}<Icon name="chevronRight" size={18} />{/if}</span
+          <!-- Plainly a way to the team, pointer or not: its name with a chevron beside it (never under it) -->
+          <span class="side-line"
+            ><span class="side-name display">{s.name}</span>{#if s.team?.id}<Icon
+                name="chevronRight"
+                size={18}
+              />{/if}</span
           >
-          {#if s.record}
-            <span class="rec num" aria-label="{s.record.w} won, {s.record.d} drawn, {s.record.l} lost"
-              >{s.record.w}W {s.record.d}D {s.record.l}L</span
-            >
-          {/if}
+          {#if s.record}<TeamRecord w={s.record.w} d={s.record.d} l={s.record.l} pts={s.record.pts} />{/if}
         </a>
         {#if k === 0}
           <div class="mid">
@@ -182,7 +199,7 @@
                   <span class="name"
                     >{goesByOf(s.captain)}{#if s.captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
                   >
-                  <span class="pos-badge">{s.captain.position}</span>
+                  <span class="pos-badge"><PositionIcon position={s.captain.position} /></span>
                 </li>
               {/if}
               {#each s.players as p (p.memberId ?? p.name)}
@@ -192,7 +209,7 @@
                   <span class="name"
                     >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
                   >
-                  {#if m}<span class="pos-badge">{m.position}</span>{/if}
+                  {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
                 </li>
               {/each}
             </ol>
@@ -235,19 +252,6 @@
 </div>
 
 <style>
-  .back {
-    display: inline-flex;
-    justify-self: start;
-    align-items: center;
-    gap: var(--s-1);
-    margin-bottom: calc(-1 * var(--s-2));
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
-    font-weight: 500;
-  }
-  .back:hover {
-    color: var(--fg);
-  }
   /* Face to face: home, the score (or vs and the kick-off), away */
   .face {
     display: grid;
@@ -268,6 +272,7 @@
   }
   /* A name that doesn't fit its side takes a second line ("Team / Charlie" on a phone), never "Team C…" */
   .side-name {
+    min-width: 0;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -279,9 +284,17 @@
     overflow-wrap: break-word;
     text-wrap: balance;
   }
-  .rec {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
+  /* The name and its chevron on one line: the name takes two lines before the chevron would drop under it */
+  .side-line {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    max-width: 100%;
+    min-width: 0;
+  }
+  .side-line :global(svg) {
+    flex: none;
+    color: var(--fg-subtle);
   }
   .mid {
     display: grid;
@@ -392,5 +405,8 @@
   .m-teams .num {
     margin: 0 var(--s-2);
     font-weight: 700;
+  }
+  .waiting {
+    min-height: 60vh;
   }
 </style>

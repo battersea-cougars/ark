@@ -7,6 +7,7 @@
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 # The built files are named by their content (/assets/<name>-<hash>.js), so a name never changes what it holds: kept a
 # year, never asked about again. The page itself (index.html) keeps the asset layer's own "max-age=0,

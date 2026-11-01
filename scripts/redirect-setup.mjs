@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // www.batterseacougars.com → batterseacougars.com, permanently, keeping the path and query (docs/setup.md). The site
 // answers on both (target.mjs gives the Worker both names), so without this search engines see two copies of every
-// page. A zone rule, not the Worker: built pages are served before the Worker runs. Safe to run again: it writes
-// the same rule.
+// page. A zone rule, not the Worker: built pages are served before the Worker runs. Every production deploy runs it
+// (deploy.yml); safe to run again: it writes the same rule.
 //   node scripts/env-pull.mjs --environment production -- node scripts/redirect-setup.mjs
-// Needs CLOUDFLARE_API_TOKEN__PRODUCTION with Single Redirect Write on batterseacougars.com.
+// Needs CLOUDFLARE_API_TOKEN__PRODUCTION with Dynamic URL Redirects: Edit (Rules & Configuration) on batterseacougars.com.
 const ZONE = "batterseacougars.com";
 
 const { CLOUDFLARE_API_TOKEN: token } = process.env;

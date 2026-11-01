@@ -1,10 +1,11 @@
-// Someone adding a player to a training keeps to its places (ADR 0030): the register's Add player, before the night or
+// Someone adding a player to a training keeps to its places (ADR 0131): the register's Add player, before the night or
 // on it, and an admin putting someone in. If there's room they're in; if it's full they wait, as if they'd signed up
 // (a Quarterly Member taking the last place of someone paying as they go), and only the team maker's Let in puts them
 // over the limit (ADR 0076). Only who's in is charged (ADR 0007). A night that's over is a record of who came, and
 // the register still says so. Driven through the real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
+import { clubCharges } from "../dues/dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -31,7 +32,7 @@ beforeEach(() => {
 
 async function as(email: string) {
   const b = await w.signedIn(email);
-  const sees = async (now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
+  const sees = async (now = NOW) => (await b.club({ now })).body as Json;
   return { call: b.call, sees };
 }
 
@@ -66,7 +67,7 @@ async function fullFriday(day = NEXT_FRIDAY) {
   const seen = async () => (await dana.sees()).sessions.find((s: Json) => s.id === friday.id);
   /** Who's charged for the night, the morning after */
   const charged = async () =>
-    ((await dana.sees(new Date(`${day}T23:30:00Z`))).charges as Json[])
+    ((await clubCharges(dana, new Date(`${day}T23:30:00Z`))) as Json[])
       .filter((c) => c.refId === friday.id)
       .map((c) => c.memberId)
       .sort((a, b) => a - b);
@@ -179,7 +180,8 @@ describe("adding a player keeps to the places", () => {
 
   it("a night that's over is a record: ticking someone who came to a full one still says they came", async () => {
     const f = await fullFriday(LAST_FRIDAY);
-    expect((await f.register(f.id.Walt, true, NOW)).body.signup).toBe("in");
+    // Past midnight, before its register closes at 6am (#11)
+    expect((await f.register(f.id.Walt, true, new Date("2026-10-03T00:30:00Z"))).body.signup).toBe("in");
     expect(await f.seen()).toMatchObject({ going: [f.id.Reg, f.id.Paul, f.id.Walt], walkIns: [f.id.Walt] });
     expect(await f.charged()).toContain(f.id.Walt);
   });

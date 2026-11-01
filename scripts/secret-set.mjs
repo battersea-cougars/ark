@@ -4,7 +4,7 @@
 //   node scripts/secret-set.mjs CLOUDFLARE_API_TOKEN__DEV          (prompts, input hidden)
 //   pbpaste | node scripts/secret-set.mjs SANITY_API_TOKEN         (reads stdin)
 // NAME__PRODUCTION goes to `cougars`, anything else to `cougars-dev`. The value is never printed.
-// Document the secret in README.md#secrets in the same change.
+// Document the secret in docs/secrets.md in the same change.
 import { ensureToken, projectFor, promptHidden, setSecret } from "./lib/bitwarden.mjs";
 
 const key = process.argv[2];
@@ -20,7 +20,7 @@ if (!value) throw new Error("Empty value, nothing saved.");
 
 const result = setSecret(key, value);
 console.log(`${result} ${key} in ${projectName}.`);
-if (result === "Created") console.log("Now document it in README.md#secrets.");
+if (result === "Created") console.log("Now document it in docs/secrets.md.");
 
 async function readValue(prompt) {
   if (process.stdin.isTTY) return promptHidden(prompt);

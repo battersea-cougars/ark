@@ -29,7 +29,7 @@ const FINAL_AND_THIRD = [
 async function people() {
   const dana = await w.signedIn("dana@example.com");
   const reg = await w.signedIn("reg@example.com");
-  const sees = async () => (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async () => (await dana.club()).body as Json;
   const idOf = async (name: string) => (await sees()).members.find((m: Json) => m.name === name).id as number;
   return { dana, reg, sees, idOf };
 }

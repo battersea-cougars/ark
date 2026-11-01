@@ -7,28 +7,39 @@
   import Icon from "../app/shell/Icon.svelte";
   import { db } from "../demo/store.svelte";
   import { createVenue, updateVenue } from "../app/backend.svelte";
+  import { readTagged } from "../app/api";
+  import { reportUnexpected } from "../app/errors.early";
   import type { Venue } from "../demo/model";
   import { cleanMapUrl, placeOf } from "@cougars/shared/places";
+  import { Edits } from "../lib/dirty.svelte";
+  import SaveBar from "../lib/SaveBar.svelte";
 
   const blank = (): Venue => ({ id: 0, name: "", address: "", mapUrl: "", active: true });
   let open = $state(false);
   let draft = $state<Venue>(blank());
   let problem = $state("");
+  // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
+  const edits = new Edits();
+  edits.watch(() => draft);
 
   function edit(v?: Venue) {
     draft = v ? { ...$state.snapshot(v) } : blank();
+    edits.reset();
+    edits.fresh = !v;
     problem = "";
     open = true;
   }
 
-  // What picks each one, so it's clear what a change moves
-  const usedBy = (id: number) =>
-    [
-      ...db.series.filter((s) => s.venueId === id).map((s) => s.name),
-      ...db.tournamentTypes.filter((t) => t.venueId === id).map((t) => t.name),
-      ...db.tournaments.filter((t) => t.venueId === id).map((t) => t.name),
-      ...db.oneOffs.filter((o) => o.venueId === id).map((o) => o.title),
-    ].join(", ");
+  // What picks each one, so it's clear what a change moves: every one held there, past ones too, read from the server
+  // (#177); again after a change to what's on (the series, sessions and tournaments come back with it)
+  let used = $state<{ venueId: number; names: string[] }[]>([]);
+  $effect(() => {
+    void [db.series, db.tournamentTypes, db.tournaments, db.oneOffs, db.venues];
+    readTagged<{ used: typeof used }>("/api/venues/used", null)
+      .then(({ data }) => data && (used = data.used))
+      .catch((e) => reportUnexpected(e, "Couldn't read what each venue is used for"));
+  });
+  const usedBy = (id: number) => used.find((u) => u.venueId === id)?.names.join(", ") ?? "";
 
   const mapOf = (v: Venue) => placeOf({ venueId: v.id, name: "", mapUrl: "" }, [v])!.mapUrl;
 
@@ -37,7 +48,8 @@
     const mapUrl = cleanMapUrl(draft.mapUrl);
     if (mapUrl === null) return void (problem = "That map link isn't a web link. In Google Maps: Share → Copy link.");
     const v = { ...draft, name: draft.name.trim(), address: draft.address.trim(), mapUrl };
-    if ((v.id ? await updateVenue(v) : await createVenue(v)) !== null) open = false;
+    // Saved, it closes; the shell says so
+    if ((await edits.run(() => (v.id ? updateVenue(v) : createVenue(v)))) !== null) open = false;
   }
 </script>
 
@@ -78,12 +90,12 @@
       </ul>
     </div>
   {:else}
-    <p class="hint">No venues yet. Add the rink, then pick it for trainings and tournaments.</p>
+    <p class="hint">No venues yet. Add the rink, then choose it for trainings and tournaments.</p>
   {/if}
 </div>
 
-<Sheet bind:open title={draft.id ? "Edit venue" : "Add a venue"}>
-  <form class="form" onsubmit={save}>
+<Sheet bind:open title={draft.id ? "Edit venue" : "Add a venue"} {edits}>
+  <form class="form" id="venue-form" onsubmit={save}>
     <label class="field"
       >Name <input
         class="input"
@@ -114,10 +126,10 @@
         >In Google Maps, find it, then Share → Copy link. Empty: the map searches for the name and address.</span
       >
     </label>
-    <label class="check"><input type="checkbox" bind:checked={draft.active} /> Offer it when picking a place</label>
+    <label class="check"><input type="checkbox" bind:checked={draft.active} /> Offer it when choosing a place</label>
     {#if problem}<p class="problem" role="alert">{problem}</p>{/if}
-    <button class="btn primary">{draft.id ? "Save" : "Add venue"}</button>
   </form>
+  {#snippet footer()}<SaveBar {edits} form="venue-form" label={draft.id ? "Save" : "Add venue"} />{/snippet}
 </Sheet>
 
 <style>

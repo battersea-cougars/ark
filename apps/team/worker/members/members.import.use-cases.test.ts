@@ -30,8 +30,7 @@ type Member = {
   roles: string[];
   paymentReference: string;
 };
-const members = async (as: Awaited<ReturnType<typeof w.signedIn>>) =>
-  (await as.call("GET", "/api/bootstrap")).body.members as Member[];
+const members = async (as: Awaited<ReturnType<typeof w.signedIn>>) => (await as.club()).body.members as Member[];
 
 describe("an admin imports members from a file", () => {
   it("checking the file says who'd be added and who's in already, and changes nothing", async () => {
@@ -186,9 +185,7 @@ describe("an admin imports the club's own spreadsheet", () => {
     const dana = await w.signedIn("dana@example.com");
     await dana.call("POST", "/api/members/import", { file: SHEET, apply: true });
     const quinn = await w.signedIn("quinn@example.com");
-    const me = (await quinn.call("GET", "/api/bootstrap")).body.members.find(
-      (m: Member) => m.name === "Quinn Quarterly",
-    );
+    const me = (await quinn.club()).body.members.find((m: Member) => m.name === "Quinn Quarterly");
     expect(me.quarterly).toBe(true);
   });
 
@@ -258,7 +255,7 @@ describe("an admin imports the club's own spreadsheet", () => {
     expect(check.body.problems).toEqual([
       { row: 3, name: "Ray Role", why: "No role called Captain" },
       { row: 4, name: "Sue Subx", why: "Subx should be quarterly, payg or keeper" },
-      { row: 5, name: "Ken Keeper", why: "Keeper is for a goalie: position G" },
+      { row: 5, name: "Ken Keeper", why: "Keeper is for position G" },
     ]);
     const r = await dana.call("POST", "/api/members/import", { file: bad, apply: true });
     expect(r.status).toBe(400);

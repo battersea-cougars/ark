@@ -1,7 +1,7 @@
 # 0106. The database is backed up nightly and before every schema change, sealed, kept 90 days as GitHub artifacts
 
 - **Status:** Accepted
-- **Date:** 2026-10-10
+- **Date:** 2026-10-10 · updated 2026-11-01
 
 ## Context
 
@@ -23,9 +23,9 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
   encrypts it with the environment's `BACKUP_KEY` (AES-256-GCM, the key stretched with scrypt and a fresh salt each
   time: `scripts/lib/backup.mjs`), so the artifact is useless without the key, and a changed byte is refused. The plain
   export never leaves a private temp folder.
-- **One key per environment**, random, in Bitwarden only (README#backup_key): a dev key can't open production's
+- **One key per environment**, random, in Bitwarden only ([docs/secrets.md#our-own-keys](../secrets.md#our-own-keys)): a dev key can't open production's
   backups.
-- **When:** nightly at 03:15 UTC (`.github/workflows/backup.yml`; production's run starts on `release`, as the
+- **When:** nightly, some time after 03:13 UTC (`.github/workflows/backup.yml`; production's run starts on `release`, as the
   website's rebuilds do), and in `deploy.yml`'s `database` job before every rebuild or migration. A backup that fails
   stops the deploy.
 - **Kept** 90 days, the most GitHub allows, named `d1-<environment>-…` on the run.
@@ -41,6 +41,10 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
 - Losing `BACKUP_KEY` loses every backup it sealed. Bitwarden is the one place it lives, as with every secret.
 - 90 days is the furthest back we can go; an older mistake is past saving.
 - A backup is taken before every schema change on dev too, so pushes that touch `db/` take a little longer.
+- D1 refuses every other statement while it exports, for the half minute or so a backup takes ("Currently processing
+  a long-running export"), and GitHub can start the nightly run hours late, so it can land at any time of day. The team
+  app's crons treat that refusal as a warning, not an error: a minute it meets does nothing and the next one runs, and a
+  job it meets is tried again with the hour's next try (cron/hourly.ts). A request in that half minute still fails.
 - Restoring a whole database into production has no workflow yet: Time Travel covers the likely case (a bad deploy,
   noticed within the week).
 
@@ -48,3 +52,7 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
 
 - 2026-10-10: Nightly and before every schema change, sealed with a per-environment key, kept 90 days as GitHub
   artifacts; the last one on the Usage page (#31).
+- 2026-10-24: The nightly run starts some time after 03:13 UTC, not at 03:15: GitHub runs schedules on the hour
+  and the quarter hours late, or drops them (#148).
+- 2026-11-01: The team app's crons wait out a backup's export instead of reporting it as an error, after the nightly
+  run started at 10:28 UTC and met the run every minute (#197).

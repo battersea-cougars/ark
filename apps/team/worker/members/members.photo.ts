@@ -1,4 +1,4 @@
-// A member's profile photo (ADR 0123): their phone shrinks it to a small square, it's kept in D1 as a data: URL, and
+// A member's profile photo (ADR 0133): their phone shrinks it to a small square, it's kept in D1 as a data: URL, and
 // the app shows it at /api/members/<id>/photo?v=<when it was set>, so browsers keep it until it changes.
 import { first, run } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";

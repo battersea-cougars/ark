@@ -24,7 +24,7 @@ beforeEach(() => {
 
 async function as(email: string) {
   const b = await w.signedIn(email);
-  const sees = async () => (await b.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async () => (await b.club()).body as Json;
   /** Where everyone goes after this one, as the app works it out from what it's sent (lib/tournament-front.ts). */
   const afterwards = async (id: number) => {
     const club = await sees();

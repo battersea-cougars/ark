@@ -1,4 +1,4 @@
-// A member puts up a profile photo from their phone (ADR 0123): the phone shrinks it, it's kept with them, and the app
+// A member puts up a profile photo from their phone (ADR 0133): the phone shrinks it, it's kept with them, and the app
 // shows it to everyone in the club in place of their initials. Driven through the real handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
@@ -20,7 +20,7 @@ beforeEach(() => {
 
 type Member = { id: number; name: string; photoAt: string | null };
 const memberNamed = async (who: Awaited<ReturnType<typeof w.signedIn>>, name: string) =>
-  ((await who.call("GET", "/api/bootstrap")).body.members as Member[]).find((m) => m.name === name)!;
+  ((await who.club()).body.members as Member[]).find((m) => m.name === name)!;
 
 describe("a member puts up a profile photo", () => {
   it("everyone in the club sees it, at an address that changes when it does", async () => {

@@ -31,7 +31,7 @@ type Phone = Awaited<ReturnType<typeof w.signedIn>>;
  */
 async function gameOn() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captains = { Ants: idOf("Cara Captain"), Bees: idOf("Cole Captain"), Cats: idOf("Reg Captain") };
   const res = await dana.call("POST", "/api/tournaments", {
@@ -55,7 +55,7 @@ async function gameOn() {
   expect(res.status).toBe(201);
   const id = res.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
-  const t = ((await dana.call("GET", "/api/bootstrap")).body as Json).tournaments.find((x: Json) => x.id === id);
+  const t = ((await dana.club()).body as Json).tournaments.find((x: Json) => x.id === id);
   const game = t.games[0];
   const keeperEmail = ROSTER.find(
     (r) => idOf(r.name) === t.teams.find((x: Json) => x.id === game.scoringTeamId).captainMemberId,
@@ -68,10 +68,10 @@ async function gameOn() {
   const home = game.homeTeamId as number;
   const away = game.awayTeamId as number;
   const scorer = t.teams.find((x: Json) => x.id === home).captainMemberId as number;
-  const goal = (p: Phone, teamId = home, when = 3) =>
-    p.call("POST", `${path}/goals`, { teamId, scorerId: teamId === home ? scorer : null }, at(when));
-  const penalty = (p: Phone, when = 3) =>
-    p.call("POST", `${path}/penalties`, { teamId: away, infraction: "delay-of-game" }, at(when));
+  const goal = (p: Phone, teamId = home, when = 3, tapId?: string) =>
+    p.call("POST", `${path}/goals`, { teamId, scorerId: teamId === home ? scorer : null, tapId }, at(when));
+  const penalty = (p: Phone, when = 3, tapId?: string) =>
+    p.call("POST", `${path}/penalties`, { teamId: away, infraction: "delay-of-game", tapId }, at(when));
   const clock = (p: Phone, action: string, when: number, extra: object = {}) =>
     p.call("POST", `${path}/clock`, { action, ...extra }, at(when));
   const row = () =>
@@ -95,21 +95,33 @@ async function gameOn() {
 }
 
 describe("scoring live: taps at once", () => {
-  it.each(SEEDS)(
-    "the same goal sent from the scorekeeper's two phones at once is two goals; Undo takes one back (seed %i)",
-    async (seed) => {
-      // Nothing retries a change on its own (backend.ts `save`), and a goal has no id from the phone (#114), so two posts
-      // are two goals, the way two goals a second apart are. The scorekeeper sees 2–0 and takes one back
-      const g = await gameOn();
-      w.db.interleave(seed);
-      const replies = await Promise.all([g.goal(g.phone), g.goal(g.other)]);
-      w.db.interleave(null);
-      expect(replies.map((r) => r.status)).toEqual([200, 200]);
-      expect(g.row()).toMatchObject({ home: 2, away: 0 });
-      expect((await g.phone.call("DELETE", `${g.path}/goals/last`, undefined, at(4))).status).toBe(200);
-      expect(g.row()).toMatchObject({ home: 1, away: 0 });
-    },
-  );
+  // Each tap says which it is (`tapId`, made when the button's pressed, #114): the same tap sent from the
+  // scorekeeper's two phones, or sent again, is one goal, not two goals a second apart
+  it.each(SEEDS)("the same goal tap sent from two phones at once is one goal (seed %i)", async (seed) => {
+    const g = await gameOn();
+    w.db.interleave(seed);
+    const replies = await Promise.all([g.goal(g.phone, g.home, 3, "tap-1"), g.goal(g.other, g.home, 3, "tap-1")]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(g.row()).toMatchObject({ home: 1, away: 0 });
+    expect(g.goals()).toHaveLength(1);
+  });
+
+  it.each(SEEDS)("the same penalty tap sent from two phones at once is one penalty (seed %i)", async (seed) => {
+    const g = await gameOn();
+    w.db.interleave(seed);
+    const replies = await Promise.all([g.penalty(g.phone, 3, "tap-1"), g.penalty(g.other, 3, "tap-1")]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200]);
+    expect(g.penalties()).toBe(1);
+  });
+
+  it("two taps a moment apart are two goals", async () => {
+    const g = await gameOn();
+    await g.goal(g.phone, g.home, 3, "tap-1");
+    await g.goal(g.phone, g.home, 3, "tap-2");
+    expect(g.row()).toMatchObject({ home: 2, away: 0 });
+  });
 
   it.each(SEEDS)("end of the 1st period said by both phones at once: the 2nd, not the 3rd (seed %i)", async (seed) => {
     const g = await gameOn();

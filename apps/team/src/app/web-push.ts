@@ -4,6 +4,7 @@
 // from a tap, given to the club for this sign-in (PUT /api/auth/device), and given again each start, so whoever signs
 // in on this browser next gets them; turned off, it's unsubscribed and forgotten.
 import { api } from "./api";
+import { impersonating } from "../demo/session.svelte";
 
 declare const __VAPID_PUBLIC_KEY__: string | undefined;
 /** The club's VAPID public key (wrangler.jsonc, built in): none yet, no Web Push. */
@@ -84,6 +85,7 @@ export async function turnOn(): Promise<boolean> {
   const sub = await subscribe(await worker());
   // The club said no (a push service it doesn't know): not left subscribed for nothing
   await give(sub).catch(async (e) => {
+    // The club's refusal is what's thrown; an unsubscribe that fails too leaves a subscription nobody sends to
     await sub.unsubscribe().catch(() => {});
     throw e;
   });
@@ -94,6 +96,7 @@ export async function turnOn(): Promise<boolean> {
 export async function turnOff() {
   const sub = await current();
   if (!sub) return;
+  // Offline: unsubscribed all the same, so the club's next send to it finds it gone and drops it
   await api("DELETE", "/api/auth/device", { token: sub.endpoint }).catch(() => {});
   await sub.unsubscribe();
 }
@@ -108,6 +111,7 @@ export async function startWebPush(navigate: (path: string) => void) {
     const path = e.data?.type === "notification-tap" ? e.data.path : null;
     if (typeof path === "string" && path.startsWith("/")) navigate(path);
   });
-  if (Notification.permission !== "granted" || !(await current())) return;
+  // Not while viewing the app as someone (ADR 0024): the club would refuse it
+  if (impersonating() || Notification.permission !== "granted" || !(await current())) return;
   await give(await subscribe(await worker()));
 }

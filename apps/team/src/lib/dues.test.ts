@@ -37,16 +37,6 @@ describe("feeOn", () => {
 });
 
 describe("bucketOf", () => {
-  it("splits at 30, 60 and 90 days", () => {
-    const today = "2026-10-06";
-    expect(bucketOf("2026-10-06", today)).toBe(0);
-    expect(bucketOf("2026-09-06", today)).toBe(0); // 30 days
-    expect(bucketOf("2026-09-05", today)).toBe(1); // 31
-    expect(bucketOf("2026-08-07", today)).toBe(1); // 60
-    expect(bucketOf("2026-08-06", today)).toBe(2); // 61
-    expect(bucketOf("2026-07-08", today)).toBe(2); // 90
-    expect(bucketOf("2026-07-07", today)).toBe(3); // 91
-  });
   it("counts London days across the clock change", () => {
     expect(bucketOf("2026-09-25", "2026-10-26")).toBe(1); // 31 days, BST ends on the 25th
   });

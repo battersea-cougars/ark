@@ -7,11 +7,12 @@ import VideoCard from "../../components/VideoCard.astro";
 import Empty from "../../components/Empty.astro";
 import { getSettings } from "../../lib/sanity/content";
 import { liveVideos } from "../../lib/server/videos";
-import { cacheControl, videosConfig } from "../../lib/server/sanity-env";
+import { cacheControl } from "../../lib/server/sanity-env";
+import { liveVideosConfig } from "../../lib/server/videos-env";
 
 export const prerender = false;
 
-const { data: videos, unavailable } = await liveVideos(videosConfig());
+const { data: videos, unavailable } = await liveVideos(liveVideosConfig());
 const s = await getSettings();
 
 Astro.response.headers.set("Cache-Control", cacheControl(unavailable));

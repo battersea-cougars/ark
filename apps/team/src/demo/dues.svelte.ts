@@ -1,7 +1,7 @@
-// What a charge was for, in words, and per-member and per-session sums over the store's charges (ADR 0007).
+// What a charge was for, in words, and what each member owes as the club read sends it (ADR 0007, #177).
 import type { IconName } from "../app/shell/icons";
 import { londonISO } from "../lib/dates";
-import { collected, owed, type Charge } from "../lib/dues";
+import type { Charge } from "../lib/dues";
 import type { Tone } from "./model";
 import { db } from "./store.svelte";
 
@@ -40,13 +40,12 @@ export function labelFor(c: Charge): ChargeLabel {
   return { title: `Quarterly membership, ${q} ${year}`, at: londonISO(c.dueOn, "12:00"), icon: "pound", tone: "green" };
 }
 
-/** A member's charges, newest first. */
-export const chargesFor = (memberId: number) =>
+/** Your own charges with something left to pay, newest first (all the club read sends, #177). */
+export const unpaidCharges = (memberId: number) =>
   db.charges.filter((c) => c.memberId === memberId).sort((a, b) => b.dueOn.localeCompare(a.dueOn));
 
-export const owedBy = (memberId: number) => owed(db.charges, memberId);
+/** What someone owes, as the server added it up (yours, or anyone's for who sees Unpaid fees). */
+export const owedBy = (memberId: number) => db.dues.find((d) => d.memberId === memberId)?.owed ?? 0;
 
 /** Money they've paid that no charge has used yet. */
-export const creditOf = (memberId: number) => db.credits.find((c) => c.memberId === memberId)?.pence ?? 0;
-
-export const collectedFor = (kind: Charge["kind"], refId: number) => collected(db.charges, kind, refId);
+export const creditOf = (memberId: number) => db.dues.find((d) => d.memberId === memberId)?.credit ?? 0;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
-import { homeFeed, owedNotice, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
+import { beersFor, homeFeed, owedNotice, UPCOMING_MAX, type FeedInput, type UpcomingEvent } from "./home-feed";
 
 const ME = 7;
 const type = { id: 1, slug: "kumite", name: "The Cougars Kumite", shortName: "Kumite" } as TournamentType;
@@ -131,7 +131,7 @@ describe("Home's feed", () => {
     expect(feed(t, { agenda: [closes] }).now).toEqual([]);
     // A one-off tournament (not the next of a series Home asks about) still gets its reminder
     expect(feed(t, { agenda: [closes], upcoming: [] }).now).toMatchObject([
-      { text: "Sign-up for The Cougars Kumite closes", sub: "Are you in?", on: { at: closes.startsAt } },
+      { text: "Sign-up for The Cougars Kumite closes", sub: "Accept the invitation", on: { at: closes.startsAt } },
     ]);
   });
 
@@ -145,6 +145,73 @@ describe("Home's feed", () => {
     expect(feed(kumite()).admin).toEqual([]);
     expect(feed(kumite(), { club: { total: 0, people: 0, worst: 0 } }).admin).toEqual([]);
   });
+
+  it("when Google has cancelled the email, it's the admins' first line, hot, until someone reconnects it (#101)", () => {
+    const rows = feed(kumite(), { club: { total: 9000, people: 3, worst: 0 }, emailStopped: true });
+    expect(rows.admin.map((r) => [r.text, r.href, r.hot])).toEqual([
+      ["Email has stopped", "/settings/email", true],
+      ["Owed to the club £90", "/settings/overdue", false],
+    ]);
+    expect(feed(kumite(), { emailStopped: false }).admin).toEqual([]);
+  });
+
+  // Someone asking to join waits for an admin (ADR 0069): Home says so, for whoever lets members in (manage:Member),
+  // as The club does, opening it where Approve is (decided 2026-10-23)
+  it("someone asking to join is an admin's line, naming them, opening The club", () => {
+    const rows = feed(kumite(), { club: { total: 9000, people: 3, worst: 0 }, asking: ["Jo Bloggs"] });
+    expect(rows.admin.map((r) => [r.text, r.sub, r.href, r.hot])).toEqual([
+      ["Jo Bloggs is asking to join", "Approve them on The club", "/club", true],
+      ["Owed to the club £90", "3 people", "/settings/overdue", false],
+    ]);
+  });
+
+  it("two or more asking to join is one line, how many", () => {
+    const rows = feed(kumite(), { asking: ["Jo Bloggs", "Al New", "Bo Fresh"] });
+    expect(rows.admin.map((r) => [r.text, r.sub, r.href])).toEqual([
+      ["3 asking to join", "Approve them on The club", "/club"],
+    ]);
+    expect(feed(kumite(), { asking: [] }).admin).toEqual([]);
+  });
+
+  // The hourly check keeps the free limits at 70% or more (ADR 0059, #148); Home asks for them only for whoever sees
+  // Usage, and says the nearest in one line, last, opening the Usage page
+  const level = (id: string, label: string, percent: number, period: "day" | "month" = "day") => ({
+    id,
+    label,
+    percent,
+    period,
+    resetsAt: period === "day" ? "2026-10-22T00:00:00.000Z" : "2026-11-01T00:00:00.000Z",
+  });
+
+  it("a free limit past 70% is one line for the admins, last, opening Usage, with when it resets in London", () => {
+    const rows = feed(kumite(), {
+      club: { total: 9000, people: 3, worst: 0 },
+      usage: [level("rowsRead", "Database rows read", 74), level("sanity-cdn", "Sanity API CDN requests", 71, "month")],
+    });
+    expect(rows.admin.map((r) => [r.text, r.sub, r.href, r.hot])).toEqual([
+      ["Owed to the club £90", "3 people", "/settings/overdue", false],
+      ["Database rows read at 74% of today's free limit", "Resets at 1am · 1 more past 70%", "/settings/usage", false],
+    ]);
+  });
+
+  it("past 90% it says so, hot", () => {
+    const [row] = feed(kumite(), { usage: [level("requests", "Worker requests", 93)] }).admin;
+    expect([row.text, row.sub, row.hot]).toEqual([
+      "Worker requests at 93% of today's free limit",
+      "Nearly spent · resets at 1am",
+      true,
+    ]);
+    const [cpu] = feed(kumite(), { usage: [level("cpu", "Requests stopped for CPU time", 100)] }).admin;
+    expect([cpu.text, cpu.hot]).toEqual(["Requests stopped for CPU time today", true]);
+    const [month] = feed(kumite(), { usage: [level("sanity-api", "Sanity API requests", 90, "month")] }).admin;
+    expect(month.text).toBe("Sanity API requests at 90% of this month's free limit");
+    expect(month.sub).toBe("Nearly spent · resets Sun 1 Nov");
+  });
+
+  it("all fine, or nobody who sees Usage, there's no line", () => {
+    expect(feed(kumite(), { usage: [] }).admin).toEqual([]);
+    expect(feed(kumite()).admin).toEqual([]);
+  });
 });
 
 describe("what you owe, in the locker room", () => {
@@ -156,6 +223,17 @@ describe("what you owe, in the locker room", () => {
     });
     expect(owedNotice({ pence: 1000, kinds: ["quarterly"] })?.sub).toBe("Your tab · 1 charge");
     expect(feed(kumite()).now.some((r) => r.href === "/me/tab")).toBe(false);
+  });
+
+  it("in beers at the club's pub too: a lot of them, the same all day", () => {
+    expect(owedNotice({ pence: 2200, kinds: ["quarterly"] }, { name: "The Anchor", beers: 27 })?.text).toBe(
+      "£22 to pay, about 27 beers at The Anchor",
+    );
+    const beers = ["2026-10-23", "2026-10-24", "2026-11-01"].flatMap((d) =>
+      [100, 2200, 9999].map((p) => beersFor(p, d)),
+    );
+    expect(beers.every((n) => n >= 10 && n <= 40)).toBe(true);
+    expect(beersFor(2200, "2026-10-23")).toBe(beersFor(2200, "2026-10-23"));
   });
 
   it("nobody square sees one", () => {
@@ -214,9 +292,9 @@ describe("what's coming up", () => {
       }),
       ev("tournament:1", "2026-11-14T10:00:00Z", { kind: "tournament", filter: "type:2", standing: "in" }),
     ]);
-    expect(rows.map((r) => [r.key, r.sub])).toEqual([
-      ["tournament:1", "10am · You're in"],
-      ["tournament:2", "Sign-up opens 1 May"],
+    expect(rows.map((r) => [r.key, r.sub, r.standing])).toEqual([
+      ["tournament:1", "10am", { is: "in" }],
+      ["tournament:2", "Sign-up opens 1 May", undefined],
     ]);
     expect(rows[1].on).toMatchObject({ season: { name: "summer", year: 2027 }, tbc: true });
   });
@@ -228,5 +306,80 @@ describe("what's coming up", () => {
     expect(up(many)).toHaveLength(UPCOMING_MAX);
     expect(up([ev("far", "2027-03-01T19:00:00Z")])).toEqual([]);
     expect(up([ev("past", "2026-10-20T19:00:00Z")])).toEqual([]);
+  });
+
+  describe("where you stand, as a status, and how many are in, on every row that takes sign-ups", () => {
+    // The lead's a social with no sign-up today, so each row under test is a row
+    const row = (e: UpcomingEvent) => up([e])[0];
+    const training = (over: Partial<UpcomingEvent> = {}) =>
+      ev("session:1", "2026-10-23T18:30:00Z", {
+        kind: "training",
+        filter: "series:1",
+        title: "Friday Training",
+        endsAt: "2026-10-23T20:00:00Z",
+        going: 12,
+        limit: 20,
+        ...over,
+      });
+    const tournament = (over: Partial<UpcomingEvent> = {}) =>
+      ev("tournament:1", "2026-11-14T10:00:00Z", { kind: "tournament", filter: "type:1", going: 16, ...over });
+    const oneOff = (over: Partial<UpcomingEvent> = {}) =>
+      ev("oneoff:1", "2026-10-30T19:00:00Z", { going: 9, limit: 24, ...over });
+
+    it("you're in: a status of its own, not the muted line, and the count beside it", () => {
+      const r = row(training({ standing: "in" }));
+      expect(r.sub).toBe("7:30 to 9pm");
+      expect(r.standing).toEqual({ is: "in" });
+      expect(r.count).toEqual({ going: 12, limit: 20 });
+    });
+
+    it("on the waitlist: your place in it, when it's known", () => {
+      expect(row(training({ standing: "waitlist", place: 3 })).standing).toEqual({ is: "waitlist", place: 3 });
+      expect(row(oneOff({ standing: "waitlist" })).standing).toEqual({ is: "waitlist" });
+    });
+
+    it("not answered yet: still asked (the Kumite: to accept its invitation), and still counted", () => {
+      const r = row(tournament({ asking: true }));
+      expect(r.sub).toBe("10am · Accept the invitation");
+      expect(r.standing).toBeUndefined();
+      expect(r.count).toEqual({ going: 16 });
+    });
+
+    it("out: said as a status too (the snippet keeps it quiet), and counted", () => {
+      const r = row(oneOff({ standing: "out" }));
+      expect(r.sub).toBe("7pm");
+      expect(r.standing).toEqual({ is: "out" });
+      expect(r.count).toEqual({ going: 9, limit: 24 });
+    });
+
+    it("each kind counts its own: a training's places, a tournament with no limit, a one-off's", () => {
+      expect(row(training()).count).toEqual({ going: 12, limit: 20 });
+      expect(row(tournament()).count).toEqual({ going: 16 });
+      expect(row(oneOff({ going: 0 })).count).toEqual({ going: 0, limit: 24 });
+    });
+
+    it("a sign-up that's over still says how many are in", () => {
+      expect(row(tournament({ signupClosed: true, standing: "in" })).count).toEqual({ going: 16 });
+    });
+
+    it("a cancelled one: no count and no standing, just its Cancelled badge", () => {
+      const r = row(training({ cancelled: true, standing: "in" }));
+      expect(r.sub).toBe("7:30 to 9pm");
+      expect(r.cancelled).toBe(true);
+      expect(r.standing).toBeUndefined();
+      expect(r.count).toBeUndefined();
+    });
+
+    it("a sign-up still to open: when it opens, and no count yet", () => {
+      expect(row(training({ opens: "Mon", going: 0 }))).toMatchObject({ sub: "7:30 to 9pm · Sign-up opens Mon" });
+      expect(row(training({ opens: "Mon", going: 0 })).count).toBeUndefined();
+      expect(row(tournament({ signupOpensOn: "2026-11-01", going: 0 })).count).toBeUndefined();
+    });
+
+    it("nothing to sign up for: no count, just where", () => {
+      const r = row(ev("drinks", "2026-10-30T19:00:00Z"));
+      expect(r.sub).toBe("7pm · The Lock");
+      expect(r.count).toBeUndefined();
+    });
   });
 });

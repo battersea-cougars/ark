@@ -1,7 +1,7 @@
 # 0036. Every API response sends only what that caller may see, decided on the server, and every page is hardened
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-20
+- **Date:** 2026-10-06 · updated 2026-10-24
 - **Merges:** 0092, 0099
 
 ## Context
@@ -45,8 +45,8 @@ personal, a member is sent **their own**, and everyone's only with the action th
 | Email, phone, payment reference  | `manage:Member`                                                                                                                        | your own                                                                                                                                      |
 | Rating                           | `read:Rating`                                                                                                                          | not sent                                                                                                                                      |
 | Member `quarterly`               | `manage:Member`                                                                                                                        | your own                                                                                                                                      |
-| Member `roles`                   | `manage:Member`, `manage:Role`, `impersonate:Member`                                                                                   | your own                                                                                                                                      |
-| `roles` (each role's actions)    | `manage:Member`, `manage:Role`, `impersonate:Member`                                                                                   | roles you could hold as you are: yours, and those that can do less (your everyday role's choices, [0024](0024-action-based-authorization.md)) |
+| Member `roles`                   | `manage:Member`, `manage:Role`                                                                                                         | your own                                                                                                                                      |
+| `roles` (each role's actions)    | `manage:Member`, `manage:Role`                                                                                                         | roles you could hold as you are: yours, and those that can do less (your everyday role's choices, [0024](0024-action-based-authorization.md)) |
 | An event's `out`                 | runs events: `record:Attendance`, `update:Event`, `generate:Teams`, `publish:Teams`, `manage:Member`, `manage:Tournament`, `run:Draft` | your own                                                                                                                                      |
 | A session's `noShows`, `walkIns` | the same                                                                                                                               | your own                                                                                                                                      |
 | An entered team's `contact`      | `manage:Tournament`                                                                                                                    | empty                                                                                                                                         |
@@ -55,8 +55,8 @@ Unchanged, because they're the point of the screen or already public: who's in a
 member's name, position, bio, website name, Cougar flag and sessions played (all on the public website roster for
 Cougars, and on the player card), and a closed draft's teams ([0060](0060-the-draft.md)).
 
-`impersonate:Member` gets everyone's roles because view as a member is worked out in the browser from their roles
-([0024](0024-action-based-authorization.md)). If it moves to the server, that action drops out of the list.
+An admin viewing the app as a member is answered as that member, by the server ([0024](0024-action-based-authorization.md)):
+what comes back is what the member may see, so `impersonate:Member` needs nobody's roles.
 
 **You can't grant what you don't have.** Only `manage:all` may give out any action. Anyone else may:
 
@@ -73,32 +73,40 @@ of future sessions is idempotent).
 
 **Security headers on every page, file and response, from both layers.**
 
-- Both apps carry a `_headers` file in `public/`, which Workers static assets apply to everything they serve. The
-  Worker (team app, `worker/index.ts`) and the middleware (website's live routes) set the same set on what they
-  answer. A test in each app reads the file and checks it equals the code's set, so the two can't drift.
-- **The team app** sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`
-  and a **content security policy**: only its own scripts, styles (inline allowed: Svelte sets style attributes),
+- Both apps have a `_headers` file, which Workers static assets apply to everything they serve. The Worker (team app,
+  `worker/index.ts`) and the middleware (website's live routes) set the same set on what they answer. The team app's
+  is `public/_headers`, and a test checks it equals the code's set, so the two can't drift; the website's is written
+  by its build from the same code (`src/lib/server/headers.ts`, `headers.integration.ts`), for the environment being
+  built, so there's nothing to drift.
+- **The team app** sends `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`,
+  `Permissions-Policy: camera=(), microphone=(), geolocation=()` and a **content security policy**: only its own scripts, styles (inline allowed: Svelte sets style attributes),
   fonts and files; talks only to its own origin; its own images plus `data:` (team logos) and `blob:` (upload
   previews); no objects, no other base, forms only to itself, `frame-ancestors 'none'`. The one outsider is
   Cloudflare Turnstile on the sign-in page ([0028](0028-turnstile-and-auto-reply.md), #13): its script and its frame
   from `challenges.cloudflare.com`. A new outside resource means widening the policy on purpose, in both places.
 - **The website** sends `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` (it
-  links out and is public, so the origin may travel) and a **content security policy** (`CSP` in
-  `src/middleware.ts`):
+  links out and is public, so the origin may travel), the same `Permissions-Policy` and a **content security policy** (`csp` in
+  `src/lib/server/headers.ts`, per environment):
   - Scripts only from its own files, Turnstile and Cloudflare's analytics beacon. **No inline scripts at all**:
     Astro's small component scripts aren't inlined (`assetsInlineLimit` in `astro.config.mjs`), and the two that
     must run first (the error catcher, the back/forward check) are one blocking file, `src/scripts/head.js`. So the
     policy needs no hashes or nonces, is the same string in both layers, and works with `<ClientRouter />` (which
     Astro's own CSP feature doesn't support).
-  - Images from itself, Sanity's CDN, YouTube's thumbnails and, for demo content on dev and previews, picsum; frames
+  - Images from itself, Sanity's CDN, YouTube's thumbnails and, off production only (dev, previews, a laptop), picsum
+    for the demo content: production's policy doesn't name it (`SITE_ENV`, as the build and the Worker have it); frames
     only YouTube's player (`youtube-nocookie.com`) and Turnstile; inline styles allowed (`style="--i:…"` throughout).
   - No objects, no other base, forms only to itself, `frame-ancestors 'none'`, `upgrade-insecure-requests`.
   - A refusal is reported to `/api/csp-report` by `report-uri`, which every browser sends at once. Not the Reporting
     API's `report-to`: with it, Chrome ignores `report-uri`, and on dev it queued the report and never delivered it. The route keeps
     only reports about our own pages, leaves out what browser extensions cause, and sends each kind to Sentry as one
-    issue ([0111](0111-errors-and-uptime.md)). It was enforced from the start, not report-only first: before launch
+    issue ([0110](0110-structured-logging.md)). It was enforced from the start, not report-only first: before launch
     nobody visits to report, so instead a headless browser walked every page (and the demo content's) under the real
     policy, pressing Play and opening a photo, and found nothing refused.
+- **No camera, microphone or location:** neither app uses them (a photo is picked as a file), so `Permissions-Policy`
+  turns them off for every page and anything it frames (YouTube's player, Turnstile).
+- **The bootstrap is never kept by the browser** (`private, no-store`): the club's data, members' details included,
+  would otherwise outlast signing out in its disk cache. The app keeps the ETag in memory instead
+  ([0053](0053-live-reads-are-cached.md)).
 - **HSTS:** both apps send `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Every host under the
   domain is HTTPS through Cloudflare. Not `preload`: the browsers' built-in list is slow to leave, and can come later.
 - **Links typed by someone else** (the Studio, the team app's venues) are checked before they reach a page
@@ -132,7 +140,8 @@ of future sessions is idempotent).
 - Every page and file from either app is unframeable and unsniffable, and the team app's page can't run a script or
   reach a host that isn't its own, which limits what any injected content could do.
 - Adding a CDN, an embed or an analytics script to either app takes a deliberate change to its policy, in the code
-  (`worker/index.ts`, the website's `middleware.ts`) and `public/_headers`; the test fails until both agree. On the
+  (`worker/index.ts` and `public/_headers`, where the test fails until both agree; the website's
+  `lib/server/headers.ts`, both layers). On the
   website an inline `<script>` won't run: put it in a file.
 
 ## History
@@ -152,3 +161,12 @@ of future sessions is idempotent).
   HSTS; links from the Studio are checked before they reach a page
   ([#78](https://github.com/battersea-cougars/ark/issues/78)).
 - 2026-10-21: The team app's policy lets in Turnstile's script and frame, for sign-in and Ask to join (#13).
+- 2026-10-24: The website's headers are per environment: production's policy no longer lets in picsum, which only
+  dev's demo content uses. Its `_headers` is written by the build from the middleware's code, for the environment
+  built, instead of kept in `public/` (#148).
+- 2026-10-24: `impersonate:Member` no longer sees everyone's roles: viewing as a member moved to the server, which
+  answers as the member (#40, [0024](0024-action-based-authorization.md)).
+- 2026-10-24: Both apps send `Permissions-Policy` (no camera, microphone or location); the bootstrap is `no-store`, its
+  ETag kept by the app; Dev tools exist only where the environment says dev or local, failing closed (ADR 0123); the
+  service worker keeps only files that arrived whole; a member's sign-in code is made after the reply, so its timing
+  says nothing about whose address it was (#81, [0023](0023-sign-in-and-sessions.md)).

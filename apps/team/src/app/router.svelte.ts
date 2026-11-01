@@ -30,9 +30,19 @@ function moved(move: Move) {
   router.back = next.back;
 }
 
+/**
+ * Something open with unsaved changes (lib/dirty.svelte.ts) may hold a move to another page: it asks first, returns
+ * true, and makes the move itself if the answer is to discard them.
+ */
+let holding: ((go: () => void) => boolean) | null = null;
+export function holdLeaving(hold: (go: () => void) => boolean) {
+  holding = hold;
+}
+
 export function navigate(to: string, { replace = false } = {}) {
   const path = movedTo(to) ?? to;
   if (path === router.path) return;
+  if (holding?.(() => navigate(to, { replace }))) return;
   if (replace) {
     history.replaceState({}, "", path);
     moved({ kind: "replace" });
@@ -63,6 +73,11 @@ export function remember(tab: TabId, path: string) {
 }
 
 addEventListener("popstate", () => {
+  // Back (the browser's, a phone's swipe) with unsaved changes: back on this page while it asks; Discard goes back again
+  if (location.pathname !== router.path && holding?.(() => history.back())) {
+    history.pushState({}, "", router.path);
+    return;
+  }
   moved({ kind: "pop", to: location.pathname, from: router.path });
   router.path = location.pathname;
 });

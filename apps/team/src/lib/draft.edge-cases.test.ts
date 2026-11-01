@@ -2,7 +2,8 @@
 // teens, and where a draft stands when an admin put someone on by hand. Pure logic, shared by the Draft page and the
 // Worker.
 import { describe, expect, it } from "vitest";
-import { draftTurn, nextSlots, nth, onTheClock, orderDrawn, picksUntil, playersNeeded } from "./draft";
+import { draftTurn, nextSlots, onTheClock, orderDrawn, picksUntil, playersNeeded } from "./draft";
+import { ordinal as nth } from "./dates";
 
 describe("onTheClock at the edges", () => {
   it("two teams: A B, B A, A B — each captain picks twice running at every turnaround", () => {

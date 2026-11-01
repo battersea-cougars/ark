@@ -2,19 +2,23 @@
 // row per person per event (db/schema.sql). The rules live here, not in the app: a full
 // event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
 // waitlist moves up. A training's places are the skaters'; keepers have their own, if the series sets any, else no
-// limit (ADR 0030), so a keeper never takes a skater's place, nor a skater a keeper's. A training's list is in one order, Quarterly Members first (ADR 0030): one signing up for a full
+// limit (ADR 0131), so a keeper never takes a skater's place, nor a skater a keeper's. A training's list is in one order, Quarterly Members first (ADR 0131): one signing up for a full
 // session takes the place of the last one in who pays as they go. Adding someone to a training keeps to
 // its places too; only the team maker lets someone in past them (ADR 0076). Admins can put someone in a tournament or
 // club event past its limit.
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
-import { londonTime, londonToday } from "../../src/lib/dates";
+import { doneSql } from "@cougars/shared/results";
+import { londonTime, londonToday } from "@cougars/shared/london";
 import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../../src/lib/signup";
 import { HttpError } from "../api/api.http";
 import { offTeams } from "../training/training.teams";
+import { refuseClosedRegister, refuseClosedSession } from "../training/training.register";
 import { joinDraft, leaveDraft } from "../tournaments/draft";
+import { STARTED, hasStarted, startedRefusal } from "../tournaments/started";
 
 export type EntryKind = "session" | "tournament" | "event";
-export type Answer = "in" | "out";
+/** In or out; "clear" takes back an Out, back to not answered. */
+export type Answer = "in" | "out" | "clear";
 
 export const TABLES = {
   session: { table: "attendance", key: "session_id" },
@@ -40,7 +44,7 @@ export const quarterlyOn = (member: string, day: string) =>
     AND (sub.ends_on IS NULL OR sub.ends_on >= ${day}))`;
 
 const SESSION_DAY = "(SELECT held_on FROM training_sessions WHERE id = e.session_id)";
-/** Keepers aren't in the Quarterly rule (ADR 0030): they keep their sign-up place, and nobody takes theirs */
+/** Keepers aren't in the Quarterly rule (ADR 0131): they keep their sign-up place, and nobody takes theirs */
 const SKATER = "(SELECT position FROM members WHERE id = e.member_id) <> 'G'";
 /** SQL: 1 for a keeper's row (`x`, an attendance row), else 0 */
 const keeperRow = (x: string) => `((SELECT position FROM members WHERE id = ${x}.member_id) = 'G')`;
@@ -63,6 +67,7 @@ export const quarterlySkater = (kind: EntryKind) =>
 /**
  * A Quarterly skater waiting for a full training takes the place of the last skater in who pays as they go (not a
  * walk-in, never a keeper), who waits, at the top of their queue (their sign-up time is kept). One statement, so both move or neither.
+ * The one bumped is marked to be told (`moved`, push.notices.ts places), in the same statement, so they're told once.
  */
 const bumping = (db: D1Database, sessionId: number, memberId: number) =>
   statement(
@@ -76,7 +81,8 @@ const bumping = (db: D1Database, sessionId: number, memberId: number) =>
        SELECT e.id FROM attendance e
        WHERE e.session_id = ? AND e.member_id = ? AND e.signup = 'waitlist' AND ${SKATER}
          AND ${quarterlyOn("e.member_id", SESSION_DAY)})
-     UPDATE attendance SET signup = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN 'in' ELSE 'waitlist' END
+     UPDATE attendance SET signup = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN 'in' ELSE 'waitlist' END,
+       moved = CASE WHEN attendance.id = (SELECT id FROM waiting) THEN NULL ELSE 'bumped' END
      WHERE EXISTS (SELECT 1 FROM bumped) AND EXISTS (SELECT 1 FROM waiting)
        AND attendance.id IN (SELECT id FROM bumped UNION ALL SELECT id FROM waiting)`,
     [sessionId, sessionId, memberId],
@@ -91,19 +97,22 @@ interface Places {
   keeper: boolean;
   /** A training's day and when it ends (London), for whether it's over; null elsewhere */
   night: Night | null;
+  /** A club event's end: once it's past, members' own answers are over too */
+  endsAt: string | null;
 }
 
-/** A training's night: its day, when it ends, and how many days before it sign-up opens (null: always open). */
+/** A training's night: its day, when it starts and ends, and how many days before it sign-up opens (null: always open). */
 interface Night {
   heldOn: string;
+  startTime: string;
   endTime: string;
   opensDays: number | null;
 }
 
-/** A training's night is over once it has ended, London time. */
-const nightOver = (night: Night, now: string) => {
+/** Whether a training's night has reached this time of its day (its start or its end), London time. */
+const nightPast = (night: Night, time: string, now: string) => {
   const today = londonToday(new Date(now));
-  return today > night.heldOn || (today === night.heldOn && londonTime(now) >= night.endTime);
+  return today > night.heldOn || (today === night.heldOn && londonTime(now) >= time);
 };
 
 /** Whether the event exists and takes sign-ups, and the places that count for this member. */
@@ -115,12 +124,13 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
           cancelled: string | null;
           keeper: number;
           heldOn: string;
+          startTime: string;
           endTime: string;
           opensDays: number | null;
         }>(
           db,
           `SELECT k.keeper, ${placesFor("k.keeper")} capacity, s.cancelled_at cancelled, s.held_on heldOn,
-             COALESCE(s.end_time, ts.end_time) endTime, ts.signup_opens_days opensDays
+             COALESCE(s.start_time, ts.start_time) startTime, COALESCE(s.end_time, ts.end_time) endTime, ts.signup_opens_days opensDays
            FROM training_sessions s JOIN training_series ts ON ts.id = s.series_id
              JOIN (SELECT COALESCE((SELECT position = 'G' FROM members WHERE id = ?), 0) keeper) k
            WHERE s.id = ?`,
@@ -132,18 +142,22 @@ async function capacity(db: D1Database, kind: EntryKind, id: number, memberId: n
             "SELECT capacity, NULL cancelled FROM tournaments WHERE id = ?",
             [id],
           )
-        : await first<{ capacity: number | null; cancelled: null; signup: number }>(
+        : await first<{ capacity: number | null; cancelled: string | null; signup: number; endsAt: string }>(
             db,
-            "SELECT capacity, NULL cancelled, signup_enabled signup FROM club_events WHERE id = ?",
+            "SELECT capacity, cancelled_at cancelled, signup_enabled signup, ends_at endsAt FROM club_events WHERE id = ?",
             [id],
           );
   if (!row) throw new HttpError(404, "No such event.");
-  if (row.cancelled) throw new HttpError(409, "That session's cancelled.");
+  if (row.cancelled) throw new HttpError(409, kind === "session" ? "That session's cancelled." : "That's called off.");
   if ("signup" in row && !row.signup) throw new HttpError(409, "That event doesn't take sign-ups.");
   return {
     limit: row.capacity,
     keeper: "keeper" in row && Boolean(row.keeper),
-    night: "heldOn" in row ? { heldOn: row.heldOn, endTime: row.endTime, opensDays: row.opensDays } : null,
+    night:
+      "heldOn" in row
+        ? { heldOn: row.heldOn, startTime: row.startTime, endTime: row.endTime, opensDays: row.opensDays }
+        : null,
+    endsAt: "endsAt" in row ? row.endsAt : null,
   };
 }
 
@@ -168,7 +182,8 @@ const roomIn = (kind: EntryKind, keeper: boolean) => {
 /**
  * Write someone's answer. `join` is in if there's a place, else the waitlist, decided in the same statement; it never
  * touches an answer that's already in or waiting (a double tap, or two of their phones at once), which would count
- * their own place against them and send them to the back.
+ * their own place against them and send them to the back. A member's `own` answer to a tournament goes only while it
+ * hasn't started (tournaments/started.ts), in the same statement, so one landing as it goes live is refused whole.
  */
 function putting(
   db: D1Database,
@@ -177,18 +192,25 @@ function putting(
   memberId: number,
   signup: "in" | "out" | { join: Places },
   now: string,
+  own = false,
 ) {
   const { table, key } = TABLES[kind];
-  // A fresh answer clears what the register said about an old one
-  const reset = kind === "session" ? ", attended = NULL, walk_in = 0" : "";
+  // A fresh answer clears what the register said about an old one, and a move up not told yet: it's old news
+  const reset = (kind === "session" ? ", attended = NULL, walk_in = 0" : "") + ", moved = NULL";
   const join = typeof signup === "object";
+  const locked = own && kind === "tournament";
+  const lock = locked ? ` AND NOT ${STARTED}` : "";
   return statement(
     db,
     `INSERT INTO ${table} (${key}, member_id, signup, signed_up_at)
-     VALUES (?, ?, ${join ? `CASE WHEN ${roomIn(kind, signup.join.keeper)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?)
+     SELECT ?, ?, ${join ? `CASE WHEN ${roomIn(kind, signup.join.keeper)} THEN 'in' ELSE 'waitlist' END` : "?"}, ?
+     WHERE TRUE${lock}
      ON CONFLICT (${key}, member_id) DO UPDATE SET signup = excluded.signup, signed_up_at = excluded.signed_up_at${reset}
-     ${join ? `WHERE ${table}.signup NOT IN ('in', 'waitlist')` : ""}`,
-    join ? [id, memberId, signup.join.limit, id, signup.join.limit, now] : [id, memberId, signup, now],
+     WHERE TRUE${join ? ` AND ${table}.signup NOT IN ('in', 'waitlist')` : ""}${lock}`,
+    [
+      ...(join ? [id, memberId, signup.join.limit, id, signup.join.limit, now] : [id, memberId, signup, now]),
+      ...(locked ? [id, id] : []),
+    ],
   );
 }
 const put = (...args: Parameters<typeof putting>) => putting(...args).run();
@@ -196,19 +218,22 @@ const put = (...args: Parameters<typeof putting>) => putting(...args).run();
 /** A place came free: the first on the waitlist (a training's Quarterly Members first) moves up, if there's still
  * room as it does. A training keeps their sign-up time, so its one order holds; elsewhere they join the end. On a
  * training the place is a keeper's or a skater's, as the one leaving was (`places`), and goes to the same. Sent in
- * the same batch as whatever freed the place, so nobody signing up in between can take it first. */
-function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string) {
+ * the same batch as whatever freed the place, so nobody signing up in between can take it first. Whoever moves up is
+ * marked to be told (`moved`, push.notices.ts places). */
+function movingUp(db: D1Database, kind: EntryKind, id: number, places: Places, now: string, own = false) {
   const { table, key } = TABLES[kind];
   const kept = kind === "session";
   const side = kept ? ` AND ${keeperRow("e")} = ${places.keeper ? 1 : 0}` : "";
   const { limit } = places;
+  // A member's own Out from a tournament that's started is refused (putting), and so is this with it
+  const locked = own && kind === "tournament";
   return statement(
     db,
-    `UPDATE ${table} SET signup = 'in'${kept ? "" : ", signed_up_at = ?"}
+    `UPDATE ${table} SET signup = 'in', moved = 'place'${kept ? "" : ", signed_up_at = ?"}
      WHERE id = (SELECT e.id FROM ${table} e WHERE e.${key} = ? AND e.signup = 'waitlist'${side}
                  ORDER BY ${aheadIn(kind)} DESC, e.signed_up_at, e.id LIMIT 1)
-       AND ${roomIn(kind, places.keeper)}`,
-    kept ? [id, limit, id, limit] : [now, id, limit, id, limit],
+       AND ${roomIn(kind, places.keeper)}${locked ? ` AND NOT ${STARTED}` : ""}`,
+    [...(kept ? [id, limit, id, limit] : [now, id, limit, id, limit]), ...(locked ? [id] : [])],
   );
 }
 
@@ -219,7 +244,8 @@ const PARENTS = { session: "training_sessions", tournament: "tournaments", event
  * waiting move up as there's now room for, in the order `movingUp` keeps (a training's a side at a time, Quarterly
  * Members first). `scope` picks the events, as SQL on `s` (the training session, with `ts` its series) or `t` (the
  * tournament or club event). One statement, so the room is counted as it's taken (ADR 0121); send it in the batch
- * that freed the places. A night that's over, or called off, is left as it is.
+ * that freed the places. A night that's over, or called off, or a tournament that's been played, is left as it is. Whoever moves up is marked to be told
+ * (`moved`), as by `movingUp`.
  */
 export function fillingUp(
   db: D1Database,
@@ -233,7 +259,7 @@ export function fillingUp(
     const side = (x: string) => `COALESCE(${keeperRow(x)}, 0)`;
     return statement(
       db,
-      `UPDATE attendance SET signup = 'in' WHERE id IN (
+      `UPDATE attendance SET signup = 'in', moved = 'place' WHERE id IN (
          SELECT id FROM (
            SELECT e.id, ${placesFor(side("e"))} places,
              ROW_NUMBER() OVER (PARTITION BY e.session_id, ${side("e")}
@@ -246,10 +272,11 @@ export function fillingUp(
       [today, ...scope.params],
     );
   }
-  const live = kind === "tournament" ? "t.held_on >= ?" : "t.cancelled_at IS NULL AND t.starts_at >= ?";
+  // A tournament until it's played, whatever its date (ADR 0074, #182); a club event, by its time: it has no status
+  const live = kind === "tournament" ? `NOT ${doneSql("t")}` : "t.cancelled_at IS NULL AND t.starts_at >= ?";
   return statement(
     db,
-    `UPDATE ${table} SET signup = 'in', signed_up_at = ? WHERE id IN (
+    `UPDATE ${table} SET signup = 'in', moved = 'place', signed_up_at = ? WHERE id IN (
        SELECT id FROM (
          SELECT e.id, t.capacity places,
            ROW_NUMBER() OVER (PARTITION BY e.${key} ORDER BY e.signed_up_at, e.id) rn,
@@ -257,29 +284,55 @@ export function fillingUp(
          FROM ${table} e JOIN ${PARENTS[kind]} t ON t.id = e.${key}
          WHERE e.signup = 'waitlist' AND ${live} AND (${scope.sql}))
        WHERE places IS NULL OR rn <= places - taken)`,
-    [now, kind === "tournament" ? today : now, ...scope.params],
+    [now, ...(kind === "tournament" ? [] : [now]), ...scope.params],
   );
 }
 
-/** A member says in or out for themselves. In on a full event is the waitlist. */
-export async function answer(db: D1Database, kind: EntryKind, id: number, memberId: number, a: Answer, now: string) {
+/**
+ * A member says in or out for themselves. In on a full event is the waitlist. Not once a tournament's started: who's
+ * in then is an admin's to change (tournaments/started.ts), decided in the statements that write it.
+ */
+/**
+ * A member's own In, Out or taking back their Out. Whether they're new to the event's answers (they hadn't answered,
+ * and now have): Home's people, everyone's next things, have one more in them (#178).
+ */
+export async function answer(
+  db: D1Database,
+  kind: EntryKind,
+  id: number,
+  memberId: number,
+  a: Answer,
+  now: string,
+): Promise<boolean> {
   const places = await capacity(db, kind, id, memberId);
-  // A night that's over is the register's record (ADR 0007, 0030): who came, and what it charged, is the register's
-  // to change, not a member's own In or Out (#128)
-  if (places.night && nightOver(places.night, now))
+  // Once training's started, who's in is the register's (ADR 0007, 0131, #167): who's there, and what it charges, is
+  // the register's and the admins' to change, not a member's own In or Out; once it's over, it's the record (#128)
+  if (places.night && nightPast(places.night, places.night.endTime, now))
     throw new HttpError(409, "That night's over: the register says who came.");
+  if (places.night && nightPast(places.night, places.night.startTime, now))
+    throw new HttpError(409, "Training's started: the register says who's in.");
+  if (places.endsAt && places.endsAt <= now) throw new HttpError(409, "That's over now.");
+  if (a === "clear") {
+    await takeBack(db, kind, id, memberId);
+    return false;
+  }
   const was = await current(db, kind, id, memberId);
   if (a === "out") {
-    if (was?.signup === "out") return;
+    if (was?.signup === "out") return false;
     // Drafted: off their team while the draft's open; once it's closed (or a captain), through an admin
     const offTeam = kind === "tournament" ? await leaveDraft(db, id, memberId) : [];
     // Out, and the first waiting in, at once (whatever they were when read: another of their taps may have moved
     // them since). A session's published teams keep them until a team maker remakes the teams or keeps them as they
-    // are (ADR 0076)
-    await batch(db, [...offTeam, putting(db, kind, id, memberId, "out", now), movingUp(db, kind, id, places, now)]);
-    return;
+    // are (ADR 0076). A tournament that's started refuses all of it, the team too
+    const done = await batch(db, [
+      ...offTeam,
+      putting(db, kind, id, memberId, "out", now, true),
+      movingUp(db, kind, id, places, now, true),
+    ]);
+    if (kind === "tournament" && !done[offTeam.length].meta.changes) throw await startedRefusal(db, id, "take you off");
+    return !was;
   }
-  if (was?.signup === "in" || was?.signup === "waitlist") return;
+  if (was?.signup === "in" || was?.signup === "waitlist") return false;
   // A training's night takes sign-ups from its opening day (lib/signup.ts); saying you're out is always fine
   if (places.night) {
     const today = londonToday(new Date(now));
@@ -290,24 +343,55 @@ export async function answer(db: D1Database, kind: EntryKind, id: number, member
   // A tournament takes sign-ups once an admin opens them or its opening day comes, until the end of the closing day
   // (London, lib/signup.ts); saying you're out is always fine
   if (kind === "tournament") {
-    const t = await first<{ status: string; signupOpensOn: string | null; signupClosesOn: string | null }>(
+    const t = await first<{
+      status: string;
+      signupOpensOn: string | null;
+      signupClosesOn: string | null;
+      signupClosedAt: string | null;
+    }>(
       db,
-      `SELECT status, signup_opens_on signupOpensOn, signup_closes_on signupClosesOn FROM tournaments WHERE id = ?`,
+      `SELECT status, signup_opens_on signupOpensOn, signup_closes_on signupClosesOn, signup_closed_at signupClosedAt
+       FROM tournaments WHERE id = ?`,
       [id],
     );
     const today = londonToday(new Date(now));
     if (t && !signupOpen(t, today)) {
       if (t.status === "planned" && !signupOver(t, today))
-        throw new HttpError(409, t.signupOpensOn ? `Sign-up opens on ${t.signupOpensOn}.` : "Sign-up isn't open yet.");
+        // In words, as the app says it, London's day (lib/signup.ts opensWords): "Monday", "Monday 19 October" (#170)
+        throw new HttpError(
+          409,
+          t.signupOpensOn ? `Sign-up opens ${opensWords(t.signupOpensOn, today)}.` : "Sign-up isn't open yet.",
+        );
       throw new HttpError(409, "Sign-up has closed.");
     }
   }
-  await put(db, kind, id, memberId, { join: places }, now);
+  const joined = await put(db, kind, id, memberId, { join: places }, now, true);
+  // Nothing written: a double tap, already in or waiting; or it's started
+  if (kind === "tournament" && !joined.meta.changes && (await hasStarted(db, id)))
+    throw await startedRefusal(db, id, "put you in");
   if (kind === "session" && places.limit !== null && !places.keeper) await bump(db, id, memberId);
+  return !was && Boolean(joined.meta.changes);
 }
 
 /**
- * An admin puts someone in or takes them off altogether. A training keeps to its places (ADR 0030): in if there's
+ * A member takes back their Out: not answered, as if they'd never said, so they're among those told when sign-up opens
+ * (training.signup.ts, tournaments/signup.ts). One statement, and only their own Out: an In or a place waiting is
+ * taken back by saying Out, and a double tap, or two phones at once, finds nothing more to do. Not once a tournament's
+ * started, decided in the same statement (tournaments/started.ts); the caller's already refused a night that's over.
+ */
+async function takeBack(db: D1Database, kind: EntryKind, id: number, memberId: number) {
+  const { table, key } = TABLES[kind];
+  const locked = kind === "tournament";
+  const res = await run(
+    db,
+    `DELETE FROM ${table} WHERE ${key} = ? AND member_id = ? AND signup = 'out'${locked ? ` AND NOT ${STARTED}` : ""}`,
+    [id, memberId, ...(locked ? [id] : [])],
+  );
+  if (locked && !res.meta.changes && (await hasStarted(db, id))) throw await startedRefusal(db, id, "change it");
+}
+
+/**
+ * An admin puts someone in or takes them off altogether. A training keeps to its places (ADR 0131): in if there's
  * room, else waiting as if they'd signed up, and only the team maker's Let in goes over the limit. A tournament or
  * club event takes them past its limit, if need be. Says where they are now (null: not on it).
  */
@@ -320,9 +404,13 @@ export async function setPlayer(
   now: string,
 ): Promise<string | null> {
   const places = await capacity(db, kind, id, memberId);
+  if (places.night) refuseClosedRegister(places.night.heldOn, now);
   const was = await current(db, kind, id, memberId);
   if (inIt) {
     if (was?.signup === "in") return "in";
+    // Someone new to it may not exist (erased while the drawer was open): told so, not the insert's foreign key
+    if (!was && !(await first(db, "SELECT 1 FROM members WHERE id = ?", [memberId])))
+      throw new HttpError(404, "No such member.");
     if (kind === "session") {
       if (was?.signup === "waitlist") return "waitlist";
       await put(db, kind, id, memberId, { join: places }, now);
@@ -349,12 +437,14 @@ export async function setPlayer(
 /**
  * The team maker lets someone waiting for a training in, over its limit if need be (ADR 0076): the limit is what
  * members see and what sign-up keeps to, not a wall. They keep their sign-up time, so they take their place in the
- * one order. One statement: refused unless they're waiting and the session's on.
+ * one order. One statement: refused unless they're waiting and the session's on. They're marked to be told it was the
+ * team maker (`moved`).
  */
-export async function letIn(db: D1Database, sessionId: number, memberId: number) {
+export async function letIn(db: D1Database, sessionId: number, memberId: number, now: string) {
+  await refuseClosedSession(db, sessionId, now);
   const res = await run(
     db,
-    `UPDATE attendance SET signup = 'in'
+    `UPDATE attendance SET signup = 'in', moved = 'let-in'
      WHERE session_id = ? AND member_id = ? AND signup = 'waitlist'
        AND EXISTS (SELECT 1 FROM training_sessions WHERE id = ? AND cancelled_at IS NULL)`,
     [sessionId, memberId, sessionId],
@@ -371,7 +461,7 @@ export interface Mark {
 /**
  * The register for one member, one Friday or many (their attendance, saved at once): a sign-up is marked here or a
  * no-show; anyone else here is a walk-in, and a walk-in not here comes off (and off the night's teams, and the first
- * waiting moves up). A walk-in keeps to the places, as a sign-up does (ADR 0030): on a full night, today or ahead,
+ * waiting moves up). A walk-in keeps to the places, as a sign-up does (ADR 0131): on a full night, today or ahead,
  * they wait (a Quarterly Member taking the last place of someone paying as they go) until the team maker lets them in.
  * Someone already waiting keeps their place in the queue. A night that's over is a record of who came, so a walk-in
  * there is in. Two round trips, however many Fridays: the Fridays as they are, then every change in one batch, each
@@ -409,6 +499,7 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
     const r = was.get(m.sessionId);
     if (!r) throw new HttpError(404, "No such event.");
     if (r.cancelled) throw new HttpError(409, "That session's cancelled.");
+    refuseClosedRegister(r.heldOn, now);
     if (r.signup === "in" && !r.walkIn) signedUp.push(m);
     else if (m.here) (r.heldOn >= today && r.signup !== "in" ? joining : walkIns).push(m.sessionId);
     else if (r.walkIn) off.push(m.sessionId);
@@ -455,10 +546,10 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
       [memberId, list(off)],
     ),
     // A place came free on each of those nights (a keeper's or a skater's, as theirs was): the first waiting for one
-    // moves up, where there's room
+    // moves up, where there's room, and is told
     statement(
       db,
-      `UPDATE attendance SET signup = 'in'
+      `UPDATE attendance SET signup = 'in', moved = 'place'
        WHERE id IN (
          SELECT (SELECT e.id FROM attendance e WHERE e.session_id = s.id AND e.signup = 'waitlist'
                    AND ${keeperRow("e")} = ${keeper}

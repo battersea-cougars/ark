@@ -55,7 +55,9 @@ jobs:
           printf '%s' "$FIREBASE_IOS_CONFIG" > apps/team/ios/App/App/GoogleService-Info.plist
           cd apps/team && npm run native:sync -- ios
 
-      # Signing is automatic, with the App Store Connect API key: no certificates or profiles to keep anywhere
+      # Signing is automatic, with the App Store Connect API key: no certificates or profiles to keep anywhere. The key
+      # (.p8) is a secret; its ID, its issuer and the Apple team ID are committed settings (scripts/lib/settings.mjs),
+      # which the secrets step exported too.
       - name: Archive
         run: |
           key="$RUNNER_TEMP/AuthKey.p8"

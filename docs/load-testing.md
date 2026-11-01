@@ -1,8 +1,8 @@
 # Load and concurrency testing
 
 Why and what we decided: [ADR 0121](adr/0121-load-and-concurrency.md). This page is how to run it, what D1 does
-with requests at once, what the runs found, and the free-tier headroom. Everything here runs on your own machine:
-**never send load to the dev or production Cloudflare accounts**.
+with requests at once, what the runs found, and the free-tier headroom. It runs on your own machine, or on dev once
+the user's been told ([Against dev](#against-dev)): **never send load to production**.
 
 ## How D1 behaves with requests at once
 
@@ -38,7 +38,8 @@ INTERLEAVE_SEEDS=500 npx vitest run concurrency     # each case under seeds 1 to
 | --------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Friday sign-up  | `apps/team/worker/entries/entries.concurrency.use-cases.test.ts`     | 30 tap In for 20 places: 20 in, 10 waiting in tap order, nobody twice; keepers on their own side; Quarterly members bumping at once; a place freed while others join goes to the first waiting; a double tap; out twice |
 | The draft       | `apps/team/worker/tournaments/draft.concurrency.use-cases.test.ts`   | Set the order twice; every captain tapping; two phones; the snake's double turn; captain and admin on one player, or two; Undo racing a pick; out as they're picked; one goalie a team; a whole draft of taps           |
-| Scoring         | `apps/team/worker/tournaments/scoring.concurrency.use-cases.test.ts` | The same goal from two phones (two goals, #114); end of a period twice; full time twice; a goal as full time is called; goals and penalties at once                                                                     |
+| Scoring         | `apps/team/worker/tournaments/scoring.concurrency.use-cases.test.ts` | The same goal or penalty tap from two phones (one, #114); end of a period twice; full time twice; a goal as full time is called; goals and penalties at once                                                            |
+| Taking over     | `apps/team/worker/tournaments/scoring.takeover.use-cases.test.ts`    | Two admins taking over one scoresheet at once (#116); the old scorekeeper's goal, or full time, as an admin takes over                                                                                                  |
 | Push outbox     | `apps/team/worker/push/push.concurrency.use-cases.test.ts`           | Two announcements and three drains at once: every phone hears each once, no invocation past 50 subrequests                                                                                                              |
 | Dues reminders  | `apps/team/worker/dues/reminders.concurrency.use-cases.test.ts`      | An admin's Send beside the five-minute cron, two runs at once: each member emailed once; a club-wide send and reminders for everyone: no request or cron run past 50 subrequests                                        |
 | Charges, credit | `apps/team/worker/dues/dues.concurrency.use-cases.test.ts`           | Friday comes due while players tap and the cron runs twice: each charged once, no credit spent twice                                                                                                                    |
@@ -61,14 +62,17 @@ Trigger whole, as Cloudflare does.
 | A goal landing just before full time (seed 35)                                               | The result said 0–0, the game 1–0: its score came after     | The goal and its score are one batch (Undo too)                       |
 | An admin's typed-in result saved twice at once (seeds 2, 3, 5; #124)                         | The score 2–1, the goals 4–2                                | The result and its goals one batch, matched to the count in-statement |
 | Two admins taking Admin off each other, or erasing themselves, at once (#135)                | No admin left                                               | Each goes only while another admin's there; the other gets a 409      |
+| Two admins taking over a scoresheet at once (#116)                                           | Both told they had it; the last one held it                 | Only from who their page saw holding it; the other's told who has it  |
+| The old scorekeeper's clock tap landing as an admin takes over (#116)                        | Landed after the take-over                                  | Every scorekeeper write goes only while they hold the sheet           |
 | Two runs working the charges out (late taps and the hourly cron)                             | A night paid twice from the same credit, until the next run | An allocation goes in only while payment and charge are as read       |
 | An admin's Send of reminders beside the five-minute cron                                     | Both emailed the same members                               | A run takes what it sends first (`dues_reminders.sending`)            |
 | A five-minute cron run with a club-wide send and reminders waiting                           | 95 subrequests (Cloudflare stops at 50)                     | 35 at most: drains 25, reminders 10, `tell` queues the phones         |
 
 Held already, now tested: a sign-up's place decided in its statement; picks guarded by the turn's count; the draw set
-once; the push outbox claimed before sending; charges unique.
+once; the push outbox claimed before sending (three drains at 08:00 at once, a club-wide send held overnight:
+`push.outbox.use-cases.test.ts`); charges unique.
 
-Still open: the same goal from two phones is two goals (#114, Undo takes one back; nothing retries on its own).
+The same goal from two phones was two goals (#114): each tap now has an id, and a repeat does nothing.
 
 ## Load runs
 
@@ -78,7 +82,7 @@ npm run load -- friday-rush    # 120 members open the app and tap In within 10 s
                                # in the middle; the teams published while everyone's on the page
 npm run load -- live-draft     # 8 captains picking in turn, 60 players watching the draft room live; an Undo and a
                                # pick for a captain
-npm run load -- scoring        # 1 scorekeeper, 80 members following the game live
+npm run load -- scoring        # 1 scorekeeper, 80 members following the game live (--followers 20)
 npm run load -- all            # each, a fresh Worker each
 npm run load -- soak --minutes 60   # the scenarios in turn, a minute's pause between, the crons every 5 min and hourly
 npm run load -- cpu            # the Worker's own CPU a request (the fake world, SQLite's time taken off)
@@ -103,8 +107,8 @@ CPU comes from `npm run load -- cpu`. **D1 rows read and written, and the counts
 Cloudflare would bill**, and are the numbers to plan with.
 
 `--one-address` also counts the run's requests as production's per-address limits would
-([#113](https://github.com/battersea-cougars/ark/issues/113)): the API's 600 a minute (`api.limits.ts`) and the
-domain's 150 in 10 seconds (`scripts/ratelimit-setup.mjs`), in the limiter's fixed windows, and how many would have
+([#113](https://github.com/battersea-cougars/ark/issues/113)): the API's ceiling of 6,000 a minute (`api.limits.ts`;
+a signed-in member is counted as themselves, 600 a minute, not by address) and the domain's 150 in 10 seconds (`scripts/ratelimit-setup.mjs`), in the limiter's fixed windows, and how many would have
 been 429s. A local server can't say for itself: `wrangler dev`'s Cache API holds no count.
 
 `--target local` is the dev path on your machine: the run's own Worker and D1 as above, but with only the club's
@@ -121,6 +125,98 @@ On its own (`baseline`, `cpu`):
 | Bootstrap, an admin        | 5          | more      | 0            | 1.5–2.8 ms                |
 | Bootstrap, unchanged (304) | 3          | 8         | 0            | 0.2–0.3 ms                |
 | A tap, In or Out           | 29         | ~440      | 3–5          | 1.0–1.6 ms                |
+
+With tournaments behind the club (2026-10-24, #175): the bootstrap sends every tournament there has been, so its
+CPU grows with them. `cpu` now runs on the club with a year of Kumites (four; `LOAD_KUMITES=12` for three years,
+`bootstrap.testing.ts`): each team with a 16 KB logo, games, goals, penalties, awards, sign-ups. Medians on a shared
+machine, so ±2 ms run to run:
+
+| Request (Worker's own CPU) | No Kumites, before → after | Four, before → after | Twelve, before → after |
+| -------------------------- | -------------------------- | -------------------- | ---------------------- |
+| Bootstrap, a member        | 4.1 → 2.2 ms               | 4.6–6.1 → 3.1–5 ms   | 10–15 → 7–11 ms        |
+| Bootstrap, an admin        | 4.8 → 3.7 ms               | 3.7–4.8 → 3.8–6 ms   | 8–13 → 7–12 ms         |
+| Viewing as a member        | 2.5 → 2.1 ms               | 3.4–4.8 → 3.1–5 ms   | 7.4–8.7 → 6–10 ms      |
+| A tournament deleted       | 5.8 → 3.2 ms               | 3.2–3.9 → 2.5–4 ms   | 4.7–5.6 → 3.7–6 ms     |
+
+Twelve Kumites are 1.5 MB a bootstrap, three quarters of it logos. What's left is in proportion to the bytes
+(parsing D1's JSON, writing the reply's, encoding it), so the next cut is sending less, not doing less with it.
+Cloudflare's CPU for the same requests reads several times this machine's (a goal 15 ms on dev, a tap 1 ms here).
+
+Then sending less (2026-10-24, #175): the bootstrap sends each series' next one and its last one played, and team logos
+by their own address, not the image. Past ones are read when opened. The same test, the same afternoon (the "before"
+column on a busy machine, so higher than the table above):
+
+| Request (Worker's own CPU, median) | Four Kumites, before → after | Twelve, before → after            |
+| ---------------------------------- | ---------------------------- | --------------------------------- |
+| Bootstrap, a member                | 9.7 → 1.7 ms (516 → 71 KB)   | 24.9 → 1.6–1.9 ms (1,455 → 71 KB) |
+| Bootstrap, an admin                | 11.4 → 1.9 ms                | 28.2 → 1.9–2.7 ms                 |
+| Viewing as a member                | 9.1 → 1.1 ms                 | 21.4 → 1.2–2.0 ms                 |
+| A tournament deleted               | 7.7 → 1.2 ms                 | 12.1 → 1.2–2.3 ms                 |
+| A past one opened, in full         | —                            | 0.4 ms                            |
+| A page of History                  | —                            | 0.3 ms                            |
+
+Then weeks of Fridays (2026-10-24, #177): the bootstrap sent every charge and payment there had been (everyone's to
+an admin), and counted every night each member had ever played. Now it sends your own unpaid charges and a line per
+member of what they owe (`dues`, by age, worked out from the charges not paid and the payments not spent, each found
+by index: `charges_owing`, `payments_spare`); a ledger is read a page at a time (`GET /api/members/:id/ledger`); a
+night played is counted once, as its register closes (`members.played`). `cpu` now also builds a year of Fridays
+(`LOAD_WEEKS`, 52 by default): all 120 members at each, charged £8, paying every four weeks, every fifth owing the
+last twelve. Main (c9f497b) with the same club, then this branch; "SQLite" is D1's own time on an admin's open, which
+follows the rows it reads:
+
+| Request (Worker's own CPU, median) | 8 weeks, before → after            | 52 weeks, before → after      |
+| ---------------------------------- | ---------------------------------- | ----------------------------- |
+| Bootstrap, an admin                | 3.0–3.7 → 1.3–1.7 ms (314 → 78 KB) | 24.6 → 2.6 ms (1,666 → 78 KB) |
+| Bootstrap, an admin: SQLite        | 5.3–5.7 → 3.1–3.7 ms               | 115.6 → 7.3 ms                |
+| Bootstrap, a member                | 1.5–2.2 → 1.5–1.7 ms (72 KB)       | 2.9 → 2.5–2.8 ms (73 → 72 KB) |
+| A member's ledger, its first page  | —                                  | 0.4–0.7 ms                    |
+| A tap, In or Out                   | 0.8–0.9 → 1.0–1.7 ms               | 1.8–2.1 ms after              |
+
+Flat in weeks: an admin's open is 78 KB with 8 weeks or 52, where it was 1.7 MB, 116 ms of SQLite and 24.6 ms of CPU
+(over the free plan's 10 ms). In one pair of runs, SQLite's time on an admin's open was 7.32 ms at 8 weeks and
+7.27 ms at 52. A member's own was already small: their own charges only. The ±2 ms spread is the shared machine.
+
+Then each page's own (2026-10-24, #178): opening the app sends the core (who you are, the club's settings and menus,
+Home's next things, people and dues), and each page reads its parts when it's opened (`GET /api/slices?names=…`):
+the roster, the weeks just held, each series' last one played, everyone's dues. What's the same for everyone of a
+role is kept at the edge (`api.edge.ts`) by its parts' versions, each member's own rows read beside it. `cpu` now
+also opens pages. Main (5da1c56) then this branch, the same club (four Kumites, 52 weeks, 120 members), the same
+machine; SQLite is D1's own time:
+
+| Request (Worker's own CPU, median)                       | Before → after               |
+| -------------------------------------------------------- | ---------------------------- |
+| Bootstrap, a member                                      | 1.16 → 1.06 ms (72 → 17 KB)  |
+| Bootstrap, an admin                                      | 1.18 → 1.09 ms (78 → 17 KB)  |
+| Bootstrap, an admin: SQLite                              | 2.96 → 1.98 ms               |
+| Bootstrap, a member: SQLite                              | — → 1.97 ms                  |
+| The members page, an admin (38 KB)                       | — → 0.81 ms                  |
+| A training night's page, a member, its shared rows kept  | — → 0.80 ms (0.29 ms SQLite) |
+| A training night's page, nothing kept (D1 for all of it) | — → 1.23 ms (1.24 ms SQLite) |
+| A page, unchanged (304)                                  | — → 0.09 ms                  |
+| A tap, In or Out (see below: now on a par with main)     | 0.88 → 1.94–1.96 ms          |
+| A tournament deleted                                     | 0.98 → 2.18–2.52 ms          |
+
+The core is the same size with four weeks of history as with fifty-two (a use case holds it within 1 KB) and doesn't
+grow with the roster: it names only the people in your next things. A page opened by phones of one role reads its
+shared rows from D1 once; the next phone's open is about a quarter of D1's time, its own answers only. Whole-club equality:
+the core and every page put together are byte for byte the bootstrap #177 sent (bootstrap.same).
+
+A tap's reply, made as small as it was (2026-10-25, #178). As first split, a tap read tonight's nights and the weeks
+just held as two parts, each with your own answers overlaid, Home's people, the club's total owed and everyone's dues:
+1.94–1.96 ms where main took 0.88. A training answer can't change a night already held (its register closed at 06:00
+the morning after), so it now names `tonight` alone; Home's people come only with someone's first answer; and the club's
+total owed and everyone's dues only for who sees them. The register and an admin updating attendance still name
+`sessions`, the weeks just held with them. `cpu` now also says a tap's SQLite time and its reply's size. Main
+(5da1c56), the first split (91b3bab) and this, each run in turn three times on a machine other sessions were loading
+(load average 13 to 34), so the medians are a comparison, not the quiet machine's numbers above:
+
+| A tap, In or Out (a member's)         | Main    | First split | Now     |
+| ------------------------------------- | ------- | ----------- | ------- |
+| Worker's own CPU, median of 3 medians | 1.94 ms | 2.28 ms     | 1.63 ms |
+| SQLite's time                         | 30.5 ms | 29.9 ms     | 27.0 ms |
+| Its reply                             | 6.4 KB  | 16.2 KB     | 3.7 KB  |
+
+On a par with main, or a little under it: main's reply carried the four weeks just held, which a tap now doesn't.
 
 Busy moments:
 
@@ -184,16 +280,42 @@ routes that can't move the calendar (`api.route.ts`). Same machine, the same hou
 (The "before" ran on this branch's schema, so its tournaments already had the new indexes' help: the real before is
 a little higher, 1.64M for the draft earlier in the day.) On the local club's copy (28 members, a month of trainings), an admin's bootstrap went from 1,504 rows to 1,137, a read of the sign-ups from 577 to 244 and of the tournaments from 114 to 78.
 
+### A live match pushed (2026-10-23, #161)
+
+The game's own change now carries the match: the Worker reads the tournament's games once (one statement) and the hub
+sends them in the event to every member ([0072](adr/0072-live-updates.md)); a phone holding the version just before
+puts them in place and reads nothing. `npm run load -- scoring --followers N --one-address`, the same machine, main's
+Worker against this one, each of the scorekeeper's 21 changes (12 goals, 3 penalties, an Undo, the sheet and the
+clock) counted from once every phone is on the game page:
+
+| Followers  | A change: requests (the tap + reads) | D1 rows read a change | Most requests in 10 s (domain's rule: 150) | Tap to every screen, p50 / p95 | Tap to each phone, p50 / p95 |
+| ---------- | ------------------------------------ | --------------------- | ------------------------------------------ | ------------------------------ | ---------------------------- |
+| 20, before | 14.3 (13.3 reads)                    | 567                   | 102                                        | 1.08 s / 1.31 s                | 0.61 s / 1.11 s              |
+| 20, after  | **1.0** (no reads)                   | **140**               | **8**                                      | **0.17 s** / 1.00 s            | **0.17 s** / 1.00 s          |
+| 80, before | 54.4 (53.4 reads)                    | 1,951                 | 327 (5 of 6 windows over)                  | 2.58 s / 3.14 s                | 1.60 s / 2.81 s              |
+| 80, after  | **1.0** (no reads)                   | **140**               | **6**                                      | **0.13 s** / 1.00 s            | **0.13 s** / 1.00 s          |
+
+- The cost of a change no longer grows with the phones following it: one request (the tap) and its rows (the tap's own
+  and the match's one read), whether 20 or 80 are watching. The whole run at 80 read 62k rows, was 100k; what's left
+  is opening the page (a bootstrap a phone, ~700 rows).
+- The p95 of a second is the hub's one event a second: a penalty logged just after a goal waits for the end of it.
+- The busiest 10 s of a whole 80-phone run is now everyone opening the game page at once (80 bootstraps and 80
+  streams, 162 in 10 s); real phones open it over minutes. Before, the goals themselves went over 150 in five of six
+  windows.
+- Before, under this machine's other load, the 80-phone run varied (47 requests and 1,658 rows a change, 6.1 s to
+  every screen, in a rerun with the machine busy); after, it didn't (the same numbers twice).
+- The draft is still names only, one read a phone a pick (#162).
+
 ### Free-tier headroom
 
-| Limit (Workers Free, D1 Free)       | Per request / run                                            | A Friday                                                          | A Kumite day                                                                              |
-| ----------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| CPU, 10 ms a request                | 0.2–2.8 ms (the Worker's own)                                | fine                                                              | fine                                                                                      |
-| Subrequests, 50 an invocation       | 42 at most (an announcement's request); 35 a cron            | fine                                                              | fine                                                                                      |
-| Requests, 100k a day                | —                                                            | a normal week a few thousand; the rush ~12k if every reload lands | draft ~4.6k; 15 games with 40 phones ~7k                                                  |
-| D1 rows read, 5M a day              | ~900 a full reload, 8 a 304; a live read in parts ~100–1,000 | normal ~1.2M (25%); the rush ~0.6M (12%), was ~10.8M (216%)       | draft ~1.7M (33%), was 4.4M; 15 games × 10 taps × 40 phones × ~100 ≈ 0.6M (12%), was 5.4M |
-| D1 rows written, 100k a day         | 3–5 a tap                                                    | under 2%                                                          | under 2%                                                                                  |
-| Durable Object requests, 100k a day | one a change, one a stream connect                           | hundreds                                                          | hundreds                                                                                  |
+| Limit (Workers Free, D1 Free)       | Per request / run                                            | A Friday                                                          | A Kumite day                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| CPU, 10 ms a request                | 0.2–2.8 ms (the Worker's own)                                | fine                                                              | fine                                                                                                                             |
+| Subrequests, 50 an invocation       | 42 at most (an announcement's request); 35 a cron            | fine                                                              | fine                                                                                                                             |
+| Requests, 100k a day                | —                                                            | a normal week a few thousand; the rush ~12k if every reload lands | draft ~4.6k; 15 games with 40 phones ~7k                                                                                         |
+| D1 rows read, 5M a day              | ~900 a full reload, 8 a 304; a live read in parts ~100–1,000 | normal ~1.2M (25%); the rush ~0.6M (12%), was ~10.8M (216%)       | draft ~1.7M (33%), was 4.4M; 15 games × 10 taps × ~140 rows ≈ 21k (0.4%) whatever the phones (#161), was 0.6M (12%) at 40 phones |
+| D1 rows written, 100k a day         | 3–5 a tap                                                    | under 2%                                                          | under 2%                                                                                                                         |
+| Durable Object requests, 100k a day | one a change, one a stream connect                           | hundreds                                                          | hundreds                                                                                                                         |
 
 A normal Friday estimates sign-ups spread over the week (about five phones on Home at any tap) and five app opens a
 member a day. Rows read per full reload grow with the club's history (sessions, attendance, charges): these are a
@@ -281,6 +403,5 @@ says what the rink's wifi would have refused.
 2. **Watch the Usage page on the first draft night and the first busy Friday** ([0059](adr/0059-usage-page-and-check.md)):
    rows read is the line to watch, not requests.
 3. **The rink's wifi** is one address for the per-address limit (#113): count signed-in GETs per member.
-4. **Give scoring taps an id** when a retry or a second device makes duplicates likely (#114).
-5. A tap costs 29 round trips (the charges are worked out again for the whole club after each): fine for CPU today,
+4. A tap costs 29 round trips (the charges are worked out again for the whole club after each): fine for CPU today,
    and the place to look if a tap's CPU grows with the club.

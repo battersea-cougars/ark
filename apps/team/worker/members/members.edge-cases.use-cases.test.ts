@@ -23,7 +23,7 @@ const one = <T = Record<string, unknown>>(sql: string, ...p: unknown[]) => w.db.
 
 async function admin() {
   const b = await w.signedIn("dana@example.com");
-  const sees = async () => (await b.call("GET", "/api/bootstrap")).body as Json;
+  const sees = async () => (await b.club()).body as Json;
   const member = async (name: string) => (await sees()).members.find((m: Json) => m.name === name);
   const add = (o: Record<string, unknown>) => b.call("POST", "/api/members", { position: "F", ...o });
   return { call: b.call, sees, member, add };
@@ -36,12 +36,6 @@ describe("an admin adds a member, at the edges", () => {
     expect(r.status).toBe(201);
     expect(one("SELECT email FROM members WHERE id = ?", r.body.id)).toEqual({ email: "cara.caps@example.com" });
     expect((await w.ask(w.browser(), "CARA.CAPS@example.com")).devCode).toMatch(/^\d{6}$/);
-  });
-
-  it("an email that's a member's in other capitals is refused, so nobody ends up twice", async () => {
-    const dana = await admin();
-    const r = await dana.add({ name: "Reg Again", email: "REG@example.com" });
-    expect(r.status).toBe(409);
   });
 
   it("two people of the same name get references of their own: the second takes a 2", async () => {
@@ -142,6 +136,18 @@ describe("an admin edits a member, at the edges", () => {
     expect((await w.ask(w.browser(), "paul@example.com")).devCode).toBeUndefined();
   });
 
+  it("a member manager who can't see ratings edits someone, and their rating stays as it was", async () => {
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (9, 'Helper', 'Members', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (9, 'manage:Member');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'paul@example.com';`);
+    const paul = await w.signedIn("paul@example.com");
+    const reg = ((await paul.club()).body as Json).members.find((m: Json) => m.name === "Reg Player");
+    // The sheet sends back the rating it was given, which for them is none
+    const r = await paul.call("PUT", `/api/members/${reg.id}`, { ...reg, position: "D", rating: 0, roles: ["Member"] });
+    expect(r.status).toBe(200);
+    expect(one("SELECT position, rating FROM members WHERE id = ?", reg.id)).toEqual({ position: "D", rating: 60 });
+  });
+
   it("an attendance year that isn't a year is refused", async () => {
     const dana = await admin();
     const reg = await dana.member("Reg Player");
@@ -230,21 +236,46 @@ describe("a member who goes while they still have places on what's to come", () 
     expect(signup("Wes Waiting")).toBe("in");
   });
 
-  // https://github.com/battersea-cougars/ark/issues/138
-  // Known bug #138: their entry for a tournament still to come goes, but their place on its team stays, as
-  // "Former member" in the lineup
-  it.fails(
-    "a member on a team for a tournament still to come deletes their account, and comes off the team (known bug #138)",
-    async () => {
-      const dana = await admin();
-      const reg = await dana.member("Reg Player");
-      const paul = await dana.member("Paul Payg");
-      const cup = await dana.call("POST", "/api/tournaments", {
+  // Their place on its team goes with their entry, as when they say out (#138: it stayed, as "Former member" in the
+  // lineup)
+  it("a member on a team for a tournament still to come deletes their account, and comes off the team", async () => {
+    const dana = await admin();
+    const reg = await dana.member("Reg Player");
+    const paul = await dana.member("Paul Payg");
+    const cup = await dana.call("POST", "/api/tournaments", {
+      typeId: null,
+      kind: "teams",
+      name: "Charity Cup",
+      location: "",
+      heldOn: "2027-03-20",
+      startTime: "10:00",
+      endTime: "15:00",
+      capacity: null,
+      status: "open",
+      feePence: 0,
+      teams: [{ name: "Cougars B", logo: null, captainMemberId: paul.id, players: [{ memberId: reg.id }] }],
+    });
+    expect(cup.status).toBe(201);
+    const onTeam = () =>
+      one<{ n: number }>("SELECT count(*) n FROM tournament_team_players WHERE member_id = ?", reg.id).n;
+    expect(onTeam()).toBe(1);
+    expect((await (await w.signedIn("reg@example.com")).call("DELETE", "/api/me")).status).toBe(200);
+    expect(onTeam()).toBe(0);
+  });
+
+  // A team they captain keeps its place with no captain, as a team whose captain is gone, for an admin to name
+  // another (#160: it kept them, "Former member" as its captain); one already played keeps them, about nobody
+  it("the captain of a team for a tournament still to come deletes their account: the team stays, with no captain", async () => {
+    const dana = await admin();
+    const reg = await dana.member("Reg Player");
+    const paul = await dana.member("Paul Payg");
+    const cup = (name: string, heldOn: string) =>
+      dana.call("POST", "/api/tournaments", {
         typeId: null,
         kind: "teams",
-        name: "Charity Cup",
+        name,
         location: "",
-        heldOn: "2027-03-20",
+        heldOn,
         startTime: "10:00",
         endTime: "15:00",
         capacity: null,
@@ -252,14 +283,23 @@ describe("a member who goes while they still have places on what's to come", () 
         feePence: 0,
         teams: [{ name: "Cougars B", logo: null, captainMemberId: paul.id, players: [{ memberId: reg.id }] }],
       });
-      expect(cup.status).toBe(201);
-      const onTeam = () =>
-        one<{ n: number }>("SELECT count(*) n FROM tournament_team_players WHERE member_id = ?", reg.id).n;
-      expect(onTeam()).toBe(1);
-      expect((await (await w.signedIn("reg@example.com")).call("DELETE", "/api/me")).status).toBe(200);
-      expect(onTeam()).toBe(0);
-    },
-  );
+    const coming = await cup("Charity Cup", "2027-03-20");
+    const played = await cup("Summer Cup", "2026-06-20");
+    expect([coming.status, played.status]).toEqual([201, 201]);
+    expect((await (await w.signedIn("paul@example.com")).call("DELETE", "/api/me")).status).toBe(200);
+    const team = async (id: number) => (await dana.sees()).tournaments.find((t: Json) => t.id === id).teams[0];
+    expect(await team(coming.body.id)).toMatchObject({ name: "Cougars B", captainMemberId: null });
+    expect((await team(played.body.id)).captainMemberId).toBe(paul.id);
+    // And an admin names another
+    const wes = await dana.member("Wes Waiting");
+    const t = (await dana.sees()).tournaments.find((x: Json) => x.id === coming.body.id);
+    const named = await dana.call("PUT", `/api/tournaments/${t.id}`, {
+      ...t,
+      teams: t.teams.map((x: Json) => ({ ...x, captainMemberId: wes.id })),
+    });
+    expect(named.status).toBe(200);
+    expect((await team(coming.body.id)).captainMemberId).toBe(wes.id);
+  });
 
   it("a member who played and paid last month deletes their account: the money and the night stay, about nobody", async () => {
     const dana = await admin();

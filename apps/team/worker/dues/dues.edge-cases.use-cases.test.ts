@@ -4,8 +4,9 @@
 // the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
-import { NOW, testWorld } from "../testing";
+import { NOW, onTheNight, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
+import { chargesOf as ledgerCharges } from "./dues.testing";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -43,13 +44,12 @@ beforeEach(() => {
     INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'val@example.com';`);
 });
 
-const boot = async (b: Browser, now = NOW) => (await b.call("GET", "/api/bootstrap", undefined, { now })).body;
+const boot = async (b: Browser, now = NOW) => (await b.club({ now })).body;
 const memberId = async (b: Browser, name: string) =>
   (await boot(b)).members.find((m: { name: string }) => m.name === name).id as number;
 const sessionOn = async (b: Browser, day: string) =>
   (await boot(b)).sessions.find((s: { heldOn: string }) => s.heldOn === day).id as number;
-const chargesOf = async (b: Browser, id: number, now = NOW) =>
-  ((await boot(b, now)).charges as Charge[]).filter((c) => c.memberId === id);
+const chargesOf = async (b: Browser, id: number, now = NOW) => (await ledgerCharges(b, id, now)) as Charge[];
 /** What each of a member's payments has left to spend: their credit. */
 const credit = (id: number) =>
   (
@@ -84,8 +84,14 @@ async function came(pence: number, days = FRIDAYS) {
   const reg = await memberId(dana, "Reg Player");
   for (const day of days)
     expect(
-      (await dana.call("POST", `/api/sessions/${await sessionOn(dana, day)}/register`, { memberId: reg, here: true }))
-        .status,
+      (
+        await dana.call(
+          "POST",
+          `/api/sessions/${await sessionOn(dana, day)}/register`,
+          { memberId: reg, here: true },
+          { now: onTheNight(day) },
+        )
+      ).status,
     ).toBe(200);
   const pay = (pence: number, more: Record<string, unknown> = {}, b = dana) =>
     b.call("POST", `/api/members/${reg}/payments`, { via: "transfer", pence, ...more });
@@ -121,10 +127,15 @@ describe("paying, to the penny", () => {
   it("credit is the member's own: it never pays anyone else's dues", async () => {
     const { dana, reg, pay } = await came(800, [FRIDAYS[2]]);
     const danaId = await memberId(dana, "Dana Admin");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: danaId,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: danaId,
+        here: true,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     expect((await pay(5000)).status).toBe(200);
     expect(credit(reg)).toBe(4200);
     expect(await chargesOf(dana, danaId)).toEqual([expect.objectContaining({ paidPence: 0, paidOn: null })]);
@@ -136,10 +147,15 @@ describe("paying, to the penny", () => {
       (await dana.call("POST", `/api/members/${reg}/adjustments`, { pence: -1000, reason: "Reffed" })).status,
     ).toBe(201);
     expect(credit(reg)).toBe(1000);
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: reg,
-      here: true,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: reg,
+        here: true,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     expect(await chargesOf(dana, reg)).toEqual([expect.objectContaining({ paidPence: 800 })]);
     expect(credit(reg)).toBe(200);
   });
@@ -178,10 +194,15 @@ describe("paying, to the penny", () => {
       ["2026-10-02", 400],
       ["2026-09-25", 800],
     ]);
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: reg,
-      here: false,
-    });
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: reg,
+        here: false,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
     expect((await chargesOf(dana, reg)).map((c) => c.dueOn)).toEqual(["2026-09-25"]);
     expect(credit(reg)).toBe(400);
   });
@@ -409,17 +430,26 @@ describe("who may touch money (ADR 0024)", () => {
     unchanged(reg);
   });
 
-  it("someone who only sees Unpaid fees sees everyone's charges; a member only their own", async () => {
+  it("someone who only sees Unpaid fees sees what everyone owes and reads anyone's ledger; a member only their own", async () => {
     const { dana, reg } = await everyChange();
     const danaId = await memberId(dana, "Dana Admin");
-    await dana.call("POST", `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`, {
-      memberId: danaId,
-      here: true,
-    });
-    const val = await boot(await w.signedIn("val@example.com"));
-    expect(new Set((val.charges as Charge[]).map((c) => c.memberId))).toEqual(new Set([reg, danaId]));
-    const dot = await boot(await w.signedIn("dot@example.com"));
-    expect(dot.charges).toEqual([]);
+    await dana.call(
+      "POST",
+      `/api/sessions/${await sessionOn(dana, FRIDAYS[2])}/register`,
+      {
+        memberId: danaId,
+        here: true,
+      },
+      { now: onTheNight(FRIDAYS[2]) },
+    );
+    const valSees = await w.signedIn("val@example.com");
+    const val = await boot(valSees);
+    expect(new Set((val.dues as { memberId: number }[]).map((c) => c.memberId))).toEqual(new Set([reg, danaId]));
+    expect((await ledgerCharges(valSees, reg)).length).toBeGreaterThan(0);
+    const dotSees = await w.signedIn("dot@example.com");
+    const dot = await boot(dotSees);
+    expect([dot.charges, dot.dues]).toEqual([[], []]);
+    expect((await dotSees.call("GET", `/api/members/${reg}/ledger`)).status).toBe(403);
   });
 
   it("a treasurer records payments, charges and adjustments, but can't set the quarterly rate", async () => {
@@ -456,10 +486,10 @@ describe("taps at once", () => {
     },
   );
 
-  // The second insert meets the UNIQUE index (charges_quarter) after the check before it passed, and the admin is told
+  // The second insert met the UNIQUE index (charges_quarter) after the check before it passed, and the admin was told
   // something went wrong (a 500) rather than that it's already charged: https://github.com/battersea-cougars/ark/issues/121
-  it.fails.each([2, 5])(
-    "two admins charge the same quarter at once: one is charged, the other told it's there (known bug #121, seed %i)",
+  it.each([2, 5])(
+    "two admins charge the same quarter at once: one is charged, the other told it's there (#121, seed %i)",
     async (seed) => {
       const { dana, reg } = await came(800, []);
       const tess = await w.signedIn("tess@example.com");

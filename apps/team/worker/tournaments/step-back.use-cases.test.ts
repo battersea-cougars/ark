@@ -1,4 +1,4 @@
-// An admin steps a tournament back one step of its workflow (ADR 0074, 0060), whatever step it's at: the stages its
+// An admin steps a tournament back one step of its workflow (ADR 0127, 0060), whatever step it's at: the stages its
 // front page shows (sign-up, the draft, the teams, the fight card, the day) and the draft's own (the order drawn, the
 // draft open). Each step back undoes the step before it and no more, says which step it's leaving (`from`), so a tap
 // on a page that's out of date is refused, and is one batch. Driven through the real Worker handlers in the fake
@@ -38,7 +38,7 @@ type Phone = Awaited<ReturnType<typeof w.signedIn>>;
 async function kumite() {
   w.luck(1);
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const made = await dana.call("POST", "/api/tournaments", {
     name: "Kumite Summer 2027",
@@ -64,8 +64,7 @@ async function kumite() {
   const draft = (what: string, body: object = {}) =>
     dana.call("POST", `/api/tournaments/${id}/draft/${what}`, body, at);
   const back = (from: string, as: Phone = dana) => as.call("POST", `/api/tournaments/${id}/step-back`, { from }, at);
-  const tournament = async () =>
-    ((await dana.call("GET", "/api/bootstrap", undefined, at)).body as Json).tournaments.find((x: Json) => x.id === id);
+  const tournament = async () => ((await dana.club(at)).body as Json).tournaments.find((x: Json) => x.id === id);
   const players = ["Reg", "Mo", "Ash", "Bo"].map((n) => idOf(`${n} Player`));
   /** Everyone picked, in snake order from whoever drew first. */
   async function pickAll() {
@@ -243,9 +242,7 @@ describe("who steps back", () => {
       actions: ["run:Draft"],
     });
     expect(role.status).toBe(201);
-    const rae = ((await k.dana.call("GET", "/api/bootstrap")).body as Json).members.find(
-      (m: Json) => m.name === "Rae Runner",
-    );
+    const rae = ((await k.dana.club()).body as Json).members.find((m: Json) => m.name === "Rae Runner");
     expect(
       (await k.dana.call("PUT", `/api/members/${rae.id}`, { ...rae, roles: ["Draft runner", "Member"] })).status,
     ).toBe(200);
@@ -280,9 +277,7 @@ describe("teams that enter have no draft to step through", () => {
     expect((await back("fixtures")).status).toBe(200);
     expect((await back("signup")).status).toBe(200);
     // The teams stay: they entered
-    const t = ((await dana.call("GET", "/api/bootstrap", undefined, at)).body as Json).tournaments.find(
-      (x: Json) => x.id === id,
-    );
+    const t = ((await dana.club(at)).body as Json).tournaments.find((x: Json) => x.id === id);
     expect([t.status, t.signupClosesOn, t.teams.length]).toEqual(["open", null, 2]);
     expect((await back("signup")).status).toBe(409);
   });

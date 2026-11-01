@@ -1,4 +1,4 @@
-// A training's places at their edges (ADR 0030): no limits, a limit of none for keepers, an empty night, nobody
+// A training's places at their edges (ADR 0131): no limits, a limit of none for keepers, an empty night, nobody
 // waiting, and someone leaving who wasn't in.
 import { describe, expect, it } from "vitest";
 import { limitFor, nextUp, onSide, placesLeft, roomFor } from "./places";

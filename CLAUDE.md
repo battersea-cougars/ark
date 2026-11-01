@@ -19,15 +19,17 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
   `db/schema.sql` uses `--own-db`.
 - Never start a server with `&`, `nohup` or `setsid`, and never stop anything on 4500/4510/4520 except through
   `npm run app`. Stop only your own processes, by PID.
-- Finishing: rebase on main, then the coordinator runs `npm run merge:check -- <area>/<topic>` in the main checkout,
-  `git merge --ff-only`, and `npm run worktree -- remove <area>/<topic>`. Don't push unless asked.
+- Finishing: by pull request ([ADR 0010](docs/adr/0010-environments-and-deploys.md)): push the branch, open a PR into
+  `main`, and merge it once its checks pass and the user says so; then `npm run worktree -- remove <area>/<topic>`.
+  Going live is a PR from `main` into `release` (the ruleset allows nothing else). Don't push unless asked.
 
 ## Hard rules
 
 - **Code is for people to read** ([ADR 0105](docs/adr/0105-code-grouped-by-feature.md)): group it by feature, not by
   technique, a folder per component and flat inside (`apps/team/worker/dues/`); keep entry points short, like a table
   of contents; name files `{domain}.{kind}.ts` (`dues.ts`, `dues.routes.ts`, `dues.use-cases.test.ts`). A new route
-  goes in its component's `.routes.ts`, never in `api.ts`.
+  goes in its component's `.routes.ts`, never in `api.ts`. How code reads (one job per file and function, early exits,
+  domain names; lint warns) is [ADR 0125](docs/adr/0125-how-code-reads.md).
 
 - **Free tiers only.** Don't add a paid service or binding (Cloudflare Images, Durable Objects that store rows,
   paid Sanity features, card-payment providers) without asking. Check limits in [ADR 0003](docs/adr/0003-free-tiers-only.md). A Durable Object
@@ -36,8 +38,9 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
   Never print secret values, never write them to files (`.env`, `.dev.vars`), never commit them. `.env` is for
   local non-secret overrides only. GitHub holds only the Bitwarden tokens (`BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`). Use
   `npm run secrets` to see what exists (names only).
-- **Every secret is documented in [README.md#secrets](README.md#secrets)**, and a provider token is named
-  exactly like its secret. Adding or renaming a secret means updating that section in the same change.
+- **Every secret is documented in [docs/secrets.md](docs/secrets.md)** (by system; its "How secrets work" is the short
+  overview), and a provider token is named exactly like its secret. Adding or renaming a secret means updating its
+  entry and the Overview table there in the same change.
 - **Never deploy to production by hand.** Production deploys only from the `release` branch via
   `.github/workflows/deploy.yml`; `main` and PRs deploy dev ([ADR 0010](docs/adr/0010-environments-and-deploys.md)).
   Dev is a separate Cloudflare account (workers `web` and `team`, at `web.cougars-dev.workers.dev` and `team.cougars-dev.workers.dev`) ([ADR 0010](docs/adr/0010-environments-and-deploys.md)). Your machine is dev; production secrets are `NAME__PRODUCTION`.
@@ -79,12 +82,14 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
 - **Use cases first** ([ADR 0031](docs/adr/0031-use-case-tests.md), [docs/testing.md](docs/testing.md)): tests
   describe what someone does, drive the real handlers, and fake outside services in one fake world. Unit tests only
   for tricky pure logic. Known bugs stay as `it.fails("… (known bug #N)")`.
-- Vitest, colocated `*.test.ts`. D1 is in-memory SQLite with all migrations applied (`packages/shared/testing/d1-sqlite.ts`).
+- Vitest, colocated `*.test.ts`. D1 is in-memory SQLite built from the schema and seed (`packages/shared/testing/d1-sqlite.ts`).
   Don't mock our own code.
-- Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio` (as `pr.yml`).
+- Before pushing: `npm run secrets:scan -- --since main && npm run lint && npm run knip && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio` (as `pr.yml`).
 - **Signed in, headless**: `node scripts/dev-sign-in.mjs [email]` (no email: the first admin) writes a Playwright
   storage state to `.auth/team.json`. Use it for every screenshot or browser check; never ask for a code (ADR 0023,
   docs/testing.md).
+- **Screenshots for testing go in `.shots/`** (git-ignored) or your scratchpad, never next to the code, never
+  committed (docs/testing.md).
 
 ## Ports
 

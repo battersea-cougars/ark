@@ -22,14 +22,27 @@ CREATE INDEX enquiries_auto_replied_at ON enquiries (auto_replied_at);
 
 CREATE INDEX enquiries_email ON enquiries (email);
 
--- Tokens the website renews by itself (apps/web/src/lib/server/instagram-token.ts, ADR 0113): Instagram's, for the
--- club's posts. Sealed in the Worker (AES-GCM, with a key only it has, the row's name bound in), so this table never
--- holds one anyone can read or move.
+-- Tokens a Worker writes, which can't go to Bitwarden (packages/shared/sealed-tokens.ts, ADR 0002): Gmail's, which an
+-- admin reconnects in the team app (ADR 0027). Sealed
+-- in the Worker (AES-GCM, with a key only it has, the row's name bound in), so this table never holds one anyone can
+-- read or move.
 CREATE TABLE sealed_tokens (
-  name        TEXT PRIMARY KEY,   -- instagram
+  name        TEXT PRIMARY KEY,   -- gmail
   sealed      TEXT NOT NULL,      -- base64: 12-byte IV, then the ciphertext
-  expires_at  TEXT NOT NULL,
+  expires_at  TEXT,               -- null: until it's cancelled (gmail)
   renewed_at  TEXT NOT NULL
+);
+
+-- Whether the club's email works (packages/shared/mail-health.ts, ADR 0027): one row, written by both Workers as they
+-- send. Settings → Email and the admins' Home read it.
+CREATE TABLE mail_health (
+  id              INTEGER PRIMARY KEY CHECK (id = 1),
+  account         TEXT,           -- the address the token sends as, as Google last said
+  last_sent_at    TEXT,           -- the last email Gmail took (written at most every few minutes)
+  failed_at       TEXT,           -- the first failure since then; null while it works
+  failure         TEXT CHECK (failure IN ('cancelled', 'paused', 'failed')),
+  reconnected_at  TEXT,
+  reconnected_by  INTEGER REFERENCES members(id) ON DELETE SET NULL
 );
 
 CREATE TABLE members (
@@ -43,7 +56,7 @@ CREATE TABLE members (
   -- 0–100, for balancing teams; only read:Rating sees it
   rating INTEGER NOT NULL DEFAULT 50,
   cougar INTEGER NOT NULL DEFAULT 0,
-  -- Their profile photo (ADR 0123): a small square image their phone shrank, as a data: URL, or null (their
+  -- Their profile photo (ADR 0133): a small square image their phone shrank, as a data: URL, or null (their
   -- initials). photo_at is when it was set, so its address changes with it and browsers can keep it.
   photo TEXT,
   photo_at TEXT,
@@ -56,10 +69,9 @@ CREATE TABLE members (
   bio TEXT NOT NULL DEFAULT '',
   everyday_role_id INTEGER REFERENCES roles (id) ON DELETE SET NULL,
   web_name TEXT,
-  -- The name their team takes when they're named a Kumite captain (ADR 0060, worker/tournaments/team-name.ts): set on
-  -- their profile or by an admin, and overwritten whenever their Kumite team's renamed. Empty: the automatic "Team
-  -- <first name>"; null (never set): their latest Kumite team's name
-  kumite_team_name TEXT
+  -- Training nights played whose register has closed, up to data_version.played_through (members.played.ts, #177):
+  -- counted once, as each night's register closes, so opening the app doesn't count every night ever played again
+  played INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX members_status ON members (status);
@@ -144,12 +156,16 @@ CREATE TABLE training_sessions (
   capacity INTEGER,
   goalie_capacity INTEGER,
   note TEXT,
+  -- Off (#186, ADR 0122): set while anything keeps it off, an admin calling it off by hand (called_off_at) or a
+  -- tournament on its day (training_session_offs), and only then. Everything that asks whether a night's on reads this
   cancelled_at TEXT,
+  -- When an admin called it off by hand, from its page; null when that's not why it's off
+  called_off_at TEXT,
   register_closed_at TEXT,
   -- When members were told its sign-up opened (ADR 0030, 0108): taken by the cron run that tells them, so it's once
   signup_told_at TEXT,
-  -- What a session costs (ADR 0007): the series' fee on its day, written when it first charges someone, so a later
-  -- change to the fee never alters it
+  -- What a session costs (ADR 0007): the series' fee on its day, written when it first charges someone, and worked
+  -- out again when a fee is set from a date on or before it
   fee_pence INTEGER,
   UNIQUE (series_id, held_on)
 );
@@ -224,6 +240,11 @@ CREATE TABLE tournaments (
   -- Sign-up opens by itself on this day (ADR 0074), unless an admin opened it by hand (status 'open')
   signup_opens_on TEXT,
   signup_closes_on TEXT,
+  -- An admin closed sign-up early (ADR 0074): when, its dates left as they were; null until then, and again once it's
+  -- stepped back to Sign-up open
+  signup_closed_at TEXT,
+  -- When members were told its sign-up opened (ADR 0108): once, on its day or when an admin opened it by hand
+  signup_told_at TEXT,
   draft_on TEXT,
   -- The captains' draft (ADR 0060): none until an admin opens it, then open, then closed (teams locked)
   draft_state TEXT NOT NULL DEFAULT 'none',
@@ -252,10 +273,27 @@ CREATE TABLE tournaments (
   after_time TEXT,
   after_note TEXT NOT NULL DEFAULT '',
   -- How many of its awards have been revealed at the after-party, in the order listed (ADR 0074): one more a tap
-  awards_revealed INTEGER NOT NULL DEFAULT 0
+  awards_revealed INTEGER NOT NULL DEFAULT 0,
+  -- The after-party's one card (ADR 0074), a drum: 0 shows the last one revealed (or the first, sealed, before any);
+  -- 1, rolled on to the next one, sealed. Each tap moves it one
+  awards_next INTEGER NOT NULL DEFAULT 0,
+  -- When an admin confirmed the awards the data decides (ADR 0044): a stat's or a draw's. Voted and live awards are
+  -- decided at the reveal, so a tournament with only those needs no confirming
+  awards_confirmed_at TEXT
 );
 
 CREATE INDEX tournaments_held_on ON tournaments (held_on);
+
+-- A training night off for a tournament on its day (#186, ADR 0122): the clash sheet's Cancel, or a training skipping
+-- its night. The night comes back when nothing keeps it off: its tournaments gone or moved off its day, and not called
+-- off by hand (training_sessions.called_off_at)
+CREATE TABLE training_session_offs (
+  session_id INTEGER NOT NULL REFERENCES training_sessions (id) ON DELETE CASCADE,
+  tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
+  PRIMARY KEY (session_id, tournament_id)
+);
+
+CREATE INDEX training_session_offs_tournament ON training_session_offs (tournament_id);
 
 CREATE TABLE club_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -288,10 +326,15 @@ CREATE TABLE attendance (
   walk_in INTEGER NOT NULL DEFAULT 0,
   recorded_by INTEGER REFERENCES members (id),
   recorded_at TEXT,
+  -- Moved and not told yet (push.notices.ts places): up off the waiting list, 'place' (a place came up) or 'let-in'
+  -- (the team maker); or 'bumped' down to it by a Quarterly Member. The notification takes it and clears it in one
+  -- batch, so each move is told once
+  moved TEXT,
   UNIQUE (session_id, member_id)
 );
 
 CREATE INDEX attendance_member ON attendance (member_id);
+CREATE INDEX attendance_moved ON attendance (id) WHERE moved IS NOT NULL;
 
 CREATE TABLE tournament_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -301,10 +344,13 @@ CREATE TABLE tournament_entries (
   signup TEXT NOT NULL,
   signed_up_at TEXT NOT NULL,
   attended INTEGER,
+  -- Moved up off the waiting list and not told yet ('place'), as attendance.moved
+  moved TEXT,
   UNIQUE (tournament_id, member_id)
 );
 
 CREATE INDEX tournament_entries_member ON tournament_entries (member_id);
+CREATE INDEX tournament_entries_moved ON tournament_entries (id) WHERE moved IS NOT NULL;
 
 CREATE TABLE club_event_entries (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -313,10 +359,13 @@ CREATE TABLE club_event_entries (
   -- in / waitlist / out
   signup TEXT NOT NULL,
   signed_up_at TEXT NOT NULL,
+  -- Moved up off the waiting list and not told yet ('place'), as attendance.moved
+  moved TEXT,
   UNIQUE (event_id, member_id)
 );
 
 CREATE INDEX club_event_entries_member ON club_event_entries (member_id);
+CREATE INDEX club_event_entries_moved ON club_event_entries (id) WHERE moved IS NOT NULL;
 
 CREATE TABLE session_teams (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -400,10 +449,16 @@ CREATE TABLE charges (
   due_on TEXT NOT NULL,
   created_at TEXT NOT NULL,
   created_by INTEGER REFERENCES members (id),
+  -- What payments have put on it (payment_allocations), kept by the triggers below (#177): a charge with some left
+  -- to pay is found by index (charges_owing), not by adding up every allocation there has ever been
+  paid_pence INTEGER NOT NULL DEFAULT 0,
   CHECK ((session_id IS NOT NULL) + (tournament_id IS NOT NULL) + (quarter IS NOT NULL) + (reason IS NOT NULL) = 1)
 );
 
-CREATE INDEX charges_member ON charges (member_id);
+-- A member's ledger, newest first, a page at a time (dues.ledger.ts)
+CREATE INDEX charges_member ON charges (member_id, due_on, id);
+-- What each member owes, and how old it is (Unpaid fees, Home): only the charges not paid in full
+CREATE INDEX charges_owing ON charges (member_id, due_on) WHERE paid_pence < amount_pence;
 CREATE UNIQUE INDEX charges_session ON charges (session_id, member_id) WHERE session_id IS NOT NULL;
 CREATE UNIQUE INDEX charges_tournament ON charges (tournament_id, member_id) WHERE tournament_id IS NOT NULL;
 CREATE UNIQUE INDEX charges_quarter ON charges (quarter, member_id) WHERE quarter IS NOT NULL;
@@ -418,10 +473,14 @@ CREATE TABLE payments (
   via TEXT NOT NULL,
   reason TEXT,
   recorded_by INTEGER REFERENCES members (id),
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  -- What of it has paid charges (payment_allocations), kept by the triggers below (#177); the rest is credit
+  spent_pence INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX payments_member ON payments (member_id);
+CREATE INDEX payments_member ON payments (member_id, received_on, id);
+-- Credit: payments not all spent
+CREATE INDEX payments_spare ON payments (member_id) WHERE spent_pence < amount_pence;
 
 CREATE TABLE payment_allocations (
   payment_id INTEGER NOT NULL REFERENCES payments (id) ON DELETE CASCADE,
@@ -432,21 +491,42 @@ CREATE TABLE payment_allocations (
 
 CREATE INDEX payment_allocations_charge ON payment_allocations (charge_id);
 
+-- Each charge's paid_pence and each payment's spent_pence follow its allocations, however they're written (#177)
+CREATE TRIGGER payment_allocations_in AFTER INSERT ON payment_allocations BEGIN
+  UPDATE charges SET paid_pence = paid_pence + NEW.amount_pence WHERE id = NEW.charge_id;
+  UPDATE payments SET spent_pence = spent_pence + NEW.amount_pence WHERE id = NEW.payment_id;
+END;
+CREATE TRIGGER payment_allocations_changed AFTER UPDATE OF amount_pence ON payment_allocations BEGIN
+  UPDATE charges SET paid_pence = paid_pence + NEW.amount_pence - OLD.amount_pence WHERE id = NEW.charge_id;
+  UPDATE payments SET spent_pence = spent_pence + NEW.amount_pence - OLD.amount_pence WHERE id = NEW.payment_id;
+END;
+CREATE TRIGGER payment_allocations_out AFTER DELETE ON payment_allocations BEGIN
+  UPDATE charges SET paid_pence = paid_pence - OLD.amount_pence WHERE id = OLD.charge_id;
+  UPDATE payments SET spent_pence = spent_pence - OLD.amount_pence WHERE id = OLD.payment_id;
+END;
+
 CREATE TABLE login_challenges (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
   code_hash TEXT NOT NULL,
+  -- The browser that asked (its nonce cookie's hash). A break-glass code starts with 'break-glass', no browser's: the
+  -- first browser to ask for that member's code claims it (ADR 0023, scripts/admin-break-glass.mjs)
   nonce_hash TEXT NOT NULL,
   -- Wrong codes so far; at 5 the challenge is spent
   attempts INTEGER NOT NULL DEFAULT 0,
   expires_at TEXT NOT NULL,
   used_at TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  -- 'code' (emailed) or 'break_glass' (made at a terminal, for when nobody can get in: no email, no passkey)
+  kind TEXT NOT NULL DEFAULT 'code'
 );
 
 CREATE INDEX login_challenges_nonce ON login_challenges (nonce_hash);
 
 CREATE INDEX login_challenges_member ON login_challenges (member_id, created_at);
+
+-- The admins' Home lists the week's break-glass codes (auth.break-glass.ts): found among the few, not every code sent
+CREATE INDEX login_challenges_break_glass ON login_challenges (created_at) WHERE kind = 'break_glass';
 
 -- A member changing their own sign-in email (ADR 0023): a code to the new address, typed in the app they're signed in
 -- to (worker/members/members.email.ts). Like sign-in's, the code is stored only as its hash, works for 15 minutes and
@@ -479,12 +559,68 @@ CREATE TABLE auth_sessions (
   -- The token before the last renewal gave it a new one (#72): it still works for a few minutes after rotated_at, so
   -- requests already on their way with it, or a reply with the new cookie that never arrived, don't sign anyone out
   previous_hash TEXT,
-  rotated_at TEXT
+  rotated_at TEXT,
+  -- An admin viewing the app as this member (ADR 0024, #40): the API answers as them, read-only, until it's ended
+  viewing_as INTEGER REFERENCES members (id) ON DELETE SET NULL
 );
 
 CREATE INDEX auth_sessions_member ON auth_sessions (member_id);
 
 CREATE INDEX auth_sessions_previous ON auth_sessions (previous_hash);
+
+-- ...and the week's break-glass sign-ins, beside every phone's session
+CREATE INDEX auth_sessions_break_glass ON auth_sessions (created_at) WHERE method = 'break_glass';
+
+-- A member's passkeys (ADR 0023): sign in with Face ID, a fingerprint or the phone's PIN, no email needed. Only the
+-- public key is kept; the private one never leaves the member's device (or their password manager). One row per
+-- passkey, named for the device it was made on; the member, or an admin, removes it.
+CREATE TABLE passkeys (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  -- The credential's id (base64url), as the authenticator gives it back at sign-in
+  credential_id TEXT NOT NULL UNIQUE,
+  -- Its public key (COSE, base64url)
+  public_key TEXT NOT NULL,
+  -- The authenticator's signature counter: a passkey that goes backwards is a copy, and refused. Synced passkeys
+  -- (iCloud Keychain, Google Password Manager) always say 0
+  sign_count INTEGER NOT NULL DEFAULT 0,
+  -- The random id the passkey knows its member by (base64url), the same for each of a member's passkeys: not their
+  -- email or number
+  user_handle TEXT NOT NULL,
+  -- How the browser can reach it ("internal", "hybrid", ...), JSON, for the next sign-in's hints
+  transports TEXT NOT NULL DEFAULT '[]',
+  -- The domain it belongs to (the team app's own: localhost, dev's or production's)
+  rp_id TEXT NOT NULL,
+  -- "iPhone", "Mac · iCloud Keychain": what the member sees it as, with created_at
+  name TEXT NOT NULL,
+  backed_up INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  last_used_at TEXT
+);
+
+CREATE INDEX passkeys_member ON passkeys (member_id);
+
+-- A passkey's challenge (ADR 0023): random, single-use, five minutes, stored as its hash and bound like a code's nonce.
+-- Adding a passkey: to the session asking (session_id). Signing in: to the browser asking (nonce_hash, its passkey
+-- nonce cookie), and to nobody yet, since a passkey says whose it is.
+CREATE TABLE passkey_challenges (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  challenge_hash TEXT NOT NULL UNIQUE,
+  -- 'register' or 'sign_in'
+  purpose TEXT NOT NULL,
+  session_id INTEGER REFERENCES auth_sessions (id) ON DELETE CASCADE,
+  -- Adding one: the id the new passkey will know its member by (passkeys.user_handle)
+  user_handle TEXT,
+  nonce_hash TEXT,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX passkey_challenges_created ON passkey_challenges (created_at);
+
+-- A session signed out or ended takes its challenges with it (ON DELETE CASCADE): found by index, not by a scan
+CREATE INDEX passkey_challenges_session ON passkey_challenges (session_id);
 
 -- A device that wants notifications (ADR 0108): a phone with the store app (its Firebase token) or a browser with Web
 -- Push (its subscription's endpoint), and the sign-in it belongs to. Signing out forgets it, and the session running
@@ -511,32 +647,60 @@ CREATE TABLE notification_prefs (
   PRIMARY KEY (member_id, topic)
 ) WITHOUT ROWID;
 
--- Notifications on their way (ADR 0108): one row per notice per phone, so a club-wide send can go out a batch at a
--- time within the free plan's 50 fetches an invocation (worker/push/push.ts). A row is claimed before it's sent, so
--- two drains at once never send it twice; a claim older than ten minutes was a drain that died, and is taken again.
--- A failed send is tried again later (due_at), a few times; a phone that's forgotten takes its rows with it. Sent
--- rows are kept a week, then pruned.
+-- Notifications on their way (ADR 0108, worker/push/push.ts; its numbers in push.rules.ts): one row per member per
+-- notice, sent to whichever devices they're signed in on when it goes, so a club-wide send can go out a batch at a
+-- time within the free plan's 50 fetches an invocation. A row waits until send_after: quiet hours (22:00 to 08:00
+-- London) hold what isn't live, and the debounce holds news about something (`key`) a member was told of moments ago.
+-- A newer notice with the same member and key replaces the one waiting (the latest wins; `replaced` counts them), and
+-- one that ends saying what they were last told (push_told) is dropped. A row is claimed before it's sent, so two
+-- drains at once never send it twice; a claim older than ten minutes was a drain that died, and is taken again. A
+-- failed send is tried again later on the devices it failed on (`tokens`), a few times. Sent and dropped rows are kept
+-- a week, then pruned.
 CREATE TABLE push_outbox (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  token TEXT NOT NULL REFERENCES push_devices (token) ON DELETE CASCADE,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  -- What it's about, the debounce's key with the member: "places:session:12", "teams:12", "announcement:7"
+  key TEXT NOT NULL,
+  topic TEXT NOT NULL,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
   path TEXT NOT NULL,
+  -- What it tells them, compared with what they were last told about the key ("in", "waitlist", a team's name)
+  says TEXT NOT NULL,
+  -- queued (waiting for send_after), claimed (a send has it), sent, dropped (nobody to send to, superseded, said
+  -- already, or given up)
+  state TEXT NOT NULL DEFAULT 'queued',
   created_at TEXT NOT NULL,
-  -- When it may be sent: at once, then later after each failed try
-  due_at TEXT NOT NULL,
+  -- When it may be sent: at once, after quiet hours or the debounce, then later after each failed try
+  send_after TEXT NOT NULL,
+  -- How many newer notices about the same thing took its place while it waited
+  replaced INTEGER NOT NULL DEFAULT 0,
   tries INTEGER NOT NULL DEFAULT 0,
+  -- A retry's devices, the ones it failed on (a JSON array of tokens); null: every device the member has
+  tokens TEXT,
   claim TEXT,
   claimed_at TEXT,
   sent_at TEXT
 );
 
-CREATE INDEX push_outbox_waiting ON push_outbox (sent_at, due_at);
+-- One waiting per member and thing: a newer one replaces it (ON CONFLICT ... DO UPDATE)
+CREATE UNIQUE INDEX push_outbox_waiting_key ON push_outbox (member_id, key) WHERE state = 'queued';
 
-CREATE INDEX push_outbox_token ON push_outbox (token);
+CREATE INDEX push_outbox_due ON push_outbox (state, send_after);
 
 CREATE INDEX push_outbox_created ON push_outbox (created_at);
+
+-- What each member was last told about each thing, and when (ADR 0108): the debounce's clock, and what a notice that
+-- waited is compared with. Pruned with the outbox.
+CREATE TABLE push_told (
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  says TEXT NOT NULL,
+  told_at TEXT NOT NULL,
+  PRIMARY KEY (member_id, key)
+) WITHOUT ROWID;
+
+CREATE INDEX push_told_at ON push_told (told_at);
 
 CREATE TABLE audit_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -547,6 +711,9 @@ CREATE TABLE audit_log (
 );
 
 CREATE INDEX audit_log_at ON audit_log (at);
+
+-- The admins' Home and Settings → Email read the last reconnect's try (mail.ts): by action, not back through the log
+CREATE INDEX audit_log_action ON audit_log (action);
 
 -- A tournament's teams (ADR 0030). Teams enter: each signs up with a name, a captain and its players, who may be
 -- from outside the club. Captains draft: each captain is a member, given a pick order, and drafts members.
@@ -597,8 +764,29 @@ CREATE INDEX tournament_team_players_team ON tournament_team_players (team_id, c
 CREATE TABLE data_version (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   version INTEGER NOT NULL,
-  sessions_made_on TEXT
+  sessions_made_on TEXT,
+  -- The last day whose training nights are in members.played (members.played.ts, #177): null, none yet
+  played_through TEXT,
+  -- The version each part of the club last changed at, through the app (#178): {"sessions": 1234, ...}, the parts a
+  -- change declared (api.ts). A page's data is tagged, and kept at the edge, by its parts' versions, so a tap on
+  -- Friday doesn't make the roster new (api.versions.ts)
+  parts TEXT NOT NULL DEFAULT '{}',
+  -- The version the app's own last change made, when it said which parts it changed
+  told INTEGER,
+  -- The last version anything else made (the seed, a script, the hourly run): every part is as new as it
+  untold INTEGER NOT NULL DEFAULT 0
 );
+
+-- A change that doesn't say which parts it changed (anything but the app's own, which sets `told` with the version)
+-- changes every part, as far as anyone can tell (#178)
+CREATE TRIGGER data_version_untold_insert AFTER INSERT ON data_version
+BEGIN
+  UPDATE data_version SET untold = NEW.version WHERE id = NEW.id;
+END;
+CREATE TRIGGER data_version_untold AFTER UPDATE OF version ON data_version WHEN NEW.told IS NOT NEW.version
+BEGIN
+  UPDATE data_version SET untold = NEW.version WHERE id = NEW.id;
+END;
 
 -- The website wants rebuilding (apps/team/worker/website.ts, ADR 0100): a finished tournament changed. One row while
 -- one is wanted; the team Worker's five-minute cron sends it to GitHub after five quiet minutes and deletes the row.
@@ -607,15 +795,38 @@ CREATE TABLE website_rebuild (
   wanted_at TEXT NOT NULL
 );
 
--- Who won a tournament's awards (apps/team/worker/awards.ts, ADR 0044): a team (Champions) or a player on one of its
--- teams (Top scorer). The award is one of the tournament's own, by name (tournaments.awards).
+-- When something last happened to the website, by name (packages/shared/website-times.ts): `rebuild_sent`, the last
+-- rebuild the team app asked GitHub for (Settings → Website, ADR 0100), and `media_refreshed`, when an admin last
+-- pressed Refresh photos and videos there (ADR 0016): the website's YouTube and Instagram copies from before it are no
+-- longer fresh, so the next visit reads them again.
+CREATE TABLE website_times (
+  name TEXT PRIMARY KEY,
+  at TEXT NOT NULL
+);
+
+-- Who won a tournament's awards (apps/team/worker/tournaments/awards.ts, ADR 0044): a team (Champions) or a player on
+-- one of its teams (Top scorer). The award is one of the tournament's own, by name (tournaments.awards). An admin's
+-- live call is named on the night: `title` is the name they chose ("Most Dramatic Fall"); null for every other award.
 CREATE TABLE tournament_award_winners (
   tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
   award TEXT NOT NULL,
   team_id INTEGER REFERENCES tournament_teams (id) ON DELETE CASCADE,
   member_id INTEGER REFERENCES members (id) ON DELETE CASCADE,
   position INTEGER NOT NULL DEFAULT 0,
+  title TEXT,
   PRIMARY KEY (tournament_id, award, position)
+);
+
+-- The votes for a voted award (ADR 0044): one a voter an award, secret (nobody's sent who voted for whom but the voter),
+-- never for themselves. Cast once the last match is played, until the award's revealed; the reveal counts them.
+CREATE TABLE tournament_award_votes (
+  tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
+  award TEXT NOT NULL,
+  voter_member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  candidate_member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  cast_at TEXT NOT NULL,
+  PRIMARY KEY (tournament_id, award, voter_member_id),
+  CHECK (voter_member_id <> candidate_member_id)
 );
 
 -- The club's settings for the team app (apps/team/worker/settings.ts, ADR 0072): one row, made on the first save.
@@ -627,7 +838,10 @@ CREATE TABLE club_settings (
   -- fees. Shown on every member's Dues page and in reminders; none yet means no reminder goes out.
   bank_name TEXT,
   bank_sort_code TEXT,
-  bank_account TEXT
+  bank_account TEXT,
+  -- How many days before a quarter starts its Quarterly Members are told its fee is due, and that they can still
+  -- switch (apps/team/worker/dues/plan-reminders.ts, #187), set on Settings → Membership
+  plan_reminder_days INTEGER NOT NULL DEFAULT 5 CHECK (plan_reminder_days BETWEEN 1 AND 30)
 );
 
 -- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by), at most
@@ -661,12 +875,34 @@ CREATE TABLE dev_mail_recipients (
   added_at TEXT NOT NULL
 );
 
+-- Next quarter's plan, told a few days before it starts (apps/team/worker/dues/plan-reminders.ts, ADR 0007, #187):
+-- one row per member per quarter, claimed before it's sent so two runs tell once. `via`: push (their phone or
+-- browser) or email (no app). An email that fails is deleted, so it's tried again; the row is the record of who was
+-- told, for which quarter, how and when.
+CREATE TABLE plan_reminders (
+  member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
+  quarter TEXT NOT NULL,
+  via TEXT NOT NULL CHECK (via IN ('push', 'email')),
+  told_at TEXT NOT NULL,
+  PRIMARY KEY (member_id, quarter)
+);
+
 -- The usage check's warnings (apps/team/worker/settings/usage.ts, ADR 0059): one email per metric per day (UTC); for
 -- Sanity's monthly quotas (ADR 0116), per month (`day` is then 2026-10)
 CREATE TABLE usage_warnings (
   day TEXT NOT NULL,
   metric TEXT NOT NULL,
   PRIMARY KEY (day, metric)
+);
+
+-- How near each free limit is (apps/team/worker/settings/usage.levels.ts, ADR 0059, #148): the hourly check keeps a
+-- row for each limit at 70% or more, and only those, for the admins' Home. `period` is the UTC day it's for, or for
+-- Sanity's monthly quotas the month; a row from a day that's over is ignored.
+CREATE TABLE usage_levels (
+  metric TEXT PRIMARY KEY,
+  period TEXT NOT NULL,
+  label TEXT NOT NULL,
+  percent INTEGER NOT NULL
 );
 
 -- Our own count of requests to Sanity (packages/shared/sanity-requests.ts, ADR 0116): Sanity has no usage API. One row
@@ -678,6 +914,29 @@ CREATE TABLE sanity_requests (
   kind TEXT NOT NULL CHECK (kind IN ('api', 'cdn')),
   count INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, project, kind)
+);
+
+-- What Sentry last said about the apps' open issues (apps/team/worker/settings/errors.ts, ADR 0111): one row, so
+-- Settings → Errors asks Sentry at most every few minutes, whoever opens it. A failure keeps the last answer.
+CREATE TABLE sentry_issues (
+  id        INTEGER PRIMARY KEY CHECK (id = 1),
+  tried_at  TEXT NOT NULL,                                -- when Sentry was last asked, answered or not
+  read_at   TEXT,                                         -- when it last answered; null till it has
+  body      TEXT,                                         -- that answer: each project's issues, JSON
+  failure   TEXT CHECK (failure IN ('down', 'refused'))   -- the last ask's failure; null when it answered
+);
+
+-- The hourly run's last try (apps/team/worker/cron/hourly.ts, ADR 0110): one row, for the UTC hour it's on. The run
+-- every minute catches the hour up while it isn't done: a try at 12, 17, 27, 37 and 47 past, each claimed here first so
+-- two runs at once take it once. `attempt`: 0 the hour's own run at :07, then each catch-up. `outcome`: null while
+-- it's still to do; done when a try's jobs all succeeded, failed when the last try's didn't.
+CREATE TABLE hourly_run (
+  id          INTEGER PRIMARY KEY CHECK (id = 1),
+  hour        TEXT NOT NULL,                                -- 2026-10-28T10
+  attempt     INTEGER NOT NULL,
+  tried_at    TEXT NOT NULL,
+  outcome     TEXT CHECK (outcome IN ('done', 'failed')),
+  finished_at TEXT
 );
 
 -- Backups of this database (scripts/db-backup.mjs, ADR 0106): when, why (nightly, before a deploy changes the schema)
@@ -717,7 +976,10 @@ CREATE TABLE tournament_games (
   -- The period being played (ADR 0061): the clock counts down each one in turn
   period INTEGER NOT NULL DEFAULT 1,
   -- When the last period ended: the break before the next, until its clock starts (ADR 0061)
-  period_ended_at TEXT
+  period_ended_at TEXT,
+  -- When it actually kicked off: the first Start of its clock (ADR 0061), kept through pauses and periods; null until
+  -- then, and again when it's put back to not played. The tournament's own hours never move for it (ADR 0074)
+  started_at TEXT
 );
 
 CREATE INDEX tournament_games_tournament ON tournament_games (tournament_id, position);
@@ -733,10 +995,14 @@ CREATE TABLE tournament_goals (
   at_ms INTEGER,
   -- In which period (at_ms is the time into it); NULL with no time
   period INTEGER,
+  -- Which tap it was (#114): made on the scorekeeper's phone when the button's pressed, so the same tap sent twice
+  -- (two phones, a retry) is one goal (ON CONFLICT DO NOTHING); NULL for an admin's or a typed-in result's
+  tap_id TEXT,
   created_at TEXT NOT NULL
 );
 
 CREATE INDEX tournament_goals_game ON tournament_goals (game_id, id);
+CREATE UNIQUE INDEX tournament_goals_tap ON tournament_goals (game_id, tap_id);
 -- In the club read's order (by game time, untimed last), so it reads every goal once, not twice for a sort
 CREATE INDEX tournament_goals_time ON tournament_goals (at_ms IS NULL, period, at_ms, id);
 
@@ -756,10 +1022,13 @@ CREATE TABLE tournament_penalties (
   period INTEGER,
   -- Who wrote it down: the scorekeeper, or an admin putting the result right
   recorded_by INTEGER REFERENCES members (id) ON DELETE SET NULL,
+  -- Which tap it was, as for goals (#114)
+  tap_id TEXT,
   created_at TEXT NOT NULL
 );
 
 CREATE INDEX tournament_penalties_game ON tournament_penalties (game_id, id);
+CREATE UNIQUE INDEX tournament_penalties_tap ON tournament_penalties (game_id, tap_id);
 CREATE INDEX tournament_penalties_time ON tournament_penalties (at_ms IS NULL, period, at_ms, id);
 CREATE INDEX tournament_penalties_member ON tournament_penalties (member_id);
 

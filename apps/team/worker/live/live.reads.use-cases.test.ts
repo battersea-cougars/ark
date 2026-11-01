@@ -3,9 +3,8 @@
 // changes named, not the whole club. Phones here hold the app's own copy of the club (src/app/catch-up.ts), reading
 // through the real Worker, their streams from the real hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ClubCopy } from "../../src/app/catch-up";
-import { atVersion } from "../../src/app/club-tag";
 import { NOW, testWorld } from "../testing";
+import { phoneOn as livePhone } from "./live.testing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -35,70 +34,9 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Long enough for the hub's second and every phone's wait before its read, and the read itself. */
 const settled = () => wait(1500);
 
-/**
- * A member's phone with a live page open that follows `parts`: its copy of the club, what it asked the Worker for,
- * and whether the page is in view.
- */
+/** A member's phone with a live page open that follows `parts` (live.testing.ts). */
 async function phoneOn(email: string, parts: readonly string[]) {
-  const b = await w.listening(email);
-  let club: Json = null;
-  let tag: string | null = null;
-  let inView = true;
-  const asked: string[] = [];
-  const whole = async () => {
-    const r = await b.call("GET", "/api/bootstrap", undefined, {
-      headers: tag ? { "if-none-match": atVersion(tag, copy.held) } : {},
-    });
-    asked.push(r.status === 304 ? "whole: unchanged" : "whole");
-    if (r.status !== 200) return;
-    club = r.body;
-    tag = r.headers.get("etag");
-    copy.wholeAt(Number(r.headers.get("x-club-version")));
-  };
-  const copy: ClubCopy = new ClubCopy({
-    readParts: async (names) => {
-      asked.push(`parts: ${names.join(", ")}`);
-      const r = await b.call("GET", `/api/slices?names=${names.join(",")}`);
-      if (r.status !== 200) throw new Error(`${r.status}`);
-      return r.body;
-    },
-    readWhole: whole,
-    apply: (slices) => (club = { ...club, ...slices }),
-    visible: () => inView,
-    waitMs: 100,
-  });
-  await whole();
-  copy.follow(parts);
-  // The stream: every event to the copy
-  let streaming = true;
-  const pump = (async () => {
-    while (streaming) {
-      const e = await b.next().catch(() => null);
-      if (!e) return;
-      if (e.event === "changed") copy.hear(e.data);
-    }
-  })();
-  const phone = {
-    email,
-    copy,
-    asked,
-    club: () => club,
-    whole,
-    hide: () => (inView = false),
-    /** A change from this phone: its reply's parts go in place, as the app's `save` does. */
-    change: async (method: string, path: string, payload?: unknown) => {
-      const r = await b.call(method, path, payload);
-      const v = r.headers.get("x-club-version");
-      if (r.status < 300 && r.body.changed && v) Object.assign(club, copy.partsAt(Number(v), r.body.changed));
-      return r;
-    },
-    stop: async () => {
-      streaming = false;
-      copy.stop();
-      await b.close();
-      await pump;
-    },
-  };
+  const phone = await livePhone(w, email, parts);
   open.push(phone);
   return phone;
 }
@@ -106,10 +44,9 @@ async function phoneOn(email: string, parts: readonly string[]) {
 /** Next Friday's session, and the admin. */
 async function friday() {
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const session = boot.sessions.find((s: Json) => s.heldOn >= "2026-10-06");
-  const night = async () =>
-    ((await dana.call("GET", "/api/bootstrap")).body as Json).sessions.find((s: Json) => s.id === session.id);
+  const night = async () => ((await dana.club()).body as Json).sessions.find((s: Json) => s.id === session.id);
   return { dana, session, night };
 }
 
@@ -139,7 +76,9 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     expect((await mo.change("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
     // An answer moves nothing on the calendar, so the agenda isn't read again (api.route.ts `calendar`)
-    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, credits, payments"]);
+    // Tonight's nights, not the weeks just held (#178); your own charges and dues line (a member sees no one else's,
+    // nor the club's total); and Home's people, since it was Mo's first answer
+    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, dues, people"]);
     expect(reg.club().sessions.find((s: Json) => s.id === f.session.id).going).toHaveLength(1);
   });
 
@@ -193,7 +132,7 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     await friday();
     const reg = await phoneOn("s1@example.com", ["members"]);
     const dana = await w.signedIn("dana@example.com");
-    const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+    const boot = (await dana.club()).body as Json;
     const role = boot.roles.find((r: Json) => !r.isSystem && !r.is_system) ?? boot.roles.at(-1);
     expect((await dana.call("PUT", `/api/roles/${role.id}`, { ...role })).status).toBe(200);
     await settled();
@@ -216,7 +155,8 @@ describe("the hub, in a burst", () => {
     const versions = [...first.data.versions, ...second.data.versions];
     expect(versions).toHaveLength(6);
     expect(new Set(versions).size).toBe(6);
-    expect(second.data.changed).toContain("sessions");
+    // A training answer names tonight's nights alone (#178)
+    expect(second.data.changed).toContain("tonight");
     expect(first.data.versions.length + second.data.versions.length).toBe(6);
     await reg.close();
   });
@@ -232,7 +172,7 @@ describe("the hub, in a burst", () => {
       expect((await mo.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
       expect(vi.getTimerCount()).toBe(0);
       const e = await reg.next();
-      expect(e.data.changed).toContain("sessions");
+      expect(e.data.changed).toContain("tonight");
     } finally {
       vi.useRealTimers();
     }

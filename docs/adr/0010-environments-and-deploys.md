@@ -1,7 +1,7 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-18
+- **Date:** 2026-10-05 · updated 2026-10-30
 - **Merges:** 0005, 0013, 0017, 0075
 
 ## Context
@@ -30,27 +30,46 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 | Sanity project      | **Cougars** (`ah165efl`), the live Studio           | **Cougars Dev** (`zmg6rbe3`): dev site, PRs, machines, local Studios |
 | Content             | Sanity                                              | Sanity, sample content where it's empty; always `noindex`            |
 
-**Deploys** (`.github/workflows/deploy.yml`, which runs the checks, rebuilds D1 from the schema and smoke-tests):
+**Deploys** (`.github/workflows/deploy.yml`, which builds, rebuilds D1 from the schema when it changed and smoke-tests;
+`pr.yml` runs the checks):
 
 | Trigger                  | Environment | Deploys                                                                     |
 | ------------------------ | ----------- | --------------------------------------------------------------------------- |
 | Pull request into `main` | dev         | a preview version of `web` (`pr-<n>` alias), linked on the PR               |
-| Push to `main`           | dev         | `web`, then the team app as `team`                                          |
+| Push to `main`           | dev         | `web`, the team app as `team`, and the Studio as `studio`                   |
 | Push to `release`        | production  | `web`, the team app as `team`, and the Studio as `studio`                   |
-| Daily, 04:30 UTC         | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
+| Daily, after 04:37 UTC   | production  | `web`, rebuilt from `release` ([ADR 0004](0004-astro-workers-sanity-d1.md)) |
 
+- **The club's outside accounts have no dev copy.** There's one club Instagram, one YouTube channel, one Google
+  project: we can't make dev versions of them, and a fake one would show nothing real. So dev, PR previews and your
+  machine read the **real** accounts, read-only, and show the club's real photos and videos, as production does.
+  Only credentials that can read and nothing more are shared like this: Instagram's token is one value for both
+  (plain `INSTAGRAM_TOKEN`), YouTube's key is one each (`__DEV` and `__PRODUCTION`, so a leaked dev key is revoked
+  alone), of the same channel. Anything that writes to an outside account (Gmail's send-only token is the one
+  exception, ADR 0027) is decided case by case. What dev keeps apart is our own data: its D1, its Sanity project.
 - **One job per app, and only the apps a change touches.** `deploy.yml`'s `changes` job reads the files a push or PR
-  changed: `apps/web/` and `scripts/` deploy the website, `apps/team/` the team app, `apps/studio/` the Studio, and
-  shared code, `db/`, the lockfile and the workflow itself deploy every app. A manual run picks with its `apps` input;
+  changed (both sides of a move): `apps/web/` and the club snapshot's scripts deploy the website, `apps/team/` (and its
+  build's budget and dev-server scripts) the team app, `apps/studio/` the Studio, and shared code, `db/`, the
+  lockfile, the workflow and its actions, and the scripts every job runs (`scripts/ci/`'s target, smoke test and
+  links; `env-pull.mjs`) deploy every app. The rest of `scripts/` (the show switch, setup and load scripts) deploys
+  nothing. A manual run picks with its `apps` input;
   a rebuild deploys the website only. The shared D1 database is its own `database` job (rebuild from the schema, seed
   the roster), run only when `db/` or its scripts change, or on a manual `all`; both apps wait for it then, and
   otherwise deploy side by side.
+- **PR checks run what a change can reach** (`pr.yml`, `scripts/ci/pr-plan.mjs`): the tiers of `npm run merge:check`
+  ([ADR 0115](0115-worktrees-and-the-show-switch.md)). Docs alone get a format check; code gets lint, knip and the tests,
+  then the checks and builds of its apps (a website change the team app's too); anything outside the apps, everything.
+  One job, so its name never changes.
+- **Every job restores its `node_modules`** from a cache keyed on the OS, Node and the lockfile (`.github/actions/setup`),
+  and runs `npm ci` only on a miss, saving the tree straight after: the install was most of every job.
 - **Every app is linked from GitHub's Deployments page**, under its own name: `web (dev)`, `web (PR preview)`,
   `web (production)`, `team (dev)`, `team (production)`, `studio (dev)`, `studio (production)` (`scripts/ci/link-deployment.sh`), and each run's summary
   lists them. Jobs read their GitHub environment's secrets with `deployment: false`, so `preview` and `production`
   list nothing of their own.
-- **Never deploy production by hand.** Going live is on purpose: fast-forward `release` to `main`
-  (`git push origin main:release`). GitHub enforces it: the `production` environment accepts deployments from
+- **Never deploy production by hand.** Going live is on purpose: a pull request from `main` into `release`, merged
+  once its PR checks pass (a merge commit, so `release` keeps `main`'s commits as they are). Work reaches `main` by
+  pull request too. GitHub enforces it: `release` takes changes only through a pull request whose checks pass
+  (a ruleset, `scripts/branch-rules.mjs`), the `production` environment accepts deployments from
   `release` only, and the `preview` environment holds only the dev Bitwarden token ([ADR 0002](0002-secrets-in-bitwarden.md)).
   `scripts/ci/target.mjs` points a build at one environment; only CI runs it for production.
 - A scheduled or dispatched rebuild runs on the default branch, so its only job starts the workflow again on `release`.
@@ -77,11 +96,12 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   ([ADR 0023](0023-sign-in-and-sessions.md)).
 - **CI trusts as little as it can** (#70): every action is pinned to a commit SHA (its tag in a comment), the
   Bitwarden CLI is checked against its published checksum before it runs, each workflow starts with
-  `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, and Dependabot
+  `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, every commit is scanned for secrets (gitleaks, the same way pinned
+  and checked; `pr.yml`, `secrets.yml`, [0002](0002-secrets-in-bitwarden.md)), and Dependabot
   proposes updates weekly, grouped, checked by `pr.yml`. `main` and `release` refuse force-pushes and deletion (a
-  repository ruleset).
-- **Production is behind Cloudflare Access until launch**, so it can be deployed and tried for real first: the site,
-  `www.` and the team app ask for an email and a one-time code and let in only the emails on its Admins policy, which
+  repository ruleset, `scripts/branch-rules.mjs`).
+- **The team app is behind Cloudflare Access until launch**, so it can be deployed and tried for real first (the
+  website, `batterseacougars.com` and `www.`, has been open since 2026-10-30): it asks for an email and a one-time code and let in only the emails on its Admins policy, which
   is managed by hand in the Zero Trust dashboard (`scripts/access-setup.mjs` starts it once, docs/setup.md). CI gets past it with a service token
   (`CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION`) for the smoke tests. Until the `production` environment's variable
   `LAUNCHED` is `true`, production's database rebuilds like dev's ([ADR 0050](0050-schema-and-seed-until-launch.md)).
@@ -94,13 +114,24 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   bootstrap's `unfinished` flag (true unless `SITE_ENV` is `production`) shows them on dev and locally to try, and
   production leaves them, and every link to them, out ([#63](https://github.com/battersea-cougars/ark/issues/63)). Each comes
   back for everyone when its backend lands.
+- **A corner ribbon says which copy you're on**: a small sticker-yellow band in the bottom-right corner (above the tabs
+  on a phone), and the same word in front of the tab's title, `LOCAL` on your machine and `DEV` on the dev account;
+  production has neither (`packages/shared/ribbon.ts`). Only a positive sign shows one: the website's build reads
+  `SITE_ENV` (`dev` from `deploy.yml` and `scripts/deploy-dev.sh`, none on a machine), so production's pages carry no
+  ribbon markup; the team app's reads `VITE_SITE_ENV` (`deploy.yml`), and none plus Vite's dev server is your machine.
+  Anything else, a team build on a machine included, shows nothing. On your machine the band has a second line, the
+  branch of the checkout the dev server runs from (ADR 0115), and the tab says it too (`[LOCAL team/review] Home`);
+  "own data" joins LOCAL when that checkout runs on its own local D1 (`npm run app -- --own-db`, or a worktree without
+  the show switch's `COUGARS_LOCAL_STATE`) rather than main's shared one. The configs read it from git once, when the
+  dev server starts (`packages/shared/ribbon.checkout.ts`); a deploy's build never does, so DEV and production are as
+  they were.
 - `DEMO_CONTENT` (sample events, videos, players and placeholder photos) is never on for production: what Sanity
   doesn't have yet, production doesn't show.
 
 ## Consequences
 
 - Two Cloudflare logins, two Sanity projects and their tokens to look after, documented in
-  [README.md#secrets](../../README.md#secrets). Webhooks, CORS origins, tokens and members are set up per Sanity
+  [docs/secrets.md](../secrets.md). Webhooks, CORS origins, tokens and members are set up per Sanity
   project ([setup.md](../setup.md#2-sanity-content-editing)); each counts against the free plan separately.
 - Each environment has its own database: a PR rebuilds dev, never production. Dev's data is rebuilt on each deploy
   from the schema and seed ([ADR 0050](0050-schema-and-seed-until-launch.md)).
@@ -145,3 +176,23 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   the list from the roster when it runs again.
 - 2026-10-18: The Studio moves off `battersea-cougars.sanity.studio` to its own Worker, `studio`: studio.batterseacougars.com
   from `release`, and now a dev Studio from `main` too (ADR 0112).
+- 2026-10-23: Deploy only what changed, more narrowly: only the scripts a deploy runs count, not all of `scripts/`;
+  PR checks run the merge:check tier their files reach; `node_modules` cached by lockfile, `npm ci` only on a miss
+  (#148).
+- 2026-10-24: The daily rebuild starts some time after 04:37 UTC, not at 04:30, and the nightly backup after 03:13:
+  GitHub runs schedules on the hour and the half and quarter hours late, or drops them (#148).
+- 2026-10-24: A corner ribbon and tab-title prefix, `LOCAL` on a machine and `DEV` on dev, on the website and the team
+  app; nothing in production.
+- 2026-10-24: On your machine the ribbon and the tab's title name the checkout's branch, and "own data" when it's on
+  its own local D1, since several worktrees' apps run at once.
+- 2026-10-24: Every commit is scanned for secrets with a pinned, checksum-checked gitleaks: `pr.yml` the PR's commits
+  (checked out whole now), `secrets.yml` the whole history on a push to `main` and weekly (#104).
+- 2026-10-30: The club's outside accounts (Instagram, YouTube) have no dev copy: dev, previews and your machine
+  read the real ones, read-only, so a change to the photos or videos can be seen locally. Instagram's token becomes one
+  value for both environments.
+- 2026-10-30: The website (`batterseacougars.com`, `www.`) is open to everyone; only the team app stays behind Access
+  until launch (`access-setup.mjs` gates `team.` alone). The database isn't launched yet: production still rebuilds
+  until `LAUNCHED`.
+- 2026-10-30: Changes go by pull request: work into `main`, and `main` into `release` to go live (was
+  `git push origin main:release`). A ruleset makes `release` take changes only through a pull request whose PR checks
+  pass; `pr.yml` checks PRs into `release` too. Both rulesets are written by `scripts/branch-rules.mjs`.

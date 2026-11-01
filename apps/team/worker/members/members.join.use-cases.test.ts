@@ -24,7 +24,7 @@ describe("someone asks to join", () => {
   it("the admins get an email at once, with a link to the member's sheet", async () => {
     expect((await asks()).status).toBe(200);
     const dana = await w.signedIn("dana@example.com");
-    const nina = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === "Nina New");
+    const nina = (await dana.club()).body.members.find((m: Json) => m.name === "Nina New");
     const mail = w.mails.find((m) => /Nina New/.test(m.subject))!;
     expect(mail).toBeTruthy();
     expect(mail.subject).toMatch(/asking to join/i);
@@ -41,7 +41,7 @@ describe("someone asks to join", () => {
   it("once an admin lets them in, they get “You're in” with the way to sign in", async () => {
     await asks();
     const dana = await w.signedIn("dana@example.com");
-    const nina = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === "Nina New");
+    const nina = (await dana.club()).body.members.find((m: Json) => m.name === "Nina New");
     expect(
       (await dana.call("PUT", `/api/members/${nina.id}`, { ...nina, status: "active", roles: ["Member"] })).status,
     ).toBe(200);
@@ -52,7 +52,7 @@ describe("someone asks to join", () => {
 
   it("an edit that doesn't let anyone in sends nothing", async () => {
     const dana = await w.signedIn("dana@example.com");
-    const reg = (await dana.call("GET", "/api/bootstrap")).body.members.find((m: Json) => m.name === "Reg Player");
+    const reg = (await dana.club()).body.members.find((m: Json) => m.name === "Reg Player");
     const before = w.mails.length;
     await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, rating: 61, roles: ["Member"] });
     expect(w.mails.length).toBe(before);

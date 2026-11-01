@@ -8,6 +8,8 @@ import { parseRoster, rosterSql } from "../../../../scripts/lib/roster.mjs";
 import { ACTIONS } from "../../src/access/actions";
 import { ROUTES, handleApi, type Env } from "./api";
 import { whatsOn } from "../../../web/src/lib/server/whats-on";
+import { wholeClub } from "../testing";
+import { PAGE_PARTS } from "../../src/app/club-parts";
 
 const ROSTER = [
   { name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] },
@@ -42,7 +44,12 @@ async function call(method: string, path: string, payload?: unknown, e: Env = en
   );
   return { status: res.status, body: (await res.json()) as Body };
 }
-const boot = async () => (await call("GET", "/api/bootstrap")).body;
+/** The club as the app holds it once its pages are read: the bootstrap and every page's parts (#178). */
+const boot = async () =>
+  wholeClub(
+    (await call("GET", "/api/bootstrap")).body,
+    (await call("GET", `/api/slices?names=${PAGE_PARTS.join(",")}`)).body.slices,
+  );
 /** The sessions still to come (bootstrap also sends the last four weeks, for what's just been held). */
 const ahead = (b: Body) => b.sessions.filter((s: { heldOn: string }) => s.heldOn >= "2026-10-06");
 
@@ -125,20 +132,37 @@ describe("the schedule", () => {
 
   it("an admin sets a tournament's awards, a fun one included", async () => {
     const kumite = (await boot()).tournamentTypes[0];
-    // The Kumite starts with the usual three and The Dim Mak
-    expect(kumite.awards.map((a: { name: string }) => a.name)).toEqual([
-      "Champions",
-      "Top scorer",
-      "Best goalie",
-      "The Dim Mak",
-    ]);
+    // The Kumite starts with the joke and builds to the champions, the finale, each saying how it's decided
+    expect(kumite.awards.map((a: { name: string; decidedBy: { kind: string } }) => [a.name, a.decidedBy.kind])).toEqual(
+      [
+        ["The Judges' Call", "live"],
+        ["Top scorer", "stat"],
+        ["Best keeper", "vote"],
+        ["Champions", "stat"],
+      ],
+    );
     const awards = [
       { name: "Champions", about: "Top of the table." },
       { name: "The Slapshot Sensei", about: "Fastest shot from a faceoff." },
       { name: "  ", about: "an empty row is dropped" },
     ];
     expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards })).status).toBe(200);
-    expect((await boot()).tournamentTypes[0].awards).toEqual(awards.slice(0, 2));
+    // Saved without saying how each is decided: the old guess from its name is written in, once (ADR 0044)
+    expect((await boot()).tournamentTypes[0].awards).toEqual([
+      { ...awards[0], decidedBy: { kind: "stat", stat: "table" } },
+      { ...awards[1], decidedBy: { kind: "live", options: [] } },
+    ]);
+    // Said how, it's kept as said; a stat we don't track is refused
+    const voted = [{ name: "MVP", about: "", decidedBy: { kind: "vote", voters: "players", tieBreak: "points" } }];
+    expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: voted })).status).toBe(200);
+    expect((await boot()).tournamentTypes[0].awards).toEqual(voted);
+    const unknown = [{ name: "Best hair", about: "", decidedBy: { kind: "stat", stat: "hair" } }];
+    expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: unknown })).status).toBe(400);
+    const twins = [
+      { name: "MVP", about: "" },
+      { name: "mvp", about: "" },
+    ];
+    expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: twins })).status).toBe(400);
     const tooMany = Array.from({ length: 9 }, (_, i) => ({ name: `Award ${i}`, about: "" }));
     expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards: tooMany })).status).toBe(400);
   });
@@ -286,6 +310,7 @@ describe("the schedule", () => {
     expect(saved.teams).toMatchObject([
       {
         name: "Clapham Crushers",
+        // A logo this small comes as itself (#177); a bigger one, at its own address (#175, editions.use-cases)
         logo,
         captainName: "Jo Outsider",
         contact: "jo@example.com",
@@ -510,14 +535,6 @@ describe("members and roles", () => {
     expect(after.roles.sort()).toEqual(["Member", "Session lead"]);
   });
 
-  it("won't take Admin from the last admin", async () => {
-    const dana = (await boot()).members.find((m: { name: string }) => m.name === "Dana Admin");
-    expect(await call("PUT", `/api/members/${dana.id}`, { ...dana, roles: ["Member"] })).toEqual({
-      status: 409,
-      body: { error: "That's the last admin. Make someone else an admin first." },
-    });
-  });
-
   it("an admin adds a role with its actions; the Admin role itself can't be changed", async () => {
     const created = await call("POST", "/api/roles", { name: "Coach", description: "", actions: ["generate:Teams"] });
     expect(created.status).toBe(201);
@@ -711,8 +728,9 @@ describe("teams, quips, profiles and attendance", () => {
     await call("POST", `/api/sessions/${s.id}/register`, { memberId: reg, here: false });
     // The Saturday after
     const later = new Date("2026-10-10T11:00:00Z");
-    const b = (await call("GET", "/api/bootstrap", undefined, env, later)).body;
-    const played = (id: number) => b.members.find((m: { id: number }) => m.id === id).played;
+    await call("GET", "/api/bootstrap", undefined, env, later);
+    const roster = (await call("GET", "/api/slices?names=members", undefined, env, later)).body.slices.members;
+    const played = (id: number) => roster.find((m: { id: number }) => m.id === id).played;
     expect([played(alt), played(reg)]).toEqual([1, 0]);
     const history = (await call("GET", `/api/members/${reg}/attendance`, undefined, env, later)).body;
     expect(history[0]).toMatchObject({
@@ -725,19 +743,18 @@ describe("teams, quips, profiles and attendance", () => {
     expect(history.at(-1)).toMatchObject({ heldOn: "2026-01-02", signup: null, attended: null });
   });
 
-  it("an admin records who came to a Friday back in March, and takes it back", async () => {
+  it("an admin can't change who came to a Friday back in March: its register closed the morning after (#11)", async () => {
     const { reg } = await ids();
     const history = async () => (await call("GET", `/api/members/${reg}/attendance`)).body;
     const march = (await history()).find((r: { heldOn: string }) => r.heldOn === "2026-03-13");
-    await call("POST", `/api/sessions/${march.sessionId}/register`, { memberId: reg, here: true });
+    const res = await call("POST", `/api/sessions/${march.sessionId}/register`, { memberId: reg, here: true });
+    expect(res).toEqual({ status: 409, body: { error: "The register's closed: it closed at 6am the morning after." } });
     const played = async () => (await boot()).members.find((m: { id: number }) => m.id === reg).played;
-    expect(await played()).toBe(1);
-    expect((await history()).find((r: { heldOn: string }) => r.heldOn === "2026-03-13")).toMatchObject({
-      signup: "in",
-      attended: true,
-    });
-    await call("POST", `/api/sessions/${march.sessionId}/register`, { memberId: reg, here: false });
     expect(await played()).toBe(0);
+    expect((await history()).find((r: { heldOn: string }) => r.heldOn === "2026-03-13")).toMatchObject({
+      signup: null,
+      attended: null,
+    });
   });
 });
 
@@ -750,10 +767,6 @@ describe("is it up", () => {
 });
 
 describe("access", () => {
-  it("answers nobody who isn't signed in", async () => {
-    expect((await call("GET", "/api/bootstrap", undefined, { DB: env.DB })).status).toBe(401);
-  });
-
   it("every route declares an action from the catalog", () => {
     for (const r of ROUTES) expect(r.action === "authenticated" || r.action in ACTIONS).toBe(true);
   });

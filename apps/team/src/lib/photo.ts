@@ -1,5 +1,5 @@
 /**
- * A member's profile photo (ADR 0123), shrunk in the browser to a 512px square from the middle of the picture, so
+ * A member's profile photo (ADR 0133), shrunk in the browser to a 512px square from the middle of the picture, so
  * it's small enough to keep in the database: WebP where the browser can write it, else JPEG. Throws when the file
  * isn't an image it can read (an iPhone's HEIC is turned into a JPEG by the phone when it's picked).
  */

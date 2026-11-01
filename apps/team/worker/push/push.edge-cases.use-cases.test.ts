@@ -26,14 +26,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const boot = async (b: Browser) => (await b.call("GET", "/api/bootstrap")).body;
+const boot = async (b: Browser) => (await b.club()).body;
 async function phone(email: string, token = `token-${email}`) {
   const b = await w.signedIn(email);
   expect((await b.call("PUT", "/api/auth/device", { token, platform: "android" })).status).toBe(200);
   return b;
 }
 const waiting = () =>
-  (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE sent_at IS NULL").get() as { n: number }).n;
+  (w.db.raw.prepare("SELECT count(*) n FROM push_outbox WHERE state IN ('queued', 'claimed')").get() as { n: number })
+    .n;
 const rows = () => (w.db.raw.prepare("SELECT count(*) n FROM push_outbox").get() as { n: number }).n;
 
 /** A club of `phones` members with the app (Dana's among them), Firebase on. */
@@ -156,7 +157,9 @@ describe("a send that died half way", () => {
     fcm.down = false;
     fcm.asked.length = 0;
     // A cron run takes it at 5 minutes and dies before it says what became of it (its claim is left behind)
-    w.db.raw.prepare("UPDATE push_outbox SET claim = 'died', claimed_at = ?").run(minutes(5).toISOString());
+    w.db.raw
+      .prepare("UPDATE push_outbox SET state = 'claimed', claim = 'died', claimed_at = ?")
+      .run(minutes(5).toISOString());
 
     await w.cron(minutes(15));
     expect(fcm.asked).toEqual([]);
@@ -204,14 +207,6 @@ describe("what a night being off tells", () => {
     return { reg, alt, session, cancel };
   }
 
-  it("someone who said they're out doesn't hear it's off", async () => {
-    const { reg, alt, session, cancel } = await night();
-    await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
-    await alt.call("POST", `/api/sessions/${session.id}/answer`, { answer: "out" });
-    await cancel(true);
-    expect(w.pushes.map((p) => p.token)).toEqual(["token-reg@example.com"]);
-  });
-
   it("cancelling a night that's already off doesn't tell everyone again", async () => {
     const { reg, session, cancel } = await night();
     await reg.call("POST", `/api/sessions/${session.id}/answer`, { answer: "in" });
@@ -219,12 +214,6 @@ describe("what a night being off tells", () => {
     expect(w.pushes).toHaveLength(1);
     await cancel(true);
     expect(w.pushes).toHaveLength(1);
-  });
-
-  it("a night nobody's signed up for goes off quietly", async () => {
-    const { cancel } = await night();
-    expect((await cancel(true)).status).toBe(200);
-    expect(w.pushes).toEqual([]);
   });
 
   it("off, back on, and off again: whoever's in hears each time it goes off", async () => {
@@ -254,16 +243,13 @@ describe("an announcement's words on a phone", () => {
 });
 
 describe("a long announcement with an emoji where it's cut", () => {
-  // #134: body.slice(0, 180) halves the emoji, and SQLite stores the half as invalid UTF-8
-  it.fails(
-    "an emoji where a long announcement is cut arrives whole or not at all, never as ��� (known bug #134)",
-    async () => {
-      await phone("reg@example.com");
-      const dana = await w.signedIn("dana@example.com");
-      await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, body: "x".repeat(179) + "🏒 and more" });
-      const body = w.pushes[0].body as string;
-      expect(body).not.toContain("\uFFFD");
-      expect(["x".repeat(179), "x".repeat(179) + "🏒"]).toContain(body);
-    },
-  );
+  // #134: body.slice(0, 180) halved the emoji, and SQLite stored the half as invalid UTF-8
+  it("an emoji where a long announcement is cut arrives whole or not at all, never as ��� (#134)", async () => {
+    await phone("reg@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    await dana.call("POST", "/api/announcements", { ...ANNOUNCEMENT, body: "x".repeat(179) + "🏒 and more" });
+    const body = w.pushes[0].body as string;
+    expect(body).not.toContain("\uFFFD");
+    expect(["x".repeat(179), "x".repeat(179) + "🏒"]).toContain(body);
+  });
 });

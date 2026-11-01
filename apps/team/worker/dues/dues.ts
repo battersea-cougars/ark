@@ -6,7 +6,7 @@
 import { all, batch, changesOf, first, run, statement, type Param } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { QUARTER, feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } from "../../src/lib/dues";
-import { londonToday } from "../../src/lib/dates";
+import { londonToday } from "@cougars/shared/london";
 import { HttpError, isDay } from "../api/api.http";
 import { bumpDataVersion } from "../api/api.version";
 
@@ -255,7 +255,7 @@ export const seriesFees = (db: D1Database, id: number) =>
   );
 
 /** A training in SQL: `?` and its id, or a subquery for one not made yet (by its slug), so its fees can go in the batch
- * that makes it. */
+ * that makes it. Null when the batch's write of it was refused (ADR 0122): its fees go nowhere. */
 export interface SeriesRef {
   sql: string;
   params: Param[];
@@ -283,8 +283,8 @@ export async function seriesFeeChange(
     statement(
       db,
       `INSERT INTO series_fees (series_id, effective_from, amount_pence)
-       SELECT ${series.sql}, value ->> 'from', value ->> 'pence' FROM json_each(?)`,
-      [...series.params, JSON.stringify(fees)],
+       SELECT ${series.sql}, value ->> 'from', value ->> 'pence' FROM json_each(?) WHERE ${series.sql} IS NOT NULL`,
+      [...series.params, JSON.stringify(fees), ...series.params],
     ),
   ];
 }
@@ -327,14 +327,17 @@ export async function addQuarterCharge(
     throw new HttpError(400, "How much? There's no quarterly membership price set for then.");
   if (await first(db, "SELECT 1 FROM charges WHERE member_id = ? AND quarter = ?", [memberId, o.quarter]))
     throw new HttpError(409, "They're already charged for that quarter.");
-  const res = await run(
+  // Two admins at once both pass the check above: the index lets one in and the other is told it's there
+  const added = await first<{ id: number }>(
     db,
-    `INSERT INTO charges (member_id, quarter, amount_pence, due_on, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO charges (member_id, quarter, amount_pence, due_on, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (quarter, member_id) WHERE quarter IS NOT NULL DO NOTHING RETURNING id`,
     [memberId, o.quarter, pence as number, dueOn, now, by],
   );
+  if (!added) throw new HttpError(409, "They're already charged for that quarter.");
   // Its training nights are paid for now
   await chargeAttendance(db, londonToday(new Date(now)), now);
-  return { id: Number(res.meta.last_row_id) };
+  return { id: added.id };
 }
 
 /**
@@ -376,16 +379,16 @@ interface Owed {
 function credit(db: D1Database, memberId?: number): D1PreparedStatement[] {
   const who = memberId === undefined ? "" : "AND p.member_id = ?";
   const params = memberId === undefined ? [] : [memberId];
-  const spare = `SELECT p.id, p.member_id, p.amount_pence - COALESCE((SELECT SUM(pa.amount_pence)
-       FROM payment_allocations pa WHERE pa.payment_id = p.id), 0) spare
-     FROM payments p WHERE spare > 0 ${who}`;
+  // What's spent and paid is kept on each payment and charge (the schema's triggers), so these are found by index:
+  // only the payments with credit, and their members' charges with something left (#177)
+  const spare = `SELECT p.id, p.member_id, p.amount_pence - p.spent_pence spare
+     FROM payments p WHERE p.spent_pence < p.amount_pence ${who}`;
   return [
     statement(db, `${spare} ORDER BY p.received_on, p.id`, params),
     statement(
       db,
-      `SELECT c.id, c.member_id, c.amount_pence - COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa
-         WHERE pa.charge_id = c.id), 0) "left"
-       FROM charges c WHERE "left" > 0 AND c.member_id IN (SELECT member_id FROM (${spare}))
+      `SELECT c.id, c.member_id, c.amount_pence - c.paid_pence "left"
+       FROM charges c WHERE c.paid_pence < c.amount_pence AND c.member_id IN (SELECT member_id FROM (${spare}))
        ORDER BY c.due_on, c.id`,
       params,
     ),

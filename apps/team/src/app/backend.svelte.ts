@@ -3,8 +3,9 @@
 // (demo/store.svelte.ts), so what you see is what's stored. Screens change the copy at once for a quick answer, then
 // the reply brings back what the server decided (the waitlist, say). The whole club is read when the app opens, when
 // it comes back into view (only if something changed, ADR 0053), and after a failed change; a live page reads just
-// the parts the hub says changed (`copy`, catch-up.ts, ADR 0072).
+// the parts the hub says changed, or puts in place the live match it sent (`copy`, catch-up.ts, ADR 0072).
 import type { MemberRow, Role } from "../demo/data";
+import { tournamentBody } from "../lib/tournament-body";
 import {
   applySlices,
   hydrate,
@@ -23,23 +24,30 @@ import {
   AGENDA,
   SETTINGS,
   CHARGES,
-  CREDITS,
-  PAYMENTS,
+  DUES,
   REMINDERS,
   SUBSCRIPTION_FEES,
+  FOR_ADMINS,
+  ACTIONS,
 } from "../demo/data";
 import type { Bootstrap, Position, Slices } from "../demo/data";
 import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
-import { api, bootstrapIfChanged, brake, getBootstrap, readSlices, versionOf } from "./api";
-import { ClubCopy } from "./catch-up";
+import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, held, readSlices, versionOf } from "./api";
+import { ClubCopy, withMatch } from "./catch-up";
+import { partsChanged } from "./club-parts";
+import { letGo, onParts, revalidate } from "./page-data.svelte";
+import { forgetEdition, keptAreStale, showTournaments } from "./editions.svelte";
+import { reportUnexpected } from "./errors.early";
 import type { Tournament, TournamentType, TrainingSeries, Venue } from "../demo/model";
 import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
+import type { pastBody } from "../lib/past-kumite";
+import { plural } from "../lib/dates";
 
-/** The last save's outcome, shown briefly by the shell. */
-export const saving = $state({ busy: 0, message: "", failed: false });
+/** The last save's outcome, shown briefly by the shell; `refused`, how the Worker refused it (409: something changed). */
+export const saving = $state({ busy: 0, message: "", failed: false, refused: 0 });
 
 // Each slice of the club, copied into the store from demo/data.ts once it's in place there
 const COPY: Record<keyof Slices, () => void> = {
@@ -47,6 +55,9 @@ const COPY: Record<keyof Slices, () => void> = {
   members: () => {
     db.members = structuredClone(MEMBERS);
   },
+  // Home's people and the roster are one list in the store (demo/data.ts), as are the nights, the tournaments and
+  // what's owed (#178)
+  people: () => COPY.members(),
   roles: () => {
     db.roles = structuredClone(ROLES);
   },
@@ -60,12 +71,16 @@ const COPY: Record<keyof Slices, () => void> = {
     db.sessions = structuredClone(SESSIONS);
     db.teams = structuredClone(TEAMS);
   },
+  pastSessions: () => COPY.sessions(),
   tournamentTypes: () => {
     db.tournamentTypes = structuredClone(TOURNAMENT_TYPES);
   },
+  // The club's, and the past ones read when they were opened (app/editions.svelte.ts), asked about again when shown
   tournaments: () => {
-    db.tournaments = structuredClone(TOURNAMENTS);
+    keptAreStale();
+    showTournaments();
   },
+  lastPlayed: () => COPY.tournaments(),
   clubEvents: () => {
     db.oneOffs = structuredClone(ONE_OFFS);
   },
@@ -78,15 +93,14 @@ const COPY: Record<keyof Slices, () => void> = {
   agenda: () => {
     db.agenda = structuredClone(AGENDA);
   },
+  // Your unpaid charges, and what each owes: a ledger shown reads itself again when they come (app/ledger.svelte.ts)
   charges: () => {
     db.charges = structuredClone(CHARGES);
   },
-  credits: () => {
-    db.credits = structuredClone(CREDITS);
+  dues: () => {
+    db.dues = structuredClone(DUES);
   },
-  payments: () => {
-    db.payments = structuredClone(PAYMENTS);
-  },
+  clubDues: () => COPY.dues(),
   reminders: () => {
     db.reminders = structuredClone(REMINDERS);
   },
@@ -95,6 +109,9 @@ const COPY: Record<keyof Slices, () => void> = {
   },
   notifications: () => {
     db.notifications = structuredClone(NOTIFICATIONS);
+  },
+  forAdmins: () => {
+    db.forAdmins = structuredClone(FOR_ADMINS);
   },
   // Only when it's changed: live pages' checks follow it, and would otherwise start again after every refresh
   settings: () => {
@@ -109,12 +126,31 @@ function apply(changed: Slices) {
   for (const key of Object.keys(changed) as (keyof Slices)[]) COPY[key]?.();
 }
 
-/** The whole club in place, and the data version it's at. */
+/**
+ * The core in place, and the data version it's at (#178). The pages' parts held were read before it: when the club
+ * has changed since, they're asked about again with their tags (unchanged, an empty 304).
+ */
 function whole(b: Bootstrap) {
+  const was = copy.held;
   hydrate(b);
   copyAll();
   copy.wholeAt(versionOf(b) ?? 0);
+  // ...and who you are in it, and who you're viewing as (ADR 0024)
+  startSession();
+  if (was && copy.held !== was)
+    revalidate().catch((e) => reportUnexpected(e, "Couldn't read the pages' parts again after the club changed"));
 }
+
+// A page's parts, as page-data.svelte.ts reads them: as new as the copy's, or (new to the app) in place as they came
+onParts((slices, version, fresh) => {
+  if (!version) return apply(slices as Slices);
+  const newer = copy.partsAt(version, slices);
+  apply((fresh ? slices : newer) as Slices);
+});
+
+/** Whether the server lets this sign-in see everyone's dues (ADR 0007): what a change to them means to this copy. */
+const seesDues = () =>
+  ACTIONS.includes("manage:all") || ACTIONS.includes("read:Dues") || ACTIONS.includes("record:Payment");
 
 /** When the whole club was last read or found unchanged: a live page opening just after doesn't ask again. */
 export const checked = { at: 0 };
@@ -125,17 +161,28 @@ export const checked = { at: 0 };
  */
 export const copy = new ClubCopy({
   // A background read, like a check: not while the brake says wait (ADR 0055); the page's beat catches up after
-  readParts: (names) => (brake.mayCheck() ? readSlices(names) : Promise.reject(new Error("resting"))),
-  readWhole: () => (brake.mayCheck() ? refreshIfChanged() : Promise.reject(new Error("resting"))),
+  readParts: (names) => (brake.mayCheck() ? readSlices(names) : Promise.reject(new ApiError(429, "resting"))),
+  readWhole: () => (brake.mayCheck() ? refreshIfChanged() : Promise.reject(new ApiError(429, "resting"))),
+  // Refused, offline or resting isn't reported; anything else is ours to hear of
+  failed: (e) => reportUnexpected(e, "Couldn't catch up with the club's changes"),
   apply: (slices) => apply(slices as Slices),
+  // A live match the hub sent (#161): its games in place of the tournament's
+  applyMatch: (match) => {
+    const tournaments = withMatch(TOURNAMENTS, match);
+    if (tournaments) apply({ tournaments } as Slices);
+    return Boolean(tournaments);
+  },
   visible: () => document.visibilityState === "visible",
+  // A family's parts the app holds: the core's, and the pages' it's read (#178)
+  partsOf: (families) => partsChanged(families, held.parts(), seesDues()),
+  // ...and a page's that changed while no page in view shows it: read again when one opens
+  letGo,
 });
 
 /** The club's data, in place before the app mounts (main.ts): the store, and who you are in it. */
 export function start(b: Bootstrap) {
   whole(b);
   checked.at = Date.now();
-  startSession();
 }
 
 /** Reload the whole club into the app. */
@@ -172,7 +219,9 @@ export async function pullToRefresh() {
 // whose own reply is on its way.
 if (typeof document !== "undefined")
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && !saving.busy) refreshIfChanged().catch(() => {});
+    // Offline or refused: the page's own check tries again; anything else is ours to hear of
+    if (document.visibilityState === "visible" && !saving.busy)
+      refreshIfChanged().catch((e) => reportUnexpected(e, "Couldn't read what changed while away"));
   });
 
 let clearing: ReturnType<typeof setTimeout> | undefined;
@@ -182,6 +231,9 @@ function say(message: string, failed: boolean) {
   clearing = setTimeout(() => (saving.message = ""), failed ? 6000 : 2200);
 }
 
+/** Say something in the save note that no save of yours did (the draft room: the turn passed while you were picking). */
+export const tell = (message: string) => say(message, false);
+
 /**
  * Send a change, then put what it touched in place (the whole club, if the reply doesn't say). Says `done` ("Saved") or what went wrong; an empty `done` stays quiet on success,
  * for taps that show their own result. Returns the server's reply, or null if it failed.
@@ -189,6 +241,7 @@ function say(message: string, failed: boolean) {
 export async function save<T>(change: () => Promise<T>, done = "Saved"): Promise<T | null> {
   // A new save: the last one's note gives way to this one's
   if (done) saving.message = "";
+  saving.refused = 0;
   saving.busy++;
   try {
     const result = await change();
@@ -200,8 +253,10 @@ export async function save<T>(change: () => Promise<T>, done = "Saved"): Promise
     if (done) say(done, false);
     return result;
   } catch (e) {
+    saving.refused = e instanceof ApiError ? e.status : 0;
     say(e instanceof Error ? e.message : "Couldn't save.", true);
-    await refresh().catch(() => {});
+    // The save's failure is said above; a refresh that fails too is only ours to hear of when it isn't the network
+    await refresh().catch((r) => reportUnexpected(r, "Couldn't read the club again after a failed save"));
     return null;
   } finally {
     saving.busy--;
@@ -217,11 +272,12 @@ function entryPath(key: string) {
   return `/api/${ENTRY_PATHS[kind]}/${id}`;
 }
 /** You say in or out. */
-export const answerFor = (key: string, answer: "in" | "out") =>
+/** In or out; "clear" takes back your Out, back to not answered (ADR 0131). */
+export const answerFor = (key: string, answer: "in" | "out" | "clear") =>
   save(() => api("POST", `${entryPath(key)}/answer`, { answer }), "");
 /** Where someone is on a session now, as the server says after a change (ADR 0030). */
 type Placed = { signup: "in" | "waitlist" | "out" | null };
-/** An admin puts someone in a session (in if there's room, else waiting: ADR 0030), or takes them off. */
+/** An admin puts someone in a session (in if there's room, else waiting: ADR 0131), or takes them off. */
 export const setPlayer = async (sessionId: number, memberId: number, inIt: boolean) => {
   const r = await save(() => api<Placed>("POST", `/api/sessions/${sessionId}/players`, { memberId, in: inIt }), "");
   if (r) say(!inIt ? "Taken off" : r.signup === "waitlist" ? "Full: on the waiting list" : "Added", false);
@@ -245,16 +301,10 @@ export const resetSession = (sessionId: number) =>
 /** One kind of notification on or off, for you (ADR 0108). Quiet: the switch is its own answer. */
 export const chooseNotification = (topic: Topic, on: boolean) =>
   save(() => api("PUT", "/api/me/notifications", { [topic]: on }), "");
-/** Your own phone, position, bio, the name you go by and your default Kumite team name. */
-export const saveProfile = (p: {
-  position: Position;
-  phone: string;
-  bio: string;
-  webName: string;
-  /** Left out: as it is */
-  kumiteTeamName?: string;
-}) => save(() => api("PUT", "/api/me", p));
-/** Your profile photo (ADR 0123), shrunk on your phone (lib/photo.ts); null takes it down. */
+/** Your own phone, position, bio and the name you go by. */
+export const saveProfile = (p: { position: Position; phone: string; bio: string; webName: string }) =>
+  save(() => api("PUT", "/api/me", p));
+/** Your profile photo (ADR 0133), shrunk on your phone (lib/photo.ts); null takes it down. */
 export const savePhoto = (photo: string | null) =>
   save(() => api("PUT", "/api/me/photo", { photo }), photo ? "Photo saved" : "Photo removed");
 /** A code to the address you want to sign in with (ADR 0023): what to say, and the code itself on your own machine. Quiet: the form says. */
@@ -263,6 +313,13 @@ export const askEmailCode = (email: string) =>
 /** The code from the new address: it's your sign-in email from now on. */
 export const confirmEmailCode = (code: string) =>
   save(() => api<{ email: string }>("POST", "/api/me/email/confirm", { code }), "Email changed");
+/** View the app as a member, read-only, or (null) go back to yourself (ADR 0024): the server answers this sign-in as
+ * them until then, and the whole club is read again as whoever it's now shown as. Whether it took. */
+export const viewAs = async (memberId: number | null) =>
+  (await save(
+    () => (memberId === null ? api("DELETE", "/api/me/view-as") : api("PUT", "/api/me/view-as", { memberId })),
+    "",
+  )) !== null;
 /** The role the app opens as (ADR 0024); null for your full role. */
 export const saveEverydayRole = (roleId: number | null) => save(() => api("PUT", "/api/me/everyday-role", { roleId }));
 /** Another member's everyday role, or null for their full role (ADR 0024). */
@@ -334,17 +391,31 @@ export const markHere = async (sessionId: number, memberId: number, here: boolea
 export const markAttendance = (memberId: number, marks: { sessionId: number; here: boolean }[]) =>
   save(() => api("PUT", `/api/members/${memberId}/attendance`, { marks }), "");
 
-/** An admin adds someone to the club; the app emails them a link to itself (ADR 0069). */
-export const addMember = async (name: string, email: string, position: string) => {
+/** An admin adds someone to the club; the app emails them a link to itself unless asked not to (ADR 0069, #164). */
+export const addMember = async (name: string, email: string, position: string, emailThem = true) => {
   const r = await save(
-    () => api<{ id: number; emailed: boolean }>("POST", "/api/members", { name, email, position }),
+    () => api<{ id: number; emailed: boolean }>("POST", "/api/members", { name, email, position, emailThem }),
     "",
   );
+  const first = name.split(" ")[0];
   if (r)
     say(
-      r.emailed
-        ? `${name.split(" ")[0]}'s in. We've emailed them a link.`
-        : `${name.split(" ")[0]}'s in, but the email didn't go: send them the link yourself.`,
+      !emailThem
+        ? `${first}'s in. No email: send them the link from their card when they're ready.`
+        : r.emailed
+          ? `${first}'s in. We've emailed them a link.`
+          : `${first}'s in, but the email didn't go: send them the link yourself.`,
+      emailThem && !r.emailed,
+    );
+  return r;
+};
+
+/** An admin emails a member the link to the app after all (#164): someone added quietly, or whose email went astray. */
+export const sendAppLink = async (memberId: number, name: string) => {
+  const r = await save(() => api<{ emailed: boolean }>("POST", `/api/members/${memberId}/app-link`), "");
+  if (r)
+    say(
+      r.emailed ? `We've emailed ${name} a link to the app.` : `The email didn't go: send ${name} the link yourself.`,
       !r.emailed,
     );
   return r;
@@ -374,7 +445,7 @@ export const importMembers = async (file: string) => {
     () => api<{ added: string[]; skipped: number }>("POST", "/api/members/import", { file, apply: true }),
     "",
   );
-  if (r) say(`${r.added.length} member${r.added.length === 1 ? "" : "s"} added.`, false);
+  if (r) say(`${plural(r.added.length, "member")} added.`, false);
   return r;
 };
 
@@ -383,8 +454,6 @@ export const saveMember = (m: MemberRow) =>
     api("PUT", `/api/members/${m.player.id}`, {
       name: m.player.name,
       webName: m.player.webName ?? "",
-      // Only once there's one to say: left out, it stays as it is
-      ...(m.player.kumiteTeamName != null && { kumiteTeamName: m.player.kumiteTeamName }),
       position: m.player.position,
       rating: m.player.rating,
       cougar: m.player.cougar,
@@ -400,6 +469,10 @@ export const eraseMember = (memberId: number) =>
 /** An admin signs a member out on every browser and phone (#72): they sign in again with a code. */
 export const signOutMember = (memberId: number) =>
   save(() => api("POST", `/api/members/${memberId}/sign-out`), "Signed out everywhere");
+
+/** An admin removes a member's passkeys (ADR 0023): they sign in with a code next time; their sign-ins stay. */
+export const removeMemberPasskeys = (memberId: number) =>
+  save(() => api("DELETE", `/api/members/${memberId}/passkeys`), "Passkeys removed");
 
 /** An admin sets a member's email (what they sign in with) and phone. */
 export const saveContact = (memberId: number, email: string, phone: string) =>
@@ -494,14 +567,17 @@ export const sendReminders = (memberIds?: number[]) =>
     "",
   );
 
-export const createSeries = (s: TrainingSeries) =>
-  save(() => api<{ id: number; slug: string }>("POST", "/api/series", seriesBody(s)), "Training added");
-export const updateSeries = (s: TrainingSeries) => save(() => api("PUT", `/api/series/${s.id}`, seriesBody(s)));
+/** `clashes`: what its editor asked about, held to the save (ADR 0122); something else on then refuses it (409). */
+export const createSeries = (s: TrainingSeries, clashes?: string[]) =>
+  save(() => api<{ id: number; slug: string }>("POST", "/api/series", { ...seriesBody(s), clashes }), "Training added");
+export const updateSeries = (s: TrainingSeries, clashes?: string[]) =>
+  save(() => api("PUT", `/api/series/${s.id}`, { ...seriesBody(s), clashes }));
 /** The next 12 weeks of a training's sessions, past the last one made. */
 export const moreSessions = (seriesId: number) => save(() => api("POST", `/api/series/${seriesId}/more`), "");
-export const setCancelled = (sessionId: number, cancelled: boolean) =>
+/** A night off (by hand, or for a tournament on its day: #186) or back on, whatever kept it off. */
+export const setCancelled = (sessionId: number, cancelled: boolean, tournamentId?: number) =>
   save(
-    () => api("POST", `/api/sessions/${sessionId}/cancelled`, { cancelled }),
+    () => api("POST", `/api/sessions/${sessionId}/cancelled`, { cancelled, tournamentId }),
     cancelled ? "Session cancelled" : "Session restored",
   );
 
@@ -538,43 +614,9 @@ export const createTournamentType = (t: TournamentType) =>
 export const updateTournamentType = (t: TournamentType) =>
   save(() => api("PUT", `/api/tournament-types/${t.id}`, typeBody(t)));
 
-const tournamentBody = (t: Tournament) => ({
-  typeId: t.typeId,
-  name: t.name,
-  venueId: t.venueId,
-  location: t.location,
-  mapUrl: t.mapUrl,
-  heldOn: t.heldOn,
-  startTime: t.startTime,
-  endTime: t.endTime,
-  capacity: t.capacity,
-  status: t.status,
-  feePence: t.feePence,
-  season: t.season,
-  public: t.public,
-  signupOpensOn: t.signupOpensOn,
-  signupClosesOn: t.signupClosesOn,
-  draftOn: t.draftOn,
-  pointsWin: t.pointsWin,
-  pointsDraw: t.pointsDraw,
-  pointsLoss: t.pointsLoss,
-  gameMinutes: t.gameMinutes,
-  penaltyRule: t.penaltyRule,
-  periods: t.periods,
-  defaultPenaltyMinutes: t.defaultPenaltyMinutes,
-  breakMinutes: t.breakMinutes,
-  kind: t.kind,
-  awards: t.awards,
-  playoffs: t.playoffs,
-  teams: t.teams,
-  afterMode: t.afterMode,
-  afterVenueId: t.afterVenueId,
-  afterTime: t.afterTime,
-  afterNote: t.afterNote,
-});
 /** The captain on the clock (or whoever's running the draft) picks a member, for the turn after `turn` picks. */
 export const draftPick = (tournamentId: number, memberId: number, turn: number) =>
-  save(() => api("POST", `/api/tournaments/${tournamentId}/draft/picks`, { memberId, turn }), "Picked");
+  save(() => api("POST", `/api/tournaments/${tournamentId}/draft/picks`, { memberId, turn }), "Chosen");
 /** Whoever's running the draft takes back the last pick. */
 export const undoDraftPick = (tournamentId: number) =>
   save(() => api("DELETE", `/api/tournaments/${tournamentId}/draft/picks/last`), "Pick undone");
@@ -599,18 +641,15 @@ export const openDraft = (tournamentId: number) =>
 /** ...and closes it: everyone's picked, or the rest are left out on purpose. The teams are then set. */
 export const closeDraft = (tournamentId: number, leaveOut = false) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/draft/close`, { leaveOut }), "The draft is closed");
-/** Whoever runs the draft reopens a closed one, keeping the fixtures or clearing them, results and all (ADR 0060). */
-export const reopenDraft = (tournamentId: number, fixtures: "keep" | "clear") =>
-  save(
-    () => api("POST", `/api/tournaments/${tournamentId}/draft/reopen`, { fixtures }),
-    fixtures === "clear" ? "The draft is open again, the fixtures cleared" : "The draft is open again",
-  );
 /** One step of a tournament's workflow back, from the step it's at (lib/step-back.ts, ADR 0074). */
 export const stepBack = (tournamentId: number, from: string, said: string) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/step-back`, { from }), said);
-/** An admin clears the fixtures, results and all, to be made again (ADR 0061). */
-export const clearFixtures = (tournamentId: number) =>
-  save(() => api("DELETE", `/api/tournaments/${tournamentId}/fixtures`), "Fixtures cleared");
+/** Moves a captains' draft to any of its statuses at once, from the one the page saw (lib/move-to.ts, ADR 0074). */
+export const moveTournament = (tournamentId: number, from: string, to: string, said: string) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/move`, { from, to }), said);
+/** An admin closes sign-up now, not on its closing day: a draft moves on to Draft open (ADR 0074). */
+export const closeSignup = (tournamentId: number) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/signup/close`), "Sign-up closed");
 /** Everyone's picked (or the rest left out): one tap closes the draft and makes the fixtures (ADR 0060). */
 export const finishDraft = (tournamentId: number, leaveOut = false) =>
   save(
@@ -631,6 +670,20 @@ export const holdScoresheet = (tournamentId: number, gameId: number, action: "cl
     () => api("POST", `${gamePath(tournamentId, gameId)}/scorer`, { action }),
     action === "claim" ? "You're keeping score" : "Scoresheet's free",
   );
+/**
+ * An admin's say over someone's scoresheet (#116): take it over (theirs from where the game is), or free it, from
+ * whoever their page saw holding it.
+ */
+export const overrideScoresheet = (
+  tournamentId: number,
+  gameId: number,
+  action: "takeover" | "free",
+  from: number | null,
+) =>
+  save(
+    () => api("POST", `${gamePath(tournamentId, gameId)}/scorer/admin`, { action, from }),
+    action === "takeover" ? "It's yours: you're scoring" : "Scoresheet's free",
+  );
 /** The clock: start (or start again), pause, or full time (the score's the result). */
 export const clockGame = (tournamentId: number, gameId: number, action: "start" | "pause" | "end") =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action }), action === "end" ? "Full time" : "");
@@ -638,17 +691,41 @@ export const clockGame = (tournamentId: number, gameId: number, action: "start" 
 export const nextPeriod = (tournamentId: number, gameId: number, period: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "period", period }), "");
 /** Who won a tournament's awards, the whole list (ADR 0044). */
-export const setWinners = (
+/**
+ * Confirming the awards (ADR 0044): every winner (a vote's the Worker counts), voting closed with it. A vote that's
+ * level after its tie-break comes back as `tied`, nothing saved, for the admin to choose among.
+ */
+export async function setWinners(
   tournamentId: number,
-  winners: { award: string; teamId: number | null; memberId: number | null }[],
-) => save(() => api("PUT", `/api/tournaments/${tournamentId}/winners`, { winners }), "Awards saved");
+  winners: { award: string; teamId: number | null; memberId: number | null; title?: string }[],
+) {
+  const r = await save(
+    () => api<{ tied?: Record<string, number[]> }>("PUT", `/api/tournaments/${tournamentId}/winners`, { winners }),
+    "",
+  );
+  if (r && !r.tied) say("Awards confirmed. On to the reveal.", false);
+  if (r?.tied) say("Level on votes: choose among them, then confirm.", false);
+  return r;
+}
 /** The next award revealed at the after-party (ADR 0074): `next`, its place in the list, the one shown face down. */
 export const revealAward = (tournamentId: number, next: number) =>
   save(() => api("POST", `/api/tournaments/${tournamentId}/awards/reveal`, { next }), "");
+/** Next award (ADR 0074): the drum rolls on from the one just revealed to the next, sealed; `at`, how many are out. */
+export const nextAward = (tournamentId: number, at: number) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/awards/next`, { at }), "");
+/** A member's votes for the after-party's voted awards (ADR 0044): one an award, secret, till they're confirmed. */
+export const castVotes = (tournamentId: number, votes: { award: string; memberId: number }[]) =>
+  save(() => api("POST", `/api/tournaments/${tournamentId}/votes`, { votes }), "Votes in. The judges thank you.");
+/** A past one recorded (ADR 0126): its day, teams, results and awards in one go, straight into history. */
+export const recordPastKumite = (body: ReturnType<typeof pastBody>) =>
+  save(() => api<{ id: number }>("POST", "/api/tournaments/past", body), "Recorded: it's in the history");
 /** The time left on the clock, by the scorekeeper's watch: paused, or running on from there. */
 export const setGameClock = (tournamentId: number, gameId: number, leftMs: number) =>
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "set", leftMs }), "Clock set");
-/** A goal as it goes in: its team, who scored, who assisted. */
+/**
+ * A goal as it goes in: its team, who scored, who assisted. The tap's id is made here, as the button's pressed, so the
+ * same tap sent twice (another phone, a retry) is one goal (#114).
+ */
 export const addGoal = (
   tournamentId: number,
   gameId: number,
@@ -659,14 +736,20 @@ export const addGoal = (
     atMs?: number | null;
     period?: number | null;
   },
-) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/goals`, goal), "Goal");
+) => {
+  const tapId = crypto.randomUUID();
+  return save(() => api("POST", `${gamePath(tournamentId, gameId)}/goals`, { ...goal, tapId }), "Goal");
+};
 /** Any goal off a finished game: an admin putting the result right. */
 export const removeGoal = (tournamentId: number, gameId: number, goalId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/${goalId}`), "Goal taken off");
-/** The last goal comes off. */
-export const undoGoal = (tournamentId: number, gameId: number) =>
-  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/last`), "Goal taken back");
-/** A penalty as it's called (or, for an admin after the game, at the time they say): team, who, minutes, what for. */
+/** The last goal comes off: the one the page shows as last, so Undo tapped twice takes it off once (#114). */
+export const undoGoal = (tournamentId: number, gameId: number, goalId: number) =>
+  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/last?goal=${goalId}`), "Goal taken back");
+/**
+ * A penalty as it's called (or, for an admin after the game, at the time they say): team, who, minutes, what for. Its
+ * tap's id as for a goal (#114).
+ */
 export const addPenalty = (
   tournamentId: number,
   gameId: number,
@@ -678,20 +761,29 @@ export const addPenalty = (
     atMs?: number | null;
     period?: number | null;
   },
-) => save(() => api("POST", `${gamePath(tournamentId, gameId)}/penalties`, penalty), "Penalty");
+) => {
+  const tapId = crypto.randomUUID();
+  return save(() => api("POST", `${gamePath(tournamentId, gameId)}/penalties`, { ...penalty, tapId }), "Penalty");
+};
 /** Any penalty off a finished game: an admin putting it right. */
 export const removePenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/${penaltyId}`), "Penalty taken off");
-/** The last penalty comes off. */
-export const undoPenalty = (tournamentId: number, gameId: number) =>
-  save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/last`), "Penalty taken back");
+/** The last penalty comes off: the one the page shows as last (#114). */
+export const undoPenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
+  save(
+    () => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/last?penalty=${penaltyId}`),
+    "Penalty taken back",
+  );
 
 export const createTournament = (t: Tournament) =>
   save(() => api<{ id: number }>("POST", "/api/tournaments", tournamentBody(t)), "Date added");
 export const updateTournament = (t: Tournament) =>
   save(() => api("PUT", `/api/tournaments/${t.id}`, tournamentBody(t)));
 /** Gone, with its teams, sign-ups, games and awards. */
-export const deleteTournament = (id: number) => save(() => api("DELETE", `/api/tournaments/${id}`), "Deleted");
+export const deleteTournament = (id: number) => {
+  forgetEdition(id);
+  return save(() => api("DELETE", `/api/tournaments/${id}`), "Deleted");
+};
 
 /** A one-off event as the app sends it. */
 export interface ClubEventBody {
@@ -711,44 +803,3 @@ export const createClubEvent = (e: ClubEventBody) =>
 export const updateClubEvent = (id: number, e: ClubEventBody) => save(() => api("PUT", `/api/club-events/${id}`, e));
 export const setClubEventCancelled = (id: number, cancelled: boolean) =>
   save(() => api("POST", `/api/club-events/${id}/cancelled`, { cancelled }), cancelled ? "Cancelled" : "Back on");
-
-// ─── Something already on then (ADR 0122) ───
-
-/** Something on the calendar a new time is over (worker/calendar/clashes.ts). */
-export interface Clash {
-  source: "session" | "tournament" | "club_event";
-  /** Null for a training night its rule gives that isn't made yet. */
-  id: number | null;
-  seriesId: number | null;
-  title: string;
-  day: string;
-  startsAt: string;
-  endsAt: string;
-  canCancel: boolean;
-  signedUp: number;
-}
-/** What's on between these two times; `except` is the thing being edited ("tournament:5"). */
-export async function findClashes(w: { startsAt: string; endsAt: string; except?: string }) {
-  const q = [`startsAt=${encodeURIComponent(w.startsAt)}`, `endsAt=${encodeURIComponent(w.endsAt)}`];
-  if (w.except) q.push(`except=${encodeURIComponent(w.except)}`);
-  return (await api<{ clashes: Clash[] }>("GET", `/api/calendar/clashes?${q.join("&")}`)).clashes;
-}
-/**
- * Call off what the admin chose, after their save went in: each by its own cancel (the members told, nobody charged),
- * a training night past the weeks made ahead made first. How many went off.
- */
-export async function cancelClashes(chosen: Clash[]) {
-  let off = 0;
-  for (const c of chosen) {
-    if (c.source === "club_event" && c.id) {
-      if ((await setClubEventCancelled(c.id, true)) !== null) off++;
-    } else if (c.source === "session") {
-      const id =
-        c.id ??
-        (await save(() => api<{ id: number }>("POST", `/api/series/${c.seriesId}/sessions`, { heldOn: c.day }), ""))
-          ?.id;
-      if (id && (await setCancelled(id, true)) !== null) off++;
-    }
-  }
-  return off;
-}

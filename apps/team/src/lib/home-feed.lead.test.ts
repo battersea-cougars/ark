@@ -4,19 +4,11 @@
 import { describe, expect, it } from "vitest";
 import type { AgendaRow, Tournament, TournamentType } from "../demo/model";
 import { homeFeed, type FeedInput, type UpcomingEvent } from "./home-feed";
+import { team } from "./kumite.testing";
 
 const ME = 7;
 const TODAY = "2026-10-21";
 const type = { id: 1, slug: "kumite", name: "The Cougars Kumite", shortName: "Kumite" } as TournamentType;
-const team = (id: number, captain: number, players: number[] = []) => ({
-  id,
-  name: "",
-  logo: null,
-  captainMemberId: captain,
-  captainName: "",
-  contact: "",
-  players: players.map((memberId) => ({ memberId, name: "" })),
-});
 const game = (id: number, position: number, home: number, away: number, status = "next") =>
   ({ id, position, homeTeamId: home, awayTeamId: away, status }) as never;
 /** A Kumite you're on Team 2 in, its fixtures out: your fight is game 3, at 10:00 + 2 × (12 + 5) = 10:34. */
@@ -253,9 +245,9 @@ describe("the Kumite this Friday, the Friday's training off for it", () => {
     const rows = feed({ tournaments: [notIn], upcoming: [{ type, t: notIn }], events: [off, next, theKumite({})] });
     expect(rows.lead).toMatchObject({ kind: "event", key: "tournament:10", role: "notIn" });
     // Coming up: the night that's off says so, and the Friday after it shows too
-    expect(rows.upcoming.map((r) => [r.key, r.sub])).toEqual([
-      ["session:1", "7:30 to 9pm · Cancelled"],
-      ["session:2", "7:30 to 9pm · Are you in?"],
+    expect(rows.upcoming.map((r) => [r.key, r.sub, r.cancelled])).toEqual([
+      ["session:1", "7:30 to 9pm", true],
+      ["session:2", "7:30 to 9pm · Are you in?", undefined],
     ]);
   });
 
@@ -311,5 +303,58 @@ describe("the evening a Kumite ends, its after-party leads (ADR 0074)", () => {
   it("no after-party: the next thing leads as before", () => {
     const f = feed({ tournaments: [played], upcoming: [], events: [friday], now: "2026-10-21T21:40:00Z" });
     expect(f.lead).toMatchObject({ kind: "event", key: "session:5" });
+  });
+});
+
+// Status, not the date, says what's past, on or next (ADR 0074, #182): each event comes with its phase (lib/phase.ts)
+describe("Home's hero and Coming up go by status, never the date", () => {
+  it("a Kumite played early, its day still ahead, is past: it neither leads nor is coming up", () => {
+    const played = kumite({ games: [game(83, 3, 2, 3, "done")] });
+    const rows = feed({
+      tournaments: [played],
+      upcoming: [],
+      events: [{ ...kumiteEvent(played), phase: "past" }, ev("session:2", "2026-11-06T19:00:00Z")],
+    });
+    expect(rows.lead).toMatchObject({ kind: "event", key: "session:2" });
+    expect(rows.upcoming).toEqual([]);
+  });
+
+  it("a training night past its end, its register still open, is still the one: not next week's", () => {
+    const tonight = ev("session:1", "2026-10-21T18:30:00Z", { phase: "on", asking: false, standing: "in" });
+    const rows = feed({
+      tournaments: [],
+      upcoming: [],
+      now: "2026-10-21T22:30:00Z",
+      events: [tonight, ev("session:2", "2026-10-28T19:30:00Z", { phase: "next" })],
+    });
+    expect(rows.lead).toMatchObject({ kind: "event", key: "session:1" });
+    expect(rows.upcoming.map((r) => r.key)).toEqual(["session:2"]);
+  });
+
+  it("after midnight, last night's training still leads till its register closes at 06:00", () => {
+    const lastNight = ev("session:1", "2026-10-20T18:30:00Z", { phase: "on", asking: false, standing: "in" });
+    const rows = feed({ tournaments: [], upcoming: [], now: "2026-10-21T00:30:00Z", events: [lastNight] });
+    expect(rows.lead).toMatchObject({ kind: "event", key: "session:1" });
+  });
+
+  it("your fight in a Kumite whose day went by unplayed is still next: it leads until it's played", () => {
+    const late = kumite({ heldOn: "2026-10-17" });
+    const rows = feed({
+      tournaments: [late],
+      upcoming: [{ type, t: late }],
+      events: [{ ...kumiteEvent(late), startsAt: "2026-10-17T09:00:00Z", phase: "next" }],
+    });
+    expect(rows.lead).toMatchObject({ kind: "fight", fight: { game: { id: 83 } } });
+  });
+
+  it("a Kumite on now, played before its day, leads ahead of a Friday that comes before its date", () => {
+    const on = kumite({ games: [game(81, 1, 1, 3, "done"), game(82, 2, 1, 3, "live"), game(83, 3, 2, 3)] });
+    const rows = feed({
+      tournaments: [on],
+      upcoming: [{ type, t: on }],
+      now: "2026-10-21T19:00:00Z",
+      events: [{ ...kumiteEvent(on), phase: "on" }, ev("session:1", "2026-10-23T18:30:00Z", { phase: "next" })],
+    });
+    expect(rows.lead).toMatchObject({ kind: "fight", fight: { game: { id: 83 } } });
   });
 });

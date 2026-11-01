@@ -4,10 +4,14 @@ import { ClientRouter } from "astro:transitions";
 import { Font } from "astro:assets";
 import headScript from "../scripts/head.js?url";
 import { PUBLIC_BUILD_VERSION } from "astro:env/client";
+import { SITE_ENV, WEB_ANALYTICS_TOKEN } from "astro:env/server";
+import { analyticsBeacon } from "../lib/analytics";
 import { demo, devSanity, getSettings } from "../lib/sanity/content";
 import { jsonLd } from "../lib/structured-data";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import EnvRibbon from "../components/EnvRibbon.astro";
+import { withRibbon, type Ribbon } from "@cougars/shared/ribbon";
 // Ready-sized files used as they are: server-rendered pages (/photos, ADR 0016) can't resize at build time.
 import carbonImage from "../assets/cougars_background.webp";
 
@@ -34,10 +38,15 @@ const {
   structuredData,
   noindex = false,
 } = Astro.props;
-const fullTitle = title ? `${title} · ${site}` : `${site} · Inline hockey in Battersea, London`;
+// LOCAL (with the checkout) or DEV, fixed at build time (astro.config.mjs); empty in production
+const ribbonJson: string = import.meta.env.ENV_RIBBON;
+const ribbon = ribbonJson ? (JSON.parse(ribbonJson) as Ribbon) : undefined;
+const fullTitle = withRibbon(ribbon, title ? `${title} · ${site}` : `${site} · Inline hockey in Battersea, London`);
 const og = image ?? new URL(`/og/${card}.png`, Astro.site).href;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const carbon = carbonImage.src;
+// Page views, production only, without cookies (the privacy page says so; lib/analytics.ts)
+const beacon = analyticsBeacon(SITE_ENV, WEB_ANALYTICS_TOKEN);
 ---
 
 <!doctype html>
@@ -75,6 +84,7 @@ const carbon = carbonImage.src;
     <Font cssVariable="--font-display" preload />
     <Font cssVariable="--font-osd" preload />
     <ClientRouter fallback="swap" />
+    {beacon && <script is:inline defer src={beacon.src} data-cf-beacon={beacon.config} />}
   </head>
   <body style={`--carbon:url(${carbon})`}>
     <a class="skip visually-hidden" href="#main">
@@ -90,6 +100,7 @@ const carbon = carbonImage.src;
       <slot />
     </main>
     <Footer />
+    {ribbon && <EnvRibbon ribbon={ribbon} />}
     <div class="scrollbar" data-scrollbar aria-hidden="true" transition:persist="scrollbar">
       <div class="scrollbar-thumb" data-scrollbar-thumb></div>
     </div>

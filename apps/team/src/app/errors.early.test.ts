@@ -1,5 +1,5 @@
-// What goes wrong before Sentry is up (errors.early.ts, ADR 0111): kept from the first moment and handed over once it
-// starts, the start-up's own failure too. The browser-level check (Safari's engine, the real build) is in ADR 0111's
+// What goes wrong before Sentry is up (errors.early.ts, ADR 0110): kept from the first moment and handed over once it
+// starts, the start-up's own failure too. The browser-level check (Safari's engine, the real build) is in ADR 0110's
 // History; this keeps the order and the hand-off right.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,6 +56,18 @@ describe("errors before Sentry is up", () => {
     const sent: unknown[] = [];
     early.handOff((error) => void sent.push(error));
     expect(sent).toEqual(["boom"]);
+  });
+
+  it("a failure the app caught and carried on past (a clash question it couldn't ask) reaches Sentry, and the console on your machine", () => {
+    const said = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sent: unknown[][] = [];
+    early.handOff((error, how) => void sent.push([error, how]));
+    const failed = new Error("GET /api/clashes → 500");
+    early.reportCaught(failed, "Couldn't ask what's on then");
+    expect(sent).toEqual([[failed, "caught"]]);
+    // Vitest runs as dev: the console.error the dev strip shows (dev-errors.ts)
+    expect(said).toHaveBeenCalledWith("Couldn't ask what's on then:", failed);
+    said.mockRestore();
   });
 
   it("a loop that throws before Sentry is up keeps only the first 20", () => {

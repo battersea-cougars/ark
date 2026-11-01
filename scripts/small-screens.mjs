@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Small screens: visits every team-app page (and its main sheets and drawers) in WebKit at phone widths and reports
 // what doesn't fit: the page scrolling sideways, things past the right edge, words cut short by an ellipsis, and
-// small tap targets. Screenshots go to --out/<width>/<page>.png to look at.
+// small tap targets. Screenshots go to <out>/<width>/<page>.png to look at: .shots/small-screens unless --out
+// (git-ignored; every testing screenshot goes in .shots/, docs/testing.md).
 //
 //   node scripts/dev-sign-in.mjs --port <team port>      # signs in, writes .auth/team.json
 //   node scripts/small-screens.mjs --port <team port> [--widths 320,360,375] [--only game,schedule] [--out dir]
@@ -9,9 +10,10 @@
 // Needs Playwright (npx playwright install webkit); set PLAYWRIGHT_DIR to a node_modules that has it if it isn't here.
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildRoutes } from "../apps/team/src/app/nav-routes.ts";
+import { PAGE_PARTS } from "../apps/team/src/app/club-parts.ts";
+import { wholeClub } from "../apps/team/src/app/club-whole.ts";
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -22,13 +24,15 @@ if (!port) throw new Error("--port <team app port> (npm run app -- --private pri
 const base = `http://localhost:${port}`;
 const widths = arg("widths", "320,360,375").split(",").map(Number);
 const only = arg("only", "")?.split(",").filter(Boolean);
-const out = arg("out", join(tmpdir(), "small-screens"));
+const out = arg("out", join(".shots", "small-screens"));
 const require = createRequire(process.env.PLAYWRIGHT_DIR ?? import.meta.url);
 const { webkit } = require("playwright");
 
 const state = JSON.parse(readFileSync(".auth/team.json", "utf8"));
 const cookie = state.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-const boot = await (await fetch(`${base}/api/bootstrap`, { headers: { cookie } })).json();
+const read = async (path) => (await fetch(`${base}${path}`, { headers: { cookie } })).json();
+// The club as the app holds it once its pages are read (#178): the core, and every page's parts
+const boot = wholeClub(await read("/api/bootstrap"), (await read(`/api/slices?names=${PAGE_PARTS.join(",")}`)).slices);
 
 // The route tree from the same function the app uses, fed from the bootstrap: a couple of each kind of page
 const routes = buildRoutes({

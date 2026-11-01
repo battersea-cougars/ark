@@ -8,7 +8,7 @@
   import { goesBy, shortName } from "../../lib/names";
   import Avatar from "../../lib/Avatar.svelte";
   import { type Snippet } from "svelte";
-  import { granted, impersonating, me, realMember, rolesOf, viewAs } from "../../demo/session.svelte";
+  import { granted, impersonating, me, realMember, rolesOf } from "../../demo/session.svelte";
   import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
   import { railFoot, railItems, railOn } from "../rail";
   import type { Route, TabId } from "../nav-routes";
@@ -23,7 +23,7 @@
   import Sheet from "../../lib/Sheet.svelte";
   import { phone } from "../../lib/viewport.svelte";
   import { pageBar } from "./page-bar.svelte";
-  import { saving } from "../backend.svelte";
+  import { saving, viewAs } from "../backend.svelte";
   import { update } from "../update.svelte";
 
   let { route, children }: { route: Route; children: Snippet } = $props();
@@ -75,6 +75,24 @@
   let pinnedH = $state(0);
   let content: HTMLElement | undefined = $state();
 
+  // A link inside the page took you to another: the link leaves with its page, so focus goes to the new page rather
+  // than back to the top of the document (a keyboard or screen reader carries on from there). Focus in the dock or
+  // the tabs stays where it is.
+  let shownRoute = "";
+  $effect(() => {
+    const id = route.id;
+    if (!shownRoute || shownRoute === id) return void (shownRoute = id);
+    shownRoute = id;
+    const was = document.activeElement;
+    if (!content || (was && was !== document.body && !content.contains(was))) return;
+    content.focus({ preventScroll: true });
+  });
+  // Skip to the page: past the dock and the corners, for a keyboard
+  function skipToPage(e: MouseEvent) {
+    e.preventDefault();
+    content?.focus({ preventScroll: true });
+  }
+
   let filtersOpen = $state(false);
   // The desktop header shows the section's pages as pills in its toolbar row
   $effect(() => {
@@ -84,6 +102,10 @@
   // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
   const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
   // A tournament series' pages have none: their stage track, under the header, is the way between them (ADR 0074)
+  // Viewing as someone (ADR 0024): back to yourself, on the server, then a page you can see
+  async function backToYou() {
+    if (await viewAs(null)) stayIfAllowed();
+  }
   const showBar = $derived(!route.focus && route.id !== "home" && !onTrack(route));
 
   // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
@@ -273,6 +295,7 @@
 </script>
 
 <div class="shell" class:focus={route.focus} class:in-settings={inSettings && !phone.current}>
+  <a class="skip" href="#page" onclick={skipToPage}>Skip to the page</a>
   <!-- Desktop: the dock, floating mid-left -->
   <nav class="dock" aria-label="Main" inert={route.focus || undefined}>
     {#each dock as item (item.id)}{@render dockItem(item)}{/each}
@@ -288,7 +311,6 @@
       href={item.href}
       aria-current={item.on ? "page" : undefined}
       aria-label={item.name}
-      title={foot ? item.name : undefined}
       onclick={foot ? () => enterSettings() : undefined}
     >
       <Icon name={item.icon} size={20} />
@@ -336,7 +358,7 @@
               Viewing as <strong>{goesBy(me())}</strong>
               <span class="viewing-role">· {rolesOf(me().id).join(", ")} · read-only</span>
             </span>
-            <button class="btn sm viewing-back" onclick={() => (viewAs(null), stayIfAllowed())}>
+            <button class="btn sm viewing-back" onclick={backToYou}>
               Back to {shortName(realMember())}
             </button>
           </div>
@@ -392,10 +414,10 @@
               class:on={route.tab === "more" && route.group === "You"}
               class:as={impersonating()}
               href="/me"
-              aria-label="You: {goesBy(me())}"
               aria-current={route.id === "profile" ? "page" : undefined}
               title="You"
             >
+              <span class="sr-only">You: {goesBy(me())}</span>
               <Avatar player={me()} />
             </a>
           </div>
@@ -433,7 +455,9 @@
 
     <!-- (bar-tucked and --bar-h: for what sticks under the bar, to follow it up: Friday's table) -->
     <div
+      id="page"
       class="content"
+      tabindex="-1"
       class:bar-tucked={tucked}
       bind:this={content}
       style:--chrome-h="{chromeH}px"
@@ -541,6 +565,26 @@
     flex: 1;
     min-height: 0;
   }
+  /* Focused only to carry the keyboard into a new page: no ring round the whole page */
+  .content:focus-visible {
+    outline: none;
+  }
+  /* Out of sight until a keyboard reaches it, first in the tab order */
+  .skip {
+    position: fixed;
+    top: var(--s-2);
+    left: var(--s-2);
+    z-index: 100;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-md);
+    background: var(--surface-3);
+    color: var(--fg);
+    font-weight: 600;
+    translate: 0 -200%;
+  }
+  .skip:focus-visible {
+    translate: 0;
+  }
   /* Views stack, so one can leave while the next slides in. Each scrolls on its own, under the chrome. */
   .view {
     position: absolute;
@@ -621,29 +665,53 @@
   .dock-item.foot {
     margin-top: var(--s-5);
   }
+  /* Its name on hover: a small poster tag, the page titles' heavy italic capitals with the logo's red slash, frosted,
+     sliding out of the rail after a beat (so sweeping past the rail doesn't flash every name) */
   .dock-label {
     position: absolute;
     left: calc(100% + var(--s-3));
     top: 50%;
-    translate: 0 -50%;
-    padding: 0.4rem 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.8rem 0.4rem 0.65rem;
     border-radius: var(--r-sm);
-    border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent);
-    background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+    background: color-mix(in srgb, var(--surface-3) 88%, transparent);
+    backdrop-filter: blur(12px) saturate(1.2);
     color: var(--fg);
-    font-size: var(--text-2xs);
-    font-weight: 700;
-    letter-spacing: var(--tracking-label);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: var(--text-sm);
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     white-space: nowrap;
-    box-shadow: var(--shadow);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 14px 30px -14px rgb(0 0 0 / 0.9);
     opacity: 0;
+    translate: -6px -50%;
     pointer-events: none;
-    transition: opacity var(--t-fast) var(--ease-in-out);
+    transition:
+      opacity var(--t-fast) var(--ease-in-out),
+      translate var(--t-fast) var(--ease-in-out);
+  }
+  .dock-label::before {
+    content: "";
+    width: 3px;
+    height: 0.95em;
+    background: var(--red);
+    transform: skewX(-24deg);
   }
   .dock-item:hover .dock-label,
   .dock-item:focus-visible .dock-label {
     opacity: 1;
+    translate: 0 -50%;
+    transition-delay: 140ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dock-label {
+      translate: 0 -50%;
+    }
   }
 
   /* ─── The save note (toast): a small pill at the bottom centre, above the tabs on a phone. It rises from the

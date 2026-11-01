@@ -6,26 +6,27 @@
   // sends them on its own (ADR 0007; a configurable schedule is #143). Manage (ADR 0065) keeps the bank details.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
+  import { csvCell } from "../lib/csv";
   import MemberSheet from "../lib/MemberSheet.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
   import { PLAYERS, referenceFor } from "../demo/data";
   import { db } from "../demo/store.svelte";
-  import { BUCKETS, aged } from "../lib/dues";
+  import { BUCKETS, agedOf } from "../lib/dues";
   import { londonToday, pounds } from "../lib/dates";
   import { listScroll } from "../lib/list-scroll";
   import SearchField from "../lib/SearchField.svelte";
   import { flip } from "svelte/animate";
   import { cardMoveMs, easeOut, sift } from "../app/motion";
-  import Sheet from "../lib/Sheet.svelte";
+  import ManageMenu from "../lib/ManageMenu.svelte";
+  import type { ManageItem } from "../lib/ManageList.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import BankSheet from "../lib/BankSheet.svelte";
   import RemindReview from "../lib/RemindReview.svelte";
-  import { phone } from "../lib/viewport.svelte";
 
   const rows = $derived(
-    aged(db.charges, londonToday()).map((r) => ({
+    agedOf(db.dues).map((r) => ({
       ...r,
       player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: "Someone who's left" },
       reference: referenceFor(r.memberId),
@@ -54,24 +55,29 @@
   let reminding = $state(false);
   let banking = $state(false);
   // A tool opens its own drawer or sheet: the menu gets out of the way first
-  function go(run: () => void) {
-    manageOpen = false;
-    run();
-  }
+  const manageItems: ManageItem[] = $derived([
+    {
+      icon: "bank",
+      label: "Bank details",
+      sub: db.settings.bank
+        ? `${db.settings.bank.sortCode} · ${db.settings.bank.account}`
+        : "Not filled in yet: reminders need them.",
+      run: () => (banking = true),
+    },
+  ]);
   // Whose card is open; someone who's left the club has no card, so their row doesn't open
   let open = $state<number | null>(null);
   const opened = $derived(db.members.find((m) => m.player.id === open));
 
   /** The report as a spreadsheet: one row per member, a column per bucket. */
   function exportCsv() {
-    const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const money = (p: number) => (p / 100).toFixed(2);
     const lines = [
       ["Name", "Reference", ...BUCKETS, "Total"],
       ...rows.map((r) => [r.player.name, r.reference, ...r.amounts.map(money), money(r.total)]),
       ["Total", "", ...totals.map(money), money(grand)],
     ];
-    const blob = new Blob([lines.map((l) => l.map(cell).join(",")).join("\r\n")], { type: "text/csv" });
+    const blob = new Blob([lines.map((l) => l.map(csvCell).join(",")).join("\r\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `unpaid-fees-${londonToday()}.csv`;
@@ -175,29 +181,7 @@
   </div>
 </div>
 
-{#snippet manageTools()}
-  <div class="tools">
-    {#if setsFees}
-      <button class="tool" onclick={() => go(() => (banking = true))}>
-        <Icon name="bank" size={22} />
-        <span class="tool-text"
-          ><strong>Bank details</strong><span
-            >{db.settings.bank
-              ? `${db.settings.bank.sortCode} · ${db.settings.bank.account}`
-              : "Not filled in yet: reminders need them."}</span
-          ></span
-        >
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/if}
-  </div>
-{/snippet}
-
-{#if phone.current}
-  <Sheet bind:open={manageOpen} title="Manage unpaid fees">{@render manageTools()}</Sheet>
-{:else}
-  <Drawer bind:open={manageOpen} title="Manage unpaid fees">{@render manageTools()}</Drawer>
-{/if}
+<ManageMenu bind:open={manageOpen} title="Manage unpaid fees" items={manageItems} />
 
 <!-- A list that grows with the club: a side drawer (full screen on a phone) -->
 <Drawer bind:open={reminding} wide title="Send reminders" sub="Who gets one, and what it says, before anything goes">
@@ -225,40 +209,6 @@
 
 <style>
   /* Manage's tools, as on Members and Training */
-  .tools {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.25rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    font: inherit;
-    text-align: left;
-  }
-  .tool:active {
-    background: var(--surface-3);
-  }
-  .tool-text {
-    display: grid;
-    flex: 1;
-    gap: 0.15rem;
-    min-width: 0;
-  }
-  .tool-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .tool-text span {
-    font-size: var(--text-sm);
-  }
   .total {
     display: grid;
     gap: var(--s-1);

@@ -1,10 +1,13 @@
 // Reading the schedule: sessions resolved against their series, the next session or tournament, and the
 // calendar as one list. Everything here reads `db`, so pages that use it update when an admin edits a series.
-import { nightOpen, nightOpensOn, opensWords, signupOpen } from "../lib/signup";
-import { atAfters, currentOf, editionState, latestOf, previousOf } from "../lib/edition";
+import { nightOpen, nightOpensOn, opensWords, signupOpen, signupOver } from "../lib/signup";
+import { atAfters, byWhen, currentOf, editionState, hasStarted, latestOf } from "../lib/edition";
 import { clockRange, formatDayDate, formatTime, londonEvening, londonISO, londonToday } from "../lib/dates";
 import type { AgendaRow, Bookable, OneOff, Tournament, TournamentType, TrainingSeries, TrainingSession } from "./model";
 import { db } from "./store.svelte";
+import { nightPath, trainingNights } from "../lib/night-off";
+import { registerClosed, registerClosedWords } from "../lib/register-closes";
+import { nightPhase, timedPhase, tournamentPhase, type Phase } from "../lib/phase";
 import { seasonLabel, seasonYear } from "@cougars/shared/seasons";
 import { afterOf, placeOf, type Place } from "@cougars/shared/places";
 
@@ -70,6 +73,10 @@ export function sessionBookable(session: TrainingSession): Bookable {
   const opensOn = nightOpensOn(r.heldOn, r.series.signupOpensDays);
   const opens =
     opensOn && !nightOpen(r.heldOn, r.series.signupOpensDays, today) ? opensWords(opensOn, today, true) : undefined;
+  // Once it's started, who's in is the register's (ADR 0131, #167): the server refuses a member's own In or Out
+  const startsAt = londonISO(r.heldOn, r.startTime);
+  const endsAt = londonISO(r.heldOn, r.endTime);
+  const started = !r.cancelled && Date.now() >= Date.parse(startsAt);
   return {
     key: `session:${session.id}`,
     kind: "training",
@@ -77,15 +84,26 @@ export function sessionBookable(session: TrainingSession): Bookable {
     icon: r.series.icon,
     tone: r.series.tone,
     title: r.series.name,
-    startsAt: londonISO(r.heldOn, r.startTime),
-    endsAt: londonISO(r.heldOn, r.endTime),
+    startsAt,
+    endsAt,
     ...where(r.place),
     signup: !r.cancelled,
+    started,
+    // Over, then (06:00 the morning after, #11) the register's closed: what it says is the record
+    startedWords: !started
+      ? undefined
+      : registerClosed(r.heldOn)
+        ? registerClosedWords(r.heldOn)
+        : Date.now() >= Date.parse(endsAt)
+          ? "Over: the register says who came"
+          : "Started: the register says who's in",
     capacity: r.capacity,
     goalieCapacity: r.goalieCapacity,
     cancelled: r.cancelled,
-    href: `/training/${r.series.slug}`,
+    href: nightPath(r.series.slug, r.heldOn),
     opens,
+    // Held once its register closes, not when its time's up (lib/phase.ts)
+    phase: nightPhase({ heldOn: r.heldOn, startsAt, registerClosedAt: session.registerClosedAt }),
     entries: session,
   };
 }
@@ -103,7 +121,11 @@ export function tournamentBookable(t: Tournament): Bookable {
     startsAt: londonISO(t.heldOn, t.startTime),
     endsAt: londonISO(t.heldOn, t.endTime),
     ...where(tournamentPlace(t)),
-    signup: signupOpen(t, londonToday()),
+    // Started (or played early), nobody's signing up, whatever its sign-up's dates say
+    signup: signupOpen(t, londonToday()) && !hasStarted(t),
+    started: hasStarted(t),
+    // By its games, never its date (lib/phase.ts): played early is past, its day gone by unplayed still next
+    phase: tournamentPhase(t),
     capacity: t.capacity,
     dateTbc: !!t.season,
     season: t.season ? { name: t.season, year: seasonYear(t.season, t.heldOn) } : undefined,
@@ -112,27 +134,27 @@ export function tournamentBookable(t: Tournament): Bookable {
   };
 }
 
-/** Past the last day to say you're in (London), for a tournament with one. */
-export const signupClosed = (t: Tournament, today = londonToday()) => !!t.signupClosesOn && today > t.signupClosesOn;
+/** Past the last day to say you're in (London), for a tournament with one, or an admin closed it. */
+export const signupClosed = (t: Tournament, today = londonToday()) => signupOver(t, today);
 
-/** The next session of a series that isn't cancelled (or the next at all, if they all are). */
-export function nextSession(series: TrainingSeries, today = londonToday()): TrainingSession | undefined {
-  const future = db.sessions.filter((s) => s.seriesId === series.id && s.heldOn >= today);
-  return future.find((s) => !s.cancelledAt) ?? future[0];
-}
+/**
+ * The next session of a series that isn't cancelled (or the next at all, if they all are): from London's evening, so
+ * last night's is still it till its register closes at 06:00 (lib/phase.ts).
+ */
+export const nextSession = (series: TrainingSeries, evening = londonEvening()): TrainingSession | undefined =>
+  trainingNights(db.sessions, series.id, evening).shown;
+
+/** A training's page: its next night that's on, and those off from then to it, or one night's own (lib/night-off.ts). */
+export const seriesNights = (series: TrainingSeries, evening = londonEvening(), on?: string) =>
+  trainingNights(db.sessions, series.id, evening, on);
 
 /** A series' latest (lib/edition.ts latestOf): what the app's Home teases. */
-export const latestTournament = (typeId: number, today = londonToday()) =>
-  latestOf(
-    db.tournaments.filter((t) => t.typeId === typeId),
-    today,
-  );
+export const latestTournament = (typeId: number) => latestOf(db.tournaments.filter((t) => t.typeId === typeId));
 
 /** What a series' pages show: the one on or coming up, else none (lib/edition.ts currentOf). */
-export const currentTournament = (typeId: number, today = londonToday(), evening = londonEvening()) =>
+export const currentTournament = (typeId: number, evening = londonEvening()) =>
   currentOf(
     db.tournaments.filter((t) => t.typeId === typeId),
-    today,
     evening,
   );
 
@@ -141,14 +163,7 @@ export const currentTournament = (typeId: number, today = londonToday(), evening
 export const pastTournaments = (typeId: number, evening = londonEvening()) =>
   db.tournaments
     .filter((t) => t.typeId === typeId && editionState(t) === "done" && !atAfters(t, evening))
-    .sort((a, b) => b.heldOn.localeCompare(a.heldOn));
-
-/** The last one played before this (lib/edition.ts previousOf). */
-export const previousTournament = (t: Tournament) =>
-  previousOf(
-    db.tournaments.filter((x) => x.typeId === t.typeId),
-    t,
-  );
+    .sort((a, b) => byWhen(b, a));
 
 const oneOffBookable = (o: OneOff): Bookable => ({
   key: `oneoff:${o.id}`,
@@ -164,8 +179,19 @@ const oneOffBookable = (o: OneOff): Bookable => ({
   signup: o.signup && !o.cancelledAt,
   capacity: o.capacity,
   cancelled: !!o.cancelledAt,
+  // A social has no status: its time is all there is
+  phase: timedPhase(o.startsAt, o.endsAt),
   entries: o,
 });
+
+/**
+ * A reminder's: past with its tournament, or (a sign-up's last day) once it's started; else by its own day, all day.
+ */
+function reminderPhase(row: AgendaRow, t: Tournament): Phase {
+  if (tournamentPhase(t) === "past") return "past";
+  if (row.kind === "signup_closes" && hasStarted(t)) return "past";
+  return row.day < londonToday() ? "past" : "next";
+}
 
 /** A tournament's draft night or sign-up deadline: a reminder on the calendar, linking to where to act. */
 function reminderBookable(row: AgendaRow, t: Tournament): Bookable {
@@ -188,28 +214,32 @@ function reminderBookable(row: AgendaRow, t: Tournament): Bookable {
           : `From ${formatTime(row.startsAt)}`,
     signup: false,
     href: type ? `/tournaments/${type.slug}${row.kind === "draft" ? "/draft" : ""}` : undefined,
+    phase: reminderPhase(row, t),
     entries: { going: [], waitlist: [] },
   };
 }
 
 /**
- * Everything from today on, in date order, as the club's agenda has it (ADR 0042): the server decides what's on (and
- * a draft night only for its captains); each one's sign-up comes from its session, tournament or event.
+ * Everything not past, in date order, as the club's agenda has it (ADR 0042): the server sends what's on (and a draft
+ * night only for its captains); each one's sign-up and whether it's past comes from its session, tournament or event,
+ * by its status, never its date (lib/phase.ts, #182): a Kumite played early isn't on it, one whose day went by unplayed
+ * still is, and so is last night's training till its register closes.
  */
-export function calendar(today = londonToday()): Bookable[] {
-  return db.agenda
-    .filter((r) => r.day >= today)
-    .flatMap((r): Bookable[] => {
-      if (r.source === "session") {
-        const s = db.sessions.find((x) => x.id === r.sourceId);
-        return s && seriesById(s.seriesId) ? [sessionBookable(s)] : [];
-      }
-      if (r.source === "club_event") {
-        const o = db.oneOffs.find((x) => x.id === r.sourceId);
-        return o ? [oneOffBookable(o)] : [];
-      }
-      const t = db.tournaments.find((x) => x.id === r.sourceId);
-      if (!t) return [];
-      return [r.kind === "tournament" ? tournamentBookable(t) : reminderBookable(r, t)];
-    });
+export function calendar(): Bookable[] {
+  return db.agenda.flatMap(bookableOf).filter((ev) => ev.phase !== "past");
+}
+
+/** An agenda row as the calendar shows it, from its session, tournament or event; none for one the app doesn't hold. */
+function bookableOf(r: AgendaRow): Bookable[] {
+  if (r.source === "session") {
+    const s = db.sessions.find((x) => x.id === r.sourceId);
+    return s && seriesById(s.seriesId) ? [sessionBookable(s)] : [];
+  }
+  if (r.source === "club_event") {
+    const o = db.oneOffs.find((x) => x.id === r.sourceId);
+    return o ? [oneOffBookable(o)] : [];
+  }
+  const t = db.tournaments.find((x) => x.id === r.sourceId);
+  if (!t) return [];
+  return [r.kind === "tournament" ? tournamentBookable(t) : reminderBookable(r, t)];
 }

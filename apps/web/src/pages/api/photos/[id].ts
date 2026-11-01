@@ -4,7 +4,7 @@ import { instagramConfig } from "../../../lib/server/instagram-env";
 
 export const prerender = false;
 
-// One of the club's Instagram pictures, through our Worker (lib/server/instagram.ts, ADR 0113). Kept in Cloudflare's
+// One of the club's Instagram pictures, through our Worker (lib/server/instagram.ts, ADR 0016). Kept in Cloudflare's
 // edge cache too, so each picture is fetched from Instagram about once a week per data centre, not per visitor.
 export const GET: APIRoute = async ({ params, request, locals }) => {
   const edge = (globalThis as { caches?: { default?: Cache } }).caches?.default;

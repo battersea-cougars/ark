@@ -7,6 +7,7 @@ describe("a member's initials", () => {
     expect(initials("Sam Jones")).toBe("SJ");
     expect(initials("Mary Ann Smith")).toBe("MA");
     expect(initials("Cher")).toBe("C");
+    expect(initials("Mary-Jane Watson")).toBe("MW");
   });
 
   it("keep accented letters, and don't mind extra spaces", () => {
@@ -19,8 +20,13 @@ describe("a member's initials", () => {
     expect(initials("")).toBe("");
   });
 
-  // #140: w[0] is half of an emoji's surrogate pair, a broken glyph on the avatar
-  it.fails("a name that starts with an emoji keeps the whole emoji (known bug #140)", () => {
+  // #140: w[0] was half of an emoji's surrogate pair, a broken glyph on the avatar
+  it("a name that starts with an emoji keeps the whole emoji (#140)", () => {
     expect(initials("🏒 Jo")).toBe("🏒J");
+    expect(initials("👨‍👩‍👧 🇬🇧")).toBe("👨‍👩‍👧🇬🇧");
+  });
+
+  it("are capitals, however the name was typed", () => {
+    expect(initials("jo bloggs")).toBe("JB");
   });
 });

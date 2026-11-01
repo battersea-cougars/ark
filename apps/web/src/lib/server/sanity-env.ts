@@ -18,7 +18,7 @@ export const sanityConfig = (): SanityConfig => ({
   dataset: SANITY_DATASET,
   token: SANITY_API_TOKEN,
   demo: DEMO_CONTENT,
-  // Which of ours asked, in Sanity's request log (ADR 0116)
+  // Which of ours asked, in Sanity's request log (ADR 0059)
   tag: import.meta.env.DEV ? "web.dev" : onWorker ? "web.worker" : "web.build",
 });
 

@@ -5,6 +5,14 @@
 export const isDone = (status: string, games: { status?: string }[]) =>
   status === "finished" || (games.length > 0 && games.every((g) => g.status === "done"));
 
+/**
+ * The same, in SQL, for the Worker and the website: `t`, the tournament's alias. Done is past, whatever its date says
+ * (ADR 0074, #182): a Kumite played early is history on its pages, Home and What's on alike.
+ */
+export const doneSql = (t: string) =>
+  `(${t}.status = 'finished' OR (EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id)
+     AND NOT EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id AND g.status <> 'done')))`;
+
 export interface Result {
   homeTeamId: number | null;
   awayTeamId: number | null;

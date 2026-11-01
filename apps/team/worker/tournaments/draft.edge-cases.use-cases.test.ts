@@ -6,6 +6,7 @@ import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { nextSlots, onTheClock } from "../../src/lib/draft";
 import { chargeDue } from "../dues/dues";
 import { testWorld } from "../testing";
+import { chargesOf, creditsOf } from "../dues/dues.testing";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
@@ -47,7 +48,7 @@ const rows = (sql: string, ...params: unknown[]) => w.db.raw.prepare(sql).all(..
 async function draftNight({ captains = 2, signed = PLAYERS, kind = "draft" as "draft" | "teams", seed = 1 } = {}) {
   w.luck(seed);
   const dana = await w.signedIn("dana@example.com");
-  const boot = (await dana.call("GET", "/api/bootstrap")).body as Json;
+  const boot = (await dana.club()).body as Json;
   const idOf = (name: string) => boot.members.find((m: Json) => m.name === name).id as number;
   const captainIds = ["Cara Captain", "Cole Captain", "Cass Captain"].slice(0, captains).map(idOf);
   const made = await dana.call("POST", "/api/tournaments", {
@@ -77,8 +78,7 @@ async function draftNight({ captains = 2, signed = PLAYERS, kind = "draft" as "d
   const pick = (as: Phone, memberId: unknown, turn?: unknown) =>
     as.call("POST", `/api/tournaments/${id}/draft/picks`, turn === undefined ? { memberId } : { memberId, turn }, at);
   const undo = (as: Phone) => as.call("DELETE", `/api/tournaments/${id}/draft/picks/last`, undefined, at);
-  const tournament = async () =>
-    ((await dana.call("GET", "/api/bootstrap", undefined, at)).body as Json).tournaments.find((x: Json) => x.id === id);
+  const tournament = async () => ((await dana.club(at)).body as Json).tournaments.find((x: Json) => x.id === id);
   /** The teams in pick order: each its captain and its players' ids. */
   const teams = async () =>
     ((await tournament()).teams as Json[]).map((t) => ({
@@ -129,9 +129,7 @@ async function opened(o: Parameters<typeof draftNight>[0] = {}) {
 async function draftRunner(dana: Phone) {
   const role = await dana.call("POST", "/api/roles", { name: "Draft runner", description: "", actions: ["run:Draft"] });
   expect(role.status).toBe(201);
-  const rae = ((await dana.call("GET", "/api/bootstrap")).body as Json).members.find(
-    (m: Json) => m.name === "Rae Runner",
-  );
+  const rae = ((await dana.club()).body as Json).members.find((m: Json) => m.name === "Rae Runner");
   expect((await dana.call("PUT", `/api/members/${rae.id}`, { ...rae, roles: ["Draft runner", "Member"] })).status).toBe(
     200,
   );
@@ -453,6 +451,22 @@ describe("someone leaves mid-draft", () => {
   });
 });
 
+describe("a replacement who isn't there (docs/reviews/security-review.md #17)", () => {
+  it("an admin puts on a team a member who doesn't exist, or was erased while the drawer was open: 404, nobody's put on", async () => {
+    const d = await opened();
+    const [team] = await d.teams();
+    const gone = d.players[4];
+    w.db.raw.prepare("UPDATE members SET status = 'erased' WHERE id = ?").run(gone);
+    const put = (memberId: number) =>
+      d.dana.call("POST", `/api/tournaments/${d.id}/teams/${team.id}/players`, { memberId }, at);
+    for (const memberId of [987654, gone]) {
+      const r = await put(memberId);
+      expect([r.status, r.body]).toEqual([404, { error: "No such member." }]);
+    }
+    expect((await d.teams())[0].players).toEqual([]);
+  });
+});
+
 describe("deleting what the draft made", () => {
   it("an admin deletes a tournament mid-draft: its teams, picks and sign-ups go, and a pick for it after is a 404", async () => {
     const d = await opened();
@@ -494,19 +508,18 @@ describe("deleting what the draft made", () => {
     expect(t.status).toBe(201);
     expect((await reg.call("POST", `/api/tournaments/${t.body.id}/answer`, { answer: "in" })).status).toBe(200);
     await chargeDue(w.env, day);
-    const boot = async () => (await dana.call("GET", "/api/bootstrap", undefined, { now: day })).body as Json;
+    const boot = async () => (await dana.club({ now: day })).body as Json;
     const regId = (await boot()).members.find((m: Json) => m.name === "Player 2").id;
-    const charge = (await boot()).charges.find((c: Json) => c.memberId === regId && c.kind === "tournament");
+    const charge = (await chargesOf(dana, regId, day)).find((c: Json) => c.kind === "tournament");
     expect(charge).toMatchObject({ pence: 1500 });
     expect(
       (await dana.call("POST", `/api/members/${regId}/payments`, { via: "cash", pence: 1500 }, { now: day })).status,
     ).toBe(200);
-    expect((await boot()).credits).toEqual([]);
+    expect(await creditsOf(dana, day)).toEqual([]);
 
     expect((await dana.call("DELETE", `/api/tournaments/${t.body.id}`, undefined, { now: day })).status).toBe(200);
-    const after = await boot();
-    expect(after.charges.filter((c: Json) => c.memberId === regId)).toEqual([]);
-    expect(after.credits).toEqual([{ memberId: regId, pence: 1500 }]);
+    expect(await chargesOf(dana, regId, day)).toEqual([]);
+    expect(await creditsOf(dana, day)).toEqual([{ memberId: regId, pence: 1500 }]);
   });
 });
 
@@ -532,18 +545,15 @@ describe("taps at once on a reset (ADR 0121)", () => {
     expect(leftOnTeams(d.id)).toEqual([]);
   });
 
-  // Seeds that find it (most do): the pick lands between the reset's statements.
-  // https://github.com/battersea-cougars/ark/issues/126
-  it.fails.each([2, 3, 4])(
-    "a reset racing the first pick: once reset, no pick is left on a team (known bug #126) (seed %i)",
-    async (seed) => {
-      const d = await opened({ seed });
-      const first = await d.onClock();
-      w.db.interleave(seed);
-      const [reset] = await Promise.all([d.step(d.dana, "reset"), d.pick(first.phone, d.players[1], 0)]);
-      expect(reset.status).toBe(200);
-      expect((await d.tournament()).draftState).toBe("scheduled");
-      expect(leftOnTeams(d.id)).toEqual([]);
-    },
-  );
+  // Seeds 2, 3 and 4 found it (#126): the pick landed between the reset's statements, which are one batch now, the
+  // draft closed to picks first
+  it.each([2, 3, 4])("a reset racing the first pick: once reset, no pick is left on a team (seed %i)", async (seed) => {
+    const d = await opened({ seed });
+    const first = await d.onClock();
+    w.db.interleave(seed);
+    const [reset] = await Promise.all([d.step(d.dana, "reset"), d.pick(first.phone, d.players[1], 0)]);
+    expect(reset.status).toBe(200);
+    expect((await d.tournament()).draftState).toBe("scheduled");
+    expect(leftOnTeams(d.id)).toEqual([]);
+  });
 });

@@ -30,9 +30,8 @@ describe("saying you're out of a Kumite you're in", () => {
     const id = made.body.id as number;
 
     const reg = await w.signedIn("reg@example.com");
-    const sees = async () =>
-      ((await reg.call("GET", "/api/bootstrap")).body as Json).tournaments.find((t: Json) => t.id === id);
-    const me = ((await reg.call("GET", "/api/bootstrap")).body as Json).me as number;
+    const sees = async () => ((await reg.club()).body as Json).tournaments.find((t: Json) => t.id === id);
+    const me = ((await reg.club()).body as Json).me as number;
 
     expect((await reg.call("POST", `/api/tournaments/${id}/answer`, { answer: "in" })).status).toBe(200);
     expect((await sees()).going).toContain(me);

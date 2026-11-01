@@ -33,5 +33,8 @@ export function icsFor(event: Bookable, now = new Date()): string {
   ].join("\r\n");
 }
 
-/** Hands the phone the file (a download, or the store app's share sheet); it offers to add it to the calendar. */
+/**
+ * Hands the phone the file (a download, or the store app's share sheet); it offers to add it to the calendar.
+ * @public Off for now (above), kept for when Add to calendar is back.
+ */
 export const downloadIcs = (event: Bookable) => saveCalendar(event.title, icsFor(event));

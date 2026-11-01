@@ -5,11 +5,12 @@ import { defineConfig, type Plugin } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { takeOverPort } from "../../scripts/lib/dev-server.mjs";
+import { localCheckout } from "../../packages/shared/ribbon.checkout.ts";
 
 const PORT = 4510;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
 const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
-// Web Push's public key (README#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
+// Web Push's public key (docs/secrets.md#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
 const VAPID_PUBLIC_KEY =
   readFileSync(new URL("wrangler.jsonc", import.meta.url), "utf8").match(/"VAPID_PUBLIC_KEY":\s*"([^"]*)"/)?.[1] ?? "";
 
@@ -26,6 +27,8 @@ export default defineConfig(({ command }) => ({
     __APP_VERSION__: JSON.stringify(pkg.version),
     __APP_BUILD__: JSON.stringify(command === "serve" ? "dev" : buildId()),
     __VAPID_PUBLIC_KEY__: JSON.stringify(VAPID_PUBLIC_KEY),
+    // The LOCAL ribbon's checkout (src/app/shell/env-ribbon.ts, ADR 0010): the dev server's only, never a build's
+    __CHECKOUT__: JSON.stringify(command === "serve" ? localCheckout() : null),
   },
   plugins: [
     oneDevServer(PORT),
@@ -45,10 +48,17 @@ export default defineConfig(({ command }) => ({
                 // The Usage page (ADR 0059), when started through env-pull: in memory, never in a file
                 CLOUDFLARE_ANALYTICS_TOKEN: process.env.CLOUDFLARE_ANALYTICS_TOKEN ?? "",
                 CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+                // Settings → Errors (ADR 0110), the same way: Sentry's read-only token, in memory
+                SENTRY_ISSUES_TOKEN: process.env.SENTRY_ISSUES_TOKEN ?? "",
                 // Web Push from your machine to your own browser (localhost may subscribe): the private key only when
                 // started through env-pull, in memory
                 VAPID_PUBLIC_KEY,
                 VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? "",
+                // Reconnect email (ADR 0027) tried from your machine: the Web client and the sealing key, when started
+                // through env-pull, in memory. Never GMAIL_REFRESH_TOKEN: only a token reconnected here sends from here
+                GMAIL_WEB_CLIENT_ID: process.env.GMAIL_WEB_CLIENT_ID ?? "",
+                GMAIL_WEB_CLIENT_SECRET: process.env.GMAIL_WEB_CLIENT_SECRET ?? "",
+                GMAIL_TOKEN_KEY: process.env.GMAIL_TOKEN_KEY ?? "",
               },
             }
           : undefined,
@@ -65,7 +75,7 @@ export default defineConfig(({ command }) => ({
   },
   // The notifications plugin's web build wants the Firebase web SDK; the app never uses it (src/app/no-web-push.ts)
   resolve: { alias: { "firebase/messaging": fileURLToPath(new URL("src/app/no-web-push.ts", import.meta.url)) } },
-  // Source maps for Sentry (ADR 0111): written but never linked from the files; the deploy uploads them, then deletes
+  // Source maps for Sentry (ADR 0110): written but never linked from the files; the deploy uploads them, then deletes
   // them before the files go live. The manifest (which files each chunk imports) is for scripts/team-app-budget.mjs,
   // which weighs what the first paint loads (ADR 0120); public/.assetsignore keeps it off the site.
   build: { sourcemap: "hidden", manifest: true },

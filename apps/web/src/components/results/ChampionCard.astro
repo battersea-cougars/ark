@@ -1,0 +1,85 @@
+---
+// The champions, as the team app's (lib/ChampionCard): not a card, the crest big with the Kumite's victory seal on
+// its corner, the trophy, the name in the display face, and how they won it (results.ts), on the page itself.
+import type { PublishedEdition } from "../../lib/results";
+import Icon from "../Icon.astro";
+import Kanji from "./Kanji.astro";
+import TeamCrest from "./TeamCrest.astro";
+import { kanjiFor } from "./motif";
+
+interface Props {
+  r: PublishedEdition;
+}
+const { r } = Astro.props;
+const team = r.teams.find((t) => t.id === r.championsId);
+const seal = kanjiFor(r.series, "champions");
+const who = r.series ? `${r.series.name.replace(/^The /, "")} champions` : "Champions";
+---
+
+<section class="champ" aria-label={who} data-reveal>
+  {team && (
+    <span class="crest">
+      <TeamCrest team={team} size="7rem" />
+      {seal && (
+        <span class="seal-spot">
+          <Kanji text={seal} seal />
+        </span>
+      )}
+    </span>
+  )}
+  <div class="words">
+    <span class="eyebrow">
+      <Icon name="trophy" size={18} />
+      {who}
+    </span>
+    <p class="name">{r.champions ?? "Not decided"}</p>
+    {r.championsHow && <span class="how">{r.championsHow}</span>}
+  </div>
+</section>
+
+<style>
+  .champ {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.5rem;
+    padding-block: 1rem;
+  }
+  .crest {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .seal-spot {
+    position: absolute;
+    right: -1rem;
+    bottom: -0.75rem;
+  }
+  .words {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  /* The champions' line in the sticker yellow: an accent in the words, not a fill */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--yellow);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .name {
+    margin: 0;
+    color: var(--text);
+    font-family: var(--display);
+    font-size: clamp(2.5rem, 8vw, 4.6rem);
+    line-height: 0.95;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .how {
+    color: var(--text-2);
+  }
+</style>

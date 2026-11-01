@@ -5,9 +5,7 @@
   "scripts": {
     "dev": "node ../../scripts/app.mjs dev studio",
     "build": "sanity build",
-    "deploy": "sanity deploy",
-    "seed": "sanity exec seed.ts --with-user-token",
-    "migrate-settings": "sanity exec migrate-settings.ts --with-user-token"
+    "seed": "sanity exec seed.ts --with-user-token"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

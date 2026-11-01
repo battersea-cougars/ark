@@ -20,6 +20,7 @@ export const ACTIONS = {
   "run:Draft": { name: "Run a draft", description: "Run a Kumite draft" },
   "pick:Draft": { name: "Pick in a draft", description: "Pick players in a draft (captains only)" },
   "read:Usage": { name: "See usage", description: "The club's free Cloudflare allowance" },
+  "read:Errors": { name: "See errors", description: "The apps' recent errors, from Sentry" },
   "manage:Settings": { name: "Live updates", description: "How often live pages check for updates" },
   "upload:Photo": { name: "Upload photos", description: "Upload photos" },
   "upload:Video": { name: "Upload videos", description: "Upload videos (on YouTube)" },

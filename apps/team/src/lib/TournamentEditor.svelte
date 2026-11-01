@@ -12,17 +12,27 @@
   import { createTournamentType, updateTournamentType } from "../app/backend.svelte";
   import { TOURNAMENT_KINDS, type TournamentType } from "../demo/model";
   import { db } from "../demo/store.svelte";
-  import Icon from "../app/shell/Icon.svelte";
   import StylePicker from "./StylePicker.svelte";
   import FormSection from "./FormSection.svelte";
   import PlacePicker from "./PlacePicker.svelte";
   import AfterFields from "./AfterFields.svelte";
+  import AwardsField from "./AwardsField.svelte";
+  import { withDecidedBy } from "./awards";
   import { HOUSE_RULES_MAX } from "./format-rules";
+  import type { Edits } from "./dirty.svelte";
 
-  let { typeId, oncreated }: { typeId?: number; oncreated?: (id: number) => void } = $props();
+  let {
+    typeId,
+    edits,
+    oncreated,
+  }: {
+    typeId?: number;
+    /** Its unsaved changes and saves, for the panel's footer and its way out (lib/dirty.svelte.ts) */
+    edits?: Edits;
+    oncreated?: (id: number) => void;
+  } = $props();
 
   const selected = $derived<number | "new">(typeId ?? "new");
-  let form = $state<TournamentType | null>(null);
 
   const blank = (): TournamentType => ({
     id: 0,
@@ -53,17 +63,29 @@
     afterNote: "",
     houseRules: "",
     awards: [
-      { name: "Champions", about: "The team on top of the table at the end of the day." },
-      { name: "Top scorer", about: "Most goals across every game." },
+      {
+        name: "Champions",
+        about: "Last team standing… barely.",
+        decidedBy: { kind: "stat", stat: "table" },
+      },
+      { name: "Top scorer", about: "Most goals. Some on purpose.", decidedBy: { kind: "stat", stat: "goals" } },
     ],
     playoffs: [{ name: "Final", home: 1, away: 2 }],
   });
-  const MAX_AWARDS = 8;
 
-  $effect(() => {
+  /** The saved series (or a blank, for a new one), as the form starts from it. */
+  const starting = (): TournamentType | null => {
     const t = selected === "new" ? blank() : db.tournamentTypes.find((x) => x.id === selected);
-    form = t ? structuredClone($state.snapshot(t)) : null;
-  });
+    const loaded = t ? structuredClone($state.snapshot(t)) : null;
+    // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
+    return loaded && { ...loaded, awards: withDecidedBy(loaded.awards) };
+  };
+  // The form takes its starting values as it opens (the page mounts a fresh editor for each series), and again only
+  // after its own save: the club read again (a refused save, coming back to the tab, a live change) never puts the
+  // saved copy over what's being typed
+  let form = $state<TournamentType | null>(starting());
+  // svelte-ignore state_referenced_locally
+  edits?.watch(() => form, { fresh: !typeId });
 
   // Two tabs: the series itself and its look, then the defaults each new tournament in it copies
   type Tab = "series" | "defaults";
@@ -85,11 +107,18 @@
     }
     if (!form.shortName) form.shortName = form.name.replace(/^The\s+/i, "").split(" ")[0];
     if (selected === "new") {
-      const created = await createTournamentType(form);
+      const f = form;
+      const created = await (edits ? edits.run(() => createTournamentType(f)) : createTournamentType(f));
       // The blank form gives way to the new series' defaults, in the same panel
       if (created) oncreated?.(created.id);
     } else {
-      await updateTournamentType(form);
+      const f = form;
+      const saved = await (edits ? edits.run(() => updateTournamentType(f)) : updateTournamentType(f));
+      // Saved: what's on screen is the saved copy, as the server has it now
+      if (saved) {
+        form = starting();
+        edits?.reset();
+      }
     }
   }
 </script>
@@ -247,41 +276,7 @@
             </FormSection>
             <!-- What's handed out on the day, shown on the website. A fun one is half the point. -->
             <FormSection title="Awards" description="Handed out on the day, and shown on the website.">
-              {#each form.awards as award, i (i)}
-                <div class="award">
-                  <input
-                    class="input"
-                    aria-label="Award"
-                    placeholder="e.g. The Dim Mak"
-                    maxlength="40"
-                    bind:value={award.name}
-                  />
-                  <input
-                    class="input"
-                    aria-label="What it's for"
-                    placeholder="e.g. Fastest goal from a faceoff"
-                    maxlength="120"
-                    bind:value={award.about}
-                  />
-                  <button
-                    type="button"
-                    class="btn sm ghost"
-                    aria-label="Remove {award.name || 'this award'}"
-                    onclick={() => form?.awards.splice(i, 1)}
-                  >
-                    <Icon name="x" size={16} />
-                  </button>
-                </div>
-              {/each}
-              {#if form.awards.length < MAX_AWARDS}
-                <button
-                  type="button"
-                  class="btn sm add-award"
-                  onclick={() => form?.awards.push({ name: "", about: "" })}
-                >
-                  <Icon name="plus" size={16} />Award
-                </button>
-              {/if}
+              <AwardsField bind:awards={form.awards} />
             </FormSection>
           {/if}
         </div>
@@ -323,23 +318,5 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--s-5) var(--s-8);
-  }
-  /* An award: its name, then what it's for (wider), and remove */
-  .award {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
-    gap: var(--s-2);
-    align-items: center;
-  }
-  .add-award {
-    justify-self: start;
-  }
-  @container (max-width: 34rem) {
-    .award {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-    .award > input:nth-child(2) {
-      grid-row: 2;
-    }
   }
 </style>
