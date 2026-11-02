@@ -47,7 +47,8 @@ try {
   await teamApp(`http://localhost:${port("team app")}`);
   console.log("fresh clone: everything runs with no secrets");
 } finally {
-  app("down");
+  // CI's supervisor is this run's own; on a machine it's everyone's (the show switch), so only this checkout's apps stop
+  app(process.env.CI ? "down" : "stop");
 }
 
 async function website(url) {
