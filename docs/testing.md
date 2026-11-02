@@ -58,6 +58,10 @@ node scripts/small-screens.mjs --port <port> [--widths 320,360,375] [--only game
 Overflow fails it (exit 1); ellipses, sideways scrollers (fine for the tab strip, a ticker, a big table) and small
 targets are listed to judge by eye.
 
+Where WebKit can't start (the devcontainer lacks its host libraries), it says so and checks in Chromium as a phone
+(the same viewport, touch and pixel ratio); `--browser chromium` asks for that outright. It loads the app's route tree
+through Vite, as the app does, so plain `node` runs it.
+
 ## Use cases first
 
 The most important tests describe **what someone does** and check what they'd see and what reached the outside
