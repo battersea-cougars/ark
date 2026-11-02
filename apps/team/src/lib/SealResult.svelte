@@ -6,7 +6,7 @@
   import Drawer from "./Drawer.svelte";
   import GameTimeline from "./GameTimeline.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
+  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { mmss } from "./game-clock.svelte";
   import { kanjiFor } from "./motif";
@@ -104,7 +104,7 @@
         onclick={() => !busy && !stamping && lastGoal && ontakeback()}
         ><Icon name="undo" size={16} /><span
           >{lastGoal
-            ? `Take back ${goesByOf(byId(lastGoal.scorerId)) || teamName(lastGoal.teamId)}'s goal · ${mmss(lastGoal.atMs)}`
+            ? `Take back ${nameOfMember(lastGoal.scorerId, byId) || teamName(lastGoal.teamId)}'s goal · ${mmss(lastGoal.atMs)}`
             : "No goal to take back"}</span
         ></button
       >

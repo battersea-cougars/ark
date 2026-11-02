@@ -65,6 +65,9 @@ change the rule, the test and this line together. Why a piece of code is the way
   [names.test.ts › "uses a chosen name whole where the app says just a first name (the card, greetings), and otherwise their first name"](../../src/lib/names.test.ts)
 - Search finds a member by either name.
   [names.test.ts › "finds them by either name when searching"](../../src/lib/names.test.ts)
+- Someone who's left is named only to those who see members' private details: to everyone else, in the club's history
+  (a goal, an award, a roster), they're "Someone who's left"; an erased account is "Former member" even to admins.
+  [names.test.ts › "someone still in the club, or an admin's view of who left, is their name as ever"](../../src/lib/names.test.ts)
 - An admin can set or clear the name someone goes by.
   [members.use-cases.test.ts › "sets it for them, and it shows everywhere in place of their full name"](members.use-cases.test.ts)
 

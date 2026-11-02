@@ -4,7 +4,7 @@
   // right), each row has Take off.
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
+  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { mmss } from "./game-clock.svelte";
   import { infractionLabel } from "./penalties";
@@ -30,7 +30,7 @@
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
   const teamName = (teamId: number | null) => nameOfTeam(teams[indexOf(teamId)], teams, byId);
-  const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
+  const who = (memberId: number | null) => nameOfMember(memberId, byId) || "Bench";
   const sitOut = $derived(tournament.penaltyRule === "sit_out");
   const periods = $derived(tournament.periods ?? 1);
 
@@ -92,8 +92,8 @@
           <span class="who">
             <span class="team-label">{teamName(g.teamId)}</span>
             {#if g.kind === "goal"}
-              <span class="scorer">{goesByOf(byId(g.scorerId)) || "Goal"}</span>
-              {#if g.assistId}<span class="assist">Assist · {goesByOf(byId(g.assistId))}</span>{/if}
+              <span class="scorer">{nameOfMember(g.scorerId, byId) || "Goal"}</span>
+              {#if g.assistId}<span class="assist">Assist · {nameOfMember(g.assistId, byId)}</span>{/if}
             {:else}
               <span class="scorer">{who(g.memberId)}</span>
               {#if (sitOut && g.memberId !== null) || g.infraction}<span class="assist"

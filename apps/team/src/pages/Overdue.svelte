@@ -5,6 +5,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { csvCell } from "../lib/csv";
+  import { SOMEONE_WHO_LEFT } from "../lib/names";
   import MemberSheet from "../lib/MemberSheet.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { can } from "../access/actions";
@@ -26,7 +27,7 @@
   const rows = $derived(
     agedOf(db.dues).map((r) => ({
       ...r,
-      player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: "Someone who's left" },
+      player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: SOMEONE_WHO_LEFT },
       reference: referenceFor(r.memberId),
     })),
   );

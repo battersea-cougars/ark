@@ -4,7 +4,8 @@
   import { buzz, keepAwake } from "../app/native";
   // One game, full screen (apps/team/worker/tournaments/README.md): the live scoreboard for everyone, and for the one
   // person keeping score the scoresheet: goals, penalties, the clock, and Full time's review that seals the result.
-  import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesBy, nameOfMember, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { onDestroy, untrack } from "svelte";
   import { can } from "../access/actions";
@@ -74,9 +75,15 @@
     const t = teams[indexOf(teamId)];
     return nameOfTeam(t, teams, byId);
   };
+  // Who can be picked for a goal or a penalty: the members on it the app holds
   const roster = (teamId: number): Player[] => {
     const t = teams[indexOf(teamId)];
     return t ? [t.captainMemberId, ...t.players.map((p) => p.memberId)].flatMap((id) => byId(id) ?? []) : [];
+  };
+  // The teams as shown: anyone who's left kept in their place (lib/team-roster.ts)
+  const squad = (teamId: number) => {
+    const t = teams[indexOf(teamId)];
+    return t ? rosterOf(t, byId) : [];
   };
   const sides = $derived(game ? ([game.homeTeamId, game.awayTeamId] as (number | null)[]) : []);
 
@@ -446,7 +453,7 @@
     return manpower(short.get(game.homeTeamId ?? -1) ?? 0, short.get(game.awayTeamId ?? -1) ?? 0);
   });
   const boxOf = (teamId: number | null) => box.filter((b) => b.penalty.teamId === teamId);
-  const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
+  const who = (memberId: number | null) => nameOfMember(memberId, byId) || "Bench";
 
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
@@ -669,15 +676,18 @@
                 <span class="squad-name">{teamName(teamId)}</span>
               </a>
               <ol class="squad-list">
-                {#each roster(teamId) as p (p.id)}
-                  {@const scored = (game.goals ?? []).filter((x) => x.scorerId === p.id).length}
-                  {@const pim = pimOf(p.id)}
+                <!-- Someone who's left stays in their place on a past game's roster, by "Someone who's left" -->
+                {#each squad(teamId) as p (p.key)}
+                  {@const scored = (game.goals ?? []).filter((x) => p.memberId && x.scorerId === p.memberId).length}
+                  {@const pim = p.memberId ? pimOf(p.memberId) : 0}
                   <li>
-                    <span class="c display">{p.id === teams[indexOf(teamId)]?.captainMemberId ? "C" : ""}</span>
-                    <span class="pname">{goesBy(p)}</span>
+                    <span class="c display">{p.captain ? "C" : ""}</span>
+                    <span class="pname">{p.name}</span>
                     {#if scored}<span class="badge">{scored > 1 ? `${scored} goals` : "Goal"}</span>{/if}
                     {#if pim}<span class="badge">PIM {pim}</span>{/if}
-                    <span class="pos"><PositionIcon position={p.position} /></span>
+                    <span class="pos"
+                      >{#if p.position}<PositionIcon position={p.position} />{/if}</span
+                    >
                   </li>
                 {/each}
               </ol>
@@ -727,7 +737,7 @@
           <span class="tool-text"
             ><strong>Take back the last goal</strong><span
               >{lastGoal
-                ? `${goesByOf(byId(lastGoal.scorerId)) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
+                ? `${nameOfMember(lastGoal.scorerId, byId) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
                 : "No goals yet"}</span
             ></span
           >
@@ -904,7 +914,7 @@
     bind:open={() => !!picking, (v) => !v && (picking = null)}
     title={picking?.scorer === undefined ? "Who scored?" : picking?.assist === undefined ? "Who assisted?" : "When?"}
     sub={picking
-      ? `Goal ${teamName(picking.team)}${picking.scorer ? ` · ${goesByOf(byId(picking.scorer))}` : ""}`
+      ? `Goal ${teamName(picking.team)}${picking.scorer ? ` · ${nameOfMember(picking.scorer, byId)}` : ""}`
       : undefined}
   >
     {#if picking && picking.scorer !== undefined && picking.assist !== undefined}

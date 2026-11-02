@@ -7,7 +7,7 @@
   import type { Tournament } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
-  import { goesByOf, nameOfTeam, shortNameOf } from "./names";
+  import { nameOfPlayer, nameOfTeam, shortNameOf } from "./names";
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
   import { phone } from "./viewport.svelte";
@@ -45,7 +45,7 @@
         id: p.memberId,
         pos: p.memberId ? (byId(p.memberId)?.position ?? "") : "",
         team: p.team,
-        name: p.memberId ? goesByOf(byId(p.memberId)) || p.name : p.name,
+        name: nameOfPlayer(p, byId),
         you: p.memberId === me().id,
         by: pickerOf(p, p.team),
       })),
