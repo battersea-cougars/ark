@@ -1,9 +1,10 @@
 <script lang="ts">
-  // Your sign-in email (ADR 0023), at the top of your details on the You page: shown, and changed by you in a sheet over
-  // the page. Two codes go out: one to the new address and one to the address you have now, so someone with your phone
+  // Your sign-in email (ADR 0023), a row in the You page's Account tab: shown, and changed by you in a sheet, its
+  // buttons in the footer like every sheet's (ADR 0065). Two codes go out: one to the new address and one to the address you have now, so someone with your phone
   // alone can't move your account. Both typed here (the current address's first), the new address is yours from then
   // on, everything you've done stays yours, and your other devices sign in again with it (worker/members/members.email.ts).
   // With no address yet, only the new one's code. Lost your old inbox? An admin changes it on your member page.
+  import Icon from "../app/shell/Icon.svelte";
   import Sheet from "./Sheet.svelte";
   import { askEmailCode, confirmEmailCode } from "../app/backend.svelte";
 
@@ -58,13 +59,11 @@
   }
 </script>
 
-<div class="field">
-  <span id="email-label">Email <span class="hint">· you sign in with it</span></span>
-  <div class="line">
-    <input class="input" type="email" value={shown} readonly aria-labelledby="email-label" />
-    <button class="btn ghost" type="button" {disabled} onclick={start}>Change</button>
-  </div>
-</div>
+<button class="row" type="button" {disabled} onclick={start}>
+  <span class="glyph"><Icon name="mail" /></span>
+  <span class="grow"><span class="title">Email</span><span class="sub">{shown} · you sign in with it</span></span>
+  <span class="change">Change</span>
+</button>
 
 <Sheet bind:open title="Change your email" sub={shown ? `You sign in with ${shown} now` : undefined}>
   {#if step === "address"}
@@ -129,14 +128,18 @@
 </Sheet>
 
 <style>
-  .line {
-    display: flex;
-    gap: var(--s-2);
-    align-items: center;
+  .sub {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .line .input {
-    flex: 1;
-    min-width: 0;
+  .change {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+  .row:disabled {
+    cursor: default;
+    opacity: 0.55;
   }
   .form .hint {
     margin: 0;

@@ -1,6 +1,6 @@
 <script lang="ts">
   // Your everyday role and your full one (ADR 0024), side by side: one tap switches, lit red with the slash like any
-  // Pick. On your You page under your card, and at the top of Settings; only for someone with an everyday role. The
+  // Pick. On your You page's Account tab, and at the top of Settings; only for someone with an everyday role. The
   // gear switches you up on the way into Settings, and this shows it.
   import Icon from "../app/shell/Icon.svelte";
   import { useFullRole } from "../app/settings-entry.svelte";

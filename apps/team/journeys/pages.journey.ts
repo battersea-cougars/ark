@@ -24,7 +24,8 @@ async function menuOf(who: Person) {
   await who.page.goto("/");
   await expect(who.page.getByRole("navigation").first()).toBeVisible();
   for (const p of await linksOn(who.page, "nav a")) paths.add(p);
-  for (const list of ["/settings", "/more", "/me"].filter((p) => paths.has(p))) {
+  // You's Account tab (/me#account) holds its links out (Privacy)
+  for (const list of ["/settings", "/more", "/me", "/me#account"].filter((p) => paths.has(p.split("#")[0]))) {
     await who.page.goto(list);
     await expect(who.page.getByRole("main").getByRole("heading").first()).toBeVisible();
     for (const p of await linksOn(who.page, "main a")) paths.add(p);

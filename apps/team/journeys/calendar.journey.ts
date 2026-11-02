@@ -274,7 +274,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     // push.use-cases checks who hears what by these switches)
     const lockerRoomSwitch = () => ivy.page.getByRole("switch", { name: "Locker room" });
     await does(ivy, "turns Locker room off on You", async () => {
-      await ivy.page.goto("/me");
+      await ivy.page.goto("/me#alerts");
       await expect(lockerRoomSwitch()).toBeChecked();
       await lockerRoomSwitch().click();
       await expect(lockerRoomSwitch()).not.toBeChecked();
