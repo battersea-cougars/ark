@@ -151,10 +151,12 @@ describe("a session as it's used (#72)", () => {
     expect(set).toBe(1);
   });
 
-  it("ends a year after signing in, however much it's used", async () => {
+  it("ends as the last quarter within a year of signing in starts, however much it's used", async () => {
+    // Signed in 6 October 2026: a year on is 6 October 2027, so it ends as 1 October 2027 starts (midnight, BST)
     const phone = await w.signedIn("reg@example.com");
-    for (let day = 30; day <= 360; day += 30) expect((await phone.club({ now: minutes(day * DAY) })).status).toBe(200);
-    expect((await phone.club({ now: minutes(366 * DAY) })).status).toBe(401);
+    for (let day = 30; day <= 330; day += 30) expect((await phone.club({ now: minutes(day * DAY) })).status).toBe(200);
+    expect((await phone.club({ now: new Date("2027-09-30T22:59:00Z") })).status).toBe(200);
+    expect((await phone.club({ now: new Date("2027-09-30T23:00:00Z") })).status).toBe(401);
   });
 
   it("isn't renewed by a request in the same day", async () => {
