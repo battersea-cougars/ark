@@ -1,4 +1,4 @@
-// An admin views the app as a member (ADR 0024, #40): the server answers as that member would see the club, and
+// An admin views the app as a member (ADR 0024): the server answers as that member would see the club, and
 // refuses every change until they go back to themselves. Starting and ending are on the record (ADR 0024). Driven
 // through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +20,7 @@ const bootstrap = async (b: Browser) => (await b.club()).body;
 const idOf = async (b: Browser) => (await bootstrap(b)).me as number;
 /**
  * The club as it shows, less who's asking: who you are, who you're viewing as, and among Home's people who's really
- * signed in (their name only, so the app can say who's viewing, #178).
+ * signed in (their name only, so the app can say who's viewing).
  */
 const club = ({ me, viewingAs, people, ...rest }: Record<string, unknown>) => ({
   ...rest,

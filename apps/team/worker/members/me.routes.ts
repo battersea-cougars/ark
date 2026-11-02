@@ -1,5 +1,5 @@
 // You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, apps/team/worker/dues/README.md), and
-// your data: download it, or delete your account (#30).
+// your data: download it, or delete your account.
 import { places } from "../push/push.notices";
 import { ok, type Route } from "../api/api.route";
 import { body } from "../api/api.http";

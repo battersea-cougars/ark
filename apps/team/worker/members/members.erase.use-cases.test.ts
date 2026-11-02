@@ -1,7 +1,6 @@
-// A member can delete their account, or ask an admin to (#30, ADR 0029): everything that says who they are goes, now,
-// and they're signed out everywhere. What the club must keep (a payment, that someone played last Friday) stays,
-// about a "Former member" nobody can name. A member can also download everything the app holds about them. Driven
-// through the real handlers in the fake world (ADR 0031).
+// A member deletes their account, or an admin does it for them (ADR 0029): what says who they were goes, what the club
+// must keep stays, about a "Former member". And downloading their data. Driven through the real handlers in the fake
+// world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 

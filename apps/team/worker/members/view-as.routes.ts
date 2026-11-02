@@ -1,7 +1,5 @@
-// Viewing the app as a member (ADR 0024, #40): starting, for whoever holds View as a member, and going back to
-// yourself, which is the one change the API takes while you're viewing. Either way the app reads the whole club again,
-// as whoever the sign-in is now answered as. What the API does meanwhile is api.ts's: it answers as the member and
-// refuses every other change (view-as.ts).
+// Viewing the app as a member (ADR 0024): starting, and going back to yourself, the one change the API takes while
+// you're viewing.
 import { type Ctx, memberIdIn, type Route } from "../api/api.route";
 import { HttpError, json } from "../api/api.http";
 import { first } from "@cougars/shared/d1";

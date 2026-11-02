@@ -1,7 +1,5 @@
-// A member changes their own sign-in email (ADR 0023): a code to the new address and one to the current address, both
-// typed back while signed in, so a stolen session alone can't move the account. What they've done stays theirs, the
-// old address hears of it, and an address that's someone else's never becomes theirs.
-// Driven through the real handler in the fake world (testing.ts, ADR 0031).
+// A member changes their own sign-in email (ADR 0023): codes to both addresses, typed back while signed in. Driven
+// through the real handler in the fake world (testing.ts, ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { minutes, testWorld } from "../testing";
 

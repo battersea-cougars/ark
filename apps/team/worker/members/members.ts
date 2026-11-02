@@ -152,7 +152,7 @@ const DOES_EVERYTHING = `SELECT 1 FROM members m JOIN member_roles mr ON mr.memb
   JOIN role_actions ra ON ra.role_id = mr.role_id WHERE ra.action = 'manage:all' AND m.status = 'active'`;
 
 /**
- * The last member who can do everything (`manage:all`, through Admin or any other role) can't lose it (#135, #136),
+ * The last member who can do everything (`manage:all`, through Admin or any other role) can't lose it,
  * as a condition on each statement of the change that might take it (ADR 0003): so two changes at once can't each
  * see the other still there. A member's change goes while another active member can do everything, or while they
  * can't now, or while the roles they're given (if they stay active) still can. A role's change goes while an
@@ -191,7 +191,7 @@ export async function firstAdmin(db: D1Database): Promise<number | null> {
 /**
  * An admin adds someone to the club (apps/team/worker/members/README.md): in straight away (no asking to join), with a payment reference, and
  * an email with a link to the app that fills in their address on the sign-in screen, unless `emailThem` is false
- * (#164: they'll be told in person, or later from their card). The email going astray doesn't undo the add:
+ * (they'll be told in person, or later from their card). The email going astray doesn't undo the add:
  * `emailed` says whether it went, so the admin can tell them another way.
  */
 export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin: string, by: By) {
@@ -214,7 +214,7 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
 }
 
 /**
- * An admin sends a member the app link after all (#164): the same "You're in" email as an add, once per tap. Only to
+ * An admin sends a member the app link after all: the same "You're in" email as an add, once per tap. Only to
  * someone in the club (active) with an email; whether it went is in the reply, as for an add.
  */
 export async function sendAppLink(env: AuthEnv, id: number, origin: string): Promise<{ emailed: boolean }> {
@@ -279,7 +279,7 @@ export async function updateMember(
   }
   // Never leave the club without someone who can do everything: neither by taking their roles off the last one nor
   // by making them inactive. Decided inside the statements that write it (ADR 0003), so two admins demoting each
-  // other at once can't both go (#135). The read before is for the refusal's words.
+  // other at once can't both go. The read before is for the refusal's words.
   const guard = keepsSomeoneWhoCanDoEverything({ member: id, keeping: status === "active" ? ids : [] });
   const lastAdmin = "That's the last admin. Make someone else an admin first.";
   if (!(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastAdmin);
@@ -306,7 +306,7 @@ export async function updateMember(
     statements.push(guarded("INSERT INTO member_roles (member_id, role_id) SELECT ?, ? WHERE 1", [id, roleId]));
   const [written] = await batch(db, statements);
   if (!written.meta.changes) throw new HttpError(409, lastAdmin);
-  // Made inactive (or back to waiting): their sign-ins end, so letting them back in later opens none of them (#72)
+  // Made inactive (or back to waiting): their sign-ins end, so letting them back in later opens none of them
   return {
     letIn: existing.status === "pending" && status === "active",
     shutOut: status !== "active",
@@ -352,7 +352,7 @@ export async function updateRole(db: D1Database, id: number, o: Record<string, u
     throw new HttpError(403, "A role can't do more than you can.");
   if (await first(db, "SELECT 1 FROM roles WHERE name = ? AND id != ?", [f.name, id]))
     throw new HttpError(409, "That name is taken.");
-  // Never the last role anyone can do everything through, decided in its statements (ADR 0003, #136)
+  // Never the last role anyone can do everything through, decided in its statements (ADR 0003)
   const lastOne = "Nobody else can do everything. Make someone else an admin first.";
   const guard = f.actions.includes("manage:all") ? null : keepsSomeoneWhoCanDoEverything({ role: id });
   if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastOne);
@@ -443,7 +443,7 @@ export const everydayOf = async (db: D1Database, id: number) =>
 
 /**
  * An admin sets how to reach a member: the email they sign in with (ADR 0023), and a phone. A blank email means
- * none; an email is one member's only. Whether the email changed: if it did, they're signed out everywhere (#72).
+ * none; an email is one member's only. Whether the email changed: if it did, they're signed out everywhere.
  */
 export async function setContact(
   db: D1Database,
