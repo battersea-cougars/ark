@@ -5,8 +5,8 @@
 //
 // Nothing is saved, deleted or confirmed: it only looks. On whatever the database holds when it runs (after the
 // Kumite night, its past Kumite's pages too).
-import { expect, test, type Page } from "@playwright/test";
-import { checks, noFailedChecks, signIn, stage, type Person } from "./support/journey";
+import type { Page } from "@playwright/test";
+import { checks, expect, signIn, test, type Person } from "./support/journey";
 
 const KUMITE = "/tournaments/kumite";
 
@@ -50,13 +50,29 @@ const looksIn = async (who: Person, open: () => Promise<void>) => {
   await expect(who.page.getByRole("dialog")).toHaveCount(0);
 };
 
-test("Every page opens clean", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
-  const nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
+test.describe.serial("Every page opens clean", () => {
+  let ada: Person;
+  let fay: Person;
+  let nell: Person;
 
-  for (const who of [ada, fay, nell])
-    await stage(`${who.role}: every page in the menus`, async () => {
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
+    nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay, nell]) await who?.context.close();
+  });
+
+  // Each one's role, as signIn names them, for the step's title
+  const everyone: [string, () => Person][] = [
+    ["Admin (Ada)", () => ada],
+    ["Player (Fay)", () => fay],
+    ["Member, not in it (Nell)", () => nell],
+  ];
+  for (const [role, person] of everyone)
+    test(`${role}: every page in the menus`, async () => {
+      const who = person();
       const pages = await menuOf(who);
       for (const path of pages) await checks(who, `opens ${path}`, () => opens(who, path));
       // Reached from the Kumite's page, not the menu
@@ -64,7 +80,7 @@ test("Every page opens clean", async ({ browser }) => {
         await checks(who, `opens ${path}`, () => opens(who, path));
     });
 
-  await stage("Admin (Ada): every editor opens, and shuts unsaved", async () => {
+  test("Admin (Ada): every editor opens, and shuts unsaved", async () => {
     await checks(ada, "opens the Kumite's editor (Next Kumite, or Manage → Kumite settings)", async () => {
       await opens(ada, KUMITE);
       const next = ada.page.getByRole("button", { name: "Next Kumite" });
@@ -94,7 +110,4 @@ test("Every page opens clean", async ({ browser }) => {
         if (await first.count()) await looksIn(ada, () => first.click());
       });
   });
-
-  noFailedChecks();
-  for (const who of [ada, fay, nell]) await who.context.close();
 });

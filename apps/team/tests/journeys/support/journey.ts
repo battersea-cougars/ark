@@ -1,17 +1,21 @@
 // What every journey shares (ADR 0031): the people in it, each signed in in a browser of their own, and the steps.
 //
-// A journey is one story told in stages (`stage`), each a list of things a person does or checks (`does`, `checks`).
-// What a person does moves the story on: if they can't, the rest can't happen, so the journey stops there. What a
-// person checks (they can, they can't, they see) is noted when it fails and the journey goes on, so one run finds
-// every broken check, not just the first. A known bug is `knownBug`: it should fail, and says so when it doesn't.
+// A journey is one story, a `test.describe.serial` in its own file: each step of the story is a `test` of its own, run
+// in order on the same people and the same database (so one step can't run alone: run its journey). Its people sign in
+// in `test.beforeAll` and leave in `test.afterAll`. Inside a step, things a person does or checks (`does`, `checks`):
+// what a person does moves the story on, so if they can't, the step stops there. What a person checks (they can, they
+// can't, they see) is noted when it fails and the step goes on, so it finds every broken check in it, not just the
+// first; the step fails at its end. A failed step ends the journey (the steps after it are skipped). A known bug is
+// `test.fail()` on its step: it should fail, and a pass says it's fixed.
 // Everyone's browser is listened to: an uncaught error, a console error or one of Svelte's warnings that means a bug,
-// on any of their pages, fails the step it happened in (noted, as a check is, so the journey goes on).
-// journeys.report.ts turns the failures into one summary for the run.
+// on any of their pages, fails the step it happened in (noted, as a check is). This file's `test` is Playwright's,
+// with that look after every step (and axe's, with --a11y) as an automatic fixture; journeys.report.ts turns the
+// failures into one summary for the run.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
-import { test, type Browser, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
+import { test as base, type Browser, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
 import { PAGE_PARTS } from "../../../src/app/club-parts";
 import { wholeClub } from "../../../src/app/club-whole";
 
@@ -20,7 +24,7 @@ const out = process.env.JOURNEY_OUT ?? join(root, ".journeys");
 const port = process.env.JOURNEY_PORT;
 /** The journeys' own D1 (journeys.setup.mjs), as wrangler reads it. */
 const state = process.env.JOURNEY_STATE ?? join(out, "d1");
-/** `npm run journeys -- --a11y`: axe looks at every person's page at the end of every stage (a11y.md). */
+/** `npm run journeys -- --a11y`: axe looks at every person's page at the end of every step (a11y.md). */
 const a11y = process.env.JOURNEY_A11Y === "1";
 /** The header that moves the server's clock for one request (worker/api/api.dev-clock.ts): dev and local only. */
 const DEV_NOW = "x-dev-now";
@@ -40,7 +44,7 @@ export interface Person {
  * the app for them.
  */
 export async function signIn(browser: Browser, role: string, name: string, email: string): Promise<Person> {
-  freshFor(test.info().testId);
+  freshFor(base.info().file);
   const state = join(out, "auth", `${email}.json`);
   execFileSync("node", [join(root, "scripts/dev-sign-in.mjs"), email, "--port", String(port), "--out", state], {
     stdio: ["ignore", "ignore", "inherit"],
@@ -61,7 +65,7 @@ export async function signIn(browser: Browser, role: string, name: string, email
  * address (api.limits.ts), and a journey isn't testing them.
  */
 export async function stranger(browser: Browser, role: string, name: string, email: string): Promise<Person> {
-  freshFor(test.info().testId);
+  freshFor(base.info().file);
   const address = `10.${(Date.now() >> 16) & 255}.${(Date.now() >> 8) & 255}.${Date.now() & 255}`;
   const context = await browser.newContext({ extraHTTPHeaders: { "cf-connecting-ip": address } });
   const person = { role: `${role} (${name.split(" ")[0]})`, name, email, context } as Person;
@@ -260,7 +264,7 @@ export async function clubVia(api: (method: string, path: string) => Promise<any
 
 /**
  * A training a journey made, paused (no more nights, off the menus) if it's still running: for the journey's
- * `test.afterEach`, so one that stopped half way never leaves its nights to meet the journeys after it on Home and
+ * `test.afterAll`, so one that stopped half way never leaves its nights to meet the journeys after it on Home and
  * the calendar (a Tuesday night still on at 00:30 leads Home over the Kumite's after-party). As the admin, through the
  * API, at the story's last moment (`at`: a journey moves forward only). A shortcut, not under test.
  */
@@ -357,30 +361,42 @@ export function london(wall: string): Date {
   throw new Error(`${wall} never happened in London (the clocks went forward over it)`);
 }
 
-/** The checks that failed, so the test fails at the end once every stage has run. */
+/** The checks that failed in the step under way, so it fails at its end once all of it has run. */
 const failed: string[] = [];
 
-/** The journey these are for: a new one (the next test in the run) starts with none of the last one's. */
-let journeyId = "";
-function freshFor(testId: string) {
-  if (testId === journeyId) return;
-  journeyId = testId;
+/** The journey (its file) these are for: a new one starts with none of the last one's people or errors. */
+let journeyFile = "";
+function freshFor(file: string) {
+  if (file === journeyFile) return;
+  journeyFile = file;
   failed.length = 0;
   browserErrors.length = 0;
   people.length = 0;
 }
 
-/** A stage of the story ("Sign-up opens"), its steps under it. */
-export const stage = (title: string, body: () => Promise<void>) =>
-  test.step(title, async () => {
-    await body();
-    // Any that came between its steps
-    await noBrowserErrors(title);
-    if (a11y) await lookForBarriers(title);
-  });
+/**
+ * Playwright's `test`, with one automatic fixture: after every step (each `test` in a journey), the browser errors since
+ * the last look, axe's look with --a11y, and the step failed if any of its checks did.
+ */
+export const test = base.extend<{ afterEachStep: void }>({
+  afterEachStep: [
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use, testInfo) => {
+      failed.length = 0;
+      await use();
+      // Any that came between its does and checks
+      await noBrowserErrors(testInfo.title);
+      if (a11y) await lookForBarriers(testInfo.title);
+      if (failed.length)
+        throw new Error(`${failed.length} check(s) failed:\n${failed.map((f) => `- ${f}`).join("\n")}`);
+    },
+    { auto: true },
+  ],
+});
+export { expect } from "@playwright/test";
 
 /** Axe over each person's open page, the WCAG 2.1 AA rules: what it finds goes in a11y.md, never fails the run. */
-async function lookForBarriers(stageTitle: string) {
+async function lookForBarriers(stepTitle: string) {
   for (const who of people) {
     if (who.page.isClosed()) continue;
     const { violations } = await new AxeBuilder({ page: who.page })
@@ -397,7 +413,7 @@ async function lookForBarriers(stageTitle: string) {
     );
     appendFileSync(
       join(out, "a11y.md"),
-      `- ${stageTitle} · ${who.role} on ${path}: ${found.length ? `\n${found.join("\n")}` : "nothing found"}\n`,
+      `- ${stepTitle} · ${who.role} on ${path}: ${found.length ? `\n${found.join("\n")}` : "nothing found"}\n`,
     );
   }
 }
@@ -423,32 +439,4 @@ export async function checks(who: Person, what: string, body: () => Promise<void
   } catch {
     failed.push(title);
   }
-}
-
-/**
- * A check that fails today because of a known bug in the app: it runs, and should fail. Passing means the bug's fixed:
- * that's a failure to look at (take `knownBug` off, as `it.fails` is in a use case).
- */
-export async function knownBug(who: Person, what: string, bug: string, body: () => Promise<void>) {
-  const title = `${who.role}: ${what}`;
-  let passed = false;
-  await test.step(`${title} (known bug: ${bug})`, async () => {
-    try {
-      await body();
-      passed = true;
-    } catch {
-      test.info().annotations.push({ type: "known bug", description: `${title}: ${bug}` });
-    }
-  });
-  if (passed)
-    await checks(who, `${what} (known bug: ${bug})`, async () => {
-      throw new Error(
-        `Expected: still failing (known bug: ${bug})\nReceived: it passed. Fixed? Take knownBug off this check.`,
-      );
-    });
-}
-
-/** At the end of a journey: fails it if any check failed (each is in the summary already). */
-export function noFailedChecks() {
-  if (failed.length) throw new Error(`${failed.length} check(s) failed:\n${failed.map((f) => `- ${f}`).join("\n")}`);
 }

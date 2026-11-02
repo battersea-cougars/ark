@@ -5,8 +5,8 @@
 // refused with a word saying so and the page doesn't claim she's in; with signal back, the same tap takes.
 //
 // The long-named member is new every run (his email has the time in it); a database other runs used has others too.
-import { expect, test, type Page } from "@playwright/test";
-import { asMember, checks, clubVia, does, noFailedChecks, signIn, stage } from "./support/journey";
+import type { Page } from "@playwright/test";
+import { asMember, checks, clubVia, does, expect, signIn, test, type Person } from "./support/journey";
 
 /** 60 letters, spaces and hyphens: the longest name a form is likely to see, with no space to break at for 31. */
 const LONG_NAME = "Maximilian-Alexander Featherstonehaugh-Montgomery Wolstenhol";
@@ -47,11 +47,10 @@ async function pastTheEdge(page: Page) {
   });
 }
 
-test("Edge cases: a double tap, a long name on a phone, and no signal", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const fay = await signIn(browser, "Member, on her phone", "Fay Forward", "fay@example.com");
-  await fay.page.setViewportSize(PHONE);
-  const adaApi = asMember(ada.email);
+test.describe.serial("Edge cases: a double tap, a long name on a phone, and no signal", () => {
+  let ada: Person;
+  let fay: Person;
+  let adaApi: ReturnType<typeof asMember>;
   const club = () => clubVia(adaApi);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const idOf = async (name: string) => ((await club()).members as any[]).find((m) => m.name === name)?.id as number;
@@ -59,8 +58,20 @@ test("Edge cases: a double tap, a long name on a phone, and no signal", async ({
     ((await adaApi("GET", `/api/members/${await idOf(name)}/ledger?limit=200`)).lines as { kind: string }[]).filter(
       (l) => l.kind === "payment",
     ).length;
+  const stamp = Date.now().toString(36);
+  const email = `maximilian.alexander.featherstonehaugh.${stamp}@a-very-long-domain-name-example.co.uk`;
 
-  await stage("1. A double tap is one change", async () => {
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Member, on her phone", "Fay Forward", "fay@example.com");
+    await fay.page.setViewportSize(PHONE);
+    adaApi = asMember(ada.email);
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay]) await who?.context.close();
+  });
+
+  test("1. A double tap is one change", async () => {
     const before = await paymentsOf("Gwen Glove");
     await does(ada, "double-taps Record payment for Gwen's £5 (a slow signal)", async () => {
       await ada.page.goto("/club");
@@ -103,9 +114,7 @@ test("Edge cases: a double tap, a long name on a phone, and no signal", async ({
       await adaApi("DELETE", `/api/announcements/${a.id}`);
   });
 
-  const stamp = Date.now().toString(36);
-  const email = `maximilian.alexander.featherstonehaugh.${stamp}@a-very-long-domain-name-example.co.uk`;
-  await stage("2. A 60-letter name on a phone", async () => {
+  test("2. A 60-letter name on a phone", async () => {
     await does(ada, `adds ${LONG_NAME} (60 letters) with a long email`, async () => {
       await ada.page.goto("/club");
       await ada.page.getByRole("button", { name: "Member", exact: true }).click();
@@ -170,7 +179,7 @@ test("Edge cases: a double tap, a long name on a phone, and no signal", async ({
     await adaApi("DELETE", `/api/members/${long.id}`);
   });
 
-  await stage("3. No signal", async () => {
+  test("3. No signal", async () => {
     const inButton = () =>
       fay.page
         .getByRole("group", { name: "Are you in?" })
@@ -200,6 +209,4 @@ test("Edge cases: a double tap, a long name on a phone, and no signal", async ({
     await fayApi("POST", `/api/sessions/${nextFriday(await clubVia(fayApi)).id}/answer`, { answer: "out" });
     await fayApi("POST", `/api/sessions/${nextFriday(await clubVia(fayApi)).id}/answer`, { answer: "clear" });
   });
-
-  noFailedChecks();
 });

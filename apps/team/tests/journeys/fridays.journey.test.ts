@@ -14,7 +14,7 @@
 // The story keeps to one clock going forward: every request is at the story's moment or later. The server works out
 // what's owed again on each day's first open (bootstrap.routes.ts), so a page opened on an earlier day would take back
 // the charges a later one made. Real clocks don't go backwards; a journey mustn't either.
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import {
   asMember,
   clubVia,
@@ -22,11 +22,11 @@ import {
   checks,
   cron,
   does,
+  expect,
   london,
-  noFailedChecks,
   pauseTraining,
   signIn,
-  stage,
+  test,
   type Person,
 } from "./support/journey";
 
@@ -61,18 +61,14 @@ const answers = (page: Page) => page.getByRole("group", { name: "Are you in?" })
 /** Their In, pressed: "In" on the training's page, "I'm in" on Home's card. */
 const saidIn = (page: Page) => answers(page).getByRole("button", { name: /^(In|I'm in)$/, pressed: true });
 
-/** Its training, paused once the journey's over however it ended (journey.ts pauseTraining): set as it's made. */
-let leftover = async () => {};
-test.afterEach(async () => leftover());
-
-test("Fridays: a training night and what it costs", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const pia = await signIn(browser, "Member", "Pia Payer", "pia@example.com");
-  const wes = await signIn(browser, "Member, waiting", "Wes Waiting", "wes@example.com");
-  const tam = await signIn(browser, "Member, drops out", "Tam Tardy", "tam@example.com");
-  const kit = await signIn(browser, "Keeper", "Kit Keeper", "kit@example.com");
-  const quin = await signIn(browser, "Quarterly Member", "Quin Quarterly", "quin@example.com");
-  const everyone = [ada, pia, wes, tam, kit, quin];
+test.describe.serial("Fridays: a training night and what it costs", () => {
+  let ada: Person;
+  let pia: Person;
+  let wes: Person;
+  let tam: Person;
+  let kit: Person;
+  let quin: Person;
+  let everyone: Person[];
 
   /** The story's moment: everyone's clocks, and the API's, are put there before each step. */
   let now = london("2026-10-22T12:00");
@@ -85,10 +81,9 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   const club = async (): Promise<any> => clubVia(asMember(ada.email, { at: now }));
   const adaApi = (method: string, where: string, body?: object) =>
     asMember(ada.email, { at: now })(method, where, body);
-  const members = (await club()).members as { id: number; name: string }[];
+  let members: { id: number; name: string }[];
   const idOf = (name: string) => members.find((m) => m.name === name)!.id;
   let seriesId = 0;
-  leftover = () => pauseTraining(ada.email, seriesId, now);
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
@@ -127,75 +122,88 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     await expect(who.page.getByRole("main").getByRole("heading").first()).toBeVisible();
   };
 
-  await stage(
-    "1. An admin sets up a training: Sundays and Tuesdays, two places, a keeper's, sign-up two days before",
-    async () => {
-      await moveTo("2026-10-22T12:00");
-      for (const who of [pia, kit])
-        await checks(who, "can't set up a training", async () => {
-          await open(who, "/settings/training");
-          await expect(who.page.getByRole("button", { name: /^New training/ })).toHaveCount(0);
-        });
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    pia = await signIn(browser, "Member", "Pia Payer", "pia@example.com");
+    wes = await signIn(browser, "Member, waiting", "Wes Waiting", "wes@example.com");
+    tam = await signIn(browser, "Member, drops out", "Tam Tardy", "tam@example.com");
+    kit = await signIn(browser, "Keeper", "Kit Keeper", "kit@example.com");
+    quin = await signIn(browser, "Quarterly Member", "Quin Quarterly", "quin@example.com");
+    everyone = [ada, pia, wes, tam, kit, quin];
+    members = (await club()).members as { id: number; name: string }[];
+  });
+  /** Its training, paused once the journey's over however it ended (journey.ts pauseTraining), then everyone leaves. */
+  test.afterAll(async () => {
+    if (ada) await pauseTraining(ada.email, seriesId, now);
+    for (const who of everyone ?? []) await who?.context.close();
+  });
 
-      await does(ada, `adds ${NAME} in Settings → Training`, async () => {
-        await open(ada, "/settings/training");
-        await ada.page.getByRole("button", { name: /^New training/ }).click();
-        const editor = ada.page.getByRole("dialog", { name: "New training" });
-        await editor.getByRole("textbox", { name: "Name", exact: true }).fill(NAME);
-        await editor.getByRole("textbox", { name: "Short name" }).fill(SHORT);
-        await editor.getByRole("spinbutton", { name: "Skater places" }).fill("2");
-        await editor.getByRole("spinbutton", { name: "Goalie places" }).fill("1");
-        await editor.getByRole("textbox", { name: "Fee per session (£)" }).fill("8");
-        await editor.getByRole("tab", { name: "Schedule" }).click();
-        const days = editor.getByRole("group", { name: "Days" });
-        // The day it's made is offered first (a Thursday): Sundays and Tuesdays only
-        for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
-          const button = days.getByRole("button", { name: day });
-          const pressed = (await button.getAttribute("aria-pressed")) === "true";
-          if (pressed !== (day === "Sun" || day === "Tue")) await button.click();
-        }
-        await expect(editor.getByText("Every week on Tue and Sun")).toBeVisible();
-        await editor.getByRole("button", { name: /^Sign-up opens:/ }).click();
-        await ada.page.getByRole("option", { name: "2 days before", exact: true }).click();
-        await editor.getByRole("button", { name: /^Where:/ }).click();
-        await ada.page.getByRole("option", { name: "Battersea Sports Centre" }).click();
-        await editor.getByRole("button", { name: "Add training" }).click();
-        const made = async () => ((await club()).series as { name: string }[]).some((s) => s.name === NAME);
-        // On a database other runs have used, its nights fall on theirs: keep both (the clash prompt is the calendar's
-        // journey's to check)
-        const clash = ada.page.getByRole("dialog", { name: "Already on then" });
-        await expect.poll(async () => (await clash.isVisible()) || (await made())).toBe(true);
-        if (await clash.isVisible()) {
-          // All of these: Keep both, when there are several, keeps every row, a tournament's that stays on too (#171);
-          // one alone, its own Keep both
-          const all = clash.getByRole("group", { name: /^All of these/ });
-          if (await all.count()) await all.getByRole("button", { name: "Keep both" }).click();
-          else
-            for (const keep of await clash.locator('button:not([aria-pressed="true"])', { hasText: "Keep both" }).all())
-              await keep.click();
-          await expect(clash.getByRole("button", { name: "Save" })).toBeEnabled();
-          await clash.getByRole("button", { name: "Save" }).click();
-        }
-        await expect.poll(made).toBe(true);
-        const ours = ((await club()).series as { id: number; slug: string; name: string }[]).find(
-          (s) => s.name === NAME,
-        )!;
-        seriesId = ours.id;
-        path = `/training/${ours.slug}`;
+  test("1. An admin sets up a training: Sundays and Tuesdays, two places, a keeper's, sign-up two days before", async () => {
+    await moveTo("2026-10-22T12:00");
+    for (const who of [pia, kit])
+      await checks(who, "can't set up a training", async () => {
+        await open(who, "/settings/training");
+        await expect(who.page.getByRole("button", { name: /^New training/ })).toHaveCount(0);
       });
 
-      for (const who of everyone)
-        await checks(who, `has ${NAME} in the menu, and its page opens on its first night`, async () => {
-          await who.page.goto("/");
-          await who.page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: NAME }).click();
-          await expect(who.page.getByRole("heading", { name: NAME, level: 1 })).toBeVisible();
-          await expect(who.page.getByText(/Every week on Tue and Sun · 7:30 to 9pm/)).toBeVisible();
-          await expect(card(who.page)).toContainText("Sun 25 Oct");
-        });
-    },
-  );
+    await does(ada, `adds ${NAME} in Settings → Training`, async () => {
+      await open(ada, "/settings/training");
+      await ada.page.getByRole("button", { name: /^New training/ }).click();
+      const editor = ada.page.getByRole("dialog", { name: "New training" });
+      await editor.getByRole("textbox", { name: "Name", exact: true }).fill(NAME);
+      await editor.getByRole("textbox", { name: "Short name" }).fill(SHORT);
+      await editor.getByRole("spinbutton", { name: "Skater places" }).fill("2");
+      await editor.getByRole("spinbutton", { name: "Goalie places" }).fill("1");
+      await editor.getByRole("textbox", { name: "Fee per session (£)" }).fill("8");
+      await editor.getByRole("tab", { name: "Schedule" }).click();
+      const days = editor.getByRole("group", { name: "Days" });
+      // The day it's made is offered first (a Thursday): Sundays and Tuesdays only
+      for (const day of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+        const button = days.getByRole("button", { name: day });
+        const pressed = (await button.getAttribute("aria-pressed")) === "true";
+        if (pressed !== (day === "Sun" || day === "Tue")) await button.click();
+      }
+      await expect(editor.getByText("Every week on Tue and Sun")).toBeVisible();
+      await editor.getByRole("button", { name: /^Sign-up opens:/ }).click();
+      await ada.page.getByRole("option", { name: "2 days before", exact: true }).click();
+      await editor.getByRole("button", { name: /^Where:/ }).click();
+      await ada.page.getByRole("option", { name: "Battersea Sports Centre" }).click();
+      await editor.getByRole("button", { name: "Add training" }).click();
+      const made = async () => ((await club()).series as { name: string }[]).some((s) => s.name === NAME);
+      // On a database other runs have used, its nights fall on theirs: keep both (the clash prompt is the calendar's
+      // journey's to check)
+      const clash = ada.page.getByRole("dialog", { name: "Already on then" });
+      await expect.poll(async () => (await clash.isVisible()) || (await made())).toBe(true);
+      if (await clash.isVisible()) {
+        // All of these: Keep both, when there are several, keeps every row, a tournament's that stays on too (#171);
+        // one alone, its own Keep both
+        const all = clash.getByRole("group", { name: /^All of these/ });
+        if (await all.count()) await all.getByRole("button", { name: "Keep both" }).click();
+        else
+          for (const keep of await clash.locator('button:not([aria-pressed="true"])', { hasText: "Keep both" }).all())
+            await keep.click();
+        await expect(clash.getByRole("button", { name: "Save" })).toBeEnabled();
+        await clash.getByRole("button", { name: "Save" }).click();
+      }
+      await expect.poll(made).toBe(true);
+      const ours = ((await club()).series as { id: number; slug: string; name: string }[]).find(
+        (s) => s.name === NAME,
+      )!;
+      seriesId = ours.id;
+      path = `/training/${ours.slug}`;
+    });
 
-  await stage("2. Sign-up opens at London midnight two days before (BST): Sunday 25 October", async () => {
+    for (const who of everyone)
+      await checks(who, `has ${NAME} in the menu, and its page opens on its first night`, async () => {
+        await who.page.goto("/");
+        await who.page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: NAME }).click();
+        await expect(who.page.getByRole("heading", { name: NAME, level: 1 })).toBeVisible();
+        await expect(who.page.getByText(/Every week on Tue and Sun · 7:30 to 9pm/)).toBeVisible();
+        await expect(card(who.page)).toContainText("Sun 25 Oct");
+      });
+  });
+
+  test("2. Sign-up opens at London midnight two days before (BST): Sunday 25 October", async () => {
     await moveTo("2026-10-22T23:59");
     await checks(
       pia,
@@ -220,7 +228,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("3. Full: the waiting list, the keeper's own place, and moving up", async () => {
+  test("3. Full: the waiting list, the keeper's own place, and moving up", async () => {
     await moveTo("2026-10-23T15:00");
     await checks(pia, "sees it in 2 days", async () => {
       await open(pia);
@@ -270,7 +278,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("4. The night before and its day, the clocks going back at 2am", async () => {
+  test("4. The night before and its day, the clocks going back at 2am", async () => {
     await moveTo("2026-10-24T23:30");
     await checks(pia, "at 23:30 BST on Saturday, it's Tomorrow", async () => {
       await open(pia);
@@ -305,7 +313,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("5. On the night: the register (a no-show, a walk-in let in), and what it charges", async () => {
+  test("5. On the night: the register (a no-show, a walk-in let in), and what it charges", async () => {
     await moveTo("2026-10-25T20:00");
     for (const who of [pia, kit])
       await checks(who, "can't take the register", async () => {
@@ -363,7 +371,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("6. The next day: the register, and the hourly run charging Tuesday's sign-ups", async () => {
+  test("6. The next day: the register, and the hourly run charging Tuesday's sign-ups", async () => {
     await moveTo("2026-10-26T08:00");
     // The register itself, through the API as the admin: the drawer is the next night's by now, so there's no tap
     // It closed at 6am (#11): Sunday's own page says so, and offers nothing that would change who came
@@ -404,7 +412,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     );
   });
 
-  await stage("7. Dues: Unpaid fees, a payment, an adjustment, reminders sent by hand", async () => {
+  test("7. Dues: Unpaid fees, a payment, an adjustment, reminders sent by hand", async () => {
     await moveTo("2026-10-28T12:00");
     await checks(pia, "sees what she owes on Home and on her tab, overdue, Sunday's £8 on it", async () => {
       const owed = pounds(await owes("Pia Payer"));
@@ -513,7 +521,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("8. A night called off: whoever's in hears it's off, and nobody's charged", async () => {
+  test("8. A night called off: whoever's in hears it's off, and nobody's charged", async () => {
     await moveTo("2026-10-30T12:00");
     // Pia and Kit in for Sunday 1 November through the API (open since Friday's midnight): not the step under test
     for (const email of [pia.email, kit.email])
@@ -545,7 +553,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("9. Month ends: an unpaid fee ages from up to 30 days to 31 to 60", async () => {
+  test("9. Month ends: an unpaid fee ages from up to 30 days to 31 to 60", async () => {
     await moveTo("2026-11-26T12:00", [ada]);
     await checks(ada, "on Thu 26 Nov, Wes's fee of Tue 27 Oct is up to 30 days old", async () => {
       await open(ada, "/settings/overdue");
@@ -558,7 +566,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("10. Quarterly: next quarter's plan, the quarter charged on its first day, its nights free", async () => {
+  test("10. Quarterly: next quarter's plan, the quarter charged on its first day, its nights free", async () => {
     await moveTo("2026-12-01T12:00");
     const plan = () =>
       quin.page.getByRole("group", { name: "Next quarter's plan" }).getByRole("button", { name: /^Quarterly/ });
@@ -604,7 +612,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("11. The clocks go forward: Sunday 28 March 2027", async () => {
+  test("11. The clocks go forward: Sunday 28 March 2027", async () => {
     await moveTo("2027-03-25T23:59");
     await checks(pia, "at 23:59 GMT on Thursday, Sun 28 Mar is in 3 days and not open yet", async () => {
       await open(pia);
@@ -652,7 +660,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
   });
 
-  await stage("12. A leap day: Tuesday 29 February 2028", async () => {
+  test("12. A leap day: Tuesday 29 February 2028", async () => {
     // Its sign-up opens at midnight on Sunday 27th; Sunday's night comes first, so the page has that one's card then
     await moveTo("2028-02-26T23:59");
     await checks(pia, "is refused an In for Tue 29 Feb at 23:59 on Saturday 26th, taken at midnight", async () => {
@@ -682,7 +690,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   });
 
   // Last, so the training's nights don't meet the journeys after this one (nor a rerun's) on Home and the calendar
-  await stage("13. The admin pauses the training: no more nights, and it's off the menu", async () => {
+  test("13. The admin pauses the training: no more nights, and it's off the menu", async () => {
     await does(ada, `unticks Running in ${NAME}'s settings, and saves`, async () => {
       await open(ada, "/settings/training");
       await ada.page.getByRole("button", { name: new RegExp(NAME) }).click();
@@ -702,7 +710,4 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
       await expect(pia.page.getByRole("main")).not.toContainText(NAME);
     });
   });
-
-  noFailedChecks();
-  for (const who of everyone) await who.context.close();
 });

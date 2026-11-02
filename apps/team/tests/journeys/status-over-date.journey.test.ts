@@ -11,19 +11,8 @@
 // the training and Fay's answer are made through the API as the admin and Fay, and the matches kicked off and their
 // results put in through the API as the admin, at the moment the story's at. What's under test is what each person
 // sees. The Kumites are deleted at the end, so the club's left as it was.
-import { expect, test, type Page } from "@playwright/test";
-import {
-  asMember,
-  at,
-  checks,
-  clubVia,
-  does,
-  london,
-  noFailedChecks,
-  signIn,
-  stage,
-  type Person,
-} from "./support/journey";
+import type { Page } from "@playwright/test";
+import { asMember, at, checks, clubVia, does, expect, london, signIn, test, type Person } from "./support/journey";
 
 const KUMITE = "/tournaments/kumite";
 /** The training this journey makes: on a database other runs may have used, a name nobody's used yet. */
@@ -34,11 +23,60 @@ const EARLY = "Early Kumite";
 const NEXT = "January Kumite";
 const NEXT_ON = "Sat 16 Jan";
 
-test("Status, not the date", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
-  const nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
-  const everyone = [ada, fay, nell];
+test.describe.serial("Status, not the date", () => {
+  let ada: Person;
+  let fay: Person;
+  let nell: Person;
+  let everyone: Person[];
+  let members: { id: number; name: string }[];
+  let early = 0;
+  let next = 0;
+  let skatePath = "";
+
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
+    nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
+    everyone = [ada, fay, nell];
+    members = (await club("2026-12-01T12:00")).members as { id: number; name: string }[];
+
+    early = await kumiteOn(EARLY, "2026-12-12");
+    next = await kumiteOn(NEXT, "2027-01-16");
+
+    // A training on Wednesdays, 7:30 to 9pm, always open, through the API as the admin; Fay's in for Wed 9 Dec
+    const { id: skate } = (await adaAt("2026-12-01T12:00")("POST", "/api/series", {
+      name: SKATE,
+      shortName: `Skate ${TAG}`,
+      icon: "skate",
+      tone: "green",
+      repeatEvery: 1,
+      weekdays: ["wed"],
+      startsOn: "2026-12-02",
+      endsOn: "2026-12-30",
+      startTime: "19:30",
+      endTime: "21:00",
+      venue: "The Rink",
+      capacity: null,
+      goalieCapacity: null,
+      signupOpensDays: null,
+      public: false,
+      active: true,
+      fees: [],
+      clashes: [],
+    })) as { id: number };
+    skatePath = `/training/${
+      ((await club("2026-12-01T12:00")).series as { id: number; slug: string }[]).find((s) => s.id === skate)!.slug
+    }`;
+    const night = (
+      (await club("2026-12-01T12:00")).sessions as { id: number; seriesId: number; heldOn: string }[]
+    ).find((s) => s.seriesId === skate && s.heldOn === "2026-12-09")!;
+    await asMember(fay.email, { at: london("2026-12-02T12:00") })("POST", `/api/sessions/${night.id}/answer`, {
+      answer: "in",
+    });
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay, nell]) await who?.context.close();
+  });
 
   /** Everyone, or some, at a London wall-clock time ("2026-12-05T22:00"). */
   const allAt = async (wall: string, who: Person[] = everyone) => {
@@ -59,7 +97,6 @@ test("Status, not the date", async ({ browser }) => {
   const adaAt = (wall: string) => asMember(ada.email, { at: london(wall) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const club = async (wall: string): Promise<any> => clubVia(adaAt(wall));
-  const members = (await club("2026-12-01T12:00")).members as { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
   const team = (name: string, captain: string, player: string) => ({
     name,
@@ -103,41 +140,7 @@ test("Status, not the date", async ({ browser }) => {
   const result = (id: number, gameId: number, wall: string) =>
     adaAt(wall)("PUT", `/api/tournaments/${id}/games/${gameId}`, { homeGoals: 3, awayGoals: 1 });
 
-  const early = await kumiteOn(EARLY, "2026-12-12");
-  const next = await kumiteOn(NEXT, "2027-01-16");
-
-  // A training on Wednesdays, 7:30 to 9pm, always open, through the API as the admin; Fay's in for Wed 9 Dec
-  const { id: skate } = (await adaAt("2026-12-01T12:00")("POST", "/api/series", {
-    name: SKATE,
-    shortName: `Skate ${TAG}`,
-    icon: "skate",
-    tone: "green",
-    repeatEvery: 1,
-    weekdays: ["wed"],
-    startsOn: "2026-12-02",
-    endsOn: "2026-12-30",
-    startTime: "19:30",
-    endTime: "21:00",
-    venue: "The Rink",
-    capacity: null,
-    goalieCapacity: null,
-    signupOpensDays: null,
-    public: false,
-    active: true,
-    fees: [],
-    clashes: [],
-  })) as { id: number };
-  const skatePath = `/training/${
-    ((await club("2026-12-01T12:00")).series as { id: number; slug: string }[]).find((s) => s.id === skate)!.slug
-  }`;
-  const night = ((await club("2026-12-01T12:00")).sessions as { id: number; seriesId: number; heldOn: string }[]).find(
-    (s) => s.seriesId === skate && s.heldOn === "2026-12-09",
-  )!;
-  await asMember(fay.email, { at: london("2026-12-02T12:00") })("POST", `/api/sessions/${night.id}/answer`, {
-    answer: "in",
-  });
-
-  await stage("1. A Kumite played early: set for Sat 12 Dec, played on Sat 5 Dec", async () => {
+  test("1. A Kumite played early: set for Sat 12 Dec, played on Sat 5 Dec", async () => {
     await allAt("2026-12-04T12:00");
     await checks(nell, "before it's played, sees it coming up on Home, on Sat 12 Dec", async () => {
       await open(nell, "/");
@@ -195,7 +198,7 @@ test("Status, not the date", async ({ browser }) => {
       );
   });
 
-  await stage("2. A night not closed: past its end, its register open till 06:00, it's still the one", async () => {
+  test("2. A night not closed: past its end, its register open till 06:00, it's still the one", async () => {
     await allAt("2026-12-09T21:30", [fay]);
     await checks(fay, "at 9:30pm, half an hour after it ended, still has Wed 9 Dec leading Home, over", async () => {
       await open(fay, "/");
@@ -225,7 +228,7 @@ test("Status, not the date", async ({ browser }) => {
     });
   });
 
-  await stage("3. The early Kumite's own day (Sat 12 Dec): still past, no sign-up and no Today for it", async () => {
+  test("3. The early Kumite's own day (Sat 12 Dec): still past, no sign-up and no Today for it", async () => {
     await allAt("2026-12-12T18:00");
     for (const who of [fay, nell])
       await checks(
@@ -247,7 +250,7 @@ test("Status, not the date", async ({ browser }) => {
     });
   });
 
-  await stage("4. A game running late: the 7pm match starts at 7:45", async () => {
+  test("4. A game running late: the 7pm match starts at 7:45", async () => {
     const games = await gamesOf(next, "2027-01-16T12:00");
     await allAt("2027-01-16T19:20");
     for (const who of [ada, nell])
@@ -282,10 +285,9 @@ test("Status, not the date", async ({ browser }) => {
         await expect(current(who.page)).toContainText("Game 2 of 3");
         await expect(current(who.page)).toContainText("You are next!");
       });
-  });
 
-  // Gone (a shortcut, as the other journeys' Kumites are): the club as it was
-  await adaAt("2027-01-17T12:00")("DELETE", `/api/tournaments/${early}`);
-  await adaAt("2027-01-17T12:00")("DELETE", `/api/tournaments/${next}`);
-  noFailedChecks();
+    // Gone (a shortcut, as the other journeys' Kumites are): the club as it was
+    await adaAt("2027-01-17T12:00")("DELETE", `/api/tournaments/${early}`);
+    await adaAt("2027-01-17T12:00")("DELETE", `/api/tournaments/${next}`);
+  });
 });
