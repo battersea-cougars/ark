@@ -80,3 +80,5 @@ change the rule, the test and this line together. Why a piece of code is the way
   [members.photo.use-cases.test.ts › "nobody signed out sees it"](members.photo.use-cases.test.ts)
 - It's personal data: it's in the data you download, and goes when you delete your account.
   [members.photo.use-cases.test.ts › "it goes with them when they delete their account"](members.photo.use-cases.test.ts)
+- The website never shows a member's photo: its roster cards keep the club mark.
+  [players.test.ts › "never shows a member's photo: the build's roster and a picked-up card leave it in the database"](../../../web/src/lib/server/players.test.ts)

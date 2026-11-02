@@ -40,6 +40,12 @@ describe("the website's sections", () => {
     expect((await built({ team: false, kumite: true })).results).toBe(true);
   });
 
+  it("the results are on while there are results to show, even with the Kumite off", async () => {
+    const { sectionsOf } = await import("./content");
+    expect(sectionsOf({ team: false, kumite: false }, 1)).toEqual({ team: false, kumite: false, results: true });
+    expect(sectionsOf({ team: false, kumite: false }, 0).results).toBe(false);
+  });
+
   it("on your machine every section is on, whatever the Studio says, so each can be looked at", async () => {
     expect(await built({ team: false, kumite: false }, { onMachine: true })).toEqual({
       team: true,

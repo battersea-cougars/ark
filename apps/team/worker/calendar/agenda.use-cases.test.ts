@@ -115,6 +115,19 @@ describe("the club's agenda", () => {
     expect(kinds(await dana.agenda(), /Winter Cup/)).toEqual([]);
   });
 
+  it("a draft reset puts draft night back on the calendar", async () => {
+    const { dana, id } = await winterCup();
+    for (const who of ["reg", "mo", "ash", "bo"])
+      await (await as(`${who}@example.com`)).call("POST", `/api/tournaments/${id}/answer`, { answer: "in" });
+    await dana.call("POST", `/api/tournaments/${id}/draft/draw`, {});
+    await dana.call("POST", `/api/tournaments/${id}/draft/open`, {});
+    await dana.call("POST", `/api/tournaments/${id}/draft/close`, { leaveOut: true });
+    expect(kinds(await dana.agenda(), /Winter Cup/)).not.toContain("draft");
+
+    expect((await dana.call("POST", `/api/tournaments/${id}/draft/reset`, {})).status).toBe(200);
+    expect(kinds(await dana.agenda(), /Winter Cup/)).toContain("draft");
+  });
+
   it("a tournament that's only a season so far shows its season, not a date", async () => {
     await winterCup({ heldOn: "2027-08-31", season: "summer", signupClosesOn: null, draftOn: null });
     const row = (await (await as("reg@example.com")).agenda()).find((r) => r.title === "Winter Cup");

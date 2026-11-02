@@ -14,8 +14,10 @@ line together. Why a piece of code is the way it is stays in a comment beside it
 - A section that's off isn't on the website at all: its page isn't built, so its address is not found, and there's
   no home page section or menu link for it.
   [lib/sanity/sections.use-cases.test.ts › "a section that's off has no page, so its address is not found"](lib/sanity/sections.use-cases.test.ts)
-- The results are on while the Kumite is (or while there are results to show).
+- The results are on while the Kumite is.
   [lib/sanity/sections.use-cases.test.ts › "the results are on while the Kumite is"](lib/sanity/sections.use-cases.test.ts)
+- With the Kumite off, the results are still on while there are results to show.
+  [lib/sanity/sections.use-cases.test.ts › "the results are on while there are results to show, even with the Kumite off"](lib/sanity/sections.use-cases.test.ts)
 - On your machine every section is on, whatever the Studio says, so each can be looked at; dev and production
   follow the Studio.
   [lib/sanity/sections.use-cases.test.ts › "on your machine every section is on, whatever the Studio says, so each can be looked at"](lib/sanity/sections.use-cases.test.ts)

@@ -160,7 +160,13 @@ export const getCrestFiles = memo(async () => crestFiles(resultRows()));
  */
 export const getSections = memo(async () => {
   const [{ team, kumite }, results] = await Promise.all([getSettings(), getResults()]);
-  return { team: team.onWebsite, kumite: kumite.onWebsite, results: kumite.onWebsite || results.length > 0 };
+  return sectionsOf({ team: team.onWebsite, kumite: kumite.onWebsite }, results.length);
+});
+
+/** The sections from the Studio's switches and how many results this build has. */
+export const sectionsOf = (switches: { team: boolean; kumite: boolean }, results: number) => ({
+  ...switches,
+  results: switches.kumite || results > 0,
 });
 
 /** Events that haven't finished yet, soonest first. */
