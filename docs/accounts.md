@@ -21,6 +21,21 @@ Accounts are named here by role, never by address:
 account is the top administrator and the club account stays a member one role below (Cloudflare Administrator, Sanity
 Editor), so usage and limit emails, which go to the top role, reach the developer account and not the club inbox.
 
+## Who's a member, and where to change it
+
+Each account's members page, and who should hold which role. Open the link, check the list matches, fix it there.
+
+| Account                            | Members page                                                               | Should hold the top role               | Also a member                    |
+| ---------------------------------- | -------------------------------------------------------------------------- | -------------------------------------- | -------------------------------- |
+| GitHub `battersea-cougars`         | <https://github.com/orgs/battersea-cougars/people>                         | The club account, a maintainer (Owner) |                                  |
+| Cloudflare **Cougars**             | <https://dash.cloudflare.com/27672b8cc27ebd904d18d2b06e64f713/members>     | The club account, a maintainer         |                                  |
+| Cloudflare **Cougars Dev**         | <https://dash.cloudflare.com/c9c62ec41bfdb158d51d5afb8b4fe337/members>     | The developer account, a maintainer    | The club account (Administrator) |
+| Sanity **Cougars**                 | <https://www.sanity.io/manage/project/ah165efl/members>                    | The club account, a maintainer         | The club's editors (Editor)      |
+| Sanity **Cougars Dev**             | <https://www.sanity.io/manage/project/zmg6rbe3/members>                    | The developer account, a maintainer    | The club account (Editor)        |
+| Google Cloud `battersea-cougars`   | <https://console.cloud.google.com/iam-admin/iam?project=battersea-cougars> | The developer account (Owner)          | The club account (Owner)         |
+| Sentry `battersea-cougars`         | <https://battersea-cougars.sentry.io/settings/members/>                    | The developer account (Owner)          | A maintainer                     |
+| Bitwarden, the club's organisation | Admin Console → Members, at <https://vault.bitwarden.eu>                   | The club account, a maintainer         |                                  |
+
 ## At a glance
 
 | Service                       | Owned by                                                                                                                                                                               | Sign in at                                                         | What it holds                                                            | Its secrets                                          |
