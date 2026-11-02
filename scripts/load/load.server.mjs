@@ -1,6 +1,6 @@
 // A team Worker of the load run's own (docs/load-testing.md): the built Worker under `wrangler dev`, on a port the OS
 // picks, with its own D1 in a fresh temp folder (never main's local D1, never dev or production), seeded with the
-// club's schema and seed and a roster of `members`. Signed in the way scripts/dev-sign-in.mjs does (POST
+// club's schema and seed (after launch, its migrations) and a roster of `members`. Signed in the way scripts/dev-sign-in.mjs does (POST
 // /api/auth/dev, a local server only), never by asking for codes; or, with `roster: false` (`--target local`), as
 // against dev: the run adds its own members and mints their sessions into this D1 (`d1db`, load.club.mjs). The
 // workerd process's CPU time is read from /proc.
@@ -9,6 +9,7 @@ import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSyn
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { databaseFiles } from "../lib/database.mjs";
 import { parseRoster, rosterSql } from "../lib/roster.mjs";
 import { loadRoster } from "./load.club.mjs";
 
@@ -87,7 +88,7 @@ export async function startServer({
   writeFileSync(join(state, "roster.sql"), rosterSql(parseRoster(JSON.stringify(roster)), new Date()));
   const execute = (...how) =>
     sh("npx", ["wrangler", "d1", "execute", "DB", "--local", "--persist-to", state, "-c", config, "--yes", ...how]);
-  const files = [join(ROOT, "db/schema.sql"), join(ROOT, "db/seed/club.sql")];
+  const files = databaseFiles();
   for (const file of seedRoster ? [...files, join(state, "roster.sql")] : files) execute("--file", file);
   log(
     seedRoster ? `Seeded ${members} members into ${state}` : `Seeded the club (no members of the run's) into ${state}`,

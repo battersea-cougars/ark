@@ -36,7 +36,10 @@ In the change that first goes to `release`:
 After that a change is a new file, `migrations/NNNN_what.sql`, additive only (new tables, new columns with a
 default): `npx wrangler d1 migrations create DB what -c apps/web/wrangler.jsonc` makes it,
 `npm run db:migrate:local` applies it locally, the tests pick it up, and the next deploy applies it.
-`db-rebuild.mjs` refuses from then on.
+`db-rebuild.mjs` refuses from then on. What builds a database of its own picks the migrations by itself once
+there are any (`scripts/lib/database.mjs`, as the tests' `packages/shared/testing/d1-sqlite.ts` does): the journeys,
+the load runs' Worker, the dev container's start (`db:migrate:local` in place of `db:rebuild:local`) and
+`scripts/deploy-dev.sh`.
 
 ## Backups
 

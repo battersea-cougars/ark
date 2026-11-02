@@ -23,7 +23,7 @@ doesn't keep yet is `it.fails("… (known bug #N)")` with an issue. The why of a
   **For your own checks: `npm run app -- --private`**, which prints your apps' own ports
   (`node scripts/dev-sign-in.mjs --port <team port>` to sign in). `npm run app status` lists what runs; the user sees
   and restarts apps at http://localhost:4500/__app. Apps share main's local D1; a branch that changes
-  `db/schema.sql` uses `--own-db`.
+  `db/schema.sql` (or, after launch, adds a migration) uses `--own-db`.
 - Never start a server with `&`, `nohup` or `setsid`, and never stop anything on 4500/4510/4520 except through
   `npm run app`. Stop only your own processes, by PID.
 - Finishing: by pull request ([ADR 0010](docs/adr/0010-environments-and-deploys.md)): push the branch, open a PR into

@@ -90,8 +90,8 @@ export function toStop(apps, { shown, main, now, exists }) {
 
 /**
  * Where a checkout's apps keep local D1 and the rest of wrangler's state: main's own (apps/web/.wrangler/state) by
- * default, so every checkout sees your data and your sign-in; a branch that changes db/schema.sql opts into its own
- * copy (`npm run app -- --own-db`). Undefined: the checkout's own, the apps' default.
+ * default, so every checkout sees your data and your sign-in; a branch that changes db/schema.sql (or adds a migration)
+ * opts into its own copy (`npm run app -- --own-db`). Undefined: the checkout's own, the apps' default.
  */
 export const localState = ({ dir, main, ownDb }) =>
   dir === main || ownDb ? undefined : join(main, "apps", "web", ".wrangler", "state");

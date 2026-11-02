@@ -187,7 +187,10 @@ walks, who's in it and which lower tests hold the rule's every case):
 
 Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
 screen) fails the step it happened in; the allowlist, each with its reason, is in `journey.ts`. A step refused on
-purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error.
+purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error. A person's `page.goto` waits for an overlay
+just closed to take its history entry off first (`lib/back.ts`): opened before that lands, the address is cancelled
+(`net::ERR_ABORTED`). A journey that makes a training pauses it in its `test.afterEach` (`pauseTraining`), so one
+that stops half way doesn't leave its nights on Home for the journeys after it.
 
 **Both clocks move.** `at(person, when)` puts someone at a moment: their browser's clock (Playwright's) and the
 server's for every request they make (the `x-dev-now` header, `worker/api/api.dev-clock.ts`: on your own machine and
@@ -196,7 +199,9 @@ time as an instant, BST or GMT as it was. `cron(when)` runs the Worker's hourly 
 through the dev server's own trigger: that's what charges a night's sign-ups the next day and a quarter on its first
 day. A journey moves forward only: a page opened at an earlier moment than one already used works the charges out
 for that day again. Never run the hourly cron far into the future while anyone's signed in: it forgets sessions older
-than the retention allows (`retention.forget`), and everyone's signed out.
+than the retention allows (`retention.forget`: a month after they ran out, and a browser's sign-in, on the real
+clock, runs out 90 days unused), so from about four months past today everyone's signed out; past that, a page's
+first open of the day charges what's due as well.
 
 ```sh
 npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped

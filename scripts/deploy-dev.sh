@@ -22,5 +22,13 @@ export PUBLIC_BUILD_VERSION="dev-$(git rev-parse --short HEAD)"
 
 npm run build
 node scripts/ci/target.mjs dev
-(cd apps/web && node ../../scripts/db-rebuild.mjs --remote -c dist/server/wrangler.json && npx wrangler deploy --message "$PUBLIC_BUILD_VERSION")
+# Rebuilt from db/schema.sql until launch; after it, migrated (ADR 0050), through the config naming the migrations as
+# deploy.yml does
+if ls db/migrations/*.sql >/dev/null 2>&1; then
+  node scripts/ci/target.mjs dev db
+  (cd apps/web && node ../../scripts/db-migrate.mjs --remote -c dist/d1/wrangler.json)
+else
+  (cd apps/web && node ../../scripts/db-rebuild.mjs --remote -c dist/server/wrangler.json)
+fi
+(cd apps/web && npx wrangler deploy --message "$PUBLIC_BUILD_VERSION")
 echo "Dev: $SITE_URL"

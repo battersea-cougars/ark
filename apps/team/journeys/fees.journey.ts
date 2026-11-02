@@ -29,6 +29,7 @@ import {
   knownBug,
   london,
   noFailedChecks,
+  pauseTraining,
   signIn,
   stage,
   type Person,
@@ -58,6 +59,10 @@ interface DatedFee {
   from: string;
 }
 
+/** Its training, paused once the journey's over however it ended (journey.ts pauseTraining): set as it's made. */
+let leftover = async () => {};
+test.afterEach(async () => leftover());
+
 test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
   const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
   const sam = await signIn(browser, "Member", "Sam Skater", "sam@example.com");
@@ -77,6 +82,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
   const members = (await club()).members as { id: number; name: string }[];
   const idOf = (name: string) => members.find((m) => m.name === name)!.id;
   let seriesId = 0;
+  leftover = () => pauseTraining(ada.email, seriesId, now);
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;

@@ -24,6 +24,7 @@ import {
   does,
   london,
   noFailedChecks,
+  pauseTraining,
   signIn,
   stage,
   type Person,
@@ -60,6 +61,10 @@ const answers = (page: Page) => page.getByRole("group", { name: "Are you in?" })
 /** Their In, pressed: "In" on the training's page, "I'm in" on Home's card. */
 const saidIn = (page: Page) => answers(page).getByRole("button", { name: /^(In|I'm in)$/, pressed: true });
 
+/** Its training, paused once the journey's over however it ended (journey.ts pauseTraining): set as it's made. */
+let leftover = async () => {};
+test.afterEach(async () => leftover());
+
 test("Fridays: a training night and what it costs", async ({ browser }) => {
   const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
   const pia = await signIn(browser, "Member", "Pia Payer", "pia@example.com");
@@ -83,6 +88,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   const members = (await club()).members as { id: number; name: string }[];
   const idOf = (name: string) => members.find((m) => m.name === name)!.id;
   let seriesId = 0;
+  leftover = () => pauseTraining(ada.email, seriesId, now);
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
@@ -315,11 +321,11 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
       await expect(register).toContainText("Sun 25 Oct");
     });
     await does(ada, "marks Wes a no-show", async () => {
-      await register.getByRole("button", { name: /^WW Wes Waiting/ }).click();
-      await expect(register.getByRole("button", { name: /^WW Wes Waiting .*No-show$/ })).toBeVisible();
+      await register.getByRole("button", { name: /^Wes Waiting/ }).click();
+      await expect(register.getByRole("button", { name: /^Wes Waiting .*No-show$/ })).toBeVisible();
     });
     await does(ada, "adds Tam, who turned up after all: the night's full, so she waits, then Let in", async () => {
-      await register.getByRole("button", { name: /^TT Tam Tardy/ }).click();
+      await register.getByRole("button", { name: /^Tam Tardy/ }).click();
       await register.getByRole("button", { name: "Let Tam Tardy in" }).click();
       await expect.poll(async () => (await sessionOn("2026-10-25")).going).toContain(idOf("Tam Tardy"));
       await register.getByRole("button", { name: "Done" }).click();
@@ -637,9 +643,11 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
         expect(await answerAt("bo@example.com", "2027-03-28", "out", "2027-03-28T19:30")).toBe(409);
       },
     );
+    // Not the hourly run here either: five months on, it forgets sessions that ran out a month before (retention.forget),
+    // and the browsers' sign-ins, on the real clock, last 90 days unused (ADR 0023): everyone would be signed out. The
+    // day's first open charges what's due as well
     await moveTo("2027-03-28T22:00");
-    await cron(now);
-    await checks(ada, "Pia's charged £8 for it, due Sun 28 Mar", async () => {
+    await checks(ada, "Pia's charged £8 for it, due Sun 28 Mar, on the day's first open", async () => {
       expect(await chargeFor("Pia Payer", "2027-03-28")).toMatchObject({ pence: 800, dueOn: "2027-03-28" });
     });
   });
