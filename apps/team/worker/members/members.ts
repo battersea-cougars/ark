@@ -238,11 +238,11 @@ export async function updateMember(
   id: number,
   o: Record<string, unknown>,
   by: By,
-): Promise<{ letIn: boolean; shutOut: boolean }> {
+): Promise<{ letIn: boolean; shutOut: boolean; keeperChanged: boolean }> {
   const caller = by.actions;
-  const existing = await first<{ id: number; status: string; rating: number }>(
+  const existing = await first<{ id: number; status: string; rating: number; position: string }>(
     db,
-    "SELECT id, status, rating FROM members WHERE id = ?",
+    "SELECT id, status, rating, position FROM members WHERE id = ?",
     [id],
   );
   if (!existing) throw new HttpError(404, "No such member.");
@@ -307,7 +307,11 @@ export async function updateMember(
   const [written] = await batch(db, statements);
   if (!written.meta.changes) throw new HttpError(409, lastAdmin);
   // Made inactive (or back to waiting): their sign-ins end, so letting them back in later opens none of them (#72)
-  return { letIn: existing.status === "pending" && status === "active", shutOut: status !== "active" };
+  return {
+    letIn: existing.status === "pending" && status === "active",
+    shutOut: status !== "active",
+    keeperChanged: (existing.position === "G") !== (position === "G"),
+  };
 }
 
 function roleFields(o: Record<string, unknown>) {

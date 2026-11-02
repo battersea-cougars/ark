@@ -210,7 +210,12 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     handle: async (c) => {
-      const { letIn, shutOut } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      const { letIn, shutOut, keeperChanged } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      // Made a keeper or no longer one: their own charges are worked out again (apps/team/worker/dues/README.md)
+      if (keeperChanged) {
+        c.charged = { members: [id(c)] };
+        c.alsoChanged.push("charges", "dues");
+      }
       // Made inactive: every way in goes, sessions and passkeys alike; let back in, they start with a code (ADR 0023)
       if (shutOut) {
         await endSessions(c.env, c.now, { memberId: id(c) });
