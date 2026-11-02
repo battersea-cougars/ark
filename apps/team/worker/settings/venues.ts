@@ -9,7 +9,7 @@ export const venuesFrom = (rows: { id: number; name: string; address: string; ma
   rows.map((v) => ({ ...v, active: Boolean(v.active) }));
 
 /**
- * What picks each venue (Settings → Venues, #177), so it's clear what a change moves: its trainings, tournament
+ * What picks each venue (Settings → Venues), so it's clear what a change moves: its trainings, tournament
  * series, tournaments and club events, every one there has been, by name, each name once. Read when the page opens,
  * not worked out from what the app holds (only the tournaments and events it shows).
  */

@@ -1,7 +1,5 @@
-// The apps' recent errors (ADR 0110): an admin opens Settings → Errors and sees each project's open issues in Sentry,
-// for this environment, newest first, with how often, when last, where, and a link to each. Sentry is asked at most
-// every few minutes, whoever opens it; when it's down the page says so calmly and keeps the last answer. Members
-// can't see it. Sentry's API is faked; everything else is real.
+// Settings → Errors (ADR 0110): an admin sees each project's open Sentry issues for this environment; Sentry is asked
+// at most every few minutes, and when it's down the last answer stays. Sentry's API is faked.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { captureLogs } from "@cougars/shared/testing/scribe";
 import { NOW, minutes, testWorld } from "../testing";

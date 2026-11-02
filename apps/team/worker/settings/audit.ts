@@ -1,8 +1,5 @@
-// The record (ADR 0024, apps/team/worker/settings/README.md): who did what, when. Written wherever something changes who can do what, at every
-// sign-in and sign-out, and for requests the API refused for want of an action (once a minute per member); read on
-// Settings → Audit log by whoever holds read:Audit, newest first, a page at a time. Each row names the member who
-// acted and, where the detail says which member or role it was about, that one too, so the page can say it in plain
-// words.
+// The record (ADR 0024, apps/team/worker/settings/README.md): who did what, when. Written wherever something changes
+// who can do what, at sign-in and sign-out, and for refused requests; read on Settings → Audit log.
 import { all, run } from "@cougars/shared/d1";
 import { scribe } from "@cougars/shared/scribe";
 
@@ -24,7 +21,7 @@ export async function audit(
 const log = scribe.logger("audit");
 
 /**
- * A request refused for want of an action (ADR 0024): on the record at most once a minute per member (#73), so a
+ * A request refused for want of an action (ADR 0024): on the record at most once a minute per member, so a
  * member (or a stolen session) looping on an admin route can't spend the club's daily D1 writes on refusals. Every
  * refusal is in the log (Workers Logs) whether or not it's written; the one row a minute says which came first.
  */

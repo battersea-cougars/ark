@@ -1,8 +1,5 @@
-// The club's free Cloudflare allowance (apps/team/worker/settings/README.md): admins see today's use on the Usage page, and an hourly check
-// emails them, and tells their phones, once a day when anything passes 70% and again at 90%, or when a request was
-// stopped for using too much CPU (apps/team/worker/settings/README.md, #157).
-// The live hub's requests and time (ADR 0053) are Durable Objects' own allowance, shown and checked the same way.
-// Cloudflare's analytics API is faked; everything else is real.
+// The club's free allowance (apps/team/worker/settings/README.md): admins see today's use on the Usage page, and the
+// hourly check tells them at 70% and 90%. Cloudflare's analytics API is faked; everything else is real.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mail } from "@cougars/shared/email";
 import { captureLogs } from "@cougars/shared/testing/scribe";
@@ -197,7 +194,7 @@ describe("the hourly check", () => {
   });
 });
 
-// Before any limit runs out, the admins see it on Home (#148): each hourly check keeps the limits at 70% or more, and
+// Before any limit runs out, the admins see it on Home: each hourly check keeps the limits at 70% or more, and
 // they come with the club (the bootstrap's forAdmins) to whoever sees Usage, so Home's For admins says the nearest in
 // one line from first paint (lib/usage-near.ts). Push and email at these levels are below.
 describe("the admins' Home says when a free limit is getting close", () => {
@@ -383,7 +380,7 @@ describe("an admin checks the club's Sanity requests this month", () => {
   });
 });
 
-// When they aren't looking (#157): at 70% and at 90% of a free limit, each admin's phone is told as well as their
+// When they aren't looking: at 70% and at 90% of a free limit, each admin's phone is told as well as their
 // inbox, once per limit and level, today's for Cloudflare's and this month's for Sanity's; a limit back under 70%
 // says nothing, and the next day's crossing tells them again. A phone's notification waits out quiet hours (ADR 0108)
 // unless the limit resets first, when there'd be nothing left to tell; the email goes at once. It's its own topic,

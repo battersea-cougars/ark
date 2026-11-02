@@ -1,9 +1,5 @@
-// The club's free Cloudflare allowance (apps/team/worker/settings/README.md): one account runs the website, the team app and their database,
-// and the free plan's daily limits reset at 00:00 UTC. Admins see today's use on the Usage page; an hourly check
-// (usage.alerts.ts) tells them at 70% and 90%, before the app stops working. The free plan also stops any request
-// that computes for more than 10 ms; the page shows each Worker's CPU time against that.
-// Read with a read-only token (Account Analytics: Read), CLOUDFLARE_ANALYTICS_TOKEN, never the deploy token.
-// Sanity's monthly quotas are ours to count (usage.sanity.ts, apps/team/worker/settings/README.md): shown and checked with or without the token.
+// The club's free Cloudflare allowance (apps/team/worker/settings/README.md): today's use for the Usage page, read with
+// a read-only analytics token, and Sanity's monthly count (usage.sanity.ts).
 import { batch, statement } from "@cougars/shared/d1";
 import type { Env } from "../api/api";
 import { scribe } from "@cougars/shared/scribe";

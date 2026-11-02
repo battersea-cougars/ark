@@ -1,9 +1,5 @@
-// Telling the admins a free limit is getting close (apps/team/worker/settings/README.md, #157), from the hourly check (index.ts `scheduled`):
-// at 70% and again at 90% of any limit it measures, an email to the admins and a notification on their phones (topic
-// "usage", ADR 0108), once per limit and level: today's (UTC) for Cloudflare's, this month's for Sanity's. A request
-// stopped for its CPU time is the 10 ms limit spent: told once a day. Sanity's quotas also email at 50%, and when
-// the month's pace would run out before the 1st (emails only: early warnings, not news for a phone). Each is claimed
-// in usage_warnings before it's sent, so two runs tell once; a limit back under 70% says nothing, and stays told.
+// Telling the admins a free limit is getting close (apps/team/worker/settings/README.md), from the hourly check: an
+// email and a notification (ADR 0108) at 70% and 90%, once per limit and level.
 import { all } from "@cougars/shared/d1";
 import { sendMail, type Mail } from "@cougars/shared/email";
 import { scribe } from "@cougars/shared/scribe";

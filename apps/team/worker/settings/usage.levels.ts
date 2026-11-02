@@ -1,8 +1,5 @@
-// How near the club is to each free limit (apps/team/worker/settings/README.md, #148): each hourly check keeps, in usage_levels, every limit it
-// read that's at 70% or more, and only those. They go out with the club (the bootstrap's forAdmins, api.slices.ts) to
-// whoever sees Usage, so Home's For admins has its line on first paint; a change to them is a new data version, so
-// the next open reads them afresh (ADR 0053). Today's Cloudflare limits are the UTC day's, Sanity's the month's; a row
-// from a day or month that's over isn't shown. The check tells the admins at these levels too (usage.alerts.ts).
+// How near the club is to each free limit (apps/team/worker/settings/README.md): the hourly check keeps every limit at
+// 70% or more in usage_levels, sent with the club to whoever sees Usage (ADR 0053).
 import { all, batch, statement } from "@cougars/shared/d1";
 import { nextMonth } from "@cougars/shared/sanity-requests";
 import { bumpDataVersion } from "../api/api.version";

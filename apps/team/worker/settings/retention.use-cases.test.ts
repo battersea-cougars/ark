@@ -1,4 +1,4 @@
-// The club keeps sign-in records no longer than it needs them (#30, ADR 0029): a sign-in code 30 days, a signed-out or
+// The club keeps sign-in records no longer than it needs them (ADR 0029): a sign-in code 30 days, a signed-out or
 // expired session 30 days after it ended, the audit log 2 years. The hourly cron forgets the rest; the privacy notice
 // says the same. Real handlers, the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

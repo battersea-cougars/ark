@@ -1,6 +1,5 @@
-// Dev tools (ADR 0027): what an admin can change outside production without a deploy. For now, who gets their own
-// email: everyone else's still goes to the safe inbox (packages/shared/email.ts). In production none of this exists, and the
-// list is never read: real recipients always get their own email there.
+// Dev tools (ADR 0027): what an admin can change outside production without a deploy: who gets their own email rather
+// than the safe inbox (packages/shared/email.ts). In production none of this exists.
 import { all, run } from "@cougars/shared/d1";
 import { clubContact } from "@cougars/shared/club-contact";
 import { email, type AuthEnv } from "../auth/auth";
@@ -10,7 +9,7 @@ import { HttpError } from "../api/api.http";
  * Whether Dev tools (and every dev-only tool, apps/team/worker/settings/README.md) exist here: only where the environment says, in so many words,
  * that it isn't production. A deploy says with SITE_ENV (scripts/ci/target.mjs: "dev" from main, "production" from
  * release); your own machine's server with TEAM_ENV "local" (vite.config.ts) and no SITE_ENV. Anything else
- * (production, a missing or unknown environment) is production here: fail closed (#81).
+ * (production, a missing or unknown environment) is production here: fail closed.
  */
 export const devToolsHere = (env: { SITE_ENV?: string; TEAM_ENV?: string }) =>
   env.SITE_ENV === "dev" || (env.TEAM_ENV === "local" && env.SITE_ENV === undefined);
