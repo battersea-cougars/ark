@@ -93,7 +93,9 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   `pr.yml` checks PRs instead (`svelte-check`, the Worker's `tsc`, a build).
 - **Every deploy is smoke-tested.** The team app's `/api/health` reads the database, so a broken D1 binding fails the
   deploy; without a session the club answers 401, and the local sign-in doesn't answer at all
-  ([ADR 0023](0023-sign-in-and-sessions.md)).
+  ([ADR 0023](0023-sign-in-and-sessions.md)). Only a release push sends the join form's real enquiry and its emails
+  (subject naming the environment); the daily rebuild, a result's rebuild and dev check the pages and the join API
+  without it, so the inbox gets one when code goes live.
 - **CI trusts as little as it can** (#70): every action is pinned to a commit SHA (its tag in a comment), the
   Bitwarden CLI is checked against its published checksum before it runs, each workflow starts with
   `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, every commit is scanned for secrets (gitleaks, the same way pinned

@@ -11,10 +11,11 @@ review, audit or plan doesn't stay (what's still to do is a GitHub issue, and de
 
 ## For whoever runs the accounts
 
-| Doc                        | What                                                                                      |
-| -------------------------- | ----------------------------------------------------------------------------------------- |
-| [accounts.md](accounts.md) | Every outside service: who owns it, where to sign in, how it's set up, the domain         |
-| [secrets.md](secrets.md)   | How secrets work, then every secret by system: where it's kept, its scopes, what reads it |
+| Doc                        | What                                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| [accounts.md](accounts.md) | Every outside service: who owns it, where to sign in, how it's set up, the domain                   |
+| [secrets.md](secrets.md)   | How secrets work, then every secret by system: where it's kept, its scopes, what reads it           |
+| [launch.md](launch.md)     | Launch day, step by step: the database, the release, the checks, opening the team app; rolling back |
 
 ## For developers
 
