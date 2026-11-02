@@ -12,9 +12,9 @@ Closes #<!-- the issue; "Part of #N" if it's one step of it -->
 
 1.
 
-## ADRs
+## ADRs and rules
 
-<!-- Records added or updated, with their History line; "None" if no decision changed. -->
+<!-- ADRs rewritten or added (architecture only, no History lines), and feature notes and tests changed for a product rule; "None" if neither. -->
 
 ## Checks
 

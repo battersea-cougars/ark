@@ -2,10 +2,17 @@
 
 Architecture follows gwenda-hackney/ark, simplified. Read README.md first.
 
-**Decisions are recorded in [docs/adr/](docs/adr/README.md), one record per topic.** Read the relevant ADR before
-changing how something works. Changing a decision means updating its topic's record in the same change, with a dated
-History line, never a quiet edit; a new topic (a service, a rule, a pattern, a trade-off) gets a new ADR
-([ADR 0001](docs/adr/0001-record-decisions.md)).
+**Architecture decisions are recorded in [docs/adr/](docs/adr/README.md), one record per topic** (structure,
+technology, environments, secrets, free tiers, sign-in and permissions, how the apps get their data, how code reads and
+is tested). Read the relevant ADR before changing how something is built; changing a decision means rewriting its
+record in the same change and bumping its _updated_ date. No History lines: git and the PRs are the trail. A new
+architectural topic gets a new ADR ([ADR 0001](docs/adr/0001-record-decisions.md)).
+
+**Product rules live with their feature, not in ADRs**: each rule (who's charged, when sign-up opens, what a page
+shows) has a use-case test that proves it, and a line in plain words in the feature folder's `README.md` linking that
+test (e.g. `apps/team/worker/training/README.md`). Change the rule, its test and its line together; a rule the code
+doesn't keep yet is `it.fails("… (known bug #N)")` with an issue. The why of a piece of code is a comment beside it.
+`npm run links` checks every link, notes line and ADR reference.
 
 ## One task, one worktree
 
@@ -29,11 +36,11 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
   technique, a folder per component and flat inside (`apps/team/worker/dues/`); keep entry points short, like a table
   of contents; name files `{domain}.{kind}.ts` (`dues.ts`, `dues.routes.ts`, `dues.use-cases.test.ts`). A new route
   goes in its component's `.routes.ts`, never in `api.ts`. How code reads (one job per file and function, early exits,
-  domain names; lint warns) is [ADR 0125](docs/adr/0125-how-code-reads.md).
+  domain names; lint warns) is the same ADR.
 
 - **Free tiers only.** Don't add a paid service or binding (Cloudflare Images, Durable Objects that store rows,
   paid Sanity features, card-payment providers) without asking. Check limits in [ADR 0003](docs/adr/0003-free-tiers-only.md). A Durable Object
-  that stores nothing (the live hub, ADR 0072) is fine.
+  that stores nothing (the live hub, ADR 0053) is fine.
 - **Secrets live only in Bitwarden Secrets Manager** ([ADR 0002](docs/adr/0002-secrets-in-bitwarden.md)).
   Never print secret values, never write them to files (`.env`, `.dev.vars`), never commit them. `.env` is for
   local non-secret overrides only. GitHub holds only the Bitwarden tokens (`BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`). Use
@@ -44,6 +51,9 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
 - **Never deploy to production by hand.** Production deploys only from the `release` branch via
   `.github/workflows/deploy.yml`; `main` and PRs deploy dev ([ADR 0010](docs/adr/0010-environments-and-deploys.md)).
   Dev is a separate Cloudflare account (workers `web` and `team`, at `web.cougars-dev.workers.dev` and `team.cougars-dev.workers.dev`) ([ADR 0010](docs/adr/0010-environments-and-deploys.md)). Your machine is dev; production secrets are `NAME__PRODUCTION`.
+- **A fresh clone runs after `npm ci`, with no secrets** ([ADR 0134](docs/adr/0134-a-fresh-clone-runs-after-npm-install.md)):
+  outside services are faked or off locally, and unlocking the Bitwarden vault (`bw-unlock`) is optional, for dev's
+  real services. Never make a secret or an environment variable required to run locally: add a fake or an off-switch.
 - **Not live yet: no migrations.** The database is `db/schema.sql` plus `db/seed/club.sql`; change them and run
   `npm run db:rebuild:local` (dev rebuilds on deploy), which keeps the data. Production starts fresh (schema, club
   seed, its admins from `TEAM_ROSTER__PRODUCTION`) and admins import the members; migrations start at launch ([ADR 0050](docs/adr/0050-schema-and-seed-until-launch.md), db/README.md).
@@ -84,7 +94,7 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
   for tricky pure logic. Known bugs stay as `it.fails("… (known bug #N)")`.
 - Vitest, colocated `*.test.ts`. D1 is in-memory SQLite built from the schema and seed (`packages/shared/testing/d1-sqlite.ts`).
   Don't mock our own code.
-- Before pushing: `npm run secrets:scan -- --since main && npm run lint && npm run knip && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio` (as `pr.yml`).
+- Before pushing: `npm run secrets:scan -- --since main && npm run lint && npm run knip && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio && npm run links` (as `pr.yml`).
 - **Signed in, headless**: `node scripts/dev-sign-in.mjs [email]` (no email: the first admin) writes a Playwright
   storage state to `.auth/team.json`. Use it for every screenshot or browser check; never ask for a code (ADR 0023,
   docs/testing.md).

@@ -5,24 +5,29 @@ Conventions are in [CLAUDE.md](../CLAUDE.md), decisions in [adr/](adr/README.md)
 
 ## Running it
 
+A fresh clone runs after `npm ci`: no secrets, no vault, no `.env`, no environment variables
+([ADR 0134](adr/0134-a-fresh-clone-runs-after-npm-install.md)).
+
 ```sh
-npm ci
-npm run db:rebuild:local   # create the local D1 database (db/schema.sql + the club seed)
-npm run db:seed:local      # a made-up club to work with (db/seed/roster.example.json), its admin Ada Admin
-npm run dev                # the website, http://localhost:4500 (through the show switch, below)
-npm run team               # the team app, http://localhost:4510 (sign in as admin@example.com: the code shows on screen)
-npm run studio             # the Sanity Studio, http://localhost:4520
+npm ci                      # all you need: no secrets, no vault, no .env
+npm run db:rebuild:local    # the local D1: db/schema.sql and the club seed
+npm run db:seed:local       # a made-up club, its admin Ada Admin (admin@example.com)
+npm run dev                 # the website, http://localhost:4500
+npm run team                # the team app, http://localhost:4510: sign in as admin@example.com, the code shows on screen
+npm run studio              # the Sanity Studio, http://localhost:4520 (to edit: npx sanity login)
 npm test
 ```
 
-A clean clone needs nothing else: no private files. The website's `apps/web/src/data/*.local.json` are made from the
-local database by every build, and `db/seed/roster.local.json` (your own roster) is optional
-([db/seed/README.md](../db/seed/README.md)).
-
+- **Without secrets**: emails go to the app's log (`npm run app logs web`), sign-in codes show on screen, and Sentry,
+  push, Instagram and YouTube are off or show samples. The website reads dev Sanity's public dataset, and builds from
+  `apps/web/src/lib/sanity/fallback.ts` when Sanity can't be read.
+- **Optional**: `bw-unlock`, then `npm run app restart`, for dev's real services
+  ([secrets.md](secrets.md#how-secrets-work)).
+- To check a clean clone as CI does: `node scripts/ci/fresh-clone.mjs` (`--no-build` for a quicker run).
+- For agents: `npm run app -- --private`, then `node scripts/dev-sign-in.mjs --port <team app port>`.
+- The website's `apps/web/src/data/*.local.json` are made from the local database by every build, and
+  `db/seed/roster.local.json` (your own roster) is optional ([db/seed/README.md](../db/seed/README.md)).
 - To preview the design with sample events, videos, photos and players: `DEMO_CONTENT=true npm run dev`.
-- The site builds and runs **without Sanity**: until a Sanity project is configured, it uses the club copy in
-  `apps/web/src/lib/sanity/fallback.ts` and shows empty states for videos, photos and events.
-- With secrets: `bw-unlock`, then `npm run app restart`; the apps pick up dev's ([secrets.md](secrets.md#how-secrets-work)).
 
 Opening the devcontainer installs dependencies, rebuilds the local D1 database (seeding the made-up club if it's
 empty) and starts **web** and the **team app** (VS Code tasks in `.vscode/tasks.json`, each in its own terminal).
