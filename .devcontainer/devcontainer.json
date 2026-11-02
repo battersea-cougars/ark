@@ -58,5 +58,7 @@
   // and local DB migrations in post-start.sh have finished.
   "waitFor": "postStartCommand",
   "remoteUser": "node",
+  // post-start.sh's `claude` launcher lives here.
+  "remoteEnv": { "PATH": "/home/node/.local/bin:${containerEnv:PATH}" },
   "shutdownAction": "stopCompose"
 }
