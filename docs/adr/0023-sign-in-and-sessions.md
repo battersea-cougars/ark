@@ -231,4 +231,5 @@ need a way back in that no stranger on the internet could use.
   code, so the account is still yours. An admin changing someone's email still removes theirs.
 - 2026-10-24: A member's code is made and emailed after the reply, so asking for a member's address takes no longer
   than a stranger's (#81).
-- 2026-11-02: A session left unused ends after 90 days, not 180; the year from signing in stays (Dan, #201).
+- 2026-11-02: A session left unused ends after 90 days, not 180; the year from signing in stays (Dan, #201). A phone whose
+  sign-in has ended hears no pushes, so a member who never opens the app stops hearing after 90 days, not 180.

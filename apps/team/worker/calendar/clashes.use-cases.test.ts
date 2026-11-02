@@ -120,7 +120,9 @@ describe("scheduling over something already on", () => {
     expect(made.status).toBe(200);
     expect((await dana.call("POST", `/api/sessions/${made.body.id}/cancelled`, { cancelled: true })).status).toBe(200);
 
-    // Months on, when the weeks ahead reach it, it's the same night, still off
+    // Months on, when the weeks ahead reach it, it's the same night, still off (Dana opened the app in between: a
+    // sign-in left 90 days ends, ADR 0023)
+    await boot(dana, new Date("2026-12-01T11:00:00Z"));
     const then = new Date("2027-01-05T11:00:00Z");
     expect((await boot(dana, then)).sessions.filter((s: Json) => s.heldOn === FAR_FRIDAY)).toEqual([
       expect.objectContaining({ id: made.body.id, cancelledAt: expect.any(String) }),
