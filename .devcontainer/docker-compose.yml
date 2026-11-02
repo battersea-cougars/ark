@@ -5,6 +5,10 @@ services:
     working_dir: /src
     init: true
     command: sleep infinity
+    environment:
+      # Claude Code keeps its own settings file (folder trust, Remote Control on, the sign-in's account) in the
+      # mounted ~/.claude instead of ~/.claude.json, which a rebuild wipes.
+      CLAUDE_CONFIG_DIR: /home/node/.claude
     # Gitignored, optional: CODEBASE_RAG_TOKEN for the host's codebase-rag MCP (.mcp.json).
     env_file:
       - path: .env.local
