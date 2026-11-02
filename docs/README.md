@@ -25,6 +25,7 @@ Everything written down about the website and the team app, by who it's for.
 | [testing.md](testing.md)                         | How we test: use cases first, the fake world, signed-in browsers, screenshots in `.shots/` |
 | [testing-map.md](testing-map.md)                 | The team app's tests mapped: which level checks what, feature by feature                   |
 | [load-testing.md](load-testing.md)               | Load and concurrency: how to run it, what D1 does, what the runs found, the headroom       |
+| [api-budget.md](api-budget.md)                   | The API's D1 budget: round trips per route, and what the counts found                      |
 | [team-app-data-model.md](team-app-data-model.md) | The team app's tables, by area                                                             |
 | [../db/README.md](../db/README.md)               | Database conventions, the schema and seed until launch, backups and restoring              |
 | [../db/seed/README.md](../db/seed/README.md)     | The seed: the public club seed and the roster, never in the repo                           |
@@ -43,5 +44,6 @@ Dated snapshots: what a review found on the day, what was fixed and what was lef
 | [reviews/accessibility-performance.md](reviews/accessibility-performance.md)   | Accessibility (axe, the keyboard) and first load, 2026-10-23: how to check, what was fixed and left, the numbers |
 | [reviews/code-style-audit.md](reviews/code-style-audit.md)                     | Code style audit, 2026-10-23: the code against ADR 0105 and 0125, file by file                                   |
 | [reviews/kumite-editor-review.md](reviews/kumite-editor-review.md)             | The Kumite editor and the scheduling wizard where they overlap, 2026-10-23                                       |
+| [reviews/tidy-2026-11-02.md](reviews/tidy-2026-11-02.md)                       | Tidy before launch, 2026-11-02: files, dependencies, CI, docs, and the ADRs to merge                             |
 
 What's planned: [GitHub milestones](https://github.com/battersea-cougars/ark/milestones).
