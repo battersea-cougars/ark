@@ -1,7 +1,7 @@
 # 0022. The team app is a mobile-first Svelte 5 SPA on a Worker, as a PWA, with a dev server that bundles up front
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-23
+- **Date:** 2026-10-06 · updated 2026-11-02
 - **Merges:** 0047
 
 ## Context
@@ -31,9 +31,10 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   (Home, the training, Club, the tournament, You), a collapsible rail on desktop. Club is the club's page (`/club`:
   its players, and later its contacts, #67). The Calendar isn't a tab: a phone opens it from Home's header (a button
   beside the greeting) and it has Back to Home; a desktop's rail keeps it. The last tab is You (your avatar): it always opens your profile, one page for everything
-  that isn't a tab. You first: your card (which opens your account: Profile, Dues, your everyday role, Sign out), your
-  details, your everyday role and your data; then Dues and the club's pages; then, for whoever can set things up,
-  every Settings page grouped as the desktop's list. The Settings gear sits in its bar, top right, as beside the
+  that isn't a tab. Your card on top (photo, name, roles, and what you owe, a tap from Dues), then three tabs so a
+  phone isn't one long scroll: Details (phone, position, the name you go by, bio), Account (the role switch and your
+  everyday role, sign-in email and passkeys, your data, sign out) and Alerts (notifications); `/me#account` and
+  `/me#alerts` open on theirs. The Settings gear sits in its bar, top right, as beside the
   desktop's badge ([0065](0065-page-frame-and-admin-actions.md)); it opens Settings (a phone's list of them) and in
   your everyday role switches you up on the way ([0024](0024-action-based-authorization.md)). Its bar is titled You.
   Every page that isn't a tab's own has Back, named for the page it was opened from (Home → Unpaid fees → ‹ Home);
@@ -110,3 +111,6 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   for it, hashed files kept a year) is its own record, [0120](0120-team-app-first-paint.md).
 - 2026-10-23: Opening the app waits at most 1.5 s on the network before the kept shell, and the network's shell is
   kept, with its files, whenever it arrives (#115).
+- 2026-11-02: The You page is your card and three tabs, Details, Account and Alerts (#202): on a phone it was one long
+  scroll, its Save at the end of the details and out of sight. The role switch moved from under your card into
+  Account; your email is a row there, changed in a sheet.

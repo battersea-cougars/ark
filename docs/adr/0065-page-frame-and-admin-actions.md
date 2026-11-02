@@ -84,6 +84,10 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
   entry, so Back from that page comes to the page under it. An installed iPhone app has no back gesture: there the
   sheet's pull-down and the × are the way out.
 - **A sheet's or drawer's main action sits in its footer**, not at the end of the body, so it's always in reach.
+- **Save has one place.** In a sheet, drawer or editor panel it's the footer's `lib/SaveBar`, Save on the right. A form
+  on a page (the You page's Details) has the same `SaveBar` pinned at the foot of the screen, above a phone's tabs,
+  while the form runs on under it. Nothing ends a form with a Save of its own. A switch, a pick that isn't in a
+  form, or a photo saves as you tap and has no Save at all.
 
 **One drawer, one sheet, one close contract**
 
@@ -241,3 +245,6 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - 2026-11-02: Back closes the overlay on top instead of leaving the page under it (`lib/back.ts`, #201): the member's
   sheet and a player's card had no way to hear Android's back at all, and the native sheets only in a browser that
   sends it to a dialog. It was "overlays don't touch the history".
+- 2026-11-02: Save has one place (#202): the footer in an overlay, pinned at the foot of the screen on a page. The You
+  page's Save sat at the end of its form, off screen on a phone, and its email change ended its own form with buttons;
+  the email change is a sheet now, its buttons in the footer.
