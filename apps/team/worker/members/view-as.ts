@@ -7,7 +7,7 @@ import { can, type Action } from "../../src/access/actions";
 import { shortName } from "../../src/lib/names";
 import { HttpError } from "../api/api.http";
 import { audit } from "../settings/audit";
-import { actionsOf } from "./members";
+import { actionsOf, canGrant } from "./members";
 
 /** The member a sign-in is viewing as, as the refusal names them. */
 export interface Viewed {
@@ -25,7 +25,7 @@ export async function viewingAsOf(db: D1Database, sessionId: number | null) {
   return row?.viewing_as ?? null;
 }
 
-/** Start viewing as a member. The route has checked who may; this says yes to anyone active who isn't you. */
+/** Start viewing as a member. The route has checked who may: someone active, not you, who can do no more than you. */
 export async function startViewing(db: D1Database, sessionId: number, memberId: number) {
   await run(db, "UPDATE auth_sessions SET viewing_as = ? WHERE id = ?", [memberId, sessionId]);
 }
@@ -51,25 +51,28 @@ export async function answeredAs(
       ? await stillViewing(db, now, { memberId, sessionId, viewingAs }, actions)
       : null;
   if (!viewing) return { viewing, memberId, actions };
-  return { viewing, memberId: viewing.id, actions: await actionsOf(db, viewing.id) };
+  return { viewing: viewing.viewed, memberId: viewing.viewed.id, actions: viewing.actions };
 }
 
 /**
- * The member a sign-in is still viewing as: someone in the club, viewed by someone who still holds View as a member.
- * Anything else ends it, on the record, and the sign-in is its own member's again (null).
+ * The member a sign-in is still viewing as, with what they may do: someone in the club who can do no more than the
+ * viewer (the grant rule, ADR 0036: viewing as someone reads what they may read), viewed by someone who still holds
+ * View as a member. Anything else ends it, on the record, and the sign-in is its own member's again (null).
  */
 async function stillViewing(
   db: D1Database,
   now: Date,
   who: { memberId: number; sessionId: number; viewingAs: number },
   actions: ReadonlySet<Action>,
-): Promise<Viewed | null> {
+): Promise<{ viewed: Viewed; actions: Set<Action> } | null> {
   const viewed = await first<Viewed>(
     db,
     "SELECT id, name, web_name webName FROM members WHERE id = ? AND status = 'active'",
     [who.viewingAs],
   );
-  if (viewed && can(actions, "impersonate:Member")) return viewed;
+  const theirs = viewed ? await actionsOf(db, viewed.id) : null;
+  if (viewed && theirs && can(actions, "impersonate:Member") && canGrant(actions, theirs))
+    return { viewed, actions: theirs };
   const ended = await run(db, "UPDATE auth_sessions SET viewing_as = NULL WHERE id = ? AND viewing_as = ?", [
     who.sessionId,
     who.viewingAs,

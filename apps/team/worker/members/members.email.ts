@@ -1,36 +1,55 @@
 // A member changes their own sign-in email (ADR 0023), keeping everything they've done: it's all theirs by id, never by
-// address. They type the new address on the You page and get a 6-digit code there; typing it back, signed in, makes
-// it theirs. Their other sign-ins end (as when an admin changes it, #72), this one stays, and the old address hears it
-// happened, so a member whose phone was taken can tell the club. An address that's already someone's gets no code, but
-// a note saying so, and the reply is the same either way: the app never says whose an address is.
-// Guesses are counted before a code is checked, in one statement, as sign-in's are.
+// address. They type the new address on the You page and get two 6-digit codes: one at the new address, and one at the
+// address they have now, so a stolen session alone can't move the account (security review, finding 16). Typing both
+// back, signed in, makes the new address theirs; a member with no address yet needs only the new one's. Their other
+// sign-ins end (as when an admin changes it, #72), this one stays, and the old address hears it happened. Someone who
+// has lost their old inbox asks an admin, who changes it on the member's page. An address that's already someone's
+// gets no code, but a note saying so, and the reply is the same either way: the app never says whose an address is.
+// Guesses are counted before the codes are checked, in one statement, as sign-in's are.
 import { first, run } from "@cougars/shared/d1";
 import { mailPausedUntil, sendMail } from "@cougars/shared/email";
 import { HttpError, body, json, text } from "../api/api.http";
 import type { Ctx } from "../api/api.route";
 import { code, email, localHere, mailConfig, mailSetup, sha256 } from "../auth/auth";
-import { newEmailCodeEmail } from "../auth/auth.email";
+import { moveEmailCodeEmail, newEmailCodeEmail } from "../auth/auth.email";
 import { endSessions } from "../auth/auth.sessions";
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("members");
 
 const CODE_MINUTES = 15;
-/** Wrong codes allowed against one emailed code. */
+/** Wrong guesses allowed against one change, whichever of its two codes was wrong. */
 const MAX_ATTEMPTS = 5;
 /** Codes one member may ask for, in an hour and in a day: someone else's inbox is at the other end. */
 const MAX_PER_HOUR = 5;
 const MAX_PER_DAY = 10;
 
 const addMs = (now: string, ms: number) => new Date(Date.parse(now) + ms).toISOString();
-const sentTo = (address: string) =>
-  `If ${address} can be yours, a code is on its way there. It works for ${CODE_MINUTES} minutes.`;
+const sentTo = (address: string, hasCurrent: boolean) =>
+  hasCurrent
+    ? `If ${address} can be yours, a code is on its way there, and another to the address you have now. Each works for ${CODE_MINUTES} minutes.`
+    : `If ${address} can be yours, a code is on its way there. It works for ${CODE_MINUTES} minutes.`;
+/** The new address half hidden, for the current inbox's warning: "t***@example.com". */
+export const masked = (address: string) => `${address[0]}***${address.slice(address.indexOf("@"))}`;
+const TAKEN_NOTE = {
+  subject: "This email is already on a Cougars account",
+  text: [
+    "Someone signed in to the Cougars app asked to use this address to sign in, but it's already on another",
+    "member's account, so nothing has changed.",
+    "",
+    "If both accounts are yours, ask an admin to sort them out. Didn't ask? Ignore this email.",
+    "",
+    "Battersea Cougars",
+  ].join("\n"),
+};
 
-/** `{ email }`: a code to the new address, or a note that it's taken. The same reply either way. */
+/** `{ email }`: a code to the new address (or a note that it's taken) and one to the current address. The same reply
+ * either way. */
 export async function askToChangeEmail(c: Ctx): Promise<Response> {
   const address = email(await body(c.request));
   const me = await first<{ email: string | null }>(c.env.DB, "SELECT email FROM members WHERE id = ?", [c.memberId]);
-  if (me?.email?.toLowerCase() === address) throw new HttpError(400, "That's already your email.");
+  const current = me?.email ?? null;
+  if (current?.toLowerCase() === address) throw new HttpError(400, "That's already your email.");
   const local = localHere(c.env, c.request);
   if (!local && (await mailPausedUntil()) && (await mailConfig(c.env)).gmail)
     throw new HttpError(503, "Email isn't sending right now, so a code can't reach you. Try again in a few minutes.");
@@ -44,7 +63,9 @@ export async function askToChangeEmail(c: Ctx): Promise<Response> {
     throw new HttpError(429, "That's a lot of codes. Try again later.");
 
   const taken = await first(c.env.DB, "SELECT 1 FROM members WHERE email = ? AND id != ?", [address, c.memberId]);
-  const theCode = taken ? null : code();
+  const newCode = taken ? null : code();
+  // The current inbox hears of it either way, so its owner knows someone tried
+  const currentCode = current ? code() : null;
   // A new code spends the one before, so only the latest address can become theirs
   await run(c.env.DB, "UPDATE email_changes SET used_at = ? WHERE member_id = ? AND used_at IS NULL", [
     c.now,
@@ -52,56 +73,76 @@ export async function askToChangeEmail(c: Ctx): Promise<Response> {
   ]);
   await run(
     c.env.DB,
-    `INSERT INTO email_changes (member_id, email, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`,
-    [c.memberId, address, theCode ? await sha256(theCode) : "", addMs(c.now, CODE_MINUTES * 60_000), c.now],
+    `INSERT INTO email_changes (member_id, email, code_hash, current_code_hash, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      c.memberId,
+      address,
+      newCode ? await sha256(newCode) : "",
+      currentCode ? await sha256(currentCode) : null,
+      addMs(c.now, CODE_MINUTES * 60_000),
+      c.now,
+    ],
   );
-  const reply = { ok: true, message: sentTo(address) };
-  // On your own machine the code comes back to the screen, as sign-in's does
-  if (theCode && local) return json({ ...reply, devCode: theCode });
-  const mail = theCode
-    ? { to: [address], ...newEmailCodeEmail(theCode, CODE_MINUTES) }
-    : {
-        to: [address],
-        subject: "This email is already on a Cougars account",
-        text: [
-          "Someone signed in to the Cougars app asked to use this address to sign in, but it's already on another",
-          "member's account, so nothing has changed.",
-          "",
-          "If both accounts are yours, ask an admin to sort them out. Didn't ask? Ignore this email.",
-          "",
-          "Battersea Cougars",
-        ].join("\n"),
-      };
-  const sending = (async () => sendMail(mail, await mailSetup(c.env)))().catch((e) =>
-    log.error("member.email_code_failed", e),
-  );
-  if (c.waitUntil) c.waitUntil(sending);
-  else await sending;
-  return json(reply);
+  await sendCodes(c, local, { address, newCode, current, currentCode });
+  const reply = { ok: true, message: sentTo(address, !!current) };
+  // On your own machine the codes come back to the screen, as sign-in's does, and aren't emailed
+  if (!local) return json(reply);
+  return json({
+    ...reply,
+    ...(newCode ? { devCode: newCode } : {}),
+    ...(currentCode ? { devCurrentCode: currentCode } : {}),
+  });
 }
 
-/** `{ code }`: the code from the new address. Right, and it's their sign-in email from now on. */
+/** The new address's code (or the note that it's taken) and the current address's; on your own machine, only the note. */
+async function sendCodes(
+  c: Ctx,
+  local: boolean,
+  {
+    address,
+    newCode,
+    current,
+    currentCode,
+  }: {
+    address: string;
+    newCode: string | null;
+    current: string | null;
+    currentCode: string | null;
+  },
+) {
+  const mails = [];
+  if (!newCode) mails.push({ to: [address], ...TAKEN_NOTE });
+  else if (!local) mails.push({ to: [address], ...newEmailCodeEmail(newCode, CODE_MINUTES) });
+  if (current && currentCode && !local)
+    mails.push({ to: [current], ...moveEmailCodeEmail(currentCode, CODE_MINUTES, masked(address)) });
+  if (!mails.length) return;
+  const sending = (async () => {
+    const setup = await mailSetup(c.env);
+    for (const mail of mails) await sendMail(mail, setup);
+  })().catch((e) => log.error("member.email_code_failed", e));
+  if (c.waitUntil) c.waitUntil(sending);
+  else await sending;
+}
+
+/** `{ code, currentCode }`: the new address's code and the current address's (none if they had no address). Both
+ * right, and it's their sign-in email from now on. */
 export async function confirmEmailChange(c: Ctx): Promise<Response> {
-  const typed = text(await body(c.request), "code", { max: 20 }).replace(/\s/g, "");
+  const sent = await body(c.request);
+  const typed = text(sent, "code", { max: 20 }).replace(/\s/g, "");
+  const typedCurrent = text(sent, "currentCode", { optional: true, max: 20 }).replace(/\s/g, "");
   // Count the guess before looking at it, in one statement, so a burst of guesses can't all see "no tries yet"
-  const live = await first<{ id: number; email: string; code_hash: string; attempts: number }>(
+  const live = await first<LiveChange>(
     c.env.DB,
     `UPDATE email_changes SET attempts = attempts + 1
      WHERE id = (SELECT id FROM email_changes WHERE member_id = ? AND used_at IS NULL AND expires_at > ?
                  ORDER BY id DESC LIMIT 1) AND attempts < ?
-     RETURNING id, email, code_hash, attempts`,
+     RETURNING id, email, code_hash, current_code_hash, attempts`,
     [c.memberId, c.now, MAX_ATTEMPTS],
   );
   if (!live) throw new HttpError(400, "That code has run out, or had too many tries. Ask for a new one.");
-  if (!live.code_hash || live.code_hash !== (await sha256(typed))) {
-    const left = MAX_ATTEMPTS - live.attempts;
-    throw new HttpError(
-      400,
-      left > 0
-        ? `That's not the code. ${left} ${left === 1 ? "try" : "tries"} left.`
-        : "Too many tries. Ask for a new code.",
-    );
-  }
+  const wrong = await wrongCodes(c, live, typed, typedCurrent);
+  if (wrong) throw new HttpError(400, wrong);
   // Spent once: only the first request to get here changes anything
   const spent = await run(c.env.DB, "UPDATE email_changes SET used_at = ? WHERE id = ? AND used_at IS NULL", [
     c.now,
@@ -145,3 +186,23 @@ export async function confirmEmailChange(c: Ctx): Promise<Response> {
   }
   return json({ ok: true, email: live.email });
 }
+
+type LiveChange = { id: number; email: string; code_hash: string; current_code_hash: string | null; attempts: number };
+
+/** What's wrong with the typed codes, saying which and how many tries are left; null when both are right. */
+async function wrongCodes(c: Ctx, live: LiveChange, typed: string, typedCurrent: string): Promise<string | null> {
+  const newRight = !!live.code_hash && live.code_hash === (await sha256(typed));
+  const currentRight = live.current_code_hash === null || live.current_code_hash === (await sha256(typedCurrent));
+  if (newRight && currentRight) return null;
+  const left = MAX_ATTEMPTS - live.attempts;
+  if (left <= 0) return "Too many tries. Ask for new codes.";
+  const tries = `${left} ${left === 1 ? "try" : "tries"} left.`;
+  if (!newRight && !currentRight) return `Neither code is right. ${tries}`;
+  if (newRight) return `The code sent to ${await currentAddress(c)} isn't right. ${tries}`;
+  return `The code sent to ${live.email} isn't right. ${tries}`;
+}
+
+/** The address the member has now, which the second code went to. */
+const currentAddress = async (c: Ctx) =>
+  (await first<{ email: string | null }>(c.env.DB, "SELECT email FROM members WHERE id = ?", [c.memberId]))?.email ??
+  "your current address";

@@ -528,15 +528,19 @@ CREATE INDEX login_challenges_member ON login_challenges (member_id, created_at)
 -- The admins' Home lists the week's break-glass codes (auth.break-glass.ts): found among the few, not every code sent
 CREATE INDEX login_challenges_break_glass ON login_challenges (created_at) WHERE kind = 'break_glass';
 
--- A member changing their own sign-in email (ADR 0023): a code to the new address, typed in the app they're signed in
--- to (worker/members/members.email.ts). Like sign-in's, the code is stored only as its hash, works for 15 minutes and
--- takes 5 wrong tries; the address is theirs only once the code's typed. Asking again spends the one before.
+-- A member changing their own sign-in email (ADR 0023): a code to the new address and one to the current address, both
+-- typed in the app they're signed in to (worker/members/members.email.ts). Like sign-in's, the codes are stored only as
+-- hashes, work for 15 minutes and take 5 wrong tries between them; the address is theirs only once both are typed.
+-- Asking again spends the ones before.
 CREATE TABLE email_changes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   member_id INTEGER NOT NULL REFERENCES members (id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   -- Empty when the address was already someone's: no code was sent, so none matches
   code_hash TEXT NOT NULL,
+  -- The code sent to the address they had when they asked, so a stolen session alone can't move the account (ADR
+  -- 0023); NULL when they had none
+  current_code_hash TEXT,
   attempts INTEGER NOT NULL DEFAULT 0,
   expires_at TEXT NOT NULL,
   used_at TEXT,

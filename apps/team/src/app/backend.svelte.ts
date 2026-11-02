@@ -307,12 +307,16 @@ export const saveProfile = (p: { position: Position; phone: string; bio: string;
 /** Your profile photo (ADR 0133), shrunk on your phone (lib/photo.ts); null takes it down. */
 export const savePhoto = (photo: string | null) =>
   save(() => api("PUT", "/api/me/photo", { photo }), photo ? "Photo saved" : "Photo removed");
-/** A code to the address you want to sign in with (ADR 0023): what to say, and the code itself on your own machine. Quiet: the form says. */
+/** Codes to the address you want to sign in with and the one you have (ADR 0023): what to say, and the codes
+ * themselves on your own machine. Quiet: the form says. */
 export const askEmailCode = (email: string) =>
-  save(() => api<{ message: string; devCode?: string }>("POST", "/api/me/email", { email }), "");
-/** The code from the new address: it's your sign-in email from now on. */
-export const confirmEmailCode = (code: string) =>
-  save(() => api<{ email: string }>("POST", "/api/me/email/confirm", { code }), "Email changed");
+  save(
+    () => api<{ message: string; devCode?: string; devCurrentCode?: string }>("POST", "/api/me/email", { email }),
+    "",
+  );
+/** The codes from the new address and the current one (none if you had none): it's your sign-in email from now on. */
+export const confirmEmailCode = (code: string, currentCode: string) =>
+  save(() => api<{ email: string }>("POST", "/api/me/email/confirm", { code, currentCode }), "Email changed");
 /** View the app as a member, read-only, or (null) go back to yourself (ADR 0024): the server answers this sign-in as
  * them until then, and the whole club is read again as whoever it's now shown as. Whether it took. */
 export const viewAs = async (memberId: number | null) =>
