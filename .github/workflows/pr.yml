@@ -13,7 +13,7 @@ concurrency:
   group: pr-${{ github.ref }}
   cancel-in-progress: true
 
-# No secrets here: the site builds from fallback content without Sanity.
+# No secrets here: the site reads dev Sanity's public dataset, and builds from its fallbacks (fallback.ts) when it can't.
 # Only what the change can reach (scripts/ci/pr-plan.mjs, the tiers of `npm run merge:check`, ADR 0115): docs alone, a
 # format check of those files; code, lint, knip and the tests, then the checks and builds of the apps it reaches (the
 # website's also the team app's, which imports it; anything outside the apps, every one). One job, so its name stays
@@ -63,3 +63,22 @@ jobs:
         run: npm run build -w @cougars/team
       - if: steps.plan.outputs.buildStudio == 'true'
         run: npm run build -w @cougars/studio
+
+  # A fresh clone runs after `npm ci` with no secrets, no vault and no .env: the local D1 built and seeded, the apps
+  # built, the website and team app started, signed in and showing the made-up club (scripts/ci/fresh-clone.mjs). A
+  # real `npm ci`, not the cached tree, so an install script left out of allowScripts shows here.
+  fresh-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - id: plan
+        run: node scripts/ci/pr-plan.mjs HEAD^1
+      - if: steps.plan.outputs.lint == 'true'
+        run: npm ci
+      - if: steps.plan.outputs.lint == 'true'
+        run: node scripts/ci/fresh-clone.mjs
