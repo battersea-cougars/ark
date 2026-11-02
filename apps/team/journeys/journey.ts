@@ -127,7 +127,41 @@ const HARMLESS: { why: string; is: (m: ConsoleMessage) => boolean }[] = [
 /** What went wrong in someone's browser since the last step took it: "Admin (Ada) on /settings: …". */
 const browserErrors: string[] = [];
 
+/**
+ * An overlay closing takes its own history entry off (lib/back.ts: `history.back()`), and that lands a moment later:
+ * an address opened before it lands is cancelled by it (net::ERR_ABORTED), as typing one at that moment would be.
+ * So a person's `goto` waits for it: for the entry to go once no overlay's open, and, if one was still on its way out
+ * when the address was opened, opens it again once the entry's gone (the one thing that cancels it, so once).
+ */
+function settledGoto(page: Page) {
+  const goto = page.goto.bind(page);
+  const overlayEntryGone = () =>
+    page
+      .waitForFunction(
+        () => {
+          const state = history.state as Record<string, unknown> | null;
+          const onOverlay = !!state && typeof state === "object" && "layer" in state;
+          return !onOverlay || !!document.querySelector("dialog[open], [role='dialog']");
+        },
+        undefined,
+        { timeout: 5_000 },
+      )
+      // A page that's gone, or an entry left from before a reload with nothing open: nothing of ours to wait for
+      .catch(() => {});
+  page.goto = async (url, options) => {
+    await overlayEntryGone();
+    try {
+      return await goto(url, options);
+    } catch (e) {
+      if (!String(e).includes("net::ERR_ABORTED")) throw e;
+      await overlayEntryGone();
+      return goto(url, options);
+    }
+  };
+}
+
 function listen(who: Person, page: Page) {
+  settledGoto(page);
   const where = () => `${who.role} on ${new URL(page.url() || "about:blank", "http://x").pathname}`;
   page.on("pageerror", (e) => browserErrors.push(`${where()}: uncaught ${e.name}: ${e.message}`));
   page.on("console", (m) => {
