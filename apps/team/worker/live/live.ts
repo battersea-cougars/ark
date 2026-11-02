@@ -9,6 +9,7 @@
 // sign-in's: three a member at most, and closed when its sign-in ends (#72, #73). Written in the classic Durable
 // Object shape, with no runtime imports, so the tests hold a real one.
 import { scribe } from "@cougars/shared/scribe";
+import { within, type SentryEnv, type Waiting } from "../sentry/sentry";
 import { HEARTBEAT_MS } from "../../src/lib/live-stream";
 
 const log = scribe.logger("live");
@@ -74,15 +75,24 @@ export class LiveHub {
   private lastSent = 0;
   private waiting: ReturnType<typeof setTimeout> | undefined;
 
-  // The object's state and environment: unused, it keeps nothing
-  constructor(_state?: unknown, _env?: unknown) {}
+  // The object's state and environment: it keeps nothing, so only for sending what goes wrong to Sentry (#225)
+  constructor(
+    private readonly state: Partial<Waiting> & Record<string, unknown> = {},
+    private readonly env: SentryEnv = {},
+  ) {}
 
   /** How many phones are listening. */
   get listeners() {
     return this.streams.size;
   }
 
-  async fetch(request: Request): Promise<Response> {
+  /** A call from the Worker, within Sentry's reach as the Worker's own invocations are (sentry/sentry.ts). */
+  fetch(request: Request): Promise<Response> {
+    const waiting = { waitUntil: (p: Promise<unknown>) => this.state.waitUntil?.(p) };
+    return within(this.env, waiting, { request }, () => this.answer(request));
+  }
+
+  private async answer(request: Request): Promise<Response> {
     const { pathname, searchParams } = new URL(request.url);
     if (request.method === "GET" && pathname === "/subscribe") {
       const session = searchParams.get("session");

@@ -4,6 +4,7 @@
 // (ADR 0031): the crons and a request as Cloudflare hands them to it, D1 failing as it can, Sentry's ingest answering.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../index";
+import { LiveHub } from "../live/live";
 import { testWorld } from "../testing";
 
 const ROSTER = [{ name: "Dana Admin", position: "D", rating: 75, email: "dana@example.com", roles: ["Admin"] }];
@@ -47,6 +48,20 @@ describe("an error reaches Sentry from the invocation it happened in", () => {
     expect(sentry.reports).toHaveLength(1);
     expect(sentry.reports[0].request).toEqual({ method: "GET", url: "https://team.test/api/health" });
     expect(sentry.reports[0].tags).toMatchObject({ event: "health.failed" });
+  });
+
+  it("a live hub call that fails: one report, from the hub's own invocation", async () => {
+    const after: Promise<unknown>[] = [];
+    const hub = new LiveHub({ waitUntil: (p: Promise<unknown>) => void after.push(p) }, w.env);
+    // A change the hub can't read: a list of changes that isn't one
+    const notify = new Request("https://live/notify", { method: "POST", body: JSON.stringify({ changed: 5 }) });
+    await hub.fetch(new Request("https://live/subscribe?member=1"));
+    await expect(hub.fetch(notify)).rejects.toThrow();
+    await Promise.all(after);
+
+    expect(sentry.reports).toHaveLength(1);
+    expect(sentry.reports[0].request).toEqual({ method: "POST", url: "https://live/notify" });
+    expect(sentry.reports[0].exception.values[0].mechanism).toMatchObject({ handled: false });
   });
 
   it("nothing wrong: a request and the minute's run send Sentry nothing", async () => {

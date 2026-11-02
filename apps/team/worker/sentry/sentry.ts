@@ -16,13 +16,18 @@ export interface SentryEnv {
   BUILD_VERSION?: string;
 }
 
+/** Where an invocation's work after its reply goes: the Worker's execution context, or a Durable Object's state. */
+export interface Waiting {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
 /** What set an invocation off: a request, or a Cron Trigger's run. */
 type Trigger = { request: Request } | { controller: ScheduledController };
 
 /** One invocation, as a report needs it: where to send from, and its last lines (Sentry's breadcrumbs). */
 interface Invocation {
   env: SentryEnv;
-  ctx: ExecutionContext;
+  ctx: Waiting;
   trigger: Trigger;
   lines: Entry[];
 }
@@ -35,7 +40,7 @@ const invocations = new AsyncLocalStorage<Invocation>();
  * Run one invocation (a request or a cron run) so what it reports reaches Sentry. Anything it throws that nothing
  * caught is reported too, as withSentry did, then thrown on.
  */
-export function within<T>(env: SentryEnv, ctx: ExecutionContext, trigger: Trigger, run: () => Promise<T>): Promise<T> {
+export function within<T>(env: SentryEnv, ctx: Waiting, trigger: Trigger, run: () => Promise<T>): Promise<T> {
   return invocations.run({ env, ctx, trigger, lines: [] }, async () => {
     try {
       return await run();
