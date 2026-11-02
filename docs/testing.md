@@ -15,7 +15,7 @@ next to the code runs without editing config.
 | `npx vitest run -t "walk-in"`  | tests whose name matches            |
 | VS Code test explorer (Vitest) | any file or single test             |
 
-Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio`
+Before pushing: `npm run secrets:scan -- --since main && npm run lint && npm run knip && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio`
 (as `pr.yml`, which runs only the part a change can reach: the tiers of `npm run merge:check`, ADR 0115).
 
 ## Signed in, in a real browser
@@ -75,8 +75,6 @@ rules, the team solver, standings, slugs, permissions. Don't add them by default
 
 Don't mock our own code. If a test needs to stub one of our functions, it's testing at the wrong level.
 
-Which level checks what, feature by feature, and the overlaps found: [testing-map.md](testing-map.md).
-
 ## The fake world
 
 `testWorld(roster)` (`apps/team/worker/testing.ts`) gives each test a fresh world:
@@ -128,13 +126,50 @@ spent follows the allocations it writes (the schema's triggers); members' played
 either way (#177). Anything else written straight into D1 that adds or takes away nights should do the same
 (`recountPlayed`, or `UPDATE members SET played = 0` and `data_version.played_through` to null).
 
+## What a request costs
+
+ADR 0003's rule: a request makes at most 25 D1 calls (a `batch()` is one), whatever the club's size; the Kumite
+simulator may make 45 and Move to 40. `apps/team/worker/api/api.budget.use-cases.test.ts` drives every route on its
+happy path on a club of 60 and of 120, and fails when a route isn't driven (a new route has to be added there), goes
+over its budget, or costs more for the bigger club (something read a member at a time). A count includes the
+wrapper's own calls and what runs after the reply (`waitUntil`), as the same invocation. To see the numbers:
+
+```sh
+BUDGET=1 npx vitest run apps/team/worker/api/api.budget      # every route's calls and statements, dearest first
+BUDGET=sql npx vitest run apps/team/worker/api/api.budget    # each dear route's statements, in order
+BUDGET=plan npx vitest run apps/team/worker/api/api.budget   # every statement whose query plan reads a whole table
+```
+
+## Accessibility and first load
+
+Run these before a release that changes how pages look or load.
+
+- **axe over the team app's Kumite night**: `npm run journeys -- --a11y` (in a worktree). At the end of each stage
+  axe looks at every person's page; `.journeys/a11y.md` lists what it found. It never fails the run.
+- **axe over single pages** (the rest of both apps): sign in with `node scripts/dev-sign-in.mjs [email] --port <team
+port>`, open the page with that storage state, and run `new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa",
+"wcag21a", "wcag21aa", "best-practice"]).analyze()` (`@axe-core/playwright`). Check at a phone's width (390) and a
+  desktop's (1366).
+- **What axe reports that stays, on purpose**: decoration it reads as words (the big 組手 behind "No Kumite yet", the
+  hanko seals, a losing crest's letters: `aria-hidden`, which WCAG exempts); a cancelled session's dimmed venue (the
+  Cancelled badge carries the meaning); label-in-name on cards and avatars (the name starts with what a speech user
+  would say); desktop Friday's h3 without an h2; the dev-only simulator's speed bar; a badge caught mid-animation.
+- **The team app's first paint** has a budget, 100 kB of JavaScript gzipped, checked by every build
+  (`scripts/team-app-budget.mjs`, [ADR 0120](adr/0120-team-app-first-paint.md)).
+- **Lighthouse** on a production build: `npm run build -w @cougars/web`, then
+  `npx wrangler dev -c dist/server/wrangler.json --port <any free port>` in apps/web; for the team app,
+  `npx wrangler dev -c dist/cougars_team/wrangler.json --port <port> --var TEAM_ENV:local --persist-to ../web/.wrangler/state`
+  in apps/team, signed in with `dev-sign-in.mjs --url` and the cookie passed as `--extra-headers`. Then
+  `CHROME_PATH=<Playwright's chromium> npx lighthouse <url> --chrome-flags="--headless=new --no-sandbox --disable-dev-shm-usage"`.
+  The mobile run's times are simulated: compare runs, not absolutes.
+
 ## Journeys
 
 Use cases stop at the API; **journeys** drive the real team app in a browser (Playwright, Chromium) through a whole
 workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
 mustn't ([ADR 0031](adr/0031-use-case-tests.md): which check goes at which level). They live in `apps/team/journeys/`,
-one `{workflow}.journey.ts` each, run in this order on one fresh database (which workflow each covers, and what's left
-to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
+one `{workflow}.journey.ts` each, run in this order on one fresh database (each file opens with the workflow it
+walks, who's in it and which lower tests hold the rule's every case):
 
 | Journey                          | The story                                                                                                 | Time   |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
@@ -176,8 +211,7 @@ nightly on `main`, the full one on a push to `release`, either by hand) a failin
 failing at the same commit comments on it. A step that fails because of a known bug is
 `knownBug(…)`, as `it.fails` is below.
 
-**How long.** The full run is 10½ to 13½ minutes (23 October 2026, the machine shared; the Fees journey added a
-minute on the 24th), most of it the simulator's
+**How long.** The full run is about 10 to 14 minutes, most of it the simulator's
 pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fees`,
 `fridays`, `kumite`, `members`, `pages`, `sign-in`, `status-over-date`: about 6 minutes, `--core`) every night on `main`, and the **full** run, with
 `kumite.on-the-clock` (its three played-out Kumites), before a release (a push to `release`).

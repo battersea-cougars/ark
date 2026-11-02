@@ -1,4 +1,4 @@
-// Every route keeps to the D1 budget (ADR 0003, docs/api-budget.md): a request makes a small, bounded number of D1
+// Every route keeps to the D1 budget (ADR 0003; docs/testing.md, What a request costs): a request makes a small, bounded number of D1
 // calls, whatever the club's size. Driven through the real handlers in the fake world (ADR 0031) on a club-sized
 // fixture: 60 members, a season of Fridays behind them with their charges, a Kumite played to its end, another
 // drafted and scored, sign-ups, dues, the calendar and the settings. Each route is driven on its happy path (a refusal

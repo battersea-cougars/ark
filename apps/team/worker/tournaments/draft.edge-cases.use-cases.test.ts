@@ -451,7 +451,7 @@ describe("someone leaves mid-draft", () => {
   });
 });
 
-describe("a replacement who isn't there (docs/reviews/security-review.md #17)", () => {
+describe("a replacement who isn't there (the 2026-10-23 security review's finding 17)", () => {
   it("an admin puts on a team a member who doesn't exist, or was erased while the drawer was open: 404, nobody's put on", async () => {
     const d = await opened();
     const [team] = await d.teams();
