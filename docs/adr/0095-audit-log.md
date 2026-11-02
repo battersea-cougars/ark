@@ -1,7 +1,7 @@
 # 0095. Each change declares what it puts on the audit log, on its route, and the log has a page in plain words
 
 - **Status:** Accepted
-- **Date:** 2026-10-09 · updated 2026-10-24
+- **Date:** 2026-10-09 · updated 2026-11-02
 - **Merges:** 0098
 
 ## Context
@@ -30,7 +30,8 @@ in a table. A decorator around a handler would also see only the request and the
 - **Every change made with more than being signed in goes on the record** (#80): anything an admin, a team maker, a
   scorer or a treasurer does (training, tournaments, scores, the register, teams, venues, settings, quips, club
   events, dues). A member's own changes may stay off it, with their reason: their sign-up (which needs
-  `signup:Event`, and is its own record), profile and everyday role, a captain's pick and their team's look, holding
+  `signup:Event`, and is its own record), profile and everyday role, a captain's pick and their team's look (an admin
+  changing a team's look is `team.look`: its subject is nothing when the captain is the one changing it), holding
   the scoresheet, dismissing an announcement. A test lists the opt-outs beyond being signed in: only the sign-ups.
 - **What happens tap by tap is summarised**: goals and the game clock write one `game.scored` when a game ends, and
   again for each edit after it's ended (their subject is the result once the game's done, else nothing), not one per
@@ -96,3 +97,5 @@ in a table. A decorator around a handler would also see only the request and the
 - 2026-10-24: Viewing as a member is on the record (#40): `view_as.started` and `view_as.ended`, by the admin, about the
   member, in words on the page ("Dana started viewing the app as Sam"); the end is also written when signing out, or
   the member leaving the club, ends it.
+- 2026-11-02: An admin, or anyone not its captain, changing a team's name or crest is `team.look` (security review
+  finding 12, #201); the captain changing their own team's look stays off the record.
