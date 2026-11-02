@@ -35,6 +35,8 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
         c.alsoChanged.push("people");
       // On its day an answer is charged (or not): the club's charges are worked out again after it (api.ts)
       if (await chargedFromToday(c.env.DB, kind, id(c), c.today)) c.alsoChanged.push("charges");
+      // ...that event's only (#222)
+      c.charged = kind === "session" ? { sessions: [id(c)] } : { tournaments: [id(c)] };
       return ok();
     },
   },

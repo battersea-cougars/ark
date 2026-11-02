@@ -97,6 +97,8 @@ export const MEMBERS_ROUTES: Route[] = [
     handle: async (c) => {
       const marks = await marksIn(c.request);
       await memberExists(c.env.DB, id(c));
+      // Their charges only (#222)
+      c.charged = { members: [id(c)] };
       await markAll(c.env.DB, id(c), marks, c.memberId, c.now);
       return json({ sessionIds: marks.map((m) => m.sessionId) });
     },

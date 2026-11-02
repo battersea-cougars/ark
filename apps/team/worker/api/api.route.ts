@@ -8,6 +8,7 @@ import { HttpError, body, json } from "./api.http";
 import { all, first } from "@cougars/shared/d1";
 import { type WebsiteEnv } from "../website/website";
 import type { Notice, PushEnv } from "../push/push";
+import type { ChargeScope } from "../dues/dues.scope";
 
 export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<PushEnv, "DB"> {
   /** "1", and only with TEAM_ENV "local" (tests, `TEAM_AUTO_ADMIN=1 npm run dev`): no session means the first admin. */
@@ -44,6 +45,11 @@ export interface Ctx {
   waitUntil?: (p: Promise<unknown>) => void;
   /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`, #178). */
   alsoChanged: Changed[];
+  /**
+   * Whose charges a change to them can move (#222): its night, tournament or member, so only theirs are worked out
+   * again (dues.scope.ts). Unsaid, the whole club's.
+   */
+  charged?: ChargeScope;
 }
 
 export interface Route {

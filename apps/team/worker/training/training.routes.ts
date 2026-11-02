@@ -101,6 +101,8 @@ export const TRAINING_ROUTES: Route[] = [
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.cancelled !== "boolean") throw new HttpError(400, "cancelled should be true or false.");
+      // That night's charges only (#222)
+      c.charged = { sessions: [id(c)] };
       if (!b.cancelled) return (await backOn(c.env.DB, id(c), c.now), ok());
       await callOff(c.env.DB, id(c), offFor(b), c.now);
       return ok();
@@ -150,6 +152,7 @@ export const TRAINING_ROUTES: Route[] = [
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);
+      c.charged = { sessions: [id(c)] };
       await letIn(c.env.DB, id(c), memberId, c.now);
       return ok();
     },
@@ -161,7 +164,10 @@ export const TRAINING_ROUTES: Route[] = [
     action: "update:Event",
     changes: ["sessions", "charges", "dues"],
     // Start the session again: no sign-ups, no teams
-    handle: async (c) => (await resetSession(c.env.DB, id(c), c.now), ok()),
+    handle: async (c) => {
+      c.charged = { sessions: [id(c)] };
+      return (await resetSession(c.env.DB, id(c), c.now), ok());
+    },
   },
   {
     method: "POST",
@@ -184,6 +190,8 @@ export const TRAINING_ROUTES: Route[] = [
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.here !== "boolean") throw new HttpError(400, "here should be true or false.");
+      // That night's charges only, not every one there's been (#222)
+      c.charged = { sessions: [id(c)] };
       return json({ signup: await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now) });
     },
   },
