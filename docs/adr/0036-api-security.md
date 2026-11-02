@@ -170,3 +170,6 @@ of future sessions is idempotent).
   ETag kept by the app; Dev tools exist only where the environment says dev or local, failing closed (ADR 0123); the
   service worker keeps only files that arrived whole; a member's sign-in code is made after the reply, so its timing
   says nothing about whose address it was (#81, [0023](0023-sign-in-and-sessions.md)).
+- 2026-11-02: `read:Audit` sees members' email addresses on purpose: holding it means seeing what audit entries carry
+  (`member.email`, `member.added`), beside `manage:Member`. Only Admin holds it (security review finding 15, kept by the
+  owner).

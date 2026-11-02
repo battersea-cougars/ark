@@ -231,3 +231,8 @@ need a way back in that no stranger on the internet could use.
   code, so the account is still yours. An admin changing someone's email still removes theirs.
 - 2026-10-24: A member's code is made and emailed after the reply, so asking for a member's address takes no longer
   than a stranger's (#81).
+- 2026-11-02: Changing your own sign-in email also needs a code sent to your current address, so a stolen session
+  alone can't move the account (security review finding 16, decided by the owner). Both codes are typed together in the
+  You page's sheet, the current address's first; its email names the new address half hidden and says to tell an admin
+  if it wasn't you. Five wrong guesses between them spend the change. A member with no email needs only the new
+  address's code; someone who has lost their old inbox asks an admin, whose change on the member's page is unchanged.

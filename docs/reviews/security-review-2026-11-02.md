@@ -24,10 +24,18 @@ Each fix in the code has a test that failed before it.
 
 ### Still open from 23 October
 
-Unchanged since the first pass, and still decisions rather than bugs: **2** (APNs and the retired Gmail client in
-Bitwarden's dev project), **11** (a code guess checked against every live code), **12** (a team's look isn't
-audited), **13** (error reports can spend the Sentry quota), **15** (`read:Audit` sees emails), **16** (a stolen
-session can move the email; the old address is told) and **18** (ADR 0036's `quarterly` row).
+Unchanged since the first pass, and still decisions rather than bugs: **11** (a code guess checked against every live
+code), **12** (a team's look isn't audited), **13** (error reports can spend the Sentry quota) and **18** (ADR 0036's
+`quarterly` row).
+
+Settled since:
+
+- **2** (APNs and the retired Gmail client in Bitwarden's dev project): Done: none of the four is in either Bitwarden
+  project (checked 2026-11-02).
+- **15** (`read:Audit` sees emails): Decided: kept (owner, 2026-11-02, ADR 0036). Holding `read:Audit` means seeing
+  the emails audit entries carry.
+- **16** (a stolen session can move the email): Fixed: a code to the current address too (ADR 0023). Changing your own
+  email needs the code sent to your current address as well as the new one's.
 
 ## Checked and fine
 
