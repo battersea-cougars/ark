@@ -48,6 +48,9 @@ functions past two screens, nesting five deep and parameters called `t`, `r`, `p
 
 **How the code inside a file reads**
 
+- **A file's top comment says what it's for**, briefly and clearly. It may cite an ADR only if that ADR is current. No
+  issue numbers, no history ("was…", "since #NNN", dated notes) and no long rationale: git and the pull requests keep
+  history, and the feature notes keep rules.
 - **Single purpose, SOLID in spirit.** A file has one job, and so does a function. A file that does two things is two
   files; a function that does two things is two functions with names that say which.
 - **Sizes to notice**: a file past roughly **400 lines**, a Svelte component's own CSS past roughly **500 lines**

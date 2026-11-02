@@ -35,8 +35,10 @@ doesn't keep yet is `it.fails("… (known bug #N)")` with an issue. The why of a
 - **Code is for people to read** ([ADR 0105](docs/adr/0105-code-grouped-by-feature.md)): group it by feature, not by
   technique, a folder per component and flat inside (`apps/team/worker/dues/`); keep entry points short, like a table
   of contents; name files `{domain}.{kind}.ts` (`dues.ts`, `dues.routes.ts`, `dues.use-cases.test.ts`). A new route
-  goes in its component's `.routes.ts`, never in `api.ts`. How code reads (one job per file and function, early exits,
-  domain names; lint warns) is the same ADR.
+  goes in its component's `.routes.ts`, never in `api.ts`. A file's top comment says briefly and clearly what the file
+  is for; it cites an ADR only if that ADR is current, and holds no issue numbers, history ("was…", "since #NNN",
+  dated notes) or long rationale: git and PRs keep history, the feature notes keep rules. How code reads (one job per
+  file and function, early exits, domain names; lint warns) is the same ADR.
 
 - **Free tiers only.** Don't add a paid service or binding (Cloudflare Images, Durable Objects that store rows,
   paid Sanity features, card-payment providers) without asking. Check limits in [ADR 0003](docs/adr/0003-free-tiers-only.md). A Durable Object
