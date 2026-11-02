@@ -58,5 +58,6 @@ jobs:
           path: |
             .journeys/summary.md
             .journeys/run/
+            .journeys/app.log
           if-no-files-found: ignore
           retention-days: 7
