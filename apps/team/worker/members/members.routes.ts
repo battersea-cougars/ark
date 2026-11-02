@@ -89,8 +89,8 @@ export const MEMBERS_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Attendance",
-    // Who came is who's charged (ADR 0007)
-    changes: ["sessions", "members", "charges", "dues"],
+    // Who came is who's charged (ADR 0007), and counts in what they've played: not who they are (#223)
+    changes: ["sessions", "played", "charges", "dues"],
     // A walk-in taken off frees a place: whoever moves up hears it
     notify: places,
     // { marks: [{ sessionId, here }] }: each Friday ticked or unticked, in one go

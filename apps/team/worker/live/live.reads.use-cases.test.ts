@@ -141,6 +141,43 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
   });
 });
 
+describe("the register on the night, with everyone's phones on the night (#223)", () => {
+  it("each mark reads the night on the phones, not the whole club, and not the roster", async () => {
+    const f = await friday();
+    const reg = await w.signedIn("s1@example.com");
+    expect((await reg.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
+    const roster = (await f.dana.call("GET", "/api/slices?names=members")).body.slices.members as Json[];
+    const regId = roster.find((m) => m.name === "Skater 1").id as number;
+    const phones = [await phoneOn("s2@example.com", ["sessions"]), await phoneOn("s3@example.com", ["sessions"])];
+    expect(
+      (await f.dana.call("POST", `/api/sessions/${f.session.id}/register`, { memberId: regId, here: true })).status,
+    ).toBe(200);
+    await settled();
+    for (const p of phones) {
+      const reads = p.asked.slice(1);
+      expect(
+        reads.filter((r) => r.startsWith("whole")),
+        `${p.email}: ${reads.join(" | ")}`,
+      ).toEqual([]);
+      expect(reads).toEqual([expect.stringMatching(/^parts: /)]);
+      // Who anyone is, and the roster, are as they were: a mark moves no one's card on the night itself
+      expect(reads[0].split(/[:,] /)).not.toContain("members");
+      const night = p.club().sessions.find((s: Json) => s.id === f.session.id);
+      expect(night.going.find((m: Json) => (m.memberId ?? m.id ?? m) === regId)).toBeTruthy();
+    }
+  });
+
+  it("a tournament saved reads the tournaments on the phones, not the whole club", async () => {
+    const f = await friday();
+    const phone = await phoneOn("s2@example.com", ["tournaments"]);
+    const t = ((await f.dana.club()).body as Json).tournaments[0];
+    expect(t).toBeTruthy();
+    expect((await f.dana.call("PUT", `/api/tournaments/${t.id}`, { ...t, name: `${t.name} II` })).status).toBe(200);
+    await settled();
+    expect(phone.asked.slice(1)).toEqual([expect.stringMatching(/^parts: tournaments/)]);
+  });
+});
+
 describe("the hub, in a burst", () => {
   it("sends at most one event a second, naming every part and every version in it", async () => {
     const f = await friday();

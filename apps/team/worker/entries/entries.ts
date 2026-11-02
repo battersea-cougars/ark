@@ -572,7 +572,10 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
   ]);
 }
 
-/** The register on the night: one member, here or not (markAll). Says where they are now: in, waiting, or null. */
+/**
+ * The register on the night: one member, here or not (markAll). Says where they are now (`signup`: in, waiting, or
+ * null), where they were (`was`), and the night's day (#223: what the mark changed for everyone else's phones).
+ */
 export async function mark(
   db: D1Database,
   sessionId: number,
@@ -581,8 +584,15 @@ export async function mark(
   by: number,
   now: string,
 ) {
+  const before = await first<{ heldOn: string; signup: string | null }>(
+    db,
+    `SELECT s.held_on heldOn, a.signup FROM training_sessions s
+     LEFT JOIN attendance a ON a.session_id = s.id AND a.member_id = ? WHERE s.id = ?`,
+    [memberId, sessionId],
+  );
   await markAll(db, memberId, [{ sessionId, here }], by, now);
-  return (await current(db, "session", sessionId, memberId))?.signup ?? null;
+  const signup = (await current(db, "session", sessionId, memberId))?.signup ?? null;
+  return { signup, was: before?.signup ?? null, heldOn: before?.heldOn ?? "" };
 }
 
 /** Everyone's answers for the given events, keyed by event id. */

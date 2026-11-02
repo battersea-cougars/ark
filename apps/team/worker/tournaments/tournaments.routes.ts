@@ -58,8 +58,9 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       ),
     },
     action: "manage:Tournament",
-    // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "dues", "members", "sessions"],
+    // A Kumite team renamed here is its captain's default name for the next one, worked out from the editions
+    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club (#223)
+    changes: ["tournaments", "charges", "dues", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     // Made with its sign-up open: everyone hears it
@@ -76,8 +77,9 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       ),
     },
     action: "manage:Tournament",
-    // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "dues", "members", "sessions"],
+    // A Kumite team renamed here is its captain's default name for the next one, worked out from the editions
+    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club (#223)
+    changes: ["tournaments", "charges", "dues", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     // A limit raised lets the first waiting in, and they hear it; a sign-up opened by hand is told to everyone
@@ -243,8 +245,9 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     // Its captain or an admin: setTeamLook decides
     action: "authenticated",
-    // A Kumite team's name is its captain's default for the next one too (team-name.ts)
-    changes: ["tournaments", "members"],
+    // A Kumite team's name is its captain's default for the next one too, worked out from the editions (team-name.ts):
+    // nothing on the member changes (#223)
+    changes: ["tournaments"],
     handle: async (c) => {
       const admin = can(c.actions, "manage:Tournament");
       await setTeamLook(c.env.DB, id(c), Number(c.params[1]), { memberId: c.memberId, admin }, await body(c.request));
