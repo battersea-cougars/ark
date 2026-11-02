@@ -31,7 +31,7 @@ switch (command) {
     console.log(
       `\n${branch} in ${dir} (node_modules ${how})\n` +
         "cd there, then npm run app (to show the user on 4500/4510) or npm run app -- --private (your own checks).\n" +
-        "Its apps use main's local D1; a branch that changes db/schema.sql: npm run app -- --own-db.",
+        "Its apps use main's local D1; a branch that changes db/schema.sql or adds a migration: npm run app -- --own-db.",
     );
     break;
   }
