@@ -227,3 +227,40 @@ describe("scheduling over something already on", () => {
     expect((await ask(dana, at(FRIDAY, "23:00"), at(FRIDAY, "18:00"))).status).toBe(400);
   });
 });
+
+// A training's save is held to what its editor asked about (training.clashes.use-cases.test.ts): something put on
+// between the question and the answer refuses it. A tournament's and a one-off's aren't yet.
+describe("a tournament's or a one-off's save over something put on since it asked", () => {
+  const SUNDAY = "2026-10-18";
+  const quiz = (title = "Quiz night") => ({
+    title,
+    startsAt: at(SUNDAY, "20:00"),
+    endsAt: at(SUNDAY, "23:00"),
+    venue: "The Fox",
+    description: "",
+    public: true,
+    signup: false,
+  });
+
+  it.fails("a tournament's save is held to its clash answer (known bug #233)", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const other = await w.signedIn("dana@example.com");
+    expect((await ask(dana, at(SUNDAY, "18:00"), at(SUNDAY, "23:00"))).body.clashes).toEqual([]);
+    expect((await other.call("POST", "/api/club-events", quiz())).status).toBe(201);
+
+    const saved = await dana.call("POST", "/api/tournaments", { ...kumite(SUNDAY), clashes: [] });
+
+    expect(saved.status).toBe(409);
+  });
+
+  it.fails("a one-off's save is held to its clash answer (known bug #233)", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const other = await w.signedIn("dana@example.com");
+    expect((await ask(dana, at(SUNDAY, "20:00"), at(SUNDAY, "23:00"))).body.clashes).toEqual([]);
+    expect((await other.call("POST", "/api/club-events", quiz())).status).toBe(201);
+
+    const saved = await dana.call("POST", "/api/club-events", { ...quiz("Darts night"), clashes: [] });
+
+    expect(saved.status).toBe(409);
+  });
+});

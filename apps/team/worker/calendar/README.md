@@ -18,6 +18,8 @@ the test and this line together. Why a piece of code is the way it is stays in a
   [agenda.use-cases.test.ts › "its draft day shows only to its captains and the admins, as a day: a reminder, with no time"](agenda.use-cases.test.ts)
 - A closed draft leaves the calendar; a finished tournament leaves it altogether.
   [agenda.use-cases.test.ts › "a closed draft leaves the calendar; a finished tournament leaves it altogether"](agenda.use-cases.test.ts)
+- A draft reset puts draft night back on the calendar.
+  [agenda.use-cases.test.ts › "a draft reset puts draft night back on the calendar"](agenda.use-cases.test.ts)
 - A tournament that's only a season so far shows its season, not a date.
   [agenda.use-cases.test.ts › "a tournament that's only a season so far shows its season, not a date"](agenda.use-cases.test.ts)
 
@@ -48,6 +50,10 @@ the test and this line together. Why a piece of code is the way it is stays in a
   [training.clashes.use-cases.test.ts › "the Kumite stays on, so the training can skip that night: saved, its own night is made and cancelled"](../training/training.clashes.use-cases.test.ts)
 - A training's save holds to what it was asked about: something put on in between refuses it, and it's asked again.
   [training.clashes.use-cases.test.ts › "the Kumite put on between the question and the answer refuses the save, and asked again it's there"](../training/training.clashes.use-cases.test.ts)
+- A tournament's or a one-off's save should hold to its answer the same way, but doesn't yet: something put on in
+  between is saved over without asking. A known gap (known bug #233).
+  [clashes.use-cases.test.ts › "a tournament's save is held to its clash answer (known bug #233)"](clashes.use-cases.test.ts),
+  [clashes.use-cases.test.ts › "a one-off's save is held to its clash answer (known bug #233)"](clashes.use-cases.test.ts)
 - Two trainings put on the same evening at once: one is saved, the other is asked.
   [training.clashes.concurrency.use-cases.test.ts › "two trainings put on the same evening at once › seed %i: one is saved, the other refused, never both unasked"](../training/training.clashes.concurrency.use-cases.test.ts)
 - A training saved without being asked is saved as before.
