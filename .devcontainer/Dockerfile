@@ -9,8 +9,6 @@ RUN apt-get update \
         sudo \
         curl \
         python3 \
-        python3-pip \
-        python3-venv \
         imagemagick \
         ripgrep \
         fd-find \
@@ -24,16 +22,6 @@ RUN apt-get update \
     && echo "node ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 RUN ln -sf "$(command -v fdfind)" /usr/local/bin/fd || true
-
-RUN python3 -m pip install --break-system-packages --no-cache-dir \
-        httpx \
-        pyyaml \
-        ruff \
-        pandas \
-        openpyxl \
-        python-docx \
-        pypdf \
-        tabulate
 
 # Bitwarden CLI — bw-unlock (see bw-session.bashrc)
 RUN npm install -g @bitwarden/cli@2026.8.0 --allow-scripts=core-js
