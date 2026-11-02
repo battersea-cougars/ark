@@ -11,11 +11,12 @@ Everything written down about the website and the team app, by who it's for.
 
 ## For whoever runs the accounts
 
-| Doc                        | What                                                                                        |
-| -------------------------- | ------------------------------------------------------------------------------------------- |
-| [accounts.md](accounts.md) | Every outside service the club runs on, who owns it, and which secrets it issues            |
-| [setup.md](setup.md)       | One-time account setup, in order: Cloudflare, Sanity, Bitwarden, GitHub                     |
-| [secrets.md](secrets.md)   | How secrets work, then every secret by system and environment: why, where, how to change it |
+| Doc                        | What                                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| [accounts.md](accounts.md) | Every outside service the club runs on, who owns it, and which secrets it issues                    |
+| [setup.md](setup.md)       | One-time account setup, in order: Cloudflare, Sanity, Bitwarden, GitHub                             |
+| [secrets.md](secrets.md)   | How secrets work, then every secret by system and environment: why, where, how to change it         |
+| [launch.md](launch.md)     | Launch day, step by step: the database, the release, the checks, opening the team app; rolling back |
 
 ## For developers
 
