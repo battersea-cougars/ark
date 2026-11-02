@@ -315,11 +315,11 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
       await expect(register).toContainText("Sun 25 Oct");
     });
     await does(ada, "marks Wes a no-show", async () => {
-      await register.getByRole("button", { name: /^WW Wes Waiting/ }).click();
-      await expect(register.getByRole("button", { name: /^WW Wes Waiting .*No-show$/ })).toBeVisible();
+      await register.getByRole("button", { name: /^Wes Waiting/ }).click();
+      await expect(register.getByRole("button", { name: /^Wes Waiting .*No-show$/ })).toBeVisible();
     });
     await does(ada, "adds Tam, who turned up after all: the night's full, so she waits, then Let in", async () => {
-      await register.getByRole("button", { name: /^TT Tam Tardy/ }).click();
+      await register.getByRole("button", { name: /^Tam Tardy/ }).click();
       await register.getByRole("button", { name: "Let Tam Tardy in" }).click();
       await expect.poll(async () => (await sessionOn("2026-10-25")).going).toContain(idOf("Tam Tardy"));
       await register.getByRole("button", { name: "Done" }).click();
