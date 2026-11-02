@@ -11,7 +11,18 @@
 // person sees, a Kumite deleted from its editor, and the night's own Manage. Every Kumite here is deleted at the end
 // and every night put back on, so the club's left as it was.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, at, checks, clubVia, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
+import {
+  asMember,
+  at,
+  checks,
+  clubVia,
+  does,
+  london,
+  noFailedChecks,
+  signIn,
+  stage,
+  type Person,
+} from "./support/journey";
 
 const NOW = "2026-11-30T12:00";
 /** The Fridays (Friday Training's nights) and a Saturday this story uses, as the pages write them and as days. */

@@ -8,7 +8,7 @@
 // in November 2026 (`at`: the browser's clock and the server's, both), so the days are the same whenever it runs. It
 // runs first, on a fresh database, and again on one it ran on before: what it adds has this run's own name.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, clubVia, at, checks, does, london, noFailedChecks, signIn, stage } from "./journey";
+import { asMember, clubVia, at, checks, does, london, noFailedChecks, signIn, stage } from "./support/journey";
 
 /** This run's mark on what it adds, so a database it ran on before doesn't confuse it. */
 const run = Date.now().toString(36).slice(-4);

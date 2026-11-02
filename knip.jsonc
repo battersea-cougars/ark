@@ -17,8 +17,8 @@
       "project": ["scripts/**/*.mjs"],
     },
     "apps/team": {
-      "entry": ["public/sw.js", "journeys/*.{ts,mjs}"],
-      "project": ["{src,worker,journeys,native}/**/*.{ts,svelte,mjs}"],
+      "entry": ["public/sw.js", "tests/journeys/**/*.{ts,mjs}"],
+      "project": ["{src,worker,tests,native}/**/*.{ts,svelte,mjs}"],
     },
     "apps/studio": {
       "entry": ["seed.ts"],

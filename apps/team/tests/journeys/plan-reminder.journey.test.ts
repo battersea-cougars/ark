@@ -26,7 +26,7 @@ import {
   stage,
   type Person,
   type Queued,
-} from "./journey";
+} from "./support/journey";
 
 const QUARTER = "2027-Q1";
 const KEY = `plan:${QUARTER}`;

@@ -12,7 +12,18 @@
 // results put in through the API as the admin, at the moment the story's at. What's under test is what each person
 // sees. The Kumites are deleted at the end, so the club's left as it was.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, at, checks, clubVia, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
+import {
+  asMember,
+  at,
+  checks,
+  clubVia,
+  does,
+  london,
+  noFailedChecks,
+  signIn,
+  stage,
+  type Person,
+} from "./support/journey";
 
 const KUMITE = "/tournaments/kumite";
 /** The training this journey makes: on a database other runs may have used, a name nobody's used yet. */

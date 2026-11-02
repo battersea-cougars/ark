@@ -9,6 +9,8 @@ export default [
     ignores: [
       ".worktrees/",
       ".cline-local/",
+      // The journeys' runs: their database, Vite's cache, traces (playwright.config.ts)
+      ".journeys/",
       "**/dist/",
       "**/.astro/",
       "**/.wrangler/",

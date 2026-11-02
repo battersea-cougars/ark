@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -8,6 +8,8 @@ export default defineConfig({
       "packages/shared/**/*.test.ts",
       "scripts/**/*.test.mjs",
     ],
+    // The journeys are Playwright's (playwright.config.ts), never Vitest's
+    exclude: [...configDefaults.exclude, "**/*.journey.test.ts"],
     environment: "node",
     setupFiles: ["packages/shared/testing/setup.ts"],
     // A test that hangs still fails, but a slow machine doesn't fail the club-sized ones (120 phones, a whole draft):

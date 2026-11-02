@@ -6,7 +6,7 @@
 // Nothing is saved, deleted or confirmed: it only looks. On whatever the database holds when it runs (after the
 // Kumite night, its past Kumite's pages too).
 import { expect, test, type Page } from "@playwright/test";
-import { checks, noFailedChecks, signIn, stage, type Person } from "./journey";
+import { checks, noFailedChecks, signIn, stage, type Person } from "./support/journey";
 
 const KUMITE = "/tournaments/kumite";
 

@@ -28,7 +28,7 @@ import {
   signIn,
   stage,
   type Person,
-} from "./journey";
+} from "./support/journey";
 
 /** The training this journey makes: on a database other runs may have used, a name nobody's used yet. */
 const TAG = Date.now().toString(36).slice(-4);

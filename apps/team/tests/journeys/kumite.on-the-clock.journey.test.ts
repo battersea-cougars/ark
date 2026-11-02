@@ -12,8 +12,19 @@
 // the Friday one is scheduled through the wizard, as its question is the step under test. Each Kumite is deleted when
 // its stage is done, so the club is left as the Kumite night left it.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, clubVia, at, checks, does, london, noFailedChecks, signIn, stage, type Person } from "./journey";
-import { kumiteOnAPastDay } from "./past-kumite";
+import {
+  asMember,
+  clubVia,
+  at,
+  checks,
+  does,
+  london,
+  noFailedChecks,
+  signIn,
+  stage,
+  type Person,
+} from "./support/journey";
+import { kumiteOnAPastDay } from "./support/past-kumite";
 
 const KUMITE = "/tournaments/kumite";
 

@@ -32,7 +32,7 @@
     "worktree": "node scripts/worktree.mjs",
     "merge:check": "node scripts/merge-check.mjs",
     "load": "node scripts/load/load.mjs",
-    "journeys": "node apps/team/journeys/journeys.mjs",
+    "journeys": "node apps/team/tests/journeys/support/journeys.mjs",
     "sizes": "node scripts/sizes.mjs",
     "knip": "knip",
     "links": "node scripts/links-check.mjs"
