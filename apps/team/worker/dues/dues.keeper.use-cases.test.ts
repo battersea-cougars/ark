@@ -63,6 +63,30 @@ describe("keepers play training free", () => {
     expect(await chargesOf(dana, id.Reg)).toEqual([]);
   });
 
+  it("making someone a keeper takes their unpaid training nights off; a night they've paid stays", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const series = (await boot(dana)).series[0];
+    await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [{ pence: 800, from: "2026-01-01" }] });
+    const id = await ids(dana);
+    for (const day of ["2026-09-25", LAST_FRIDAY]) {
+      const session = (await boot(dana)).sessions.find((s: Json) => s.heldOn === day).id;
+      await dana.call(
+        "POST",
+        `/api/sessions/${session}/register`,
+        { memberId: id.Reg, here: true },
+        { now: onTheNight(day) },
+      );
+    }
+    const [paid] = await chargesOf(dana, id.Reg);
+    expect((await dana.call("POST", `/api/charges/${paid.id}/payment`, { via: "transfer" })).status).toBe(200);
+
+    const reg = (await boot(dana)).members.find((m: Json) => m.id === id.Reg);
+    expect((await dana.call("PUT", `/api/members/${id.Reg}`, { ...reg, position: "G" })).status).toBe(200);
+    await chargeDue(w.env, on("2026-10-06"));
+
+    expect((await chargesOf(dana, id.Reg)).map((c) => c.id)).toEqual([paid.id]);
+  });
+
   it("a keeper has no plan to choose, and an admin can't make them Quarterly", async () => {
     const dana = await w.signedIn("dana@example.com");
     const kim = await w.signedIn("kim@example.com");
