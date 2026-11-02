@@ -1,4 +1,4 @@
-// Every edition of a series has its own page, at its own address (ADR 0074): /tournaments/kumite/12, its statuses under
+// Every edition of a series has its own page, at its own address (apps/team/worker/tournaments/README.md): /tournaments/kumite/12, its statuses under
 // it (/tournaments/kumite/12/draft). "This page is the layout for that specific kumite — the url should reflect that"
 // (the user, 2026-10-23). The series' own address is its front door: with one on, it opens that one's address; with
 // nothing on, it's the series' page (No Kumite yet, the past ones).

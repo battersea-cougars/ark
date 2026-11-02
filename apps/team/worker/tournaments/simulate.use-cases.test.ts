@@ -1,4 +1,4 @@
-// The Kumite simulator (ADR 0123): on dev, an admin plays a Kumite on from wherever it is to its after-party with
+// The Kumite simulator (apps/team/worker/settings/README.md): on dev, an admin plays a Kumite on from wherever it is to its after-party with
 // one tap, so the after-party can be tried without scoring every match by hand. A request makes one move you'd see
 // (a pick, a goal, a period's end), says which, and whether that's all, so the app can pace it to watch. It goes
 // through the app's own use cases (the draft, the scoresheet, the clock, goals and penalties), stops with the awards provisional, carries on

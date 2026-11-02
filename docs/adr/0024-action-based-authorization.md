@@ -1,8 +1,8 @@
-# 0024. Permissions are actions; roles are data built from actions; admins can view as a member or run as less
+# 0024. Permissions are actions and roles are data; every response sends only what its caller may see; every change declares its audit record; every page is hardened
 
 - **Status:** Accepted
 - **Date:** 2026-10-06 · updated 2026-11-02
-- **Merges:** 0029 (view as a member), 0037
+- **Merges:** 0029 (view as a member), 0036, 0037, 0092, 0095, 0098, 0099
 
 ## Context
 
@@ -39,20 +39,19 @@ taps to start and stop.
   (`manage:all`, can't be edited or deleted). Admins create other roles by ticking actions.
 - **Some checks also look at the record**: `pick:Draft` only for that draft's captains; a profile only by its owner
   or `manage:Member`.
-- Granting is limited: no one grants what they don't hold, and responses are filtered per caller on the server
-  ([0036](0036-api-security.md)).
+- Granting is limited: no one grants what they don't hold, and responses are filtered per caller on the server (below).
 - The bootstrap returns the member's actions. Nav entries and buttons declare an action and hide when it's missing;
   the server still checks.
 - The last active member holding `manage:all`, through Admin or any other role, can't lose it: not by their roles
   changing, being made inactive or pending, deleting their account, or `manage:all` coming off the role that gives
   it; the change is refused (409) and the admin's told to make someone else an admin first. Role and permission changes and refused requests go in
-  `audit_log` ([0095](0095-audit-log.md)).
+  `audit_log` (below).
 - Permissions are read with one indexed query per request. The first admin's email is a non-secret setting.
 
 **View as a member** (`impersonate:Member`, "View the app as a member (read-only)")
 
 - Admins have it through `manage:all`; it can be given to other roles. **The grant rule holds**: you view as
-  someone who can do no more than you, as you change only them ([0036](0036-api-security.md)). Starting as someone
+  someone who can do no more than you, as you change only them. Starting as someone
   who can do more is refused (403), and a view of someone who's since been given more ends on the next request, so
   a role holding only View as a member never reads what an admin may.
 - It's a page in **Settings → System** (View as a member), where an admin looks for their tools. Picking someone
@@ -71,8 +70,7 @@ taps to start and stop.
   own changes outside the API: a passkey, or a phone given to the club for notifications, so a view never registers
   a device and nothing is pushed to it as the member. The app still disables the controls (In/Out, sign-up,
   profile, sign out) so nobody taps into a refusal.
-- **On the record**: `view_as.started` and `view_as.ended`, by the admin, about the member
-  ([0095](0095-audit-log.md)); signing out while viewing writes the end too.
+- **On the record**: `view_as.started` and `view_as.ended`, by the admin, about the member; signing out while viewing writes the end too.
 - **It ends cleanly** when the member leaves the club (made inactive, erased, deleted) or the admin no longer holds
   `impersonate:Member`: the next request finds out, ends it on the record, and answers as the admin again.
 - An amber banner across the top says who you're viewing as, with **Back to <you>** always available, whatever the
@@ -99,6 +97,66 @@ taps to start and stop.
 - Every place that decides what to show uses the app's granted actions (`granted()`), never the real roles, and role
   badges for yourself use `shownRoles()`.
 
+**Every response sends only what its caller may see**
+
+Every route is designed for its least trusted caller; the UI hiding something is never the protection. The repo is
+public and members' details are personal data ([ADR 0029](0029-personal-data.md)), so anything the API sends is
+effectively published to whoever receives it.
+
+- **Rows and fields are filtered on the server, per caller**, in the club read (`worker/api/api.club.ts`): who's asking
+  is a row of the statement, so what they may not see never leaves D1, and a change's reply is filtered exactly as the
+  bootstrap is. A new field or route starts private and is opened up deliberately. Of anything personal, a member is
+  sent their own, and everyone's only with the action that needs it:
+
+| Field                            | Everyone's, with                                                                                                                       | Otherwise                                                             |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Members                          | `manage:Member`                                                                                                                        | active members only                                                   |
+| Email, phone, payment reference  | `manage:Member`                                                                                                                        | your own                                                              |
+| Rating                           | `read:Rating`                                                                                                                          | not sent                                                              |
+| Member `quarterly`               | `manage:Member`                                                                                                                        | your own; on a training's sign-up list, each skater shown (the badge) |
+| Member `roles`                   | `manage:Member`, `manage:Role`                                                                                                         | your own                                                              |
+| `roles` (each role's actions)    | `manage:Member`, `manage:Role`                                                                                                         | roles you could hold as you are: yours, and those that can do less    |
+| An event's `out`                 | runs events: `record:Attendance`, `update:Event`, `generate:Teams`, `publish:Teams`, `manage:Member`, `manage:Tournament`, `run:Draft` | your own                                                              |
+| A session's `noShows`, `walkIns` | the same                                                                                                                               | your own                                                              |
+| An entered team's `contact`      | `manage:Tournament`                                                                                                                    | empty                                                                 |
+| Dues                             | `read:Dues`, `record:Payment`                                                                                                          | your own                                                              |
+
+Unchanged, because they're the point of the screen or already public: who's in and waiting, a member's name,
+position, bio, website name, Cougar flag and sessions played, and a closed draft's teams. An admin viewing as a
+member is answered as that member, by the server.
+
+- **You can't grant what you don't have.** Only `manage:all` may give out any action. Anyone else may give a member
+  only roles whose actions they hold, create or change only roles whose old and new actions they hold, and change a
+  member only if that member can do nothing they can't. The last who can do everything is kept inside the statements
+  that change roles, status or erasure ([ADR 0003](0003-free-tiers-only.md)).
+- **Changes come only from the app's own pages.** Every POST, PUT and DELETE must carry the app's own `Origin`, or
+  `Sec-Fetch-Site: same-origin` (`sameOrigin`, `worker/api/api.http.ts`); only JSON bodies are accepted; GET changes
+  nothing.
+- **Security headers on every page, file and response, from both layers**: each app's `_headers` for static assets,
+  and the Worker or middleware for what it answers, from the same code (a test checks the team app's two agree; the
+  website's build writes its file). `X-Frame-Options: DENY`, `nosniff`, a `Referrer-Policy`, a `Permissions-Policy`
+  that turns off camera, microphone and location, HSTS (`includeSubDomains`, not `preload`), and a **content security
+  policy**: the team app's own origin only, plus Turnstile on sign-in; the website's own files, Turnstile and
+  Cloudflare's analytics beacon, with **no inline scripts at all**, so the policy needs no hashes or nonces. Refusals
+  are reported to `/api/csp-report` and sent to Sentry. A new outside resource means widening a policy on purpose.
+- **The bootstrap is never kept by the browser** (`private, no-store`): the club's data would outlast signing out.
+- **Links typed by someone else** (the Studio, venues) are checked before they reach a page (`src/lib/links.ts`):
+  only `http:`, `https:`, `mailto:`, `tel:` or a link within the site.
+- **Tests prove it**: `api.security.test.ts` refuses every route to someone not signed in (401) and to a role without
+  its action (403), holds the grant rules and the origin check, and tells each row of the table above as a story; the
+  deploy's smoke test checks the headers where they're served.
+
+**Every change declares what it puts on the audit log**
+
+- Auditing is a property of the route, like its `action`: every route that isn't a GET declares `audit`, a record or
+  `{ none: "why" }`, and a test fails on any that doesn't. A declaration is data: an `event` name, a `subject` (one
+  read of the thing changed, by a reader that lives with its domain) and optionally `about`.
+- **The wrapper does the rest** (`handleApi`, `worker/api/api.ts`): it reads the subject before and after the
+  handler, and when they differ writes one entry with who did it, `from`, `to` and `about`. A refused, failed or
+  no-op change writes nothing; every 403 for want of an action is its own `refused` entry. Sign-in's own events stay
+  explicit `audit()` calls: they run before anyone is known and aren't changes to compare.
+- What's on the record and how the log reads is in [the Settings notes](../../apps/team/worker/settings/README.md).
+
 ## Consequences
 
 - New kinds of helper need no code change, only a role.
@@ -110,36 +168,13 @@ taps to start and stop.
   could still read it.
 - **Viewing as a member is a boundary**: the phone holds only what the member's own would, and can change nothing,
   whatever devtools does. An admin's preview is exactly the member's, so "I can't see my team" is answered by
-  looking. `impersonate:Member` no longer receives everyone's roles ([0036](0036-api-security.md)).
+  looking. `impersonate:Member` receives nobody's roles (above).
 - Starting and ending are API changes, so they need the network; and viewing as someone costs a second permissions
   read per request (the admin's and the member's).
 - An admin can hand their phone round without hiding anything by hand.
-
-## History
-
-- 2026-10-06: Permissions are `verb:Subject` actions declared on every route; roles are data in D1 built from them
-  (was 0024).
-- 2026-10-06: Admins can view the app as a member, read-only, with an amber banner; planned with the session holding
-  both members, the API refusing writes and the start and end audited (was 0029; built in the browser instead).
-- 2026-10-07: Members with more than Member can run the app day to day as a lesser everyday role and switch up for
-  the tab (was 0037).
-- 2026-10-09: An admin can set another member's everyday role on their card.
-- 2026-10-20: The switch beside the badge is gone: the Settings gear switches you up on the way in, the account menu
-  switches both ways; View as a member moved from the account menu to Settings → Security.
-- 2026-10-20: One two-way switch, "Using the app as" your everyday role or your full one (a Pick), under your card on
-  the You page and at the top of Settings, replaces the account menu's; the gear (and New event) still switch you up
-  on the way, and the switch shows it. In your everyday role Settings keeps every row your account can open, the ones
-  that role can't open quieter, and opening one switches you up.
-- 2026-10-21: View as a member is under Settings → System (was Security), first there ([0065](0065-page-frame-and-admin-actions.md)).
-- 2026-10-22: The last-admin rule is about whoever can do everything, through any role (#136): changing a member's
-  roles looked only at the role called Admin, and a role losing `manage:all` wasn't checked, so the last one holding
-  it through a role of their own could drop it. One condition (`keepsSomeoneWhoCanDoEverything`) now guards member
-  edits, account deletion and role edits, inside their statements ([0121](0121-load-and-concurrency.md)).
-- 2026-10-24: Viewing as a member is enforced by the server, as first planned (#40): the sign-in records who it's
-  viewing as (`auth_sessions.viewing_as`), the API answers as that member and refuses every change but going back and
-  signing out (and a passkey or a phone for notifications), and starting and ending are on the audit log. It was
-  browser-only, in `localStorage`, with the server still answering as the admin. `impersonate:Member` drops out of
-  the actions that see everyone's roles.
-- 2026-11-02: Viewing as someone keeps the grant rule (#201): a role with View as a member could view as an admin
-  and read everything an admin may (emails, phones, the audit log, ratings), since the API answers with the viewed
-  member's actions.
+- Each new route asks, for every field and row it returns: who is this for? A screen showing an empty value for
+  someone else's email is the server working, not a bug.
+- Adding a route means deciding its record in the same place as its permission; forgetting is a failing test. A
+  subject is read twice per audited change, and must read the same way both times.
+- Adding a CDN, an embed or an analytics script to either app takes a deliberate change to its policy. On the website
+  an inline `<script>` won't run: put it in a file.

@@ -1,4 +1,4 @@
-// A member puts up a profile photo from their phone (ADR 0133): the phone shrinks it, it's kept with them, and the app
+// A member puts up a profile photo from their phone (apps/team/worker/members/README.md): the phone shrinks it, it's kept with them, and the app
 // shows it to everyone in the club in place of their initials. Driven through the real handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
@@ -38,6 +38,14 @@ describe("a member puts up a profile photo", () => {
     expect(img.headers.get("content-type")).toBe("image/png");
     expect(img.headers.get("cache-control")).toContain("immutable");
     expect(new Uint8Array(await img.arrayBuffer()).slice(1, 4)).toEqual(new TextEncoder().encode("PNG"));
+  });
+
+  it("the club's read carries only when it was set, never the picture itself", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    await reg.call("PUT", "/api/me/photo", { photo: PNG });
+    const club = JSON.stringify((await reg.club()).body);
+    expect(club).not.toContain("data:image");
+    expect((await memberNamed(reg, "Reg Player")).photoAt).toBeTruthy();
   });
 
   it("taking it down puts their initials back", async () => {

@@ -1,4 +1,4 @@
-// A captain brings their team to the next edition of a series (ADR 0060, team-name.ts): driven through the real
+// A captain brings their team to the next edition of a series (apps/team/worker/tournaments/README.md, team-name.ts): driven through the real
 // Worker handlers in the fake world (testing.ts).
 //
 // The user (2026-10-23): "Once I set my team name, if I get chosen as captain again, that would be my team name again

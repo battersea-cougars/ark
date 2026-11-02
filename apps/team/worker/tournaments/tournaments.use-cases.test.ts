@@ -166,6 +166,24 @@ describe("a tournament, from setting it up to the draft", () => {
     ]);
   });
 
+  it("a change to the series' defaults reaches the next one scheduled, not one already scheduled", async () => {
+    const { dana, typeId, id } = await scheduled();
+    const series = (await dana.sees()).tournamentTypes.find((t: Json) => t.id === typeId);
+    const changed = { ...series, defaultFeePence: 1500, gameMinutes: 15 };
+    expect((await dana.call("PUT", `/api/tournament-types/${typeId}`, changed)).status).toBe(200);
+    const next = await dana.call("POST", "/api/tournaments", {
+      typeId,
+      name: "Spring Cup",
+      heldOn: "2027-05-31",
+      season: "spring",
+      teams: [],
+    });
+    expect(next.status).toBe(201);
+    const seen = (await dana.sees()).tournaments;
+    expect(seen.find((t: Json) => t.id === id)).toMatchObject({ feePence: 1000, gameMinutes: 12 });
+    expect(seen.find((t: Json) => t.id === next.body.id)).toMatchObject({ feePence: 1500, gameMinutes: 15 });
+  });
+
   it("an admin deletes one: it's gone from the app and What's on, with its teams and sign-ups; a member can't", async () => {
     const { dana, id } = await scheduled();
     const count = async (sql: string, ...args: unknown[]) =>

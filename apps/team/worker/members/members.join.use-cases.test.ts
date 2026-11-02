@@ -1,4 +1,4 @@
-// Someone asks to join the club in the app (ADR 0069): the admins hear about it at once, by email, with a link to the
+// Someone asks to join the club in the app (apps/team/worker/members/README.md): the admins hear about it at once, by email, with a link to the
 // member's sheet; once an admin lets them in, the member hears too, with the way in. Outside production every email
 // goes only to the allowed addresses (ADR 0027), and Gmail sits behind its breaker (ADR 0055). Driven through the real
 // handlers in the fake world (ADR 0031); with no Gmail in tests, the emails are captured.

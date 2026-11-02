@@ -1,4 +1,4 @@
-// Next quarter's plan, as a Quarterly Member reads it a few days before the quarter (ADR 0007, #187): the quarter, the
+// Next quarter's plan, as a Quarterly Member reads it a few days before the quarter (apps/team/worker/dues/README.md, #187): the quarter, the
 // rate in force on its first day, the day it's charged, and the last day they can switch to pay as you go. The line
 // on their phone, or for anyone without the app the same words by email: plain text first, the same in the club's
 // HTML frame (packages/shared/email-html.ts).

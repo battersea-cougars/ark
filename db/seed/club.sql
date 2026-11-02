@@ -29,7 +29,7 @@ INSERT OR IGNORE INTO role_actions (role_id, action) VALUES
 -- venues
 INSERT OR IGNORE INTO venues (id, name, address, map_url, active) VALUES
   (1, 'Battersea Sports Centre', 'London SW11 3AB', 'https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6', 1),
-  -- Where the Kumite goes afterwards (ADR 0074); its street address isn't known yet
+  -- Where the Kumite goes afterwards (apps/team/worker/tournaments/README.md); its street address isn't known yet
   (2, 'The Anchor', '', 'https://maps.app.goo.gl/GhKGiPB1vKnpV6HB7', 1);
 
 -- training_series
@@ -145,19 +145,19 @@ INSERT OR IGNORE INTO quips (id, kind, text) VALUES
   (76, 'empty', 'Not one. Slackers, the lot of them.'),
   (77, 'empty', 'Even Van Damme had to go first.'),
   (78, 'empty', 'Zero in. Slackers, this is your call.'),
-  -- A drafted tournament's Draft open, for a member who isn't a captain (ADR 0060): Chong Li's powder, Dux fighting
+  -- A drafted tournament's Draft open, for a member who isn't a captain (apps/team/worker/tournaments/README.md): Chong Li's powder, Dux fighting
   -- blind. The first is the line shown; the rest are alternates an admin can swap in (Settings → Quips)
   (79, 'blind', 'Can''t see the draft? Neither could Dux. He did all right.'),
   (80, 'blind', 'Chong Li threw the powder. You''ll see the teams when the draft''s done.'),
   (81, 'blind', 'Blindfolded, like Tanaka taught you. Teams out soon.'),
   (82, 'blind', 'Use your other senses. Teams out when the captains are done.');
 
--- series_fees: Friday Training's pay-as-you-go fee per session (ADR 0007), for every night from a year before the
+-- series_fees: Friday Training's pay-as-you-go fee per session (apps/team/worker/dues/README.md), for every night from a year before the
 -- app went live
 INSERT OR IGNORE INTO series_fees (series_id, effective_from, amount_pence) VALUES
   (1, '2025-10-01', 1200);
 
--- subscription_fees: the quarterly rate (ADR 0007), for every quarter from a year before the app went live
+-- subscription_fees: the quarterly rate (apps/team/worker/dues/README.md), for every quarter from a year before the app went live
 INSERT OR IGNORE INTO subscription_fees (effective_from, amount_pence) VALUES
   ('2025-10-01', 9000);
 

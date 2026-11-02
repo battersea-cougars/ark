@@ -1,4 +1,4 @@
-// A past Kumite recorded (ADR 0126): the club played Kumites before the app, and an admin puts one in after the fact:
+// A past Kumite recorded (apps/team/worker/tournaments/README.md): the club played Kumites before the app, and an admin puts one in after the fact:
 // its day, its teams, its matches with their scores (a final among them) and who scored where anyone remembers, and
 // who won each award. It goes straight into history, done, its awards out, with nobody charged for it; the all-time
 // leaders count the goals that have a scorer. A member who doesn't run tournaments can't. Driven through the real
@@ -131,6 +131,24 @@ describe("an admin records a past Kumite", () => {
       { ...spring, winners: [{ award: "Nobody's award", team: 0 }] },
     ];
     for (const body of tries) expect((await a.dana.call("POST", "/api/tournaments/past", body)).status).toBe(400);
+    expect(rows("SELECT COUNT(*) n FROM tournaments WHERE name = 'Kumite Spring 2026'")[0].n).toBe(0);
+  });
+
+  it("refuses one team, someone on two teams, someone who isn't a member, a final that isn't the last match: nothing goes in", async () => {
+    const a = await admin();
+    const spring = lastSpring(a.idOf);
+    const [shidoshi, dux, chongLi] = spring.teams;
+    const [first, second, third, final] = spring.games;
+    const tries: [object, string][] = [
+      [{ ...spring, teams: [shidoshi], games: [], winners: [] }, "Two teams at least."],
+      [{ ...spring, teams: [shidoshi, { ...dux, players: [a.idOf("Bo")] }, chongLi] }, "Someone is on two teams."],
+      [{ ...spring, teams: [shidoshi, dux, { ...chongLi, players: [...chongLi.players, 99_999] }] }, "No such member."],
+      [{ ...spring, games: [first, final, second, third] }, "The final's the last match."],
+    ];
+    for (const [body, error] of tries) {
+      const res = await a.dana.call("POST", "/api/tournaments/past", body);
+      expect([res.status, res.body.error]).toEqual([400, error]);
+    }
     expect(rows("SELECT COUNT(*) n FROM tournaments WHERE name = 'Kumite Spring 2026'")[0].n).toBe(0);
   });
 

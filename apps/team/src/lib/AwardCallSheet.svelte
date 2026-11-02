@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The admin's call as they confirm the awards (ADR 0044), in a sheet over the drawer: for the judges' call, what it
+  // The admin's call as they confirm the awards (apps/team/worker/tournaments/README.md), in a sheet over the drawer: for the judges' call, what it
   // is tonight (one of its names, or their own typed in) and who won it; for a vote that's level after its tie-break,
   // who of the level ones takes it. Then it's confirmed with the rest, and revealed in its turn. Either half has a
   // Random: a name, or a winner, chosen for them (another each press), theirs to change.

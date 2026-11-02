@@ -1,4 +1,4 @@
-// Cloudflare Turnstile on the sign-in page (#13, ADR 0028): asking for a code and asking to join send a token that
+// Cloudflare Turnstile on the sign-in page (#13, ADR 0027): asking for a code and asking to join send a token that
 // says a person is asking. The widget is managed and shown only when Cloudflare wants a tap ("interaction-only"), so
 // most members never see it. Its script comes from challenges.cloudflare.com (the CSP allows it, worker/index.ts),
 // loaded only on this page. No site key (your machine): nothing loads, nothing is sent, and the server doesn't check.

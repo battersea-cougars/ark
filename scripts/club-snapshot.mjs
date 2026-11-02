@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// What the website takes from the club's D1 at build time (ADR 0043, ADR 0044), each into its own gitignored file under
+// What the website takes from the club's D1 at build time (ADR 0016, apps/team/worker/tournaments/README.md), each into its own gitignored file under
 // apps/web/src/data/ (the roster is personal data, ADR 0029). Run before `astro dev` and `astro build` (apps/web's
 // predev/prebuild). Only what the website shows leaves the database.
 //   roster.local.json   the active Cougars and their record (lib/roster-sql.mjs)
-//   kumite.local.json   a Kumite's own awards, and the next one's date and place (lib/kumite-sql.mjs, ADR 0042)
-//   results.local.json  every public tournament's results, as rows (lib/results-sql.mjs, ADR 0100)
+//   kumite.local.json   a Kumite's own awards, and the next one's date and place (lib/kumite-sql.mjs, ADR 0016)
+//   results.local.json  every public tournament's results, as rows (lib/results-sql.mjs, ADR 0016)
 //
 //   node scripts/club-snapshot.mjs                   local D1 (apps/web/.wrangler, or COUGARS_LOCAL_STATE's)
 //   CLUB_SNAPSHOT_ENV=dev|production node ...       that environment's D1, over the API (CI: CLOUDFLARE_API_TOKEN

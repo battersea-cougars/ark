@@ -57,9 +57,19 @@ async function send(path: string, init?: RequestInit, started?: Promise<Response
     return await (started ?? fetch(path, init));
   } catch (e) {
     brake.failed();
-    throw e;
+    throw unreached(e);
   }
 }
+
+/** What a tap with no signal says in the save note: words, not the browser's ("Failed to fetch", "Load failed"). */
+const NO_SIGNAL = "No network: that didn't reach the club. Try again when you've a signal.";
+
+/**
+ * A request that never reached the server (no signal, the network dropped it) as words a member can read. Still a
+ * TypeError naming the network, so it's still known as offline, never a bug to report (errors.early.ts). One called
+ * off (AbortError) stays as it was.
+ */
+const unreached = (e: unknown) => (e instanceof TypeError ? new TypeError(NO_SIGNAL, { cause: e }) : e);
 
 async function read<T>(res: Response, path: string): Promise<T> {
   const ours = (res.headers.get("content-type") ?? "").includes("application/json");
@@ -79,10 +89,10 @@ async function read<T>(res: Response, path: string): Promise<T> {
 
 // The bootstrap's ETag (ADR 0053), kept here in memory: the browser keeps no copy (no-store, #81), so opening the app
 // reads the club whole. After that the app asks with the tag at the data version its copy holds, which moves on as
-// live pages read the club in parts (catch-up.ts, ADR 0072): a club that hasn't changed since is an empty 304.
+// live pages read the club in parts (catch-up.ts, ADR 0053): a club that hasn't changed since is an empty 304.
 let bootstrapTag: string | null = null;
 
-// index.html reads the club before any script has arrived (ADR 0120). The first getBootstrap takes that reply, once;
+// index.html reads the club before any script has arrived (ADR 0053). The first getBootstrap takes that reply, once;
 // if it never came (no network), the app asks itself, so a failure reads as it always did.
 declare global {
   interface Window {

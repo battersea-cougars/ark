@@ -1,7 +1,7 @@
 // The browsers' error reports share Sentry's free 5k a month with the servers' own errors (ADR 0110). A script can set
 // `Origin` and post made-up reports from many addresses, each past its own per-address limit, so the club also has a
 // daily cap across every address and all three ways in (the team app's /api/errors, the website's /api/client-error
-// and /api/csp-report), as the auto-reply has (ADR 0028). Security review finding 13, #201.
+// and /api/csp-report), as the auto-reply has (ADR 0027). Security review finding 13, #201.
 import { first } from "./d1";
 import { londonToday } from "./london";
 

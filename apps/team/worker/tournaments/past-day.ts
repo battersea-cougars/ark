@@ -1,4 +1,4 @@
-// A Kumite on a past day (ADR 0123), dev only: a testing tool, so a Kumite with a whole evening behind it can be had
+// A Kumite on a past day (apps/team/worker/settings/README.md), dev only: a testing tool, so a Kumite with a whole evening behind it can be had
 // in a few taps, to try what a past one shows. It's made as an admin would make one (createTournament: its series'
 // rules and awards, its captains), dated the day asked, and signed up for by enough of the club for its teams, each
 // signed up in the fortnight before; sign-up closed the day before. Then the app plays it out on that evening with the

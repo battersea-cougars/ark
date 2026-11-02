@@ -78,9 +78,9 @@ export const ROUTES: Route[] = [
   ...EDITIONS_ROUTES,
   ...DRAFT_ROUTES,
   ...SCORING_ROUTES,
-  // A Kumite from before the app, recorded after the fact (ADR 0126)
+  // A Kumite from before the app, recorded after the fact (apps/team/worker/tournaments/README.md)
   ...PAST_ROUTES,
-  // Dev only (ADR 0123): the Kumite played on to its after-party
+  // Dev only (ADR 0010): the Kumite played on to its after-party
   ...SIMULATE_ROUTES,
   // Everything else on the calendar, and the club's own settings
   ...EVENTS_ROUTES,
@@ -230,10 +230,10 @@ export async function handleApi(
       waitUntil,
       alsoChanged: [],
     };
-    // On the record (ADR 0095): what the change is to, before it
+    // On the record (ADR 0024): what the change is to, before it
     const record = writes && hit.r.audit && "event" in hit.r.audit ? hit.r.audit : null;
     const before = record ? await record.subject(ctx) : undefined;
-    // A finished tournament's result is on the website's pages (ADR 0100): a change to it, or one that finishes it,
+    // A finished tournament's result is on the website's pages (ADR 0016): a change to it, or one that finishes it,
     // wants a rebuild. Read before too, so deleting one or making it private counts.
     const tournament = writes ? tournamentOfPath(url.pathname) : null;
     const wasOnWebsite = tournament ? await onTheWebsite(env.DB, tournament) : false;
@@ -256,9 +256,9 @@ export async function handleApi(
     }
     if (tournament && res.ok && (wasOnWebsite || (await onTheWebsite(env.DB, tournament))))
       await wantRebuild(env.DB, now);
-    if (writes && res.ok && hit.r.changes?.includes("charges")) {
-      // Who came, a fee or a quarterly membership changed: so may what people owe (ADR 0007)
-      await recharge(env.DB, ctx.today, ctx.now);
+    if (writes && res.ok && [...(hit.r.changes ?? []), ...ctx.alsoChanged].includes("charges")) {
+      // Who came, a fee or a quarterly membership changed: so may what people owe (apps/team/worker/dues/README.md)
+      await recharge(env.DB, ctx.today, ctx.now, ctx.charged);
     }
     if (notice && res.ok) {
       const reply = (await res
@@ -282,7 +282,7 @@ export async function handleApi(
       // A change: every member's bootstrap is out of date (ADR 0053), and these parts are new (#178)
       const at = await bumpDataVersion(env.DB, changes);
       const { version } = at;
-      // ...and everyone on a live page hears which parts, and the version (ADR 0072), with a live match as it is
+      // ...and everyone on a live page hears which parts, and the version (ADR 0053), with a live match as it is
       // (#161), once this reply is on its way
       const told = pushedWith(ctx, hit.r, changes).then((pushed) => notifyLive(env, changes, version, pushed));
       if (waitUntil) waitUntil(told);

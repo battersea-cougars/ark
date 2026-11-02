@@ -277,7 +277,7 @@
   const paidTotal = $derived(book.paid);
   const credit = $derived(creditOf(memberId));
 
-  // Dues (ADR 0007): who sees Unpaid fees sees a member's charges; who records payments marks them
+  // Dues (apps/team/worker/dues/README.md): who sees Unpaid fees sees a member's charges; who records payments marks them
   const perms = $derived(granted());
   const seesDues = $derived(can(perms, "read:Dues") || can(perms, "record:Payment"));
   const recordsPayments = $derived(can(perms, "record:Payment"));
@@ -301,11 +301,23 @@
     chargeAmount = String(feeOn(db.fees, londonToday()) / 100 || "");
     charging = true;
   }
+  // Money moves once a tap: while a charge, an adjustment or a payment is on its way, its button waits, so a double
+  // tap (or Enter twice) on a slow signal records it once, not twice
+  let sending = $state(false);
+  async function once(send: () => Promise<unknown>) {
+    if (sending) return null;
+    sending = true;
+    try {
+      return await send();
+    } finally {
+      sending = false;
+    }
+  }
   async function addQuarter(e: SubmitEvent) {
     e.preventDefault();
     const pence = Math.round(Number(chargeAmount) * 100);
     if (!pence || pence < 0) return;
-    if (await chargeQuarter(memberId, quarterKey(Number(chargeWhich)), pence)) charging = false;
+    if (await once(() => chargeQuarter(memberId, quarterKey(Number(chargeWhich)), pence))) charging = false;
   }
 
   // A payment of any amount (a lump sum): it pays the oldest charges first, and what's left over is credit
@@ -325,9 +337,9 @@
     payOn = londonToday();
     paying = true;
   }
-  // Email them what they owe (ADR 0007), after seeing it
+  // Email them what they owe (apps/team/worker/dues/README.md), after seeing it
   let reminding = $state(false);
-  // An adjustment (ADR 0007): add to or take off what they owe, saying why
+  // An adjustment (apps/team/worker/dues/README.md): add to or take off what they owe, saying why
   let adjusting = $state(false);
   let adjustWay = $state<"more" | "less">("less");
   let adjustAmount = $state("");
@@ -344,14 +356,14 @@
     e.preventDefault();
     const pence = Math.round(Number(adjustAmount) * 100);
     if (!Number.isFinite(pence) || pence <= 0 || !adjustReason.trim()) return;
-    if (await adjustDues(memberId, adjustWay === "more" ? pence : -pence, adjustReason.trim(), adjustOn))
+    if (await once(() => adjustDues(memberId, adjustWay === "more" ? pence : -pence, adjustReason.trim(), adjustOn)))
       adjusting = false;
   }
   async function addPayment(e: SubmitEvent) {
     e.preventDefault();
     const pence = Math.round(Number(payAmount) * 100);
     if (!Number.isFinite(pence) || pence <= 0) return;
-    if (await recordPayment(memberId, pence, payVia, payOn)) paying = false;
+    if (await once(() => recordPayment(memberId, pence, payVia, payOn))) paying = false;
   }
 
   // Opening is one turn: the tapped card lifts, grows towards the middle and turns edge-on; the panel carries the
@@ -938,7 +950,7 @@
                       Due from the quarter's first day. Quarterly Members are charged each quarter on their own; this is
                       for anyone else, or a quarter they missed.
                     </p>
-                    <button class="btn primary">Charge</button>
+                    <button class="btn primary" disabled={sending}>Charge</button>
                   </form>
                 </Sheet>
                 <Sheet bind:open={adjusting} title="Adjust {shortName(member.player)}'s dues">
@@ -978,10 +990,10 @@
                       It's a line on their ledger, with why, and it's on the record.
                       {#if adjustWay === "less"}It pays what they owe oldest first, like money in.{/if}
                     </p>
-                    <button class="btn primary">Adjust</button>
+                    <button class="btn primary" disabled={sending}>Adjust</button>
                   </form>
                 </Sheet>
-                <!-- Their reminder (ADR 0007), seen before it goes -->
+                <!-- Their reminder (apps/team/worker/dues/README.md), seen before it goes -->
                 <Sheet bind:open={reminding} title="Email {shortName(member.player)} what they owe">
                   {#if reminding}<RemindReview {memberId} onsent={() => (reminding = false)} />{/if}
                 </Sheet>
@@ -1018,7 +1030,7 @@
                       It pays what they owe oldest first. Anything over is kept as credit and pays their next charge.
                       {#if owed}They owe {pounds(owed)}.{/if}
                     </p>
-                    <button class="btn primary">Record payment</button>
+                    <button class="btn primary" disabled={sending}>Record payment</button>
                   </form>
                 </Sheet>
               {/if}

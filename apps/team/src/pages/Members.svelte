@@ -24,7 +24,7 @@
 
   const ratings = $derived(can(granted(), "read:Rating"));
   const seesDues = $derived(can(granted(), "read:Dues") || can(granted(), "record:Payment"));
-  // Manage (ADR 0065): adding someone to the club (ADR 0069), or bringing many in from a file
+  // Manage (ADR 0065): adding someone to the club (apps/team/worker/members/README.md), or bringing many in from a file
   let manageOpen = $state(false);
   let adding = $state(false);
   let importing = $state(false);
@@ -45,7 +45,7 @@
   ];
   let filter = $state<"all" | "F" | "D" | "G">("all");
   let query = $state("");
-  // ?member=12 (the email an admin gets when someone asks to join, ADR 0069): their sheet opens straight away, and the
+  // ?member=12 (the email an admin gets when someone asks to join, apps/team/worker/members/README.md): their sheet opens straight away, and the
   // address goes back to the plain page so a reload doesn't open it again
   const asked = Number(new URLSearchParams(location.search).get("member")) || null;
   if (asked) history.replaceState(history.state, "", location.pathname);
@@ -57,7 +57,7 @@
   // One column per thing an admin checks, each as wide as what's in it (DataGrid)
   const columns = $derived<ColDef<MemberRow>[]>([
     { headerName: "Name", valueGetter: (p) => p.data?.player.name, pinned: "left", cellClass: "name" },
-    // What the app calls them (ADR 0043), when it isn't their full name
+    // What the app calls them (apps/team/worker/members/README.md), when it isn't their full name
     {
       headerName: "Goes by",
       valueGetter: (p) => (p.data && goesBy(p.data.player) !== p.data.player.name ? goesBy(p.data.player) : ""),
@@ -80,7 +80,7 @@
         p.data?.plan === "Subscription" ? "Quarterly" : p.data?.plan === "Keeper" ? "Keeper · free" : "Pay as you go",
     },
     { headerName: "Played", valueGetter: (p) => p.data?.player.played ?? 0, type: "numericColumn" },
-    // What each owes (ADR 0007): for whoever sees everyone's dues
+    // What each owes (apps/team/worker/dues/README.md): for whoever sees everyone's dues
     ...(seesDues
       ? [
           {

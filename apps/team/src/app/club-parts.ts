@@ -3,7 +3,7 @@
 // whole roster, the weeks just held, each series' last one played, everyone's dues.
 //
 // A change says which parts it changed by their family's name (`members`, `sessions`, ...: worker/api routes'
-// `changes`), and the live hub passes those names on (ADR 0072). Each family is a core part and the pages' parts that
+// `changes`), and the live hub passes those names on (ADR 0053). Each family is a core part and the pages' parts that
 // come from the same rows: a change to members is a change to Home's people and to the roster. This is where that's
 // said, on both sides: the Worker sends back, with a change, the family's parts a phone holds; a phone hearing of a
 // change knows which of the parts it holds are out of date.
@@ -14,6 +14,9 @@
 export const FAMILIES: Record<string, { core: readonly string[]; pages: readonly string[] }> = {
   // Who's in Home's next things, and Home's line of who's asking to join, come from members too
   members: { core: ["people", "forAdmins"], pages: ["members"] },
+  // What a member's card counts (the nights they've played), not who they are or what they may do: a register taken,
+  // a night called off. The same parts as members, but not the whole club for a change to anyone's access (#223)
+  played: { core: ["people"], pages: ["members"] },
   // Who's signed up names people on Home
   sessions: { core: ["sessions", "people"], pages: ["pastSessions"] },
   // The nights from tonight alone: a training answer's, since a night already held takes none (its register closed

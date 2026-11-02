@@ -1,4 +1,4 @@
-// The club's agenda (ADR 0042): one list of what's on and when, which every part of the club pushes to when it
+// The club's agenda (ADR 0016): one list of what's on and when, which every part of the club pushes to when it
 // changes (trainings, tournaments with their draft night and sign-up deadline, one-off events). The website's What's
 // on and the app's calendar both read it, so they can't disagree. Driven through the real Worker handlers.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -113,6 +113,19 @@ describe("the club's agenda", () => {
     const saved = (await dana.sees()).tournaments.find((t: Json) => t.id === id);
     expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...saved, status: "finished" })).status).toBe(200);
     expect(kinds(await dana.agenda(), /Winter Cup/)).toEqual([]);
+  });
+
+  it("a draft reset puts draft night back on the calendar", async () => {
+    const { dana, id } = await winterCup();
+    for (const who of ["reg", "mo", "ash", "bo"])
+      await (await as(`${who}@example.com`)).call("POST", `/api/tournaments/${id}/answer`, { answer: "in" });
+    await dana.call("POST", `/api/tournaments/${id}/draft/draw`, {});
+    await dana.call("POST", `/api/tournaments/${id}/draft/open`, {});
+    await dana.call("POST", `/api/tournaments/${id}/draft/close`, { leaveOut: true });
+    expect(kinds(await dana.agenda(), /Winter Cup/)).not.toContain("draft");
+
+    expect((await dana.call("POST", `/api/tournaments/${id}/draft/reset`, {})).status).toBe(200);
+    expect(kinds(await dana.agenda(), /Winter Cup/)).toContain("draft");
   });
 
   it("a tournament that's only a season so far shows its season, not a date", async () => {

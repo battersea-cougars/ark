@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Settings → Audit log (ADR 0095): the record of who changed what, and when. Sign-ins, every change made with more
+  // Settings → Audit log (apps/team/worker/settings/README.md): the record of who changed what, and when. Sign-ins, every change made with more
   // than being signed in (members, roles, money, training, the Kumite, the club's settings) and every request refused
   // for want of an action, newest first, in plain words, a page at a time. A table like the app's others: a row per
   // entry (when, what, its area), a search over who and what, and chips by area. Read when the page opens; Refresh
@@ -76,7 +76,7 @@
       ? v.map((f: { pence: number; from: string }) => `${pounds(f.pence)} from ${f.from}`).join(", ")
       : "none";
 
-  /** The entry in plain words: who, then what. Changes carry what they were (`from`) and are (`to`), ADR 0095. */
+  /** The entry in plain words: who, then what. Changes carry what they were (`from`) and are (`to`), apps/team/worker/settings/README.md. */
   function said(e: Entry): string {
     const d = e.detail;
     const who = e.by?.name ?? "Someone";
@@ -130,7 +130,7 @@
           : `${who} set ${about}'s app to open in their full role`;
       case "member.quarterly":
         return d.to ? `${who} made ${about} a Quarterly Member` : `${who} ended ${about}'s quarterly membership`;
-      // Dues (ADR 0007): a charge reads { memberId, what (a training, tournament or quarter), pence, dueOn, paid }
+      // Dues (apps/team/worker/dues/README.md): a charge reads { memberId, what (a training, tournament or quarter), pence, dueOn, paid }
       case "charge.paid": {
         const c = (to ?? from) as Record<string, unknown> | null;
         const what = `${str(c?.what)} on ${str(c?.dueOn)}`;
@@ -261,7 +261,7 @@
             : ""
         }`;
       case "draft.picked_for":
-        // Whoever ran the draft picked for a captain: said as theirs, for that captain's team (ADR 0060)
+        // Whoever ran the draft picked for a captain: said as theirs, for that captain's team (apps/team/worker/tournaments/README.md)
         return `${who} picked ${str(to?.player) || about} for ${str(to?.captain)}'s team`;
       case "draft.opened":
         return `${who} opened the draft for ${str(to?.name)}`;
@@ -301,7 +301,7 @@
       case "tournament.award_revealed":
         return `${who} revealed ${str(to?.award)} at ${str(to?.name)}'s after-party: ${Number(to?.revealed ?? 0)} out`;
       case "tournament.moved": {
-        // Move to… (ADR 0074): from one status to another in one go, and what it did on the way
+        // Move to… (apps/team/worker/tournaments/README.md): from one status to another in one go, and what it did on the way
         const STAGE: Record<string, string> = {
           signup: "Sign-up open",
           draft: "Draft open",

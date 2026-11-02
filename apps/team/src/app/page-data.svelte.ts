@@ -33,7 +33,7 @@ export const onParts = (put: typeof putInPlace) => void (putInPlace = put);
 // What a change sends back and the live hub's events count in: what's held
 held.parts = () => [...holding];
 
-/** Who sees everyone's dues (ADR 0007): the pages that show a member show what they owe too. */
+/** Who sees everyone's dues (apps/team/worker/dues/README.md): the pages that show a member show what they owe too. */
 const seesDues = (actions: ReadonlySet<Action>) =>
   actions.has("manage:all") || actions.has("read:Dues") || actions.has("record:Payment");
 

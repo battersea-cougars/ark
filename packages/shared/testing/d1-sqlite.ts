@@ -17,7 +17,7 @@ function sources(): string[] {
 
 export interface TestD1 {
   raw: Database.Database;
-  /** Round trips to D1 so far (a batch is one): each costs the Worker CPU time (ADR 0059). */
+  /** Round trips to D1 so far (a batch is one): each costs the Worker CPU time (ADR 0003). */
   roundTrips: number;
   /** Statements sent so far, each statement of a batch counted: what D1 reads and bills, however they travel. */
   statements: number;
@@ -40,7 +40,7 @@ export interface TestD1 {
    * matches throws, as D1's binding does, and does nothing. `null` (the default): D1 answers.
    */
   failing: RegExp | null;
-  /** What D1 says when it's failing: a blip (the default), or busy with an export (the nightly backup, ADR 0106). */
+  /** What D1 says when it's failing: a blip (the default), or busy with an export (the nightly backup, ADR 0050). */
   failure: string;
 }
 
@@ -81,7 +81,7 @@ export function createTestD1(): D1Database & TestD1 {
   /**
    * On the way to D1, or back, when interleaving: a few turns of the event loop, mostly none to two but now and then
    * many (an exponential's tail, at most 24), as D1's own latency has a tail. Without the tail a request rarely fell
-   * far enough behind another to find the races between three or four round trips (the goal and full time, ADR 0121).
+   * far enough behind another to find the races between three or four round trips (the goal and full time, ADR 0003).
    */
   const travel = async () => {
     for (let n = Math.min(24, Math.floor(-Math.log(1 - luck!()) * 2)); n > 0; n--)

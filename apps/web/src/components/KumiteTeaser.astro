@@ -1,5 +1,5 @@
 ---
-// The Kumite's teaser, the home page's feature (ADR 0109): less than the poster, as a trailer is less than the film.
+// The Kumite's teaser, the home page's feature (apps/web/src/README.md): less than the poster, as a trailer is less than the film.
 // Dark, the brush 組手 big and faint behind, the team app's ink stamp (Coming soon), the title, the next date,
 // and Enter the Kumite, to the full poster on /kumite/ (KumitePoster), which keeps the credits, the reveal and the rating.
 import { getImage } from "astro:assets";
@@ -17,7 +17,7 @@ interface Props {
 const { next } = Astro.props;
 const bg = (await getImage({ src: background, width: 1600, format: "webp", quality: 60 })).src;
 const { kumite } = await getSettings();
-// The next Kumite as the team app has it (ADR 0042), else Sanity's event, as the poster reads it
+// The next Kumite as the team app has it (ADR 0016), else Sanity's event, as the poster reads it
 const upcoming =
   kumite.next ?? (next ? { startsAt: next.startsAt, venue: next.location ?? "", dateTbc: false, season: null } : null);
 const dated = upcoming && !upcoming.dateTbc && !upcoming.season;

@@ -1,5 +1,5 @@
 // An admin views the app as a member (ADR 0024, #40): the server answers as that member would see the club, and
-// refuses every change until they go back to themselves. Starting and ending are on the record (ADR 0095). Driven
+// refuses every change until they go back to themselves. Starting and ending are on the record (ADR 0024). Driven
 // through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";

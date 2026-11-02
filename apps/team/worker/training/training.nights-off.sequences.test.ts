@@ -1,5 +1,5 @@
 // Nights and Kumites, in any order (#186): random sequences of what admins do, through the real Worker handlers as
-// the app sends them, checked after every step against a model of the rule (ADR 0122). The user: "make sure that you
+// the app sends them, checked after every step against a model of the rule (apps/team/worker/training/README.md). The user: "make sure that you
 // have handled all the weird permutations of adding/cancelling, overlapping dates". Seeded (mulberry32), so a failure
 // says its seed and its steps, and comes out the same again; one found is shrunk by hand into a named use case in
 // training.nights-off.use-cases.test.ts.

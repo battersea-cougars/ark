@@ -1,4 +1,4 @@
-// Home's hero (ADR 0118): the club's next event, whatever it is, with where you stand on it (playing, answering, or
+// Home's hero (apps/team/src/pages/README.md): the club's next event, whatever it is, with where you stand on it (playing, answering, or
 // not in it), the one card up top; what's coming up is everything after it. The tricky part is the ordering: a fight's time comes from its place in the day, in London's clock either side
 // of the clocks going back; a draft you're picking in is on now; what you're out of leads all the same.
 import { describe, expect, it } from "vitest";
@@ -272,7 +272,7 @@ describe("the Kumite this Friday, the Friday's training off for it", () => {
   });
 });
 
-describe("the evening a Kumite ends, its after-party leads (ADR 0074)", () => {
+describe("the evening a Kumite ends, its after-party leads", () => {
   const played = kumite({
     heldOn: TODAY,
     games: [game(81, 1, 1, 3, "done"), game(82, 2, 1, 3, "done"), game(83, 3, 2, 3, "done")],
@@ -306,7 +306,7 @@ describe("the evening a Kumite ends, its after-party leads (ADR 0074)", () => {
   });
 });
 
-// Status, not the date, says what's past, on or next (ADR 0074, #182): each event comes with its phase (lib/phase.ts)
+// Status, not the date, says what's past, on or next (apps/team/worker/tournaments/README.md, #182): each event comes with its phase (lib/phase.ts)
 describe("Home's hero and Coming up go by status, never the date", () => {
   it("a Kumite played early, its day still ahead, is past: it neither leads nor is coming up", () => {
     const played = kumite({ games: [game(83, 3, 2, 3, "done")] });

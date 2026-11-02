@@ -2,7 +2,7 @@
 // (app/backend.ts), each page's parts as it's opened (app/page-data.svelte.ts, #178); after a change, only the parts
 // it touched come back and are put in place (applySlices). The core's and the pages' parts of one list (everyone,
 // the nights, the tournaments, what's owed) are kept apart and put together (app/club-whole.ts), so a page reads one
-// list whichever they came from. The shapes match the D1 tables (docs/team-app-data-model.md).
+// list whichever they came from. The shapes match the D1 tables (db/schema.sql).
 import type { Action } from "../access/actions";
 import { allOn, type NotificationPrefs } from "../lib/notification-topics";
 import type { IconName } from "../app/shell/icons";
@@ -30,7 +30,7 @@ export interface Player {
   webName?: string | null;
   /** Training sessions they came to. */
   played?: number;
-  /** When their profile photo was set (ADR 0133, lib/photo.ts); null: none, their initials show. */
+  /** When their profile photo was set (apps/team/worker/members/README.md, lib/photo.ts); null: none, their initials show. */
   photoAt?: string | null;
 }
 
@@ -43,7 +43,7 @@ export let REAL_ID = 0;
 export let DEV_TOOLS = false;
 /** Screens still on demo data (Upload) are shown: dev and local only (#63). */
 export let UNFINISHED = false;
-/** The Kumite simulator is here, for you (dev and your own machine, whoever runs tournaments; ADR 0123). */
+/** The Kumite simulator is here, for you (dev and your own machine, whoever runs tournaments; ADR 0010). */
 export let SIMULATOR = false;
 /** The role you run the app as day to day, if not your full one (ADR 0024). Read once by session.svelte.ts startSession. */
 export let EVERYDAY_ROLE: number | null = null;
@@ -58,7 +58,7 @@ const PHONES = new Map<number, string | null>();
 /** Only yours, unless you manage members. */
 export const phoneFor = (id: number) => PHONES.get(id) ?? null;
 export const emailFor = (p: Player) => EMAILS.get(p.id) ?? "No email yet";
-/** Their bank reference (ADR 0007), or a dash: one that isn't sent is never made up, as it's what they pay with. */
+/** Their bank reference (apps/team/worker/dues/README.md), or a dash: one that isn't sent is never made up, as it's what they pay with. */
 export const referenceFor = (id: number) => REFERENCES.get(id) ?? "—";
 
 export const VENUES: Venue[] = [];
@@ -66,17 +66,17 @@ export const SERIES: TrainingSeries[] = [];
 export const SESSIONS: TrainingSession[] = [];
 export const TOURNAMENT_TYPES: TournamentType[] = [];
 export const TOURNAMENTS: Tournament[] = [];
-/** The club's agenda, from today (ADR 0042). */
+/** The club's agenda, from today (ADR 0016). */
 export const AGENDA: AgendaRow[] = [];
-/** Where members pay by transfer (ADR 0007). */
+/** Where members pay by transfer (apps/team/worker/dues/README.md). */
 export interface Bank {
   name: string;
   sortCode: string;
   account: string;
 }
 /**
- * The club's settings for the app: how often live pages check for updates (ADR 0072), the club's bank details
- * (ADR 0007), null until whoever sets fees fills them in, and how many days before a quarter its Quarterly Members are
+ * The club's settings for the app: how often live pages check for updates (ADR 0053), the club's bank details
+ * (apps/team/worker/dues/README.md), null until whoever sets fees fills them in, and how many days before a quarter its Quarterly Members are
  * told its fee is due (#187; the server's, from the bootstrap).
  */
 export const SETTINGS: ClubSettings = { liveRefreshSeconds: 10, bank: null };
@@ -98,7 +98,7 @@ export interface Role {
 }
 export const ROLES: Role[] = [];
 
-/** A member's plan (ADR 0007): Quarterly, pay as you go, or, for a keeper, free (the Keeper plan). */
+/** A member's plan (apps/team/worker/dues/README.md): Quarterly, pay as you go, or, for a keeper, free (the Keeper plan). */
 export type Plan = "Subscription" | "Pay as you go" | "Keeper";
 /** Keepers play training free, whatever else is on record; the rest by their quarterly membership. */
 export const planOf = (position: string, quarterly: boolean): Plan =>
@@ -115,7 +115,7 @@ export interface MemberRow {
   status: "pending" | "active" | "inactive";
   /** Highest first: Admin, then the others, Member last. */
   roles: string[];
-  /** A Quarterly Member today, from `subscriptions` (ADR 0007); a keeper plays training free (the Keeper plan);
+  /** A Quarterly Member today, from `subscriptions` (apps/team/worker/dues/README.md); a keeper plays training free (the Keeper plan);
    * everyone else pays as they go. */
   plan: Plan;
   /** Next quarter's: what they chose, or this one running on. Only your own (false for anyone else). */
@@ -125,13 +125,13 @@ export interface MemberRow {
 }
 export const MEMBERS: MemberRow[] = [];
 
-/** The quarterly rate, from each date (ADR 0007). */
+/** The quarterly rate, from each date (apps/team/worker/dues/README.md). */
 export const SUBSCRIPTION_FEES: DatedFee[] = [];
-/** Your own charges with something left to pay (ADR 0007, #177); the rest of your ledger is read a page at a time. */
+/** Your own charges with something left to pay (apps/team/worker/dues/README.md, #177); the rest of your ledger is read a page at a time. */
 export const CHARGES: Charge[] = [];
-/** When each member was last reminded of what they owe (ADR 0007): for who sees everyone's dues. */
+/** When each member was last reminded of what they owe (apps/team/worker/dues/README.md): for who sees everyone's dues. */
 export const REMINDERS: { memberId: number; at: string }[] = [];
-/** What each owes, by age, and their credit: your own, or everyone's if you see Unpaid fees (ADR 0007, #177). */
+/** What each owes, by age, and their credit: your own, or everyone's if you see Unpaid fees (apps/team/worker/dues/README.md, #177). */
 export const DUES: Owed[] = [];
 
 /** What /api/bootstrap sends (apps/team/worker/api/api.ts). */
@@ -144,7 +144,7 @@ export interface Bootstrap {
   devTools?: boolean;
   /** Screens still on demo data (Upload) are shown: not in production (#63). */
   unfinished?: boolean;
-  /** The Kumite simulator is here, and yours to use (ADR 0123): dev and your own machine only. */
+  /** The Kumite simulator is here, and yours to use (ADR 0010): dev and your own machine only. */
   simulator?: boolean;
   /** The role the app opens as, when it isn't your full one (ADR 0024). */
   everydayRole: number | null;
@@ -168,7 +168,7 @@ export interface Bootstrap {
   quips: Quip[];
   /** Home's announcements (#85): the two newest still on, less any you dismissed. */
   announcements: Announcement[];
-  /** What's on from today (ADR 0042). */
+  /** What's on from today (ADR 0016). */
   agenda: AgendaRow[];
   settings: ClubSettings;
   charges: Charge[];
@@ -181,7 +181,7 @@ export interface Bootstrap {
   subscriptionFees: DatedFee[];
   /** Your own notifications, a choice per topic (ADR 0108). */
   notifications: NotificationPrefs;
-  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0059), the email stopped. */
+  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0003), the email stopped. */
   forAdmins: ForAdmins;
 }
 

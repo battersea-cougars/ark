@@ -146,7 +146,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 // A roster player's card shows the details from the last build; when it's picked up, fetch the latest and change
-// whatever differs, on the big card and the one on the page (docs/adr/0043-roster-and-names.md). Quietly does
+// whatever differs, on the big card and the one on the page (docs/adr/0016-how-the-website-gets-its-data.md). Quietly does
 // nothing if it fails.
 async function refresh(...cards: HTMLElement[]) {
   const id = cards[0].dataset.playerId;
@@ -157,6 +157,7 @@ async function refresh(...cards: HTMLElement[]) {
     if (!res.ok) return;
     player = await res.json();
   } catch {
+    // Offline or blocked: the card keeps what the page was built with (the server reports its own failures)
     return;
   }
   const set = (field: string, text: string) => {

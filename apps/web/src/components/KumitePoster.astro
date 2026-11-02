@@ -23,7 +23,7 @@ const { next, href, heading: Heading = "h2" } = Astro.props;
 const Tag = href ? "a" : "div";
 const bg = (await getImage({ src: background, width: 1600, format: "webp", quality: 70 })).src;
 const { kumite } = await getSettings();
-// The next Kumite as the team app has it (ADR 0042), else Sanity's event
+// The next Kumite as the team app has it (ADR 0016), else Sanity's event
 const upcoming =
   kumite.next ?? (next ? { startsAt: next.startsAt, venue: next.location ?? "", dateTbc: false, season: null } : null);
 const dated = upcoming && !upcoming.dateTbc && !upcoming.season;

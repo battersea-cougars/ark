@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A member's avatar: their photo (ADR 0133), or their initials on a disc. The club's copy of them (the store) says
+  // A member's avatar: their photo (apps/team/worker/members/README.md), or their initials on a disc. The club's copy of them (the store) says
   // whether they have one, so a new photo shows everywhere as soon as it's saved.
   import type { Player } from "../demo/data";
   import { db } from "../demo/store.svelte";

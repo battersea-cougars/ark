@@ -1,4 +1,4 @@
-// The team a captain brings to a new edition of a series (ADR 0060, worker/tournaments/team-name.ts, which decides
+// The team a captain brings to a new edition of a series (apps/team/worker/tournaments/README.md, worker/tournaments/team-name.ts, which decides
 // it): the one they last captained in an earlier edition of the same series, its name and logo. The editor shows it
 // before it's saved ("Brings: Reacher Rounds"), read from the server (#177), which has every edition; the server works
 // it out again as the team's made.

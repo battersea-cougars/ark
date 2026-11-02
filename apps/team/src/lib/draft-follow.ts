@@ -1,4 +1,4 @@
-// Following the draft on a phone (ADR 0060). The teams are the page: no tabs. The room opens with the team on the clock
+// Following the draft on a phone (apps/team/worker/tournaments/README.md). The teams are the page: no tabs. The room opens with the team on the clock
 // in front, and a captain's view goes where the draft is: each pick that lands burns into its team in front, held a
 // moment with the name cooled, and only then on to the next team. Your turn come round (once the last pick's burnt in):
 // the Your pick button comes up at the foot of the screen, and opens the players in a drawer; you pick and confirm in

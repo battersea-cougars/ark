@@ -1,4 +1,4 @@
-// Fixtures, results and playoffs (ADR 0061): once a tournament's teams are set (a draft closed, or the teams that
+// Fixtures, results and playoffs (apps/team/worker/tournaments/README.md): once a tournament's teams are set (a draft closed, or the teams that
 // entered), an admin has the app make the fixtures: a round robin, every team playing every other once, then the
 // playoff games its settings ask for (a Final of 1st v 2nd; maybe 3rd v 4th), filled in from the table once the last
 // group game has a result. Driven through the real Worker handlers (ADR 0031).

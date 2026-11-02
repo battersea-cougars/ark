@@ -1,4 +1,4 @@
-// One live page's stream from the club's hub (ADR 0072), kept open while the page is in view: opened through the
+// One live page's stream from the club's hub (ADR 0053), kept open while the page is in view: opened through the
 // brake, reconnected with a growing wait when it drops, and closed while the page is out of view. The hub says it's
 // there every 30 seconds (a `ping` event, and one as the stream opens), so a stream that's gone quiet for a beat and
 // a half is a dead one, even when the browser never says so (a phone that changed networks, a proxy holding the

@@ -1,13 +1,13 @@
-// Once a tournament's started, who's in is an admin's to change (ADR 0074): "once the kumite goes live, the player
+// Once a tournament's started, who's in is an admin's to change (apps/team/worker/tournaments/README.md): "once the kumite goes live, the player
 // cannot remove themselves. only the admin can adjust it. it has fees implications" (the user, 2026-10-23). Started is
 // what the app calls under way (lib/edition.ts editionState): marked live or finished (KUMITE!, The Anchor), or a match
 // being played or played. A member's own In or Out keeps to it inside the statements that write it (worker/entries
-// answer, ADR 0121), so one landing as it goes live is refused or done whole, never half. An admin's Add player and
+// answer, ADR 0003), so one landing as it goes live is refused or done whole, never half. An admin's Add player and
 // take-off (setPlayer) don't.
 import { first } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 
-/** SQL: the tournament `t` (its alias) has started, whatever its date says (ADR 0074, #182). */
+/** SQL: the tournament `t` (its alias) has started, whatever its date says (apps/team/worker/tournaments/README.md, #182). */
 export const startedSql = (t: string) => `(${t}.status IN ('live', 'finished')
   OR EXISTS (SELECT 1 FROM tournament_games sg WHERE sg.tournament_id = ${t}.id AND sg.status <> 'next'))`;
 

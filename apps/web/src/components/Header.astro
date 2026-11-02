@@ -9,7 +9,7 @@ import { getClub, getSections } from "../lib/sanity/content";
 // Friday-night running order, shown in the menu.
 const path = Astro.url.pathname;
 const home = path === "/";
-// The team and the Kumite only while they're switched on in the Studio (ADR 0109)
+// The team and the Kumite only while they're switched on in the Studio (apps/web/src/README.md)
 const sections = await getSections();
 const links = [
   { section: "fridays", label: "Fridays", time: "19:30", page: "/fridays/" },

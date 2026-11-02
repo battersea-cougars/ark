@@ -208,6 +208,12 @@ export async function sendMail(
     outbox.capture?.(safe);
     // Never a secret in a log (#74): a deploy missing its Gmail secrets would otherwise log live sign-in codes
     const hide = (v: string | undefined) => redact(v, mail.secrets);
+    // Production without Gmail is a failure nobody would see (the mail just doesn't go): reported, and only who it was
+    // for and its subject, never its words (an enquiry's name, phone and message, a member's details)
+    if (isProduction(config.siteEnv)) {
+      log.error("mail.unconfigured", { to: safe.to, subject: hide(safe.subject) });
+      return { status: "logged", to: safe.to };
+    }
     log.info("mail.logged", { to: safe.to, subject: hide(safe.subject), text: hide(safe.text), html: hide(safe.html) });
     return { status: "logged", to: safe.to };
   }

@@ -1,4 +1,4 @@
-// Unused files, exports, types and dependencies (`npm run knip`; pr.yml fails a PR on any). ADR 0125: unused code
+// Unused files, exports, types and dependencies (`npm run knip`; pr.yml fails a PR on any). ADR 0105: unused code
 // goes; anything ignored here says why.
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
@@ -17,8 +17,8 @@
       "project": ["scripts/**/*.mjs"],
     },
     "apps/team": {
-      "entry": ["public/sw.js", "journeys/*.{ts,mjs}"],
-      "project": ["{src,worker,journeys,native}/**/*.{ts,svelte,mjs}"],
+      "entry": ["public/sw.js", "tests/journeys/**/*.{ts,mjs}"],
+      "project": ["{src,worker,tests,native}/**/*.{ts,svelte,mjs}"],
     },
     "apps/studio": {
       "entry": ["seed.ts"],

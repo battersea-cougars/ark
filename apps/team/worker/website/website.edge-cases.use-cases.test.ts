@@ -1,4 +1,4 @@
-// Unusual results on the website (ADR 0100): a goalless draw, a score typed in with nobody said to have scored, a
+// Unusual results on the website (apps/team/worker/website/README.md): a goalless draw, a score typed in with nobody said to have scored, a
 // tournament an admin calls finished before its Final, champions an admin confirms over the table, and the website
 // following an admin's correction. Driven through the real Worker handlers (ADR 0031), then read the way the
 // website's build reads them: the snapshot's rows (scripts/lib/results-sql.mjs), worked out by the website's own

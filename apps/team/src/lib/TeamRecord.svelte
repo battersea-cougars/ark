@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A team's record so far (ADR 0074), the one way it's written everywhere: won, drawn, lost as 1-0-0, then the
+  // A team's record so far (apps/team/worker/tournaments/README.md), the one way it's written everywhere: won, drawn, lost as 1-0-0, then the
   // points (1-0-0 · 3 Pts), figures tabular. Under a team's name on a match card (lib/FixtureRow), its matchup
   // (Matchup) and the teams' list (TournamentTeams). Short enough to stay on one line on a phone.
   let { w, d, l, pts }: { w: number; d: number; l: number; pts?: number } = $props();

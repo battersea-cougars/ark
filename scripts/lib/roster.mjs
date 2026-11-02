@@ -68,7 +68,7 @@ export function rosterSql(players, now = new Date()) {
         `UPDATE members SET email = ${q(p.email)} WHERE ${same(p.name)} AND email IS NULL ` +
           `AND NOT EXISTS (SELECT 1 FROM members WHERE email = ${q(p.email)});`,
       );
-    // Their bank reference (ADR 0007), filled in by value: the seed is one SQL file, not bound statements
+    // Their bank reference (apps/team/worker/dues/README.md), filled in by value: the seed is one SQL file, not bound statements
     const { sql, candidates } = assignReferenceSql(p.name, "lower(name) = lower(?)");
     const values = [...candidates, p.name];
     let i = 0;

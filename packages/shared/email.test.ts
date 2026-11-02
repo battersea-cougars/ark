@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BreakerOpen, resetBreakers } from "./breaker";
+import { captureLogs } from "./testing/scribe";
 import { clearTokenCache, mailPausedUntil, MailRefused, mime, safeMail, sendMail, type MailConfig } from "./email";
 
 // The club's inbox, as Sanity would give it (club-contact.ts)
@@ -164,6 +165,15 @@ describe("sendMail", () => {
     const result = await sendMail(enquiry, config({ gmail: null }), { fetch: google.fetch });
     expect(result.status).toBe("logged");
     expect(google.mock).not.toHaveBeenCalled();
+  });
+
+  it("in production, no credentials is reported, with who and the subject but never the words", async () => {
+    const logs = captureLogs({ report: () => {} });
+    const words = { ...enquiry, text: "Zoë, 07700 900123, keen to play" };
+    const result = await sendMail(words, config({ gmail: null, siteEnv: "production" }), { fetch: fakeGoogle().fetch });
+    expect(result.status).toBe("logged");
+    expect(logs.entries.map((e) => [e.level, e.msg])).toEqual([["error", "mail.unconfigured"]]);
+    expect(JSON.stringify(logs.entries)).not.toMatch(/07700|keen to play/);
   });
 
   it("reuses the access token until it's nearly expired", async () => {

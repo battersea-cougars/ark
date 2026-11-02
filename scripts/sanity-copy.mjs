@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Until launch, the website's words live in the repo (ADR 0014): apps/web/src/lib/sanity/fallback.ts. Each website
+// Until launch, the website's words live in the repo (ADR 0004): apps/web/src/lib/sanity/fallback.ts. Each website
 // deploy sends them to its environment's Sanity project before the build, so a copy change is a commit like any other.
 // Only the words: switches (On the website), the contact email, links, photos and awards stay the Studio's. At launch
 // this step comes out of deploy.yml and the Studio owns the words.

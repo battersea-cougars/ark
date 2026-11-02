@@ -1,4 +1,4 @@
-// What a tournament's editor saves, and what it leaves to the tournament's own pages (ADR 0030, 0074): driven through
+// What a tournament's editor saves, and what it leaves to the tournament's own pages (apps/team/worker/tournaments/README.md): driven through
 // the real Worker handlers in the fake world (testing.ts), with the body the app sends (lib/tournament-body.ts).
 //
 // The user (2026-10-23): a team's name and look are edited only on the team's own page ("Edit the team"), never in the

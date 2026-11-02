@@ -1,10 +1,10 @@
-// Live pages follow along (ADR 0072): a game being scored, the tournament's home while a game's on, the draft room
+// Live pages follow along (ADR 0053): a game being scored, the tournament's home while a game's on, the draft room
 // while it's open. The page holds one stream from the club's live hub, which says which parts of the club changed
 // the moment they do (a live match comes with it, #161); the app then reads just those parts (one read at a time, after a short random wait, so a burst
 // is one read: app/catch-up.ts, #112). The stream itself, and the hub's heartbeat that tells a dead one from a quiet
 // one, are lib/live-stream.ts. While the stream's open the page still checks every minute, as a safety net
 // (a 304 when the copy has every change); when it's down (a dropped connection, a server
-// without a hub), it checks on the admins' beat instead (ADR 0072), and says so. Only while the page is in view; the
+// without a hub), it checks on the admins' beat instead (ADR 0053), and says so. Only while the page is in view; the
 // brake (ADR 0055) still has the last word: a connect is one of the tab's calls, and nothing goes out while it rests.
 import { brake } from "../app/api";
 import { reportUnexpected } from "../app/errors.early";
@@ -73,7 +73,7 @@ export function checkForUpdates(follow: readonly string[] = ["tournaments"], { s
   };
 
   const unfollow = copy.follow(follow);
-  // Opened just after the app read the club (Home, as the app opens): nothing to check yet (ADR 0120)
+  // Opened just after the app read the club (Home, as the app opens): nothing to check yet (ADR 0053)
   if (Date.now() - checked.at > FRESH_MS) check();
   const stream = keepStream({
     open: () => new EventSource("/api/live"),

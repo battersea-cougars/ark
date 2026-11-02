@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Choose one of a tournament's players (ADR 0044): big rows, one tap, the one chosen ticked, each with their team
+  // Choose one of a tournament's players (apps/team/worker/tournaments/README.md): big rows, one tap, the one chosen ticked, each with their team
   // under them. No drop-down: a member's vote, and the admin's live call at the reveal, both in a sheet.
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";

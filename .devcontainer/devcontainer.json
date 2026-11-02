@@ -19,9 +19,8 @@
         "astro-build.astro-vscode",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "ms-python.python",
-        "charliermarsh.ruff",
         "vitest.explorer",
+        "ms-playwright.playwright",
         "vscode-icons-team.vscode-icons",
         "ritwickdey.LiveServer",
         "yzhang.markdown-all-in-one",
@@ -35,12 +34,7 @@
         "saoudrizwan.claude-dev"
       ],
       "settings": {
-        "task.allowAutomaticTasks": "on",
-        "[python]": {
-          "editor.defaultFormatter": "charliermarsh.ruff",
-          "editor.formatOnSave": true
-        },
-        "python.defaultInterpreterPath": "/usr/bin/python3"
+        "task.allowAutomaticTasks": "on"
       }
     }
   },

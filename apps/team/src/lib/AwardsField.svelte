@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A series' or a tournament's awards (ADR 0044), in its editor: a row each, read as text (its name, its line, how
+  // A series' or a tournament's awards (apps/team/worker/tournaments/README.md), in its editor: a row each, read as text (its name, its line, how
   // it's decided as a quiet tag), which opens the award's sheet (lib/AwardSheet) to change it. Up to 8. An award
   // saved before it said how shows the old guess from its name (lib/awards.ts withDecidedBy, as the editor loads it),
   // so saving keeps what it did. Which award is open is `open`, one value its editor can hold (and a URL drive).

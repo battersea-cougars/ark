@@ -1,4 +1,4 @@
-// The join form's Turnstile token is the enquiry form's only (ADR 0028): the one widget covers the website and the
+// The join form's Turnstile token is the enquiry form's only (ADR 0027): the one widget covers the website and the
 // team app, so a token rendered for the team app's sign-in or Ask to join isn't spent here, nor this form's there.
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";

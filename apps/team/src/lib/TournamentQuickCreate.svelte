@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The next date in a series, as a wizard (ADR 0128, lib/Wizard ADR 0117), its steps the full editor's tabs by the
+  // The next date in a series, as a wizard (apps/team/worker/tournaments/README.md, lib/Wizard apps/team/worker/tournaments/README.md), its steps the full editor's tabs by the
   // same names and its fields the editor's own (lib/Tournament*Fields, #163): Details (its season, its day once that's
   // known, its hours, the series' usual ones filled in), Sign-up (when it opens), Teams (a draft series only: the
   // draft's day, and the captains, a set whose pick order the draft draws, with the whole step to find them in), then
@@ -168,7 +168,7 @@
     failed = "";
     creating = true;
     const t = toTournament(values);
-    // Over something already on (Friday Training)? Asked first; closing the question schedules nothing (ADR 0122)
+    // Over something already on (Friday Training)? Asked first; closing the question schedules nothing (apps/team/worker/training/README.md)
     const window = tournamentWindow(t);
     const chosen = window ? await clashSheet?.ask(window, t.name) : [];
     if (chosen === null) return void (creating = false);

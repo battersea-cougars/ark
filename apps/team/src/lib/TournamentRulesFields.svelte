@@ -1,5 +1,5 @@
 <script lang="ts">
-  // How a tournament is played (ADR 0030, 0061): its rules, its playoffs and its awards, copied from its series and
+  // How a tournament is played (apps/team/worker/tournaments/README.md): its rules, its playoffs and its awards, copied from its series and
   // changed here for this one alone. In the wizard's Rules step (Advanced) and the editor's Rules & awards tab alike.
   import FormSection from "./FormSection.svelte";
   import Choice from "./Choice.svelte";

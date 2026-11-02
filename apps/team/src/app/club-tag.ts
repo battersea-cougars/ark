@@ -1,5 +1,5 @@
 // The bootstrap's ETag (ADR 0053), on both sides: the Worker makes it, and the app asks with it at the data version
-// it holds, which moves on as it reads the club in parts (catch-up.ts, ADR 0072). The deploy, the data version, who's
+// it holds, which moves on as it reads the club in parts (catch-up.ts, ADR 0053). The deploy, the data version, who's
 // asking and the day; none has a dot in it. No imports: the load runs' phones use it too.
 
 /**

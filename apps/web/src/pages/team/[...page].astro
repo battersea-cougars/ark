@@ -8,7 +8,7 @@ import { getPlayers, getSections, getSettings } from "../../lib/sanity/content";
 import { imageSrcSet, imageUrl, objectPosition } from "../../lib/sanity/images";
 
 // /team/ only (`page` is undefined), and only while the team is switched on in the Studio: off, the page isn't built
-// at all, so the address is a 404 and out of the sitemap (ADR 0109).
+// at all, so the address is a 404 and out of the sitemap (apps/web/src/README.md).
 export const getStaticPaths = (async () =>
   (await getSections()).team ? [{ params: { page: undefined } }] : []) satisfies GetStaticPaths;
 

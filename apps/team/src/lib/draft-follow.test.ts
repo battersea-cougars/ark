@@ -1,4 +1,4 @@
-// Following the draft on a phone (ADR 0060): a captain (Team Cara, first in the order) sees the teams, never a tab;
+// Following the draft on a phone (apps/team/worker/tournaments/README.md): a captain (Team Cara, first in the order) sees the teams, never a tab;
 // their turn brings up the Your pick button, which opens the players in a drawer; they pick and confirm there, it
 // shuts and the pick burns into their team; they watch the others' picks burn in one by one; never moved on while a
 // pick's still burning in; the turn passing while the drawer's open for their pick shuts it; they take over, and are

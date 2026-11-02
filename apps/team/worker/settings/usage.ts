@@ -1,9 +1,9 @@
-// The club's free Cloudflare allowance (ADR 0059): one account runs the website, the team app and their database,
+// The club's free Cloudflare allowance (apps/team/worker/settings/README.md): one account runs the website, the team app and their database,
 // and the free plan's daily limits reset at 00:00 UTC. Admins see today's use on the Usage page; an hourly check
 // (usage.alerts.ts) tells them at 70% and 90%, before the app stops working. The free plan also stops any request
 // that computes for more than 10 ms; the page shows each Worker's CPU time against that.
 // Read with a read-only token (Account Analytics: Read), CLOUDFLARE_ANALYTICS_TOKEN, never the deploy token.
-// Sanity's monthly quotas are ours to count (usage.sanity.ts, ADR 0059): shown and checked with or without the token.
+// Sanity's monthly quotas are ours to count (usage.sanity.ts, apps/team/worker/settings/README.md): shown and checked with or without the token.
 import { batch, statement } from "@cougars/shared/d1";
 import type { Env } from "../api/api";
 import { scribe } from "@cougars/shared/scribe";
@@ -36,9 +36,9 @@ export interface Usage {
   resetsAt: string;
   metrics: Metric[];
   cpu?: { limitMs: number; workers: WorkerCpu[] };
-  /** The database's last backup (ADR 0106), or null before the first. Ours, so it's there without the token. */
+  /** The database's last backup (ADR 0050), or null before the first. Ours, so it's there without the token. */
   backup: Backup | null;
-  /** This month's Sanity requests for this environment's project, as we counted them (ADR 0059). */
+  /** This month's Sanity requests for this environment's project, as we counted them (apps/team/worker/settings/README.md). */
   sanity: SanityUsage;
 }
 
@@ -48,7 +48,7 @@ export interface Backup {
   bytes: number;
 }
 
-/** The Workers free plan's daily limits (ADR 0003); the live hub's (ADR 0072) are Durable Objects' */
+/** The Workers free plan's daily limits (ADR 0003); the live hub's (ADR 0053) are Durable Objects' */
 const FREE = { requests: 100_000, rowsRead: 5_000_000, rowsWritten: 100_000, liveRequests: 100_000, liveTime: 13_000 };
 const LABELS: Record<Metric["id"], string> = {
   requests: "Worker requests",
@@ -150,7 +150,7 @@ export async function readUsage(env: Env, now: Date): Promise<Usage> {
     return { configured: true, day, resetsAt, metrics, cpu: { limitMs: CPU_LIMIT_MS, workers }, backup, sanity };
   } catch (e) {
     // An error, not a warning: the hourly check can't see the free allowance either, so nobody would be warned before
-    // it runs out and the app stops for everyone (ADR 0059, 0110)
+    // it runs out and the app stops for everyone (ADR 0110, apps/team/worker/settings/README.md)
     log.error("usage.unavailable", e);
     return { configured: true, unavailable: true, ...none };
   }

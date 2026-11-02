@@ -16,7 +16,7 @@ import { isStaleCode, recoverOnce } from "./app/stale-code";
 
 // The app is imported up front, so Vite fetches all of it (Home too, app/pages.svelte.ts) with this file, beside the
 // club's data, which index.html started reading at once (getBootstrap takes that reply); nothing reads the data as it
-// loads (ADR 0120). The data is in place before the app mounts. Nobody signed in: the sign-in screen, which reloads the page once they are.
+// loads (ADR 0053). The data is in place before the app mounts. Nobody signed in: the sign-in screen, which reloads the page once they are.
 const club = getBootstrap();
 const target = document.getElementById("app")!;
 // Errors to Sentry (ADR 0110), started beside the club's data rather than before it: a built copy only. What goes wrong

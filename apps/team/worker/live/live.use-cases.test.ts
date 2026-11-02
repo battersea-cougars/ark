@@ -1,4 +1,4 @@
-// Live pages hear about changes the moment they're made (ADR 0072): every phone on the draft room or a game's live
+// Live pages hear about changes the moment they're made (ADR 0053): every phone on the draft room or a game's live
 // page holds one open stream from the club's live hub, and a change made through the API reaches them all at once.
 // The stream carries only the names of the parts that changed; each phone then reads its own view.
 import { beforeEach, describe, expect, it, vi } from "vitest";

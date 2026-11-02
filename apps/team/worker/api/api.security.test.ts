@@ -1,4 +1,4 @@
-// The API's security rules (ADR 0036), as someone would try to get round them: no session, a plain member poking
+// The API's security rules (ADR 0024), as someone would try to get round them: no session, a plain member poking
 // at admin routes, a member manager reaching for Admin, another site's form, and a member reading bootstrap in
 // devtools. Driven through the real handler in the fake world (testing.ts, ADR 0031).
 import { createHash } from "node:crypto";
@@ -90,7 +90,7 @@ describe("what bootstrap tells a plain member", () => {
   });
 });
 
-describe("what bootstrap tells a plain member about everyone else (ADR 0036)", () => {
+describe("what bootstrap tells a plain member about everyone else (ADR 0024)", () => {
   it("who's in and waiting, but not who said no, who didn't turn up, who pays quarterly, or anyone's roles", async () => {
     const dana = await w.signedIn("dana@example.com");
     const reg = await w.signedIn("reg@example.com");
@@ -227,7 +227,7 @@ describe("requests from somewhere else", () => {
     expect((await reg.club({ headers: { origin: null } })).status).toBe(200);
   });
 
-  it("is never framed, sniffed, told where it came from or given the camera, from the Worker or the asset layer (ADR 0036)", async () => {
+  it("is never framed, sniffed, told where it came from or given the camera, from the Worker or the asset layer (ADR 0024)", async () => {
     const res = await worker.fetch(
       new Request("https://team.test/api/health"),
       { DB: w.db, ASSETS: { fetch: async () => new Response("<!doctype html>") } as unknown as Fetcher },
@@ -242,7 +242,7 @@ describe("requests from somewhere else", () => {
     expect(file["/*"]).toEqual(SECURITY_HEADERS);
   });
 
-  it("runs only the page's own inline script, the one that reads the club at once (ADR 0120)", () => {
+  it("runs only the page's own inline script, the one that reads the club at once (ADR 0053)", () => {
     const page = readFileSync(new URL("../../index.html", import.meta.url).pathname, "utf8");
     const inline = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
     expect(inline).toHaveLength(1);
@@ -279,7 +279,7 @@ describe("an everyday role (ADR 0024)", () => {
 
   it("is never a way up: a plain member can't make Admin their everyday role", async () => {
     const reg = await w.signedIn("reg@example.com");
-    // They aren't sent the Admin role (ADR 0036), so they guess its id, as anyone could
+    // They aren't sent the Admin role (ADR 0024), so they guess its id, as anyone could
     const admin = w.db.raw.prepare("SELECT id FROM roles WHERE name = 'Admin'").get() as { id: number };
     const res = await reg.call("PUT", "/api/me/everyday-role", { roleId: admin.id });
     expect(res.status).toBe(403);
@@ -287,7 +287,7 @@ describe("an everyday role (ADR 0024)", () => {
   });
 });
 
-describe("what's on the record (ADR 0024, ADR 0095)", () => {
+describe("what's on the record (ADR 0024)", () => {
   const record = async () =>
     (await all<{ action: string; member_id: number; detail: string }>(w.db, "SELECT * FROM audit_log ORDER BY id")).map(
       (r) => ({ event: r.action, by: r.member_id, ...JSON.parse(r.detail) }),
@@ -349,7 +349,7 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
     ]);
   });
 
-  it("is declared on every change: what it puts on the record, or that it puts nothing and why (ADR 0095)", () => {
+  it("is declared on every change: what it puts on the record, or that it puts nothing and why (ADR 0024)", () => {
     const silent = ROUTES.filter((r) => r.method !== "GET" && r.audit === undefined).map(
       (r) => `${r.method} ${r.path}`,
     );
@@ -361,7 +361,7 @@ describe("what's on the record (ADR 0024, ADR 0095)", () => {
     expect(unexplained).toEqual([]);
   });
 
-  it("puts every change made with more than being signed in on the record, but for the few that say why (ADR 0095)", () => {
+  it("puts every change made with more than being signed in on the record, but for the few that say why (ADR 0024)", () => {
     // The only opt-outs beyond being signed in: a member's own sign-up (it needs signup:Event, and the sign-ups are
     // their own record), the way to Google's page to reconnect the email (the reconnect itself is on the record,
     // mail.reconnected, once Google sends the admin back), and a test email (its handler records each try,

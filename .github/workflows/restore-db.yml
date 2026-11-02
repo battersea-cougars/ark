@@ -1,0 +1,101 @@
+name: Restore the database
+
+# Put one environment's D1 database back to a moment in the last 7 days with Time Travel (ADR 0050), the free plan's
+# window. For when a deploy, an import or a mistake damages the data. It goes through CI like every deploy, so
+# production is still never touched by hand (ADR 0010). Run it from the Actions tab on `release` for production, or on
+# `main` for dev:
+#
+#   gh workflow run restore-db.yml --ref release -f to=2026-11-02T09:30:00Z -f reason="bad import"
+#
+# It backs the database up first (an artifact of this run, like deploy.yml's), then restores the whole database: every
+# table, the schema too, and whatever was written since that moment goes. The summary names the bookmark it came from,
+# so running it again with that bookmark undoes it. Older than 7 days: db/README.md, Putting one back.
+#
+# It shares the deploys' concurrency group for its environment, so it never runs beside a deploy (a deploy waits for
+# it; GitHub keeps only the newest run waiting in a group, so don't queue a deploy and a restore at once).
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: When to go back to, in the last 7 days (UTC, like 2026-11-02T09:30:00Z), or a Time Travel bookmark
+        type: string
+        required: true
+      reason:
+        description: Why (in the run's summary)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  restore:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/release' && 'production' || 'preview' }}
+      deployment: false
+    # deploy.yml's group for this environment
+    concurrency:
+      group: deploy-${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
+    env:
+      SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
+      BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
+      CONFIG: apps/web/dist/d1/wrangler.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/secrets
+        with:
+          environment: ${{ env.SITE_ENV }}
+          token: ${{ secrets.BWS_ACCESS_TOKEN__PRODUCTION || secrets.BWS_ACCESS_TOKEN__DEV }}
+
+      - name: Target ${{ env.SITE_ENV }}
+        run: node scripts/ci/target.mjs "$SITE_ENV" db
+
+      # Before anything changes: the bookmark for `to`, so a time outside Time Travel's window stops the run here
+      - name: Find the moment
+        id: moment
+        env:
+          TO: ${{ inputs.to }}
+        run: |
+          if [[ "$TO" =~ ^[0-9a-f]{8}(-[0-9a-f]+){3}$ ]]; then
+            bookmark="$TO"
+          else
+            bookmark=$(npx wrangler d1 time-travel info DB -c "$CONFIG" --timestamp "$TO" --json | jq -er .bookmark)
+          fi
+          echo "$TO is bookmark $bookmark"
+          echo "bookmark=$bookmark" >> "$GITHUB_OUTPUT"
+
+      - name: Back up before restoring
+        run: node scripts/db-backup.mjs --remote -c "$CONFIG" --why "before restore" --out backups
+
+      - name: Keep the backup
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: d1-${{ env.SITE_ENV }}-before-restore-${{ github.run_id }}
+          path: backups/
+          retention-days: 90
+          if-no-files-found: error
+
+      # --json: without it wrangler asks "OK to proceed", and on a runner the answer is no
+      - name: Restore ${{ env.SITE_ENV }}'s database
+        env:
+          TO: ${{ inputs.to }}
+          REASON: ${{ inputs.reason }}
+          BOOKMARK: ${{ steps.moment.outputs.bookmark }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          result=$(npx wrangler d1 time-travel restore DB -c "$CONFIG" --bookmark "$BOOKMARK" --json)
+          restored=$(jq -er .bookmark <<<"$result")
+          undo=$(jq -er .previous_bookmark <<<"$result")
+          echo "Restored to $restored; it was at $undo."
+          {
+            echo "### $SITE_ENV's database restored"
+            echo
+            echo "- **To:** \`$TO\` (bookmark \`$restored\`)"
+            echo "- **It was at:** bookmark \`$undo\`. To undo:"
+            echo "  \`gh workflow run restore-db.yml --ref $BRANCH -f to=$undo -f reason=\"undo\"\`"
+            echo "- **Why:** $REASON"
+            echo "- **Backup first:** artifact \`d1-$SITE_ENV-before-restore-$GITHUB_RUN_ID\`"
+          } >> "$GITHUB_STEP_SUMMARY"

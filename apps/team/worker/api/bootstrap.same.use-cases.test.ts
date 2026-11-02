@@ -20,7 +20,7 @@
 // off for). With those two left out, every pin is byte for byte as before (checked).
 // Re-pinned 2026-10-28 (#187): the club's settings say how many days before a quarter its Quarterly Members are told
 // its fee is due (`planReminderDays`, 5 unless set). Without it, every pin is byte for byte as before.
-// Re-pinned 2026-11-01 (#145): every member says when their profile photo was set, `photoAt` (ADR 0133), null for all
+// Re-pinned 2026-11-01 (#145): every member says when their profile photo was set, `photoAt` (apps/team/worker/members/README.md), null for all
 // here. With it left out, every pin is byte for byte as before (checked).
 import { createHash } from "node:crypto";
 import { beforeAll, expect, it } from "vitest";

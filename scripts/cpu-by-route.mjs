@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CPU time per route, from Workers Logs, for finding what makes the Usage page's CPU figures high (ADR 0059), and for
+// CPU time per route, from Workers Logs, for finding what makes the Usage page's CPU figures high (ADR 0003), and for
 // a load run against dev (scripts/load/load.analytics.mjs, the run's window).
 //   node scripts/env-pull.mjs -- node scripts/cpu-by-route.mjs [hours]      (dev; default the last 24 hours)
 // Needs Workers Observability Read on CLOUDFLARE_ANALYTICS_TOKEN (docs/secrets.md#cloudflare_analytics_token__dev; dev only).

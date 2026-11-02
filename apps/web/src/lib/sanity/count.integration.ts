@@ -1,4 +1,4 @@
-// The build's own Sanity requests (ADR 0059). Prerendering reads Sanity in this Node process, outside any Worker, so
+// The build's own Sanity requests (ADR 0003). Prerendering reads Sanity in this Node process, outside any Worker, so
 // it can't count into D1 the way the Worker does: what it counted (packages/shared/sanity-requests.ts) goes to the
 // environment's D1 over Cloudflare's API once the build is done. Only in CI, which has that account's token
 // (deploy.yml); a build on your machine reads the dev project too, and is only said, not counted. Never fails a build.
@@ -25,12 +25,13 @@ export const sanityBuildCount = (): AstroIntegration => ({
       if (!rows.length) return;
       const sum = (kind: string) => rows.filter((r) => r.kind === kind).reduce((n, r) => n + r.count, 0);
       const said = `${sum("cdn")} to the API CDN, ${sum("api")} to the API (${rows[0].project})`;
-      if (!process.env.CI) return logger.info(`Sanity requests: ${said}. Not counted: a local build (ADR 0059).`);
+      if (!process.env.CI) return logger.info(`Sanity requests: ${said}. Not counted: a local build (ADR 0003).`);
       try {
         const query = await remoteD1(String(process.env.SITE_ENV) === "production" ? "production" : "dev");
         await query(ADD_SQL, [JSON.stringify(rows)]);
         logger.info(`Sanity requests: ${said}, counted.`);
       } catch (error) {
+        // The build's own log, not Sentry (a build has no reporter): a count missed here only leaves the Usage page low
         logger.warn(`Sanity requests: ${said}, not counted: ${(error as Error).message}`);
       }
     },

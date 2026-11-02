@@ -1,5 +1,5 @@
-// The Kumite as the website shows it (ADR 0044, 0042), read from the club's D1 at build time (scripts/club-snapshot.mjs):
-// its awards and the next one's date and place. Each Kumite keeps its own awards (ADR 0030), so the website shows a
+// The Kumite as the website shows it (ADR 0016, apps/team/worker/tournaments/README.md), read from the club's D1 at build time (scripts/club-snapshot.mjs):
+// its awards and the next one's date and place. Each Kumite keeps its own awards (apps/team/worker/tournaments/README.md), so the website shows a
 // Kumite's own: the next public one's, else the last public one held's; the series' only before there's been any (they
 // are the defaults a new Kumite copies).
 

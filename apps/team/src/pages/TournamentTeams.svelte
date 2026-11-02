@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The Teams set view of a tournament's page (ADR 0074): every team top to bottom, in full: its crest and name, its
+  // The Teams set view of a tournament's page (apps/team/worker/tournaments/README.md): every team top to bottom, in full: its crest and name, its
   // captain and every player with their position (the pick quietly beside them), a team with no goalie said so, and
   // its record once there are results; yours first and marked. Each a card that opens its own page (TournamentTeam),
   // where its captain (or an admin) edits it.

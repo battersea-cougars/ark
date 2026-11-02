@@ -1,4 +1,4 @@
-// A turn changing, as one timeline (ADR 0060): "burn in the name, scroll to next team, and then highlight" (the
+// A turn changing, as one timeline (apps/team/worker/tournaments/README.md): "burn in the name, scroll to next team, and then highlight" (the
 // user). The data moves at once; what's shown follows this, a step at a time: the pick burns into its team's card
 // (the team picking keeps its light, nothing scrolls), a moment held, then the carousels glide to the next team
 // together, and only when they've arrived does the light move to it (and the bar say so); then, on a phone, if it's

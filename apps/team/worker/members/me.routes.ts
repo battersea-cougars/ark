@@ -1,4 +1,4 @@
-// You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, ADR 0007), and
+// You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, apps/team/worker/dues/README.md), and
 // your data: download it, or delete your account (#30).
 import { places } from "../push/push.notices";
 import { ok, type Route } from "../api/api.route";
@@ -77,7 +77,7 @@ export const ME_ROUTES: Route[] = [
     action: "authenticated",
     changes: ["members"],
     maxBody: MAX_PHOTO_BODY,
-    // { photo: "data:image/jpeg;base64,…" | null }: your profile photo, shrunk on your phone (ADR 0133); null takes it down
+    // { photo: "data:image/jpeg;base64,…" | null }: your profile photo, shrunk on your phone (apps/team/worker/members/README.md); null takes it down
     handle: async (c) => (await setPhoto(c.env.DB, c.memberId, await body(c.request), c.now), ok()),
   },
   {

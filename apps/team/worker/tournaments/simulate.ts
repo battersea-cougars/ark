@@ -1,5 +1,5 @@
-// The Kumite simulator (ADR 0123): a dev-only tool that plays a tournament forward from wherever it is to its
-// after-party, so the after-party (ADR 0074) can be tried without scoring every match by hand. Every move is one the
+// The Kumite simulator (apps/team/worker/settings/README.md): a dev-only tool that plays a tournament forward from wherever it is to its
+// after-party, so the after-party (apps/team/worker/tournaments/README.md) can be tried without scoring every match by hand. Every move is one the
 // app's own use cases make, as an admin would: the draft drawn, opened, each pick for the team on the clock, closed
 // with the fixtures; each match's scoresheet taken, its clock started, goals (with assists) and the odd penalty
 // logged as the clock runs, its periods ended and full time called, the playoffs filled from the table. It stops
@@ -31,7 +31,7 @@ import { devToolsHere } from "../settings/devtools";
 
 /**
  * Whether the simulator exists on this Worker: where Dev tools do, only where the environment says, in so many words,
- * that it isn't production (devToolsHere, ADR 0123). Elsewhere the route isn't there at all (api.ts).
+ * that it isn't production (devToolsHere, apps/team/worker/settings/README.md). Elsewhere the route isn't there at all (api.ts).
  */
 export const simulatorHere = devToolsHere;
 

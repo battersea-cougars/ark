@@ -2,7 +2,7 @@
 // Worker, so this only sees the live ones: photos, videos, What's on, events, player cards and the join form. A
 // generous limit per address, enough that no person notices, but a loop or a scraper can't spend the club's free
 // quotas (Workers requests, D1 reads, Sanity, YouTube). The join form has its own, tighter limit (pages/api/join.ts).
-// After a request that read Sanity, its count goes to D1 (ADR 0059); in `astro dev` each read is logged too, with the
+// After a request that read Sanity, its count goes to D1 (ADR 0003); in `astro dev` each read is logged too, with the
 // page and who asked (lib/server/sanity-trace.ts), so a runaway shows where it's from.
 import { defineMiddleware } from "astro:middleware";
 import type { APIContext, MiddlewareNext } from "astro";
@@ -18,7 +18,7 @@ const log = scribe.logger("middleware");
 export const LIVE_LIMIT = { limit: 240, windowSeconds: 60 };
 
 /**
- * On every live response (ADR 0036), for this site: production's, or dev's with picsum's placeholder photos
+ * On every live response (ADR 0024), for this site: production's, or dev's with picsum's placeholder photos
  * (lib/server/headers.ts). Prerendered pages get the same from the `_headers` file the build writes.
  */
 export const SITE_HEADERS = siteHeaders(SITE_ENV);
@@ -65,6 +65,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   after(
     res.body
       .pipeTo(writable)
+      // A visitor leaving mid-page (the stream aborted) is no fault: the count still goes
       .catch(() => {})
       .then(flushCounts),
   );

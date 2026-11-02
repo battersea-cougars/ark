@@ -22,7 +22,7 @@ export function notDev({ url, database, env = process.env }) {
 /** Throws unless the target is dev's. */
 export function refuseUnlessDev(target) {
   const why = notDev(target);
-  if (why) throw new Error(`Refused: ${why} Load runs go to dev only (ADR 0121).`);
+  if (why) throw new Error(`Refused: ${why} Load runs go to dev only (ADR 0003).`);
 }
 
 async function cloudflare(path, body, { account, token }) {

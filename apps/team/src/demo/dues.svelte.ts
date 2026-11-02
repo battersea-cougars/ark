@@ -1,4 +1,4 @@
-// What a charge was for, in words, and what each member owes as the club read sends it (ADR 0007, #177).
+// What a charge was for, in words, and what each member owes as the club read sends it (apps/team/worker/dues/README.md, #177).
 import type { IconName } from "../app/shell/icons";
 import { londonISO } from "../lib/dates";
 import type { Charge } from "../lib/dues";

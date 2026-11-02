@@ -1,4 +1,4 @@
-// A visitor's browser refused something the content security policy doesn't allow (middleware.ts CSP, ADR 0036), and
+// A visitor's browser refused something the content security policy doesn't allow (middleware.ts CSP, ADR 0024), and
 // posted a report to /api/csp-report. The policy asks for `report-uri`'s shape, which every browser sends; the
 // Reporting API's list is read too, for a browser that sends that instead. Either becomes the few facts worth keeping,
 // only for our own pages, leaving out what browser extensions cause: they aren't ours to fix.

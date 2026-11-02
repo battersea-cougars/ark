@@ -1,4 +1,4 @@
-// A Kumite on a past day (ADR 0123), dev only: to try what a past Kumite shows, an admin has one played on a day gone
+// A Kumite on a past day (apps/team/worker/settings/README.md), dev only: to try what a past Kumite shows, an admin has one played on a day gone
 // by in a few taps. It's made on that day and signed up for, then the simulator plays it out on that evening (its
 // clocks the evening's, not now): the draft drawn and picked, every match on the clock, the awards confirmed and
 // every one revealed. So it's history at once (Past Kumites), with a whole evening behind it. Not there in production.

@@ -1,8 +1,9 @@
-# The club's accounts, and where every secret comes from
+# The club's accounts
 
-Every outside service the club runs on: who owns it, what's in it, and which secrets it issues. The secrets themselves
-live only in Bitwarden Secrets Manager ([ADR 0002](adr/0002-secrets-in-bitwarden.md)); how each one is made, used
-and rotated is in [secrets.md](secrets.md). One-time setup steps are in [setup.md](setup.md).
+Every outside service the club runs on: who owns it, where to sign in, what's in it, and how it's set up from
+scratch. Each secret a service issues (where it's kept, its scopes, what reads it, how to change it) is in
+[secrets.md](secrets.md), the section linked from each service here; the rules are in
+[ADR 0002](adr/0002-secrets-in-bitwarden.md). Everything here is free.
 
 ## Who's who
 
@@ -18,88 +19,125 @@ Accounts are named here by role, never by address:
 
 ## At a glance
 
-| Service                       | Owned by                                                                                                         | What it holds                                                            | Secrets it issues (in Bitwarden)                                                                                                             |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| [GitHub](#github)             | Organisation `battersea-cougars`; club account and a maintainer are owners                                       | The repo, Actions, the rebuild App                                       | `GITHUB_APP_PRIVATE_KEY`; GitHub itself holds only the two Bitwarden tokens                                                                  |
-| [Bitwarden](#bitwarden)       | The club's organisation (EU server); club account and a maintainer                                               | Secrets Manager: projects `cougars` and `cougars-dev`                    | The machine-account tokens `BWS_ACCESS_TOKEN__PRODUCTION`, `__DEV`, and the local one                                                        |
-| [Cloudflare](#cloudflare)     | Accounts **Cougars** and **Cougars Dev**; club account and a maintainer are Super Administrators                 | Workers, D1, the domain, Access, Turnstile, Web Analytics, rate limiting | `CLOUDFLARE_API_TOKEN__*`, `CLOUDFLARE_ANALYTICS_TOKEN__*`, `TURNSTILE_SECRET_KEY`(`__PRODUCTION`), `CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION` |
-| [Sanity](#sanity)             | Projects **Cougars** and **Cougars Dev**; club account and a maintainer are Administrators                       | The website's editable content and photos                                | `SANITY_DEPLOY_TOKEN__PRODUCTION`                                                                                                            |
-| [Google Cloud](#google-cloud) | Project `battersea-cougars`, owned by the developer account; club account second Owner                           | The Gmail API app, YouTube API keys, Firebase                            | `GMAIL_WEB_CLIENT_ID`/`_SECRET`, `YOUTUBE_API_KEY__*`, `FIREBASE_*`                                                                          |
-| [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                                       | The apps' outgoing mail; the club inbox                                  | `GMAIL_REFRESH_TOKEN`                                                                                                                        |
-| [YouTube](#youtube)           | The club account owns the channel; managers upload                                                               | The club's videos and playlists                                          | None (read with the Google Cloud API keys)                                                                                                   |
-| [Instagram](#instagram)       | The club's Meta business portfolio owns @batterseacougarshockey (Professional), the Meta app and its system user | The club's photos, which the website shows                               | `INSTAGRAM_TOKEN`                                                                                                                            |
-| [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                                     | Errors from both apps; the down alerts                                   | `SENTRY_AUTH_TOKEN`, `SENTRY_ISSUES_TOKEN`, `SENTRY_DSN_WEB`                                                                                 |
-| [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                                              | The store app (iOS)                                                      | `APP_STORE_CONNECT_KEY`, `FIREBASE_IOS_CONFIG`, `APP_REVIEW_*__PRODUCTION` (when the store app ships)                                        |
+| Service                       | Owned by                                                                                          | Sign in at                                                         | What it holds                                                            | Its secrets                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ | ---------------------------------------------------- |
+| [GitHub](#github)             | Organisation `battersea-cougars`; the club account and a maintainer are owners                    | <https://github.com/battersea-cougars>                             | The repo, Actions, the rebuild App                                       | [GitHub](secrets.md#github)                          |
+| [Bitwarden](#bitwarden)       | The club's organisation (EU server); the club account and a maintainer                            | <https://vault.bitwarden.eu>                                       | Secrets Manager: projects `cougars` and `cougars-dev`                    | [Bitwarden](secrets.md#bitwarden)                    |
+| [Cloudflare](#cloudflare)     | Accounts **Cougars** and **Cougars Dev**; the club account and a maintainer, Super Administrators | <https://dash.cloudflare.com>                                      | Workers, D1, the domain, Access, Turnstile, Web Analytics, rate limiting | [Cloudflare](secrets.md#cloudflare)                  |
+| [Sanity](#sanity)             | Projects **Cougars** and **Cougars Dev**; the club account and a maintainer, Administrators       | <https://www.sanity.io/manage>                                     | The website's editable content and photos                                | [Sanity](secrets.md#sanity)                          |
+| [Google Cloud](#google-cloud) | Project `battersea-cougars`, the developer account; the club account a second Owner               | <https://console.cloud.google.com>                                 | The Gmail API app, YouTube API keys, Firebase                            | [Google](secrets.md#google)                          |
+| [Gmail](#gmail)               | The developer account (sends); the club account (receives)                                        | Gmail                                                              | The apps' outgoing mail; the club inbox                                  | [Gmail](secrets.md#gmail)                            |
+| [YouTube](#youtube)           | The club account owns the channel; managers upload                                                | YouTube Studio                                                     | The club's videos and playlists                                          | None (read with [Google's keys](secrets.md#youtube)) |
+| [Instagram](#instagram)       | The club's Meta business portfolio                                                                | <https://business.facebook.com>                                    | The club's photos, which the website shows                               | [Instagram](secrets.md#instagram)                    |
+| [Sentry](#sentry)             | Organisation `battersea-cougars` (EU), the developer account                                      | <https://de.sentry.io>                                             | Errors from both apps; the down alerts                                   | [Sentry](secrets.md#sentry)                          |
+| [Apple](#apple)               | A maintainer's developer membership, for now (#103)                                               | <https://developer.apple.com>, <https://appstoreconnect.apple.com> | The store app (iOS)                                                      | [Apple](secrets.md#apple)                            |
 
-Made by us, from no service: `BACKUP_KEY` (`__PRODUCTION`) seals the database backups; `TEAM_ROSTER__PRODUCTION` is
-production's first admins; `SMOKE_TOKEN` is made and spent by each deploy and never stored.
+Secrets that come from no service (keys we make, the starting roster) are in secrets.md too:
+[Our own keys](secrets.md#our-own-keys), [Club data](secrets.md#club-data).
+
+## Setting up from scratch
+
+In this order; each step names the secrets it makes, and [secrets.md's order](secrets.md#setting-up-from-scratch)
+says how to make each one.
+
+1. [Bitwarden](#bitwarden): the store everything else goes into.
+2. [Cloudflare](#cloudflare): both accounts.
+3. [Sanity](#sanity): both projects.
+4. [GitHub](#github): environments, the rebuild App, the branch rules; then the first dev deploy.
+5. [Google Cloud](#google-cloud), [Sentry](#sentry), [Instagram](#instagram), and [Apple](#apple) when the store app
+   is built.
+6. [The domain](#the-domain): its records come with the first `release` deploy; Access until launch.
 
 ## GitHub
 
 - **Organisation** `battersea-cougars`, repo `ark`, public (on the free plan a private repo would lose environments,
   rulesets and unlimited Actions minutes). Owners: the club account and a maintainer.
-- **Environments:** `production` (deploys from `release` only) holds `BWS_ACCESS_TOKEN__PRODUCTION`; `preview` (`main`
-  and PRs) holds `BWS_ACCESS_TOKEN__DEV`. Nothing else is stored in GitHub ([ADR 0010](adr/0010-environments-and-deploys.md)).
+- **Environments** (Settings → Environments): `production`, deployment branches **`release` only**, holds
+  `BWS_ACCESS_TOKEN__PRODUCTION`; `preview` (`main` and PRs) holds `BWS_ACCESS_TOKEN__DEV`. No repository-level
+  secrets: nothing else is stored in GitHub ([ADR 0010](adr/0010-environments-and-deploys.md)). Variables → Actions:
+  `BWS_SERVER_URL`, `https://vault.bitwarden.eu` (the EU server); on `production`, `LAUNCHED` once the team app is
+  open ([The domain](#the-domain)).
+- **Branch rules**: `main` and `release` can't be force-pushed or deleted, and `release` changes only through a pull
+  request from `main` whose checks pass; a merged pull request's branch is deleted (`delete_branch_on_merge`):
+  `node scripts/branch-rules.mjs` (safe to run again).
 - **GitHub App "Cougars rebuilds",** owned by the organisation: lets the team app start a website rebuild, and nothing
-  else. Its private key is `GITHUB_APP_PRIVATE_KEY`; its client and installation IDs aren't secret ([secrets.md, Plain settings](secrets.md#plain-settings)).
+  else ([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). Its key: [secrets.md](secrets.md#github_app_private_key).
+- **First deploy**: deploy dev once, so the `web` worker exists before the first PR preview:
+  `node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh`. After that `main` deploys dev and a pull request from
+  `main` into `release`, merged, deploys production.
 
 ## Bitwarden
 
-- **Organisation** on Bitwarden's EU server, free plan: two seats (the club account and a maintainer), three machine
-  accounts. Owners: both.
+- **Organisation** on Bitwarden's EU server, free plan: two people (the club account and a maintainer, both owners),
+  three projects, three machine accounts. It has two halves: the **vault** (Password Manager, the `bw` command),
+  opened with your master password, and **Secrets Manager** (`bws`), which only takes a machine account's token.
 - **Secrets Manager projects:** `cougars` (production: `NAME__PRODUCTION`) and `cougars-dev` (dev, and every shared
-  plain `NAME`).
-- **Machine accounts:** `cougars-ci` (production deploys, reads both projects), `cougars-ci-dev` (`main` and PRs,
-  reads `cougars-dev` only), `cougars-local` (a maintainer's machine). Each one's token is that account's only key;
-  the local one sits in its maintainer's own vault, never on disk in the repo.
+  plain `NAME`); the machine accounts `cougars-ci`, `cougars-ci-dev` and `cougars-local`, and which project each
+  reads: [secrets.md](secrets.md#bitwarden).
 - **Not in Secrets Manager:** account logins (the club and developer accounts' passwords). Secrets Manager holds only
   what the apps, CI and scripts use.
+- **Setting it up:** create the organisation, enable Secrets Manager (Free), create the two projects, then the three
+  machine accounts and their tokens ([secrets.md](secrets.md#bitwarden)). On your machine, once:
+  `bw config server https://vault.bitwarden.eu` and `bw login` as your account in the organisation; then `bw-unlock`
+  each container start (the devcontainer keeps its own login, volume `cougars-bitwarden-cli`).
 
 ## Cloudflare
 
 Two accounts, so dev can never touch production ([ADR 0010](adr/0010-environments-and-deploys.md)):
 
-|           | **Cougars** (production)                                                                                                                                                                                                  | **Cougars Dev**                                      |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| Workers   | `web` (batterseacougars.com, www.), `team` (team.), `studio` (studio.)                                                                                                                                                    | `web`, `team`, `studio` on its workers.dev subdomain |
-| D1        | `cougars`                                                                                                                                                                                                                 | `cougars-dev`                                        |
-| Domain    | batterseacougars.com: Cloudflare Registrar and DNS, DNSSEC on                                                                                                                                                             | none                                                 |
-| Access    | The gate in front of production's team app until launch (the website is open), its admins list kept in the dashboard; a service token for CI's smoke tests; the team app's health check open (`scripts/access-setup.mjs`) | none                                                 |
-| Turnstile | One widget for the domain (`scripts/turnstile-setup.mjs`)                                                                                                                                                                 | One for workers.dev                                  |
-| Also      | Web Analytics; the rate-limiting rule (`scripts/ratelimit-setup.mjs`)                                                                                                                                                     |                                                      |
+|           | **Cougars** (production)                                                                                                                                                                | **Cougars Dev**                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Workers   | `web` (batterseacougars.com, www.), `team` (team.), `studio` (studio.)                                                                                                                  | `web`, `team`, `studio` on its workers.dev subdomain |
+| D1        | `cougars`                                                                                                                                                                               | `cougars-dev`                                        |
+| Domain    | batterseacougars.com: Cloudflare Registrar and DNS, DNSSEC on ([The domain](#the-domain))                                                                                               | none                                                 |
+| Access    | The gate in front of production's team app until launch (the website is open), its admins list kept in the dashboard; a service token for CI's smoke tests (`scripts/access-setup.mjs`) | none                                                 |
+| Turnstile | One widget, `cougars`, for the domain (`scripts/turnstile-setup.mjs`)                                                                                                                   | One for workers.dev                                  |
+| Also      | Web Analytics; the rate-limiting rule (`scripts/ratelimit-setup.mjs`)                                                                                                                   |                                                      |
 
-API tokens are account tokens, named exactly like their secret, each with only the permissions listed under its
-entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is read-only, for the team app's Usage page.
+**Setting it up**, in each account: create a free account at <https://dash.cloudflare.com/sign-up> (or add a second
+account to your login); **Workers & Pages** → pick a `*.workers.dev` subdomain; copy the **Account ID** into
+`scripts/lib/settings.mjs` (`CLOUDFLARE_ACCOUNT_ID`, committed: not a secret). Tokens are account API tokens (Manage
+Account → Account API Tokens), so they belong to the account, not a person; each one, with its permissions:
+[secrets.md](secrets.md#cloudflare). Then Turnstile ([secrets.md](secrets.md#turnstile)).
 
 ## Sanity
 
-- **Projects:** **Cougars** (production) and **Cougars Dev**, one public dataset each. Their IDs are in
-  `packages/shared/sanity.ts`: not secret, since every image URL carries them, and public datasets need no read token.
-- **Members:** Administrators are the club account and a maintainer; the team manager is an Editor. Free plan:
-  20 seats.
-- **The Studio** is self-hosted at studio.batterseacougars.com ([ADR 0112](adr/0112-self-hosted-studio.md)); its
-  CORS origins were added by hand (`setup.md`).
-- **Tokens:** `SANITY_DEPLOY_TOKEN__PRODUCTION` (role Deploy Studio), for the schema deploy; until launch,
-  `SANITY_CONTENT_TOKEN__PRODUCTION` and `__DEV` (role Editor), for the deploy that sends the website's words
-  ([secrets.md](secrets.md#sanity_content_token__production)).
+| Project         | ID         | Dataset               | Used by                                                      |
+| --------------- | ---------- | --------------------- | ------------------------------------------------------------ |
+| **Cougars**     | `ah165efl` | `production` (public) | The live site and the hosted Studio                          |
+| **Cougars Dev** | `zmg6rbe3` | `production` (public) | The dev site, PR previews, your machine and the local Studio |
+
+- The IDs are in `packages/shared/sanity.ts`: not secret, since every image URL carries them, and public datasets need
+  no read token. The environment picks the project.
+- **Members:** Administrators are the club account and a maintainer; the club's editors are Editors on **Cougars**,
+  and on **Cougars Dev** if they want somewhere to practise (Free plan: 20 seats). Vision, the query tool, only appears
+  for administrators.
+- **The Studio** is self-hosted at studio.batterseacougars.com and dev's on workers.dev
+  ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)). A Studio change reaches the live site at the daily rebuild (some time
+  after 04:37 UTC), the next release, or a rebuild from the team app (Settings → Website,
+  [ADR 0016](adr/0016-how-the-website-gets-its-data.md)); by hand, `gh workflow run deploy.yml --ref release -f apps=web`.
+- **Setting a project up:** `npx sanity login` with your own account, create the project (Free plan) with one public
+  dataset, `production`, and put its ID in `packages/shared/sanity.ts`. **API → CORS origins**, with credentials,
+  added by hand (the deploy token can't): Cougars Dev `http://localhost:4520` (the local Studio, ADR 0115) and
+  `https://studio.cougars-dev.workers.dev`; Cougars `https://studio.batterseacougars.com`. Seed the club facts from
+  the website's defaults, dev first, with your own login: `npm run seed -w @cougars/studio`, then
+  `SANITY_STUDIO_SITE_ENV=production npm run seed -w @cougars/studio`. Its tokens: [secrets.md](secrets.md#sanity).
 
 ## Google Cloud
 
-- **Project** `battersea-cougars`, owned by the developer account, the club account a second Owner.
+- **Project** _Battersea Cougars_, ID `battersea-cougars` (permanent, so no "website" or "dev" in it), owned by the
+  developer account, with the club account a second Owner (**IAM → Grant access**). Free, no billing account.
 - **Gmail API:** one OAuth app, "Battersea Cougars" (In production, unverified: only the developer account ever signs
-  in), with one Web client, scope `gmail.send` only: `GMAIL_WEB_CLIENT_ID` and `GMAIL_WEB_CLIENT_SECRET`. It makes
-  the deployed token (`scripts/gmail-auth.mjs`) and the one an admin reconnects from the team app. A client can hold
-  two secrets at once, so a rotation has no gap
-  ([secrets.md#gmail](secrets.md#gmail)).
-- **YouTube Data API:** two API keys, `YOUTUBE_API_KEY__PRODUCTION` and `__DEV`, each restricted to the YouTube Data
-  API.
-- **Firebase**, for the store app: `FIREBASE_SERVICE_ACCOUNT` sends notifications; `FIREBASE_IOS_CONFIG` goes into the iOS build.
+  in, #156), with one Web client, scope `gmail.send` only. Its client, tokens and how to rotate them:
+  [secrets.md](secrets.md#gmail).
+- **YouTube Data API:** two API keys, one per environment, each restricted to the YouTube Data API
+  ([secrets.md](secrets.md#youtube)).
+- **Firebase**, for the store app's notifications ([secrets.md](secrets.md#firebase)).
 
 ## Gmail
 
-- **The developer account sends** every email: sign-in codes, enquiries, auto-replies, reminders. Its
-  `GMAIL_REFRESH_TOKEN` (`scripts/gmail-auth.mjs`) is cancelled by a password change on that account: re-run the
-  script, then redeploy ([secrets.md#gmail](secrets.md#gmail), #101).
+- **The developer account sends** every email: sign-in codes, enquiries, auto-replies, reminders. A password change on
+  that account cancels the deployed token: [secrets.md](secrets.md#gmail) says how to make it again (#101).
 - **Production reads as the club:** the developer account has the club's address as a "Send mail as" alias, so
   replies reach the club inbox.
 - **The club account receives** enquiries. Its address is set in the Studio (Club → Contact email), never in this repo.
@@ -115,28 +153,55 @@ entry in [secrets.md](secrets.md#cloudflare). `CLOUDFLARE_ANALYTICS_TOKEN__*` is
 
 - **The account** @batterseacougarshockey belongs to the club account, switched to a Professional account (free) so its
   posts can be read through Instagram's API. Admins post there; the website shows the newest
-  ([ADR 0016](adr/0016-photos-and-videos-read-live.md)).
+  ([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). There's no dev copy: every environment reads the real one.
 - **The club's Meta business portfolio** (business.facebook.com) owns the Instagram account, the Meta app that reads
-  it, and the system user `photosreader` whose token is `INSTAGRAM_TOKEN` (dev and production
-  both read it: there's no dev Instagram)
-  ([secrets.md#instagram](secrets.md#instagram)). It has more than one admin with full control, so nobody leaving
-  takes anything with them; add a new admin before an old one goes. Only an admin with full control can add apps.
+  it, and the system user `photosreader` whose token the website reads ([secrets.md](secrets.md#instagram)). It has more
+  than one admin with full control, so nobody leaving takes anything with them; add a new admin before an old one goes.
+  Only an admin with full control can add apps.
 
 ## Sentry
 
 - **Organisation** `battersea-cougars`, EU region, free Developer plan (one user: the developer account, which forwards
-  the alert emails). Projects `web` and `team`; alerts on a new issue (production, dev) and a spike (production), and a cron
-  monitor on the team Worker's hourly run ([ADR 0110](adr/0110-structured-logging.md)).
-- **Secrets:** `SENTRY_AUTH_TOKEN` (the developer account's personal token: setup and source maps),
-  `SENTRY_ISSUES_TOKEN` (another, read-only: Settings → Errors), and the two DSNs, made by `scripts/sentry-setup.mjs`.
+  the alert emails). Projects `web` and `team`, each event saying its environment; alerts email on a new issue
+  (production, dev) and a spike (production), and a cron monitor watches the team Worker's hourly run
+  ([ADR 0110](adr/0110-structured-logging.md)). `scripts/sentry-setup.mjs` sets the projects and alerts up
+  ([secrets.md](secrets.md#sentry)).
 
 ## Apple
 
-- **Apple Developer membership:** a maintainer's for now; making it the club's is #103.
-- **Secrets:** the App Store Connect API key, Firebase's iOS config, and the App Review sign-in
-  ([secrets.md#apple](secrets.md#apple)). All are in Bitwarden but the App Review pair, made when the app first goes
-  to review. The key's IDs and `APPLE_TEAM_ID` aren't secret: they're committed (`scripts/lib/settings.mjs`). The
-  APNs key's recovery copy is in the organisation's vault, not Secrets Manager.
+- **Apple Developer membership:** a maintainer's for now; making it the club's is #103. The store app is built and
+  sent to TestFlight by `store.yml` ([ADR 0108](adr/0108-store-apps.md)). Its key, its IDs and the App Review sign-in:
+  [secrets.md](secrets.md#apple).
+
+## The domain
+
+`batterseacougars.com`, bought 2026-10-06 with Cloudflare Registrar (at cost, auto-renew on) on the **Cougars**
+account. Registrar lock and contact privacy are on; DNSSEC on (**DNS → Settings**); keep two-factor login on the
+account, which controls the domain.
+
+- **Workers on it**: `deploy.yml` sets production's `SITE_URL`, and `scripts/ci/target.mjs` attaches it and `www.` to
+  the `web` worker and `team.` to `team` as custom domains (`studio.` is in apps/studio's `wrangler.jsonc`), so a `release` deploy makes the DNS records and
+  certificates. That needs the zone permissions on [`CLOUDFLARE_API_TOKEN__PRODUCTION`](secrets.md#cloudflare_api_token__production).
+  Dev stays on workers.dev: a domain can only point at workers in its own account. The form rate limit and the edge
+  cache work only on the domain (Cloudflare's Cache API is off on `*.workers.dev`).
+- **www**: a zone rule redirects `www.` to the bare domain (301, path and query kept), written by every production
+  deploy (`scripts/redirect-setup.mjs`); seen under Rules → Redirect Rules.
+- **Rate limiting** (#57): the zone's one free rule blocks an address that sends more than 150 requests in 10 seconds
+  (per data centre) for 10 seconds, on the site, `www.` and the team app, before a scraper costs a Worker request; 150
+  leaves room for a whole club on the rink's Wi-Fi. `node scripts/env-pull.mjs --environment production -- node
+scripts/ratelimit-setup.mjs` writes it; change the number there and run it again. Seen under Security → WAF.
+- **Cloudflare Access, until launch**: `team.` asks for an email and a one-time code and lets in only the emails on the
+  **Admins (production roster)** policy, plus CI's service token for the deploy's smoke tests. The list is kept by
+  hand: Zero Trust → **Access → Policies → Admins (production roster) → Edit**. The rest is
+  `node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs` (its first run starts the list
+  from `TEAM_ROSTER__PRODUCTION`; again, it keeps the list, and rotates the [service token](secrets.md#cloudflare-access)).
+  At launch: the same with `--remove`, then set the `production` environment's variable `LAUNCHED` to `true` (ADR
+  0010, ADR 0050). At launch also switch the Google Auth Platform **Branding** URLs to the domain.
+- **Web Analytics**: on for batterseacougars.com, counting page views without cookies (the privacy page says so).
+  Its API refuses our account tokens, so it's set up by hand, once: Analytics & Logs → Web Analytics →
+  batterseacougars.com → **Manage site**, copy the token from the JS snippet (public: it's in every page) into
+  `deploy.yml` as `WEB_ANALYTICS_TOKEN` and release; then turn **automatic setup off** there, so Cloudflare stops adding
+  its own beacon to every page, the team app's included ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)).
 
 ## Not yet handed over
 

@@ -1,4 +1,4 @@
-// Keepers play training free (ADR 0007): the club needs them in net every Friday, so a keeper is on the Keeper plan,
+// Keepers play training free (apps/team/worker/dues/README.md): the club needs them in net every Friday, so a keeper is on the Keeper plan,
 // never charged for a training night or a quarter, and has no plan to choose. Tournaments they enter are charged as
 // for anyone. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,6 +61,30 @@ describe("keepers play training free", () => {
     expect((await dana.call("PUT", `/api/members/${id.Reg}`, { ...reg, position: "G" })).status).toBe(200);
     await chargeDue(w.env, on("2026-10-06"));
     expect(await chargesOf(dana, id.Reg)).toEqual([]);
+  });
+
+  it("making someone a keeper takes their unpaid training nights off; a night they've paid stays", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const series = (await boot(dana)).series[0];
+    await dana.call("PUT", `/api/series/${series.id}`, { ...series, fees: [{ pence: 800, from: "2026-01-01" }] });
+    const id = await ids(dana);
+    for (const day of ["2026-09-25", LAST_FRIDAY]) {
+      const session = (await boot(dana)).sessions.find((s: Json) => s.heldOn === day).id;
+      await dana.call(
+        "POST",
+        `/api/sessions/${session}/register`,
+        { memberId: id.Reg, here: true },
+        { now: onTheNight(day) },
+      );
+    }
+    const [paid] = await chargesOf(dana, id.Reg);
+    expect((await dana.call("POST", `/api/charges/${paid.id}/payment`, { via: "transfer" })).status).toBe(200);
+
+    const reg = (await boot(dana)).members.find((m: Json) => m.id === id.Reg);
+    expect((await dana.call("PUT", `/api/members/${id.Reg}`, { ...reg, position: "G" })).status).toBe(200);
+    await chargeDue(w.env, on("2026-10-06"));
+
+    expect((await chargesOf(dana, id.Reg)).map((c) => c.id)).toEqual([paid.id]);
   });
 
   it("a keeper has no plan to choose, and an admin can't make them Quarterly", async () => {

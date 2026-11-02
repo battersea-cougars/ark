@@ -26,7 +26,7 @@ export const TOPICS = [
     hint: "Someone got in with a code made at a terminal, not by email or passkey.",
     action: "manage:all",
   },
-  // Only for whoever watches the club's free allowance (ADR 0059, #157): admins, so only they see its switch
+  // Only for whoever watches the club's free allowance (ADR 0003, #157): admins, so only they see its switch
   {
     topic: "usage",
     label: "Free limits",

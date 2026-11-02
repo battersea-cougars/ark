@@ -3,7 +3,7 @@ name: Roll back
 # Put one app's worker back to its version before the last deploy, or to a version you name (ADR 0010). For when a
 # deploy breaks something and a revert through `main` and `release` would take too long. It goes through CI like every
 # deploy, so production is still never touched by hand. Run it from the Actions tab on `release` for production, or on
-# `main` for dev. The database stays as it is: a rollback puts back code, not data (backups: #31).
+# `main` for dev. The database stays as it is: a rollback puts back code, not data (restore-db.yml puts back data).
 #
 # The next deploy from that branch replaces it again, so revert the bad commit on `main` too.
 on:
@@ -36,7 +36,7 @@ jobs:
       SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/secrets
         with:

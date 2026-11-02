@@ -1,4 +1,4 @@
-// Training (ADR 0030): series and their sessions. Sessions are rows, made 12 weeks ahead from each active series'
+// Training (apps/team/worker/training/README.md): series and their sessions. Sessions are rows, made 12 weeks ahead from each active series'
 // rule, so each can be cancelled on its own.
 import { syncSeries } from "@cougars/shared/agenda";
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
@@ -57,7 +57,7 @@ const seriesJson = (s: SeriesRow, fees: { seriesId: number; pence: number; from:
   signupOpensDays: s.signup_opens_days,
   public: Boolean(s.public),
   active: Boolean(s.active),
-  // The fee per session, from each date (ADR 0007)
+  // The fee per session, from each date (apps/team/worker/dues/README.md)
   fees: fees.filter((f) => f.seriesId === s.id).map(({ pence, from }) => ({ pence, from })),
 });
 
@@ -65,13 +65,13 @@ const seriesJson = (s: SeriesRow, fees: { seriesId: number; pence: number; from:
 export const seriesFrom = (rows: SeriesRow[], fees: { seriesId: number; pence: number; from: string }[]) =>
   rows.map((s) => seriesJson(s, fees));
 
-/** New sessions, all in one statement: a JSON list of [seriesId, day] (ADR 0059). */
+/** New sessions, all in one statement: a JSON list of [seriesId, day] (ADR 0003). */
 const INSERT_SESSIONS = `INSERT OR IGNORE INTO training_sessions (series_id, held_on)
   SELECT value ->> 0, value ->> 1 FROM json_each(?)`;
 
 const log = scribe.logger("training");
 
-/** What else goes in the batch that saves a training (its fees, ADR 0007): statements about it, by `SeriesRef`. */
+/** What else goes in the batch that saves a training (its fees, apps/team/worker/dues/README.md): statements about it, by `SeriesRef`. */
 type Also = (series: SeriesRef) => D1PreparedStatement[];
 
 /**
@@ -147,7 +147,7 @@ export async function moreSessions(db: D1Database, seriesId: number, today: stri
 }
 
 /**
- * One night a training's rule gives, made now if it isn't already (ADR 0122): a clash far ahead can be cancelled
+ * One night a training's rule gives, made now if it isn't already (apps/team/worker/training/README.md): a clash far ahead can be cancelled
  * before the weeks ahead reach it. Made, it's like any other night: ensureSessions skips its date, cancelled or not.
  */
 export async function nightOf(db: D1Database, seriesId: number, o: Record<string, unknown>, today: string) {
@@ -248,7 +248,7 @@ const seriesParams = (f: Awaited<ReturnType<typeof seriesFields>>): Param[] => [
   f.active ? 1 : 0,
 ];
 
-/** A save with nothing to keep to (ADR 0122): no condition. */
+/** A save with nothing to keep to (apps/team/worker/training/README.md): no condition. */
 const ANY = { sql: "1", params: [] as Param[] };
 const SOMETHING_NEW = "Something else is on then now. Have a look again.";
 const timesOf = (f: Awaited<ReturnType<typeof seriesFields>>) => ({
@@ -261,7 +261,7 @@ const timesOf = (f: Awaited<ReturnType<typeof seriesFields>>) => ({
 export async function createSeries(db: D1Database, o: Record<string, unknown>, today: string, also: Also = () => []) {
   const f = await seriesFields(db, o);
   const slug = await freeSlug(db, "training_series", slugify(f.shortName || f.name));
-  // Over something already on (ADR 0122): what was asked about holds to the write, or nothing is made
+  // Over something already on (apps/team/worker/training/README.md): what was asked about holds to the write, or nothing is made
   const clear =
     (await answeredGuard(db, await trainingNights(db, timesOf(f), null, today), o.clashes, null, today)) ?? ANY;
   const [res] = await batch(db, [
@@ -286,8 +286,8 @@ export async function createSeries(db: D1Database, o: Record<string, unknown>, t
  * Change a series. Future sessions the new rule no longer makes go, unless they were moved or cancelled (an admin
  * touched them) or, once sign-ups exist, someone has signed up. Then the rule fills in what's missing. The training,
  * whatever goes with it (`also`) and the first waiting moving up into any room it now has (a limit raised is a place
- * coming free, ADR 0030, #127) are one batch, checked first: a refusal changes nothing (#131), and nobody signing up
- * between takes the new room ahead of those waiting (ADR 0121).
+ * coming free, apps/team/worker/training/README.md, #127) are one batch, checked first: a refusal changes nothing (#131), and nobody signing up
+ * between takes the new room ahead of those waiting (ADR 0003).
  */
 export async function updateSeries(
   db: D1Database,
@@ -300,7 +300,7 @@ export async function updateSeries(
   if (!(await first(db, "SELECT 1 FROM training_series WHERE id = ?", [id])))
     throw new HttpError(404, "No such training.");
   const f = await seriesFields(db, o);
-  // Moved over something already on (ADR 0122): what was asked about holds to every statement, or nothing changes
+  // Moved over something already on (apps/team/worker/training/README.md): what was asked about holds to every statement, or nothing changes
   const clear = (await answeredGuard(db, await trainingNights(db, timesOf(f), id, today), o.clashes, id, today)) ?? ANY;
   const [res] = await batch(db, [
     statement(

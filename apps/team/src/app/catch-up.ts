@@ -1,4 +1,4 @@
-// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0072, #112), at the least cost
+// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0053, #112), at the least cost
 // in D1's rows read: the free day's limit a busy evening passes when every phone reads the whole club for every change.
 //
 // The club's data version goes up by one with every change, and each of the hub's events names the parts that changed
@@ -8,8 +8,9 @@
 // check reads the club; a whole check at the version held is a 304.
 //
 // A live match comes with its event (#161): it's the same for every member, so the Worker builds it once and the hub
-// sends it along. A copy that holds the version just before puts it in place as it is, and reads nothing; any other
-// copy reads as the names say, so a missed event costs a read, never a wrong screen.
+// sends it along. So does the after-party's drum (#224): an award turned over, or rolled on to the next, with the
+// winners out (never one still sealed). A copy that holds the version just before puts it in place as it is, and
+// reads nothing; any other copy reads as the names say, so a missed event costs a read, never a wrong screen.
 //
 // One read at a time, after a short random wait, so a burst of events is one read, and 120 phones don't all ask in
 // the same instant. Nothing while the page is out of view: coming back checks the whole club anyway.
@@ -25,10 +26,30 @@ export interface PushedMatch {
   games: unknown[];
 }
 
-/** What the hub sends with a change, besides its names: the data version the change made, and the match. */
+/**
+ * The after-party's drum as the hub sends it (#224): how many awards are out, whether it's rolled on to the next
+ * (sealed), and the winners out so far, as every member sees them on the evening (none still sealed).
+ */
+export interface PushedAwards {
+  tournamentId: number;
+  awardsRevealed: number;
+  awardsNext: boolean;
+  winners: Winner[];
+}
+
+/** Who won an award, as the club read sends it. */
+interface Winner {
+  award: string;
+  teamId: number | null;
+  memberId: number | null;
+  title?: string | null;
+}
+
+/** What the hub sends with a change, besides its names: the data version the change made, and the match or drum. */
 export interface Pushed {
   version: number;
-  match: PushedMatch;
+  match?: PushedMatch;
+  awards?: PushedAwards;
 }
 
 /** What changed, as the hub says it: the parts, the data versions that changed them, and any match sent along. */
@@ -38,13 +59,31 @@ export interface Heard {
   parts?: readonly Pushed[];
 }
 
-/** The part of the club a match goes into: the change that made it changed nothing else (api/api.ts). */
+/** The part of the club a match or the drum goes into: the change that made it changed nothing else (api/api.ts). */
 const MATCH_IN = "tournaments";
 
 /** The tournaments with this match's games in place, or null when its tournament isn't among them (read instead). */
 export function withMatch<T extends { id: number }>(tournaments: T[] | undefined, match: PushedMatch): T[] | null {
   if (!tournaments?.some((t) => t.id === match.tournamentId)) return null;
   return tournaments.map((t) => (t.id === match.tournamentId ? { ...t, games: match.games } : t));
+}
+
+const winnerOf = (w: Winner) => `${w.award} ${w.teamId} ${w.memberId}`;
+
+/**
+ * The tournaments with the drum where the hub says, or null when its tournament isn't among them (read instead). The
+ * winners are those out, unless the copy holds them all and more: whoever runs it, sent every one, keeps theirs.
+ */
+export function withAwards<T extends { id: number; winners?: Winner[] }>(
+  tournaments: T[] | undefined,
+  awards: PushedAwards,
+): T[] | null {
+  const t = tournaments?.find((x) => x.id === awards.tournamentId);
+  if (!tournaments || !t) return null;
+  const held = new Set((t.winners ?? []).map(winnerOf));
+  const winners = awards.winners.every((w) => held.has(winnerOf(w))) ? t.winners : awards.winners;
+  const { awardsRevealed, awardsNext } = awards;
+  return tournaments.map((x) => (x.id === awards.tournamentId ? { ...x, awardsRevealed, awardsNext, winners } : x));
 }
 
 /** How the copy reads and stores; the app's are in backend.svelte.ts, the load runs' phones have their own. */
@@ -57,6 +96,8 @@ export interface CopyIO {
   apply(slices: Record<string, unknown>): void;
   /** Put a match the hub sent in place (`withMatch`); false: the copy has no such tournament. None: always read. */
   applyMatch?(match: PushedMatch): boolean;
+  /** Put the drum the hub sent in place (`withAwards`); false: no such tournament. None: always read. */
+  applyAwards?(awards: PushedAwards): boolean;
   /** Whether the page is in view. */
   visible(): boolean;
   /**
@@ -147,14 +188,15 @@ export class ClubCopy {
   }
 
   /**
-   * A match sent with its change. That change changed only the match's tournament (api/api.ts), so it's all of it:
-   * holding the version just before, and nothing newer of the tournaments, the copy puts it in place and moves on.
+   * A match or the drum sent with its change. That change changed only its tournament (api/api.ts), so it's all of
+   * it: holding the version just before, and nothing newer of the tournaments, the copy puts it in place and moves on.
    */
-  private take({ version, match }: Pushed) {
+  private take({ version, match, awards }: Pushed) {
     if (version <= this.held) return;
     this.heard.set(version, [MATCH_IN]);
     if (version !== this.held + 1 || (this.fresh.get(MATCH_IN) ?? 0) >= version) return this.advance();
-    if (!this.io.applyMatch?.(match)) return;
+    const placed = match ? this.io.applyMatch?.(match) : awards ? this.io.applyAwards?.(awards) : false;
+    if (!placed) return;
     this.fresh.set(MATCH_IN, version);
     this.advance();
   }

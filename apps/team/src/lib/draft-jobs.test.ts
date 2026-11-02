@@ -1,4 +1,4 @@
-// The draft's jobs in the page's one Manage (ADR 0060): which apply at each step, and what they say.
+// The draft's jobs in the page's one Manage (apps/team/worker/tournaments/README.md): which apply at each step, and what they say.
 import { describe, expect, it } from "vitest";
 import { draftJobsOf } from "./draft-jobs";
 import { snakeDraft as draft } from "./kumite.testing";

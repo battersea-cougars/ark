@@ -6,7 +6,7 @@
 //   npm run app -- studio            any of web, team, studio: just those (the Studio also starts when 4520 is opened)
 //   npm run app -- --private         run them without showing them: prints their own ports, for an agent's checks
 //   npm run app -- --own-db          this checkout's own local D1 (a copy of main's, for a branch that changes
-//                                    db/schema.sql); --shared-db goes back to main's
+//                                    db/schema.sql or adds a migration); --shared-db goes back to main's
 //   npm run app main                 show the main checkout
 //   npm run app status               what's shown and every app (in a browser: localhost:4500/__app)
 //   npm run app restart [service]    start this checkout's apps (or one) again

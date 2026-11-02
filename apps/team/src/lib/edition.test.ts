@@ -63,7 +63,7 @@ describe("stageOf: which of its pages are tabs", () => {
   });
 });
 
-describe("countdownOf: how far off the day is, in the header (ADR 0074)", () => {
+describe("countdownOf: how far off the day is, in the header", () => {
   // Thursday 22 October 2026
   const TODAY = "2026-10-22";
   it("within a week it leads: today, tomorrow, this Saturday, in 7 days", () => {

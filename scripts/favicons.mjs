@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The icons for the website and the team app, the same in both (ADR 0101): the "C" of COUGARS from the logo, white
+// The icons for the website and the team app, the same in both (ADR 0009): the "C" of COUGARS from the logo, white
 // with the logo's black outline, on logo red. Re-run after a change: node scripts/favicons.mjs
 //   favicon.ico            16, 32 and 48 px, for browsers and Google Search (which asks for /favicon.ico)
 //   favicon.png            96 px (Google wants a multiple of 48)

@@ -101,7 +101,7 @@
   });
   // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
   const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
-  // A tournament series' pages have none: their stage track, under the header, is the way between them (ADR 0074)
+  // A tournament series' pages have none: their stage track, under the header, is the way between them (apps/team/worker/tournaments/README.md)
   // Viewing as someone (ADR 0024): back to yourself, on the server, then a page you can see
   async function backToYou() {
     if (await viewAs(null)) stayIfAllowed();
@@ -232,7 +232,7 @@
   function enter(node: Element, { focus }: { focus?: boolean }) {
     const index = all.findIndex((r) => r.id === route.id);
     const sideways = prevTab === route.tab && strip.length > 1;
-    // A tournament's pages: their stage track is their strip (ADR 0074)
+    // A tournament's pages: their stage track is their strip (apps/team/worker/tournaments/README.md)
     const within = !phone.current && !!route.fold && prevFold === route.fold && (strip.length > 1 || onTrack(route));
     const dir = prevIndex < 0 ? 1 : Math.sign(index - prevIndex) || 1;
     prevIndex = index;
@@ -509,7 +509,7 @@
     </nav>
   </main>
 
-  <!-- A newer build is out (ADR 0104): offered, never forced, in the save note's place; a save's note goes first -->
+  <!-- A newer build is out (ADR 0022): offered, never forced, in the save note's place; a save's note goes first -->
   {#if update.ready && !update.dismissed && !note && !route.focus}
     <div
       class="save-note update-note"

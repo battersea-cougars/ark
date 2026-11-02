@@ -1,7 +1,7 @@
-// A tournament's games (ADR 0061), shared by the Worker (making fixtures, filling the playoffs) and the app (the
+// A tournament's games (apps/team/worker/tournaments/README.md), shared by the Worker (making fixtures, filling the playoffs) and the app (the
 // Games and Standings pages): a round robin by the circle method, played in the order fairest to everyone's breaks,
 // kick-off times and who keeps score. The table and the champions are shared with the website
-// (packages/shared/results.ts, ADR 0100).
+// (packages/shared/results.ts, ADR 0016).
 import { londonTime } from "./dates";
 export { champion, table, type TableRow } from "@cougars/shared/results";
 
@@ -69,7 +69,7 @@ export function fairness(order: [number, number][], teamIds: number[]): number[]
 const FAIR_ORDER_STEPS = 200_000;
 
 /**
- * The round robin's games in the fairest order for one pitch (ADR 0061), every pairing once, judged rule by rule:
+ * The round robin's games in the fairest order for one pitch (apps/team/worker/tournaments/README.md), every pairing once, judged rule by rule:
  *
  * 1. the shortest break anyone gets (games in between) as long as it can be: with 3 or 4 teams someone has to play
  *    twice running, with 5 or 6 everyone gets a game off, 7 or 8 two, and so on (any longer needs more teams than a
@@ -336,14 +336,14 @@ export const BREAK_MINUTES = 5;
 
 /**
  * A game's length on the day: its periods (1 unless said) times the minutes in each, and the breaks between them
- * (ADR 0061).
+ * (apps/team/worker/tournaments/README.md).
  */
 export const slotMinutes = (t: { gameMinutes: number; periods?: number; breakMinutes?: number }) =>
   t.gameMinutes * (t.periods ?? 1) + (t.breakMinutes ?? 0) * ((t.periods ?? 1) - 1);
 
 /**
  * When a game kicks off: one pitch, games in order from the tournament's start, each its length (`slotMinutes`: a
- * tournament's periods times their minutes) plus the break before the next (ADR 0061). "HH:MM", London time like the start; a day that runs past midnight wraps.
+ * tournament's periods times their minutes) plus the break before the next (apps/team/worker/tournaments/README.md). "HH:MM", London time like the start; a day that runs past midnight wraps.
  */
 export function kickOff(startTime: string, gameMinutes: number, position: number, breakMinutes = BREAK_MINUTES) {
   const [h, m] = startTime.split(":").map(Number);
@@ -353,7 +353,7 @@ export function kickOff(startTime: string, gameMinutes: number, position: number
 
 /**
  * A match's time on the card, "HH:MM" London: when it actually kicked off once it has (`startedAt`, the first Start of
- * its clock), else when it's set to (`kickOff`). The tournament's own hours never move for it (ADR 0061).
+ * its clock), else when it's set to (`kickOff`). The tournament's own hours never move for it (apps/team/worker/tournaments/README.md).
  */
 export const matchTime = (
   t: { startTime: string; gameMinutes: number; periods?: number; breakMinutes?: number },
@@ -361,7 +361,7 @@ export const matchTime = (
 ) => (g.startedAt ? londonTime(g.startedAt) : kickOff(t.startTime, slotMinutes(t), g.position));
 
 /**
- * Who keeps score (ADR 0061): each game goes to a team sitting it out, in the day's order, taking turns evenly: the
+ * Who keeps score (apps/team/worker/tournaments/README.md): each game goes to a team sitting it out, in the day's order, taking turns evenly: the
  * one that's scored fewest so far, then the one that's waited longest, then the first in the pick order. A game whose
  * teams aren't known yet (a playoff waiting on the table) gets none, nor does any game when there's no third team.
  */

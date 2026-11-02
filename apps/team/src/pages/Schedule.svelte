@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The matches of a tournament's page (ADR 0074, 0061), in its Fixtures set and KUMITE! views: every match in the
+  // The matches of a tournament's page (apps/team/worker/tournaments/README.md), in its Fixtures set and KUMITE! views: every match in the
   // day's order as a carousel, the one that matters now in front (lib/MatchCarousel). Teams that enter, all in: the
   // Make the fixtures card for whoever runs it. Made again from Manage, until a match has a result.
   import EmptyState from "../lib/EmptyState.svelte";
@@ -42,7 +42,7 @@
   const type = $derived(typeById(typeId)!);
   const teams = $derived(tournament?.teams ?? []);
   const games = $derived(tournament?.games ?? []);
-  // Two teams are enough to make the fixtures: a draft's captains are its teams before anyone's picked (ADR 0060)
+  // Two teams are enough to make the fixtures: a draft's captains are its teams before anyone's picked (apps/team/worker/tournaments/README.md)
   const teamsSet = $derived(!!tournament && teams.length >= 2);
   const manage = $derived(can(perms, "manage:Tournament"));
   const then = $derived(

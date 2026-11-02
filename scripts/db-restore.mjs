@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Open a database backup into a fresh SQLite file and say what's in it (ADR 0106): the restore drill, and the first
-// step of a real restore. It never writes to a D1 database; see ADR 0106 for putting one back.
+// Open a database backup into a fresh SQLite file and say what's in it (ADR 0050): the restore drill, and the first
+// step of a real restore. It never writes to a D1 database; see ADR 0050 for putting one back.
 //   node scripts/env-pull.mjs -- node scripts/db-restore.mjs backups/cougars-dev-….cgbk          (dev's key)
 //   node scripts/env-pull.mjs --environment production -- node scripts/db-restore.mjs FILE --out restored.sqlite
 // The restored file is personal data: by default it goes in a private temp folder, never the repo.

@@ -1,4 +1,4 @@
-// Cloudflare Web Analytics (#92, docs/setup.md): the beacon is in the website's own pages (layouts/Base.astro), not
+// Cloudflare Web Analytics (#92, docs/accounts.md): the beacon is in the website's own pages (layouts/Base.astro), not
 // added by Cloudflare's automatic setup, which put it on every page of the zone, the team app's included, whose CSP
 // refuses it. Production only, with the site's token: public (it's in every page), set in deploy.yml.
 import type { SiteEnv } from "./server/headers";

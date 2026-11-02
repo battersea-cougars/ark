@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The draft's own jobs (ADR 0060, lib/draft-jobs.ts), done from the page's one Manage: undo the last pick at once,
+  // The draft's own jobs (apps/team/worker/tournaments/README.md, lib/draft-jobs.ts), done from the page's one Manage: undo the last pick at once,
   // add a player in the add sheet, and the two that can't be taken back (closing early, leaving the rest out, and
   // starting again) asked first, saying what goes. A sheet on a phone, a side drawer on a desktop.
   import { editionPath } from "./edition-address";

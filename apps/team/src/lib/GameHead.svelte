@@ -70,7 +70,7 @@
     gap: var(--s-1);
   }
   /* What it is to you, in an accent: Now playing in the club's hot red with its REC light, anything coming up in
-     amber (the sticker yellow is the main button's alone, ADR 0084) */
+     amber (the sticker yellow is the main button's alone, ADR 0009) */
   .place {
     color: var(--fg-subtle);
     font-size: var(--text-sm);

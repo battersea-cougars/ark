@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A step of draft night (ADR 0060) as one card in the middle of the page column, the clear thing to do now: Draw
+  // A step of draft night (apps/team/worker/tournaments/README.md) as one card in the middle of the page column, the clear thing to do now: Draw
   // the order, Open the draft, Seal the teams. Its mark is the series' motif for the step (lib/motif.ts): on the Kumite
   // a big kanji (籤 lots, 開 open) or the red hanko (決, the teams decided); a series without the motif shows its icon.
   // Then the step's name, one line, and for whoever runs it the one main button; everyone else sees the card without

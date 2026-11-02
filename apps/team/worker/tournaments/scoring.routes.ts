@@ -1,4 +1,4 @@
-// Scoring a game as it's played (ADR 0130): the scoresheet, the clock and goals.
+// Scoring a game as it's played (apps/team/worker/tournaments/README.md): the scoresheet, the clock and goals.
 import { id, ok, rowOf, type Ctx, type Route } from "../api/api.route";
 import { scoreGame } from "./fixtures";
 import { body, int } from "../api/api.http";
@@ -26,7 +26,7 @@ const RESULT = `SELECT id, home_goals homeGoals, away_goals awayGoals, status,
     (SELECT coalesce(sum(minutes), 0) FROM tournament_penalties WHERE game_id = g.id) penaltyMinutes
   FROM tournament_games g WHERE id = ?`;
 /**
- * A game's result once it's over, else nothing (ADR 0095): goals, penalties and the clock aren't on the record tap by
+ * A game's result once it's over, else nothing (ADR 0024): goals, penalties and the clock aren't on the record tap by
  * tap, but as one game.scored when the game ends, and again for each edit after it's ended.
  */
 const finalScore = async (c: Ctx) => {
@@ -49,7 +49,7 @@ export const SCORING_ROUTES: Route[] = [
     // A game's final score; the last group result fills the playoffs
     handle: async (c) => (await scoreGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request)), ok()),
   },
-  // Scoring a game as it's played (ADR 0130): whoever holds the scoresheet
+  // Scoring a game as it's played (apps/team/worker/tournaments/README.md): whoever holds the scoresheet
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/scorer$/,

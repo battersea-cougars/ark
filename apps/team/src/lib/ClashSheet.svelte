@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Something already on then (ADR 0122): before an editor saves a new time (a tournament's day, a one-off, a
+  // Something already on then (apps/team/worker/calendar/README.md): before an editor saves a new time (a tournament's day, a one-off, a
   // training's nights), it asks the Worker what's on over it. Nothing: it saves. Something: this sheet lists each
   // (Friday Training, Fri 16 Oct, 7:30 to 9:30pm), and for each the admin can call off, Cancel it or Keep both; with
   // two or more, one answer for all at the top sets them all, each still to change. Something that stays on (the

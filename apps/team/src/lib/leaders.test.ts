@@ -38,6 +38,12 @@ describe("the leaderboards", () => {
     expect(leaders(level, "points").map((r) => r.memberId)).toEqual([1, 3, 2]);
   });
 
+  it("only games under way or played count: one not kicked off adds nothing", () => {
+    const notYet = [{ status: "next", goals: [goal(10, 11)], penalties: [pen(10, 2)] }];
+    expect(leaders(notYet, "points")).toEqual([]);
+    expect(leaders(games, "goals").map((r) => r.memberId)).not.toContain(10);
+  });
+
   it("is empty with nothing played", () => {
     expect(leaders([], "points")).toEqual([]);
   });

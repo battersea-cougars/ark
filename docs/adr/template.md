@@ -6,17 +6,13 @@
 
 ## Context
 
-What problem or question forced a decision. The facts and constraints, briefly.
+What problem or question forced an architectural decision. The facts and constraints, briefly.
 
 ## Decision
 
-What we do, stated plainly. Only what holds today; what changed goes in History.
+What we do, stated plainly. Only what holds today: git and the pull requests keep what changed. Product rules (what a
+member or admin sees the app do) go in the feature's notes and use-case tests, not here.
 
 ## Consequences
 
 What gets easier, what gets harder, what we now have to keep doing. Include the costs.
-
-## History
-
-- YYYY-MM-DD: What was decided first.
-- YYYY-MM-DD: What changed, and why.

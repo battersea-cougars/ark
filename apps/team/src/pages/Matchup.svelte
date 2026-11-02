@@ -1,7 +1,7 @@
 <script lang="ts">
   import { clock, ordinal } from "../lib/dates";
   import { waitingFor } from "../app/editions.svelte";
-  // One game's matchup (ADR 0130), from the fight card's Details: the two teams side by side, each squad in full and
+  // One game's matchup (apps/team/worker/tournaments/README.md), from the fight card's Details: the two teams side by side, each squad in full and
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.

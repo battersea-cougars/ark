@@ -1,4 +1,4 @@
-// The record (ADR 0024, ADR 0095): who did what, when. Written wherever something changes who can do what, at every
+// The record (ADR 0024, apps/team/worker/settings/README.md): who did what, when. Written wherever something changes who can do what, at every
 // sign-in and sign-out, and for requests the API refused for want of an action (once a minute per member); read on
 // Settings → Audit log by whoever holds read:Audit, newest first, a page at a time. Each row names the member who
 // acted and, where the detail says which member or role it was about, that one too, so the page can say it in plain

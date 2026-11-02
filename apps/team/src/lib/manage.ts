@@ -1,4 +1,4 @@
-// A tournament's Manage menu (ADR 0065, 0127): which jobs it offers, by where the tournament stands and who's
+// A tournament's Manage menu (ADR 0065, apps/team/worker/tournaments/README.md): which jobs it offers, by where the tournament stands and who's
 // looking, so nothing's offered that makes no sense there. lib/TournamentHead.svelte wires each to what it does.
 //
 // Where it stands (manageStageOf): sign-up; the draft (the order drawn, the draft open); the teams set (a draft
@@ -20,7 +20,7 @@
 // | A Kumite on a past day (dev)     | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
 //
 // The last two are the series' history's, not this edition's (historyItemsOf): one from before the app recorded
-// (ADR 0126), and on dev one played out on a day gone by (ADR 0123). With nothing on, they're Manage's only items.
+// (apps/team/worker/tournaments/README.md), and on dev one played out on a day gone by (ADR 0010). With nothing on, they're Manage's only items.
 //
 // The awards are confirmed once every match is played, and can be changed till the reveal starts (the Worker refuses
 // after: step back first); Confirm till they're confirmed, then Change. Your team and the pick log are the draft's:
@@ -63,7 +63,7 @@ export interface Manager {
   adds: boolean;
   /** Their member id: a captain's team. */
   me: number;
-  /** The dev simulator's here and not already playing this one (ADR 0123). */
+  /** The dev simulator's here and not already playing this one (ADR 0010). */
   simulator?: boolean;
 }
 
@@ -159,7 +159,7 @@ export function manageItemsOf(
 
 /**
  * The series' history's jobs, an admin's, whatever's on (and with nothing on, Manage's only ones): a past one
- * recorded (ADR 0126); on dev, one played out on a day gone by (ADR 0123), a captains' draft's only.
+ * recorded (apps/team/worker/tournaments/README.md); on dev, one played out on a day gone by (ADR 0010), a captains' draft's only.
  */
 export function historyItemsOf(
   type: Pick<TournamentType, "shortName"> & Partial<Pick<TournamentType, "kind">>,

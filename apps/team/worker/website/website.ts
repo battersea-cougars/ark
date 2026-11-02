@@ -1,4 +1,4 @@
-// The website's results are built from a snapshot of D1 (ADR 0100), so a change to a result asks for a rebuild. A
+// The website's results are built from a snapshot of D1 (apps/team/worker/website/README.md), so a change to a result asks for a rebuild. A
 // change marks one wanted (`wantRebuild`, from the API's change pipeline); the five-minute cron (`rebuildWebsite`)
 // sends it once things have been quiet for five minutes, so a results day is one rebuild. It asks GitHub as the
 // club's GitHub App (docs/secrets.md#github_app_private_key): a JWT signed with the App's key buys an hour's installation token

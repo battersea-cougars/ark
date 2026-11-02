@@ -1,4 +1,4 @@
-// Cloudflare Turnstile: did a person send the form? (docs/adr/0028-turnstile-and-auto-reply.md). Free, no cookies.
+// Cloudflare Turnstile: did a person send the form? (docs/adr/0027-email-through-gmail-api.md). Free, no cookies.
 // The widget adds a token to the form; the server checks it once with Cloudflare. On the website's /join (as
 // `cf-turnstile-response`) a missing or failed check doesn't stop the enquiry (the form must work without
 // JavaScript): it's saved and the club is emailed, but there's no auto-reply. In the team app, asking for a sign-in
@@ -10,7 +10,7 @@ const log = scribe.logger("turnstile");
 export const TURNSTILE_FIELD = "cf-turnstile-response";
 /**
  * The website's /join widget's action. Every form's widget has its own (the team app's are `sign-in` and `join`), so a
- * token from one is never accepted by another: the one Turnstile widget covers both sites (ADR 0028).
+ * token from one is never accepted by another: the one Turnstile widget covers both sites (ADR 0027).
  */
 export const ENQUIRY_ACTION = "enquiry";
 export const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";

@@ -159,7 +159,7 @@ describe("the clocks go back", () => {
   });
 });
 
-describe("the nightly backup's export (ADR 0106, #197)", () => {
+describe("the nightly backup's export (ADR 0050, #197)", () => {
   /** D1 busy exporting: it refuses every statement, as it does for the half minute a backup takes. */
   const exporting = (busy = true) => {
     w.db.failure = "D1_ERROR: Currently processing a long-running export.";

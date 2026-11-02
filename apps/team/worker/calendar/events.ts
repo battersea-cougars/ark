@@ -1,4 +1,4 @@
-// Club events (ADR 0042): one-offs on the calendar.
+// Club events (ADR 0016): one-offs on the calendar.
 import { syncClubEvent } from "@cougars/shared/agenda";
 import { batch, run, statement, type Param } from "@cougars/shared/d1";
 import { fillingUp } from "../entries/entries";
@@ -53,7 +53,7 @@ export async function createClubEvent(db: D1Database, o: Record<string, unknown>
   return { id: Number(res.meta.last_row_id) };
 }
 
-/** Change an event; a limit raised moves the first waiting up into its room, in the same batch (ADR 0131). */
+/** Change an event; a limit raised moves the first waiting up into its room, in the same batch (apps/team/worker/training/README.md). */
 export async function updateClubEvent(
   db: D1Database,
   id: number,

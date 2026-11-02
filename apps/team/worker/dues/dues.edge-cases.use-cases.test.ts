@@ -1,4 +1,4 @@
-// Dues at the edges (ADR 0007): money to the penny (a payment that just covers a charge, a penny, a lump sum split over
+// Dues at the edges (apps/team/worker/dues/README.md): money to the penny (a payment that just covers a charge, a penny, a lump sum split over
 // odd pence, credit nobody else can spend), what an admin can't get wrong (amounts, days, quarters, fees), the quarter
 // turning over in London time, and who may touch money at all (ADR 0024). Driven through the real Worker handlers in
 // the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
@@ -463,6 +463,20 @@ describe("who may touch money (ADR 0024)", () => {
       201,
     );
     expect((await tess.call("POST", "/api/subscription-fees", { pence: 1, from: "2026-10-01" })).status).toBe(403);
+  });
+
+  it("someone who runs trainings but doesn't set fees saves a training as it is, never a new fee", async () => {
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (10, 'Coach', 'Runs trainings', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (10, 'manage:Training');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 10 FROM members WHERE email = 'val@example.com';`);
+    await fridayFee(await w.signedIn("dana@example.com"), 800);
+    const val = await w.signedIn("val@example.com");
+    const series = (await boot(val)).series[0];
+
+    expect((await val.call("PUT", `/api/series/${series.id}`, { ...series, name: "Friday Hockey" })).status).toBe(200);
+    const raised = { ...series, fees: [{ pence: 1200, from: "2026-01-01" }] };
+    expect((await val.call("PUT", `/api/series/${series.id}`, raised)).status).toBe(403);
+    expect((await boot(val)).series[0].fees).toEqual([{ pence: 800, from: "2026-01-01" }]);
   });
 });
 

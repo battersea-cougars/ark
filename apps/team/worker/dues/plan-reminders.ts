@@ -1,4 +1,4 @@
-// Next quarter's plan, a few days before it starts (ADR 0007, #187), from the hourly Cron Trigger (index.ts
+// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md, #187), from the hourly Cron Trigger (index.ts
 // `scheduled`): every member who'll be Quarterly next quarter (they chose it, or their subscription runs on into it) is
 // told its fee is due, what it is and when it's charged, and that they can still switch to pay as you go on their Dues
 // page. Not keepers (the Keeper plan is never charged), not anyone paying as they go. The lead time is the club's

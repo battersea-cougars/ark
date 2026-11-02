@@ -48,10 +48,10 @@ interface Moved {
 /**
  * Places changed hands (topic `places`), however they did (someone out, an admin taking someone off, a limit raised,
  * an account deleted, the register, the team maker's Let in, a Quarterly Member signing up for a full training):
- * whoever moved up off the waiting list hears they're in; whoever a Quarterly Member bumped to it (ADR 0131, entries.ts
+ * whoever moved up off the waiting list hears they're in; whoever a Quarterly Member bumped to it (apps/team/worker/training/README.md, entries.ts
  * bump) hears it, and where they are in line, before they turn up (#97). Each move marked itself (`moved`,
  * entries.ts); here every mark is read and cleared in one batch, so however many requests finish at once (a double
- * tap, two leaving or joining together) each move is told once, by whichever comes first (ADR 0121). Only someone
+ * tap, two leaving or joining together) each move is told once, by whichever comes first (ADR 0003). Only someone
  * still where the move put them hears it.
  */
 async function placesMoved(c: Ctx): Promise<Notice[]> {
@@ -228,7 +228,7 @@ export const announced: Notify = {
 };
 
 /**
- * The draft's open (ADR 0060): each captain hears it on their phone, with their place in the order ("Winter Cup 2026
+ * The draft's open (apps/team/worker/tournaments/README.md): each captain hears it on their phone, with their place in the order ("Winter Cup 2026
  * Draft Open", "You pick 2nd"), and a tap opens the Draft page. Only the first time: a closed draft reopening isn't
  * news (topic `draft`). Live: the draft is on the night, so it goes in quiet hours too.
  */
@@ -258,7 +258,7 @@ export const draftOpen: Notify<string | undefined> = {
 };
 
 /**
- * An open draft stepped back to its drawn order (ADR 0074): each captain hears it's paused, the picks so far off; they
+ * An open draft stepped back to its drawn order (apps/team/worker/tournaments/README.md): each captain hears it's paused, the picks so far off; they
  * hear it open again (draftOpen) when it does. Live, like the opening.
  */
 export const draftPaused: Notify<string | undefined> = {
@@ -285,7 +285,7 @@ export const draftPaused: Notify<string | undefined> = {
 };
 
 /**
- * A draft moved to another status in one go (Move to…, ADR 0074): opened, its captains hear it as they would from the
+ * A draft moved to another status in one go (Move to…, apps/team/worker/tournaments/README.md): opened, its captains hear it as they would from the
  * Draft page (draftOpen); paused, the same (draftPaused); its teams set with the rest chosen at random, each captain
  * hears so ("the rest were chosen at random"), so nobody thinks their captain picked them. Live, like the rest.
  */

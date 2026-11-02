@@ -33,7 +33,7 @@
   // Unsaved changes: Save lights up, and closing asks first (lib/dirty.svelte.ts)
   const edits = new Edits();
   edits.watch(() => form);
-  // A draft in a series: its captain brings this team's name and logo to the next edition they captain (ADR 0060)
+  // A draft in a series: its captain brings this team's name and logo to the next edition they captain (apps/team/worker/tournaments/README.md)
   const brings = $derived.by(() => {
     const t = db.tournaments.find((x) => x.id === tournamentId);
     return t?.kind === "draft" && t.typeId != null;

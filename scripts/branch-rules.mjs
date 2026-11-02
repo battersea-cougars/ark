@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // The repository's branch rules (ADR 0010), as GitHub rulesets: `main` and `release` can't be force-pushed or
 // deleted, and `release`, which deploys production, changes only through a pull request (from `main`) whose PR checks
-// pass. No reviews required: the maintainers can't approve their own. Safe to run again: it finds each ruleset by name
-// and puts it right.
+// pass. No reviews required: the maintainers can't approve their own. A merged pull request's branch is deleted.
+// Safe to run again: it finds each ruleset by name and puts it right.
 //   node scripts/branch-rules.mjs
 // Needs the GitHub CLI signed in as a repository admin.
 import { execFileSync } from "node:child_process";
@@ -54,6 +54,10 @@ const RULESETS = [
     ],
   },
 ];
+
+// The repository's own setting: a branch goes once its pull request is merged
+gh("PATCH", `repos/${REPO}`, { delete_branch_on_merge: true });
+console.log("Branches deleted on merge: on.");
 
 const existing = gh("GET", `repos/${REPO}/rulesets`);
 for (const ruleset of RULESETS) {

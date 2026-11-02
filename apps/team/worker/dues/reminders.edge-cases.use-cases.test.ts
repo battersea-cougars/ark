@@ -1,4 +1,4 @@
-// Dues reminders at the edges (ADR 0007): who never gets one (credit, a member who's left, paid since it was queued),
+// Dues reminders at the edges (apps/team/worker/dues/README.md): who never gets one (credit, a member who's left, paid since it was queued),
 // what a long list of charges reads like, and what an admin's send refuses. Driven through the real handlers in the
 // fake world (ADR 0031): mail is caught in its outbox, and the five-minute cron is run as Cloudflare runs it.
 import { beforeEach, describe, expect, it, vi } from "vitest";

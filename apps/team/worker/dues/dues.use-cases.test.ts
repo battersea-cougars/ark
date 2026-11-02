@@ -1,4 +1,4 @@
-// Dues (ADR 0007): who came is charged that night's fee, Quarterly Members are charged the quarterly rate instead,
+// Dues (apps/team/worker/dues/README.md): who came is charged that night's fee, Quarterly Members are charged the quarterly rate instead,
 // and an admin marks what's been paid. Unpaid fees is whatever isn't. Driven through the real Worker handlers in the
 // fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -119,6 +119,32 @@ describe("who came is charged", () => {
       expect.objectContaining({ refId: session, pence: 800 }),
     ]);
     expect(await chargesOf(dana, danaId, on(NEXT_FRIDAY))).toEqual([]);
+  });
+
+  it("a walk-in on a full night waits, and isn't charged until they're let in", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const series = (await boot(dana)).series[0];
+    const full = { ...series, capacity: 1, fees: [{ pence: 800, from: "2026-01-01" }] };
+    expect((await dana.call("PUT", `/api/series/${series.id}`, full)).status).toBe(200);
+    const session = await sessionOn(dana, NEXT_FRIDAY);
+    await (await w.signedIn("reg@example.com")).call("POST", `/api/sessions/${session}/answer`, { answer: "in" });
+    const dot = await memberId(dana, "Dot Door");
+    const walkIn = await dana.call(
+      "POST",
+      `/api/sessions/${session}/register`,
+      { memberId: dot, here: true },
+      { now: on(NEXT_FRIDAY) },
+    );
+    expect(walkIn.body.signup).toBe("waitlist");
+    await chargeDue(w.env, on(NEXT_FRIDAY));
+    expect(await chargesOf(dana, dot, on(NEXT_FRIDAY))).toEqual([]);
+
+    expect(
+      (await dana.call("POST", `/api/sessions/${session}/let-in`, { memberId: dot }, { now: on(NEXT_FRIDAY) })).status,
+    ).toBe(200);
+    expect(await chargesOf(dana, dot, on(NEXT_FRIDAY))).toEqual([
+      expect.objectContaining({ kind: "session", refId: session, pence: 800 }),
+    ]);
   });
 
   it("a cancelled session charges nobody", async () => {
@@ -317,6 +343,19 @@ describe("the quarterly rate", () => {
       expect.objectContaining({ kind: "quarter", quarter: "2026-Q4", pence: 6000, dueOn: "2026-10-01" }),
       expect.objectContaining({ kind: "quarter", quarter: "2026-Q3", pence: 6000, dueOn: "2026-09-15" }),
     ]);
+  });
+
+  it("a quarterly membership taken back the day it was made takes its unpaid charge with it", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    await dana.call("POST", "/api/subscription-fees", { pence: 6000, from: "2026-07-01" });
+    const reg = await memberId(dana, "Reg Player");
+    await dana.call("POST", `/api/members/${reg}/quarterly`, { quarterly: true }, { now: NOW });
+    await chargeDue(w.env, NOW);
+    expect((await chargesOf(dana, reg)).map((c) => c.quarter)).toEqual(["2026-Q4"]);
+
+    await dana.call("POST", `/api/members/${reg}/quarterly`, { quarterly: false }, { now: NOW });
+    await chargeDue(w.env, NOW);
+    expect(await chargesOf(dana, reg)).toEqual([]);
   });
 
   it("an admin charges a member for a quarter by hand, and can take it back", async () => {

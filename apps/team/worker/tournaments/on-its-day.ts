@@ -1,4 +1,4 @@
-// The Kumite simulator on a tournament's own day (ADR 0123), dev only: for a Kumite dated in the past (past-day.ts),
+// The Kumite simulator on a tournament's own day (ADR 0010), dev only: for a Kumite dated in the past (past-day.ts),
 // the simulator's clocks are its evening's, not now, so it's played that evening and goes straight to history
 // (lib/edition.ts playedOn: the evening its last match kicked off). The evening runs to a timetable worked out from
 // what's been played, so a run stopped part way carries on at the same time: the first match kicks off half an hour
@@ -19,7 +19,7 @@ export interface Evening {
   gameMinutes: number;
   periods: number;
   breakMinutes: number;
-  /** How many awards are out, and whether the drum's rolled on to the next (ADR 0074). */
+  /** How many awards are out, and whether the drum's rolled on to the next (apps/team/worker/tournaments/README.md). */
   revealed: number;
   next: number;
 }

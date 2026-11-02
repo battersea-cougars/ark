@@ -1,5 +1,5 @@
 // The email someone gets after the "Try a session" form, if Turnstile says they're a person and the caps allow
-// (docs/adr/0028-turnstile-and-auto-reply.md). Every fact comes from the Studio (or the confirmed fallbacks), so it
+// (apps/web/src/lib/server/README.md). Every fact comes from the Studio (or the confirmed fallbacks), so it
 // never says anything the site doesn't. It goes to an address anyone can type, so nothing the sender wrote is
 // repeated except a cleaned-up first name. The HTML version is in the club's frame (packages/shared/email-html.ts).
 import type { Mail } from "@cougars/shared/email";

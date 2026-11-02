@@ -1,5 +1,5 @@
 <script lang="ts">
-  // An admin adds someone to the club, in a sheet over Teammates (ADR 0065, 0069): name, email, position. They're in
+  // An admin adds someone to the club, in a sheet over Teammates (ADR 0065, apps/team/worker/members/README.md): name, email, position. They're in
   // straight away, and the app emails them a link to itself unless the switch is off (#164: told in person, or later
   // from their card); they sign in with that email either way.
   import Icon from "../app/shell/Icon.svelte";

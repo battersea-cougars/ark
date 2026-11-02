@@ -40,3 +40,10 @@ apps/team/native/server.js
 # Cline's settings and state (API keys included), linked from ~/.cline/data by
 # .devcontainer/post-start.sh so they outlive a container rebuild. Never committed.
 .cline-local/
+
+# Claude Code's local settings and other sessions' worktrees, never committed
+.claude/settings.local.json
+.claude/worktrees/
+
+# svelte-check --tsgo writes the team app's Svelte files as TypeScript here for TypeScript 7 to check (ADR 0031)
+.svelte-check/

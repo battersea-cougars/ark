@@ -1,4 +1,4 @@
-// Balanced teams for a training session (ADR 0102). A greedy deal to start, then every single move and every swap
+// Balanced teams for a training session (apps/team/worker/training/README.md). A greedy deal to start, then every single move and every swap
 // of two players is tried until none makes the teams more balanced. The old app's rules, from
 // the old app's solver_lp.py (in git history): 3 to 7 a side, the Cougar players together on one team called "Cougars", a
 // keeper and a defender on every team where there are enough, and ratings balanced.
@@ -221,7 +221,7 @@ const LINE: Record<Position, number> = { F: 0, D: 1, G: 2 };
 /**
  * How a team reads, top to bottom: by position (keepers last), then, for the team maker who sees ratings, best first;
  * for everyone else by name, so the order gives no ratings away. Worked out each time it's shown, so a player moved
- * onto a team takes their place in it and every saved team reads the same way (ADR 0076).
+ * onto a team takes their place in it and every saved team reads the same way (apps/team/worker/training/README.md).
  */
 export function lineUp(ids: number[], byId: (id: number) => Player | undefined, byRating: boolean): number[] {
   const known = ids.flatMap((id) => {

@@ -9,7 +9,7 @@ export const tabRoutes = (routes: Route[], tab: TabId, granted: ReadonlySet<Acti
 
 /**
  * A tournament's page (its statuses: sign-up, the draft, the teams, the fixtures, the day): the track of its statuses,
- * under the header, is its navigation (ADR 0074), so it has no strip and, on a phone, no bar above the header.
+ * under the header, is its navigation (apps/team/worker/tournaments/README.md), so it has no strip and, on a phone, no bar above the header.
  */
 export const TRACK_PAGES = ["games"];
 export const onTrack = (route: Route) => !!route.fold && TRACK_PAGES.includes(route.page);

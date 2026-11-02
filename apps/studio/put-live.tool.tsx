@@ -1,5 +1,5 @@
 // "Put changes live" (#107): a tab in the Studio's top bar saying when published changes reach the website, and
-// linking to the team app's Settings → Website, whose Rebuild now puts them live at once (ADR 0004, ADR 0100). The
+// linking to the team app's Settings → Website, whose Rebuild now puts them live at once (ADRs 0004, 0016). The
 // Studio holds no token that can rebuild anything: the team app does it, as the club's GitHub App.
 import type { Tool } from "sanity";
 

@@ -8,12 +8,12 @@ import Icon from "../../components/Icon.astro";
 import { getEvents, getResults, getSections, getSettings, upcoming } from "../../lib/sanity/content";
 import { isChampions } from "../../lib/awards";
 
-// /kumite/ only, and only while the Kumite is switched on in the Studio (ADR 0109)
+// /kumite/ only, and only while the Kumite is switched on in the Studio (apps/web/src/README.md)
 export const getStaticPaths = (async () =>
   (await getSections()).kumite ? [{ params: { page: undefined } }] : []) satisfies GetStaticPaths;
 
 const s = await getSettings();
-// Its champions as of this build (ADR 0100)
+// Its champions as of this build (ADR 0016)
 const kumiteResults = (await getResults()).filter((r) => r.series?.slug === "kumite");
 const all = (await getEvents()).filter((e) => e.type === "kumite");
 const next = upcoming(all);

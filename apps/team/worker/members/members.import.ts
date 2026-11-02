@@ -19,7 +19,7 @@ export interface ImportRow {
   cougar: boolean;
   /** Besides Member, which everyone gets. */
   roles: string[];
-  /** Their plan this quarter (ADR 0007): a goalie is always on the Keeper plan. */
+  /** Their plan this quarter (apps/team/worker/dues/README.md): a goalie is always on the Keeper plan. */
   plan: Plan;
 }
 export type Plan = "quarterly" | "payg" | "keeper";
@@ -207,7 +207,7 @@ export async function checkImport(db: D1Database, file: unknown, caller: Readonl
       typeof planValue === "boolean" ? (planValue ? "quarterly" : "payg") : PLANS[raw("plan").toLowerCase()];
     if (!chosen) wrong("Subx should be quarterly, payg or keeper");
     else if (chosen === "keeper" && position && position !== "G") wrong("Keeper is for position G");
-    // Keepers play training free, whatever the file says (ADR 0007)
+    // Keepers play training free, whatever the file says (apps/team/worker/dues/README.md)
     const plan: Plan = position === "G" ? "keeper" : (chosen ?? "payg");
 
     const roleValue = get("roles");

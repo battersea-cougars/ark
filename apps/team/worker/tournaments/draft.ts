@@ -1,4 +1,4 @@
-// A captains' draft (ADR 0060, after 0052; reset and reopen: 0064, 0066; one keeper a team: 0067). An admin opens it on
+// A captains' draft (apps/team/worker/tournaments/README.md, after 0052; reset and reopen: 0064, 0066; one keeper a team: 0067). An admin opens it on
 // the night, once the captains' pick order is drawn at random (step 1, drawOrder); the captains take turns, in snake order from it,
 // picking from the members who said they're in (captains are in automatically and never picked); an admin closes it
 // once everyone's picked, or leaving the rest out on purpose, and then the teams are locked. Someone running the draft
@@ -95,7 +95,7 @@ export async function isDrawn(db: D1Database, tournamentId: number) {
 }
 
 /**
- * Step 1 (ADR 0060): someone running the draft draws the captains' pick order at random, before it opens: the order
+ * Step 1 (apps/team/worker/tournaments/README.md): someone running the draft draws the captains' pick order at random, before it opens: the order
  * they were named in means nothing. It's round one's; the snake turns it after. Drawn once: drawing again, opening and
  * reopening keep it, and only a reset (or changing the captains before it opens) takes it away.
  */
@@ -173,11 +173,11 @@ export async function closeDraft(db: D1Database, tournamentId: number, leaveOut:
 }
 
 /**
- * Whoever runs the draft reopens a closed one (Reopen, ADR 0060), saying what becomes of the fixtures: kept (they're
+ * Whoever runs the draft reopens a closed one (Reopen, apps/team/worker/tournaments/README.md), saying what becomes of the fixtures: kept (they're
  * between the same teams), only while no match has started; or cleared, matches, results and goals, which needs
  * someone who edits the tournament (checked by the route). One batch: the clear and the reopen run only while it's
  * still closed, and keeping only while nothing's been played, so a double tap reopens and clears once, and a result
- * landing between the check and the batch isn't left behind (ADR 0121). The picks and the order stay.
+ * landing between the check and the batch isn't left behind (ADR 0003). The picks and the order stay.
  */
 export async function reopenDraft(db: D1Database, tournamentId: number, fixtures: "keep" | "clear") {
   const t = await tournamentOf(db, tournamentId);
@@ -205,9 +205,9 @@ export async function reopenDraft(db: D1Database, tournamentId: number, fixtures
 }
 
 /**
- * Everyone's picked (or the rest are left out on purpose): one tap closes the draft and makes the fixtures (ADR 0060,
+ * Everyone's picked (or the rest are left out on purpose): one tap closes the draft and makes the fixtures (apps/team/worker/tournaments/README.md,
  * 0061). Checked first, so a refusal changes nothing: the players left, and that the fixtures can be made (enough teams
- * for the playoffs). Then the close is the claim (ADR 0121): only the request that turns it from open to closed makes
+ * for the playoffs). Then the close is the claim (ADR 0003): only the request that turns it from open to closed makes
  * the fixtures, so two taps at once close it once and make one set; the other is refused. Fixtures already made (before
  * the draft, or before a reopen) are kept: they're between the same teams. Should making them fail after the close,
  * the draft goes back to open, as it was.
@@ -272,7 +272,7 @@ const NOT_A_SECOND_GOALIE = `NOT (EXISTS (SELECT 1 FROM members WHERE id = ? AND
       OR m.id IN (SELECT member_id FROM tournament_team_players WHERE team_id = ?))))`;
 
 /**
- * One keeper a team (ADR 0060): a goalie can't join a team that has one, its captain or a player. Refused for a pick,
+ * One keeper a team (apps/team/worker/tournaments/README.md): a goalie can't join a team that has one, its captain or a player. Refused for a pick,
  * whoever makes it, and for an admin's team edit. Checked first for the words; the statements keep to it too
  * (NOT_A_SECOND_GOALIE).
  */
@@ -448,7 +448,7 @@ const teamIn = (db: D1Database, tournamentId: number, memberId: number) =>
 /**
  * An admin puts a member on a team directly, outside the draft: a replacement when someone drops out. From another
  * team they move (their pick number goes with them, so the draft's turn doesn't shift); not signed up, they're put in.
- * A captain stays on their own team. Two at once (a double tap, a retry, two admins) is decided in the write (ADR 0121):
+ * A captain stays on their own team. Two at once (a double tap, a retry, two admins) is decided in the write (ADR 0003):
  * the INSERT only while they're on no team of this tournament, the move only from the team read, so nobody's on two
  * teams, or one twice.
  */
@@ -506,7 +506,7 @@ export async function takeOffTeam(db: D1Database, tournamentId: number, teamId: 
 }
 
 /**
- * The latest pick someone made for a captain (ADR 0060): whoever runs the draft picking for the team on the clock. The
+ * The latest pick someone made for a captain (apps/team/worker/tournaments/README.md): whoever runs the draft picking for the team on the clock. The
  * record's subject, so a pick for someone else goes on it, naming both, and a captain's own doesn't.
  */
 export const lastPickedFor = (db: D1Database, tournamentId: number) =>
@@ -521,7 +521,7 @@ export const lastPickedFor = (db: D1Database, tournamentId: number) =>
     [tournamentId],
   );
 
-/** How far a draft has got: its state and picks made (the record, ADR 0095). */
+/** How far a draft has got: its state and picks made (the record, ADR 0024). */
 export const draftProgress = (db: D1Database, tournamentId: number) =>
   first<{ state: string; picks: number }>(
     db,
@@ -530,13 +530,13 @@ export const draftProgress = (db: D1Database, tournamentId: number) =>
   );
 
 /**
- * Teams set, the rest at random (Move to…, ADR 0074): an admin moves the draft on to Teams set, and everyone still to
+ * Teams set, the rest at random (Move to…, apps/team/worker/tournaments/README.md): an admin moves the draft on to Teams set, and everyone still to
  * pick is chosen at random for the team on the clock, in snake order from the drawn order, as the simulator picks (ADR
- * 0123): a goalie first while there's one and the team has none, never a second goalie (one a team, ADR 0067); the
+ * 0123): a goalie first while there's one and the team has none, never a second goalie (one a team, apps/team/worker/tournaments/README.md); the
  * captains are on their teams already. Someone no team can take (a goalie too many) is left out. Then the draft's closed.
  * One batch: the draft opened if it wasn't, each pick only while that member's still in the pool and that pick still the
  * one on the clock (draft.ts pick's own guards), and the close only while it's open, so a second admin a moment later
- * changes nothing and is refused (ADR 0121). Each pick names the admin (`by`) as who picked. How many were chosen, and
+ * changes nothing and is refused (ADR 0003). Each pick names the admin (`by`) as who picked. How many were chosen, and
  * how many left out.
  */
 export async function setTeamsAtRandom(db: D1Database, tournamentId: number, by: number, agenda = true) {

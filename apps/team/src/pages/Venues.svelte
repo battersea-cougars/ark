@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Settings → Venues (ADR 0030): places the club goes again and again, each with its address and the map link
+  // Settings → Venues (apps/team/worker/training/README.md): places the club goes again and again, each with its address and the map link
   // pasted from Google Maps. Trainings, tournaments and events pick one, so changing it here fixes every one of them.
   // One that's no longer used is hidden from the pickers rather than deleted: what had it keeps it.
   import PageHeader from "../lib/PageHeader.svelte";

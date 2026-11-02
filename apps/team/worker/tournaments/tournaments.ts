@@ -1,4 +1,4 @@
-// Tournaments (ADR 0030, ADR 0060, ADR 0074): types (series) and editions, their teams, rules and playoffs.
+// Tournaments (apps/team/worker/tournaments/README.md): types (series) and editions, their teams, rules and playoffs.
 import { LOGO_VERSION, SMALL_LOGO } from "../api/api.club";
 import { PENALTY_MINUTES, PENALTY_RULES, type PenaltyRule } from "../../src/lib/penalties";
 import { syncTournament, syncTournamentsOf } from "@cougars/shared/agenda";
@@ -51,11 +51,11 @@ interface TypeRow {
   house_rules: string;
 }
 
-/** How a tournament makes its teams (ADR 0030): teams enter, or captains draft members. */
+/** How a tournament makes its teams (apps/team/worker/tournaments/README.md): teams enter, or captains draft members. */
 export const KINDS = ["teams", "draft"] as const;
 type Kind = (typeof KINDS)[number];
 
-/** A tournament type's award (ADR 0044): what it's called, a line on what it's for, and how it's decided. */
+/** A tournament type's award (apps/team/worker/tournaments/README.md): what it's called, a line on what it's for, and how it's decided. */
 export type { Award };
 
 export const parseAwards = (json: string): Award[] => {
@@ -114,7 +114,7 @@ function awardsOf(o: Record<string, unknown>): string {
   return JSON.stringify(awards);
 }
 
-/** A playoff game by table position (ADR 0061): "Final", 1st v 2nd. */
+/** A playoff game by table position (apps/team/worker/tournaments/README.md): "Final", 1st v 2nd. */
 export interface Playoff {
   name: string;
   home: number;
@@ -205,20 +205,20 @@ async function typeFields(db: D1Database, o: Record<string, unknown>) {
     o.periods == null ? 1 : periodsOf(o),
     o.defaultPenaltyMinutes == null ? 2 : penaltyLengthOf(o),
     o.breakMinutes == null ? 2 : breakOf(o),
-    // Where its tournaments go afterwards, unless one says otherwise (ADR 0074)
+    // Where its tournaments go afterwards, unless one says otherwise (apps/team/worker/tournaments/README.md)
     ...(await afterFields(db, o)),
-    // Its house rules (ADR 0074): plain text, a screen of it at most
+    // Its house rules (apps/team/worker/tournaments/README.md): plain text, a screen of it at most
     text(o, "houseRules", { optional: true, max: HOUSE_RULES_MAX }).trim(),
   ] as Param[];
 }
 
-/** The break between periods (ADR 0061), in minutes: none to a quarter of an hour. */
+/** The break between periods (apps/team/worker/tournaments/README.md), in minutes: none to a quarter of an hour. */
 const breakOf = (o: Record<string, unknown>) => int(o, "breakMinutes", { max: 15 });
 
-/** A game's periods (ADR 0061): 1 to 3. */
+/** A game's periods (apps/team/worker/tournaments/README.md): 1 to 3. */
 const periodsOf = (o: Record<string, unknown>) => int(o, "periods", { min: 1, max: 3 });
 
-/** The penalty sheet's usual length (ADR 0061): a minor, a double minor or a major. */
+/** The penalty sheet's usual length (apps/team/worker/tournaments/README.md): a minor, a double minor or a major. */
 const penaltyLengthOf = (o: Record<string, unknown>) => {
   const minutes = int(o, "defaultPenaltyMinutes");
   if (!(PENALTY_MINUTES as readonly number[]).includes(minutes))
@@ -226,7 +226,7 @@ const penaltyLengthOf = (o: Record<string, unknown>) => {
   return minutes;
 };
 
-/** How a penalty's served (ADR 0061, lib/penalties.ts). */
+/** How a penalty's served (apps/team/worker/tournaments/README.md, lib/penalties.ts). */
 const penaltyRuleOf = (o: Record<string, unknown>) =>
   oneOf(
     o,
@@ -267,8 +267,8 @@ export async function updateTournamentType(db: D1Database, id: number, o: Record
 
 /**
  * Every tournament date. Its place (`venueId`, `location`, `mapUrl`) is its own; none of them set, its series' is
- * where it really is (ADR 0030), which the app works out. Its teams come in pick order (a draft) or the order they
- * entered, each with its players in order (ADR 0030).
+ * where it really is (apps/team/worker/tournaments/README.md), which the app works out. Its teams come in pick order (a draft) or the order they
+ * entered, each with its players in order (apps/team/worker/tournaments/README.md).
  */
 export type TournamentListRow = {
   id: number;
@@ -325,7 +325,7 @@ export type TournamentPlayerRow = {
   memberId: number | null;
   name: string;
   pick: number | null;
-  /** Who made the pick: its captain, or whoever ran the draft picking for them (ADR 0060). */
+  /** Who made the pick: its captain, or whoever ran the draft picking for them (apps/team/worker/tournaments/README.md). */
   pickedBy: number | null;
 };
 
@@ -376,7 +376,7 @@ export function tournamentsFrom(
 }
 
 /**
- * Where a captains' draft is (ADR 0060): "none" (not a draft, or no day or captains yet), "scheduled" (a day and
+ * Where a captains' draft is (apps/team/worker/tournaments/README.md): "none" (not a draft, or no day or captains yet), "scheduled" (a day and
  * captains, not opened), "open" (an admin opened it: captains pick) or "closed" (an admin closed it: teams locked).
  */
 export function draftStateOf(t: { kind: string; draftOn: string | null; draftState: string }, hasTeams: boolean) {
@@ -396,7 +396,7 @@ async function tournamentFields(
   stored?: { opensOn: string | null; closesOn: string | null },
 ) {
   const heldOn = date(o, "heldOn")!;
-  // Just a season so far (ADR 0030): its day is the season's last; otherwise the day is the day
+  // Just a season so far (apps/team/worker/tournaments/README.md): its day is the season's last; otherwise the day is the day
   const season = o.season == null || o.season === "" ? null : o.season;
   if (season !== null && !isSeason(season))
     throw new HttpError(400, "season should be spring, summer, autumn or winter.");
@@ -431,7 +431,7 @@ async function tournamentFields(
 }
 
 /**
- * Where a tournament goes afterwards (ADR 0074): its series' (usual), its own venue, time and note, or none this time.
+ * Where a tournament goes afterwards (apps/team/worker/tournaments/README.md): its series' (usual), its own venue, time and note, or none this time.
  * Left out of a save, it keeps what it had (a new one: its series'). As [after_mode, after_venue_id, after_time,
  * after_note].
  */
@@ -444,13 +444,13 @@ async function tournamentAfterOf(db: D1Database, o: Record<string, unknown>, cur
   return [mode, ...own];
 }
 
-/** A team as the app sends it (ADR 0030). */
+/** A team as the app sends it (apps/team/worker/tournaments/README.md). */
 interface TeamIn {
-  /** The team it is, if it's been saved before: teams are changed in place, never remade (ADR 0060). */
+  /** The team it is, if it's been saved before: teams are changed in place, never remade (apps/team/worker/tournaments/README.md). */
   id: number | null;
   name: string;
   logo: string | null;
-  /** Sent with its id and no name or logo (the editor, ADR 0030): its look is its page's, so it keeps the one it has. */
+  /** Sent with its id and no name or logo (the editor, apps/team/worker/tournaments/README.md): its look is its page's, so it keeps the one it has. */
   keepsLook: boolean;
   /** Sent with its own logo's address (ownLogo): the logo it has, kept. */
   keepsLogo: boolean;
@@ -503,12 +503,12 @@ export async function setTeamLook(
   if (ownLogo(teamId, o.logo))
     return void (await run(db, "UPDATE tournament_teams SET name = ? WHERE id = ?", [name, teamId]));
   const logo = logoOf(o);
-  // This edition's team only: it's then the one its captain brings to the series' next (team-name.ts, ADR 0060)
+  // This edition's team only: it's then the one its captain brings to the series' next (team-name.ts, apps/team/worker/tournaments/README.md)
   await run(db, "UPDATE tournament_teams SET name = ?, logo = ? WHERE id = ?", [name, logo, teamId]);
 }
 
 /**
- * A team's look for the record (ADR 0095, #201): its name and which crest (by version, not the image), or null when
+ * A team's look for the record (ADR 0024, #201): its name and which crest (by version, not the image), or null when
  * the one changing it is its captain, whose own it is, so only someone else changing it (an admin) is on the record.
  */
 export async function teamLookByOthers(db: D1Database, tournamentId: number, teamId: number, memberId: number) {
@@ -574,7 +574,7 @@ const namedIn = (teams: TeamIn[]) =>
 const KNOWN = "SELECT count(*) n FROM members WHERE id IN (SELECT value FROM json_each(?))";
 
 /**
- * Save a tournament's teams as the editor sends them (ADR 0060): each one changed in place (by its id, or in a draft
+ * Save a tournament's teams as the editor sends them (apps/team/worker/tournaments/README.md): each one changed in place (by its id, or in a draft
  * by its captain), new ones added, missing ones removed. A draft's picks and pick order are never touched here (the
  * order is drawn when it opens), and once its draft is open its captains and their drawn order are fixed. A draft's captains are in the tournament automatically.
  */
@@ -633,7 +633,7 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   const unseen = teams.map((t, i) => !!rows[i] && ((t.id === null && !t.name) || t.keepsLook));
   if (kind === "teams" && teams.some((t, i) => t.keepsLook && !rows[i]))
     throw new HttpError(400, "Every team needs a name.");
-  // A captain's new team, left unnamed, takes the name and logo of the team they bring (team-name.ts, ADR 0060),
+  // A captain's new team, left unnamed, takes the name and logo of the team they bring (team-name.ts, apps/team/worker/tournaments/README.md),
   // unless another team goes by that name, automatic names included: then it has the automatic name and initials
   const captainRows = carriedRows.results as {
     id: number;
@@ -752,7 +752,7 @@ async function seriesOf(db: D1Database, o: Record<string, unknown>) {
 }
 
 /**
- * A tournament's own rules and awards, copied from its series and changed for it if need be (ADR 0030). One left
+ * A tournament's own rules and awards, copied from its series and changed for it if need be (apps/team/worker/tournaments/README.md). One left
  * out keeps what it was (on a change), or takes the series' (or, with no series, the usual round robin's).
  */
 type Rules = Pick<
@@ -788,9 +788,9 @@ function rulesOf(o: Record<string, unknown>, series: Rules | null) {
 }
 
 /**
- * An admin deletes a tournament (ADR 0074). One statement: the schema's cascades take everything that's its (sign-ups,
+ * An admin deletes a tournament (apps/team/worker/tournaments/README.md). One statement: the schema's cascades take everything that's its (sign-ups,
  * teams and their players, games and goals, the awards' winners), so the database does the work, not the Worker
- * (ADR 0059). The agenda points at it by source, not a foreign key, so its rows go by syncing it away.
+ * (ADR 0003). The agenda points at it by source, not a foreign key, so its rows go by syncing it away.
  */
 export async function deleteTournament(db: D1Database, id: number, now: string) {
   const nightsOff = await nightsOffFor(db, id);
@@ -803,7 +803,7 @@ export async function deleteTournament(db: D1Database, id: number, now: string) 
 
 /**
  * A new tournament. Only its series, name and day are needed (the next one's quick form): what's left out takes the
- * series' fee, rules and usual hours (ADR 0074), and sign-up not open yet.
+ * series' fee, rules and usual hours (apps/team/worker/tournaments/README.md), and sign-up not open yet.
  */
 export async function createTournament(db: D1Database, given: Record<string, unknown>) {
   const { typeId, series } = await seriesOf(db, given);
@@ -878,13 +878,13 @@ export async function updateTournament(
     current.after_note,
   ]);
   const stored = { opensOn: current.signup_opens_on, closesOn: current.signup_closes_on };
-  // Its status moves on from its own page (Manage: Close sign-up, Move to…, ADR 0074), so the editor leaves it out
+  // Its status moves on from its own page (Manage: Close sign-up, Move to…, apps/team/worker/tournaments/README.md), so the editor leaves it out
   // and it stays as it is; a save that names one still sets it
   const status = o.status ?? current.status;
   const fields = [...(await tournamentFields(db, { ...o, status }, stored)), ...rules, ...after];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
-  // A limit raised moves the first waiting up into its room, in the same batch (ADR 0131)
+  // A limit raised moves the first waiting up into its room, in the same batch (apps/team/worker/training/README.md)
   const [res] = await batch(db, [
     statement(
       db,
@@ -905,6 +905,6 @@ export async function updateTournament(
   await tournamentMoved(db, id, now);
 }
 
-/** A tournament's name and day, while it exists (the record, ADR 0095). */
+/** A tournament's name and day, while it exists (the record, ADR 0024). */
 export const tournamentSummary = (db: D1Database, id: number) =>
   first<{ name: string; heldOn: string }>(db, "SELECT name, held_on heldOn FROM tournaments WHERE id = ?", [id]);

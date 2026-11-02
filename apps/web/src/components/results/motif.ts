@@ -1,4 +1,4 @@
-// The Kumite's motif on its results, as in the team app (apps/team/src/lib/motif.ts, ADR 0074): kanji beside the
+// The Kumite's motif on its results, as in the team app (apps/team/src/lib/motif.ts, apps/team/worker/tournaments/README.md): kanji beside the
 // section titles and a red seal on the champions, in Noto Serif JP Black cut to the team app's characters (the same
 // font file). Only the Kumite: a result in another series, or none, has no motif.
 import kanjiFont from "../../assets/fonts/KumiteKanji.woff2?url";

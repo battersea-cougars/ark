@@ -351,6 +351,23 @@ describe("an admin imports a file, at the edges", () => {
     expect(r.body.problems).toEqual([expect.objectContaining({ row: 3 })]);
   });
 
+  it("500 players in a file is fine; 501 is refused", async () => {
+    const rows = (n: number) => ["name", ...Array.from({ length: n }, (_, i) => `Player ${i + 1}`)].join("\n");
+    expect((await check(rows(500))).body.add).toHaveLength(500);
+    const r = await check(rows(501));
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/Up to 500/);
+  });
+
+  it("a member manager can't import a role that can do more than they can", async () => {
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (9, 'Helper', 'Members', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (9, 'manage:Member');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'paul@example.com';`);
+    const paul = await w.signedIn("paul@example.com");
+    const r = await paul.call("POST", "/api/members/import", { file: "name,roles\nNina New,Admin" });
+    expect(r.body.problems).toEqual([expect.objectContaining({ row: 2, why: expect.stringMatching(/can do more/) })]);
+  });
+
   it("a file over half a megabyte is refused before it's read", async () => {
     const r = await check(`name\n${"x".repeat(500_001)}`);
     expect(r.status).toBe(400);

@@ -1,4 +1,4 @@
-// Two admins putting a training on the same evening at once (ADR 0122, ADR 0121): each asked first and heard nothing
+// Two admins putting a training on the same evening at once (ADR 0003, apps/team/worker/calendar/README.md): each asked first and heard nothing
 // was on, and each saves saying so. The check is in the statements that write each one, so whichever writes second
 // sees the first (its night, or its rule before its nights are made) and is refused, to be asked again; never two
 // trainings over each other that nobody was asked about. The fake D1 interleaves the two requests a different way each

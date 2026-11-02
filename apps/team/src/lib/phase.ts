@@ -1,4 +1,4 @@
-// Past, on or next (ADR 0074, #182): "status decides whether an event or game is past, on or next, never its date or
+// Past, on or next (apps/team/worker/tournaments/README.md, #182): "status decides whether an event or game is past, on or next, never its date or
 // time" (the user, 2026-10-25). Done is past, whatever its date; live is on, even running late; not started, its time
 // gone by, is still next until it's played, closed or cancelled. The date is for showing and sorting. One place says
 // it for each kind of thing, and Home, the calendar and the series' pages all ask here.

@@ -1,6 +1,6 @@
 // A passkey's sign-in sent twice at once (a double tap, a retry on a bad signal): its challenge is spent in the
 // statement that claims it, so one challenge makes one session, however the two requests' statements interleave on D1
-// (ADR 0121). The same for a counter that two sign-ins move on together. Driven through the real handlers in the fake
+// (ADR 0003). The same for a counter that two sign-ins move on together. Driven through the real handlers in the fake
 // world, its D1 interleaving under several seeds, with a fake authenticator signing real responses.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

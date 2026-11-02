@@ -1,4 +1,4 @@
-// Reminders of what someone owes (ADR 0007): whoever records payments sees who'd get one and what it says, then sends
+// Reminders of what someone owes (apps/team/worker/dues/README.md): whoever records payments sees who'd get one and what it says, then sends
 // them, to everyone who owes or to one member. The first few go after the reply; the rest on the next runs (reminders.ts).
 import { type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";

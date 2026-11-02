@@ -42,7 +42,7 @@ describe("the website roster's record", () => {
     ]);
   });
 
-  it("counts goals, assists, penalty minutes and titles from tournaments on the website only: public and done (ADR 0100)", () => {
+  it("counts goals, assists, penalty minutes and titles from tournaments on the website only: public and done (ADR 0016)", () => {
     const db = createTestD1().raw;
     const member = db.prepare(
       "INSERT INTO members (name, cougar, status, joined_on, created_at) VALUES (?, 1, 'active', '2025-01-01', '2025-01-01')",

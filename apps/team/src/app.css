@@ -78,7 +78,7 @@
   --rule-color: rgb(239 232 225 / 0.045);
   --rule: linear-gradient(var(--rule-color), var(--rule-color));
 
-  /* ─── The Sticker scheme (ADR 0084): carbon and bone, cougar red, sticker yellow for the one main action ───
+  /* ─── The Sticker scheme (ADR 0009): carbon and bone, cougar red, sticker yellow for the one main action ───
      Surfaces and ink are one warm ramp (OKLCH hue 70), so the greys and the bone words belong together. */
   color-scheme: dark;
   --bg: #0e0d0b; /* carbon */
@@ -935,7 +935,7 @@ button.row:hover:not(:disabled) {
   box-shadow: none;
   cursor: not-allowed;
 }
-/* The main button: solid VCR blue, white words (ADR 0084). One per group: the clearest thing in its row */
+/* The main button: solid VCR blue, white words (ADR 0009). One per group: the clearest thing in its row */
 .btn.primary {
   background: var(--action);
   color: var(--on-action);
@@ -1451,7 +1451,7 @@ input[type="checkbox"] {
   /* Italic capitals lean right: this pulls their ink back to the middle of the disc (measured) */
   padding-right: 0.21em;
 }
-/* Their photo (lib/Avatar.svelte, ADR 0123) fills the disc */
+/* Their photo (lib/Avatar.svelte, ADR 0010) fills the disc */
 .avatar.has-photo {
   overflow: hidden;
   padding: 0;

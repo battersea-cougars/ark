@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-  // An ink stamp (the Kumite's hanko, ADR 0074): a kanji pressed in a block of ink, the word beside it in the display
+  // An ink stamp (the Kumite's hanko, apps/team/worker/tournaments/README.md): a kanji pressed in a block of ink, the word beside it in the display
   // face, the ink a little patchy (a noise mask), the edge uneven, askew. One look for every stamp, so they read as a
   // family: a tournament's status (lib/TournamentHead), and on its match cards You are next! and the results
   // (lib/GameCard). Only the ink changes: the club's red for what's yours or on now, bone for what's done, faint for

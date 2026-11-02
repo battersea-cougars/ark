@@ -1,7 +1,7 @@
-// An admin closes a tournament's sign-up now (ADR 0127), from its page while sign-up's open, without waiting for its
+// An admin closes a tournament's sign-up now (apps/team/worker/tournaments/README.md), from its page while sign-up's open, without waiting for its
 // closing day: members can't say they're in any more, and a captains' draft moves on to Draft open, where the order's
 // drawn. It's recorded on its own (when it closed), its dates left as they were, so a later save of the tournament
-// never finds it closing before it opens. It's one guarded statement, so two taps at once close it once (ADR 0121);
+// never finds it closing before it opens. It's one guarded statement, so two taps at once close it once (ADR 0003);
 // it's on the record; and Back to Sign-up open (lib/step-back.ts) opens it again. Driven through the real Worker handlers in the fake world, each
 // person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -78,6 +78,14 @@ describe("an admin closes sign-up now", () => {
     expect((await k.close()).status).toBe(200);
     const late = await k.mo.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "in" }, at);
     expect(late.status).toBe(409);
+  });
+
+  it("a member who's in can still say they're out once it's closed", async () => {
+    const k = await kumite();
+    expect((await k.close()).status).toBe(200);
+    const me = ((await k.reg.club(at)).body as Json).me as number;
+    expect((await k.reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "out" }, at)).status).toBe(200);
+    expect((await k.tournament()).out).toContain(me);
   });
 
   it("is an admin's: a member is refused, and sign-up stays open", async () => {

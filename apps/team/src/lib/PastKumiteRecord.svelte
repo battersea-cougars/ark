@@ -1,6 +1,6 @@
 <script lang="ts">
-  // A past Kumite recorded (ADR 0126), from History's Manage: one the club played before the app, put in after the
-  // fact, as a wizard (lib/Wizard, ADR 0117) over the page, a side drawer on a desktop, a tall sheet on a phone. When
+  // A past Kumite recorded (apps/team/worker/tournaments/README.md), from History's Manage: one the club played before the app, put in after the
+  // fact, as a wizard (lib/Wizard, ADR 0065) over the page, a side drawer on a desktop, a tall sheet on a phone. When
   // (a day gone by), Teams (each its name, captain and players, found by name), Matches (each team against every other
   // in the fair order, a score each, a final between the top two if it had one, and who scored where anyone
   // remembers), Awards (the champions and the top scorer filled in from the results, the rest chosen), then Check and

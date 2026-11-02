@@ -1,4 +1,4 @@
-// A series' editions, read when they're wanted (#175, ADR 0074). Opening the app sends only the ones its pages show
+// A series' editions, read when they're wanted (#175, apps/team/worker/tournaments/README.md). Opening the app sends only the ones its pages show
 // at once (api.club.ts SHOWN_TOURNAMENTS); the rest are read here: one in full when its page opens, as the club read
 // would have sent it, and History a page at a time, newest first, each a line of what it was. All-time leaders are
 // counted in the database, not from every game sent.

@@ -1,4 +1,4 @@
-// The name a member goes by (ADR 0043): the one they chose on their profile (a nickname, their first name and initial,
+// The name a member goes by (apps/team/worker/members/README.md): the one they chose on their profile (a nickname, their first name and initial,
 // their full name), everywhere the app shows them, as on the website. Their full name stays for sign-in, payment
 // references and an admin's views, and search finds either.
 

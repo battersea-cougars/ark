@@ -1,4 +1,4 @@
-// A URL slug for a series or a tournament type (ADR 0030): its name, lower case, unique in its table.
+// A URL slug for a series or a tournament type (apps/team/worker/training/README.md): its name, lower case, unique in its table.
 import { first } from "@cougars/shared/d1";
 
 export const slugify = (s: string) =>

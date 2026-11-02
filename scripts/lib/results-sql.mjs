@@ -1,4 +1,4 @@
-// The website's tournament results (ADR 0100): what the build's snapshot (scripts/club-snapshot.mjs) reads from D1,
+// The website's tournament results (ADR 0016): what the build's snapshot (scripts/club-snapshot.mjs) reads from D1,
 // as rows. The website works the results out from them (apps/web/src/lib/results.ts), by the shared rules
 // (@cougars/shared/results). Every public tournament comes back; which are done is decided there. The rows hold full
 // names: they stay in the gitignored snapshot, and only the name each player chose reaches a page.
@@ -26,7 +26,7 @@ export const RESULTS_SQL = {
     FROM tournament_goals o JOIN tournament_games g ON g.id = o.game_id
     LEFT JOIN members s ON s.id = o.scorer_member_id LEFT JOIN members a ON a.id = o.assist_member_id
     WHERE g.tournament_id IN (${PUBLIC}) AND g.status = 'done'`,
-  // Penalties (ADR 0061): a game's minutes a side, a player's beside their goals. Only who and how long: what for
+  // Penalties (apps/team/worker/tournaments/README.md): a game's minutes a side, a player's beside their goals. Only who and how long: what for
   // and when stay in the app
   penalties: `SELECT g.tournament_id tournamentId, o.game_id gameId, o.team_id teamId, m.id memberId,
       m.name memberName, m.web_name memberWebName, o.minutes

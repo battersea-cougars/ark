@@ -28,7 +28,7 @@
   const perms = $derived(granted());
   const ratings = $derived(can(perms, "read:Rating"));
   const admin = $derived(can(perms, "manage:Member"));
-  // Adding someone to the club (ADR 0069)
+  // Adding someone to the club (apps/team/worker/members/README.md)
   let adding = $state(false);
   const who = $derived(me());
   let filter = $state<"all" | "F" | "D" | "G">("all");

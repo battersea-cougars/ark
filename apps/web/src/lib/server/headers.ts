@@ -1,4 +1,4 @@
-// The website's security headers (ADR 0036), one source for both ways a response leaves: the Worker's live routes
+// The website's security headers (ADR 0024), one source for both ways a response leaves: the Worker's live routes
 // (middleware.ts) and the prerendered pages and files the asset layer serves without the Worker, through the `_headers`
 // file the build writes (headers.integration.ts). Per environment: only dev's allow picsum's placeholder photos.
 
@@ -32,7 +32,7 @@ export function csp(siteEnv: SiteEnv): string {
     "frame-ancestors 'none'",
     "upgrade-insecure-requests",
     // report-uri, not report-to: every browser sends it at once. With report-to, Chrome ignores it, and on dev never
-    // delivered the report (ADR 0036)
+    // delivered the report (ADR 0024)
     "report-uri /api/csp-report",
   ].join("; ");
 }
@@ -58,7 +58,7 @@ export function headersFile(siteEnv: SiteEnv): string {
   const lines = Object.entries(siteHeaders(siteEnv)).map(([name, value]) => `  ${name}: ${value}`);
   return [
     "# Security headers for every prerendered page and file, which the asset layer serves without the Worker.",
-    `# Written by the build for ${siteEnv} (apps/web/src/lib/server/headers.ts); decision: docs/adr/0036-api-security.md.`,
+    `# Written by the build for ${siteEnv} (apps/web/src/lib/server/headers.ts); decision: docs/adr/0024-action-based-authorization.md.`,
     "/*",
     ...lines,
     "",

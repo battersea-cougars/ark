@@ -61,11 +61,11 @@ export async function clubWithHistory(
   const ids = everyone.slice(0, 40);
   lastFridays(w, fridays.everyone ? everyone : ids, series.id, fridays.weeks);
   kumites(w, ids, kumiteCount);
-  if (fridays.paying) {
-    // Charged as the hourly run would have, week by week; paid as the treasurer would have recorded it
-    await recharge(w.env.DB, NOW.toISOString().slice(0, 10), NOW.toISOString());
-    await payments(w, fridays.everyone ? everyone : ids, fridays.weeks);
-  }
+  // Charged as the hourly run would have, week by week: written straight into D1, nothing in the app worked them out
+  // (a change works out only its own charges, #222)
+  await recharge(w.env.DB, NOW.toISOString().slice(0, 10), NOW.toISOString());
+  // ...and paid as the treasurer would have recorded it
+  if (fridays.paying) await payments(w, fridays.everyone ? everyone : ids, fridays.weeks);
   // Written straight into D1, not through the register: counted again from the start, as a script would
   await recountPlayed(w.env.DB, NOW);
   expect((await dana.call("POST", `/api/members/${ids[0]}/payments`, { via: "cash", pence: 800 })).status).toBe(200);

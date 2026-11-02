@@ -1,5 +1,5 @@
 <script lang="ts">
-  // When a tournament is (ADR 0030): its season, its day once that's known, its hours. One home for these fields, in
+  // When a tournament is (apps/team/worker/tournaments/README.md): its season, its day once that's known, its hours. One home for these fields, in
   // the wizard's Details step and the editor's Details tab alike.
   import FormSection from "./FormSection.svelte";
   import Select from "./Select.svelte";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Changing your answer to a tournament, from the badge in its header (ADR 0074): your answer as the badge itself, a
+  // Changing your answer to a tournament, from the badge in its header (apps/team/worker/tournaments/README.md): your answer as the badge itself, a
   // line in the club's voice (Settings → Quips, your answer's), and the one choice as a row: Can't make it, in red
   // words, or I'm in while sign-up's open. Saying you're out is allowed till it's started (worker/entries answer);
   // what it means for your team, if you're on one, is said under it. Once it's started, who's in is an admin's to

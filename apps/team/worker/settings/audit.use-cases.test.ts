@@ -1,4 +1,4 @@
-// Settings → Audit log (ADR 0095): an admin reads the record of who changed what, newest first, a page at a time, in
+// Settings → Audit log (apps/team/worker/settings/README.md): an admin reads the record of who changed what, newest first, a page at a time, in
 // enough detail to say it in plain words. Driven through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
@@ -74,5 +74,43 @@ describe("an admin reads the audit log", () => {
       by: { name: "Dana Admin" },
       detail: { from: { heldOn: session.heldOn, signups: 1 }, to: { heldOn: session.heldOn, signups: 0 } },
     });
+  });
+});
+
+describe("who reads it, and how it names people", () => {
+  it("a role given See the audit log reads it too; nobody else does", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const reg = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Reg Player");
+    expect(
+      (await dana.call("POST", "/api/roles", { name: "Auditor", description: "", actions: ["read:Audit"] })).status,
+    ).toBe(201);
+    const regSignedIn = await w.signedIn("reg@example.com");
+    expect((await regSignedIn.call("GET", "/api/audit")).status).toBe(403);
+    expect((await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, roles: ["Auditor", "Member"] })).status).toBe(
+      200,
+    );
+    expect((await regSignedIn.call("GET", "/api/audit")).status).toBe(200);
+  });
+
+  it("names whoever an entry is about as they're called now, not as they were", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const reg = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Reg Player");
+    await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, roles: ["Admin", "Member"] });
+    await dana.call("PUT", `/api/members/${reg.id}`, { ...reg, name: "Reggie Player", roles: ["Admin", "Member"] });
+    const { entries } = (await dana.call("GET", "/api/audit")).body;
+    expect(entries.find((e: { action: string }) => e.action === "member.updated")).toMatchObject({
+      about: "Reggie Player",
+    });
+  });
+
+  it("a page is at most 200 entries, however many are asked for", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    w.db.raw.exec(
+      `WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 250)
+       INSERT INTO audit_log (at, member_id, action, detail) SELECT '2026-10-01T10:00:00Z', NULL, 'sign_out', '{}' FROM n`,
+    );
+    const page = (await dana.call("GET", "/api/audit?limit=1000")).body;
+    expect(page.entries).toHaveLength(200);
+    expect(page.more).toBe(true);
   });
 });

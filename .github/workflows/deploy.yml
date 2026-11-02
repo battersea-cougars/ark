@@ -9,7 +9,7 @@ name: Deploy
 #                    branch, which the `production` environment refuses, so its only job (`rebuild`) starts this
 #                    workflow again on `release`.
 # manual run      -> the apps picked, from the branch it's run on. The team app's GitHub App runs it this way
-#                    (`apps: web`, on `main` or `release`) when a result changes (ADR 0100), with a token that can
+#                    (`apps: web`, on `main` or `release`) when a result changes (ADR 0016), with a token that can
 #                    only start workflows (#71).
 # GitHub environment `production` (release only) holds BWS_ACCESS_TOKEN__PRODUCTION; `preview` holds
 # BWS_ACCESS_TOKEN__DEV, which can't read production secrets.
@@ -75,7 +75,7 @@ jobs:
       studio: ${{ steps.apps.outputs.studio }}
       database: ${{ steps.apps.outputs.database }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: apps
@@ -90,7 +90,7 @@ jobs:
           # imports the dev-server helper. Nothing else in scripts/ (the show switch, setup and load scripts) deploys.
           shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/|scripts/ci/(target|smoke-test)\.mjs|scripts/ci/link-deployment\.sh|scripts/env-pull\.mjs|scripts/lib/(bitwarden|settings)\.mjs'
           declare -A pattern=(
-            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/redirect-setup\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
+            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/redirect-setup\.mjs|scripts/lib/(results-sql|roster-sql|kumite-sql|d1-api)\.mjs|$shared)"
             [team]="^(apps/team/|scripts/team-app-budget\.mjs|scripts/lib/dev-server\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
             [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/lib/backup\.mjs|scripts/seed-roster\.mjs|scripts/lib/(roster|anonymize)|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
@@ -113,7 +113,7 @@ jobs:
             echo "$app=$on" >> "$GITHUB_OUTPUT"
           done
 
-  # Backed up first (sealed, kept 90 days as an artifact: ADR 0106), then brought up to date. Until launch there are no
+  # Backed up first (sealed, kept 90 days as an artifact: ADR 0050), then brought up to date. Until launch there are no
   # migrations (ADR 0050): dev is rebuilt from db/schema.sql, keeping its data, topped up with the club's seed. Production
   # never rebuilds: it starts at launch from the migrations scripts/db-launch.mjs makes, and only ever migrates. Then the
   # team roster. Each environment has its own database, so a PR changes dev, never production. Both apps read it, so
@@ -129,7 +129,7 @@ jobs:
       SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/secrets
         with:
@@ -145,7 +145,7 @@ jobs:
         run: node ../../scripts/db-backup.mjs --remote -c dist/d1/wrangler.json --why "before deploy" --out ../../backups
 
       - name: Keep the backup
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: d1-${{ env.SITE_ENV }}-before-deploy-${{ github.run_id }}
           path: backups/
@@ -196,11 +196,11 @@ jobs:
       # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, docs/secrets.md#turnstile)
       TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
       # Cloudflare Web Analytics' site token (public, in every page; lib/analytics.ts, #92), production only. Empty until
-      # it's copied from the dashboard (docs/setup.md, Web Analytics); then automatic setup is turned off.
+      # it's copied from the dashboard (docs/accounts.md, The domain); then automatic setup is turned off.
       WEB_ANALYTICS_TOKEN: ""
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/secrets
         with:
@@ -220,13 +220,13 @@ jobs:
       - name: Build version
         run: echo "PUBLIC_BUILD_VERSION=$(date -u +%Y.%m.%d)+$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
-      # Until launch the website's words live in the repo (ADR 0014): sent to this environment's Sanity before the build
+      # Until launch the website's words live in the repo (ADR 0004): sent to this environment's Sanity before the build
       # reads them. Not from a PR (previews share dev's Sanity). At launch this step goes and the Studio owns the words.
       - name: Words to Sanity
         if: github.event_name != 'pull_request'
         run: node scripts/sanity-copy.mjs
 
-      # The roster is a snapshot of this environment's D1 (scripts/club-snapshot.mjs, apps/web's prebuild, ADR 0043).
+      # The roster is a snapshot of this environment's D1 (scripts/club-snapshot.mjs, apps/web's prebuild, ADR 0016).
       - name: Build
         run: npm run build
         env:
@@ -356,7 +356,7 @@ jobs:
       TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/secrets
         with:
@@ -387,7 +387,7 @@ jobs:
       - name: Target ${{ env.SITE_ENV }}
         run: node scripts/ci/target.mjs "$SITE_ENV" team
 
-      # `wrangler deploy`, not a previews-only upload, so the live hub's Durable Object migration is applied (ADR 0072)
+      # `wrangler deploy`, not a previews-only upload, so the live hub's Durable Object migration is applied (ADR 0053)
       - name: Deploy
         id: deploy
         working-directory: apps/team
@@ -449,7 +449,7 @@ jobs:
           scripts/ci/link-deployment.sh "team (${{ env.SITE_ENV }})" "${{ steps.deploy.outputs.url }}" \
             ${{ env.SITE_ENV == 'production' && 'production' || '' }}
 
-  # The Studio, self-hosted on its own Worker (ADR 0112): studio.batterseacougars.com from `release`, dev's workers.dev
+  # The Studio, self-hosted on its own Worker (ADR 0004): studio.batterseacougars.com from `release`, dev's workers.dev
   # from `main`. Static files only; Sanity's sign-in guards it, not Cloudflare Access.
   studio:
     needs: changes
@@ -467,7 +467,7 @@ jobs:
       SITE_ENV: ${{ github.ref == 'refs/heads/release' && 'production' || 'dev' }}
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
       - uses: ./.github/actions/secrets
         with:

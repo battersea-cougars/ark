@@ -9,10 +9,13 @@ export default [
     ignores: [
       ".worktrees/",
       ".cline-local/",
+      // The journeys' runs: their database, Vite's cache, traces (playwright.config.ts)
+      ".journeys/",
       "**/dist/",
       "**/.astro/",
       "**/.wrangler/",
       "**/.sanity/",
+      "**/.svelte-check/",
       "**/worker-configuration.d.ts",
     ],
   },
@@ -32,14 +35,14 @@ export default [
     },
   },
   {
-    // How code reads (ADR 0125): warnings, never failures yet. Each is a prompt to look, not a rule a build enforces.
+    // How code reads (ADR 0105): warnings, never failures yet. Each is a prompt to look, not a rule a build enforces.
     files: ["**/*.ts", "**/*.js", "**/*.mjs", "**/*.svelte", "**/*.astro"],
     rules: {
       "max-depth": ["warn", 3],
       "max-lines-per-function": ["warn", { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true }],
       "no-else-return": ["warn", { allowElseIf: false }],
       // Off for now (2026-10-23): ~4,000 one-letter names drown the other warnings. Back on once a sweep has named
-      // them (ADR 0125)
+      // them (ADR 0105)
       "id-length": [
         "off",
         {

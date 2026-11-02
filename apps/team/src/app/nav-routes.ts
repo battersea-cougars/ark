@@ -1,4 +1,4 @@
-// The route tree, built from the schedule (ADR 0030): one page per training series, and a section per tournament
+// The route tree, built from the schedule (apps/team/worker/training/README.md): one page per training series, and a section per tournament
 // type with its home (named for it: The Kumite), Fight card, The board, Teams and Draft. Admins add a training or a
 // tournament type in Settings and it appears here. Phone tabs are derived from the same tree (mobile-nav.ts), so the
 // two can't drift apart. Each route declares the action it needs (ADR 0024).
@@ -55,7 +55,7 @@ export interface Fold {
 }
 
 /**
- * Where a running tournament has got to, which says which of its pages are tabs (ADR 0074): sign-up (just its front
+ * Where a running tournament has got to, which says which of its pages are tabs (apps/team/worker/tournaments/README.md): sign-up (just its front
  * page), the draft on, the teams set with no fixtures yet, the fixtures out (the fight card and the board).
  */
 export type Stage = "signup" | "draft" | "teams" | "fixtures";
@@ -69,7 +69,7 @@ export interface NavConfig {
     name: string;
     shortName: string;
     icon: IconName;
-    /** A draft tournament gets a Draft page (ADR 0030). */
+    /** A draft tournament gets a Draft page (apps/team/worker/training/README.md). */
     kind: "teams" | "draft";
     active: boolean;
     /** The captains of its next tournament: they see its Draft page, as do those running the draft. */
@@ -82,7 +82,7 @@ export interface NavConfig {
     teams?: { id: number; mine: boolean }[];
     /** Its past tournaments (played), newest first: History. */
     past?: number[];
-    /** Every one of its tournaments, the one on and the past ones too: each its own page (ADR 0074). */
+    /** Every one of its tournaments, the one on and the past ones too: each its own page (apps/team/worker/tournaments/README.md). */
     editions?: number[];
     /** Nothing on or coming up: just its front page (the past ones on it), none of the pages for a running one. */
     idle?: boolean;
@@ -460,7 +460,7 @@ export function buildRoutes(config: NavConfig): Route[] {
           action: "read:Event",
           icon: "trophy",
         },
-        // The draft room (ADR 0060): the draft, the whole screen, for its captains and whoever runs it while it's
+        // The draft room (apps/team/worker/tournaments/README.md): the draft, the whole screen, for its captains and whoever runs it while it's
         // open; anyone else, or once it closes, is shown out to the page (pages/DraftRoom.svelte)
         ...(running && t.kind === "draft"
           ? [
@@ -477,7 +477,7 @@ export function buildRoutes(config: NavConfig): Route[] {
               },
             ]
           : []),
-        // The awards (ADR 0074): a stage of their own, the after-party's reveal, one card at a time. Under its front
+        // The awards (apps/team/worker/tournaments/README.md): a stage of their own, the after-party's reveal, one card at a time. Under its front
         // page, which links to it
         ...(running
           ? [
@@ -495,7 +495,7 @@ export function buildRoutes(config: NavConfig): Route[] {
             ]
           : []),
         // Its draft, teams, fixtures and board aren't pages of their own: they're its statuses, shown on its one page
-        // (ADR 0074), under each edition's address (/tournaments/kumite/12/draft). The series' /draft, /teams,
+        // (apps/team/worker/tournaments/README.md), under each edition's address (/tournaments/kumite/12/draft). The series' /draft, /teams,
         // /schedule, /standings are replaced by the one on's (App.svelte, lib/edition-address.ts)
         // Each team's page, reached from wherever the team's shown, under Teams
         ...(t.teams ?? []).map((team): Route => ({
@@ -528,7 +528,7 @@ export function buildRoutes(config: NavConfig): Route[] {
             ]
           : []),
         // Every edition its own page, at its own address (/tournaments/kumite/12, its statuses under it): the series'
-        // page, by status, for that one (ADR 0074). Not a tab: the series' address opens the one on; a past one is
+        // page, by status, for that one (apps/team/worker/tournaments/README.md). Not a tab: the series' address opens the one on; a past one is
         // under History while one's running, else under the front page, which lists them
         ...(t.editions ?? []).map((tournamentId): Route => ({
           ...base,
@@ -543,7 +543,7 @@ export function buildRoutes(config: NavConfig): Route[] {
           hidden: true,
           under: running && t.past?.includes(tournamentId) ? `history:${t.id}` : home,
         })),
-        // History: every past one with its result, each opening its own page, back to the list (ADR 0074). Not a tab:
+        // History: every past one with its result, each opening its own page, back to the list (apps/team/worker/tournaments/README.md). Not a tab:
         // the front page links to it. With nothing on, the list is the front page
         ...(running && t.past?.length
           ? [
@@ -560,7 +560,7 @@ export function buildRoutes(config: NavConfig): Route[] {
               },
             ]
           : []),
-        // Each game's matchup (ADR 0061): both squads, the result, when the captains' sides last met. Under the
+        // Each game's matchup (apps/team/worker/tournaments/README.md): both squads, the result, when the captains' sides last met. Under the
         // fight card
         ...(t.games ?? []).map((gameId): Route => ({
           ...base,
@@ -575,7 +575,7 @@ export function buildRoutes(config: NavConfig): Route[] {
           under: home,
         })),
         // Each game's clock, full screen: its live score for anyone, its scoresheet for whoever keeps time and score
-        // (ADR 0061)
+        // (apps/team/worker/tournaments/README.md)
         ...(t.games ?? []).map((gameId): Route => ({
           ...base,
           id: `game:${t.id}:${gameId}`,

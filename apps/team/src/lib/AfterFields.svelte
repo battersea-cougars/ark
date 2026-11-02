@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Where everyone goes afterwards (ADR 0074), in an admin form: one of the club's saved venues (Settings → Venues),
+  // Where everyone goes afterwards (apps/team/worker/tournaments/README.md), in an admin form: one of the club's saved venues (Settings → Venues),
   // an optional time and a few words on what for. A series' is every one of its dates' (Kumite → The Anchor, for the
   // celebration and awards); a date (`mode` bound) can leave it on Usual, pick its own, or say None this time.
   import { db } from "../demo/store.svelte";

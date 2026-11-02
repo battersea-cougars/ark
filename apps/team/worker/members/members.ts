@@ -18,18 +18,18 @@ export interface MemberJson {
   cougar: boolean;
   status: "pending" | "active" | "inactive";
   paymentReference: string | null;
-  /** Highest first: Admin, then newer roles, Member last. Only your own, unless you manage members or roles (ADR 0036). */
+  /** Highest first: Admin, then newer roles, Member last. Only your own, unless you manage members or roles (ADR 0024). */
   roles: string[];
   bio: string;
   /** How their name shows on the website; null: first name and initial. */
   webName: string | null;
   /** Only for the member themselves and those who manage members; null otherwise. */
   phone: string | null;
-  /** When their photo was set (ADR 0133): it's at /api/members/<id>/photo?v=<this>. Null: none, their initials show. */
+  /** When their photo was set (apps/team/worker/members/README.md): it's at /api/members/<id>/photo?v=<this>. Null: none, their initials show. */
   photoAt: string | null;
   /** Training sessions they came to: in, not a no-show, held before today and not cancelled. */
   played: number;
-  /** A Quarterly Member today: a subscription covers it (ADR 0007). Only your own, unless you manage members. */
+  /** A Quarterly Member today: a subscription covers it (apps/team/worker/dues/README.md). Only your own, unless you manage members. */
   quarterly: boolean;
   /** Quarterly next quarter: what they chose, or their membership running on. Only your own. */
   quarterlyNext: boolean;
@@ -63,7 +63,7 @@ export function rolesFrom(
 
 /**
  * Members as read (api.club.ts), where what the viewer may not see is already left out: who's asking to join and who's
- * left, anyone else's email, phone, payment reference, quarterly status and roles, and ratings (ADR 0036).
+ * left, anyone else's email, phone, payment reference, quarterly status and roles, and ratings (ADR 0024).
  */
 export function membersFrom(
   rows: {
@@ -108,13 +108,13 @@ export function membersFrom(
   }));
 }
 
-/** Who's making a change: what they can do (the grant rules) and when. The record is the route's (api.ts, ADR 0095). */
+/** Who's making a change: what they can do (the grant rules) and when. The record is the route's (api.ts, ADR 0024). */
 export interface By {
   actions: ReadonlySet<Action>;
   now: string;
 }
 
-// ─── You can't grant what you don't have (ADR 0036) ───
+// ─── You can't grant what you don't have (ADR 0024) ───
 
 /** Whether someone holding `caller` may hand out (or take away) every one of `actions`. manage:all may do anything. */
 export function canGrant(caller: ReadonlySet<Action>, actions: Iterable<string>): boolean {
@@ -153,7 +153,7 @@ const DOES_EVERYTHING = `SELECT 1 FROM members m JOIN member_roles mr ON mr.memb
 
 /**
  * The last member who can do everything (`manage:all`, through Admin or any other role) can't lose it (#135, #136),
- * as a condition on each statement of the change that might take it (ADR 0121): so two changes at once can't each
+ * as a condition on each statement of the change that might take it (ADR 0003): so two changes at once can't each
  * see the other still there. A member's change goes while another active member can do everything, or while they
  * can't now, or while the roles they're given (if they stay active) still can. A role's change goes while an
  * active member can do everything through another role, or while this one can't now. Taking it away only makes it
@@ -189,7 +189,7 @@ export async function firstAdmin(db: D1Database): Promise<number | null> {
 }
 
 /**
- * An admin adds someone to the club (ADR 0069): in straight away (no asking to join), with a payment reference, and
+ * An admin adds someone to the club (apps/team/worker/members/README.md): in straight away (no asking to join), with a payment reference, and
  * an email with a link to the app that fills in their address on the sign-in screen, unless `emailThem` is false
  * (#164: they'll be told in person, or later from their card). The email going astray doesn't undo the add:
  * `emailed` says whether it went, so the admin can tell them another way.
@@ -238,18 +238,18 @@ export async function updateMember(
   id: number,
   o: Record<string, unknown>,
   by: By,
-): Promise<{ letIn: boolean; shutOut: boolean }> {
+): Promise<{ letIn: boolean; shutOut: boolean; keeperChanged: boolean }> {
   const caller = by.actions;
-  const existing = await first<{ id: number; status: string; rating: number }>(
+  const existing = await first<{ id: number; status: string; rating: number; position: string }>(
     db,
-    "SELECT id, status, rating FROM members WHERE id = ?",
+    "SELECT id, status, rating, position FROM members WHERE id = ?",
     [id],
   );
   if (!existing) throw new HttpError(404, "No such member.");
   await mayChange(db, caller, id);
   const name = text(o, "name");
   const position = oneOf(o, "position", ["F", "D", "G"] as const);
-  // A rating is only theirs to change who may see it (ADR 0036): anyone else was sent none, and sends that back
+  // A rating is only theirs to change who may see it (ADR 0024): anyone else was sent none, and sends that back
   const rating = can(caller, "read:Rating") ? int(o, "rating", { max: 100 }) : existing.rating;
   const cougar = bool(o, "cougar");
   const status = oneOf(o, "status", ["pending", "active", "inactive"] as const);
@@ -278,7 +278,7 @@ export async function updateMember(
       throw new HttpError(403, "You can't give someone a role that can do more than you.");
   }
   // Never leave the club without someone who can do everything: neither by taking their roles off the last one nor
-  // by making them inactive. Decided inside the statements that write it (ADR 0121), so two admins demoting each
+  // by making them inactive. Decided inside the statements that write it (ADR 0003), so two admins demoting each
   // other at once can't both go (#135). The read before is for the refusal's words.
   const guard = keepsSomeoneWhoCanDoEverything({ member: id, keeping: status === "active" ? ids : [] });
   const lastAdmin = "That's the last admin. Make someone else an admin first.";
@@ -296,7 +296,7 @@ export async function updateMember(
       id,
     ]),
   ];
-  // The name they go by (ADR 0043), when it's sent: an admin can set or clear it as they can on their profile
+  // The name they go by (apps/team/worker/members/README.md), when it's sent: an admin can set or clear it as they can on their profile
   if ("webName" in o) {
     const webName = o.webName === null ? "" : text(o, "webName", { optional: true, max: 40 }).trim();
     statements.push(guarded("UPDATE members SET web_name = ? WHERE id = ?", [webName || null, id]));
@@ -307,7 +307,11 @@ export async function updateMember(
   const [written] = await batch(db, statements);
   if (!written.meta.changes) throw new HttpError(409, lastAdmin);
   // Made inactive (or back to waiting): their sign-ins end, so letting them back in later opens none of them (#72)
-  return { letIn: existing.status === "pending" && status === "active", shutOut: status !== "active" };
+  return {
+    letIn: existing.status === "pending" && status === "active",
+    shutOut: status !== "active",
+    keeperChanged: (existing.position === "G") !== (position === "G"),
+  };
 }
 
 function roleFields(o: Record<string, unknown>) {
@@ -348,7 +352,7 @@ export async function updateRole(db: D1Database, id: number, o: Record<string, u
     throw new HttpError(403, "A role can't do more than you can.");
   if (await first(db, "SELECT 1 FROM roles WHERE name = ? AND id != ?", [f.name, id]))
     throw new HttpError(409, "That name is taken.");
-  // Never the last role anyone can do everything through, decided in its statements (ADR 0121, #136)
+  // Never the last role anyone can do everything through, decided in its statements (ADR 0003, #136)
   const lastOne = "Nobody else can do everything. Make someone else an admin first.";
   const guard = f.actions.includes("manage:all") ? null : keepsSomeoneWhoCanDoEverything({ role: id });
   if (guard && !(await first(db, `SELECT 1 WHERE ${guard.sql}`, guard.params))) throw new HttpError(409, lastOne);
@@ -470,7 +474,7 @@ export async function setContact(
   return { emailChanged };
 }
 
-/** Make someone a Quarterly Member from today, or end it today (ADR 0007). */
+/** Make someone a Quarterly Member from today, or end it today (apps/team/worker/dues/README.md). */
 export async function setQuarterly(db: D1Database, id: number, quarterly: boolean, today: string, now: string) {
   const m = await first<{ position: string }>(db, "SELECT position FROM members WHERE id = ?", [id]);
   if (!m) throw new HttpError(404, "No such member.");
@@ -533,7 +537,7 @@ export async function attendanceOf(db: D1Database, id: number, year: string, tod
   }));
 }
 
-// ─── What the record compares (ADR 0095) ───
+// ─── What the record compares (ADR 0024) ───
 // Each reads one thing a change can touch, the same way before and after, so the route's audit writes an entry only
 // when it really changed, with both sides.
 
@@ -556,12 +560,12 @@ export const memberEmail = async (db: D1Database, id: number) =>
 export const memberJoined = (db: D1Database, id: number) =>
   first<{ name: string; email: string | null }>(db, "SELECT name, email FROM members WHERE id = ?", [id]);
 
-/** Whether a member is a Quarterly Member today (ADR 0007). */
+/** Whether a member is a Quarterly Member today (apps/team/worker/dues/README.md). */
 /**
- * A member chooses next quarter's plan (ADR 0007): Quarterly, or pay as you go. Only next quarter, and only before it
+ * A member chooses next quarter's plan (apps/team/worker/dues/README.md): Quarterly, or pay as you go. Only next quarter, and only before it
  * starts, by today's date here, whatever the app showed. This quarter's plan is fixed; an admin can still change it.
  */
-/** Keepers play training free (the Keeper plan, ADR 0007): nothing to choose, nothing to make Quarterly */
+/** Keepers play training free (the Keeper plan, apps/team/worker/dues/README.md): nothing to choose, nothing to make Quarterly */
 const KEEPERS_FREE = "Keepers play training free: there's no plan to choose.";
 
 export async function choosePlan(db: D1Database, id: number, o: Record<string, unknown>, today: string, now: string) {

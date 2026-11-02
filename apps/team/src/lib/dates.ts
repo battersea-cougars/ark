@@ -2,7 +2,7 @@
 // each (#153; scripts/team-one-home.test.mjs fails on a date formatted in a component, an ordinal or plural by hand).
 // The conversions (London's date today, a wall-clock time's instant, the evening) are the one shared copy in
 // @cougars/shared/london (#35), passed on here so the app's pages import their dates from one place.
-export { londonEvening, londonISO, londonTime, londonToday } from "@cougars/shared/london";
+export { londonEvening, londonISO, londonNextDay, londonTime, londonToday } from "@cougars/shared/london";
 const TZ = "Europe/London";
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
 

@@ -1,4 +1,4 @@
-// A phone's copy of the club, catching up as the live hub says what changed (ADR 0072, #112): the edges the live
+// A phone's copy of the club, catching up as the live hub says what changed (ADR 0053, #112): the edges the live
 // use cases (worker/live/live.reads.use-cases.test.ts) don't reach. Changes heard out of order, a read that comes
 // back after a newer one, a part no page follows, a refusal, a page out of view. Unit tests: the reads are a fake
 // copy of the club's versions, and the waits fake timers.

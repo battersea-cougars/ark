@@ -1,5 +1,5 @@
 // Scoring a game live, taps landing together (docs/load-testing.md): the scorekeeper may have the game open on two
-// phones (ADR 0072), and a tap can land just as another does. A real D1 runs each statement atomically but interleaves
+// phones (ADR 0053), and a tap can land just as another does. A real D1 runs each statement atomically but interleaves
 // two requests' statements between their awaits; the fake D1 does the same (`interleave`, a seed each run). Driven
 // through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

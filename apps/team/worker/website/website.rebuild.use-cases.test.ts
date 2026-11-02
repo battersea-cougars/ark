@@ -1,4 +1,4 @@
-// The website's results are pages built from a snapshot of D1 (ADR 0100), so a result that changes in the app asks
+// The website's results are pages built from a snapshot of D1 (apps/team/worker/website/README.md), so a result that changes in the app asks
 // for a rebuild: once the last game of a tournament is played, an award is confirmed or a finished one is changed.
 // The Worker waits for five quiet minutes, so a results day is one rebuild, then asks GitHub (as the club's GitHub
 // App) to run the website's deploy from its own environment's branch, with a token that can do only that (#71).

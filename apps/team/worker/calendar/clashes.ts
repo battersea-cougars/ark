@@ -1,9 +1,9 @@
-// What's already on when something new would be (ADR 0122): the calendar's timed things on its day, so an
-// admin putting the Kumite on a Friday night is asked whether Friday Training is off. Read from the agenda (ADR 0042),
+// What's already on when something new would be (apps/team/worker/calendar/README.md): the calendar's timed things on its day, so an
+// admin putting the Kumite on a Friday night is asked whether Friday Training is off. Read from the agenda (ADR 0016),
 // which every part of the club keeps, plus the nights a training's rule gives that aren't made yet (sessions are
-// made 12 weeks ahead, ADR 0030; a tournament is often further off).
+// made 12 weeks ahead, apps/team/worker/calendar/README.md; a tournament is often further off).
 import { all, first, type Param } from "@cougars/shared/d1";
-import { londonDay, londonISO } from "@cougars/shared/london";
+import { londonDay, londonISO, londonNextDay } from "@cougars/shared/london";
 import { can, type Action } from "../../src/access/actions";
 import { HORIZON_WEEKS, WEEKDAYS, addDays, ruleDates, type Weekday } from "../../src/lib/recurrence";
 import { HttpError, date, time } from "../api/api.http";
@@ -203,10 +203,10 @@ export async function clashesOver(
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.title.localeCompare(b.title));
 }
 
-/** A night whose end is before its start runs past midnight: it ends the next day. */
+/** A night whose end is before its start runs past midnight: it ends at that time the next day, on London's clock. */
 function endOf(startsAt: string, endsAt: string | null) {
   if (!endsAt) return startsAt;
-  return ms(endsAt) < ms(startsAt) ? new Date(ms(endsAt) + 86_400_000).toISOString() : endsAt;
+  return ms(endsAt) < ms(startsAt) ? londonNextDay(endsAt) : endsAt;
 }
 
 // ─── A training's nights (its editor asks, then saves) ───
@@ -256,7 +256,7 @@ export interface Night extends Span {
 }
 
 /**
- * The nights a training's save adds or moves, over the weeks its nights are made ahead (ADR 0030): every one the rule
+ * The nights a training's save adds or moves, over the weeks its nights are made ahead (apps/team/worker/calendar/README.md): every one the rule
  * gives, less those the saved training already has at the same hours (asked about when they were put on) and those
  * of its nights that are off. A paused training puts nothing on.
  */
@@ -318,7 +318,7 @@ const OTHER_RULES = `(SELECT COALESCE(group_concat(r, ';'), '') FROM (
 
 /**
  * A training's save that says what its editor asked about (`answered`, the clashes' keys): refused (409) if anything
- * else is on its new nights now, and the condition that keeps that so to the statements that write it (ADR 0121),
+ * else is on its new nights now, and the condition that keeps that so to the statements that write it (ADR 0003),
  * to go on the end of each one's WHERE. Something put on between the question and the answer, or between this read
  * and the write, refuses it, and the editor asks again. Null when there's nothing to keep to: the save wasn't asked
  * about (no `answered`), or puts no night on.

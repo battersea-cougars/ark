@@ -1,4 +1,4 @@
-// Next quarter's plan, a few days before it starts (ADR 0007, #187): everyone who'll be Quarterly next quarter is told
+// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md, #187): everyone who'll be Quarterly next quarter is told
 // its fee is due, what it is and when it's charged, and that they can still switch to pay as you go on their Dues page
 // until the day before. Five days before by default, a club setting on Settings → Membership; from 10:00 London, by
 // the hourly Cron Trigger. A notification for anyone with the app, an email for anyone without; once per member per
@@ -94,7 +94,7 @@ describe("who's told, five days before the quarter", () => {
   });
 
   it("a keeper isn't told: the Keeper plan is never charged, whatever subscription is on record", async () => {
-    // A subscription from before they were a keeper stays, and charges nothing (ADR 0007)
+    // A subscription from before they were a keeper stays, and charges nothing (apps/team/worker/dues/README.md)
     w.db.raw.exec(`INSERT INTO subscriptions (member_id, starts_on, created_at)
       SELECT id, '2026-07-01', '2026-07-01' FROM members WHERE email = 'kit@example.com'`);
     await hourly("2026-12-27T10:07");

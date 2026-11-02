@@ -1,4 +1,4 @@
-// A series' house rules (ADR 0074), driven through the real Worker handlers in the fake world (testing.ts).
+// A series' house rules (apps/team/worker/tournaments/README.md), driven through the real Worker handlers in the fake world (testing.ts).
 //
 // The story: an admin writes the Kumite's house rules in its settings, a rule a line. Every member sees them under
 // Format & rules on the Kumite's page. A wall of text is refused.

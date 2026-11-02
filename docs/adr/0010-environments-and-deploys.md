@@ -1,8 +1,8 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-30
-- **Merges:** 0005, 0013, 0017, 0075
+- **Date:** 2026-10-05 · updated 2026-11-02
+- **Merges:** 0005, 0013, 0017, 0075, 0123
 
 ## Context
 
@@ -22,7 +22,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 | Cloudflare account  | **Cougars**                                         | **Cougars Dev** (free)                                               |
 | Website worker / D1 | `web` / `cougars`, at batterseacougars.com          | `web` / `cougars-dev`, at `web.cougars-dev.workers.dev`              |
 | Team app worker     | `team`, at team.batterseacougars.com                | `team`, on dev's D1, at `team.cougars-dev.workers.dev`               |
-| Studio worker       | `studio`, at studio.batterseacougars.com (ADR 0112) | `studio`, at `studio.cougars-dev.workers.dev`                        |
+| Studio worker       | `studio`, at studio.batterseacougars.com (ADR 0004) | `studio`, at `studio.cougars-dev.workers.dev`                        |
 | Deploys from        | `release`, the daily rebuild, by `deploy.yml` only  | `main`, PRs (preview versions), `scripts/deploy-dev.sh`              |
 | Secret names        | `NAME__PRODUCTION`                                  | `NAME__DEV`                                                          |
 | Bitwarden project   | `cougars`                                           | `cougars-dev` (also holds shared plain `NAME`s)                      |
@@ -89,11 +89,13 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   from that environment's project (`GMAIL_*`, `CLOUDFLARE_ANALYTICS_TOKEN`, `GITHUB_APP_PRIVATE_KEY`); a missing one is
   skipped. On dev `SITE_ENV` is `dev`, so every email goes to the safe address
   ([ADR 0027](0027-email-through-gmail-api.md)). No PR previews: it deploys with `wrangler deploy`, not a
-  previews-only upload, so the live hub's Durable Object migration is applied ([ADR 0072](0072-live-updates.md)), and
-  `pr.yml` checks PRs instead (`svelte-check`, the Worker's `tsc`, a build).
+  previews-only upload, so the live hub's Durable Object migration is applied ([ADR 0053](0053-how-the-team-app-gets-its-data.md)), and
+  `pr.yml` checks PRs instead (its type check and a build).
 - **Every deploy is smoke-tested.** The team app's `/api/health` reads the database, so a broken D1 binding fails the
   deploy; without a session the club answers 401, and the local sign-in doesn't answer at all
-  ([ADR 0023](0023-sign-in-and-sessions.md)).
+  ([ADR 0023](0023-sign-in-and-sessions.md)). Only a release push sends the join form's real enquiry and its emails
+  (subject naming the environment); the daily rebuild, a result's rebuild and dev check the pages and the join API
+  without it, so the inbox gets one when code goes live.
 - **CI trusts as little as it can** (#70): every action is pinned to a commit SHA (its tag in a comment), the
   Bitwarden CLI is checked against its published checksum before it runs, each workflow starts with
   `contents: read` and a job widens only what it needs, the PR comment goes through GitHub's own `gh`, every commit is scanned for secrets (gitleaks, the same way pinned
@@ -102,7 +104,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   repository ruleset, `scripts/branch-rules.mjs`).
 - **The team app is behind Cloudflare Access until launch**, so it can be deployed and tried for real first (the
   website, `batterseacougars.com` and `www.`, has been open since 2026-10-30): it asks for an email and a one-time code and let in only the emails on its Admins policy, which
-  is managed by hand in the Zero Trust dashboard (`scripts/access-setup.mjs` starts it once, docs/setup.md). CI gets past it with a service token
+  is managed by hand in the Zero Trust dashboard (`scripts/access-setup.mjs` starts it once, docs/accounts.md). CI gets past it with a service token
   (`CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION`) for the smoke tests. Until the `production` environment's variable
   `LAUNCHED` is `true`, production's database rebuilds like dev's ([ADR 0050](0050-schema-and-seed-until-launch.md)).
   Launch: `db-launch.mjs`, `access-setup.mjs --remove`, `LAUNCHED=true`.
@@ -127,12 +129,20 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   they were.
 - `DEMO_CONTENT` (sample events, videos, players and placeholder photos) is never on for production: what Sanity
   doesn't have yet, production doesn't show.
+- **A dev-only tool isn't there in production.** It exists only where the environment says so in so many words: a
+  deploy's `SITE_ENV` is `dev`, or your own machine's server says `TEAM_ENV` `local` with no `SITE_ENV`. Anything else
+  (production, a missing or unknown environment) counts as production: fail closed. A route says
+  `only: (env) => boolean` (`api.route.ts`) and the router leaves it out before matching, so production answers 404 to
+  anyone before reading who's asking; the handler checks again, and it still needs its action like any admin job. The
+  bootstrap says whether it's there for you, and the app shows it only then. (Email fails the other way, safe by
+  sending less: outside production it reaches only the safe inbox, [ADR 0027](0027-email-through-gmail-api.md).) What
+  the Kumite simulator and Dev tools do is in [the Settings notes](../../apps/team/worker/settings/README.md).
 
 ## Consequences
 
 - Two Cloudflare logins, two Sanity projects and their tokens to look after, documented in
   [docs/secrets.md](../secrets.md). Webhooks, CORS origins, tokens and members are set up per Sanity
-  project ([setup.md](../setup.md#2-sanity-content-editing)); each counts against the free plan separately.
+  project ([accounts.md](../accounts.md#sanity)); each counts against the free plan separately.
 - Each environment has its own database: a PR rebuilds dev, never production. Dev's data is rebuilt on each deploy
   from the schema and seed ([ADR 0050](0050-schema-and-seed-until-launch.md)).
 - Merged work lands on the dev site first; production lags until someone pushes `release`.
@@ -144,55 +154,3 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
 - The dev site is `web.<dev subdomain>.workers.dev`, the team app `team.<dev subdomain>.workers.dev`; PR previews are
   aliases on `web`. Run `scripts/deploy-dev.sh`
   once before the first PR on a fresh account, so the worker exists.
-
-## History
-
-- 2026-10-05: Production deploys only from `main` via `deploy.yml`; design previews on a separate `cougars-preview`
-  worker on the same account (0005).
-- 2026-10-05: Two environments on two Cloudflare accounts, with one Sanity project and two datasets; `cougars-preview`
-  dropped for the dev account (0010, superseding 0005).
-- 2026-10-05: `main` deploys dev and `release` production, so merged work has a stable place before it goes live
-  (0013).
-- 2026-10-05: Two Sanity projects, one per environment, so a dev token can't reach live content (0017).
-- 2026-10-05: The Studio publish webhook dropped for a daily production rebuild (ADR 0004).
-- 2026-10-08: The team app deploys to dev from `main` as `cougars-team-dev`; no production until launch (0075).
-- 2026-10-09: Team-app screens still on demo data (dues, fees, Upload) are hidden in production (#63).
-- 2026-10-09: Every app gets a link on the Deployments page: the team app and the Studio as their own environments;
-  the Studio deploy moves into the production job.
-- 2026-10-09: Workers renamed `web` and `team` in both accounts (were `cougars`, `cougars-dev`, `cougars-team-dev`), so
-  dev is `web.cougars-dev.workers.dev`, not `cougars-dev.cougars-dev.workers.dev`.
-- 2026-10-09: One job per app (`web`, `team`, `studio`); a push or PR deploys only the apps its files touch. Each app
-  is listed as its own environment, and the jobs no longer list `preview` or `production` deploys.
-- 2026-10-09: The database rebuild and roster seed move to their own `database` job, so the team app no longer waits
-  for the website.
-- 2026-10-10: The team app deploys to production from `release` at team.batterseacougars.com; PRs check it; health reads
-  D1; rollback through `rollback.yml` (#27).
-- 2026-10-10: Actions pinned by SHA, the Bitwarden CLI checksummed, least-privilege permissions, Dependabot; `main`
-  and `release` protected from force-push and deletion (#70, #71).
-- 2026-10-10: Production deployed before launch, behind Cloudflare Access (admins and CI's service token only).
-- 2026-10-17: Production never builds with demo content; the `production` environment's `DEMO_CONTENT` variable is
-  gone. Getting ready for launch, its placeholder photos and sample players must not ship.
-- 2026-10-17: Who passes the Access gate is managed by hand in the dashboard; `access-setup.mjs` no longer rewrites
-  the list from the roster when it runs again.
-- 2026-10-18: The Studio moves off `battersea-cougars.sanity.studio` to its own Worker, `studio`: studio.batterseacougars.com
-  from `release`, and now a dev Studio from `main` too (ADR 0112).
-- 2026-10-23: Deploy only what changed, more narrowly: only the scripts a deploy runs count, not all of `scripts/`;
-  PR checks run the merge:check tier their files reach; `node_modules` cached by lockfile, `npm ci` only on a miss
-  (#148).
-- 2026-10-24: The daily rebuild starts some time after 04:37 UTC, not at 04:30, and the nightly backup after 03:13:
-  GitHub runs schedules on the hour and the half and quarter hours late, or drops them (#148).
-- 2026-10-24: A corner ribbon and tab-title prefix, `LOCAL` on a machine and `DEV` on dev, on the website and the team
-  app; nothing in production.
-- 2026-10-24: On your machine the ribbon and the tab's title name the checkout's branch, and "own data" when it's on
-  its own local D1, since several worktrees' apps run at once.
-- 2026-10-24: Every commit is scanned for secrets with a pinned, checksum-checked gitleaks: `pr.yml` the PR's commits
-  (checked out whole now), `secrets.yml` the whole history on a push to `main` and weekly (#104).
-- 2026-10-30: The club's outside accounts (Instagram, YouTube) have no dev copy: dev, previews and your machine
-  read the real ones, read-only, so a change to the photos or videos can be seen locally. Instagram's token becomes one
-  value for both environments.
-- 2026-10-30: The website (`batterseacougars.com`, `www.`) is open to everyone; only the team app stays behind Access
-  until launch (`access-setup.mjs` gates `team.` alone). The database isn't launched yet: production still rebuilds
-  until `LAUNCHED`.
-- 2026-10-30: Changes go by pull request: work into `main`, and `main` into `release` to go live (was
-  `git push origin main:release`). A ruleset makes `release` take changes only through a pull request whose PR checks
-  pass; `pr.yml` checks PRs into `release` too. Both rulesets are written by `scripts/branch-rules.mjs`.

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // You're on Team X (ADR 0074): the lead of a tournament's front page once the teams are set. Its crest, its name big,
+  // You're on Team X (apps/team/worker/tournaments/README.md): the lead of a tournament's front page once the teams are set. Its crest, its name big,
   // its captain and your teammates, on the page (not a card); a tap opens the team.
   import type { Tournament, TournamentType } from "../demo/model";
   import { PLAYERS } from "../demo/data";

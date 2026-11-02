@@ -1,4 +1,4 @@
-// A training night called off, as its page shows it (ADR 0030, ADR 0065): the page is the series' next night that's
+// A training night called off, as its page shows it (ADR 0065, apps/team/worker/training/README.md): the page is the series' next night that's
 // on, and any night from today up to it that's cancelled shows above it, struck through, so a Friday off for the
 // Kumite never just vanishes. Manage cancels the night shown, or puts one that's off back on. Each night has its own
 // page too, at its date (/training/friday/2026-10-30), past ones included: that one alone, off or on.
@@ -33,7 +33,7 @@ export function trainingNights<S extends Night>(sessions: S[], seriesId: number,
 /** Who hears a night's off if it's cancelled: whoever's in or waiting. */
 export const signedUp = (s: Night) => s.going.length + s.waitlist.length;
 
-/** What the admin's told before a night goes off (the clash sheet's words too, ADR 0122). */
+/** What the admin's told before a night goes off (the clash sheet's words too, apps/team/worker/training/README.md). */
 export const offWords = (n: number) =>
   n ? `${n} signed up ${n === 1 ? "hears" : "hear"} it's off if you cancel it.` : "Nobody's signed up yet.";
 

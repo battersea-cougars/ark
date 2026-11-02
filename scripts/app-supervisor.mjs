@@ -196,7 +196,8 @@ function launch(app) {
   const argv = secrets ? [process.execPath, join(import.meta.dirname, "env-pull.mjs"), "--", ...cmd] : cmd;
   const state = localState({ dir: app.dir, main, ownDb: options.get(app.dir)?.ownDb });
   if (!state && app.dir !== main) {
-    // Its own copy: main's data and sign-ins to start from, then the branch's own `npm run db:rebuild:local`
+    // Its own copy: main's data and sign-ins to start from, then the branch's own `npm run db:rebuild:local` (after launch,
+    // `npm run db:migrate:local`)
     const own = join(app.dir, "apps", "web", ".wrangler", "state");
     const mains = join(main, "apps", "web", ".wrangler", "state");
     if (!existsSync(own) && existsSync(mains)) cpSync(mains, own, { recursive: true });
@@ -375,7 +376,7 @@ function serveSwitch(service) {
     if (!t.up) return socket.destroy();
     forwardUpgrade(req, socket, head, t.port);
   });
-  server.requestTimeout = 0; // live streams (SSE, ADR 0072) stay open
+  server.requestTimeout = 0; // live streams (SSE, ADR 0053) stay open
   server.on("error", (e) => {
     log(`can't hold ${PORTS[service]} for the ${label}: ${e.message}`);
     void shutdown("a port is taken");

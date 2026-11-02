@@ -56,13 +56,13 @@ CREATE TABLE members (
   -- 0–100, for balancing teams; only read:Rating sees it
   rating INTEGER NOT NULL DEFAULT 50,
   cougar INTEGER NOT NULL DEFAULT 0,
-  -- Their profile photo (ADR 0133): a small square image their phone shrank, as a data: URL, or null (their
+  -- Their profile photo (apps/team/worker/members/README.md): a small square image their phone shrank, as a data: URL, or null (their
   -- initials). photo_at is when it was set, so its address changes with it and browsers can keep it.
   photo TEXT,
   photo_at TEXT,
   -- pending (asked to join), active, inactive, erased (deleted their account: a nameless Former member, #30)
   status TEXT NOT NULL DEFAULT 'active',
-  -- The bank-transfer reference, the name as a bank shows it: COUGARS ADRIAN K (ADR 0007)
+  -- The bank-transfer reference, the name as a bank shows it: COUGARS ADRIAN K (apps/team/worker/dues/README.md)
   payment_reference TEXT UNIQUE,
   joined_on TEXT NOT NULL,
   created_at TEXT NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE member_roles (
 
 CREATE INDEX member_roles_role ON member_roles (role_id);
 
--- Places the club goes again and again (ADR 0030), picked by trainings, tournaments and events. Each of those also
+-- Places the club goes again and again (apps/team/worker/training/README.md), picked by trainings, tournaments and events. Each of those also
 -- has a name and map_url of its own, for a one-off that needn't be saved; empty map links mean a map search.
 CREATE TABLE venues (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,7 +125,7 @@ CREATE TABLE training_series (
   ends_on TEXT,
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
-  -- Where (ADR 0030): a saved venue, else its own name and map link
+  -- Where (apps/team/worker/training/README.md): a saved venue, else its own name and map link
   venue_id INTEGER REFERENCES venues (id),
   venue TEXT NOT NULL DEFAULT '',
   map_url TEXT NOT NULL DEFAULT '',
@@ -134,7 +134,7 @@ CREATE TABLE training_series (
   goalie_capacity INTEGER,
   signup_closes_mins INTEGER,
   -- A night's sign-up opens this many days before it, at midnight London time (Friday: 4, the Monday), and members
-  -- are told; null: always open, nothing told (ADR 0030)
+  -- are told; null: always open, nothing told (apps/team/worker/training/README.md)
   signup_opens_days INTEGER,
   -- Listed on the website calendar
   public INTEGER NOT NULL DEFAULT 1,
@@ -156,15 +156,15 @@ CREATE TABLE training_sessions (
   capacity INTEGER,
   goalie_capacity INTEGER,
   note TEXT,
-  -- Off (#186, ADR 0122): set while anything keeps it off, an admin calling it off by hand (called_off_at) or a
+  -- Off (#186, apps/team/worker/training/README.md): set while anything keeps it off, an admin calling it off by hand (called_off_at) or a
   -- tournament on its day (training_session_offs), and only then. Everything that asks whether a night's on reads this
   cancelled_at TEXT,
   -- When an admin called it off by hand, from its page; null when that's not why it's off
   called_off_at TEXT,
   register_closed_at TEXT,
-  -- When members were told its sign-up opened (ADR 0030, 0108): taken by the cron run that tells them, so it's once
+  -- When members were told its sign-up opened (ADR 0108, apps/team/worker/training/README.md): taken by the cron run that tells them, so it's once
   signup_told_at TEXT,
-  -- What a session costs (ADR 0007): the series' fee on its day, written when it first charges someone, and worked
+  -- What a session costs (apps/team/worker/dues/README.md): the series' fee on its day, written when it first charges someone, and worked
   -- out again when a fee is set from a date on or before it
   fee_pence INTEGER,
   UNIQUE (series_id, held_on)
@@ -185,37 +185,37 @@ CREATE TABLE tournament_types (
   points_draw INTEGER NOT NULL DEFAULT 1,
   points_loss INTEGER NOT NULL DEFAULT 0,
   game_minutes INTEGER NOT NULL DEFAULT 12,
-  -- How a penalty's served (ADR 0061), copied onto each new edition: power_play (the box, a player short) or sit_out
+  -- How a penalty's served (apps/team/worker/tournaments/README.md), copied onto each new edition: power_play (the box, a player short) or sit_out
   -- (a penalty shot, the player sits out, nobody short)
   penalty_rule TEXT NOT NULL DEFAULT 'power_play',
-  -- The penalty length the penalty sheet starts on (ADR 0061), copied onto each new edition: 2 (a minor), 4 (a double
+  -- The penalty length the penalty sheet starts on (apps/team/worker/tournaments/README.md), copied onto each new edition: 2 (a minor), 4 (a double
   -- minor, 2+2) or 5 (a major)
   default_penalty_minutes INTEGER NOT NULL DEFAULT 2,
-  -- A game's periods (1 to 3), each game_minutes long (ADR 0061), copied onto each new edition
+  -- A game's periods (1 to 3), each game_minutes long (apps/team/worker/tournaments/README.md), copied onto each new edition
   periods INTEGER NOT NULL DEFAULT 1,
-  -- The break between periods, in minutes (0 to 15, ADR 0061), copied onto each new edition
+  -- The break between periods, in minutes (0 to 15, apps/team/worker/tournaments/README.md), copied onto each new edition
   break_minutes INTEGER NOT NULL DEFAULT 2,
-  -- How its tournaments make teams (ADR 0030): teams (teams enter) or draft (captains draft members)
+  -- How its tournaments make teams (apps/team/worker/training/README.md): teams (teams enter) or draft (captains draft members)
   kind TEXT NOT NULL DEFAULT 'teams',
   active INTEGER NOT NULL DEFAULT 1,
-  -- Copied onto each new edition, where it can be changed (ADR 0007)
+  -- Copied onto each new edition, where it can be changed (apps/team/worker/dues/README.md)
   default_fee_pence INTEGER NOT NULL DEFAULT 0,
-  -- Its usual hours, copied onto each new edition (ADR 0074): the Kumite is instead of Friday training, at its time
+  -- Its usual hours, copied onto each new edition (apps/team/worker/tournaments/README.md): the Kumite is instead of Friday training, at its time
   default_start_time TEXT NOT NULL DEFAULT '11:00',
   default_end_time TEXT NOT NULL DEFAULT '16:00',
   awards TEXT NOT NULL DEFAULT '[]',
-  -- The playoff games after the round robin, by table position: [{name, home, away}] (ADR 0061)
+  -- The playoff games after the round robin, by table position: [{name, home, away}] (apps/team/worker/tournaments/README.md)
   playoffs TEXT NOT NULL DEFAULT '[]',
-  -- Its usual place (ADR 0030): a saved venue, else a name and map link
+  -- Its usual place (apps/team/worker/training/README.md): a saved venue, else a name and map link
   venue_id INTEGER REFERENCES venues (id),
   location TEXT NOT NULL DEFAULT '',
   map_url TEXT NOT NULL DEFAULT '',
-  -- Where everyone goes afterwards (ADR 0074), each of its tournaments' unless one says otherwise: a saved venue, an
+  -- Where everyone goes afterwards (apps/team/worker/tournaments/README.md), each of its tournaments' unless one says otherwise: a saved venue, an
   -- optional time (HH:MM) and a few words on what for ("Celebration and awards"). No venue: nowhere
   after_venue_id INTEGER REFERENCES venues (id),
   after_time TEXT,
   after_note TEXT NOT NULL DEFAULT '',
-  -- Its house rules (ADR 0074), as an admin writes them: plain text, a rule a line; shown under Format & rules
+  -- Its house rules (apps/team/worker/tournaments/README.md), as an admin writes them: plain text, a rule a line; shown under Format & rules
   house_rules TEXT NOT NULL DEFAULT ''
 );
 
@@ -224,7 +224,7 @@ CREATE TABLE tournaments (
   -- Its series, if it has one: a tournament can stand on its own
   type_id INTEGER REFERENCES tournament_types (id),
   name TEXT NOT NULL,
-  -- Its place (ADR 0030): a saved venue, else a name and map link; none of them: its series'
+  -- Its place (apps/team/worker/training/README.md): a saved venue, else a name and map link; none of them: its series'
   venue_id INTEGER REFERENCES venues (id),
   location TEXT NOT NULL DEFAULT '',
   map_url TEXT NOT NULL DEFAULT '',
@@ -237,54 +237,54 @@ CREATE TABLE tournaments (
   champions TEXT,
   fee_pence INTEGER NOT NULL DEFAULT 0,
   public INTEGER NOT NULL DEFAULT 1,
-  -- Sign-up opens by itself on this day (ADR 0074), unless an admin opened it by hand (status 'open')
+  -- Sign-up opens by itself on this day (apps/team/worker/tournaments/README.md), unless an admin opened it by hand (status 'open')
   signup_opens_on TEXT,
   signup_closes_on TEXT,
-  -- An admin closed sign-up early (ADR 0074): when, its dates left as they were; null until then, and again once it's
+  -- An admin closed sign-up early (apps/team/worker/tournaments/README.md): when, its dates left as they were; null until then, and again once it's
   -- stepped back to Sign-up open
   signup_closed_at TEXT,
   -- When members were told its sign-up opened (ADR 0108): once, on its day or when an admin opened it by hand
   signup_told_at TEXT,
   draft_on TEXT,
-  -- The captains' draft (ADR 0060): none until an admin opens it, then open, then closed (teams locked)
+  -- The captains' draft (apps/team/worker/tournaments/README.md): none until an admin opens it, then open, then closed (teams locked)
   draft_state TEXT NOT NULL DEFAULT 'none',
   season TEXT,
   points_win INTEGER NOT NULL DEFAULT 3,
   points_draw INTEGER NOT NULL DEFAULT 1,
   points_loss INTEGER NOT NULL DEFAULT 0,
   game_minutes INTEGER NOT NULL DEFAULT 12,
-  -- power_play or sit_out, copied from its series (ADR 0061)
+  -- power_play or sit_out, copied from its series (apps/team/worker/tournaments/README.md)
   penalty_rule TEXT NOT NULL DEFAULT 'power_play',
-  -- 2, 4 or 5: the penalty sheet's usual length, copied from its series (ADR 0061)
+  -- 2, 4 or 5: the penalty sheet's usual length, copied from its series (apps/team/worker/tournaments/README.md)
   default_penalty_minutes INTEGER NOT NULL DEFAULT 2,
-  -- A game's periods, each game_minutes long, copied from its series (ADR 0061)
+  -- A game's periods, each game_minutes long, copied from its series (apps/team/worker/tournaments/README.md)
   periods INTEGER NOT NULL DEFAULT 1,
-  -- The break between periods, in minutes, copied from its series (ADR 0061)
+  -- The break between periods, in minutes, copied from its series (apps/team/worker/tournaments/README.md)
   break_minutes INTEGER NOT NULL DEFAULT 2,
-  -- teams (teams enter) or draft (captains draft members), copied from its series (ADR 0030)
+  -- teams (teams enter) or draft (captains draft members), copied from its series (apps/team/worker/training/README.md)
   kind TEXT NOT NULL DEFAULT 'teams',
   awards TEXT NOT NULL DEFAULT '[]',
-  -- The playoff games after the round robin, by table position: [{name, home, away}] (ADR 0061)
+  -- The playoff games after the round robin, by table position: [{name, home, away}] (apps/team/worker/tournaments/README.md)
   playoffs TEXT NOT NULL DEFAULT '[]',
-  -- Where everyone goes afterwards (ADR 0074): usual (its series'), own (after_venue_id, after_time, after_note) or
+  -- Where everyone goes afterwards (apps/team/worker/tournaments/README.md): usual (its series'), own (after_venue_id, after_time, after_note) or
   -- none (not this time)
   after_mode TEXT NOT NULL DEFAULT 'usual',
   after_venue_id INTEGER REFERENCES venues (id),
   after_time TEXT,
   after_note TEXT NOT NULL DEFAULT '',
-  -- How many of its awards have been revealed at the after-party, in the order listed (ADR 0074): one more a tap
+  -- How many of its awards have been revealed at the after-party, in the order listed (apps/team/worker/tournaments/README.md): one more a tap
   awards_revealed INTEGER NOT NULL DEFAULT 0,
-  -- The after-party's one card (ADR 0074), a drum: 0 shows the last one revealed (or the first, sealed, before any);
+  -- The after-party's one card (apps/team/worker/tournaments/README.md), a drum: 0 shows the last one revealed (or the first, sealed, before any);
   -- 1, rolled on to the next one, sealed. Each tap moves it one
   awards_next INTEGER NOT NULL DEFAULT 0,
-  -- When an admin confirmed the awards the data decides (ADR 0044): a stat's or a draw's. Voted and live awards are
+  -- When an admin confirmed the awards the data decides (apps/team/worker/tournaments/README.md): a stat's or a draw's. Voted and live awards are
   -- decided at the reveal, so a tournament with only those needs no confirming
   awards_confirmed_at TEXT
 );
 
 CREATE INDEX tournaments_held_on ON tournaments (held_on);
 
--- A training night off for a tournament on its day (#186, ADR 0122): the clash sheet's Cancel, or a training skipping
+-- A training night off for a tournament on its day (#186, apps/team/worker/training/README.md): the clash sheet's Cancel, or a training skipping
 -- its night. The night comes back when nothing keeps it off: its tournaments gone or moved off its day, and not called
 -- off by hand (training_sessions.called_off_at)
 CREATE TABLE training_session_offs (
@@ -300,7 +300,7 @@ CREATE TABLE club_events (
   title TEXT NOT NULL,
   starts_at TEXT NOT NULL,
   ends_at TEXT NOT NULL,
-  -- A saved venue, else a name and the map link pasted for it (ADR 0030)
+  -- A saved venue, else a name and the map link pasted for it (apps/team/worker/training/README.md)
   venue_id INTEGER REFERENCES venues (id),
   venue TEXT NOT NULL DEFAULT '',
   map_url TEXT NOT NULL DEFAULT '',
@@ -422,7 +422,7 @@ CREATE TABLE subscriptions (
 
 CREATE INDEX subscriptions_member ON subscriptions (member_id);
 
--- Dues (ADR 0007): a training's fee, and the quarterly rate, each from a date going forward
+-- Dues (apps/team/worker/dues/README.md): a training's fee, and the quarterly rate, each from a date going forward
 CREATE TABLE series_fees (
   series_id INTEGER NOT NULL REFERENCES training_series (id) ON DELETE CASCADE,
   effective_from TEXT NOT NULL,
@@ -443,7 +443,7 @@ CREATE TABLE charges (
   session_id INTEGER REFERENCES training_sessions (id) ON DELETE CASCADE,
   tournament_id INTEGER REFERENCES tournaments (id) ON DELETE CASCADE,
   quarter TEXT,
-  -- An adjustment an admin adds, and why (ADR 0007)
+  -- An adjustment an admin adds, and why (apps/team/worker/dues/README.md)
   reason TEXT,
   amount_pence INTEGER NOT NULL,
   due_on TEXT NOT NULL,
@@ -719,7 +719,7 @@ CREATE INDEX audit_log_at ON audit_log (at);
 -- The admins' Home and Settings → Email read the last reconnect's try (mail.ts): by action, not back through the log
 CREATE INDEX audit_log_action ON audit_log (action);
 
--- A tournament's teams (ADR 0030). Teams enter: each signs up with a name, a captain and its players, who may be
+-- A tournament's teams (apps/team/worker/training/README.md). Teams enter: each signs up with a name, a captain and its players, who may be
 -- from outside the club. Captains draft: each captain is a member, given a pick order, and drafts members.
 CREATE TABLE tournament_teams (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -731,7 +731,7 @@ CREATE TABLE tournament_teams (
   captain_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
   captain_name TEXT NOT NULL DEFAULT '',
   contact TEXT NOT NULL DEFAULT '',
-  -- Captains draft: the captain's pick order, from 1, drawn at random as the draft opens (ADR 0060); null until
+  -- Captains draft: the captain's pick order, from 1, drawn at random as the draft opens (apps/team/worker/tournaments/README.md); null until
   -- then, and for a team that entered
   pick INTEGER,
   created_at TEXT NOT NULL
@@ -753,7 +753,7 @@ CREATE TABLE tournament_team_players (
   position INTEGER NOT NULL DEFAULT 0,
   -- A draft pick: its number in the whole draft (1, 2, …), which decides whose turn it is and what Undo takes back
   pick_number INTEGER,
-  -- Who made a draft pick: the team's captain, or someone running the draft picking for them (ADR 0060)
+  -- Who made a draft pick: the team's captain, or someone running the draft picking for them (apps/team/worker/tournaments/README.md)
   picked_by INTEGER REFERENCES members (id) ON DELETE SET NULL
 );
 
@@ -764,13 +764,16 @@ CREATE INDEX tournament_team_players_team ON tournament_team_players (team_id, c
 -- roster, so the app's bootstrap can answer "nothing's changed" (ETag, ADR 0053). It starts from the time it was
 -- made, so a remade database never repeats an old version. Beside it, the London day the coming training sessions
 -- were last made (apps/team/worker/schedule.ts ensureSessions): the day's first open of the app makes them, the rest
--- skip it, read in the same row (ADR 0057).
+-- skip it, read in the same row (ADR 0053).
 CREATE TABLE data_version (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   version INTEGER NOT NULL,
   sessions_made_on TEXT,
   -- The last day whose training nights are in members.played (members.played.ts, #177): null, none yet
   played_through TEXT,
+  -- The day the hourly run last worked charges out to (dues.scope.ts newDays, #222): the next looks at the nights and
+  -- tournaments from then on, not every one there's been. Null: never, so the first works out the whole club
+  charged_through TEXT,
   -- The version each part of the club last changed at, through the app (#178): {"sessions": 1234, ...}, the parts a
   -- change declared (api.ts). A page's data is tagged, and kept at the edge, by its parts' versions, so a tap on
   -- Friday doesn't make the roster new (api.versions.ts)
@@ -792,7 +795,7 @@ BEGIN
   UPDATE data_version SET untold = NEW.version WHERE id = NEW.id;
 END;
 
--- The website wants rebuilding (apps/team/worker/website.ts, ADR 0100): a finished tournament changed. One row while
+-- The website wants rebuilding (apps/team/worker/website.ts, ADR 0016): a finished tournament changed. One row while
 -- one is wanted; the team Worker's five-minute cron sends it to GitHub after five quiet minutes and deletes the row.
 CREATE TABLE website_rebuild (
   id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -800,7 +803,7 @@ CREATE TABLE website_rebuild (
 );
 
 -- When something last happened to the website, by name (packages/shared/website-times.ts): `rebuild_sent`, the last
--- rebuild the team app asked GitHub for (Settings → Website, ADR 0100), and `media_refreshed`, when an admin last
+-- rebuild the team app asked GitHub for (Settings → Website, ADR 0016), and `media_refreshed`, when an admin last
 -- pressed Refresh photos and videos there (ADR 0016): the website's YouTube and Instagram copies from before it are no
 -- longer fresh, so the next visit reads them again.
 CREATE TABLE website_times (
@@ -808,7 +811,7 @@ CREATE TABLE website_times (
   at TEXT NOT NULL
 );
 
--- Who won a tournament's awards (apps/team/worker/tournaments/awards.ts, ADR 0044): a team (Champions) or a player on
+-- Who won a tournament's awards (apps/team/worker/tournaments/awards.ts, apps/team/worker/tournaments/README.md): a team (Champions) or a player on
 -- one of its teams (Top scorer). The award is one of the tournament's own, by name (tournaments.awards). An admin's
 -- live call is named on the night: `title` is the name they chose ("Most Dramatic Fall"); null for every other award.
 CREATE TABLE tournament_award_winners (
@@ -821,7 +824,7 @@ CREATE TABLE tournament_award_winners (
   PRIMARY KEY (tournament_id, award, position)
 );
 
--- The votes for a voted award (ADR 0044): one a voter an award, secret (nobody's sent who voted for whom but the voter),
+-- The votes for a voted award (apps/team/worker/tournaments/README.md): one a voter an award, secret (nobody's sent who voted for whom but the voter),
 -- never for themselves. Cast once the last match is played, until the award's revealed; the reveal counts them.
 CREATE TABLE tournament_award_votes (
   tournament_id INTEGER NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
@@ -833,12 +836,12 @@ CREATE TABLE tournament_award_votes (
   CHECK (voter_member_id <> candidate_member_id)
 );
 
--- The club's settings for the team app (apps/team/worker/settings.ts, ADR 0072): one row, made on the first save.
+-- The club's settings for the team app (apps/team/worker/settings.ts, ADR 0053): one row, made on the first save.
 -- How often live pages (a game being scored, a tournament's home, the draft room) check for updates, in seconds.
 CREATE TABLE club_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   live_refresh_seconds INTEGER NOT NULL DEFAULT 10 CHECK (live_refresh_seconds BETWEEN 5 AND 120),
-  -- Where members pay (ADR 0007): the account's name, sort code (6 digits) and number (8 digits), set by whoever sets
+  -- Where members pay (apps/team/worker/dues/README.md): the account's name, sort code (6 digits) and number (8 digits), set by whoever sets
   -- fees. Shown on every member's Dues page and in reminders; none yet means no reminder goes out.
   bank_name TEXT,
   bank_sort_code TEXT,
@@ -848,7 +851,7 @@ CREATE TABLE club_settings (
   plan_reminder_days INTEGER NOT NULL DEFAULT 5 CHECK (plan_reminder_days BETWEEN 1 AND 30)
 );
 
--- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, ADR 0007): sent by an admin (sent_by), at most
+-- Reminders of what someone owes (apps/team/worker/dues/reminders.ts, apps/team/worker/dues/README.md): sent by an admin (sent_by), at most
 -- one per member a week. A row is claimed (queued) before it's sent, so two runs send one
 -- email, and a run takes it to send (sending, sending_at) so two runs at once never both send it; a send that fails is
 -- deleted, so it's tried again. Admins see when someone was last reminded.
@@ -879,7 +882,7 @@ CREATE TABLE dev_mail_recipients (
   added_at TEXT NOT NULL
 );
 
--- Next quarter's plan, told a few days before it starts (apps/team/worker/dues/plan-reminders.ts, ADR 0007, #187):
+-- Next quarter's plan, told a few days before it starts (apps/team/worker/dues/plan-reminders.ts, apps/team/worker/dues/README.md, #187):
 -- one row per member per quarter, claimed before it's sent so two runs tell once. `via`: push (their phone or
 -- browser) or email (no app). An email that fails is deleted, so it's tried again; the row is the record of who was
 -- told, for which quarter, how and when.
@@ -891,15 +894,15 @@ CREATE TABLE plan_reminders (
   PRIMARY KEY (member_id, quarter)
 );
 
--- The usage check's warnings (apps/team/worker/settings/usage.ts, ADR 0059): one email per metric per day (UTC); for
--- Sanity's monthly quotas (ADR 0116), per month (`day` is then 2026-10)
+-- The usage check's warnings (apps/team/worker/settings/usage.ts, ADR 0003): one email per metric per day (UTC); for
+-- Sanity's monthly quotas (ADR 0003), per month (`day` is then 2026-10)
 CREATE TABLE usage_warnings (
   day TEXT NOT NULL,
   metric TEXT NOT NULL,
   PRIMARY KEY (day, metric)
 );
 
--- How near each free limit is (apps/team/worker/settings/usage.levels.ts, ADR 0059, #148): the hourly check keeps a
+-- How near each free limit is (apps/team/worker/settings/usage.levels.ts, ADR 0003, #148): the hourly check keeps a
 -- row for each limit at 70% or more, and only those, for the admins' Home. `period` is the UTC day it's for, or for
 -- Sanity's monthly quotas the month; a row from a day that's over is ignored.
 CREATE TABLE usage_levels (
@@ -909,7 +912,7 @@ CREATE TABLE usage_levels (
   percent INTEGER NOT NULL
 );
 
--- Our own count of requests to Sanity (packages/shared/sanity-requests.ts, ADR 0116): Sanity has no usage API. One row
+-- Our own count of requests to Sanity (packages/shared/sanity-requests.ts, ADR 0003): Sanity has no usage API. One row
 -- per UTC day, project (production's or dev's) and quota (`api` or its `cdn`), added to after each request that read
 -- Sanity, and by each build. The team app's Usage page and hourly check read this month's.
 CREATE TABLE sanity_requests (
@@ -920,7 +923,7 @@ CREATE TABLE sanity_requests (
   PRIMARY KEY (day, project, kind)
 );
 
--- What Sentry last said about the apps' open issues (apps/team/worker/settings/errors.ts, ADR 0111): one row, so
+-- What Sentry last said about the apps' open issues (apps/team/worker/settings/errors.ts, ADR 0110): one row, so
 -- Settings → Errors asks Sentry at most every few minutes, whoever opens it. A failure keeps the last answer.
 CREATE TABLE sentry_issues (
   id        INTEGER PRIMARY KEY CHECK (id = 1),
@@ -951,7 +954,7 @@ CREATE TABLE hourly_run (
   finished_at TEXT
 );
 
--- Backups of this database (scripts/db-backup.mjs, ADR 0106): when, why (nightly, before a deploy changes the schema)
+-- Backups of this database (scripts/db-backup.mjs, ADR 0050): when, why (nightly, before a deploy changes the schema)
 -- and how big, sealed. The file itself is a CI artifact; this is so the Usage page can say when the last one was.
 CREATE TABLE backups (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -960,7 +963,7 @@ CREATE TABLE backups (
   bytes INTEGER NOT NULL
 );
 
--- A tournament's games (ADR 0061): its round robin, then its playoffs, which know their seeds (1st v 2nd) until the
+-- A tournament's games (apps/team/worker/tournaments/README.md): its round robin, then its playoffs, which know their seeds (1st v 2nd) until the
 -- table fills them in. Scores are the final ones; goal by goal comes with live scoring (T5).
 CREATE TABLE tournament_games (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -979,24 +982,24 @@ CREATE TABLE tournament_games (
   away_goals INTEGER,
   -- next / live / done
   status TEXT NOT NULL DEFAULT 'next',
-  -- The game clock (ADR 0061): time left when it last stopped, and when it was started again (null: stopped). Time
+  -- The game clock (apps/team/worker/tournaments/README.md): time left when it last stopped, and when it was started again (null: stopped). Time
   -- left now is clock_left_ms minus the time since clock_started_at
   clock_left_ms INTEGER,
   clock_started_at TEXT,
   -- Who holds the scoresheet: whoever pressed Start scoring; nobody else scores it until they (or an admin) let go
   keeper_member_id INTEGER REFERENCES members (id) ON DELETE SET NULL,
-  -- The period being played (ADR 0061): the clock counts down each one in turn
+  -- The period being played (apps/team/worker/tournaments/README.md): the clock counts down each one in turn
   period INTEGER NOT NULL DEFAULT 1,
-  -- When the last period ended: the break before the next, until its clock starts (ADR 0061)
+  -- When the last period ended: the break before the next, until its clock starts (apps/team/worker/tournaments/README.md)
   period_ended_at TEXT,
-  -- When it actually kicked off: the first Start of its clock (ADR 0061), kept through pauses and periods; null until
-  -- then, and again when it's put back to not played. The tournament's own hours never move for it (ADR 0074)
+  -- When it actually kicked off: the first Start of its clock (apps/team/worker/tournaments/README.md), kept through pauses and periods; null until
+  -- then, and again when it's put back to not played. The tournament's own hours never move for it (apps/team/worker/tournaments/README.md)
   started_at TEXT
 );
 
 CREATE INDEX tournament_games_tournament ON tournament_games (tournament_id, position);
 
--- Each goal as it went in (ADR 0061): its team, who scored and who assisted (null: not said), and when, in game time
+-- Each goal as it went in (apps/team/worker/tournaments/README.md): its team, who scored and who assisted (null: not said), and when, in game time
 CREATE TABLE tournament_goals (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   game_id INTEGER NOT NULL REFERENCES tournament_games (id) ON DELETE CASCADE,
@@ -1018,7 +1021,7 @@ CREATE UNIQUE INDEX tournament_goals_tap ON tournament_goals (game_id, tap_id);
 -- In the club read's order (by game time, untimed last), so it reads every goal once, not twice for a sort
 CREATE INDEX tournament_goals_time ON tournament_goals (at_ms IS NULL, period, at_ms, id);
 
--- Each penalty as it was called (ADR 0061): its team, what for (lib/penalties.ts INFRACTIONS, always said), who (null:
+-- Each penalty as it was called (apps/team/worker/tournaments/README.md): its team, what for (lib/penalties.ts INFRACTIONS, always said), who (null:
 -- a bench penalty, only for a bench infraction), 2, 4 (a double minor) or 5 minutes, and when in game time. The penalty clock is worked out from
 -- these and the goals, never stored. Penalty minutes per player and team (the leaderboards' PIM) are their sum
 CREATE TABLE tournament_penalties (
@@ -1045,7 +1048,7 @@ CREATE INDEX tournament_penalties_time ON tournament_penalties (at_ms IS NULL, p
 CREATE INDEX tournament_penalties_member ON tournament_penalties (member_id);
 
 
--- The club's agenda (ADR 0042): what's on and when, one row per thing on a day. Every part of the club pushes its own
+-- The club's agenda (ADR 0016): what's on and when, one row per thing on a day. Every part of the club pushes its own
 -- rows when it changes (packages/shared/agenda.ts): each training session, a tournament's day, its draft night and its sign-up
 -- deadline, each one-off event. The website's What's on and the app's calendar both read it.
 CREATE TABLE agenda (

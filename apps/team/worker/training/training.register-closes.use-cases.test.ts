@@ -1,4 +1,4 @@
-// A night's register closes the next morning, at 06:00 London (decided 2026-10-23, #11; ADR 0030, ADR 0007): until
+// A night's register closes the next morning, at 06:00 London (decided 2026-10-23, #11; apps/team/worker/training/README.md, apps/team/worker/dues/README.md): until
 // then whoever takes the register ticks who came and the charges follow; from then it's the record. Every way of
 // changing who was there is refused (the register, an admin putting someone in or taking them off, Let in, a reset,
 // calling the night off, a member's attendance), and the hourly run charges from it as it stands. Driven through the
@@ -155,6 +155,24 @@ describe("the register closes the morning after", () => {
   });
 });
 
+describe("the night's teams", () => {
+  it("teams aren't attendance: a closed night keeps the teams it had", async () => {
+    const f = await friday();
+    const teams = [
+      { name: "Black", players: [f.id.Reg] },
+      { name: "White", players: [f.id.Walt] },
+    ];
+    const published = await f.dana.call(
+      "POST",
+      `/api/sessions/${f.session.id}/teams`,
+      { teams },
+      { now: ON_THE_NIGHT },
+    );
+    expect(published.status).toBe(200);
+    expect((await f.seen(CLOSED)).teams).toEqual(teams);
+  });
+});
+
 describe("what it charges", () => {
   it("the hourly run charges from the closed register, run after run, once each: Reg and Walt, not Nina", async () => {
     const f = await friday();
@@ -191,5 +209,35 @@ describe("the morning the clocks go back", () => {
       dana.call("POST", `/api/sessions/${night.id}/register`, { memberId: reg, here: true }, { now: new Date(now) });
     expect((await tick("2026-10-25T05:59:00Z")).status).toBe(200);
     expect((await tick("2026-10-25T06:00:00Z")).status).toBe(409);
+  });
+});
+
+describe("the morning the clocks go forward", () => {
+  // Saturday 27 March 2027 is GMT; the clocks go forward at 1am Sunday, so 06:00 Sunday is 06:00 BST, 05:00 UTC
+  it("a Saturday night's register closes at 06:00 BST on Sunday, an hour earlier in UTC than the week before", async () => {
+    const SATURDAY = "2027-03-27";
+    const WEEK_BEFORE = new Date("2027-03-23T11:00:00Z");
+    // Signed in that week: a sign-in from October has ended by the spring
+    const dana = w.browser();
+    const { devCode } = await w.ask(dana, "dana@example.com", WEEK_BEFORE);
+    expect((await dana.call("POST", "/api/auth/verify", { code: devCode }, { now: WEEK_BEFORE })).status).toBe(200);
+    const b = (await dana.club({ now: WEEK_BEFORE })).body as Json;
+    const series = b.series[0];
+    const put = await dana.call(
+      "PUT",
+      `/api/series/${series.id}`,
+      { ...series, weekdays: ["sat"], fees: [{ pence: 800, from: "2026-01-01" }] },
+      { now: WEEK_BEFORE },
+    );
+    expect(put.status).toBe(200);
+    const after = (await dana.club({ now: WEEK_BEFORE })).body as Json;
+    const night = after.sessions.find((s: Json) => s.heldOn === SATURDAY);
+    const reg = after.members.find((m: Json) => m.name === "Reg Player").id;
+    const tick = (now: string) =>
+      dana.call("POST", `/api/sessions/${night.id}/register`, { memberId: reg, here: true }, { now: new Date(now) });
+    expect((await tick("2027-03-28T04:59:00Z")).status).toBe(200);
+    const closed = await tick("2027-03-28T05:00:00Z");
+    expect(closed.status).toBe(409);
+    expect(closed.body.error).toBe(REFUSED);
   });
 });

@@ -1,4 +1,4 @@
-// A tournament's edges as an admin sets it up (ADR 0030, 0074): what the editor can send that the server must refuse
+// A tournament's edges as an admin sets it up (apps/team/worker/tournaments/README.md): what the editor can send that the server must refuse
 // (names too long or blank, dates that can't be, sign-up and draft days out of order, too many teams, someone on two
 // teams), what it must keep exactly (names in any script, emoji), a series' slugs, and who may change a team's look.
 // Driven through the real Worker handlers in the fake world (ADR 0031).

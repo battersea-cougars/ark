@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A tournament's playoffs (ADR 0061): the games after the round robin, by table position. A list of formats, each
+  // A tournament's playoffs (apps/team/worker/tournaments/README.md): the games after the round robin, by table position. A list of formats, each
   // saying what happens ("1st v 2nd"), so choosing one plainly changes the day; "Something else" opens the games to
   // edit, picking places by name (1st, 2nd…) rather than typing numbers.
   import { ordinal } from "./dates";

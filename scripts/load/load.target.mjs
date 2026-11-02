@@ -13,8 +13,8 @@ import { startServer } from "./load.server.mjs";
 const scheduled = (url) => (cron) => fetch(`${url}/__scheduled?cron=${encodeURIComponent(cron)}`).then((r) => r.status);
 
 /** A Worker of the run's own, as before: its own D1 holds only the run's club, so nothing needs taking away. */
-export async function ownTarget({ members, build }) {
-  const server = await startServer({ members, build });
+export async function ownTarget({ members, build, weeks }) {
+  const server = await startServer({ members, build, weeks });
   const cron = scheduled(server.url);
   return {
     name: "own",

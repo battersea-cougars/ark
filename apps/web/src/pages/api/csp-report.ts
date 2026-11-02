@@ -12,7 +12,7 @@ const log = scribe.logger("browser");
 export const prerender = false;
 
 // A visitor's browser refused something our content security policy doesn't allow (lib/server/csp-reports.ts,
-// ADR 0036): either something we added without widening the policy, or something slipped into a page. Browsers send
+// ADR 0024): either something we added without widening the policy, or something slipped into a page. Browsers send
 // these without an Origin, so only reports about our own pages count, a few per visitor at most and a hundred a day
 // across the club (with the browsers' errors), and always a quiet
 // 204. Each kind of refusal is one Sentry issue, however many pages hit it.
