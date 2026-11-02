@@ -31,6 +31,7 @@ export const sanityBuildCount = (): AstroIntegration => ({
         await query(ADD_SQL, [JSON.stringify(rows)]);
         logger.info(`Sanity requests: ${said}, counted.`);
       } catch (error) {
+        // The build's own log, not Sentry (a build has no reporter): a count missed here only leaves the Usage page low
         logger.warn(`Sanity requests: ${said}, not counted: ${(error as Error).message}`);
       }
     },

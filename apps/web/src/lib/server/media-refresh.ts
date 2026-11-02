@@ -17,6 +17,8 @@ export async function mediaRefreshedAt(db: D1Database, deps?: CacheDeps): Promis
     const at = await cached("d1:media-refreshed", REFRESH_CACHE, () => websiteTime(db, "media_refreshed"), deps);
     return at ? Date.parse(at) : 0;
   } catch (error) {
+    // A warning, not reported: the photos and videos are served as cached (a refresh shows a little later), and D1
+    // failing is reported by the pages that need it (What's on, events)
     log.warn("media_refresh.read_error", error);
     return 0;
   }

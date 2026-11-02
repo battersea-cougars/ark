@@ -5,7 +5,8 @@
 //   log.error("enquiry.email_failed", error, { id });  → the error with its stack, and reported (Sentry, ADR 0110)
 //
 // The facade only shapes and cleans a line; an adapter writes it (scribe.console.ts: JSON for Workers Logs). The message is a dotted event name; the details go
-// in fields. Nothing private reaches the log: secrets by key, phone numbers by key, email addresses wherever they are.
+// in fields. Nothing private reaches the log: secrets by key, phone numbers by key, email addresses wherever they are,
+// and a token in running text (an address's query, a bearer token, a JWT).
 // Every error or fatal line also goes to the reporter, so logging an error is reporting it.
 
 export type Level = "fatal" | "error" | "warn" | "info" | "debug" | "trace";
@@ -128,8 +129,21 @@ const SECRET_WORD = /token|secret|password|passwd|authorization|cookie|api[-_]?k
 const hidden = (key: string) => HIDDEN.has(key.toLowerCase()) || SECRET_WORD.test(key);
 const EMAIL = /([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/g;
 
-/** An address with only its first letter and its domain left: "a…@club.org". */
-export const mask = (text: string) => text.replace(EMAIL, "$1…@$2");
+// A secret in running text, whatever field it's in (an error's message, a URL, a stack): a secret in an address's query
+// (YouTube's `key=`, Instagram's `access_token=`, an OAuth `code=`), a bearer token, or a signed token (a JWT, eyJ…)
+const SECRET_PARAM =
+  /([?&](?:access_token|refresh_token|id_token|token|key|api_key|client_secret|secret|code|password|sig|signature)=)[^&#\s"']+/gi;
+const BEARER = /\b(Bearer\s+)[\w.~+/-]+=*/gi;
+const JWT = /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]*/g;
+
+/** Text with nothing private left: an address with only its first letter and its domain ("a…@club.org"), and any
+ *  secret in an address's query, a bearer token or a signed token as `[redacted]`. */
+export const mask = (text: string) =>
+  text
+    .replace(EMAIL, "$1…@$2")
+    .replace(SECRET_PARAM, "$1[redacted]")
+    .replace(BEARER, "$1[redacted]")
+    .replace(JWT, "[redacted]");
 
 /** A copy with nothing private left in it (secrets and phones by key, email addresses in any text). */
 export function clean(value: unknown, depth = 0): unknown {

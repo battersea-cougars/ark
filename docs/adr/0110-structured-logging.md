@@ -44,7 +44,10 @@ smaller (5k errors a month, one user) but plain about it.
 - **An error** is kept whole under `err`: name, message, stack, and its cause the same way.
 - **Nothing private in a line:** a field named password, secret, token, otp, pw, code, authorization, cookie or
   phone is `[redacted]`, at any depth; an email address anywhere in the text is masked to its first letter and
-  domain (`a…@club.org`). The mail module still redacts a mail's own secrets (a sign-in code) before it logs a mail.
+  domain (`a…@club.org`), and a token in running text is `[redacted]` too: a secret in an address's query
+  (`access_token=`, `key=`, `code=`), a bearer token, a JWT. The mail module still redacts a mail's own secrets (a
+  sign-in code) before it logs a mail, and in production, where a mail that's only logged is a mail that didn't go, it
+  logs (and reports, `mail.unconfigured`) who it was for and its subject, never its words.
 - **Every error or fatal line is also reported** to the reporter (Sentry, below), with the Error it carries, if
   any, and its fields. Warnings aren't: they're the expected, degraded paths (a stale cache, a paused source,
   ADR 0055). A warning that's a failure says why it isn't reported, where that isn't plain; a read behind a circuit
@@ -180,3 +183,7 @@ smaller (5k errors a month, one user) but plain about it.
   briefly-down app at :07 was the reason; `task()` swallowed each job's error, so the monitor only ever saw misses.
 - 2026-11-02: Browsers' error and CSP reports have a club-wide cap of 100 a day across the team app and the website,
   as the auto-reply has, so made-up reports can't spend Sentry's free month (security review finding 13, #201).
+- 2026-11-02: Failures and secrets checked again for go-live (#148, #181;
+  `docs/reviews/failures-and-secrets-2026-11-02.md`): a token in running text (a query's secret, a bearer token, a
+  JWT) is masked in every line and Sentry event; production without Gmail reports `mail.unconfigured` and logs no
+  mail's words; the club's address unreadable from Sanity is a warning; the quiet catches left say why.

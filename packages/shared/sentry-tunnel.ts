@@ -36,6 +36,7 @@ export async function sentryTunnel(
   }
   // Past the club's daily cap: dropped, quietly, as the app expects nothing back
   if (!(await allowed())) return new Response(null, { status: 204 });
+  // Not logged: the report was for Sentry, and Sentry not answering is nothing an error line could tell it
   await fetch(`https://${ours.host}/api/${project}/envelope/`, {
     method: "POST",
     body,
