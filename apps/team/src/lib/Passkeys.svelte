@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Your passkeys (ADR 0023), on the You page: "Use Face ID next time" adds one on this device, and each you have is a
+  // Your passkeys (ADR 0023), in the You page's Account tab: "Use Face ID next time" adds one on this device, and each you have is a
   // row, by device and the day you added it, with Remove. Signing in with one needs no email, so it works while Gmail's
   // down; the emailed code is still there for a new phone. Removing asks first, in a sheet.
   import Icon from "../app/shell/Icon.svelte";

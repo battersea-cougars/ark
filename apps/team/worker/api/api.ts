@@ -44,6 +44,7 @@ import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website"
 import { WEBSITE_ROUTES } from "../website/website.routes";
 import { scribe } from "@cougars/shared/scribe";
 import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
+import { errorReportAllowed } from "@cougars/shared/error-report-cap";
 
 const log = scribe.logger("api");
 
@@ -165,7 +166,9 @@ export async function handleApi(
     throw e;
   }
   // The app's own errors on their way to Sentry (ADR 0110), signed in or not: an error at sign-in counts too
-  if (url.pathname === "/api/errors") return sentryTunnel(request, env.SENTRY_DSN);
+  // Past the club's daily cap of browser reports (finding 13, #201), dropped
+  if (url.pathname === "/api/errors")
+    return sentryTunnel(request, env.SENTRY_DSN, { allowed: () => errorReportAllowed(env.DB, now) });
   if (url.pathname.startsWith("/api/auth/")) {
     try {
       return (await handleAuth(request, env, now, waitUntil)) ?? json({ error: "Not found." }, 404);

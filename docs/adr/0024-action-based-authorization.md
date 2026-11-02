@@ -1,7 +1,7 @@
 # 0024. Permissions are actions; roles are data built from actions; admins can view as a member or run as less
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-24
+- **Date:** 2026-10-06 · updated 2026-11-02
 - **Merges:** 0029 (view as a member), 0037
 
 ## Context
@@ -51,7 +51,10 @@ taps to start and stop.
 
 **View as a member** (`impersonate:Member`, "View the app as a member (read-only)")
 
-- Admins have it through `manage:all`; it can be given to other roles.
+- Admins have it through `manage:all`; it can be given to other roles. **The grant rule holds**: you view as
+  someone who can do no more than you, as you change only them ([0036](0036-api-security.md)). Starting as someone
+  who can do more is refused (403), and a view of someone who's since been given more ends on the next request, so
+  a role holding only View as a member never reads what an admin may.
 - It's a page in **Settings → System** (View as a member), where an admin looks for their tools. Picking someone
   makes the app show what they see, with their actions: their Home, their team, their tab, only the pages their
   roles allow.
@@ -137,3 +140,6 @@ taps to start and stop.
   signing out (and a passkey or a phone for notifications), and starting and ending are on the audit log. It was
   browser-only, in `localStorage`, with the server still answering as the admin. `impersonate:Member` drops out of
   the actions that see everyone's roles.
+- 2026-11-02: Viewing as someone keeps the grant rule (#201): a role with View as a member could view as an admin
+  and read everything an admin may (emails, phones, the audit log, ratings), since the API answers with the viewed
+  member's actions.

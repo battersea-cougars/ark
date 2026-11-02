@@ -98,6 +98,8 @@ describe("what an admin may set for a training", () => {
     w.db.raw.prepare("UPDATE training_series SET starts_on = '2026-13-01' WHERE slug = 'sunday'").run();
     vi.spyOn(console, "error").mockImplementation(() => {});
     const reg = await w.signedIn("reg@example.com");
+    // Opened now and then (a sign-in left 90 days ends, ADR 0023)
+    expect((await reg.club({ now: new Date("2026-12-01T12:00:00Z") })).status).toBe(200);
     expect((await reg.club({ now: new Date("2027-02-01T12:00:00Z") })).status).toBe(200);
   });
 

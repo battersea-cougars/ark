@@ -1,7 +1,7 @@
 # 0110. The apps log through scribe, one JSON line per event; errors and down alerts go to Sentry; nothing private in either
 
 - **Status:** Accepted
-- **Date:** 2026-10-17 · updated 2026-10-28
+- **Date:** 2026-10-17 · updated 2026-11-02
 - **Merges:** 0111
 
 ## Context
@@ -109,6 +109,11 @@ smaller (5k errors a month, one user) but plain about it.
   sends each as a Sentry event under the deploy's release (`lib/server/client-errors.ts`). What the content security
   policy refuses arrives at `/api/csp-report` and goes to Sentry as a warning, one issue per kind of refusal
   (`lib/server/csp-reports.ts`).
+- **A daily cap across the club on what browsers report:** the team app's `/api/errors`, the website's
+  `/api/client-error` and `/api/csp-report` together pass on at most 100 reports a London day
+  (`packages/shared/error-report-cap.ts`, one D1 row a day, `error_report_days`), counted in one statement once a report
+  is known to be ours; past it they're dropped with the same quiet 204. A script setting `Origin` from many addresses
+  can't spend the month's 5k on made-up reports; the servers' own errors aren't capped.
 - **Nothing about a person:** Sentry 11's `dataCollection` is all off (`DATA_COLLECTION`): no request bodies (the join
   form), cookies, headers, query strings (the team app's `?email=`), SQL values or stack variables, no user. Every event
   is cleaned by `beforeSend` the same way as a log line: secrets and phones by key, email addresses masked anywhere.
@@ -143,7 +148,8 @@ smaller (5k errors a month, one user) but plain about it.
   meant for.
 - An error in production is an email within minutes, with a stack that points at our code.
 - 5k errors a month is plenty once quiet; a loop that throws could use it up, after which Sentry drops events until the
-  month turns (the log still has them).
+  month turns (the log still has them). Browsers' reports stop at 100 a day, so a broken page on a busy day reports
+  its first hundred and the website's log keeps the rest as warnings (`browser.error` is logged before the cap).
 - One user: anyone else who needs to look signs in as the developer account, or reads the forwarded email.
 - The website's catcher sees uncaught errors only; code that catches its own error and wants it known calls
   `reportError(e)`.
@@ -172,3 +178,5 @@ smaller (5k errors a month, one user) but plain about it.
   47 past, claimed in D1 (`hourly_run`), and checks in once (ok, or an error after the last try). The monitor waits 50
   minutes and alerts only after two hours in a row fail (was: 10 minutes, the first miss). A Sentry alert for a
   briefly-down app at :07 was the reason; `task()` swallowed each job's error, so the monitor only ever saw misses.
+- 2026-11-02: Browsers' error and CSP reports have a club-wide cap of 100 a day across the team app and the website,
+  as the auto-reply has, so made-up reports can't spend Sentry's free month (security review finding 13, #201).

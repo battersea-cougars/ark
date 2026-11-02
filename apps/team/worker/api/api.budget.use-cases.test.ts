@@ -170,7 +170,10 @@ async function walk() {
   const me = b.members.find((m: Json) => m.id === ids["Member 1"]);
   await hit(reg, "PUT", "/api/me", { position: me.position, bio: "Stops pucks.", webName: null, phone: null });
   const asked = await hit(reg, "POST", "/api/me/email", { email: "member.one@example.com" });
-  await hit(reg, "POST", "/api/me/email/confirm", { code: asked.body.devCode });
+  await hit(reg, "POST", "/api/me/email/confirm", {
+    code: asked.body.devCode,
+    currentCode: asked.body.devCurrentCode,
+  });
   await hit(reg, "PUT", "/api/me/photo", { photo: "data:image/png;base64,iVBORw0KGgo=" });
   await hit(await member(2), "GET", `/api/members/${ids["Member 1"]}/photo`);
   await hit(await member(2), "PUT", "/api/me/plan", { quarter: "2027-Q1", quarterly: true });

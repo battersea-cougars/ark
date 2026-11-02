@@ -279,6 +279,26 @@ describe("a team's look", () => {
     expect((await look(dana, 9999, { name: "X" })).status).toBe(404);
   });
 
+  it("an admin changing a team's look is on the record; its captain changing it is their own (#201)", async () => {
+    const { dana, teamIds, look } = await drafted();
+    const entries = () =>
+      w.db.raw.prepare("SELECT detail FROM audit_log WHERE action = 'team.look' ORDER BY id").all() as {
+        detail: string;
+      }[];
+    const cara = await w.signedIn("cara@example.com");
+    expect((await look(cara, teamIds[0], { name: "Cats" })).status).toBe(200);
+    expect(entries()).toEqual([]);
+
+    expect((await look(dana, teamIds[0], { name: "Dogs" })).status).toBe(200);
+    const [renamed] = entries().map((e) => JSON.parse(e.detail));
+    expect(renamed.from).toMatchObject({ name: "Cats", crest: null, tournament: "Winter Cup" });
+    expect(renamed.to).toMatchObject({ name: "Dogs", crest: null, tournament: "Winter Cup" });
+
+    // Saving it as it is changes nothing, so nothing goes on the record
+    expect((await look(dana, teamIds[0], { name: "Dogs" })).status).toBe(200);
+    expect(entries()).toHaveLength(1);
+  });
+
   it("not signed in, a team's look can't be changed; a member who isn't its captain neither", async () => {
     const { teamIds, look } = await drafted();
     expect((await look(w.browser(), teamIds[0], { name: "X" })).status).toBe(401);

@@ -6,7 +6,14 @@ const MAX_BYTES = 200_000;
 export async function sentryTunnel(
   request: Request,
   dsn: string | undefined,
-  { fetch = globalThis.fetch }: { fetch?: typeof globalThis.fetch } = {},
+  {
+    fetch = globalThis.fetch,
+    allowed = async () => true,
+  }: {
+    fetch?: typeof globalThis.fetch;
+    /** Whether one more may go today (error-report-cap.ts): asked only of an envelope for our project. */
+    allowed?: () => Promise<boolean>;
+  } = {},
 ): Promise<Response> {
   if (request.method !== "POST") return new Response(null, { status: 405 });
   // Only our own pages: a browser always sends Origin on a POST
@@ -27,6 +34,8 @@ export async function sentryTunnel(
   if (theirs.host !== ours.host || theirs.pathname.replace(/^\//, "") !== project) {
     return new Response(null, { status: 400 });
   }
+  // Past the club's daily cap: dropped, quietly, as the app expects nothing back
+  if (!(await allowed())) return new Response(null, { status: 204 });
   await fetch(`https://${ours.host}/api/${project}/envelope/`, {
     method: "POST",
     body,

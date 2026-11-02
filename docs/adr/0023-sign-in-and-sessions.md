@@ -1,7 +1,7 @@
 # 0023. Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-11-02
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context
@@ -44,10 +44,11 @@ need a way back in that no stranger on the internet could use.
   code under a nonce is one member's, and every guess is against that member's code, whoever is typing. Two
   people signing in one after the other on a shared browser each get their own code.
 - **Guesses are counted before they're checked**, in one statement, and a code is spent the same way, so requests
-  sent all at once can't get extra tries or two sessions. The limits:
+  sent all at once can't get extra tries or two sessions. A guess is checked against every live code in the browser
+  and counts as a try against each of them, so asking again doesn't buy more guesses. The limits:
   - 5 wrong codes per code;
   - 5 codes an hour and 10 a day per member **per browser** (its nonce);
-  - 20 wrong codes a day per browser, after which that browser is sent and accepts no codes until the day has passed;
+  - 20 wrong tries a day per browser (a wrong guess with two live codes is two), after which that browser is sent and accepts no codes until the day has passed;
   - 30 codes a day per member across every browser, their inbox's limit (logged as `sign_in.capped`).
     The limits count against the browser asking, not the member: someone who knows a member's email can't use them up
     and lock the member out of their own browser (#69).
@@ -128,8 +129,10 @@ need a way back in that no stranger on the internet could use.
 
 - The session cookie holds a **random 256-bit token**. D1 keeps only its SHA-256 hash in `auth_sessions`, as it does
   for the nonce and the code. There is no signing key and no `TEAM_SESSION_SECRET`.
-- The session lasts 180 days. Its expiry moves on at most once a day while it's used, so most requests read and don't
-  write, and never past **a year from signing in**: then it's the code again. Each renewal gives the session a **new
+- The session lasts **90 days unused**. Its expiry moves on at most once a day while it's used, so most requests read and don't
+  write, and never past **the last quarter's start within a year of signing in** (1 January, April, July or October,
+  midnight in London; `lastMomentOf`), so it's 9 to 12 months and a forced sign-in falls as a quarter starts: then
+  it's the passkey or the code again. Each renewal gives the session a **new
   token** (`previous_hash`, `rotated_at` in `auth_sessions`); the one before still works for 10 minutes, for requests
   already on their way and a reply whose new cookie never arrived. Only one request renews it (the update names the
   token it replaces), so two arriving together don't race. A copied cookie stops working once its member's next
@@ -184,7 +187,10 @@ need a way back in that no stranger on the internet could use.
   in again.
 - Each API request makes one indexed D1 read for the session, well inside the free tier for a club.
 - The limits mean what they say: 5 wrong per code, 20 a day per browser, 30 codes a day per member. The odds of
-  guessing are negligible (at most 150 tries a day against a one-in-a-million code that lasts 15 minutes).
+  guessing are negligible (at most 150 tries a day against a one-in-a-million code that lasts 15 minutes), because
+  each guess is a try against every code it's checked against.
+- A member who asked twice and types a wrong code spends a try from both, so they reach the browser's 20 a day
+  sooner than before; with a few typos that's still far off.
 - Someone rotating browsers and addresses could use up a member's 30 codes for a day; Turnstile (#13) makes each
   request need a person's browser, so it would take a person.
 - For a deploy to open up the local switches, three independent things now have to go wrong: the config, the config
@@ -231,3 +237,13 @@ need a way back in that no stranger on the internet could use.
   code, so the account is still yours. An admin changing someone's email still removes theirs.
 - 2026-10-24: A member's code is made and emailed after the reply, so asking for a member's address takes no longer
   than a stranger's (#81).
+- 2026-11-02: A guess counts as a try against every live code it's checked against, not only the newest, so asking
+  again buys no more guesses and the 150 a day holds (it could reach about 600; security review finding 11, #201).
+- 2026-11-02: Changing your own sign-in email also needs a code sent to your current address, so a stolen session
+  alone can't move the account (security review finding 16, decided by the owner). Both codes are typed together in the
+  You page's sheet, the current address's first; its email names the new address half hidden and says to tell an admin
+  if it wasn't you. Five wrong guesses between them spend the change. A member with no email needs only the new
+  address's code; someone who has lost their old inbox asks an admin, whose change on the member's page is unchanged.
+- 2026-11-02: A session left unused ends after 90 days, not 180; the year from signing in now ends at the last
+  quarter's start within it, for security, so it's never past a year (Dan, #201). A phone whose
+  sign-in has ended hears no pushes, so a member who never opens the app stops hearing after 90 days, not 180.

@@ -17,7 +17,7 @@ import { gmailCredentials, type GmailEnv } from "@cougars/shared/gmail-token";
 import { mailOutcome } from "../mail/mail.health";
 import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
-import { londonToday } from "@cougars/shared/london";
+import { londonDate, londonISO, londonToday } from "@cougars/shared/london";
 import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
@@ -51,18 +51,33 @@ const CHALLENGE_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
 // The limits count against the browser asking (its nonce), not the member (#69): a stranger who knows someone's email
 // can't use them up and lock the member out. Guessing stays bounded by the member-wide ceiling: 30 codes × 5 tries
-// a day, against a code that's one in a million.
+// a day, against a code that's one in a million, since a guess is a try against every live code it's checked against.
 /** New codes one browser may ask for, for one member, in an hour and in a day. */
 const MAX_CHALLENGES_PER_HOUR = 5;
 const MAX_CHALLENGES_PER_DAY = 10;
 /** Codes one member is sent in a day, across every browser: their inbox's limit. */
 const MAX_CHALLENGES_PER_MEMBER_DAY = 30;
-/** Wrong codes one browser may type in a day before it stops taking any (and being sent new ones). */
+/** Wrong tries one browser may spend in a day before it stops taking any (and being sent new ones); a wrong guess
+ * with two live codes is two. */
 const MAX_FAILURES_PER_DAY = 20;
-const SESSION_DAYS = 180;
+/** Left unused this long, a session ends (ADR 0023): a lost or forgotten phone isn't signed in for good. */
+const SESSION_DAYS = 90;
 const SESSION_MS = SESSION_DAYS * 86_400_000;
-/** However much it's used, a session ends a year after signing in (#72): then it's the code again. */
+/** However much it's used, a session ends within a year of signing in (#72): then it's the passkey or code again. */
 const LIFETIME_MS = 365 * 86_400_000;
+
+/**
+ * When a sign-in ends however much it's used (ADR 0023): the first day of the last quarter (1 January, April, July or
+ * October, midnight in London) no later than a year after signing in, so it's never longer than a year and always
+ * ends as a quarter starts.
+ */
+export function lastMomentOf(signedInAt: string): number {
+  const [year, month] = londonDate(Date.parse(signedInAt) + LIFETIME_MS)
+    .split("-")
+    .map(Number);
+  const quarterMonth = String(Math.floor((month - 1) / 3) * 3 + 1).padStart(2, "0");
+  return Date.parse(londonISO(`${year}-${quarterMonth}-01`, "00:00"));
+}
 /** A session's expiry moves on at most once a day, so most requests don't write; each time it gets a new token. */
 const RENEW_AFTER_MS = 24 * 3600_000;
 /** How long the token before a renewal still works: requests already on their way, a reply that got lost. */
@@ -227,7 +242,7 @@ export async function sessionOf(
   // Not due, or this is the token before a renewal that's just happened: as it is
   if (row.hash !== row.token_hash || now.getTime() - Date.parse(row.last_seen_at) < RENEW_AFTER_MS) return who;
   const fresh = token();
-  const expires = Math.min(now.getTime() + SESSION_MS, Date.parse(row.created_at) + LIFETIME_MS);
+  const expires = Math.min(now.getTime() + SESSION_MS, lastMomentOf(row.created_at));
   // Only one request renews it: another arriving at the same moment with the same token keeps it, in the grace
   const renewed = await run(
     env.DB,
@@ -308,7 +323,7 @@ export function email(o: Record<string, unknown>): string {
   return e;
 }
 
-/** Wrong codes typed in one browser (by its nonce) in the last day. */
+/** Wrong tries spent in one browser (by its nonce) in the last day: a wrong guess is one per live code it was checked against. */
 async function failuresToday(db: D1Database, nonceHash: string, now: Date) {
   const row = await first<{ n: number | null }>(
     db,
@@ -461,30 +476,38 @@ async function spend(env: AuthEnv, now: Date, c: Challenge, nonceHash: string): 
   return true;
 }
 
-/** The 6-digit code, typed in the browser that asked. Any of its live codes will do. */
+/**
+ * The 6-digit code, typed in the browser that asked. Any of its live codes will do, and the guess counts as a try
+ * against each of them (#201, finding 11), so asking for more codes doesn't buy more guesses: 5 tries per code stays
+ * 5 checks per code, and a member's 30 codes a day stay 150 checks (ADR 0023).
+ */
 export async function verify(request: Request, env: AuthEnv, now: Date, waitUntil?: Waiter): Promise<Response> {
   const typed = text(await body(request), "code", { max: 20 }).replace(/\s/g, "");
   const live = await liveChallenges(request, env, now);
   if (!live) throw new HttpError(400, ELSEWHERE);
-  const [nonceHash, challenges] = live;
+  const [nonceHash] = live;
   if ((await failuresToday(env.DB, nonceHash, now)) >= MAX_FAILURES_PER_DAY)
     throw new HttpError(429, "Too many wrong codes today. Try again tomorrow.");
-  // Count the guess before looking at it, in one statement, so a burst of guesses can't all see "no tries yet"
-  const counted = await first<{ id: number }>(
+  // Count the guess against every code it's checked against before looking at it, in one statement, so a burst of
+  // guesses can't all see "no tries yet"; only the codes counted here are checked
+  const checked = await all<Challenge>(
     env.DB,
     `UPDATE login_challenges SET attempts = attempts + 1
-     WHERE id = (SELECT id FROM login_challenges WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ?
-                 AND attempts < ? ORDER BY id DESC LIMIT 1)
-     RETURNING id`,
+     WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ? AND attempts < ?
+     RETURNING id, member_id, code_hash, attempts, kind`,
     [nonceHash, now.toISOString(), MAX_ATTEMPTS],
   );
-  if (!counted) throw new HttpError(400, "Too many tries. Ask for a new code.");
+  if (!checked.length) throw new HttpError(400, "Too many tries. Ask for a new code.");
 
   const hash = await sha256(typed);
-  const match = challenges.find((c) => c.code_hash === hash);
+  const match = checked.find((c) => c.code_hash === hash);
   if (match && (await spend(env, now, match, nonceHash))) {
-    // A right code isn't a wrong one
-    await run(env.DB, `UPDATE login_challenges SET attempts = attempts - 1 WHERE id = ?`, [counted.id]);
+    // A right code isn't a wrong one, against any of them
+    await run(
+      env.DB,
+      `UPDATE login_challenges SET attempts = attempts - 1 WHERE id IN (${checked.map(() => "?").join(", ")})`,
+      checked.map((c) => c.id),
+    );
     const method = match.kind === "break_glass" ? "break_glass" : "code";
     const { cookies, sessionId } = await startSession(request, env, now, match.member_id, method);
     // Break glass: on the record, and every admin hears of it (auth.break-glass.ts)
@@ -492,13 +515,8 @@ export async function verify(request: Request, env: AuthEnv, now: Date, waitUnti
     return withCookies(json({ ok: true }), cookies);
   }
   if (match) throw new HttpError(400, ELSEWHERE);
-  const left = await first<{ n: number }>(
-    env.DB,
-    `SELECT coalesce(sum(? - attempts), 0) AS n FROM login_challenges
-     WHERE nonce_hash = ? AND used_at IS NULL AND expires_at > ? AND attempts < ?`,
-    [MAX_ATTEMPTS, nonceHash, now.toISOString(), MAX_ATTEMPTS],
-  );
-  const n = left?.n ?? 0;
+  // Every guess spends a try from each live code, so the tries left are the freshest code's
+  const n = Math.max(...checked.map((c) => MAX_ATTEMPTS - c.attempts));
   throw new HttpError(
     400,
     n > 0 ? `That's not the code. ${n} ${n === 1 ? "try" : "tries"} left.` : "Too many tries. Ask for a new code.",

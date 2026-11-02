@@ -50,10 +50,9 @@ const cronAt = (t: Date) => w.scheduled(t.getUTCMinutes() % 5 ? "* * * * *" : "*
 /** Firebase on, Reg and Mo with the app, Dana to post. */
 async function twoPhones() {
   const fcm = await w.firebase();
-  await phone("reg@example.com");
-  await phone("mo@example.com");
+  const phones = [await phone("reg@example.com"), await phone("mo@example.com")];
   const dana = await w.signedIn("dana@example.com");
-  return { fcm, dana, heard: () => fcm.asked.map((a) => `${a.token} ${a.title}`).sort() };
+  return { fcm, dana, phones, heard: () => fcm.asked.map((a) => `${a.token} ${a.title}`).sort() };
 }
 
 describe("quiet hours, 22:00 to 08:00 in London", () => {
@@ -110,7 +109,10 @@ describe("quiet hours, 22:00 to 08:00 in London", () => {
   });
 
   it("the night the clocks go forward (Sunday 28 March 2027), 08:00 is 08:00 BST, an hour earlier in UTC", async () => {
-    const { fcm, dana } = await twoPhones();
+    const { fcm, dana, phones } = await twoPhones();
+    // Reg, Mo and Dana opened the app in the winter, so they're still signed in (a sign-in left 90 days ends)
+    for (const day of ["2026-12-01", "2027-02-01"])
+      for (const p of [...phones, dana]) expect((await p.club({ now: at(`${day}T12:00:00Z`) })).status).toBe(200);
     // Saturday 27 March, 23:00 GMT
     await dana.call("POST", "/api/announcements", news("Clocks forward"), { now: at("2027-03-27T23:00:00Z") });
     await w.cron(at("2027-03-28T06:55:00Z"));

@@ -158,7 +158,7 @@ test("Signing in, and asking to join", async ({ browser }) => {
     const phone = await withAuthenticator(jo, jo.page);
 
     await does(jo, "adds a passkey on her You page", async () => {
-      await jo.page.goto("/me");
+      await jo.page.goto("/me#account");
       const passkeys = jo.page.getByRole("region", { name: "Passkeys" });
       await passkeys.getByRole("button", { name: /next time/ }).click();
       await expect(passkeys.getByText(/^Added /)).toBeVisible();
@@ -167,7 +167,7 @@ test("Signing in, and asking to join", async ({ browser }) => {
     await does(jo, "signs out of this device", async () => {
       // Away from the phone: the sign-in page's quiet ask for a passkey waits for her
       await phone.present(false);
-      await jo.page.goto("/me");
+      await jo.page.goto("/me#account");
       await jo.page.getByRole("button", { name: /^Sign out Of this device/ }).click();
       await expect(jo.page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     });
