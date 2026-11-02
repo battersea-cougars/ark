@@ -256,7 +256,7 @@ export async function handleApi(
     }
     if (tournament && res.ok && (wasOnWebsite || (await onTheWebsite(env.DB, tournament))))
       await wantRebuild(env.DB, now);
-    if (writes && res.ok && hit.r.changes?.includes("charges")) {
+    if (writes && res.ok && [...(hit.r.changes ?? []), ...ctx.alsoChanged].includes("charges")) {
       // Who came, a fee or a quarterly membership changed: so may what people owe (ADR 0007)
       await recharge(env.DB, ctx.today, ctx.now);
     }

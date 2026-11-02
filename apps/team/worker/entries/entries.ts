@@ -293,6 +293,17 @@ export function fillingUp(
  * in then is an admin's to change (tournaments/started.ts), decided in the statements that write it.
  */
 /**
+ * Whether an answer to this event can change what anyone owes: only once its day has come, since a night or a
+ * tournament is charged from its day (dues.ts SESSIONS_DUE, TOURNAMENTS_DUE). A sign-up for Friday on Monday can't, so
+ * it doesn't work out the club's charges again (#148: with a year of history that's ~50k rows read a tap).
+ */
+export async function chargedFromToday(db: D1Database, kind: EntryKind, id: number, today: string) {
+  if (kind === "event") return false;
+  const table = kind === "session" ? "training_sessions" : "tournaments";
+  return !!(await first(db, `SELECT 1 FROM ${table} WHERE id = ? AND held_on <= ?`, [id, today]));
+}
+
+/**
  * A member's own In, Out or taking back their Out. Whether they're new to the event's answers (they hadn't answered,
  * and now have): Home's people, everyone's next things, have one more in them (#178).
  */
