@@ -19,7 +19,7 @@
   import { withRibbon } from "@cougars/shared/ribbon";
 
   // A past one's page, or one of its games' or teams': read it if the app hasn't it, or ask again if it's changed
-  // since (#175, app/editions.svelte.ts). Its page shows it loading meanwhile. First, so the address below knows
+  // since (app/editions.svelte.ts). Its page shows it loading meanwhile. First, so the address below knows
   // it's on its way
   $effect.pre(() => {
     void editions.round;
@@ -42,7 +42,7 @@
   $effect(() => {
     if (allowed) void loadPage(route.page);
   });
-  // ...and its parts of the club beyond the core (#178, app/page-data.svelte.ts): one request, if they aren't in. An
+  // ...and its parts of the club beyond the core (app/page-data.svelte.ts): one request, if they aren't in. An
   // address that isn't a page yet (a member's, before the roster's in) is given everything, then found
   const needs = $derived(needsOf(allowed ? routeFor(all, router.path)?.page : "home", granted()));
   $effect(() => {
