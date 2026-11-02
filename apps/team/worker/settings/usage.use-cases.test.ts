@@ -108,6 +108,11 @@ describe("an admin checks the club's free Cloudflare allowance", () => {
     });
   });
 
+  it("a member is refused, and Cloudflare isn't asked", async () => {
+    expect((await usageAs("reg@example.com")).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
   it("says how to set it up when there's no analytics token", async () => {
     delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
     const res = await usageAs("dana@example.com");
@@ -499,6 +504,35 @@ describe("the admins are told when a free limit is getting close", () => {
     expect((await hour(late)).mails).toHaveLength(1);
     await w.cron(new Date("2026-10-07T07:00:00Z"));
     expect(fcm.asked).toEqual([]);
+  });
+
+  it("an email that fails is reported, and the rest still go, phones too", async () => {
+    const reported: string[] = [];
+    captureLogs({ report: (_e, entry) => void reported.push(entry.msg) });
+    cloudflare({ requests: [75_000], rowsRead: 3_700_000 });
+    const sent: string[] = [];
+    let first = true;
+    const send = async (m: Mail) => {
+      if (first) {
+        first = false;
+        throw new Error("Gmail said no");
+      }
+      sent.push(m.subject);
+    };
+    await checkUsage(w.env, NOW, { send });
+    await w.cron(new Date(NOW.getTime() + 60_000));
+    expect(sent).toHaveLength(1);
+    expect(reported).toEqual(["usage.email_failed"]);
+    expect(fcm.asked).toHaveLength(2);
+  });
+
+  it("two checks at once tell them once", async () => {
+    cloudflare({ requests: [75_000] });
+    const [mails, phones] = [w.mails.length, fcm.asked.length];
+    await Promise.all([checkUsage(w.env, NOW), checkUsage(w.env, NOW)]);
+    await w.cron(new Date(NOW.getTime() + 60_000));
+    expect(w.mails.length - mails).toBe(1);
+    expect(fcm.asked.length - phones).toBe(1);
   });
 
   it("an admin who switched Free limits off isn't told on their phone, and still gets the email", async () => {
