@@ -408,6 +408,45 @@ Every launch-week moment on dev, the register, the after-party and a club-wide s
 measured locally (`--weeks 52`), each limit's headroom, what was fixed and what's filed:
 [reviews/free-tier-2026-11-02.md](reviews/free-tier-2026-11-02.md).
 
+### Cloudflare's CPU against this machine's (2026-11-02, #225)
+
+On dev a request read 10–22 ms of CPU at the median and the minute's cron 15–21 ms (Workers Logs, last 24 hours:
+slices 10 ms over 43, the cron 18 ms over 20, a tap 23 ms), where `cpu` above says 1–3 ms. `cpu` measures a warm
+Worker's own handlers; on a quiet Worker most invocations land in an isolate that has just started (the minute's cron
+almost always), and an isolate's first run compiles every function it calls. The first run of each, in a fresh V8
+(Node, Node's own lazy parts warmed first, the built Worker imported and run as Cloudflare would; the median of four):
+
+| Built Worker (`dist/cougars_team`)        | Before      | After        |
+| ----------------------------------------- | ----------- | ------------ |
+| The entry's size                          | 2,281 KB    | 704 KB       |
+| Importing it (parse and top-level work)   | 71–78 ms    | 22–25 ms     |
+| The minute's cron, an isolate's first run | 5.3–5.5 ms  | 0.85–1.2 ms  |
+| The minute's cron, warm                   | 0.28–0.4 ms | 0.03 ms      |
+| A request (`/api/health`), first          | 3.8–4.7 ms  | 1.7–2.2 ms   |
+| A request (`/api/health`), warm           | 0.43–0.51   | 0.10–0.13 ms |
+| Opening the app (bootstrap), first        | 11–14 ms    | 11–13 ms     |
+| Opening the app, warm                     | 1.8–2.7 ms  | 1.6–2.1 ms   |
+
+What it was: `@sentry/cloudflare`'s `withSentry` around the whole Worker. Every invocation set up a client, scopes, a
+span and a proxy over every binding (each D1 call wrapped), and a new isolate compiled all of that first: about four
+fifths of the bundle's own work in a first cron run, the rest of it a small D1 claim and the push drain. Sentry was
+also a third of the bundle (765 KB), and `@simplewebauthn/server` with its certificate parsers a fifth (420 KB),
+building ASN.1 schemas at the top level. Now Sentry is imported only when there's something to send
+(`apps/team/worker/sentry/sentry.ts`: each invocation runs `within` a small record of its own; a report, a cron
+check-in or an error nothing caught loads Sentry and makes the report inside withSentry's own wrapper, as before), and
+passkeys load their library when a passkey route runs. A first bootstrap is our own code compiling (spread over the
+club's shaping: no one function), so it's what's left.
+
+`wrangler dev`'s workerd CPU per warm request (`scripts/load/load.server.mjs`'s count, 300 a kind, three rounds, a
+machine at load 10–20) moved the same way but is mostly the local runtime's own work: the minute's cron 2.7–3.9 →
+2.3–2.7 ms, a page's parts (`/api/slices`) 16–22 → 15–16 ms, a health check 4.3–9.4 → 4.9–5.4 ms; the bootstrap too
+noisy to say (18–31 ms either way).
+
+What to read on dev after the merge, as before (the same 24 hours, quiet ones best, no load run in them):
+`node scripts/env-pull.mjs -- node scripts/cpu-by-route.mjs 24`, and the Usage page's p50/p99 (ADR 0059). Expect the
+minute's cron and small requests to fall the most (a quiet minute's cron was 15–21 ms); a cold bootstrap may stay
+near 10 ms.
+
 ### What to do next
 
 1. **The live fan-out's rows read (#112)**: done, above, and the parts made cheaper. What's left: a draft night is

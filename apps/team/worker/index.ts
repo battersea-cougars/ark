@@ -1,6 +1,5 @@
 // The team app's Worker (ADR 0022): the JSON API under /api, and the built app for everything else (the assets
 // binding falls back to index.html, so the app's own router takes any path).
-import * as Sentry from "@sentry/cloudflare";
 import { handleApi, type Env } from "./api/api";
 import { chargeDue } from "./dues/dues";
 import { countPlayed } from "./members/members.played";
@@ -16,12 +15,12 @@ import { storeLinks, type StoreEnv } from "./store/store.links";
 import { scribe } from "@cougars/shared/scribe";
 import { flushSanityRequests, hasPendingSanityRequests } from "@cougars/shared/sanity-requests";
 import { consoleAdapter } from "@cougars/shared/scribe.console";
-import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";
+import { remembering, report, within } from "./sentry/sentry";
 import { claimHour, finishHour, type HourTry } from "./cron/hourly";
 import { exporting } from "@cougars/shared/d1";
 
-// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0110)
-scribe.configure({ adapter: consoleAdapter, report: sentryReporter(Sentry) });
+// The log: JSON lines for Workers Logs (ADR 0110), and every error line to Sentry (ADR 0110), loaded only to send one
+scribe.configure({ adapter: remembering(consoleAdapter), report });
 const log = scribe.logger("cron");
 
 // The live hub (ADR 0072): Cloudflare finds the Durable Object class here
@@ -66,48 +65,57 @@ function secured(res: Response): Response {
   return out;
 }
 
-// Sentry around the whole Worker: an error nothing caught is reported too. No SENTRY_DSN (your machine, tests): off.
-export default Sentry.withSentry((env: Env) => workerSentryOptions(env), {
-  async fetch(request: Request, env: Env & StoreEnv & { ASSETS: Fetcher }, ctx: ExecutionContext): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/")) {
-      const res = await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p));
-      // The club's address is read from Sanity (shared/club-contact.ts): counted into D1 after the request (ADR 0059).
-      // One read while sending an email after the reply is counted with the next request's.
-      if (hasPendingSanityRequests()) ctx.waitUntil(task("sanity.count", () => flushSanityRequests(env.DB)));
-      return secured(res);
-    }
-    const links = storeLinks(url.pathname, env);
-    if (links) return secured(links);
-    // The Vite dev server has no ASSETS binding: a /.well-known path it doesn't serve (Chrome DevTools asks for one) ends
-    // here, so say not found instead of failing
-    if (!env.ASSETS) return secured(new Response("Not found", { status: 404 }));
-    return secured(await env.ASSETS.fetch(request));
-  },
-  async scheduled(controller: ScheduledController, env: Env) {
-    const now = new Date(controller.scheduledTime);
-    // Every minute: the hour's catch-up, when its run was missed or failed (cron/hourly.ts, ADR 0110), which is the
-    // hourly run again, so it fits the same 50 subrequests; otherwise the push drain alone, a whole batch, so a
-    // notification quiet hours or the debounce held goes within a minute of its time and a club-wide send held
-    // overnight is out by 08:03 (ADR 0108). On a five-minute minute that run drains instead
-    if (controller.cron === "* * * * *") {
-      if (await hourly(env, now, "catch-up")) return;
-      if (now.getUTCMinutes() % 5) await task("push.drain", () => drainPush(env, now, SEND_AT_ONCE));
-      return;
-    }
-    // Hourly: the hour's own run (cron/hourly.ts)
-    if (controller.cron !== "*/5 * * * *") {
-      await hourly(env, now, "hourly");
-      return;
-    }
-    await everyRun(env, now);
-    // Every five minutes (wrangler.jsonc triggers): a wanted website rebuild, once it's quiet (ADR 0100)
-    // and the next few dues reminders an admin sent still queued (ADR 0007), so a send to the whole club goes within
-    // minutes
-    await task("website.rebuild", () => rebuildWebsite(env, now));
-    await task("dues.remind.send", () => sendQueued(env, now));
-  },
-} satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>);
+// Each invocation runs within Sentry's reach (sentry/sentry.ts): what it reports, and an error nothing caught, are sent;
+// Sentry itself is loaded only then (#225). No SENTRY_DSN (your machine, tests): off.
+export default {
+  fetch: (request: Request, env: Env & StoreEnv & { ASSETS: Fetcher }, ctx: ExecutionContext) =>
+    within(env, ctx, { request }, () => answer(request, env, ctx)),
+  scheduled: (controller: ScheduledController, env: Env, ctx: ExecutionContext) =>
+    within(env, ctx, { controller }, () => cron(controller, env)),
+} satisfies ExportedHandler<Env & StoreEnv & { ASSETS: Fetcher }>;
+
+/** A request: the API under /api, the store apps' links, and the built app for everything else. */
+async function answer(request: Request, env: Env & StoreEnv & { ASSETS: Fetcher }, ctx: ExecutionContext) {
+  const url = new URL(request.url);
+  if (url.pathname.startsWith("/api/")) {
+    const res = await handleApi(request, env, new Date(), (p) => ctx.waitUntil(p));
+    // The club's address is read from Sanity (shared/club-contact.ts): counted into D1 after the request (ADR 0059).
+    // One read while sending an email after the reply is counted with the next request's.
+    if (hasPendingSanityRequests()) ctx.waitUntil(task("sanity.count", () => flushSanityRequests(env.DB)));
+    return secured(res);
+  }
+  const links = storeLinks(url.pathname, env);
+  if (links) return secured(links);
+  // The Vite dev server has no ASSETS binding: a /.well-known path it doesn't serve (Chrome DevTools asks for one) ends
+  // here, so say not found instead of failing
+  if (!env.ASSETS) return secured(new Response("Not found", { status: 404 }));
+  return secured(await env.ASSETS.fetch(request));
+}
+
+/** A Cron Trigger's run (wrangler.jsonc triggers). */
+async function cron(controller: ScheduledController, env: Env) {
+  const now = new Date(controller.scheduledTime);
+  // Every minute: the hour's catch-up, when its run was missed or failed (cron/hourly.ts, ADR 0110), which is the
+  // hourly run again, so it fits the same 50 subrequests; otherwise the push drain alone, a whole batch, so a
+  // notification quiet hours or the debounce held goes within a minute of its time and a club-wide send held
+  // overnight is out by 08:03 (ADR 0108). On a five-minute minute that run drains instead
+  if (controller.cron === "* * * * *") {
+    if (await hourly(env, now, "catch-up")) return;
+    if (now.getUTCMinutes() % 5) await task("push.drain", () => drainPush(env, now, SEND_AT_ONCE));
+    return;
+  }
+  // Hourly: the hour's own run (cron/hourly.ts)
+  if (controller.cron !== "*/5 * * * *") {
+    await hourly(env, now, "hourly");
+    return;
+  }
+  await everyRun(env, now);
+  // Every five minutes (wrangler.jsonc triggers): a wanted website rebuild, once it's quiet (ADR 0100)
+  // and the next few dues reminders an admin sent still queued (ADR 0007), so a send to the whole club goes within
+  // minutes
+  await task("website.rebuild", () => rebuildWebsite(env, now));
+  await task("dues.remind.send", () => sendQueued(env, now));
+}
 
 /**
  * Every run, five-minutely and hourly: a training night or a tournament whose sign-up has opened today is told to

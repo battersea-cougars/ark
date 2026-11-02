@@ -572,11 +572,13 @@ export function testWorld(roster: object[]) {
 
   /**
    * Sentry's ingest on (ADR 0110): a DSN, so the Worker's Sentry is on, and the envelopes it sends answered. `checkIns`:
-   * each cron check-in it sent, in order, by monitor and status; `events`: how many other events (errors) came with them.
+   * each cron check-in it sent, in order, by monitor and status; `events`: how many other events (errors) came with them;
+   * `reports`: each error event as it arrived, for what it says (its culprit, message, breadcrumbs).
    */
   function sentryIngest() {
     env.SENTRY_DSN = "https://publickey@o1.ingest.de.sentry.io/1";
-    const world = { checkIns: [] as { monitor: string; status: string }[], events: 0 };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const world = { checkIns: [] as { monitor: string; status: string }[], events: 0, reports: [] as any[] };
     serve((url, init) => {
       if (!url.startsWith("https://o1.ingest.de.sentry.io/api/1/envelope/")) return null;
       const body = init.body instanceof Uint8Array ? new TextDecoder().decode(init.body) : String(init.body);
@@ -586,6 +588,7 @@ export function testWorld(roster: object[]) {
         const { type } = JSON.parse(lines[i]);
         if (type !== "check_in") {
           world.events++;
+          if (type === "event") world.reports.push(JSON.parse(lines[i + 1]));
           continue;
         }
         const { monitor_slug: monitor, status } = JSON.parse(lines[i + 1]);

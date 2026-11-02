@@ -13,14 +13,7 @@
 // session that asked. Signing in: bound to the browser that asked, by a nonce cookie of its own, as a code is; it's
 // spent in the statement that claims it, before the signature's checked, so two requests with one challenge make at
 // most one session (ADR 0121).
-import {
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
-  type AuthenticationResponseJSON,
-  type RegistrationResponseJSON,
-} from "@simplewebauthn/server";
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import { all, first, run } from "@cougars/shared/d1";
 import { HttpError, body, json } from "../api/api.http";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
@@ -29,6 +22,12 @@ import { addMs, cookie, cookieName, setCookie, sha256, startSession, withCookies
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
+
+/**
+ * @simplewebauthn/server, loaded when a passkey route needs it (#225): with its certificate parsers it is a fifth of the
+ * Worker, and building them at the top level cost every cold start CPU time, though a passkey is a rare request.
+ */
+const webauthn = () => import("@simplewebauthn/server");
 
 const CHALLENGE_MINUTES = 5;
 /** ES256 (every phone, Mac and security key) and RS256 (Windows Hello). */
@@ -194,6 +193,7 @@ export async function registerOptions(
   const userHandle = theirs[0]?.user_handle ?? toB64url(crypto.getRandomValues(new Uint8Array(32)));
   const { rpID } = relyingParty(request);
   const challenge = await newChallenge(env, now, "register", { sessionId: mine.sessionId, userHandle });
+  const { generateRegistrationOptions } = await webauthn();
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID,
@@ -226,6 +226,7 @@ export async function register(
   const { rpID, origin } = relyingParty(request);
   let checked;
   try {
+    const { verifyRegistrationResponse } = await webauthn();
     checked = await verifyRegistrationResponse({
       response,
       expectedChallenge: challenge!,
@@ -279,6 +280,7 @@ export async function signInOptions(request: Request, env: AuthEnv, now: Date) {
   await enforce("passkey", addressOf(request), LIMITS.passkey, "Too many tries from here. Wait a few minutes.");
   const nonce = crypto.getRandomValues(new Uint8Array(32));
   const challenge = await newChallenge(env, now, "sign_in", { nonceHash: await sha256(toB64url(nonce)) });
+  const { generateAuthenticationOptions } = await webauthn();
   const options = await generateAuthenticationOptions({
     rpID: relyingParty(request).rpID,
     challenge,
@@ -321,6 +323,7 @@ export async function signIn(request: Request, env: AuthEnv, now: Date) {
   if (handle && handle !== key.user_handle) throw new HttpError(400, NOT_THAT);
   let checked;
   try {
+    const { verifyAuthenticationResponse } = await webauthn();
     checked = await verifyAuthenticationResponse({
       response,
       expectedChallenge: challenge!,
