@@ -12,6 +12,11 @@ updates:
       npm:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 waits until the type checkers take it: @astrojs/check and svelte-check accept ^5 || ^6 only
+      # (2026-11-01; #91 failed the website's check). Drop this once both do.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directories: ["/", "/.github/actions/*"]
     schedule:
