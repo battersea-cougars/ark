@@ -5,7 +5,7 @@
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
   // initials). A draft's players only show once it's closed, to anyone outside it (apps/team/worker/tournaments/README.md).
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
