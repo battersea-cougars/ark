@@ -1,7 +1,7 @@
 # 0023. Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-11-02
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context
@@ -128,7 +128,7 @@ need a way back in that no stranger on the internet could use.
 
 - The session cookie holds a **random 256-bit token**. D1 keeps only its SHA-256 hash in `auth_sessions`, as it does
   for the nonce and the code. There is no signing key and no `TEAM_SESSION_SECRET`.
-- The session lasts 180 days. Its expiry moves on at most once a day while it's used, so most requests read and don't
+- The session lasts **90 days unused**. Its expiry moves on at most once a day while it's used, so most requests read and don't
   write, and never past **a year from signing in**: then it's the code again. Each renewal gives the session a **new
   token** (`previous_hash`, `rotated_at` in `auth_sessions`); the one before still works for 10 minutes, for requests
   already on their way and a reply whose new cookie never arrived. Only one request renews it (the update names the
@@ -231,3 +231,4 @@ need a way back in that no stranger on the internet could use.
   code, so the account is still yours. An admin changing someone's email still removes theirs.
 - 2026-10-24: A member's code is made and emailed after the reply, so asking for a member's address takes no longer
   than a stranger's (#81).
+- 2026-11-02: A session left unused ends after 90 days, not 180; the year from signing in stays (Dan, #201).

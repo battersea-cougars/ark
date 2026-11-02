@@ -132,7 +132,7 @@ describe("a session as it's used (#72)", () => {
     // A day on, the session is renewed: a new cookie, with the new token
     const renewed = await phone.club({ now: minutes(DAY + 1) });
     expect(renewed.status).toBe(200);
-    expect(renewed.headers.getSetCookie().join()).toMatch(/__Host-cougars_session=.+Max-Age=15552000/);
+    expect(renewed.headers.getSetCookie().join()).toMatch(/__Host-cougars_session=.+Max-Age=7776000/);
     expect(phone.jar.get("__Host-cougars_session")).not.toBe(before);
     // Requests already on their way with the old one still land
     expect((await stolen.club({ now: minutes(DAY + 3) })).status).toBe(200);

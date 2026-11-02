@@ -59,7 +59,8 @@ const MAX_CHALLENGES_PER_DAY = 10;
 const MAX_CHALLENGES_PER_MEMBER_DAY = 30;
 /** Wrong codes one browser may type in a day before it stops taking any (and being sent new ones). */
 const MAX_FAILURES_PER_DAY = 20;
-const SESSION_DAYS = 180;
+/** Left unused this long, a session ends (ADR 0023): a lost or forgotten phone isn't signed in for good. */
+const SESSION_DAYS = 90;
 const SESSION_MS = SESSION_DAYS * 86_400_000;
 /** However much it's used, a session ends a year after signing in (#72): then it's the code again. */
 const LIFETIME_MS = 365 * 86_400_000;

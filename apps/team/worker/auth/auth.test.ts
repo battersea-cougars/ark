@@ -37,9 +37,10 @@ describe("signing in with the code", () => {
     expect(boot.status).toBe(200);
     expect(boot.body.members.find((m: { id: number }) => m.id === boot.body.me).name).toBe("Reg Player");
 
-    // Five months on, still in; the session moved on as it was used
-    expect((await phone.club({ now: minutes(150 * 24 * 60) })).status).toBe(200);
-    expect((await phone.club({ now: minutes(300 * 24 * 60) })).status).toBe(200);
+    // Used every couple of months, still in months later; the session moved on as it was used
+    expect((await phone.club({ now: minutes(80 * 24 * 60) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(160 * 24 * 60) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(240 * 24 * 60) })).status).toBe(200);
   });
 
   it("uses cookies no script or sibling site can touch", async () => {
