@@ -90,7 +90,7 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   skipped. On dev `SITE_ENV` is `dev`, so every email goes to the safe address
   ([ADR 0027](0027-email-through-gmail-api.md)). No PR previews: it deploys with `wrangler deploy`, not a
   previews-only upload, so the live hub's Durable Object migration is applied ([ADR 0053](0053-how-the-team-app-gets-its-data.md)), and
-  `pr.yml` checks PRs instead (`svelte-check`, the Worker's `tsc`, a build).
+  `pr.yml` checks PRs instead (its type check and a build).
 - **Every deploy is smoke-tested.** The team app's `/api/health` reads the database, so a broken D1 binding fails the
   deploy; without a session the club answers 401, and the local sign-in doesn't answer at all
   ([ADR 0023](0023-sign-in-and-sessions.md)). Only a release push sends the join form's real enquiry and its emails

@@ -13,6 +13,7 @@ export default [
       "**/.astro/",
       "**/.wrangler/",
       "**/.sanity/",
+      "**/.svelte-check/",
       "**/worker-configuration.d.ts",
     ],
   },

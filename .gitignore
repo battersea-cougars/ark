@@ -44,3 +44,6 @@ apps/team/native/server.js
 # Claude Code's local settings and other sessions' worktrees, never committed
 .claude/settings.local.json
 .claude/worktrees/
+
+# svelte-check --tsgo writes the team app's Svelte files as TypeScript here for TypeScript 7 to check (ADR 0031)
+.svelte-check/

@@ -39,7 +39,8 @@ if (!process.argv.includes("--no-build")) {
   step("the Studio's build", () => npm("run", "build", "-w", "@cougars/studio"));
 }
 
-const started = step("the website and team app, privately", () => app("--private"));
+// On the D1 just seeded: a worktree's apps share main's unless told otherwise; in the main checkout (CI) it's the same one
+const started = step("the website and team app, privately", () => app("--private", "--own-db"));
 try {
   const port = (label) =>
     started.match(new RegExp(`app: ${label} up: http://localhost:(\\d+)/`))?.[1] ?? fail(`the ${label} didn't start`);

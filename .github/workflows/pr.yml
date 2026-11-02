@@ -54,7 +54,7 @@ jobs:
         run: npm test
       - if: steps.plan.outputs.checkWeb == 'true'
         run: npm run check -w @cougars/web
-      # The team app's pages (svelte-check) and its Worker (tsc)
+      # Types: TypeScript 7 for the .ts and .svelte files, TypeScript 6 (astro check) for .astro (ADR 0105)
       - if: steps.plan.outputs.checkTeam == 'true'
         run: npm run check -w @cougars/team
       - if: steps.plan.outputs.buildWeb == 'true'
