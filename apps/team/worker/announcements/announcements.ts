@@ -1,7 +1,5 @@
-// Announcements (#85): an admin's note at the top of Home ("No training on the 24th, the hall's booked"), until its
-// last day; each member can dismiss it for themselves. One or two at a time, newest first (the club read takes the
-// two newest still on), not a feed. "Got it" is a member being done with one; all of them can be looked back over, a
-// page at a time, with whether you got each.
+// Announcements: an admin's note at the top of Home until its last day, one or two at a time, newest first; each
+// member dismisses it for themselves ("Got it") and can look back over all of them.
 import { all, first, run } from "@cougars/shared/d1";
 import { HttpError, isDay, text } from "../api/api.http";
 

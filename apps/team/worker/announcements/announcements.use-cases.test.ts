@@ -1,8 +1,5 @@
-// Announcements (#85): an admin tells everyone something ("No training on the 24th, the hall's booked") where they'll
-// see it, the top of Home. It shows until its last day or until each member dismisses it; one or two at a time,
-// newest first, not a feed. A member says "Got it" to be done with one; every member can look back over all of them,
-// with whether they got each. Posting and taking one down are on the record. Driven through the real Worker handlers
-// in the fake world (ADR 0031).
+// Announcements: an admin tells everyone something at the top of Home until its last day or until each member
+// says "Got it", and every member can look back over them. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 
