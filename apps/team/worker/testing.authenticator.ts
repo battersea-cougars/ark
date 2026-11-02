@@ -1,9 +1,6 @@
-// A phone's passkeys, faked for the fake world (ADR 0023, ADR 0031): an authenticator that answers the browser's
-// navigator.credentials.create() and .get() the way a real one does, with real keys and real signatures (P-256 for
-// ES256, RSA for RS256), worked out here with node:crypto apart from the Worker's library, so a test signs in with
-// the same bytes an iPhone or Windows Hello would send. It's given the options the Worker sent (their JSON) and the
-// page's origin, and gives back the response JSON the app posts. A test can make it misbehave: say another origin,
-// skip the face check, sign another challenge, or be a copy whose counter has fallen behind.
+// A phone's passkeys, faked for the fake world (ADR 0023, ADR 0031): an authenticator that answers
+// navigator.credentials.create() and .get() with real keys and signatures, worked out with node:crypto apart from the
+// Worker's library. A test can make it misbehave: another origin, no face check, the wrong challenge, a stale counter.
 import { createHash, generateKeyPairSync, randomBytes, sign, type KeyObject } from "node:crypto";
 
 // ─── CBOR, as much of it as an authenticator writes (RFC 8949): integers, bytes, text, maps ───

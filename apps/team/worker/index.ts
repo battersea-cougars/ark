@@ -31,8 +31,8 @@ export { LiveHub } from "./live/live";
 // keeps the two the same (security.test.ts, ADR 0024). The policy: the app runs only its own scripts, styles, fonts
 // and files, talks only to its own origin, shows its own images and the ones it makes (team logos as data URLs,
 // previews as blob URLs), and is never shown inside another site's frame. The one outsider is Cloudflare Turnstile on
-// the sign-in page (#13): its script and its frame, from challenges.cloudflare.com. HTTPS only, for a year, as on the
-// website. No camera, microphone or location for the app or anything it frames (#81): it uses none (a photo is picked
+// the sign-in page: its script and its frame, from challenges.cloudflare.com. HTTPS only, for a year, as on the
+// website. No camera, microphone or location for the app or anything it frames: it uses none (a photo is picked
 // as a file).
 export const SECURITY_HEADERS: Record<string, string> = {
   "content-security-policy": [
@@ -131,7 +131,7 @@ async function everyRun(env: Env, now: Date) {
 /**
  * The hourly run, or its catch-up (cron/hourly.ts): claimed, the five-minutely jobs, then the hour's. False if this
  * run had nothing to do: the hour is done, or this try was taken. While the database is being backed up (ADR 0050) D1
- * refuses everything, so the run does nothing and says so: the next minute's tries again (#197).
+ * refuses everything, so the run does nothing and says so: the next minute's tries again.
  */
 async function hourly(env: Env, now: Date, trigger: "hourly" | "catch-up"): Promise<boolean> {
   let tried: HourTry | null;
@@ -154,9 +154,9 @@ async function hourly(env: Env, now: Date, trigger: "hourly" | "catch-up"): Prom
 
 /**
  * The hour's jobs: charge what a new day or quarter makes due (apps/team/worker/dues/README.md; no reminders of what's owed: an admin sends
- * them), tell next quarter's Quarterly Members its fee is due a few days before it starts (#187), count the nights
- * played (#177), tell the admins as the free allowance gets close, at 70% and 90% (ADR 0003), forget old sign-in
- * records (#30), and count Sanity's requests (ADR 0003). Each on its own, so one failing doesn't stop the rest, and
+ * them), tell next quarter's Quarterly Members its fee is due a few days before it starts, count the nights
+ * played, tell the admins as the free allowance gets close, at 70% and 90% (ADR 0003), forget old sign-in
+ * records, and count Sanity's requests (ADR 0003). Each on its own, so one failing doesn't stop the rest, and
  * each safe to run twice, as a catch-up does. Returns the names of those that failed.
  */
 async function hourlyJobs(env: Env, now: Date): Promise<string[]> {
@@ -175,7 +175,7 @@ async function hourlyJobs(env: Env, now: Date): Promise<string[]> {
 
 /**
  * One cron job, run on its own: a failure is logged and the next job still runs. True if it succeeded. D1 refusing it
- * for a backup's export (ADR 0050) is only a warning: it's ours, it's over in a minute, and the job runs again (#197).
+ * for a backup's export (ADR 0050) is only a warning: it's ours, it's over in a minute, and the job runs again.
  */
 async function task(name: string, job: () => Promise<unknown>): Promise<boolean> {
   try {
