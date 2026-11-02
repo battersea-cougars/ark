@@ -159,9 +159,12 @@ describe("the register on the night, with everyone's phones on the night (#223)"
         reads.filter((r) => r.startsWith("whole")),
         `${p.email}: ${reads.join(" | ")}`,
       ).toEqual([]);
-      expect(reads).toEqual([expect.stringMatching(/^parts: /)]);
-      // Who anyone is, and the roster, are as they were: a mark moves no one's card on the night itself
-      expect(reads[0].split(/[:,] /)).not.toContain("members");
+      // The nights and their people, and your own charges and dues line: not who anyone is, the roster, nor the
+      // agenda (a mark moves nothing on the calendar, nor anyone's card on the night itself)
+      expect(reads).toHaveLength(1);
+      expect(reads[0].replace("parts: ", "").split(", ").sort()).toEqual(
+        ["charges", "dues", "pastSessions", "people", "sessions"].sort(),
+      );
       const night = p.club().sessions.find((s: Json) => s.id === f.session.id);
       expect(night.going.find((m: Json) => (m.memberId ?? m.id ?? m) === regId)).toBeTruthy();
     }

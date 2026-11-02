@@ -183,8 +183,11 @@ export const TRAINING_ROUTES: Route[] = [
     },
     action: "record:Attendance",
     // Who came is who's charged (ADR 0007). Not who anyone is or what they may do: everyone's phones read the night,
-    // not the whole club (#223); the people on it and what they've played as it turned out (below)
+    // not the whole club (#223); what they've played as it turned out (below). The weeks just held too: the night goes
+    // into them, as it was marked, once its register closes (#178)
     changes: ["sessions", "charges", "dues"],
+    // Who came moves nothing on the calendar
+    calendar: false,
     // A walk-in taken off frees a place
     notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team
@@ -195,9 +198,7 @@ export const TRAINING_ROUTES: Route[] = [
       // That night's charges only, not every one there's been (#222)
       c.charged = { sessions: [id(c)] };
       const marked = await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now);
-      // Someone new to the night (a walk-in) or off it is new to Home's people; a night already held (its register
-      // taken the morning after) counts in what they've played
-      if (marked.signup !== marked.was) c.alsoChanged.push("people");
+      // A night already held (its register taken the morning after) counts in what they've played
       if (marked.heldOn < c.today) c.alsoChanged.push("played");
       return json({ signup: marked.signup });
     },
