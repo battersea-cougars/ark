@@ -8,6 +8,9 @@ import { takeOverPort } from "../../scripts/lib/dev-server.mjs";
 import { localCheckout } from "../../packages/shared/ribbon.checkout.ts";
 
 const PORT = 4510;
+// The journeys' own server (tests/journeys/support/journeys.setup.mjs): its database and Vite cache in their folder
+// (.journeys), beside this checkout's dev server and never in its way, and on a port of its own
+const JOURNEYS = process.env.COUGARS_JOURNEYS;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
 const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
 // Web Push's public key (docs/secrets.md#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
@@ -35,7 +38,9 @@ export default defineConfig(({ command }) => ({
     waitForDepsCache(),
     svelte(),
     cloudflare({
-      persistState: { path: process.env.COUGARS_LOCAL_STATE || "../../apps/web/.wrangler/state" },
+      persistState: {
+        path: JOURNEYS ? `${JOURNEYS}/d1` : process.env.COUGARS_LOCAL_STATE || "../../apps/web/.wrangler/state",
+      },
       // `vite` on your machine is "local": nothing is emailed, so sign-in shows the code on screen. With
       // TEAM_AUTO_ADMIN=1 in the shell (screenshots, quick looks) nobody needs to sign in: you're the first admin.
       // A build never carries either.
@@ -79,6 +84,7 @@ export default defineConfig(({ command }) => ({
   // them before the files go live. The manifest (which files each chunk imports) is for scripts/team-app-budget.mjs,
   // which weighs what the first paint loads (ADR 0053); public/.assetsignore keeps it off the site.
   build: { sourcemap: "hidden", manifest: true },
+  ...(JOURNEYS && { cacheDir: `${JOURNEYS}/vite` }),
   server: { port: PORT, strictPort: true, host: true },
   preview: { port: PORT, strictPort: true, host: true },
 }));
@@ -93,7 +99,7 @@ function oneDevServer(port: number): Plugin {
     name: "cougars:one-dev-server",
     apply: "serve",
     async config() {
-      if (!/[\\/]vite(\.js)?$/.test(process.argv[1] ?? "") || process.env.COUGARS_APP_SUPERVISOR) return;
+      if (!/[\\/]vite(\.js)?$/.test(process.argv[1] ?? "") || process.env.COUGARS_APP_SUPERVISOR || JOURNEYS) return;
       await takeOverPort(port, fileURLToPath(new URL("node_modules/.cache/dev-server.pid", import.meta.url)));
     },
   };

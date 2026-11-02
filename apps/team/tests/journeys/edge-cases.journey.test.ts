@@ -6,7 +6,7 @@
 //
 // The long-named member is new every run (his email has the time in it); a database other runs used has others too.
 import { expect, test, type Page } from "@playwright/test";
-import { asMember, checks, clubVia, does, noFailedChecks, signIn, stage } from "./journey";
+import { asMember, checks, clubVia, does, noFailedChecks, signIn, stage } from "./support/journey";
 
 /** 60 letters, spaces and hyphens: the longest name a form is likely to see, with no space to break at for 31. */
 const LONG_NAME = "Maximilian-Alexander Featherstonehaugh-Montgomery Wolstenhol";

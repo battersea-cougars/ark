@@ -12,12 +12,14 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { test, type Browser, type BrowserContext, type ConsoleMessage, type Page } from "@playwright/test";
-import { PAGE_PARTS } from "../src/app/club-parts";
-import { wholeClub } from "../src/app/club-whole";
+import { PAGE_PARTS } from "../../../src/app/club-parts";
+import { wholeClub } from "../../../src/app/club-whole";
 
-const root = join(import.meta.dirname, "../../..");
+const root = join(import.meta.dirname, "../../../../..");
 const out = process.env.JOURNEY_OUT ?? join(root, ".journeys");
 const port = process.env.JOURNEY_PORT;
+/** The journeys' own D1 (journeys.setup.mjs), as wrangler reads it. */
+const state = process.env.JOURNEY_STATE ?? join(out, "d1");
 /** `npm run journeys -- --a11y`: axe looks at every person's page at the end of every stage (a11y.md). */
 const a11y = process.env.JOURNEY_A11Y === "1";
 /** The header that moves the server's clock for one request (worker/api/api.dev-clock.ts): dev and local only. */
@@ -305,7 +307,7 @@ export interface Queued {
 
 /**
  * The fake push outbox: no Firebase on a local server, so nothing leaves it, and what it would have sent stays in its
- * D1 (`push_outbox`, a row per member per notification, ADR 0108), read here as wrangler reads the checkout's own D1.
+ * D1 (`push_outbox`, a row per member per notification, ADR 0108), read here as wrangler reads the journeys' own D1.
  * Only for a member with a device: the outbox has nobody else's.
  */
 export function pushOutboxOf(email: string): Queued[] {
@@ -320,6 +322,8 @@ export function pushOutboxOf(email: string): Queued[] {
       "execute",
       "DB",
       "--local",
+      "--persist-to",
+      state,
       "-c",
       join(root, "apps/web/wrangler.jsonc"),
       "--json",

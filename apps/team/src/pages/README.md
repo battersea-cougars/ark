@@ -14,7 +14,7 @@ you, For admins, and your tab at the foot. Later work keeps this order and adds 
   charge whose day has passed, so paying on the night is never late.
   [dues.test.ts › "is what's left on charges whose day has passed: tonight's isn't late yet, a part paid one is what's to go"](../lib/dues.test.ts)
 - Only whoever may post to the locker room has its megaphone in the hello.
-  [calendar.journey.ts › "can't post to the locker room"](../../journeys/calendar.journey.ts)
+  [calendar.journey.test.ts › "can't post to the locker room"](../../tests/journeys/calendar.journey.test.ts)
 - The locker room under the hello is the club's announcements only, two at a time
   ([announcements](../../worker/announcements/README.md)).
   [announcements.use-cases.test.ts › "two at a time, newest first: a third pushes the oldest off"](../../worker/announcements/announcements.use-cases.test.ts)

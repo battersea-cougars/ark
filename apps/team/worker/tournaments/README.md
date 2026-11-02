@@ -399,7 +399,7 @@ a comment beside it.
 - Stepping back turns every award face down again; the results and the winners stay.
   [awards.reveal.use-cases.test.ts › "turns every award face down again, the drum back on the first; the results and the winners stay"](awards.reveal.use-cases.test.ts)
 - The whole night, from the draw to the morning after, in a browser.
-  [kumite.journey.ts › "The Kumite night"](../../journeys/kumite.journey.ts)
+  [kumite.journey.test.ts › "The Kumite night"](../../tests/journeys/kumite.journey.test.ts)
 
 ## Past Kumites
 

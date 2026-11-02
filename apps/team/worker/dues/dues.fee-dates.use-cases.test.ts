@@ -3,7 +3,7 @@
 // apart, one changed back in time over nights whose register has closed (paid or not), one taken to nothing from a
 // date, a Quarterly Member across a change, and the hourly run at 00:30 BST, still the day before in UTC. Driven through
 // the real Worker handlers in the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, as the Worker calls it.
-// The Fees journey (apps/team/journeys/fees.journey.ts) taps the same through the training's editor.
+// The Fees journey (apps/team/tests/journeys/fees.journey.test.ts) taps the same through the training's editor.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { NOW, onTheNight, testWorld } from "../testing";

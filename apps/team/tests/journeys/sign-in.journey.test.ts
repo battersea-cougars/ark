@@ -18,7 +18,7 @@ import {
   stage,
   stranger,
   type Person,
-} from "./journey";
+} from "./support/journey";
 
 /**
  * A passkey authenticator in this tab, as a phone's own would be (Chrome's virtual one, through DevTools). `present`

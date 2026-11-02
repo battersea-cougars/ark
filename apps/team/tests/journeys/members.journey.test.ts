@@ -9,7 +9,17 @@
 // The member Ada adds is new every run (their email has the time in it). Rae can leave only once a database: on one a
 // run has been through already she's gone, and her stage says so and checks only that she stays gone.
 import { expect, test, type Locator } from "@playwright/test";
-import { asMember, clubVia, checks, does, expectRefusal, noFailedChecks, signIn, stage, type Person } from "./journey";
+import {
+  asMember,
+  clubVia,
+  checks,
+  does,
+  expectRefusal,
+  noFailedChecks,
+  signIn,
+  stage,
+  type Person,
+} from "./support/journey";
 
 /** A surname no run has used: letters from the time. */
 const freshSurname = () => {

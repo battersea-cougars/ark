@@ -37,6 +37,10 @@ functions past two screens, nesting five deep and parameters called `t`, `r`, `p
 - **Where the model says it is.** A person who knows the app should find a feature where its model puts it:
   `worker/tournaments/`, `tournaments.routes.ts`, `draft.ts`, `draft.use-cases.test.ts`. The app side holds to the
   same: `src/lib` groups its components and helpers by feature, with file names per domain and kind (#88).
+- **Tests and tool configs where they're looked for.** Unit and use-case tests sit beside the code they test
+  (`*.test.ts`). End-to-end tests go in `apps/<app>/tests/`: the journeys are `apps/team/tests/journeys/*.journey.test.ts`,
+  their helpers in `support/`. A tool's config goes where the tool's own convention puts it (`playwright.config.ts` and
+  `vitest.config.ts` at the repo root), so editors and their extensions find it without custom settings.
 - **A route stays cheap** ([0003](0003-free-tiers-only.md), API functions stay cheap): a few D1 calls, batched, its
   reads bounded and indexed, its side effects after the reply; `api.budget.use-cases.test.ts` drives every route and
   fails when one isn't there or goes over.

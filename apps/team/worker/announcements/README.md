@@ -27,7 +27,7 @@ in a comment beside it.
 - Got it takes it off your Home only, and everyone else still sees it.
   [announcements.use-cases.test.ts › "a member dismisses it: gone for them, still there for everyone else"](announcements.use-cases.test.ts)
 - Got it is a button in words on the note, and the note goes from your Home.
-  [calendar.journey.ts › "says Got it, and it's gone from his Home"](../../journeys/calendar.journey.ts)
+  [calendar.journey.test.ts › "says Got it, and it's gone from his Home"](../../tests/journeys/calendar.journey.test.ts)
 
 ## Looking back
 

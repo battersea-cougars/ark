@@ -10,7 +10,7 @@
 // off, whatever its date (apps/team/worker/tournaments/README.md). Sign-up opens today. Being on its day (KUMITE! from the fixtures out) is
 // lib/tournament-front.test.ts's. The morning after is the browser's clock a day on (Playwright's page.clock).
 import { expect, test } from "@playwright/test";
-import { asMember, clubVia, checks, does, noFailedChecks, signIn, stage, type Person } from "./journey";
+import { asMember, clubVia, checks, does, noFailedChecks, signIn, stage, type Person } from "./support/journey";
 
 /** Today in London as the app's day picker names it: "Fri 23 Oct 2026". */
 const todayLabel = () =>

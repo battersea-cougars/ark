@@ -95,7 +95,8 @@ Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follo
   describe what someone does, drive the real handlers, and fake outside services in one fake world. Unit tests only
   for tricky pure logic. Known bugs stay as `it.fails("… (known bug #N)")`.
 - Vitest, colocated `*.test.ts`. D1 is in-memory SQLite built from the schema and seed (`packages/shared/testing/d1-sqlite.ts`).
-  Don't mock our own code.
+  Don't mock our own code. End-to-end tests go in `apps/<app>/tests/`: the journeys (Playwright,
+  `playwright.config.ts` at the root) are `apps/team/tests/journeys/*.journey.test.ts`, safe in any checkout.
 - Before pushing: `npm run secrets:scan -- --since main && npm run lint && npm run knip && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio && npm run links` (as `pr.yml`).
 - **Signed in, headless**: `node scripts/dev-sign-in.mjs [email]` (no email: the first admin) writes a Playwright
   storage state to `.auth/team.json`. Use it for every screenshot or browser check; never ask for a code (ADR 0023,

@@ -50,9 +50,9 @@ change the rule, the test and this line together. Why a piece of code is the way
 ## The members table and the member sheet
 
 - The table of members is Settings → Members, for whoever lets members in; The club is cards, for everyone.
-  [members.journey.ts › "can't open Settings → Members: Not for this role"](../../journeys/members.journey.ts)
+  [members.journey.test.ts › "can't open Settings → Members: Not for this role"](../../tests/journeys/members.journey.test.ts)
 - A member's details on their sheet are a draft until Save.
-  [members.journey.ts › "changes their name, email and position on their card, and saves"](../../journeys/members.journey.ts)
+  [members.journey.test.ts › "changes their name, email and position on their card, and saves"](../../tests/journeys/members.journey.test.ts)
 - Closing the sheet with unsaved changes asks first.
   [dirty.test.ts › "asks before closing with changes"](../../src/lib/dirty.test.ts)
 

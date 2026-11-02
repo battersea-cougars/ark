@@ -7,5 +7,8 @@
   // the Cloudflare plugin) for a second test project, and fails to start ("already a server associated with the config")
   "vitest.rootConfig": "vitest.config.ts",
   "vitest.configSearchPatternInclude": "vitest.config.ts",
-  "vitest.configSearchPatternExclude": "{**/node_modules/**,**/.worktrees/**,**/.*/**,*.d.ts}"
+  "vitest.configSearchPatternExclude": "{**/node_modules/**,**/.worktrees/**,**/.*/**,*.d.ts}",
+  // The journeys in the Testing panel (Playwright Test, playwright.config.ts): each run starts from a fresh database,
+  // as `npm run journeys` does, since a journey can't run twice on the database its last run left
+  "playwright.runGlobalSetupOnEachRun": true
 }

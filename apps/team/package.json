@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node ../../scripts/app.mjs dev team",
     "build": "vite build && node ../../scripts/team-app-budget.mjs",
-    "check": "svelte-check --tsconfig ./tsconfig.json --tsgo && node ../../node_modules/@typescript/native/bin/tsc -p worker && node ../../node_modules/@typescript/native/bin/tsc -p journeys",
+    "check": "svelte-check --tsconfig ./tsconfig.json --tsgo && node ../../node_modules/@typescript/native/bin/tsc -p worker && node ../../node_modules/@typescript/native/bin/tsc -p tests",
     "native:sync": "node native/sync.mjs"
   },
   "devDependencies": {
