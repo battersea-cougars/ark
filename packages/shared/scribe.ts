@@ -1,13 +1,10 @@
-// Scribe: the one way code writes to the log (ADR 0110), shaped like decohere's @decohere/scribe and made for Workers.
+// Scribe: the one way code writes to the log (ADR 0110). It shapes a line (a dotted event name, details in fields)
+// and cleans it of anything private; an adapter writes it (scribe.console.ts). Every error or fatal line also goes to
+// the reporter, so logging an error is reporting it.
 //
 //   const log = scribe.logger("join");
 //   log.info("enquiry.created", { id, source });       → {"level":"info","name":"join","msg":"enquiry.created","id":…}
-//   log.error("enquiry.email_failed", error, { id });  → the error with its stack, and reported (Sentry, ADR 0110)
-//
-// The facade only shapes and cleans a line; an adapter writes it (scribe.console.ts: JSON for Workers Logs). The message is a dotted event name; the details go
-// in fields. Nothing private reaches the log: secrets by key, phone numbers by key, email addresses wherever they are,
-// and a token in running text (an address's query, a bearer token, a JWT).
-// Every error or fatal line also goes to the reporter, so logging an error is reporting it.
+//   log.error("enquiry.email_failed", error, { id });  → the error with its stack, and reported
 
 export type Level = "fatal" | "error" | "warn" | "info" | "debug" | "trace";
 type Fields = Record<string, unknown>;

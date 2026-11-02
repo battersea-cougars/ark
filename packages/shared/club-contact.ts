@@ -1,8 +1,6 @@
 // The club's inbox, as the team manager sets it in the Studio: Sanity → Club → Contact email (ADR 0027). Production
-// sends as it (a Gmail alias of the sending account), the website's enquiries go to it, and outside production it never
-// gets email. Read from the environment's Sanity project through its API CDN (public data, no token), at most every
-// five minutes per isolate, and counted (ADR 0003). Null when Sanity has none or can't be read: email still goes out, as
-// the sending account.
+// sends as it and the website's enquiries go to it; outside production it never gets email. Null when Sanity has none
+// or can't be read: email still goes out, as the sending account.
 import { sanityProject } from "./sanity";
 import { countSanity } from "./sanity-requests";
 import { scribe } from "./scribe";
@@ -13,6 +11,7 @@ const log = scribe.logger("club-contact");
 export const clubContactFake: { value?: string | null } = {};
 
 let cached: { project: string; value: string | null; at: number } | undefined;
+/** Sanity is asked at most this often per isolate. */
 const FRESH_MS = 5 * 60_000;
 
 export async function clubContact(
@@ -24,6 +23,7 @@ export async function clubContact(
   if (cached?.project === projectId && now - cached.at < FRESH_MS) return cached.value;
   const query = encodeURIComponent(`*[_id == "club"][0].contactEmail`);
   try {
+    // Public data from the environment's project, through its API CDN with no token; counted (ADR 0003)
     const url = `https://${projectId}.apicdn.sanity.io/v2025-01-01/data/query/${dataset}?query=${query}&perspective=published&tag=team`;
     const res = await fetch(url, { signal: AbortSignal.timeout(5_000) });
     countSanity(url, res.status);

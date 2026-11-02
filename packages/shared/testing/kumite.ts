@@ -1,5 +1,5 @@
-// The first Kumite as the club seed used to schedule it (ADR 0004): planned for next summer, its day not set yet. The
-// seed schedules none now, so the test worlds that start with one add it. For Vitest only.
+// A first Kumite planned for next summer, its day not set yet (ADR 0004), for the test worlds that start with one.
+// For Vitest only.
 export const FIRST_KUMITE_SQL = `INSERT INTO tournaments (id, type_id, name, location, held_on, start_time, end_time, capacity,
   status, champions, fee_pence, public, signup_closes_on, draft_on, season, points_win, points_draw, points_loss,
   game_minutes, kind, awards) VALUES

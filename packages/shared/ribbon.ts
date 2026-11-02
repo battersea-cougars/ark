@@ -1,8 +1,6 @@
-// The corner ribbon that says which copy of an app you're looking at (docs/adr/0010-environments-and-deploys.md):
-// LOCAL on your machine, DEV on the dev Cloudflare account, nothing in production. Only a positive sign shows one: a
-// ribbon missing on dev is harmless, one on the live site isn't, so anything unrecognised is treated as production.
-// On your machine it also names the checkout the dev server runs from (ADR 0115): its branch, and "own data" when it
-// runs on that checkout's own local D1 rather than main's shared one.
+// The corner ribbon that says which copy of an app you're looking at (ADR 0010): LOCAL on your machine, with the
+// checkout's branch (ADR 0115); DEV on the dev account; nothing in production. Anything unrecognised is treated as
+// production: a missing ribbon on dev is harmless, one on the live site isn't.
 
 /** The checkout a dev server runs from, read when it starts (ribbon.checkout.ts). */
 export interface Checkout {

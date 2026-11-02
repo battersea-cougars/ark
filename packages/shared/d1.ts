@@ -1,8 +1,6 @@
-// Thin helpers over a D1 binding. No ORM: write SQL, keep it in one place per
-// domain (e.g. apps/web/src/lib/server/enquiries.ts). Pattern borrowed from
-// gwenda-hackney/ark packages/shared/d1.js.
-// Each call is a round trip to D1, and each costs the Worker CPU time (ADR 0003): a job that writes several rows
-// builds its statements and sends them with `batch`, never `run` in a loop.
+// Thin helpers over a D1 binding. No ORM: write SQL, keep it in one place per domain (e.g.
+// apps/web/src/lib/server/enquiries.ts). Each call is a round trip and costs the Worker CPU time (ADR 0003): a job
+// that writes several rows sends its statements with `batch`, never `run` in a loop.
 
 export type Param = string | number | null;
 

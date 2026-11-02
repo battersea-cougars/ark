@@ -1,15 +1,5 @@
-// Circuit breakers for the outside services we call: Sanity, YouTube, Gmail (ADR 0055). When a service is down or
-// has told us to stop (a spent quota, a rate limit), we stop calling it for a while instead of failing every request
-// against it, which wastes time and, for a quota, can keep it spent. Callers fall back as they do for any failure:
-// the last good copy (lib/server/cache.ts), an empty state, or "email isn't working right now".
-//
-//   - A quota or rate-limit answer (QuotaError) opens the breaker until that quota resets.
-//   - Three failures in a row (network, timeout, 5xx) open it for 30 seconds, doubling each time it trips again, up
-//     to 15 minutes. A 4xx other than a quota is our mistake, not the service's, and doesn't count.
-//   - After the time is up, the next call is a trial: success closes the breaker, failure opens it again.
-//
-// The open state is kept in this isolate's memory and in the Workers Cache API, so every isolate in a data centre
-// sees it. Like packages/shared/rate-limit.ts, best effort: the Cache API only works on a custom domain.
+// Circuit breakers for the outside services we call: Sanity, YouTube, Gmail (ADR 0055). While a service is down or
+// has told us to stop, calls fail at once instead of each waiting on it, and callers fall back as for any failure.
 import { scribe, type Logger } from "./scribe";
 
 const log = scribe.logger("breaker");
@@ -54,6 +44,10 @@ export interface BreakerDeps {
   edge?: EdgeCache | null;
 }
 
+// A quota or rate-limit answer (QuotaError) opens the breaker until that quota resets. Three failures in a row
+// (network, timeout, 5xx) open it for 30 seconds, doubling each time it trips again, up to 15 minutes; a 4xx other
+// than a quota is our mistake, not the service's, and doesn't count. When the time is up, the next call is a trial:
+// success closes the breaker, failure opens it again.
 const FAILURES = 3;
 const FIRST_COOLDOWN_MS = 30_000;
 const MAX_COOLDOWN_MS = 15 * 60_000;
@@ -64,6 +58,8 @@ interface State {
   cooldownMs: number;
 }
 
+// The open state is kept in this isolate's memory and in the Workers Cache API, so every isolate in a data centre
+// sees it. Best effort, like rate-limit.ts: the Cache API only works on a custom domain.
 const states = new Map<string, State>();
 const stateOf = (service: string): State => {
   let s = states.get(service);

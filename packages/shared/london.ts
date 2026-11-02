@@ -1,5 +1,5 @@
-// London's dates and times as data, the one copy the website, the team app and its Worker all use (#35): which day
-// it is in London, the instant of a London wall-clock time, and the evening a moment belongs to. Words people read
+// London's dates and times as data, the one copy the website, the team app and its Worker all use: which day it is
+// in London, the instant of a London wall-clock time, and the evening a moment belongs to. Words people read
 // ("Fri 9 Oct", "7:30pm") stay in each app's own lib/dates.ts.
 const TZ = "Europe/London";
 
