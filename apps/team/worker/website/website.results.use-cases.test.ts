@@ -196,3 +196,23 @@ describe("tournament results on the website", () => {
     expect((await publishedEditions())[0].championsCrest).toBe(`/crests/${ants}.png`);
   });
 });
+
+describe("the results list on the website", () => {
+  it("is newest first, so the reigning champions are the latest tournament's", async () => {
+    const spring = await cup({ name: "Spring Cup", heldOn: "2026-04-11" });
+    await spring.play();
+    const summer = await cup({ name: "Summer Cup", heldOn: "2026-09-12" });
+    await summer.play();
+    expect((await publishedEditions()).map((e) => e.name)).toEqual(["Summer Cup", "Spring Cup"]);
+  });
+
+  it("a team with no name of its own goes by Team and its captain's name, never their full name", async () => {
+    const { id, bees, play } = await cup();
+    await play();
+    const cole = await w.signedIn("cole@example.com");
+    expect((await cole.call("PUT", `/api/tournaments/${id}/teams/${bees}/look`, { name: "", logo: null })).status).toBe(
+      200,
+    );
+    expect((await publishedEdition(id))!.table.map((x) => x.name)).toEqual(["Ants", "Team Cole"]);
+  });
+});

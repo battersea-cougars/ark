@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
-import { syncAll } from "@cougars/shared/agenda";
+import { readAgenda, syncAll } from "@cougars/shared/agenda";
 import { FIRST_KUMITE_SQL } from "@cougars/shared/testing/kumite";
 import { clearCache } from "./cache";
-import { cachedWhatsOn, weeklyRows, whatsOn, type WhatsOnItem } from "./whats-on";
+import { ALL_LIMITS, cachedWhatsOn, weeklyRows, whatsOn, type WhatsOnItem } from "./whats-on";
 
 // Tuesday 6 October 2026, late morning in London
 const NOW = new Date("2026-10-06T11:00:00Z");
@@ -69,6 +69,31 @@ describe("what's on", () => {
     db.raw.exec("UPDATE training_series SET public = 0; UPDATE tournaments SET public = 0");
     await syncAll(db);
     expect((await whatsOn(db, NOW)).map((i) => i.title)).toEqual(["Summer social", "Kit day"]);
+  });
+
+  it("the events page shows the next four trainings, and every public tournament and event coming up", async () => {
+    const add = db.raw.prepare(
+      "INSERT INTO club_events (title, starts_at, ends_at, venue, description, public) VALUES (?, ?, ?, '', '', 1)",
+    );
+    for (let day = 13; day <= 18; day++)
+      add.run(`Social ${day}`, `2026-10-${day}T18:00:00Z`, `2026-10-${day}T22:00:00Z`);
+    const items = await whatsOn(db, NOW, ALL_LIMITS);
+    expect(items.filter((i) => i.kind === "training")).toHaveLength(4);
+    // The home page's four, then six more: all of them
+    expect(items.filter((i) => i.kind === "event")).toHaveLength(8);
+    expect(items.filter((i) => i.kind === "tournament").map((i) => i.title)).toEqual(["The Cougars Kumite"]);
+  });
+
+  it("a tournament's draft night and sign-up deadline are the team app's, not the website's", async () => {
+    db.raw.exec(`UPDATE tournaments SET season = NULL, held_on = '2026-11-14', signup_closes_on = '2026-11-01',
+      draft_on = '2026-11-07'`);
+    await syncAll(db);
+    // The club's agenda has both, for the team app
+    expect((await readAgenda(db, "2026-10-06")).map((r) => r.kind)).toEqual(
+      expect.arrayContaining(["draft", "signup_closes"]),
+    );
+    const titles = (await whatsOn(db, NOW, ALL_LIMITS)).map((i) => i.title);
+    expect(titles.filter((t) => t.includes("Kumite"))).toEqual(["The Cougars Kumite"]);
   });
 
   it("reads the calendar once a minute, however many people look", async () => {
