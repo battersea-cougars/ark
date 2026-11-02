@@ -8,8 +8,8 @@
 //   npm run journeys -- --a11y           axe over everyone's page at the end of each stage, into .journeys/a11y.md
 //   npm run journeys -- --headed         anything else goes to Playwright (--headed, --debug, --ui)
 //
-// The database is this checkout's own (`npm run app -- --own-db`), wiped and made again from db/schema.sql, the club
-// seed and the journeys' made-up roster (journeys.roster.json), every run. So it refuses to run in the main checkout,
+// The database is this checkout's own (`npm run app -- --own-db`), wiped and made again from db/schema.sql and the
+// club seed (after launch, db/migrations/) and the journeys' made-up roster (journeys.roster.json), every run. So it refuses to run in the main checkout,
 // whose D1 is everyone's, except in CI, where nothing else is there. Ports 4500/4510/4520 are never touched: the app
 // runs on its own private port. Failures never fail the command's caller (exit 0 once it ran): they're reported, in
 // .journeys/summary.md, and in CI (or with --file-issue) as one issue for the run.
@@ -17,6 +17,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { localDatabaseScript } from "../../../scripts/lib/database.mjs";
 import { parseRoster, rosterSql } from "../../../scripts/lib/roster.mjs";
 import { checkoutOf, mainCheckout } from "../../../scripts/lib/worktrees.mjs";
 
@@ -68,7 +69,7 @@ const t0 = Date.now();
 app("stop", "team");
 const state = join(root, "apps/web/.wrangler/state");
 rmSync(state, { recursive: true, force: true });
-run("node", [join(root, "scripts/db-rebuild.mjs"), "--local"]);
+run("node", [localDatabaseScript(), "--local"]);
 const tmp = mkdtempSync(join(tmpdir(), "journeys-"));
 try {
   const roster = parseRoster(readFileSync(join(import.meta.dirname, "journeys.roster.json"), "utf8"));
@@ -88,7 +89,7 @@ try {
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
-console.log(`journeys: a fresh D1 (schema, club seed, journeys.roster.json) in ${secs(t0)}`);
+console.log(`journeys: a fresh D1 (schema or migrations, club seed, journeys.roster.json) in ${secs(t0)}`);
 
 // 2. The team app on its own port, on that database
 const started = app("--private", "--own-db", "team");

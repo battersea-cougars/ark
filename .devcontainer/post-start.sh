@@ -71,8 +71,10 @@ if [ ! -d "$ROOT/node_modules" ] || [ "$ROOT/package-lock.json" -nt "$ROOT/node_
   (cd "$ROOT" && npm install)
 fi
 
-# Local D1 (apps/web/.wrangler): rebuilt from db/schema.sql, keeping its data (ADR 0050).
-(cd "$ROOT" && npm run --silent db:rebuild:local >/dev/null) || echo "Local D1 rebuild failed; run: npm run db:rebuild:local"
+# Local D1 (apps/web/.wrangler): rebuilt from db/schema.sql, keeping its data, until launch; after it, migrated (ADR 0050).
+db_step=db:rebuild:local
+if ls "$ROOT"/db/migrations/*.sql >/dev/null 2>&1; then db_step=db:migrate:local; fi
+(cd "$ROOT" && npm run --silent "$db_step" >/dev/null) || echo "Local D1 update failed; run: npm run $db_step"
 # An empty club (a new container, a deleted database): seed it, so the team app has people and an admin to sign in as.
 # Your own db/seed/roster.local.json if there is one, else the made-up example club. A club with members is left alone.
 members=$(cd "$ROOT/apps/web" && npx --no-install wrangler d1 execute DB --local --json \
