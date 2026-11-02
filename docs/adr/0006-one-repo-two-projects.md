@@ -37,7 +37,8 @@ the Sanity helpers and the Europe/London date code. Gwenda's ark repo solves the
   ([ADR 0010](0010-environments-and-deploys.md)). Rules in CLAUDE.md say which project they apply to.
 - **The roadmap is GitHub milestones**, not a doc: each milestone is prefixed with its project (`Website:` or
   `Team app:`; `Housekeeping` is for both), and every piece of work is an issue in one. A checklist in a doc went stale as soon as work moved
-  faster than it was ticked.
+  faster than it was ticked. Issues are written from `.github/ISSUE_TEMPLATE/task.md` (modelled on typesmiths/ledger's), and a PR from
+  `.github/pull_request_template.md`, starting with the issue it closes.
 - The old app is not in the tree; it's in git history (`archive/team-manager/`, before 2026-10-09).
 - **The team generator runs in the browser** ([ADR 0102](0102-balanced-teams-by-swap-search.md)), so there is no
   server to pay for ([ADR 0003](0003-free-tiers-only.md)).
@@ -65,3 +66,5 @@ the Sanity helpers and the Europe/London date code. Gwenda's ark repo solves the
   way (like gwenda-hackney/ark): `battersea-cougars/ark`.
 - 2026-10-24: London's date conversions became one copy in `packages/shared/london.ts`; `londonISO` had been written
   three times (shared, the website's and the team app's `lib/dates.ts`). Display formats stay in each app (#35).
+- 2026-11-02: Issue and pull request templates added; an issue says how to confirm and when it's done, a PR links its
+  issue (#208).

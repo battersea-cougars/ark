@@ -52,7 +52,7 @@ History line, never a quiet edit; a new topic (a service, a rule, a pattern, a t
 
 These rules are for the website only. The team app (`apps/team`) is a Svelte 5 SPA on its own
 Worker ([ADR 0022](docs/adr/0022-team-app-svelte-pwa.md)); its permissions follow
-[ADR 0024](docs/adr/0024-action-based-authorization.md). The roadmap is [GitHub milestones](https://github.com/battersea-cougars/ark/milestones): new work is an issue in one ([ADR 0006](docs/adr/0006-one-repo-two-projects.md)).
+[ADR 0024](docs/adr/0024-action-based-authorization.md). The roadmap is [GitHub milestones](https://github.com/battersea-cougars/ark/milestones): new work is an issue in one ([ADR 0006](docs/adr/0006-one-repo-two-projects.md)). Write issues from [.github/ISSUE_TEMPLATE/task.md](.github/ISSUE_TEMPLATE/task.md) and PRs from [.github/pull_request_template.md](.github/pull_request_template.md), linking the issue ("Closes #N").
 
 - Astro 7 + `@astrojs/cloudflare` 14 (Workers with static assets, not Pages).
 - Pages are prerendered (`output: "static"`). Server routes opt out with `export const prerender = false`.
