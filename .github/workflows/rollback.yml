@@ -3,7 +3,7 @@ name: Roll back
 # Put one app's worker back to its version before the last deploy, or to a version you name (ADR 0010). For when a
 # deploy breaks something and a revert through `main` and `release` would take too long. It goes through CI like every
 # deploy, so production is still never touched by hand. Run it from the Actions tab on `release` for production, or on
-# `main` for dev. The database stays as it is: a rollback puts back code, not data (backups: #31).
+# `main` for dev. The database stays as it is: a rollback puts back code, not data (restore-db.yml puts back data).
 #
 # The next deploy from that branch replaces it again, so revert the bad commit on `main` too.
 on:

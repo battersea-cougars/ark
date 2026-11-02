@@ -231,7 +231,7 @@ deploys.
   | All zones in Cougars   | Workers Routes Write                                             | Attach the domain to the worker (`target.mjs`)             |
 
 - **Used by:** `deploy.yml` on `release` and Studio publishes (`target.mjs`, migrations, `wrangler deploy`);
-  `backup.yml`; `scripts/admin-break-glass.mjs`, `scripts/club-snapshot.mjs` (through `scripts/lib/d1-api.mjs`) and
+  `backup.yml`, `restore-db.yml` (D1 Write covers Time Travel); `scripts/admin-break-glass.mjs`, `scripts/club-snapshot.mjs` (through `scripts/lib/d1-api.mjs`) and
   the `scripts/*-setup.mjs` scripts, with `--environment production`.
 - **Gets there by:** CI pull from Bitwarden. On your machine,
   `node scripts/env-pull.mjs --environment production -- <script>`.
@@ -306,7 +306,7 @@ your machine.
   `CLOUDFLARE_API_TOKEN__DEV`.
 - **Permissions:** scope **Entire Cougars Dev account**; **Workers Admin** (Editor can't create a new worker),
   **D1 Write**, **Turnstile Write** (`scripts/turnstile-setup.mjs`).
-- **Used by:** `deploy.yml` on `main` and pull requests, `backup.yml`, `scripts/deploy-dev.sh`, and the scripts
+- **Used by:** `deploy.yml` on `main` and pull requests, `backup.yml`, `restore-db.yml`, `scripts/deploy-dev.sh`, and the scripts
   above run for dev.
 - **Gets there by:** CI pull. On your machine, `node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh`.
 - **Expires:** no, unless you set a TTL.
@@ -877,7 +877,7 @@ fail.
 
 - **Comes from:** we make it:
   `node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("base64url"))' | node scripts/secret-set.mjs BACKUP_KEY__PRODUCTION`.
-- **Used by:** `scripts/db-backup.mjs` (`backup.yml` nightly, and `deploy.yml` before it changes the schema) and
+- **Used by:** `scripts/db-backup.mjs` (`backup.yml` nightly, `deploy.yml` before it changes the schema, `restore-db.yml` before it restores) and
   `scripts/db-restore.mjs`, which opens one ([db/README.md](../db/README.md#backups)).
 - **Gets there by:** CI pull. On your machine,
   `node scripts/env-pull.mjs --environment production -- node scripts/db-restore.mjs …`.
