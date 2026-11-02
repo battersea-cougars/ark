@@ -449,6 +449,16 @@ describe("someone leaves mid-draft", () => {
     const { phone } = await d.onClock();
     expect((await d.pick(phone, d.picked[2])).status).toBe(200);
   });
+
+  it("a captain can't say they're out: they ask an admin, and they're still in, captaining their team", async () => {
+    const d = await opened();
+    const cara = d.captainPhones[0];
+    const res = await cara.call("POST", `/api/tournaments/${d.id}/answer`, { answer: "out" }, at);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("You're a captain: ask an admin to take you off.");
+    expect((await d.tournament()).going).toContain(d.captainIds[0]);
+    expect((await d.teams()).map((t) => t.captain)).toContain(d.captainIds[0]);
+  });
 });
 
 describe("a replacement who isn't there (the 2026-10-23 security review's finding 17)", () => {

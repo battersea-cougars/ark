@@ -90,6 +90,18 @@ describe("who won, at the edges", () => {
     expect((await tournament()).winners).toEqual([]);
   });
 
+  it("two of a tournament's awards can't share a name, whatever the case: refused, and its awards stay as they were", async () => {
+    const { dana, id, t, tournament } = await cup();
+    const twice = [
+      { name: "Top scorer", about: "" },
+      { name: "TOP SCORER", about: "" },
+    ];
+    const res = await dana.call("PUT", `/api/tournaments/${id}`, { ...t, awards: twice });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Two awards can't share a name.");
+    expect((await tournament()).awards.map((a: Json) => a.name)).toEqual(["Champions", "Top scorer"]);
+  });
+
   it("winners for a tournament that isn't there is a 404", async () => {
     const { winners, ants } = await cup();
     expect((await winners([{ award: "Champions", teamId: ants }], 9999)).status).toBe(404);

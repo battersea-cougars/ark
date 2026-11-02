@@ -80,6 +80,14 @@ describe("an admin closes sign-up now", () => {
     expect(late.status).toBe(409);
   });
 
+  it("a member who's in can still say they're out once it's closed", async () => {
+    const k = await kumite();
+    expect((await k.close()).status).toBe(200);
+    const me = ((await k.reg.club(at)).body as Json).me as number;
+    expect((await k.reg.call("POST", `/api/tournaments/${k.id}/answer`, { answer: "out" }, at)).status).toBe(200);
+    expect((await k.tournament()).out).toContain(me);
+  });
+
   it("is an admin's: a member is refused, and sign-up stays open", async () => {
     const k = await kumite();
     expect((await k.close(k.reg)).status).toBe(403);

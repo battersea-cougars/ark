@@ -212,6 +212,23 @@ describe("the awards at The Anchor, one card at a time", () => {
     expect((await k.sees(mo, MORNING)).winners).toEqual(ALL);
   });
 
+  it("the reveal sends no push: everyone's watching the page", async () => {
+    const k = await kumiteNight(w);
+    for (const [who, token] of [
+      ["cara@example.com", "cara-phone"],
+      ["mo@example.com", "mo-phone"],
+    ])
+      expect((await (await w.signedIn(who)).call("PUT", "/api/auth/device", { token, platform: "ios" })).status).toBe(
+        200,
+      );
+    expect((await k.confirm()).status).toBe(200);
+    for (const at of [0, 1, 2]) await k.revealThenRoll(at);
+    expect((await k.reveal(3)).status).toBe(200);
+    await w.cron(MORNING.now);
+    expect(w.db.raw.prepare("SELECT COUNT(*) n FROM push_outbox").get()).toEqual({ n: 0 });
+    expect(w.pushes).toEqual([]);
+  });
+
   it("each reveal is on the record", async () => {
     const k = await kumiteNight(w);
     await k.confirm();

@@ -134,6 +134,24 @@ describe("an admin records a past Kumite", () => {
     expect(rows("SELECT COUNT(*) n FROM tournaments WHERE name = 'Kumite Spring 2026'")[0].n).toBe(0);
   });
 
+  it("refuses one team, someone on two teams, someone who isn't a member, a final that isn't the last match: nothing goes in", async () => {
+    const a = await admin();
+    const spring = lastSpring(a.idOf);
+    const [shidoshi, dux, chongLi] = spring.teams;
+    const [first, second, third, final] = spring.games;
+    const tries: [object, string][] = [
+      [{ ...spring, teams: [shidoshi], games: [], winners: [] }, "Two teams at least."],
+      [{ ...spring, teams: [shidoshi, { ...dux, players: [a.idOf("Bo")] }, chongLi] }, "Someone is on two teams."],
+      [{ ...spring, teams: [shidoshi, dux, { ...chongLi, players: [...chongLi.players, 99_999] }] }, "No such member."],
+      [{ ...spring, games: [first, final, second, third] }, "The final's the last match."],
+    ];
+    for (const [body, error] of tries) {
+      const res = await a.dana.call("POST", "/api/tournaments/past", body);
+      expect([res.status, res.body.error]).toEqual([400, error]);
+    }
+    expect(rows("SELECT COUNT(*) n FROM tournaments WHERE name = 'Kumite Spring 2026'")[0].n).toBe(0);
+  });
+
   it("a list holding a null, a number or a list where a team, match or winner goes is refused, not a server error", async () => {
     const a = await admin();
     const spring = lastSpring(a.idOf);
