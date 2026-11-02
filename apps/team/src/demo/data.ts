@@ -2,7 +2,7 @@
 // (app/backend.ts), each page's parts as it's opened (app/page-data.svelte.ts, #178); after a change, only the parts
 // it touched come back and are put in place (applySlices). The core's and the pages' parts of one list (everyone,
 // the nights, the tournaments, what's owed) are kept apart and put together (app/club-whole.ts), so a page reads one
-// list whichever they came from. The shapes match the D1 tables (docs/team-app-data-model.md).
+// list whichever they came from. The shapes match the D1 tables (db/schema.sql).
 import type { Action } from "../access/actions";
 import { allOn, type NotificationPrefs } from "../lib/notification-topics";
 import type { IconName } from "../app/shell/icons";

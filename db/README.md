@@ -6,7 +6,8 @@ One database, `cougars`, bound as `DB` in `apps/web/wrangler.jsonc`.
 
 Not live yet, so there are no migrations ([ADR 0050](../docs/adr/0050-schema-and-seed-until-launch.md)):
 
-- `db/schema.sql` is the whole database: every table and index. Change it directly.
+- `db/schema.sql` is the whole database: every table and index, each table's comment saying what it's for, which
+  code owns it and its ADR. Change it directly.
 - `db/seed/club.sql` is what it starts with that isn't about anyone (roles, Friday Training, the Kumite series,
   quips): `INSERT OR IGNORE` by id, so it never overwrites what admins changed. People come from the roster
   ([seed/README.md](seed/README.md)).
