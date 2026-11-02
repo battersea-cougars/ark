@@ -277,17 +277,6 @@ jobs:
             fi
           done
 
-      # Once, 2026-10-23: the Gmail Desktop client is gone; 2026-10-30: the Instagram token no longer renews, so it has
-      # no sealing key. Deletes only what's there; drop this step once both environments have deployed.
-      - name: Retire old Worker secrets
-        if: github.event_name != 'pull_request'
-        working-directory: apps/web
-        run: |
-          have=$(npx wrangler secret list -c dist/server/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
-          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET INSTAGRAM_TOKEN_KEY; do
-            if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/server/wrangler.json; fi
-          done
-
       - name: Upload preview
         id: preview
         if: github.event_name == 'pull_request'
@@ -299,9 +288,11 @@ jobs:
 
       # A key for this deploy's smoke test of the form only (apps/web/src/lib/server/smoke.ts): random, made here, never
       # stored, and spent right after the test. Production only: the form test sends real emails, so it's for the live
-      # site; dev and PR previews check the pages and the API without it, and the use cases cover the form (2026-10-28)
+      # site; dev and PR previews check the pages and the API without it, and the use cases cover the form (2026-10-28).
+      # A release push only: the daily rebuild and the runs a result starts (both `workflow_dispatch`) skip it, so the
+      # club's inbox gets one only when code goes live (2026-11-02)
       - name: Smoke key
-        if: github.ref == 'refs/heads/release'
+        if: github.ref == 'refs/heads/release' && github.event_name == 'push'
         working-directory: apps/web
         run: |
           key=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')
@@ -314,7 +305,7 @@ jobs:
 
       # Spent, pass or fail: the Worker gets a new random key that nobody ever sees, so this deploy's key opens nothing
       - name: Spend the smoke key
-        if: always() && github.ref == 'refs/heads/release'
+        if: always() && github.ref == 'refs/heads/release' && github.event_name == 'push'
         working-directory: apps/web
         run: openssl rand -base64 32 | tr -d '\n' | npx wrangler secret put SMOKE_TOKEN -c dist/server/wrangler.json
 
@@ -395,17 +386,6 @@ jobs:
 
       - name: Target ${{ env.SITE_ENV }}
         run: node scripts/ci/target.mjs "$SITE_ENV" team
-
-      # Once, 2026-10-23: the Worker secrets it no longer has. The Gmail Desktop client is gone, and the Apple team ID and
-      # Sentry DSN are vars now, which can't share a name with a secret. Deletes only what's there; drop this step once
-      # both environments have deployed.
-      - name: Retire old Worker secrets
-        working-directory: apps/team
-        run: |
-          have=$(npx wrangler secret list -c dist/cougars_team/wrangler.json 2>/dev/null | jq -r '.[].name' || true)
-          for name in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET APPLE_TEAM_ID SENTRY_DSN; do
-            if grep -qx "$name" <<<"$have"; then npx wrangler secret delete "$name" -c dist/cougars_team/wrangler.json; fi
-          done
 
       # `wrangler deploy`, not a previews-only upload, so the live hub's Durable Object migration is applied (ADR 0072)
       - name: Deploy
