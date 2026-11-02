@@ -5,7 +5,7 @@
 //   npm run journeys -- --core           the core run: all but the Kumite on the clock (its played-out Kumites)
 //   npm run journeys -- --file-issue     the same, and a run with failures files one GitHub issue (CI always does)
 //   npm run journeys -- --keep           leave the app running after (prints its port), to look around
-//   npm run journeys -- --a11y           axe over everyone's page at the end of each stage, into .journeys/a11y.md
+//   npm run journeys -- --a11y           axe over everyone's page at the end of each step, into .journeys/a11y.md
 //   npm run journeys -- --headed         anything else goes to Playwright (--headed, --debug, --ui)
 //
 // The run itself is Playwright's, through the repo's playwright.config.ts, as VS Code's Testing panel runs it: its
@@ -53,7 +53,7 @@ const pw = run("npx", ["playwright", "test", ...only, ...argv], {
   env: { ...process.env, JOURNEY_OUT: out, JOURNEY_A11Y: a11y ? "1" : "", JOURNEY_KEEP: keep ? "1" : "" },
 });
 console.log(`journeys: the ${which} run in ${secs(t1)} (exit ${pw.status})`);
-if (a11y) console.log(`journeys: what axe found, stage by stage: ${join(out, "a11y.md")}`);
+if (a11y) console.log(`journeys: what axe found, step by step: ${join(out, "a11y.md")}`);
 
 // The summary, and the one issue for the run
 const failed = existsSync(summary);

@@ -10,19 +10,8 @@
 // admin, sending what the app sends (the night off for the Kumite, after it's saved). What's under test is what each
 // person sees, a Kumite deleted from its editor, and the night's own Manage. Every Kumite here is deleted at the end
 // and every night put back on, so the club's left as it was.
-import { expect, test, type Page } from "@playwright/test";
-import {
-  asMember,
-  at,
-  checks,
-  clubVia,
-  does,
-  london,
-  noFailedChecks,
-  signIn,
-  stage,
-  type Person,
-} from "./support/journey";
+import type { Page } from "@playwright/test";
+import { asMember, at, checks, clubVia, does, expect, london, signIn, test, type Person } from "./support/journey";
 
 const NOW = "2026-11-30T12:00";
 /** The Fridays (Friday Training's nights) and a Saturday this story uses, as the pages write them and as days. */
@@ -53,18 +42,36 @@ interface Kumite {
   status: string;
 }
 
-test("Nights and Kumites", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const fay = await signIn(browser, "Member", "Fay Forward", "fay@example.com");
-  for (const who of [ada, fay]) await at(who, london(NOW));
+test.describe.serial("Nights and Kumites", () => {
+  let ada: Person;
+  let fay: Person;
+  let api: ReturnType<typeof asMember>;
+  let friday: { id: number; name: string; slug: string };
 
-  // The API as the admin at NOW (a shortcut, not under test)
-  const api = asMember(ada.email, { at: london(NOW) });
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Member", "Fay Forward", "fay@example.com");
+    for (const who of [ada, fay]) await at(who, london(NOW));
+
+    // The API as the admin at NOW (a shortcut, not under test)
+    api = asMember(ada.email, { at: london(NOW) });
+    friday = ((await club()).series as { id: number; name: string; slug: string }[]).find(
+      (s) => s.name === "Friday Training",
+    )!;
+
+    // Anything an earlier run left on our days: gone, and our Fridays back on
+    for (const t of await kumites()) if (OURS.includes(t.heldOn)) await remove(t.id);
+    for (const f of FRIDAYS) {
+      const night = await nightOn(f.day);
+      if (night?.cancelledAt) await api("POST", `/api/sessions/${night.id}/cancelled`, { cancelled: false });
+    }
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay]) await who?.context.close();
+  });
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const club = async (): Promise<any> => clubVia(api);
-  const friday = ((await club()).series as { id: number; name: string; slug: string }[]).find(
-    (s) => s.name === "Friday Training",
-  )!;
   const nightOn = async (day: string) =>
     ((await club()).sessions as Night[]).find((s) => s.seriesId === friday.id && s.heldOn === day);
   const offDays = async () =>
@@ -111,19 +118,12 @@ test("Nights and Kumites", async ({ browser }) => {
   const manage = (who: Person) => who.page.getByRole("button", { name: /^Manage / });
   const backOn = (who: Person) => who.page.getByRole("button", { name: /^It's back on/ });
 
-  // Anything an earlier run left on our days: gone, and our Fridays back on
-  for (const t of await kumites()) if (OURS.includes(t.heldOn)) await remove(t.id);
-  for (const f of FRIDAYS) {
-    const night = await nightOn(f.day);
-    if (night?.cancelledAt) await api("POST", `/api/sessions/${night.id}/cancelled`, { cancelled: false });
-  }
-
   let a = 0;
   let b = 0;
   let c = 0;
   let d = 0;
 
-  await stage("1. Several Kumites, in any order, and nights called off", async () => {
+  test("1. Several Kumites, in any order, and nights called off", async () => {
     const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
     const clash = ada.page.getByRole("dialog", { name: "Already on then" });
     await does(
@@ -227,37 +227,34 @@ test("Nights and Kumites", async ({ browser }) => {
     });
   });
 
-  await stage(
-    "2. Kumites deleted and moved: their Fridays come back, unless something still keeps them off",
-    async () => {
-      await does(ada, "deletes the 11 Dec Kumite from its editor (Settings → Tournaments)", async () => {
-        await ada.page.goto("/settings/tournaments");
-        const name = (await kumites()).find((t) => t.id === a)!.name;
-        await ada.page.getByRole("button").filter({ hasText: name }).filter({ hasText: "11 Dec" }).first().click();
-        await ada.page.getByRole("button", { name: "Delete" }).click();
-        await ada.page.getByRole("button", { name: "Delete" }).click();
-        await expect.poll(async () => (await kumites()).some((t) => t.id === a)).toBe(false);
-      });
-      await checks(fay, "sees Friday Training on Fri 11 Dec on again on the Calendar", async () => {
-        await calendar(fay);
-        await expect(card(fay.page, "Friday Training", DEC_11.says)).not.toContainText("Cancelled");
-      });
+  test("2. Kumites deleted and moved: their Fridays come back, unless something still keeps them off", async () => {
+    await does(ada, "deletes the 11 Dec Kumite from its editor (Settings → Tournaments)", async () => {
+      await ada.page.goto("/settings/tournaments");
+      const name = (await kumites()).find((t) => t.id === a)!.name;
+      await ada.page.getByRole("button").filter({ hasText: name }).filter({ hasText: "11 Dec" }).first().click();
+      await ada.page.getByRole("button", { name: "Delete" }).click();
+      await ada.page.getByRole("button", { name: "Delete" }).click();
+      await expect.poll(async () => (await kumites()).some((t) => t.id === a)).toBe(false);
+    });
+    await checks(fay, "sees Friday Training on Fri 11 Dec on again on the Calendar", async () => {
+      await calendar(fay);
+      await expect(card(fay.page, "Friday Training", DEC_11.says)).not.toContainText("Cancelled");
+    });
 
-      // A shortcut: the API deletes one of the 18th's two Kumites, then moves the other to the Saturday
-      await remove(b);
-      await checks(ada, "Fri 18 Dec stays off: the second Kumite that day still keeps it off", async () => {
-        expect(await offDays()).toEqual([DEC_4.day, DEC_18.day, DEC_25.day]);
-      });
-      await api("PUT", `/api/tournaments/${d}`, body(D, DEC_19));
-      await checks(fay, "with that one moved to the Saturday, Fri 18 Dec is back on", async () => {
-        expect(await offDays()).toEqual([DEC_4.day, DEC_25.day]);
-        await calendar(fay);
-        await expect(card(fay.page, "Friday Training", DEC_18.says)).not.toContainText("Cancelled");
-      });
-    },
-  );
+    // A shortcut: the API deletes one of the 18th's two Kumites, then moves the other to the Saturday
+    await remove(b);
+    await checks(ada, "Fri 18 Dec stays off: the second Kumite that day still keeps it off", async () => {
+      expect(await offDays()).toEqual([DEC_4.day, DEC_18.day, DEC_25.day]);
+    });
+    await api("PUT", `/api/tournaments/${d}`, body(D, DEC_19));
+    await checks(fay, "with that one moved to the Saturday, Fri 18 Dec is back on", async () => {
+      expect(await offDays()).toEqual([DEC_4.day, DEC_25.day]);
+      await calendar(fay);
+      await expect(card(fay.page, "Friday Training", DEC_18.says)).not.toContainText("Cancelled");
+    });
+  });
 
-  await stage("3. It's back on, from the night's own page, whatever kept it off", async () => {
+  test("3. It's back on, from the night's own page, whatever kept it off", async () => {
     await does(ada, "puts Fri 25 Dec, called off by hand, back on (Manage → It's back on)", async () => {
       await nightPage(ada, DEC_25.day);
       await expect(ada.page.getByRole("article").filter({ hasText: DEC_25.says })).toContainText("Cancelled");
@@ -282,9 +279,8 @@ test("Nights and Kumites", async ({ browser }) => {
       await fay.page.goto("/");
       await expect(fay.page.getByRole("region", { name: "Coming up" })).not.toContainText("Cancelled");
     });
-  });
 
-  // The club as it was: the last Kumite gone
-  await remove(d);
-  noFailedChecks();
+    // The club as it was: the last Kumite gone
+    await remove(d);
+  });
 });

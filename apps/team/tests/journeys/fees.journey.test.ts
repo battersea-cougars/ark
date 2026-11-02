@@ -18,7 +18,7 @@
 //
 // Like every journey that moves the clocks, it keeps to one going forward (journey.ts `at`): the server works out
 // what's owed again on each day's first open, so an earlier moment would take back what a later one charged.
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import {
   asMember,
   clubVia,
@@ -26,12 +26,11 @@ import {
   checks,
   cron,
   does,
-  knownBug,
+  expect,
   london,
-  noFailedChecks,
   pauseTraining,
   signIn,
-  stage,
+  test,
   type Person,
 } from "./support/journey";
 
@@ -59,16 +58,12 @@ interface DatedFee {
   from: string;
 }
 
-/** Its training, paused once the journey's over however it ended (journey.ts pauseTraining): set as it's made. */
-let leftover = async () => {};
-test.afterEach(async () => leftover());
-
-test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const sam = await signIn(browser, "Member", "Sam Skater", "sam@example.com");
-  const dee = await signIn(browser, "Member", "Dee Defence", "dee@example.com");
-  const bo = await signIn(browser, "Quarterly Member", "Bo Backhand", "bo@example.com");
-  const everyone = [ada, sam, dee, bo];
+test.describe.serial("Fees: what a Friday costs as its fee changes", () => {
+  let ada: Person;
+  let sam: Person;
+  let dee: Person;
+  let bo: Person;
+  let everyone: Person[] = [];
 
   /** The story's moment: everyone's clocks, and the API's, are put there before each step. */
   let now = london("2026-10-12T12:00");
@@ -79,10 +74,9 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
   /** The club as the admin's app reads it, at the story's moment. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const club = async (): Promise<any> => clubVia(asMember(ada.email, { at: now }));
-  const members = (await club()).members as { id: number; name: string }[];
+  let members: { id: number; name: string }[] = [];
   const idOf = (name: string) => members.find((m) => m.name === name)!.id;
   let seriesId = 0;
-  leftover = () => pauseTraining(ada.email, seriesId, now);
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
@@ -178,7 +172,21 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     await ada.page.keyboard.press("Escape");
   };
 
-  await stage("1. An admin sets up a Friday training at £10, and a Quarterly Member", async () => {
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    sam = await signIn(browser, "Member", "Sam Skater", "sam@example.com");
+    dee = await signIn(browser, "Member", "Dee Defence", "dee@example.com");
+    bo = await signIn(browser, "Quarterly Member", "Bo Backhand", "bo@example.com");
+    everyone = [ada, sam, dee, bo];
+    members = (await club()).members as { id: number; name: string }[];
+  });
+  // Its training, paused once the journey's over however it ended (journey.ts pauseTraining), then everyone leaves
+  test.afterAll(async () => {
+    if (ada) await pauseTraining(ada.email, seriesId, now);
+    for (const who of [ada, sam, dee, bo]) await who?.context.close();
+  });
+
+  test("1. An admin sets up a Friday training at £10, and a Quarterly Member", async () => {
     await moveTo("2026-10-12T12:00");
     await does(ada, `adds ${NAME} in Settings → Training: Fridays, £10 a session`, async () => {
       await open(ada, "/settings/training");
@@ -228,77 +236,66 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     await allIn("2026-10-23", [sam, bo]);
   });
 
-  await stage(
-    "2. A new fee scheduled to start on a Friday: that Friday's is new, the one before keeps the old",
-    async () => {
-      await moveTo("2026-10-14T12:00");
-      await does(ada, "sets £12 from Fri 23 Oct in the training's editor (Fee from), and saves", async () => {
-        await setFee("12", "2026-10-23", { pence: 1200, from: "2026-10-23" });
-        expect(await feesNow()).toEqual([
-          { pence: 1000, from: "2026-10-12" },
-          { pence: 1200, from: "2026-10-23" },
-        ]);
-      });
-      await checks(ada, "sees both fees in the editor, and £10 still the fee now", async () => {
-        await openEditor();
-        await expect(editor()).toContainText("£10 now.");
-        await expect(editor()).toContainText("£12 from 23 Oct 2026 · £10 from 12 Oct 2026");
-        await ada.page.keyboard.press("Escape");
-      });
+  test("2. A new fee scheduled to start on a Friday: that Friday's is new, the one before keeps the old", async () => {
+    await moveTo("2026-10-14T12:00");
+    await does(ada, "sets £12 from Fri 23 Oct in the training's editor (Fee from), and saves", async () => {
+      await setFee("12", "2026-10-23", { pence: 1200, from: "2026-10-23" });
+      expect(await feesNow()).toEqual([
+        { pence: 1000, from: "2026-10-12" },
+        { pence: 1200, from: "2026-10-23" },
+      ]);
+    });
+    await checks(ada, "sees both fees in the editor, and £10 still the fee now", async () => {
+      await openEditor();
+      await expect(editor()).toContainText("£10 now.");
+      await expect(editor()).toContainText("£12 from 23 Oct 2026 · £10 from 12 Oct 2026");
+      await ada.page.keyboard.press("Escape");
+    });
 
-      await moveTo("2026-10-16T00:30");
-      await cron(now);
-      await checks(
-        ada,
-        "Fri 16 Oct, at 00:30 BST on its day: the hourly run charges Sam the old fee, £10",
-        async () => {
-          expect(await charged("Sam Skater", "2026-10-16")).toBe(1000);
-        },
-      );
+    await moveTo("2026-10-16T00:30");
+    await cron(now);
+    await checks(ada, "Fri 16 Oct, at 00:30 BST on its day: the hourly run charges Sam the old fee, £10", async () => {
+      expect(await charged("Sam Skater", "2026-10-16")).toBe(1000);
+    });
 
-      // 00:30 BST on Friday is 23:30 UTC on Thursday: the night's day is London's
-      await moveTo("2026-10-22T23:30");
-      await cron(now);
-      await checks(ada, "at 23:30 on Thursday 22nd, the night before, Fri 23 Oct charges nobody yet", async () => {
-        expect(await charged("Sam Skater", "2026-10-23")).toBeUndefined();
-      });
-      await moveTo("2026-10-23T00:30");
-      await cron(now);
-      await checks(
-        ada,
-        "at 00:30 BST on Fri 23 Oct (23:30 UTC Thursday), the hourly run charges Sam the new fee, £12",
-        async () => {
-          expect(await charged("Sam Skater", "2026-10-23")).toBe(1200);
-        },
-      );
-      await moveTo("2026-10-23T19:07");
-      await cron(now);
-      await checks(ada, "the hourly run on the night leaves it at £12, once", async () => {
+    // 00:30 BST on Friday is 23:30 UTC on Thursday: the night's day is London's
+    await moveTo("2026-10-22T23:30");
+    await cron(now);
+    await checks(ada, "at 23:30 on Thursday 22nd, the night before, Fri 23 Oct charges nobody yet", async () => {
+      expect(await charged("Sam Skater", "2026-10-23")).toBeUndefined();
+    });
+    await moveTo("2026-10-23T00:30");
+    await cron(now);
+    await checks(
+      ada,
+      "at 00:30 BST on Fri 23 Oct (23:30 UTC Thursday), the hourly run charges Sam the new fee, £12",
+      async () => {
         expect(await charged("Sam Skater", "2026-10-23")).toBe(1200);
-      });
-      await moveTo("2026-10-24T09:07");
-      await cron(now);
-      await checks(sam, "the next day, sees Fri 16 Oct £10 and Fri 23 Oct £12 on his tab, £22 owed", async () => {
-        await open(sam, "/me/tab");
-        await expect(tabRow(sam.page, "Fri 16 Oct", 1000)).toBeVisible();
-        await expect(tabRow(sam.page, "Fri 23 Oct", 1200)).toBeVisible();
-        await expect(sam.page.getByRole("main")).toContainText(/You owe\s*£22/);
-      });
-      await checks(
-        bo,
-        "a Quarterly Member, isn't charged for either night, before the change or after it",
-        async () => {
-          expect(await charged("Bo Backhand", "2026-10-16")).toBeUndefined();
-          expect(await charged("Bo Backhand", "2026-10-23")).toBeUndefined();
-          expect((await chargesOf("Bo Backhand")).filter((c) => c.quarter === "2026-Q4")).toHaveLength(1);
-          await open(bo, "/me/tab");
-          await expect(bo.page.getByRole("row", { name: new RegExp(NAME) })).toHaveCount(0);
-        },
-      );
-    },
-  );
+      },
+    );
+    await moveTo("2026-10-23T19:07");
+    await cron(now);
+    await checks(ada, "the hourly run on the night leaves it at £12, once", async () => {
+      expect(await charged("Sam Skater", "2026-10-23")).toBe(1200);
+    });
+    await moveTo("2026-10-24T09:07");
+    await cron(now);
+    await checks(sam, "the next day, sees Fri 16 Oct £10 and Fri 23 Oct £12 on his tab, £22 owed", async () => {
+      await open(sam, "/me/tab");
+      await expect(tabRow(sam.page, "Fri 16 Oct", 1000)).toBeVisible();
+      await expect(tabRow(sam.page, "Fri 23 Oct", 1200)).toBeVisible();
+      await expect(sam.page.getByRole("main")).toContainText(/You owe\s*£22/);
+    });
+    await checks(bo, "a Quarterly Member, isn't charged for either night, before the change or after it", async () => {
+      expect(await charged("Bo Backhand", "2026-10-16")).toBeUndefined();
+      expect(await charged("Bo Backhand", "2026-10-23")).toBeUndefined();
+      expect((await chargesOf("Bo Backhand")).filter((c) => c.quarter === "2026-Q4")).toHaveLength(1);
+      await open(bo, "/me/tab");
+      await expect(bo.page.getByRole("row", { name: new RegExp(NAME) })).toHaveCount(0);
+    });
+  });
 
-  await stage("3. The clocks go back: a fee from today, set at 00:30 BST on Sunday, is Sunday's", async () => {
+  test("3. The clocks go back: a fee from today, set at 00:30 BST on Sunday, is Sunday's", async () => {
     // 00:30 BST on Sunday 25 October is 23:30 UTC on Saturday: "today" is London's, Sunday
     await moveTo("2026-10-25T00:30");
     await does(ada, "sets £11 from today, the editor's own Fee from: Sun 25 Oct, not Saturday", async () => {
@@ -313,7 +310,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     });
   });
 
-  await stage("4. A fee changed back in time over a night that's closed and paid: credit, nothing twice", async () => {
+  test("4. A fee changed back in time over a night that's closed and paid: credit, nothing twice", async () => {
     await moveTo("2026-10-28T12:00");
     await allIn("2026-10-30", [sam, bo]);
     await moveTo("2026-10-31T10:07");
@@ -357,7 +354,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     });
   });
 
-  await stage("5. A fee raised back in time over a night that's closed and paid: the difference owed", async () => {
+  test("5. A fee raised back in time over a night that's closed and paid: the difference owed", async () => {
     await moveTo("2026-11-04T12:00");
     await allIn("2026-11-06", [dee, bo]);
     await moveTo("2026-11-07T10:07");
@@ -389,7 +386,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     });
   });
 
-  await stage("6. A fee from the Saturday after a Friday, and two a day apart (Thursday, then Friday)", async () => {
+  test("6. A fee from the Saturday after a Friday, and two a day apart (Thursday, then Friday)", async () => {
     await moveTo("2026-11-10T12:00");
     await does(ada, "sets £13 from Sat 14 Nov, then £15 from Thu 19 Nov, then £16 from Fri 20 Nov", async () => {
       await setFee("13", "2026-11-14", { pence: 1300, from: "2026-11-14" });
@@ -423,28 +420,24 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     );
   });
 
-  await stage("7. A night's own fee beats the training's on that night only", async () => {
+  test("7. A night's own fee beats the training's on that night only", async () => {
+    test.fail(true, "Known bug: not built yet: one night's own fee (apps/team/worker/dues/README.md)");
     await moveTo("2026-11-22T12:00");
-    await knownBug(
-      ada,
-      "finds a fee for Fri 27 Nov alone in its Manage",
-      "not built yet: one night's own fee (apps/team/worker/dues/README.md)",
-      async () => {
-        await open(ada, `${path}/2026-11-27`);
-        await ada.page.getByRole("button", { name: `Manage ${SHORT}` }).click();
-        const manage = ada.page.getByRole("dialog", { name: `Manage ${SHORT}` });
-        // Not Training settings ("…and fee, for every session"): a fee for this night alone
-        await expect(
-          manage.getByRole("button", {
-            name: /(this night|this session|night's own|session's own).*fee|fee.*(this night|this session)/i,
-          }),
-        ).toBeVisible({ timeout: 2_000 });
-      },
-    );
+    await checks(ada, "finds a fee for Fri 27 Nov alone in its Manage", async () => {
+      await open(ada, `${path}/2026-11-27`);
+      await ada.page.getByRole("button", { name: `Manage ${SHORT}` }).click();
+      const manage = ada.page.getByRole("dialog", { name: `Manage ${SHORT}` });
+      // Not Training settings ("…and fee, for every session"): a fee for this night alone
+      await expect(
+        manage.getByRole("button", {
+          name: /(this night|this session|night's own|session's own).*fee|fee.*(this night|this session)/i,
+        }),
+      ).toBeVisible({ timeout: 2_000 });
+    });
     await ada.page.keyboard.press("Escape");
   });
 
-  await stage("8. A fee of £0 from a Friday: that night's free, and nothing's owed for it", async () => {
+  test("8. A fee of £0 from a Friday: that night's free, and nothing's owed for it", async () => {
     await moveTo("2026-11-23T12:00");
     await does(ada, "sets £0 from Fri 27 Nov, and saves", async () => {
       await setFee("0", "2026-11-27", { pence: 0, from: "2026-11-27" });
@@ -479,7 +472,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
 
   // Last, so the training's nights don't meet the journeys after this one (nor a rerun's) on Home and the calendar,
   // and nobody here owes anything on Unpaid fees or in the reminders when the Fridays journey gets there
-  await stage("9. The admin pauses the training; everyone pays up", async () => {
+  test("9. The admin pauses the training; everyone pays up", async () => {
     // Through the API: set-up for the journeys after, not a step under test
     for (const name of ["Sam Skater", "Dee Defence", "Bo Backhand"]) {
       const owed = await owes(name);
@@ -497,7 +490,4 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
         .toBe(false);
     });
   });
-
-  noFailedChecks();
-  for (const who of everyone) await who.context.close();
 });

@@ -7,19 +7,9 @@
 // a change, and she goes back to herself from the banner, all on the record. The Roles page shows what a role can do.
 //
 // The member Ada adds is new every run (their email has the time in it). Rae can leave only once a database: on one a
-// run has been through already she's gone, and her stage says so and checks only that she stays gone.
-import { expect, test, type Locator } from "@playwright/test";
-import {
-  asMember,
-  clubVia,
-  checks,
-  does,
-  expectRefusal,
-  noFailedChecks,
-  signIn,
-  stage,
-  type Person,
-} from "./support/journey";
+// run has been through already she's gone, and her step says so (a note on it) and checks only that she stays gone.
+import type { Locator } from "@playwright/test";
+import { asMember, clubVia, checks, does, expect, expectRefusal, signIn, test, type Person } from "./support/journey";
 
 /** A surname no run has used: letters from the time. */
 const freshSurname = () => {
@@ -41,11 +31,22 @@ interface Member {
   roles: string[];
 }
 
-test("Members: added, changed, given roles, and gone", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const mo = await signIn(browser, "Member, then Session lead", "Mo Moved", "mo@example.com");
-  const hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
-  const adaApi = asMember(ada.email);
+test.describe.serial("Members: added, changed, given roles, and gone", () => {
+  let ada: Person;
+  let mo: Person;
+  let hal: Person;
+  let adaApi: ReturnType<typeof asMember>;
+
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    mo = await signIn(browser, "Member, then Session lead", "Mo Moved", "mo@example.com");
+    hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
+    adaApi = asMember(ada.email);
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, mo, hal]) await who?.context.close();
+  });
+
   const members = async () => (await clubVia(adaApi)).members as Member[];
   const byEmail = async (email: string) => (await members()).find((m) => m.email === email);
 
@@ -81,7 +82,7 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
       (e) => e.action === action && e.detail.memberId === memberId,
     );
 
-  await stage("1. A member added, then changed", async () => {
+  test("1. A member added, then changed", async () => {
     await checks(hal, "can't add anyone: no Member button on The club", async () => {
       await hal.page.goto("/club");
       await expect(hal.page.getByRole("heading", { name: "The club", level: 1 })).toBeVisible();
@@ -174,7 +175,7 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
     await menu.getByRole("button", { name: "Close", exact: true }).click();
   };
 
-  await stage("2. Roles: Mo made a Session lead, then a member again", async () => {
+  test("2. Roles: Mo made a Session lead, then a member again", async () => {
     await checks(ada, "sees on the Roles page what a Session lead may do: the register and the teams", async () => {
       await ada.page.goto("/settings/roles");
       await ada.page.getByRole("group", { name: "Roles" }).getByRole("button", { name: "Session lead" }).click();
@@ -220,15 +221,15 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
       await ada.page.keyboard.press("Escape");
       expect((await byEmail(ada.email))?.roles).toContain("Admin");
     });
+
+    await checks(hal, "can't open Settings → Members: Not for this role", async () => {
+      await hal.page.goto("/settings/members");
+      await expect(hal.page.getByRole("heading", { name: "Not for this role" })).toBeVisible();
+      await expect(hal.page.getByRole("grid")).toHaveCount(0);
+    });
   });
 
-  await checks(hal, "can't open Settings → Members: Not for this role", async () => {
-    await hal.page.goto("/settings/members");
-    await expect(hal.page.getByRole("heading", { name: "Not for this role" })).toBeVisible();
-    await expect(hal.page.getByRole("grid")).toHaveCount(0);
-  });
-
-  await stage("3. Ada views the app as Hal, read-only", async () => {
+  test("3. Ada views the app as Hal, read-only", async () => {
     const halId = (await byEmail(hal.email))!.id;
     await does(ada, "views the app as Hal from Settings → View as a member", async () => {
       await ada.page.goto("/settings/view-as");
@@ -268,45 +269,42 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
   });
 
   const raeEmail = "rae@example.com";
-  const raeHere = (await byEmail(raeEmail))?.status === "active";
-  await stage(
-    `4. Rae deletes her own account${raeHere ? "" : " (gone already: a database a run's been through)"}`,
-    async () => {
-      if (raeHere) {
-        const rae = await signIn(browser, "Leaving", "Rae Retiring", raeEmail);
-        await does(rae, "deletes her account from her You page, asked first, and is signed out", async () => {
-          await rae.page.goto("/me#account");
-          await rae.page
-            .getByRole("region", { name: "Your account" })
-            .getByRole("button", { name: "Delete my account" })
-            .click();
-          const ask = rae.page.getByRole("dialog", { name: "Delete your account?" });
-          await ask.getByRole("button", { name: "Delete my account" }).click();
-          await expect(rae.page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-        });
-        await checks(rae, "can't sign in again: no code for her email", async () => {
-          // Her own address, as anyone's phone would be: the sign-in limit counts per address (api.limits.ts)
-          await rae.context.setExtraHTTPHeaders({ "cf-connecting-ip": `10.9.${Date.now() & 255}.1` });
-          await rae.page.goto("/");
-          await rae.page.getByRole("textbox", { name: "Your email" }).fill(raeEmail);
-          await rae.page.getByRole("button", { name: "Send me a code" }).click();
-          await expect(rae.page.getByRole("heading", { name: "Check your email" })).toBeVisible();
-          await expect(rae.page.getByRole("heading", { name: "Your code" })).toHaveCount(0);
-        });
-        await rae.context.close();
-      }
-      await checks(ada, "no longer sees Rae: not on The club, not in Settings → Members", async () => {
-        await ada.page.goto("/club");
-        await expect(ada.page.getByRole("heading", { name: "The club", level: 1 })).toBeVisible();
-        await expect(ada.page.getByRole("button", { name: "Rae Retiring: turn the card over" })).toHaveCount(0);
-        await ada.page.goto("/settings/members");
-        await expect(ada.page.getByRole("row", { name: /^Ada Admin/ })).toBeVisible();
-        await expect(ada.page.getByRole("row", { name: /Rae Retiring/ })).toHaveCount(0);
-        expect(await byEmail(raeEmail)).toBeUndefined();
+  // On a database a run's been through she's gone already: the step says so in a note (its title is set before it runs)
+  test("4. Rae deletes her own account", async ({ browser }) => {
+    const raeHere = (await byEmail(raeEmail))?.status === "active";
+    if (!raeHere)
+      test.info().annotations.push({ type: "note", description: "gone already: a database a run's been through" });
+    if (raeHere) {
+      const rae = await signIn(browser, "Leaving", "Rae Retiring", raeEmail);
+      await does(rae, "deletes her account from her You page, asked first, and is signed out", async () => {
+        await rae.page.goto("/me#account");
+        await rae.page
+          .getByRole("region", { name: "Your account" })
+          .getByRole("button", { name: "Delete my account" })
+          .click();
+        const ask = rae.page.getByRole("dialog", { name: "Delete your account?" });
+        await ask.getByRole("button", { name: "Delete my account" }).click();
+        await expect(rae.page.getByRole("heading", { name: "Sign in" })).toBeVisible();
       });
-    },
-  );
-
-  noFailedChecks();
-  for (const who of [ada, mo, hal]) await who.context.close();
+      await checks(rae, "can't sign in again: no code for her email", async () => {
+        // Her own address, as anyone's phone would be: the sign-in limit counts per address (api.limits.ts)
+        await rae.context.setExtraHTTPHeaders({ "cf-connecting-ip": `10.9.${Date.now() & 255}.1` });
+        await rae.page.goto("/");
+        await rae.page.getByRole("textbox", { name: "Your email" }).fill(raeEmail);
+        await rae.page.getByRole("button", { name: "Send me a code" }).click();
+        await expect(rae.page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+        await expect(rae.page.getByRole("heading", { name: "Your code" })).toHaveCount(0);
+      });
+      await rae.context.close();
+    }
+    await checks(ada, "no longer sees Rae: not on The club, not in Settings → Members", async () => {
+      await ada.page.goto("/club");
+      await expect(ada.page.getByRole("heading", { name: "The club", level: 1 })).toBeVisible();
+      await expect(ada.page.getByRole("button", { name: "Rae Retiring: turn the card over" })).toHaveCount(0);
+      await ada.page.goto("/settings/members");
+      await expect(ada.page.getByRole("row", { name: /^Ada Admin/ })).toBeVisible();
+      await expect(ada.page.getByRole("row", { name: /Rae Retiring/ })).toHaveCount(0);
+      expect(await byEmail(raeEmail)).toBeUndefined();
+    });
+  });
 });

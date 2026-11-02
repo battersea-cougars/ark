@@ -6,17 +6,17 @@
 // Jo is new every run (her email has the time in it), so it runs on a fresh database or one a run has been through.
 // Her browser says it's on an address of its own (journey.ts stranger): the sign-in and join limits count per address
 // (api.limits.ts), and they aren't what this tests.
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import {
   asMember,
   clubVia,
   checks,
   does,
+  expect,
   expectRefusal,
-  noFailedChecks,
   signIn,
-  stage,
   stranger,
+  test,
   type Person,
 } from "./support/journey";
 
@@ -56,12 +56,11 @@ const freshSurname = () => {
   return letters[0].toUpperCase() + letters.slice(1);
 };
 
-test("Signing in, and asking to join", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
-  const surname = freshSurname();
-  const jo = await stranger(browser, "New", `Jo ${surname}`, `jo.${surname.toLowerCase()}@example.com`);
-  const adaApi = asMember(ada.email);
+test.describe.serial("Signing in, and asking to join", () => {
+  let ada: Person;
+  let hal: Person;
+  let jo: Person;
+  let adaApi: ReturnType<typeof asMember>;
   const statusOf = async () =>
     ((await clubVia(adaApi)).members as { name: string; status: string }[]).find((m) => m.name === jo.name)?.status;
   /** The sign-in page's first step: her email, and Send me a code. */
@@ -72,7 +71,18 @@ test("Signing in, and asking to join", async ({ browser }) => {
     await jo.page.getByRole("button", { name: "Send me a code" }).click();
   };
 
-  await stage("1. Asking to join", async () => {
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
+    const surname = freshSurname();
+    jo = await stranger(browser, "New", `Jo ${surname}`, `jo.${surname.toLowerCase()}@example.com`);
+    adaApi = asMember(ada.email);
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, hal, jo]) await who?.context.close();
+  });
+
+  test("1. Asking to join", async () => {
     await does(jo, "asks to join from the sign-in page: her name, email and position", async () => {
       await jo.page.goto("/");
       await jo.page.getByRole("button", { name: "Ask to join" }).click();
@@ -131,7 +141,7 @@ test("Signing in, and asking to join", async ({ browser }) => {
     });
   });
 
-  await stage("2. Signing in with a code", async () => {
+  test("2. Signing in with a code", async () => {
     await checks(jo, "has a wrong code refused, and stays on Your code", async () => {
       expectRefusal(400);
       await askForCode();
@@ -154,7 +164,7 @@ test("Signing in, and asking to join", async ({ browser }) => {
     });
   });
 
-  await stage("3. A passkey: added, then signed in with, no code", async () => {
+  test("3. A passkey: added, then signed in with, no code", async () => {
     const phone = await withAuthenticator(jo, jo.page);
 
     await does(jo, "adds a passkey on her You page", async () => {
@@ -196,7 +206,4 @@ test("Signing in, and asking to join", async ({ browser }) => {
       await ada.page.keyboard.press("Escape");
     });
   });
-
-  noFailedChecks();
-  for (const who of [ada, hal, jo]) await who.context.close();
 });

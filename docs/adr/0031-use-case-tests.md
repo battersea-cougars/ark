@@ -51,10 +51,14 @@ How to write them: [docs/testing.md](../testing.md).
   case (one tap that's refused is enough), and a use case doesn't check a page.
 - **Journeys are functional first**: roles, labels and text, not pixels or layout. A `data-testid` only where nothing
   stable a person would read is there.
-- **A journey is one story in stages** (`stage`), each a list of what a person does (`does`: the story needs it, so a
-  failure stops the journey) and checks (`checks`: they can, they can't, they see; a failure is noted and the journey
-  goes on, so one run finds every broken check). Three people at least: an admin, someone in it, a member who isn't.
-  A known bug is `knownBug(…)`, as `it.fails` is in a use case: it runs, should fail, and says so when it doesn't.
+- **A journey is one story, its steps each a test**, in plain Playwright: a `test.describe.serial` per file, a `test`
+  per step in the story's order, its people signed in in `test.beforeAll` and closed in `test.afterAll`, so VS Code's
+  Testing panel and the report list every step. Steps share the people and the database, so a step runs only as part
+  of its journey. A step is a list of what a person does (`does`: the story needs it, so a failure stops the step,
+  and a failed step skips the rest of the journey) and checks (`checks`: they can, they can't, they see; a failure is
+  noted and the step goes on to its end, so it finds every broken check in it). Three people at least: an admin,
+  someone in it, a member who isn't. A known bug is `test.fail(true, "Known bug: …")` on its step, as `it.fails` is
+  in a use case: it runs, should fail, and the summary says so when it doesn't.
   Shortcuts (the API as a member, the dev simulator, Move to…) only to get to a step that isn't the one under test,
   each said so in a comment; the steps under test are real taps.
 - **Its own fresh database every run**: the journeys' global setup (`support/journeys.setup.mjs`, in Playwright's
@@ -71,16 +75,18 @@ test` and VS Code's Testing panel; it never touches 4500/4510/4520 or anyone's a
   The days that matter (London midnight, 17:00, 06:00, the clocks changing, 29 February) are each walked once
   (`kumite.on-the-clock`, `fridays`); a journey only moves forward.
 - **The browser is listened to**: every person's pages (`support/journey.ts`) report an uncaught error, a console error or a
-  Svelte dev warning that means a bug (a named list), and it fails the step it happened in, noted like a check. Noise
+  Svelte dev warning that means a bug (a named list), and it fails the step it happened in, noted like a check: looked
+  for after every step by an automatic fixture on the journeys' `test` (`support/journey.ts`), with axe's look too
+  under `--a11y`. Noise
   that isn't the app's goes on an allowlist, each entry with its reason. **Every page opens clean**
   (`pages.journey.test.ts`): each of the three opens every page in their menus and, the admin, each editor (shut unsaved);
   it only looks, never saves.
-- **Failures never block.** A run with failures writes one summary (`.journeys/summary.md`: each failing step, by
-  stage and role, expected and what happened) and, in CI or with `--file-issue`, opens **one issue for the run**
+- **Failures never block.** A run with failures writes one summary (`.journeys/summary.md`: each failing check, by
+  journey, step and role, expected and what happened, and where a journey stopped) and, in CI or with `--file-issue`, opens **one issue for the run**
   (label `regression`) to review: fix the code, or change what the journey expects. `npm run journeys` locally prints
   it and files nothing unless asked.
 - **A journey can't break the next one.** A person's `page.goto` waits for an overlay just closed to take its history
-  entry off (`lib/back.ts`), and a journey that makes a training pauses it in `test.afterEach` however it ended.
+  entry off (`lib/back.ts`), and a journey that makes a training pauses it in `test.afterAll` however it ended.
 - **Two runs: core and full.** The core run (`npm run journeys -- --core`) is every journey but the Kumite on the
   clock, about 6 minutes; the full run adds it (its three played-out Kumites), 10½ to 13½.
 - **CI** (`.github/workflows/journeys.yml`): the core run nightly on `main` (some time after 02:41 UTC), so a broken

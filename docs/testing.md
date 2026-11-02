@@ -144,7 +144,7 @@ BUDGET=plan npx vitest run apps/team/worker/api/api.budget   # every statement w
 
 Run these before a release that changes how pages look or load.
 
-- **axe over the team app's Kumite night**: `npm run journeys -- --a11y` (in a worktree). At the end of each stage
+- **axe over the team app's Kumite night**: `npm run journeys -- --a11y` (in a worktree). At the end of each step
   axe looks at every person's page; `.journeys/a11y.md` lists what it found. It never fails the run.
 - **axe over single pages** (the rest of both apps): sign in with `node scripts/dev-sign-in.mjs [email] --port <team
 port>`, open the page with that storage state, and run `new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa",
@@ -169,7 +169,10 @@ Use cases stop at the API; **journeys** drive the real team app in a browser (Pl
 workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
 mustn't ([ADR 0031](adr/0031-use-case-tests.md): which check goes at which level). They live in `apps/team/tests/journeys/`,
 one `{workflow}.journey.test.ts` each (what they share in `support/`), run in this order on one fresh database (each file opens with the workflow it
-walks, who's in it and which lower tests hold the rule's every case):
+walks, who's in it and which lower tests hold the rule's every case). A journey is a `test.describe.serial`: each step of
+its story is a `test` of its own, run in order on the same people (signed in in `test.beforeAll`) and the same
+database, so each step is its own test in VS Code's Testing panel and the report. A step that fails ends its journey
+(the steps after it are skipped); within a step, a failed `checks` is noted and the step goes on, failing at its end:
 
 | Journey                               | The story                                                                                                 | Time   |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
@@ -186,11 +189,13 @@ walks, who's in it and which lower tests hold the rule's every case):
 | `status-over-date.journey.test.ts`    | Status, not the date: a Kumite played early, a training night not closed yet, a game running late         | ~20 s  |
 
 Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
-screen) fails the step it happened in; the allowlist, each with its reason, is in `support/journey.ts`. A step refused on
+screen) fails the step it happened in (looked for after every step by `support/journey.ts`'s `test`, an automatic
+fixture, so a journey imports `test` and `expect` from there); the allowlist, each with its reason, is in `support/journey.ts`. A step refused on
 purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error. A person's `page.goto` waits for an overlay
 just closed to take its history entry off first (`lib/back.ts`): opened before that lands, the address is cancelled
-(`net::ERR_ABORTED`). A journey that makes a training pauses it in its `test.afterEach` (`pauseTraining`), so one
-that stops half way doesn't leave its nights on Home for the journeys after it.
+(`net::ERR_ABORTED`). A journey that makes a training pauses it in its `test.afterAll` (`pauseTraining`), so one
+that stops half way doesn't leave its nights on Home for the journeys after it; its `test.afterAll` closes everyone's
+browser too.
 
 **Both clocks move.** `at(person, when)` puts someone at a moment: their browser's clock (Playwright's) and the
 server's for every request they make (the `x-dev-now` header, `worker/api/api.dev-clock.ts`: on your own machine and
@@ -215,17 +220,20 @@ Playwright's config is `playwright.config.ts` at the root; its global setup (`su
 journeys' own D1 in `.journeys/d1` every run and starts the team app on it, beside the show switch, on a port the OS
 picks; the teardown stops it. Nothing is a checkout's own, so it's safe anywhere, the main checkout included: no
 checkout's local D1 and no app on 4500/4510/4520 is touched. The app's log is `.journeys/app.log`.
-Failures don't stop the run: each failing step is in `.journeys/summary.md` (stage, role, expected and what
-happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`: the core run
+Failures don't stop the run: each failing check is in `.journeys/summary.md` (journey, step, role, expected and what
+happened, and where a journey stopped), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`: the core run
 nightly on `main`, the full one on a push to `release`, either by hand) a failing run opens one issue, and a later run
 failing at the same commit comments on it. A step that fails because of a known bug is
-`knownBug(…)`, as `it.fails` is below.
+marked `test.fail(true, "Known bug: …")` as its first line, as `it.fails` is below: it runs, should fail, and the
+summary says so when it passes.
 
 **In VS Code.** The Playwright Test extension (in the dev container's extensions) lists the journeys in the Testing
 panel beside Vitest's tests. Once: run _Test: Toggle Playwright configs_ from the command palette (or the configs list
 in the Testing sidebar's **Playwright** view) and tick only `playwright.config.ts`, the checkout's own (each worktree's
 copy is listed too); the choice is remembered. Then the journeys are under that config in the Testing panel: type
-`journey` in its filter to see only them, and press ▶ on one to run it. Every run gets a fresh database and the app
+`journey` in its filter to see only them, and press ▶ on one to run it. Each step is its own test under its journey,
+but steps run in order, each on what the ones before it made: to run one, run its journey (the file's ▶); a step run
+alone meets a club its story hasn't reached. Every run gets a fresh database and the app
 first (about 10 s; `playwright.runGlobalSetupOnEachRun` in `.vscode/settings.json`), so a journey run on its own
 meets a fresh club; the app stays up after, until the next run.
 

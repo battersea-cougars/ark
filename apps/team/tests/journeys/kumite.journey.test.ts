@@ -9,8 +9,7 @@
 // day yet), and played tonight anyway, as a match starts on any day: The Anchor is the evening its last match kicked
 // off, whatever its date (apps/team/worker/tournaments/README.md). Sign-up opens today. Being on its day (KUMITE! from the fixtures out) is
 // lib/tournament-front.test.ts's. The morning after is the browser's clock a day on (Playwright's page.clock).
-import { expect, test } from "@playwright/test";
-import { asMember, clubVia, checks, does, noFailedChecks, signIn, stage, type Person } from "./support/journey";
+import { asMember, clubVia, checks, does, expect, signIn, test, type Person } from "./support/journey";
 
 /** Today in London as the app's day picker names it: "Fri 23 Oct 2026". */
 const todayLabel = () =>
@@ -26,19 +25,55 @@ const todayLabel = () =>
 
 const KUMITE = "/tournaments/kumite";
 
-test("The Kumite night", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
-  const nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
-  const everyone = [ada, fay, nell];
+test.describe.serial("The Kumite night", () => {
+  let ada: Person;
+  let fay: Person;
+  let nell: Person;
+  let everyone: Person[];
   const open = (who: Person, path = KUMITE) => who.page.goto(path);
   // The Kumite as the API has it (its id, its places, its teams and games), as the admin
-  const adaApi = asMember(ada.email);
+  let adaApi: ReturnType<typeof asMember>;
   const kumite = async () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ((await clubVia(adaApi)).tournaments as any[]).find((t) => t.typeId === 1 && t.heldOn);
+  // Read once the Kumite's scheduled (step 2 on)
+  let id: number;
+  let members: { id: number; name: string }[];
+  const memberId = (name: string) => members.find((m) => m.name === name)!.id;
+  /** The Kumite as last read, for its teams. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let cached: any;
+  const captainOf = (teamId: number) => {
+    const team = (cached.teams as { id: number; captainMemberId: number }[]).find((x) => x.id === teamId)!;
+    return members.find((m) => m.id === team.captainMemberId)!.name;
+  };
+  /** A team none has named yet goes by its captain's: "Team Cara". */
+  const teamName = (teamId: number) => `Team ${captainOf(teamId).split(" ")[0]}`;
+  const manage = async (who: Person) => {
+    await who.page.getByRole("button", { name: "Manage the Kumite" }).click();
+    return who.page.getByRole("dialog", { name: "Manage the Kumite" });
+  };
+  /** What Manage offers, by each job's own name ("Move to…", not its line under it). */
+  const offered = async (who: Person) => {
+    const menu = await manage(who);
+    await expect(menu.getByRole("button").nth(1)).toBeVisible();
+    const jobs = await menu.locator("button strong").allTextContents();
+    await menu.getByRole("button", { name: "Close", exact: true }).click();
+    return jobs;
+  };
 
-  await stage("1. The Kumite scheduled: sign-up opens", async () => {
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
+    nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
+    everyone = [ada, fay, nell];
+    adaApi = asMember(ada.email);
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay, nell]) await who?.context.close();
+  });
+
+  test("1. The Kumite scheduled: sign-up opens", async () => {
     for (const who of [fay, nell])
       await checks(who, "can't schedule a Kumite", async () => {
         await open(who);
@@ -84,7 +119,7 @@ test("The Kumite night", async ({ browser }) => {
         await expect(wizard.getByRole("textbox", { name: "Fee (£)" })).toHaveValue(fee);
         await adaApi("PUT", "/api/tournament-types/1", series);
         await wizard.getByRole("button", { name: "Next · Teams" }).click();
-        // The captains offered, but none chosen yet: they're named after (below, and the draft asks, stage 3)
+        // The captains offered, but none chosen yet: they're named after (below, and the draft asks, step 3)
         await expect(wizard.getByRole("button", { name: "Add Cara Captain as a captain" })).toBeVisible();
         await expect(wizard.getByRole("button", { name: "Draft day" })).toBeVisible();
         // Advanced's last step before Check: the rules and awards, as the series has them
@@ -127,19 +162,10 @@ test("The Kumite night", async ({ browser }) => {
     });
   });
 
-  const { id } = await kumite();
-  const members = (await clubVia(adaApi)).members as { id: number; name: string }[];
-  const memberId = (name: string) => members.find((m) => m.name === name)!.id;
-  /** The Kumite as last read, for its teams. */
-  let cached = await kumite();
-  const captainOf = (teamId: number) => {
-    const team = (cached.teams as { id: number; captainMemberId: number }[]).find((x) => x.id === teamId)!;
-    return members.find((m) => m.id === team.captainMemberId)!.name;
-  };
-  /** A team none has named yet goes by its captain's: "Team Cara". */
-  const teamName = (teamId: number) => `Team ${captainOf(teamId).split(" ")[0]}`;
-
-  await stage("2. Players sign up", async () => {
+  test("2. Players sign up", async () => {
+    ({ id } = await kumite());
+    members = (await clubVia(adaApi)).members as { id: number; name: string }[];
+    cached = await kumite();
     await does(fay, "accepts her invitation and is in", async () => {
       await open(fay);
       const invite = fay.page.getByRole("article", { name: "Your invitation to the Kumite" });
@@ -185,20 +211,7 @@ test("The Kumite night", async ({ browser }) => {
     });
   });
 
-  const manage = async (who: Person) => {
-    await who.page.getByRole("button", { name: "Manage the Kumite" }).click();
-    return who.page.getByRole("dialog", { name: "Manage the Kumite" });
-  };
-  /** What Manage offers, by each job's own name ("Move to…", not its line under it). */
-  const offered = async (who: Person) => {
-    const menu = await manage(who);
-    await expect(menu.getByRole("button").nth(1)).toBeVisible();
-    const jobs = await menu.locator("button strong").allTextContents();
-    await menu.getByRole("button", { name: "Close", exact: true }).click();
-    return jobs;
-  };
-
-  await stage("3. The captains named, the order drawn", async () => {
+  test("3. The captains named, the order drawn", async () => {
     await checks(ada, "sees No captains yet, with Name the captains, not Fighting blind", async () => {
       await open(ada);
       await expect(ada.page.getByRole("heading", { name: "No captains yet" })).toBeVisible();
@@ -224,7 +237,7 @@ test("The Kumite night", async ({ browser }) => {
       ((await kumite()).teams as { captainMemberId: number }[]).map((x) => x.captainMemberId);
 
     await does(ada, "names the captains (Name the captains), three in all", async () => {
-      // Cara's named already, unless stage 1's settings couldn't save her
+      // Cara's named already, unless step 1's settings couldn't save her
       const named = await captainsNamed();
       await open(ada);
       await ada.page.getByRole("button", { name: "Name the captains" }).click();
@@ -259,7 +272,7 @@ test("The Kumite night", async ({ browser }) => {
     });
   });
 
-  await stage("4. The draft: the captains choose", async () => {
+  test("4. The draft: the captains choose", async ({ browser }) => {
     const captains = new Map<number, Person>();
     for (const [name, email] of [
       ["Cara Captain", "cara@example.com"],
@@ -316,7 +329,7 @@ test("The Kumite night", async ({ browser }) => {
     for (const captain of captains.values()) await captain.context.close();
   });
 
-  await stage("5. Teams set, and the fixtures", async () => {
+  test("5. Teams set, and the fixtures", async () => {
     await does(ada, "seals the teams, and the fixtures are made", async () => {
       await open(ada);
       await ada.page.getByRole("button", { name: "Close draft & make fixtures" }).click();
@@ -358,7 +371,7 @@ test("The Kumite night", async ({ browser }) => {
     });
   });
 
-  await stage("6. KUMITE!: the matches scored live", async () => {
+  test("6. KUMITE!: the matches scored live", async () => {
     cached = await kumite();
     const [first] = cached.games as { id: number; awayTeamId: number }[];
     const live = `${KUMITE}/games/${first.id}/live`;
@@ -440,7 +453,7 @@ test("The Kumite night", async ({ browser }) => {
     });
   });
 
-  await stage("7. The Anchor: the vote", async () => {
+  test("7. The Anchor: the vote", async () => {
     for (const who of everyone)
       await checks(who, "sees the Kumite at The Anchor, with the final table", async () => {
         await open(who);
@@ -476,7 +489,7 @@ test("The Kumite night", async ({ browser }) => {
     });
   });
 
-  await stage("8. The awards confirmed, then revealed one by one", async () => {
+  test("8. The awards confirmed, then revealed one by one", async () => {
     await does(ada, "confirms the awards, making the judges' call", async () => {
       await open(ada);
       await ada.page
@@ -552,7 +565,7 @@ test("The Kumite night", async ({ browser }) => {
     }
   });
 
-  await stage("9. Done that evening: the champions, every award, the final table", async () => {
+  test("9. Done that evening: the champions, every award, the final table", async () => {
     cached = await kumite();
     const champions = (cached.winners as { award: string; teamId: number }[]).find((w) => w.award === "Champions")!;
     const championsName = teamName(champions.teamId);
@@ -592,7 +605,7 @@ test("The Kumite night", async ({ browser }) => {
       });
   });
 
-  await stage("10. The morning after: nothing on the card, the Kumite first in Past Kumites", async () => {
+  test("10. The morning after: nothing on the card, the Kumite first in Past Kumites", async () => {
     cached = await kumite();
     const champions = (cached.winners as { award: string; teamId: number }[]).find((w) => w.award === "Champions")!;
     const championsName = teamName(champions.teamId);
@@ -631,7 +644,4 @@ test("The Kumite night", async ({ browser }) => {
       await page.close();
     });
   });
-
-  noFailedChecks();
-  for (const who of everyone) await who.context.close();
 });
