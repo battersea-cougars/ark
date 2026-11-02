@@ -34,7 +34,8 @@
     "load": "node scripts/load/load.mjs",
     "journeys": "node apps/team/journeys/journeys.mjs",
     "sizes": "node scripts/sizes.mjs",
-    "knip": "knip"
+    "knip": "knip",
+    "links": "node scripts/links-check.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

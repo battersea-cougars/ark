@@ -34,16 +34,20 @@ jobs:
         run: npm run secrets:scan -- --since HEAD^1
       - id: plan
         run: node scripts/ci/pr-plan.mjs HEAD^1
+      # Every Markdown link, every feature notes line's test and every ADR cited resolves (ADR 0001), whatever changed:
+      # a renamed test or a deleted doc breaks a link elsewhere
+      - name: Links
+        run: npm run links
       - name: Format (docs)
         if: steps.plan.outputs.tier == 'docs'
         run: git diff --name-only --no-renames --diff-filter=d HEAD^1 HEAD | xargs -r npx prettier --check --ignore-unknown
       - if: steps.plan.outputs.lint == 'true'
         run: npm run lint
-      # Unused files, exports, types and dependencies fail it (ADR 0125; what's ignored, and why, is in knip.jsonc)
+      # Unused files, exports, types and dependencies fail it (ADR 0105; what's ignored, and why, is in knip.jsonc)
       - name: Unused code (knip)
         if: steps.plan.outputs.knip == 'true'
         run: npm run knip
-      # The files past the size prompts (ADR 0125): a report, never a failure
+      # The files past the size prompts (ADR 0105): a report, never a failure
       - if: steps.plan.outputs.lint == 'true'
         run: npm run sizes
       - if: steps.plan.outputs.test == 'true'
