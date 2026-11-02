@@ -57,9 +57,19 @@ async function send(path: string, init?: RequestInit, started?: Promise<Response
     return await (started ?? fetch(path, init));
   } catch (e) {
     brake.failed();
-    throw e;
+    throw unreached(e);
   }
 }
+
+/** What a tap with no signal says in the save note: words, not the browser's ("Failed to fetch", "Load failed"). */
+const NO_SIGNAL = "No network: that didn't reach the club. Try again when you've a signal.";
+
+/**
+ * A request that never reached the server (no signal, the network dropped it) as words a member can read. Still a
+ * TypeError naming the network, so it's still known as offline, never a bug to report (errors.early.ts). One called
+ * off (AbortError) stays as it was.
+ */
+const unreached = (e: unknown) => (e instanceof TypeError ? new TypeError(NO_SIGNAL, { cause: e }) : e);
 
 async function read<T>(res: Response, path: string): Promise<T> {
   const ours = (res.headers.get("content-type") ?? "").includes("application/json");

@@ -35,6 +35,17 @@ describe("when a save asks what's on", () => {
     expect(tournamentWindow({ ...kumite, id: 0, endTime: "01:00" })?.endsAt).toBe("2026-11-14T01:00:00.000Z");
   });
 
+  it("hours past midnight on the nights the clocks change end at that time on London's clock, not 24 hours on", () => {
+    // Saturday 24 October 2026, 8pm BST to 2am GMT (the clocks went back at 2am BST): 02:00 UTC
+    expect(tournamentWindow({ ...kumite, id: 0, heldOn: "2026-10-24", endTime: "02:00" })?.endsAt).toBe(
+      "2026-10-25T02:00:00.000Z",
+    );
+    // Saturday 27 March 2027, 6pm GMT to 3am BST (the clocks went forward at 1am): 02:00 UTC
+    expect(tournamentWindow({ ...kumite, id: 0, heldOn: "2027-03-27", endTime: "03:00" })?.endsAt).toBe(
+      "2027-03-28T02:00:00.000Z",
+    );
+  });
+
   it("a one-off's times, unless they haven't moved", () => {
     const quiz = { id: 3, startsAt: "2026-11-13T19:00:00.000Z", endsAt: "2026-11-13T22:00:00.000Z" };
     expect(eventWindow(quiz, quiz)).toBeNull();

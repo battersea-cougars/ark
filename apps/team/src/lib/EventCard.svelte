@@ -158,19 +158,32 @@
   const outIds = $derived(entries.out ?? []);
   const outFaces = $derived((out ? [id, ...outIds.filter((x) => x !== id)] : outIds).slice(0, tight ? 1 : 3));
 
-  // The card answers at once; the server's word (in, or the waitlist) arrives with the refresh.
+  // The card answers at once; the server's word (in, or the waitlist) arrives with the refresh. An answer that didn't
+  // go (no signal, or refused) puts the card back as it was: the save note says why, and the card never claims a place
+  // the server hasn't heard of (with no signal the refresh can't put it right either, #148)
+  function sendAnswer(answer: "in" | "out" | "clear") {
+    const before = {
+      going: entries.going,
+      waitlist: entries.waitlist,
+      quarterly: entries.quarterly,
+      out: entries.out,
+    };
+    void answerFor(event.key, answer).then((r) => {
+      if (r === null) Object.assign(entries, before);
+    });
+  }
   function setIn(going: boolean) {
     if (locked) return;
     // Tapping In when you're in changes nothing: no call to the server, no new quip on Home
     if (going && (inIt || waiting)) return;
     // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0131, 0108)
     if (!going && out) {
-      void answerFor(event.key, "clear");
+      sendAnswer("clear");
       entries.out = (entries.out ?? []).filter((x) => x !== id);
       onanswer?.("none");
       return;
     }
-    void answerFor(event.key, going ? "in" : "out");
+    sendAnswer(going ? "in" : "out");
     const wasIn = inIt;
     entries.going = entries.going.filter((x) => x !== id);
     entries.waitlist = entries.waitlist.filter((x) => x !== id);

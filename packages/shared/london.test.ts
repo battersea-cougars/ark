@@ -1,7 +1,7 @@
 // London's dates and times as data, across the clock changes: forward on 29 March 2026 and 28 March 2027 (01:00 GMT
 // becomes 02:00 BST), back on 25 October 2026 (02:00 BST becomes 01:00 GMT). The one copy both apps and the Worker use.
 import { describe, expect, it } from "vitest";
-import { londonDate, londonDay, londonEvening, londonISO, londonTime, londonToday } from "./london";
+import { londonDate, londonDay, londonEvening, londonISO, londonNextDay, londonTime, londonToday } from "./london";
 
 describe("the instant of a London wall-clock time (londonISO)", () => {
   it("is an hour behind UTC in summer and on UTC in winter", () => {
@@ -84,5 +84,19 @@ describe("the evening a moment belongs to (londonEvening)", () => {
   it("goes back across a month and a year", () => {
     expect(londonEvening(new Date("2027-01-01T02:00:00Z"))).toBe("2026-12-31");
     expect(londonEvening(new Date("2026-11-01T03:00:00Z"))).toBe("2026-10-31");
+  });
+});
+
+describe("the same London time the next day (londonNextDay)", () => {
+  it("is 24 hours on most nights", () => {
+    expect(londonNextDay("2026-11-13T01:00:00.000Z")).toBe("2026-11-14T01:00:00.000Z");
+    expect(londonNextDay("2026-07-03T00:30:00.000Z")).toBe("2026-07-04T00:30:00.000Z");
+  });
+
+  it("is 25 hours across the clocks going back and 23 across them going forward", () => {
+    // 02:00 BST on Saturday 24 October is 01:00 UTC; 02:00 GMT on the Sunday is 02:00 UTC
+    expect(londonNextDay("2026-10-24T01:00:00.000Z")).toBe("2026-10-25T02:00:00.000Z");
+    // 03:00 GMT on Saturday 27 March 2027 is 03:00 UTC; 03:00 BST on the Sunday is 02:00 UTC
+    expect(londonNextDay("2027-03-27T03:00:00.000Z")).toBe("2027-03-28T02:00:00.000Z");
   });
 });

@@ -41,8 +41,8 @@
       <tr>
         <th class="date">Date</th>
         <th>What</th>
-        <th class="r">Charged</th>
-        <th class="r">Paid</th>
+        <th class="r"><span class="wide">Charged</span><span class="narrow">Amount</span></th>
+        <th class="r paid-col">Paid</th>
         <th class="r">Owes</th>
         {#if editable}<th class="act"><span class="sr-only">Take back</span></th>{/if}
       </tr>
@@ -72,8 +72,10 @@
             </span>
             <span class="on num">{day(l.on)}</span>
           </td>
-          <td class="r num">{l.kind === "charge" ? pounds(l.pence) : ""}</td>
-          <td class="r num in">{l.kind === "payment" ? pounds(l.pence) : ""}</td>
+          <td class="r num">
+            {#if l.kind === "charge"}{pounds(l.pence)}{:else}<span class="narrow in">{pounds(l.pence)}</span>{/if}
+          </td>
+          <td class="r num in paid-col">{l.kind === "payment" ? pounds(l.pence) : ""}</td>
           <td class="r num bal" class:credit={l.balance < 0}>{balance(l.balance)}</td>
           {#if editable}
             <td class="act">
@@ -208,6 +210,9 @@
   .none {
     color: var(--fg-muted);
   }
+  .narrow {
+    display: none;
+  }
   .more {
     height: 1px;
   }
@@ -222,6 +227,19 @@
     .on {
       display: block;
       margin: 2px 0 0 calc(1.75rem + var(--s-2));
+    }
+    /* On a phone what was charged and what was paid share a column, Amount (a payment's in green, by its £), and
+       Take back comes closer in: six columns run past a 320 phone's card (#148) */
+    .paid-col,
+    .wide {
+      display: none;
+    }
+    .narrow {
+      display: inline;
+    }
+    .act .btn {
+      min-width: 2.75rem;
+      padding-inline: var(--s-1);
     }
   }
 </style>

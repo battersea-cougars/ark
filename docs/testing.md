@@ -139,6 +139,7 @@ to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
 | Journey                          | The story                                                                                                 | Time   |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
 | `calendar.journey.ts`            | A one-off on the calendar, the clash prompt, called off; the locker room; notification switches; how soon | ~45 s  |
+| `edge-cases.journey.ts`          | A double tap is one change, a 60-letter name on a phone, a tap with no signal                             | ~30 s  |
 | `fees.journey.ts`                | A Friday's fee as it changes: from a Friday, the day after, a day apart, back in time, £0, the clocks     | ~1.2 m |
 | `fridays.journey.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
 | `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |

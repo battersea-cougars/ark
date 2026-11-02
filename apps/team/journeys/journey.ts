@@ -116,6 +116,10 @@ const HARMLESS: { why: string; is: (m: ConsoleMessage) => boolean }[] = [
       new URL(m.location().url || "http://x/").pathname === "/api/bootstrap",
   },
   {
+    why: "Chrome's own line for a request made with no signal, which only a step taking the signal away (setOffline) has",
+    is: (m) => m.text().startsWith("Failed to load resource: net::ERR_INTERNET_DISCONNECTED"),
+  },
+  {
     why: "Chrome's own line for a reply the step was refused on purpose (expectRefusal), not the app's",
     is: (m) =>
       [...refusalsExpected].some((status) =>
