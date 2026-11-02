@@ -1,14 +1,6 @@
-// The hourly run, caught up when it's missed or fails (ADR 0110). Cloudflare's Cron Triggers don't retry: a deploy or
-// a blip at :07 and the hour's jobs (charging what's due, the allowance check…) wait for the next hour, and Sentry's
-// cron monitor sees a miss. So each UTC hour's run is kept in one D1 row (`hourly_run`): which try last took it, and
-// whether the hour is done. The run every minute tries the hour again while it isn't: from 12, 17, 27, 37 and 47 past
-// (5, 10, 20, then every 10 minutes after :07, up to 40 past), one try each. A try is claimed in one statement before
-// it runs, so two runs at once take it once. The hour is done when every job in a try succeeded: that checks in `ok`
-// with the monitor. The last try failing too marks the hour failed and checks in `error`. A try that fails before
-// then checks in nothing: the monitor waits (its margin covers the catch-up), and the next try may make it.
-//
-// Every hourly job is safe to run twice (each claims or converges on its own), so a try that ran a job before failing
-// on another just runs it again.
+// The hourly run, caught up when it's missed or fails (ADR 0110): Cloudflare's Cron Triggers don't retry, so each UTC
+// hour's tries are kept in one D1 row (`hourly_run`) and the run every minute tries the hour again until it's done.
+// Every hourly job is safe to run twice, so a try that ran a job before failing on another just runs it again.
 import { first, run } from "@cougars/shared/d1";
 import { scribe } from "@cougars/shared/scribe";
 import { checkIn } from "../sentry/sentry";
@@ -34,7 +26,7 @@ const tryAt = (now: Date) => {
   );
 };
 
-/** The UTC hour a moment is in, as the row keeps it (2026-10-28T10): London's clock changes don't touch it. */
+/** The UTC hour a moment is in, as the row keeps it (YYYY-MM-DDTHH): London's clock changes don't touch it. */
 const hourOf = (now: Date) => now.toISOString().slice(0, 13);
 
 /** A try at the hour, claimed. */
