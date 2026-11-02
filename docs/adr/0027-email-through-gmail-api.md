@@ -1,8 +1,8 @@
-# 0027. Email goes through the Gmail API; outside production it reaches only the safe inbox, admins and a dev list
+# 0027. Email goes through the Gmail API, reaching only the safe inbox outside production; Turnstile guards what anyone can do signed out
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-24
-- **Merges:** 0077
+- **Date:** 2026-10-06 · updated 2026-11-02
+- **Merges:** 0028, 0077
 
 ## Context
 
@@ -85,11 +85,28 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 **Dev tools**
 
 - **Settings → Dev tools** exists only where the environment says dev or local, failing closed like every dev-only
-  tool ([0123](0123-dev-only-tools.md)), for whoever holds `manage:Settings`: add and take off
+  tool ([0010](0010-environments-and-deploys.md)), for whoever holds `manage:Settings`: add and take off
   addresses on the list; it takes effect at once, with no deploy. The bootstrap says whether it's there (`devTools`).
-  Changes are on the audit log as `dev_mail.changed` ([0095](0095-audit-log.md)).
+  Changes are on the audit log as `dev_mail.changed` ([0024](0024-action-based-authorization.md)).
 - **In production none of this exists,** nor on a deploy that doesn't say where it is: the routes answer 404. In
   production the list is never read.
+
+**Turnstile guards what anyone can do without signing in**
+
+- **Cloudflare Turnstile** (free, no cookies) is in front of the website's join form and the team app's two open
+  doors: asking for a sign-in code and asking to join. One widget per Cloudflare account. Each form's token is
+  rendered and checked on the server for its own action (`enquiry`, `sign-in`, `join`; `packages/shared/turnstile.ts`),
+  so one form's token can't be spent on another.
+- **On the website a failed check doesn't block**: the form must work without JavaScript, so the enquiry is saved and
+  the club emailed, but an automatic reply goes only to someone Turnstile verified, and only within caps, so the
+  worst a spammer can do is make the club send a few harmless emails a day
+  ([the join form notes](../../apps/web/src/lib/server/README.md)).
+- **In the team app a failed check refuses** (403, nothing stored or sent): those forms need JavaScript anyway. The
+  widget is interaction-only, invisible unless Cloudflare wants a tap. App Review's fixed address skips it
+  ([ADR 0108](0108-store-apps.md)).
+- **No secret, no check**: on your machine and in the tests nobody counts as verified on the website and the team
+  app doesn't check ([ADR 0134](0134-a-fresh-clone-runs-after-npm-install.md)); a deployed production team app
+  without one refuses sign-in and reports it, since that's a deploy gone wrong.
 
 ## Consequences
 
@@ -113,54 +130,3 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
   is ignored there.
 - Once there's a domain, the club notification could move to Cloudflare Email Routing and auto-replies to Resend,
   behind the same `sendMail`.
-
-## History
-
-- 2026-10-06: Email goes through the Gmail API from two accounts, and outside production every recipient is replaced
-  by one safe inbox (was 0027).
-- 2026-10-08: Outside production, active admins and a list kept on Dev tools get their own team app email, so people
-  can sign in on dev without a deploy (was 0077).
-- 2026-10-09: An email may carry an HTML version beside its text, first for the sign-in code.
-- 2026-10-09: The club's enquiry email gets the same branded HTML; the frame is shared (`packages/shared/email-html.ts`), and
-  everything a person typed is escaped in it.
-- 2026-10-09: Outside production, a sign-in code sent to its member is copied to the safe inbox.
-- 2026-10-17: One sending account for every environment, as it had been in practice: production sends from
-  the developer account as the club's address (a Gmail alias), so a reset of the club account's password can't stop sign-in.
-- 2026-10-17: The auto-reply to someone who asks to try a session comes in the club's frame too, with a map button.
-- 2026-10-17: Neither address is in the repo: the club's comes from the Studio (Club → Contact email,
-  `packages/shared/club-contact.ts`), the developer account's from its token. While the club's isn't known, dev ignores
-  its allow list and production sends as the developer account.
-- 2026-10-17: Every website deploy smoke-tests the form for real: an enquiry marked with that deploy's own key
-  (`SMOKE_TOKEN`, made at random, spent after the test, never stored) is saved, both emails go to the sending account
-  only (in production too), and the row is deleted; the deploy fails unless both sent.
-- 2026-10-22: An admin reconnects email from the team app when Google cancels the token: Settings → Email shows
-  whether it works (a cancelled token apart from Gmail being busy), the admins hear on Home and their phones, and
-  "Reconnect email" keeps a new token sealed in D1, used at once by both Workers, with no deploy. Passkeys get an
-  admin in while email is down; `gmail-auth.mjs` is for the first token and the terminal fallback (#101).
-- 2026-10-22: Settings → Email has "Send a test email": one email, the way every email goes (the reconnected token,
-  else the deployed one, with its outcome recorded), to the admin who pressed it and nobody else (outside production
-  their own address is let through for it), saying which account and token sent it and how production's From line
-  reads; 5 an hour per admin, each try on the record (`mail.test_sent`). Every reconnect try is on the record too
-  (`mail.reconnect_tried` with how it ended, never anything from Google's answer), and the page says the last one
-  from there, not only from its address.
-- 2026-10-22: The test email reads as the club's address outside production too (`Mail.asClub`, that email alone,
-  which only ever goes to the admin who asked), so the "Send mail as" alias is checked before launch; it says what
-  a From line showing the sending account means.
-- 2026-10-23: One OAuth client: `gmail-auth.mjs` uses the Web client (redirect `http://localhost:4590/`), and the
-  deployed token refreshes with it, so the Desktop client and its two secrets go (`GMAIL_CLIENT_ID`,
-  `GMAIL_CLIENT_SECRET`). The deployed token is made again with the Web client before the Desktop one is deleted.
-- 2026-10-23: Home's "Email has stopped" comes with the club's first read instead of a request after Home opens, so
-  nothing moves when it arrives (#148); recording a change to the failure, or a reconnect, moves the data version on.
-- 2026-10-23: Outside production, "the admins" who get their own email are everyone whose roles hold `manage:all`,
-  not members of the role named Admin, so a custom or renamed role that can do everything can sign in on dev too (#44).
-- 2026-10-24: Dev tools exist only where `SITE_ENV` says dev or on your own machine, not wherever it doesn't say
-  production: a deploy that skipped `target.mjs` showed them (#81, [0123](0123-dev-only-tools.md)).
-- 2026-10-24: The privacy page says which emails go through Gmail (the enquiry reply and the club's copy, sign-in
-  codes, welcomes, what members owe, admins' notices) and exactly what the apps get from Google: permission to send and
-  the account's address, the permission kept encrypted until it's replaced or withdrawn; nothing read, sold or shared,
-  as Google's verification of the `gmail.send` scope asks (#156).
-- 2026-10-28: The form's smoke test (the real enquiry and its emails) runs on production deploys only; dev and PR
-  previews check the pages and the join API without it, and the use cases cover the form. Its emails' subject names the
-  environment ("[production smoke test, for …]"), so the inbox says which deploy sent them. The user's call.
-- 2026-11-02: Only a release push sends the form's smoke emails: the daily rebuild and the runs a result starts check the
-  pages and the join API without it, so the inbox gets one when code goes live, not every morning. The user's call.

@@ -1,14 +1,16 @@
-# 0105. Code is grouped by feature, entry points read like a table of contents, and file names say domain and kind
+# 0105. Code is for people to read: grouped by feature, entry points as tables of contents, `{domain}.{kind}.ts` names, one job per file and function
 
 - **Status:** Accepted
-- **Date:** 2026-10-10 · updated 2026-10-24
+- **Date:** 2026-10-10 · updated 2026-11-02
+- **Merges:** 0125
 
 ## Context
 
 This code is still for people to read. The team app's API was one file, `apps/team/worker/api/api.ts`, 1,236 lines:
 every route (72), its action, its record and its handler. An entry point is where a person starts to understand an
 app, and at that size it took holding the whole API in your head to find one feature. Nothing said how code should be
-grouped, so it grew wherever was convenient.
+grouped, so it grew wherever was convenient. The pre-launch review (#148) also found pages of 1,500 to 3,000 lines,
+functions past two screens, nesting five deep and parameters called `t`, `r`, `p` and `c` everywhere.
 
 ## Decision
 
@@ -35,14 +37,39 @@ grouped, so it grew wherever was convenient.
 - **Where the model says it is.** A person who knows the app should find a feature where its model puts it:
   `worker/tournaments/`, `tournaments.routes.ts`, `draft.ts`, `draft.use-cases.test.ts`. The app side holds to the
   same: `src/lib` groups its components and helpers by feature, with file names per domain and kind (#88).
-- **How the code inside a file reads** (one job per file and function, the sizes that prompt a split, early exits,
-  the club's words for names, classes for cohesion and functions for composition, and the warnings) is
-  [ADR 0125](0125-how-code-reads.md).
 - **A route stays cheap** ([0003](0003-free-tiers-only.md), API functions stay cheap): a few D1 calls, batched, its
   reads bounded and indexed, its side effects after the reply; `api.budget.use-cases.test.ts` drives every route and
-  fails when one isn't there or goes over (docs/api-budget.md).
+  fails when one isn't there or goes over.
+- **A feature's rules have notes beside it**: a feature folder whose behaviour has rules a member or admin would
+  recognise has a `README.md` saying them in plain words, each linking the use-case test that proves it
+  ([ADR 0001](0001-record-decisions.md), [ADR 0031](0031-use-case-tests.md)).
 - **Moving code is its own change**, with behaviour unchanged and the tests as they were; new code goes in the right
   place from the start. Existing code moves feature by feature when it's next worked on, not in one sweep.
+
+**How the code inside a file reads**
+
+- **Single purpose, SOLID in spirit.** A file has one job, and so does a function. A file that does two things is two
+  files; a function that does two things is two functions with names that say which.
+- **Sizes to notice**: a file past roughly **400 lines**, a Svelte component's own CSS past roughly **500 lines**
+  (#153), or a function past a screen (about **80 lines**) is the prompt to ask whether it holds more than one idea and
+  to split it. A prompt, not a rule: a long list of routes or a table of rules can stay long.
+- **Exit early, minimal nesting.** Guard clauses first (`if (!session) return …`), then the main path, unindented. No
+  `else` after a `return`; no pyramid of `if`s. Past three blocks deep, pull the inside out into a named function.
+- **Names from the domain.** Variables, parameters and functions say what they are in the club's words (`session`,
+  `captain`, `goalsAgainst`, `heldOn`), not `x`, `d`, `tmp`, `data` or `item`. Short names only in tiny conventional
+  scopes: an index (`i`, `j`, `k`), a count (`n`), a sort's pair (`a`, `b`), a caught error (`e`), geometry (`x`, `y`),
+  and `_` for what's unused.
+- **Classes for cohesion, functions for composition.** A class when state and the behaviour that guards it must stay
+  together (a live connection, a simulation loop, a store); functions for rules, formatting and queries, composed. No
+  classes as namespaces, and no bag of state passed from function to function that wants to be an object.
+- **Cheap checks, as warnings**: ESLint's `max-depth` (3), `max-lines-per-function` (80, tests excepted) and
+  `no-else-return` warn, and never fail lint or CI. `id-length` (2, with the exceptions above; object keys aren't
+  counted) is configured but off until a sweep has named the ~4,000 short names.
+  `npm run sizes` lists the files and component styles past the prompts (CI prints it).
+- **Unused code goes.** An export nobody imports, a file nothing reaches, is removed: `npm run knip` finds them (its
+  entry points in `knip.jsonc`), and fails a PR (`pr.yml`) and `npm run merge:check` when it finds any. One kept on
+  purpose says why, tagged `@public`; what knip can't see used (a runtime module, a script's command-line tools) is
+  ignored in `knip.jsonc` with its reason.
 
 ## Consequences
 
@@ -50,13 +77,7 @@ grouped, so it grew wherever was convenient.
 - A new route goes in its feature's `.routes.ts`; a new feature is a new file and a line in `api.ts`'s table of contents.
 - `tournaments/tournaments.ts` is 854 lines (types, editions, teams, rules, playoffs); it splits when next worked
   on. The team app's `src/lib` is a long flat list and gets the same treatment in its own pass (#88).
-
-## History
-
-- 2026-10-10: Decided, and the team API split into twelve feature route files with an identical route table (#88).
-- 2026-10-10: A folder per component, flat inside: the Worker's 65 files moved into `api/` and ten components, and
-  `schedule.ts` (920 lines) split into training, tournaments, club events, venues and slugs (#88).
-- 2026-10-23: How code reads went to its own record, [ADR 0125](0125-how-code-reads.md), linked from here (#148).
-- 2026-10-23: A route stays cheap, by ADR 0003's rule, checked for every route by the budget test (#148).
-- 2026-10-24: Trimmed against ADR 0125: where routes live and where the model puts a feature are here, the size
-  prompts there; the component list and `tournaments.ts`'s size brought up to date.
+- A reviewer has words for what's wrong ("two jobs", "late exit", "say what `r` is"), and the warnings point at where.
+- The warnings are paid down as each file is next worked on, not in one sweep (above), and become errors only
+  once a rule's count is near zero.
+- Splitting the big pages (Draft, Training, Game, Home, MemberSheet, Shell) waits for the shared components (#153).

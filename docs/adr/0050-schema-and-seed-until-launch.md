@@ -1,7 +1,8 @@
-# 0050. Until launch, the database is a schema and a seed, not migrations
+# 0050. The database: a schema and a seed until launch, migrations after; backed up nightly and before every change, sealed
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-23
+- **Date:** 2026-10-07 · updated 2026-11-02
+- **Merges:** 0106
 
 ## Context
 
@@ -24,13 +25,22 @@ settings, entered in the app, which will become production.
   `node scripts/db-launch.mjs`, in the change that first goes to `release`: `schema.sql` and the club seed become
   `db/migrations/0001_launch.sql`, and the two files go. Production's first deploy builds its database from that
   migration, and the roster (`TEAM_ROSTER__PRODUCTION`) holds only the admins. They bring the members in with Import
-  members ([0069](0069-members.md)). Dev keeps its data for trying things.
+  members ([the members notes](../../apps/team/worker/members/README.md)). Dev keeps its data for trying things.
 - **Before launch production is deployed behind Cloudflare Access** ([0010](0010-environments-and-deploys.md)) and
   rebuilds like dev, keeping its rows, until the `production` environment's variable `LAUNCHED` is `true`.
 - **After launch, migrations only**, additive (the rule before this ADR): `deploy.yml` runs
   `wrangler d1 migrations apply` once `db/migrations/` has any, and refuses to rebuild production once launched;
   `db-rebuild.mjs` refuses once it has; the tests build their database from the migrations.
-- Every deploy that changes the database backs it up first ([0106](0106-database-backups.md)).
+- **Backups are GitHub Actions artifacts, sealed.** D1's Time Travel goes back 7 days and lives in the account it
+  would protect, and R2 needs a payment method. `scripts/db-backup.mjs` exports the database, compresses it and
+  encrypts it with the environment's `BACKUP_KEY` (AES-256-GCM, scrypt with a fresh salt; `scripts/lib/backup.mjs`),
+  one random key per environment, in Bitwarden only, so a public repo's artifact is useless without it. Nightly
+  (`.github/workflows/backup.yml`) and in `deploy.yml` before every rebuild or migration; a failed backup stops the
+  deploy. Kept 90 days, the most GitHub allows. Each one is noted in the `backups` table and the Usage page flags the
+  last once it's more than a day and a half old.
+- **Restore**: `scripts/db-restore.mjs` opens a backup into a fresh SQLite file and counts each table's rows (the
+  drill, db/README.md). Within 7 days Time Travel puts a database back exactly; older, the restored file is the source.
+  Production is restored through CI, never by hand ([ADR 0010](0010-environments-and-deploys.md)).
 
 ## Consequences
 
@@ -39,14 +49,7 @@ settings, entered in the app, which will become production.
 - Renaming a column loses that column's data in a rebuild (it's read out under the old name): copy it across by hand
   in the same change, or don't rename before launch.
 - The old migrations are gone from the tree; git history has them.
-
-## History
-
-- 2026-10-07: Until launch, the database is a schema and a seed, not migrations.
-- 2026-10-09: Production starts fresh (schema, club seed, its two admins) and is filled by an import, instead of
-  becoming a copy of dev's data.
-- 2026-10-10: The switch is built: `scripts/db-launch.mjs` makes migration 0001; CI migrates once there are migrations
-  and never rebuilds production; a backup before every schema change (#76, ADR 0106).
-- 2026-10-10: Production is deployed before launch, behind Cloudflare Access, and rebuilds until `LAUNCHED` is set.
-- 2026-10-23: A rebuild sets aside a table's old rows when the schema now requires a column they don't have (NOT NULL,
-  no default), and says so, rather than failing the whole rebuild: dev's deploy failed on the push outbox's new `key`.
+- Backups survive a lost Cloudflare account and a bad deploy, at no cost. Losing `BACKUP_KEY` loses every backup it
+  sealed, and 90 days is the furthest back we can go.
+- D1 refuses other statements for the half minute an export takes, so the crons treat that refusal as a warning and
+  try again; a request in that half minute still fails.

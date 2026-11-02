@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-06 · updated 2026-11-02
-- **Merges:** 0047
+- **Merges:** 0047, 0104
 
 ## Context
 
@@ -46,8 +46,14 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   network for the newest shell but waits at most 1.5 s before opening the one kept from last time, so poor signal at
   the rink opens it at once; whenever the network's arrives it's kept for the next opening, with every built file it
   names (or not at all), so a deploy reaches a phone on the next open at the latest and the open app offers a reload
-  sooner ([0104](0104-app-versions-and-updates.md)). Not stale-while-revalidate: on a good signal every opening is the newest
+  sooner (below). Not stale-while-revalidate: on a good signal every opening is the newest
   build, not one behind. API calls are never cached by it.
+- **A version and a build id; a newer build is offered, never forced.** The version (`apps/team/package.json`) is
+  semver for people, bumped by hand when a release changes what members see (1.0.0 at launch); the build id is the
+  commit. Both are stamped once by `vite.config.ts` into the app and its Worker, and shown at the foot of Profile.
+  Every bootstrap answer says which build answered (`x-app-build`); when it differs, the app offers "Get the new
+  version" where "Saved" shows, with "Later" beside it. Android keeps an installed app alive for days, but a forced
+  reload could land mid-form or mid-game.
 - A store app, if we want one, wraps the same build with Capacitor (#26).
 - CLAUDE.md's Astro rules apply to the website only. Shared rules (D1 through `packages/shared/d1.ts`, Europe/London dates,
   tests) apply to both.
@@ -77,40 +83,3 @@ with a throwaway hash, and the new server kept that transform, so every load 504
   Cold start crawls all of `src`, a second or so more.
 - To restart a dev server, run it again (`npm run team`): it replaces the running one. Never `--force`.
 - After an in-process restart the first page load re-transforms the app's modules, a second or so.
-
-## History
-
-- 2026-10-06: The team app is a Svelte 5 SPA and PWA on its own Worker, sharing the website's D1 (0022).
-- 2026-10-07: The dev server pre-bundles every dependency at startup and refuses a second server in the same
-  checkout, after stale-bundle 504s (0047).
-- 2026-10-08: Deployed to dev from `main` now that sign-in exists, not held back until launch (ADR 0010).
-- 2026-10-09: Starting a dev server takes over its port instead of being refused, so whoever runs it owns it; after
-  Vite restarts itself, cached transforms are dropped, after the same stale-stamp 504s from a reload during the restart.
-- 2026-10-10: On phones the More tab became You (your avatar, opening your profile with the lists under it), replacing
-  the account badge on Home; the top bar slimmed and the tab bar went opaque, as Android barely blurred it.
-- 2026-10-11: The store app wraps this app as planned, loading the live app rather than a bundled copy ([0108](0108-store-apps.md)).
-- 2026-10-20: The show switch runs the dev server on a private port and holds 4510 ([0115](0115-worktrees-and-the-show-switch.md)); `npm run team` goes through it.
-- 2026-10-20: On phones Settings are listed on the You page, above your details, not behind a gear and a sheet, and
-  the switch to your full role sits in its bar: an admin in their everyday role had to tap their card, switch up, then
-  the gear to reach Settings.
-- 2026-10-20: The You page's bar says You and its hints fit one line; Teammates got a row on Home, as a member had to
-  go You → Club → Teammates to see the squad.
-- 2026-10-20: You first on the You page, then the lists and Settings; the Settings gear is back in its bar (the
-  Admin switch goes), opening a phone Settings page and switching you up on the way. Back goes to where you came from
-  on every page that isn't a tab's own: from Home, Unpaid fees went back to Profile.
-- 2026-10-20: The You page holds only your own things: your card (name, position, roles, plain words), the
-  everyday-role switch, your details, notifications, your dues, your account (your data, privacy, delete, sign out).
-  No Settings lists, club links or account sheet; the desktop's badge and its menu became your avatar, opening the
-  You page (ADR 0065 for Settings). Supersedes the earlier You page lines from today.
-- 2026-10-21: The Club tab takes the Calendar's place on a phone: the club's players (Teammates, now `/club`; old
-  links redirect), its contacts later (#67). The Calendar opens from a button in Home's header, with Back to Home;
-  the desktop rail keeps it and gains the club. Teammates leaves Home's feed: it was there only because a phone had no
-  way to it. "Maybe instead of a calendar in the mobile nav, we move the calendar icon to the home page somewhere and
-  add a club icon to see the club."
-- 2026-10-21: How fast Home first paints (the app imported up front beside the data, a 100 kB JavaScript budget
-  for it, hashed files kept a year) is its own record, [0120](0120-team-app-first-paint.md).
-- 2026-10-23: Opening the app waits at most 1.5 s on the network before the kept shell, and the network's shell is
-  kept, with its files, whenever it arrives (#115).
-- 2026-11-02: The You page is your card and three tabs, Details, Account and Alerts (#202): on a phone it was one long
-  scroll, its Save at the end of the details and out of sight. The role switch moved from under your card into
-  Account; your email is a row there, changed in a sheet.
