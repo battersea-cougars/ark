@@ -313,6 +313,33 @@ clock) counted from once every phone is on the game page:
   every screen, in a rerun with the machine busy); after, it didn't (the same numbers twice).
 - The draft is still names only, one read a phone a pick (#162).
 
+### The register and the after-party (2026-11-02, #222, #223, #224)
+
+Three fixes from the launch-week review, measured locally (the same machine, the same afternoon, this branch's base
+against it):
+
+| Run                                                    | Before                                            | After                                               |
+| ------------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------- |
+| `register --followers 0`, a new club: rows a mark      | 1,441                                             | **1,221**                                           |
+| `register --weeks 52 --followers 0`: rows a mark       | 51,817 (2.3M the night, 46%)                      | **2,129** (0.22M, 4.3%)                             |
+| `register`, 60 phones: rows a mark                     | 22,955; ~54 whole-club reads a mark               | **21,374**; no whole-club reads, ~58 reads in parts |
+| `register --weeks 52`, 60 phones: rows a mark          | 95,611 (4.2M the night, 84%); 58 whole-club reads | **26,852** (1.3M, 26%); reads in parts only         |
+| `reveals --one-address`, 80 phones: a reveal or a roll | 81 requests (80 reads), 17,141 rows; 162 in 10 s  | **1 request**, no reads, 641 rows; **2** in 10 s    |
+
+- **Charges (#222)**: a change works out only the charges it touched (dues.scope.ts): a night's or a tournament's
+  (the register, a let-in, a reset, a night called off, an answer on the day), or a member's (their attendance,
+  quarterly membership, a payment, an adjustment, a quarter by hand). The hourly run looks at the nights and
+  tournaments since it last ran (`data_version.charged_through`) and the Quarterly Members. A fee or the quarterly
+  rate from an earlier date, a tournament made, saved or deleted, and Recalculate still work out the whole club.
+  `dues.history.use-cases.test.ts` seeds a year and checks the plans and that the whole working-out changes nothing.
+- **The register (#223)**: it names the nights, not `members`, so no phone reads the whole club for it; a night
+  already held names `played` (Home's people and the roster, never the whole club), and no mark brings the agenda.
+  What's left is each phone's read of the night, its people and its own dues (~350 rows): the same on a new club.
+- **The after-party (#224)**: the drum goes with the hub's event, as a live match does (#161). The run's one window
+  over 150 in 10 s is the 80 phones opening the after-party page at once (160), as with scoring; the reveals
+  themselves are the admin's taps alone.
+- `friday-rush` after: 0.52M rows (10.4%), no errors (0.65M before, the review's figure).
+
 ### Free-tier headroom
 
 | Limit (Workers Free, D1 Free)       | Per request / run                                            | A Friday                                                          | A Kumite day                                                                                                                     |
@@ -419,5 +446,5 @@ measured locally (`--weeks 52`), each limit's headroom, what was fixed and what'
 2. **Watch the Usage page on the first draft night and the first busy Friday** ([0059](adr/0059-usage-page-and-check.md)):
    rows read is the line to watch, not requests.
 3. **The rink's wifi** is one address for the per-address limit (#113): count signed-in GETs per member.
-4. A tap costs 29 round trips (the charges are worked out again for the whole club after each): fine for CPU today,
-   and the place to look if a tap's CPU grows with the club.
+4. A change works out only the charges it touched (#222); a tournament made, saved or deleted, a fee from an earlier
+   date and Recalculate still work out the whole club: rare and an admin's, but the place to look if they grow dear.
