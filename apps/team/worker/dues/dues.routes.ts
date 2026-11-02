@@ -23,7 +23,7 @@ import { SEES_DUES, holdsAny } from "../api/api.slices";
 import { versionedRead } from "../api/api.version";
 import { collectedFor, idsOf, ledgerPage, linePageOf } from "./dues.ledger";
 
-/** The route's member's charges only, after a change to them (#222): nobody else's can move. */
+/** The route's member's charges only, after a change to them: nobody else's can move. */
 const theirs = (c: Ctx): ChargeScope => ({ members: [id(c)] });
 
 /** A charge's payment changed: its member's charges only are worked out again, and the reply says whose. */
@@ -34,7 +34,7 @@ async function paidBy(c: Ctx) {
 }
 
 export const DUES_ROUTES: Route[] = [
-  // A member's ledger, a page at a time, newest first (#177): their own, or anyone's for who sees everyone's dues
+  // A member's ledger, a page at a time, newest first: their own, or anyone's for who sees everyone's dues
   {
     method: "GET",
     path: /^\/api\/members\/(\d+)\/ledger$/,
@@ -49,7 +49,7 @@ export const DUES_ROUTES: Route[] = [
       });
     },
   },
-  // What nights and tournaments collected, for their editors (#177): how many were charged, for anyone who edits
+  // What nights and tournaments collected, for their editors: how many were charged, for anyone who edits
   // them (a fee once charged is fixed); the money, for who sees everyone's dues
   {
     method: "GET",

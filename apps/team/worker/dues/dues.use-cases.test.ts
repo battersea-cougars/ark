@@ -158,7 +158,7 @@ describe("who came is charged", () => {
       { memberId: reg, here: true },
       { now: onTheNight(LAST_FRIDAY) },
     );
-    // Called off that night, before its register closed (#11)
+    // Called off that night, before its register closed
     await dana.call(
       "POST",
       `/api/sessions/${session}/cancelled`,

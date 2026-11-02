@@ -1,11 +1,5 @@
-// Reminders of what someone owes (apps/team/worker/dues/README.md). Whoever records payments sends them from Unpaid fees (or a member's card),
-// after a preview; nothing sends them on a schedule yet (a configurable one is #143). It's at most one a week per
-// member, so a double tap or two admins at once send one, and each goes through `tell` (an email, and their phone if
-// they have the store app). How firm the letter is follows the age of their oldest charge (Unpaid fees' buckets).
-//
-// A reminder is claimed first (a queued row in dues_reminders, in one statement that checks the week), then sent a few
-// at a time: a Worker run makes at most 50 requests, and each email is one. What's left queued goes on the next run
-// (the five-minute cron), so a send to the whole club is done within minutes.
+// Reminders of what someone owes (apps/team/worker/dues/README.md): an admin previews and sends them, at most one a
+// week per member, each through `tell`; they're queued and sent a few at a time, the rest by the five-minute cron.
 import { bumpDataVersion } from "../api/api.version";
 import { all, batch, statement } from "@cougars/shared/d1";
 import { bucketOf } from "../../src/lib/dues";
@@ -246,7 +240,7 @@ export async function sendQueued(env: Env, now: Date, limit: number = REMINDERS.
     ]),
   ]);
   if (dropped.length) log.info("reminders.dropped", { count: dropped.length });
-  // When each was last reminded is new on Unpaid fees (#178)
+  // When each was last reminded is new on Unpaid fees
   if (sent.length) await bumpDataVersion(env.DB, ["reminders"]);
   return sent.length;
 }

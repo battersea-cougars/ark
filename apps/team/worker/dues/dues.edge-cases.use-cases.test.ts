@@ -1,7 +1,6 @@
-// Dues at the edges (apps/team/worker/dues/README.md): money to the penny (a payment that just covers a charge, a penny, a lump sum split over
-// odd pence, credit nobody else can spend), what an admin can't get wrong (amounts, days, quarters, fees), the quarter
-// turning over in London time, and who may touch money at all (ADR 0024). Driven through the real Worker handlers in
-// the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
+// Dues at the edges (apps/team/worker/dues/README.md): money to the penny, what an admin can't get wrong, the quarter
+// turning in London time, and who may touch money (ADR 0024). Driven through the real Worker handlers in the fake world
+// (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { NOW, onTheNight, testWorld } from "../testing";
@@ -239,8 +238,8 @@ describe("what an admin can't get wrong", () => {
     expect(w.db.raw.prepare("SELECT received_on d FROM payments").all()).toEqual([{ d: "2028-02-29" }]);
   });
 
-  // A day that wasn't on the calendar was taken as written (Date.parse rolls 30 February on to 2 March), so the
-  // ledger, Unpaid fees' ages and the audit log showed a day that never was (#120, fixed with #129's dates)
+  // A day that isn't on the calendar mustn't be taken as written (Date.parse rolls 30 February on to 2 March), or the
+  // ledger, Unpaid fees' ages and the audit log would show a day that never was
   it("a payment dated a day that doesn't exist (30 February, 29 February 2027) is refused (#120)", async () => {
     const { reg, pay } = await came(800, []);
     expect((await pay(800, { receivedOn: "2026-02-30" })).status).toBe(400);
@@ -481,8 +480,8 @@ describe("who may touch money (ADR 0024)", () => {
 });
 
 describe("taps at once", () => {
-  // The same night marked paid from two phones (or a double tap): each read what's left, then wrote a payment for it
-  // in a statement of its own, so both went in and the night was paid twice (£8 recorded as £16): https://github.com/battersea-cougars/ark/issues/119
+  // The same night marked paid from two phones (or a double tap): if each read what's left, then wrote a payment for
+  // it in a statement of its own, both would go in and the night be paid twice (£8 recorded as £16)
   // Seeds that land the two reads before either write (any seed may; these do, run after run)
   it.each([2, 3, 5])(
     "an admin double-taps Paid on a night: one payment is recorded, not two (#119, seed %i)",
@@ -500,8 +499,8 @@ describe("taps at once", () => {
     },
   );
 
-  // The second insert met the UNIQUE index (charges_quarter) after the check before it passed, and the admin was told
-  // something went wrong (a 500) rather than that it's already charged: https://github.com/battersea-cougars/ark/issues/121
+  // The second insert can meet the UNIQUE index (charges_quarter) after the check before it passed: the admin is told
+  // it's already charged, not that something went wrong (a 500)
   it.each([2, 5])(
     "two admins charge the same quarter at once: one is charged, the other told it's there (#121, seed %i)",
     async (seed) => {

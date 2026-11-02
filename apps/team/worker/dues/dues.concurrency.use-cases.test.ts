@@ -1,8 +1,5 @@
-// What people owe, worked out at once (docs/load-testing.md): every change that touches who came works the charges
-// out again (api.ts `recharge`), and so does the hourly cron, so on a Friday a dozen of them can run together. A real
-// D1 runs each statement atomically but interleaves two requests' statements between their awaits; the fake D1 does
-// the same (`interleave`, a seed each run). Driven through the real handlers in the fake world (ADR 0031), the cron
-// as Cloudflare runs it (`scheduled`).
+// Charges worked out by several requests and the hourly cron at once (docs/load-testing.md), with the fake D1
+// interleaving their statements as a real one can. Driven through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

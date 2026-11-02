@@ -1,9 +1,6 @@
-// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md, #187): everyone who'll be Quarterly next quarter is told
-// its fee is due, what it is and when it's charged, and that they can still switch to pay as you go on their Dues page
-// until the day before. Five days before by default, a club setting on Settings → Membership; from 10:00 London, by
-// the hourly Cron Trigger. A notification for anyone with the app, an email for anyone without; once per member per
-// quarter, claimed before it's sent, and on the record. Driven through the real handlers in the fake world (ADR 0031):
-// mail in its outbox, phones in the push outbox, the crons run as Cloudflare runs them.
+// Next quarter's plan reminder (apps/team/worker/dues/README.md): who's told, when, how, and only once. Driven through
+// the real handlers in the fake world (ADR 0031): mail in its outbox, phones in the push outbox, the crons as
+// Cloudflare runs them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { outbox } from "@cougars/shared/email";
 import { londonISO } from "@cougars/shared/london";

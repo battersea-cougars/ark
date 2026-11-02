@@ -1,8 +1,6 @@
-// Dues reminders when runs overlap (docs/load-testing.md): an admin's Send while the five-minute cron is sending what's
-// queued, or two runs at once. A real D1 runs each statement atomically but interleaves two invocations' statements
-// between their awaits; the fake D1 does the same (`interleave`, a seed each run). And a cron run is one Worker
-// invocation, held to 50 subrequests on the free plan (ADR 0003): every email, every phone, every call to the live hub.
-// Driven through the real handlers in the fake world (ADR 0031), the cron as Cloudflare runs it (`scheduled`).
+// Dues reminders when runs overlap (docs/load-testing.md): an admin's Send beside the five-minute cron, or two runs at
+// once, each kept to the free plan's 50 subrequests (ADR 0003). Driven through the real handlers in the fake world (ADR
+// 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
