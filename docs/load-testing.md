@@ -60,11 +60,18 @@ npm run load -- friday-rush    # 120 members open the app and tap In within 10 s
 npm run load -- live-draft     # 8 captains picking in turn, 60 players watching the draft room live; an Undo and a
                                # pick for a captain
 npm run load -- scoring        # 1 scorekeeper, 80 members following the game live (--followers 20)
+npm run load -- register       # the night's register: 40 in at £8, 60 phones on the night (--followers), each marked
+                               # here a second or two apart, and two walk-ins
+npm run load -- reveals        # the after-party: a Kumite of four teams played out, its awards confirmed, 80 phones
+                               # in the room as each card's turned over and the drum rolls on (--followers)
+npm run load -- club-send      # a send to every phone at once (an announcement, sign-up opening): every member with a
+                               # phone, told at once; the publish sends 40, the minute drain the rest; dev's outbox watched
 npm run load -- all            # each, a fresh Worker each
 npm run load -- soak --minutes 60   # the scenarios in turn, a minute's pause between, the crons every 5 min and hourly
 npm run load -- cpu            # the Worker's own CPU a request (the fake world, SQLite's time taken off)
 # --members 120  --one-address (the rink's wifi)  --no-build  --keep (the run's D1)  --server-log
 # --minutes N (repeat a scenario)  --pause 60  --target local | dev (below)  --dry-run
+# --weeks 52 (a Worker of the run's own: a past behind the club, scripts/seed-history.mjs, so rows read show history)
 ```
 
 Each run builds the team app, writes a config naming a small wrapper (`scripts/load/load.worker.mjs`: the built

@@ -1,7 +1,7 @@
 // Sign-ups (ADR 0024): in or out of a session, a tournament or a club event, and an admin putting someone in.
 import { id, memberIdIn, ok, rowsOf, type Route } from "../api/api.route";
 import { type Changed } from "../api/api.slices";
-import { TABLES, answer, setPlayer, type EntryKind } from "./entries";
+import { TABLES, answer, chargedFromToday, setPlayer, type EntryKind } from "./entries";
 import { HttpError, body, json } from "../api/api.http";
 import { places } from "../push/push.notices";
 
@@ -18,8 +18,9 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
     audit: { none: "a member's own sign-up: the sign-ups are their own record (signed_up_at)" },
     action: "signup:Event",
     // A training night's answer changes tonight's nights only: one already held takes no answers, its register closed
-    // the morning after (#178), so the weeks just held aren't read again for it
-    changes: slice === "clubEvents" ? [slice] : [slice === "sessions" ? "tonight" : slice, "charges", "dues"],
+    // the morning after (#178), so the weeks just held aren't read again for it. What people owe only on the day
+    // (`charges` below)
+    changes: slice === "clubEvents" ? [slice] : [slice === "sessions" ? "tonight" : slice, "dues"],
     // Who's in: nothing on the calendar moves
     calendar: false,
     // Out of a full event: the first waiting is in, and hears it. A Quarterly Member in for a full training: the one
@@ -32,6 +33,8 @@ export const ENTRIES_ROUTES: Route[] = KINDS.flatMap(([path, kind, slice]): Rout
       // Someone new to a night's answers is new to everyone's Home's people (#178); otherwise they're as they were
       if ((await answer(c.env.DB, kind, id(c), c.memberId, b.answer, c.now)) && slice === "sessions")
         c.alsoChanged.push("people");
+      // On its day an answer is charged (or not): the club's charges are worked out again after it (api.ts)
+      if (await chargedFromToday(c.env.DB, kind, id(c), c.today)) c.alsoChanged.push("charges");
       return ok();
     },
   },
