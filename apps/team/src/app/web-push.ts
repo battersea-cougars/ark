@@ -1,8 +1,6 @@
-// Notifications in a browser (ADR 0108, #24): what the store app's phone gets, through the browser's own push service
-// (Web Push), on Android's Chrome or Firefox, a desktop, or an iPhone with the app on its Home Screen. native.ts asks
-// for them in the store app and comes here everywhere else. The browser's subscription is this device's: turned on
-// from a tap, given to the club for this sign-in (PUT /api/auth/device), and given again each start, so whoever signs
-// in on this browser next gets them; turned off, it's unsubscribed and forgotten.
+// Notifications in a browser (ADR 0108): Web Push on Android's Chrome or Firefox, a desktop, or an iPhone with the app
+// on its Home Screen; native.ts handles the store app. The subscription is this device's, given to the club for this
+// sign-in (PUT /api/auth/device) and again each start; turned off, it's unsubscribed and forgotten.
 import { api } from "./api";
 import { impersonating } from "../demo/session.svelte";
 

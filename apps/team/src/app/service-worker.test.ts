@@ -1,4 +1,4 @@
-// Opening the phone app on the rink's poor signal (#115): the service worker (public/sw.js) opens the shell kept from
+// Opening the phone app on the rink's poor signal: the service worker (public/sw.js) opens the shell kept from
 // last time unless the network answers quickly, and keeps the network's newest shell, with its files, for the next
 // opening, so a deploy still reaches the phone. Run as a browser runs it: the real file, in a fake worker scope with
 // its caches and a network that's fast, slow or gone.
@@ -202,7 +202,7 @@ describe("opening the phone app", () => {
     expect(after).toBeGreaterThanOrEqual(5_000);
   });
 
-  // An error in place of a built file used to be cached under its name and served from then on (#81)
+  // An error in place of a built file is never cached under its name, or it would be served from then on
   it("never keeps an error in place of a built file: the file is fetched again next time", async () => {
     const p = phone();
     await p.install();

@@ -25,7 +25,7 @@ const config = (): NavConfig => ({
       onTeam: (next?.teams ?? []).some(
         (team) => team.captainMemberId === me().id || team.players.some((p) => p.memberId === me().id),
       ),
-      // Every edition's games and teams the app has, and those on their way, so a past one's links work too (#175)
+      // Every edition's games and teams the app has, and those on their way, so a past one's links work too
       games: [
         ...db.tournaments.filter((x) => x.typeId === t.id).flatMap((x) => (x.games ?? []).map((g) => g.id)),
         ...asked(t.slug, "game"),

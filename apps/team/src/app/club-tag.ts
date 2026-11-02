@@ -4,7 +4,7 @@
 
 /**
  * The club as one member sees it, at one data version, one day, from one deploy. A page's parts are tagged the same
- * way at their own versions (`version`: theirs, joined by dashes, #178) and what they are (`memberId`: whose, ~ which).
+ * way at their own versions (`version`: theirs, joined by dashes) and what they are (`memberId`: whose, ~ which).
  */
 export const clubTag = (build: string, version: number | string, memberId: number | string, today: string) =>
   `"${build}.${version}.${memberId}.${today}"`;

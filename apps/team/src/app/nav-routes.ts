@@ -44,7 +44,7 @@ export interface Route {
   under?: string;
   /** Full-screen: hides the tabs and shows its own back bar (the game clock). */
   focus?: boolean;
-  /** Still on demo data: only there when the config switches unfinished screens on (#63). */
+  /** Still on demo data: only there when the config switches unfinished screens on. */
   unfinished?: boolean;
 }
 
@@ -95,7 +95,7 @@ export interface NavConfig {
   members?: { id: number; name: string }[];
   /** Outside production: Settings → Dev tools (ADR 0027). */
   devTools?: boolean;
-  /** Outside production: the screens still on demo data (#63). */
+  /** Outside production: the screens still on demo data. */
   unfinished?: boolean;
 }
 
@@ -150,7 +150,7 @@ const STATIC_TAIL: Route[] = [
     icon: "settings",
     hidden: true,
   },
-  // The app's privacy notice (#30): from You → Privacy, and on the sign-in screen
+  // The app's privacy notice: from You → Privacy, and on the sign-in screen
   {
     id: "privacy",
     path: "/privacy",
@@ -161,7 +161,7 @@ const STATIC_TAIL: Route[] = [
     icon: "user",
     hidden: true,
   },
-  // The club (a phone's Club tab, a desktop's rail): its players now, its contacts later (#67)
+  // The club (a phone's Club tab, a desktop's rail): its players now, its contacts later
   {
     id: "club",
     path: "/club",
@@ -234,7 +234,7 @@ const STATIC_TAIL: Route[] = [
     section: "Club",
     hint: "What each role can do",
   },
-  // Where the club's website is managed (#107): its rebuilds, and the links to the Studio and the site
+  // Where the club's website is managed: its rebuilds, and the links to the Studio and the site
   {
     id: "website",
     path: "/settings/website",
@@ -370,7 +370,7 @@ const STATIC_TAIL: Route[] = [
     section: "System",
     hint: "What's gone wrong lately, from Sentry",
   },
-  // The club's email (ADR 0027): whether it works, and reconnecting it when Google has cancelled its access (#101)
+  // The club's email (ADR 0027): whether it works, and reconnecting it when Google has cancelled its access
   {
     id: "email",
     path: "/settings/email",
@@ -416,7 +416,7 @@ export function buildRoutes(config: NavConfig): Route[] {
       hidden: true,
       under: "club",
     })),
-    // Every announcement the club has made (#85), newest first, with whether you got each: Home's page, from its Past
+    // Every announcement the club has made, newest first, with whether you got each: Home's page, from its Past
     // announcements, for everyone. Posting one is Home's too (the megaphone)
     {
       id: "announcements",

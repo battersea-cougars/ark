@@ -1,13 +1,6 @@
-// Each page's own parts of the club, read when it's opened (#178, ADR 0053). Opening the app reads the core (Home,
-// and what every page shares: who you are, the club's settings and menus); a page that shows more asks for the rest
-// in one request when it's opened: the roster, the weeks just held, each series' last one played, everyone's dues.
-// Once the app's up and the phone's idle, the parts of the pages you're likely to open next are read the same way, so
-// moving between pages doesn't wait (PREFETCH).
-//
-// What's read is kept while the app is open, in memory only, like the core (#81): never on disk, so nothing of the
-// club stays on a phone after signing out. Changes come back with the change (the phone says what it holds,
-// HOLDS_HEADER) and from the live hub as for the core (catch-up.ts). When the core is read again and finds the club
-// changed, the parts held are asked about again with their tag: unchanged, an empty 304.
+// Each page's own parts of the club (the roster, the weeks just held, each series' last one played, everyone's dues),
+// read in one request when it's opened, or ahead when the phone's idle (PREFETCH) (ADR 0053). Kept in memory only, never
+// on disk, so nothing of the club stays on a phone after signing out.
 import type { Action } from "../access/actions";
 import { PAGE_PARTS } from "./club-parts";
 import { held, readParts } from "./api";
@@ -107,7 +100,7 @@ export const showing = (parts: readonly string[]) => void (inView = parts);
 /**
  * Of these changed parts, the pages' that no page in view shows: let go, not read now (catch-up.ts letGo). A phone
  * on Home through Friday's taps doesn't read the weeks just held again for each; the training night's page, when it
- * opens, asks about them with their tag (#178).
+ * opens, asks about them with their tag.
  */
 export function letGo(parts: readonly string[]): string[] {
   const away = parts.filter((p) => holding.has(p) && !inView.includes(p));

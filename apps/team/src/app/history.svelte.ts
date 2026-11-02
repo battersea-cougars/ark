@@ -1,4 +1,4 @@
-// A series' History, read a page at a time (#175, apps/team/worker/tournaments/README.md; worker/tournaments/editions.routes.ts): the played ones,
+// A series' History, read a page at a time (apps/team/worker/tournaments/README.md; worker/tournaments/editions.routes.ts): the played ones,
 // newest first, each a line of what it was, and the all-time leaders as the Worker counts them. Kept while the app's
 // open, so going back to History is instant; asked about again (with its tag, a 304 if unchanged) when it's next
 // shown after the club's tournaments change.
