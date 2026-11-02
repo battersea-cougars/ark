@@ -44,7 +44,10 @@ smaller (5k errors a month, one user) but plain about it.
 - **An error** is kept whole under `err`: name, message, stack, and its cause the same way.
 - **Nothing private in a line:** a field named password, secret, token, otp, pw, code, authorization, cookie or
   phone is `[redacted]`, at any depth; an email address anywhere in the text is masked to its first letter and
-  domain (`a…@club.org`). The mail module still redacts a mail's own secrets (a sign-in code) before it logs a mail.
+  domain (`a…@club.org`), and a token in running text is `[redacted]` too: a secret in an address's query
+  (`access_token=`, `key=`, `code=`), a bearer token, a JWT. The mail module still redacts a mail's own secrets (a
+  sign-in code) before it logs a mail, and in production, where a mail that's only logged is a mail that didn't go, it
+  logs (and reports, `mail.unconfigured`) who it was for and its subject, never its words.
 - **Every error or fatal line is also reported** to the reporter (Sentry, below), with the Error it carries, if
   any, and its fields. Warnings aren't: they're the expected, degraded paths (a stale cache, a paused source,
   ADR 0055). A warning that's a failure says why it isn't reported, where that isn't plain; a read behind a circuit

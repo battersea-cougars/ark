@@ -50,6 +50,7 @@ export function kept({ db, viewer, build, scope, versions, later }: Keeping): Ed
       const key = keyOf(parts);
       const here = memory.get(key);
       if (here) return JSON.parse(here) as Partial<Parts>;
+      // Not logged: the edge cache is an optimisation, and a miss only means this phone's parts are read from D1
       const hit = await edgeCache()
         ?.match(edgeUrl(key))
         .catch(() => undefined);

@@ -65,6 +65,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   after(
     res.body
       .pipeTo(writable)
+      // A visitor leaving mid-page (the stream aborted) is no fault: the count still goes
       .catch(() => {})
       .then(flushCounts),
   );

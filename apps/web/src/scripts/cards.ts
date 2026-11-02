@@ -157,6 +157,7 @@ async function refresh(...cards: HTMLElement[]) {
     if (!res.ok) return;
     player = await res.json();
   } catch {
+    // Offline or blocked: the card keeps what the page was built with (the server reports its own failures)
     return;
   }
   const set = (field: string, text: string) => {

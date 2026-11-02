@@ -745,7 +745,8 @@ Until launch, lets the website's deploy write its words (the Kumite's intro and 
 
 #### `SANITY_CONTENT_TOKEN__DEV`
 
-The same for dev Sanity (**Cougars Dev**), on pushes to `main`.
+The same for dev Sanity (**Cougars Dev**), on pushes to `main`. **Not set yet** (2026-11-02): dev Sanity refuses writes
+until its monthly quota resets, so the token is made after that; until then dev's deploy leaves its words as they are.
 
 - **Comes from:** Sanity: manage → project **Cougars Dev** → API → Tokens, role **Editor**, named
   `SANITY_CONTENT_TOKEN__DEV`.
@@ -821,6 +822,10 @@ A system-user token that reads the club's posts. Never expires; nothing renews i
   reports `instagram.feed_error`.
 - **Changing or revoking it:** **photosreader → Revoke tokens**, then **Generate token** as above,
   `npm run secret:set INSTAGRAM_TOKEN`, and a deploy of each environment. Any admin of the club's portfolio can.
+- **In Bitwarden today (2026-11-02):** besides the plain `INSTAGRAM_TOKEN`, `INSTAGRAM_TOKEN__PRODUCTION` (the
+  system-user token, made 2026-10-30), which wins in production, and `INSTAGRAM_TOKEN_KEY__PRODUCTION`, the sealing key
+  of the old renewing token, read by nothing since. Once the system-user code is live, the plain `INSTAGRAM_TOKEN`
+  should hold the system-user token and both `__PRODUCTION` entries go (one value, as above).
 - **Setting it up from nothing:** the Instagram account a Professional account, in the club's portfolio; a Meta app
   connected to that portfolio (an admin with full control: **Settings → Accounts → Apps → Add**); then the system
   user and its two assets as above. The account's Graph API ID is in `apps/web/src/lib/server/instagram-env.ts`.
@@ -978,6 +983,10 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 | `APP_STORE_CONNECT_ISSUER_ID` | no              | [Its issuer](#app_store_connect_key_id-app_store_connect_issuer_id)                     |
 | `SENTRY_DSN_TEAM`             | no              | [Where the team app's errors go](#sentry_dsn_team)                                      |
 
+A setting wins over a Bitwarden entry of the same name, and `npm run secrets` leaves such an entry out. Bitwarden still
+held old copies of these on 2026-11-02 (`APPLE_TEAM_ID`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`,
+`CLOUDFLARE_ACCOUNT_ID__DEV`, `CLOUDFLARE_ACCOUNT_ID__PRODUCTION`, `SENTRY_DSN_TEAM`): read by nothing, to be deleted.
+
 **Elsewhere:**
 
 | Name                                   | Where                       | What                                                                                                            |
@@ -992,6 +1001,7 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 | `GITHUB_APP_CLIENT_ID`                 | team `wrangler.jsonc`       | `Iv23liuUhxYcTesso0TW`, the Cougars rebuilds App                                                                |
 | `GITHUB_APP_INSTALLATION_ID`           | team `wrangler.jsonc`       | `169599165`, its installation on `battersea-cougars/ark`                                                        |
 | `VAPID_PUBLIC_KEY`                     | team `wrangler.jsonc`       | Web Push's public key ([Web Push](#web-push))                                                                   |
+| `WEB_ANALYTICS_TOKEN`                  | `deploy.yml`                | Cloudflare Web Analytics' site token, public in every page, production only; empty until copied (setup.md)      |
 
 `.env` is optional and holds your own non-secret overrides only ([.env.example](../.env.example)). Never a secret.
 
@@ -1074,9 +1084,11 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |
 | [`SANITY_CONTENT_TOKEN__PRODUCTION`](#sanity_content_token__production)                                       | Sanity     | prod | yes                              | Website words, until launch               |
-| [`SANITY_CONTENT_TOKEN__DEV`](#sanity_content_token__dev)                                                     | Sanity     | dev  | yes                              | Website words, until launch               |
+| [`SANITY_CONTENT_TOKEN__DEV`](#sanity_content_token__dev) (not set yet)                                       | Sanity     | dev  | yes                              | Website words, until launch               |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
 | [`INSTAGRAM_TOKEN`](#instagram_token)                                                                         | Instagram  | both | yes                              | Website: photos                           |
+| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token) (to fold into the plain one)                                | Instagram  | prod | yes                              | Website: photos, in production            |
+| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token) (to delete)                                             | Instagram  | prod | yes                              | Nothing (the old token's sealing key)     |
 | [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
 | [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes                              | Database backups                          |
 | [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes                              | Database backups                          |

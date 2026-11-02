@@ -3,9 +3,12 @@
 // too. An admin sees it on Home and in Settings → Email, and reconnects it there: Google's consent in the browser, back
 // to the app, which keeps the new token sealed in D1. It works at once, with no terminal and no deploy. Driven through
 // the real Worker handlers, with Google faked (ADR 0031).
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBreakers } from "@cougars/shared/breaker";
 import { clubContactFake } from "@cougars/shared/club-contact";
+import { scribe, type Entry } from "@cougars/shared/scribe";
+import { consoleAdapter } from "@cougars/shared/scribe.console";
+import { captureLogs } from "@cougars/shared/testing/scribe";
 import type { CacheLike } from "@cougars/shared/rate-limit";
 import { NOW, minutes, testWorld } from "../testing";
 
@@ -92,6 +95,25 @@ describe("Settings → Email says whether email works", () => {
     const mo = await w.signedIn("mo@example.com");
     expect((await mo.call("GET", "/api/mail")).status).toBe(403);
     expect((await mo.call("POST", "/api/mail/reconnect", {})).status).toBe(403);
+  });
+});
+
+describe("when an email can't go, the developer hears of it", () => {
+  // The log as the rest of this file reads it (the console) once this one's done
+  afterEach(() => scribe.configure({ adapter: consoleAdapter }));
+
+  it("a sign-in code Gmail refuses is reported, with nothing of the member, the code or the tokens in it", async () => {
+    const reported: Entry[] = [];
+    captureLogs({ report: (_e, entry) => void reported.push(entry) });
+    w.env.TEAM_ENV = undefined;
+    google.cancel();
+    expect(await moSignsIn()).toBe(false);
+    expect(reported.map((e) => e.msg)).toContain("sign_in.code_failed");
+    const said = JSON.stringify(reported);
+    expect(said).not.toContain("mo@example.com");
+    expect(said).not.toContain(google.deployed);
+    expect(said).not.toContain(google.web.secret);
+    expect(said).not.toMatch(/\b\d{6}\b|\d{3} \d{3}/);
   });
 });
 

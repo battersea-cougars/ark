@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { scribe, type Entry } from "./scribe";
+import { mask as scribeMask, scribe, type Entry } from "./scribe";
 import { consoleAdapter } from "./scribe.console";
 import { captureLogs } from "./testing/scribe";
 
@@ -140,6 +140,27 @@ describe("nothing private in the log", () => {
     const logs = captureLogs();
     scribe.logger("mail").error("mail.failed", new Error("Rejected: ada@club.org"));
     expect((logs.entries[0].fields.err as { message: string }).message).toBe("Rejected: a…@club.org");
+  });
+
+  it("hides a token in running text: an address's query, a bearer token, a signed token", () => {
+    const logs = captureLogs();
+    scribe
+      .logger("media")
+      .error(
+        "media.failed",
+        new Error(
+          "fetch https://graph.instagram.com/me/media?fields=id&access_token=IGQV123 and https://www.googleapis.com/youtube/v3/videos?key=AIzaSy999&part=id",
+        ),
+        { said: "Authorization: Bearer ya29.a0Af-x_y", id: "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0In0.c2lnbmF0dXJl" },
+      );
+    const line = JSON.stringify(logs.entries[0]);
+    expect(line).not.toMatch(/IGQV123|AIzaSy999|ya29|eyJhbGci/);
+    expect((logs.entries[0].fields.err as { message: string }).message).toBe(
+      "fetch https://graph.instagram.com/me/media?fields=id&access_token=[redacted] and https://www.googleapis.com/youtube/v3/videos?key=[redacted]&part=id",
+    );
+    expect(logs.entries[0].fields.said).toBe("Authorization: Bearer [redacted]");
+    // A plain query and words that only look like it stay as they are
+    expect(scribeMask("/events/?page=2 and a code of conduct")).toBe("/events/?page=2 and a code of conduct");
   });
 
   it("hides a phone number by its key", () => {
