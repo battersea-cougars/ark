@@ -90,7 +90,7 @@ jobs:
           # imports the dev-server helper. Nothing else in scripts/ (the show switch, setup and load scripts) deploys.
           shared='package\.json|package-lock\.json|\.nvmrc|packages/shared/|db/|\.github/workflows/deploy\.yml|\.github/actions/|scripts/ci/(target|smoke-test)\.mjs|scripts/ci/link-deployment\.sh|scripts/env-pull\.mjs|scripts/lib/(bitwarden|settings)\.mjs'
           declare -A pattern=(
-            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/redirect-setup\.mjs|scripts/lib/(results-sql|roster-sql|d1-api)\.mjs|$shared)"
+            [web]="^(apps/web/|scripts/club-snapshot\.mjs|scripts/sanity-copy\.mjs|scripts/redirect-setup\.mjs|scripts/lib/(results-sql|roster-sql|kumite-sql|d1-api)\.mjs|$shared)"
             [team]="^(apps/team/|scripts/team-app-budget\.mjs|scripts/lib/dev-server\.mjs|$shared)"
             [studio]="^(apps/studio/|$shared)"
             [database]="^(db/|scripts/db-(rebuild|backup|migrate)\.mjs|scripts/lib/backup\.mjs|scripts/seed-roster\.mjs|scripts/lib/(roster|anonymize)|scripts/ci/target\.mjs|\.github/workflows/deploy\.yml)"
