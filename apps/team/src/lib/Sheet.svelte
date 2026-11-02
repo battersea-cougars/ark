@@ -13,6 +13,7 @@
   import { phone } from "./viewport.svelte";
   import { swipeCloses } from "./sheet";
   import { backdropClicks, lockScroll, outside, rememberFocus, requestClose } from "./overlay";
+  import { closeOnBack } from "./back";
   import type { Edits } from "./dirty.svelte";
 
   let {
@@ -51,16 +52,19 @@
     edits?: Edits;
   } = $props();
 
-  /** The one way out: asks first if there are unsaved changes. */
-  export function close() {
-    requestClose(() => (open = false), edits?.guard);
+  /** The one way out: asks first if there are unsaved changes. Returns whether it's closing now. */
+  export function close(): boolean {
+    return requestClose(() => (open = false), edits?.guard);
   }
-  // While it's open: the page under it stays put, and focus goes back where it was once it's closed
+  // While it's open: the page under it stays put, Back closes it (lib/back.ts), and focus goes back where it was once
+  // it's closed
   let unlock: (() => void) | undefined;
   let refocus: (() => void) | undefined;
+  let offBack: (() => void) | undefined;
   function shown() {
     unlock = lockScroll();
     refocus = rememberFocus();
+    offBack = closeOnBack(close);
   }
 
   let dialog = $state<HTMLDialogElement | undefined>();
@@ -117,6 +121,7 @@
     stay();
     open = false;
     unlock?.();
+    offBack?.();
     refocus?.();
     edits?.closed();
     onclose?.();

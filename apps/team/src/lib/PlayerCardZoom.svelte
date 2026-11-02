@@ -6,6 +6,7 @@
   // menus on the back behave like any others.
   import { goesBy, shortName } from "./names";
   import { onMount, tick } from "svelte";
+  import { closeOnBack } from "./back";
   import { POSITIONS, POSITION_ICONS, type Player } from "../demo/data";
   import mark from "../assets/cougars-mark.webp";
   import { EASE_OUT, prefersReducedMotion } from "../app/motion";
@@ -120,6 +121,8 @@
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") close();
   }
+  // Back (a phone's gesture, the browser's) puts the card down too, while it's up (lib/back.ts)
+  $effect(() => closeOnBack(() => void close()));
 </script>
 
 <svelte:window {onkeydown} />

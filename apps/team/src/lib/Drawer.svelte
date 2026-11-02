@@ -14,6 +14,7 @@
   import { drawnAsSheet } from "./sheet";
   import { phone } from "./viewport.svelte";
   import { backdropClicks, lockScroll, outside, rememberFocus, requestClose } from "./overlay";
+  import { closeOnBack } from "./back";
   import { pageColumnStyle } from "./page-column";
   import type { Edits } from "./dirty.svelte";
 
@@ -69,10 +70,10 @@
   let dialog = $state<HTMLDialogElement | undefined>();
   let leaving = $state(false);
 
-  /** The one way out: asks first if there are unsaved changes. */
-  export function close() {
-    if (asSheet) return sheet?.close();
-    requestClose(() => (open = false), edits?.guard);
+  /** The one way out: asks first if there are unsaved changes. Returns whether it's closing now. */
+  export function close(): boolean {
+    if (asSheet) return sheet?.close() ?? true;
+    return requestClose(() => (open = false), edits?.guard);
   }
 
   // An editor's column, measured as it opens and again as the window changes (lib/page-column.ts)
@@ -91,10 +92,13 @@
     if (page) colStyle = pageColumnStyle();
     const unlock = lockScroll();
     const refocus = rememberFocus();
+    // Back closes it (lib/back.ts), as it does the phone's sheet
+    const offBack = closeOnBack(close);
     node.showModal();
     return {
       destroy() {
         unlock();
+        offBack();
         refocus();
       },
     };

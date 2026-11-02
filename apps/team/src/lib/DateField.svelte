@@ -4,6 +4,7 @@
   // pop-over is fixed-position and moved to the page (or the open dialog) like Select's, so panels never clip it.
   // `required` keeps the form's own check: an invisible input over the button carries the value.
   import { portal } from "./overlay";
+  import { closeOnBack } from "./back";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { dayWords, londonToday } from "./dates";
@@ -107,6 +108,12 @@
     focus = d;
     void focusDay();
   }
+
+  // Back closes the month first, not the sheet it's in (lib/back.ts)
+  $effect(() => {
+    if (!open) return;
+    return closeOnBack(() => void (open = false));
+  });
 
   function onKey(e: KeyboardEvent) {
     const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
