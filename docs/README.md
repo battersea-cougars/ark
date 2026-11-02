@@ -4,10 +4,9 @@ Everything written down about the website and the team app, by who it's for.
 
 ## For the club (no coding)
 
-| Doc                            | What                                                                                            |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- |
-| [editing.md](editing.md)       | Editing the website: the Studio's club facts, videos on YouTube, photos on Instagram, enquiries |
-| [club-facts.md](club-facts.md) | Every fact the website states about the club, as checked with the club, and what's open         |
+| Doc                      | What                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| [editing.md](editing.md) | Editing the website: the Studio's club facts, videos on YouTube, photos on Instagram, enquiries |
 
 ## For whoever runs the accounts
 
