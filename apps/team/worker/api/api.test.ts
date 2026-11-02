@@ -44,7 +44,7 @@ async function call(method: string, path: string, payload?: unknown, e: Env = en
   );
   return { status: res.status, body: (await res.json()) as Body };
 }
-/** The club as the app holds it once its pages are read: the bootstrap and every page's parts (#178). */
+/** The club as the app holds it once its pages are read: the bootstrap and every page's parts. */
 const boot = async () =>
   wholeClub(
     (await call("GET", "/api/bootstrap")).body,
@@ -310,7 +310,7 @@ describe("the schedule", () => {
     expect(saved.teams).toMatchObject([
       {
         name: "Clapham Crushers",
-        // A logo this small comes as itself (#177); a bigger one, at its own address (#175, editions.use-cases)
+        // A logo this small comes as itself; a bigger one, at its own address (editions.use-cases)
         logo,
         captainName: "Jo Outsider",
         contact: "jo@example.com",

@@ -43,10 +43,10 @@ export interface Ctx {
   now: string;
   /** Work that goes on after the reply (an email); without it (tests), it's done before. */
   waitUntil?: (p: Promise<unknown>) => void;
-  /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`, #178). */
+  /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`). */
   alsoChanged: Changed[];
   /**
-   * Whose charges a change to them can move (#222): its night, tournament or member, so only theirs are worked out
+   * Whose charges a change to them can move: its night, tournament or member, so only theirs are worked out
    * again (dues.scope.ts). Unsaid, the whole club's.
    */
   charged?: ChargeScope;
@@ -85,7 +85,7 @@ export interface Route {
   calendar?: false;
   /**
    * true: a change to a match as it's played, touching nothing but its tournament's games. On the tournament's day the
-   * match goes with the live hub's event to every member, so the phones following it read nothing (ADR 0053, #161;
+   * match goes with the live hub's event to every member, so the phones following it read nothing (ADR 0053;
    * live/live.parts.ts).
    */
   liveMatch?: true;
@@ -102,7 +102,7 @@ export interface Route {
    * `event` to the audit log, with who did it, both sides, and `about`.
    */
   audit?: Audit | { none: string };
-  /** The most a request may send, in bytes (#73): MAX_BODY (1 MB) unless it says. */
+  /** The most a request may send, in bytes: MAX_BODY (1 MB) unless it says. */
   maxBody?: number;
   /** News for members' phones (ADR 0108): sent once the change is made, after the reply. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

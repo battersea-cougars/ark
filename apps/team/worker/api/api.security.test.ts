@@ -235,7 +235,7 @@ describe("requests from somewhere else", () => {
     );
     expect(Object.fromEntries(res.headers)).toMatchObject(SECURITY_HEADERS);
     expect(SECURITY_HEADERS["content-security-policy"]).toContain("frame-ancestors 'none'");
-    // No camera, microphone or location, for the app or anything it frames (#81)
+    // No camera, microphone or location, for the app or anything it frames
     expect(res.headers.get("permissions-policy")).toBe("camera=(), microphone=(), geolocation=()");
     // The app's own page is served without the Worker (run_worker_first is /api/* only): the same set, from the file
     const file = parseHeadersFile(readFileSync(new URL("../../public/_headers", import.meta.url).pathname, "utf8"));
@@ -248,7 +248,7 @@ describe("requests from somewhere else", () => {
     expect(inline).toHaveLength(1);
     const hash = `'sha256-${createHash("sha256").update(inline[0]).digest("base64")}'`;
     // Edited index.html's script? Put this hash in SECURITY_HEADERS (worker/index.ts) and public/_headers. The one
-    // other source is Turnstile's, on the sign-in page (#13)
+    // other source is Turnstile's, on the sign-in page
     const scripts = SECURITY_HEADERS["content-security-policy"].split("; ").find((d) => d.startsWith("script-src"));
     expect(scripts).toBe(`script-src 'self' https://challenges.cloudflare.com ${hash}`);
   });

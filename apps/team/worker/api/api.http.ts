@@ -13,7 +13,7 @@ export class HttpError extends Error {
  * Whether a request that changes something comes from the app's own pages. Browsers send Origin on every POST, PUT
  * and DELETE, so another site's form or script is refused even where SameSite cookies would let it through (a
  * sibling subdomain). A change that says nothing about where it came from (no Origin, and no `Sec-Fetch-Site:
- * same-origin`) is refused too: no browser's fetch sends one, so it can only be a script (#42).
+ * same-origin`) is refused too: no browser's fetch sends one, so it can only be a script.
  */
 export function sameOrigin(request: Request): boolean {
   if (request.method === "GET" || request.method === "HEAD") return true;
@@ -22,7 +22,7 @@ export function sameOrigin(request: Request): boolean {
   return request.headers.get("sec-fetch-site") === "same-origin";
 }
 
-/** What a request may send (#73): plenty for any form, a team's logo or a list of Fridays. */
+/** What a request may send: plenty for any form, a team's logo or a list of Fridays. */
 export const MAX_BODY = 1024 * 1024;
 const TOO_BIG = "That's too much to send at once.";
 
@@ -83,7 +83,7 @@ export function text(o: Record<string, unknown>, key: string, { optional = false
     throw new HttpError(400, `${key} is needed.`);
   }
   if (typeof v !== "string" || v.length > max) throw new HttpError(400, `${key} should be text (up to ${max}).`);
-  // Only spaces is nothing (#129)
+  // Only spaces is nothing
   if (!v.trim() && !optional) throw new HttpError(400, `${key} is needed.`);
   return v.trim();
 }
@@ -130,7 +130,7 @@ export function date(o: Record<string, unknown>, key: string, { nullable = false
   if (!isDay(v)) throw new HttpError(400, `${key} should be a date.`);
   return v;
 }
-/** A day on the calendar, "YYYY-MM-DD": never month 13 or 30 February, which JavaScript would roll on (#129). */
+/** A day on the calendar, "YYYY-MM-DD": never month 13 or 30 February, which JavaScript would roll on. */
 export function isDay(v: unknown): v is string {
   if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
   const [y, m, d] = v.split("-").map(Number);

@@ -1,11 +1,5 @@
-// "Has anything changed?" for the app's bootstrap (ADR 0053). The app reloads everything after each change and when it
-// opens; most of those reloads find nothing new. The bootstrap carries an ETag, and the app asks again with it
-// (If-None-Match, src/app/api.ts): if the club's data hasn't changed, the answer is an empty 304 after one row read,
-// not the whole club read out of D1.
-//
-// The tag is the club's data version (data_version, one more on every change), who's asking (each member sees their
-// own view, ADR 0024), the day (a view depends on it: what's upcoming, who's a Quarterly Member) and the deploy (a new
-// build may send a different shape).
+// "Has anything changed?" for the app's bootstrap and on-demand reads (ADR 0053): each reply carries a tag, and asked
+// again with it while nothing's changed, the answer is an empty 304 after one row read.
 import { first, run } from "@cougars/shared/d1";
 import { londonEvening } from "@cougars/shared/london";
 import { APP_BUILD, BUILD_HEADER } from "../../src/app/build";
@@ -16,7 +10,7 @@ import type { Ctx } from "./api.route";
 // On your own machine, the Worker's code reloads on every change, and with it this
 const STARTED = Date.now().toString(36);
 
-/** The club's data version, and what's kept beside it: the day sessions were made, and each part's version (#178). */
+/** The club's data version, and what's kept beside it: the day sessions were made, and each part's version. */
 export interface DataVersion {
   version: number;
   /** The London day the coming training sessions were last made (null: never). */
@@ -47,7 +41,7 @@ export const versionOf = (at: DataVersion, families: readonly string[]) =>
 
 /**
  * The coming training sessions are made for this day: later opens of the app skip making them. The version moves on
- * with it, unsaid, so nothing read before the day's sessions were made is taken for what's there now (#178).
+ * with it, unsaid, so nothing read before the day's sessions were made is taken for what's there now.
  */
 export async function sessionsMade(db: D1Database, today: string): Promise<void> {
   await run(
@@ -60,7 +54,7 @@ export async function sessionsMade(db: D1Database, today: string): Promise<void>
 
 /**
  * After a change through the app: every member's bootstrap is out of date. The new version, which names this change
- * (ADR 0053), and is now the version of each family it `told` it changed (#178), with the rest of the row. Anything
+ * (ADR 0053), and is now the version of each family it `told` it changed, with the rest of the row. Anything
  * else that moves the version on (a script, the hourly run, `told` left out) makes every part new (the schema's
  * data_version_untold), as the reply says too.
  */
@@ -87,9 +81,13 @@ export async function bumpDataVersion(db: D1Database, told?: readonly string[]):
 export const buildOf = (env: { TEAM_ENV?: string; CF_VERSION_METADATA?: { id: string } }) =>
   (env.TEAM_ENV !== "local" && env.CF_VERSION_METADATA?.id) || STARTED;
 
+/**
+ * A reply's tag: the club's data version (one more on every change), who's asking (each member sees their own view,
+ * ADR 0024), the day (what's upcoming, who's a Quarterly Member) and the deploy (a new build may send another shape).
+ */
 export const bootstrapTag = clubTag;
 
-// Never kept by the browser (#81): the club's data, members' details included, would stay in its disk cache after
+// Never kept by the browser: the club's data, members' details included, would stay in its disk cache after
 // signing out. The app keeps the tag in memory and asks with it itself, so a check is still a 304 when nothing's new
 const NOT_KEPT = "private, no-store";
 
@@ -111,7 +109,7 @@ export const notModified = (tag: string, version: number) =>
 
 /**
  * The day a reply is for, as its tag says it: London's day, and London's evening (till 06:00, the night before), since
- * at 06:00 the night just held moves from Home's next nights to the weeks just held, with nothing changed (#178).
+ * at 06:00 the night just held moves from Home's next nights to the weeks just held, with nothing changed.
  */
 export const dayOf = (c: Ctx) => {
   const evening = londonEvening(new Date(c.now));
@@ -122,7 +120,7 @@ export const dayOf = (c: Ctx) => {
 export const whoseClub = (c: Ctx) => (c.viewedBy == null ? String(c.memberId) : `${c.viewedBy}as${c.memberId}`);
 
 /**
- * A read of part of the club on demand (a past tournament, a page of History; #175), tagged as the bootstrap is: at
+ * A read of part of the club on demand (a past tournament, a page of History), tagged as the bootstrap is: at
  * the data version, for this member, today, from this deploy, and `what` it is (no dots). Asked again with its tag
  * while nothing's changed, an empty 304 after one row read; never kept by the browser, as the bootstrap isn't.
  */

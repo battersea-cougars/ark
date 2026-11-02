@@ -1,6 +1,5 @@
-// Who may do what (ADR 0024), from the other side of api.security.test.ts: a role that's been given an action opens
-// exactly the routes that ask for it, and nothing else; roles change under a signed-in member at once; and the club
-// always keeps someone who can do everything, even when two admins act at the same moment. Driven through the real
+// Who may do what (ADR 0024), from the other side of api.security.test.ts: an action opens exactly the routes that ask
+// for it, role changes apply at once, and the club always keeps someone who can do everything. Driven through the real
 // handler in the fake world (testing.ts, ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ROUTES } from "./api";
@@ -169,7 +168,7 @@ describe("routes that aren't there", () => {
 
 describe("the club always has someone who can do everything", () => {
   // The last-admin rule is decided inside the statements that write the roles (ADR 0003), so two admins demoting each
-  // other at once can't both see the other still there (#135; seeds 2-5 found it)
+  // other at once can't both see the other still there (seeds 2-5 found it)
   it.each(seeds(5))(
     "two admins taking Admin off each other at the same moment leave at least one admin, the other told (seed %i)",
     async (seed) => {
@@ -199,8 +198,8 @@ describe("the club always has someone who can do everything", () => {
     },
   );
 
-  // The same, deleting an account: the erasing happens only while another admin's there, in the same batch (#135;
-  // seed 3 found it)
+  // The same, deleting an account: the erasing happens only while another admin's there, in the same batch (seed 3
+  // found it)
   it.each(seeds(5))(
     "two admins deleting their own accounts at the same moment leave at least one admin, the other told (seed %i)",
     async (seed) => {
@@ -237,7 +236,7 @@ describe("the club always has someone who can do everything", () => {
     expect((await dana.call("DELETE", "/api/me")).status).toBe(409);
   });
 
-  // Through any role (#136): the rule is about whoever can do everything, not the role called Admin
+  // Through any role: the rule is about whoever can do everything, not the role called Admin
   const canDoEverything = () =>
     (
       w.db.raw
