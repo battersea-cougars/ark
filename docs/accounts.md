@@ -58,7 +58,8 @@ says how to make each one.
   `BWS_SERVER_URL`, `https://vault.bitwarden.eu` (the EU server); on `production`, `LAUNCHED` once the team app is
   open ([The domain](#the-domain)).
 - **Branch rules**: `main` and `release` can't be force-pushed or deleted, and `release` changes only through a pull
-  request from `main` whose checks pass: `node scripts/branch-rules.mjs` (safe to run again).
+  request from `main` whose checks pass; a merged pull request's branch is deleted (`delete_branch_on_merge`):
+  `node scripts/branch-rules.mjs` (safe to run again).
 - **GitHub App "Cougars rebuilds",** owned by the organisation: lets the team app start a website rebuild, and nothing
   else ([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). Its key: [secrets.md](secrets.md#github_app_private_key).
 - **First deploy**: deploy dev once, so the `web` worker exists before the first PR preview:
