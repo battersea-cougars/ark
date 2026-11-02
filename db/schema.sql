@@ -930,6 +930,14 @@ CREATE TABLE sentry_issues (
   failure   TEXT CHECK (failure IN ('down', 'refused'))   -- the last ask's failure; null when it answered
 );
 
+-- Browser error reports passed on to Sentry each London day, across the club (packages/shared/error-report-cap.ts,
+-- ADR 0110): over the cap, the day's reports go no further, so a script can't spend Sentry's free 5k a month. One
+-- small row a day.
+CREATE TABLE error_report_days (
+  day TEXT PRIMARY KEY,                                   -- the London date
+  n   INTEGER NOT NULL                                    -- reports passed on so far that day
+);
+
 -- The hourly run's last try (apps/team/worker/cron/hourly.ts, ADR 0110): one row, for the UTC hour it's on. The run
 -- every minute catches the hour up while it isn't done: a try at 12, 17, 27, 37 and 47 past, each claimed here first so
 -- two runs at once take it once. `attempt`: 0 the hour's own run at :07, then each catch-up. `outcome`: null while

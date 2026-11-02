@@ -323,6 +323,16 @@
         return `${who} made the fight card: ${Number(to?.games ?? 0)} games`;
       case "team.players":
         return `${who} changed a tournament team's players`;
+      // Someone not its captain (an admin) changed a team's look (#201): its name, its crest, or both
+      case "team.look": {
+        const renamed = from?.name !== to?.name;
+        const recrested = from?.crest !== to?.crest;
+        const team = `${str(to?.tournament)}'s team ${str(from?.name) || "(its captain's name)"}`;
+        if (renamed && recrested)
+          return `${who} renamed ${team} to ${str(to?.name) || "its captain's name"} and changed its crest`;
+        if (renamed) return `${who} renamed ${team} to ${str(to?.name) || "its captain's name"}`;
+        return `${who} changed the crest of ${team}`;
+      }
       default:
         return `${who}: ${e.action} ${JSON.stringify(d)}`;
     }

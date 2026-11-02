@@ -15,6 +15,7 @@ import {
   createTournamentType,
   deleteTournament,
   setTeamLook,
+  teamLookByOthers,
   tournamentSummary,
   updateTournament,
   updateTournamentType,
@@ -235,7 +236,11 @@ export const TOURNAMENTS_ROUTES: Route[] = [
   {
     method: "PUT",
     path: /^\/api\/tournaments\/(\d+)\/teams\/(\d+)\/look$/,
-    audit: { none: "a team's look (its name, colour and crest), its captain's to change; an admin may too" },
+    // A team's look (its name and crest) is its captain's own; anyone else changing it, an admin, is on the record
+    audit: {
+      event: "team.look",
+      subject: (c) => teamLookByOthers(c.env.DB, id(c), Number(c.params[1]), c.memberId),
+    },
     // Its captain or an admin: setTeamLook decides
     action: "authenticated",
     // A Kumite team's name is its captain's default for the next one too (team-name.ts)

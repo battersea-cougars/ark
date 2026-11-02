@@ -1,5 +1,5 @@
 // Tournaments (ADR 0030, ADR 0060, ADR 0074): types (series) and editions, their teams, rules and playoffs.
-import { SMALL_LOGO } from "../api/api.club";
+import { LOGO_VERSION, SMALL_LOGO } from "../api/api.club";
 import { PENALTY_MINUTES, PENALTY_RULES, type PenaltyRule } from "../../src/lib/penalties";
 import { syncTournament, syncTournamentsOf } from "@cougars/shared/agenda";
 import { batch, first, run, statement, type Param } from "@cougars/shared/d1";
@@ -505,6 +505,22 @@ export async function setTeamLook(
   const logo = logoOf(o);
   // This edition's team only: it's then the one its captain brings to the series' next (team-name.ts, ADR 0060)
   await run(db, "UPDATE tournament_teams SET name = ?, logo = ? WHERE id = ?", [name, logo, teamId]);
+}
+
+/**
+ * A team's look for the record (ADR 0095, #201): its name and which crest (by version, not the image), or null when
+ * the one changing it is its captain, whose own it is, so only someone else changing it (an admin) is on the record.
+ */
+export async function teamLookByOthers(db: D1Database, tournamentId: number, teamId: number, memberId: number) {
+  return (
+    (await first(
+      db,
+      `SELECT tm.id team, tm.name, ${LOGO_VERSION("tm")} crest, t.name tournament
+       FROM tournament_teams tm JOIN tournaments t ON t.id = tm.tournament_id
+       WHERE tm.id = ? AND tm.tournament_id = ? AND tm.captain_member_id IS NOT ?`,
+      [teamId, tournamentId, memberId],
+    )) ?? null
+  );
 }
 
 /**
