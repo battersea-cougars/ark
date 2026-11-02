@@ -89,14 +89,16 @@ export const MEMBERS_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Attendance",
-    // Who came is who's charged (apps/team/worker/dues/README.md)
-    changes: ["sessions", "members", "charges", "dues"],
+    // Who came is who's charged (apps/team/worker/dues/README.md), and counts in what they've played: not who they are (#223)
+    changes: ["sessions", "played", "charges", "dues"],
     // A walk-in taken off frees a place: whoever moves up hears it
     notify: places,
     // { marks: [{ sessionId, here }] }: each Friday ticked or unticked, in one go
     handle: async (c) => {
       const marks = await marksIn(c.request);
       await memberExists(c.env.DB, id(c));
+      // Their charges only (#222)
+      c.charged = { members: [id(c)] };
       await markAll(c.env.DB, id(c), marks, c.memberId, c.now);
       return json({ sessionIds: marks.map((m) => m.sessionId) });
     },

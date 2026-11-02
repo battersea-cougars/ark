@@ -14,6 +14,9 @@
 export const FAMILIES: Record<string, { core: readonly string[]; pages: readonly string[] }> = {
   // Who's in Home's next things, and Home's line of who's asking to join, come from members too
   members: { core: ["people", "forAdmins"], pages: ["members"] },
+  // What a member's card counts (the nights they've played), not who they are or what they may do: a register taken,
+  // a night called off. The same parts as members, but not the whole club for a change to anyone's access (#223)
+  played: { core: ["people"], pages: ["members"] },
   // Who's signed up names people on Home
   sessions: { core: ["sessions", "people"], pages: ["pastSessions"] },
   // The nights from tonight alone: a training answer's, since a night already held takes none (its register closed

@@ -66,6 +66,13 @@ three trips (the data, then the app, then Home).
   (`x-club-version`); the app puts them in place with no second request. Declaring too little leaves a part stale
   until its next change; declaring too much just reads more.
 - A route that can't move anything on the calendar says `calendar: false`, so the agenda isn't read for it.
+- **Parts are as narrow as what moves.** A register mark names the nights and `played` (what members have played:
+  Home's people and the roster), never `members`, so the phones read the night, not the club. Only a change to who
+  someone is or what they may do reads the whole club.
+- **What people owe is worked out only where a change can move it** (`dues.scope.ts`): a change recharges its night's,
+  tournament's or member's charges; the hourly run only the nights and tournaments since `data_version.charged_through`.
+  A whole-club working-out is kept for an earlier fee, a tournament saved and Recalculate (the dues notes). So a tap's
+  rows read don't grow with the club's history ([ADR 0003](0003-free-tiers-only.md)).
 
 **Live pages are pushed to over SSE from a Durable Object that stores nothing**
 
@@ -74,8 +81,10 @@ three trips (the data, then the app, then Home).
   just drops them.
 - **`GET /api/live` is a Server-Sent Events stream** for any signed-in member, at most three per member; ending a
   sign-in closes its streams. Its events name the parts that changed and the versions, not data, so what a member sees
-  comes from their own reads, filtered for them. The one exception is a game being scored on its day, which is the
-  same for every member: its event carries the match, decided in one place (`live/live.parts.ts`).
+  comes from their own reads, filtered for them. The exceptions are what's the same for every member, decided in one place (`live/live.parts.ts`): a game
+  being scored on its day, whose event carries the match, and the after-party's reveals, whose event carries the drum
+  and the winners already out (routes marked `liveAwards`), so a reveal is one request however many phones are in the
+  room, and a winner still sealed never travels.
 - **Every change notifies the hub** where all writes pass (`handleApi`), through `waitUntil`; a failed notify is
   logged and never fails the change. The hub sends at most one event a second, so a burst is one event.
 - **A page reads only the parts an event names**, one read at a time after a random wait of up to a second, so the

@@ -202,9 +202,10 @@ export const SLICES = {
 export type Slice = keyof typeof SLICES;
 /**
  * What a change can say it changed: a part, or a family of parts (src/app/club-parts.ts). `tonight` is the nights from
- * tonight alone, a training answer's: one already held takes no answers (#178).
+ * tonight alone, a training answer's: one already held takes no answers (#178). `played` is what members' cards count,
+ * not who they are: the roster and Home's people, never the whole club (#223).
  */
-export type Changed = Slice | "tonight";
+export type Changed = Slice | "tonight" | "played";
 
 /**
  * Each event with its answers: who's in and who's waiting, for everyone (that's what a sign-up is for); who said
@@ -266,7 +267,8 @@ export const CORE = (Object.keys(SLICES) as Slice[]).filter((name) => !PAGE_PART
  */
 const MADE_OF: Partial<Record<Slice, readonly string[]>> = {
   everydayRole: ["members"],
-  people: ["members", "sessions", "tournaments", "clubEvents"],
+  people: ["members", "played", "sessions", "tournaments", "clubEvents"],
+  members: ["played"],
   roles: ["members"],
   sessions: ["members", "tonight"],
   pastSessions: ["sessions", "members"],
@@ -282,7 +284,10 @@ const MADE_OF: Partial<Record<Slice, readonly string[]>> = {
 const familiesOf = (name: Slice) => [FAMILY_OF[name] ?? name, ...(MADE_OF[name] ?? [])];
 /** A page's part's family: the name its changes go by (club-parts.ts FAMILIES). */
 const FAMILY_OF: Partial<Record<Slice, string>> = Object.fromEntries(
-  Object.entries(FAMILIES).flatMap(([family, { pages }]) => pages.map((page) => [page, family])),
+  Object.entries(FAMILIES)
+    .flatMap(([family, { pages }]) => pages.map((page) => [page, family]))
+    // A page two families make (the roster: members, and what they've played) goes by the first's name
+    .reverse(),
 );
 
 /** Each part's version, as one string: what its tag and what's kept at the edge are at (#178). */

@@ -1,5 +1,6 @@
 // Dues (apps/team/worker/dues/README.md): fees, charges, payments and adjustments, and a member's quarterly plan.
-import { id, ok, rowOf, type Route } from "../api/api.route";
+import { id, ok, rowOf, type Ctx, type Route } from "../api/api.route";
+import type { ChargeScope } from "./dues.scope";
 import {
   addAdjustment,
   addQuarterCharge,
@@ -21,6 +22,16 @@ import { quarterlyToday, setQuarterly } from "../members/members";
 import { SEES_DUES, holdsAny } from "../api/api.slices";
 import { versionedRead } from "../api/api.version";
 import { collectedFor, idsOf, ledgerPage, linePageOf } from "./dues.ledger";
+
+/** The route's member's charges only, after a change to them (#222): nobody else's can move. */
+const theirs = (c: Ctx): ChargeScope => ({ members: [id(c)] });
+
+/** A charge's payment changed: its member's charges only are worked out again, and the reply says whose. */
+async function paidBy(c: Ctx) {
+  const memberId = (await chargeState(c.env.DB, id(c)))?.memberId;
+  if (memberId !== undefined) c.charged = { members: [memberId] };
+  return json({ ok: true, memberId });
+}
 
 export const DUES_ROUTES: Route[] = [
   // A member's ledger, a page at a time, newest first (#177): their own, or anyone's for who sees everyone's dues
@@ -67,6 +78,7 @@ export const DUES_ROUTES: Route[] = [
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.quarterly !== "boolean") throw new HttpError(400, "quarterly should be true or false.");
+      c.charged = theirs(c);
       await setQuarterly(c.env.DB, id(c), b.quarterly, c.today, c.now);
       return ok();
     },
@@ -92,7 +104,10 @@ export const DUES_ROUTES: Route[] = [
     action: "record:Payment",
     changes: ["charges", "dues"],
     // { quarter: "2026-Q3", pence? }: they owe for a quarter
-    handle: async (c) => json(await addQuarterCharge(c.env.DB, id(c), await body(c.request), c.memberId, c.now), 201),
+    handle: async (c) => {
+      c.charged = theirs(c);
+      return json(await addQuarterCharge(c.env.DB, id(c), await body(c.request), c.memberId, c.now), 201);
+    },
   },
   {
     method: "DELETE",
@@ -107,6 +122,7 @@ export const DUES_ROUTES: Route[] = [
     // A quarter charged by hand by mistake
     handle: async (c) => {
       const was = await chargeState(c.env.DB, id(c));
+      if (was) c.charged = { members: [was.memberId] };
       await removeCharge(c.env.DB, id(c), c.now);
       return json({ ok: true, memberId: was?.memberId });
     },
@@ -124,7 +140,7 @@ export const DUES_ROUTES: Route[] = [
     // { via: "transfer" | "cash" }: paid
     handle: async (c) => {
       await payCharge(c.env.DB, id(c), await body(c.request), c.memberId, c.now);
-      return json({ ok: true, memberId: (await chargeState(c.env.DB, id(c)))?.memberId });
+      return paidBy(c);
     },
   },
   {
@@ -140,7 +156,7 @@ export const DUES_ROUTES: Route[] = [
     // Marked paid by mistake
     handle: async (c) => {
       await unpayCharge(c.env.DB, id(c));
-      return json({ ok: true, memberId: (await chargeState(c.env.DB, id(c)))?.memberId });
+      return paidBy(c);
     },
   },
   {
@@ -154,7 +170,10 @@ export const DUES_ROUTES: Route[] = [
     action: "record:Payment",
     changes: ["charges", "dues"],
     // { pence (above nothing: they owe more; below: less), reason, on? }
-    handle: async (c) => json(await addAdjustment(c.env.DB, id(c), await body(c.request), c.memberId, c.now), 201),
+    handle: async (c) => {
+      c.charged = theirs(c);
+      return json(await addAdjustment(c.env.DB, id(c), await body(c.request), c.memberId, c.now), 201);
+    },
   },
   {
     method: "DELETE",
@@ -167,7 +186,11 @@ export const DUES_ROUTES: Route[] = [
     action: "record:Payment",
     changes: ["charges", "dues"],
     // Recorded by mistake: taken back from the ledger
-    handle: async (c) => json({ ok: true, memberId: await removePayment(c.env.DB, id(c)) }),
+    handle: async (c) => {
+      const memberId = await removePayment(c.env.DB, id(c));
+      c.charged = { members: [memberId] };
+      return json({ ok: true, memberId });
+    },
   },
   {
     method: "POST",
@@ -185,6 +208,8 @@ export const DUES_ROUTES: Route[] = [
     handle: async (c) => {
       await memberExists(c.env.DB, id(c));
       await recharge(c.env.DB, c.today, c.now);
+      // Done whole already: the working-out after it is theirs alone
+      c.charged = theirs(c);
       return ok();
     },
   },
@@ -199,6 +224,9 @@ export const DUES_ROUTES: Route[] = [
     action: "record:Payment",
     changes: ["charges", "dues"],
     // { via, pence }: a lump sum, paying the oldest first (FIFO), the rest kept as credit
-    handle: async (c) => (await recordPayment(c.env.DB, id(c), await body(c.request), c.memberId, c.now), ok()),
+    handle: async (c) => {
+      c.charged = theirs(c);
+      return (await recordPayment(c.env.DB, id(c), await body(c.request), c.memberId, c.now), ok());
+    },
   },
 ];

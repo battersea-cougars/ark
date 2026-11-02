@@ -9,6 +9,7 @@ import { QUARTER, feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } f
 import { londonToday } from "@cougars/shared/london";
 import { HttpError, isDay } from "../api/api.http";
 import { bumpDataVersion } from "../api/api.version";
+import { chargesIn, inScope, membersIn, newDays, sessionsIn, type ChargeScope } from "./dues.scope";
 
 // ─── Quarters ───
 
@@ -57,59 +58,78 @@ const SERIES_FEE = `(SELECT f.amount_pence FROM series_fees f WHERE f.series_id 
   AND f.effective_from <= s.held_on ORDER BY f.effective_from DESC LIMIT 1)`;
 
 /**
- * Statements that bring session and tournament charges in line with who came and what each costs, as of today. A
- * session costs its training's fee on its day: change a fee from an earlier date and every night it covers is
- * recalculated, paid or not (a night paid then owes the difference, or its overpayment is credit).
+ * Statements that bring session and tournament charges in line with who came and what each costs, as of today: the
+ * scope's (dues.scope.ts), or the whole club's. A session costs its training's fee on its day: change a fee from an
+ * earlier date and every night it covers is recalculated, paid or not (a night paid then owes the difference, or its
+ * overpayment is credit).
  */
-function attendanceCharges(db: D1Database, today: string, now: string): D1PreparedStatement[] {
-  const statements = [
-    statement(
-      db,
-      `UPDATE training_sessions AS s SET fee_pence = COALESCE(${SERIES_FEE}, 0)
-       WHERE s.held_on <= ? AND s.fee_pence IS NOT COALESCE(${SERIES_FEE}, 0)`,
-      [today],
-    ),
-  ];
-  for (const [column, due] of [
-    ["session_id", SESSIONS_DUE],
-    ["tournament_id", TOURNAMENTS_DUE],
-  ])
+function attendanceCharges(db: D1Database, today: string, now: string, scope?: ChargeScope): D1PreparedStatement[] {
+  const statements: D1PreparedStatement[] = [];
+  // The nights in the scope, or that its members came to: each costs its fee as it was on its day
+  const feeOf = sessionsIn(scope);
+  if (feeOf)
+    statements.push(
+      statement(
+        db,
+        `UPDATE training_sessions AS s SET fee_pence = COALESCE(${SERIES_FEE}, 0)
+         WHERE s.held_on <= ? AND ${feeOf.sql} AND s.fee_pence IS NOT COALESCE(${SERIES_FEE}, 0)`,
+        [today, ...feeOf.params],
+      ),
+    );
+  const kinds = [
+    { column: "session_id", due: SESSIONS_DUE, rows: inScope(scope, "sessions", "a.session_id", "a.member_id") },
+    {
+      column: "tournament_id",
+      due: TOURNAMENTS_DUE,
+      rows: inScope(scope, "tournaments", "e.tournament_id", "e.member_id"),
+    },
+  ] as const;
+  for (const { column, due, rows } of kinds) {
+    const charges = inScope(scope, column === "session_id" ? "sessions" : "tournaments", `c.${column}`, "c.member_id");
+    if (!rows || !charges) continue;
+    const owed = `${due} AND ${rows.sql}`;
     statements.push(
       statement(
         db,
         `INSERT INTO charges (member_id, ${column}, amount_pence, due_on, created_at)
-         SELECT member_id, event_id, amount, due_on, ? FROM (${due}) WHERE true ON CONFLICT DO NOTHING`,
-        [now, today],
+         SELECT member_id, event_id, amount, due_on, ? FROM (${owed}) WHERE true ON CONFLICT DO NOTHING`,
+        [now, today, ...rows.params],
       ),
       statement(
         db,
-        `DELETE FROM charges AS c WHERE c.${column} IS NOT NULL AND ${notPaidUp}
-           AND (c.member_id, c.${column}) NOT IN (SELECT member_id, event_id FROM (${due}))`,
-        [today],
+        `DELETE FROM charges AS c WHERE c.${column} IS NOT NULL AND ${charges.sql} AND ${notPaidUp}
+           AND (c.member_id, c.${column}) NOT IN (SELECT member_id, event_id FROM (${owed}))`,
+        [...charges.params, today, ...rows.params],
       ),
     );
+  }
   // What each costs now: a night their quarter pays for, nothing (so what they'd paid for it is credit)
-  for (const [column, fee] of [
+  for (const [column, kind, fee] of [
     [
       "session_id",
+      "sessions",
       `SELECT CASE WHEN ${quarterCharged("c.member_id", "s.held_on")} THEN 0 ELSE s.fee_pence END
        FROM training_sessions s WHERE s.id = c.session_id`,
     ],
-    ["tournament_id", "SELECT fee_pence FROM tournaments WHERE id = c.tournament_id"],
-  ])
+    ["tournament_id", "tournaments", "SELECT fee_pence FROM tournaments WHERE id = c.tournament_id"],
+  ] as const) {
+    const charges = inScope(scope, kind, `c.${column}`, "c.member_id");
+    if (!charges) continue;
     statements.push(
       statement(
         db,
         `UPDATE charges AS c SET amount_pence = COALESCE((${fee}), 0)
-         WHERE c.${column} IS NOT NULL AND c.amount_pence IS NOT COALESCE((${fee}), 0)`,
+         WHERE c.${column} IS NOT NULL AND ${charges.sql} AND c.amount_pence IS NOT COALESCE((${fee}), 0)`,
+        charges.params,
       ),
     );
+  }
   return statements;
 }
 
-/** Session and tournament charges in line with who came (attendanceCharges). Returns how many changed. */
-export async function chargeAttendance(db: D1Database, today: string, now: string): Promise<number> {
-  return settleAfter(db, attendanceCharges(db, today, now));
+/** Session and tournament charges in line with who came (attendanceCharges), the scope's. Returns how many changed. */
+export async function chargeAttendance(db: D1Database, today: string, now: string, scope?: ChargeScope) {
+  return settleAfter(db, attendanceCharges(db, today, now, scope), scope);
 }
 
 /**
@@ -117,16 +137,24 @@ export async function chargeAttendance(db: D1Database, today: string, now: strin
  * this one, that a subscription covers: due on the quarter's first day, or the day they joined. Only where the rate in
  * force then isn't nothing, so setting the first rate decides how far back it goes. A quarter charged by mistake (the
  * subscription taken back) goes, unpaid. The quarters go as one list (JSON), so it's three statements however many
- * members and quarters there are.
+ * members and quarters there are. The scope's members only; none if it names none (a night's, a tournament's).
  */
-async function quarterCharges(db: D1Database, today: string, now: string): Promise<D1PreparedStatement[]> {
+async function quarterCharges(
+  db: D1Database,
+  today: string,
+  now: string,
+  scope?: ChargeScope,
+): Promise<D1PreparedStatement[]> {
+  const whose = membersIn(scope, "sub.member_id");
+  const charged = membersIn(scope, "c.member_id");
+  if (!whose || !charged) return [];
   const [fees, subs] = (await batch(db, [
     statement(db, "SELECT amount_pence pence, effective_from 'from' FROM subscription_fees ORDER BY effective_from"),
     statement(
       db,
       `SELECT sub.member_id, sub.starts_on, sub.ends_on FROM subscriptions sub
-       WHERE sub.starts_on <= ? AND NOT ${KEEPER("sub.member_id")}`,
-      [today],
+       WHERE sub.starts_on <= ? AND ${whose.sql} AND NOT ${KEEPER("sub.member_id")}`,
+      [today, ...whose.params],
     ),
   ])) as [D1Result<DatedFee>, D1Result<{ member_id: number; starts_on: string; ends_on: string | null }>];
   const due = new Map<string, { member: number; quarter: string; dueOn: string; pence: number }>();
@@ -153,9 +181,9 @@ async function quarterCharges(db: D1Database, today: string, now: string): Promi
     ),
     statement(
       db,
-      `DELETE FROM charges AS c WHERE c.quarter IS NOT NULL AND c.created_by IS NULL AND ${unpaid}
+      `DELETE FROM charges AS c WHERE c.quarter IS NOT NULL AND ${charged.sql} AND c.created_by IS NULL AND ${unpaid}
          AND (c.member_id, c.quarter) NOT IN (SELECT member, quarter FROM (${listed}))`,
-      [list],
+      [...charged.params, list],
     ),
     // The rate for each, as it is now: a rate changed from an earlier date recalculates the quarters it covers. One
     // charged by hand keeps what the admin said.
@@ -169,30 +197,44 @@ async function quarterCharges(db: D1Database, today: string, now: string): Promi
 }
 
 /**
- * Every charge in line, as after anything that changes who owes what: quarters first, since a quarter pays for its
- * training nights. A few round trips, however many members, quarters and nights (ADR 0003). Returns how many changed.
+ * Charges in line, as after anything that changes who owes what: the scope's (dues.scope.ts, #222), or every one.
+ * Quarters first, since a quarter pays for its training nights. A few round trips, however many members, quarters and
+ * nights (ADR 0003). Returns how many changed.
  */
-export async function recharge(db: D1Database, today: string, now: string): Promise<number> {
-  return settleAfter(db, [...(await quarterCharges(db, today, now)), ...attendanceCharges(db, today, now)]);
+export async function recharge(db: D1Database, today: string, now: string, scope?: ChargeScope): Promise<number> {
+  return settleAfter(
+    db,
+    [...(await quarterCharges(db, today, now, scope)), ...attendanceCharges(db, today, now, scope)],
+    scope,
+  );
 }
 
-/** Each part of a payment on a charge that's paid more than it now costs, newest payment first. */
-const OVERPAID = `
-  SELECT pa.charge_id chargeId, pa.payment_id paymentId, pa.amount_pence pence, o.over
-  FROM payment_allocations pa
-  JOIN (SELECT c.id, (SELECT SUM(a.amount_pence) FROM payment_allocations a WHERE a.charge_id = c.id) - c.amount_pence
-          over FROM charges c WHERE over > 0) o ON o.id = pa.charge_id
-  ORDER BY pa.charge_id, pa.payment_id DESC`;
+/**
+ * Each part of a payment on a charge in the scope that's paid more than it now costs, newest payment first. What's
+ * paid on each is kept beside it (paid_pence, the schema's triggers).
+ */
+const overpaid = (db: D1Database, scope?: ChargeScope) => {
+  const charges = chargesIn(scope);
+  return statement(
+    db,
+    `SELECT pa.charge_id chargeId, pa.payment_id paymentId, pa.amount_pence pence, c.paid_pence - c.amount_pence over
+     FROM charges c JOIN payment_allocations pa ON pa.charge_id = c.id
+     WHERE c.paid_pence > c.amount_pence AND ${charges.sql}
+     ORDER BY pa.charge_id, pa.payment_id DESC`,
+    charges.params,
+  );
+};
 
 /**
- * Changes to charges, then: a charge paid more than it now costs gives the difference back (the newest payment's part
- * first), so it's credit; a charge that now costs nothing goes; then credit pays what's owed. Three round trips.
- * Returns how many rows changed.
+ * Changes to the scope's charges, then: a charge paid more than it now costs gives the difference back (the newest
+ * payment's part first), so it's credit; a charge that now costs nothing goes; then credit pays what's owed, anyone's
+ * (found by index: only payments with credit, and their members' charges owing). Three round trips. Returns how many
+ * rows changed.
  */
-async function settleAfter(db: D1Database, changes: D1PreparedStatement[]): Promise<number> {
+async function settleAfter(db: D1Database, changes: D1PreparedStatement[], scope?: ChargeScope): Promise<number> {
   const done = await batch<{ chargeId: number; paymentId: number; pence: number; over: number }>(db, [
     ...changes,
-    statement(db, OVERPAID),
+    overpaid(db, scope),
   ]);
   const backs: { charge: number; payment: number; back: number }[] = [];
   const left = new Map<number, number>();
@@ -202,18 +244,28 @@ async function settleAfter(db: D1Database, changes: D1PreparedStatement[]): Prom
     left.set(a.chargeId, over - back);
     if (back) backs.push({ charge: a.chargeId, payment: a.paymentId, back });
   }
+  const given = JSON.stringify(backs);
+  const charges = chargesIn(scope);
   const [taken, emptied, gone, ...reads] = await batch(db, [
     statement(
       db,
       `UPDATE payment_allocations AS pa SET amount_pence = pa.amount_pence - b.back
        FROM (SELECT value ->> 'charge' charge, value ->> 'payment' payment, value ->> 'back' back FROM json_each(?)) b
        WHERE pa.charge_id = b.charge AND pa.payment_id = b.payment`,
-      [JSON.stringify(backs)],
+      [given],
     ),
-    statement(db, "DELETE FROM payment_allocations WHERE amount_pence <= 0"),
+    // Only a part just given back can come to nothing
     statement(
       db,
-      "DELETE FROM charges WHERE amount_pence <= 0 AND id NOT IN (SELECT charge_id FROM payment_allocations)",
+      `DELETE FROM payment_allocations
+       WHERE charge_id IN (SELECT value ->> 'charge' FROM json_each(?)) AND amount_pence <= 0`,
+      [given],
+    ),
+    statement(
+      db,
+      `DELETE FROM charges AS c WHERE c.amount_pence <= 0 AND ${charges.sql}
+         AND NOT EXISTS (SELECT 1 FROM payment_allocations pa WHERE pa.charge_id = c.id)`,
+      charges.params,
     ),
     ...credit(db),
   ]);
@@ -224,10 +276,12 @@ async function settleAfter(db: D1Database, changes: D1PreparedStatement[]): Prom
   );
 }
 
-/** The hourly check (and the day's first open of the app): whatever a new day makes due. */
+/** The hourly check (and the day's first open of the app): whatever a new day makes due (dues.scope.ts newDays). */
 export async function chargeDue(env: { DB: D1Database }, now: Date) {
   const today = londonToday(now);
-  const changed = await recharge(env.DB, today, now.toISOString());
+  const { scope, ranThrough } = await newDays(env.DB, today);
+  const changed = await recharge(env.DB, today, now.toISOString(), scope);
+  await ranThrough();
   // Someone's dues changed: every member's bootstrap is out of date (ADR 0053)
   if (changed) await bumpDataVersion(env.DB);
 }
@@ -336,7 +390,7 @@ export async function addQuarterCharge(
   );
   if (!added) throw new HttpError(409, "They're already charged for that quarter.");
   // Its training nights are paid for now
-  await chargeAttendance(db, londonToday(new Date(now)), now);
+  await chargeAttendance(db, londonToday(new Date(now)), now, { members: [memberId] });
   return { id: added.id };
 }
 
@@ -345,9 +399,9 @@ export async function addQuarterCharge(
  * membership, so that's what to change.
  */
 export async function removeCharge(db: D1Database, id: number, now: string) {
-  const c = await first<{ byHand: number; paid: number }>(
+  const c = await first<{ byHand: number; paid: number; memberId: number }>(
     db,
-    `SELECT c.created_by IS NOT NULL byHand, NOT ${unpaid} paid FROM charges c WHERE c.id = ?`,
+    `SELECT c.created_by IS NOT NULL byHand, NOT ${unpaid} paid, c.member_id memberId FROM charges c WHERE c.id = ?`,
     [id],
   );
   if (!c) throw new HttpError(404, "No such charge.");
@@ -356,7 +410,7 @@ export async function removeCharge(db: D1Database, id: number, now: string) {
   if (c.paid) throw new HttpError(409, "It's paid: mark it unpaid first.");
   await run(db, "DELETE FROM charges WHERE id = ?", [id]);
   // Its training nights are owed again
-  await chargeAttendance(db, londonToday(new Date(now)), now);
+  await chargeAttendance(db, londonToday(new Date(now)), now, { members: [c.memberId] });
 }
 
 const via = (o: Record<string, unknown>) => {

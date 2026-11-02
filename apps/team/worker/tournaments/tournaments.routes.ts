@@ -58,8 +58,9 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       ),
     },
     action: "manage:Tournament",
-    // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "dues", "members", "sessions"],
+    // A Kumite team renamed here is its captain's default name for the next one, worked out from the editions
+    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club (#223)
+    changes: ["tournaments", "charges", "dues", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     // Made with its sign-up open: everyone hears it
@@ -76,8 +77,9 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       ),
     },
     action: "manage:Tournament",
-    // A Kumite team renamed here is its captain's default name for the next one (team-name.ts): members too
-    changes: ["tournaments", "charges", "dues", "members", "sessions"],
+    // A Kumite team renamed here is its captain's default name for the next one, worked out from the editions
+    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club (#223)
+    changes: ["tournaments", "charges", "dues", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
     // A limit raised lets the first waiting in, and they hear it; a sign-up opened by hand is told to everyone
@@ -118,9 +120,10 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: (c) => revealedSubject(c.env.DB, id(c)),
     },
     action: "manage:Tournament",
-    // Everyone watching the after-party sees it turn over (ADR 0053)
+    // Everyone watching the after-party sees it turn over (ADR 0053), the drum sent with the event (#224)
     changes: ["tournaments"],
     calendar: false,
+    liveAwards: true,
     // { next }: the award it reveals, by its place in the reveal (a judges' call left out isn't one), the one the tap
     // saw face down (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
@@ -134,9 +137,10 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: rowOf("SELECT id, name, awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?"),
     },
     action: "manage:Tournament",
-    // Everyone watching sees the drum roll on (ADR 0053)
+    // Everyone watching sees the drum roll on (ADR 0053), sent with the event (#224)
     changes: ["tournaments"],
     calendar: false,
+    liveAwards: true,
     // { at }: how many were out when the tap saw it, so a double tap rolls it once (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await nextAward(c.env.DB, id(c), await body(c.request)), ok()),
   },
@@ -243,8 +247,9 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     // Its captain or an admin: setTeamLook decides
     action: "authenticated",
-    // A Kumite team's name is its captain's default for the next one too (team-name.ts)
-    changes: ["tournaments", "members"],
+    // A Kumite team's name is its captain's default for the next one too, worked out from the editions (team-name.ts):
+    // nothing on the member changes (#223)
+    changes: ["tournaments"],
     handle: async (c) => {
       const admin = can(c.actions, "manage:Tournament");
       await setTeamLook(c.env.DB, id(c), Number(c.params[1]), { memberId: c.memberId, admin }, await body(c.request));

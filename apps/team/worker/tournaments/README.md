@@ -380,6 +380,11 @@ a comment beside it.
 - A member isn't sent an award's winner on the night until it's revealed; from 06:00 every winner is everyone's.
   [awards.reveal.use-cases.test.ts › "revealed in the order listed, the champions last; members see each only once it's out"](awards.reveal.use-cases.test.ts)
   [awards.reveal.use-cases.test.ts › "the evening over (06:00), every winner is history, revealed or not"](awards.reveal.use-cases.test.ts)
+- Each card turned over and each roll of the drum reaches every phone in the room with the hub's event, nothing read;
+  a winner still sealed is never in the event, for anyone. A phone that missed a change reads the drum.
+  [live.reveal.use-cases.test.ts › "each card turned over and each roll of the drum reach every phone with nothing read"](../live/live.reveal.use-cases.test.ts)
+  [live.reveal.use-cases.test.ts › "a winner still sealed is never in the event, for anyone"](../live/live.reveal.use-cases.test.ts)
+  [live.reveal.use-cases.test.ts › "a phone that missed a change reads the drum, as before"](../live/live.reveal.use-cases.test.ts)
 - Only whoever runs it reveals; a double tap, or two phones at once, moves it once.
   [awards.reveal.use-cases.test.ts › "a member can't reveal one, or roll the drum on"](awards.reveal.use-cases.test.ts)
   [awards.reveal.use-cases.test.ts › "a double tap moves the drum once: the second tap finds it moved, and does nothing"](awards.reveal.use-cases.test.ts)

@@ -96,11 +96,14 @@ export const TRAINING_ROUTES: Route[] = [
       subject: rowOf("SELECT id, held_on heldOn, cancelled_at cancelledAt FROM training_sessions WHERE id = ?"),
     },
     action: "manage:Training",
-    changes: ["sessions", "members", "charges", "dues"],
+    // A night off (or on again) counts in what everyone's played, not in who they are (#223)
+    changes: ["sessions", "played", "charges", "dues"],
     notify: sessionOff,
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.cancelled !== "boolean") throw new HttpError(400, "cancelled should be true or false.");
+      // That night's charges only (#222)
+      c.charged = { sessions: [id(c)] };
       if (!b.cancelled) return (await backOn(c.env.DB, id(c), c.now), ok());
       await callOff(c.env.DB, id(c), offFor(b), c.now);
       return ok();
@@ -150,6 +153,7 @@ export const TRAINING_ROUTES: Route[] = [
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);
+      c.charged = { sessions: [id(c)] };
       await letIn(c.env.DB, id(c), memberId, c.now);
       return ok();
     },
@@ -161,7 +165,10 @@ export const TRAINING_ROUTES: Route[] = [
     action: "update:Event",
     changes: ["sessions", "charges", "dues"],
     // Start the session again: no sign-ups, no teams
-    handle: async (c) => (await resetSession(c.env.DB, id(c), c.now), ok()),
+    handle: async (c) => {
+      c.charged = { sessions: [id(c)] };
+      return (await resetSession(c.env.DB, id(c), c.now), ok());
+    },
   },
   {
     method: "POST",
@@ -175,8 +182,12 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "record:Attendance",
-    // Who came is who's charged (apps/team/worker/dues/README.md)
-    changes: ["sessions", "members", "charges", "dues"],
+    // Who came is who's charged (apps/team/worker/dues/README.md). Not who anyone is or what they may do: everyone's phones read the night,
+    // not the whole club (#223); what they've played as it turned out (below). The weeks just held too: the night goes
+    // into them, as it was marked, once its register closes (#178)
+    changes: ["sessions", "charges", "dues"],
+    // Who came moves nothing on the calendar
+    calendar: false,
     // A walk-in taken off frees a place
     notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team
@@ -184,7 +195,12 @@ export const TRAINING_ROUTES: Route[] = [
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.here !== "boolean") throw new HttpError(400, "here should be true or false.");
-      return json({ signup: await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now) });
+      // That night's charges only, not every one there's been (#222)
+      c.charged = { sessions: [id(c)] };
+      const marked = await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now);
+      // A night already held (its register taken the morning after) counts in what they've played
+      if (marked.heldOn < c.today) c.alsoChanged.push("played");
+      return json({ signup: marked.signup });
     },
   },
 ];

@@ -771,6 +771,9 @@ CREATE TABLE data_version (
   sessions_made_on TEXT,
   -- The last day whose training nights are in members.played (members.played.ts, #177): null, none yet
   played_through TEXT,
+  -- The day the hourly run last worked charges out to (dues.scope.ts newDays, #222): the next looks at the nights and
+  -- tournaments from then on, not every one there's been. Null: never, so the first works out the whole club
+  charged_through TEXT,
   -- The version each part of the club last changed at, through the app (#178): {"sessions": 1234, ...}, the parts a
   -- change declared (api.ts). A page's data is tagged, and kept at the edge, by its parts' versions, so a tap on
   -- Friday doesn't make the roster new (api.versions.ts)

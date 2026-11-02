@@ -99,6 +99,19 @@ rule, the test and this line together. Why a piece of code is the way it is stay
   [dues.use-cases.test.ts › "a tournament charges everyone who entered from its day, Quarterly Members too"](dues.use-cases.test.ts)
 - A tournament deleted takes its charges with it; what anyone paid comes back as their credit.
   [draft.edge-cases.use-cases.test.ts › "an admin deletes a tournament someone has paid for: what they paid comes back as their credit"](../tournaments/draft.edge-cases.use-cases.test.ts)
+- A change works out again only the charges it can move (`dues.scope.ts`): a night's or a tournament's (the register,
+  a let-in, a reset, a night called off), or a member's (their attendance, quarterly membership, a payment, an
+  adjustment). A fee or the quarterly rate from an earlier date, a tournament made, saved or deleted, and Recalculate
+  still work out the whole club. What everyone owes comes out the same either way, to the penny.
+  [dues.history.use-cases.test.ts › "each mark works out that night's charges by index, not every charge there's been"](dues.history.use-cases.test.ts)
+  [dues.history.use-cases.test.ts › "what everyone owes comes out as the whole club's working-out has it, to the penny"](dues.history.use-cases.test.ts)
+- A sign-up before its night's day charges nothing and works nothing out; on the day, it charges the night's fee at
+  once.
+  [entries.charges.use-cases.test.ts › "in on Tuesday for Friday: nobody's charges are worked out again, and nothing's owed yet"](../entries/entries.charges.use-cases.test.ts)
+  [entries.charges.use-cases.test.ts › "in on Friday morning: charged that night's fee at once, as before"](../entries/entries.charges.use-cases.test.ts)
+- The hourly run works out only what a new day can change: the nights and tournaments since it last ran
+  (`data_version.charged_through`) and the Quarterly Members.
+  [dues.history.use-cases.test.ts › "the hourly run works out only what a new day can change, by index"](dues.history.use-cases.test.ts)
 
 ## Payments and the ledger
 

@@ -258,7 +258,7 @@ export async function handleApi(
       await wantRebuild(env.DB, now);
     if (writes && res.ok && [...(hit.r.changes ?? []), ...ctx.alsoChanged].includes("charges")) {
       // Who came, a fee or a quarterly membership changed: so may what people owe (apps/team/worker/dues/README.md)
-      await recharge(env.DB, ctx.today, ctx.now);
+      await recharge(env.DB, ctx.today, ctx.now, ctx.charged);
     }
     if (notice && res.ok) {
       const reply = (await res

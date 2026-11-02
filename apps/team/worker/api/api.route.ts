@@ -8,6 +8,7 @@ import { HttpError, body, json } from "./api.http";
 import { all, first } from "@cougars/shared/d1";
 import { type WebsiteEnv } from "../website/website";
 import type { Notice, PushEnv } from "../push/push";
+import type { ChargeScope } from "../dues/dues.scope";
 
 export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<PushEnv, "DB"> {
   /** "1", and only with TEAM_ENV "local" (tests, `TEAM_AUTO_ADMIN=1 npm run dev`): no session means the first admin. */
@@ -44,6 +45,11 @@ export interface Ctx {
   waitUntil?: (p: Promise<unknown>) => void;
   /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`, #178). */
   alsoChanged: Changed[];
+  /**
+   * Whose charges a change to them can move (#222): its night, tournament or member, so only theirs are worked out
+   * again (dues.scope.ts). Unsaid, the whole club's.
+   */
+  charged?: ChargeScope;
 }
 
 export interface Route {
@@ -83,6 +89,12 @@ export interface Route {
    * live/live.parts.ts).
    */
   liveMatch?: true;
+  /**
+   * true: the after-party's drum, an award turned over or rolled on to the next, touching nothing but its tournament's
+   * reveal. The drum (and the winners out, never one still sealed) goes with the event to every member, so the room's
+   * phones read nothing (ADR 0053, apps/team/worker/tournaments/README.md; live/live.parts.ts).
+   */
+  liveAwards?: true;
   /**
    * On the record (ADR 0024): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
    * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says
