@@ -1,9 +1,7 @@
 <script lang="ts">
-  // The club's free Cloudflare allowance today (apps/team/worker/settings/README.md): one account runs the website, this app and their
-  // database, and its daily limits reset at midnight UTC. If one runs out, this app stops until then; the hourly
-  // check emails the admins at 80%. Each Worker's CPU time per request is shown against the free plan's 10 ms, past
-  // which Cloudflare stops the request (apps/team/worker/settings/README.md). Below them, this month's Sanity requests as we count them, since
-  // Sanity has no usage API (apps/team/worker/settings/README.md). Read when the page opens, and again on Refresh.
+  // The club's free allowances (apps/team/worker/settings/README.md): today's Cloudflare use (one account runs the
+  // website, this app and their database; limits reset at midnight UTC), each Worker's CPU time per request against the
+  // free plan's 10 ms, and this month's Sanity requests as we count them. Read on opening and on Refresh.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";

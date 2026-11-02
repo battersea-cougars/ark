@@ -1,17 +1,7 @@
 <script lang="ts">
-  // The Draft open view of a tournament's page (apps/team/worker/tournaments/README.md): a captains' draft (apps/team/worker/tournaments/README.md), led one step at a time, one main button each for whoever runs it: Shuffle (the pick
-  // order, drawn at random on the server; DraftOrder shuffles the names into it for whoever's watching), Open draft
-  // (each captain hears where they pick), the picking, then Close draft & make fixtures in one tap; closed, it says
-  // so, and Reopen is in Manage. The captains take turns, in snake order, picking from the members who said they're in
-  // (captains are in automatically, never picked). The captain on the clock picks on their own phone: Pick marks a
-  // player, End turn sends it. Whoever runs the draft can pick for them and undo the last pick. A team takes one
-  // goalie. Teams are edited on the Teams page, not here.
-  //
-  // Laid out as a draft room: a ticker of picks across the top (the one on the clock brought forward with a badge),
-  // then two views, Players and Teams: side by side on a wide screen; in the room on anything narrower, the teams are
-  // the page and the players open in a drawer from the button at its foot (Your pick, on your turn). The players are
-  // a plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
-  // first of the teams, marked Yours, with their coming pick drawn in.
+  // The Draft open view of a tournament's page (apps/team/worker/tournaments/README.md): a captains' draft, led one step
+  // at a time (shuffle, open, pick, close), as a draft room: a ticker of picks, then the players and the teams, side by
+  // side on a wide screen; narrower, the teams are the page and the players open in a drawer.
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
@@ -150,7 +140,7 @@
   // Done: the teams, or the pick log (its tab)
   let doneView = $state<"teams" | "log">("teams");
   // The picks to come, one for each player left, as slots of the snake: the turn follows the pick numbers, so a pick
-  // that came off (the player said they're out) is filled first, by its own team (#125). With no gaps, from `made`
+  // that came off (the player said they're out) is filled first, by its own team. With no gaps, from `made`
   const slots = $derived(
     nextSlots(
       picks.map((p) => p.pick),

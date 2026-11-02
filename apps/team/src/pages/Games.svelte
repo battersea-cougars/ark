@@ -88,7 +88,7 @@
   const tournament = $derived(
     tournamentId === undefined ? current : db.tournaments.find((t) => t.id === tournamentId && t.typeId === typeId),
   );
-  // A past one the app hasn't yet, on its way (#175, app/editions.svelte.ts): its page waits for it, not No Kumite yet
+  // A past one the app hasn't yet, on its way (app/editions.svelte.ts): its page waits for it, not No Kumite yet
   const loading = $derived(tournamentId !== undefined && !tournament && waitingFor("tournament", tournamentId));
   const past = $derived(tournament ? [] : pastTournaments(typeId));
   // While one's on, the past ones are History: not a tab, a link at the foot here
@@ -110,7 +110,7 @@
   const today = $derived(londonToday());
 
   const games = $derived(tournament?.games ?? []);
-  // Everyone sees the score as it happens: while it's under way, whatever its date (#182), and on its day before the
+  // Everyone sees the score as it happens: while it's under way, whatever its date, and on its day before the
   // first match, until the last game's over, from the hub's stream, with a check on the admins' beat as the fallback
   // (ADR 0053, apps/team/worker/tournaments/README.md); then the awards turned over at the after-party
   const following = $derived(

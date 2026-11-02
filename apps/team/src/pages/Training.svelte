@@ -1,7 +1,7 @@
 <script lang="ts">
   // A training series' next session. Before the teams: who's in, in order, and your answer. Once there are teams,
-  // they're the page: anyone who signed up after them first (an admin slots them in or remakes them), then the
-  // teams, then sign-up. A team maker's changes to the teams are saved as they're made (apps/team/worker/training/README.md). Ratings drive the teams but only admins see them (read:Rating), as in the old app.
+  // they're the page: anyone who signed up after them first, then the teams, then sign-up. A team maker's changes are
+  // saved as they're made (apps/team/worker/training/README.md). Ratings drive the teams; only admins see them.
   import { portal } from "../lib/overlay";
   import { goesBy, shortName } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
@@ -56,7 +56,7 @@
   // or the night at the page's address, its date (/training/friday/2026-10-30)
   const nights = $derived(seriesNights(series, londonEvening(), nightOn(router.path, series.slug)));
   const session = $derived(nights.shown);
-  // Its register closes at 6am the morning after (lib/register-closes.ts, #11): from then who came is the record, so
+  // Its register closes at 6am the morning after (lib/register-closes.ts): from then who came is the record, so
   // nothing that changes it is offered (the server refuses it too)
   const closed = $derived(!!session && registerClosed(session.heldOn));
   const offBefore = $derived(nights.off.filter((n) => n !== session));

@@ -77,7 +77,7 @@
   const played = $derived(game?.status === "done");
   const href = $derived(`/tournaments/${type.slug}/games/${gameId}`);
 
-  // When these captains' sides last met, in past ones of this series: read from the server (#177), which has them all
+  // When these captains' sides last met, in past ones of this series: read from the server, which has them all
   let met = $state<{ gameId: number; editions: PastMeeting[] }>({ gameId: 0, editions: [] });
   $effect(() => {
     const id = gameId;
@@ -115,7 +115,7 @@
   />
 
   {#if waiting}
-    <!-- Its tournament on its way (#175): the room the page takes -->
+    <!-- Its tournament on its way: the room the page takes -->
     <div class="waiting" aria-busy="true" aria-label="Loading"></div>
   {:else if !tournament || !game}
     <p class="note">There's no such game.</p>

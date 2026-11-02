@@ -31,7 +31,7 @@
   }
 
   // What picks each one, so it's clear what a change moves: every one held there, past ones too, read from the server
-  // (#177); again after a change to what's on (the series, sessions and tournaments come back with it)
+  //; again after a change to what's on (the series, sessions and tournaments come back with it)
   let used = $state<{ venueId: number; names: string[] }[]>([]);
   $effect(() => {
     void [db.series, db.tournamentTypes, db.tournaments, db.oneOffs, db.venues];

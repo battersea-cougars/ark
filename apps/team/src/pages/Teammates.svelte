@@ -1,9 +1,7 @@
 <script lang="ts">
-  // The club (a phone's Club tab, a desktop's rail): its active players for now, its contacts later (#67). Everyone
-  // sees trading cards, A to Z; tap one to turn it over.
-  // Someone who manages members also gets the join requests to approve, and a tap on a card opens everything about
-  // them (MemberSheet). The table of everyone is Settings → Members.
-  // A link to /club/:id (a training's card) opens here with that card up.
+  // The club (a phone's Club tab, a desktop's rail): its active players as trading cards, A to Z. Whoever manages
+  // members also gets the join requests, and a card opens everything about them (MemberSheet); the table of everyone
+  // is Settings → Members. /club/:id opens here with that card up.
   import { goesBy, matchesName } from "../lib/names";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";

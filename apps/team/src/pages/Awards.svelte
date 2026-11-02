@@ -1,14 +1,7 @@
 <script lang="ts">
-  // The awards (apps/team/worker/tournaments/README.md): a page of their own, a stage. One card, centred, big: the award now, sealed (its
-  // name, and "?" for who took it), then revealed. Whoever runs it has one button under the card: Confirm the awards
-  // (the drawer) till they're confirmed, then Reveal (The champions for the finale), then Next award, which dissolves
-  // the card as the next one zooms in, sealed. Everyone else's place under it says Waiting for the reveal, and their
-  // vote's there till the awards are confirmed. Every phone follows each step live (the live hub), each playing the
-  // same beat from the change of state (lib/afters beatOf; the timing, lib/award-reveal.css); opened late or
-  // reloaded, it's just where it is. The stage's room is the finale's from the start, so nothing round it moves, and
-  // nothing scrolls. After the last, once its beat's landed: the champions up on the stage (wherever they're listed),
-  // the way back to the Kumite's page under them, every other award a smaller card in a grid (lib/AwardsWon), face
-  // up, then the final table and the day's results.
+  // The awards (apps/team/worker/tournaments/README.md): a stage, one big card at a time, sealed then revealed. Whoever
+  // runs it confirms, reveals and moves on; every phone follows each step live, playing the same beat (lib/afters
+  // beatOf). After the last: the champions, every other award, the final table and the day's results.
   import { untrack } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { nextAward, revealAward } from "../app/backend.svelte";

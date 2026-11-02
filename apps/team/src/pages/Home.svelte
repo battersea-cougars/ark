@@ -67,7 +67,7 @@
   // When Home was opened: what's over by then isn't next
   const openedAt = new Date().toISOString();
 
-  // Announcements (#85): an admin's note at the top, until its last day or until you say "Got it". Whoever may post
+  // Announcements: an admin's note at the top, until its last day or until you say "Got it". Whoever may post
   // writes one in a sheet over Home (ADR 0065), from the + in the header, and can take one down from its note
   const poster = $derived(can(perms, "post:Announcement"));
   // "Got it": the button says so (a tick), then the note folds away, the page below closing up smoothly behind it
@@ -102,7 +102,7 @@
     }
   }
 
-  // In the store app (ADR 0108), or a browser with Web Push (#24): say what notifications are for before the phone
+  // In the store app (ADR 0108), or a browser with Web Push: say what notifications are for before the phone
   // asks, once; "Not now" is remembered. On an iPhone in a Safari tab, how to get them instead: the app on the Home
   // Screen. It's an item in the feed, under the calls to action
   const NOT_NOW = "cougars.notify.not-now";
@@ -280,12 +280,12 @@
   const events = $derived(bookables.map(upcomingEvent));
 
   // What the club is owed, for whoever sees Unpaid fees (read:Dues): the total, by how many, and how much of it is
-  // in the worst bucket (over 90 days), added up by the server, so Home needn't hold everyone's dues (#178)
+  // in the worst bucket (over 90 days), added up by the server, so Home needn't hold everyone's dues
   const club = $derived(can(perms, "read:Dues") ? db.forAdmins.owed : null);
-  // Whether Google has cancelled the club's email (ADR 0027, #101), for whoever looks after it, so they hear before
+  // Whether Google has cancelled the club's email (ADR 0027), for whoever looks after it, so they hear before
   // the members do: with the club, so its line is there on first paint (the server sends it to nobody else)
   const keepsEmail = $derived(can(perms, "manage:Settings"));
-  // The free limits at 70% or more, as the hourly check found them (ADR 0003, #148): with the club, so the line is
+  // The free limits at 70% or more, as the hourly check found them (ADR 0003): with the club, so the line is
   // there on first paint; only for whoever sees Usage (the server sends nobody else any)
   const seesUsage = $derived(can(perms, "read:Usage"));
   // The lead is picked once a visit (lib/home-feed.ts leadOf) and stays while it's on: answering Out on it doesn't
@@ -306,7 +306,7 @@
       events,
       emailStopped: keepsEmail && db.forAdmins.emailStopped,
       usage: seesUsage ? db.forAdmins.usage : [],
-      // Who's asking to join, from the server with the core (#178): Home doesn't hold the roster
+      // Who's asking to join, from the server with the core: Home doesn't hold the roster
       asking: can(perms, "manage:Member") ? db.forAdmins.asking : [],
       now: openedAt,
       pinned,

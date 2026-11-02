@@ -1,10 +1,7 @@
 <script lang="ts">
-  // You (ADR 0022): only your own things. Your card on top (photo, name, position, roles, and what you owe), then three
-  // tabs, so a phone isn't one long scroll (#202): Details (phone, position, the name you go by, bio: one form, its Save
-  // pinned at the foot of the screen, ADR 0065), Account (the role switch and your everyday role, your sign-in email
-  // and passkeys, your data, sign out) and Alerts (notifications). Account and Alerts save as you tap. Your name is an
-  // admin's to change, since the roster goes by it. The phone's last tab and a desktop's avatar, top right, open it.
-  // Settings is the gear, in this page's bar on a phone (lib/SettingsButton) and at the foot of a desktop's dock.
+  // You (ADR 0022): only your own things. Your card on top, then Details, Account and Alerts as tabs, so a phone isn't
+  // one long scroll; Account and Alerts save as you tap. Your name is an admin's to change, since the roster goes by
+  // it. Settings is the gear, in this page's bar on a phone (lib/SettingsButton) and at the foot of a desktop's dock.
   import Icon from "../app/shell/Icon.svelte";
   import { goesBy, shortName } from "../lib/names";
   import { POSITIONS, POSITION_ICONS, emailFor, phoneFor, type Position } from "../demo/data";
@@ -126,7 +123,7 @@
     await savePhoto(null);
     photoBusy = false;
   }
-  // Off this device, or every browser and phone you're signed in on (#72); the app reloads to the sign-in screen
+  // Off this device, or every browser and phone you're signed in on; the app reloads to the sign-in screen
   async function signOut(everywhere = false) {
     // Offline or already signed out: the reload shows which
     await api("POST", everywhere ? "/api/auth/sign-out-everywhere" : "/api/auth/sign-out").catch(() => {});
