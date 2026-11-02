@@ -1,4 +1,4 @@
-// The club's email (#101, ADR 0027): whether it works, and reconnecting it when Google has cancelled its token.
+// The club's email (ADR 0027): whether it works, and reconnecting it when Google has cancelled its token.
 import { type Route } from "../api/api.route";
 import { json } from "../api/api.http";
 import { finishReconnect, mailStatus, sendTestEmail, startReconnect } from "./mail";
