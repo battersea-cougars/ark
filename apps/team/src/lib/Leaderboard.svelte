@@ -4,7 +4,7 @@
   import { PLAYERS } from "../demo/data";
   import { LEADER_STATS, leaders, ranked, type LeaderRow, type LeaderStat } from "./leaders";
   import type { Tournament, TournamentGame } from "../demo/model";
-  import { goesBy, nameOfTeam } from "./names";
+  import { nameOfMember, nameOfTeam } from "./names";
 
   let {
     games = [],
@@ -60,8 +60,9 @@
               <td class="l"
                 ><span class="line"
                   ><span class="pos">{i === 0 || rows[i - 1][stat] !== r[stat] ? i + 1 : ""}</span><span class="who"
-                    ><span class="name">{byId(r.memberId) ? goesBy(byId(r.memberId)!) : "Someone who's left"}</span
-                    >{#if team}<span class="team hint">{team}</span>{/if}</span
+                    ><span class="name">{nameOfMember(r.memberId, byId)}</span>{#if team}<span class="team hint"
+                        >{team}</span
+                      >{/if}</span
                   ></span
                 ></td
               >

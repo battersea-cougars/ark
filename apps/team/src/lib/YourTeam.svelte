@@ -4,7 +4,7 @@
   import type { Tournament, TournamentType } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
+  import { nameOfMember, nameOfPlayer, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
   import TeamCrest from "./TeamCrest.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -17,13 +17,13 @@
   const captain = $derived(
     team.captainMemberId === me().id
       ? "You're the captain"
-      : `Captain ${goesByOf(byId(team.captainMemberId)) || team.captainName}`,
+      : `Captain ${nameOfMember(team.captainMemberId, byId) || team.captainName}`,
   );
   // Everyone else on it, by the name they go by (a player from outside by theirs)
   const mates = $derived(
     team.players
       .filter((p) => p.memberId !== me().id && p.memberId !== team.captainMemberId)
-      .map((p) => (p.memberId ? goesByOf(byId(p.memberId)) : p.name))
+      .map((p) => nameOfPlayer(p, byId))
       .filter(Boolean),
   );
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)

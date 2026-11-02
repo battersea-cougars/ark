@@ -6,14 +6,27 @@
 //
 //   node scripts/dev-sign-in.mjs --port <team port>      # signs in, writes .auth/team.json
 //   node scripts/small-screens.mjs --port <team port> [--widths 320,360,375] [--only game,schedule] [--out dir]
+//                                  [--browser webkit|chromium]
 //
 // Needs Playwright (npx playwright install webkit); set PLAYWRIGHT_DIR to a node_modules that has it if it isn't here.
+// Where WebKit can't run (the devcontainer lacks its host libraries), it says so and uses Chromium as a phone instead.
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildRoutes } from "../apps/team/src/app/nav-routes.ts";
-import { PAGE_PARTS } from "../apps/team/src/app/club-parts.ts";
-import { wholeClub } from "../apps/team/src/app/club-whole.ts";
+import { fileURLToPath } from "node:url";
+import { runnerImport } from "vite";
+
+// The app's own modules, through Vite as the app loads them: they import without file extensions, which Node can't
+const app = async (path) =>
+  (
+    await runnerImport(fileURLToPath(new URL(`../apps/team/src/${path}`, import.meta.url)), {
+      configFile: false,
+      logLevel: "error",
+    })
+  ).module;
+const { buildRoutes } = await app("app/nav-routes.ts");
+const { PAGE_PARTS } = await app("app/club-parts.ts");
+const { wholeClub } = await app("app/club-whole.ts");
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -26,7 +39,9 @@ const widths = arg("widths", "320,360,375").split(",").map(Number);
 const only = arg("only", "")?.split(",").filter(Boolean);
 const out = arg("out", join(".shots", "small-screens"));
 const require = createRequire(process.env.PLAYWRIGHT_DIR ?? import.meta.url);
-const { webkit } = require("playwright");
+const playwright = require("playwright");
+const wanted = arg("browser", "webkit");
+if (!["webkit", "chromium"].includes(wanted)) throw new Error("--browser webkit or chromium");
 
 const state = JSON.parse(readFileSync(".auth/team.json", "utf8"));
 const cookie = state.cookies.map((c) => `${c.name}=${c.value}`).join("; ");
@@ -155,7 +170,23 @@ const variants = [
   { page: "game:", name: "following", boot: (b) => setKeeper(b, null) },
   { page: "game:", name: "scoring", boot: (b) => setKeeper(b, b.me) },
 ];
-const browser = await webkit.launch();
+// WebKit is Safari's engine, the phones' that matter most; Chromium with a phone's viewport and touch is close enough
+// to find what overflows
+async function launch() {
+  if (wanted === "chromium") return playwright.chromium.launch();
+  try {
+    return await playwright.webkit.launch();
+  } catch (e) {
+    // Playwright's reason in a box of its own: its first line that says something
+    const why = String(e.message)
+      .split("\n")
+      .map((line) => line.replace(/[║╔╗╚╝═]/g, "").trim())
+      .find((line) => line && !line.endsWith(":"));
+    console.log(`WebKit won't start here (${why ?? "no reason given"}): checking in Chromium as a phone instead.\n`);
+    return playwright.chromium.launch();
+  }
+}
+const browser = await launch();
 let problems = 0;
 for (const width of widths) {
   const dir = join(out, String(width));

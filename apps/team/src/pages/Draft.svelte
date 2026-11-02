@@ -3,7 +3,7 @@
   // at a time (shuffle, open, pick, close), as a draft room: a ticker of picks, then the players and the teams, side by
   // side on a wide screen; narrower, the teams are the page and the players open in a drawer.
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesBy, matchesName, nameOfMember, nameOfPlayer, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
@@ -191,7 +191,7 @@
   const order = $derived(
     teams.flatMap((t) =>
       t.captainMemberId
-        ? [{ id: t.captainMemberId, name: goesByOf(byId(t.captainMemberId)), you: t.captainMemberId === me().id }]
+        ? [{ id: t.captainMemberId, name: nameOfMember(t.captainMemberId, byId), you: t.captainMemberId === me().id }]
         : [],
     ),
   );
@@ -359,7 +359,7 @@
     picks.map((p) => ({
       n: p.n,
       team: p.team,
-      name: p.memberId ? goesByOf(byId(p.memberId)) || p.name : p.name,
+      name: nameOfPlayer(p, byId),
       you: p.memberId === me().id,
       by: pickerOf(p, p.team),
     })),
@@ -740,7 +740,7 @@
       <li class="row" class:you={t.captainMemberId === me().id}>
         <span class="c display" title="Captain" aria-label="Captain">C</span>
         <span class="name"
-          >{goesByOf(c)}{#if t.captainMemberId === me().id}<small>you</small>{/if}</span
+          >{nameOfMember(t.captainMemberId, byId)}{#if t.captainMemberId === me().id}<small>you</small>{/if}</span
         >
         {#if c}<span class="pos" class:g={c.position === "G"}><PositionIcon position={c.position} /></span>{/if}
       </li>
@@ -763,7 +763,7 @@
           {#if p.memberId !== null && p.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
           <span class="n num">{n + 1}</span>
           <span class="name"
-            >{goesByOf(m) || p.name}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
+            >{nameOfPlayer(p, byId)}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
                 class="by"
                 title="{by} chose them for {teamName(i)}">{by}'s choice</small
               >{/if}</span
@@ -1229,9 +1229,7 @@
           <p class="last" class:burning={lastPicked.memberId === burning}>
             {#if lastPicked.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
             <span class="hint">Last choice</span>
-            <span class="name"
-              >{goesByOf(lastPicked.memberId ? byId(lastPicked.memberId) : undefined) || lastPicked.name}</span
-            >
+            <span class="name">{nameOfPlayer(lastPicked, byId)}</span>
             <span class="hint">to {teamName(lastPicked.team)}</span>
           </p>
         {/if}

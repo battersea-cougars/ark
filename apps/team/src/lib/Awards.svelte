@@ -2,7 +2,7 @@
   // A tournament's awards and who won them (apps/team/worker/tournaments/README.md), on its landing page: each award, its line, and the team or
   // player (or joint winners) who took it home. Once it's done, the data's picks show as provisional (lib/awards.ts)
   // until an admin confirms them (here, or in Manage: AwardsDrawer).
-  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
+  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
   import { can } from "../access/actions";
   import { PLAYERS } from "../demo/data";
   import type { Tournament } from "../demo/model";
@@ -92,7 +92,9 @@
               <span class="won-text">
                 <span class="won-name">Shared by {w.list.length}</span>
                 <span class="hint shared"
-                  >{w.list.map((x) => (x.teamId ? teamName(x.teamId) : goesByOf(byId(x.memberId)))).join(", ")}</span
+                  >{w.list
+                    .map((x) => (x.teamId ? teamName(x.teamId) : nameOfMember(x.memberId, byId)))
+                    .join(", ")}</span
                 >
               </span>
             {:else}
@@ -110,7 +112,7 @@
                   </span>
                 {:else if x.memberId}
                   <span class="won-text">
-                    <span class="won-name">{goesByOf(byId(x.memberId))}</span>
+                    <span class="won-name">{nameOfMember(x.memberId, byId)}</span>
                     {#if teamOf(x.memberId)}<span class="hint">{teamName(teamOf(x.memberId))}</span>{/if}
                   </span>
                 {/if}

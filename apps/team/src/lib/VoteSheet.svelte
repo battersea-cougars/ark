@@ -10,7 +10,7 @@
   import PeopleChoice from "./PeopleChoice.svelte";
   import Sheet from "./Sheet.svelte";
   import type { Ballot } from "./afters";
-  import { goesByOf } from "./names";
+  import { nameOfMember } from "./names";
 
   let {
     type,
@@ -40,7 +40,7 @@
       busy = false;
     }
   }
-  const nameOf = (id: number | null) => goesByOf(PLAYERS.find((p) => p.id === id));
+  const nameOf = (id: number | null) => nameOfMember(id, (i) => PLAYERS.find((p) => p.id === i));
 </script>
 
 <Sheet bind:open title="Cast your vote" sub="One each, secret. Voting closes when the awards are confirmed." tall lazy>

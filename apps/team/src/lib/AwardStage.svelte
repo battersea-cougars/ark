@@ -9,7 +9,7 @@
   import HankoPress from "./HankoPress.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { kanjiFor } from "./motif";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
+  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
 
   type Award = ReturnType<typeof revealOf>["awards"][number];
@@ -107,7 +107,7 @@
           >
           <!-- A big tie: who shares it, a line under it -->
           {#if won.length}<span class="shared-names"
-              >{won.map((w) => (w.teamId ? teamName(w.teamId) : goesByOf(byId(w.memberId)))).join(" · ")}</span
+              >{won.map((w) => (w.teamId ? teamName(w.teamId) : nameOfMember(w.memberId, byId))).join(" · ")}</span
             >{/if}
         {:else}
           {#each won as w, k (k)}
@@ -124,7 +124,7 @@
               </span>
             {:else}
               <span class="who who-player">
-                <BoardWords text={goesByOf(byId(w.memberId))} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
+                <BoardWords text={nameOfMember(w.memberId, byId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
                 <span class="team-line">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : " "}</span>
               </span>
             {/if}

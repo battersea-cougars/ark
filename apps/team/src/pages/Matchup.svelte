@@ -7,6 +7,7 @@
   // keeps it) is behind Live, here and on the fight card.
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
@@ -68,7 +69,7 @@
             team: t,
             name: t ? teamName(i) : seed ? ordinal(seed) : "",
             captain: byId(t?.captainMemberId ?? null),
-            players: t?.players ?? [],
+            squad: t ? rosterOf(t, byId) : [],
             record: t?.id ? records.get(t.id) : undefined,
           };
         })
@@ -193,23 +194,15 @@
           <h2 class="section-title">{s.name}</h2>
           {#if s.team}
             <ol class="rows">
-              {#if s.captain}
+              <!-- Someone who's left keeps their place (lib/team-roster.ts) -->
+              {#each s.squad as p (p.key)}
                 <li class="row">
-                  <span class="c display" title="Captain" aria-label="Captain">C</span>
+                  {#if p.captain}<span class="c display" title="Captain" aria-label="Captain">C</span>
+                  {:else}<span class="c"></span>{/if}
                   <span class="name"
-                    >{goesByOf(s.captain)}{#if s.captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
+                    >{p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
                   >
-                  <span class="pos-badge"><PositionIcon position={s.captain.position} /></span>
-                </li>
-              {/if}
-              {#each s.players as p (p.memberId ?? p.name)}
-                {@const m = byId(p.memberId)}
-                <li class="row">
-                  <span class="c"></span>
-                  <span class="name"
-                    >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
-                  >
-                  {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
+                  {#if p.position}<span class="pos-badge"><PositionIcon position={p.position} /></span>{/if}
                 </li>
               {/each}
             </ol>

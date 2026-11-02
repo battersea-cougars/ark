@@ -417,6 +417,11 @@ a comment beside it.
   [past.use-cases.test.ts › "scores only: the all-time leaders count only the goals someone's named for"](past.use-cases.test.ts)
 - Only someone who runs tournaments records one.
   [past.use-cases.test.ts › "a member who doesn't run tournaments can't record one"](past.use-cases.test.ts)
+- Someone who's left (made inactive, or their account erased) is still in every past game, award and roster: a plain
+  member reads "Someone who's left" where an admin reads their name, never a blank scorer, a dangling "Assist ·" or a
+  missing line on a team.
+  [names.test.ts › "a past goal, assist, penalty or award by someone the viewer can't see reads Someone who's left, never a blank"](../../src/lib/names.test.ts)
+  [team-roster.test.ts › "keeps someone who's left on a past game's roster, as Someone who's left, in their place and with no position"](../../src/lib/team-roster.test.ts)
 - On dev only, a Kumite can be played out on a past day, for testing.
   [past-day.use-cases.test.ts › "made, signed up for, and played out on that evening to its last award: history, with a whole evening behind it"](past-day.use-cases.test.ts)
   [past-day.use-cases.test.ts › "in production it isn't there at all; a member who doesn't run tournaments is refused"](past-day.use-cases.test.ts)

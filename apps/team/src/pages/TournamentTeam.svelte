@@ -6,6 +6,7 @@
   // initials). A draft's players only show once it's closed, to anyone outside it (apps/team/worker/tournaments/README.md).
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { rosterOf } from "../lib/team-roster";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
@@ -49,7 +50,9 @@
   );
   const team = $derived(index >= 0 ? teams[index] : undefined);
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
-  const captain = $derived(byId(team?.captainMemberId ?? null));
+  // Its squad, captain first: someone who's left keeps their place (lib/team-roster.ts)
+  const squad = $derived(team ? rosterOf(team, byId) : []);
+  const captain = $derived(squad.find((r) => r.captain));
   const fallback = $derived(team ? nameOfTeam({ ...team, name: "" }, teams, byId) : "");
   const isCaptain = $derived(!!team && team.captainMemberId === me().id);
   // An admin edits any team here: its name and logo as its captain does, and who's on it (TeamDrawer, apps/team/worker/tournaments/README.md)
@@ -96,8 +99,8 @@
           <!-- A team whose captain's gone (an account deleted) keeps its place: an admin names another -->
           {#if captain}Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{:else}No captain{admin
               ? ": name one"
-              : " yet"}{/if}{#if !drafting}&nbsp;· {team.players.length + (captain ? 1 : 0)}
-            {team.players.length + (captain ? 1 : 0) === 1 ? "player so far" : "players"}{/if}
+              : " yet"}{/if}{#if !drafting}&nbsp;· {squad.length}
+            {squad.length === 1 ? "player so far" : "players"}{/if}
         </p>
       </div>
       {#if canEdit && team.id}
@@ -113,23 +116,14 @@
         <h2 class="section-title">The squad</h2>
       </div>
       <ol class="rows">
-        {#if captain}
+        {#each squad as p (p.key)}
           <li class="row">
-            <span class="c display" title="Captain" aria-label="Captain">C</span>
+            {#if p.captain}<span class="c display" title="Captain" aria-label="Captain">C</span>
+            {:else}<span class="c"></span>{/if}
             <span class="name"
-              >{captain.name}{#if captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
+              >{p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
             >
-            <span class="pos-badge"><PositionIcon position={captain.position} /></span>
-          </li>
-        {/if}
-        {#each team.players as p (p.memberId ?? p.name)}
-          {@const m = byId(p.memberId)}
-          <li class="row">
-            <span class="c"></span>
-            <span class="name"
-              >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
-            >
-            {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
+            {#if p.position}<span class="pos-badge"><PositionIcon position={p.position} /></span>{/if}
           </li>
         {/each}
         {#if drafting}
