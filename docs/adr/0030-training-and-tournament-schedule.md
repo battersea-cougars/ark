@@ -208,3 +208,5 @@ schedule, a card per tournament), Tournament Series (the series and their defaul
 - 2026-10-27: Putting a night back on lifts every reason it was off; one off for a Kumite comes back when the Kumite
   goes or moves, unless a hand cancellation or another Kumite still keeps it off ([0122](0122-asked-about-clashes.md),
   #186).
+- 2026-11-02: A Kumite played early keeps its training night off: members may have planned around it, and an admin
+  can put the night back on by hand. The owner's call.
