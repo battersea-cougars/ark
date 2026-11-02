@@ -1,7 +1,7 @@
 # 0065. One page frame; admin actions live on the thing's own page, in a drawer, sheet or panel chosen by what's in it
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-24
+- **Date:** 2026-10-07 · updated 2026-11-02
 - **Merges:** 0078, 0103
 
 ## Context
@@ -75,8 +75,14 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - **Stacking:** one overlay at a time, except a pop-over inside a form and a short sheet opened from an editor panel
   (a member's Charge, Adjust and Record a payment), which stacks on top as its own modal dialog. Pop-overs and a
   player's card are moved to `<body>`, or into the open dialog they're in (`portal` in `lib/overlay.ts`), out of the
-  page's stacking context. Escape closes the top
-  layer only. Overlays don't touch the history: iOS's back swipe still goes back a page.
+  page's stacking context. Escape closes the top layer only, and so does **Back** (below).
+- **Back closes what's open (`lib/back.ts`)**: each overlay (a sheet, a drawer, a player's card, the date field's
+  month) puts an entry of its own on the history as it opens, at the same address, so Back takes it off and closes the
+  top one, staying on the page: Android's back gesture and button, the Android app's back, the browser's Back, and
+  Safari's swipe from the edge on an iPhone. Closed another way, it takes its entry off itself, so the next Back is
+  a real one; with unsaved changes Back asks first, as × does. A link inside one opens its page in the overlay's
+  entry, so Back from that page comes to the page under it. An installed iPhone app has no back gesture: there the
+  sheet's pull-down and the × are the way out.
 - **A sheet's or drawer's main action sits in its footer**, not at the end of the body, so it's always in reach.
 
 **One drawer, one sheet, one close contract**
@@ -232,3 +238,6 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
   days in words come from `lib/dates.ts`. `scripts/team-one-home.test.mjs` fails on a copy. Nothing looks different,
   except fixes: Passkeys' "Remove it" is red, a pick past the 20th says "21st", and a member's card or the team
   maker's deal opened from inside a sheet opens in front of it.
+- 2026-11-02: Back closes the overlay on top instead of leaving the page under it (`lib/back.ts`, #201): the member's
+  sheet and a player's card had no way to hear Android's back at all, and the native sheets only in a browser that
+  sends it to a dialog. It was "overlays don't touch the history".

@@ -7,6 +7,7 @@
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { findPeople } from "./person-search";
+  import { menuPlace, visibleArea } from "./menu-place";
 
   let {
     members,
@@ -59,16 +60,11 @@
     return findPeople(pool, q);
   });
 
+  // On screen: above a phone's keyboard, which comes up as the field takes focus (lib/menu-place.ts)
   function place() {
     if (!input) return;
-    const r = input.getBoundingClientRect();
-    const gap = 6;
-    const below = innerHeight - r.bottom - gap - 12;
-    const above = r.top - gap - 12;
-    const up = below < 180 && above > below;
-    const height = Math.min(300, up ? above : below);
-    const top = up ? Math.max(12, r.top - gap - height) : r.bottom + gap;
-    menuStyle = `top:${Math.round(top)}px;left:${Math.round(r.left)}px;width:${Math.round(r.width)}px;max-height:${Math.round(height)}px`;
+    const { top, left, width, height } = menuPlace(input.getBoundingClientRect(), visibleArea());
+    menuStyle = `top:${top}px;left:${left}px;width:${width}px;max-height:${height}px`;
   }
   async function show() {
     if (open) return;
@@ -125,10 +121,15 @@
     addEventListener("pointerdown", onPointer, true);
     addEventListener("resize", onMove);
     addEventListener("scroll", onMove, true);
+    // The keyboard coming up (or going) changes what's on screen, not the window
+    visualViewport?.addEventListener("resize", onMove);
+    visualViewport?.addEventListener("scroll", onMove);
     return () => {
       removeEventListener("pointerdown", onPointer, true);
       removeEventListener("resize", onMove);
       removeEventListener("scroll", onMove, true);
+      visualViewport?.removeEventListener("resize", onMove);
+      visualViewport?.removeEventListener("scroll", onMove);
     };
   });
 </script>

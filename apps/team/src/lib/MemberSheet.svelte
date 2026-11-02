@@ -2,6 +2,7 @@
   import { Edits } from "./dirty.svelte";
   import SaveBar from "./SaveBar.svelte";
   import { portal, requestClose } from "./overlay";
+  import { closeOnBack } from "./back";
   import { goesBy, shortName } from "./names";
   // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
   // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
@@ -493,9 +494,11 @@
   }
 
   // Closing with changes asks first (the footer, lib/SaveBar); Discard goes on to close
-  function close() {
-    requestClose(shut, edits.guard);
+  function close(): boolean {
+    return requestClose(shut, edits.guard);
   }
+  // Back (a phone's gesture, the browser's) closes it as the × does, asking first with unsaved changes (lib/back.ts)
+  $effect(() => closeOnBack(close));
 
   async function shut() {
     if (closing) return;

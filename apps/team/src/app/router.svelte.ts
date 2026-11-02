@@ -2,6 +2,7 @@
 import { untrack } from "svelte";
 import { movedTo, type TabId } from "./nav-routes";
 import { walk, type Move } from "./trail";
+import { backClosedOverlay, onOverlay } from "../lib/back";
 
 const LAST_KEY = "team.mobile.last";
 
@@ -47,7 +48,10 @@ export function navigate(to: string, { replace = false } = {}) {
     history.replaceState({}, "", path);
     moved({ kind: "replace" });
   } else {
-    history.pushState({}, "", path);
+    // From inside an overlay (a link in a member's sheet): the new page takes the overlay's entry, so Back from it
+    // comes to the page under the overlay, not to an overlay that's gone (lib/back.ts)
+    if (onOverlay()) history.replaceState({}, "", path);
+    else history.pushState({}, "", path);
     moved({ kind: "open", from: router.path });
   }
   router.path = path;
@@ -73,6 +77,8 @@ export function remember(tab: TabId, path: string) {
 }
 
 addEventListener("popstate", () => {
+  // Back with a sheet, drawer or card open closes it, and stays on this page (lib/back.ts)
+  if (backClosedOverlay()) return;
   // Back (the browser's, a phone's swipe) with unsaved changes: back on this page while it asks; Discard goes back again
   if (location.pathname !== router.path && holding?.(() => history.back())) {
     history.pushState({}, "", router.path);
