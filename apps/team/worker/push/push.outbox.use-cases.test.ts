@@ -1,10 +1,5 @@
-// When a notification goes (ADR 0108): the push outbox holds each one, a row per member and notice, until it's due.
-// Quiet hours, 22:00 to 08:00 in London (across the clock changes): what's news but not urgent waits for 08:00, and
-// what's about something happening now (the draft on the night, the awards at the after-party) goes at once. The
-// debounce: a member told something about one thing (their place on a night) isn't told about it again within two
-// minutes; what comes in that time replaces what's waiting, the latest wins, and if it ends where they were last told,
-// nothing's sent. A club-wide send, held overnight, goes out from 08:00 a batch an invocation, never more than the
-// free plan allows. Driven through the real handlers and the cron in the fake world (ADR 0031), Firebase faked.
+// When a notification goes (ADR 0108): quiet hours in London, the debounce, and club-wide sends in batches the free
+// plan allows. Driven through the real handlers and the cron in the fake world (ADR 0031), Firebase faked.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

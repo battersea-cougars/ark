@@ -1,7 +1,6 @@
-// Balanced teams for a training session (apps/team/worker/training/README.md). A greedy deal to start, then every single move and every swap
-// of two players is tried until none makes the teams more balanced. The old app's rules, from
-// the old app's solver_lp.py (in git history): 3 to 7 a side, the Cougar players together on one team called "Cougars", a
-// keeper and a defender on every team where there are enough, and ratings balanced.
+// Balanced teams for a training session (apps/team/worker/training/README.md): 3 to 7 a side, the Cougar players
+// together on one team called "Cougars", a keeper and a defender on every team where there are enough, and ratings
+// balanced.
 import type { Player, Position } from "../demo/data";
 import { goesBy } from "./names";
 
@@ -87,7 +86,11 @@ export function compare(a: Balance, b: Balance): number {
   return 0;
 }
 
-/** Make the teams. The same players give the same teams. */
+/**
+ * Make the teams. The same players give the same teams.
+ * A greedy deal to start, then every single move and every swap of two players is tried until none makes the teams more
+ * balanced.
+ */
 export function makeTeams(players: Player[], names: string[]): Team[] {
   const teams = teamCount(players.length);
   let best = improve(players, deal(players, teams), teams);

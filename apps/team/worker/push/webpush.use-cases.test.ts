@@ -1,8 +1,6 @@
-// Notifications in a browser (ADR 0108, #24): a member on Android's Chrome or Firefox, a desktop, or an iPhone with the
-// app on its Home Screen turns them on, and hears what the store app's phone hears, without the store. The browser's
-// subscription is a device like a phone (push_devices, platform "web"): the same topics, the same outbox, signing out
-// forgets it. Driven through the real handlers in the fake world (ADR 0031), with a fake push service that opens each
-// message with the browser's own key and checks our VAPID signature (testing.ts webPush()).
+// Notifications in a browser (ADR 0108): a browser's subscription is a device like a phone, with the same topics and
+// outbox. Driven through the real handlers in the fake world (ADR 0031), with a fake push service that checks our
+// encryption and VAPID signature.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureLogs } from "@cougars/shared/testing/scribe";
 import { minutes, testWorld } from "../testing";

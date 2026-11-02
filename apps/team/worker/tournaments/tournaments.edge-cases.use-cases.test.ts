@@ -1,7 +1,6 @@
-// A tournament's edges as an admin sets it up (apps/team/worker/tournaments/README.md): what the editor can send that the server must refuse
-// (names too long or blank, dates that can't be, sign-up and draft days out of order, too many teams, someone on two
-// teams), what it must keep exactly (names in any script, emoji), a series' slugs, and who may change a team's look.
-// Driven through the real Worker handlers in the fake world (ADR 0031).
+// A tournament's edges as an admin sets it up (apps/team/worker/tournaments/README.md): what the server must refuse,
+// what it must keep exactly, a series' slugs, and who may change a team's look. Driven through the real Worker
+// handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 
@@ -170,7 +169,7 @@ describe("an admin sets a tournament's teams", () => {
     expect((await dana.boot()).tournaments.filter((t: Json) => t.name === "Winter Cup")).toEqual([]);
   });
 
-  // Its teams are checked against the members before it goes in (#132: a refusal there left it behind, with no teams)
+  // Its teams are checked against the members before it goes in (a refusal there left it behind, with no teams)
   it("a create refused for a captain who isn't a member leaves nothing behind", async () => {
     const dana = await admin();
     const cara = await dana.idOf("Cara Captain");

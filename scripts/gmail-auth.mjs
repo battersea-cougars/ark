@@ -1,15 +1,10 @@
 #!/usr/bin/env node
-// First-time setup, and the terminal fallback when no admin can sign in: let the website and the team app send email
-// as the developer Gmail account, through the Gmail API (not
-// SMTP, not a password). One token for both environments: production sends from the same account, as the club's
-// address (its "Send mail as" alias), so a reset of the club account's password breaks nothing (ADR 0027).
+// Let the website and the team app send email as the developer Gmail account, through the Gmail API (ADR 0027): first
+// setup, and the terminal fallback when no admin can sign in to reconnect it (Settings → Email). One send-only token
+// serves both environments; it goes straight to Bitwarden, never printed or written to disk.
 //   node scripts/gmail-auth.mjs              sign in as the developer account -> GMAIL_REFRESH_TOKEN
-// Needs the Web client, GMAIL_WEB_CLIENT_ID and GMAIL_WEB_CLIENT_SECRET, in Bitwarden, with http://localhost:4590/
-// among its authorised redirect URIs (docs/secrets.md#gmail): the Workers refresh the token with that client, the only
-// one there is. Opens Google's consent page, catches the answer on http://localhost:4590, swaps it for a refresh token
-// (send-only), and saves that straight to Bitwarden. Nothing is printed or written to disk. When Google cancels the token (a password change), an admin
-// reconnects it in the team app instead (Settings → Email, ADR 0027), which needs no deploy; re-running this needs one,
-// and only counts in an environment with no reconnected token in D1.
+// Needs GMAIL_WEB_CLIENT_ID and GMAIL_WEB_CLIENT_SECRET in Bitwarden, with http://localhost:4590/ among the client's
+// authorised redirect URIs (docs/secrets.md#gmail). Takes a deploy, and counts only where D1 has no reconnected token.
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { ensureToken, loadSecrets, setSecret } from "./lib/bitwarden.mjs";
@@ -28,6 +23,7 @@ async function clubInboxes() {
   );
   return new Set(found.filter(Boolean));
 }
+// Google's answer comes back here: the Web client the Workers refresh with, the only one there is, lists it
 const PORT = 4590;
 const REDIRECT = `http://localhost:${PORT}/`;
 // Send only (can't read mail), plus the account's address so we can check who signed in.

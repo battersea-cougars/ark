@@ -1,12 +1,6 @@
-// The club in parts, as opening the app and each page read it (#178, ADR 0053). Opening the app reads the core: who
-// you are, the club's settings and menus, and what Home needs. Each page reads its own parts when it's opened: the
-// whole roster, the weeks just held, each series' last one played, everyone's dues.
-//
-// A change says which parts it changed by their family's name (`members`, `sessions`, ...: worker/api routes'
-// `changes`), and the live hub passes those names on (ADR 0053). Each family is a core part and the pages' parts that
-// come from the same rows: a change to members is a change to Home's people and to the roster. This is where that's
-// said, on both sides: the Worker sends back, with a change, the family's parts a phone holds; a phone hearing of a
-// change knows which of the parts it holds are out of date.
+// The club in parts (ADR 0053): the core, read on opening the app, and each page's own parts, read when it's opened.
+// A change names the families it changed (`members`, `sessions`, ...), and this says, on both sides, which parts each
+// family is: the Worker sends back the parts a phone holds, and a phone hearing of a change knows which are stale.
 //
 // No imports, and only what Node can run as it is: the load runs' phones use this too (scripts/load/load.client.mjs).
 
@@ -15,7 +9,7 @@ export const FAMILIES: Record<string, { core: readonly string[]; pages: readonly
   // Who's in Home's next things, and Home's line of who's asking to join, come from members too
   members: { core: ["people", "forAdmins"], pages: ["members"] },
   // What a member's card counts (the nights they've played), not who they are or what they may do: a register taken,
-  // a night called off. The same parts as members, but not the whole club for a change to anyone's access (#223)
+  // a night called off. The same parts as members, but not the whole club for a change to anyone's access
   played: { core: ["people"], pages: ["members"] },
   // Who's signed up names people on Home
   sessions: { core: ["sessions", "people"], pages: ["pastSessions"] },
@@ -38,7 +32,7 @@ const DUES_FOR_ADMINS: Record<string, readonly string[]> = { dues: ["forAdmins",
 /**
  * The parts a change to these families changed: the core's, and of the pages' only those `held` (all of them, if
  * not said). A name that isn't a family is a part of its own (`settings`, `quips`). `seesDues` false: what's owed
- * changing changes only your own line (everyone's, and the club's total, are empty for you either way, #178).
+ * changing changes only your own line (everyone's, and the club's total, are empty for you either way).
  */
 export function partsChanged(
   names: readonly string[],

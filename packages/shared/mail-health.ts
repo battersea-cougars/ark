@@ -1,8 +1,6 @@
-// Whether the club's email works (ADR 0027): the last email Gmail took, and the first failure since, with why (a
-// cancelled token, Gmail busy, anything else). One row in D1 (mail_health), written by both Workers as they send
-// (MailConfig.onOutcome) and when an admin reconnects; read by the team app's Settings → Email and the admins' Home.
-// The admins' Home has it with the club (the team app's bootstrap, ADR 0053), so a change to the failure moves the
-// club's data version on in the same round trip: the next open reads it afresh rather than an unchanged 304.
+// Whether the club's email works (ADR 0027): the last email Gmail took, and the first failure since, with why. One
+// row in D1 (mail_health), written by both Workers as they send and when an admin reconnects; read by the team app's
+// Settings → Email and the admins' Home.
 import { batch, first, statement } from "./d1";
 import type { MailFailure, MailOutcome } from "./email";
 
@@ -18,7 +16,11 @@ export interface MailHealth {
   reconnectedBy: number | null;
 }
 
-/** The club's data version, one more, if `condition` holds before the write that follows it in the batch. */
+/**
+ * The club's data version, one more, if `condition` holds before the write that follows it in the batch. The admins'
+ * Home has the mail's health with the club (the bootstrap, ADR 0053), so a change to the failure moves the version on
+ * in the same round trip: the next open reads it afresh rather than an unchanged 304.
+ */
 const bumpVersionIf = (db: D1Database, condition: string, params: string[] = []) =>
   statement(
     db,

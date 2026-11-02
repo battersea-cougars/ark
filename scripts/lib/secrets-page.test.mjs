@@ -1,4 +1,4 @@
-// Handing a secret over on the Secrets page (#149): the real handler on a real local server, Bitwarden faked.
+// Handing a secret over on the Secrets page: the real handler on a real local server, Bitwarden faked.
 import { createServer } from "node:http";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fingerprint } from "./secret-shapes.mjs";

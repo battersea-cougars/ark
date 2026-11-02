@@ -1,13 +1,6 @@
-// What's the same for everyone who sees the club alike, read from D1 once and kept (#178, ADR 0053): the roster, a
-// night's sign-ups and teams, a Kumite's teams and games. Many phones opening the same page, or reading the same part
-// after a tap on Friday, cost one D1 read for it, and each its own rows (their answers, their vote), never anyone
-// else's. Kept in two places, cheapest first: this isolate's memory, then Cloudflare's Cache API, shared by every
-// isolate in a data centre (only on a custom domain: on *.workers.dev its calls do nothing, which is fine).
-//
-// Never stale: a key names the deploy, what the rows are (the parts, and whose tournament), what the viewer may see
-// (their flags and the day, never who they are) and the version of every part it's made of (api.version.ts), so a
-// change to any of them is a new key, and an old one is never asked for again. On Workers Free an edge hit still
-// counts as a request; it saves D1's rows and the Worker's time.
+// What's the same for everyone who sees the club alike, read from D1 once and kept (ADR 0053): in this isolate's
+// memory, then in Cloudflare's Cache API (only on a custom domain; on *.workers.dev it does nothing). Each phone's own
+// rows are never kept for anyone else.
 import type { EdgeRead, Part, Parts, Viewer } from "./api.club";
 
 // Bounded, so a long day's keys can't grow it for ever; the oldest goes first
@@ -43,6 +36,9 @@ export interface Keeping {
 export function kept({ db, viewer, build, scope, versions, later }: Keeping): EdgeRead {
   const memory = memories.get(db) ?? new Map<string, string>();
   memories.set(db, memory);
+  // Never stale: a key names the deploy, the scope, every part's version and what the viewer may see (never who they
+  // are), so a change to any of them is a new key and an old one is never asked for again. On Workers Free an edge hit
+  // still counts as a request; it saves D1's rows and the Worker's time
   const keyOf = (parts: readonly Part[]) =>
     [build, scope, versions, seen(viewer), [...parts].sort().join(",")].join("|");
   return {

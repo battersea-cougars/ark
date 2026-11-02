@@ -20,7 +20,7 @@ describe("a member's initials", () => {
     expect(initials("")).toBe("");
   });
 
-  // #140: w[0] was half of an emoji's surrogate pair, a broken glyph on the avatar
+  // w[0] is half of an emoji's surrogate pair, a broken glyph on the avatar
   it("a name that starts with an emoji keeps the whole emoji (#140)", () => {
     expect(initials("🏒 Jo")).toBe("🏒J");
     expect(initials("👨‍👩‍👧 🇬🇧")).toBe("👨‍👩‍👧🇬🇧");

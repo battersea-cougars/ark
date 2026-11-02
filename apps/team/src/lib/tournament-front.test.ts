@@ -194,8 +194,7 @@ describe("afterwards on the front page", () => {
 });
 
 describe("statusesOf: one page, by status", () => {
-  // "Fight Card is confusing if we think of the kumite in stages. It should really be a status: Draft Open, Draft
-  // Completed, Fixtures Created, Kumite!" (the user, 2026-10-22)
+  // The Kumite is a run of statuses (Draft open, Teams set, Fixtures set, Kumite!), not stages
   const now = (t: Tournament, today = TODAY) => statusesOf(t, kumite, today).find((s) => s.state === "now")?.status;
 
   it("a draft: Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, the afterwards; teams that enter skip the draft", () => {

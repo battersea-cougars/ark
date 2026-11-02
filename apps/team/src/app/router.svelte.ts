@@ -15,7 +15,7 @@ function readLast(): Partial<Record<TabId, string>> {
 }
 
 /**
- * `from`: the page this one was opened from, in the app, along the trail (#86); null after a reload, or once Back has
+ * `from`: the page this one was opened from, in the app, along the trail; null after a reload, or once Back has
  * walked the trail to its start. `back`: this page was reached by going back, so it opens where you left it.
  */
 // An old link (Teammates is the club now) opens where its page lives, as if it had always been there

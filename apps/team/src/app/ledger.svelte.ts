@@ -1,10 +1,6 @@
-// A member's dues ledger, read a page at a time (#177, apps/team/worker/dues/README.md; worker/dues/dues.ledger.ts): every charge and
-// payment, newest first, each line with what they owed after it, worked out by the server. Opening the app sends only
-// your unpaid charges and what each owes; the ledger is read when the Dues tab or the member sheet shows it, more as
-// it scrolls. Kept while the app's open; after any change to dues (the store's `dues` comes back) a ledger shown is
-// read again, as far down as it had been read (with its tag: unchanged, an empty 304), so a line taken back deep in it
-// doesn't jump to the top.
-// What a night or a tournament collected is read the same way, for its editor.
+// A member's dues ledger, read a page at a time (apps/team/worker/dues/README.md; worker/dues/dues.ledger.ts): every
+// charge and payment, newest first, with what they owed after each. After a change to dues, a ledger shown is read
+// again as far down as it had been (with its tag), so it doesn't jump. What a night or tournament collected, likewise.
 import type { LedgerLine } from "../lib/dues";
 import { readTagged } from "./api";
 

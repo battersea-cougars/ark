@@ -1,8 +1,5 @@
-// A series' editions, read when they're wanted (#175, apps/team/worker/tournaments/README.md): opening the app sends each series' one on or coming
-// up and its last one played, never every one there's been. A past one's page reads it in full, as the club read
-// would have sent it; History reads them a page at a time, newest first, each a line (its day, who won it, the final);
-// a team's logo is an address of its own, kept by the browser, not a copy in every reply. Driven through the real
-// Worker handlers in the fake world (ADR 0031).
+// A series' editions, read when they're wanted (apps/team/worker/tournaments/README.md): opening the app sends a few,
+// a past one's page and History read the rest. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { meetings } from "../../src/lib/matchups";
@@ -32,7 +29,7 @@ const memberIds = () =>
   (w.db.raw.prepare("SELECT id FROM members ORDER BY id").all() as { id: number }[]).map((m) => m.id);
 /** A crest as the browser shrinks one (lib/logo.ts): a few KB, so it has its own address. */
 const LOGO = `data:image/webp;base64,${Buffer.alloc(3000, "a crest").toString("base64")}`;
-/** A generated crest, a few hundred bytes: sent as itself (#177). */
+/** A generated crest, a few hundred bytes: sent as itself. */
 const SMALL = `data:image/svg+xml;base64,${Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>").toString("base64")}`;
 
 /**
@@ -327,7 +324,7 @@ describe("a team's logo", () => {
   });
 });
 
-// What looked through every edition the app held, before it held only a few (#177): each a small read of its own
+// What reads past editions for itself, the app holding only a few: each a small read of its own
 describe("what the matchup, the editor and Venues read for themselves", () => {
   it("the matchup's when these captains last met: the past ones where both played, the newest first", async () => {
     const [first, second, third] = played("2025-01-14", "2025-02-14", "2025-03-14");

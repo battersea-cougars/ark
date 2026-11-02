@@ -1,14 +1,6 @@
-// The Kumite night, end to end (ADR 0031, apps/team/worker/tournaments/README.md; #154): sign-up opens, players sign up, the captains are named, the
-// order's drawn, the captains draft, the teams are set, the fixtures made, the matches scored live, then The Anchor:
-// the vote, the awards confirmed and revealed one by one; Done that evening, and the morning after it's history, first
-// in Past Kumites. Three people throughout, each checking what they can and can't do at
-// each stage: Ada, an admin who runs it (and doesn't play); Fay, a player; Nell, a member who isn't in it. The
-// captains (Cara, Cole, Cass) and the other players come in where the story needs them.
-//
-// It runs on the real clock, on a fresh database. The Kumite is scheduled by season only (the wizard's default: no
-// day yet), and played tonight anyway, as a match starts on any day: The Anchor is the evening its last match kicked
-// off, whatever its date (apps/team/worker/tournaments/README.md). Sign-up opens today. Being on its day (KUMITE! from the fixtures out) is
-// lib/tournament-front.test.ts's. The morning after is the browser's clock a day on (Playwright's page.clock).
+// The Kumite night, end to end (ADR 0031, apps/team/worker/tournaments/README.md): sign-up, captains, the draft,
+// fixtures, live scores, the vote and the awards, then the morning after. Ada runs it (an admin, not playing), Fay
+// plays, Nell isn't in it. On the real clock and a fresh database; the morning after is the browser's clock a day on.
 import { asMember, clubVia, checks, does, expect, signIn, test, type Person } from "./support/journey";
 
 /** Today in London as the app's day picker names it: "Fri 23 Oct 2026". */

@@ -1,6 +1,5 @@
-// The draft's edges (ADR 0003, apps/team/worker/tournaments/README.md): every step out of order, the first and last picks, a pick's turn, three captains'
-// snake, who may run which step, people leaving mid-draft, and deleting what the draft made. Driven through the real
-// Worker handlers in the fake world, each person signed in as themselves (ADR 0031).
+// The draft's edges (apps/team/worker/tournaments/README.md): steps out of order, turns, the snake, who may run which
+// step, and people leaving mid-draft. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { nextSlots, onTheClock } from "../../src/lib/draft";
@@ -90,7 +89,7 @@ async function draftNight({ captains = 2, signed = PLAYERS, kind = "draft" as "d
   const onClock = async () => {
     const order = await teams();
     const made = order.reduce((n, t) => n + t.players.length, 0);
-    // The first pick number nobody has (#125): the turn follows the numbers, not the count
+    // The first pick number nobody has: the turn follows the numbers, not the count
     const taken = (
       rows(
         `SELECT p.pick_number n FROM tournament_team_players p JOIN tournament_teams t ON t.id = p.team_id
@@ -393,7 +392,7 @@ describe("someone leaves mid-draft", () => {
     return { ...d, first, second, picked };
   }
 
-  // The turn follows the pick numbers, not how many picks there are (#125): the first pick saying they're out leaves
+  // The turn follows the pick numbers, not how many picks there are: the first pick saying they're out leaves
   // pick 1 empty, and its captain fills it before the draft goes on.
   it("the first captain's only pick says they're out: the first captain, now with nobody, is on the clock to fill it (#125)", async () => {
     const d = await threePicks();
@@ -555,8 +554,8 @@ describe("taps at once on a reset (ADR 0003)", () => {
     expect(leftOnTeams(d.id)).toEqual([]);
   });
 
-  // Seeds 2, 3 and 4 found it (#126): the pick landed between the reset's statements, which are one batch now, the
-  // draft closed to picks first
+  // Seeds 2, 3 and 4 land the pick between the reset's statements; the reset is one batch, the draft closed to picks
+  // first
   it.each([2, 3, 4])("a reset racing the first pick: once reset, no pick is left on a team (seed %i)", async (seed) => {
     const d = await opened({ seed });
     const first = await d.onClock();

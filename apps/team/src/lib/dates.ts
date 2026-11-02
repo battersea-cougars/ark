@@ -1,7 +1,6 @@
-// Europe/London dates, money and numbers for members to read: the team app's own words and formats, the one copy of
-// each (#153; scripts/team-one-home.test.mjs fails on a date formatted in a component, an ordinal or plural by hand).
-// The conversions (London's date today, a wall-clock time's instant, the evening) are the one shared copy in
-// @cougars/shared/london (#35), passed on here so the app's pages import their dates from one place.
+// Europe/London dates, money and numbers for members to read: the team app's one copy of each
+// (scripts/team-one-home.test.mjs fails on a date formatted in a component, an ordinal or plural by hand). The
+// conversions are @cougars/shared/london's, passed on so pages import their dates from one place.
 export { londonEvening, londonISO, londonNextDay, londonTime, londonToday } from "@cougars/shared/london";
 const TZ = "Europe/London";
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts });
@@ -17,7 +16,7 @@ export const formatDayDate = (iso: string) =>
     .filter((p) => p.type !== "literal")
     .map((p) => p.value)
     .join(" ");
-/** "7:30pm", "7pm": a London time to read. 12-hour for everyone until members can choose (#94). */
+/** "7:30pm", "7pm": a London time to read. 12-hour for everyone. */
 export const formatTime = (iso: string) => clock(time.format(new Date(iso)));
 /** "19:05": a London time on the 24-hour clock, for a time stamp on an admin's screen (Usage, the app's brake). */
 export const londonClock = (when: string | number) => time.format(new Date(when));
@@ -63,7 +62,7 @@ export const pounds = (pence: number) =>
     minimumFractionDigits: pence % 100 ? 2 : 0,
   });
 
-// Numbers in words, the one copy (#153), beside the dates and money they're read with: ordinals ("21st", never "21th")
+// Numbers in words, the one copy, beside the dates and money they're read with: ordinals ("21st", never "21th")
 // and counts with their noun. Plain functions, for the app and the Worker.
 
 /** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st, 22nd, 101st. */

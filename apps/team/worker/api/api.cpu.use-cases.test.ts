@@ -1,10 +1,6 @@
-// The Worker's CPU time per request, for a club of 120 with Fridays and a year of Kumites behind it
-// (bootstrap.testing.ts, docs/load-testing.md): the free plan allows 10 ms a request, and waiting on D1 is free, so
-// what counts is the Worker's own work (reading the session, shaping the club into JSON). Driven through the real
-// handlers in the fake world (ADR 0031); the process's CPU time for the request, less the time spent inside SQLite
-// (D1's work, not the Worker's). On this machine, V8 as on Cloudflare; the median of many, after a warm-up. LOAD_CPU=1
-// prints the numbers and holds each to the free plan's 10 ms (npm run load -- cpu), so opening the app can't creep
-// back over it (#175). A busy machine reads high: run it again on a quiet one before believing a failure.
+// The Worker's CPU time per request for a club of 120 with years behind it (bootstrap.testing.ts,
+// docs/load-testing.md), held to the free plan's 10 ms: the Worker's own work, less the time inside SQLite. LOAD_CPU=1
+// runs it (npm run load -- cpu); a busy machine reads high, so run it again on a quiet one before believing a failure.
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { type testWorld } from "../testing";
 import { clubWithHistory } from "./bootstrap.testing";
@@ -17,7 +13,7 @@ const WARM = 20;
 const KUMITES = Number(process.env.LOAD_KUMITES ?? 4);
 /**
  * A year of Fridays, every member at each, charged and paid every four weeks, every fifth member owing the last
- * twelve (#177); LOAD_WEEKS=8 for the last eight, to compare.
+ * twelve; LOAD_WEEKS=8 for the last eight, to compare.
  */
 const WEEKS = Number(process.env.LOAD_WEEKS ?? 52);
 
@@ -72,7 +68,7 @@ async function sqlite(run: () => unknown) {
 const kb = async (b: Browser, path: string) =>
   ((await (await b.open("GET", path)).arrayBuffer()).byteLength / 1024).toFixed(0);
 
-/** Tournaments to delete, one a run: the scrimmage a load run leaves, its three teams and fixtures (#175). */
+/** Tournaments to delete, one a run: the scrimmage a load run leaves, its three teams and fixtures. */
 function scrimmages(n: number) {
   const made = w.db.raw.prepare(
     `INSERT INTO tournaments (type_id, name, held_on, start_time, end_time, status, kind)
@@ -101,7 +97,7 @@ describe.runIf(process.env.LOAD_CPU)(
         "bootstrap, a member, SQLite's time (rows read)",
         await sqlite(() => send(members[0], "GET", "/api/bootstrap")),
       );
-      // Each page's own (#178): the members page, an admin's; a training night's, every member's, the roster and the
+      // Each page's own: the members page, an admin's; a training night's, every member's, the roster and the
       // weeks just held as everyone of a role shares them, kept at the edge, each member's own answers from D1
       const adminPage = "/api/slices?names=members,pastSessions,clubDues,reminders";
       const admins = await median(() => send(dana, "GET", adminPage));
@@ -126,7 +122,7 @@ describe.runIf(process.env.LOAD_CPU)(
       const pageTag = (await send(members[2], "GET", night)).headers.get("etag")!;
       const samePage = await median(() => send(members[2], "GET", night, undefined, { "if-none-match": pageTag }));
       say("a page, unchanged (304)", samePage);
-      // A member's ledger, a page at a time (#177): what opening the app no longer sends
+      // A member's ledger, a page at a time: what opening the app doesn't send
       const ledger = await median((i) => send(dana, "GET", `/api/members/${ids[i % ids.length]}/ledger`));
       say("a member's ledger, its first page", ledger);
       const tags = await Promise.all(members.map(async (m) => (await send(m, "GET", "/api/bootstrap")).headers));
@@ -140,7 +136,7 @@ describe.runIf(process.env.LOAD_CPU)(
         send(members[i % members.length], "POST", `/api/sessions/${friday}/answer`, { answer: i % 2 ? "out" : "in" }),
       );
       say("a tap, In or Out (the charges worked out again)", tap);
-      // What a tap's reply carries (#178): tonight's nights, your own charges and dues, not the weeks just held
+      // What a tap's reply carries: tonight's nights, your own charges and dues, not the weeks just held
       const tapReply = (i: number) =>
         send(members[i % members.length], "POST", `/api/sessions/${friday}/answer`, { answer: i % 2 ? "out" : "in" });
       let taps = 0;
@@ -151,7 +147,7 @@ describe.runIf(process.env.LOAD_CPU)(
       const viewing = await median(() => send(dana, "GET", "/api/bootstrap"));
       say("bootstrap, an admin viewing as a member", viewing);
       expect((await dana.call("DELETE", "/api/me/view-as")).status).toBe(200);
-      // A past one opened, and a page of History (#175): what opening the app no longer sends
+      // A past one opened, and a page of History: what opening the app doesn't send
       const pastOne = (
         w.db.raw.prepare("SELECT MIN(id) id FROM tournaments WHERE status = 'finished'").get() as { id: number }
       ).id;

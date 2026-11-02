@@ -1,10 +1,7 @@
 <script lang="ts">
-  // A player as a physical trading card: printed card stock with a border round the photo, a deep red name plate and
-  // the position printed large under it, and a shadow as if it's lying on the table. Flat colour, no sheen.
-  // The photo slot shows their profile photo (apps/team/worker/members/README.md), or the club mark until they add one. The corner number is the sign-up order; your own
-  // card carries a "You" sticker in the other corner and a ring round it. Ratings
-  // only show for admins (read:Rating). With `onopen` it's a button: the page flips it over (PlayerCardZoom), and
-  // hides this one meanwhile, as if it's been picked up.
+  // A player as a trading card: their photo (apps/team/worker/members/README.md) or the club mark, a red name plate, the
+  // position, the sign-up number in the corner, and a You sticker on your own. Ratings only for admins (read:Rating).
+  // With `onopen` it's a button: the page flips it over (PlayerCardZoom).
   import { goesBy, shortName } from "./names";
   import { POSITIONS, POSITION_ICONS, type Player } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";

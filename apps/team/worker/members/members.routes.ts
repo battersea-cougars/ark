@@ -89,7 +89,7 @@ export const MEMBERS_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Attendance",
-    // Who came is who's charged (apps/team/worker/dues/README.md), and counts in what they've played: not who they are (#223)
+    // Who came is who's charged (apps/team/worker/dues/README.md), and counts in what they've played: not who they are
     changes: ["sessions", "played", "charges", "dues"],
     // A walk-in taken off frees a place: whoever moves up hears it
     notify: places,
@@ -97,7 +97,7 @@ export const MEMBERS_ROUTES: Route[] = [
     handle: async (c) => {
       const marks = await marksIn(c.request);
       await memberExists(c.env.DB, id(c));
-      // Their charges only (#222)
+      // Their charges only
       c.charged = { members: [id(c)] };
       await markAll(c.env.DB, id(c), marks, c.memberId, c.now);
       return json({ sessionIds: marks.map((m) => m.sessionId) });
@@ -116,7 +116,7 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members"],
     handle: async (c) => {
       const { emailChanged } = await setContact(c.env.DB, id(c), await body(c.request), c);
-      // A new sign-in email: whoever was signed in as them with the old one is signed out (#72), and their passkeys go,
+      // A new sign-in email: whoever was signed in as them with the old one is signed out, and their passkeys go,
       // so whoever had the account before keeps no way in (ADR 0023)
       if (emailChanged) {
         await endSessions(c.env, c.now, { memberId: id(c) });
@@ -148,7 +148,7 @@ export const MEMBERS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/members$/,
-    // Who they are, and whether the add emailed them the app link (#164)
+    // Who they are, and whether the add emailed them the app link
     audit: {
       event: "member.added",
       subject: async (c, reply) =>
@@ -158,7 +158,7 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     // { name, email, position, emailThem? }: in the club now, and emailed a link to the app unless emailThem is false
-    // (apps/team/worker/members/README.md, #164)
+    // (apps/team/worker/members/README.md)
     handle: async (c) => json(await addMember(c.env, await body(c.request), new URL(c.request.url).origin, c), 201),
   },
   {
@@ -173,7 +173,7 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     // Nothing of theirs changes; the sheet's members come back as after any action on a member
     changes: ["members"],
-    // Someone added quietly (#164), or whose first email went astray: the same link to the app, once per tap
+    // Someone added quietly, or whose first email went astray: the same link to the app, once per tap
     handle: async (c) => json(await sendAppLink(c.env, id(c), new URL(c.request.url).origin)),
   },
   {
@@ -246,7 +246,7 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members"],
     // The places they gave up go to whoever's waiting, who hear it
     notify: places,
-    // A member who asked the club, by email, to delete their account (#30): as if they'd done it themselves
+    // A member who asked the club, by email, to delete their account: as if they'd done it themselves
     handle: async (c) => {
       // Never someone who can do more than the one erasing them (ADR 0024), as for any other change to a member
       await mayChange(c.env.DB, c.actions, id(c));

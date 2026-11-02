@@ -1,9 +1,5 @@
-// The club's clock moved, for the journeys (ADR 0031): a request may say what time it is (`x-dev-now`, an ISO time),
-// and the API reckons the day, the evening and what's open by it, as if it were then. Only where the simulator is
-// (dev, your own machine: simulatorHere fails closed, so production never reads the header), and on dev only for an
-// admin (manage:all): dev's D1 is the whole club, and a moved day writes charges, sessions and the record by it. On
-// your own machine anyone may, as the journeys move each person they play. Who's signed in, and signing in, keep the
-// real clock: a session isn't expired or renewed by a journey's day.
+// The club's clock moved for the journeys (ADR 0031): a request may say what time it is (`x-dev-now`), and the API
+// reckons the day and what's open by it, as if it were then.
 import { simulatorHere } from "../tournaments/simulate";
 
 export const DEV_NOW_HEADER = "x-dev-now";
@@ -13,7 +9,9 @@ const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z$/;
 
 /**
  * The time a request asked to be at, where it may ask and from someone who may (`actions`, theirs); otherwise null
- * (the real clock).
+ * (the real clock). Only where the simulator is: simulatorHere fails closed, so production never reads the header. On
+ * dev only an admin (manage:all), since dev's D1 is the whole club and a moved day writes by it; on your own machine
+ * anyone, as the journeys move each person they play. Signing in keeps the real clock.
  */
 export function devClock(
   request: Request,

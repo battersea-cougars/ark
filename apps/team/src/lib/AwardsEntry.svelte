@@ -1,8 +1,7 @@
 <script lang="ts">
-  // The awards at the after-party (apps/team/worker/tournaments/README.md): one big card for everyone. Before they're confirmed, everyone who played
-  // votes on it (Vote opens the ballot, lib/VoteSheet), and whoever runs it confirms them on it too (how many have
-  // voted, what's still to choose); anyone else is waiting. Then where the reveal's at. Always the way to the awards'
-  // own page, the stage (pages/Awards).
+  // The awards' card at the after-party (apps/team/worker/tournaments/README.md): before they're confirmed, players vote
+  // on it (lib/VoteSheet) and whoever runs it confirms them; then where the reveal's at. Always the way to the awards'
+  // own page (pages/Awards).
   import type { Tournament, TournamentType } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";

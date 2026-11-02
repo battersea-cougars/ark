@@ -1,4 +1,4 @@
-// What a member chooses to hear (ADR 0108, #24): on or off for each topic (src/lib/notification-topics.ts), theirs
+// What a member chooses to hear (ADR 0108): on or off for each topic (src/lib/notification-topics.ts), theirs
 // alone. No row is on; a switch is a row. notify() reads them inside the statement that fills the outbox.
 import { run } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";

@@ -1,9 +1,6 @@
-// A break-glass sign-in code (ADR 0023, scripts/admin-break-glass.mjs): for an active admin, when Gmail is down, every
-// admin has lost their passkeys and none is signed in. One code, written as the Worker writes an emailed one (its
-// SHA-256 in login_challenges, 15 minutes), marked `break_glass` and claimed by no browser yet: the first browser to
-// ask for that admin's code on the sign-in page takes it (apps/team/worker/auth/auth.break-glass.ts). Any of theirs
-// not yet used goes. On the record, with who ran it. Takes a query function (SQL and parameters in, rows out), so the
-// script runs it against an environment's D1 and the tests against theirs.
+// A break-glass sign-in code for an active admin (ADR 0023, scripts/admin-break-glass.mjs), written as the Worker
+// writes an emailed one but claimed by no browser yet: the first to ask for that admin's code on the sign-in page takes
+// it (apps/team/worker/auth/auth.break-glass.ts). Takes a query function, so the script and the tests share it.
 import { createHash, randomInt } from "node:crypto";
 
 export const BREAK_GLASS_MINUTES = 15;

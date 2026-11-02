@@ -1,6 +1,6 @@
-// The after-party (apps/team/worker/tournaments/README.md): the evening a tournament ends, everyone at its afterwards (the Kumite's The Anchor), and
-// whoever runs it reveals the awards one at a time, in the order listed (apps/team/worker/tournaments/README.md). How many are out is the
-// tournament's (`awardsRevealed`); the Worker sends a member an award's winner only once it's out.
+// The after-party (apps/team/worker/tournaments/README.md): the evening a tournament ends, and its awards revealed one
+// at a time, in the order listed. How many are out is the tournament's (`awardsRevealed`); the Worker sends a member an
+// award's winner only once it's out.
 import type { Tournament } from "../demo/model";
 import { champion, table } from "./fixtures";
 import { isDone } from "@cougars/shared/results";

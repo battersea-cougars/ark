@@ -1,5 +1,5 @@
-// The Kumite simulator (apps/team/worker/settings/README.md): dev only. Not there at all in production, or wherever the environment doesn't
-// say it's dev or your own machine (simulate.ts simulatorHere; api.ts leaves the route out, so it's a 404).
+// The Kumite simulator's route (apps/team/worker/settings/README.md): dev only; api.ts leaves it out elsewhere, so it's
+// a 404 (simulate.ts simulatorHere).
 import { id, rowOf, type Route } from "../api/api.route";
 import { body, HttpError, json } from "../api/api.http";
 import { simulateMoves, simulatorHere } from "./simulate";

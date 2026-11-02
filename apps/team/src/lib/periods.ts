@@ -1,7 +1,6 @@
-// Periods (apps/team/worker/tournaments/README.md), shared by the Worker and the app: a game is 1 to 3 periods of the tournament's game minutes,
-// the clock running per period. Goals and penalties keep their period and the time into it; game time runs on across
-// the breaks, so a penalty given late in one period carries into the next. Between periods, a break of the
-// tournament's minutes. The box score is the goals per period.
+// Periods (apps/team/worker/tournaments/README.md), shared by the Worker and the app: a game is 1 to 3 periods of the
+// tournament's game minutes, the clock running per period, with a break between them. The box score is the goals per
+// period.
 import { ordinal } from "./dates";
 
 /** How many periods a game can have, as a series' setting shows them. */
@@ -34,7 +33,11 @@ export function breakLeft(
 /** 1st, 2nd, 3rd. */
 export const periodName = ordinal;
 
-/** Time into the whole game: the periods before, then the time into this one. Null when nobody timed it. */
+/**
+ * Time into the whole game: the periods before, then the time into this one. Null when nobody timed it.
+ * Goals and penalties keep their period and the time into it; game time runs on across the breaks, so a penalty given
+ * late in one period carries into the next.
+ */
 export const inGameTime = (period: number | null | undefined, atMs: number | null, periodMs: number) =>
   atMs === null ? null : ((period ?? 1) - 1) * periodMs + atMs;
 

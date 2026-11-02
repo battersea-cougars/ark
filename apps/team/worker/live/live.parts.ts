@@ -1,10 +1,5 @@
-// What a change sends down the live streams besides the names of the parts it changed (ADR 0053, #161), and who it
-// goes to: the one place that's decided. A live match, a tournament's games while it's on (whatever its date), is the same for every member
-// (nothing in a game is anyone's own), so it's built once and goes to everyone: at the rink, where the whole squad
-// shares one wifi address, a goal is then no read at all on the phones following it. The after-party's drum too
-// (#224): the awards out, the same for every member, and nothing still sealed. Everything else stays names only,
-// each phone reading its own view: what's someone's own (dues, sign-ups, members, roles) and the draft, whose picks
-// only its captains and whoever runs it see (apps/team/worker/tournaments/README.md; the draft's own stream is #162).
+// What a change sends down the live streams besides the names of the parts it changed, and who it goes to
+// (ADR 0053): the one place that's decided.
 import { id, type Ctx, type Route } from "../api/api.route";
 import { readMatch } from "../api/api.club";
 import { gamesFrom } from "../tournaments/fixtures";
@@ -15,7 +10,11 @@ import type { Pushed } from "./live";
 
 const log = scribe.logger("live");
 
-/** The part a change sends with its names, and who to; null: names only. Never fails the change. */
+/**
+ * The part a change sends with its names, and who to; null: names only. Never fails the change. A live match and the
+ * after-party's drum are the same for every member, so they're built once and go to everyone: at the rink, where the
+ * squad shares one wifi address, a goal is then no read at all. Anything someone's own, and the draft, stays names only.
+ */
 export async function pushedWith(c: Ctx, route: Route, changes: readonly string[]): Promise<Pushed | null> {
   // Only a change to nothing but a match, or the drum: what the phone puts in place is then all of the change
   const build = route.liveMatch ? matchPart : route.liveAwards ? awardsPart : null;
@@ -36,7 +35,7 @@ const matchPart = async (c: Ctx, tournamentId: number) => {
 };
 
 /**
- * The after-party's drum (#224), as every member sees it on the evening: how many awards are out, whether it's rolled
+ * The after-party's drum, as every member sees it on the evening: how many awards are out, whether it's rolled
  * on to the next, sealed, and the winners out, in the order listed (api.club.ts `winners`). A winner still sealed is
  * never in it (the tournament notes): whoever runs it holds those already, and keeps them (src/app/catch-up.ts withAwards).
  */

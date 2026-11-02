@@ -1,12 +1,7 @@
 <script lang="ts">
-  // A job in steps (ADR 0065), after Ledger's: the steps along the top (the one you're on with the red slash, done
-  // ones solid, ones not open yet faded and shut), the step under them sliding in (back the other way going back) and
-  // scrolling on its own, and the foot staying put: Cancel or Back, where you are, then Next · the step after, or the
-  // job's own button on the last. Enter goes on when the step allows it; not from a button, nor from anything that
-  // takes Enter itself (a search that picks, a combobox), nor from the last step, where the job is a tap.
-  // While the job's under way (`working`) the foot says so and Back and the steps hold; what failed comes back in
-  // `problem`, in place. It fills whatever holds it (an EditorPanel or Sheet with `fill`), so changing step never
-  // changes its height.
+  // A job in steps (ADR 0065): the steps along the top, the step under them sliding in and scrolling on its own, and
+  // the foot staying put (Back, where you are, Next or the job's own button). It fills whatever holds it (an EditorPanel
+  // or Sheet with `fill`), so changing step never changes its height.
   import type { Snippet } from "svelte";
   import { prefersReducedMotion } from "../app/motion";
 
@@ -75,6 +70,8 @@
     };
   }
 
+  // Enter goes on when the step allows it; not from a button, nor from anything that takes Enter itself (a search
+  // that picks, a combobox), nor from the last step, where the job is a tap
   function enter(e: KeyboardEvent) {
     const t = e.target as HTMLElement | null;
     if (busy || e.key !== "Enter" || e.defaultPrevented || e.isComposing || !t || !stage?.contains(t)) return;

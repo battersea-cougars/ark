@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   const reply = (status: number, body: Record<string, unknown>, location: string) =>
     wantsJson ? Response.json(body, { status }) : redirect(location, 303);
 
-  // Plenty for the form's fields; anything bigger is refused before it's read (#73)
+  // Plenty for the form's fields; anything bigger is refused before it's read
   const sent = await withinLimit(request, MAX_FORM);
   if (!sent) return reply(413, { ok: false, error: "That's too much to send." }, refusedAt("invalid"));
   const form = await sent.formData();

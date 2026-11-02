@@ -7,7 +7,7 @@
 //   watermark.png   300 px square, the whole logo on transparent, for the corner of every video
 //   banner.png      2048×1152, the home page's carbon background with the logo in the middle 1235×338, the part
 //                   YouTube shows on every screen (TVs show the rest)
-// Google (brand/google/): Google Auth Platform → Branding, the app logo on the consent screen (#156)
+// Google (brand/google/): Google Auth Platform → Branding, the app logo on the consent screen
 //   logo.png        120 px square, Google's size, the whole logo on the site's dark background
 import { mkdirSync } from "node:fs";
 import sharp from "sharp";

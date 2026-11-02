@@ -1,8 +1,6 @@
-// A club of 120 with years behind it, for what opening the app costs (api.cpu.use-cases.test.ts) and what it sends
-// (bootstrap.same.use-cases.test.ts): the last eight Fridays, 40 at each and all charged, a fee on the training, and
-// three years of Kumites (a few a year, ADR 0009: twelve), each with its teams, logos, games, goals, penalties, awards
-// and sign-ups. They made the bootstrap heavy when it sent every one (#175); now it sends the next one and the
-// last one played, and the rest are read when they're opened (tournaments/editions.ts). For Vitest only.
+// A club of 120 with years behind it, for what opening the app costs (api.cpu.use-cases.test.ts) and sends
+// (bootstrap.same.use-cases.test.ts): eight Fridays of 40, all charged, and three years of Kumites with all they hold.
+// For Vitest only.
 import { expect } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { recharge, settle } from "../dues/dues";
@@ -29,7 +27,7 @@ const ROSTER = [
 ];
 
 /**
- * Weeks of Fridays behind the club (#177): `weeks` of them, `everyone` at each (else the forty), and `paying`: each
+ * Weeks of Fridays behind the club: `weeks` of them, `everyone` at each (else the forty), and `paying`: each
  * member paying every four weeks for the four nights before, but every fifth, who's paid nothing for twelve weeks.
  */
 export interface Fridays {
@@ -55,14 +53,14 @@ export async function clubWithHistory(
       })
     ).status,
   ).toBe(200);
-  // The roster is the members' page's, not the bootstrap's (#178)
+  // The roster is the members' page's, not the bootstrap's
   const roster = (await dana.call("GET", "/api/slices?names=members")).body.slices.members;
   const everyone: number[] = roster.map((m: { id: number }) => m.id).slice(1);
   const ids = everyone.slice(0, 40);
   lastFridays(w, fridays.everyone ? everyone : ids, series.id, fridays.weeks);
   kumites(w, ids, kumiteCount);
   // Charged as the hourly run would have, week by week: written straight into D1, nothing in the app worked them out
-  // (a change works out only its own charges, #222)
+  // (a change works out only its own charges)
   await recharge(w.env.DB, NOW.toISOString().slice(0, 10), NOW.toISOString());
   // ...and paid as the treasurer would have recorded it
   if (fridays.paying) await payments(w, fridays.everyone ? everyone : ids, fridays.weeks);
@@ -122,7 +120,7 @@ function kumites(w: ReturnType<typeof testWorld>, ids: number[], count: number) 
   const tables: Record<string, object[]> = {};
   for (let n = 1; n <= count; n++) {
     const heldOn = `2025-${String(n).padStart(2, "0")}-14`;
-    // Each match kicked off on its day, as seed:history has it: when it was played says it's long past (#182)
+    // Each match kicked off on its day, as seed:history has it: when it was played says it's long past
     const kickedOff = `${heldOn}T11:00:00.000Z`;
     const squads = Array.from({ length: 6 }, (_, i) => ids.slice(0, 48).filter((_, p) => p % 6 === i));
     const teams = squads.map((squad, i) => ({

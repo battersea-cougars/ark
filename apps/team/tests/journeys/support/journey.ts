@@ -1,16 +1,5 @@
-// What every journey shares (ADR 0031): the people in it, each signed in in a browser of their own, and the steps.
-//
-// A journey is one story, a `test.describe.serial` in its own file: each step of the story is a `test` of its own, run
-// in order on the same people and the same database (so one step can't run alone: run its journey). Its people sign in
-// in `test.beforeAll` and leave in `test.afterAll`. Inside a step, things a person does or checks (`does`, `checks`):
-// what a person does moves the story on, so if they can't, the step stops there. What a person checks (they can, they
-// can't, they see) is noted when it fails and the step goes on, so it finds every broken check in it, not just the
-// first; the step fails at its end. A failed step ends the journey (the steps after it are skipped). A known bug is
-// `test.fail()` on its step: it should fail, and a pass says it's fixed.
-// Everyone's browser is listened to: an uncaught error, a console error or one of Svelte's warnings that means a bug,
-// on any of their pages, fails the step it happened in (noted, as a check is). This file's `test` is Playwright's,
-// with that look after every step (and axe's, with --a11y) as an automatic fixture; journeys.report.ts turns the
-// failures into one summary for the run.
+// What every journey shares (ADR 0031, docs/testing.md): the people in it, each signed in in a browser of their own,
+// their steps (`does`, `checks`), and Playwright's `test` with a look at every browser's errors after each step.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -253,7 +242,7 @@ export function asMember(email: string, opts: { at?: Date | string } = {}) {
 }
 
 /**
- * The club as the app holds it once its pages are read (#178), through a shortcut like `asMember`'s: opening the app
+ * The club as the app holds it once its pages are read, through a shortcut like `asMember`'s: opening the app
  * (the core) and every page's parts, put together as the app puts them.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -280,6 +269,8 @@ export async function pauseTraining(adminEmail: string, seriesId: number, at: Da
  * Puts someone at a moment: their browser's clock (Playwright's clock, for every page of theirs, fixed there) and the
  * server's for every request their pages make (worker/api/api.dev-clock.ts). Both, so the app's own reckoning ("Tonight",
  * "In 3 days") and the server's (what's open, what's refused, what's charged) agree. Their next page load sees it.
+ * A journey keeps to one clock going forward: the server works out what's owed again on each day's first open, so an
+ * earlier moment would take back what a later one charged.
  */
 export async function at(who: Person, when: Date | string) {
   const moment = new Date(when);
@@ -418,14 +409,17 @@ async function lookForBarriers(stepTitle: string) {
   }
 }
 
-/** Something a person does that the story needs: if it fails, the journey stops here. */
+/** Something a person does that the story needs: if it fails, the step stops here and the journey ends. */
 export const does = (who: Person, what: string, body: () => Promise<void>) =>
   test.step(`${who.role}: ${what}`, async () => {
     await body();
     await noBrowserErrors(`${who.role}: ${what}`);
   });
 
-/** Something a person can or can't do, or sees: a failure is noted and the journey goes on. */
+/**
+ * Something a person can or can't do, or sees: a failure is noted and the step goes on, so it finds every broken check
+ * in it, not just the first; the step fails at its end.
+ */
 export async function checks(who: Person, what: string, body: () => Promise<void>) {
   const title = `${who.role}: ${what}`;
   try {

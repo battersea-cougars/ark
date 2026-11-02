@@ -38,13 +38,13 @@ export const db = $state({
   /** The quarterly rate, from each date (apps/team/worker/dues/README.md). */
   fees: structuredClone(SUBSCRIPTION_FEES),
   quips: structuredClone(QUIPS),
-  /** Home's announcements (#85). */
+  /** Home's announcements. */
   announcements: structuredClone(ANNOUNCEMENTS),
   /** How often live pages check for updates (ADR 0053), and the club's bank details (apps/team/worker/dues/README.md). */
   settings: structuredClone(SETTINGS),
   /** Published teams, by session id. */
   teams: structuredClone(TEAMS) as Record<number, Team[]>,
-  /** Your own charges with something left to pay (apps/team/worker/dues/README.md, #177): a ledger is read a page at a time (app/ledger). */
+  /** Your own charges with something left to pay (apps/team/worker/dues/README.md): a ledger is read a page at a time (app/ledger). */
   charges: structuredClone(CHARGES),
   /** What each owes, by age, and their credit: yours, or everyone's for who sees Unpaid fees. */
   dues: structuredClone(DUES),

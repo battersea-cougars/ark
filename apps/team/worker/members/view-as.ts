@@ -1,7 +1,5 @@
-// Viewing the app as a member (ADR 0024, #40): an admin's sign-in records who they're viewing as, and the API answers
-// it as that member would be answered, refusing every change but going back. It's the sign-in's, so it lasts through a
-// reload and ends with signing out; a member who's left the club, or an admin who may no longer, ends it on the next
-// request.
+// Viewing the app as a member (ADR 0024): the API answers an admin's sign-in as that member would be answered, refusing
+// every change but going back.
 import { first, run } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { shortName } from "../../src/lib/names";

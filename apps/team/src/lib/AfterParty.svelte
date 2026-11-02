@@ -1,11 +1,7 @@
 <script lang="ts">
-  // The after-party (apps/team/worker/tournaments/README.md): the evening a tournament ends, its last status. Everyone's at the afterwards (the
-  // Kumite's The Anchor), so the page is the pub after the film's last match: warm brass on the carbon, the Kumite's
-  // motif kept. Where everyone is; the awards, a big card to their own page (pages/Awards, the stage where they're
-  // revealed one at a time), with everyone who played voting on it and whoever runs it confirming them on it too
-  // (lib/AwardsEntry, apps/team/worker/tournaments/README.md); every one out, the awards themselves instead, the champions the hero and the rest in
-  // a grid (lib/AwardsWon): the finished Kumite's page. Then the final table (the champions first) and the day's
-  // results, one line each.
+  // The after-party (apps/team/worker/tournaments/README.md): a tournament's last status, the evening it ends, in the
+  // Kumite's pub look. Where everyone is, the awards (voted and confirmed, then won: lib/AwardsEntry, lib/AwardsWon),
+  // then the final table and the day's results.
   import type { Tournament, TournamentType } from "../demo/model";
   import type { After } from "@cougars/shared/places";
   import Icon from "../app/shell/Icon.svelte";

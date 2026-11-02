@@ -29,7 +29,7 @@
   const thisQuarter = $derived(quarterOf(today));
   const next = $derived(nextQuarter(thisQuarter));
   const nextStarts = $derived(quarterStart(next));
-  // The last day it takes a change: the day before next quarter starts (the reminder says the same, #187)
+  // The last day it takes a change: the day before next quarter starts (the reminder says the same)
   const changeBy = $derived(new Date(Date.parse(`${nextStarts}T12:00:00Z`) - 86_400_000).toISOString());
   const myRow = $derived(db.members.find((m) => m.player.id === who.id));
   const rate = $derived(feeOn(db.fees, nextStarts));
@@ -43,7 +43,7 @@
   // Where to pay (apps/team/worker/dues/README.md)
   const bank = $derived(db.settings.bank);
 
-  // ?plan=next (the reminder a few days before the quarter, #187): next quarter's plan is scrolled into view, and the
+  // ?plan=next (the reminder a few days before the quarter): next quarter's plan is scrolled into view, and the
   // address goes back to the plain page so a reload doesn't scroll again
   const askedForPlan = new URLSearchParams(location.search).get("plan") === "next";
   if (askedForPlan) history.replaceState(history.state, "", location.pathname);

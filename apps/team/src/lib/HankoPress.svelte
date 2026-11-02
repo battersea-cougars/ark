@@ -1,8 +1,7 @@
 <script lang="ts">
-  // The red hanko (lib/Kanji's seal) pressed down like a rubber stamp: big and tilted, then flat on the card, a thud of
-  // shadow, ink specks out from it. The teams sealed (lib/DraftStep) and each award revealed (lib/AwardStage, the
-  // champions' 優勝 slammed down). `pressed` plays it, after `delay`; `drop`: the hanko isn't there till it lands.
-  // Less motion: none of it, the hanko just there.
+  // The red hanko (lib/Kanji's seal) pressed down like a rubber stamp, for the sealed teams (lib/DraftStep) and each
+  // award revealed (lib/AwardStage). `pressed` plays it after `delay`; `drop`: not there till it lands. Less motion: just
+  // there.
   import Kanji from "./Kanji.svelte";
 
   let {

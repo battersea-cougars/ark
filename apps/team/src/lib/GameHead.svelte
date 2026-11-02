@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Over a game in a list, the same two lines on every card so they line up: where it sits in the day (Game 1 of 7),
-  // then its stage (the round robin, the Final) in the poster face with its kanji. A playoff is in the club's red,
-  // like the section titles; the round robin stays quiet. On the right, in the same row: its stamp (KUMITE! on now,
-  // You are next!, a result), the whistle, or on hover (its card, lib/GameCard) a chevron as the stage lights.
+  // Over a game in a list, two lines on every card so they line up: its place in the day (Game 1 of 7), then its stage
+  // in the poster face with its kanji (a playoff in the club's red). On the right, its stamp, the whistle, or on hover a
+  // chevron.
   import Kanji from "./Kanji.svelte";
   import type { Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -22,7 +21,7 @@
     kanji?: string;
     playoff?: boolean;
     place: string;
-    /** Who's keeping score, while someone is (#116): said after the place, so an admin sees it down the list. */
+    /** Who's keeping score, while someone is: said after the place, so an admin sees it down the list. */
     scorer?: string;
     /** Its card opens the game: a chevron shows on hover, in space kept for it so nothing moves. */
     opens?: boolean;

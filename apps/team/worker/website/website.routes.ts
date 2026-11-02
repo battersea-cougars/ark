@@ -1,5 +1,5 @@
-// Settings → Website (#107): the website's state, Rebuild now and Refresh photos and videos (#109), for whoever may edit
-// the website (ADR 0024).
+// Settings → Website's routes, for whoever may edit the website (ADR 0024): its state, Rebuild now, and Refresh photos
+// and videos.
 import { type Route } from "../api/api.route";
 import { json } from "../api/api.http";
 import { markWebsiteTime, websiteTime } from "@cougars/shared/website-times";

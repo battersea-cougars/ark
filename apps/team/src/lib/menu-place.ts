@@ -1,7 +1,5 @@
-// Where a list that drops from a field goes (PersonPicker): under it when there's room, over it when there's more
-// room there. "Room" is what's on screen: on a phone with the keyboard up that's the visual viewport (above the
-// keyboard), not the window, which still runs down behind the keyboard, so a list placed by the window opened out of
-// sight until the keyboard was closed.
+// Where a list that drops from a field goes (PersonPicker): under it when there's room, over it when there's more room
+// there.
 
 /** The part of the window that's on screen, in the same coordinates as getBoundingClientRect. */
 export interface Visible {
@@ -9,7 +7,11 @@ export interface Visible {
   bottom: number;
 }
 
-/** What's on screen now: above the keyboard, where the browser says (visualViewport); else the whole window. */
+/**
+ * What's on screen now: above the keyboard, where the browser says (visualViewport); else the whole window.
+ * Not the window: with the keyboard up it still runs down behind the keyboard, so a list placed by it opens out of
+ * sight.
+ */
 export function visibleArea(): Visible {
   const vv = globalThis.visualViewport;
   if (!vv) return { top: 0, bottom: innerHeight };

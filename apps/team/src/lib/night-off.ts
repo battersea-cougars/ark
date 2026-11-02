@@ -1,7 +1,5 @@
-// A training night called off, as its page shows it (ADR 0065, apps/team/worker/training/README.md): the page is the series' next night that's
-// on, and any night from today up to it that's cancelled shows above it, struck through, so a Friday off for the
-// Kumite never just vanishes. Manage cancels the night shown, or puts one that's off back on. Each night has its own
-// page too, at its date (/training/friday/2026-10-30), past ones included: that one alone, off or on.
+// A training night called off, as its page shows it (ADR 0065, apps/team/worker/training/README.md): any night that's
+// off up to the next one that's on shows above it, struck through, so a Friday off for the Kumite never just vanishes.
 
 interface Night {
   seriesId: number;
@@ -18,6 +16,7 @@ interface Night {
  * still next until its register closes (lib/phase.ts): `evening` is London's evening (lib/dates.ts londonEvening), so
  * last night's is still it till 06:00, unless its register's closed. `on`: a night's own page, that night alone (the
  * next one's, if there's none that day).
+ * Manage cancels the night shown, or puts one that's off back on.
  */
 export function trainingNights<S extends Night>(sessions: S[], seriesId: number, evening: string, on?: string) {
   const that = on ? sessions.find((s) => s.seriesId === seriesId && s.heldOn === on) : undefined;
@@ -37,7 +36,10 @@ export const signedUp = (s: Night) => s.going.length + s.waitlist.length;
 export const offWords = (n: number) =>
   n ? `${n} signed up ${n === 1 ? "hears" : "hear"} it's off if you cancel it.` : "Nobody's signed up yet.";
 
-/** A night's own page: its series' address and its date. */
+/**
+ * A night's own page: its series' address and its date.
+ * Past ones included: that one alone, off or on.
+ */
 export const nightPath = (slug: string, heldOn: string) => `/training/${slug}/${heldOn}`;
 
 /** The night a series' page is at (`/training/friday/2026-10-30` → "2026-10-30"), or undefined for its front page. */

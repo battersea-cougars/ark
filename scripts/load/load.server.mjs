@@ -1,9 +1,7 @@
 // A team Worker of the load run's own (docs/load-testing.md): the built Worker under `wrangler dev`, on a port the OS
 // picks, with its own D1 in a fresh temp folder (never main's local D1, never dev or production), seeded with the
-// club's schema and seed (after launch, its migrations) and a roster of `members`. Signed in the way scripts/dev-sign-in.mjs does (POST
-// /api/auth/dev, a local server only), never by asking for codes; or, with `roster: false` (`--target local`), as
-// against dev: the run adds its own members and mints their sessions into this D1 (`d1db`, load.club.mjs). The
-// workerd process's CPU time is read from /proc.
+// club's database and a roster of `members`. Signed in as scripts/dev-sign-in.mjs does, or, with `roster: false`
+// (`--target local`), as against dev (load.club.mjs). The workerd process's CPU time is read from /proc.
 import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";

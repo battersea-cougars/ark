@@ -1,7 +1,5 @@
-// What's already on when something new would be (apps/team/worker/calendar/README.md): the calendar's timed things on its day, so an
-// admin putting the Kumite on a Friday night is asked whether Friday Training is off. Read from the agenda (ADR 0016),
-// which every part of the club keeps, plus the nights a training's rule gives that aren't made yet (sessions are
-// made 12 weeks ahead, apps/team/worker/calendar/README.md; a tournament is often further off).
+// What's already on when something new would be (apps/team/worker/calendar/README.md): the calendar's timed things
+// on a day, read from the agenda (ADR 0016) plus the training nights a rule gives that aren't made yet.
 import { all, first, type Param } from "@cougars/shared/d1";
 import { londonDay, londonISO, londonNextDay } from "@cougars/shared/london";
 import { can, type Action } from "../../src/access/actions";
@@ -50,7 +48,7 @@ const windowOf = (w: Span): Window => ({
   span: [ms(w.startsAt), ms(w.endsAt)],
   days: new Set([londonDay(w.startsAt), londonDay(w.endsAt)]),
 });
-/** Over it: on the same London day, whatever the hours (the user, 2026-10-23: "it should at least ask"), or overlapping
+/** Over it: on the same London day, whatever the hours (it should at least ask), or overlapping
  * its time (a night past midnight). */
 const isOver = (w: Window, c: { day: string; startsAt: string; endsAt: string }) =>
   w.days.has(c.day) || overlaps(w.span, [ms(c.startsAt), ms(c.endsAt)]);

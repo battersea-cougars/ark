@@ -59,7 +59,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     // A Kumite team renamed here is its captain's default name for the next one, worked out from the editions
-    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club (#223)
+    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club
     changes: ["tournaments", "charges", "dues", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
@@ -78,7 +78,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     // A Kumite team renamed here is its captain's default name for the next one, worked out from the editions
-    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club (#223)
+    // (team-name.ts), nothing on the member: so not members, which would bring every phone the whole club
     changes: ["tournaments", "charges", "dues", "sessions"],
     // Up to 16 teams, each with a logo (200 KB at most)
     maxBody: 4 * 1024 * 1024,
@@ -91,7 +91,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     path: /^\/api\/tournaments\/(\d+)$/,
     audit: { event: "tournament.deleted", subject: (c) => tournamentSummary(c.env.DB, id(c)) },
     action: "manage:Tournament",
-    // The training nights it kept off come back (#186)
+    // The training nights it kept off come back
     changes: ["tournaments", "charges", "dues", "sessions"],
     // Gone, with its teams, sign-ups, games, awards and charges (Settings → Tournaments)
     handle: async (c) => (await deleteTournament(c.env.DB, id(c), c.now), ok()),
@@ -120,7 +120,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: (c) => revealedSubject(c.env.DB, id(c)),
     },
     action: "manage:Tournament",
-    // Everyone watching the after-party sees it turn over (ADR 0053), the drum sent with the event (#224)
+    // Everyone watching the after-party sees it turn over (ADR 0053), the drum sent with the event
     changes: ["tournaments"],
     calendar: false,
     liveAwards: true,
@@ -137,7 +137,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: rowOf("SELECT id, name, awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?"),
     },
     action: "manage:Tournament",
-    // Everyone watching sees the drum roll on (ADR 0053), sent with the event (#224)
+    // Everyone watching sees the drum roll on (ADR 0053), sent with the event
     changes: ["tournaments"],
     calendar: false,
     liveAwards: true,
@@ -248,7 +248,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     // Its captain or an admin: setTeamLook decides
     action: "authenticated",
     // A Kumite team's name is its captain's default for the next one too, worked out from the editions (team-name.ts):
-    // nothing on the member changes (#223)
+    // nothing on the member changes
     changes: ["tournaments"],
     handle: async (c) => {
       const admin = can(c.actions, "manage:Tournament");

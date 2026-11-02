@@ -1,9 +1,5 @@
-// Back closes what's open (ADR 0065): Android's back gesture or button, the browser's Back, iPhone Safari's swipe from
-// the edge, and the Android app's back (Capacitor goes back in the web view's history). Each overlay that opens
-// (lib/Sheet, lib/Drawer, MemberSheet, PlayerCardZoom) puts an entry of its own on the history, at the same address,
-// so Back takes that entry off and closes the overlay on top, instead of leaving the page under it. Closed any other
-// way (×, Escape, a swipe, the backdrop), it takes its own entry off again, so the next Back is a real one.
-// The router asks here first on every popstate (app/router.svelte.ts): a Back that closed an overlay isn't a move.
+// Back closes what's open (ADR 0065): the browser's Back, Android's back gesture or button, iPhone Safari's swipe from
+// the edge and the Android app's back close the overlay on top, instead of leaving the page under it.
 
 /** What an overlay does when Back reaches it: closes, or returns false when it's holding to ask (unsaved changes). */
 export type CloseOnBack = () => boolean | void;
@@ -67,7 +63,12 @@ export function backStack(history: HistoryLike) {
 
 const app = typeof history === "undefined" ? null : backStack(history);
 
-/** An overlay opened: Back closes it (`close`). Call the returned function when it's closed any other way. */
+/**
+ * An overlay opened: Back closes it (`close`). Call the returned function when it's closed any other way.
+ * Each overlay (lib/Sheet, lib/Drawer, MemberSheet, PlayerCardZoom) puts an entry of its own on the history, at the
+ * same address, so Back takes that entry off and closes it. Closed any other way (×, Escape, a swipe, the backdrop), it
+ * takes its own entry off again, so the next Back is a real one.
+ */
 export const closeOnBack = (close: CloseOnBack): (() => void) => app?.open(close) ?? (() => {});
 /** For the router's popstate: whether this Back was taken by an overlay. */
 export const backClosedOverlay = () => app?.popped() ?? false;

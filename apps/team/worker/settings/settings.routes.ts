@@ -15,7 +15,7 @@ export const SETTINGS_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/venues\/used$/,
     action: "manage:Venue",
-    // What picks each venue, for Settings → Venues (#177)
+    // What picks each venue, for Settings → Venues
     handle: (c) => versionedRead(c, "venuesUsed", async () => ({ used: await venuesUsed(c.env.DB) })),
   },
   {
@@ -106,7 +106,7 @@ export const SETTINGS_ROUTES: Route[] = [
     audit: { event: "settings.plan_reminder", subject: (c) => planReminderDays(c.env.DB) },
     action: "manage:Fees",
     changes: ["settings"],
-    // { days }: how many days before a quarter its Quarterly Members are told its fee is due (apps/team/worker/dues/README.md, #187),
+    // { days }: how many days before a quarter its Quarterly Members are told its fee is due (apps/team/worker/dues/README.md),
     // on Settings → Membership
     handle: async (c) => (await savePlanReminder(c.env.DB, await body(c.request)), ok()),
   },

@@ -1,11 +1,5 @@
-// A member changes their own sign-in email (ADR 0023), keeping everything they've done: it's all theirs by id, never by
-// address. They type the new address on the You page and get two 6-digit codes: one at the new address, and one at the
-// address they have now, so a stolen session alone can't move the account (security review, finding 16). Typing both
-// back, signed in, makes the new address theirs; a member with no address yet needs only the new one's. Their other
-// sign-ins end (as when an admin changes it, #72), this one stays, and the old address hears it happened. Someone who
-// has lost their old inbox asks an admin, who changes it on the member's page. An address that's already someone's
-// gets no code, but a note saying so, and the reply is the same either way: the app never says whose an address is.
-// Guesses are counted before the codes are checked, in one statement, as sign-in's are.
+// A member changes their own sign-in email (ADR 0023), with a code to the new address and one to the current one, so a
+// stolen session alone can't move the account.
 import { first, run } from "@cougars/shared/d1";
 import { mailPausedUntil, sendMail } from "@cougars/shared/email";
 import { HttpError, body, json, text } from "../api/api.http";
@@ -44,7 +38,7 @@ const TAKEN_NOTE = {
 };
 
 /** `{ email }`: a code to the new address (or a note that it's taken) and one to the current address. The same reply
- * either way. */
+ * either way: the app never says whose an address is. Someone who's lost their old inbox asks an admin. */
 export async function askToChangeEmail(c: Ctx): Promise<Response> {
   const address = email(await body(c.request));
   const me = await first<{ email: string | null }>(c.env.DB, "SELECT email FROM members WHERE id = ?", [c.memberId]);

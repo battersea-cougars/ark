@@ -1,7 +1,5 @@
-// Notifications on a member's phone (ADR 0108): the store app registers the phone after sign-in, and the club tells
-// them what's theirs to know: the night's teams are out, a place came up for them, a session's off, an announcement.
-// Driven through the real handlers in the fake world (ADR 0031); with no Firebase, each notification is caught in the
-// fake world's push outbox, one per phone, the way FCM would deliver it.
+// Notifications on a member's phone (ADR 0108): registering it, and hearing what's theirs to know. Driven through the
+// real handlers in the fake world (ADR 0031), each notification caught in the push outbox.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureLogs } from "@cougars/shared/testing/scribe";
 import { minutes, testWorld } from "../testing";
@@ -180,7 +178,7 @@ describe("what the club tells them", () => {
   });
 });
 
-// What each member hears is theirs to choose (#24): a switch per topic on the You page, every one on until they turn
+// What each member hears is theirs to choose: a switch per topic on the You page, every one on until they turn
 // it off. The choice is the member's, whichever phone they're signed in on.
 describe("what a member chooses to hear", () => {
   const prefs = async (b: Browser) => (await b.call("GET", "/api/me/notifications")).body;
@@ -265,7 +263,7 @@ describe("what a member chooses to hear", () => {
   });
 });
 
-// #97: a training's list is one order, Quarterly Members first (apps/team/worker/training/README.md). One signing up for a full Friday takes the
+// A training's list is one order, Quarterly Members first (apps/team/worker/training/README.md). One signing up for a full Friday takes the
 // place of the last one in paying as they go, who should know before they turn up.
 describe("a place taken by a Quarterly Member", () => {
   async function fullFriday() {

@@ -1,12 +1,6 @@
-// Which Gmail token the website and the team app send with (ADR 0027). Both come from the one OAuth client, the Web
-// client GMAIL_WEB_CLIENT_ID / GMAIL_WEB_CLIENT_SECRET, and two can exist:
-//   - the deployed one: GMAIL_REFRESH_TOKEN from Bitwarden, made by scripts/gmail-auth.mjs (first-time setup, and the
-//     way back in from a terminal);
-//   - the reconnected one: made when an admin presses "Reconnect email" in the team app (apps/team/worker/mail), and
-//     kept in D1 (sealed_tokens, row "gmail"), sealed with GMAIL_TOKEN_KEY (sealed-tokens.ts). The Worker can't write
-//     to Bitwarden, so this is the second exception to secrets living only there (ADR 0002 point 8).
-// The reconnected one wins. If it won't open (a changed key, a changed row), the deployed one is used and an error says
-// so. Each environment has its own D1, so reconnecting dev never touches production. The token is never logged.
+// Which Gmail refresh token the website and the team app send with (ADR 0027): the deployed one from Bitwarden
+// (GMAIL_REFRESH_TOKEN, made by scripts/gmail-auth.mjs), or one an admin made with "Reconnect email" in the team app,
+// kept sealed in D1 (sealed-tokens.ts, ADR 0002). Both come from the one Web OAuth client. Never logged.
 import { first, run } from "./d1";
 import type { GmailCredentials } from "./email";
 import { scribe } from "./scribe";
@@ -31,7 +25,11 @@ export type TokenSource = "reconnected" | "deployed";
 export const canReconnect = (env: GmailEnv) =>
   !!(env.GMAIL_WEB_CLIENT_ID && env.GMAIL_WEB_CLIENT_SECRET && env.GMAIL_TOKEN_KEY);
 
-/** The token to send with, and where it came from; null when neither is set up (the email is logged, not sent). */
+/**
+ * The token to send with, and where it came from; null when neither is set up (the email is logged, not sent). The
+ * reconnected one wins; if it won't open (a changed key, a changed row), the deployed one is used and an error says so.
+ * Each environment has its own D1, so reconnecting dev never touches production.
+ */
 export async function gmailCredentials(
   env: GmailEnv,
 ): Promise<{ gmail: GmailCredentials; source: TokenSource } | null> {

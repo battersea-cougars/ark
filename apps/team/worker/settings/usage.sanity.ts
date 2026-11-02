@@ -1,7 +1,5 @@
-// The club's Sanity requests this month (apps/team/worker/settings/README.md). Sanity has no usage API, so the website and this app count their
-// own (packages/shared/sanity-requests.ts) into sanity_requests: one row per UTC day, project and quota. The Usage
-// page shows this environment's project against the free plan, with where the month's pace ends up; the hourly check
-// (usage.alerts.ts) emails the admins at 50%, 70% and 90%, and when the pace would run out before the 1st.
+// The club's Sanity requests this month (apps/team/worker/settings/README.md): Sanity has no usage API, so the website
+// and this app count their own (packages/shared/sanity-requests.ts) into sanity_requests.
 import { statement } from "@cougars/shared/d1";
 import { SANITY_FREE, SANITY_LABELS, nextMonth, type SanityKind } from "@cougars/shared/sanity-requests";
 import { sanityProject } from "@cougars/shared/sanity";

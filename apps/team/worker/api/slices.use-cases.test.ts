@@ -1,10 +1,6 @@
-// Each page's data when it's opened, not the whole club (#178, ADR 0053). Opening the app sends a small core: who you
-// are and what you may do, the club's settings and menus, and what Home needs (your next things, the announcements,
-// what you owe). The rest is each page's own, asked for when it's opened, in one request: the whole roster, the weeks
-// just held, each series' last one played, everyone's dues. Asked again with its tag while that part is unchanged,
-// it's an empty 304, even when the club has changed elsewhere. What's the same for everyone who sees the club alike is
-// read from D1 once and kept at the edge, keyed by its part's version and what they may see; what's someone's own is
-// read for them each time, so it never reaches anyone else. Driven through the real Worker handlers (ADR 0031).
+// Each page's data when it's opened, not the whole club (ADR 0053): opening the app sends a small core, each page asks
+// for its own parts, and an unchanged part is a 304. What's shared is kept at the edge; what's someone's own is read
+// for them each time. Driven through the real Worker handlers (ADR 0031).
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld, type Reply } from "../testing";
 import { clubWithHistory } from "./bootstrap.testing";

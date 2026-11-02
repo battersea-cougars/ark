@@ -1,15 +1,14 @@
-// One live page's stream from the club's hub (ADR 0053), kept open while the page is in view: opened through the
-// brake, reconnected with a growing wait when it drops, and closed while the page is out of view. The hub says it's
-// there every 30 seconds (a `ping` event, and one as the stream opens), so a stream that's gone quiet for a beat and
-// a half is a dead one, even when the browser never says so (a phone that changed networks, a proxy holding the
-// socket open): it's closed, the page stops saying "Live", and it reconnects and reads what it missed.
-//
-// No Svelte and no globals: the page's world is handed in (live-updates.svelte.ts), so the tests drive it with a
-// fake stream and fake timers.
+// One live page's stream from the club's hub (ADR 0053), kept open while the page is in view: opened through the brake,
+// reconnected with a growing wait when it drops. No Svelte and no globals: the page's world is handed in
+// (live-updates.svelte.ts), so tests drive it with fakes.
 
 /** How often the hub pings every open stream (and once as each opens). The hub's beat and the page's watch. */
 export const HEARTBEAT_MS = 30_000;
-/** Nothing heard for this long, a beat and a half: the stream's dead, though it never said so. */
+/**
+ * Nothing heard for this long, a beat and a half: the stream's dead, though the browser never said so (a phone that
+ * changed networks, a proxy holding the socket open). It's closed, the page stops saying "Live", and it reconnects
+ * and reads what it missed.
+ */
 export const SILENCE_MS = HEARTBEAT_MS * 1.5;
 /** Reconnecting after the stream drops: this long, doubling each time, up to five minutes. */
 export const FIRST_RETRY_MS = 10_000;

@@ -9,7 +9,7 @@ export function signInEmail(
   const spaced = `${code.slice(0, 3)} ${code.slice(3)}`;
   const { heading, subheading, text } = EMAIL_TYPE;
   return {
-    // The code, as written and as shown: never in a log (#74)
+    // The code, as written and as shown: never in a log
     secrets: [code, spaced],
     subject: `Your Cougars sign-in code: ${code}`,
     text: [

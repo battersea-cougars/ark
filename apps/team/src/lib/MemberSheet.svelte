@@ -4,13 +4,9 @@
   import { portal, requestClose } from "./overlay";
   import { closeOnBack } from "./back";
   import { goesBy, shortName } from "./names";
-  // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
-  // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
-  // Gwenda's editors do: a header with who they are and a close button top right, then a body that scrolls on its
-  // own. Tabs along the header's foot: Details, Attendance and Dues, each with the whole card. The card they were
-  // tapped on turns away as it opens, and back as it closes. Their details and attendance are a draft until Save, in
-  // a footer that stays at the bottom (as Gwenda's editors have); closing with changes asks first. Dues (a payment, a
-  // quarter charged, taken back) save as they're made.
+  // A member, opened for an admin (Teammates, or /club/:id): who they are, with tabs for Details, Attendance and Dues,
+  // filling the page's space (the whole screen on a phone). Details and attendance are a draft until Save (closing with
+  // changes asks first); dues save as they're made.
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { pageColumnStyle } from "./page-column";
@@ -259,7 +255,7 @@
     if (here) return { ...r, signup: "in", attended: true };
     return r.walkIn ? { ...r, signup: null, attended: null, walkIn: false } : { ...r, attended: false };
   }
-  // A night's register closes at 6am the morning after (lib/register-closes.ts, #11): its day is shown, not changed
+  // A night's register closes at 6am the morning after (lib/register-closes.ts): its day is shown, not changed
   const closed = (r: AttendanceRow) => registerClosed(r.heldOn);
   function toggleCame(r: AttendanceRow) {
     const was = attendance?.find((x) => x.sessionId === r.sessionId);
@@ -270,7 +266,7 @@
     else marks[r.sessionId] = here;
   }
 
-  // Their ledger, read when the Dues tab shows it (#177): what they've paid in all, and the quarters charged lately
+  // Their ledger, read when the Dues tab shows it: what they've paid in all, and the quarters charged lately
   const book = $derived(ledgerOf(memberId));
   const owed = $derived(owedBy(memberId));
   // Everything paid towards their charges, part payments too, and money not yet spent on one
@@ -447,7 +443,7 @@
     grow.onfinish = () => (ready = true);
   });
 
-  // Deleting their account, when they've asked (#30): done, the sheet closes with nothing left to save
+  // Deleting their account, when they've asked: done, the sheet closes with nothing left to save
   let erasing = $state(false);
   async function erase() {
     busy = true;
@@ -457,7 +453,7 @@
     if (done) shut();
   }
 
-  // The link to the app, sent after all (#164): someone added without it, or whose email went astray. One email a
+  // The link to the app, sent after all: someone added without it, or whose email went astray. One email a
   // tap, to the address saved (not one typed and unsaved)
   let sendingLink = $state(false);
   async function sendLink() {
@@ -467,7 +463,7 @@
     sendingLink = false;
   }
 
-  // Signing them out everywhere (#72): a lost phone, a shared laptop. They sign in again with a code.
+  // Signing them out everywhere: a lost phone, a shared laptop. They sign in again with a code.
   let signingOut = $state(false);
   async function signOutEverywhere() {
     signingOut = true;
@@ -747,16 +743,16 @@
                 </div>
               </div>
               {#if member.player.id !== me().id}
-                <!-- A member who asked the club by email to delete their account (#30): as if they'd done it -->
+                <!-- A member who asked the club by email to delete their account: as if they'd done it -->
                 <div class="group">
                   <h3 class="eyebrow">Their account</h3>
                   {#if saved.email}
-                    <!-- Added quietly, or the first email went astray (#164): the same "You're in" email -->
+                    <!-- Added quietly, or the first email went astray: the same "You're in" email -->
                     <button class="btn ghost sm start" type="button" disabled={sendingLink} onclick={sendLink}
                       >Send them the app link</button
                     >
                   {/if}
-                  <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out (#72) -->
+                  <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out -->
                   <button class="btn ghost sm start" type="button" disabled={signingOut} onclick={signOutEverywhere}
                     >Sign out everywhere</button
                   >
@@ -863,7 +859,7 @@
                             onclick={() => toggleCame(r)}
                           >
                             <span class="d num">{Number(r.heldOn.slice(8))}</span>
-                            <!-- Not colour alone (#14): the In button's tick on Came, Out's cross on a no-show -->
+                            <!-- Not colour alone: the In button's tick on Came, Out's cross on a no-show -->
                             {#if o.kind === "came"}<span class="mark"><Icon name="check" size={10} /></span>
                             {:else if o.kind === "noshow"}<span class="mark"><Icon name="x" size={10} /></span>{/if}
                           </button>

@@ -1,15 +1,9 @@
 #!/usr/bin/env node
-// Point a built site at production or dev (docs/adr/0010-environments-and-deploys.md):
-// make sure that environment's D1 database exists, then rewrite the config that
-// `astro build` generated (apps/web/dist/server/wrangler.json, which `wrangler
-// deploy` uses) with its worker name, database and SITE_ENV. The workers are `web` and `team` in both accounts, so
-// dev is at web.<dev subdomain>.workers.dev and team.<dev subdomain>.workers.dev (ADR 0010). Production also gets its domain (from SITE_URL) as a
-// Workers custom domain: the deploy creates the DNS records and certificate, on both the bare domain and www (the
-// team app on team.<domain>).
+// Point a built website or team app at production or dev (ADR 0010): make sure that environment's D1 database exists,
+// then rewrite the wrangler.json the build generated with its worker name, database and settings.
 //
 //   node scripts/ci/target.mjs production|dev      (after `npm run build`)
-//   node scripts/ci/target.mjs production|dev team (the team app, after `npm run build -w @cougars/team`: worker
-//                                                   `team` on the same D1, ADR 0010)
+//   node scripts/ci/target.mjs production|dev team (the team app, after `npm run build -w @cougars/team`)
 //   node scripts/ci/target.mjs production|dev db   (no build: writes apps/web/dist/d1/wrangler.json, naming only the
 //                                                   database and its migrations, for deploy.yml's `database` job and
 //                                                   backup.yml)
@@ -28,7 +22,8 @@ const team = process.argv[3] === "team";
 const dbOnly = process.argv[3] === "db";
 const target = TARGETS[environment];
 if (!target) throw new Error(`Usage: target.mjs ${Object.keys(TARGETS).join("|")} [team|db]`);
-// The team app shares the site's database (ADR 0022), as its own worker
+// The team app shares the site's database (ADR 0022), as its own worker. Both accounts name the workers `web` and
+// `team`, so dev is at web.<dev subdomain>.workers.dev and team.<dev subdomain>.workers.dev (ADR 0010).
 target.worker = team ? "team" : "web";
 
 const cwd = new URL("../../apps/web/", import.meta.url);
@@ -75,6 +70,8 @@ if (team) {
   const { CLOUDFLARE_ACCOUNT_ID, APPLE_TEAM_ID, SENTRY_DSN_TEAM } = settingsFor(environment);
   Object.assign(config.vars, { CLOUDFLARE_ACCOUNT_ID, APPLE_TEAM_ID, SENTRY_DSN: SENTRY_DSN_TEAM });
 }
+// Production answers on its domain (from SITE_URL) as Workers custom domains: the deploy creates the DNS records and
+// certificate, on the bare domain and www (the team app on team.<domain>).
 if (environment === "production") {
   const host = URL.canParse(process.env.SITE_URL ?? "") ? new URL(process.env.SITE_URL).hostname : "";
   if (!host || host.endsWith(".workers.dev"))

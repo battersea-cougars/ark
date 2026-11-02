@@ -1,19 +1,12 @@
 // A made-up past for a local club (`npm run seed:history`, scripts/seed-history.mjs): years of played Kumites and a
-// year of training nights, for the club's real local members, so History's pages, past Kumites read on demand, logos
-// by address and the dues ledger can be tried with a club's weight behind them. Local only, and all of it can go again:
-//   Kumites       tournaments.signup_told_at is SEEDED_AT, a moment before the app existed (nothing else reads it once
-//                 a Kumite's day has passed); their teams, draft, games, goals, penalties, awards, votes, sign-ups and
-//                 charges go with them
-//   training      its own series, slug "seed-history" (Tuesday Skills, finished and paused), with its nights, their
-//                 sign-ups and charges
-//   payments      created_at is SEEDED_AT; what they paid goes with them
-// What's paid on each charge and spent of each payment follows the allocations as they go in or out (db/schema.sql's
-// triggers), so balances need nothing more. Who played what is counted again from the start after either (PLAYED_AGAIN):
-// the nights written here, or taken away, aren't ones a register closed on (apps/team/worker/members/members.played.ts).
-// The same seed makes the same past for the same club. `db` is { rows(sql), run(sql) }: a local D1 through wrangler, a
-// SQLite file, or the tests' SQLite.
+// year of training nights for the club's real local members, made the same from the same seed, and taken away again.
+// `db` is { rows(sql), run(sql) }: a local D1 through wrangler, a SQLite file, or the tests' SQLite.
 import { KUMITE_ID_TABLES, KUMITE_TABLES, NEXT_IDS_SQL, idsFrom, insertsSql, kumiteRows } from "./history.rows.mjs";
 
+// How the seeded rows are found again. Kumites: tournaments.signup_told_at is SEEDED_AT, a moment before the app
+// existed (nothing else reads it once a Kumite's day has passed); their teams, draft, games, goals, penalties, awards,
+// votes, sign-ups and charges go with them. Training: its own series, slug SERIES_SLUG (Tuesday Skills, finished and
+// paused), with its nights, their sign-ups and charges. Payments: created_at is SEEDED_AT; what they paid goes too.
 export const SEEDED_AT = "2000-01-01T00:00:00.000Z";
 export const SERIES_SLUG = "seed-history";
 
@@ -23,7 +16,9 @@ const ID_TABLES = ["training_series", "training_sessions", "attendance", "charge
 
 /**
  * Members' played counts from the start again (members.played.ts recountPlayed, in SQL): none stored and nothing
- * counted through, so the club read counts every night until the next count stores them.
+ * counted through, so the club read counts every night until the next count stores them. Run after seeding or
+ * removing: those nights aren't ones a register closed on. Paid and spent amounts need nothing: db/schema.sql's
+ * triggers follow the allocations as they go in or out.
  */
 export const PLAYED_AGAIN =
   "UPDATE members SET played = 0; UPDATE data_version SET played_through = NULL WHERE id = 1;";

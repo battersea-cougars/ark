@@ -1,10 +1,7 @@
 <script lang="ts">
-  // A tournament's teams in its editor (apps/team/worker/training/README.md): a row each, read as text, which opens the team's sheet
-  // (lib/TeamSheet): its captain, and a team that entered its players; its name and logo are its own page's. A draft's
-  // row is its captain: their crest, their name, what their team's called (or will be: its own name, the team they
-  // bring, else "Team Dan"), its place in the pick order once the draft's drawn it (apps/team/worker/tournaments/README.md), and who they've picked.
-  // Add a captain finds a member and they're one. A team that entered reads as its name, captain and players; + Team
-  // opens a new one's sheet. Which team is open is `open`, one value its editor can hold (and a URL drive).
+  // A tournament's teams in its editor (apps/team/worker/training/README.md): a row each, opening the team's sheet
+  // (lib/TeamSheet). A draft's row is its captain, their team's name and pick order once drawn; Add a captain or + Team
+  // adds one. Which is open is `open`, one value its editor can hold (and a URL drive).
   import Icon from "../app/shell/Icon.svelte";
   import PersonPicker from "./PersonPicker.svelte";
   import TeamCrest from "./TeamCrest.svelte";

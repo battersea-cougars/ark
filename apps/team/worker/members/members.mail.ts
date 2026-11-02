@@ -1,7 +1,5 @@
-// The club's emails about joining (apps/team/worker/members/README.md): the admins hear when someone asks to join, and the member hears once
-// they're in (added by an admin, or let in after asking). Each goes through sendMail, so outside production only the
-// allowed addresses get anything (ADR 0027) and Gmail's breaker has the last word (ADR 0055). An email that doesn't go
-// never undoes the change: it's logged, and the caller can say so.
+// The club's emails about joining (apps/team/worker/members/README.md): to the admins when someone asks, and to the
+// member once they're in. An email that doesn't go never undoes the change (ADR 0027, ADR 0055).
 import { all } from "@cougars/shared/d1";
 import { sendMail } from "@cougars/shared/email";
 import { mailSetup, type AuthEnv } from "../auth/auth";

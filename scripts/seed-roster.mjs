@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-// Seed the team roster into D1 (db/seed/README.md). Adds players who aren't there yet; never changes or removes
-// anyone, so it's safe on every deploy. The roster is personal data and never committed: it comes from
-// TEAM_ROSTER (Bitwarden, loaded into CI) or, locally, db/seed/roster.local.json, else the made-up
-// db/seed/roster.example.json (committed: nobody real in it).
+// Seed the team roster into D1 (db/seed/README.md): adds players who aren't there yet, never changes or removes anyone,
+// so it's safe on every deploy. The roster is personal data, never committed: TEAM_ROSTER (Bitwarden, in CI) or,
+// locally, db/seed/roster.local.json, else the made-up db/seed/roster.example.json.
 //   node scripts/seed-roster.mjs --local                              (local D1, from the local file or the example)
 //   node scripts/seed-roster.mjs --remote -c dist/server/wrangler.json (CI, from TEAM_ROSTER)
 // --anonymous (dev and local): everyone but the admins under made-up names (scripts/lib/anonymize.mjs, ADR 0029)

@@ -72,7 +72,7 @@ const share = (n, of) => `${((100 * n) / of).toFixed(1)}%`;
 
 /**
  * The API's ceiling for one address (apps/team/worker/api/api.limits.ts) and the domain's rule (ratelimit-setup.mjs).
- * The run's members are signed in, so the API counts each of them as themselves (600 a minute, #113), not here.
+ * The run's members are signed in, so the API counts each of them as themselves (600 a minute), not here.
  */
 export const ADDRESS_LIMITS = [
   { name: "the API's 6,000 a minute an address (api.limits.ts, #113)", limit: 6000, seconds: 60 },

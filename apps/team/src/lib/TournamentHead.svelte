@@ -1,9 +1,7 @@
 <script lang="ts">
-  // The top of every tournament page: the type as the eyebrow, the page, and the edition it's showing, big: its day
-  // (or Date to be confirmed), its season, its hours and place, and where it stands, worked out from what's happened
-  // (lib/edition.ts). Past ones are on History, each with a page of its own.
-  // On the front page (The Kumite), an admin's Manage menu (ADR 0065): its settings and the awards, open over the page.
-  // With nothing on, Next Kumite is the front page's own button, not here (apps/team/worker/tournaments/README.md).
+  // The top of every tournament page: the type, the page and the edition it shows (its day, season, hours, place and
+  // where it stands, lib/edition.ts). On the front page, an admin's Manage menu (ADR 0065); with nothing on, Next Kumite
+  // is the front page's own button (apps/team/worker/tournaments/README.md).
   import type { Tournament, TournamentType } from "../demo/model";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
@@ -81,7 +79,7 @@
   const after = $derived(tournament ? tournamentAfter(tournament) : null);
   // Where it's got to, as the stamp says it (lib/tournament-front.ts): the status, as the track names it, with its
   // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor (that
-  // evening, past midnight till 06:00, as the track and Home say it, #168)
+  // evening, past midnight till 06:00, as the track and Home say it)
   const stage = $derived(tournament ? stageBadge(tournament, type, londonToday(), after?.name, londonEvening()) : null);
   const mark = $derived(stage ? kanjiFor(type, stage.mark) : "");
   // The status's ink (lib/InkStamp): the club's red, Coming up faint, KUMITE! a block of red, the after-party and Done bone

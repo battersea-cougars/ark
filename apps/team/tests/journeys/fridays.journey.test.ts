@@ -1,19 +1,7 @@
-// Fridays: a training night and what it costs (ADR 0031, apps/team/worker/dues/README.md, apps/team/worker/training/README.md; #154). An admin sets up a small training of her
-// own; members say they're in or out as its sign-up opens; it fills, the waiting list moves up, the keepers keep their
-// own place; the register on the night; a member's own answer refused once it's started; the fees charged (on the night
-// by the register, the next day by the hourly run); Unpaid fees, a payment, an adjustment, reminders sent by hand; a
-// night called off; a Quarterly Member's quarter charged on its first day. Ada runs it; Pia, Wes, Tam and Kit (a
-// keeper) play pay as you go; Quin goes Quarterly.
-//
-// Its dates are the edges (#154: "test edge cases around dates"), each with both clocks moved (journey.ts `at`: the
-// browser's, and the server's for that person's requests): a training on Sundays and Tuesdays, 7:30 to 9pm, sign-up
-// opening two days before at London midnight. Its first night is Sunday 25 October 2026, the day the clocks go back;
-// one is Sunday 28 March 2027, the day they go forward; one is Tuesday 29 February 2028. Charges come from the Worker's
-// hourly cron (journey.ts `cron`), run at the moment the story is at.
-//
-// The story keeps to one clock going forward: every request is at the story's moment or later. The server works out
-// what's owed again on each day's first open (bootstrap.routes.ts), so a page opened on an earlier day would take back
-// the charges a later one made. Real clocks don't go backwards; a journey mustn't either.
+// Fridays: a training night and what it costs (ADR 0031, apps/team/worker/dues/README.md,
+// apps/team/worker/training/README.md): sign-up, the waiting list, the register, the fees charged, dues and reminders,
+// a night called off, a quarter charged. Ada runs it; Pia, Wes, Tam and Kit (a keeper) pay as they go; Quin goes
+// Quarterly. Its dates are the edges: the days the clocks change and a 29 February.
 import type { Page } from "@playwright/test";
 import {
   asMember,
@@ -87,7 +75,7 @@ test.describe.serial("Fridays: a training night and what it costs", () => {
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
-  /** Someone's charges, paid or not: their ledger, as the admin's member sheet reads it (#177). */
+  /** Someone's charges, paid or not: their ledger, as the admin's member sheet reads it. */
   const chargesOf = async (name: string) =>
     (
       (await asMember(ada.email, { at: now })("GET", `/api/members/${idOf(name)}/ledger?limit=200`)).lines as {
@@ -175,7 +163,7 @@ test.describe.serial("Fridays: a training night and what it costs", () => {
       const clash = ada.page.getByRole("dialog", { name: "Already on then" });
       await expect.poll(async () => (await clash.isVisible()) || (await made())).toBe(true);
       if (await clash.isVisible()) {
-        // All of these: Keep both, when there are several, keeps every row, a tournament's that stays on too (#171);
+        // All of these: Keep both, when there are several, keeps every row, a tournament's that stays on too;
         // one alone, its own Keep both
         const all = clash.getByRole("group", { name: /^All of these/ });
         if (await all.count()) await all.getByRole("button", { name: "Keep both" }).click();
@@ -304,7 +292,7 @@ test.describe.serial("Fridays: a training night and what it costs", () => {
     });
 
     await moveTo("2026-10-25T19:45");
-    // Locked once it starts, not only once it's over (apps/team/worker/training/README.md, decided with #11; #167)
+    // Locked once it starts, not only once it's over (apps/team/worker/training/README.md)
     await checks(pia, "at 7:45pm, training's started: no In or Out, the night says it's started", async () => {
       await open(pia);
       const night = pia.page.getByRole("article").filter({ hasText: "Sun 25 Oct" });
@@ -374,7 +362,7 @@ test.describe.serial("Fridays: a training night and what it costs", () => {
   test("6. The next day: the register, and the hourly run charging Tuesday's sign-ups", async () => {
     await moveTo("2026-10-26T08:00");
     // The register itself, through the API as the admin: the drawer is the next night's by now, so there's no tap
-    // It closed at 6am (#11): Sunday's own page says so, and offers nothing that would change who came
+    // It closed at 6am: Sunday's own page says so, and offers nothing that would change who came
     await checks(ada, "sees Sunday's register closed on its page, and Manage offers no Add player", async () => {
       await open(ada, `${path}/2026-10-25`);
       const night = ada.page.getByRole("article").filter({ hasText: "Sun 25 Oct" });

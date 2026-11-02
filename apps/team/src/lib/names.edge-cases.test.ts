@@ -6,7 +6,7 @@ import { goesBy, matchesName, nameOfTeam, shortName } from "./names";
 import { teamInitials } from "@cougars/shared/team-initials";
 
 describe("a member's initials, on their avatar", () => {
-  // #140: the first character was one UTF-16 unit, half an emoji, a broken character on the avatar
+  // A first character taken as one UTF-16 unit is half an emoji, a broken character on the avatar
   it("a name that starts with an emoji keeps the emoji whole (#140)", () => {
     expect(initials("🦁 Leo")).toBe("🦁L");
   });
@@ -81,7 +81,7 @@ describe("a team's initials, when it has no logo", () => {
     expect(teamInitials(name)).toBe(expected);
   });
 
-  // #140: the same as a member's, an emoji was cut in half ("Team" is generic, so "Team 🦁" is known by its 🦁)
+  // The same as a member's: an emoji isn't cut in half ("Team" is generic, so "Team 🦁" is known by its 🦁)
   it("a team named with an emoji keeps it whole (#140)", () => {
     expect(teamInitials("🦁 Pride")).toBe("🦁P");
     expect(teamInitials("Team 🦁")).toBe("🦁");

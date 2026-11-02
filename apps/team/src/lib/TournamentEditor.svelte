@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A tournament series' defaults (Settings → Tournament Series): a kind of tournament the club runs again and again
-  // (The Cougars Kumite), set once. Its rules, the fee and location each new tournament in it starts with, its awards
-  // and how it looks in the menu. Each tournament is edited on its own card (TournamentDateEditor). A new series gets
-  // its own section in the menu.
+  // A tournament series' defaults (Settings → Tournament Series), set once for a kind the club runs again and again:
+  // the rules, fee, location, awards and look in the menu each new tournament starts with. Each tournament is edited on
+  // its own card (TournamentDateEditor).
   import TimeSelect from "./TimeSelect.svelte";
   import { tick } from "svelte";
   import PlayoffsField from "./PlayoffsField.svelte";

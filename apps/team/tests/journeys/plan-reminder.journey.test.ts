@@ -1,16 +1,6 @@
-// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md, #187): five days before a quarter, everyone who'll be
-// Quarterly then is told its fee is due and that they can still switch to pay as you go; Ivy is one, on her phone,
-// and switches; at the quarter's start she isn't charged. Ada, the admin, sees the lead time on Settings → Membership
-// and who was told on the Audit log. Pia pays as she goes, with a phone too, and hears nothing.
-//
-// The moments: Sun 20 Dec 2026 Ivy goes Quarterly for Jan–Mar 2027; the hourly runs on Sat 26 Dec (the day before) and
-// at 09:07 on Sun 27 Dec (before 10am) tell nobody; the 10:07 run tells Ivy; the 11:07 run doesn't again; Ivy switches
-// that morning; the run at 00:30 on Fri 1 Jan charges the quarter, not to her.
-//
-// Shortcuts, each said where it's taken: Ivy's and Pia's phones are registered through the API (as the store app does
-// after sign-in), and what a phone would have been sent is read from the local server's push outbox (no Firebase on
-// your machine: journey.ts `pushOutboxOf`). Her charges are read through the API as the admin. What's under test is
-// who's told, when and what it says, the Dues page it opens, and the charge that doesn't come.
+// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md): Ivy, going Quarterly, is told its
+// fee is due and switches to pay as you go, so she isn't charged; Pia, paying as she goes, hears nothing; Ada, the
+// admin, sees the lead time and who was told.
 import {
   asMember,
   at,

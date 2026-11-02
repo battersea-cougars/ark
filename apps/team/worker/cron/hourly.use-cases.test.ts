@@ -1,8 +1,5 @@
-// The hourly run, caught up (ADR 0110): Cloudflare's hourly trigger at :07 doesn't retry, so when it's missed (a deploy,
-// a blip) or a job in it fails, the run every minute tries the hour again from 12, 17, 27, 37 and 47 past, one try each,
-// until it's done. Sentry's cron monitor hears once an hour: ok when the hour's done, however late; an error when the
-// last try fails too; nothing in between. Driven through the real Worker in the fake world (ADR 0031): the crons as
-// Cloudflare runs them, D1 failing as it can, and Sentry's ingest taking the check-ins.
+// The hourly run, caught up (ADR 0110): a missed or failed hour is tried again by the run every minute until it's
+// done, and Sentry's cron monitor hears once an hour. Driven through the real Worker in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { captureLogs } from "@cougars/shared/testing/scribe";
@@ -31,7 +28,7 @@ async function everyMinute(hour: string, from: number, to: number, day?: string)
 }
 
 /**
- * The hour's work, seen: a sign-in code from two months ago, which the hourly run forgets (retention.forget, #30). How
+ * The hour's work, seen: a sign-in code from two months ago, which the hourly run forgets (retention.forget). How
  * many such codes are left says whether a run did the hour since one was put there.
  */
 const oldCode = () =>

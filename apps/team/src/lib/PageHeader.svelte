@@ -1,12 +1,8 @@
 <script lang="ts">
   /**
-   * The top of a page: an eyebrow, the title (with a badge beside it), one line under it, then the toolbar row:
-   * the section's pages (Games, Standings, Draft), the page's search or tabs, its filters, and its actions on the
-   * right. On desktop the title scrolls away like content and the row docks just under the top of the window; the
-   * moment it docks, a band of the page's background drops down from above and catches it. A page with a row is kept a little taller than the window, so a filter that
-   * shortens the list can't snap the scroll back and move the row under your pointer. Phones show the title in
-   * the shell's slim bar (so here it's for screen readers only), and the shell takes the actions and filters too;
-   * the line and the search or tabs stay here. Home has no header.
+   * The top of a page: an eyebrow, the title (and a badge), a line under it, then the toolbar row (the section's pages,
+   * search or tabs, filters, actions). On a desktop the row docks under the window's top; on a phone the shell's bar
+   * shows the title and takes the actions and filters. Home has no header.
    */
   import type { Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";

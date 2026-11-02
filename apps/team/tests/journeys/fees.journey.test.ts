@@ -1,23 +1,6 @@
-// Fees: what a Friday costs as its fee changes (apps/team/worker/dues/README.md; #154). A training's fee runs from its date until the next one
-// starts: an admin schedules a new one, changes one back in time, and makes nights free; members come on Fridays and
-// see on their tab what each night charged. Ada sets the fees in the training's editor (Settings → Training → the
-// training → Fee per session, Fee from); Sam and Dee pay as they go; Bo is a Quarterly Member, whom no night charges.
-//
-// The fees, as Ada sets them (each night's in brackets):
-//
-//   £10 from Mon 12 Oct 2026, when it's made              (Fri 16 Oct: £10)
-//   £12 from Fri 23 Oct, set ahead on Wed 14 Oct            (Fri 23 Oct: £12, charged at 00:30 BST, 23:30 UTC Thursday)
-//   £11 from "today", at 00:30 BST on Sun 25 Oct (the day the clocks go back; still Saturday in UTC)
-//   £9 from Fri 30 Oct, set on Mon 2 Nov: back in time     (Fri 30 Oct: £11 → £9, closed and paid: £2 credit)
-//   £14 from Fri 6 Nov, set on Mon 9 Nov: back in time     (Fri 6 Nov: £9 → £14, closed and paid: £5 owed)
-//   £13 from Sat 14 Nov, the day after a Friday             (Fri 13 Nov: keeps £14)
-//   £15 from Thu 19 Nov, £16 from Fri 20 Nov, a day apart   (Fri 20 Nov: £16)
-//   £0 from Fri 27 Nov                                      (Fri 27 Nov: free, nothing owed)
-//
-// A night's own fee, beating the training's on that night only, isn't built (apps/team/worker/dues/README.md): a known bug, checked once.
-//
-// Like every journey that moves the clocks, it keeps to one going forward (journey.ts `at`): the server works out
-// what's owed again on each day's first open, so an earlier moment would take back what a later one charged.
+// Fees: what a Friday costs as its fee changes (ADR 0031, apps/team/worker/dues/README.md): Ada (an admin) sets the
+// training's fees ahead and back in time; Sam and Dee pay as they go and see what each night charged; Bo is a
+// Quarterly Member, whom no night charges. A night's own fee isn't built: a known bug, checked once.
 import type { Page } from "@playwright/test";
 import {
   asMember,
@@ -33,6 +16,17 @@ import {
   test,
   type Person,
 } from "./support/journey";
+
+// The fees, as Ada sets them (each night's in brackets):
+//
+//   £10 from Mon 12 Oct 2026, when it's made              (Fri 16 Oct: £10)
+//   £12 from Fri 23 Oct, set ahead on Wed 14 Oct            (Fri 23 Oct: £12, charged at 00:30 BST, 23:30 UTC Thursday)
+//   £11 from "today", at 00:30 BST on Sun 25 Oct (the day the clocks go back; still Saturday in UTC)
+//   £9 from Fri 30 Oct, set on Mon 2 Nov: back in time     (Fri 30 Oct: £11 → £9, closed and paid: £2 credit)
+//   £14 from Fri 6 Nov, set on Mon 9 Nov: back in time     (Fri 6 Nov: £9 → £14, closed and paid: £5 owed)
+//   £13 from Sat 14 Nov, the day after a Friday             (Fri 13 Nov: keeps £14)
+//   £15 from Thu 19 Nov, £16 from Fri 20 Nov, a day apart   (Fri 20 Nov: £16)
+//   £0 from Fri 27 Nov                                      (Fri 27 Nov: free, nothing owed)
 
 /** The training this journey makes: on a database other runs may have used, a name nobody's used yet. */
 const TAG = Date.now().toString(36).slice(-4);
@@ -82,7 +76,7 @@ test.describe.serial("Fees: what a Friday costs as its fee changes", () => {
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
   const feesNow = async () =>
     ((await club()).series as { id: number; fees: DatedFee[] }[]).find((s) => s.id === seriesId)!.fees;
-  /** Someone's charges, paid or not: their ledger, as the admin's member sheet reads it (#177). */
+  /** Someone's charges, paid or not: their ledger, as the admin's member sheet reads it. */
   const chargesOf = async (name: string) =>
     (
       (await asMember(ada.email, { at: now })("GET", `/api/members/${idOf(name)}/ledger?limit=200`)).lines as {
@@ -101,7 +95,7 @@ test.describe.serial("Fees: what a Friday costs as its fee changes", () => {
     expect(found.length, `${name} has one charge at most for ${day}`).toBeLessThanOrEqual(1);
     return found[0]?.pence;
   };
-  /** Someone's line of what they owe, as the admin's app is sent it (#177): none, nothing owed and no credit. */
+  /** Someone's line of what they owe, as the admin's app is sent it: none, nothing owed and no credit. */
   const duesOf = async (name: string) =>
     ((await club()).dues as { memberId: number; owed: number; credit: number }[]).find(
       (x) => x.memberId === idOf(name),

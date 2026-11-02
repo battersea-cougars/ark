@@ -1,16 +1,6 @@
-// The Kumite on the clock (ADR 0031, apps/team/worker/tournaments/README.md): the days and times that change what each person sees, with both clocks
-// moved (journey.ts `at`: the browser's and the server's). The Kumite night (kumite.journey.ts) walks sign-up to the
-// awards on the real clock; this one is about when: one on a Friday asked about Friday Training that evening first
-// (apps/team/worker/training/README.md), sign-up opening and closing at London midnight, the draft's day, its own day (Today, Tonight), the day
-// after unplayed, played on another evening with the final across midnight, the after-party till 06:00, just a
-// season, the days the clocks go back (25 Oct 2026) and forward (28 Mar 2027), and a Kumite on a day gone by. Ada runs
-// it (an admin), Fay plays, Nell isn't in it.
-//
-// How each Kumite gets to the step under test is a shortcut, said so where it's taken: scheduled, signed up for and
-// played out through the API as the admin and the players, with the server's clock moved (the dev simulator for the
-// matches, ADR 0010). What's under test is what each person sees, and the taps that count (Accept, what's refused);
-// the Friday one is scheduled through the wizard, as its question is the step under test. Each Kumite is deleted when
-// its step is done, so the club is left as the Kumite night left it.
+// The Kumite on the clock (ADR 0031, apps/team/worker/tournaments/README.md): the days and times that change what
+// each person sees (sign-up at London midnight, its own day, after midnight, the clocks changing, a day gone by), with
+// both clocks moved (journey.ts `at`). Ada runs it (an admin), Fay plays, Nell isn't in it.
 import type { Page } from "@playwright/test";
 import { asMember, clubVia, at, checks, does, expect, london, signIn, test, type Person } from "./support/journey";
 import { kumiteOnAPastDay } from "./support/past-kumite";

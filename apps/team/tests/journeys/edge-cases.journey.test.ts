@@ -1,10 +1,5 @@
-// The edges (#148): a double tap on a slow signal, a very long name on a phone, and a tap with no signal at all.
-// Ada, an admin, double-taps Record payment for Gwen and Post it on Home: each is recorded once. She adds a member whose
-// name is 60 letters with an email to match, and puts him in for Friday; on a phone (360 wide) nothing on The club,
-// Friday, his card or Settings → Members runs past the screen's edge. Fay, on her phone, loses signal: her In is
-// refused with a word saying so and the page doesn't claim she's in; with signal back, the same tap takes.
-//
-// The long-named member is new every run (his email has the time in it); a database other runs used has others too.
+// The edges (ADR 0031): a double tap on a slow signal is one change, a very long name fits a phone, and a tap with no
+// signal says so. Ada (an admin) and Fay (a member, on her phone). The long-named member is new every run.
 import type { Page } from "@playwright/test";
 import { asMember, checks, clubVia, does, expect, signIn, test, type Person } from "./support/journey";
 

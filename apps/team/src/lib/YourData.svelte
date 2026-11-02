@@ -1,7 +1,7 @@
 <script lang="ts">
-  // Your data (#30, ADR 0029), rows in your You page's Account tab: download everything the app holds about you, the
-  // privacy notice, or delete your account. Deleting asks first, in a sheet that says what goes and what the club keeps; then you're signed out
-  // everywhere and the app goes back to its sign-in screen.
+  // Your data (ADR 0029), rows in your You page's Account tab: download everything the app holds about you, the privacy
+  // notice, or delete your account. Deleting asks first, in a sheet that says what goes and what the club keeps; then
+  // you're signed out everywhere and the app goes back to its sign-in screen.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import Sheet from "./Sheet.svelte";

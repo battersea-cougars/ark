@@ -1,11 +1,10 @@
-// The club's settings for the app (ADR 0053): one row. For now, how often live pages (a game being scored, the
-// tournament's home, the draft room) check for updates. Each check is a request against the club's free daily
-// allowance, so it's the admins' call: faster feels live, slower lasts the day. No row yet means the default. And the
-// club's bank details (apps/team/worker/dues/README.md), where members pay: on every member's Dues page and in reminders; and how many days
-// before a quarter its Quarterly Members are told its fee is due (#187).
+// The club's settings for the app (ADR 0053), one row: how often live pages check for updates, the club's bank details
+// (apps/team/worker/dues/README.md) and the plan reminder's lead time.
 import { first, run } from "@cougars/shared/d1";
 import { HttpError, int } from "../api/api.http";
 
+// How often live pages check for updates: each check is a request against the free daily allowance, so it's the
+// admins' call. No row yet means the default
 export const LIVE_REFRESH_DEFAULT = 10;
 export const LIVE_REFRESH_MIN = 5;
 export const LIVE_REFRESH_MAX = 120;
@@ -82,7 +81,7 @@ export async function saveSettings(db: D1Database, o: Record<string, unknown>) {
   );
 }
 
-/** { days }: how many days before a quarter starts its Quarterly Members are told its fee is due (#187). */
+/** { days }: how many days before a quarter starts its Quarterly Members are told its fee is due. */
 export async function savePlanReminder(db: D1Database, o: Record<string, unknown>) {
   const days = int(o, "days", { min: PLAN_REMINDER_DAYS.min, max: PLAN_REMINDER_DAYS.max })!;
   await run(

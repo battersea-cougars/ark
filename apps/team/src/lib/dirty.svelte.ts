@@ -1,14 +1,5 @@
-// A Save form's unsaved and saved state (ADR 0065), held by whatever owns the form's overlay and handed to three
-// places: the form, which says what to compare (`watch`) and saves through `run`; the overlay (lib/Drawer, lib/Sheet,
-// lib/EditorPanel), whose every way out asks `guard` first; and its footer (lib/SaveBar), which says where it stands.
-//
-//   const edits = new Edits();                       // the overlay's owner
-//   edits.watch(() => form);                         // the form, as it starts
-//   await edits.run(() => updateThing(form));         // its save: clean again, "Saved ✓ · just now"
-//   <Drawer {edits} …> {#snippet footer()}<SaveBar {edits} form="thing-form" />{/snippet}
-//
-// While any form is unsaved, leaving the page in the app asks the same question, and closing the tab asks the
-// browser's (beforeunload).
+// A Save form's unsaved and saved state (ADR 0065), held by whatever owns the form's overlay and shared with the form,
+// the overlay's ways out (lib/Drawer, lib/Sheet, lib/EditorPanel) and its footer (lib/SaveBar).
 import { untrack } from "svelte";
 import { saving } from "../app/backend.svelte";
 import { holdLeaving } from "../app/router.svelte";
@@ -20,6 +11,8 @@ const open = new Set<Edits>();
 /** The form with unsaved changes most recently opened, if any. */
 const unsaved = () => [...open].reverse().find((e) => e.dirty);
 
+// While any form is unsaved, leaving the page in the app asks the same question, and closing the tab asks the
+// browser's (beforeunload).
 if (typeof window !== "undefined") {
   addEventListener("beforeunload", (e) => {
     if (!unsaved()) return;
@@ -32,6 +25,15 @@ if (typeof window !== "undefined") {
   });
 }
 
+/**
+ * One form's edits: the form says what to compare (`watch`) and saves through `run`; the overlay's every way out asks
+ * `guard` first; its footer (lib/SaveBar) says where it stands.
+ *
+ *   const edits = new Edits();                       // the overlay's owner
+ *   edits.watch(() => form);                         // the form, as it starts
+ *   await edits.run(() => updateThing(form));         // its save: clean again, "Saved ✓ · just now"
+ *   <Drawer {edits} …> {#snippet footer()}<SaveBar {edits} form="thing-form" />{/snippet}
+ */
 export class Edits {
   /** What the form's values are now; null until a form is watched. */
   #read = $state.raw<(() => unknown) | null>(null);

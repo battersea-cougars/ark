@@ -1,8 +1,4 @@
-// Dues (apps/team/worker/dues/README.md): fees, charges and payments. A charge is one person for one session, tournament or quarter. Session
-// and tournament charges follow who came, so they're worked out again after anything that changes it (a tick on the
-// register, a sign-up, a cancellation) and each hour, when a new day makes another session due: whoever came and isn't
-// charged is, and an unpaid charge for someone who no longer counts goes. A paid one always stays. Quarterly Members
-// are charged the quarterly rate for each quarter a subscription covers; an admin can charge a quarter by hand.
+// Dues (apps/team/worker/dues/README.md): fees, charges and payments, and working out who's charged for what.
 import { all, batch, changesOf, first, run, statement, type Param } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { QUARTER, feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } from "../../src/lib/dues";
@@ -197,7 +193,7 @@ async function quarterCharges(
 }
 
 /**
- * Charges in line, as after anything that changes who owes what: the scope's (dues.scope.ts, #222), or every one.
+ * Charges in line, as after anything that changes who owes what: the scope's (dues.scope.ts), or every one.
  * Quarters first, since a quarter pays for its training nights. A few round trips, however many members, quarters and
  * nights (ADR 0003). Returns how many changed.
  */
@@ -319,7 +315,7 @@ export interface SeriesRef {
  * A training's fees, as its editor sends them: the whole list, each from a date. Only for whoever sets fees; anyone
  * else's save of the training leaves them as they are, and may not change them. Checked now, written later: the
  * statements that write them (none if they're left out or as they were) go in the batch that saves the training, so a
- * save refused for any field changes no fee, and a fee refused makes no training (#131). `id` null: a new training.
+ * save refused for any field changes no fee, and a fee refused makes no training. `id` null: a new training.
  */
 export async function seriesFeeChange(
   db: D1Database,
@@ -434,7 +430,7 @@ function credit(db: D1Database, memberId?: number): D1PreparedStatement[] {
   const who = memberId === undefined ? "" : "AND p.member_id = ?";
   const params = memberId === undefined ? [] : [memberId];
   // What's spent and paid is kept on each payment and charge (the schema's triggers), so these are found by index:
-  // only the payments with credit, and their members' charges with something left (#177)
+  // only the payments with credit, and their members' charges with something left
   const spare = `SELECT p.id, p.member_id, p.amount_pence - p.spent_pence spare
      FROM payments p WHERE p.spent_pence < p.amount_pence ${who}`;
   return [
@@ -565,7 +561,7 @@ export async function recordPayment(
 /**
  * One payment, received today, for what's left of each of these charges. The payment goes in only while every charge
  * still has just that left, and its allocations only with it: one batch, the check inside it (ADR 0003), so a double
- * tap, or two admins at once, record it once (#119). The second finds it paid and writes nothing.
+ * tap, or two admins at once, record it once. The second finds it paid and writes nothing.
  */
 async function pay(
   db: D1Database,

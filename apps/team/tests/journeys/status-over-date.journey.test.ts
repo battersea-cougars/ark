@@ -1,16 +1,6 @@
-// Status, not the date (ADR 0031, apps/team/worker/tournaments/README.md; #182): "status decides whether an event or game is past, on or next, never its
-// date or time" (the user, 2026-10-25). Three stories, both clocks moved (journey.ts `at`):
-//   a Kumite played early: set for Sat 12 Dec, played on Sat 5 Dec; Home, the calendar and its page all have it as
-//   played, the next one (Sat 16 Jan) as next, and on its own day it's still past;
-//   a training night not closed: past its end, its register still open, Home and its page stay on it till 06:00;
-//   a game running late: the January Kumite's first match, set for 7pm, starts at 7:45; till then it's the one up, and
-//   the one after doesn't become current; once it's over, the next one's up.
-// Ada runs it (an admin), Fay plays (in the Kumites and the training), Nell is in none of it.
-//
-// How each gets to the step under test is a shortcut, said so where it's taken: the Kumites, their teams and fixtures,
-// the training and Fay's answer are made through the API as the admin and Fay, and the matches kicked off and their
-// results put in through the API as the admin, at the moment the story's at. What's under test is what each person
-// sees. The Kumites are deleted at the end, so the club's left as it was.
+// Status, not the date (ADR 0031, apps/team/worker/tournaments/README.md): status decides whether an event or game is
+// past, on or next. A Kumite played early, a training night not closed, a game running late, with both clocks moved
+// (journey.ts `at`). Ada runs it (an admin), Fay plays, Nell is in none of it. The Kumites are deleted at the end.
 import type { Page } from "@playwright/test";
 import { asMember, at, checks, clubVia, does, expect, london, signIn, test, type Person } from "./support/journey";
 

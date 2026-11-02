@@ -67,7 +67,7 @@ export const NOW = new Date("2026-10-06T11:00:00Z");
 export const minutes = (n: number) => new Date(NOW.getTime() + n * 60_000);
 /**
  * A night's evening, 9pm London that day: when the register's taken. A past night's register closes at 6am the
- * morning after (lib/register-closes.ts, #11), so a story that ticks who came to last Friday ticks it then.
+ * morning after (lib/register-closes.ts), so a story that ticks who came to last Friday ticks it then.
  */
 export const onTheNight = (day: string) => new Date(londonISO(day, "21:00"));
 
@@ -97,7 +97,7 @@ export interface Reply {
   headers: Headers;
 }
 
-/** The bootstrap with every page's parts in place, as the app puts them together (#178). */
+/** The bootstrap with every page's parts in place, as the app puts them together. */
 export { wholeClub };
 
 /** The seeded luck of the last world that asked for it (luck()): a new world starts with the real thing. */
@@ -252,7 +252,7 @@ export function testWorld(roster: object[]) {
   }
 
   /**
-   * Web Push on (ADR 0108, #24): the club's VAPID key pair, and the browsers' push services. A test makes a browser's
+   * Web Push on (ADR 0108): the club's VAPID key pair, and the browsers' push services. A test makes a browser's
    * subscription with `subscription()` (its own key pair and secret, as a browser does); the fake push service takes
    * a send to it only with a VAPID signature that checks out for that service, opens the message with the browser's
    * key (RFC 8291, worked out here with node:crypto, apart from webpush.ts) and delivers it to `pushes`, unless the
@@ -495,7 +495,7 @@ export function testWorld(roster: object[]) {
   }
 
   /**
-   * Cloudflare Turnstile on (#13): the team app has a secret, and siteverify answers. A browser's widget gives
+   * Cloudflare Turnstile on: the team app has a secret, and siteverify answers. A browser's widget gives
    * `humanToken(action)`, which Cloudflare confirms for that action; any other token, or none, it says no to. `down`:
    * Cloudflare can't be reached. `asked`: each check, as Cloudflare got it.
    */
@@ -664,7 +664,7 @@ export function testWorld(roster: object[]) {
       // Like a real browser, a change carries the page's Origin
       const sent: Record<string, string | null> = {
         "content-type": "application/json",
-        // An app that's read every page (as it has, once it's idle, #178): a change sends back its parts of them too
+        // An app that's read every page (as it has, once it's idle): a change sends back its parts of them too
         [HOLDS_HEADER]: PAGE_PARTS.join(","),
         cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; "),
         ...(method === "GET" || method === "HEAD" ? {} : { origin: new URL(host).origin }),
@@ -699,7 +699,7 @@ export function testWorld(roster: object[]) {
       return { status: res.status, body: isJson ? await res.json() : {}, headers: res.headers, d1: spentBy.get(res)! };
     }
     /**
-     * The club as the app holds it once its pages are read (#178): the bootstrap, then every page's parts, put together
+     * The club as the app holds it once its pages are read: the bootstrap, then every page's parts, put together
      * as the app puts them (src/app/club-whole.ts). The bootstrap's own reply but for its body: its status (a 304, a
      * 401), headers and D1 calls, so what opening the app costs is still the bootstrap's.
      */
@@ -792,7 +792,7 @@ export function testWorld(roster: object[]) {
 }
 
 /**
- * A team's logo as its crest shows it: the club read sends its address (#175), or a small one itself (#177), read here and given back as the
+ * A team's logo as its crest shows it: the club read sends its address, or a small one itself, read here and given back as the
  * data: URL it was saved as, so a use case can say which image it is. Null for none.
  */
 export async function logoAt(
@@ -800,7 +800,7 @@ export async function logoAt(
   address: string | null,
 ): Promise<string | null> {
   if (address === null) return null;
-  // A small one comes as itself (#177)
+  // A small one comes as itself
   if (address.startsWith("data:")) return address;
   const res = await b.open("GET", address);
   if (!res.ok) throw new Error(`${address}: ${res.status}`);

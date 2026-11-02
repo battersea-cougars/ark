@@ -1,9 +1,7 @@
 <script lang="ts">
-  // Settings → Audit log (apps/team/worker/settings/README.md): the record of who changed what, and when. Sign-ins, every change made with more
-  // than being signed in (members, roles, money, training, the Kumite, the club's settings) and every request refused
-  // for want of an action, newest first, in plain words, a page at a time. A table like the app's others: a row per
-  // entry (when, what, its area), a search over who and what, and chips by area. Read when the page opens; Refresh
-  // reads it again.
+  // Settings → Audit log (apps/team/worker/settings/README.md): who changed what, and when, newest first, in plain words,
+  // a page at a time: sign-ins, every change made with more than being signed in, and every request refused for want
+  // of an action. A search over who and what, and chips by area.
   import { formatDayDate, formatTime, plural, pounds } from "../lib/dates";
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
@@ -99,7 +97,7 @@
       case "view_as.ended":
         return `${who} stopped viewing the app as ${about}`;
       case "member.added":
-        // Whether they were emailed the app link (#164); entries from before don't say
+        // Whether they were emailed the app link; entries from before don't say
         return `${who} added ${about} (${str(to?.email)})${to?.emailed === true ? ", and emailed them the app link" : to?.emailed === false ? ", without emailing them" : ""}`;
       case "member.app_link":
         return to?.emailed
@@ -163,7 +161,7 @@
       }
       case "settings.bank":
         return `${who} changed the club's bank details`;
-      // The reminder of next quarter's plan (#187): how many days before a quarter it goes ({ days })
+      // The reminder of next quarter's plan: how many days before a quarter it goes ({ days })
       case "settings.plan_reminder":
         return `${who} set the Quarterly reminder to ${plural(Number(to?.days ?? 0), "day")} before each quarter`;
       // The app told a Quarterly Member next quarter's fee is due ({ memberId, quarter, via: push or email })
@@ -198,10 +196,10 @@
         return to?.result === "sent"
           ? `${who} sent a test email to ${str(to?.to)}`
           : `${who} tried a test email to ${str(to?.to)}: ${TEST_RESULT[str(to?.result)] ?? "it didn't go"}`;
-      // Settings → Website (#107): Rebuild now, when GitHub was asked
+      // Settings → Website: Rebuild now, when GitHub was asked
       case "website.rebuilt":
         return `${who} rebuilt the website`;
-      // Refresh photos and videos (#109)
+      // Refresh photos and videos
       case "website.media_refreshed":
         return `${who} refreshed the website's photos and videos`;
       case "tournament.deleted":
@@ -280,7 +278,7 @@
       case "draft.finished":
         return `${who} closed the draft for ${str(to?.name)}: ${count(to?.games, "match", "matches")} on the Fight Card`;
       case "game.keeper_changed":
-        // An admin's say over someone's scoresheet (#116): taken over, or freed
+        // An admin's say over someone's scoresheet: taken over, or freed
         return to?.keeper
           ? `${who} took over scoring Game ${Number(to.game)}${from?.keeper ? ` from ${str(from.keeper)}` : ""}`
           : `${who} freed Game ${Number(from?.game)}'s scoresheet${from?.keeper ? ` from ${str(from.keeper)}` : ""}`;
@@ -323,7 +321,7 @@
         return `${who} made the fight card: ${Number(to?.games ?? 0)} games`;
       case "team.players":
         return `${who} changed a tournament team's players`;
-      // Someone not its captain (an admin) changed a team's look (#201): its name, its crest, or both
+      // Someone not its captain (an admin) changed a team's look: its name, its crest, or both
       case "team.look": {
         const renamed = from?.name !== to?.name;
         const recrested = from?.crest !== to?.crest;
@@ -342,7 +340,7 @@
   const notable = (e: Entry) =>
     ["refused", "sign_in.capped", "tournament.deleted", "session.reset", "draft.reset"].includes(e.action);
 
-  // Areas, to read one part of the club's record at a time (#80): by the event's name, each with its chip's icon
+  // Areas, to read one part of the club's record at a time: by the event's name, each with its chip's icon
   const AREAS = [
     ["Members", "user"],
     ["Money", "pound"],

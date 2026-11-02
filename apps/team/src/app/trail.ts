@@ -1,4 +1,4 @@
-// The pages you came through, in the app (#86): each one opened from another is pushed, and Back walks it back, so a
+// The pages you came through, in the app: each one opened from another is pushed, and Back walks it back, so a
 // team opened from The board goes back to The board, and a matchup opened from that team goes back to the team, then
 // the board. Kept beside the browser's own history, which can't be read; a reload starts it again (empty: Back goes to
 // the page's section instead).

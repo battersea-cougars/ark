@@ -1,9 +1,5 @@
-// Who won a tournament's awards (apps/team/worker/tournaments/README.md). The awards themselves are the tournament's (copied from its series, ADR
-// 0044, 0049), each saying how it's decided (lib/awards.ts); this is who took each one home: a team (Champions) or a
-// player on one of its teams. At the after-party (apps/team/worker/tournaments/README.md) there are two steps. First the awards are confirmed:
-// from the last match till then, everyone who played votes for the voted ones; the admin checks the stats and draws,
-// chooses where a vote's level, and makes the judges' call (its name tonight and who); confirming counts the votes,
-// closes voting and sets every winner at once. Then the reveal: one award at a time, in the order listed.
+// Who won a tournament's awards (apps/team/worker/tournaments/README.md): a team or one of its players for each
+// award. At the after-party they're confirmed (votes counted, every winner set at once), then revealed one at a time.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
 import { HttpError, int, objectsIn, text } from "../api/api.http";

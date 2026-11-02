@@ -1,19 +1,17 @@
 #!/usr/bin/env node
-// The team app behind Cloudflare Access until launch (ADR 0010): team. asks for an email and a one-time code (the
-// website, batterseacougars.com and www., has been open since 2026-10-30), and let in only the emails on the Admins policy (managed in the dashboard; a first run starts it
-// from the admins in the production roster, TEAM_ROSTER, ADR 0029), plus CI's service token for the deploy's smoke
-// tests. The team app's health check, which the down alerts read (ADR 0110), is open. Safe to run again: it finds what's there by
-// name and puts it right. The service token's ID and secret go straight into Secrets Manager
-// (CF_ACCESS_CLIENT_ID/SECRET__PRODUCTION); nothing is printed.
+// The team app behind Cloudflare Access until launch (ADR 0010): team. asks for an email and a one-time code and lets
+// in only the emails on the Admins policy, plus CI's service token for the deploy's smoke tests. Safe to run again: it
+// finds what's there by name and puts it right. The service token goes straight into Secrets Manager, never printed.
 //   node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs
 // At launch: node scripts/env-pull.mjs --environment production -- node scripts/access-setup.mjs --remove
 // Needs CLOUDFLARE_API_TOKEN__PRODUCTION with Access: Identity Providers, Apps, Policies and Service Tokens Write.
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const ZONE = "batterseacougars.com";
-// The website is open (2026-10-30); only the team app waits for its launch
+// Only the team app is gated: the website is public
 const HOSTS = [`team.${ZONE}`];
 const APP = "Cougars before launch";
+// Managed in the dashboard; a first run starts it from the admins in the production roster (TEAM_ROSTER, ADR 0029)
 const ADMINS = "Admins (production roster)";
 const CI = "CI smoke tests";
 // The down alerts' health check (ADR 0110) goes round the gate: this path only, which says nothing but "ok"

@@ -1,6 +1,5 @@
-// The after-party's reveals reach every phone in the room with nothing read (ADR 0053; the tournament notes): the drum
-// travels with the hub's event, and a winner still sealed never does. Through the real Worker and the real hub, phones
-// holding the app's own copy of the club (src/app/catch-up.ts).
+// The after-party's reveals reach every phone with nothing read (ADR 0053): the drum travels with the hub's event,
+// and a winner still sealed never does. Through the real Worker and the real hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { EVENING, ROSTER, kumiteNight } from "../tournaments/awards.testing";

@@ -1,6 +1,5 @@
-// The club's agenda (ADR 0016): one list of what's on and when, which every part of the club pushes to when it
-// changes (trainings, tournaments with their draft night and sign-up deadline, one-off events). The website's What's
-// on and the app's calendar both read it, so they can't disagree. Driven through the real Worker handlers.
+// The club's agenda (ADR 0016): the one list of what's on that every part of the club pushes to, and the website's
+// What's on and the app's calendar both read. Driven through the real Worker handlers.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { whatsOn, ALL_LIMITS } from "../../../web/src/lib/server/whats-on";
 import { NOW, testWorld } from "../testing";

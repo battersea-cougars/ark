@@ -1,10 +1,6 @@
-// Home's feed (apps/team/src/pages/README.md). Home is a feed: the club's next event is the hero, whatever kind it is, and your part in it
-// is shown on its card (playing in it: your match; in, waiting, or may sign up: In and Out; not in it: You're out). Then what's coming up
-// after it, in date order and capped, with "See the calendar". Then what needs you (a captain's draft, the draft
-// being on, the teams being out, a sign-up closing you haven't answered), and under "For admins", only for whoever
-// they're for, the email having stopped, running the draft, someone asking to join, what the club is owed and a free limit getting close
-// (lib/usage-near.ts). What you owe is Home's foot (owedNotice), and a loud icon in its header while some of it is
-// overdue (lib/dues.ts overdue).
+// Home's feed (apps/team/src/pages/README.md): the club's next event as the hero, your part on its card; what's coming
+// up after it; what needs you; the admins' lines; and what you owe at its foot (owedNotice), with a loud icon in its
+// header while some is overdue.
 import type { AgendaRow, Bookable, Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { dateBadge, formatDayDate, formatTime, londonISO, londonToday, ordinal, pounds, timeRange } from "./dates";
 import { draftTurn } from "./draft";
@@ -161,7 +157,6 @@ export const AHEAD_DAYS = 42;
 /** At most this many upcoming rows: then "See the calendar". */
 export const UPCOMING_MAX = 7;
 
-/** The feed: what needs you now (your move first), what's coming up, then the admins' lines. */
 /** Asking you to answer: the Kumite's an invitation to accept (invitationOnly), the rest ask plainly. */
 const asked = (invited: boolean) => (invited ? "Accept the invitation" : "Are you in?");
 
@@ -175,6 +170,12 @@ export function tournamentTitle(type: Pick<TournamentType, "slug" | "shortName">
     : `Are you in for the ${type.shortName}?`;
 }
 
+/**
+ * The feed: the hero, what's coming up after it (in date order and capped, with "See the calendar"), what needs you (a
+ * captain's draft, the draft being on, the teams being out, a sign-up closing you haven't answered; your move first),
+ * then under "For admins", only for whoever they're for: the email having stopped, running the draft, someone asking to
+ * join, what the club is owed and a free limit getting close (lib/usage-near.ts).
+ */
 export function homeFeed(input: FeedInput): Feed {
   const rows = [...liveDrafts(input), ...draftNews(input), ...agendaNudges(input)].sort(
     (a, b) => Number(b.hot) - Number(a.hot),
@@ -272,7 +273,7 @@ export function whenSaid(startsAt: string, today: string): string {
 }
 
 const dayOf = (iso: string) => londonToday(new Date(iso));
-/** Past by its status (apps/team/worker/tournaments/README.md, #182); only an event with none goes by its end. */
+/** Past by its status (apps/team/worker/tournaments/README.md); only an event with none goes by its end. */
 const isPast = (event: UpcomingEvent, nowMs: number) =>
   event.phase ? event.phase === "past" : Date.parse(event.endsAt) <= nowMs;
 const plusDays = (day: string, n: number) =>
@@ -290,7 +291,7 @@ const fightAt = ({ t, game }: Fight) => londonISO(t.heldOn, kickOff(t.startTime,
  * sign-up): it still leads, its card saying where you stand, and so does one you've said you're out of (its card shows
  * your Out, and In is still there). The evening a tournament ends, its after-party: it's on now. The soonest leads, and at the same moment a match, then a draft, then the
  * schedule's order; what's on now (a tournament under way before its day) counts as now. A cancelled one, one with no
- * day yet, or one that's past never does: past by its status, not its time (lib/phase.ts, #182), so a night past its
+ * day yet, or one that's past never does: past by its status, not its time (lib/phase.ts), so a night past its
  * end is still the one till its register closes, and a Kumite whose day went by unplayed is still next. The one Home
  * pinned this visit stays while it's still on, so nothing swaps under your thumb.
  */
@@ -341,7 +342,7 @@ function upcomingRows(input: FeedInput, lead: Lead | null, fights: Fight[]): Upc
           : [];
   const until = plusDays(today, AHEAD_DAYS);
   const seen = new Set<string>();
-  // Not past by its status (#182); one with none, from today
+  // Not past by its status; one with none, from today
   const sorted = events
     .filter((e) => (e.phase ? !isPast(e, nowMs) : dayOf(e.startsAt) >= today))
     .sort((a, b) => Number(!!a.season) - Number(!!b.season) || a.startsAt.localeCompare(b.startsAt));
@@ -405,7 +406,7 @@ function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDra
     .flatMap((r): FeedItem[] => {
       const t = tournaments.find((x) => x.id === r.sourceId);
       const type = t && types.find((y) => y.id === t.typeId);
-      // Played (early, maybe: its reminders' days still ahead), it's past (#182)
+      // Played (early, maybe: its reminders' days still ahead), it's past
       if (!t || !type || tournamentPhase(t) === "past") return [];
       // The day is the row's date block; the line says the time, if it has one
       const on = { at: r.startsAt };

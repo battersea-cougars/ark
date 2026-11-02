@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A Save form's footer (ADR 0065), in every drawer, sheet and editor panel with a Save: where it stands on the left,
-  // Save on the right. Unsaved: a dot and "Unsaved changes", and Save is the main button. Clean: Save is quiet and
-  // off, and it says "Saved ✓ · just now" once saved (or "No changes"). Closing with changes: "Discard your changes?",
-  // Keep editing or Discard, in the same place. The line is always there and only its words change, so nothing moves.
+  // A Save form's footer (ADR 0065), in every drawer, sheet and editor panel with a Save: where it stands on the left
+  // (Unsaved changes, Saved ✓, or Discard your changes?), Save on the right. The line is always there and only its words
+  // change, so nothing moves.
   import { onMount, type Snippet } from "svelte";
   import type { Edits } from "./dirty.svelte";
   import { canSave, footNote } from "./dirty";

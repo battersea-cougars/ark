@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 // Sign in to the team app on your own machine without a code (ADR 0023), for tests, scripts and agents driving a
-// headless browser. Writes a Playwright storage state, so a browser opens already signed in. It never prints the
-// session's cookie, which would land in a terminal's or an agent's transcript: scripts read the storage state.
-// Only your own dev server answers it (TEAM_ENV "local", a private address); a deployed one says 404.
+// headless browser: writes a Playwright storage state, never prints the session's cookie. Only a local dev server
+// answers it; a deployed one says 404. Every run is a new session, so it never touches the one in your browser.
 //
 //   node scripts/dev-sign-in.mjs                          the first admin
 //   node scripts/dev-sign-in.mjs reg@example.com          any active member
 //   node scripts/dev-sign-in.mjs --url http://localhost:4510 --out .auth/team.json
 //   node scripts/dev-sign-in.mjs --port 43273             a checkout's own team app (npm run app -- --private)
 //
-// Then, in Playwright: browser.newContext({ storageState: ".auth/team.json" }). Every run is a new session of its
-// own, so it never touches the one in your browser.
+// Then, in Playwright: browser.newContext({ storageState: ".auth/team.json" }).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 

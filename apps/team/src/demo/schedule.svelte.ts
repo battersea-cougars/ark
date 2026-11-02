@@ -73,7 +73,7 @@ export function sessionBookable(session: TrainingSession): Bookable {
   const opensOn = nightOpensOn(r.heldOn, r.series.signupOpensDays);
   const opens =
     opensOn && !nightOpen(r.heldOn, r.series.signupOpensDays, today) ? opensWords(opensOn, today, true) : undefined;
-  // Once it's started, who's in is the register's (apps/team/worker/training/README.md, #167): the server refuses a member's own In or Out
+  // Once it's started, who's in is the register's (apps/team/worker/training/README.md): the server refuses a member's own In or Out
   const startsAt = londonISO(r.heldOn, r.startTime);
   const endsAt = londonISO(r.heldOn, r.endTime);
   const started = !r.cancelled && Date.now() >= Date.parse(startsAt);
@@ -89,7 +89,7 @@ export function sessionBookable(session: TrainingSession): Bookable {
     ...where(r.place),
     signup: !r.cancelled,
     started,
-    // Over, then (06:00 the morning after, #11) the register's closed: what it says is the record
+    // Over, then (06:00 the morning after) the register's closed: what it says is the record
     startedWords: !started
       ? undefined
       : registerClosed(r.heldOn)
@@ -222,7 +222,7 @@ function reminderBookable(row: AgendaRow, t: Tournament): Bookable {
 /**
  * Everything not past, in date order, as the club's agenda has it (ADR 0016): the server sends what's on (and a draft
  * night only for its captains); each one's sign-up and whether it's past comes from its session, tournament or event,
- * by its status, never its date (lib/phase.ts, #182): a Kumite played early isn't on it, one whose day went by unplayed
+ * by its status, never its date (lib/phase.ts): a Kumite played early isn't on it, one whose day went by unplayed
  * still is, and so is last night's training till its register closes.
  */
 export function calendar(): Bookable[] {

@@ -1,9 +1,6 @@
-// Talking to the team app's Worker (apps/team/worker/api/api.ts). Every change goes to D1 first; its reply carries the
-// parts of the club it touched (`changed`), which replace those parts of the app's working copy
-// (demo/store.svelte.ts), so what you see is what's stored. Screens change the copy at once for a quick answer, then
-// the reply brings back what the server decided (the waitlist, say). The whole club is read when the app opens, when
-// it comes back into view (only if something changed, ADR 0053), and after a failed change; a live page reads just
-// the parts the hub says changed, or puts in place the live match it sent (`copy`, catch-up.ts, ADR 0053).
+// Talking to the team app's Worker (apps/team/worker/api/api.ts). Every change goes to D1 first, and its reply's
+// `changed` parts replace those in the app's working copy (demo/store.svelte.ts), so what you see is what's stored;
+// screens change the copy at once for a quick answer, and the reply brings back what the server decided.
 import type { MemberRow, Role } from "../demo/data";
 import { tournamentBody } from "../lib/tournament-body";
 import {
@@ -56,7 +53,7 @@ const COPY: Record<keyof Slices, () => void> = {
     db.members = structuredClone(MEMBERS);
   },
   // Home's people and the roster are one list in the store (demo/data.ts), as are the nights, the tournaments and
-  // what's owed (#178)
+  // what's owed
   people: () => COPY.members(),
   roles: () => {
     db.roles = structuredClone(ROLES);
@@ -127,7 +124,7 @@ function apply(changed: Slices) {
 }
 
 /**
- * The core in place, and the data version it's at (#178). The pages' parts held were read before it: when the club
+ * The core in place, and the data version it's at. The pages' parts held were read before it: when the club
  * has changed since, they're asked about again with their tags (unchanged, an empty 304).
  */
 function whole(b: Bootstrap) {
@@ -166,20 +163,20 @@ export const copy = new ClubCopy({
   // Refused, offline or resting isn't reported; anything else is ours to hear of
   failed: (e) => reportUnexpected(e, "Couldn't catch up with the club's changes"),
   apply: (slices) => apply(slices as Slices),
-  // A live match the hub sent (#161): its games in place of the tournament's
+  // A live match the hub sent: its games in place of the tournament's
   applyMatch: (match) => {
     const tournaments = withMatch(TOURNAMENTS, match);
     if (tournaments) apply({ tournaments } as Slices);
     return Boolean(tournaments);
   },
-  // The after-party's drum (#224): an award turned over, or rolled on to the next
+  // The after-party's drum: an award turned over, or rolled on to the next
   applyAwards: (awards) => {
     const tournaments = withAwards(TOURNAMENTS, awards);
     if (tournaments) apply({ tournaments } as Slices);
     return Boolean(tournaments);
   },
   visible: () => document.visibilityState === "visible",
-  // A family's parts the app holds: the core's, and the pages' it's read (#178)
+  // A family's parts the app holds: the core's, and the pages' it's read
   partsOf: (families) => partsChanged(families, held.parts(), seesDues()),
   // ...and a page's that changed while no page in view shows it: read again when one opens
   letGo,
@@ -191,7 +188,10 @@ export function start(b: Bootstrap) {
   checked.at = Date.now();
 }
 
-/** Reload the whole club into the app. */
+/**
+ * Reload the whole club into the app: when the app opens, when it comes back into view (only if something changed,
+ * refreshIfChanged), and after a failed change. A live page reads just the parts the hub says changed (catch-up.ts).
+ */
 export async function refresh() {
   whole(await getBootstrap());
   checked.at = Date.now();
@@ -357,7 +357,7 @@ export const attendanceOf = (memberId: number, year?: string) =>
 export const saveSettings = (settings: { liveRefreshSeconds: number }) =>
   save(() => api("PUT", "/api/settings", settings));
 
-/** Home's announcements (#85): post one, take one down, or say "Got it" to one (for yourself). */
+/** Home's announcements: post one, take one down, or say "Got it" to one (for yourself). */
 export const postAnnouncement = (a: { title: string; body: string; link: string; endsOn: string }) =>
   save(() => api<{ id: number }>("POST", "/api/announcements", a), "Posted");
 export const removeAnnouncement = (id: number) => save(() => api("DELETE", `/api/announcements/${id}`), "Taken down");
@@ -401,7 +401,7 @@ export const markHere = async (sessionId: number, memberId: number, here: boolea
 export const markAttendance = (memberId: number, marks: { sessionId: number; here: boolean }[]) =>
   save(() => api("PUT", `/api/members/${memberId}/attendance`, { marks }), "");
 
-/** An admin adds someone to the club; the app emails them a link to itself unless asked not to (apps/team/worker/members/README.md, #164). */
+/** An admin adds someone to the club; the app emails them a link to itself unless asked not to (apps/team/worker/members/README.md). */
 export const addMember = async (name: string, email: string, position: string, emailThem = true) => {
   const r = await save(
     () => api<{ id: number; emailed: boolean }>("POST", "/api/members", { name, email, position, emailThem }),
@@ -420,7 +420,7 @@ export const addMember = async (name: string, email: string, position: string, e
   return r;
 };
 
-/** An admin emails a member the link to the app after all (#164): someone added quietly, or whose email went astray. */
+/** An admin emails a member the link to the app after all: someone added quietly, or whose email went astray. */
 export const sendAppLink = async (memberId: number, name: string) => {
   const r = await save(() => api<{ emailed: boolean }>("POST", `/api/members/${memberId}/app-link`), "");
   if (r)
@@ -472,11 +472,11 @@ export const saveMember = (m: MemberRow) =>
     }),
   );
 
-/** An admin deletes the account of a member who asked (#30): the server keeps only what the club must, unnamed. */
+/** An admin deletes the account of a member who asked: the server keeps only what the club must, unnamed. */
 export const eraseMember = (memberId: number) =>
   save(() => api("DELETE", `/api/members/${memberId}`), "Account deleted");
 
-/** An admin signs a member out on every browser and phone (#72): they sign in again with a code. */
+/** An admin signs a member out on every browser and phone: they sign in again with a code. */
 export const signOutMember = (memberId: number) =>
   save(() => api("POST", `/api/members/${memberId}/sign-out`), "Signed out everywhere");
 
@@ -584,7 +584,7 @@ export const updateSeries = (s: TrainingSeries, clashes?: string[]) =>
   save(() => api("PUT", `/api/series/${s.id}`, { ...seriesBody(s), clashes }));
 /** The next 12 weeks of a training's sessions, past the last one made. */
 export const moreSessions = (seriesId: number) => save(() => api("POST", `/api/series/${seriesId}/more`), "");
-/** A night off (by hand, or for a tournament on its day: #186) or back on, whatever kept it off. */
+/** A night off (by hand, or for a tournament on its day) or back on, whatever kept it off. */
 export const setCancelled = (sessionId: number, cancelled: boolean, tournamentId?: number) =>
   save(
     () => api("POST", `/api/sessions/${sessionId}/cancelled`, { cancelled, tournamentId }),
@@ -681,7 +681,7 @@ export const holdScoresheet = (tournamentId: number, gameId: number, action: "cl
     action === "claim" ? "You're keeping score" : "Scoresheet's free",
   );
 /**
- * An admin's say over someone's scoresheet (#116): take it over (theirs from where the game is), or free it, from
+ * An admin's say over someone's scoresheet: take it over (theirs from where the game is), or free it, from
  * whoever their page saw holding it.
  */
 export const overrideScoresheet = (
@@ -734,7 +734,7 @@ export const setGameClock = (tournamentId: number, gameId: number, leftMs: numbe
   save(() => api("POST", `${gamePath(tournamentId, gameId)}/clock`, { action: "set", leftMs }), "Clock set");
 /**
  * A goal as it goes in: its team, who scored, who assisted. The tap's id is made here, as the button's pressed, so the
- * same tap sent twice (another phone, a retry) is one goal (#114).
+ * same tap sent twice (another phone, a retry) is one goal.
  */
 export const addGoal = (
   tournamentId: number,
@@ -753,12 +753,12 @@ export const addGoal = (
 /** Any goal off a finished game: an admin putting the result right. */
 export const removeGoal = (tournamentId: number, gameId: number, goalId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/${goalId}`), "Goal taken off");
-/** The last goal comes off: the one the page shows as last, so Undo tapped twice takes it off once (#114). */
+/** The last goal comes off: the one the page shows as last, so Undo tapped twice takes it off once. */
 export const undoGoal = (tournamentId: number, gameId: number, goalId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/goals/last?goal=${goalId}`), "Goal taken back");
 /**
  * A penalty as it's called (or, for an admin after the game, at the time they say): team, who, minutes, what for. Its
- * tap's id as for a goal (#114).
+ * tap's id as for a goal.
  */
 export const addPenalty = (
   tournamentId: number,
@@ -778,7 +778,7 @@ export const addPenalty = (
 /** Any penalty off a finished game: an admin putting it right. */
 export const removePenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
   save(() => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/${penaltyId}`), "Penalty taken off");
-/** The last penalty comes off: the one the page shows as last (#114). */
+/** The last penalty comes off: the one the page shows as last. */
 export const undoPenalty = (tournamentId: number, gameId: number, penaltyId: number) =>
   save(
     () => api("DELETE", `${gamePath(tournamentId, gameId)}/penalties/last?penalty=${penaltyId}`),

@@ -1,5 +1,5 @@
-// A tournament's results (ADR 0016, apps/team/worker/tournaments/README.md): the table, the champions and whether it's done. One set of rules for
-// the team app's Worker and pages and the website's results, so they can't disagree.
+// A tournament's results (ADR 0016, apps/team/worker/tournaments/README.md): the table, the champions and whether
+// it's done. One set of rules for the team app and the website's results, so they can't disagree.
 
 /** Done, by its games more than its settings: an admin marked it finished, or every game's been played. */
 export const isDone = (status: string, games: { status?: string }[]) =>
@@ -7,7 +7,7 @@ export const isDone = (status: string, games: { status?: string }[]) =>
 
 /**
  * The same, in SQL, for the Worker and the website: `t`, the tournament's alias. Done is past, whatever its date says
- * (apps/team/worker/tournaments/README.md, #182): a Kumite played early is history on its pages, Home and What's on alike.
+ * (apps/team/worker/tournaments/README.md): a Kumite played early is history on its pages, Home and What's on alike.
  */
 export const doneSql = (t: string) =>
   `(${t}.status = 'finished' OR (EXISTS (SELECT 1 FROM tournament_games g WHERE g.tournament_id = ${t}.id)

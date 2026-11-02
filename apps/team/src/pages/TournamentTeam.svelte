@@ -69,7 +69,7 @@
   <TournamentHead {type} {tournament} title={mine || !teamId ? "My team" : "Team"} back={{ href: edition }} />
 
   {#if waiting}
-    <!-- Its tournament on its way (#175): the room the page takes -->
+    <!-- Its tournament on its way: the room the page takes -->
     <div class="waiting" aria-busy="true" aria-label="Loading"></div>
   {:else if !tournament || !team}
     <EmptyState icon="teams" title={teamId ? "Not found" : "No team yet"}>
@@ -93,7 +93,7 @@
       <div class="who">
         <h2 class="display">{team.name || fallback}</h2>
         <p class="hint">
-          <!-- A team whose captain's gone (an account deleted, #160) keeps its place: an admin names another -->
+          <!-- A team whose captain's gone (an account deleted) keeps its place: an admin names another -->
           {#if captain}Captain {goesByOf(captain)}{isCaptain ? " (you)" : ""}{:else}No captain{admin
               ? ": name one"
               : " yet"}{/if}{#if !drafting}&nbsp;· {team.players.length + (captain ? 1 : 0)}

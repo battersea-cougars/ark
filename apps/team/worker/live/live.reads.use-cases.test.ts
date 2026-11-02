@@ -1,7 +1,5 @@
-// What a live page reads when the hub says something changed (ADR 0053, #112): D1's rows read are the free day's
-// limit a busy evening passes, so a burst of changes is one read on each phone, and a read is only the parts the
-// changes named, not the whole club. Phones here hold the app's own copy of the club (src/app/catch-up.ts), reading
-// through the real Worker, their streams from the real hub.
+// What a live page reads when the hub says something changed (ADR 0053): a burst of changes is one read on each
+// phone, of only the parts the changes named. Through the real Worker and the real hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { phoneOn as livePhone } from "./live.testing";
@@ -76,8 +74,8 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     expect((await mo.change("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
     // An answer moves nothing on the calendar, so the agenda isn't read again (api.route.ts `calendar`)
-    // Tonight's nights, not the weeks just held (#178); your own dues line (a member sees no one else's, nor the
-    // club's total), but not the charges: Friday's still to come, so it charges nobody yet (#148); and Home's people,
+    // Tonight's nights, not the weeks just held; your own dues line (a member sees no one else's, nor the
+    // club's total), but not the charges: Friday's still to come, so it charges nobody yet; and Home's people,
     // since it was Mo's first answer
     expect(reg.asked.slice(1)).toEqual(["parts: sessions, dues, people"]);
     expect(reg.club().sessions.find((s: Json) => s.id === f.session.id).going).toHaveLength(1);
@@ -196,7 +194,7 @@ describe("the hub, in a burst", () => {
     const versions = [...first.data.versions, ...second.data.versions];
     expect(versions).toHaveLength(6);
     expect(new Set(versions).size).toBe(6);
-    // A training answer names tonight's nights alone (#178)
+    // A training answer names tonight's nights alone
     expect(second.data.changed).toContain("tonight");
     expect(first.data.versions.length + second.data.versions.length).toBe(6);
     await reg.close();

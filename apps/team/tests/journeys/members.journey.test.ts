@@ -1,13 +1,6 @@
-// Members: added, changed, given roles, and gone (ADRs 0024, 0029, 0031, apps/team/worker/members/README.md). Ada, an admin, adds someone from The
-// club and changes their name, email and position on their card; adds another quietly, with the email switch off, and
-// sends them the app link from their card later (#164); makes Mo a Session lead, and Mo has the night's jobs
-// (Make teams, Add player) till she takes it away; can't make herself a Member, as she's the last admin. Rae deletes
-// her own account from her You page, can't sign in again, and is gone from the club's lists. Hal, a plain member,
-// can't open Settings → Members. Ada views the app as Hal (#40): the server answers as Hal through a reload, refuses
-// a change, and she goes back to herself from the banner, all on the record. The Roles page shows what a role can do.
-//
-// The member Ada adds is new every run (their email has the time in it). Rae can leave only once a database: on one a
-// run has been through already she's gone, and her step says so (a note on it) and checks only that she stays gone.
+// Members: added, changed, given roles, and gone (ADRs 0024, 0029, 0031, apps/team/worker/members/README.md). Ada, an
+// admin, adds and changes members, gives and takes a role, views the app as Hal; Rae deletes her own account; Hal, a
+// plain member, can't open Settings → Members. The member Ada adds is new every run; Rae can leave only once a database.
 import type { Locator } from "@playwright/test";
 import { asMember, clubVia, checks, does, expect, expectRefusal, signIn, test, type Person } from "./support/journey";
 

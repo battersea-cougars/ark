@@ -1,33 +1,17 @@
-// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0053, #112), at the least cost
-// in D1's rows read: the free day's limit a busy evening passes when every phone reads the whole club for every change.
-//
-// The club's data version goes up by one with every change, and each of the hub's events names the parts that changed
-// and the versions they came with. The copy knows the version it holds all of (`held`), and so which parts it lacks:
-// on an event naming a part a page follows, it reads just the parts it lacks (`/api/slices`), not the whole club. A
-// version it never heard of (a change that told nobody, a stream that dropped) leaves it short, and the next whole
-// check reads the club; a whole check at the version held is a 304.
-//
-// A live match comes with its event (#161): it's the same for every member, so the Worker builds it once and the hub
-// sends it along. So does the after-party's drum (#224): an award turned over, or rolled on to the next, with the
-// winners out (never one still sealed). A copy that holds the version just before puts it in place as it is, and
-// reads nothing; any other copy reads as the names say, so a missed event costs a read, never a wrong screen.
-//
-// One read at a time, after a short random wait, so a burst of events is one read, and 120 phones don't all ask in
-// the same instant. Nothing while the page is out of view: coming back checks the whole club anyway.
-//
-// The hub names families (`members`, `sessions`: club-parts.ts); the copy counts in the parts it holds: the core's,
-// and those of the pages' it's read (#178). A page's part it doesn't hold is read fresh when a page wants it.
+// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0053), at the least cost in D1
+// rows read: the copy knows the data version it holds all of (`held`) and reads only the parts a page follows that it
+// lacks; a live match or the after-party's drum the hub sent goes in place without a read.
 //
 // No imports, and only what Node can run as it is: the load runs' phones use this too (scripts/load/load.client.mjs).
 
-/** A live match as the hub sends it (#161): a tournament's games, as every member sees them. */
+/** A live match as the hub sends it: a tournament's games, as every member sees them. */
 export interface PushedMatch {
   tournamentId: number;
   games: unknown[];
 }
 
 /**
- * The after-party's drum as the hub sends it (#224): how many awards are out, whether it's rolled on to the next
+ * The after-party's drum as the hub sends it: how many awards are out, whether it's rolled on to the next
  * (sealed), and the winners out so far, as every member sees them on the evening (none still sealed).
  */
 export interface PushedAwards {
@@ -98,21 +82,24 @@ export interface CopyIO {
   applyMatch?(match: PushedMatch): boolean;
   /** Put the drum the hub sent in place (`withAwards`); false: no such tournament. None: always read. */
   applyAwards?(awards: PushedAwards): boolean;
-  /** Whether the page is in view. */
+  /** Whether the page is in view: nothing is read while it isn't, as coming back checks the whole club anyway. */
   visible(): boolean;
   /**
-   * The parts the copy holds of these families (club-parts.ts partsChanged, #178): the core's, and the pages' it's
+   * The parts the copy holds of these families (club-parts.ts partsChanged): the core's, and the pages' it's
    * read. None said, a family is a part of its own.
    */
   partsOf?(families: readonly string[]): string[];
   /**
    * Of these changed parts, the ones the app lets go rather than read now: a page's, held but shown by no page in
-   * view (#178). The app reads them again when a page that shows them opens; the copy stops counting them.
+   * view. The app reads them again when a page that shows them opens; the copy stops counting them.
    */
   letGo?(parts: readonly string[]): readonly string[];
   /** A read or its parts that failed: the page's beat catches up, so this only hears of it. */
   failed?(error: unknown): void;
-  /** The longest random wait before a read, in ms. */
+  /**
+   * The longest random wait before a read, in ms: one read at a time, after a short random wait, so a burst of events is
+   * one read and 120 phones don't all ask in the same instant.
+   */
   waitMs?: number;
   random?: () => number;
 }

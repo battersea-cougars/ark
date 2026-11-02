@@ -1,8 +1,5 @@
-// The club's photos: its Instagram posts, read live (ADR 0016). Admins post on Instagram; the website shows the newest,
-// within ten minutes. Read through Meta's Graph API with the club's token (instagram-env.ts), behind a circuit
-// breaker (ADR 0055) and cached (ADR 0053): fresh for ten minutes, the last good copy for three days if Instagram
-// fails. Pictures are served through our own Worker (/api/photos/<id>): Instagram's addresses expire, and visitors'
-// browsers never contact Meta. Before the club connects its account, a sample feed stands in outside production.
+// The club's photos: its Instagram posts, read live through Meta's Graph API (ADR 0016), behind a circuit breaker
+// (ADR 0055) and cached (ADR 0053). Before the club connects its account, a sample feed stands in outside production.
 import { HttpFailure, QuotaError, guard, logFailure } from "@cougars/shared/breaker";
 import { scribe } from "@cougars/shared/scribe";
 import { cached, type CacheDeps, type CacheOptions } from "./cache";
@@ -15,7 +12,8 @@ const log = scribe.logger("instagram");
 /** One photo: a post's, or one of a post with several. Videos aren't here: the website can't play them. */
 export interface Post {
   id: string;
-  /** The picture: our own address for it, or the sample's */
+  /** The picture: our own address for it (/api/photos/<id>: Instagram's expire, and visitors never contact Meta),
+   * or the sample's */
   image: string;
   caption: string | null;
   /** The caption's first sentence, else a plain description */
@@ -44,6 +42,7 @@ type Deps = CacheDeps & { fetch?: typeof globalThis.fetch };
 const API = "https://graph.facebook.com/v23.0";
 /** As many photos as /photos/ shows; the home page takes the first twelve */
 export const FEED_SIZE = 48;
+// Fresh for ten minutes, so a post shows within ten; the last good copy for three days if Instagram fails
 export const INSTAGRAM_CACHE: CacheOptions = { ttlMs: 10 * 60_000, staleMs: 3 * 24 * 60 * 60_000 };
 const TIMEOUT_MS = 8000;
 /**

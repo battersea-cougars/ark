@@ -1,8 +1,5 @@
-// The apps' recent errors, from Sentry (ADR 0110): Settings → Errors shows whoever may read them (`read:Errors`;
-// admins through `manage:all`) each project's open issues in this environment, newest first, each linking to Sentry.
-// Read by the Worker with a read-only token, SENTRY_ISSUES_TOKEN (Issue & Event: Read), never the deploy's
-// SENTRY_AUTH_TOKEN. Sentry is asked at most every few minutes, whoever opens the page: its last answer is kept in
-// D1 (`sentry_issues`), one row. Sentry down or refusing keeps the last answer on show, saying so (ADR 0055).
+// The apps' recent errors, from Sentry (ADR 0110), for Settings → Errors: each project's open issues in this
+// environment, asked of Sentry at most every few minutes and kept in D1 (ADR 0055).
 import { first, run } from "@cougars/shared/d1";
 import { mask, scribe } from "@cougars/shared/scribe";
 import type { Env } from "../api/api";
@@ -113,7 +110,10 @@ interface Kept {
   failure: "down" | "refused" | null;
 }
 
-/** The open issues, from what Sentry last said if that's recent, else from Sentry now. */
+/**
+ * The open issues, from what Sentry last said if that's recent, else from Sentry now. Read with a read-only token,
+ * SENTRY_ISSUES_TOKEN (Issue & Event: Read), never the deploy's SENTRY_AUTH_TOKEN.
+ */
 export async function readErrors(env: Env, now: Date): Promise<Errors> {
   const environment = environmentOf(env);
   const token = env.SENTRY_ISSUES_TOKEN;

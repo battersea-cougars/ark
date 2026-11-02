@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // A date's text in a locale's own order isn't the same in every browser: en-CA reads 2026-10-21 in Chrome and Node
-// but 10/21/2026 in Safari's WebKit, so turning it back into a date broke Home on iPhones. Dates as data are built
+// but 10/21/2026 in Safari's WebKit, so turning it back into a date fails on iPhones. Dates as data are built
 // from their parts (packages/shared/london.ts londonDate); a locale is only for words people read.
 const roots = ["apps/team/src", "apps/team/worker", "apps/web/src", "packages/shared"].map(
   (dir) => new URL(`../${dir}/`, import.meta.url).pathname,

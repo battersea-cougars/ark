@@ -1,8 +1,6 @@
-// The club's agenda (ADR 0016): one list of what's on and when. Each part of the club pushes its own rows when it
-// changes: a training's sessions (syncSeries), a tournament's day, draft night and sign-up deadline (syncTournament),
-// a one-off event (syncClubEvent). The website's What's on and the app's calendar read it, so they can't disagree.
-// The rules for each kind of row live here, once: where it is (its own place, else its series'), TBC and seasons,
-// what's public, what's cancelled, who sees it.
+// The club's agenda (ADR 0016): one list of what's on and when, which the website's What's on and the app's calendar
+// both read. Each part of the club pushes its own rows (syncSeries, syncTournament, syncClubEvent); the rules for each
+// kind of row (its place, TBC and seasons, what's public or cancelled, who sees it) live here once.
 import { all, batch, first, statement, type Param } from "./d1";
 import { afterOf, placeOf, type After, type AfterMode, type OwnPlace, type Venue } from "./places";
 import { seasonLabel, type Season } from "./seasons";
@@ -460,7 +458,7 @@ export const fromRow = (r: AgendaRow): AgendaItem =>
 
 /**
  * What's on from a London day, soonest first: not a tournament that's been played, whatever its date (one played
- * early, apps/team/worker/tournaments/README.md, #182). Who sees what is up to the reader (captains' rows, the website).
+ * early, apps/team/worker/tournaments/README.md). Who sees what is up to the reader (captains' rows, the website).
  */
 export async function readAgenda(db: D1Database, from: string) {
   await ensureAgenda(db);

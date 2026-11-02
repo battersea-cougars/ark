@@ -1,5 +1,5 @@
-// Two people at once (concurrency): each sign-up decision is one statement, so two taps for the last place can't
-// both get it. Calls the sign-up rules directly: until sign-in (T1), the API only knows one member locally.
+// Two people at once: each sign-up decision is one statement, so two taps for the last place can't both get it.
+// Calls the sign-up rules directly.
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
 import { parseRoster, rosterSql } from "../../../../scripts/lib/roster.mjs";

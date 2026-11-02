@@ -1,4 +1,4 @@
-// Club events: one-offs on the calendar (ADR 0016), and what's already on when something new would be (apps/team/worker/calendar/README.md).
+// Club events: one-offs on the calendar (ADR 0016), and what's already on when something new would be.
 import { places } from "../push/push.notices";
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";

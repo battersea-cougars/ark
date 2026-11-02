@@ -2,20 +2,8 @@
   import { waitingFor } from "../app/editions.svelte";
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
-  // One game, full screen (apps/team/worker/tournaments/README.md). For everyone, the live scoreboard: the clock, the score, each goal as it went
-  // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
-  // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
-  // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
-  // assisted, a quieter Penalty (who, 2 or 5 minutes, what for) whose clock runs beside the team, take the last goal or
-  // penalty back, and Full time, which opens the review (lib/SealResult): the score, every goal and penalty, the last
-  // goal to take back, and Seal the result, which makes the score the result; the clock's start and pause is
-  // one big button right under the clock, with clear space before the goals, so it's easy to hit and hard to hit by
-  // mistake.
-  //
-  // Few requests: the clock never ticks on the server. It's stored as time left and when it was last started, so each
-  // phone counts down by itself (and it survives a reload or a locked phone); only start, pause, a goal and full time
-  // are sent. Everyone on the page checks for changes as often as the admins set (ADR 0053), the scorekeeper too (the
-  // same person may have it open twice), while the page is in view.
+  // One game, full screen (apps/team/worker/tournaments/README.md): the live scoreboard for everyone, and for the one
+  // person keeping score the scoresheet: goals, penalties, the clock, and Full time's review that seals the result.
   import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
   import { onDestroy, untrack } from "svelte";
@@ -99,7 +87,9 @@
   // Scoring's taken on for the game up next (or on now): the first in the day's order that isn't over
   const upNext = $derived(tournament?.games?.find((g) => g.status !== "done")?.id === gameId);
 
-  // The clock, ticking while this page is up
+  // The clock, ticking while this page is up. It never ticks on the server: it's stored as time left and when it was
+  // last started, so each phone counts down by itself (and survives a reload or a locked phone); only start, pause, a
+  // goal and full time are sent. Everyone on the page checks for changes as often as the admins set (ADR 0053).
   $effect(() => ticking());
   // The clock counts down each period in turn (apps/team/worker/tournaments/README.md): full is a period's length
   const full = $derived((tournament?.gameMinutes ?? 12) * 60_000);
@@ -189,7 +179,7 @@
     if (tournament && game) act(() => holdScoresheet(tournament.id, game.id, "release"));
   };
 
-  // An admin's say over someone else's scoresheet (#116), behind Manage in the bar (ADR 0065): take it over (their
+  // An admin's say over someone else's scoresheet, behind Manage in the bar (ADR 0065): take it over (their
   // phone died, they've gone) or free it (for an admin who isn't at the rink). Each asks first, the yes in red. Sent
   // with who the page saw holding it: if it's changed hands since, the Worker says who has it now
   const manageable = $derived(admin && !!game && !over && !keeper && !!holder);
@@ -499,7 +489,7 @@
 {/snippet}
 
 {#if waiting}
-  <!-- Its tournament on its way (#175): the room the page takes -->
+  <!-- Its tournament on its way: the room the page takes -->
   <div class="waiting" aria-busy="true" aria-label="Loading"></div>
 {:else if !tournament || !game}
   <p class="note missing">No such game.</p>
@@ -1240,7 +1230,8 @@
   .control:hover:not(:disabled) {
     background: var(--surface-2);
   }
-  /* Start: the one main thing to tap, so sticker yellow; Pause stays the outline, so the two never look alike */
+  /* Start: the one main thing to tap, so sticker yellow; Pause stays the outline, so the two never look alike. One big
+     button right under the clock, with clear space before the goals: easy to hit, and hard to hit by mistake */
   .control.start {
     border-color: var(--action);
     background: var(--action);
@@ -1447,7 +1438,7 @@
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
     gap: var(--s-5);
   }
-  /* One column that never grows past the page: a long name ends in an ellipsis, not off the edge (#148) */
+  /* One column that never grows past the page: a long name ends in an ellipsis, not off the edge */
   .squad {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

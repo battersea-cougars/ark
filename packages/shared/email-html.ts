@@ -1,8 +1,6 @@
-// The club's branded email frame (ADR 0027, colours from ADR 0009), for the team app's emails and the website's
-// enquiry email and auto-reply. One quiet card, as a good transactional email is: the club's red bar along the top, the wordmark,
-// then what the email is for, plainly; under it a tall footer that says who it's from. Email HTML is tables and inline
-// styles, and no images, so it looks the same with images blocked. Anything a person typed goes through escapeHtml
-// before it reaches the page.
+// The club's branded email frame (ADR 0027, colours from ADR 0009) for the team app's emails and the website's
+// enquiry email and auto-reply: one quiet card, the club's red bar, the wordmark, the message, a footer. Tables and
+// inline styles, no images, so it looks the same with images blocked.
 
 export const EMAIL = {
   carbon: "#0e0d0b",
@@ -27,7 +25,7 @@ const CLUB = {
 
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
-/** Text made safe to put in HTML, in an element or an attribute. */
+/** Text made safe to put in HTML, in an element or an attribute: anything a person typed goes through it. */
 export const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ESCAPES[c]);
 
 /** Styles for what goes in a card, so every email reads the same. */

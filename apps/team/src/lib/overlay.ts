@@ -1,19 +1,16 @@
-// One close contract for every overlay (ADR 0065): lib/Drawer (the side drawer, desktop and tablet) and lib/Sheet
-// (the bottom sheet, phone; a centred modal on desktop). Both are native modal dialogs, so the browser keeps focus in
-// the top one, makes the page under it inert and sends Escape (and Android's back) to the top one only. What's here
-// is the rest, kept apart to be tested:
-// - every way out (×, Escape, the backdrop, a swipe, the back gesture) asks `requestClose`, which a guard may hold
-//   (unsaved changes: "Discard your changes?", lib/dirty.svelte.ts);
-// - a click on the backdrop closes only when it was pressed there and let go there: a drag that starts inside (selecting
-//   a field's text) and ends outside doesn't;
-// - the page under it doesn't scroll while one is open, and nothing moves when that starts;
-// - focus goes back to whatever opened it, or near where it was once that's gone.
+// One close contract for every overlay (ADR 0065): lib/Drawer and lib/Sheet. Both are native modal dialogs, so the
+// browser keeps focus in the top one, makes the page under it inert and sends it Escape (and Android's back); the rest
+// is here, kept apart to be tested.
 import { tick } from "svelte";
 
 /** Something that may hold a close: asks first and returns true, then calls `leave` itself if the answer is yes. */
 export type CloseGuard = (leave: () => void) => boolean;
 
-/** The one way out: closes, unless the guard holds it to ask. Returns whether it closed now. */
+/**
+ * The one way out: closes, unless the guard holds it to ask. Returns whether it closed now.
+ * Every way out comes here (×, Escape, the backdrop, a swipe, the back gesture); a guard is unsaved changes asking
+ * "Discard your changes?" (lib/dirty.svelte.ts).
+ */
 export function requestClose(close: () => void, guard?: CloseGuard | null): boolean {
   if (guard?.(close)) return false;
   close();
@@ -28,6 +25,7 @@ export function outside(box: { left: number; top: number; right: number; bottom:
 /**
  * A full click on the backdrop: `press` on pointerdown, `release` on the click that ends it; true only when both were
  * on the backdrop. A keyboard's click (Enter on a button) is never one.
+ * A drag that starts inside (selecting a field's text) and ends outside isn't one.
  */
 export function backdropClicks() {
   let pressed = false;

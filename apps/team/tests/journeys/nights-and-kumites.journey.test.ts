@@ -1,15 +1,7 @@
-// Nights and Kumites (#186, ADR 0031, apps/team/worker/training/README.md, apps/team/worker/tournaments/README.md): several Kumites on Fridays, the training nights they put off,
-// nights called off by hand, and each one coming back on its own terms. Seen on dev: after several Kumites, nights
-// cancelled and more Kumites, Fridays stayed Cancelled and couldn't be taken back. The rule: a night off for a Kumite
-// comes back when that Kumite is deleted or moved, unless another Kumite that day or a hand cancellation still keeps
-// it off; It's back on, on the night's page, puts any night back on; and several Kumites are in order everywhere.
-// Ada runs it (an admin) on Monday 30 November 2026; Fay (a member) looks.
-//
-// How each gets to the step under test is a shortcut, said so where it's taken: one Kumite is scheduled through the
-// Calendar's wizard and its question (Cancel Friday Training), the rest made, moved and deleted through the API as the
-// admin, sending what the app sends (the night off for the Kumite, after it's saved). What's under test is what each
-// person sees, a Kumite deleted from its editor, and the night's own Manage. Every Kumite here is deleted at the end
-// and every night put back on, so the club's left as it was.
+// Nights and Kumites (ADR 0031, apps/team/worker/training/README.md, apps/team/worker/tournaments/README.md): several
+// Kumites on Fridays, the training nights they put off, nights called off by hand, and each one coming back on its own
+// terms. Ada (an admin) runs it on Monday 30 November 2026; Fay (a member) looks. Every Kumite here is deleted at the
+// end and every night put back on, so the club's left as it was.
 import type { Page } from "@playwright/test";
 import { asMember, at, checks, clubVia, does, expect, london, signIn, test, type Person } from "./support/journey";
 

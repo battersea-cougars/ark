@@ -1,7 +1,7 @@
 <script lang="ts">
-  // Asked before it's done (#153): what will happen, in words (the children), then two keys, the way out and the tap
-  // that does it. `kind` is that tap's look: `primary` to go on, `outline` for a step that keeps everything, `danger`
-  // (the one red fill) for what's gone for good. Inside a sheet or drawer (lib/Drawer `short`).
+  // Asked before it's done: what will happen, in words (the children), then the way out and the tap that does it.
+  // `kind` is that tap's look: `primary` to go on, `outline` for a step that keeps everything, `danger` (the one red
+  // fill) for what's gone for good. Inside a sheet or drawer (lib/Drawer `short`).
   import type { Snippet } from "svelte";
 
   let {

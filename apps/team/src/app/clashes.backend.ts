@@ -44,7 +44,7 @@ export async function findClashes(q: ClashQuestion) {
 /**
  * Call off what the admin chose, after their save went in: each by its own cancel (the members told, nobody charged),
  * a training night past the weeks made ahead made first. Saving a tournament (`tournamentId`), a night goes off for
- * it, so it comes back when the tournament's deleted or moved (#186). How many went off.
+ * it, so it comes back when the tournament's deleted or moved. How many went off.
  */
 export async function cancelClashes(chosen: Clash[], tournamentId?: number) {
   let off = 0;

@@ -1,9 +1,7 @@
 <script lang="ts">
-  // One session, tournament or social, with In/Out ("Roster", picked 2026-10-07). The header says what and when, with
-  // how soon it is and where you stand on the right. Below it, the question people bring to the card, who's going:
-  // their faces and first names, the count and spaces left, and In and Out at the end of that row, so you answer
-  // next to the people you'd be playing with. Every kind carries its own icon and colour (set by an admin per
-  // training and tournament type), so the calendar reads at a glance. Nothing moves when you answer.
+  // One session, tournament or social, with In/Out: the header says what and when, how soon and where you stand; below,
+  // who's going (faces, first names, the count and spaces left) with In and Out on that row. Each kind has its own icon
+  // and colour (an admin's, per type). Nothing moves when you answer.
   import { keeps, nextUp, onSide, roomFor } from "./places";
   import { goesByOf } from "./names";
   import type { Snippet } from "svelte";
@@ -160,7 +158,7 @@
 
   // The card answers at once; the server's word (in, or the waitlist) arrives with the refresh. An answer that didn't
   // go (no signal, or refused) puts the card back as it was: the save note says why, and the card never claims a place
-  // the server hasn't heard of (with no signal the refresh can't put it right either, #148)
+  // the server hasn't heard of (with no signal the refresh can't put it right either)
   function sendAnswer(answer: "in" | "out" | "clear") {
     const before = {
       going: entries.going,

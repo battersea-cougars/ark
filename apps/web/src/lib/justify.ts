@@ -1,8 +1,6 @@
-// Justified photos (the home page's strip, /photos/): photos in rows, each row scaled to exactly the strip's
-// width, so both sides and the bottom are straight, every photo shows, and each keeps its own shape (square, portrait
-// or landscape, as on Instagram). The photos are split into rows, in order, as evenly as their shapes allow, so the
-// rows come out alike in height; the last row is full like the rest. Worked out again as pictures load, the width
-// changes or a photo leaves. Without JavaScript the CSS's square tiles stand.
+// Justified photos (the home page's strip, /photos/): rows in order, each scaled to the strip's exact width, every
+// photo whole and in its own shape, split as evenly as their shapes allow. Worked out again as pictures load, the
+// width changes or a photo leaves; without JavaScript the CSS's square tiles stand.
 
 /** Splits `ratios` (width ÷ height), in order, into `rows` runs whose sums are as even as can be (least sum of squares,
  *  so no row much wider, or narrower, than the rest). */

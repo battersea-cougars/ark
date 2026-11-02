@@ -77,9 +77,8 @@ describe("what an announcement can say", () => {
     expect((await dana.call("POST", "/api/announcements", { ...HALL, endsOn })).status).toBe(400);
   });
 
-  // https://github.com/battersea-cougars/ark/issues/133
-  // #133: the end day was checked only for its shape (dddd-dd-dd), so a day that isn't on the calendar went up,
-  // and showed until whenever that string sorted
+  // A real day, not only its shape (dddd-dd-dd): one that isn't on the calendar would show until whenever that
+  // string sorted
   it.each(["2027-02-30", "2026-13-01", "2026-10-99"])(
     "an end day that isn't on the calendar (%s) is refused (#133)",
     async (endsOn) => {

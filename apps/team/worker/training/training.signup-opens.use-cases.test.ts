@@ -1,7 +1,6 @@
-// When a training night's sign-up opens (apps/team/worker/training/README.md): a training can say its nights open a number of days before, at
-// midnight London time (Friday Training: 4, the Monday). Before then a member's In is refused and the app says when it
-// opens; the register and admins can still put people in. When it opens, members hear it once, from the cron (ADR
-// 0108, 0121), on its day. Driven through the real handlers and the cron in the fake world (ADR 0031).
+// When a training night's sign-up opens (apps/team/worker/training/README.md): a member's In is refused before then,
+// and members hear it once when it opens (ADR 0108). Driven through the real handlers and the cron in the fake world
+// (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 

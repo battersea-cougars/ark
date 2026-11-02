@@ -12,10 +12,8 @@
 </script>
 
 <script lang="ts" generics="T extends string">
-  // Styled select for admin forms (a tournament's details, a member's role); a member's own choices use Choice, taps
-  // and sheets, not a drop-down. After Gwenda ops' NativeSelect: native option menus can't be themed, so this is a button that
-  // opens a listbox. The menu is fixed-position so panels and scrollers never clip it, and it lives at the end of
-  // the page (or of the open dialog it's in), so nothing it sits inside, an animated tab say, can shift it.
+  // A styled select for admin forms; a member's own choices use Choice. A button that opens a listbox, as native option
+  // menus can't be themed; the menu is fixed-position at the end of the page (or its dialog), so nothing clips or shifts it.
   import { portal } from "./overlay";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";

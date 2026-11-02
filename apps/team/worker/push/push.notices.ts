@@ -49,7 +49,7 @@ interface Moved {
  * Places changed hands (topic `places`), however they did (someone out, an admin taking someone off, a limit raised,
  * an account deleted, the register, the team maker's Let in, a Quarterly Member signing up for a full training):
  * whoever moved up off the waiting list hears they're in; whoever a Quarterly Member bumped to it (apps/team/worker/training/README.md, entries.ts
- * bump) hears it, and where they are in line, before they turn up (#97). Each move marked itself (`moved`,
+ * bump) hears it, and where they are in line, before they turn up. Each move marked itself (`moved`,
  * entries.ts); here every mark is read and cleared in one batch, so however many requests finish at once (a double
  * tap, two leaving or joining together) each move is told once, by whichever comes first (ADR 0003). Only someone
  * still where the move put them hears it.

@@ -1,7 +1,6 @@
-// Something over something else (apps/team/worker/calendar/README.md): an admin putting a tournament, or a one-off, on a day and time when the
-// club already has something on (the Kumite on a Friday night, over Friday Training) is asked whether that should be
-// off. The app asks the Worker what clashes before it saves; what the admin chooses to cancel goes through the
-// session's own cancel (members told, nobody charged), never a second one. Driven through the real Worker handlers.
+// Something over something else (apps/team/worker/calendar/README.md): an admin putting a tournament or a one-off
+// over what's already on is asked whether that's off, and a cancel goes through its own. Driven through the real
+// Worker handlers.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { londonISO } from "@cougars/shared/london";
 import { NOW, testWorld } from "../testing";

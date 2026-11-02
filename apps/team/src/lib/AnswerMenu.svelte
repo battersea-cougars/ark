@@ -1,10 +1,7 @@
 <script lang="ts">
-  // Changing your answer to a tournament, from the badge in its header (apps/team/worker/tournaments/README.md): your answer as the badge itself, a
-  // line in the club's voice (Settings → Quips, your answer's), and the one choice as a row: Can't make it, in red
-  // words, or I'm in while sign-up's open. Saying you're out is allowed till it's started (worker/entries answer);
-  // what it means for your team, if you're on one, is said under it. Once it's started, who's in is an admin's to
-  // change: a line in the row's place, as tall as it, instead. A small popover under the badge on a desktop, a short bottom
-  // sheet on a phone (TournamentHead).
+  // Changing your answer to a tournament, from the badge in its header (apps/team/worker/tournaments/README.md): Can't
+  // make it, or I'm in while sign-up's open; once it's started, who's in is an admin's to change. A popover under the
+  // badge on a desktop, a short sheet on a phone (TournamentHead).
   import type { Tournament } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";

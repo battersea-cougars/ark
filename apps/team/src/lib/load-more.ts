@@ -1,4 +1,4 @@
-// The end of a long list coming into view (or nearly: a screen ahead), for the next page of it (#175): History's past
+// The end of a long list coming into view (or nearly: a screen ahead), for the next page of it: History's past
 // ones. Use: <div use:loadMore={() => list.more()}></div> after the list's last row.
 export function loadMore(node: HTMLElement, more: () => unknown) {
   let ask = more;

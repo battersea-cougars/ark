@@ -1,7 +1,5 @@
-// Making teams, as a bit of theatre (Training): every player's card flies into one deck, the deck is riffled twice,
-// then the cards are dealt out to their rows on the new teams. Scripted Web Animations on cards in a layer over the
-// page; the page itself only hides the new rows until their card lands. A tap or Escape skips to the end, and with
-// reduced motion there's no show at all.
+// Making teams as a bit of theatre (Training): every player's card flies into one deck, the deck is riffled twice, and
+// the cards are dealt out to their rows on the new teams.
 import { EASE_IN, EASE_OUT, prefersReducedMotion } from "../app/motion";
 
 export interface Show {
@@ -33,6 +31,10 @@ const RIFFLE_MS = 260;
 const DEAL_MS = 380;
 const DEAL_GAP_MS = 70;
 
+/**
+ * Scripted Web Animations on cards in a layer over the page; the page only hides the new rows until their card lands. A
+ * tap or Escape skips to the end, and with reduced motion there's no show at all.
+ */
 export function shuffleAndDeal(o: ShowOptions): Show {
   let skipped = false;
   let revealed = false;

@@ -123,7 +123,7 @@ describe("a seeded history", () => {
     const dana = await w.signedIn("dana@example.com");
     const boot = await dana.call("GET", "/api/bootstrap");
     expect(boot.status).toBe(200);
-    // No logo but the generated crests, each small enough to come as itself (#177)
+    // No logo but the generated crests, each small enough to come as itself
     expect(JSON.stringify(boot.body)).not.toMatch(/data:image\/(webp|png|jpeg)/);
     // Her nights at Tuesday Skills are charged, and some paid: on her ledger, what's left on the club read
     const ledger = (await dana.call("GET", `/api/members/${boot.body.me}/ledger`)).body;
@@ -214,7 +214,7 @@ describe("a seeded history", () => {
     // Everything as it was but the data version, moved on so phones reload, and the hourly run's own row (ADR 0110)
     expect({ ...now, hourly_run: 0 }).toEqual(before);
     expect(w.db.raw.pragma("foreign_key_check")).toEqual([]);
-    // What anyone owes, and played, as before (#177)
+    // What anyone owes, and played, as before
     expect([dues(w.db.raw), playedFromAttendance(w.db.raw)]).toEqual([owedBefore, playedBefore]);
     // Seeded, its nights counted in (the hourly run), then taken away: the counts go back with them
     const boot = (await dana.club()).body;

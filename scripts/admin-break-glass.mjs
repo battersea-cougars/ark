@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // Break glass (ADR 0023, README "Locked out"): one sign-in code for an admin, for when Gmail is down, every admin has
-// lost their passkeys and none is signed in. Never a web route: it takes the club's Bitwarden (for the environment's
-// Cloudflare token) and writes to that environment's D1 over Cloudflare's API. The code is printed here, on this
-// terminal, and nowhere else; the admin types their email and the code on the team app's usual sign-in page within
-// 15 minutes. It's on the record, and every admin is told when it's used.
+// lost their passkeys and none is signed in. Never a web route: it takes the club's Bitwarden and writes to the
+// environment's D1 over Cloudflare's API. The code is printed only here; the admin types it on the usual sign-in page
+// within 15 minutes. It's on the record, and every admin is told when it's used.
 //
 //   npm run admin:break-glass -- <admin's email>                     (dev)
 //   npm run admin:break-glass -- <admin's email> --env production    (asks you to type the email again)

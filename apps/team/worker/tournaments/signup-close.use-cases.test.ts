@@ -1,9 +1,5 @@
-// An admin closes a tournament's sign-up now (apps/team/worker/tournaments/README.md), from its page while sign-up's open, without waiting for its
-// closing day: members can't say they're in any more, and a captains' draft moves on to Draft open, where the order's
-// drawn. It's recorded on its own (when it closed), its dates left as they were, so a later save of the tournament
-// never finds it closing before it opens. It's one guarded statement, so two taps at once close it once (ADR 0003);
-// it's on the record; and Back to Sign-up open (lib/step-back.ts) opens it again. Driven through the real Worker handlers in the fake world, each
-// person signed in as themselves (ADR 0031).
+// An admin closes a tournament's sign-up now (apps/team/worker/tournaments/README.md), before its closing day.
+// Driven through the real Worker handlers in the fake world, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";

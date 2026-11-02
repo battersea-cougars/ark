@@ -1,5 +1,5 @@
-// The website's Worker: Astro answers requests, and a daily cron (wrangler.jsonc triggers) deletes enquiries the
-// privacy page says we no longer keep (ADR 0029). Runs whether or not anything deploys. Each task fails on its own:
+// The website's Worker: Astro answers requests, and a daily cron (wrangler.jsonc triggers) deletes enquiries older
+// than the privacy page says we keep them (ADR 0029). Runs whether or not anything deploys. Each task fails on its own:
 // one breaking never stops another.
 import * as Sentry from "@sentry/cloudflare";
 import { handle } from "@astrojs/cloudflare/handler";

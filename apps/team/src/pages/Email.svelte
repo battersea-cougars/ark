@@ -1,10 +1,7 @@
 <script lang="ts">
-  // Settings → Email (ADR 0027, #101): whether the club's email works, and reconnecting it when Google has cancelled
-  // its access (a password change on the sending account, its access removed, or 6 months unused). Then nobody gets a
-  // sign-in code, so the admins hear on Home and on their phones, and fix it here: "Reconnect email" opens Google's
-  // consent page in this browser and comes back to this page, which says how it went. It works at once, no deploy.
-  // Busy or rate-limited Gmail (ADR 0055) is told apart: that one passes by itself. "Send a test email" sends one to the
-  // admin who presses it, and nobody else, the way every email goes, and says how it went.
+  // Settings → Email (ADR 0027): whether the club's email works, reconnecting it when Google has cancelled its access
+  // (then nobody gets a sign-in code), and a test email to the admin who asks. Busy or rate-limited Gmail (ADR 0055) is
+  // told apart: that one passes by itself.
   import { api } from "../app/api";
   import { inApp } from "../app/native";
   import Icon from "../app/shell/Icon.svelte";
@@ -64,6 +61,7 @@
     going = true;
     error = "";
     try {
+      // Google's consent page, in this browser, comes back to this page and says how it went: it works at once, no deploy
       const { url } = await api<{ url: string }>("POST", "/api/mail/reconnect", {});
       location.assign(url);
     } catch (e) {

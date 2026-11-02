@@ -8,7 +8,7 @@ import { chargesOf } from "./dues.testing";
 
 // NOW is Tuesday 6 October 2026: the next Friday is the 9th
 const NEXT_FRIDAY = "2026-10-09";
-// Five coming Fridays: a past one's register closes the morning after (#11), so a save of many is of nights ahead
+// Five coming Fridays: a past one's register closes the morning after, so a save of many is of nights ahead
 const FRIDAYS = ["2026-10-09", "2026-10-16", "2026-10-23", "2026-10-30", "2026-11-06"];
 const LAST_FRIDAY = "2026-10-02";
 

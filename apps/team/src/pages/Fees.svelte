@@ -32,7 +32,7 @@
   const inForce = $derived(db.fees.filter((f) => f.from <= today).at(-1)?.from);
   const day = (d: string) => formatDayDate(`${d}T12:00:00Z`);
 
-  // The reminder a few days before each quarter (#187): its Quarterly Members told the fee is due and that they can
+  // The reminder a few days before each quarter: its Quarterly Members told the fee is due and that they can
   // still switch to pay as you go. How many days before is the club's; the server sends it, from 10am London
   const reminderDays = $derived(db.settings.planReminderDays ?? 5);
   let changingReminder = $state(false);

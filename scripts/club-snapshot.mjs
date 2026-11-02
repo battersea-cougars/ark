@@ -1,16 +1,13 @@
 #!/usr/bin/env node
-// What the website takes from the club's D1 at build time (ADR 0016, apps/team/worker/tournaments/README.md), each into its own gitignored file under
-// apps/web/src/data/ (the roster is personal data, ADR 0029). Run before `astro dev` and `astro build` (apps/web's
-// predev/prebuild). Only what the website shows leaves the database.
+// What the website takes from the club's D1 at build time (ADR 0016), each into its own gitignored file under
+// apps/web/src/data/ (the roster is personal data, ADR 0029). Run by apps/web's predev and prebuild.
 //   roster.local.json   the active Cougars and their record (lib/roster-sql.mjs)
-//   kumite.local.json   a Kumite's own awards, and the next one's date and place (lib/kumite-sql.mjs, ADR 0016)
-//   results.local.json  every public tournament's results, as rows (lib/results-sql.mjs, ADR 0016)
+//   kumite.local.json   a Kumite's own awards, and the next one's date and place (lib/kumite-sql.mjs)
+//   results.local.json  every public tournament's results, as rows (lib/results-sql.mjs)
 //
 //   node scripts/club-snapshot.mjs                   local D1 (apps/web/.wrangler, or COUGARS_LOCAL_STATE's)
 //   CLUB_SNAPSHOT_ENV=dev|production node ...       that environment's D1, over the API (CI: CLOUDFLARE_API_TOKEN
 //                                                    and CLOUDFLARE_ACCOUNT_ID for its account)
-// Never fails a build: whatever can't be read is written as null, and the site falls back (Sanity, samples). An empty
-// list is a real answer (no Cougars yet).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readResultRows } from "./lib/results-sql.mjs";
@@ -50,6 +47,8 @@ try {
   query = () => Promise.reject(error);
 }
 mkdirSync(new URL("src/data/", web), { recursive: true });
+// Never fails a build: whatever can't be read is written as null, and the site falls back (Sanity, samples). An empty
+// list is a real answer (no Cougars yet). Only what the website shows leaves the database.
 for (const [name, { sql, shape, say }] of Object.entries(SNAPSHOTS)) {
   let data = null;
   try {

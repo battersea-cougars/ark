@@ -1,5 +1,5 @@
-// Training (apps/team/worker/training/README.md): series and their sessions. Sessions are rows, made 12 weeks ahead from each active series'
-// rule, so each can be cancelled on its own.
+// Training (apps/team/worker/training/README.md): series and their sessions, made 12 weeks ahead from each active
+// series' rule, so each can be cancelled on its own.
 import { syncSeries } from "@cougars/shared/agenda";
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { SCHEDULE_ICONS, TONES } from "../../src/demo/model";
@@ -77,7 +77,7 @@ type Also = (series: SeriesRef) => D1PreparedStatement[];
 /**
  * Make each active series' sessions up to the horizon. Dates already made (even cancelled or moved) are skipped. This
  * runs on every member's opening of the app, so a training whose rule can't make dates (a row from before its dates
- * were checked, or one changed by hand) is reported and skipped, never a failure for everyone (#129).
+ * were checked, or one changed by hand) is reported and skipped, never a failure for everyone.
  */
 export async function ensureSessions(db: D1Database, today: string) {
   // Every active series and the dates it has, in one round trip
@@ -257,7 +257,7 @@ const timesOf = (f: Awaited<ReturnType<typeof seriesFields>>) => ({
 });
 
 /** A new training, with whatever goes with it (`also`) in the same batch: all of it checked first, so a refusal makes
- * nothing (#131). */
+ * nothing. */
 export async function createSeries(db: D1Database, o: Record<string, unknown>, today: string, also: Also = () => []) {
   const f = await seriesFields(db, o);
   const slug = await freeSlug(db, "training_series", slugify(f.shortName || f.name));
@@ -286,7 +286,7 @@ export async function createSeries(db: D1Database, o: Record<string, unknown>, t
  * Change a series. Future sessions the new rule no longer makes go, unless they were moved or cancelled (an admin
  * touched them) or, once sign-ups exist, someone has signed up. Then the rule fills in what's missing. The training,
  * whatever goes with it (`also`) and the first waiting moving up into any room it now has (a limit raised is a place
- * coming free, apps/team/worker/training/README.md, #127) are one batch, checked first: a refusal changes nothing (#131), and nobody signing up
+ * coming free, apps/team/worker/training/README.md) are one batch, checked first: a refusal changes nothing, and nobody signing up
  * between takes the new room ahead of those waiting (ADR 0003).
  */
 export async function updateSeries(

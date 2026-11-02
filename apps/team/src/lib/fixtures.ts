@@ -1,7 +1,6 @@
-// A tournament's games (apps/team/worker/tournaments/README.md), shared by the Worker (making fixtures, filling the playoffs) and the app (the
-// Games and Standings pages): a round robin by the circle method, played in the order fairest to everyone's breaks,
-// kick-off times and who keeps score. The table and the champions are shared with the website
-// (packages/shared/results.ts, ADR 0016).
+// A tournament's games (apps/team/worker/tournaments/README.md), shared by the Worker and the app: a round robin played
+// in the order fairest to everyone's breaks, kick-off times and who keeps score. The table and the champions are shared
+// with the website (packages/shared/results.ts, ADR 0016).
 import { londonTime } from "./dates";
 export { champion, table, type TableRow } from "@cougars/shared/results";
 

@@ -11,7 +11,7 @@
   import { humanCheck } from "../lib/turnstile";
   import { passkeysWork, signedInWithCode, signInWithPasskey } from "../app/passkeys";
 
-  // The app's privacy notice is readable before signing in too (#30): at /privacy, or from the link at the foot
+  // The app's privacy notice is readable before signing in too: at /privacy, or from the link at the foot
   type Step = "email" | "code" | "join" | "asked" | "privacy";
   let step = $state<Step>(location.pathname === "/privacy" ? "privacy" : "email");
   // The link in a new member's welcome email fills in their address (apps/team/worker/members/README.md)
@@ -20,7 +20,7 @@
   let busy = $state(false);
   let error = $state("");
   let note = $state("");
-  // A person asking, not a script (#13): Turnstile's token goes with each, unseen unless Cloudflare wants a tap
+  // A person asking, not a script: Turnstile's token goes with each, unseen unless Cloudflare wants a tap
   const signInCheck = humanCheck("sign-in");
   const joinCheck = humanCheck("join");
   // On your own machine nothing is emailed, so the server hands the code back

@@ -1,10 +1,7 @@
 <script lang="ts">
-  // The shell. Desktop: the page has the whole screen; a dock of the member pages floats mid-left (app/rail), the
-  // Settings gear at its foot, the brand mark top-left, your avatar (your You page) top-right, the wordmark bottom-left. A section's
-  // pages (The Kumite, Fight card, Draft) sit in the page header's toolbar row, which pins as the page scrolls
-  // (PageHeader). Phones: five tabs at the bottom, and a slim bar along the top with the page's name (or its
-  // section's strip of pages), its actions, and its filters: inline when they fit, otherwise a Filters button that
-  // opens them in a sheet. Home has neither: it starts with the greeting.
+  // The shell: on a desktop, the page has the whole screen with a dock of member pages mid-left (app/rail), the brand
+  // mark, your avatar and the wordmark in the corners; on a phone, five tabs at the bottom and a slim bar on top with
+  // the page's name or section strip, its actions and its filters. Home has neither: it starts with the greeting.
   import { goesBy, shortName } from "../../lib/names";
   import Avatar from "../../lib/Avatar.svelte";
   import { type Snippet } from "svelte";
@@ -108,7 +105,7 @@
   }
   const showBar = $derived(!route.focus && route.id !== "home" && !onTrack(route));
 
-  // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
+  // Every page that isn't a tab's own: Back, named for where you were, along the trail; opened from outside the
   // app or after a reload, back to the page it belongs under (mobile-nav.ts backFor)
   const backTo = $derived.by(() => {
     const b = backFor(all, route, router.from, perms);
@@ -189,10 +186,10 @@
   // svelte-ignore state_referenced_locally
   let prevFold: string | undefined = route.fold;
   let lastScroll = 0;
-  // Where each page was scrolled to, so going back opens it there (#86). Not state: only read as a page opens
+  // Where each page was scrolled to, so going back opens it there. Not state: only read as a page opens
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const scrolls = new Map<string, number>();
-  // Phones (#83): the bar slides up out of the way as you scroll down, and back the moment you scroll up or reach
+  // Phones: the bar slides up out of the way as you scroll down, and back the moment you scroll up or reach
   // the top. It overlays the page, so nothing moves. Not while a sheet's open (the page under it can scroll)
   let tucked = $state(false);
   let barH = $state(0);
@@ -800,7 +797,7 @@
     left: 0;
     right: 0;
     z-index: 6;
-    /* Only its bars take taps, not the room they leave: with a phone's bar hidden (#83), what sticks under it (Friday's
+    /* Only its bars take taps, not the room they leave: with a phone's bar hidden, what sticks under it (Friday's
        table header) sits in that room and must still be tapped */
     pointer-events: none;
   }
@@ -1131,7 +1128,7 @@
         translate var(--t) var(--ease),
         visibility 0s;
     }
-    /* Scrolled down: up under the pinned band, out of sight (#83). Reduced motion: it just goes */
+    /* Scrolled down: up under the pinned band, out of sight. Reduced motion: it just goes */
     .phone-bar.tucked {
       translate: 0 calc(-100% - var(--pinned-h, 0px));
       visibility: hidden;

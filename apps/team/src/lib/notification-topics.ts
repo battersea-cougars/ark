@@ -1,4 +1,4 @@
-// What the club's notifications are about (ADR 0108, #24): the one list, for the Worker (each Notice says its topic;
+// What the club's notifications are about (ADR 0108): the one list, for the Worker (each Notice says its topic;
 // a member who turned one off isn't sent it) and for the You page (a switch each). Every topic is on until a member
 // turns it off. A topic joins this list only once something's sent on it, so there's never a switch for nothing.
 export const TOPICS = [
@@ -26,7 +26,7 @@ export const TOPICS = [
     hint: "Someone got in with a code made at a terminal, not by email or passkey.",
     action: "manage:all",
   },
-  // Only for whoever watches the club's free allowance (ADR 0003, #157): admins, so only they see its switch
+  // Only for whoever watches the club's free allowance (ADR 0003): admins, so only they see its switch
   {
     topic: "usage",
     label: "Free limits",

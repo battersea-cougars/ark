@@ -1,33 +1,6 @@
-// A tournament's Manage menu (ADR 0065, apps/team/worker/tournaments/README.md): which jobs it offers, by where the tournament stands and who's
-// looking, so nothing's offered that makes no sense there. lib/TournamentHead.svelte wires each to what it does.
-//
-// Where it stands (manageStageOf): sign-up; the draft (the order drawn, the draft open); the teams set (a draft
-// closed); the fixtures out, none started (on its day too); live (a match started or played); the after-party (every
-// match played, or marked finished; afterwards, History).
-//
-// | Job                              | Sign-up | Draft | Teams set | Fixtures | Live | After-party | Who                       |
-// | -------------------------------- | ------- | ----- | --------- | -------- | ---- | ----------- | ------------------------- |
-// | The draft's jobs (draft-jobs.ts) | add     | yes   |           |          |      |             | as draftJobsOf says       |
-// | Make the fixtures again          |         |       |           | yes      |      |             | admin                     |
-// | Confirm / Change the awards      |         |       |           |          |      | till reveal | admin, with awards listed |
-// | Play out the Kumite (dev only)   | yes     | yes   | yes       | yes      | yes  |             | admin                     |
-// | Back to …                        | closed  | yes   | yes       | yes      | yes  | revealed    | admin; runner: draft's    |
-// | Move to… (a captains' draft)     | yes     | yes   | yes       | yes      | yes  | yes         | admin                     |
-// | Your team                        |         | yes   | yes       | yes      |      |             | its captain               |
-// | Pick log (a captains' draft)     |         | open  | yes       | yes      |      |             | runner or a captain       |
-// | Settings                         | yes     | yes   | yes       | yes      | yes  | yes         | admin                     |
-// | Record a past one                | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
-// | A Kumite on a past day (dev)     | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
-//
-// The last two are the series' history's, not this edition's (historyItemsOf): one from before the app recorded
-// (apps/team/worker/tournaments/README.md), and on dev one played out on a day gone by (ADR 0010). With nothing on, they're Manage's only items.
-//
-// The awards are confirmed once every match is played, and can be changed till the reveal starts (the Worker refuses
-// after: step back first); Confirm till they're confirmed, then Change. Your team and the pick log are the draft's:
-// once a match is on, the teams are what they are, and the pick log stays on the draft's own page (the track's Draft
-// open). Back a step is one item while there's a step before it (lib/step-back.ts), the draft's own steps for whoever
-// runs the draft too. Close sign-up isn't Manage's: like each step's action (Shuffle, Open, Seal), it's on the
-// sign-up view itself (pages/Games.svelte), for whoever runs it.
+// A tournament's Manage menu (ADR 0065, apps/team/worker/tournaments/README.md): which jobs it offers, by where the
+// tournament stands and who's looking, so nothing's offered that makes no sense there. lib/TournamentHead.svelte wires
+// each to what it does.
 import type { Tournament, TournamentType } from "../demo/model";
 import type { IconName } from "../app/shell/icons";
 import { draftJobsOf, type DraftJob } from "./draft-jobs";
@@ -75,7 +48,12 @@ export interface ManageNames {
 
 const NO_NAMES: ManageNames = { player: (_id, name) => name ?? "", team: (i) => `Team ${i + 1}` };
 
-/** Where it stands: its status, with the day split into before a match starts (the fixtures) and after (live). */
+/**
+ * Where it stands: its status, with the day split into before a match starts (the fixtures) and after (live).
+ * The stages: sign-up; the draft (the order drawn, the draft open); the teams set (a draft closed); the fixtures out,
+ * none started (on its day too); live (a match started or played); the after-party (every match played, or marked
+ * finished; afterwards, History).
+ */
 export function manageStageOf(t: Tournament, today: string): ManageStage {
   const state = editionState(t);
   if (state === "done") return "afters";
@@ -88,6 +66,27 @@ export function manageStageOf(t: Tournament, today: string): ManageStage {
  * The Manage menu's items, in the order they're needed: the step it's at (the draft's jobs, the fixtures made again,
  * the awards), the dev simulator, Back a step and Move to…, a captain's own (Your team, the pick log), the settings
  * last. Empty: no gear.
+ *
+ * | Job                              | Sign-up | Draft | Teams set | Fixtures | Live | After-party | Who                       |
+ * | -------------------------------- | ------- | ----- | --------- | -------- | ---- | ----------- | ------------------------- |
+ * | The draft's jobs (draft-jobs.ts) | add     | yes   |           |          |      |             | as draftJobsOf says       |
+ * | Make the fixtures again          |         |       |           | yes      |      |             | admin                     |
+ * | Confirm / Change the awards      |         |       |           |          |      | till reveal | admin, with awards listed |
+ * | Play out the Kumite (dev only)   | yes     | yes   | yes       | yes      | yes  |             | admin                     |
+ * | Back to …                        | closed  | yes   | yes       | yes      | yes  | revealed    | admin; runner: draft's    |
+ * | Move to… (a captains' draft)     | yes     | yes   | yes       | yes      | yes  | yes         | admin                     |
+ * | Your team                        |         | yes   | yes       | yes      |      |             | its captain               |
+ * | Pick log (a captains' draft)     |         | open  | yes       | yes      |      |             | runner or a captain       |
+ * | Settings                         | yes     | yes   | yes       | yes      | yes  | yes         | admin                     |
+ * | Record a past one                | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
+ * | A Kumite on a past day (dev)     | yes     | yes   | yes       | yes      | yes  | yes         | admin (nothing on too)    |
+ *
+ * The awards are confirmed once every match is played, and can be changed till the reveal starts (the Worker refuses
+ * after: step back first); Confirm till they're confirmed, then Change. Your team and the pick log are the draft's:
+ * once a match is on, the teams are what they are, and the pick log stays on the draft's own page (the track's Draft
+ * open). Back a step is one item while there's a step before it (lib/step-back.ts), the draft's own steps for whoever
+ * runs the draft too. Close sign-up isn't Manage's: like each step's action (Shuffle, Open, Seal), it's on the sign-up
+ * view itself (pages/Games.svelte), for whoever runs it.
  */
 export function manageItemsOf(
   t: Tournament,

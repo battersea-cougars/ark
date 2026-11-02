@@ -1,9 +1,5 @@
-// Why a training night is off (#186, apps/team/worker/training/README.md): called off by hand from its own page (`called_off_at`), or off for a
-// tournament on its day (`training_session_offs`: the clash sheet's Cancel, a training skipping its night). The two
-// are kept apart, and the night is off (`cancelled_at`, which everything else reads) while either holds: a Kumite
-// deleted or moved off its day takes its reason away, and the night comes back unless another still keeps it off.
-// It's back on, from the night's page, takes every reason away: the admin's Keep both. A night whose register's
-// closed is the record (lib/register-closes.ts): it stays as it was.
+// Why a training night is off (apps/team/worker/training/README.md): called off by hand, or off for a tournament on its
+// day. The reasons are kept apart, and the night is off (`cancelled_at`) while either holds.
 import { syncSeries } from "@cougars/shared/agenda";
 import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { registerClosed } from "../../src/lib/register-closes";

@@ -193,7 +193,7 @@ describe("signing in with the code", () => {
     expect(email.text).not.toMatch(/https?:/);
     // The HTML version shows the same code, big, split in two for reading, and still has no link
     expect(email.html).toContain(`${code.slice(0, 3)} ${code.slice(3)}`);
-    // ...and the code is never written to a log, in either form, even with no Gmail set up (#74)
+    // ...and the code is never written to a log, in either form, even with no Gmail set up
     const logged = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
     expect(logged.some((l) => l.includes(code) || l.includes(`${code.slice(0, 3)} ${code.slice(3)}`))).toBe(false);
     expect(logged.some((l) => l.includes("mail.logged") && l.includes("[redacted]"))).toBe(true);

@@ -1,16 +1,20 @@
-// A tournament as the app sends it to be saved (POST /api/tournaments, PUT /api/tournaments/:id), from its editor
-// (lib/TournamentDateEditor) and the quick questions. What it leaves out stays as the server has it (apps/team/worker/tournaments/README.md):
-//   - its status: it moves on from the tournament's own page (Manage: Close sign-up, Move to…, apps/team/worker/tournaments/README.md)
-//   - a saved team's name and logo: they're changed on the team's own page (Edit the team), so an editor left open
-//     while its captain renames the team never puts the old name back. A new team sends its own.
+// A tournament as the app sends it to be saved (POST /api/tournaments, PUT /api/tournaments/:id), from its editor and
+// the quick questions. What it leaves out stays as the server has it (apps/team/worker/tournaments/README.md).
 import type { Tournament, TournamentTeam } from "../demo/model";
 
-/** A team as sent: a saved one (it has an id) without its look. */
+/**
+ * A team as sent: a saved one (it has an id) without its look.
+ * Its name and logo are changed on the team's own page (Edit the team), so an editor left open while its captain
+ * renames the team never puts the old name back. A new team sends its own.
+ */
 export function teamBody(team: TournamentTeam) {
   const { name, logo, ...rest } = team;
   return team.id ? rest : { ...rest, name, logo };
 }
 
+/**
+ * Never its status: that moves on from the tournament's own page (Manage: Close sign-up, Move to…).
+ */
 export const tournamentBody = (t: Tournament) => ({
   typeId: t.typeId,
   name: t.name,

@@ -1,9 +1,6 @@
-// What members owe, read without every charge and payment there has been (#177, apps/team/worker/dues/README.md): opening the app sends
-// your own unpaid charges and a line per member of what they owe, by age (Unpaid fees); a member's ledger is read a
-// page at a time, newest first, each line with what they owed after it. Balances must come out exactly as the whole
-// ledger worked out in one go does (lib/dues.ts ledger and aged, the sums the app used to do itself), for members in
-// credit, part paid, adjusted either way and with a payment taken back, however the pages fall. Driven through the
-// real Worker handlers in the fake world (ADR 0031).
+// What members owe, read without every charge and payment (apps/team/worker/dues/README.md): the line per member and
+// the paged ledger come out exactly as the whole ledger worked out in one go (lib/dues.ts). Driven through the real
+// Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, onTheNight, testWorld } from "../testing";
 import { aged, collected, ledger, type Charge, type Payment } from "../../src/lib/dues";

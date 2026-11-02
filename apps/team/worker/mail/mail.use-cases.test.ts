@@ -1,8 +1,6 @@
-// The club's email, looked after from the app (#101, ADR 0027): Google cancels the sending account's token when its
-// password changes, its access is removed or it goes unused for 6 months, and then every email fails, sign-in codes
-// too. An admin sees it on Home and in Settings → Email, and reconnects it there: Google's consent in the browser, back
-// to the app, which keeps the new token sealed in D1. It works at once, with no terminal and no deploy. Driven through
-// the real Worker handlers, with Google faked (ADR 0031).
+// The club's email, looked after from the app (ADR 0027): an admin sees a cancelled token on Home and in
+// Settings → Email and reconnects it there, working at once. Driven through the real Worker handlers, with Google
+// faked (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBreakers } from "@cougars/shared/breaker";
 import { clubContactFake } from "@cougars/shared/club-contact";

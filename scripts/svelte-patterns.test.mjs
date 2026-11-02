@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { parse } from "svelte/compiler";
 
 // A pattern in a Svelte attribute is a template, not a string: `pattern="\d{8}"` reaches the browser as `\d8`, as
-// Svelte reads `{8}` as an expression, and the field then refuses everything (#166: the bank details sheet could
-// never save). A pattern with braces is written as an expression, `pattern={"\\d{8}"}`. Each pattern in the team
+// Svelte reads `{8}` as an expression, and the field then refuses everything, so its form can
+// never save. A pattern with braces is written as an expression, `pattern={"\\d{8}"}`. Each pattern in the team
 // app is compiled and read back as the browser would get it.
 const root = new URL("../apps/team/src/", import.meta.url).pathname;
 

@@ -1,6 +1,5 @@
-// Where something is held (apps/team/worker/training/README.md). A place the club goes again and again is a saved venue: a name, an address
-// and its map link, set once and picked, so moving it fixes every event that uses it. A one-off (a social) needn't
-// make one: it has its own name and the map link pasted for it. Nothing set: its series' place, if it has one.
+// Where something is held (apps/team/worker/training/README.md): a saved venue the club goes to again and again, a
+// one-off's own name and map link, or else its series' place.
 
 /** A saved venue. */
 export interface Venue {

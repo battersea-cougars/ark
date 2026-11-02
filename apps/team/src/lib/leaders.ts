@@ -1,4 +1,4 @@
-// The leaderboards (#47): each player's goals, assists, points (goals and assists together, as hockey counts them)
+// The leaderboards: each player's goals, assists, points (goals and assists together, as hockey counts them)
 // and penalty minutes (PIM, lib/penalties.ts penaltyMinutes), over one tournament's games or every edition's. Only
 // games under way or played count: one not kicked off has nothing on it yet.
 import { penaltyMinutes } from "./penalties";
@@ -46,6 +46,6 @@ export function leaders(games: GameLike[], stat: LeaderStat): LeaderRow[] {
   return ranked([...rows.values()], stat);
 }
 
-/** Rows already counted (History's all-time board, counted by the Worker, #175), as the board for one stat. */
+/** Rows already counted (History's all-time board, counted by the Worker), as the board for one stat. */
 export const ranked = (rows: LeaderRow[], stat: LeaderStat) =>
   rows.filter((r) => r[stat] > 0).sort((a, b) => b[stat] - a[stat] || b.points - a.points || b.goals - a.goals);

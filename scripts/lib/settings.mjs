@@ -1,8 +1,6 @@
-// The plain settings the deploys and scripts need: IDs, not secrets, so they're committed here, one copy each
-// (docs/secrets.md says where each comes from; ADR 0002). Each is on a dashboard, in a URL, or in the team app's browser
-// code anyway, and useless without its secret. scripts/env-pull.mjs hands them to every command and CI job beside the
-// secrets, under the same names the code has always read (CLOUDFLARE_ACCOUNT_ID, APPLE_TEAM_ID, …); scripts/ci/target.mjs
-// puts the team Worker's on as vars.
+// The plain settings the deploys and scripts need, committed here once each (ADR 0002; docs/secrets.md says where each
+// comes from): IDs, not secrets, already on a dashboard, in a URL or in browser code, and useless without their secret.
+// scripts/env-pull.mjs hands them out beside the secrets; scripts/ci/target.mjs puts the team Worker's on as vars.
 
 const FILL_IN = "FILL_IN"; // not filled in yet: a CI job refuses to start, your machine only warns
 

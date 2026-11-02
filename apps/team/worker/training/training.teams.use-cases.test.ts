@@ -1,6 +1,5 @@
-// Friday's teams (apps/team/worker/training/README.md): only some people make them. Making and publishing teams is a role, Session lead, that an
-// admin gives a member; everyone else sees the teams once they're out. Driven through the real Worker handlers
-// (ADR 0031).
+// Friday's teams (apps/team/worker/training/README.md): a Session lead makes and publishes them; everyone else sees
+// them once they're out. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 

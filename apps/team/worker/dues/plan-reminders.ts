@@ -1,14 +1,6 @@
-// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md, #187), from the hourly Cron Trigger (index.ts
-// `scheduled`): every member who'll be Quarterly next quarter (they chose it, or their subscription runs on into it) is
-// told its fee is due, what it is and when it's charged, and that they can still switch to pay as you go on their Dues
-// page. Not keepers (the Keeper plan is never charged), not anyone paying as they go. The lead time is the club's
-// (Settings → Membership, five days unless set); from 10:00 to 20:00 London, from that day until the quarter starts,
-// so a run missed is made up by the next.
-//
-// A notification for anyone with the app (topic dues, theirs to switch off); an email for anyone without. Once per
-// member per quarter: claimed in plan_reminders before it's sent, in one statement, so two runs at once tell once. An
-// email that fails is let go of, so the next hour tries again. This isn't the dues reminders (reminders.ts): those are
-// about money owed, and an admin sends them.
+// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md): from the hourly cron, each member
+// who'll be Quarterly is told its fee is due, once per quarter, by notification or email. Not the dues reminders
+// (reminders.ts), which are about money owed.
 import { all, batch, statement } from "@cougars/shared/d1";
 import { sendMail, type Mail } from "@cougars/shared/email";
 import { londonTime, londonToday } from "@cougars/shared/london";
@@ -48,7 +40,11 @@ type Via = "push" | "email";
 const dayBefore = (day: string, days = 1) =>
   new Date(Date.parse(`${day}T12:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 
-/** The hourly run's part: tell whoever's due, if it's the time for next quarter's reminder. */
+/**
+ * The hourly run's part: tell whoever's due, if it's the time for next quarter's reminder. From the lead time's day
+ * until the quarter starts, in the day's hours, so a run missed is made up by the next. Not keepers (never charged),
+ * not anyone paying as they go.
+ */
 export async function remindPlans(env: Env, now: Date) {
   const today = londonToday(now);
   const quarter = nextQuarter(quarterOf(today));

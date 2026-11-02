@@ -1,13 +1,6 @@
-// Break glass (ADR 0023): the way back in when Gmail is down, every admin has lost their passkeys and none is signed
-// in. There's no route that makes one: someone with the club's Bitwarden and Cloudflare runs
-// `npm run admin:break-glass -- <admin's email>` at a terminal (scripts/admin-break-glass.mjs), which writes one
-// sign-in code for that admin into D1, hashed like any code, for 15 minutes, and prints it there. No browser asked for
-// it, so it has no nonce yet ('break-glass'): the first browser to ask for that admin's code on the usual sign-in page
-// claims it, in one statement, and isn't emailed anything. From then on it's a code like any other, bound to that
-// browser, with the same five tries and the browser's daily limit; using it is a session of method `break_glass`.
-// Every step is on the record (`auth.break_glass`: issued, signed in, ended), every admin is told on their phone and
-// by email (if email's working), and each admin's Home lists the week's, with a way to sign the session out or call
-// off a code nobody's used.
+// Break glass (ADR 0023): the way back in when Gmail is down and no admin can sign in. A code made only at a terminal
+// (scripts/admin-break-glass.mjs) is claimed by the first browser to ask for that admin's code, put on the record, and
+// told to every admin.
 import { all, first, run } from "@cougars/shared/d1";
 import { sendMail } from "@cougars/shared/email";
 import { notify } from "../push/push";
@@ -17,7 +10,11 @@ import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
 
-/** What a break-glass code's nonce is until a browser claims it: never a nonce's hash (those are hex). */
+/**
+ * What a break-glass code's nonce is until a browser claims it: never a nonce's hash (those are hex). The code is
+ * written at a terminal (scripts/admin-break-glass.mjs), hashed like any code, for 15 minutes; once claimed it's a
+ * code like any other, with the same tries and limits, and its session's method is `break_glass`.
+ */
 export const UNCLAIMED = "break-glass";
 /** How far back each admin's Home shows them. */
 const SHOWN_DAYS = 7;

@@ -1,17 +1,5 @@
-// The club's email, looked after from the app (#101, ADR 0027). Settings → Email says whether it works: the sending
-// account, the From address, the last send or failure, and why (a cancelled token apart from Gmail being busy). When
-// Google has cancelled the token, an admin presses "Reconnect email": Google's consent in this browser, back to
-// /api/mail/callback, and the new token is kept sealed in D1 (@cougars/shared/gmail-token), used at once by this app
-// and the website. No terminal, no Bitwarden, no deploy.
-//
-// The round trip through Google is OAuth's code flow for a Web application client, with PKCE: a state and a verifier,
-// random, in a short-lived cookie in the browser that asked, so Google's answer counts only there, and only once. It
-// must grant "Send email on your behalf", and it must not be the club's own account (nothing holds a token for it).
-// Every try is on the record with how it ended (mail.reconnected, or mail.reconnect_tried with the outcome, never
-// anything from Google's answer), and Settings → Email reads the last one from there, not only from its address.
-//
-// "Send a test email" sends one, the way every email goes (mailSetup: the reconnected token, else the deployed one,
-// with how it went written down), to the admin who pressed it and nobody else: there's no address to type.
+// The club's email, looked after from the app (ADR 0027): whether it works (Settings → Email), reconnecting it when
+// Google has cancelled its token, and sending a test email.
 import { first } from "@cougars/shared/d1";
 import { clubContact } from "@cougars/shared/club-contact";
 import {
@@ -105,7 +93,11 @@ const challengeOf = async (verifier: string) =>
 
 const callbackOf = (request: Request) => `${new URL(request.url).origin}${CALLBACK}`;
 
-/** "Reconnect email": Google's consent page to send the browser to, and the cookie that lets its answer back in. */
+/**
+ * "Reconnect email": Google's consent page to send the browser to, and the cookie that lets its answer back in. OAuth's
+ * code flow for a Web application client, with PKCE: the state and verifier are random, in a short-lived cookie in the
+ * browser that asked, so Google's answer counts only there, and only once.
+ */
 export async function startReconnect(env: AuthEnv, request: Request): Promise<Response> {
   if (!canReconnect(env))
     throw new HttpError(
@@ -185,6 +177,7 @@ async function reconnect(env: AuthEnv, request: Request, memberId: number, now: 
   if (!token.scope?.split(" ").includes(SEND)) return "no-send";
   const account = accountOf(token.id_token);
   if (!account || !token.refresh_token) throw new Error("Google's answer had no account or no refresh token");
+  // Never the club's own account: nothing holds a token for it
   if (account === (await clubContact(env.SITE_ENV))) return "club";
   await keepReconnectedToken(env, token.refresh_token, now);
   await recordReconnect(env.DB, account, memberId, now);

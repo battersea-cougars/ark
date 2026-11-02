@@ -40,7 +40,7 @@ export function csp(siteEnv: SiteEnv): string {
 /**
  * On every response: the policy above, HTTPS only for a year on every subdomain, never shown in another site's frame,
  * no sniffing a type, only the origin to other sites, and no camera, microphone or location for any page or anything
- * it frames (YouTube's player, Turnstile): the site uses none (#81).
+ * it frames (YouTube's player, Turnstile): the site uses none.
  */
 export function siteHeaders(siteEnv: SiteEnv): Record<string, string> {
   return {

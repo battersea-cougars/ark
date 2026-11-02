@@ -1,8 +1,5 @@
-// A tournament's format and rules, in words, for its one Rules sheet (apps/team/worker/tournaments/README.md), a topic a page, each rule its fact
-// first: sign-up (places, when it opens and closes, the fee), the draft (what the draft enforces), the format
-// (playoffs, the order's breaks, game length, periods and breaks, the gap between matches, the first match), points
-// and how the table's ranked, penalties, then the series' own house rules as an admin wrote them. Only what it stores
-// or the code enforces: nothing invented.
+// A tournament's format and rules in words, for its one Rules sheet (apps/team/worker/tournaments/README.md): a topic a
+// page, each rule its fact first. Only what it stores or the code enforces: nothing invented.
 import type { Tournament } from "../demo/model";
 import { BREAK_MINUTES } from "./fixtures";
 import { clock, formatDayDate, londonISO, ordinal, plural, pounds } from "./dates";

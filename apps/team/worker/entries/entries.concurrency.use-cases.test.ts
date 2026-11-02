@@ -1,7 +1,6 @@
-// Friday sign-up opening, everyone at once (docs/load-testing.md). A real D1 runs each statement, and each batch,
-// atomically, but two requests' statements interleave between their awaits; the fake D1 interleaves them the same way
-// (`interleave`, a seed each run), so a decision counted in one statement and written in the next is caught. Driven
-// through the real Worker handlers, each person signed in as themselves (ADR 0031).
+// Friday sign-up opening, everyone at once (docs/load-testing.md): the fake D1 interleaves requests' statements
+// between their awaits as a real one does (`interleave`, a seed each run). Driven through the real Worker handlers
+// (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

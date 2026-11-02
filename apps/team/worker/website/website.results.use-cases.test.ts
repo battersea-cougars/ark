@@ -1,8 +1,6 @@
-// A tournament's results on the website (apps/team/worker/website/README.md): once its last game is played, anyone can see it on the website,
-// read live from the same D1: the champions, the table, every score and who scored. Award winners show once an admin
-// confirms them. Players go by the name they chose; nobody's full name leaves the database. Driven through the real
-// Worker handlers (ADR 0031), then read the way the website's build reads them: the snapshot's rows
-// (scripts/lib/results-sql.mjs), worked out by the website's own module.
+// A tournament's results on the website (apps/team/worker/website/README.md): once its last game is played, its
+// champions, table and scores; award winners once confirmed; players by the name they chose. Driven through the real
+// Worker handlers (ADR 0031), then read as the website's build reads them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { crestFiles, editionsFrom } from "../../../web/src/lib/results";
 import { readResultRows } from "../../../../scripts/lib/results-sql.mjs";

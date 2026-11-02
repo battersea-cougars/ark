@@ -1,9 +1,5 @@
-// A tournament, from an admin setting it up to its captains drafting their teams (ADR 0031): driven through the real
-// Worker handlers in the fake world (testing.ts), with the website's What's on reading the same database.
-//
-// The story: an admin makes a series with its colour and schedules a tournament in it, with a date and captains. It
-// goes on the website, members see it in the app, they can say they're in once sign-up opens, and then an admin
-// opens the draft, the captains pick them onto their teams, and the admin closes it.
+// A tournament, from an admin setting it up to its captains drafting their teams (ADR 0031), with the website's
+// What's on reading the same database. Driven through the real Worker handlers in the fake world (testing.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { whatsOn } from "../../../web/src/lib/server/whats-on";
 import { NOW, logoAt, testWorld } from "../testing";

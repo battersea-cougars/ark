@@ -1,8 +1,5 @@
-// An admin closes a tournament's sign-up now (apps/team/worker/tournaments/README.md), before its closing day: when, on its own (signup_closed_at),
-// its dates left as they were, so a later save never finds it closing before it opens (lib/signup.ts signupOver).
-// Members can't say they're in any more, and a captains' draft moves on to Draft open, where the order's drawn
-// (lib/tournament-front.ts statusOf). One statement that only does anything while sign-up's open and nothing's drawn
-// or made, so two taps at once close it once (ADR 0003). Back to Sign-up open (step-back.ts) opens it again.
+// An admin closes a tournament's sign-up now (apps/team/worker/tournaments/README.md), before its closing day, its
+// dates left as they were.
 import { all, first, run, type Param } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
@@ -67,7 +64,7 @@ export function signupOpenNotice(t: Opened): Notice {
 
 /**
  * Marks the tournaments matching `where` told, and returns them: only those nobody's told yet, not started (one played
- * early is past, whatever its date, apps/team/worker/tournaments/README.md, #182), their sign-up not over.
+ * early is past, whatever its date, apps/team/worker/tournaments/README.md), their sign-up not over.
  */
 export const markTold = (db: D1Database, where: string, args: Param[], now: Date) =>
   all<Opened>(

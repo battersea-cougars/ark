@@ -143,7 +143,7 @@ export const getSettings = async (): Promise<SiteSettings> => {
 };
 
 // The club's videos as of this build: only the homepage's no-JavaScript fallback uses these. /videos and the
-// homepage reel read them live (lib/server/videos.ts, docs/adr/0016-photos-and-videos-read-live.md).
+// homepage reel read them live (lib/server/videos.ts, ADR 0016).
 export const getVideos = memo(async () => (await liveVideos(videosConfig())).data);
 export const getEvents = memo(() => fetchList<ClubEvent>(q.EVENTS, DEMO_EVENTS));
 export const getEventPages = memo(() => fetchList<ClubEvent>(q.EVENT_PAGES, DEMO_EVENTS));

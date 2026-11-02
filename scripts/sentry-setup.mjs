@@ -1,20 +1,17 @@
 #!/usr/bin/env node
-// Sentry for the club's errors and down alerts (ADR 0110), made through its API and safe to run again: it changes nothing
-// that's already right.
+// Sentry for the club's errors and down alerts (ADR 0110), made through its API: a project per app, the alerts that
+// email, the team Worker's cron monitor and the DSNs. Safe to run again: it changes nothing that's already right.
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs            projects, alerts, cron monitor, the DSNs
 //   node scripts/env-pull.mjs -- node scripts/sentry-setup.mjs --uptime   also the uptime monitors (once /health is live)
 // Needs SENTRY_AUTH_TOKEN (docs/secrets.md#sentry_auth_token). The organisation is the developer account's, in the EU region.
-//
-// Each app is a project. Three alerts email: a new issue in production, a new issue in dev, and a spike in production.
-// The team Worker's hourly cron has a cron monitor. The website's DSN goes to Secrets Manager (SENTRY_DSN_WEB); the
-// team app's is in its browser code anyway, so it's committed (SENTRY_DSN_TEAM, scripts/lib/settings.mjs): this checks
-// it and says what to put there if it differs. The deploy hands them to the apps.
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 const ORG = "battersea-cougars";
 const API = "https://de.sentry.io/api/0";
 const SITE = "https://batterseacougars.com";
 
+// The website's DSN goes to Secrets Manager; the team app's is in its browser code anyway, so it's committed
+// (scripts/lib/settings.mjs), and this says what to put there if it differs. The deploy hands them to the apps.
 const PROJECTS = [
   { slug: "web", platform: "javascript-astro", dsn: "SENTRY_DSN_WEB", secret: true, health: `${SITE}/health` },
   {
@@ -91,7 +88,7 @@ for (const want of PROJECTS) {
 // hour's jobs are done, error when its last try failed too. A missed or failed :07 run is caught up by the run every
 // minute, up to 47 past (HOURLY_TRIES), so the margin waits 50 minutes for it, and an issue opens only when two hours
 // in a row fail or are missed, caught up or not: a deploy or a blip at :07 isn't an alert. One good hour resolves it.
-// The fields are Sentry's ConfigValidator's (src/sentry/monitors/validators.py, checked 2026-10-28); minutes.
+// The fields are Sentry's ConfigValidator's (src/sentry/monitors/validators.py); minutes.
 const CRON = {
   project: "team",
   name: "team hourly cron",

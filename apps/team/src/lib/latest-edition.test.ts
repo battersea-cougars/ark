@@ -63,7 +63,7 @@ describe("the edition a series opens on", () => {
     expect(latestOf(all)?.id).toBe(2);
   });
 
-  // Until an admin plays it, moves it or deletes it, it's still the one (#169: it vanished behind the last one played)
+  // Until an admin plays it, moves it or deletes it, it's still the one, not hidden behind the last one played
   it("a fixed day that came and went unplayed is still the one", () => {
     const all = [edition(1, "2026-06-01", { games: [played(1)] as never }), edition(2, "2026-09-01")];
     expect(latestOf(all)?.id).toBe(2);

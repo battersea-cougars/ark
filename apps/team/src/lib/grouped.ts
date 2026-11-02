@@ -1,5 +1,5 @@
 // Rows grouped by what they belong to, in one pass, each group in the rows' order: a year of tournaments' goals put
-// with their games once, not each game looking through every goal there's been (#175). Used by the app and the worker.
+// with their games once, not each game looking through every goal there's been. Used by the app and the worker.
 
 /** Each key's rows, in the order they came. */
 export function grouped<T, K>(rows: readonly T[], keyOf: (row: T) => K): Map<K, T[]> {

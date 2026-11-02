@@ -1,4 +1,4 @@
-// The leaderboards (#47, lib/leaders.ts): goals, assists, points and penalty minutes per player, over one tournament's
+// The leaderboards (lib/leaders.ts): goals, assists, points and penalty minutes per player, over one tournament's
 // games or every edition's, each board in its own order.
 import { describe, expect, it } from "vitest";
 import { leaders } from "./leaders";

@@ -229,7 +229,7 @@ describe("a tournament is one page; its teams and History are a link away, with 
 });
 
 describe("every edition is its own page, at its own address", () => {
-  // "I should always be able to enter prior kumite and see that timeline" (the user, 2026-10-23)
+  // A past Kumite can always be opened, with its whole timeline
   const routes = buildRoutes({ ...one, types: [{ ...kumite, stage: "fixtures", past: [5], editions: [5, 12] }] });
 
   it("the one on and every past one: the series' page, by status, for that edition", () => {

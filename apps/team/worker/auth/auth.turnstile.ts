@@ -1,11 +1,5 @@
-// Cloudflare Turnstile in front of the two routes anyone can call without signing in (#13, ADR 0027): asking for a
-// sign-in code and asking to join. The sign-in page's widget (src/lib/turnstile.ts, managed and shown only when
-// Cloudflare wants a tap) puts its token in the body as `turnstile`; it's checked here once with Cloudflare, and a
-// missing or failed check is refused. Free, no cookies.
-//
-// Without a secret (your machine, the tests) there's nothing to check against and it lets everyone through, as the
-// website does; a deployed production server without one refuses instead, since that's a deploy gone wrong, not a
-// laptop.
+// Cloudflare Turnstile in front of the two routes anyone can call without signing in (ADR 0027): asking for a sign-in
+// code and asking to join. The widget's token (src/lib/turnstile.ts) is checked here with Cloudflare.
 import { isProduction } from "@cougars/shared/email";
 import { verifyTurnstile } from "@cougars/shared/turnstile";
 import { scribe } from "@cougars/shared/scribe";
@@ -24,7 +18,11 @@ export type HumanAction = "sign-in" | "join";
 
 const NOT_CHECKED = "We couldn't check you're a person. Reload the page and try again.";
 
-/** Throws a 403 unless Cloudflare says a person sent this. `local`: your own machine's server (localHere). */
+/**
+ * Throws a 403 unless Cloudflare says a person sent this. `local`: your own machine's server (localHere). Without a
+ * secret (your machine, the tests) everyone passes, as on the website; a deployed production server without one
+ * refuses, since that's a deploy gone wrong.
+ */
 export async function mustBeHuman(
   env: TurnstileEnv,
   request: Request,

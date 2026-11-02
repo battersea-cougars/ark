@@ -54,7 +54,7 @@ export function tabHref(
 }
 
 /**
- * Where a phone's Back goes (#86), or null for a tab's own pages (Home, Friday, the club, the Kumite's pages, You),
+ * Where a phone's Back goes, or null for a tab's own pages (Home, Friday, the club, the Kumite's pages, You),
  * which have the tabs instead. `history`: by the browser's history (the page it was opened from); otherwise the shell
  * goes there in this page's place, so Back never adds a page to go forward to.
  *

@@ -1,11 +1,14 @@
-// Stepping a tournament back one step of its workflow (apps/team/worker/tournaments/README.md), shared by the app (what Manage offers, and
-// what it'll cost) and the Worker (which step it's at, so a tap from a page that's out of date is refused). The steps
-// are the tournament's statuses (Sign-up open, Draft open, Teams set, Fixtures set, the day, the after-party's awards
-// revealed) and the draft's own (the order drawn, the draft open); teams that enter skip the draft's. Each step back
-// undoes the step before it, and no more.
+// Stepping a tournament back one step of its workflow (apps/team/worker/tournaments/README.md), shared by the app (what
+// Manage offers, and what it'll cost) and the Worker (which step it's at, so a tap from a page that's out of date is
+// refused).
 import { signupOver } from "./signup";
 
-/** The step a tournament is at, by what stepping back from it undoes. */
+/**
+ * The step a tournament is at, by what stepping back from it undoes.
+ * The steps are the tournament's statuses (Sign-up open, Draft open, Teams set, Fixtures set, the day, the
+ * after-party's awards revealed) and the draft's own (the order drawn, the draft open); teams that enter skip the
+ * draft's. Each step back undoes the step before it, and no more.
+ */
 export type BackFrom =
   /** Awards revealed at the after-party: every one face down again (the results and the winners stay). */
   | "awards"

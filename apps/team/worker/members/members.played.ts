@@ -1,9 +1,5 @@
-// How many training nights each member has played (#177): the player card's "played", in every member's row of the
-// club read. A night counts once its day has passed: they were in and weren't a no-show, and it wasn't called off.
-// Counting every night ever played on every open read more of D1 each week, so the nights whose register has closed
-// (06:00 London the morning after, lib/register-closes.ts) are counted once, into `members.played`, up to a day kept
-// beside the data version (`played_through`); from then nothing changes who came to them. The club read adds the few
-// nights since that day, held before today, which is at most a night or two, found by the sessions' day index.
+// How many training nights each member has played: the player card's "played". Nights whose register has closed are
+// counted once into `members.played`; the club read adds the few since.
 import { batch, first, statement } from "@cougars/shared/d1";
 import { londonEvening } from "@cougars/shared/london";
 

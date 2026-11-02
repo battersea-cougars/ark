@@ -1,12 +1,7 @@
-// Every route keeps to the D1 budget (ADR 0003; docs/testing.md, What a request costs): a request makes a small, bounded number of D1
-// calls, whatever the club's size. Driven through the real handlers in the fake world (ADR 0031) on a club-sized
-// fixture: 60 members, a season of Fridays behind them with their charges, a Kumite played to its end, another
-// drafted and scored, sign-ups, dues, the calendar and the settings. Each route is driven on its happy path (a refusal
-// costs less, so it would hide what the route costs), and the fake D1 counts every round trip its request makes: the
-// wrapper's own (who's asking, the limits, the record, the version, the parts sent back) and what goes after the reply
-// (the tests have no waitUntil). Then the same at 120 members: a route that costs more there reads a member at a time.
-// A new route fails until it's driven here. BUDGET=1 prints the table, BUDGET=sql each dear route's statements, and
-// BUDGET=plan each statement whose query plan reads a whole table.
+// Every route keeps to the D1 budget (ADR 0003; docs/testing.md, What a request costs): a small, bounded number of D1
+// calls per request, on a club-sized fixture of 60 members and again at 120. A new route fails until it's driven here.
+// BUDGET=1 prints the table, BUDGET=sql each dear route's statements, BUDGET=plan each statement that reads a whole
+// table.
 import { PAGE_PARTS } from "../../src/app/club-parts";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ROUTES } from "./api";
@@ -98,7 +93,7 @@ async function hit(as: Phone, method: string, path: string, payload?: unknown, n
   if (!was || res.d1.roundTrips > was.d1.roundTrips) spent.set(key, { d1: res.d1, path });
   return res;
 }
-/** The club as the app holds it once its pages are read (#178): the bootstrap, then every page's parts. */
+/** The club as the app holds it once its pages are read: the bootstrap, then every page's parts. */
 const boot = async (as: Phone = dana, now: Date = NOW) =>
   wholeClub(
     (await hit(as, "GET", "/api/bootstrap", undefined, now)).body,
@@ -190,7 +185,7 @@ async function walk() {
   const m2 = ids["Member 52"];
   await hit(dana, "PUT", `/api/members/${m2}/everyday-role`, { roleId: memberRole.id });
   await hit(dana, "GET", `/api/members/${m2}/attendance`);
-  // Three nights still open: a past one's register closed the morning after (#11), so the coming ones
+  // Three nights still open: a past one's register closed the morning after, so the coming ones
   const coming = b.sessions.filter((s: Json) => s.heldOn >= NOW.toISOString().slice(0, 10)).slice(0, 3);
   await hit(dana, "PUT", `/api/members/${m2}/attendance`, {
     marks: coming.map((s: Json) => ({ sessionId: s.id, here: false })),
@@ -576,7 +571,7 @@ async function kumites() {
     EVENING,
   );
   const reg = await member(1);
-  // History (#175): a page of the played ones, every series' too, the all-time leaders, and the past one opened, by
+  // History: a page of the played ones, every series' too, the all-time leaders, and the past one opened, by
   // itself, by one of its games and by one of its teams, its crest at its own address
   await hit(reg, "GET", `/api/tournament-types/${KUMITE_TYPE}/editions?limit=5`);
   await hit(dana, "GET", "/api/tournaments/editions");
@@ -584,7 +579,7 @@ async function kumites() {
   const past = (await hit(reg, "GET", `/api/tournaments/${recorded.body.id}`)).body.tournament;
   await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/tournament`);
   await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/tournament`);
-  // What used to look through every edition the app held, and every charge (#177): each its own small read
+  // What would otherwise look through every edition the app held, and every charge: each its own small read
   await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/meetings`);
   await hit(dana, "GET", `/api/tournament-types/${KUMITE_TYPE}/brings?heldOn=2026-12-01`);
   await hit(dana, "GET", "/api/venues/used");

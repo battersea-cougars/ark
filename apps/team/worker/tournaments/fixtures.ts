@@ -1,8 +1,5 @@
-// A tournament's fixtures, results and playoffs (apps/team/worker/tournaments/README.md). Once it has two teams (a captains' draft's captains, or the
-// teams that entered), an admin has the app make the fixtures: a round robin, every team playing every other once,
-// in the order that gives everyone the longest break (lib/fixtures.ts fairFixtures), then the playoff games its
-// settings ask for, by table position. They can be made again until a game has a result. When the last group game has
-// its result, the playoffs get their teams from the table.
+// A tournament's fixtures, results and playoffs (apps/team/worker/tournaments/README.md): a round robin in the fairest
+// order (lib/fixtures.ts), then the playoffs its settings ask for, filled from the table.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fairFixtures, scorekeepers, table } from "../../src/lib/fixtures";
 import { grouped } from "../../src/lib/grouped";
@@ -130,7 +127,7 @@ export function gamesFrom(
       games,
     ))
       keepers.set(game, team);
-  // Each goal and penalty put with its game once, not every game looking through every one there's been (#175)
+  // Each goal and penalty put with its game once, not every game looking through every one there's been
   const goalsOf = grouped(goals, (x) => x.gameId);
   const penaltiesOf = grouped(penalties, (x) => x.gameId);
   return rows.map((g) => ({
@@ -340,7 +337,7 @@ export async function fillPlayoffs(db: D1Database, tournamentId: number, t: Tour
     games
       .filter((g) => g.stage === "playoff" && g.status === "next")
       .map((g) =>
-        // Only while it's still to start, decided in the statement (#122): one being played keeps its teams and goals
+        // Only while it's still to start, decided in the statement: one being played keeps its teams and goals
         statement(
           db,
           `UPDATE tournament_games SET home_team_id = ?, away_team_id = ? WHERE id = ? AND status = 'next'

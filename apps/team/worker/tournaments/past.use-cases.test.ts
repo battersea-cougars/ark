@@ -1,8 +1,5 @@
-// A past Kumite recorded (apps/team/worker/tournaments/README.md): the club played Kumites before the app, and an admin puts one in after the fact:
-// its day, its teams, its matches with their scores (a final among them) and who scored where anyone remembers, and
-// who won each award. It goes straight into history, done, its awards out, with nobody charged for it; the all-time
-// leaders count the goals that have a scorer. A member who doesn't run tournaments can't. Driven through the real
-// Worker handlers in the fake world (ADR 0031).
+// A past Kumite recorded (apps/team/worker/tournaments/README.md): an admin puts one in after the fact and it goes
+// straight into history. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { atAfters, championOf, editionState, playedOn } from "../../src/lib/edition";
 import { londonEvening } from "../../src/lib/dates";

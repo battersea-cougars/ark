@@ -1,6 +1,5 @@
-// When two captains' sides last met (the matchup page, #177): the past editions of the game's series where both
-// captains were on a team, as captain or player, with their teams and played games, newest first. The app picks out
-// the games with one on each side (lib/matchups.ts meetings); it no longer has every past edition to look through.
+// When two captains' sides last met (the matchup page): the past editions of the game's series where both captains
+// played, newest first; the app picks out the games with one on each side (lib/matchups.ts meetings).
 import { rows } from "../api/api.club";
 
 /** How many past editions with both in: more than the page's five meetings could need. */
