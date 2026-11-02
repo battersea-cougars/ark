@@ -1,13 +1,5 @@
 // The club's live hub (ADR 0053): one Durable Object per environment that holds every open live page's stream and
-// tells them all at once when something changed. It stores nothing (declared SQLite-backed because the free plan
-// asks for it; the streams live in memory, D1 is the source of truth), so if it restarts the phones just reconnect.
-// An event is the names of the club's parts that changed (ADR 0053) and the data versions that changed them: what a
-// member sees comes from their own read, except a part the Worker built once for an audience (a live match, for every
-// member: live.parts.ts, #161), which goes with the event down those members' streams only, held a second at most. A
-// burst of changes (a Friday's taps) goes out as one event a second at most, naming every part and version in it, so
-// each phone reads once (#112). Each stream is a member's and a
-// sign-in's: three a member at most, and closed when its sign-in ends (#72, #73). Written in the classic Durable
-// Object shape, with no runtime imports, so the tests hold a real one.
+// tells them all at once when something changed. It stores nothing; D1 is the source of truth.
 import { scribe } from "@cougars/shared/scribe";
 import { within, type SentryEnv, type Waiting } from "../sentry/sentry";
 import { HEARTBEAT_MS } from "../../src/lib/live-stream";
@@ -36,7 +28,7 @@ const PING = frame("ping", {});
 const EVENT_EVERY_MS = 1000;
 
 /**
- * Streams one member may hold at once (#73): a phone, a laptop and a tab or two, since a page out of view closes its
+ * Streams one member may hold at once: a phone, a laptop and a tab or two, since a page out of view closes its
  * own. Another one opening closes their oldest, so a stale one never shuts out the page in front of them, and one
  * member (or a stolen session) can't hold dozens of the hub's connections.
  */
@@ -63,6 +55,11 @@ interface Listener {
   sessionId: number | null;
 }
 
+/**
+ * Declared SQLite-backed (wrangler.jsonc) because the free plan asks for it; the streams live in memory, so a restart
+ * just has the phones reconnect. Written in the classic Durable Object shape, with no runtime imports, so the tests
+ * hold a real one.
+ */
 export class LiveHub {
   /** Every open stream, oldest first, and whose it is. */
   private readonly streams = new Map<ReadableStreamDefaultController<Uint8Array>, Listener>();
@@ -75,7 +72,7 @@ export class LiveHub {
   private lastSent = 0;
   private waiting: ReturnType<typeof setTimeout> | undefined;
 
-  // The object's state and environment: it keeps nothing, so only for sending what goes wrong to Sentry (#225)
+  // The object's state and environment: it keeps nothing, so only for sending what goes wrong to Sentry
   constructor(
     private readonly state: Partial<Waiting> & Record<string, unknown> = {},
     private readonly env: SentryEnv = {},
@@ -101,7 +98,7 @@ export class LiveHub {
         sessionId: session ? Number(session) : null,
       });
     }
-    // Signed out (#72): their streams close, so a session that's ended stops hearing the club at once
+    // Signed out: their streams close, so a session that's ended stops hearing the club at once
     if (request.method === "POST" && pathname === "/end") {
       const { memberId, sessionIds = [] } = (await request.json().catch(() => ({}))) as {
         memberId?: number;
@@ -242,7 +239,7 @@ export async function liveStream(env: LiveEnv, who: Listener): Promise<Response>
   return hub(env).fetch(`https://live/subscribe?${q}`);
 }
 
-/** Close the streams of a member who's been signed out everywhere, or of these sign-ins (#72). Never fails. */
+/** Close the streams of a member who's been signed out everywhere, or of these sign-ins. Never fails. */
 export async function endLive(env: LiveEnv, which: { memberId: number } | { sessionIds: number[] }): Promise<void> {
   if (!env.LIVE) return;
   try {

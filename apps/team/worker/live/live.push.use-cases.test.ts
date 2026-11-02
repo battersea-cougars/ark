@@ -1,9 +1,5 @@
-// A game scored live reaches every phone with nothing read (ADR 0053, #161): at the rink everyone shares one wifi
-// address, and a goal used to be a read on every phone following the game within the same second. A live match is
-// the same for every member, so the Worker builds it once and the hub sends it with the change's names; a phone that
-// holds the version just before puts it in place as it is. Anything else (a phone that missed a change, a part that's
-// someone's own, the draft) is names only, and read as before. Phones here hold the app's own copy of the club
-// (src/app/catch-up.ts), through the real Worker and the real hub.
+// A game scored live reaches every phone with nothing read (ADR 0053): the Worker builds a live match once and the
+// hub sends it with the change; anything else is names only. Through the real Worker and the real hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { phoneOn as livePhone, type LivePhone } from "./live.testing";
@@ -152,7 +148,7 @@ describe("a game scored live, everyone following it", () => {
   });
 
   it("a game played before its tournament's day is live all the same: the goal reaches the phones with the game", async () => {
-    // Status, not the date, says it's on (apps/team/worker/tournaments/README.md, #182): set for the 9th, played today
+    // Status, not the date, says it's on (apps/team/worker/tournaments/README.md): set for the 9th, played today
     const cup = await cupOn("2026-10-09");
     const mo = await phoneOn("mo@example.com");
     await cup.goal();
@@ -169,7 +165,7 @@ describe("a game scored live, everyone following it", () => {
     expect((await cup.dana.call("PUT", cup.path, score(2, 0))).status).toBe(200);
     await settled();
     expect(mo.events.every((e: Json) => e.parts === undefined)).toBe(true);
-    // Of the family, the parts this phone holds (it's read every page, #178): Home's people and each series' last one
+    // Of the family, the parts this phone holds (it's read every page): Home's people and each series' last one
     expect(mo.asked.slice(1)).toEqual(["parts: tournaments, people, lastPlayed"]);
   });
 });

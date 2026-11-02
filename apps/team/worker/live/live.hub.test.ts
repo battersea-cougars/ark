@@ -1,6 +1,4 @@
-// The live hub (ADR 0053) on its own, with fake timers: the edges the use cases' real waits don't pin down. A change
-// with nobody listening, the second's coalescing to the millisecond, a phone's stream that's gone, a notify the hub
-// can't read, and paths it doesn't know. A real LiveHub, as the Worker's tests hold one.
+// The live hub (ADR 0053) on its own, with fake timers: the edges the use cases' real waits don't pin down.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LiveHub } from "./live";
 

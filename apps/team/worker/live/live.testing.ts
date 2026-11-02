@@ -1,6 +1,5 @@
 // A member's phone with a live page open, for the live use cases (ADR 0053): the app's own copy of the club
-// (src/app/catch-up.ts) reading through the real Worker, its stream from the real hub, and a live match the hub
-// pushes put in place as the app does (#161).
+// (src/app/catch-up.ts) reading through the real Worker, its stream from the real hub.
 import { ClubCopy, withAwards, withMatch } from "../../src/app/catch-up";
 import { partsChanged } from "../../src/app/club-parts";
 
