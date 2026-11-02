@@ -4,7 +4,7 @@
 // copy holds (ADR 0053), a change with the page's Origin and its reply's parts put in place, and a live page's stream
 // (ADR 0072), its copy of the club reading the parts an event names, or taking the live match it brings (the app's own
 // catch-up.ts, #112, #161).
-import { ClubCopy, withMatch } from "../../apps/team/src/app/catch-up.ts";
+import { ClubCopy, withAwards, withMatch } from "../../apps/team/src/app/catch-up.ts";
 import { atVersion, VERSION_HEADER } from "../../apps/team/src/app/club-tag.ts";
 import { HOLDS_HEADER, partsChanged } from "../../apps/team/src/app/club-parts.ts";
 
@@ -93,6 +93,14 @@ export async function phone(target, email, stats, { address } = {}) {
     // A live match the hub sent (#161), as the app puts it in place
     applyMatch: (match) => {
       const tournaments = withMatch(club?.tournaments, match);
+      if (!tournaments) return false;
+      club = { ...club, tournaments };
+      onScreen();
+      return true;
+    },
+    // The after-party's drum the hub sent (#224), as the app puts it in place
+    applyAwards: (awards) => {
+      const tournaments = withAwards(club?.tournaments, awards);
       if (!tournaments) return false;
       club = { ...club, tournaments };
       onScreen();

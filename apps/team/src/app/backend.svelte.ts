@@ -35,7 +35,7 @@ import type { Quip, QuipKind } from "../lib/quips";
 import type { Topic } from "../lib/notification-topics";
 import type { Team } from "../lib/balance";
 import { ApiError, api, bootstrapIfChanged, brake, getBootstrap, held, readSlices, versionOf } from "./api";
-import { ClubCopy, withMatch } from "./catch-up";
+import { ClubCopy, withAwards, withMatch } from "./catch-up";
 import { partsChanged } from "./club-parts";
 import { letGo, onParts, revalidate } from "./page-data.svelte";
 import { forgetEdition, keptAreStale, showTournaments } from "./editions.svelte";
@@ -169,6 +169,12 @@ export const copy = new ClubCopy({
   // A live match the hub sent (#161): its games in place of the tournament's
   applyMatch: (match) => {
     const tournaments = withMatch(TOURNAMENTS, match);
+    if (tournaments) apply({ tournaments } as Slices);
+    return Boolean(tournaments);
+  },
+  // The after-party's drum (#224): an award turned over, or rolled on to the next
+  applyAwards: (awards) => {
+    const tournaments = withAwards(TOURNAMENTS, awards);
     if (tournaments) apply({ tournaments } as Slices);
     return Boolean(tournaments);
   },

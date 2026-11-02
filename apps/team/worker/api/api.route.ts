@@ -90,6 +90,12 @@ export interface Route {
    */
   liveMatch?: true;
   /**
+   * true: the after-party's drum, an award turned over or rolled on to the next, touching nothing but its tournament's
+   * reveal. The drum (and the winners out, never one still sealed) goes with the event to every member, so the room's
+   * phones read nothing (ADR 0072, 0074, #224; live/live.parts.ts).
+   */
+  liveAwards?: true;
+  /**
    * On the record (ADR 0095): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
    * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says
    * (security.test.ts). The wrapper reads `subject` before the handler and again after; when the two differ it writes

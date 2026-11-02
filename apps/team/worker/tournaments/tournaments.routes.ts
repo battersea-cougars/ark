@@ -120,9 +120,10 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: (c) => revealedSubject(c.env.DB, id(c)),
     },
     action: "manage:Tournament",
-    // Everyone watching the after-party sees it turn over (ADR 0072)
+    // Everyone watching the after-party sees it turn over (ADR 0072), the drum sent with the event (#224)
     changes: ["tournaments"],
     calendar: false,
+    liveAwards: true,
     // { next }: the award it reveals, by its place in the reveal (a judges' call left out isn't one), the one the tap
     // saw face down (ADR 0074)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
@@ -136,9 +137,10 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: rowOf("SELECT id, name, awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?"),
     },
     action: "manage:Tournament",
-    // Everyone watching sees the drum roll on (ADR 0072)
+    // Everyone watching sees the drum roll on (ADR 0072), sent with the event (#224)
     changes: ["tournaments"],
     calendar: false,
+    liveAwards: true,
     // { at }: how many were out when the tap saw it, so a double tap rolls it once (ADR 0074)
     handle: async (c) => (await nextAward(c.env.DB, id(c), await body(c.request)), ok()),
   },

@@ -1,7 +1,7 @@
 // A member's phone with a live page open, for the live use cases (ADR 0072): the app's own copy of the club
 // (src/app/catch-up.ts) reading through the real Worker, its stream from the real hub, and a live match the hub
 // pushes put in place as the app does (#161).
-import { ClubCopy, withMatch } from "../../src/app/catch-up";
+import { ClubCopy, withAwards, withMatch } from "../../src/app/catch-up";
 import { partsChanged } from "../../src/app/club-parts";
 
 /** Whether these actions see everyone's dues (ADR 0007), as the app's copy asks. */
@@ -16,10 +16,16 @@ export type LivePhone = Awaited<ReturnType<typeof phoneOn>>;
 
 /**
  * A member's phone with a live page open that follows `parts`: its copy of the club, what it asked the Worker for,
- * every event its stream brought, and whether the page is in view. `stop` when the test is done.
+ * every event its stream brought, and whether the page is in view. `stop` when the test is done. `now`: the club's
+ * clock for everything it asks (the tests' NOW unless said).
  */
-export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, parts: readonly string[]) {
-  const b = await w.listening(email);
+export async function phoneOn(
+  w: ReturnType<typeof testWorld>,
+  email: string,
+  parts: readonly string[],
+  { now }: { now?: Date } = {},
+) {
+  const b = await w.listening(email, now);
   let club: Json = null;
   let tag: string | null = null;
   let inView = true;
@@ -28,6 +34,7 @@ export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, pa
   const whole = async () => {
     const r = await b.club({
       headers: tag ? { "if-none-match": atVersion(tag, copy.held) } : {},
+      now,
     });
     asked.push(r.status === 304 ? "whole: unchanged" : "whole");
     if (r.status !== 200) return;
@@ -38,7 +45,7 @@ export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, pa
   const copy: ClubCopy = new ClubCopy({
     readParts: async (names) => {
       asked.push(`parts: ${names.join(", ")}`);
-      const r = await b.call("GET", `/api/slices?names=${names.join(",")}`);
+      const r = await b.call("GET", `/api/slices?names=${names.join(",")}`, undefined, { now });
       if (r.status !== 200) throw new Error(`${r.status}`);
       return r.body;
     },
@@ -46,6 +53,11 @@ export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, pa
     apply: (slices) => (club = { ...club, ...slices }),
     applyMatch: (match) => {
       const tournaments = withMatch(club?.tournaments, match);
+      if (tournaments) club = { ...club, tournaments };
+      return Boolean(tournaments);
+    },
+    applyAwards: (awards) => {
+      const tournaments = withAwards(club?.tournaments, awards);
       if (tournaments) club = { ...club, tournaments };
       return Boolean(tournaments);
     },
@@ -77,7 +89,7 @@ export async function phoneOn(w: ReturnType<typeof testWorld>, email: string, pa
     hide: () => (inView = false),
     /** A change from this phone: its reply's parts go in place, as the app's `save` does. */
     change: async (method: string, path: string, payload?: unknown) => {
-      const r = await b.call(method, path, payload);
+      const r = await b.call(method, path, payload, { now });
       const v = r.headers.get("x-club-version");
       if (r.status < 300 && r.body.changed && v) Object.assign(club, copy.partsAt(Number(v), r.body.changed));
       return r;
