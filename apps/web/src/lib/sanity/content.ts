@@ -27,6 +27,9 @@ export const demo = DEMO_CONTENT;
 /** In `astro dev`: why Sanity couldn't be read on the last try, or "". The layout shows it in a banner. */
 export const devSanity = { problem: "" };
 
+/** Running on a developer's machine or in a PR's check (the LOCAL ribbon: no SITE_ENV, astro.config.mjs), not a deploy. */
+const onMachine = (JSON.parse(import.meta.env.ENV_RIBBON || "null") as { env?: string } | null)?.env === "LOCAL";
+
 /** The last answer to each query, for a Worker or `astro dev` to fall back on when Sanity can't be read. */
 const lastGood = new Map<string, unknown>();
 
@@ -40,13 +43,27 @@ async function fetchOr<T>(query: string, fallback: T): Promise<T> {
     if (onWorker || import.meta.env.DEV) lastGood.set(query, result);
     return result === null ? fallback : result;
   } catch (error) {
-    // A build fails loudly. A server route (ADR 0016), and a page in `astro dev`, render with the last good copy or
-    // the fallback rather than an error page (ADR 0055): degraded, not broken.
-    if (!onWorker && !import.meta.env.DEV) throw error;
+    // A deploy's build fails loudly. A server route (ADR 0016), a page in `astro dev` and a build on your machine (a
+    // fresh clone offline, or dev Sanity's quota spent) render with the last good copy or the fallback rather than an
+    // error page (ADR 0055): degraded, not broken.
+    if (!onWorker && !import.meta.env.DEV && !onMachine) throw error;
     if (import.meta.env.DEV) devSanity.problem = String(error);
+    if (!onWorker && !import.meta.env.DEV) return builtWithoutSanity(error, fallback);
     logFailure(log, "content.sanity_error", error);
     return ((lastGood.get(query) as T | null | undefined) ?? fallback) as T;
   }
+}
+
+let saidWithoutSanity = false;
+/** A build on your machine that can't read Sanity: the fallback, and one line saying so (not one per query). */
+function builtWithoutSanity<T>(error: unknown, fallback: T): T {
+  if (!saidWithoutSanity)
+    log.warn("content.built_without_sanity", {
+      why: String(error),
+      what: "Sanity can't be read: this build uses the club copy in lib/sanity/fallback.ts (a deploy would fail)",
+    });
+  saidWithoutSanity = true;
+  return fallback;
 }
 
 /** A Sanity list, or (with demo content on) the demo list when Sanity has none. */
@@ -110,9 +127,6 @@ export const getKumite = fromFacts((f) => {
 });
 
 /** Every club fact in one object. */
-/** Running on a developer's machine (the LOCAL ribbon, astro.config.mjs), not a deploy. */
-const onMachine = (JSON.parse(import.meta.env.ENV_RIBBON || "null") as { env?: string } | null)?.env === "LOCAL";
-
 export const getSettings = async (): Promise<SiteSettings> => {
   const [club, fridays, pub, team, kumite] = await Promise.all([
     getClub(),
