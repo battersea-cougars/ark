@@ -22,6 +22,7 @@
         "ms-python.python",
         "charliermarsh.ruff",
         "vitest.explorer",
+        "ms-playwright.playwright",
         "vscode-icons-team.vscode-icons",
         "ritwickdey.LiveServer",
         "yzhang.markdown-all-in-one",
