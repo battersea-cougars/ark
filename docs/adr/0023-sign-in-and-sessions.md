@@ -129,8 +129,10 @@ need a way back in that no stranger on the internet could use.
 
 - The session cookie holds a **random 256-bit token**. D1 keeps only its SHA-256 hash in `auth_sessions`, as it does
   for the nonce and the code. There is no signing key and no `TEAM_SESSION_SECRET`.
-- The session lasts 180 days. Its expiry moves on at most once a day while it's used, so most requests read and don't
-  write, and never past **a year from signing in**: then it's the code again. Each renewal gives the session a **new
+- The session lasts **90 days unused**. Its expiry moves on at most once a day while it's used, so most requests read and don't
+  write, and never past **the last quarter's start within a year of signing in** (1 January, April, July or October,
+  midnight in London; `lastMomentOf`), so it's 9 to 12 months and a forced sign-in falls as a quarter starts: then
+  it's the passkey or the code again. Each renewal gives the session a **new
   token** (`previous_hash`, `rotated_at` in `auth_sessions`); the one before still works for 10 minutes, for requests
   already on their way and a reply whose new cookie never arrived. Only one request renews it (the update names the
   token it replaces), so two arriving together don't race. A copied cookie stops working once its member's next
@@ -242,3 +244,6 @@ need a way back in that no stranger on the internet could use.
   You page's sheet, the current address's first; its email names the new address half hidden and says to tell an admin
   if it wasn't you. Five wrong guesses between them spend the change. A member with no email needs only the new
   address's code; someone who has lost their old inbox asks an admin, whose change on the member's page is unchanged.
+- 2026-11-02: A session left unused ends after 90 days, not 180; the year from signing in now ends at the last
+  quarter's start within it, for security, so it's never past a year (Dan, #201). A phone whose
+  sign-in has ended hears no pushes, so a member who never opens the app stops hearing after 90 days, not 180.

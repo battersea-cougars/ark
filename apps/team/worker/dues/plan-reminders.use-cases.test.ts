@@ -231,6 +231,10 @@ describe("once per member per quarter", () => {
   });
 
   it("next quarter is told again, once", async () => {
+    // Quin opens the app in between, so her phone's still signed in (a sign-in left 90 days ends, ADR 0023)
+    const quin = await hasTheApp("quin@example.com");
+    for (const day of ["2026-12-01", "2027-02-15"])
+      expect((await quin.club({ now: new Date(`${day}T10:00:00Z`) })).status).toBe(200);
     await hourly("2026-12-27T10:07");
     await hourly("2027-03-27T10:07");
     await hourly("2027-03-27T11:07");

@@ -17,7 +17,7 @@ import { gmailCredentials, type GmailEnv } from "@cougars/shared/gmail-token";
 import { mailOutcome } from "../mail/mail.health";
 import { tellAdminsOfRequest } from "../members/members.mail";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
-import { londonToday } from "@cougars/shared/london";
+import { londonDate, londonISO, londonToday } from "@cougars/shared/london";
 import { HttpError, body, json, oneOf, text } from "../api/api.http";
 import { signInEmail } from "./auth.email";
 import { audit } from "../settings/audit";
@@ -60,10 +60,24 @@ const MAX_CHALLENGES_PER_MEMBER_DAY = 30;
 /** Wrong tries one browser may spend in a day before it stops taking any (and being sent new ones); a wrong guess
  * with two live codes is two. */
 const MAX_FAILURES_PER_DAY = 20;
-const SESSION_DAYS = 180;
+/** Left unused this long, a session ends (ADR 0023): a lost or forgotten phone isn't signed in for good. */
+const SESSION_DAYS = 90;
 const SESSION_MS = SESSION_DAYS * 86_400_000;
-/** However much it's used, a session ends a year after signing in (#72): then it's the code again. */
+/** However much it's used, a session ends within a year of signing in (#72): then it's the passkey or code again. */
 const LIFETIME_MS = 365 * 86_400_000;
+
+/**
+ * When a sign-in ends however much it's used (ADR 0023): the first day of the last quarter (1 January, April, July or
+ * October, midnight in London) no later than a year after signing in, so it's never longer than a year and always
+ * ends as a quarter starts.
+ */
+export function lastMomentOf(signedInAt: string): number {
+  const [year, month] = londonDate(Date.parse(signedInAt) + LIFETIME_MS)
+    .split("-")
+    .map(Number);
+  const quarterMonth = String(Math.floor((month - 1) / 3) * 3 + 1).padStart(2, "0");
+  return Date.parse(londonISO(`${year}-${quarterMonth}-01`, "00:00"));
+}
 /** A session's expiry moves on at most once a day, so most requests don't write; each time it gets a new token. */
 const RENEW_AFTER_MS = 24 * 3600_000;
 /** How long the token before a renewal still works: requests already on their way, a reply that got lost. */
@@ -228,7 +242,7 @@ export async function sessionOf(
   // Not due, or this is the token before a renewal that's just happened: as it is
   if (row.hash !== row.token_hash || now.getTime() - Date.parse(row.last_seen_at) < RENEW_AFTER_MS) return who;
   const fresh = token();
-  const expires = Math.min(now.getTime() + SESSION_MS, Date.parse(row.created_at) + LIFETIME_MS);
+  const expires = Math.min(now.getTime() + SESSION_MS, lastMomentOf(row.created_at));
   // Only one request renews it: another arriving at the same moment with the same token keeps it, in the grace
   const renewed = await run(
     env.DB,

@@ -124,7 +124,7 @@ describe("a code's 15 minutes", () => {
   });
 });
 
-describe("a session's six months", () => {
+describe("a session's 90 days unused", () => {
   /** Signed in at NOW, and not used since. */
   const signedIn = async () => {
     const phone = w.browser();
@@ -134,12 +134,12 @@ describe("a session's six months", () => {
 
   it("left alone, it still works the day before it runs out", async () => {
     const phone = await signedIn();
-    expect((await boot(phone, minutes(180 * DAY - 1))).status).toBe(200);
+    expect((await boot(phone, minutes(90 * DAY - 1))).status).toBe(200);
   });
 
-  it("left alone, it has run out on the 180th day, to the minute", async () => {
+  it("left alone, it has run out on the 90th day, to the minute", async () => {
     const phone = await signedIn();
-    expect((await boot(phone, minutes(180 * DAY))).status).toBe(401);
+    expect((await boot(phone, minutes(90 * DAY))).status).toBe(401);
   });
 
   it("used within a day it isn't written again; used a day later it moves on, with a fresh cookie", async () => {
@@ -148,10 +148,10 @@ describe("a session's six months", () => {
     expect(soon.headers.getSetCookie().some((c) => c.includes("cougars_session"))).toBe(false);
     const later = await boot(phone, minutes(DAY));
     expect(
-      later.headers.getSetCookie().some((c) => c.includes("cougars_session=") && c.includes("Max-Age=15552000")),
+      later.headers.getSetCookie().some((c) => c.includes("cougars_session=") && c.includes("Max-Age=7776000")),
     ).toBe(true);
-    // Moved on from that day: past the first 180 days, it still opens
-    expect((await boot(phone, minutes(DAY + 180 * DAY - 1))).status).toBe(200);
+    // Moved on from that day: past the first 90 days, it still opens
+    expect((await boot(phone, minutes(DAY + 90 * DAY - 1))).status).toBe(200);
   });
 
   it("a change (not only a read) also moves it on, and still carries the fresh cookie with its reply", async () => {
