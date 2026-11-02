@@ -10,20 +10,9 @@
 // played out through the API as the admin and the players, with the server's clock moved (the dev simulator for the
 // matches, ADR 0010). What's under test is what each person sees, and the taps that count (Accept, what's refused);
 // the Friday one is scheduled through the wizard, as its question is the step under test. Each Kumite is deleted when
-// its stage is done, so the club is left as the Kumite night left it.
-import { expect, test, type Page } from "@playwright/test";
-import {
-  asMember,
-  clubVia,
-  at,
-  checks,
-  does,
-  london,
-  noFailedChecks,
-  signIn,
-  stage,
-  type Person,
-} from "./support/journey";
+// its step is done, so the club is left as the Kumite night left it.
+import type { Page } from "@playwright/test";
+import { asMember, clubVia, at, checks, does, expect, london, signIn, test, type Person } from "./support/journey";
 import { kumiteOnAPastDay } from "./support/past-kumite";
 
 const KUMITE = "/tournaments/kumite";
@@ -47,11 +36,11 @@ const FRIDAY = "2026-11-06";
 /** Days the Kumites here are on (their stand-in day, for the season-only one), so a run cleans up after an earlier one. */
 const OURS = [FRIDAY, "2026-11-14", "2027-02-28", "2026-10-25", "2027-03-28", "2026-09-19"];
 
-test("The Kumite on the clock", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
-  const nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
-  const everyone = [ada, fay, nell];
+test.describe.serial("The Kumite on the clock", () => {
+  let ada: Person;
+  let fay: Person;
+  let nell: Person;
+  let everyone: Person[];
 
   /** Everyone, or some, at a London wall-clock time ("2026-11-14T10:00"). */
   const allAt = async (wall: string, who: Person[] = everyone) => {
@@ -70,16 +59,32 @@ test("The Kumite on the clock", async ({ browser }) => {
   const adaAt = (wall: string) => asMember(ada.email, { at: london(wall) });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const club = async (wall = "2026-10-30T12:00"): Promise<any> => clubVia(adaAt(wall));
-  const members = (await club()).members as { id: number; name: string }[];
+  let members: { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
   /** Deletes a Kumite (Settings → Tournaments has the same delete): a shortcut, the club as it was. */
   const remove = (id: number) => adaAt("2026-10-30T12:00")("DELETE", `/api/tournaments/${id}`);
+  /** The set-day Kumite (steps 1 to 6), made at the start of step 1. */
+  let dated = 0;
+  const datedNow = async (wall: string) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((await club(wall)).tournaments as any[]).find((t) => t.id === dated);
 
-  // Anything an earlier run of this journey left (a run that stopped half way): gone, so nothing of ours is on
-  for (const t of (await club()).tournaments as { id: number; typeId: number; heldOn: string }[])
-    if (t.typeId === 1 && OURS.includes(t.heldOn)) await remove(t.id);
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
+    nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
+    everyone = [ada, fay, nell];
+    members = (await club()).members as { id: number; name: string }[];
 
-  await stage("0. Nothing on: the Kumite night's is history by the next morning", async () => {
+    // Anything an earlier run of this journey left (a run that stopped half way): gone, so nothing of ours is on
+    for (const t of (await club()).tournaments as { id: number; typeId: number; heldOn: string }[])
+      if (t.typeId === 1 && OURS.includes(t.heldOn)) await remove(t.id);
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay, nell]) await who?.context.close();
+  });
+
+  test("0. Nothing on: the Kumite night's is history by the next morning", async () => {
     await allAt("2026-10-30T12:00");
     for (const who of everyone)
       await checks(who, "sees No Kumite yet a week on", async () => {
@@ -90,7 +95,7 @@ test("The Kumite on the clock", async ({ browser }) => {
 
   // ─── Asked first: a Kumite on a Friday, by day, over Friday Training that evening (apps/team/worker/training/README.md) ───
 
-  await stage("0b. A Kumite on a Friday at 11am: asked about Friday Training that night first", async () => {
+  test("0b. A Kumite on a Friday at 11am: asked about Friday Training that night first", async () => {
     // Still Fri 30 Oct, 12:00, nothing on. The user scheduled one like this (a Friday, 11:00) and wasn't asked: a
     // clash is anything on the same London day now (worker/calendar/clashes.ts), the evening's training too
     const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
@@ -151,29 +156,26 @@ test("The Kumite on the clock", async ({ browser }) => {
       },
     );
 
-    // Gone again (a shortcut, as the journey's other Kumites are), so the next stages start with nothing on
+    // Gone again (a shortcut, as the journey's other Kumites are), so the next steps start with nothing on
     const scheduled = await onFriday();
     if (scheduled) await remove(scheduled.id);
   });
 
   // ─── A set day, a fortnight off: Sat 14 Nov 2026, sign-up Mon 2 Nov to Thu 12 Nov, the draft Fri 13 Nov ───
 
-  // Scheduled through the API as the admin, the captains named (the wizard is the Kumite night's to test)
-  const { id: dated } = (await adaAt("2026-10-30T12:00")("POST", "/api/tournaments", {
-    typeId: 1,
-    name: "Clock Kumite",
-    heldOn: "2026-11-14",
-    signupOpensOn: "2026-11-02",
-    signupClosesOn: "2026-11-12",
-    draftOn: "2026-11-13",
-    capacity: 9,
-    teams: ["Cara Captain", "Cole Captain", "Cass Captain"].map((n) => ({ name: "", captainMemberId: memberId(n) })),
-  })) as { id: number };
-  const datedNow = async (wall: string) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((await club(wall)).tournaments as any[]).find((t) => t.id === dated);
+  test("1. Sign-up opens at London midnight (Sun 1 Nov 23:59, then Mon 2 Nov 00:01)", async () => {
+    // Scheduled through the API as the admin, the captains named (the wizard is the Kumite night's to test)
+    ({ id: dated } = (await adaAt("2026-10-30T12:00")("POST", "/api/tournaments", {
+      typeId: 1,
+      name: "Clock Kumite",
+      heldOn: "2026-11-14",
+      signupOpensOn: "2026-11-02",
+      signupClosesOn: "2026-11-12",
+      draftOn: "2026-11-13",
+      capacity: 9,
+      teams: ["Cara Captain", "Cole Captain", "Cass Captain"].map((n) => ({ name: "", captainMemberId: memberId(n) })),
+    })) as { id: number });
 
-  await stage("1. Sign-up opens at London midnight (Sun 1 Nov 23:59, then Mon 2 Nov 00:01)", async () => {
     await allAt("2026-11-01T23:59");
     await checks(fay, "at 23:59 sees it Coming up, Sign-up opens Mon 2 Nov, and no Accept", async () => {
       await open(fay);
@@ -213,15 +215,15 @@ test("The Kumite on the clock", async ({ browser }) => {
     });
   });
 
-  // The rest of the card says they're in through the API, as themselves, while sign-up's open (not under test)
-  for (const name of ["cara", "cole", "cass", "gus", "gwen", "gil", "sam", "dee"])
-    await asMember(`${name}@example.com`, { at: london("2026-11-05T12:00") })(
-      "POST",
-      `/api/tournaments/${dated}/answer`,
-      { answer: "in" },
-    );
+  test("2. Sign-up closes at the end of its last day (Thu 12 Nov 23:59, then Fri 13 Nov 00:01)", async () => {
+    // The rest of the card says they're in through the API, as themselves, while sign-up's open (not under test)
+    for (const name of ["cara", "cole", "cass", "gus", "gwen", "gil", "sam", "dee"])
+      await asMember(`${name}@example.com`, { at: london("2026-11-05T12:00") })(
+        "POST",
+        `/api/tournaments/${dated}/answer`,
+        { answer: "in" },
+      );
 
-  await stage("2. Sign-up closes at the end of its last day (Thu 12 Nov 23:59, then Fri 13 Nov 00:01)", async () => {
     await allAt("2026-11-10T12:00", [nell]);
     await checks(nell, "sees its last day for sign-up on the Calendar, and the day itself, In 4 days", async () => {
       await open(nell, "/calendar");
@@ -251,7 +253,7 @@ test("The Kumite on the clock", async ({ browser }) => {
     });
   });
 
-  await stage("3. The draft's day (Fri 13 Nov): on the agenda for whoever runs it, nobody else's", async () => {
+  test("3. The draft's day (Fri 13 Nov): on the agenda for whoever runs it, nobody else's", async () => {
     await allAt("2026-11-13T10:00");
     await checks(ada, "has the draft on the Calendar, and Draft it under For admins on Home", async () => {
       await open(ada, "/calendar");
@@ -268,27 +270,24 @@ test("The Kumite on the clock", async ({ browser }) => {
       });
   });
 
-  await stage(
-    "4. Its day (Sat 14 Nov, the morning): Today on its page, Tonight on Home (it starts at 7pm)",
-    async () => {
-      await allAt("2026-11-14T10:00");
-      for (const who of everyone)
-        await checks(who, "sees Today in its header, and the track at the draft", async () => {
-          await open(who);
-          await reads(who.page, /- text: Today Sat 14 Nov 7 to 9:30pm$/m);
-          await expect(trackAt(who.page, "Draft open")).toBeVisible();
-        });
-      for (const who of [fay, nell])
-        await checks(who, "sees it first on Home, Tonight", async () => {
-          await open(who, "/");
-          const hero = who.page.getByRole("region", { name: /^The Kumite/ });
-          await expect(hero).toContainText("Clock Kumite");
-          await expect(hero).toContainText("Tonight");
-        });
-    },
-  );
+  test("4. Its day (Sat 14 Nov, the morning): Today on its page, Tonight on Home (it starts at 7pm)", async () => {
+    await allAt("2026-11-14T10:00");
+    for (const who of everyone)
+      await checks(who, "sees Today in its header, and the track at the draft", async () => {
+        await open(who);
+        await reads(who.page, /- text: Today Sat 14 Nov 7 to 9:30pm$/m);
+        await expect(trackAt(who.page, "Draft open")).toBeVisible();
+      });
+    for (const who of [fay, nell])
+      await checks(who, "sees it first on Home, Tonight", async () => {
+        await open(who, "/");
+        const hero = who.page.getByRole("region", { name: /^The Kumite/ });
+        await expect(hero).toContainText("Clock Kumite");
+        await expect(hero).toContainText("Tonight");
+      });
+  });
 
-  await stage("5. The day after, nothing played (Sun 15 Nov): still on, not history", async () => {
+  test("5. The day after, nothing played (Sun 15 Nov): still on, not history", async () => {
     await allAt("2026-11-15T10:00");
     for (const who of everyone)
       await checks(who, "sees it still on its page, its date and no countdown, not No Kumite yet", async () => {
@@ -300,89 +299,86 @@ test("The Kumite on the clock", async ({ browser }) => {
       });
   });
 
-  await stage(
-    "6. Played on another evening (Tue 17 Nov), the final across midnight, The Anchor till 06:00",
-    async () => {
-      // The draft and the matches played out by the dev simulator as the admin (ADR 0010), the server's clock at 23:40
-      // on Tue 17 Nov, three days after its date, till the final's kicked off; its full time at 00:10 on the Wednesday
-      await does(ada, "plays it out on Tue 17 Nov, the final kicking off before midnight, over after", async () => {
-        for (let i = 0; i < 120; i++) {
-          const began = Date.now();
-          const games = ((await datedNow("2026-11-17T23:40")).games ?? []) as { startedAt: string | null }[];
-          const wall = games.length && games.every((g) => g.startedAt) ? "2026-11-18T00:10" : "2026-11-17T23:40";
-          const move = (await adaAt(wall)("POST", `/api/tournaments/${dated}/simulate`, { moves: 4 })) as {
-            done: boolean;
-          };
-          if (move.done) break;
-          await new Promise((go) => setTimeout(go, Math.max(0, began + 1250 - Date.now())));
-        }
-        const games = (await datedNow("2026-11-18T00:10")).games as { status: string; startedAt: string }[];
-        expect(games.every((g) => g.status === "done")).toBe(true);
+  test("6. Played on another evening (Tue 17 Nov), the final across midnight, The Anchor till 06:00", async () => {
+    // The draft and the matches played out by the dev simulator as the admin (ADR 0010), the server's clock at 23:40
+    // on Tue 17 Nov, three days after its date, till the final's kicked off; its full time at 00:10 on the Wednesday
+    await does(ada, "plays it out on Tue 17 Nov, the final kicking off before midnight, over after", async () => {
+      for (let i = 0; i < 120; i++) {
+        const began = Date.now();
+        const games = ((await datedNow("2026-11-17T23:40")).games ?? []) as { startedAt: string | null }[];
+        const wall = games.length && games.every((g) => g.startedAt) ? "2026-11-18T00:10" : "2026-11-17T23:40";
+        const move = (await adaAt(wall)("POST", `/api/tournaments/${dated}/simulate`, { moves: 4 })) as {
+          done: boolean;
+        };
+        if (move.done) break;
+        await new Promise((go) => setTimeout(go, Math.max(0, began + 1250 - Date.now())));
+      }
+      const games = (await datedNow("2026-11-18T00:10")).games as { status: string; startedAt: string }[];
+      expect(games.every((g) => g.status === "done")).toBe(true);
+    });
+
+    await allAt("2026-11-17T23:55");
+    for (const who of everyone)
+      await checks(who, "at 23:55 sees it at The Anchor, the final table up: the evening it was played", async () => {
+        await open(who);
+        await expect(who.page.getByRole("status", SAY.status("The Anchor"))).toBeVisible();
+        await expect(who.page.getByRole("heading", { name: SAY.table })).toBeVisible();
       });
 
-      await allAt("2026-11-17T23:55");
-      for (const who of everyone)
-        await checks(who, "at 23:55 sees it at The Anchor, the final table up: the evening it was played", async () => {
+    await allAt("2026-11-18T00:30");
+    for (const who of everyone)
+      await checks(
+        who,
+        "at 00:30, past midnight, still sees it at The Anchor: the stamp, the track, the table",
+        async () => {
           await open(who);
+          await expect(trackAt(who.page, "The Anchor")).toBeVisible();
+          await expect(who.page.getByRole("heading", { name: SAY.table })).toBeVisible();
+          // The stamp in the header reckons by the date, not the evening (TournamentHead stageBadge): Done after midnight
           await expect(who.page.getByRole("status", SAY.status("The Anchor"))).toBeVisible();
-          await expect(who.page.getByRole("heading", { name: SAY.table })).toBeVisible();
-        });
+        },
+      );
+    await checks(nell, "at 00:30 sees it on Home at The Anchor now", async () => {
+      await open(nell, "/");
+      await expect(nell.page.getByRole("region", { name: /^The Kumite/ })).toContainText("Now At The Anchor");
+    });
 
-      await allAt("2026-11-18T00:30");
-      for (const who of everyone)
-        await checks(
-          who,
-          "at 00:30, past midnight, still sees it at The Anchor: the stamp, the track, the table",
-          async () => {
-            await open(who);
-            await expect(trackAt(who.page, "The Anchor")).toBeVisible();
-            await expect(who.page.getByRole("heading", { name: SAY.table })).toBeVisible();
-            // The stamp in the header reckons by the date, not the evening (TournamentHead stageBadge): Done after midnight
-            await expect(who.page.getByRole("status", SAY.status("The Anchor"))).toBeVisible();
-          },
-        );
-      await checks(nell, "at 00:30 sees it on Home at The Anchor now", async () => {
-        await open(nell, "/");
-        await expect(nell.page.getByRole("region", { name: /^The Kumite/ })).toContainText("Now At The Anchor");
+    await allAt("2026-11-18T05:59");
+    for (const who of everyone)
+      await checks(who, "at 05:59 still has the after-party on its page, not No Kumite yet", async () => {
+        await open(who);
+        await expect(who.page.getByRole("heading", { name: SAY.table })).toBeVisible();
+        await expect(who.page.getByRole("heading", { name: SAY.nothingOn })).toHaveCount(0);
       });
 
-      await allAt("2026-11-18T05:59");
-      for (const who of everyone)
-        await checks(who, "at 05:59 still has the after-party on its page, not No Kumite yet", async () => {
-          await open(who);
-          await expect(who.page.getByRole("heading", { name: SAY.table })).toBeVisible();
-          await expect(who.page.getByRole("heading", { name: SAY.nothingOn })).toHaveCount(0);
-        });
-
-      await allAt("2026-11-18T06:01");
-      for (const who of everyone)
-        await checks(who, "at 06:01 sees No Kumite yet, and the Clock Kumite under Past Kumites", async () => {
-          await open(who);
-          await expect(who.page.getByRole("heading", { name: SAY.nothingOn })).toBeVisible();
-          await expect(who.page.getByRole("heading", { name: SAY.past })).toBeVisible();
-          // Listed by its date and who won it
-          await expect(who.page.getByRole("link", { name: /^Sat 14 Nov .*won it/ }).first()).toBeVisible();
-        });
-      await checks(nell, "at 06:01 has nothing of it left on Home", async () => {
-        await open(nell, "/");
-        await expect(nell.page.getByRole("region", { name: /^The Kumite/ })).toHaveCount(0);
+    await allAt("2026-11-18T06:01");
+    for (const who of everyone)
+      await checks(who, "at 06:01 sees No Kumite yet, and the Clock Kumite under Past Kumites", async () => {
+        await open(who);
+        await expect(who.page.getByRole("heading", { name: SAY.nothingOn })).toBeVisible();
+        await expect(who.page.getByRole("heading", { name: SAY.past })).toBeVisible();
+        // Listed by its date and who won it
+        await expect(who.page.getByRole("link", { name: /^Sat 14 Nov .*won it/ }).first()).toBeVisible();
       });
-    },
-  );
-  await remove(dated);
+    await checks(nell, "at 06:01 has nothing of it left on Home", async () => {
+      await open(nell, "/");
+      await expect(nell.page.getByRole("region", { name: /^The Kumite/ })).toHaveCount(0);
+    });
+    await remove(dated);
+  });
 
   // ─── Just a season (the wizard's default): winter 2026, its stand-in day Sun 28 Feb 2027 ───
 
-  // Scheduled through the API as the admin (the wizard's season-only Kumite is the Kumite night's)
-  const { id: seasonal } = (await adaAt("2026-11-20T12:00")("POST", "/api/tournaments", {
-    typeId: 1,
-    name: "Winter Kumite",
-    season: "winter",
-    heldOn: "2027-02-28",
-    signupOpensOn: "2026-12-01",
-  })) as { id: number };
+  test("7. Just a season: no day shown, no countdown, still on once the season's over", async () => {
+    // Scheduled through the API as the admin (the wizard's season-only Kumite is the Kumite night's)
+    const { id: seasonal } = (await adaAt("2026-11-20T12:00")("POST", "/api/tournaments", {
+      typeId: 1,
+      name: "Winter Kumite",
+      season: "winter",
+      heldOn: "2027-02-28",
+      signupOpensOn: "2026-12-01",
+    })) as { id: number };
 
-  await stage("7. Just a season: no day shown, no countdown, still on once the season's over", async () => {
     await allAt("2026-11-20T12:00");
     for (const who of everyone)
       await checks(who, "sees Winter 2026, Day to be set, Coming up", async () => {
@@ -413,19 +409,19 @@ test("The Kumite on the clock", async ({ browser }) => {
       await reads(nell.page, /- text: Winter 2026 Day to be set$/m);
       await expect(nell.page.getByRole("heading", { name: SAY.nothingOn })).toHaveCount(0);
     });
+    await remove(seasonal);
   });
-  await remove(seasonal);
 
   // ─── The days the clocks change: each a Kumite played out on its own evening, kick-off 7:30pm London ───
 
   for (const [title, day, nextDay, after] of [
     ["8. The clocks go back (Sun 25 Oct 2026, GMT from 02:00)", "2026-10-25", "2026-10-26", "2026-10-27T12:00"],
     ["9. The clocks go forward (Sun 28 Mar 2027, BST from 01:00)", "2027-03-28", "2027-03-29", "2027-03-30T12:00"],
-  ]) {
-    // Played out on its evening by the dev simulator as the admin (past-kumite.ts), the server's clock two days on so
-    // its day is one gone by (ADR 0010)
-    const id = await kumiteOnAPastDay(ada.email, day, 1, { at: london(after) });
-    await stage(title, async () => {
+  ])
+    test(title, async () => {
+      // Played out on its evening by the dev simulator as the admin (past-kumite.ts), the server's clock two days on
+      // so its day is one gone by (ADR 0010)
+      const id = await kumiteOnAPastDay(ada.email, day, 1, { at: london(after) });
       await allAt(`${day}T22:00`);
       for (const who of [ada, nell])
         await checks(who, "sees the first match at 7:30pm on the fight card, as London had it", async () => {
@@ -446,15 +442,14 @@ test("The Kumite on the clock", async ({ browser }) => {
           await expect(who.page.getByRole("heading", { name: SAY.nothingOn })).toBeVisible();
           await expect(who.page.getByRole("heading", { name: SAY.past })).toBeVisible();
         });
+      await remove(id);
     });
-    await remove(id);
-  }
 
   // ─── A Kumite on a day gone by, on the real clock ───
 
-  // Recorded and played out on Sat 19 Sep 2026 by the dev simulator as the admin (past-kumite.ts)
-  const past = await kumiteOnAPastDay(ada.email, "2026-09-19");
-  await stage("10. A Kumite on a day gone by: history, never coming up", async () => {
+  test("10. A Kumite on a day gone by: history, never coming up", async () => {
+    // Recorded and played out on Sat 19 Sep 2026 by the dev simulator as the admin (past-kumite.ts)
+    const past = await kumiteOnAPastDay(ada.email, "2026-09-19");
     // Everyone on tomorrow's clock, mid-morning: this evening may still be the Kumite night's (Done, on its page till
     // 06:00), and a Kumite gone by is what's under test
     const now = new Date(Date.now() + 24 * 3_600_000);
@@ -475,9 +470,6 @@ test("The Kumite on the clock", async ({ browser }) => {
         await expect(who.page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
         await doesntRead(who.page, /19 Sep/);
       });
+    await remove(past);
   });
-  await remove(past);
-
-  noFailedChecks();
-  for (const who of everyone) await who.context.close();
 });

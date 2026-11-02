@@ -11,7 +11,6 @@
 // after sign-in), and what a phone would have been sent is read from the local server's push outbox (no Firebase on
 // your machine: journey.ts `pushOutboxOf`). Her charges are read through the API as the admin. What's under test is
 // who's told, when and what it says, the Dues page it opens, and the charge that doesn't come.
-import { expect, test } from "@playwright/test";
 import {
   asMember,
   at,
@@ -19,11 +18,11 @@ import {
   clubVia,
   cron,
   does,
+  expect,
   london,
-  noFailedChecks,
   pushOutboxOf,
   signIn,
-  stage,
+  test,
   type Person,
   type Queued,
 } from "./support/journey";
@@ -33,11 +32,11 @@ const KEY = `plan:${QUARTER}`;
 /** A journey run on a database other runs may have used: a phone token nobody's used yet. */
 const TAG = Date.now().toString(36).slice(-4);
 
-test("Next quarter's plan: told five days before, switched in time, not charged", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const ivy = await signIn(browser, "Quarterly next quarter", "Ivy Invite", "ivy@example.com");
-  const pia = await signIn(browser, "Pays as she goes", "Pia Payer", "pia@example.com");
-  const everyone = [ada, ivy, pia];
+test.describe.serial("Next quarter's plan: told five days before, switched in time, not charged", () => {
+  let ada: Person;
+  let ivy: Person;
+  let pia: Person;
+  let everyone: Person[] = [];
 
   let now = london("2026-12-20T12:00");
   const moveTo = async (wall: string, people: Person[] = everyone) => {
@@ -49,8 +48,7 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
     await expect(who.page.getByRole("main").getByRole("heading").first()).toBeVisible();
   };
   const plans = (outbox: Queued[]) => outbox.filter((n) => n.key === KEY);
-  const members = (await clubVia(asMember(ada.email, { at: now }))).members as { id: number; name: string }[];
-  const ivyId = members.find((m) => m.name === "Ivy Invite")!.id;
+  let ivyId = 0;
   const quarterCharges = async () =>
     (
       (await asMember(ada.email, { at: now })("GET", `/api/members/${ivyId}/ledger?limit=200`)).lines as {
@@ -60,7 +58,19 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
     ).filter((l) => l.kind === "charge" && l.charge?.quarter === QUARTER);
   const nextPlan = () => ivy.page.getByRole("group", { name: "Next quarter's plan" });
 
-  await stage("1. Ivy goes Quarterly for next quarter; she and Pia have the app", async () => {
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    ivy = await signIn(browser, "Quarterly next quarter", "Ivy Invite", "ivy@example.com");
+    pia = await signIn(browser, "Pays as she goes", "Pia Payer", "pia@example.com");
+    everyone = [ada, ivy, pia];
+    const members = (await clubVia(asMember(ada.email, { at: now }))).members as { id: number; name: string }[];
+    ivyId = members.find((m) => m.name === "Ivy Invite")!.id;
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, ivy, pia]) await who?.context.close();
+  });
+
+  test("1. Ivy goes Quarterly for next quarter; she and Pia have the app", async () => {
     await moveTo("2026-12-20T12:00");
     await does(ivy, "chooses Quarterly for Jan–Mar 2027 on her Dues page", async () => {
       await open(ivy, "/me/tab");
@@ -81,7 +91,7 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
     });
   });
 
-  await stage("2. Not the day before, not before 10am", async () => {
+  test("2. Not the day before, not before 10am", async () => {
     await moveTo("2026-12-26T12:07");
     await cron(now);
     await checks(ivy, "has nothing on Sat 26 Dec, the day before", async () => {
@@ -94,7 +104,7 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
     });
   });
 
-  await stage("3. Five days before, from 10am: Ivy's told; Pia isn't", async () => {
+  test("3. Five days before, from 10am: Ivy's told; Pia isn't", async () => {
     await moveTo("2026-12-27T10:07");
     await cron(now);
     await checks(
@@ -126,7 +136,7 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
     });
   });
 
-  await stage("4. Ivy taps it, and switches to pay as you go", async () => {
+  test("4. Ivy taps it, and switches to pay as you go", async () => {
     await moveTo("2026-12-27T11:30");
     await checks(
       ivy,
@@ -146,7 +156,7 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
     });
   });
 
-  await stage("5. The quarter starts: Ivy isn't charged for it", async () => {
+  test("5. The quarter starts: Ivy isn't charged for it", async () => {
     await moveTo("2027-01-01T00:30");
     await cron(now);
     await checks(ivy, "has no 2027-Q1 charge after the hourly run at 00:30 on 1 January", async () => {
@@ -158,6 +168,4 @@ test("Next quarter's plan: told five days before, switched in time, not charged"
       await expect(ivy.page.getByText(/This quarter · Jan–Mar 2027\s*Pay as you go/)).toBeVisible();
     });
   });
-
-  noFailedChecks();
 });

@@ -7,8 +7,8 @@
 // Ada, an admin, runs it; Ivy and Hal are members who answer; Nell, a member, only looks. Everyone is put at a moment
 // in November 2026 (`at`: the browser's clock and the server's, both), so the days are the same whenever it runs. It
 // runs first, on a fresh database, and again on one it ran on before: what it adds has this run's own name.
-import { expect, test, type Page } from "@playwright/test";
-import { asMember, clubVia, at, checks, does, london, noFailedChecks, signIn, stage } from "./support/journey";
+import type { Locator, Page } from "@playwright/test";
+import { asMember, clubVia, at, checks, does, expect, london, signIn, test, type Person } from "./support/journey";
 
 /** This run's mark on what it adds, so a database it ran on before doesn't confuse it. */
 const run = Date.now().toString(36).slice(-4);
@@ -33,27 +33,50 @@ type Event = {
   out: number[];
 };
 
-test("The calendar, the news and Home", async ({ browser }) => {
-  const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
-  const ivy = await signIn(browser, "Member", "Ivy Invite", "ivy@example.com");
-  const hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
-  const nell = await signIn(browser, "Member, only looking", "Nell Nonplayer", "nell@example.com");
-  const everyone = [ada, ivy, hal, nell];
-  for (const who of everyone) await at(who, MONDAY);
+test.describe.serial("The calendar, the news and Home", () => {
+  let ada: Person;
+  let ivy: Person;
+  let hal: Person;
+  let nell: Person;
+  let adaApi: ReturnType<typeof asMember>;
+  let members: { id: number; name: string }[];
+  let clash: Locator;
 
-  // The club's one-offs as the API has them, as the admin (on the journey's Monday)
-  const adaApi = asMember(ada.email, { at: MONDAY });
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    ivy = await signIn(browser, "Member", "Ivy Invite", "ivy@example.com");
+    hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
+    nell = await signIn(browser, "Member, only looking", "Nell Nonplayer", "nell@example.com");
+    for (const who of [ada, ivy, hal, nell]) await at(who, MONDAY);
+    // The club's one-offs as the API has them, as the admin (on the journey's Monday)
+    adaApi = asMember(ada.email, { at: MONDAY });
+    members = (await clubVia(adaApi)).members as { id: number; name: string }[];
+    /** The question before a save over something already on (lib/ClashSheet.svelte, apps/team/worker/calendar/README.md). */
+    clash = ada.page.getByRole("dialog", { name: "Already on then" });
+
+    // A shortcut, not under test: what an earlier run of this journey left on the calendar (called off, but still in
+    // Coming up and the clash question) goes back a year, as the admin through the API, so this run sees what a fresh
+    // database would
+    const ours = /^(Kit day|Quiz night|Skate-off|Pub) [0-9a-z]{4}$/;
+    for (const e of (await events()).filter((x) => ours.test(x.title) && x.startsAt > "2026"))
+      await adaApi("PUT", `/api/club-events/${e.id}`, {
+        ...e,
+        startsAt: e.startsAt.replace(/^2026/, "2025"),
+        endsAt: e.endsAt.replace(/^2026/, "2025"),
+      });
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, ivy, hal, nell]) await who?.context.close();
+  });
+
   const events = async () => (await adaApi("GET", "/api/bootstrap")).clubEvents as Event[];
   const event = async (title: string) => (await events()).find((e) => e.title === title);
-  const members = (await clubVia(adaApi)).members as { id: number; name: string }[];
   const memberId = (name: string) => members.find((m) => m.name === name)!.id;
 
   /** A card on the page by its heading: an event on the Calendar, or Home's. */
   const card = (page: Page, title: string) =>
     page.getByRole("article").filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 
-  /** The question before a save over something already on (lib/ClashSheet.svelte, apps/team/worker/calendar/README.md). */
-  const clash = ada.page.getByRole("dialog", { name: "Already on then" });
   /**
    * Answers it: Friday Training kept, and a one-off an earlier run of this journey left there (not this run's) called
    * off, so a database it ran on before asks the same as a fresh one would. Then saves.
@@ -104,18 +127,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     await expect.poll(async () => (await event(title))?.cancelledAt).not.toBeNull();
   };
 
-  // A shortcut, not under test: what an earlier run of this journey left on the calendar (called off, but still in
-  // Coming up and the clash question) goes back a year, as the admin through the API, so this run sees what a fresh
-  // database would
-  const ours = /^(Kit day|Quiz night|Skate-off|Pub) [0-9a-z]{4}$/;
-  for (const e of (await events()).filter((x) => ours.test(x.title) && x.startsAt > "2026"))
-    await adaApi("PUT", `/api/club-events/${e.id}`, {
-      ...e,
-      startsAt: e.startsAt.replace(/^2026/, "2025"),
-      endsAt: e.endsAt.replace(/^2026/, "2025"),
-    });
-
-  await stage("1. A one-off on the calendar: members say in or out", async () => {
+  test("1. A one-off on the calendar: members say in or out", async () => {
     for (const who of [ivy, nell])
       await checks(who, "can't put anything on the calendar", async () => {
         await who.page.goto("/calendar");
@@ -161,7 +173,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     });
   });
 
-  await stage("2. Over Friday Training: the clash prompt asks first", async () => {
+  test("2. Over Friday Training: the clash prompt asks first", async () => {
     await does(ada, `adds ${QUIZ} on Fri 27 Nov: asked about Friday Training that night`, async () => {
       await addOneOff(QUIZ, "Fri 27 Nov 2026", { asked: true });
       await expect(clash).toBeVisible();
@@ -192,7 +204,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
       });
   });
 
-  await stage("3. Called off: off for everyone", async () => {
+  test("3. Called off: off for everyone", async () => {
     await does(ada, `cancels ${KIT_DAY} (Edit → Cancel this event)`, () => callOff(KIT_DAY));
     await checks(ivy, `sees ${KIT_DAY} off, and can't say in or out of it`, async () => {
       await ivy.page.goto("/calendar");
@@ -216,7 +228,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     await does(ada, `cancels ${QUIZ} too`, () => callOff(QUIZ));
   });
 
-  await stage("4. The locker room: on Home till its last day", async () => {
+  test("4. The locker room: on Home till its last day", async () => {
     await checks(nell, "can't post to the locker room", async () => {
       await nell.page.goto("/");
       await expect(nell.page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -269,7 +281,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     await at(ivy, MONDAY);
   });
 
-  await stage("5. Notifications: the switches stay as they're set", async () => {
+  test("5. Notifications: the switches stay as they're set", async () => {
     // No push leaves a local server: what's checked is what the server keeps (it decides who's told, ADR 0108;
     // push.use-cases checks who hears what by these switches)
     const lockerRoomSwitch = () => ivy.page.getByRole("switch", { name: "Locker room" });
@@ -301,7 +313,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     });
   });
 
-  await stage("6. How soon: Today, Tonight, Tomorrow, In N days, by London's calendar", async () => {
+  test("6. How soon: Today, Tonight, Tomorrow, In N days, by London's calendar", async () => {
     // Two on Saturday 21 Nov: one before 5pm (Today), one from 5pm (Tonight)
     await does(ada, `adds ${SKATE} at 4:45pm and ${PUB} at 5pm, Sat 21 Nov`, async () => {
       await addOneOff(SKATE, "Sat 21 Nov 2026", { starts: "4:45pm" });
@@ -371,7 +383,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
     for (const title of [SKATE, PUB]) await does(ada, `cancels ${title}`, () => callOff(title));
   });
 
-  await stage("7. Settings: venues and quips each do their one job; the audit log has it", async () => {
+  test("7. Settings: venues and quips each do their one job; the audit log has it", async () => {
     await does(ada, `adds a venue, ${VENUE}, then gives it an address`, async () => {
       await ada.page.goto("/settings/venues");
       await ada.page.getByRole("button", { name: "Venue", exact: true }).click();
@@ -421,7 +433,4 @@ test("The calendar, the news and Home", async ({ browser }) => {
       await expect(nell.page.getByRole("button", { name: "Venue", exact: true })).toHaveCount(0);
     });
   });
-
-  noFailedChecks();
-  for (const who of everyone) await who.context.close();
 });
