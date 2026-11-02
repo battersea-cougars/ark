@@ -1,12 +1,6 @@
-// The calendar, the news and Home (ADR 0031, apps/team/worker/calendar/README.md; #154): an admin puts a one-off on the calendar and members
-// say in or out; one over Friday Training asks first (the clash prompt), and closing it saves nothing; one called off is
-// off for everyone. The locker room: a post on everyone's Home till its last day, London's midnight. A member's
-// notification switches stay as they set them. Home says how soon each thing is (Today, Tonight, Tomorrow, In N days)
-// by London's calendar. Settings' venues and quips each do their one job, and the audit log has what was done.
-//
-// Ada, an admin, runs it; Ivy and Hal are members who answer; Nell, a member, only looks. Everyone is put at a moment
-// in November 2026 (`at`: the browser's clock and the server's, both), so the days are the same whenever it runs. It
-// runs first, on a fresh database, and again on one it ran on before: what it adds has this run's own name.
+// The calendar, the news and Home (ADR 0031, apps/team/worker/calendar/README.md): one-offs and the clash prompt, the
+// locker room, notification switches, how soon Home says things are, venues, quips and the audit log. Ada (an admin)
+// runs it; Ivy and Hal answer; Nell only looks. Everyone is put in November 2026 (journey.ts `at`).
 import type { Locator, Page } from "@playwright/test";
 import { asMember, clubVia, at, checks, does, expect, london, signIn, test, type Person } from "./support/journey";
 

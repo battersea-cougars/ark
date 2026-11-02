@@ -1,10 +1,5 @@
-// Every page opens clean (ADR 0031): for each of the three people (an admin, a Kumite player, a member not in it),
-// every page their menu has (the rail, Settings for the admin, More for a member) and the overlays that only look
-// (each editor opened and shut unsaved, Manage, the draft room, the awards), each showing its heading with no error in
-// the browser (journey.ts listens: an uncaught error, a console error, a Svelte warning that means a bug).
-//
-// Nothing is saved, deleted or confirmed: it only looks. On whatever the database holds when it runs (after the
-// Kumite night, its past Kumite's pages too).
+// Every page opens clean (ADR 0031): for an admin, a Kumite player and a member not in it, every page in their menus
+// and each overlay that only looks shows its heading with no browser error. Nothing is saved.
 import type { Page } from "@playwright/test";
 import { checks, expect, signIn, test, type Person } from "./support/journey";
 

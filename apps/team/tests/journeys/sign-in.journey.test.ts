@@ -1,11 +1,6 @@
-// Signing in, and asking to join (ADRs 0023, 0031, apps/team/worker/members/README.md): someone new asks to join from the sign-in page and waits; an
-// admin lets them in from The club; they sign in with the code (on your own machine it's on the screen, nothing is
-// emailed), a wrong one refused; they add a passkey on their You page, sign out, and sign in with it, no code. Three
-// people: Jo, new, in a browser no one's signed in on; Ada, an admin; Hal, a member, who can't let anyone in.
-//
-// Jo is new every run (her email has the time in it), so it runs on a fresh database or one a run has been through.
-// Her browser says it's on an address of its own (journey.ts stranger): the sign-in and join limits count per address
-// (api.limits.ts), and they aren't what this tests.
+// Signing in, and asking to join (ADRs 0023, 0031, apps/team/worker/members/README.md): Jo, new, asks to join and is
+// let in by Ada (an admin), signs in with a code (a wrong one refused), adds a passkey and signs in with it; Hal, a
+// member, can't let anyone in. Jo is new every run.
 import type { Page } from "@playwright/test";
 import {
   asMember,
@@ -75,6 +70,7 @@ test.describe.serial("Signing in, and asking to join", () => {
     ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
     hal = await signIn(browser, "Member", "Hal Holiday", "hal@example.com");
     const surname = freshSurname();
+    // Jo's browser is on an address of its own: the sign-in and join limits count per address (api.limits.ts)
     jo = await stranger(browser, "New", `Jo ${surname}`, `jo.${surname.toLowerCase()}@example.com`);
     adaApi = asMember(ada.email);
   });
@@ -116,7 +112,7 @@ test.describe.serial("Signing in, and asking to join", () => {
       await expect(ada.page.getByText(jo.name)).toBeVisible();
     });
 
-    // Home tells whoever lets members in, as The club does (decided 2026-10-23, apps/team/src/pages/README.md)
+    // Home tells whoever lets members in, as The club does (apps/team/src/pages/README.md)
     await checks(ada, "is told on Home, under For admins, that Jo is asking to join, opening The club", async () => {
       await ada.page.goto("/");
       const forAdmins = ada.page.getByRole("region", { name: "For admins" });

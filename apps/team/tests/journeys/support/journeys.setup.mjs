@@ -1,10 +1,6 @@
-// The journeys' global setup (ADR 0031), for `npm run journeys` and VS Code's Testing panel alike: a fresh database of
-// their own, the team app started on it on a free port, and a teardown that stops it.
-//
-// Nothing here is a checkout's own, so it's safe in any checkout, main's too: the database is .journeys/d1 (never
-// apps/web/.wrangler, the D1 a checkout's apps and everyone else's use), Vite's cache is .journeys/vite (never the one
-// the checkout's own dev server rebuilds), and the app runs beside the show switch (ADR 0115) on a port the OS picks,
-// never on 4500/4510/4520 and never through it, so the apps it runs are left alone.
+// The journeys' global setup (ADR 0031): a fresh database of their own (.journeys/d1), the team app started on it on a
+// port the OS picks, and a teardown that stops it. It never uses a checkout's own D1, Vite cache or the show switch's
+// ports (ADR 0115), so it's safe in any checkout.
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { get } from "node:http";
