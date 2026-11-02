@@ -249,9 +249,12 @@ export async function drainPush(env: PushEnv, now: Date, atOnce = DRAIN_AT_ONCE)
   const claimId = crypto.randomUUID();
   const week = ago(now, KEEP_DAYS * 24 * 60 * MINUTE);
   const [, , , claimed] = await batch<Claimed>(env.DB, [
+    // Oldest first by push_outbox_created: ordered by id, SQLite walks the whole outbox (a week's) every minute to
+    // find nothing to prune
     statement(
       env.DB,
-      `DELETE FROM push_outbox WHERE id IN (SELECT id FROM push_outbox WHERE created_at < ? ORDER BY id LIMIT ?)`,
+      `DELETE FROM push_outbox WHERE id IN
+         (SELECT id FROM push_outbox WHERE created_at < ? ORDER BY created_at, id LIMIT ?)`,
       [week, PRUNE_AT_ONCE],
     ),
     statement(env.DB, "DELETE FROM push_told WHERE told_at < ?", [week]),
