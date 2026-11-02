@@ -322,6 +322,22 @@ describe("several Kumites, made in any order, are in order (#182: status, then t
   });
 });
 
+describe("a Kumite played early", () => {
+  // The owner's call (2026-11-02): members may have planned around the night being off, so finishing the Kumite
+  // before its day doesn't bring training back; an admin can put the night back on by hand
+  it("a Kumite played early keeps its training night off, until an admin puts it back on", async () => {
+    const c = await club();
+    const k = await c.kumite("Kumite", F3);
+    // Finished today, the 6th, its day the 23rd
+    await c.move(k, "Kumite", F3, { status: "finished" });
+    expect(await c.off()).toEqual([F3]);
+    expect(await c.nightOn(F3)).toMatchObject({ offFor: [k] });
+
+    await c.backOn(F3);
+    expect(await c.off()).toEqual([]);
+  });
+});
+
 describe("found by the random sequences (training.nights-off.sequences.test.ts), each at its smallest", () => {
   // Seeds 12 and 22: two Kumites on one Friday, the evening one made first. Home led with the afternoon one (the
   // soonest), the Kumite's page opened on the evening one (by its day alone, then whichever came first)

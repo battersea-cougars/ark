@@ -155,6 +155,24 @@ describe("the register closes the morning after", () => {
   });
 });
 
+describe("the night's teams", () => {
+  it("teams aren't attendance: a closed night keeps the teams it had", async () => {
+    const f = await friday();
+    const teams = [
+      { name: "Black", players: [f.id.Reg] },
+      { name: "White", players: [f.id.Walt] },
+    ];
+    const published = await f.dana.call(
+      "POST",
+      `/api/sessions/${f.session.id}/teams`,
+      { teams },
+      { now: ON_THE_NIGHT },
+    );
+    expect(published.status).toBe(200);
+    expect((await f.seen(CLOSED)).teams).toEqual(teams);
+  });
+});
+
 describe("what it charges", () => {
   it("the hourly run charges from the closed register, run after run, once each: Reg and Walt, not Nina", async () => {
     const f = await friday();
