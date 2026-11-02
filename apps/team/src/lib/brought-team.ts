@@ -1,7 +1,6 @@
-// The team a captain brings to a new edition of a series (apps/team/worker/tournaments/README.md, worker/tournaments/team-name.ts, which decides
-// it): the one they last captained in an earlier edition of the same series, its name and logo. The editor shows it
-// before it's saved ("Brings: Reacher Rounds"), read from the server (#177), which has every edition; the server works
-// it out again as the team's made.
+// The team a captain brings to a new edition of a series (apps/team/worker/tournaments/README.md): the one they last
+// captained in an earlier edition, its name and logo, shown in the editor before it's saved ("Brings: Reacher Rounds").
+// The server has every edition, so it decides (worker/tournaments/team-name.ts), again as the team's made.
 import { readTagged } from "../app/api";
 
 export interface BroughtTeam {

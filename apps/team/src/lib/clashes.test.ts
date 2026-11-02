@@ -98,7 +98,7 @@ describe("answering the clash sheet", () => {
     expect(answerOfAll(rows, picks)).toBe("cancel");
   });
 
-  // Keep both, for all of these, is all of them: the tournament's row that stays on too, or Save waits for it (#171)
+  // Keep both, for all of these, is all of them: the tournament's row that stays on too, or Save waits for it
   it("Keep both for all keeps every row, the one that stays on too", () => {
     const picks = answerAll(rows, { "session:1": "", "session:2": "cancel", "tournament:5": "" }, "keep");
     expect(picks).toEqual({ "session:1": "keep", "session:2": "keep", "tournament:5": "keep" });

@@ -1,9 +1,8 @@
 import { PLAYERS } from "../demo/data";
 
-// A training's places (apps/team/worker/training/README.md): the limit is the skaters'; keepers have places of their own if the series sets any
-// (goalieCapacity), else no limit. So a keeper never takes a skater's place, nor a skater a keeper's: who's in, who
-// waits and who moves up are counted a side at a time. The server decides (worker/entries); the app shows the same
-// at once, until its reply puts the lists right.
+// A training's places (apps/team/worker/training/README.md): the skaters' limit, and the keepers' own if the series
+// sets any, so who's in, waits and moves up is counted a side at a time. The server decides (worker/entries); the app
+// shows the same at once, until its reply puts the lists right.
 
 /** A training's limits: the skaters' (`capacity`) and the keepers' (`goalieCapacity`); null or unset: no limit. */
 export interface Limits {

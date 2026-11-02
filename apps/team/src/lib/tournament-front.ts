@@ -1,7 +1,6 @@
-// A tournament's front page follows its stage (apps/team/worker/tournaments/README.md): a track at the top says which one it's at (sign-up, the
-// draft, the teams, the fight card, the day), what happens next under it, then that stage's one thing. Sign-up: are
-// you in. The draft on: the draft. The teams set: your team, and the fight card to come. The fixtures out: the first
-// match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
+// A tournament's front page follows its status (apps/team/worker/tournaments/README.md): a track at the top says which
+// it's at, what happens next under it, then that status's one thing (are you in, the draft, your team, the first match,
+// the match on now). The teams live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { atAfters, editionState, stageOf } from "./edition";
 import { gamePhase } from "./phase";
@@ -24,9 +23,7 @@ export function nextFightOf(t: Tournament, me: number): TournamentGame | undefin
 }
 
 /**
- * Where a tournament is, as a status (apps/team/worker/tournaments/README.md): "Fight Card is confusing if we think of the kumite in stages. It
- * should really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). Its one
- * page shows the status it's at, or (from the track) one it's been through, read-only.
+ * Where a tournament is, as a status (apps/team/worker/tournaments/README.md), not a stage. Its one page shows the status it's at, or (from the track) one it's been through, read-only.
  */
 export type Status = "signup" | "draft" | "teams" | "fixtures" | "day" | "afters";
 
@@ -210,7 +207,7 @@ export const STATUS_MARK: Record<Status, MotifKey> = {
  * The stamp in a tournament's header (every page of the series): the status it's at, as the track says it, with the
  * status's kanji (apps/team/worker/tournaments/README.md). Every one the same ink stamp ("on"); before sign-up opens it's Coming up, faint; the day
  * (KUMITE!, or a match under way) the loudest; every match played, the after-party's name that evening, then Done.
- * `evening`: the evening it is now (lib/dates.ts londonEvening), which runs past midnight till 06:00 (#168).
+ * `evening`: the evening it is now (lib/dates.ts londonEvening), which runs past midnight till 06:00.
  */
 export function stageBadge(
   t: Tournament,
@@ -262,7 +259,7 @@ export function afterNoteWords(note: string) {
  * order), else, every one played, the last (the final).
  */
 export function currentMatchOf<G extends Pick<TournamentGame, "status" | "position">>(games: readonly G[]) {
-  // By its status, never its kick-off (lib/phase.ts, #182): one running late is still the one, the next stays next
+  // By its status, never its kick-off (lib/phase.ts): one running late is still the one, the next stays next
   const ordered = [...games].sort((a, b) => a.position - b.position);
   return ordered.find((g) => gamePhase(g) === "on") ?? ordered.find((g) => gamePhase(g) !== "past") ?? ordered.at(-1);
 }

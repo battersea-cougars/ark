@@ -190,7 +190,7 @@ describe("every award revealed: done, its results on its page that evening, then
     expect(stageBadge(night(1), kumite, "2026-11-14", "The Anchor").label).toBe("The Anchor");
   });
 
-  // The evening goes on past midnight, till 06:00 (#168: the header said Done at 00:30, the track The Anchor)
+  // The evening goes on past midnight, till 06:00: not Done at 00:30 while the track says The Anchor
   it("half past midnight, an award still to reveal: still The Anchor, by the evening, not the date", () => {
     expect(stageBadge(night(1), kumite, "2026-11-15", "The Anchor", "2026-11-14").label).toBe("The Anchor");
     expect(stageBadge(night(1), kumite, "2026-11-15", "The Anchor", "2026-11-15").label).toBe("Done");

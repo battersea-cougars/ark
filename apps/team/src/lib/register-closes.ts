@@ -1,7 +1,6 @@
-// When a training night's register closes (apps/team/worker/training/README.md, apps/team/worker/dues/README.md; decided 2026-10-23, #11), shared by the app and the
-// Worker: at 06:00 London the morning after, when the night's evening ends (lib/dates.ts londonEvening, the Kumite's
-// after-party's rule too). Until then whoever takes the register ticks who came and the charges follow; from then it's
-// the record, and nothing changes who was there. No reopening yet.
+// When a training night's register closes (apps/team/worker/training/README.md), shared by the app and the Worker: at
+// 06:00 London the morning after. Until then whoever takes the register ticks who came and the charges follow; from
+// then it's the record, and nothing changes who was there.
 import { dayWords, londonEvening } from "./dates";
 import { addDays } from "./recurrence";
 

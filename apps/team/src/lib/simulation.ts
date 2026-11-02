@@ -1,8 +1,6 @@
-// The Kumite simulator's loop (apps/team/worker/settings/README.md), dev only: a move a request (a few at Spin kick), each paced so it plays out
-// on the page before the next (the draft's burn-in and the turn moving on, a goal on the scoreboard, the carousel
-// gliding to the next match), and paused, resumed or stopped from the floating control (lib/SimulationControl). Pause holds after the
-// move in flight; Stop ends it there. Plain logic over a state object, so app/backend.svelte.ts makes it a store that
-// outlives any page, and the tests drive it with fake timers.
+// The Kumite simulator's loop (apps/team/worker/settings/README.md), dev only: a move a request (a few at Spin kick),
+// each paced to play out on the page before the next, and paused, resumed or stopped from the floating control
+// (lib/SimulationControl).
 import { turnSteps } from "./draft-sequence";
 
 /** What a move was (worker/tournaments/simulate.ts MoveKind). */
@@ -98,6 +96,8 @@ export const saidOf = (m: Move) => ((m.moves ?? 1) > 1 ? `${m.moves} moves: ${m.
 /**
  * The loop over `state`. `move` makes one request, asking for `moves` (null: refused, and said why); `ended` hears
  * how it ended (the last reply, or null when stopped or refused).
+ * Pause holds after the move in flight; Stop ends it there. Plain logic over a state object, so app/backend.svelte.ts
+ * makes it a store that outlives any page, and the tests drive it with fake timers.
  */
 export function simulator(
   state: SimulationState,

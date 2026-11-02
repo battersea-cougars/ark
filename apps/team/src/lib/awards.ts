@@ -1,15 +1,6 @@
-// A tournament's awards and how each is decided (apps/team/worker/tournaments/README.md). Every award says how (`decidedBy`), chosen by an admin
-// in the series' editor or the tournament's own:
-//   A stat we track, from the results: the champions (a team: the final's winner, else the top of the table); most goals (then most assists);
-//     most assists (then most goals); most points, goals and assists (then most goals); fewest goals against a game
-//     (a goalie, position G, by their team's games); most penalty minutes. Still level: joint winners.
-//   A vote, at the after-party: everyone who played votes for anyone who played, or the skaters vote for a keeper,
-//     from the last match till the awards are confirmed. Most votes wins; level, the award's tie-break stat among
-//     the level ones, else the admin chooses among them.
-//   The admin's call, live (the judges' call): as they confirm, they name it ("Most Dramatic Fall") and choose who.
-//   Drawn at random: a player who played, the same for the same seed, drawn again on asking.
-// Stats and draws are worked out here for the admin to check as they confirm; the votes are counted by the Worker
-// as they confirm (worker/tournaments/awards.ts, with the same rules from here). Then the reveal, one at a time.
+// A tournament's awards and how each is decided (apps/team/worker/tournaments/README.md). Stats and draws are worked
+// out here for the admin to check as they confirm; the Worker counts the votes by the same rules
+// (worker/tournaments/awards.ts).
 import { champion, table, type Result } from "@cougars/shared/results";
 import { plural } from "./dates";
 
@@ -19,7 +10,17 @@ export type Stat = (typeof STATS)[number];
 /** A player's stat (any but the table's, which is a team's): what a vote's tie can be broken by. */
 export type PlayerStat = Exclude<Stat, "table">;
 
-/** How an award is decided (apps/team/worker/tournaments/README.md). */
+/**
+ * How an award is decided (apps/team/worker/tournaments/README.md), chosen by an admin in the series' editor or the tournament's own:
+ * - `stat`, from the results: the champions (a team: the final's winner, else the top of the table); most goals (then
+ *   most assists); most assists (then most goals); most points (then most goals); fewest goals against a game (a
+ *   goalie, position G, by their team's games); most penalty minutes. Still level: joint winners.
+ * - `vote`, at the after-party: everyone who played votes for anyone who played, or the skaters vote for a keeper,
+ *   from the last match till the awards are confirmed. Most votes wins; level, the award's tie-break stat among the
+ *   level ones, else the admin chooses among them.
+ * - `live`, the admin's call (the judges' call): as they confirm, they name it ("Most Dramatic Fall") and choose who.
+ * - `random`: a player who played, the same for the same seed, drawn again on asking.
+ */
 export type DecidedBy =
   | { kind: "stat"; stat: Stat }
   | { kind: "vote"; voters: "players" | "skaters"; tieBreak?: PlayerStat }
@@ -46,9 +47,9 @@ export const LIVE_OPTIONS = [
 ];
 
 /**
- * How an award is decided: its own `decidedBy`, else (awards saved before it had one) a guess from its name, as the
- * app used to make every time: Champions the table, a scorer most goals, a goalie fewest against, a Dim Mak (or
- * anything random, lucky or fun) a draw. Anything else was the admin's to choose: now their live call, named as it is.
+ * How an award is decided: its own `decidedBy`, else (an award saved without one) a guess from its name: Champions
+ * the table, a scorer most goals, a goalie fewest against, a Dim Mak (or anything random, lucky or fun) a draw.
+ * Anything else is the admin's live call, named as it is.
  */
 export function decidedByOf(a: { name: string; decidedBy?: DecidedBy | null }): DecidedBy {
   if (a.decidedBy) return a.decidedBy;

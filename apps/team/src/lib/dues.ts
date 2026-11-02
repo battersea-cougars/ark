@@ -128,7 +128,7 @@ export interface AgedRow {
 }
 
 /**
- * A member's line of what they owe (#177), as the club read sends it: your own, or everyone's for who sees Unpaid fees,
+ * A member's line of what they owe, as the club read sends it: your own, or everyone's for who sees Unpaid fees,
  * worked out by the server from the charges not paid and the payments not spent (worker/dues/dues.ledger.ts): what's
  * left (in all, overdue, by age as Unpaid fees' columns), the oldest's bucket, and their credit.
  */

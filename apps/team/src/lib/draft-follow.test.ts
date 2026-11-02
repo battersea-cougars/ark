@@ -1,8 +1,6 @@
-// Following the draft on a phone (apps/team/worker/tournaments/README.md): a captain (Team Cara, first in the order) sees the teams, never a tab;
-// their turn brings up the Your pick button, which opens the players in a drawer; they pick and confirm there, it
-// shuts and the pick burns into their team; they watch the others' picks burn in one by one; never moved on while a
-// pick's still burning in; the turn passing while the drawer's open for their pick shuts it; they take over, and are
-// brought back by their turn or Follow the draft.
+// Following the draft on a phone (apps/team/worker/tournaments/README.md) as Team Cara's captain: the teams, never a
+// tab; their turn's Your pick drawer; the others' picks burning in one by one; the turn passing while the drawer's
+// open; taking over, and being brought back.
 import { describe, expect, it } from "vitest";
 import { followDraft, following, type Follow, type FollowEvent } from "./draft-follow";
 

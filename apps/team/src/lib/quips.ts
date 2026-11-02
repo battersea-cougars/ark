@@ -1,7 +1,6 @@
-// Locker-room lines, spelt the way the team says them. Replies: the ask is what Home says before you answer; the
-// rest are the app talking back when you do. Greetings: Home's title, by the time of day, on a training night, or
-// once you've looked too often (lib/greetings.ts picks the set). Admins edit them in Settings → Quips; the
-// starting set is in db/seed/club.sql. Keep them short and cheeky, never needy, and never make one a club fact.
+// Locker-room lines: Replies (the ask Home says before you answer, then the app talking back) and Greetings (Home's
+// title, lib/greetings.ts). Admins edit them in Settings → Quips; the starting set is db/seed/club.sql. Keep them short
+// and cheeky, never needy, and never a club fact.
 
 export type ReplyKind = "ask" | "in" | "waitlist" | "out" | "empty" | "blind";
 export type GreetingKind = "morning" | "afternoon" | "evening" | "late" | "training" | "nag";

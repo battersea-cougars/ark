@@ -41,7 +41,7 @@ describe("finding someone by typing", () => {
     expect(ids("zoë")).toEqual([5]);
   });
 
-  // #118: matching was by the letters as typed, so an accent left off found nobody
+  // Matching by the letters as typed would find nobody when an accent's left off
   it("typing a name without its accent still finds them: sean finds Seán (#118)", () => {
     expect(ids("sean")).toEqual([4]);
     expect(ids("zoe")).toEqual([5]);

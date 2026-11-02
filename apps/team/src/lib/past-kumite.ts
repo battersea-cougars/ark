@@ -1,8 +1,6 @@
-// A past Kumite recorded (apps/team/worker/tournaments/README.md), as lib/PastKumiteRecord asks it: its day, its teams, its matches with their
-// scores (each team playing every other once, in the fair order, and a final between the top two if it had one), who
-// scored where anyone remembers, and who won each award. What stops each step, what's filled in for the admin to check
-// (the champions and the top scorer, from the results), and what the Worker is sent
-// (worker/tournaments/past.ts recordPast).
+// A past Kumite recorded (apps/team/worker/tournaments/README.md), as lib/PastKumiteRecord asks it: its day, teams,
+// matches, scorers and awards; what stops each step, what's filled in for the admin to check, and what the Worker is
+// sent (worker/tournaments/past.ts recordPast).
 import type { Award, AwardsData } from "./awards";
 import { awardFromData, decidedByOf } from "./awards";
 import { fairFixtures } from "./fixtures";

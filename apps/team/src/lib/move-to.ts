@@ -1,8 +1,5 @@
-// Moving a captains' draft to any of its statuses at once (apps/team/worker/tournaments/README.md): Sign-up open, Draft open, Teams set, Fixtures
-// set, KUMITE!, The Anchor. Shared by the app (the list in Manage, what each move will do, in words) and the Worker
-// (the same plan, then done). Back is the steps back (lib/step-back.ts) in order, as many as it takes; forward is the
-// jobs in between, as an admin would do them by hand: sign-up closed, the order drawn, the draft opened, the rest
-// chosen at random and the draft closed, the fixtures made, the day under way, then finished.
+// Moving a captains' draft to any of its statuses at once (apps/team/worker/tournaments/README.md), shared by the app
+// (the list in Manage, and what each move will do, in words) and the Worker (the same plan, then done).
 import type { Tournament } from "../demo/model";
 import { orderDrawn, playersNeeded, MIN_TEAM_SIZE } from "./draft";
 import { signupOpen, signupOver } from "./signup";
@@ -75,6 +72,9 @@ export const statusNow = (t: Moving, today: string) => statusOf(t as unknown as 
 /**
  * What moving to `to` does, step by step, or why it can't (a string): its status now and `to` both on its track, a
  * captains' draft only. The Worker plans from what it reads; the app from what it has, so the words are what's done.
+ * Back is the steps back (lib/step-back.ts) in order, as many as it takes; forward is the jobs in between, as an admin
+ * would do them by hand: sign-up closed, the order drawn, the draft opened, the rest chosen at random and the draft
+ * closed, the fixtures made, the day under way, then finished.
  */
 export function planMove(t: Moving, today: string, to: Status, n: Counts): MovePlan | string {
   if (t.kind !== "draft") return "Only a captains' draft moves through its statuses.";

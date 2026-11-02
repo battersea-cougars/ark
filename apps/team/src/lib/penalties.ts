@@ -1,10 +1,5 @@
-// Penalties (apps/team/worker/tournaments/README.md), shared by the Worker and the app: what can be called, the penalty clock, and the minutes each
-// player and team has spent in the box. The clock is worked out, never stored: a penalty runs in game time from when
-// it was given (or, a player's second, from when their first ends), so it pauses when the game clock does, and a
-// minor ends early at a power-play goal against its team. Penalties called on both teams at once cancel out
-// (coincidental): no man advantage, or four on four for one minor each.
-// A double minor is one penalty of four minutes, served as two minors back to back: a power-play goal ends only the
-// one running, and the second two minutes start fresh from the goal.
+// Penalties (apps/team/worker/tournaments/README.md), shared by the Worker and the app: what can be called, the penalty
+// clock, and the minutes each player and team has spent in the box.
 
 /**
  * What a penalty can be for, always said: a short list of the common ones, and Other. Stored by value. A player's
@@ -89,6 +84,12 @@ interface GoalLike {
   teamId: number;
   atMs: number | null;
 }
+
+// The penalty clock is worked out, never stored: a penalty runs in game time from when it was given (or, a player's
+// second, from when their first ends), so it pauses when the game clock does, and a minor ends early at a power-play
+// goal against its team. Penalties called on both teams at once cancel out (coincidental): no man advantage, or four
+// on four for one minor each. A double minor is one penalty of four minutes, served as two minors back to back: a
+// power-play goal ends only the one running, and the second two minutes start fresh from the goal.
 
 /** Game time gone (ms) on a clock now: the full length less the time left. */
 export function gameTime(
@@ -267,7 +268,7 @@ export function running<P extends PenaltyLike>(
     }));
 }
 
-/** Penalty minutes, per player and per team, over these games (the leaderboards' PIM, #47). */
+/** Penalty minutes, per player and per team, over these games (the leaderboards' PIM). */
 export function penaltyMinutes(games: { penalties?: PenaltyLike[] }[]) {
   const byMember = new Map<number, number>();
   const byTeam = new Map<number, number>();
