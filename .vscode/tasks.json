@@ -30,6 +30,18 @@
       "isBackground": true,
       "presentation": { "panel": "dedicated", "showReuseMessage": false },
       "problemMatcher": []
+    },
+    {
+      // Phone sessions (claude.ai/code) run in the container: Remote Control starts when VS Code opens the folder, in
+      // its own terminal tab; closing the tab stops it. Waits for post-start.sh's `claude` launcher.
+      "label": "Claude Remote Control",
+      "type": "shell",
+      "command": "until [ -x \"$HOME/.local/bin/claude\" ]; do sleep 2; done; exec \"$HOME/.local/bin/claude\" remote-control --name cougars-container",
+      "options": { "cwd": "/src" },
+      "isBackground": true,
+      "runOptions": { "runOn": "folderOpen" },
+      "presentation": { "panel": "dedicated", "reveal": "silent", "close": false },
+      "problemMatcher": []
     }
   ]
 }
