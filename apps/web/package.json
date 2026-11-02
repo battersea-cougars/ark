@@ -6,7 +6,6 @@
     "dev": "node ../../scripts/app.mjs dev web",
     "prebuild": "node ../../scripts/club-snapshot.mjs",
     "build": "astro build",
-    "preview": "astro preview",
     "check": "astro check"
   },
   "dependencies": {
