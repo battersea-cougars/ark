@@ -1,7 +1,7 @@
 # 0106. The database is backed up nightly and before every schema change, sealed, kept 90 days as GitHub artifacts
 
 - **Status:** Accepted
-- **Date:** 2026-10-10 · updated 2026-11-01
+- **Date:** 2026-10-10 · updated 2026-11-02
 
 ## Context
 
@@ -32,8 +32,11 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
 - **Seen**: each backup notes when, why and how big in the database's `backups` table; the team app's Usage page shows
   the last one, flagged once it's more than a day and a half old.
 - **Restore**: `scripts/db-restore.mjs` opens a backup into a fresh SQLite file and counts each table's rows (the
-  drill, db/README.md#backups). Within 7 days, Time Travel puts a database back exactly; older, the restored file is
-  the source. Production is restored through CI, never by hand ([ADR 0010](0010-environments-and-deploys.md)).
+  drill, db/README.md#backups). Within 7 days, `.github/workflows/restore-db.yml` puts a database back exactly with
+  Time Travel, after a backup, and names the bookmark that undoes it; it shares the deploys' concurrency group, so it
+  never runs beside one. Older, the backup is read locally and the rows go back the way they were made: through the
+  app, or a reviewed SQL file through a pull request with no personal data in it (the repo is public). Production is
+  restored through CI, never by hand ([ADR 0010](0010-environments-and-deploys.md)).
 
 ## Consequences
 
@@ -45,8 +48,11 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
   a long-running export"), and GitHub can start the nightly run hours late, so it can land at any time of day. The team
   app's crons treat that refusal as a warning, not an error: a minute it meets does nothing and the next one runs, and a
   job it meets is tried again with the hour's next try (cron/hourly.ts). A request in that half minute still fails.
-- Restoring a whole database into production has no workflow yet: Time Travel covers the likely case (a bad deploy,
-  noticed within the week).
+- Loading a whole old backup into a database has no workflow: Time Travel covers the likely case (a bad deploy or
+  import, noticed within the week), and past a week replacing the lot would lose every day since. If it's ever
+  needed, it's a new mode of restore-db.yml, tried on dev first.
+- A Time Travel restore puts back the schema too: gone back past a deploy that changed the database, the next deploy
+  rebuilds (before launch) or migrates it again (after).
 
 ## History
 
@@ -56,3 +62,6 @@ Where to keep a backup, free ([ADR 0003](0003-free-tiers-only.md)):
   and the quarter hours late, or drops them (#148).
 - 2026-11-01: The team app's crons wait out a backup's export instead of reporting it as an error, after the nightly
   run started at 10:28 UTC and met the run every minute (#197).
+- 2026-11-02: Putting one back goes through CI: `restore-db.yml` restores to a moment in the last 7 days with Time
+  Travel after a backup; older backups go back row by row, through the app or a reviewed SQL file without personal
+  data (#218).

@@ -49,10 +49,40 @@ unzip it, then open it into a fresh SQLite file, which prints each table's rows:
     node scripts/env-pull.mjs -- node scripts/db-restore.mjs cougars-dev-….cgbk
     node scripts/env-pull.mjs --environment production -- node scripts/db-restore.mjs cougars-production-….cgbk
 
-**Putting one back**: within 7 days, D1 Time Travel is quicker and exact (`wrangler d1 time-travel restore`, through
-CI for production). Older than that, the restored file is the source: copy the rows you need back with SQL, or, to
-replace the lot, `sqlite3 restored.sqlite .dump` into an empty database. Production is never touched by hand
-([ADR 0010](../docs/adr/0010-environments-and-deploys.md)): do it from a workflow.
+### Putting one back
+
+Production is never touched by hand ([ADR 0010](../docs/adr/0010-environments-and-deploys.md)): a restore goes
+through a workflow, with the owner's yes.
+
+**Within 7 days** (D1 Time Travel on the free plan): Actions → _Restore the database_
+(`.github/workflows/restore-db.yml`), on `release` for production, on `main` for dev:
+
+    gh workflow run restore-db.yml --ref release -f to=2026-11-02T09:30:00Z -f reason="bad import"
+
+- `to` is a moment in UTC (RFC 3339, or Unix seconds) or a Time Travel bookmark. A time outside the window stops the
+  run before anything changes.
+- It backs up first (artifact `d1-<environment>-before-restore-<run id>`, 90 days), then puts back the whole
+  database, schema and all: everything written since that moment goes, the backup included.
+- The summary says what it restored to, the bookmark it came from and the reason. Run it again with that bookmark to
+  undo.
+- It waits for a deploy of the same environment to finish, and a deploy waits for it.
+- Gone back past a deploy that changed the database? The schema is the old one again. Before launch, re-run the
+  deploy (`gh workflow run deploy.yml --ref <branch> -f apps=all`) to rebuild it; after launch, `d1_migrations` went
+  back too, so the next deploy applies the migrations again. Or roll the code back as well (`rollback.yml`).
+
+**Older than 7 days**, the backup is the source, read locally with the restore drill above, and nothing loads a whole
+backup into a database: past a week, putting back the lot would throw away every day since, and the mistake is
+almost always a few rows. Put them back the way they were made:
+
+- **Members and what admins enter** (people, events, settings): in the team app, by an admin; members can come back
+  by Import members from a CSV made from the restored file.
+- **Anything the app can't re-enter**: a reviewed SQL file through a pull request (after launch, a migration,
+  `migrations/NNNN_restore_what.sql`, `INSERT OR IGNORE` by id), which the next deploy applies after its backup. The
+  repo is public, so the file holds ids, dates and amounts only, never names, emails or phone numbers; rows that need
+  those go back through the app.
+- Replacing the whole database from an old backup has no workflow. If it's ever needed, it's a new mode of
+  `restore-db.yml`, built and tried on dev first: download the artifact, open it with `BACKUP_KEY`, empty the
+  database, load the export with `wrangler d1 execute`.
 
 ## Conventions
 
