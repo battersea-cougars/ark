@@ -1,9 +1,6 @@
-// The after-party's awards reach every phone in the room with nothing read (ADR 0072, 0074, #224). Everyone's on the
-// pub's wifi, one address: each card turned over, and each roll of the drum, was a read on every phone within the same
-// second, past the 150 requests in 10 seconds an address allows. The drum is the same for every member (how many are
-// out, whether it's rolled on, the winners out), so the Worker builds it once and the hub sends it with the change's
-// names; a phone holding the version just before puts it in place. A winner still sealed is never in it. Phones here
-// hold the app's own copy of the club (src/app/catch-up.ts), through the real Worker and the real hub.
+// The after-party's reveals reach every phone in the room with nothing read (ADR 0053; the tournament notes): the drum
+// travels with the hub's event, and a winner still sealed never does. Through the real Worker and the real hub, phones
+// holding the app's own copy of the club (src/app/catch-up.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { EVENING, ROSTER, kumiteNight } from "../tournaments/awards.testing";

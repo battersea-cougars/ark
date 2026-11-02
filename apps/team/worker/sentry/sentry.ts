@@ -1,10 +1,6 @@
-// Sentry for the team Worker (ADR 0110), loaded only when there's something to send (#225). Wrapping the whole Worker
-// in @sentry/cloudflare's withSentry cost every invocation its set-up (a client, scopes, a span, every D1 call
-// wrapped) and, in an isolate that's new, compiling all of that first: most of a quiet minute's CPU time on
-// Cloudflare, against the free plan's 10 ms (ADR 0003, 0059). So each invocation runs `within` a small record of its
-// own, and Sentry is imported, set up and sent to only when an error's reported, a cron checks in, or something
-// nothing caught gets out: then it's the same withSentry, run around the one report, so an event carries the request
-// (or cron) and the culprit it always did, and is flushed before the invocation ends.
+// Sentry for the team Worker (ADR 0110), loaded only when there's something to send: each invocation runs `within` a
+// small record of its own, and a report, a cron check-in or an uncaught error loads Sentry and sends inside
+// withSentry's own wrapper, flushed before the invocation ends.
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Adapter, Entry, Reporter } from "@cougars/shared/scribe";
 import { sentryReporter, workerSentryOptions } from "@cougars/shared/scribe.sentry";

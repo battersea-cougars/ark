@@ -1,10 +1,5 @@
-// Whose charges a working-out covers (ADR 0007, #222). Working out every charge there's ever been after each change
-// read the club's whole history: about 52,000 D1 rows a register mark after a year. A change knows what it touched,
-// so it works out only that: a night or a tournament (its register, a let-in, a cancellation, an answer on the day),
-// or a member (their quarterly membership, a payment, an adjustment). The hourly run works out what a new day can
-// change: the nights and tournaments since its last run, and the Quarterly Members (whose quarter pays for its nights). A fee
-// or the quarterly rate changed from an earlier date, a tournament made, moved or deleted, and Recalculate still work
-// out the whole club: rare, and an admin's.
+// Whose charges a working-out covers (the dues notes): a night, a tournament or a member a change touched; for the
+// hourly run, the nights and tournaments since its last run and the Quarterly Members; or the whole club.
 import { first, run, type Param } from "@cougars/shared/d1";
 
 /** What a working-out covers: these nights', tournaments' and members' charges, any of them. None: the whole club. */
@@ -83,7 +78,7 @@ export function chargesIn(scope: ChargeScope | undefined): InScope {
  * What a new day can change (the hourly run, and the day's first open): the nights and tournaments from the day the
  * last run worked charges out to (one whose day has come since is charged), and every Quarterly Member since then (a
  * quarter charged from its first day, or the day they joined, pays for its nights). Read by the days' and members'
- * indexes. The first run, or one with the clock put back past the last (the dev clock, ADR 0123), looks at the whole
+ * indexes. The first run, or one with the clock put back past the last (the dev clock), looks at the whole
  * club. `ranThrough` says the run's done, so the next starts from today.
  */
 export async function newDays(db: D1Database, today: string) {

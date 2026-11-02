@@ -1,9 +1,6 @@
-// What people owe, with a year behind the club (ADR 0007, #222). Each tap on the register, and the hourly run, worked
-// out every charge there's ever been: about 52,000 D1 rows a mark after a year, a night's register near half the free
-// day. Now a change works out only what it touched (the night, the tournament, or the member) and the hourly run only
-// what a new day can change (the nights and tournaments since it last ran, and the Quarterly Members). Each found by index,
-// never by walking the club's history (the query plans), and the money as the whole club's working-out has it, to the
-// penny. Driven through the real handlers, with a year of training nights seeded as `npm run load -- --weeks 52` does.
+// What people owe with a year of history behind the club (the dues notes): a change works out only the charges it
+// touched and the hourly run only what a new day can change, each found by index, and the money comes out as the
+// whole club's working-out has it. Driven through the real handlers, with a year of training nights seeded.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { seedHistory } from "../../../../scripts/lib/history.mjs";

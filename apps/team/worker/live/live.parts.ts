@@ -38,7 +38,7 @@ const matchPart = async (c: Ctx, tournamentId: number) => {
 /**
  * The after-party's drum (#224), as every member sees it on the evening: how many awards are out, whether it's rolled
  * on to the next, sealed, and the winners out, in the order listed (api.club.ts `winners`). A winner still sealed is
- * never in it (ADR 0074): whoever runs it holds those already, and keeps them (src/app/catch-up.ts withAwards).
+ * never in it (the tournament notes): whoever runs it holds those already, and keeps them (src/app/catch-up.ts withAwards).
  */
 async function awardsPart(c: Ctx, tournamentId: number) {
   const [drum, winners] = (await batch(c.env.DB, [

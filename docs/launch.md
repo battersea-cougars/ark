@@ -12,8 +12,8 @@ The website has been open since 2026-10-30. "Launch" is the rest:
 | The `production` environment has no `LAUNCHED` variable                     | `LAUNCHED` is `true`, so a production rebuild is refused              |
 | `team.batterseacougars.com` is behind Cloudflare Access (the admins only)   | The gate is gone; the team app's own sign-in keeps it members-only    |
 | Production's club is its admins (`TEAM_ROSTER__PRODUCTION`)                 | The admins have imported the members                                  |
-| Every website deploy copies the words in `fallback.ts` to Sanity (ADR 0014) | The step is gone; the Studio owns the words                           |
-| The team app is 0.x                                                         | It's 1.0.0 (ADR 0104)                                                 |
+| Every website deploy copies the words in `fallback.ts` to Sanity (ADR 0004) | The step is gone; the Studio owns the words                           |
+| The team app is 0.x                                                         | It's 1.0.0 (ADR 0022)                                                 |
 
 Who does what: **Claude** makes the changes and runs the commands; the **owner** says yes to each push and merge,
 does the account steps, and checks the apps as a member would. Nothing touches production by hand: every change goes
@@ -46,7 +46,9 @@ through a pull request and `deploy.yml` ([ADR 0010](adr/0010-environments-and-de
       `gmail.send` justification and demo video sent. Google's review takes days.
 - [ ] Domain contact (#102): the club on the registrant contact.
 - [ ] Sanity editor (#93): the team manager invited as Editor (Cougars, and Cougars Dev to practise).
-- [ ] Web Analytics (#92): the token in `deploy.yml`, then automatic setup off ([setup.md](setup.md#6-domain)).
+- [ ] Web Analytics (#92): the token in `deploy.yml`, then automatic setup off ([accounts.md](accounts.md#the-domain)).
+- [ ] Secrets tidied (#234): Bitwarden's old copies deleted, CI's Sentry token narrowed, Workers Editor off
+      production's Cloudflare token.
 
 ### Gaps (to close before the day)
 
@@ -79,10 +81,10 @@ Pick a quiet time, not a Friday: nobody signing up for training while it happens
 
 1. `node scripts/db-launch.mjs`. It writes `db/migrations/0001_launch.sql` (the schema and the club seed, identical)
    and deletes `db/schema.sql` and `db/seed/club.sql`. It refuses if there are migrations already.
-2. db/README.md: "Schema and seed (until launch)" becomes history, "Launch" says it happened. ADR 0050 gets a dated
-   History line.
-3. `.github/workflows/deploy.yml`: the web job's "Words to Sanity" step goes; ADR 0014 gets a History line.
-4. `apps/team/package.json`: `"version": "1.0.0"` (ADR 0104).
+2. db/README.md: "Schema and seed (until launch)" goes, "Launch" says it happened. ADR 0050 is rewritten for
+   migrations and its _updated_ date bumped.
+3. `.github/workflows/deploy.yml`: the web job's "Words to Sanity" step goes; ADR 0004 says so.
+4. `apps/team/package.json`: `"version": "1.0.0"` (ADR 0022).
 5. `npm run db:migrate:local`, then the pre-push list. Done: exit code 0.
 6. A pull request into `main`; the owner says yes; merged.
 
@@ -136,7 +138,7 @@ If any fails, stop here: [roll back](#rolling-back) or fix forward before the me
 ### 6. The members come in
 
 **The admins**, in the team app: Members → Manage → **Import members**, with the club's spreadsheet (CSV) or roster
-JSON ([ADR 0069](adr/0069-members.md)). The first step only checks the file and says who'd be added and which rows are
+JSON ([the members notes](../apps/team/worker/members/README.md)). The first step only checks the file and says who'd be added and which rows are
 wrong; fix the file until it's clean, then import. Nobody is emailed.
 
 **Done:** Members lists everyone; the imported count matches the spreadsheet; anyone without an email is known (they
@@ -194,7 +196,7 @@ shows the old build.
 ### The database
 
 Backups: every night (`backup.yml`) and before every deploy that changes the database (`deploy.yml`), sealed with
-`BACKUP_KEY__PRODUCTION`, kept 90 days as artifacts ([ADR 0106](adr/0106-database-backups.md)).
+`BACKUP_KEY__PRODUCTION`, kept 90 days as artifacts ([ADR 0050](adr/0050-schema-and-seed-until-launch.md)).
 
 **Reading one back** (exists, safe, local only):
 
@@ -244,6 +246,8 @@ never names or emails (db/README.md, Putting one back). Nothing loads a whole ol
   default): `npx wrangler d1 migrations create DB what -c apps/web/wrangler.jsonc`, `npm run db:migrate:local`, the
   tests pick it up, the next deploy applies it after its backup. `db-rebuild.mjs` refuses; never work round it
   ([db/README.md](../db/README.md)).
+- **Watch the Usage page** on the first busy Friday and the first draft night: rows read is the line to watch, not
+  requests ([ADR 0003](adr/0003-free-tiers-only.md)).
 - **Restore drill** now and then ([db/README.md](../db/README.md#backups)); #148 section 8.
 - **Search Console and Google branding** (#108): the Domain property, the sitemap, and the Gmail app's home page and
   privacy addresses on `batterseacougars.com`.

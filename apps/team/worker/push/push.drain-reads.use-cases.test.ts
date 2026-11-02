@@ -1,4 +1,4 @@
-// What the push drain reads on a quiet minute (ADR 0108, docs/reviews/free-tier-2026-11-02.md). It runs every minute,
+// What the push drain reads on a quiet minute (ADR 0108). It runs every minute,
 // 1,440 times a day, nearly always with nothing to send, and D1 bills every row a statement reads. The outbox keeps a
 // week of notifications: a quiet minute must find there's nothing due or old enough to prune by index, never by
 // walking the week's rows. Driven through the real handlers and the cron in the fake world (ADR 0031).

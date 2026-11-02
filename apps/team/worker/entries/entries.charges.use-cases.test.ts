@@ -1,8 +1,6 @@
-// Signing up, and what people owe (ADR 0007): a night or a tournament is charged from its day, so a sign-up days
-// before can't change what anyone owes, and the club's charges aren't worked out again for it. They were, after every
-// tap: with a year of nights behind the club that read about 50,000 rows a tap, a Friday's sign-ups more than D1's free
-// day (docs/reviews/free-tier-2026-11-02.md). On the day itself a sign-up is charged at once, as before. Driven
-// through the real Worker handlers in the fake world (ADR 0031).
+// Signing up, and what people owe (the dues notes): a night or a tournament is charged from its day, so a sign-up days
+// before charges nothing and works nothing out; on the day itself it's charged at once. Driven through the real Worker
+// handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { chargesOf } from "../dues/dues.testing";
