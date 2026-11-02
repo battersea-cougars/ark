@@ -637,9 +637,11 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
         expect(await answerAt("bo@example.com", "2027-03-28", "out", "2027-03-28T19:30")).toBe(409);
       },
     );
+    // Not the hourly run here either: five months on, it forgets sessions that ran out a month before (retention.forget),
+    // and the browsers' sign-ins, on the real clock, last 90 days unused (ADR 0023): everyone would be signed out. The
+    // day's first open charges what's due as well
     await moveTo("2027-03-28T22:00");
-    await cron(now);
-    await checks(ada, "Pia's charged £8 for it, due Sun 28 Mar", async () => {
+    await checks(ada, "Pia's charged £8 for it, due Sun 28 Mar, on the day's first open", async () => {
       expect(await chargeFor("Pia Payer", "2027-03-28")).toMatchObject({ pence: 800, dueOn: "2027-03-28" });
     });
   });

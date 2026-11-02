@@ -160,7 +160,9 @@ time as an instant, BST or GMT as it was. `cron(when)` runs the Worker's hourly 
 through the dev server's own trigger: that's what charges a night's sign-ups the next day and a quarter on its first
 day. A journey moves forward only: a page opened at an earlier moment than one already used works the charges out
 for that day again. Never run the hourly cron far into the future while anyone's signed in: it forgets sessions older
-than the retention allows (`retention.forget`), and everyone's signed out.
+than the retention allows (`retention.forget`: a month after they ran out, and a browser's sign-in, on the real
+clock, runs out 90 days unused), so from about four months past today everyone's signed out; past that, a page's
+first open of the day charges what's due as well.
 
 ```sh
 npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
