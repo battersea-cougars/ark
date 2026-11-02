@@ -1,11 +1,5 @@
-// Why a training night is off (#186, apps/team/worker/training/README.md): called off by hand from its own page, or off for a Kumite on its day
-// (the clash sheet's Cancel, or a training skipping its night). The two reasons are kept apart, so lifting one never
-// loses the other: a night off for a Kumite comes back when that Kumite is deleted or moved off its day, unless
-// another Kumite that day or a hand cancellation still keeps it off; It's back on, on the night's own page, puts it
-// on whatever kept it off (the admin's Keep both). The user, on dev: several Kumites, nights cancelled, more Kumites,
-// and Fridays left Cancelled that wouldn't come back. Each combination is a story below, driven through the real
-// Worker handlers as the app sends them: the Kumite saved first, then each night chosen cancelled by its own cancel,
-// naming the Kumite it's off for.
+// Why a training night is off (apps/team/worker/training/README.md): by hand, or for a Kumite on its day, kept apart so
+// lifting one never loses the other. Driven through the real Worker handlers as the app sends them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { londonISO } from "@cougars/shared/london";
 import { testWorld } from "../testing";
@@ -323,7 +317,7 @@ describe("several Kumites, made in any order, are in order (#182: status, then t
 });
 
 describe("a Kumite played early", () => {
-  // The owner's call (2026-11-02): members may have planned around the night being off, so finishing the Kumite
+  // Members may have planned around the night being off, so finishing the Kumite
   // before its day doesn't bring training back; an admin can put the night back on by hand
   it("a Kumite played early keeps its training night off, until an admin puts it back on", async () => {
     const c = await club();

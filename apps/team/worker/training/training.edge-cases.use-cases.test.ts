@@ -1,7 +1,6 @@
-// A training's schedule and its nights at their edges (apps/team/worker/training/README.md): what an admin may set, a rule changed
-// with people signed up, the night's teams, and the register either side of London midnight, in summer time and after
-// the clocks go back (25 October 2026). Driven through the real Worker handlers, each person signed in as themselves
-// (ADR 0031).
+// A training's schedule and its nights at their edges (apps/team/worker/training/README.md): what an admin may set, a
+// rule changed with people signed up, the night's teams, and the register around London midnight and clock changes.
+// Driven through the real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 
@@ -83,7 +82,7 @@ describe("what an admin may set for a training", () => {
   });
 
   // An impossible date passed the YYYY-MM-DD check; making its sessions then threw, the training was already saved,
-  // and every member's app failed to open from then on, since opening it makes each training's sessions (#129)
+  // and every member's app failed to open from then on, since opening it makes each training's sessions
   it("a first session in month 13 is refused, and the app still opens for everyone (#129)", async () => {
     const dana = await admin();
     expect((await dana.call("POST", "/api/series", { ...SUNDAYS, startsOn: "2026-13-01" })).status).toBe(400);
@@ -166,14 +165,14 @@ describe("what an admin may set for a training", () => {
     expect((await dana.call("POST", "/api/series/999/more", {})).status).toBe(404);
   });
 
-  // The fees were saved before the training was looked up, so a missing one failed on its foreign key (#130)
+  // The fees were saved before the training was looked up, so a missing one failed on its foreign key
   it("saving fees for a training that doesn't exist is a 404, not a server error (#130)", async () => {
     const dana = await admin();
     expect((await dana.call("PUT", "/api/series/999", { ...dana.friday })).status).toBe(404);
   });
 
   // The fees were written before the rest of the training was checked (and a new training before its fees were), so
-  // a refused save had already changed what members are charged (#131)
+  // a refused save had already changed what members are charged
   it("a save refused for a bad field changes nothing: not the training, and not its fee (#131)", async () => {
     const dana = await admin();
     const fees = dana.friday.fees;
