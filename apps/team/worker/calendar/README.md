@@ -30,6 +30,9 @@ the test and this line together. Why a piece of code is the way it is stays in a
   [clashes.test.ts › "an edit asks only when the day or hours moved, and never about itself"](../../src/lib/clashes.test.ts)
 - A clash is anything on the same London day, whatever the hours (or overlapping, for a night past midnight).
   [clashes.use-cases.test.ts › "on the same day is a clash, whatever the hours: the afternoon, or after training's over"](clashes.use-cases.test.ts)
+- A night past midnight ends at its end time on London's clock the next day, 25 hours on the night the clocks go
+  back and 23 the night they go forward.
+  [clashes.test.ts › "hours past midnight on the nights the clocks change end at that time on London's clock, not 24 hours on"](../../src/lib/clashes.test.ts)
 - Not a clash: the day before or after, a night already off, a paused training, a sign-up deadline or draft night.
   [clashes.use-cases.test.ts › "what isn't a clash: the day before or after, a night already off, a sign-up deadline or draft night"](clashes.use-cases.test.ts)
 - The admin chooses Cancel it or Keep both for each; keeping both cancels nothing and tells nobody.

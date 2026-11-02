@@ -48,6 +48,15 @@ export function londonISO(date: string, time: string): string {
 }
 
 /**
+ * The same London wall-clock time the day after an instant: where a night that ends before it starts (past midnight)
+ * ends. 24 hours on most nights, 25 the night the clocks go back and 23 the night they go forward.
+ */
+export function londonNextDay(iso: string): string {
+  const next = new Date(Date.parse(`${londonDay(iso)}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  return londonISO(next, londonTime(iso));
+}
+
+/**
  * The evening a moment belongs to, as London's date (apps/team/worker/tournaments/README.md): from 06:00 it's that day's; before 06:00 it's still
  * the night before's, so a Kumite's after-party runs past midnight till the morning.
  */

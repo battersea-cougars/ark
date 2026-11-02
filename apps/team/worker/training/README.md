@@ -26,6 +26,8 @@ the test and this line together. Why a piece of code is the way it is stays in a
 - A Quarterly Member signing up for a full night takes the place of the last one in paying as they go, who waits at the
   top of their queue.
   [entries.use-cases.test.ts › "a Quarterly Member signing up for a full Friday takes the place of the last one paying as they go"](../entries/entries.use-cases.test.ts)
+- Two people tapping the last place at once: one has it, the other is first to wait, nobody twice.
+  [entries.concurrency.use-cases.test.ts › "two people tap the last place at once: one has it, the other is first to wait, both told (seed %i)"](../entries/entries.concurrency.use-cases.test.ts)
 - When a place comes free, the first waiting in that order moves up; a limit raised lets in as many as it makes room
   for.
   [entries.edge-cases.use-cases.test.ts › "an admin makes room for one more: the first waiting is in, not the next to sign up (#127)"](../entries/entries.edge-cases.use-cases.test.ts)
@@ -37,6 +39,9 @@ the test and this line together. Why a piece of code is the way it is stays in a
 - A training's nights can open for sign-up a number of days before, at midnight London (Friday Training: the Monday).
   Until then a member's In is refused, saying when it opens; Out is fine, and admins can still put people in.
   [training.signup-opens.use-cases.test.ts › "before the Monday a member's In is refused, saying when it opens"](training.signup-opens.use-cases.test.ts)
+- It opens at midnight London time on the Monday whatever the clocks did that Sunday.
+  [training.signup-opens.use-cases.test.ts › "after the clocks go back (Sunday 25 October), Friday 30th opens at midnight GMT: 23:30 UTC on the Sunday is still Sunday"](training.signup-opens.use-cases.test.ts)
+  [training.signup-opens.use-cases.test.ts › "after the clocks go forward (Sunday 28 March 2027), Friday 2 April opens at midnight BST: 23:00 UTC on the Sunday"](training.signup-opens.use-cases.test.ts)
 - Members hear once that a night's open, unless they've answered already or turned that notice off.
   [training.signup-opens.use-cases.test.ts › "a member who's said Out for the night isn't told, nor one already in; the rest are"](training.signup-opens.use-cases.test.ts)
 - An Out can be taken back to not answered, so a member hears when sign-up opens.
@@ -81,6 +86,7 @@ the test and this line together. Why a piece of code is the way it is stays in a
   [training.register-closes.use-cases.test.ts › "a closed night can't be reset, called off, or put back on: its charges stand"](training.register-closes.use-cases.test.ts)
 - It's 06:00 London time whatever the clocks do.
   [training.register-closes.use-cases.test.ts › "a Saturday night's register closes at 06:00 GMT on Sunday, an hour later in UTC than the week before"](training.register-closes.use-cases.test.ts)
+  [training.register-closes.use-cases.test.ts › "a Saturday night's register closes at 06:00 BST on Sunday, an hour earlier in UTC than the week before"](training.register-closes.use-cases.test.ts)
 - Teams aren't attendance: a closed night keeps its teams.
   [training.register-closes.use-cases.test.ts › "teams aren't attendance: a closed night keeps the teams it had"](training.register-closes.use-cases.test.ts)
 - On the night a full night still holds (a walk-in waits); once the night's over, ticking someone records that they

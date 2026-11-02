@@ -19,7 +19,7 @@
   import { granted, impersonating, realGranted } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import EventCard from "../lib/EventCard.svelte";
-  import { londonISO, londonTime, londonToday } from "../lib/dates";
+  import { londonISO, londonNextDay, londonTime, londonToday } from "../lib/dates";
   import type { Bookable, OneOff } from "../demo/model";
   import PlacePicker from "../lib/PlacePicker.svelte";
   import ManageMenu from "../lib/ManageMenu.svelte";
@@ -150,8 +150,8 @@
     if (!draft.title || !draft.date) return;
     const startsAt = londonISO(draft.date, draft.start);
     let endsAt = londonISO(draft.date, draft.end || draft.start);
-    // Ends after midnight: the next day
-    if (endsAt < startsAt) endsAt = new Date(Date.parse(endsAt) + 24 * 3600_000).toISOString();
+    // Ends after midnight: that time the next day, on London's clock (25 hours on when the clocks go back)
+    if (endsAt < startsAt) endsAt = londonNextDay(endsAt);
     const body: ClubEventBody = {
       title: draft.title,
       startsAt,

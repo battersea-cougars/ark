@@ -3,7 +3,7 @@
 // which every part of the club keeps, plus the nights a training's rule gives that aren't made yet (sessions are
 // made 12 weeks ahead, apps/team/worker/calendar/README.md; a tournament is often further off).
 import { all, first, type Param } from "@cougars/shared/d1";
-import { londonDay, londonISO } from "@cougars/shared/london";
+import { londonDay, londonISO, londonNextDay } from "@cougars/shared/london";
 import { can, type Action } from "../../src/access/actions";
 import { HORIZON_WEEKS, WEEKDAYS, addDays, ruleDates, type Weekday } from "../../src/lib/recurrence";
 import { HttpError, date, time } from "../api/api.http";
@@ -203,10 +203,10 @@ export async function clashesOver(
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.title.localeCompare(b.title));
 }
 
-/** A night whose end is before its start runs past midnight: it ends the next day. */
+/** A night whose end is before its start runs past midnight: it ends at that time the next day, on London's clock. */
 function endOf(startsAt: string, endsAt: string | null) {
   if (!endsAt) return startsAt;
-  return ms(endsAt) < ms(startsAt) ? new Date(ms(endsAt) + 86_400_000).toISOString() : endsAt;
+  return ms(endsAt) < ms(startsAt) ? londonNextDay(endsAt) : endsAt;
 }
 
 // ─── A training's nights (its editor asks, then saves) ───

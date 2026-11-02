@@ -190,3 +190,37 @@ describe("members hear it's open", () => {
     expect(w.pushes).toEqual([]);
   });
 });
+
+describe("the Monday after the clocks change", () => {
+  /** A browser signed in as this member at `now` (a sign-in from NOW has ended by the spring). */
+  async function signedInAt(email: string, now: Date) {
+    const b = w.browser();
+    const { devCode } = await w.ask(b, email, now);
+    expect((await b.call("POST", "/api/auth/verify", { code: devCode }, { now })).status).toBe(200);
+    return b;
+  }
+  /** Reg's In for the Friday on `day`, at `now`, as the app shows it then (its nights are made for the weeks ahead). */
+  async function regSaysIn(day: string, now: Date) {
+    const reg = await signedInAt("reg@example.com", now);
+    const night = ((await reg.club({ now })).body as Json).sessions.find((x: Json) => x.heldOn === day) as Json;
+    expect(night, `a night on ${day}`).toBeTruthy();
+    return reg.call("POST", `/api/sessions/${night.id}/answer`, { answer: "in" }, { now });
+  }
+
+  it("after the clocks go back (Sunday 25 October), Friday 30th opens at midnight GMT: 23:30 UTC on the Sunday is still Sunday", async () => {
+    await friday(4);
+    // A week earlier (BST) 23:30 UTC on the Sunday was already Monday
+    const early = await regSaysIn("2026-10-30", new Date("2026-10-25T23:30:00Z"));
+    expect(early.status).toBe(409);
+    expect(early.body.error).toBe("Sign-up opens Monday.");
+    expect((await regSaysIn("2026-10-30", new Date("2026-10-26T00:00:00Z"))).status).toBe(200);
+  });
+
+  it("after the clocks go forward (Sunday 28 March 2027), Friday 2 April opens at midnight BST: 23:00 UTC on the Sunday", async () => {
+    await friday(4);
+    const early = await regSaysIn("2027-04-02", new Date("2027-03-28T22:59:00Z"));
+    expect(early.status).toBe(409);
+    expect(early.body.error).toBe("Sign-up opens Monday.");
+    expect((await regSaysIn("2027-04-02", new Date("2027-03-28T23:00:00Z"))).status).toBe(200);
+  });
+});

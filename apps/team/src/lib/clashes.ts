@@ -1,7 +1,7 @@
 // When a save is worth asking about (apps/team/worker/calendar/README.md, lib/ClashSheet): a new time, as London instants, or a training's rule.
 // Only a day and hours that are new or moved are asked about, so saving a name change over a night already kept
 // doesn't ask again.
-import { londonISO } from "./dates";
+import { londonISO, londonNextDay } from "./dates";
 import type { Weekday } from "./recurrence";
 
 export interface ClashWindow {
@@ -25,10 +25,10 @@ export interface TrainingQuestion {
 
 export type ClashQuestion = ClashWindow | TrainingQuestion;
 
-/** An end before its start runs past midnight: the next day. */
+/** An end before its start runs past midnight: that time the next day, on London's clock (the clocks may change). */
 const span = (startsAt: string, endsAt: string): [string, string] => [
   startsAt,
-  Date.parse(endsAt) < Date.parse(startsAt) ? new Date(Date.parse(endsAt) + 86_400_000).toISOString() : endsAt,
+  Date.parse(endsAt) < Date.parse(startsAt) ? londonNextDay(endsAt) : endsAt,
 ];
 
 type When = { heldOn: string; season: unknown; startTime: string; endTime: string };

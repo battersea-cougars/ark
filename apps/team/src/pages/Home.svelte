@@ -89,9 +89,14 @@
   let announcing = $state(false);
   const inAWeek = () => new Date(Date.parse(`${londonToday()}T12:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
   let note = $state({ title: "", body: "", link: "", endsOn: inAWeek() });
+  // Posted once a tap: while it's on its way, Post it waits, so a double tap (or Enter twice) posts one note, not two
+  let posting = $state(false);
   async function announce(e: SubmitEvent) {
     e.preventDefault();
-    if (await postAnnouncement(note)) {
+    if (posting) return;
+    posting = true;
+    const posted = await postAnnouncement(note).finally(() => (posting = false));
+    if (posted) {
       announcing = false;
       note = { title: "", body: "", link: "", endsOn: inAWeek() };
     }
@@ -907,7 +912,7 @@
       <div class="field">
         Last day <DateField id="note-ends" aria-label="Last day" required bind:value={note.endsOn} />
       </div>
-      <button class="btn primary">Post it</button>
+      <button class="btn primary" disabled={posting}>Post it</button>
     </form>
   </Sheet>
 </div>

@@ -1447,8 +1447,10 @@
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
     gap: var(--s-5);
   }
+  /* One column that never grows past the page: a long name ends in an ellipsis, not off the edge (#148) */
   .squad {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: var(--s-2);
   }
@@ -1466,6 +1468,7 @@
   }
   .squad-list {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
   .squad-list li {
     display: flex;
