@@ -1,4 +1,4 @@
-// Next quarter's plan, a few days before it starts (ADR 0007, #187): five days before a quarter, everyone who'll be
+// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md, #187): five days before a quarter, everyone who'll be
 // Quarterly then is told its fee is due and that they can still switch to pay as you go; Ivy is one, on her phone,
 // and switches; at the quarter's start she isn't charged. Ada, the admin, sees the lead time on Settings → Membership
 // and who was told on the Audit log. Pia pays as she goes, with a phone too, and hears nothing.

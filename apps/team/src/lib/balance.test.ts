@@ -174,7 +174,7 @@ describe("makeTeams", () => {
     const cpu = cpuUsage();
     makeTeams(players, TEAM_NAMES);
     // A second, as it says: a phone does this in tens of ms. The CPU it took, not the wall clock: on a busy machine the
-    // wall clock counts the time other work had the core, and went past a second (ADR 0121)
+    // wall clock counts the time other work had the core, and went past a second (ADR 0003)
     const { user, system } = cpuUsage(cpu);
     expect((user + system) / 1000).toBeLessThan(1000);
   });

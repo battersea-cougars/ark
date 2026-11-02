@@ -1,7 +1,7 @@
-// The club as the team app reads it (ADR 0057): one statement, so opening the app is one round trip to D1, not one per
+// The club as the team app reads it (ADR 0053): one statement, so opening the app is one round trip to D1, not one per
 // table. Each part is a list of rows the database turns into JSON; the domain modules shape them (training.ts,
 // members.ts, ...). Who's asking is a row of its own (`viewer`), so what they may not see never leaves the database
-// (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
+// (ADR 0024): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
 // the day, so this is the view, as a query.
 import { doneSql } from "@cougars/shared/results";
 import { quarterlyOn } from "../entries/entries";
@@ -30,15 +30,15 @@ export interface Viewer {
   seesContacts: boolean;
   /** A draft night on the agenda, for whoever runs the draft (its captains see their own) */
   runsDraft: boolean;
-  /** Everyone's charges and payments (ADR 0007): who sees Unpaid fees or records payments */
+  /** Everyone's charges and payments (apps/team/worker/dues/README.md): who sees Unpaid fees or records payments */
   seesDues: boolean;
   /** Every award's winner as soon as it's confirmed: whoever runs tournaments (reveals them at the after-party) */
   seesAwards: boolean;
-  /** The free limits getting close, for Home's For admins (ADR 0059): whoever sees Usage */
+  /** The free limits getting close, for Home's For admins (ADR 0003): whoever sees Usage */
   seesUsage: boolean;
   /** Whether Google has cancelled the club's email (ADR 0027), for Home's For admins: whoever looks after it */
   keepsEmail: boolean;
-  /** London's evening now, its date (till 06:00, the night before's): the after-party's (ADR 0074) */
+  /** London's evening now, its date (till 06:00, the night before's): the after-party's (apps/team/worker/tournaments/README.md) */
   evening: string;
 }
 
@@ -125,7 +125,7 @@ const ownEntries = (table: string, key: string, events: string) =>
 /**
  * A training's answers (`nights`: which), as everyone who sees the club alike sees them: who's in and who's waiting, and
  * for whoever runs events everyone's out, walk-ins and no-shows too; and whether each is a Quarterly skater's on the day
- * (ADR 0131). Only the weeks shown are read, by index, then their answers: with SQLite left to choose the order it read
+ * (apps/team/worker/training/README.md). Only the weeks shown are read, by index, then their answers: with SQLite left to choose the order it read
  * every answer ever given, and with a correlated subquery for each column, a full night's sign-ups were about eight
  * rows an answer (docs/load-testing.md). Nothing in it is anyone's own, so it can be kept at the edge (#178); each
  * member's own answers come beside it (`ownSessionEntries`), in place of theirs here.
@@ -167,7 +167,7 @@ const nightsShown = (nights: string) => `SELECT s.id FROM viewer v CROSS JOIN tr
 const EVENTS_SHOWN = "SELECT ce.id FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now";
 
 /**
- * Everyone whose dues are shown on Unpaid fees and the members' pages (ADR 0007): everyone, for who sees them; for
+ * Everyone whose dues are shown on Unpaid fees and the members' pages (apps/team/worker/dues/README.md): everyone, for who sees them; for
  * anyone else, nobody. As a list, so each member's charges and payments are found by index, not picked out of every
  * one there has ever been (ADR 0003). The viewer first: for anyone else the members aren't read at all.
  */
@@ -254,7 +254,7 @@ export const DONE = doneSql;
 /**
  * The tournaments opening the app sends (#175, #178): Home's and the calendar's. Every one not played yet (coming up,
  * on now, its day passed unplayed), and any played in the last fortnight, for its after-party and Home's results:
- * by its day, or by when a match kicked off, so one played weeks late still has its evening (ADR 0074, #182). One
+ * by its day, or by when a match kicked off, so one played weeks late still has its evening (apps/team/worker/tournaments/README.md, #182). One
  * played early is sent, done, and the app shows it as past. The rest are a page's or history: each series' last one
  * played ("last time", LAST_PLAYED), read when its front door is opened, and the ones before, read when they're opened
  * (tournaments/editions.ts). Opening the app stays the same size however many there have been.
@@ -353,8 +353,8 @@ const tournamentParts = (shown: string) => ({
   games: games(`WHERE tournament_id IN (${shown})`),
   goals: goals(`WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id IN (${shown}))`),
   penalties: penalties(`WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id IN (${shown}))`),
-  // Who won each award (ADR 0044). On its evening an award's winner is a surprise until it's revealed at the
-  // after-party (ADR 0074): only whoever runs tournaments is sent it before then
+  // Who won each award (apps/team/worker/tournaments/README.md). On its evening an award's winner is a surprise until it's revealed at the
+  // after-party (apps/team/worker/tournaments/README.md): only whoever runs tournaments is sent it before then
   winners: rows(
     "tournamentId award teamId memberId title",
     `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId, w.title
@@ -363,7 +363,7 @@ const tournamentParts = (shown: string) => ({
        AND (v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening OR ${REVEAL_PLACE} < t.awards_revealed)
      ORDER BY w.tournament_id, w.position`,
   ),
-  // Which awards were given, and the judges' call's name tonight (ADR 0044): everyone's once the awards are confirmed,
+  // Which awards were given, and the judges' call's name tonight (apps/team/worker/tournaments/README.md): everyone's once the awards are confirmed,
   // before they're revealed (the sealed card says the name; a judges' call left out isn't revealed at all, lib/awards
   // awardsToReveal); who won each waits for the reveal
   awardTitles: rows(
@@ -371,7 +371,7 @@ const tournamentParts = (shown: string) => ({
     `SELECT tournament_id tournamentId, award, MAX(title) title FROM tournament_award_winners
      WHERE tournament_id IN (${shown}) GROUP BY tournament_id, award`,
   ),
-  // A voted award's votes (ADR 0044): how many are in; the one this member cast comes beside it (ownVotes). Who voted
+  // A voted award's votes (apps/team/worker/tournaments/README.md): how many are in; the one this member cast comes beside it (ownVotes). Who voted
   // for whom is never sent
   votes: rows(
     "tournamentId award cast mine",
@@ -431,7 +431,7 @@ const PARTS = {
   // The nights from tonight, Home's and the next night's (#178); the weeks just held are a page's (pastSessions)
   sessions: nights(NEXT_NIGHTS),
   pastSessions: nights(PAST_NIGHTS),
-  // A training's fee, from each date (ADR 0007)
+  // A training's fee, from each date (apps/team/worker/dues/README.md)
   seriesFees: rows(
     "seriesId pence from",
     `SELECT series_id seriesId, amount_pence pence, effective_from "from" FROM series_fees
@@ -459,7 +459,7 @@ const PARTS = {
      FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now ORDER BY ce.starts_at`,
   ),
   eventEntries: entries("club_event_entries", "event_id", EVENTS_SHOWN),
-  // Dues (ADR 0007, #177): your own charges with something left to pay (Home, your tab's header), found by index; the
+  // Dues (apps/team/worker/dues/README.md, #177): your own charges with something left to pay (Home, your tab's header), found by index; the
   // rest of your ledger is read a page at a time (dues.ledger.ts)
   charges: rows(CHARGE_COLUMNS, chargeSelect(`c.member_id = (SELECT member_id FROM viewer) AND ${OWING("c")}`)),
   // What each owes, by age, and their credit: your own, or everyone's for who sees Unpaid fees, worked out here from
@@ -501,7 +501,7 @@ const PARTS = {
     "topic enabled",
     "SELECT p.topic, p.enabled FROM notification_prefs p, viewer v WHERE p.member_id = v.member_id",
   ),
-  // When each member was last reminded of what they owe (ADR 0007), for who sees everyone's dues
+  // When each member was last reminded of what they owe (apps/team/worker/dues/README.md), for who sees everyone's dues
   reminders: rows(
     "memberId at",
     `SELECT r.member_id memberId, MAX(COALESCE(r.sent_at, r.claimed_at)) at FROM dues_reminders r, viewer v
@@ -515,8 +515,8 @@ const PARTS = {
   ),
   // Why the club's email is failing, if it is (mail_health, ADR 0027), for whoever looks after it
   mailFailure: rows("failure", "SELECT h.failure FROM mail_health h, viewer v WHERE h.id = 1 AND v.keeps_email"),
-  // What's on (ADR 0042): from London's evening (last night's, till 06:00: its register's still open), and the day of
-  // a tournament not played yet whose day has gone by, which is still next (ADR 0074, #182). The app decides by each
+  // What's on (ADR 0016): from London's evening (last night's, till 06:00: its register's still open), and the day of
+  // a tournament not played yet whose day has gone by, which is still next (apps/team/worker/tournaments/README.md, #182). The app decides by each
   // thing's status what's past (lib/phase.ts). A draft night is for whoever runs the draft and that tournament's
   // captains.
   agenda: rows(
@@ -656,9 +656,9 @@ export interface MatchRows {
 }
 
 /**
- * A live match (ADR 0072, #161): one tournament's games as every member sees them, read with no viewer since nothing
+ * A live match (ADR 0053, #161): one tournament's games as every member sees them, read with no viewer since nothing
  * in them is anyone's own, in one statement; null when the tournament isn't on (under way: lib/phase.ts), whatever its
- * date: one played early is live, a result put right once it's all played isn't (ADR 0074, #182).
+ * date: one played early is live, a result put right once it's all played isn't (apps/team/worker/tournaments/README.md, #182).
  */
 export async function readMatch(db: D1Database, tournamentId: number): Promise<MatchRows | null> {
   const ofGames = "WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)";

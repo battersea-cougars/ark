@@ -1,14 +1,14 @@
-// The website roster's query (scripts/club-snapshot.mjs, ADR 0043): active Cougars and their record.
+// The website roster's query (scripts/club-snapshot.mjs, ADR 0016): active Cougars and their record.
 // Stats count what's been played (signed up in, not marked a no-show, not cancelled), as the team app does.
 const PLAYED = `a.signup = 'in' AND COALESCE(a.attended, 1) = 1`;
-// A tournament on the website (ADR 0100, packages/shared/results.ts isDone): public, and marked finished or every game played.
+// A tournament on the website (ADR 0016, packages/shared/results.ts isDone): public, and marked finished or every game played.
 // Goals and penalty minutes count from played games only, as on its result.
 const PUBLISHED = `t.public = 1 AND (t.status = 'finished' OR (
     EXISTS (SELECT 1 FROM tournament_games x WHERE x.tournament_id = t.id)
     AND NOT EXISTS (SELECT 1 FROM tournament_games x WHERE x.tournament_id = t.id AND x.status <> 'done')))`;
 const GOALS = `FROM tournament_goals o JOIN tournament_games g ON g.id = o.game_id AND g.status = 'done'
       JOIN tournaments t ON t.id = g.tournament_id AND ${PUBLISHED}`;
-// Penalty minutes (PIM, ADR 0061) the same way: played games of tournaments on the website
+// Penalty minutes (PIM, apps/team/worker/tournaments/README.md) the same way: played games of tournaments on the website
 const PENALTIES = `FROM tournament_penalties o JOIN tournament_games g ON g.id = o.game_id AND g.status = 'done'
       JOIN tournaments t ON t.id = g.tournament_id AND ${PUBLISHED}`;
 export const ROSTER_SQL = `SELECT m.id, m.name, m.web_name, m.position, m.bio,
@@ -22,7 +22,7 @@ export const ROSTER_SQL = `SELECT m.id, m.name, m.web_name, m.position, m.bio,
     (SELECT COUNT(*) ${GOALS} WHERE o.scorer_member_id = m.id) goals,
     (SELECT COUNT(*) ${GOALS} WHERE o.assist_member_id = m.id) assists,
     (SELECT COALESCE(SUM(o.minutes), 0) ${PENALTIES} WHERE o.member_id = m.id) pim,
-    -- Titles: on the team an admin confirmed as Champions (ADR 0044), as captain or player
+    -- Titles: on the team an admin confirmed as Champions (apps/team/worker/tournaments/README.md), as captain or player
     (SELECT COUNT(DISTINCT w.tournament_id) FROM tournament_award_winners w
       JOIN tournaments t ON t.id = w.tournament_id AND ${PUBLISHED}
       JOIN tournament_teams x ON x.id = w.team_id

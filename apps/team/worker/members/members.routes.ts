@@ -1,4 +1,4 @@
-// Members (ADR 0024, ADR 0069): adding, importing, editing and erasing them, their contact, roles and attendance.
+// Members (ADR 0024, apps/team/worker/members/README.md): adding, importing, editing and erasing them, their contact, roles and attendance.
 import { places } from "../push/push.notices";
 import { id, ok, theMember, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
@@ -56,7 +56,7 @@ export const MEMBERS_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/members\/(\d+)\/photo$/,
     action: "authenticated",
-    // Their profile photo (ADR 0133), for anyone who may see them; ?v= is when it was set, so it's kept until it changes
+    // Their profile photo (apps/team/worker/members/README.md), for anyone who may see them; ?v= is when it was set, so it's kept until it changes
     handle: async (c) =>
       photoOf(c.env.DB, id(c), {
         memberId: c.memberId,
@@ -89,7 +89,7 @@ export const MEMBERS_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Attendance",
-    // Who came is who's charged (ADR 0007)
+    // Who came is who's charged (apps/team/worker/dues/README.md)
     changes: ["sessions", "members", "charges", "dues"],
     // A walk-in taken off frees a place: whoever moves up hears it
     notify: places,
@@ -156,7 +156,7 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     // { name, email, position, emailThem? }: in the club now, and emailed a link to the app unless emailThem is false
-    // (ADR 0069, #164)
+    // (apps/team/worker/members/README.md, #164)
     handle: async (c) => json(await addMember(c.env, await body(c.request), new URL(c.request.url).origin, c), 201),
   },
   {
@@ -214,7 +214,7 @@ export const MEMBERS_ROUTES: Route[] = [
         await endSessions(c.env, c.now, { memberId: id(c) });
         await forgetPasskeys(c.env.DB, id(c));
       }
-      // Let in after asking to join: they hear so, with the way in (ADR 0069)
+      // Let in after asking to join: they hear so, with the way in (apps/team/worker/members/README.md)
       if (letIn) {
         const m = await first<{ name: string; email: string | null }>(
           c.env.DB,
@@ -241,7 +241,7 @@ export const MEMBERS_ROUTES: Route[] = [
     notify: places,
     // A member who asked the club, by email, to delete their account (#30): as if they'd done it themselves
     handle: async (c) => {
-      // Never someone who can do more than the one erasing them (ADR 0036), as for any other change to a member
+      // Never someone who can do more than the one erasing them (ADR 0024), as for any other change to a member
       await mayChange(c.env.DB, c.actions, id(c));
       await eraseMember(c.env.DB, id(c), c.today, c.now);
       await endLive(c.env, { memberId: id(c) });

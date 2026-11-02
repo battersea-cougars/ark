@@ -51,9 +51,9 @@ describe("buildRoutes", () => {
       "/training/friday",
       "/training/sunday",
     ]);
-    // One page, by status, and its board (ADR 0074); the awards' stage under it
+    // One page, by status, and its board (apps/team/worker/tournaments/README.md); the awards' stage under it
     expect(routes.filter((r) => r.fold === "type:2").map((r) => r.name)).toEqual(["The Cup", "The awards"]);
-    // A draft's has its draft room too, full screen and off every menu (ADR 0060)
+    // A draft's has its draft room too, full screen and off every menu (apps/team/worker/tournaments/README.md)
     expect(routes.find((r) => r.path === "/tournaments/kumite/draft/room")).toMatchObject({
       page: "draft-room",
       focus: true,
@@ -78,7 +78,7 @@ describe("buildRoutes", () => {
   });
 });
 
-describe("the draft, the teams and the fixtures: the tournament's page, at their own addresses (ADR 0074)", () => {
+describe("the draft, the teams and the fixtures: the tournament's page, at their own addresses", () => {
   it("opens the one page for everyone, whatever the address an old link or a push has", () => {
     const routes = buildRoutes({ ...one, types: [{ ...kumite, stage: "draft", captains: [7, 8] }], me: 99 });
     for (const path of ["", "/draft", "/teams", "/schedule", "/sign-up"])
@@ -158,7 +158,7 @@ describe("stripRoutes", () => {
     expect(buildRoutes(many).some((r) => r.name === "My team")).toBe(false);
   });
 
-  it("gives a tournament's pages no strip: its stage track is their navigation (ADR 0074)", () => {
+  it("gives a tournament's pages no strip: its stage track is their navigation", () => {
     const routes = buildRoutes(many);
     for (const path of ["/tournaments/cup", "/tournaments/cup/schedule", "/tournaments/cup/standings"]) {
       expect(stripRoutes(routes, routeFor(routes, path)!, member)).toEqual([]);
@@ -228,7 +228,7 @@ describe("a tournament is one page; its teams and History are a link away, with 
   });
 });
 
-describe("every edition is its own page, at its own address (ADR 0074)", () => {
+describe("every edition is its own page, at its own address", () => {
   // "I should always be able to enter prior kumite and see that timeline" (the user, 2026-10-23)
   const routes = buildRoutes({ ...one, types: [{ ...kumite, stage: "fixtures", past: [5], editions: [5, 12] }] });
 

@@ -1,4 +1,4 @@
-// Nights and Kumites (#186, ADR 0122, 0030, 0031): several Kumites on Fridays, the training nights they put off,
+// Nights and Kumites (#186, ADR 0031, apps/team/worker/training/README.md, apps/team/worker/tournaments/README.md): several Kumites on Fridays, the training nights they put off,
 // nights called off by hand, and each one coming back on its own terms. Seen on dev: after several Kumites, nights
 // cancelled and more Kumites, Fridays stayed Cancelled and couldn't be taken back. The rule: a night off for a Kumite
 // comes back when that Kumite is deleted or moved, unless another Kumite that day or a hand cancellation still keeps

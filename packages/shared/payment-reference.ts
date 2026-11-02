@@ -1,4 +1,4 @@
-// A member's bank-transfer reference (ADR 0007): "COUGARS ADRIAN K", their first name and surname initial, so
+// A member's bank-transfer reference (apps/team/worker/dues/README.md): "COUGARS ADRIAN K", their first name and surname initial, so
 // it reads as a person on the statement. UK banks take 18 characters, A–Z, digits and spaces. A second Adrian K
 // gets "COUGARS ADRIAN K2". Set once when the member is made and never changed after, even if the name is.
 // Plain TypeScript with no imports, so the roster seed (scripts/lib/roster.mjs) runs it under Node too.

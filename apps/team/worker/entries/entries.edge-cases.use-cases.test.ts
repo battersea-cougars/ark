@@ -1,4 +1,4 @@
-// Friday's sign-ups at their edges (ADR 0030, ADR 0007): the first and the last place, a limit changed with people
+// Friday's sign-ups at their edges (apps/team/worker/training/README.md, apps/team/worker/dues/README.md): the first and the last place, a limit changed with people
 // waiting, answers that make no sense, nights that are over or called off, and who may do what (ADR 0024). Driven
 // through the real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -139,7 +139,7 @@ describe("the first and the last place", () => {
 
 describe("a limit changed while people wait", () => {
   // Raising the limit moved nobody up: the waiting stayed waiting, and the next to say in took the new place ahead of
-  // them (#127). A limit raised is a place coming free (ADR 0030)
+  // them (#127). A limit raised is a place coming free (apps/team/worker/training/README.md)
   it("an admin makes room for one more: the first waiting is in, not the next to sign up (#127)", async () => {
     const f = await friday({ capacity: 2 });
     for (const p of ["Reg", "Paul", "Walt"]) await f.say(p, "in");
@@ -296,7 +296,7 @@ describe("a night that's called off", () => {
 });
 
 describe("a night that's over", () => {
-  // The register is the record of who came, and its charge stands (ADR 0007): after the night, a member's own Out
+  // The register is the record of who came, and its charge stands (apps/team/worker/dues/README.md): after the night, a member's own Out
   // took them off it and their unpaid charge went (#128)
   it("a member who came can't say they're out of last Friday afterwards: they're still in, and still charged (#128)", async () => {
     const f = await friday({ capacity: 5, day: LAST_FRIDAY });
@@ -424,7 +424,7 @@ describe("Quarterly Members and walk-ins", () => {
   });
 });
 
-describe("at once (ADR 0121)", () => {
+describe("at once (ADR 0003)", () => {
   it.each(seeds(5))(
     "a Quarterly Member signs up for a full night just as someone paying as they go says out: still two in, nobody twice (seed %i)",
     async (seed) => {

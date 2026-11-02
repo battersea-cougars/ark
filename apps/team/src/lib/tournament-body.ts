@@ -1,6 +1,6 @@
 // A tournament as the app sends it to be saved (POST /api/tournaments, PUT /api/tournaments/:id), from its editor
-// (lib/TournamentDateEditor) and the quick questions. What it leaves out stays as the server has it (ADR 0030):
-//   - its status: it moves on from the tournament's own page (Manage: Close sign-up, Move to…, ADR 0074)
+// (lib/TournamentDateEditor) and the quick questions. What it leaves out stays as the server has it (apps/team/worker/tournaments/README.md):
+//   - its status: it moves on from the tournament's own page (Manage: Close sign-up, Move to…, apps/team/worker/tournaments/README.md)
 //   - a saved team's name and logo: they're changed on the team's own page (Edit the team), so an editor left open
 //     while its captain renames the team never puts the old name back. A new team sends its own.
 import type { Tournament, TournamentTeam } from "../demo/model";

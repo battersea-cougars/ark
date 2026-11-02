@@ -1,6 +1,6 @@
 // What a branch's diff asks of `npm run merge:check` (scripts/merge-check.mjs, ADR 0115): pure, tested beside it.
 //
-// Every non-docs change runs lint, knip (unused files, exports and dependencies, ADR 0125) and the whole test suite
+// Every non-docs change runs lint, knip (unused files, exports and dependencies, ADR 0105) and the whole test suite
 // (one fake world, and fast). The checks and builds are the
 // pre-push list (CLAUDE.md, Tests, as pr.yml), narrowed to the apps a diff can reach: the team app imports the
 // website's code (its tests and checks read apps/web/src), so a website change checks both; nothing imports the team

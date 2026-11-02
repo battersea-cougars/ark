@@ -1,7 +1,7 @@
 // App-shell service worker: the app opens offline, and at once on poor signal (#115). An opening asks the network for
 // the newest shell, but waits at most NETWORK_WAIT_MS before opening the one kept from last time; whenever the
 // network's arrives it's kept for the next opening, with the files it names, so a deploy reaches the phone on the
-// next open at the latest (and the shell offers a reload as soon as a bootstrap says there's a newer build, ADR 0104).
+// next open at the latest (and the shell offers a reload as soon as a bootstrap says there's a newer build, ADR 0022).
 // Built assets (hashed names) are cached as they're used, once they arrive whole. API calls are never cached here.
 // And notifications in a browser (Web Push, ADR 0108, #24): a push shows one; tapping it opens its page in the app.
 // On the dev server it's registered as sw.js?dev (src/app/web-push.ts) and does notifications only: a cached shell

@@ -1,11 +1,11 @@
-// The Kumite simulation (ADR 0123, dev only): its run as a store, and its moves sent as changes. Apart from the backend,
-// so only the pages and the control that use it load it: no phone downloads it before Home paints (ADR 0120).
+// The Kumite simulation (apps/team/worker/settings/README.md, dev only): its run as a store, and its moves sent as changes. Apart from the backend,
+// so only the pages and the control that use it load it: no phone downloads it before Home paints (ADR 0053).
 import { api } from "./api";
 import { save, tell } from "./backend.svelte";
 import { simulator, type Move, type SimulationState } from "../lib/simulation";
 
 /**
- * The Kumite simulation (ADR 0123, dev only): which tournament, running or paused, its speed and its last move. A
+ * The Kumite simulation (apps/team/worker/settings/README.md, dev only): which tournament, running or paused, its speed and its last move. A
  * store, so the floating control (lib/SimulationControl) keeps it across the Kumite's views and the draft room; a
  * reload ends it (run again, it carries on from where it is).
  */
@@ -28,7 +28,7 @@ export const simulation = simulator(
   },
 );
 /**
- * Dev only (ADR 0123): a Kumite on a day gone by, signed up for, then played out on that evening to its last award
+ * Dev only (apps/team/worker/settings/README.md): a Kumite on a day gone by, signed up for, then played out on that evening to its last award
  * by the simulator, at Spin kick unless another speed's chosen, so it's history with a whole evening behind it.
  */
 export async function playOnAPastDay(typeId: number, heldOn: string) {

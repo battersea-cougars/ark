@@ -1,4 +1,4 @@
-// The Kumite night, end to end (ADR 0074, 0031; #154): sign-up opens, players sign up, the captains are named, the
+// The Kumite night, end to end (ADR 0031, apps/team/worker/tournaments/README.md; #154): sign-up opens, players sign up, the captains are named, the
 // order's drawn, the captains draft, the teams are set, the fixtures made, the matches scored live, then The Anchor:
 // the vote, the awards confirmed and revealed one by one; Done that evening, and the morning after it's history, first
 // in Past Kumites. Three people throughout, each checking what they can and can't do at
@@ -7,7 +7,7 @@
 //
 // It runs on the real clock, on a fresh database. The Kumite is scheduled by season only (the wizard's default: no
 // day yet), and played tonight anyway, as a match starts on any day: The Anchor is the evening its last match kicked
-// off, whatever its date (ADR 0074). Sign-up opens today. Being on its day (KUMITE! from the fixtures out) is
+// off, whatever its date (apps/team/worker/tournaments/README.md). Sign-up opens today. Being on its day (KUMITE! from the fixtures out) is
 // lib/tournament-front.test.ts's. The morning after is the browser's clock a day on (Playwright's page.clock).
 import { expect, test } from "@playwright/test";
 import { asMember, clubVia, checks, does, noFailedChecks, signIn, stage, type Person } from "./journey";
@@ -320,7 +320,7 @@ test("The Kumite night", async ({ browser }) => {
     await does(ada, "seals the teams, and the fixtures are made", async () => {
       await open(ada);
       await ada.page.getByRole("button", { name: "Close draft & make fixtures" }).click();
-      // Not on its day (it has none), the fixtures are out and it waits for its first match (ADR 0074)
+      // Not on its day (it has none), the fixtures are out and it waits for its first match (apps/team/worker/tournaments/README.md)
       await expect(ada.page.getByRole("status", { name: "Status: Fixtures set" })).toBeVisible();
     });
 
@@ -425,7 +425,7 @@ test("The Kumite night", async ({ browser }) => {
       expect(await offered(ada)).not.toContain("Confirm the awards");
     });
 
-    // The other two matches aren't what this journey tests: the dev simulator plays them out (ADR 0123)
+    // The other two matches aren't what this journey tests: the dev simulator plays them out (ADR 0010)
     await does(ada, "plays out the rest (Manage → Play out the Kumite, Spin kick)", async () => {
       await open(ada);
       await (await manage(ada)).getByRole("button", { name: /^Play out the Kumite/ }).click();

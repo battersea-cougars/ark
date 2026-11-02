@@ -1,4 +1,4 @@
-// A game scored live reaches every phone with nothing read (ADR 0072, #161): at the rink everyone shares one wifi
+// A game scored live reaches every phone with nothing read (ADR 0053, #161): at the rink everyone shares one wifi
 // address, and a goal used to be a read on every phone following the game within the same second. A live match is
 // the same for every member, so the Worker builds it once and the hub sends it with the change's names; a phone that
 // holds the version just before puts it in place as it is. Anything else (a phone that missed a change, a part that's
@@ -152,7 +152,7 @@ describe("a game scored live, everyone following it", () => {
   });
 
   it("a game played before its tournament's day is live all the same: the goal reaches the phones with the game", async () => {
-    // Status, not the date, says it's on (ADR 0074, #182): set for the 9th, played today
+    // Status, not the date, says it's on (apps/team/worker/tournaments/README.md, #182): set for the 9th, played today
     const cup = await cupOn("2026-10-09");
     const mo = await phoneOn("mo@example.com");
     await cup.goal();

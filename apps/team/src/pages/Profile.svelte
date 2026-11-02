@@ -32,7 +32,7 @@
   const who = me();
   let form = $state({ phone: phoneFor(who.id) ?? "", position: who.position, bio: who.bio ?? "" });
 
-  // The name you go by, in the app and on the website (ADR 0043): ready-made forms of your name, or a nickname. Saved as the text itself;
+  // The name you go by, in the app and on the website (apps/team/worker/members/README.md): ready-made forms of your name, or a nickname. Saved as the text itself;
   // the default (first name and initial) is saved as nothing, so it follows a change to your name.
   const [firstName, ...rest] = who.name.trim().split(/\s+/);
   const lastName = rest.at(-1);
@@ -101,7 +101,7 @@
   }
   const owed = $derived(owedBy(who.id));
 
-  // Your photo (ADR 0133): from the phone's camera or its photos (a plain file picker offers both), shrunk here to a
+  // Your photo (apps/team/worker/members/README.md): from the phone's camera or its photos (a plain file picker offers both), shrunk here to a
   // small square and saved at once, apart from the details' Save. It's in the club's copy, so it shows everywhere.
   const hasPhoto = $derived(!!db.members.find((m) => m.player.id === who.id)?.player.photoAt);
   let photoFile = $state<HTMLInputElement | undefined>();
@@ -309,7 +309,7 @@
         </button>
       </YourData>
 
-      <!-- Which build you're on (ADR 0104): the version for people, the build for finding the exact code -->
+      <!-- Which build you're on (ADR 0022): the version for people, the build for finding the exact code -->
       <p class="version hint num">Cougars Fresh Meat {APP_VERSION} · {APP_BUILD}</p>
     {:else}
       <NotificationPrefs disabled={locked} />

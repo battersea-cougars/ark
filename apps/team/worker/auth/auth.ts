@@ -255,7 +255,7 @@ export async function sessionOf(
   return { ...who, setCookie: setCookie(request, "session", fresh, maxAge) };
 }
 
-/** A member's bank reference (ADR 0007), unless they have one. */
+/** A member's bank reference (apps/team/worker/dues/README.md), unless they have one. */
 export async function giveReference(db: D1Database, memberId: number, name: string) {
   const { sql, candidates } = assignReferenceSql(name, "id = ?");
   await run(db, sql, [...candidates, memberId]);
@@ -611,7 +611,7 @@ export async function requestAccess(request: Request, env: AuthEnv, now: Date): 
   // handleApi; this one's at sign-in
   await bumpDataVersion(env.DB, ["members"]);
   await audit(env.DB, now, id, "access.requested");
-  // The admins hear at once, with a link to their sheet (ADR 0069)
+  // The admins hear at once, with a link to their sheet (apps/team/worker/members/README.md)
   await tellAdminsOfRequest(env, { id, name, position }, new URL(request.url).origin);
   return reply;
 }

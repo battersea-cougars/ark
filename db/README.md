@@ -42,7 +42,7 @@ default): `npx wrangler d1 migrations create DB what -c apps/web/wrangler.jsonc`
 
 Every night (`.github/workflows/backup.yml`) and before a deploy changes the database (`deploy.yml`), it's exported,
 sealed with the environment's `BACKUP_KEY` and kept 90 days as an artifact of that run
-([ADR 0106](../docs/adr/0106-database-backups.md)). The team app's Usage page says when the last one was.
+([ADR 0050](../docs/adr/0050-schema-and-seed-until-launch.md)). The team app's Usage page says when the last one was.
 
 **Restore drill** (try it now and then): download the newest `d1-<environment>-…` artifact from Actions → Back up,
 unzip it, then open it into a fresh SQLite file, which prints each table's rows:

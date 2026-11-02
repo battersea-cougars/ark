@@ -1,4 +1,4 @@
-// A series' editions, read when they're wanted (#175, ADR 0074): opening the app sends each series' one on or coming
+// A series' editions, read when they're wanted (#175, apps/team/worker/tournaments/README.md): opening the app sends each series' one on or coming
 // up and its last one played, never every one there's been. A past one's page reads it in full, as the club read
 // would have sent it; History reads them a page at a time, newest first, each a line (its day, who won it, the final);
 // a team's logo is an address of its own, kept by the browser, not a copy in every reply. Driven through the real

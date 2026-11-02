@@ -1,4 +1,4 @@
-// When a tournament takes sign-ups (ADR 0074), at its edges: its opening and closing days themselves, a deadline with
+// When a tournament takes sign-ups (apps/team/worker/tournaments/README.md), at its edges: its opening and closing days themselves, a deadline with
 // no opening day, a tournament that's live or finished, and an admin's Open past its deadline. Days are London's
 // (lib/signup.ts takes London's today).
 import { describe, expect, it } from "vitest";
@@ -53,7 +53,7 @@ describe("a tournament's sign-up window", () => {
   });
 });
 
-describe("a training night's sign-up (ADR 0030)", () => {
+describe("a training night's sign-up", () => {
   // Friday 16 October 2026, opening 4 days before: Monday the 12th
   it("opens at the start of its day, London's, and says when as the app shows it", () => {
     expect(nightOpensOn("2026-10-16", 4)).toBe("2026-10-12");

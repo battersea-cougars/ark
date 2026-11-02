@@ -79,10 +79,10 @@ async function read<T>(res: Response, path: string): Promise<T> {
 
 // The bootstrap's ETag (ADR 0053), kept here in memory: the browser keeps no copy (no-store, #81), so opening the app
 // reads the club whole. After that the app asks with the tag at the data version its copy holds, which moves on as
-// live pages read the club in parts (catch-up.ts, ADR 0072): a club that hasn't changed since is an empty 304.
+// live pages read the club in parts (catch-up.ts, ADR 0053): a club that hasn't changed since is an empty 304.
 let bootstrapTag: string | null = null;
 
-// index.html reads the club before any script has arrived (ADR 0120). The first getBootstrap takes that reply, once;
+// index.html reads the club before any script has arrived (ADR 0053). The first getBootstrap takes that reply, once;
 // if it never came (no network), the app asks itself, so a failure reads as it always did.
 declare global {
   interface Window {

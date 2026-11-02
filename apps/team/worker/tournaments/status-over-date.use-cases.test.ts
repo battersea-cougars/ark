@@ -1,4 +1,4 @@
-// Status, not the date, says whether something is past, on or next (ADR 0074, #182). Seen on dev: a Kumite set for the
+// Status, not the date, says whether something is past, on or next (apps/team/worker/tournaments/README.md, #182). Seen on dev: a Kumite set for the
 // 30th was played early; Home's feed still had it "on the 30th" while its page showed History. The rule (the user,
 // 2026-10-25): done is past, whatever its date; live is on, even running late; not started, its time gone by, is
 // still next until it's played, closed or cancelled. Here what the Worker sends and does by it, through the real
@@ -86,7 +86,7 @@ describe("a Kumite played early, its day still ahead, is past", () => {
     const evening = (await k.opening(PLAYED)).tournaments as Tournament[];
     const t = evening.find((x) => x.id === k.id)!;
     expect(tournamentPhase(t)).toBe("past");
-    // Its evening is its after-party (ADR 0129), not its date's
+    // Its evening is its after-party (apps/team/worker/tournaments/README.md), not its date's
     expect(currentOf(evening, "2026-10-09")?.id).toBe(k.id);
     const morning = (await k.opening(MORNING)).tournaments as Tournament[];
     expect(tournamentPhase(morning.find((x) => x.id === k.id)!)).toBe("past");

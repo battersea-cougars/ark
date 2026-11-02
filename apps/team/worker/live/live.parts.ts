@@ -1,9 +1,9 @@
-// What a change sends down the live streams besides the names of the parts it changed (ADR 0072, #161), and who it
+// What a change sends down the live streams besides the names of the parts it changed (ADR 0053, #161), and who it
 // goes to: the one place that's decided. A live match, a tournament's games while it's on (whatever its date), is the same for every member
 // (nothing in a game is anyone's own), so it's built once and goes to everyone: at the rink, where the whole squad
 // shares one wifi address, a goal is then no read at all on the phones following it. Everything else stays names only,
 // each phone reading its own view: what's someone's own (dues, sign-ups, members, roles) and the draft, whose picks
-// only its captains and whoever runs it see (ADR 0060; the draft's own stream is #162).
+// only its captains and whoever runs it see (apps/team/worker/tournaments/README.md; the draft's own stream is #162).
 import { id, type Ctx, type Route } from "../api/api.route";
 import { readMatch } from "../api/api.club";
 import { gamesFrom } from "../tournaments/fixtures";

@@ -1,4 +1,4 @@
-// Dues (ADR 0007): every charge is one person for one session, tournament or quarter. What someone owes, what a session
+// Dues (apps/team/worker/dues/README.md): every charge is one person for one session, tournament or quarter. What someone owes, what a session
 // collected and Unpaid fees are all sums over charges. Pure, so the D1 queries can be checked against it.
 
 export interface Charge {
@@ -182,6 +182,6 @@ export function collected(charges: Charge[], kind: Charge["kind"], refId: number
 }
 
 /** What someone owes that's overdue: what's left on their charges whose day has passed (a night is due on the night,
- * so paying on it is never late). Home's header shouts about it (ADR 0118). */
+ * so paying on it is never late). Home's header shouts about it (apps/team/src/pages/README.md). */
 export const overdue = (charges: Charge[], memberId: number, today: string) =>
   charges.reduce((sum, c) => sum + (c.memberId === memberId && c.dueOn < today ? leftOn(c) : 0), 0);

@@ -1,5 +1,5 @@
-// The after-party (ADR 0129): the evening a tournament ends, everyone at its afterwards (the Kumite's The Anchor), and
-// whoever runs it reveals the awards one at a time, in the order listed (ADR 0044). How many are out is the
+// The after-party (apps/team/worker/tournaments/README.md): the evening a tournament ends, everyone at its afterwards (the Kumite's The Anchor), and
+// whoever runs it reveals the awards one at a time, in the order listed (apps/team/worker/tournaments/README.md). How many are out is the
 // tournament's (`awardsRevealed`); the Worker sends a member an award's winner only once it's out.
 import type { Tournament } from "../demo/model";
 import { champion, table } from "./fixtures";
@@ -7,7 +7,7 @@ import { isDone } from "@cougars/shared/results";
 import { awardsToReveal, candidatesOf, decidedByOf, votersOf, type Positions } from "./awards";
 
 /**
- * The awards as the after-party shows them, in its two steps (ADR 0044): first they're confirmed (voting open till
+ * The awards as the after-party shows them, in its two steps (apps/team/worker/tournaments/README.md): first they're confirmed (voting open till
  * then, the judges' call made), then revealed one at a time. Each face up or face down, with the name it's given
  * tonight (the judges' call's, once confirmed); the next to reveal; whether they're confirmed; whether every one's out.
  */
@@ -37,7 +37,7 @@ export function revealOf(
 }
 
 /**
- * The awards page's one card (ADR 0129): which award it shows and which face. Before any's out, the first, sealed;
+ * The awards page's one card (apps/team/worker/tournaments/README.md): which award it shows and which face. Before any's out, the first, sealed;
  * each reveal turns it face up; Next award moves on to the next, sealed; after the last it stays on the last (the
  * champions, as the Kumite lists them), face up.
  */
@@ -56,7 +56,7 @@ export const isFinale = (a: { decidedBy?: { kind: string; stat?: string } } & { 
 export type Card = { at: number; face: "sealed" | "up" };
 
 /**
- * What's under the awards page's card (ADR 0129): whoever runs it (`manage`) has the one button, everyone else a
+ * What's under the awards page's card (apps/team/worker/tournaments/README.md): whoever runs it (`manage`) has the one button, everyone else a
  * line. Before they're confirmed, Confirm the awards (everyone else is waiting); sealed, Reveal (The champions for
  * the finale); face up, Next award, till the last; then nothing, and the winners listed under it.
  */
@@ -76,7 +76,7 @@ export function cueOf(
 }
 
 /**
- * Where confirming the awards stands, for whoever runs it (ADR 0044): how many have voted for each voted award (never
+ * Where confirming the awards stands, for whoever runs it (apps/team/worker/tournaments/README.md): how many have voted for each voted award (never
  * who for), and what's yours to call (the judges' call, which may be left out). "Best keeper: 2 of 3 voted · Yours to call (or leave
  * out): The Judges' Call".
  */
@@ -92,7 +92,7 @@ export function toConfirmOf(t: Pick<Tournament, "awards" | "teams" | "votes">, c
 }
 
 /**
- * The beat a change of card plays (ADR 0129), so every phone sees the same moments: the card it showed sealed now
+ * The beat a change of card plays (apps/team/worker/tournaments/README.md), so every phone sees the same moments: the card it showed sealed now
  * face up is the reveal; one face up now the next one sealed is the next card coming in. Anything else (the page
  * opened late, a reload, a step back, a phone that missed a step) plays nothing: it's just where it is.
  */
@@ -127,7 +127,7 @@ export function finalOrder(t: Pick<Tournament, "teams" | "games" | "pointsWin" |
 }
 
 /**
- * Your ballot (ADR 0044): the voted awards you vote for, from the last match till the awards are confirmed, each with
+ * Your ballot (apps/team/worker/tournaments/README.md): the voted awards you vote for, from the last match till the awards are confirmed, each with
  * who you can vote for (never yourself) and the vote you cast, if you have. Nothing for someone who didn't play.
  */
 export function ballotOf(

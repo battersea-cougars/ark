@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Dev only (ADR 0123): a Kumite on a past day, from History's Manage, to try what a past one shows. One question,
+  // Dev only (ADR 0010): a Kumite on a past day, from History's Manage, to try what a past one shows. One question,
   // the day, then it's made, signed up for and played out on that evening by the simulator, the draft, every match
   // and every award, under the floating control (lib/SimulationControl), at Spin kick unless another speed's chosen.
   // It shows in Past Kumites once its matches are played. The bootstrap says whether it's here (`simulator`).

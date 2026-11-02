@@ -3,7 +3,7 @@
   // (or Date to be confirmed), its season, its hours and place, and where it stands, worked out from what's happened
   // (lib/edition.ts). Past ones are on History, each with a page of its own.
   // On the front page (The Kumite), an admin's Manage menu (ADR 0065): its settings and the awards, open over the page.
-  // With nothing on, Next Kumite is the front page's own button, not here (ADR 0074).
+  // With nothing on, Next Kumite is the front page's own button, not here (apps/team/worker/tournaments/README.md).
   import type { Tournament, TournamentType } from "../demo/model";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
@@ -67,7 +67,7 @@
     note?: string;
     /** A phone view that needs its room (the draft, while it's picked): no header, just the track to say where. */
     compact?: boolean;
-    /** The track of its statuses under the header, the tournament page's navigation (ADR 0074). */
+    /** The track of its statuses under the header, the tournament page's navigation (apps/team/worker/tournaments/README.md). */
     track?: boolean;
     /** The status whose view the page is showing (the track's lit one); none on a page that isn't one (the board). */
     viewing?: Status | null;
@@ -77,7 +77,7 @@
   } = $props();
 
   const when = $derived(tournament ? editionWhen(tournament) : null);
-  // Where everyone goes afterwards (ADR 0074), beside the place: the Kumite's The Anchor
+  // Where everyone goes afterwards (apps/team/worker/tournaments/README.md), beside the place: the Kumite's The Anchor
   const after = $derived(tournament ? tournamentAfter(tournament) : null);
   // Where it's got to, as the stamp says it (lib/tournament-front.ts): the status, as the track names it, with its
   // kanji on the Kumite (lib/motif.ts): Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, The Anchor (that
@@ -99,12 +99,12 @@
   // Whoever runs the draft takes back the draft's own steps too (the drawn order, the picks): from here, the one
   // Back on the page (lib/StepBack), not one of the draft's as well
   const runner = $derived(offer && can(granted(), "run:Draft"));
-  // A captain looks after their own team from here (ADR 0060): its name and crest, as on its page (TeamLookSheet)
+  // A captain looks after their own team from here (apps/team/worker/tournaments/README.md): its name and crest, as on its page (TeamLookSheet)
   const myTeam = $derived(
     offer && tournament ? tournament.teams.find((x) => x.id && x.captainMemberId === me().id) : undefined,
   );
   let lookOpen = $state(false);
-  // The pick log: its captains' and whoever runs the draft's, from the draft opening (ADR 0060)
+  // The pick log: its captains' and whoever runs the draft's, from the draft opening (apps/team/worker/tournaments/README.md)
   const picksSeen = $derived(
     offer &&
       !!tournament &&
@@ -115,7 +115,7 @@
   let logOpen = $state(false);
   let menuOpen = $state(false);
   let rulesOpen = $state(false);
-  // Your answer once you've given it (ADR 0074): in, waiting or out, as the Friday card's answer says it (a tick, a
+  // Your answer once you've given it (apps/team/worker/tournaments/README.md): in, waiting or out, as the Friday card's answer says it (a tick, a
   // cross), never like the status's stamp; it opens a small sheet to change it. Not while the sign-up card is on the
   // page under it, where you answer (pages/Games)
   const signingUp = $derived(
@@ -142,7 +142,7 @@
   });
   let answerOpen = $state(false);
   let answerAt = $state<HTMLElement | undefined>();
-  // Rules, a topic a page (ADR 0074): the tabs change the page, which slides in the way you went; on a phone a swipe
+  // Rules, a topic a page (apps/team/worker/tournaments/README.md): the tabs change the page, which slides in the way you went; on a phone a swipe
   // does too. It opens on the topic for the status it's at, and keeps to the one you're on while it's open
   const rules = $derived(tournament ? formatAndRules(tournament, type.houseRules) : []);
   const TOPIC_FOR: Record<Status, RulesTopic[]> = {
@@ -205,13 +205,13 @@
   let stepper = $state<ReturnType<typeof StepBack>>();
   let mover = $state<ReturnType<typeof MoveTo>>();
   let simulator = $state<ReturnType<typeof SimulateRest>>();
-  // What an admin does to this edition that has no tab of its own (ADR 0074), and a captain's own: which, by where
+  // What an admin does to this edition that has no tab of its own (apps/team/worker/tournaments/README.md), and a captain's own: which, by where
   // it stands, is lib/manage.ts; here, what each does. A bottom sheet on a phone (where it's mostly done, at the
   // rink), a side drawer on a desktop. The next one isn't here: it's the front page's own button once nothing's on
   const adds = $derived(offer && can(granted(), "update:Event"));
   let drafter = $state<ReturnType<typeof DraftJobs>>();
   const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
-  // The series' history's own (a past one recorded; on dev, one on a past day), with nothing on too (ADR 0126)
+  // The series' history's own (a past one recorded; on dev, one on a past day), with nothing on too (apps/team/worker/tournaments/README.md)
   let recorder = $state<ReturnType<typeof PastKumiteRecord>>();
   let pastDay = $state<ReturnType<typeof PastDayPlay>>();
   const tools = $derived.by(() => {
@@ -270,7 +270,7 @@
           <InkStamp text={stage.label} kanji={mark} tone={INK[stage.tone]} label="Status: {stage.label}" />
         {/if}
         {#if answered}
-          <!-- Your answer, once you've given it (ADR 0074): a sticker that opens a small sheet to change it -->
+          <!-- Your answer, once you've given it (apps/team/worker/tournaments/README.md): a sticker that opens a small sheet to change it -->
           <span class="answer-at" bind:this={answerAt}>
             <button
               class="answered {answered.tone}"
@@ -299,7 +299,7 @@
           </span>
         {/if}
         {#if tournament && track}
-          <!-- Format & rules, for everyone (ADR 0074): how the day runs, the points, the penalties, the house rules -->
+          <!-- Format & rules, for everyone (apps/team/worker/tournaments/README.md): how the day runs, the points, the penalties, the house rules -->
           <button
             class="btn sm ghost icon rules"
             aria-haspopup="dialog"
@@ -311,7 +311,7 @@
         {#if tools.length}
           <!-- One quiet button on the series' front page (ADR 0065): what an admin does to the series, kept out of the
                way of everyone else's view. At the end of the stamp's line, not a toolbar row of its own, so the header
-               and the track under it sit where they do on the series' other pages (ADR 0074) -->
+               and the track under it sit where they do on the series' other pages (apps/team/worker/tournaments/README.md) -->
           <button
             class="btn sm ghost icon manage"
             aria-haspopup="dialog"
@@ -398,7 +398,7 @@
 />
 
 {#snippet topicTabs()}
-  <!-- One topic a page (ADR 0074): the app's tabs, one row, scrolling sideways when they don't fit -->
+  <!-- One topic a page (apps/team/worker/tournaments/README.md): the app's tabs, one row, scrolling sideways when they don't fit -->
   <div class="tablist rules-tabs" role="tablist" aria-label="Topics">
     {#each rules as section, i (section.id)}
       <button
@@ -488,7 +488,7 @@
   <!-- Every admin job for this one, thumb-sized: up from the bottom on a phone, a side drawer on a desktop -->
   <ManageMenu bind:open={menuOpen} title="Manage the {type.shortName}" sub={tournament?.name} items={tools} />
 {/if}
-<!-- The page's one way back a step (ADR 0074): the draft's Manage doesn't have one of its own -->
+<!-- The page's one way back a step (apps/team/worker/tournaments/README.md): the draft's Manage doesn't have one of its own -->
 {#if (admin || runner) && tournament}<StepBack bind:this={stepper} {type} {tournament} />{/if}
 {#if admin && tournament?.kind === "draft"}<MoveTo bind:this={mover} {type} {tournament} afterName={after?.name} />{/if}
 {#if admin && SIMULATOR && tournament}<SimulateRest bind:this={simulator} {type} {tournament} />{/if}

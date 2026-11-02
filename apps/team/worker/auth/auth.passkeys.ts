@@ -12,7 +12,7 @@
 // A challenge is random, stored only as its hash, single-use and lasts five minutes. Adding a passkey: bound to the
 // session that asked. Signing in: bound to the browser that asked, by a nonce cookie of its own, as a code is; it's
 // spent in the statement that claims it, before the signature's checked, so two requests with one challenge make at
-// most one session (ADR 0121).
+// most one session (ADR 0003).
 import {
   generateAuthenticationOptions,
   generateRegistrationOptions,

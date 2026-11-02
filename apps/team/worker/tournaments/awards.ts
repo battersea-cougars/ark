@@ -1,6 +1,6 @@
-// Who won a tournament's awards (ADR 0044). The awards themselves are the tournament's (copied from its series, ADR
+// Who won a tournament's awards (apps/team/worker/tournaments/README.md). The awards themselves are the tournament's (copied from its series, ADR
 // 0044, 0049), each saying how it's decided (lib/awards.ts); this is who took each one home: a team (Champions) or a
-// player on one of its teams. At the after-party (ADR 0074) there are two steps. First the awards are confirmed:
+// player on one of its teams. At the after-party (apps/team/worker/tournaments/README.md) there are two steps. First the awards are confirmed:
 // from the last match till then, everyone who played votes for the voted ones; the admin checks the stats and draws,
 // chooses where a vote's level, and makes the judges' call (its name tonight and who); confirming counts the votes,
 // closes voting and sets every winner at once. Then the reveal: one award at a time, in the order listed.
@@ -142,13 +142,13 @@ const CLOSED = "Voting's closed: the awards are confirmed. Waiting for the revea
 const VOTES_CAST = "(SELECT COUNT(*) FROM tournament_award_votes WHERE tournament_id = ?)";
 
 /**
- * Confirming the awards (ADR 0044), before the reveal: { winners: [{ award, teamId | memberId, title? }] }, the whole
+ * Confirming the awards (apps/team/worker/tournaments/README.md), before the reveal: { winners: [{ award, teamId | memberId, title? }] }, the whole
  * list, replacing what was there. A stat's and a draw's as the admin checked them; the judges' call (a live award)
  * with the name it's given tonight (`title`, one of its names or the admin's own) and who; a vote's counted here, by
  * the Worker, from the votes cast (the admin never says who won one, unless it's level after its tie-break: then
  * the reply says who's level, `tied`, nothing's saved, and they choose among them). Saving closes voting.
  *
- * One batch, every statement going only while nothing's revealed and the votes are as counted (ADR 0121): a vote
+ * One batch, every statement going only while nothing's revealed and the votes are as counted (ADR 0003): a vote
  * landing as it's confirmed is counted again (or refused, once it's done); once the reveal's started it's refused.
  */
 export async function setWinners(
@@ -227,11 +227,11 @@ export async function setWinners(
 }
 
 /**
- * The next award revealed at the after-party (ADR 0074): `next` is its place in the list (0 first), the one the tap saw
+ * The next award revealed at the after-party (apps/team/worker/tournaments/README.md): `next` is its place in the list (0 first), the one the tap saw
  * face down. Only once the last match is played and the awards are confirmed (every winner set then, the judges'
  * call and the votes too). A second tap on the same one (a double tap, or two phones at once) finds it out already
  * and does nothing; a tap from a page that's fallen behind further is refused. One statement, guarded on the count
- * the tap saw, so two at once reveal one (ADR 0121).
+ * the tap saw, so two at once reveal one (ADR 0003).
  */
 export async function revealAward(db: D1Database, tournamentId: number, o: Record<string, unknown>) {
   const next = int(o, "next", { max: 8 });
@@ -254,9 +254,9 @@ export async function revealAward(db: D1Database, tournamentId: number, o: Recor
 }
 
 /**
- * Next award (ADR 0074): the drum rolls on from the award just revealed to the next one, sealed, for everyone
+ * Next award (apps/team/worker/tournaments/README.md): the drum rolls on from the award just revealed to the next one, sealed, for everyone
  * watching. `at` is how many were out when the tap saw it; a double tap (or two phones) rolls it once. One
- * statement, guarded on the count and the drum where the tap saw them (ADR 0121).
+ * statement, guarded on the count and the drum where the tap saw them (ADR 0003).
  */
 export async function nextAward(db: D1Database, tournamentId: number, o: Record<string, unknown>) {
   const at = int(o, "at", { min: 1, max: 8 });
@@ -281,9 +281,9 @@ export async function nextAward(db: D1Database, tournamentId: number, o: Record<
 }
 
 /**
- * { votes: [{ award, memberId }] }: a member's votes (ADR 0044), one an award, secret, never for themselves. Only
+ * { votes: [{ award, memberId }] }: a member's votes (apps/team/worker/tournaments/README.md), one an award, secret, never for themselves. Only
  * for someone who played (the skaters, for a skaters' vote), once the last match is played, until the awards are
- * confirmed. Each vote goes in only while that's still so (ADR 0121): one landing as they're confirmed is refused. A
+ * confirmed. Each vote goes in only while that's still so (ADR 0003): one landing as they're confirmed is refused. A
  * vote cast already stays: the same one again (a double tap) is nothing; a different one is refused.
  */
 export async function castVotes(
@@ -347,7 +347,7 @@ export async function castVotes(
   }
 }
 
-/** On the record, as a reveal leaves it (ADR 0074): how many are out, and the one that just came out. */
+/** On the record, as a reveal leaves it (apps/team/worker/tournaments/README.md): how many are out, and the one that just came out. */
 export async function revealedSubject(db: D1Database, tournamentId: number) {
   const t = await first<{ id: number; name: string; revealed: number; awards: string }>(
     db,

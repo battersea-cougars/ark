@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Where something is held (ADR 0030): one of the club's saved venues (Settings → Venues), or somewhere else, typed
+  // Where something is held (apps/team/worker/training/README.md): one of the club's saved venues (Settings → Venues), or somewhere else, typed
   // with the map link pasted from Google Maps, so a social never needs a venue made for it. Left unset, it follows
   // `usual` (a tournament's series) when there is one. The venue's address and map show beneath, to check it.
   import { db } from "../demo/store.svelte";

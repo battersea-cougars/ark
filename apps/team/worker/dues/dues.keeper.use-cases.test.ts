@@ -1,4 +1,4 @@
-// Keepers play training free (ADR 0007): the club needs them in net every Friday, so a keeper is on the Keeper plan,
+// Keepers play training free (apps/team/worker/dues/README.md): the club needs them in net every Friday, so a keeper is on the Keeper plan,
 // never charged for a training night or a quarter, and has no plan to choose. Tournaments they enter are charged as
 // for anyone. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

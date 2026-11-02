@@ -1,4 +1,4 @@
-// A member's profile photo (ADR 0133): their phone shrinks it to a small square, it's kept in D1 as a data: URL, and
+// A member's profile photo (apps/team/worker/members/README.md): their phone shrinks it to a small square, it's kept in D1 as a data: URL, and
 // the app shows it at /api/members/<id>/photo?v=<when it was set>, so browsers keep it until it changes.
 import { first, run } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
@@ -19,7 +19,7 @@ export async function setPhoto(db: D1Database, id: number, o: Record<string, unk
 
 /**
  * A member's photo, as an image, for anyone who may see them in the app: an active member, yourself, or anyone if you
- * manage members (as the bootstrap's members, ADR 0036). Its address carries when it was set, so it's kept a year.
+ * manage members (as the bootstrap's members, ADR 0024). Its address carries when it was set, so it's kept a year.
  */
 export async function photoOf(db: D1Database, id: number, viewer: { memberId: number; seesAll: boolean }) {
   const m = await first<{ photo: string | null; status: string }>(

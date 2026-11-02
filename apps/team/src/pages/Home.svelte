@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Home is a feed (ADR 0118): a slim hello (a pound with a red dot while you've something overdue), the locker room (the
+  // Home is a feed (apps/team/src/pages/README.md): a slim hello (a pound with a red dot while you've something overdue), the locker room (the
   // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
   // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
   // you owe at the foot.
@@ -58,7 +58,7 @@
   import { reportUnexpected } from "../app/errors.early";
   import { slide } from "svelte/transition";
 
-  // Who's in, out and waiting, live (ADR 0072): someone answering shows on the cards without a refresh
+  // Who's in, out and waiting, live (ADR 0053): someone answering shows on the cards without a refresh
   $effect(() => checkForUpdates(["sessions", "tournaments"], { steady: true }));
 
   const perms = $derived(granted());
@@ -128,7 +128,7 @@
 
   // Signed in with a code on a device that can make a passkey (ADR 0023): offer one, once, a row beside the
   // notifications ask. Added or "Not now", it's never asked again on this device
-  // (Loaded after Home paints: it's a few kB most visits never use, ADR 0120)
+  // (Loaded after Home paints: it's a few kB most visits never use, ADR 0053)
   const passkeys = import("../app/passkeys");
   let offerPasskey = $state(false);
   let checkWord = $state("a passkey");
@@ -174,7 +174,7 @@
   }
   const nameOf = (id: number) => shortNameOf(PLAYERS.find((p) => p.id === id)) || "An admin";
 
-  // What you owe (ADR 0007): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
+  // What you owe (apps/team/worker/dues/README.md): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
   // (a charge whose day has passed, lib/dues.ts) is also a loud icon in the hello, opening the same tab
   const late = $derived(overdue(db.charges, who.id, today));
   // The club's pub (the first series that goes on somewhere afterwards: the Kumite's The Anchor), for the joke on it
@@ -259,7 +259,7 @@
       asking: !standing && ev.signup && !ev.opens && !ev.cancelled && !ev.started && can(perms, "signup:Event"),
       signupOpensOn: t?.signupOpensOn ?? null,
       // Over (past its last day, or under way): nobody's answering now. One still to open isn't closed. Started
-      // (a match played, whatever its status says), it's an admin's to change (ADR 0074)
+      // (a match played, whatever its status says), it's an admin's to change (apps/team/worker/tournaments/README.md)
       signupClosed:
         !!t && (!!ev.started || (!signupOpen(t, today) && (signupOver(t, today) || t.status !== "planned"))),
     };
@@ -280,7 +280,7 @@
   // Whether Google has cancelled the club's email (ADR 0027, #101), for whoever looks after it, so they hear before
   // the members do: with the club, so its line is there on first paint (the server sends it to nobody else)
   const keepsEmail = $derived(can(perms, "manage:Settings"));
-  // The free limits at 70% or more, as the hourly check found them (ADR 0059, #148): with the club, so the line is
+  // The free limits at 70% or more, as the hourly check found them (ADR 0003, #148): with the club, so the line is
   // there on first paint; only for whoever sees Usage (the server sends nobody else any)
   const seesUsage = $derived(can(perms, "read:Usage"));
   // The lead is picked once a visit (lib/home-feed.ts leadOf) and stays while it's on: answering Out on it doesn't
@@ -338,7 +338,7 @@
   const waiting = $derived(!!session?.waitlist.includes(who.id));
   const declined = $derived(session?.out?.includes(who.id) ?? false);
   const answered = $derived(isIn || waiting || declined);
-  // Out since the teams were made: still on one until a team maker decides (ADR 0076), but not yours to play on
+  // Out since the teams were made: still on one until a team maker decides (apps/team/worker/training/README.md), but not yours to play on
   const myTeam = $derived(isIn && session ? db.teams[session.id]?.find((t) => t.players.includes(who.id)) : undefined);
   // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
   // table fills it), which game, where
@@ -397,7 +397,7 @@
     };
     return { event, open, now: until === 0, turn: myTurnLine(place, until) };
   });
-  // The after-party, as the Kumite's card frames it (ADR 0074): where everyone is now, in place of its hours, and the
+  // The after-party, as the Kumite's card frames it (apps/team/worker/tournaments/README.md): where everyone is now, in place of its hours, and the
   // awards as they stand in place of In and Out. The whole card opens the page
   const leadAfters = $derived.by(() => {
     if (lead?.kind !== "afters") return undefined;
@@ -1095,7 +1095,7 @@
   }
   /* From all but invisible, not invisible: Chrome never counts what first paints at opacity 0 inside a running
      animation, so the card's content went uncounted until In's subliminal first repainted it 1.3s later, and that
-     was the page's Largest Contentful Paint (ADR 0120). At 0.01 it counts from the frame it lands in, as it looks. */
+     was the page's Largest Contentful Paint (ADR 0053). At 0.01 it counts from the frame it lands in, as it looks. */
   @keyframes lead-land {
     from {
       opacity: 0.01;

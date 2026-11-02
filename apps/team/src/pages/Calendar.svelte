@@ -164,7 +164,7 @@
       signup: draft.signup,
       capacity: editing?.capacity ?? null,
     };
-    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
+    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (apps/team/worker/calendar/README.md)
     const window = eventWindow({ id: editing?.id, startsAt, endsAt }, editing ?? undefined);
     const chosen = window ? await clashSheet?.ask(window, draft.title) : [];
     if (chosen === null) return;
@@ -192,7 +192,7 @@
   >
     {#snippet actions()}
       <!-- New event: in the toolbar row on desktop, the bar on a phone, in words there too (no floating buttons:
-           ADR 0084) -->
+           ADR 0009) -->
       {#if kinds.length}
         <button class="btn sm primary keep-label" aria-haspopup="dialog" onclick={newEvent}>
           <Icon name="plus" size={16} />New event
@@ -288,7 +288,7 @@
   <TrainingEditorPanel open="new" onclose={() => (newTraining = false)} oncreated={() => (newTraining = false)} />
 {/if}
 {#if can(perms, "manage:Tournament")}<TournamentEditorPanel closeOnCreate />{/if}
-<!-- A one-off over something already on: asked before it's saved (ADR 0122) -->
+<!-- A one-off over something already on: asked before it's saved (apps/team/worker/calendar/README.md) -->
 <ClashSheet bind:this={clashSheet} />
 
 <style>

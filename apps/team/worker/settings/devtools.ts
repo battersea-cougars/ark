@@ -7,7 +7,7 @@ import { email, type AuthEnv } from "../auth/auth";
 import { HttpError } from "../api/api.http";
 
 /**
- * Whether Dev tools (and every dev-only tool, ADR 0123) exist here: only where the environment says, in so many words,
+ * Whether Dev tools (and every dev-only tool, apps/team/worker/settings/README.md) exist here: only where the environment says, in so many words,
  * that it isn't production. A deploy says with SITE_ENV (scripts/ci/target.mjs: "dev" from main, "production" from
  * release); your own machine's server with TEAM_ENV "local" (vite.config.ts) and no SITE_ENV. Anything else
  * (production, a missing or unknown environment) is production here: fail closed (#81).

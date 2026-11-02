@@ -47,7 +47,7 @@ describe("reopening the app", () => {
     expect(after.headers.get("etag")).not.toBe(tag);
   });
 
-  it("hears which build of the app answered, so an app left open knows a newer one is out (ADR 0104)", async () => {
+  it("hears which build of the app answered, so an app left open knows a newer one is out (ADR 0022)", async () => {
     const reg = await w.signedIn("reg@example.com");
     const first = await reg.club();
     expect(first.headers.get("x-app-build")).toBe(APP_BUILD);
@@ -74,7 +74,7 @@ describe("reopening the app", () => {
   });
 
   it("asks the database a handful of times, not once for every part of the club", async () => {
-    // Each ask is a round trip the app waits on before it can show anything (ADR 0057)
+    // Each ask is a round trip the app waits on before it can show anything (ADR 0053)
     const reg = await w.signedIn("reg@example.com");
     await reg.call("GET", "/api/bootstrap"); // the day's first open also makes the coming training sessions
     const asks = vi.spyOn(w.db, "prepare");

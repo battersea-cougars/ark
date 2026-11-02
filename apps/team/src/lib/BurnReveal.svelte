@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-  // A pick landing burns in (ADR 0060): its row starts under a sheet of charcoal and a flame front sweeps it left to
+  // A pick landing burns in (apps/team/worker/tournaments/README.md): its row starts under a sheet of charcoal and a flame front sweeps it left to
   // right, burning the sheet away to the name beneath: a ragged, flickering edge (the sheet and its ember rim bent by
   // noise, an SVG filter on one small row), the rim glowing orange to red-hot to char, a few sparks rising and going
   // out. The row's text glows hot and cools (the parent's .burning). About 1.2s, transforms and opacity only; the

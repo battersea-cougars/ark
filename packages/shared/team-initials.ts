@@ -1,5 +1,5 @@
 // A team's crest when it has no logo: its initials, the same in the team app (lib/TeamCrest) and on the website's
-// results (ADR 0100), so a team looks the same in both. Cut by whole characters, so an emoji is never split in half.
+// results (ADR 0016), so a team looks the same in both. Cut by whole characters, so an emoji is never split in half.
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 const characters = (text: string): string[] => Array.from(segmenter.segment(text), (s) => s.segment);

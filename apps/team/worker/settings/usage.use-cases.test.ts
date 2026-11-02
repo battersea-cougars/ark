@@ -1,7 +1,7 @@
-// The club's free Cloudflare allowance (ADR 0059): admins see today's use on the Usage page, and an hourly check
+// The club's free Cloudflare allowance (apps/team/worker/settings/README.md): admins see today's use on the Usage page, and an hourly check
 // emails them, and tells their phones, once a day when anything passes 70% and again at 90%, or when a request was
-// stopped for using too much CPU (ADR 0059, #157).
-// The live hub's requests and time (ADR 0072) are Durable Objects' own allowance, shown and checked the same way.
+// stopped for using too much CPU (apps/team/worker/settings/README.md, #157).
+// The live hub's requests and time (ADR 0053) are Durable Objects' own allowance, shown and checked the same way.
 // Cloudflare's analytics API is faked; everything else is real.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mail } from "@cougars/shared/email";
@@ -120,7 +120,7 @@ describe("an admin checks the club's free Cloudflare allowance", () => {
     expect(res.body.metrics).toEqual([]);
   });
 
-  it("sees when the club's database was last backed up, and why, even without the analytics token (ADR 0106)", async () => {
+  it("sees when the club's database was last backed up, and why, even without the analytics token (ADR 0050)", async () => {
     delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
     expect((await usageAs("dana@example.com")).body.backup).toBeNull();
     w.db.raw.exec(`INSERT INTO backups (taken_at, why, bytes) VALUES
@@ -281,7 +281,7 @@ describe("the admins' Home says when a free limit is getting close", () => {
   });
 });
 
-// Sanity has no usage API, so the website and this app count their own requests to it (ADR 0059), a row per day,
+// Sanity has no usage API, so the website and this app count their own requests to it (apps/team/worker/settings/README.md), a row per day,
 // project and quota in sanity_requests. Admins see this month's against Sanity's free plan, and are emailed at 50%,
 // 80% and when the month's pace would run out before the 1st.
 describe("an admin checks the club's Sanity requests this month", () => {

@@ -1,4 +1,4 @@
-// Home's feed (ADR 0118). Home is a feed: the club's next event is the hero, whatever kind it is, and your part in it
+// Home's feed (apps/team/src/pages/README.md). Home is a feed: the club's next event is the hero, whatever kind it is, and your part in it
 // is shown on its card (playing in it: your match; in, waiting, or may sign up: In and Out; not in it: You're out). Then what's coming up
 // after it, in date order and capped, with "See the calendar". Then what needs you (a captain's draft, the draft
 // being on, the teams being out, a sign-up closing you haven't answered), and under "For admins", only for whoever
@@ -124,7 +124,7 @@ export interface FeedInput {
   emailStopped?: boolean;
   /** The free limits at 70% or more, nearest first (lib/usage-near.ts): for whoever sees Usage, nobody else. */
   usage?: UsageLevel[];
-  /** Who's asking to join, by name (ADR 0069): for whoever lets members in (manage:Member), nobody else. */
+  /** Who's asking to join, by name (apps/team/worker/members/README.md): for whoever lets members in (manage:Member), nobody else. */
   asking?: string[];
 }
 
@@ -145,7 +145,7 @@ export type Lead =
   | { kind: "event"; key: string; at: string; event: UpcomingEvent; role: Role }
   | { kind: "fight"; key: string; at: string; fight: Fight }
   | { kind: "draft"; key: string; at: string; item: FeedItem }
-  /** The evening a tournament ends: everyone at its afterwards, the awards being revealed (ADR 0074). */
+  /** The evening a tournament ends: everyone at its afterwards, the awards being revealed (apps/team/worker/tournaments/README.md). */
   | { kind: "afters"; key: string; at: string; type: TournamentType; t: Tournament };
 
 export interface Feed {
@@ -272,7 +272,7 @@ export function whenSaid(startsAt: string, today: string): string {
 }
 
 const dayOf = (iso: string) => londonToday(new Date(iso));
-/** Past by its status (ADR 0074, #182); only an event with none goes by its end. */
+/** Past by its status (apps/team/worker/tournaments/README.md, #182); only an event with none goes by its end. */
 const isPast = (event: UpcomingEvent, nowMs: number) =>
   event.phase ? event.phase === "past" : Date.parse(event.endsAt) <= nowMs;
 const plusDays = (day: string, n: number) =>
@@ -397,7 +397,7 @@ function upcomingRow(e: UpcomingEvent, today: string, fight?: string, invited = 
   return row;
 }
 
-// From the agenda (ADR 0060, 0042): a captain's draft day, the draft an admin runs, a sign-up about to close (for a
+// From the agenda (ADR 0016, apps/team/worker/tournaments/README.md): a captain's draft day, the draft an admin runs, a sign-up about to close (for a
 // tournament Home doesn't already ask about)
 function agendaNudges({ agenda, tournaments, types, upcoming, me, today, runsDrafts }: FeedInput): FeedItem[] {
   return agenda
@@ -474,7 +474,7 @@ function liveDrafts({ upcoming, me, runsDrafts, now, today }: FeedInput): FeedIt
     const { left, until } = draftTurn(t, mine);
     if (!left)
       return [{ ...row, text: "Everyone's picked", sub: `${t.name} · the draft closes to set the teams`, hot: false }];
-    // The picking's in the draft room (ADR 0060): there, while there are picks to make
+    // The picking's in the draft room (apps/team/worker/tournaments/README.md): there, while there are picks to make
     const room = { ...row, href: roomPath(type.slug) };
     if (mine < 0)
       return [{ ...room, text: "The draft's open", sub: `${t.name} · close it once everyone's picked`, hot: true }];
@@ -500,7 +500,7 @@ function nextFights({ upcoming, me }: FeedInput): Fight[] {
   });
 }
 
-// Everyone else (ADR 0060): the draft is the captains' business, so a member hears that it's on, with nothing to open;
+// Everyone else (apps/team/worker/tournaments/README.md): the draft is the captains' business, so a member hears that it's on, with nothing to open;
 // once it's closed, the teams are out, and that's a link to them
 function draftNews({ upcoming, me, runsDrafts }: FeedInput): FeedItem[] {
   if (runsDrafts) return [];

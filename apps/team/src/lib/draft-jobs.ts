@@ -1,4 +1,4 @@
-// The draft's own jobs (ADR 0060), as items in the page's one Manage (the header's gear, and the draft room's): no
+// The draft's own jobs (apps/team/worker/tournaments/README.md), as items in the page's one Manage (the header's gear, and the draft room's): no
 // menu inside a menu. Which apply, and what each says, while the tournament's at the draft; lib/DraftJobs.svelte does
 // them (the add sheet, the confirms), lib/TournamentHead and pages/DraftRoom list them.
 import type { IconName } from "../app/shell/icons";

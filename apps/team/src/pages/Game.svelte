@@ -2,7 +2,7 @@
   import { waitingFor } from "../app/editions.svelte";
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
-  // One game, full screen (ADR 0130). For everyone, the live scoreboard: the clock, the score, each goal as it went
+  // One game, full screen (apps/team/worker/tournaments/README.md). For everyone, the live scoreboard: the clock, the score, each goal as it went
   // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
   // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
   // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
@@ -14,7 +14,7 @@
   //
   // Few requests: the clock never ticks on the server. It's stored as time left and when it was last started, so each
   // phone counts down by itself (and it survives a reload or a locked phone); only start, pause, a goal and full time
-  // are sent. Everyone on the page checks for changes as often as the admins set (ADR 0072), the scorekeeper too (the
+  // are sent. Everyone on the page checks for changes as often as the admins set (ADR 0053), the scorekeeper too (the
   // same person may have it open twice), while the page is in view.
   import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { db } from "../demo/store.svelte";
@@ -101,7 +101,7 @@
 
   // The clock, ticking while this page is up
   $effect(() => ticking());
-  // The clock counts down each period in turn (ADR 0130): full is a period's length
+  // The clock counts down each period in turn (apps/team/worker/tournaments/README.md): full is a period's length
   const full = $derived((tournament?.gameMinutes ?? 12) * 60_000);
   const periods = $derived(tournament?.periods ?? 1);
   const period = $derived(game?.period ?? 1);
@@ -153,8 +153,8 @@
     }
   });
 
-  // Everyone's scoreboard follows along, from the game up next to full time: the hub's stream (ADR 0072), with a
-  // check on the admins' beat as the fallback (ADR 0072), and the page says which. The scorekeeper's too: they may
+  // Everyone's scoreboard follows along, from the game up next to full time: the hub's stream (ADR 0053), with a
+  // check on the admins' beat as the fallback (ADR 0053), and the page says which. The scorekeeper's too: they may
   // have it open on another phone or browser
   const following = $derived(!!game && !over && (game.status === "live" || upNext));
   const sayFollowing = $derived(following && !keeper);
@@ -230,7 +230,7 @@
   });
 
   // This phone was the scoresheet and isn't any more, not by its own Hand over: an admin took it over or freed it.
-  // The page hears it live (ADR 0072); its tools and pickers close, the phone buzzes, and the line under the clock
+  // The page hears it live (ADR 0053); its tools and pickers close, the phone buzzes, and the line under the clock
   // says so, until the sheet's this phone's again
   let handingOver = false;
   let wasKeeper = false;
@@ -393,7 +393,7 @@
     whenSec = 0;
     whenPeriod = 1;
   };
-  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0130)
+  // The length the sheet starts on: the tournament's setting (a series' copied, apps/team/worker/tournaments/README.md)
   const usualPenalty = $derived(tournament?.defaultPenaltyMinutes ?? 2);
   // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes; back from one,
   // the usual length again
@@ -538,7 +538,7 @@
     </svelte:element>
 
     {#if sayFollowing}
-      <!-- The score follows along: live from the hub's stream, else on the admins' beat (ADR 0072) -->
+      <!-- The score follows along: live from the hub's stream, else on the admins' beat (ADR 0053) -->
       <p class="updates hint">
         <Icon name={liveFeed.on ? "live" : "clock"} size={14} /><LiveNote tail=", to keep the club on the free plan" />
       </p>
@@ -813,7 +813,7 @@
     >
   {/if}
 
-  <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0084) -->
+  <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0009) -->
   <Sheet
     bind:open={() => !!asking, (v) => !v && (asking = null)}
     title={asking === "free" ? "Free the scoresheet?" : `Take over Game ${game.position}?`}
@@ -1279,7 +1279,7 @@
     color: var(--fg-muted);
     line-height: 1.5;
   }
-  /* The armed "are you sure": the one red fill (ADR 0084) */
+  /* The armed "are you sure": the one red fill (ADR 0009) */
   .yes {
     background: var(--red);
     color: var(--on-red);

@@ -1,4 +1,4 @@
-// A journey's way to a past Kumite (ADR 0123, dev and local only): a Kumite on a day gone by, signed up for, its
+// A journey's way to a past Kumite (ADR 0010, dev and local only): a Kumite on a day gone by, signed up for, its
 // draft, every match and every award played out on that evening, so it's history with a whole evening behind it. Only
 // to get a story to a step that isn't the one under test (what a past Kumite shows), as `asMember` is; say so where
 // it's called.

@@ -16,7 +16,7 @@ export interface Viewed {
   webName: string | null;
 }
 
-/** Who this sign-in is viewing as (null: nobody): the record's subject for starting and ending (ADR 0095). */
+/** Who this sign-in is viewing as (null: nobody): the record's subject for starting and ending (ADR 0024). */
 export async function viewingAsOf(db: D1Database, sessionId: number | null) {
   if (sessionId == null) return null;
   const row = await first<{ viewing_as: number | null }>(db, "SELECT viewing_as FROM auth_sessions WHERE id = ?", [
@@ -56,7 +56,7 @@ export async function answeredAs(
 
 /**
  * The member a sign-in is still viewing as, with what they may do: someone in the club who can do no more than the
- * viewer (the grant rule, ADR 0036: viewing as someone reads what they may read), viewed by someone who still holds
+ * viewer (the grant rule, ADR 0024: viewing as someone reads what they may read), viewed by someone who still holds
  * View as a member. Anything else ends it, on the record, and the sign-in is its own member's again (null).
  */
 async function stillViewing(

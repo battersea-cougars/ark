@@ -115,7 +115,7 @@ they take and a `sees()` for what's on their screen, so the test reads like the 
 Two requests' statements interleave on D1 between their awaits; the fake D1 does the same when asked
 (`w.db.interleave(seed)`), and each feature's `*.concurrency.use-cases.test.ts` fires requests together under several
 seeds. Load runs against a Worker of your own (`npm run load -- friday-rush`, never dev or production). How, and what
-they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-concurrency.md)).
+they found: [load-testing.md](load-testing.md) ([ADR 0003](adr/0003-free-tiers-only.md)).
 
 **A club with years behind it, by hand**: `npm run seed:history` gives a local D1 (the checkout shown on 4510, if it
 has its own, `--own-db`) four years of played Kumites (30: two pages of History) and a year of Tuesday Skills nights,
@@ -155,7 +155,7 @@ port>`, open the page with that storage state, and run `new AxeBuilder({ page })
   Cancelled badge carries the meaning); label-in-name on cards and avatars (the name starts with what a speech user
   would say); desktop Friday's h3 without an h2; the dev-only simulator's speed bar; a badge caught mid-animation.
 - **The team app's first paint** has a budget, 100 kB of JavaScript gzipped, checked by every build
-  (`scripts/team-app-budget.mjs`, [ADR 0120](adr/0120-team-app-first-paint.md)).
+  (`scripts/team-app-budget.mjs`, [ADR 0053](adr/0053-how-the-team-app-gets-its-data.md)).
 - **Lighthouse** on a production build: `npm run build -w @cougars/web`, then
   `npx wrangler dev -c dist/server/wrangler.json --port <any free port>` in apps/web; for the team app,
   `npx wrangler dev -c dist/cougars_team/wrangler.json --port <port> --var TEAM_ENV:local --persist-to ../web/.wrangler/state`

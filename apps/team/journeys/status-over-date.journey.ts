@@ -1,4 +1,4 @@
-// Status, not the date (ADR 0074, 0031; #182): "status decides whether an event or game is past, on or next, never its
+// Status, not the date (ADR 0031, apps/team/worker/tournaments/README.md; #182): "status decides whether an event or game is past, on or next, never its
 // date or time" (the user, 2026-10-25). Three stories, both clocks moved (journey.ts `at`):
 //   a Kumite played early: set for Sat 12 Dec, played on Sat 5 Dec; Home, the calendar and its page all have it as
 //   played, the next one (Sat 16 Jan) as next, and on its own day it's still past;
@@ -40,7 +40,7 @@ test("Status, not the date", async ({ browser }) => {
   const main = (page: Page) => page.getByRole("main");
   const lead = (page: Page) => page.locator('section[aria-labelledby="lead-title"]');
   const comingUp = (page: Page) => page.getByRole("region", { name: "Coming up" });
-  /** The match the KUMITE! carousel brings forward: the current one (ADR 0074). */
+  /** The match the KUMITE! carousel brings forward: the current one (apps/team/worker/tournaments/README.md). */
   const current = (page: Page) =>
     page.getByRole("list", { name: "Matches, in order of play" }).locator('li[aria-current="true"]');
 

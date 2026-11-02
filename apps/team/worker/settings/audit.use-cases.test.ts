@@ -1,4 +1,4 @@
-// Settings → Audit log (ADR 0095): an admin reads the record of who changed what, newest first, a page at a time, in
+// Settings → Audit log (apps/team/worker/settings/README.md): an admin reads the record of who changed what, newest first, a page at a time, in
 // enough detail to say it in plain words. Driven through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";

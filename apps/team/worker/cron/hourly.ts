@@ -48,7 +48,7 @@ export interface HourTry {
  * Claim this moment's try at the hour, or null if it isn't for this run: the hour is done or failed, or this try was
  * already taken (by another run at once, or one that died). `trigger`: the hour's own run takes its try whatever the
  * minute; the run every minute only from the first catch-up's. Another hour takes the row whichever way the clock
- * went (the dev clock put back, ADR 0123).
+ * went (the dev clock put back, ADR 0010).
  */
 export async function claimHour(db: D1Database, now: Date, trigger: "hourly" | "catch-up"): Promise<HourTry | null> {
   const attempt = tryAt(now);

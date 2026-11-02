@@ -1,5 +1,5 @@
 // The first script in every page (layouts/Base.astro), a plain file rather than inline so the content security
-// policy needs no exceptions (ADR 0036). It blocks while it loads, so it runs before anything else.
+// policy needs no exceptions (ADR 0024). It blocks while it loads, so it runs before anything else.
 
 // Errors in our scripts reach Sentry (ADR 0110, pages/api/client-error.ts): first in the page, so it hears everything.
 // Each distinct error once per page, a few at most; the server keeps only those from our own /_astro/ scripts.

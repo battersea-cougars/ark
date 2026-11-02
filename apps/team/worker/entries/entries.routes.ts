@@ -1,4 +1,4 @@
-// Sign-ups (ADR 0036): in or out of a session, a tournament or a club event, and an admin putting someone in.
+// Sign-ups (ADR 0024): in or out of a session, a tournament or a club event, and an admin putting someone in.
 import { id, memberIdIn, ok, rowsOf, type Route } from "../api/api.route";
 import { type Changed } from "../api/api.slices";
 import { TABLES, answer, setPlayer, type EntryKind } from "./entries";

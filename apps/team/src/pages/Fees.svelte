@@ -9,7 +9,7 @@
   import { formatDayDate, londonToday, pounds } from "../lib/dates";
   import { feeOn } from "../lib/dues";
 
-  // Membership: the quarterly membership's price (ADR 0007), the page admins know as Membership (the code's "fees").
+  // Membership: the quarterly membership's price (apps/team/worker/dues/README.md), the page admins know as Membership (the code's "fees").
   // Session fees are set on each training, tournament fees on each tournament.
   // A new price is set in a side drawer, as every quick form is: the page stays where it is
   let adding = $state(false);

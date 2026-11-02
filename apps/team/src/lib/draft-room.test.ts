@@ -1,4 +1,4 @@
-// The draft room's rules (ADR 0060): who's let in, when a captain's offered it, what its bar says, and when it shows
+// The draft room's rules (apps/team/worker/tournaments/README.md): who's let in, when a captain's offered it, what its bar says, and when it shows
 // everyone out (the draft closed, or stepped back to before it opened).
 import { describe, expect, it } from "vitest";
 import { canEnterRoom, draftShows, roomPath, roomTurn } from "./draft-room";

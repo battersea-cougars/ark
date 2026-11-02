@@ -1,14 +1,14 @@
-// The Kumite on the clock (ADR 0074, 0031): the days and times that change what each person sees, with both clocks
+// The Kumite on the clock (ADR 0031, apps/team/worker/tournaments/README.md): the days and times that change what each person sees, with both clocks
 // moved (journey.ts `at`: the browser's and the server's). The Kumite night (kumite.journey.ts) walks sign-up to the
 // awards on the real clock; this one is about when: one on a Friday asked about Friday Training that evening first
-// (ADR 0122), sign-up opening and closing at London midnight, the draft's day, its own day (Today, Tonight), the day
+// (apps/team/worker/training/README.md), sign-up opening and closing at London midnight, the draft's day, its own day (Today, Tonight), the day
 // after unplayed, played on another evening with the final across midnight, the after-party till 06:00, just a
 // season, the days the clocks go back (25 Oct 2026) and forward (28 Mar 2027), and a Kumite on a day gone by. Ada runs
 // it (an admin), Fay plays, Nell isn't in it.
 //
 // How each Kumite gets to the step under test is a shortcut, said so where it's taken: scheduled, signed up for and
 // played out through the API as the admin and the players, with the server's clock moved (the dev simulator for the
-// matches, ADR 0123). What's under test is what each person sees, and the taps that count (Accept, what's refused);
+// matches, ADR 0010). What's under test is what each person sees, and the taps that count (Accept, what's refused);
 // the Friday one is scheduled through the wizard, as its question is the step under test. Each Kumite is deleted when
 // its stage is done, so the club is left as the Kumite night left it.
 import { expect, test, type Page } from "@playwright/test";
@@ -77,7 +77,7 @@ test("The Kumite on the clock", async ({ browser }) => {
       });
   });
 
-  // ─── Asked first: a Kumite on a Friday, by day, over Friday Training that evening (ADR 0122) ───
+  // ─── Asked first: a Kumite on a Friday, by day, over Friday Training that evening (apps/team/worker/training/README.md) ───
 
   await stage("0b. A Kumite on a Friday at 11am: asked about Friday Training that night first", async () => {
     // Still Fri 30 Oct, 12:00, nothing on. The user scheduled one like this (a Friday, 11:00) and wasn't asked: a
@@ -292,7 +292,7 @@ test("The Kumite on the clock", async ({ browser }) => {
   await stage(
     "6. Played on another evening (Tue 17 Nov), the final across midnight, The Anchor till 06:00",
     async () => {
-      // The draft and the matches played out by the dev simulator as the admin (ADR 0123), the server's clock at 23:40
+      // The draft and the matches played out by the dev simulator as the admin (ADR 0010), the server's clock at 23:40
       // on Tue 17 Nov, three days after its date, till the final's kicked off; its full time at 00:10 on the Wednesday
       await does(ada, "plays it out on Tue 17 Nov, the final kicking off before midnight, over after", async () => {
         for (let i = 0; i < 120; i++) {
@@ -412,7 +412,7 @@ test("The Kumite on the clock", async ({ browser }) => {
     ["9. The clocks go forward (Sun 28 Mar 2027, BST from 01:00)", "2027-03-28", "2027-03-29", "2027-03-30T12:00"],
   ]) {
     // Played out on its evening by the dev simulator as the admin (past-kumite.ts), the server's clock two days on so
-    // its day is one gone by (ADR 0123)
+    // its day is one gone by (ADR 0010)
     const id = await kumiteOnAPastDay(ada.email, day, 1, { at: london(after) });
     await stage(title, async () => {
       await allAt(`${day}T22:00`);

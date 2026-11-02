@@ -138,7 +138,7 @@
   /* The stamp, top right in the head row (no taller than it): on the game on now, KUMITE! outlined in the club's red,
      a little askew, its dot pulsing, which says it's live */
   /* The match on now, Up next and the results: ink stamps (lib/InkStamp), as the page's status is. The club's red is your team's You are
-     next! (stamped down as it shows) and the match on now's; a win in bone, a draw and Up next faint (ADR 0084: colour
+     next! (stamped down as it shows) and the match on now's; a win in bone, a draw and Up next faint (ADR 0009: colour
      is an accent). A long winner's name is cut short; the stamp's size is the same on every card */
   /* One box whichever stamp it holds (KUMITE!, You are next!, a result), so the head never shifts as one gives way to
      the next */

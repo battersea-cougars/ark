@@ -1,4 +1,4 @@
-// The Kumite's awards on the website (ADR 0044, 0030): each Kumite keeps its own, so the website shows a Kumite's own
+// The Kumite's awards on the website (apps/team/worker/tournaments/README.md): each Kumite keeps its own, so the website shows a Kumite's own
 // awards, not the series'. The series' are the defaults a new Kumite copies. Driven through the real Worker handlers
 // (ADR 0031), then read the way the website's build reads it: the snapshot (scripts/lib/kumite-sql.mjs).
 //

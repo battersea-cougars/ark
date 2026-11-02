@@ -171,7 +171,7 @@ describe("an admin imports the club's own spreadsheet", () => {
         cougar: true,
         roles: ["Contributor", "Session lead"],
       }),
-      // A goalie is on the Keeper plan whatever the sheet says: keepers play free (ADR 0007)
+      // A goalie is on the Keeper plan whatever the sheet says: keepers play free (apps/team/worker/dues/README.md)
       expect.objectContaining({ name: "Gil Goalie", plan: "keeper", cougar: false, roles: [] }),
     ]);
   });

@@ -1,7 +1,7 @@
-// The club's settings for the app (ADR 0072): one row. For now, how often live pages (a game being scored, the
+// The club's settings for the app (ADR 0053): one row. For now, how often live pages (a game being scored, the
 // tournament's home, the draft room) check for updates. Each check is a request against the club's free daily
 // allowance, so it's the admins' call: faster feels live, slower lasts the day. No row yet means the default. And the
-// club's bank details (ADR 0007), where members pay: on every member's Dues page and in reminders; and how many days
+// club's bank details (apps/team/worker/dues/README.md), where members pay: on every member's Dues page and in reminders; and how many days
 // before a quarter its Quarterly Members are told its fee is due (#187).
 import { first, run } from "@cougars/shared/d1";
 import { HttpError, int } from "../api/api.http";

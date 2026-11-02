@@ -1,4 +1,4 @@
-// Turnstile in front of the two things anyone can do without signing in (#13, ADR 0028): ask for a sign-in code and
+// Turnstile in front of the two things anyone can do without signing in (#13, ADR 0027): ask for a sign-in code and
 // ask to join. A person's browser passes without noticing (the widget only asks for a tap when Cloudflare isn't sure);
 // a script gets nothing, however many addresses it comes from. Cloudflare's siteverify is faked in the fake world
 // (testing.ts turnstile()); everything else is the real handlers (ADR 0031).

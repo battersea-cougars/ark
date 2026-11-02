@@ -6,7 +6,7 @@ interface Decided {
   decidedBy?: { kind: string; stat?: string } | null;
 }
 
-/** The champions' award: the one the table decides (ADR 0044), or, saved before awards said how, one named so. */
+/** The champions' award: the one the table decides (apps/team/worker/tournaments/README.md), or, saved before awards said how, one named so. */
 export const isChampions = (a: Decided): boolean =>
   a.decidedBy ? a.decidedBy.kind === "stat" && a.decidedBy.stat === "table" : /champion/i.test(a.name);
 

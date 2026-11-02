@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The choices (ADR 0060): every pick of a draft in order, by round, the player over their team, and who chose for
+  // The choices (apps/team/worker/tournaments/README.md): every pick of a draft in order, by round, the player over their team, and who chose for
   // a captain when it wasn't them. For its captains and whoever runs the draft, from the page header's Manage once the
   // draft's open; a bottom sheet on a phone, a side drawer on a desktop. As a `column` (the draft room on a wide
   // screen): a line each, "3 · Team Alex chose Hayden Harlow D", the newest at the top, burning in as it lands, the

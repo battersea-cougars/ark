@@ -1,4 +1,4 @@
-// Tournaments read when they're opened (#175, ADR 0074). Opening the app brings each series' next one and its last
+// Tournaments read when they're opened (#175, apps/team/worker/tournaments/README.md). Opening the app brings each series' next one and its last
 // one played (the club's TOURNAMENTS); a past one's page, or a link to one of its games or teams, reads that one in
 // full (worker/tournaments/editions.routes.ts) and keeps it here, so going back to it is instant. The store's
 // tournaments are the club's with these after them. After any change to the club's tournaments, the ones kept are

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A member's dues as a ledger (ADR 0007), the way a bank statement reads: every charge and payment by date, newest
+  // A member's dues as a ledger (apps/team/worker/dues/README.md), the way a bank statement reads: every charge and payment by date, newest
   // first, with what they owe after each. Its header stays in view as it scrolls, under whatever is pinned above it
   // (--below; on a page, the shell's top bar). Whoever records payments can take back a payment or a quarter charged
   // by hand, each with a second tap so a stray one can't.

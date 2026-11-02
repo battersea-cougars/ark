@@ -1,4 +1,4 @@
-// The draft's turn order at its edges (ADR 0060): two teams, the turnaround, the last pick, places in words past the
+// The draft's turn order at its edges (apps/team/worker/tournaments/README.md): two teams, the turnaround, the last pick, places in words past the
 // teens, and where a draft stands when an admin put someone on by hand. Pure logic, shared by the Draft page and the
 // Worker.
 import { describe, expect, it } from "vitest";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Your dues (ADR 0007): what you owe, your plan (this quarter's, and next quarter's to choose), how to pay, and the
+  // Your dues (apps/team/worker/dues/README.md): what you owe, your plan (this quarter's, and next quarter's to choose), how to pay, and the
   // ledger: every charge and payment, with what you owed after each.
   import Ledger from "../lib/Ledger.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -19,7 +19,7 @@
   // Viewing as someone else: look, don't change
   const locked = impersonating();
 
-  // Your plan (ADR 0007): this quarter's is fixed; next quarter's is yours to choose until it starts. Today is checked
+  // Your plan (apps/team/worker/dues/README.md): this quarter's is fixed; next quarter's is yours to choose until it starts. Today is checked
   // every minute, so a page left open moves on; the server checks it too, and says no to a quarter that's started.
   let today = $state(londonToday());
   $effect(() => {
@@ -40,7 +40,7 @@
   });
   const planName = (p: Plan | undefined) => PLAN_NAMES[p ?? "Pay as you go"];
   const keeper = $derived(myRow?.plan === "Keeper");
-  // Where to pay (ADR 0007)
+  // Where to pay (apps/team/worker/dues/README.md)
   const bank = $derived(db.settings.bank);
 
   // ?plan=next (the reminder a few days before the quarter, #187): next quarter's plan is scrolled into view, and the
@@ -67,7 +67,7 @@
 
   <div class="panel feature pad pay">
     <h2>Pay by bank transfer</h2>
-    <!-- The club's account (Unpaid fees → Manage → Bank details, ADR 0007); never made up while it isn't there -->
+    <!-- The club's account (Unpaid fees → Manage → Bank details, apps/team/worker/dues/README.md); never made up while it isn't there -->
     <dl class="num">
       <dt>Name</dt>
       <dd>{bank?.name ?? "—"}</dd>

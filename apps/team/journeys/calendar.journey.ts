@@ -1,4 +1,4 @@
-// The calendar, the news and Home (ADR 0030, 0122, 0031; #154): an admin puts a one-off on the calendar and members
+// The calendar, the news and Home (ADR 0031, apps/team/worker/calendar/README.md; #154): an admin puts a one-off on the calendar and members
 // say in or out; one over Friday Training asks first (the clash prompt), and closing it saves nothing; one called off is
 // off for everyone. The locker room: a post on everyone's Home till its last day, London's midnight. A member's
 // notification switches stay as they set them. Home says how soon each thing is (Today, Tonight, Tomorrow, In N days)
@@ -52,7 +52,7 @@ test("The calendar, the news and Home", async ({ browser }) => {
   const card = (page: Page, title: string) =>
     page.getByRole("article").filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 
-  /** The question before a save over something already on (lib/ClashSheet.svelte, ADR 0122). */
+  /** The question before a save over something already on (lib/ClashSheet.svelte, apps/team/worker/calendar/README.md). */
   const clash = ada.page.getByRole("dialog", { name: "Already on then" });
   /**
    * Answers it: Friday Training kept, and a one-off an earlier run of this journey left there (not this run's) called

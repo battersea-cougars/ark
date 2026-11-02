@@ -1,7 +1,7 @@
 <script lang="ts">
   // Settings → Website (#107): where the club's website is managed from the app. Studio changes go live at the next
   // rebuild: every morning, after a tournament result, or now, with Rebuild now (the same rebuild, sent at once,
-  // ADR 0100). The Studio links here, and this page links to the Studio and the site. Refresh photos and videos (#109)
+  // ADR 0016). The Studio links here, and this page links to the Studio and the site. Refresh photos and videos (#109)
   // makes the website read YouTube and Instagram again at once, instead of within ten minutes.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";

@@ -1,7 +1,7 @@
-// Off the waiting list (ADR 0131, 0108): whoever moves up into a training's place hears it on their phone, "You're
+// Off the waiting list (ADR 0108, apps/team/worker/training/README.md): whoever moves up into a training's place hears it on their phone, "You're
 // in", with the session and its day, and a tap opens it. However they moved up (someone saying out, an admin taking
 // someone off, a limit raised, an account deleted, the register taking a walk-in off, the team maker letting them in),
-// and only them, once per move: a double tap or two leaving at once tells each one who moved up once (ADR 0121).
+// and only them, once per move: a double tap or two leaving at once tells each one who moved up once (ADR 0003).
 // Driven through the real handlers in the fake world (ADR 0031); each notification is caught in its push outbox.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
@@ -202,7 +202,7 @@ describe("moving up elsewhere", () => {
   });
 });
 
-describe("moving up, at once (ADR 0121)", () => {
+describe("moving up, at once (ADR 0003)", () => {
   it.each(SEEDS)("a double tap on Out lets one in, who hears it once (seed %i)", async (seed) => {
     const f = await fullFriday();
     w.db.interleave(seed);
@@ -223,7 +223,7 @@ describe("moving up, at once (ADR 0121)", () => {
   });
 });
 
-// A Quarterly Member signing up for a full training takes the place of the last one in paying as they go (ADR 0131,
+// A Quarterly Member signing up for a full training takes the place of the last one in paying as they go (apps/team/worker/training/README.md,
 // #97): that one hears they're on the waitlist, and where, once per bump however the requests interleave.
 describe("bumped to the waiting list", () => {
   /** The full Friday, with Quinn and Kit made Quarterly Members (not signed up yet). */

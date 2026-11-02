@@ -1,4 +1,4 @@
-// Dues (ADR 0007): fees, charges and payments. A charge is one person for one session, tournament or quarter. Session
+// Dues (apps/team/worker/dues/README.md): fees, charges and payments. A charge is one person for one session, tournament or quarter. Session
 // and tournament charges follow who came, so they're worked out again after anything that changes it (a tick on the
 // register, a sign-up, a cancellation) and each hour, when a new day makes another session due: whoever came and isn't
 // charged is, and an unpaid charge for someone who no longer counts goes. A paid one always stays. Quarterly Members
@@ -32,7 +32,7 @@ const unpaid = "NOT EXISTS (SELECT 1 FROM payment_allocations pa WHERE pa.charge
 const notPaidUp =
   "c.amount_pence > COALESCE((SELECT SUM(pa.amount_pence) FROM payment_allocations pa WHERE pa.charge_id = c.id), 0)";
 
-/** Keepers play training free (the Keeper plan, ADR 0007): no session or quarter charges */
+/** Keepers play training free (the Keeper plan, apps/team/worker/dues/README.md): no session or quarter charges */
 export const KEEPER = (member: string) => `(SELECT position FROM members WHERE id = ${member}) = 'G'`;
 
 /**
@@ -170,7 +170,7 @@ async function quarterCharges(db: D1Database, today: string, now: string): Promi
 
 /**
  * Every charge in line, as after anything that changes who owes what: quarters first, since a quarter pays for its
- * training nights. A few round trips, however many members, quarters and nights (ADR 0059). Returns how many changed.
+ * training nights. A few round trips, however many members, quarters and nights (ADR 0003). Returns how many changed.
  */
 export async function recharge(db: D1Database, today: string, now: string): Promise<number> {
   return settleAfter(db, [...(await quarterCharges(db, today, now)), ...attendanceCharges(db, today, now)]);
@@ -255,7 +255,7 @@ export const seriesFees = (db: D1Database, id: number) =>
   );
 
 /** A training in SQL: `?` and its id, or a subquery for one not made yet (by its slug), so its fees can go in the batch
- * that makes it. Null when the batch's write of it was refused (ADR 0122): its fees go nowhere. */
+ * that makes it. Null when the batch's write of it was refused (apps/team/worker/training/README.md): its fees go nowhere. */
 export interface SeriesRef {
   sql: string;
   params: Param[];
@@ -452,7 +452,7 @@ function pastDay(v: unknown, now: string, field: string, future: string): string
 }
 
 /**
- * { pence, reason, on? }: an admin adjusts what someone owes, saying why (ADR 0007). More (pence above nothing) is a
+ * { pence, reason, on? }: an admin adjusts what someone owes, saying why (apps/team/worker/dues/README.md). More (pence above nothing) is a
  * charge; less is like money in, paying what they owe oldest first. Either is a line on their ledger.
  */
 export async function addAdjustment(
@@ -510,7 +510,7 @@ export async function recordPayment(
 
 /**
  * One payment, received today, for what's left of each of these charges. The payment goes in only while every charge
- * still has just that left, and its allocations only with it: one batch, the check inside it (ADR 0121), so a double
+ * still has just that left, and its allocations only with it: one batch, the check inside it (ADR 0003), so a double
  * tap, or two admins at once, record it once (#119). The second finds it paid and writes nothing.
  */
 async function pay(
@@ -626,7 +626,7 @@ export interface ChargeJson {
 export const chargesFrom = (rows: (Omit<ChargeJson, "byHand"> & { byHand: number })[]): ChargeJson[] =>
   rows.map((r) => ({ ...r, byHand: Boolean(r.byHand) }));
 
-// ─── What the record compares (ADR 0095) ───
+// ─── What the record compares (ADR 0024) ───
 
 /** A charge: who, what for, how much, and whether it's paid. */
 export const chargeState = (db: D1Database, id: number) =>

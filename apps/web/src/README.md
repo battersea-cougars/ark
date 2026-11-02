@@ -51,7 +51,7 @@ line together. Why a piece of code is the way it is stays in a comment beside it
 - A tournament's draft night and sign-up deadline are for the team app, not the website.
   [lib/server/whats-on.test.ts › "a tournament's draft night and sign-up deadline are the team app's, not the website's"](lib/server/whats-on.test.ts)
 - A Kumite played early has been, whatever its date: it leaves What's on.
-  [lib/server/whats-on.test.ts › "leaves out a Kumite played early, its day still ahead: it's been, whatever its date (ADR 0074, #182)"](lib/server/whats-on.test.ts)
+  [lib/server/whats-on.test.ts › "leaves out a Kumite played early, its day still ahead: it's been, whatever its date (#182)"](lib/server/whats-on.test.ts)
 - A change in the team app is on the website within a minute.
   [lib/server/whats-on.test.ts › "reads the calendar once a minute, however many people look"](lib/server/whats-on.test.ts)
 

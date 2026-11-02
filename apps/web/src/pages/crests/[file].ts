@@ -1,7 +1,7 @@
 import type { APIRoute, GetStaticPaths } from "astro";
 import { getCrestFiles } from "../../lib/sanity/content";
 
-// Team crests on the results (ADR 0100), written as files at build time from the images the team app keeps as data:
+// Team crests on the results (ADR 0016), written as files at build time from the images the team app keeps as data:
 // URLs. Only for a published tournament's teams.
 export const getStaticPaths = (async () =>
   (await getCrestFiles()).map((c) => ({

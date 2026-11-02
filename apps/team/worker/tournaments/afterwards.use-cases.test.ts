@@ -1,4 +1,4 @@
-// Where everyone goes afterwards (ADR 0074), driven through the real Worker handlers in the fake world (testing.ts).
+// Where everyone goes afterwards (apps/team/worker/tournaments/README.md), driven through the real Worker handlers in the fake world (testing.ts).
 //
 // The story: the club always goes to The Anchor after a Kumite, for the celebration and awards. It's set once, on the
 // series, so a new Kumite has it without anyone retyping it. One Kumite can go somewhere else, at its own time, or

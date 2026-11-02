@@ -1,4 +1,4 @@
-// A training's schedule and its nights at their edges (ADR 0030, ADR 0076): what an admin may set, a rule changed
+// A training's schedule and its nights at their edges (apps/team/worker/training/README.md): what an admin may set, a rule changed
 // with people signed up, the night's teams, and the register either side of London midnight, in summer time and after
 // the clocks go back (25 October 2026). Driven through the real Worker handlers, each person signed in as themselves
 // (ADR 0031).
@@ -27,7 +27,7 @@ async function as(email: string) {
   return { call: b.call, sees };
 }
 
-/** The Monday before a Friday, at noon: Friday Training's sign-up for it is open (ADR 0030) */
+/** The Monday before a Friday, at noon: Friday Training's sign-up for it is open (apps/team/worker/training/README.md) */
 const opens = (friday: string) => ({ now: new Date(Date.parse(`${friday}T12:00:00Z`) - 4 * 86_400_000) });
 
 const SUNDAYS = {
@@ -200,7 +200,7 @@ describe("a rule changed with people signed up", () => {
     const fridays = (await dana.sees()).sessions.filter((s: Json) => s.heldOn >= "2026-10-06");
     const answered = fridays[2];
     const reg = await as("reg@example.com");
-    // On its Monday, once its sign-up's open (ADR 0030)
+    // On its Monday, once its sign-up's open (apps/team/worker/training/README.md)
     expect(
       (await reg.call("POST", `/api/sessions/${answered.id}/answer`, { answer: "in" }, opens(answered.heldOn))).status,
     ).toBe(200);

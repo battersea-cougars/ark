@@ -4,7 +4,7 @@
 </script>
 
 <script lang="ts">
-  // A tournament's page (ADR 0074): one page for one edition, by status, at its own address (/tournaments/kumite/12,
+  // A tournament's page (apps/team/worker/tournaments/README.md): one page for one edition, by status, at its own address (/tournaments/kumite/12,
   // lib/edition-address.ts), the one on or a past one. The series' own address shows the one on (lib/edition.ts
   // currentOf) and is replaced by its address (App.svelte), so the address always says which one.
   // The header (its day, its place on the map, where everyone goes after), then the track of its statuses (Sign-up
@@ -112,7 +112,7 @@
   const games = $derived(tournament?.games ?? []);
   // Everyone sees the score as it happens: while it's under way, whatever its date (#182), and on its day before the
   // first match, until the last game's over, from the hub's stream, with a check on the admins' beat as the fallback
-  // (ADR 0061, 0072); then the awards turned over at the after-party
+  // (ADR 0053, apps/team/worker/tournaments/README.md); then the awards turned over at the after-party
   const following = $derived(
     (!!tournament && tournamentPhase(tournament) === "on") ||
       (tournament?.heldOn === today && games.some((g) => g.status !== "done")) ||
@@ -124,7 +124,7 @@
 
   const mine = $derived(tournament ? myTeamIndex(tournament, me().id) : -1);
   const myTeamId = $derived(mine >= 0 ? teams[mine].id : undefined);
-  // Keeping score (ADR 0061): a game whose scoresheet you hold, else the game up next when it's your team's turn and
+  // Keeping score (apps/team/worker/tournaments/README.md): a game whose scoresheet you hold, else the game up next when it's your team's turn and
   // nobody's taken it yet. Only the game up next (or on now) is taken on: the first in the day's order not over
   const upNext = $derived(games.find((g) => g.status !== "done"));
   const duty = $derived(
@@ -162,7 +162,7 @@
     }
   }
   // Which view's in the pane (lib/tournament-front.ts paneOf). Sign-up is everyone's, the draft's runner too (they
-  // close it, ADR 0074); then one Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
+  // close it, apps/team/worker/tournaments/README.md); then one Draft goes from the draw to the picking, so the shuffle plays as the draft opens;
   // the teams (complete) are another, so closing it slides on to them
   const pane = $derived(tournament ? paneOf(tournament, view, me().id, can(perms, "run:Draft")) : view);
   // The draft being picked, on a phone: the header makes room, the track stays, the players scroll inside
@@ -253,7 +253,7 @@
     <div class="loading" aria-busy="true" aria-label="Loading"></div>
   {:else if !tournament}
     <!-- Nothing on: said big, in the Kumite's motif (lib/motif.ts): 組手 down the side like a film poster, a hanko
-         stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, 0074) -->
+         stamped on it, the gong. An admin calls the next one from here, over the page (ADR 0065, apps/team/worker/tournaments/README.md) -->
     <section class="no-bout">
       {#if kumite}
         <span class="poster" aria-hidden="true"
@@ -313,7 +313,7 @@
             {:else if status === "signup"}<SignUpLine {tournament} canSignUp={can(perms, "signup:Event")} />{/if}
             {#if open && manage}
               <!-- An admin's, under the invitation or the card alike: a small one, not the step card. Closing it moves
-                   the Kumite on to the draft, where the order's drawn (ADR 0074); Back to Sign-up open, in Manage,
+                   the Kumite on to the draft, where the order's drawn (apps/team/worker/tournaments/README.md); Back to Sign-up open, in Manage,
                    opens it again -->
               <div class="close-signup">
                 <span class="hint"
@@ -344,7 +344,7 @@
             </div>
             <!-- The draft done: its teams and how the picks went are Draft's two tabs -->
           {:else if pane === "blind"}
-            <!-- Everyone else: the draft's the captains' (ADR 0060). Chong Li's powder; Dux fought blind -->
+            <!-- Everyone else: the draft's the captains' (apps/team/worker/tournaments/README.md). Chong Li's powder; Dux fought blind -->
             <DraftStep {type} mark="open" icon="blindfold" title="Fighting blind">
               {blindLine(db.quips)}
             </DraftStep>

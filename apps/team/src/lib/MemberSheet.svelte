@@ -277,7 +277,7 @@
   const paidTotal = $derived(book.paid);
   const credit = $derived(creditOf(memberId));
 
-  // Dues (ADR 0007): who sees Unpaid fees sees a member's charges; who records payments marks them
+  // Dues (apps/team/worker/dues/README.md): who sees Unpaid fees sees a member's charges; who records payments marks them
   const perms = $derived(granted());
   const seesDues = $derived(can(perms, "read:Dues") || can(perms, "record:Payment"));
   const recordsPayments = $derived(can(perms, "record:Payment"));
@@ -325,9 +325,9 @@
     payOn = londonToday();
     paying = true;
   }
-  // Email them what they owe (ADR 0007), after seeing it
+  // Email them what they owe (apps/team/worker/dues/README.md), after seeing it
   let reminding = $state(false);
-  // An adjustment (ADR 0007): add to or take off what they owe, saying why
+  // An adjustment (apps/team/worker/dues/README.md): add to or take off what they owe, saying why
   let adjusting = $state(false);
   let adjustWay = $state<"more" | "less">("less");
   let adjustAmount = $state("");
@@ -981,7 +981,7 @@
                     <button class="btn primary">Adjust</button>
                   </form>
                 </Sheet>
-                <!-- Their reminder (ADR 0007), seen before it goes -->
+                <!-- Their reminder (apps/team/worker/dues/README.md), seen before it goes -->
                 <Sheet bind:open={reminding} title="Email {shortName(member.player)} what they owe">
                   {#if reminding}<RemindReview {memberId} onsent={() => (reminding = false)} />{/if}
                 </Sheet>

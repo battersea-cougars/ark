@@ -1,4 +1,4 @@
-// A training night's sign-up opening (ADR 0030, 0108): a training may say its nights open a number of days before, at
+// A training night's sign-up opening (ADR 0108, apps/team/worker/training/README.md): a training may say its nights open a number of days before, at
 // midnight London (lib/signup.ts; Friday Training, the Monday). The cron tells members once it has, one notification
 // a night, under Your place (topic `places`), so a member who turned that off isn't told. Nor is one who's answered
 // already: said Out before it opened (taking it back puts them among those told), or put in by an admin.
@@ -18,7 +18,7 @@ const longDay = (day: string) =>
 /**
  * Every run of the cron: the nights whose sign-up opens today (London) and nobody's been told, not called off, each
  * taken by this run in the statement that marks it told (`signup_told_at`), so a rerun, or two runs at once, tell
- * members once (ADR 0121). Their notifications are queued, not sent here: the run's push drain, straight after, sends
+ * members once (ADR 0003). Their notifications are queued, not sent here: the run's push drain, straight after, sends
  * them within the invocation's budget, and the next runs the rest (ADR 0108). Only on its day: a night already open
  * when its training was given an opening day (or made) isn't news, and isn't sent.
  */

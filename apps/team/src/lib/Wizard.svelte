@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A job in steps (ADR 0117), after Ledger's: the steps along the top (the one you're on with the red slash, done
+  // A job in steps (ADR 0065), after Ledger's: the steps along the top (the one you're on with the red slash, done
   // ones solid, ones not open yet faded and shut), the step under them sliding in (back the other way going back) and
   // scrolling on its own, and the foot staying put: Cancel or Back, where you are, then Next · the step after, or the
   // job's own button on the last. Enter goes on when the step allows it; not from a button, nor from anything that

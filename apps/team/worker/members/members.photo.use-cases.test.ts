@@ -1,4 +1,4 @@
-// A member puts up a profile photo from their phone (ADR 0133): the phone shrinks it, it's kept with them, and the app
+// A member puts up a profile photo from their phone (apps/team/worker/members/README.md): the phone shrinks it, it's kept with them, and the app
 // shows it to everyone in the club in place of their initials. Driven through the real handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";

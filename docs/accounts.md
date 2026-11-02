@@ -60,7 +60,7 @@ says how to make each one.
 - **Branch rules**: `main` and `release` can't be force-pushed or deleted, and `release` changes only through a pull
   request from `main` whose checks pass: `node scripts/branch-rules.mjs` (safe to run again).
 - **GitHub App "Cougars rebuilds",** owned by the organisation: lets the team app start a website rebuild, and nothing
-  else ([ADR 0100](adr/0100-website-reads-tournament-results.md)). Its key: [secrets.md](secrets.md#github_app_private_key).
+  else ([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). Its key: [secrets.md](secrets.md#github_app_private_key).
 - **First deploy**: deploy dev once, so the `web` worker exists before the first PR preview:
   `node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh`. After that `main` deploys dev and a pull request from
   `main` into `release`, merged, deploys production.
@@ -112,9 +112,9 @@ Account → Account API Tokens), so they belong to the account, not a person; ea
   and on **Cougars Dev** if they want somewhere to practise (Free plan: 20 seats). Vision, the query tool, only appears
   for administrators.
 - **The Studio** is self-hosted at studio.batterseacougars.com and dev's on workers.dev
-  ([ADR 0112](adr/0112-self-hosted-studio.md)). A Studio change reaches the live site at the daily rebuild (some time
+  ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)). A Studio change reaches the live site at the daily rebuild (some time
   after 04:37 UTC), the next release, or a rebuild from the team app (Settings → Website,
-  [ADR 0100](adr/0100-website-reads-tournament-results.md)); by hand, `gh workflow run deploy.yml --ref release -f apps=web`.
+  [ADR 0016](adr/0016-how-the-website-gets-its-data.md)); by hand, `gh workflow run deploy.yml --ref release -f apps=web`.
 - **Setting a project up:** `npx sanity login` with your own account, create the project (Free plan) with one public
   dataset, `production`, and put its ID in `packages/shared/sanity.ts`. **API → CORS origins**, with credentials,
   added by hand (the deploy token can't): Cougars Dev `http://localhost:4520` (the local Studio, ADR 0115) and
@@ -152,7 +152,7 @@ Account → Account API Tokens), so they belong to the account, not a person; ea
 
 - **The account** @batterseacougarshockey belongs to the club account, switched to a Professional account (free) so its
   posts can be read through Instagram's API. Admins post there; the website shows the newest
-  ([ADR 0016](adr/0016-photos-and-videos-read-live.md)). There's no dev copy: every environment reads the real one.
+  ([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). There's no dev copy: every environment reads the real one.
 - **The club's Meta business portfolio** (business.facebook.com) owns the Instagram account, the Meta app that reads
   it, and the system user `photosreader` whose token the website reads ([secrets.md](secrets.md#instagram)). It has more
   than one admin with full control, so nobody leaving takes anything with them; add a new admin before an old one goes.
@@ -200,7 +200,7 @@ scripts/ratelimit-setup.mjs` writes it; change the number there and run it again
   Its API refuses our account tokens, so it's set up by hand, once: Analytics & Logs → Web Analytics →
   batterseacougars.com → **Manage site**, copy the token from the JS snippet (public: it's in every page) into
   `deploy.yml` as `WEB_ANALYTICS_TOKEN` and release; then turn **automatic setup off** there, so Cloudflare stops adding
-  its own beacon to every page, the team app's included ([ADR 0132](adr/0132-web-analytics-in-the-website-only.md)).
+  its own beacon to every page, the team app's included ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)).
 
 ## Not yet handed over
 

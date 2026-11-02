@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A tournament's awards and who won them (ADR 0044), on its landing page: each award, its line, and the team or
+  // A tournament's awards and who won them (apps/team/worker/tournaments/README.md), on its landing page: each award, its line, and the team or
   // player (or joint winners) who took it home. Once it's done, the data's picks show as provisional (lib/awards.ts)
   // until an admin confirms them (here, or in Manage: AwardsDrawer).
   import { goesByOf, nameOfTeam, teamNamesOf } from "./names";
@@ -36,7 +36,7 @@
   // Confirmed, else (once it's done) what the data says, provisionally
   const done = $derived(editionState(tournament) === "done");
   // Its evening, an award not yet revealed at the after-party is face down for everyone but whoever reveals it
-  // (ADR 0129): no provisional pick in its place
+  // (apps/team/worker/tournaments/README.md): no provisional pick in its place
   const tonight = $derived(atAfters(tournament, londonEvening()));
   const revealed = $derived(revealOf(tournament).awards);
   const faceDown = (award: string) => !admin && tonight && !revealed.find((a) => a.name === award)?.revealed;

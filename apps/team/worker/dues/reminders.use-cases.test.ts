@@ -1,4 +1,4 @@
-// Dues reminders (ADR 0007): whoever records payments emails members what they owe, from Unpaid fees, after seeing
+// Dues reminders (apps/team/worker/dues/README.md): whoever records payments emails members what they owe, from Unpaid fees, after seeing
 // who gets one and what it says, never more than one a week each. Nothing reminds anyone on its own: the hourly Cron
 // Trigger sends none (a configurable schedule is #143); the five-minute one only sends what an admin's send left
 // queued. Each goes through the one "tell a member" seam: an email, and a notification on their phone if they have the

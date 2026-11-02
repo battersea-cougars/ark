@@ -99,7 +99,7 @@ the test and this line together. Why a piece of code is the way it is stays in a
   [training.teams.use-cases.test.ts › "lets Wes in over the limit: he's in, in his sign-up place, nobody's waiting, and his phone hears it"](training.teams.use-cases.test.ts)
 - Saying out doesn't take a member off a published team: they stay on it until a team maker decides. An admin taking
   someone off the night takes them off their team.
-  [api.test.ts › "an admin publishes Friday's teams; everyone sees them, and someone dropping out stays on theirs until a team maker decides (ADR 0076)"](../api/api.test.ts)
+  [api.test.ts › "an admin publishes Friday's teams; everyone sees them, and someone dropping out stays on theirs until a team maker decides"](../api/api.test.ts)
 - A team reads forwards, defence, then keepers; best first for the team maker, by name for everyone else, so the order
   gives no ratings away.
   [balance.test.ts › "a member sees the same positions in the same order, by name, so the order gives no ratings away"](../../src/lib/balance.test.ts)

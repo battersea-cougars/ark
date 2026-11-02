@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The team app's first-paint budget (ADR 0120): the JavaScript a phone loads before Home can paint, gzipped. That is
+// The team app's first-paint budget (ADR 0053): the JavaScript a phone loads before Home can paint, gzipped. That is
 // the entry and everything it imports statically, as the build's manifest lists it (apps/team/dist/client/.vite):
 // Vite preloads exactly those files. Pages opened later, Sentry and the sign-in screen are import()s, so they're not
 // counted. Run after every team build (apps/team package.json "build"), so CI's build fails when it's over.
@@ -30,7 +30,7 @@ const kb = [...files].reduce((sum, file) => sum + gzipSync(readFileSync(new URL(
 const line = `team app first paint: ${files.size} files, ${kb.toFixed(1)} kB of JavaScript gzipped (budget ${BUDGET_KB} kB)`;
 if (kb > BUDGET_KB) {
   console.error(
-    `${line}: over. Load what Home doesn't need at once with import(), or raise the budget in scripts/team-app-budget.mjs (ADR 0120).`,
+    `${line}: over. Load what Home doesn't need at once with import(), or raise the budget in scripts/team-app-budget.mjs (ADR 0053).`,
   );
   process.exit(1);
 }

@@ -256,7 +256,7 @@ secret: an ID**, on the account's home page and in every dashboard URL; useless 
 #### `CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`
 
 The team app's Usage page, and its hourly check, read today's Worker requests and database rows from Cloudflare, to
-warn the admins before the free allowance runs out ([ADR 0059](adr/0059-usage-page-and-check.md)). Read-only. It
+warn the admins before the free allowance runs out ([ADR 0003](adr/0003-free-tiers-only.md)). Read-only. It
 lives inside the Worker, so it's never the deploy token. Without it the page says "Not set up yet".
 
 - **Comes from:** Cloudflare: the Cougars account → Manage Account → Account API Tokens, named
@@ -330,7 +330,7 @@ Dev's Usage page, as production's, and the CPU time per route.
 - **Comes from:** Cloudflare: the Cougars Dev account → Manage Account → Account API Tokens, named
   `CLOUDFLARE_ANALYTICS_TOKEN__DEV`. Permissions, on the entire Cougars Dev account: **Account Analytics Read**
   (today's Worker requests and D1 rows) and **Workers Observability Read** (CPU time per route,
-  `scripts/cpu-by-route.mjs`, ADR 0059). Cloudflare lists Workers Observability under its legacy permissions; it still
+  `scripts/cpu-by-route.mjs`, ADR 0003). Cloudflare lists Workers Observability under its legacy permissions; it still
   works. Production's doesn't need it.
 - **Used by:** the dev team Worker (`worker/settings/usage.ts`); `scripts/cpu-by-route.mjs` and the load tests'
   report.
@@ -354,7 +354,7 @@ Dev's [Turnstile](#turnstile) secret (a plain name, but dev's: production has it
 ### Turnstile
 
 Cloudflare Turnstile tells people from bots on the "Try a session" form, and only people get the automatic reply
-([ADR 0028](adr/0028-turnstile-and-auto-reply.md)). Free. The team app's sign-in and Ask to join use the same widget
+([ADR 0027](adr/0027-email-through-gmail-api.md)). Free. The team app's sign-in and Ask to join use the same widget
 and secret (#13), and refuse a failed check. One widget per account, named `cougars`. Its hostnames cover the website
 and the team app (`team.cougars-dev.workers.dev`, `team.batterseacougars.com`), so there's no second widget.
 
@@ -531,7 +531,7 @@ instead: re-run `gmail-auth.mjs`, then deploy both environments (it's only used 
 ### YouTube
 
 The website lists the club's YouTube videos live (`apps/web/src/lib/server/videos.ts`,
-[ADR 0016](adr/0016-photos-and-videos-read-live.md)). One key per environment.
+[ADR 0016](adr/0016-how-the-website-gets-its-data.md)). One key per environment.
 
 **Setting it up:** **APIs & Services → Library → YouTube Data API v3 → Enable**, then **Credentials → Create
 credentials → API key**. Name it like the secret, and under **API restrictions** pick **Restrict key → YouTube Data
@@ -717,7 +717,7 @@ Two Sanity projects hold the website's content, **Cougars** and **Cougars Dev**
 #### `SANITY_DEPLOY_TOKEN__PRODUCTION`
 
 Lets CI send the Studio's schema to Sanity on every push to `release`, so Sanity's own tools know the fields. The
-Studio itself is self-hosted at <https://studio.batterseacougars.com> ([ADR 0112](adr/0112-self-hosted-studio.md)),
+Studio itself is self-hosted at <https://studio.batterseacougars.com> ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)),
 deployed with Cloudflare's token. Without it, the schema deploy step fails.
 
 - **Comes from:** Sanity: manage → project **Cougars** → API → Tokens, role **Deploy Studio**, named
@@ -732,7 +732,7 @@ deployed with Cloudflare's token. Without it, the schema deploy step fails.
 #### `SANITY_CONTENT_TOKEN__PRODUCTION`
 
 Until launch, lets the website's deploy write its words (the Kumite's intro and the like) into production Sanity
-([ADR 0014](adr/0014-sanity-public-content.md)). Without it the deploy leaves Sanity's words as they are.
+([ADR 0004](adr/0004-astro-workers-sanity-d1.md)). Without it the deploy leaves Sanity's words as they are.
 
 - **Comes from:** Sanity: manage → project **Cougars** → API → Tokens, role **Editor**, named
   `SANITY_CONTENT_TOKEN__PRODUCTION`.
@@ -768,7 +768,7 @@ The repository `battersea-cougars/ark` ([accounts.md](accounts.md#github)). GitH
 
 The private key of the GitHub App **Cougars rebuilds**. The team Worker signs a short request with it and swaps that
 for a token that lasts an hour, to start a website rebuild when a result changes
-([ADR 0100](adr/0100-website-reads-tournament-results.md)). Without it, results reach the website only at the daily
+([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). Without it, results reach the website only at the daily
 rebuild. Nothing needs a different value per environment.
 
 - **Comes from:** GitHub: the `battersea-cougars` organisation (not a person, so it outlives any maintainer) →
@@ -781,7 +781,7 @@ rebuild. Nothing needs a different value per environment.
   | `battersea-cougars/ark` | Metadata: read      | Required by GitHub for every App                   |
 
   **A leaked key could** start or cancel workflow runs, and delete runs and their artifacts (old backups,
-  [ADR 0106](adr/0106-database-backups.md)). Not push code, not read secrets, not change settings. Each token the
+  [ADR 0050](adr/0050-schema-and-seed-until-launch.md)). Not push code, not read secrets, not change settings. Each token the
   Worker takes asks for Actions: write on this repo alone. `main` and `release` refuse force-pushes and deletion
   (repository ruleset), and only `release` deploys production.
 
@@ -799,7 +799,7 @@ rebuild. Nothing needs a different value per environment.
 ## Instagram
 
 The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
-[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The token belongs to the system user `photosreader` in the club's Meta business portfolio
+[ADR 0016](adr/0016-how-the-website-gets-its-data.md)). The token belongs to the system user `photosreader` in the club's Meta business portfolio
 ([accounts.md](accounts.md#instagram)).
 One value for both environments: there's one club Instagram and no dev copy of it, so dev, previews and your machine
 read the real account, read-only ([ADR 0010](adr/0010-environments-and-deploys.md)). Without the token, a checkout
@@ -865,7 +865,7 @@ for another. Make one with 32 random bytes, never seen by anyone, for example
 
 #### `BACKUP_KEY__PRODUCTION`
 
-Seals production's database backups ([ADR 0106](adr/0106-database-backups.md)). A backup is the whole database,
+Seals production's database backups ([ADR 0050](adr/0050-schema-and-seed-until-launch.md)). A backup is the whole database,
 members' names and emails included, kept as an artifact on this public repo, so it's encrypted
 (`scripts/lib/backup.mjs`). One per environment, so a dev key can't open production's backups. Without it, backups
 fail.
@@ -988,7 +988,7 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 | `SANITY_PROJECT_ID` / `SANITY_DATASET` | `packages/shared/sanity.ts` | Picked from `SITE_ENV`: Cougars on production, Cougars Dev else                                                 |
 | `SANITY_STUDIO_SITE_ENV`               | CI (Studio deploy)          | `production` builds the live Studio; unset is the dev project                                                   |
 | `DEMO_CONTENT`                         | `.env`, CI                  | Sample content + `noindex`; `true` on dev and PR builds, never on production                                    |
-| `PUBLIC_BUILD_VERSION`                 | Set by CI                   | Shown in `<meta name="generator">`; checked by the smoke test; its commit is the team app's build id (ADR 0104) |
+| `PUBLIC_BUILD_VERSION`                 | Set by CI                   | Shown in `<meta name="generator">`; checked by the smoke test; its commit is the team app's build id (ADR 0022) |
 | `GITHUB_APP_CLIENT_ID`                 | team `wrangler.jsonc`       | `Iv23liuUhxYcTesso0TW`, the Cougars rebuilds App                                                                |
 | `GITHUB_APP_INSTALLATION_ID`           | team `wrangler.jsonc`       | `169599165`, its installation on `battersea-cougars/ark`                                                        |
 | `VAPID_PUBLIC_KEY`                     | team `wrangler.jsonc`       | Web Push's public key ([Web Push](#web-push))                                                                   |

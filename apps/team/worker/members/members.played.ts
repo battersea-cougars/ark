@@ -37,7 +37,7 @@ export async function countPlayed(db: D1Database, now: Date): Promise<void> {
   if (!row) return;
   const was = row.through ?? "";
   const through = closedThrough(now);
-  // The clock went back past what's counted (the dev clock, ADR 0123, put back after a journey): counted afresh
+  // The clock went back past what's counted (the dev clock, ADR 0010, put back after a journey): counted afresh
   if (through < was) return recountPlayed(db, now);
   if (through === was) return;
   const still = "(SELECT COALESCE(played_through, '') FROM data_version WHERE id = 1) = ?";

@@ -15,7 +15,7 @@
   // The register for the night, in a drawer over the training page: every active member, sign-ups first and
   // already ticked, everyone else below to tick as they walk in. Search narrows the list. Ticks are written to the
   // session: a walk-in joins its sign-ups (so the page counts them in), a no-show stays signed up but marked. Adding
-  // someone keeps to the places (ADR 0131): on a full night they wait, and the team maker lets them in, right here.
+  // someone keeps to the places (apps/team/worker/training/README.md): on a full night they wait, and the team maker lets them in, right here.
   // `night`: the night the page shows (its own page, a past one too); else the series' next
   let {
     seriesId,
@@ -34,7 +34,7 @@
   const noShows = $derived(session?.noShows ?? []);
   // Full for skaters; a keeper may still have a place
   const full = $derived(!roomFor(0, going, limits, () => false));
-  // Who's playing over the limit is the team maker's call (ADR 0076)
+  // Who's playing over the limit is the team maker's call (apps/team/worker/training/README.md)
   const letting = $derived(can(granted(), "publish:Teams"));
   const here = (id: number) => going.includes(id) && !noShows.includes(id);
   const waiting = (id: number) => waitlist.includes(id);
@@ -82,7 +82,7 @@
     }
   }
 
-  // The team maker lets someone waiting in, over the limit (ADR 0076)
+  // The team maker lets someone waiting in, over the limit (apps/team/worker/training/README.md)
   function admit(p: Player) {
     const s = session;
     if (!s || !waiting(p.id)) return;

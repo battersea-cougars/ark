@@ -1,4 +1,4 @@
-// Signing in, and asking to join (ADR 0023, 0069, 0031): someone new asks to join from the sign-in page and waits; an
+// Signing in, and asking to join (ADRs 0023, 0031, apps/team/worker/members/README.md): someone new asks to join from the sign-in page and waits; an
 // admin lets them in from The club; they sign in with the code (on your own machine it's on the screen, nothing is
 // emailed), a wrong one refused; they add a passkey on their You page, sign out, and sign in with it, no code. Three
 // people: Jo, new, in a browser no one's signed in on; Ada, an admin; Hal, a member, who can't let anyone in.
@@ -106,7 +106,7 @@ test("Signing in, and asking to join", async ({ browser }) => {
       await expect(ada.page.getByText(jo.name)).toBeVisible();
     });
 
-    // Home tells whoever lets members in, as The club does (decided 2026-10-23, ADR 0118)
+    // Home tells whoever lets members in, as The club does (decided 2026-10-23, apps/team/src/pages/README.md)
     await checks(ada, "is told on Home, under For admins, that Jo is asking to join, opening The club", async () => {
       await ada.page.goto("/");
       const forAdmins = ada.page.getByRole("region", { name: "For admins" });

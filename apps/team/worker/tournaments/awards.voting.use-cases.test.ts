@@ -1,4 +1,4 @@
-// Before the reveal, the awards are confirmed (ADR 0044): from the last match till then, everyone who played votes
+// Before the reveal, the awards are confirmed (apps/team/worker/tournaments/README.md): from the last match till then, everyone who played votes
 // for the voted awards (Best keeper: the skaters, for a keeper), one vote an award, secret, never for themselves;
 // whoever runs it checks the stats and draws, makes the judges' call (its name tonight and who), and chooses where
 // a vote's level after its tie-break. Confirming counts the votes and closes voting. Driven through the real Worker

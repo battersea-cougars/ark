@@ -1,4 +1,4 @@
-// An admin adds someone to the club (ADR 0069): their name, email and position, and the app emails them a link to
+// An admin adds someone to the club (apps/team/worker/members/README.md): their name, email and position, and the app emails them a link to
 // itself. They sign in with that email as anyone does. Driven through the real handlers in the fake world (ADR 0031);
 // with no Gmail in tests, the email is logged.
 import { beforeEach, describe, expect, it, vi } from "vitest";

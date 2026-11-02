@@ -1,10 +1,10 @@
-// A member's phone with a live page open, for the live use cases (ADR 0072): the app's own copy of the club
+// A member's phone with a live page open, for the live use cases (ADR 0053): the app's own copy of the club
 // (src/app/catch-up.ts) reading through the real Worker, its stream from the real hub, and a live match the hub
 // pushes put in place as the app does (#161).
 import { ClubCopy, withMatch } from "../../src/app/catch-up";
 import { partsChanged } from "../../src/app/club-parts";
 
-/** Whether these actions see everyone's dues (ADR 0007), as the app's copy asks. */
+/** Whether these actions see everyone's dues (apps/team/worker/dues/README.md), as the app's copy asks. */
 const seesDues = (actions: string[]) => ["manage:all", "read:Dues", "record:Payment"].some((a) => actions.includes(a));
 import { atVersion } from "../../src/app/club-tag";
 import type { testWorld } from "../testing";

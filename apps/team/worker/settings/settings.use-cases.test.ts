@@ -1,4 +1,4 @@
-// How often live pages check for updates (ADR 0072): the game page while a game's on, the tournament's home, and the
+// How often live pages check for updates (ADR 0053): the game page while a game's on, the tournament's home, and the
 // draft room. Each check is a request against the club's free daily allowance, so an admin sets it, and everyone's
 // app follows. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

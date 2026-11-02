@@ -1,4 +1,4 @@
-// A tournament as its forms hold it (ADR 0030): the one shape the wizard (lib/TournamentQuickCreate) and the full
+// A tournament as its forms hold it (apps/team/worker/tournaments/README.md): the one shape the wizard (lib/TournamentQuickCreate) and the full
 // editor (lib/TournamentDateEditor) fill in, the field groups both show (lib/Tournament*Fields), and the way to and
 // from a saved tournament. Pure: what the forms do with it is theirs.
 import { seasonEnd, seasonOf, seasonYear, type Season } from "@cougars/shared/seasons";
@@ -20,18 +20,18 @@ export interface TournamentForm {
   /** Its series, or none: a tournament can stand on its own */
   typeId: number | null;
   name: string;
-  /** Optional: empty while it's just a season (ADR 0030) */
+  /** Optional: empty while it's just a season (apps/team/worker/tournaments/README.md) */
   heldOn: string;
   /** Always: the season it's in, which a day sets */
   season: Season;
   seasonYear: number;
   startTime: string;
   endTime: string;
-  /** Its place (ADR 0030); none set: its series' */
+  /** Its place (apps/team/worker/tournaments/README.md); none set: its series' */
   venueId: number | null;
   location: string;
   mapUrl: string;
-  /** Where everyone goes afterwards (ADR 0074): its series' (usual), its own, or none this time */
+  /** Where everyone goes afterwards (apps/team/worker/tournaments/README.md): its series' (usual), its own, or none this time */
   afterMode: AfterMode;
   afterVenueId: number | null;
   afterTime: string | null;
@@ -144,7 +144,7 @@ export function formOf(t: Tournament): TournamentForm {
 }
 
 /**
- * Picking a series copies its defaults in (ADR 0030, 0074): its usual hours, place, rules and awards, its type, its
+ * Picking a series copies its defaults in (apps/team/worker/tournaments/README.md): its usual hours, place, rules and awards, its type, its
  * name if there's none yet, and its fee unless anyone's paid (`charged`). They can then change for this one.
  */
 export function withSeries(f: TournamentForm, t: TournamentType, { charged = false } = {}) {

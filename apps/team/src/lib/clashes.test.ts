@@ -1,4 +1,4 @@
-// When an editor asks what's on (ADR 0122): only a new or moved time, never a season, past midnight the next day.
+// When an editor asks what's on (apps/team/worker/calendar/README.md): only a new or moved time, never a season, past midnight the next day.
 import { describe, expect, it } from "vitest";
 import {
   answerAll,

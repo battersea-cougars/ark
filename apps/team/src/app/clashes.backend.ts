@@ -1,5 +1,5 @@
-// Something already on then (ADR 0122): asking the Worker what a new time is over, and calling off what the admin
-// chose after their save went in. Only the editors ask, so it's its own module, not on Home's first paint (ADR 0120).
+// Something already on then (apps/team/worker/calendar/README.md): asking the Worker what a new time is over, and calling off what the admin
+// chose after their save went in. Only the editors ask, so it's its own module, not on Home's first paint (ADR 0053).
 import type { ClashQuestion, Skip } from "../lib/clashes";
 import { api } from "./api";
 import { save, setCancelled, setClubEventCancelled } from "./backend.svelte";

@@ -1,4 +1,4 @@
-// Where an edition stands at its edges (ADR 0074): sign-up opening and closing at London's midnight, on the days the
+// Where an edition stands at its edges (apps/team/worker/tournaments/README.md): sign-up opening and closing at London's midnight, on the days the
 // clocks change (25 October 2026 back, 28 March 2027 forward), an admin's status against the games, and which edition
 // a series opens on when there's none, or one on today. Pure logic; "now" is set with fake timers, never the real clock.
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -147,7 +147,7 @@ describe("which edition a series opens on, at the edges", () => {
   });
 });
 
-describe("the after-party is the evening it was played, whatever its date says (ADR 0074)", () => {
+describe("the after-party is the evening it was played, whatever its date says", () => {
   const played = (startedAt: (string | null)[], o: Partial<Tournament> = {}) =>
     cup({
       games: startedAt.map((s, k) => ({ ...game(k + 1, "done"), startedAt: s })) as never,
@@ -175,7 +175,7 @@ describe("the after-party is the evening it was played, whatever its date says (
   });
 });
 
-describe("every award revealed: done, its results on its page that evening, then history (ADR 0074)", () => {
+describe("every award revealed: done, its results on its page that evening, then history", () => {
   const champs = { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } };
   const night = (revealed: number) =>
     cup({

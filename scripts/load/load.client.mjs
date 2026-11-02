@@ -2,7 +2,7 @@
 // says they share one (the rink's wifi; against dev every phone is this machine's one address), doing what the team
 // app does: the bootstrap with its ETag at the version its
 // copy holds (ADR 0053), a change with the page's Origin and its reply's parts put in place, and a live page's stream
-// (ADR 0072), its copy of the club reading the parts an event names, or taking the live match it brings (the app's own
+// (ADR 0053), its copy of the club reading the parts an event names, or taking the live match it brings (the app's own
 // catch-up.ts, #112, #161).
 import { ClubCopy, withMatch } from "../../apps/team/src/app/catch-up.ts";
 import { atVersion, VERSION_HEADER } from "../../apps/team/src/app/club-tag.ts";

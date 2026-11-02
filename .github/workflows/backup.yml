@@ -1,6 +1,6 @@
 name: Back up
 
-# The club's database, every night (ADR 0106): exported, sealed with the environment's BACKUP_KEY
+# The club's database, every night (ADR 0050): exported, sealed with the environment's BACKUP_KEY
 # (scripts/db-backup.mjs) and kept 90 days as an artifact of this run. The team app's Usage page says when the last one
 # was. deploy.yml also takes one before it changes the schema. To read one back: db/README.md, Restore.
 #

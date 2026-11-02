@@ -1,4 +1,4 @@
-// A past one recorded (ADR 0126): an admin puts in a Kumite the club played before the app, done and in history.
+// A past one recorded (apps/team/worker/tournaments/README.md): an admin puts in a Kumite the club played before the app, done and in history.
 import { rowOf, type Route } from "../api/api.route";
 import { body, json } from "../api/api.http";
 import { recordPast } from "./past";

@@ -1,4 +1,4 @@
-// A past Kumite recorded (ADR 0126): the club played Kumites before the app, and an admin puts one in after the fact:
+// A past Kumite recorded (apps/team/worker/tournaments/README.md): the club played Kumites before the app, and an admin puts one in after the fact:
 // its day, its teams, its matches with their scores (a final among them) and who scored where anyone remembers, and
 // who won each award. It goes straight into history, done, its awards out, with nobody charged for it; the all-time
 // leaders count the goals that have a scorer. A member who doesn't run tournaments can't. Driven through the real

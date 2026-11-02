@@ -5,7 +5,7 @@ import { game, kumite, team } from "./kumite.testing";
 const TODAY = "2026-10-21";
 
 // "I should always be able to enter prior kumite and see that timeline", "this page is the layout for that specific
-// kumite — the url should reflect that" (the user, 2026-10-23): every edition has its own address (ADR 0074)
+// kumite — the url should reflect that" (the user, 2026-10-23): every edition has its own address (apps/team/worker/tournaments/README.md)
 describe("an edition's own address", () => {
   it("is the series' address and its id; its statuses under it", () => {
     expect(editionPath("kumite", 12)).toBe("/tournaments/kumite/12");

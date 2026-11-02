@@ -1,4 +1,4 @@
-// The draft (ADR 0060): picks, and drawing the order, opening, closing (with the fixtures) and resetting it.
+// The draft (apps/team/worker/tournaments/README.md): picks, and drawing the order, opening, closing (with the fixtures) and resetting it.
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import {
   closeDraft,
@@ -22,7 +22,7 @@ export const DRAFT_ROUTES: Route[] = [
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/draft\/picks$/,
     // A captain's pick is the draft's own record (pick_number, in order); one made for them by whoever runs the draft
-    // goes on the record too, naming both (ADR 0060)
+    // goes on the record too, naming both (apps/team/worker/tournaments/README.md)
     audit: {
       event: "draft.picked_for",
       subject: (c) => lastPickedFor(c.env.DB, id(c)),
@@ -74,7 +74,7 @@ export const DRAFT_ROUTES: Route[] = [
     changes: ["tournaments"],
     // Who picked whom: nothing on the calendar moves
     calendar: false,
-    // Step 1: the pick order, drawn at random, once (ADR 0060); every phone on the page sees it shuffle in
+    // Step 1: the pick order, drawn at random, once (apps/team/worker/tournaments/README.md); every phone on the page sees it shuffle in
     handle: async (c) => (await drawOrder(c.env.DB, id(c)), ok()),
   },
   {
@@ -86,7 +86,7 @@ export const DRAFT_ROUTES: Route[] = [
     },
     action: "run:Draft",
     changes: ["tournaments"],
-    // Step 2, once the order's drawn: the captains can pick (ADR 0060), and each hears it, with their place
+    // Step 2, once the order's drawn: the captains can pick (apps/team/worker/tournaments/README.md), and each hears it, with their place
     notify: draftOpen,
     handle: async (c) => (await openDraft(c.env.DB, id(c)), ok()),
   },
@@ -102,7 +102,7 @@ export const DRAFT_ROUTES: Route[] = [
     },
     action: "run:Draft",
     changes: ["tournaments"],
-    // { fixtures: "keep" | "clear" } (ADR 0060): clearing takes someone who edits the tournament too
+    // { fixtures: "keep" | "clear" } (apps/team/worker/tournaments/README.md): clearing takes someone who edits the tournament too
     handle: async (c) => {
       const fixtures = (await body(c.request)).fixtures ?? "keep";
       if (fixtures !== "keep" && fixtures !== "clear") throw new HttpError(400, "fixtures should be keep or clear.");
@@ -125,7 +125,7 @@ export const DRAFT_ROUTES: Route[] = [
     },
     action: "run:Draft",
     changes: ["tournaments"],
-    // Everyone's picked (or { leaveOut: true }): one tap closes the draft and makes the fixtures (ADR 0060)
+    // Everyone's picked (or { leaveOut: true }): one tap closes the draft and makes the fixtures (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await finishDraft(c.env.DB, id(c), (await body(c.request)).leaveOut === true), ok()),
   },
   {

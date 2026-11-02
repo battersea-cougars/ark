@@ -1,4 +1,4 @@
-// A past one recorded (ADR 0126): the club played Kumites before the app, and an admin puts one in after the fact, in
+// A past one recorded (apps/team/worker/tournaments/README.md): the club played Kumites before the app, and an admin puts one in after the fact, in
 // one go: when it was (a day gone by), its teams (names, captains, players, all members), its matches with their
 // scores (a final among them, if there was one) and, if anyone remembers, who scored, and who won each award. It goes
 // in done, its awards confirmed and every one revealed, so it's history at once (Past Kumites): no after-party, no
@@ -141,7 +141,7 @@ async function pastIn(db: D1Database, o: Record<string, unknown>, today: string)
 type Past = Awaited<ReturnType<typeof pastIn>>;
 
 /**
- * An admin records a past one (ADR 0126): `{ typeId, name, heldOn, teams, games, winners }`, `heldOn` before today.
+ * An admin records a past one (apps/team/worker/tournaments/README.md): `{ typeId, name, heldOn, teams, games, winners }`, `heldOn` before today.
  * Checked whole before anything's written; then made as any is (createTournament: its series' rules and awards, its
  * teams and captains), and the rest in one batch (filling).
  */

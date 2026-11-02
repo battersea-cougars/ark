@@ -1,4 +1,4 @@
-// Telling a member something that's theirs to know (what they owe, ADR 0007): one call, whatever the channel. Today
+// Telling a member something that's theirs to know (what they owe, apps/team/worker/dues/README.md): one call, whatever the channel. Today
 // that's an email, through the club's sender and its rules (packages/shared/email.ts, ADR 0027: outside production it
 // reaches only the safe inbox, the admins and the Dev tools list), and a notification on their phone if they have the
 // store app (push/push.ts, ADR 0108). A feature says what to tell whom; it never touches Gmail or Firebase itself, so a

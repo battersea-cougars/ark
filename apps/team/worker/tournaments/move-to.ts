@@ -1,8 +1,8 @@
-// An admin moves a captains' draft to any of its statuses at once (Move to…, ADR 0127; lib/move-to.ts plans it, the
+// An admin moves a captains' draft to any of its statuses at once (Move to…, apps/team/worker/tournaments/README.md; lib/move-to.ts plans it, the
 // same for the app and here). The request says the status the admin's page saw (`from`) and the one to move to (`to`):
 // read here from the tournament as it is, and refused (409) if it's moved on since. Back is the steps back
 // (step-back.ts) in order, in one batch, each statement only doing anything while it's still at that step; should a
-// step find nothing to do, another admin got there first, and it's refused (ADR 0121). Forward is the app's own jobs in
+// step find nothing to do, another admin got there first, and it's refused (ADR 0003). Forward is the app's own jobs in
 // order, each with its own guards: sign-up closed, the order drawn, the draft opened, or the rest chosen at random and
 // the draft closed (draft.ts setTeamsAtRandom), the fixtures made, the day under way, then finished. Checked first, so a
 // move that can't be made changes nothing.

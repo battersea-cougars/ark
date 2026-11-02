@@ -17,7 +17,7 @@ export const getStaticPaths = (async () => {
     home: { title: "Roller hockey club", osd: session, footer: since },
     fridays: { title: `${slot?.day ?? "Friday"} nights`, osd: session, footer: s.venue.name },
     join: { title: "Try a session", osd: session, footer: s.venue.name },
-    // The results pages share the Kumite's (ADR 0109)
+    // The results pages share the Kumite's (apps/web/src/README.md)
     ...((on.kumite || on.results) && {
       kumite: { title: "The Cougars Kumite", osd: "Special event", footer: since, night: true },
     }),

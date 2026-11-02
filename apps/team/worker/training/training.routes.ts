@@ -1,4 +1,4 @@
-// Training (ADR 0030, ADR 0076): series and their sessions, the register, and the night's teams.
+// Training (apps/team/worker/training/README.md): series and their sessions, the register, and the night's teams.
 import { places, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
@@ -56,7 +56,7 @@ export const TRAINING_ROUTES: Route[] = [
     changes: ["series", "sessions", "charges", "dues"],
     // A limit raised lets the first waiting in on each night, and they hear it
     notify: places,
-    // Its fees too, for whoever sets fees (ADR 0007)
+    // Its fees too, for whoever sets fees (apps/team/worker/dues/README.md)
     handle: async (c) => {
       const b = await body(c.request);
       const fees = await seriesFeeChange(c.env.DB, id(c), b.fees, c.actions);
@@ -85,7 +85,7 @@ export const TRAINING_ROUTES: Route[] = [
     action: "manage:Training",
     changes: ["sessions"],
     // { heldOn }: the one night the rule gives that day, made now (past the weeks ahead) so it can be cancelled
-    // before the rest are made (a clash, ADR 0122); { id }, the same night if it's made already
+    // before the rest are made (a clash, apps/team/worker/training/README.md); { id }, the same night if it's made already
     handle: async (c) => json({ id: await nightOf(c.env.DB, id(c), await body(c.request), c.today) }),
   },
   {
@@ -143,7 +143,7 @@ export const TRAINING_ROUTES: Route[] = [
       event: "signups.changed",
       subject: rowsOf("SELECT member_id memberId, signup FROM attendance WHERE session_id = ? ORDER BY member_id"),
     },
-    // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
+    // Who's playing is the team maker's to decide on the night, as the teams are (apps/team/worker/training/README.md)
     action: "publish:Teams",
     changes: ["sessions", "charges", "dues"],
     notify: places,
@@ -167,7 +167,7 @@ export const TRAINING_ROUTES: Route[] = [
     method: "POST",
     path: /^\/api\/sessions\/(\d+)\/register$/,
     audit: {
-      // The register makes the night's charges (ADR 0007): who was there, who didn't come, who walked in
+      // The register makes the night's charges (apps/team/worker/dues/README.md): who was there, who didn't come, who walked in
       event: "register.marked",
       subject: rowsOf(
         `SELECT member_id memberId, attended, walk_in walkIn FROM attendance
@@ -175,12 +175,12 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "record:Attendance",
-    // Who came is who's charged (ADR 0007)
+    // Who came is who's charged (apps/team/worker/dues/README.md)
     changes: ["sessions", "members", "charges", "dues"],
     // A walk-in taken off frees a place
     notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team
-    // maker's Let in (ADR 0131); the reply says where they went: { signup: "in" | "waitlist" | null }
+    // maker's Let in (apps/team/worker/training/README.md); the reply says where they went: { signup: "in" | "waitlist" | null }
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.here !== "boolean") throw new HttpError(400, "here should be true or false.");

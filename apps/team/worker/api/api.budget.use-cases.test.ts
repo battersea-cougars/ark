@@ -17,7 +17,7 @@ import { NOW, testWorld, wholeClub, type D1Spent, type Reply } from "../testing"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
 
-/** Workers Free stops an invocation at 50 D1 queries (a batch is one, ADR 0123): no request may come near it. */
+/** Workers Free stops an invocation at 50 D1 queries (a batch is one, ADR 0010): no request may come near it. */
 const WORKERS_FREE = 50;
 /** D1 round trips a request may make: half the free plan's, so there's room for what a route grows into. */
 export const D1_BUDGET = 25;
@@ -25,11 +25,11 @@ export const D1_BUDGET = 25;
 const OWN_BUDGET: Record<string, { most: number; why: string }> = {
   "POST /api/tournaments/:id/simulate": {
     most: 45,
-    why: "dev only (ADR 0123): up to four moves in 30 queries, the request around them about 11",
+    why: "dev only (ADR 0010): up to four moves in 30 queries, the request around them about 11",
   },
   "POST /api/tournaments/:id/move": {
     most: 40,
-    why: "up to eight of the app's own jobs in one tap, each with its own guards (ADR 0074, 0121)",
+    why: "up to eight of the app's own jobs in one tap, each with its own guards (ADR 0003, apps/team/worker/tournaments/README.md)",
   },
 };
 /** Sign-in's own routes (auth.ts handleAuth), answered before the route table. */
@@ -541,7 +541,7 @@ async function kumites() {
   await boot(await member(12), EVENING);
   await hit(dana, "PUT", `/api/tournaments/${mid}/games/${t.games[1].id}`, { homeGoals: 2, awayGoals: 1 }, EVENING);
 
-  // A past one recorded (ADR 0126): the most teams, every match of their round robin and a final, every goal named
+  // A past one recorded (apps/team/worker/tournaments/README.md): the most teams, every match of their round robin and a final, every goal named
   const captains = [1, 2, 3, 4, 5, 6, 7, 8];
   const pastTeams = captains.map((n, i) => ({
     name: `Old ${n}`,
@@ -596,7 +596,7 @@ async function kumites() {
   const crest = "data:image/png;base64,iVBORw0KGgo=";
   await hit(dana, "PUT", `/api/tournaments/${past.id}/teams/${past.teams[0].id}/look`, { name: "Crest", logo: crest });
   await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/logo`);
-  // A Kumite on a past day (dev, ADR 0123): made, then played out on that evening to its last award, at Spin kick
+  // A Kumite on a past day (dev, ADR 0010): made, then played out on that evening to its last award, at Spin kick
   const pastDay = await hit(dana, "POST", "/api/tournaments/past-day", { typeId: KUMITE_TYPE, heldOn: "2026-09-25" });
   for (let i = 0; i < 200; i++) {
     const r = await hit(dana, "POST", `/api/tournaments/${pastDay.body.id}/simulate`, { moves: 4, onItsDay: true });

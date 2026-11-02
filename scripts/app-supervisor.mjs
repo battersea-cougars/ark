@@ -375,7 +375,7 @@ function serveSwitch(service) {
     if (!t.up) return socket.destroy();
     forwardUpgrade(req, socket, head, t.port);
   });
-  server.requestTimeout = 0; // live streams (SSE, ADR 0072) stay open
+  server.requestTimeout = 0; // live streams (SSE, ADR 0053) stay open
   server.on("error", (e) => {
     log(`can't hold ${PORTS[service]} for the ${label}: ${e.message}`);
     void shutdown("a port is taken");

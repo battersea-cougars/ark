@@ -1,5 +1,5 @@
 // Page components by route.page (nav-routes.ts pairs each page with its params). Home, where the app opens, is part of
-// the app itself, so Vite fetches it with the app's own files (ADR 0120); every other page is its own chunk: a phone
+// the app itself, so Vite fetches it with the app's own files (ADR 0053); every other page is its own chunk: a phone
 // downloads and parses the page it opens on, not all of them. main.ts loads that one before the app mounts, so the
 // first paint has its page; once the app's up, the pages you can open load in the background, so moving between
 // them never waits. Pages take different props, so the map is loosely typed.

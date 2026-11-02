@@ -1,4 +1,4 @@
-// What members owe, read without every charge and payment there has been (#177, ADR 0007): opening the app sends
+// What members owe, read without every charge and payment there has been (#177, apps/team/worker/dues/README.md): opening the app sends
 // your own unpaid charges and a line per member of what they owe, by age (Unpaid fees); a member's ledger is read a
 // page at a time, newest first, each line with what they owed after it. Balances must come out exactly as the whole
 // ledger worked out in one go does (lib/dues.ts ledger and aged, the sums the app used to do itself), for members in

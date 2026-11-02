@@ -158,7 +158,7 @@ describe("stageBadge: the stamp says the status, as the track does", () => {
   });
 });
 
-describe("afterwards on the front page (ADR 0074)", () => {
+describe("afterwards on the front page", () => {
   it("is a quiet line before the day, at every stage", () => {
     expect(afterMomentOf(draft(), TODAY)).toBe("before");
     expect(afterMomentOf(teamsSet(), TODAY)).toBe("before");
@@ -193,7 +193,7 @@ describe("afterwards on the front page (ADR 0074)", () => {
   });
 });
 
-describe("statusesOf: one page, by status (ADR 0074)", () => {
+describe("statusesOf: one page, by status", () => {
   // "Fight Card is confusing if we think of the kumite in stages. It should really be a status: Draft Open, Draft
   // Completed, Fixtures Created, Kumite!" (the user, 2026-10-22)
   const now = (t: Tournament, today = TODAY) => statusesOf(t, kumite, today).find((s) => s.state === "now")?.status;
@@ -329,7 +329,7 @@ describe("currentMatchOf: the match the carousel brings forward", () => {
   });
 });
 
-describe("paneOf: the draft is its captains' and whoever runs it (ADR 0060)", () => {
+describe("paneOf: the draft is its captains' and whoever runs it", () => {
   const live = draft({ draftState: "open", teams: [team(1, 2), team(2, 4)] });
 
   it("everyone else fights blind; a captain and whoever runs it see the draft", () => {

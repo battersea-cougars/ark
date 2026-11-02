@@ -1,4 +1,4 @@
-// The club's emails about joining (ADR 0069): the admins hear when someone asks to join, and the member hears once
+// The club's emails about joining (apps/team/worker/members/README.md): the admins hear when someone asks to join, and the member hears once
 // they're in (added by an admin, or let in after asking). Each goes through sendMail, so outside production only the
 // allowed addresses get anything (ADR 0027) and Gmail's breaker has the last word (ADR 0055). An email that doesn't go
 // never undoes the change: it's logged, and the caller can say so.

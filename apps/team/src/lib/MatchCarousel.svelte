@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The matches as a vertical carousel (ADR 0074), for a tournament's KUMITE! view: the match that matters now
+  // The matches as a vertical carousel (apps/team/worker/tournaments/README.md), for a tournament's KUMITE! view: the match that matters now
   // (lib/tournament-front.ts currentMatchOf: on now, else up next, else the last) near the top, brought forward, full
   // size and bright, with its stamp; a sliver of the one before over it and the ones after below, smaller and dim,
   // as the draft's ticker lifts the pick on the clock. A thumb scrolls it, a match a snap; on a desktop the arrows

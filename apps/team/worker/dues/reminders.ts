@@ -1,4 +1,4 @@
-// Reminders of what someone owes (ADR 0007). Whoever records payments sends them from Unpaid fees (or a member's card),
+// Reminders of what someone owes (apps/team/worker/dues/README.md). Whoever records payments sends them from Unpaid fees (or a member's card),
 // after a preview; nothing sends them on a schedule yet (a configurable one is #143). It's at most one a week per
 // member, so a double tap or two admins at once send one, and each goes through `tell` (an email, and their phone if
 // they have the store app). How firm the letter is follows the age of their oldest charge (Unpaid fees' buckets).
@@ -19,7 +19,7 @@ import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("reminders");
 
-/** The limits, in one place (ADR 0007). */
+/** The limits, in one place (apps/team/worker/dues/README.md). */
 export const REMINDERS = {
   /** Never more than one a week to anyone. */
   weekDays: 7,

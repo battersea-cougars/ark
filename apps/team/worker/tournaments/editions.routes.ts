@@ -1,4 +1,4 @@
-// A series' editions, read when they're wanted (#175, ADR 0074): a past one in full when its page opens, History a
+// A series' editions, read when they're wanted (#175, apps/team/worker/tournaments/README.md): a past one in full when its page opens, History a
 // page at a time, all-time leaders, and each team's logo at an address of its own. Each read as the club read is,
 // for this member (view-as too), tagged by the data version so asking again unchanged is an empty 304.
 import { id, type Ctx, type Route } from "../api/api.route";

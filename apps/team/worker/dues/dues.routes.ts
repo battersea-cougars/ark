@@ -1,4 +1,4 @@
-// Dues (ADR 0007): fees, charges, payments and adjustments, and a member's quarterly plan.
+// Dues (apps/team/worker/dues/README.md): fees, charges, payments and adjustments, and a member's quarterly plan.
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import {
   addAdjustment,
@@ -71,7 +71,7 @@ export const DUES_ROUTES: Route[] = [
       return ok();
     },
   },
-  // Dues (ADR 0007)
+  // Dues (apps/team/worker/dues/README.md)
   {
     method: "POST",
     path: /^\/api\/subscription-fees$/,

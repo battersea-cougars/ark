@@ -9,12 +9,12 @@
 
 <script lang="ts">
   // One tournament's editor, in the panel its card opens (Settings → Tournaments): what an admin comes here
-  // for. When and where it is, sign-up, its teams (ADR 0030): teams that entered, or a draft's captains (in no order:
+  // for. When and where it is, sign-up, its teams (apps/team/worker/tournaments/README.md): teams that entered, or a draft's captains (in no order:
   // it's drawn as the draft opens) and the draft night, and its rules and awards, on tabs as the training editor lays
   // out its fields. The tabs are the wizard's steps, by the same names, and each group of fields is the one the wizard
   // shows (lib/Tournament*Fields), so scheduling one and editing it read as one form (#163). Picking a series copies
-  // its defaults in (ADR 0030); they can then change for this one. The series' look (icon, colour) stays the series'.
-  // Not here: its stage (Coming up, Sign-up open, …), moved on from its own page (Manage, ADR 0074), and a team's
+  // its defaults in (apps/team/worker/tournaments/README.md); they can then change for this one. The series' look (icon, colour) stays the series'.
+  // Not here: its stage (Coming up, Sign-up open, …), moved on from its own page (Manage, apps/team/worker/tournaments/README.md), and a team's
   // name and logo, edited on the team's page (Edit the team).
   import { tick } from "svelte";
   import { createTournament, updateTournament } from "../app/backend.svelte";
@@ -173,7 +173,7 @@
     const unnamed = date.kind === "teams" ? date.teams.findIndex((t) => !t.name.trim()) : -1;
     if (unnamed >= 0) return void ((tab = "teams"), (sheet = { team: unnamed }));
     const t = toTournament(date, stored?.status);
-    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
+    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (apps/team/worker/training/README.md)
     const window = tournamentWindow(t, stored);
     const chosen = window ? await clashSheet?.ask(window, t.name) : [];
     if (chosen === null) return;

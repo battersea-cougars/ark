@@ -76,7 +76,7 @@ interface Spent {
   fetches: number;
   d1: D1Spent;
 }
-/** D1 calls: round trips (a batch is one, as Workers counts its 50 queries, ADR 0123) and the statements in them. */
+/** D1 calls: round trips (a batch is one, as Workers counts its 50 queries, ADR 0010) and the statements in them. */
 export interface D1Spent {
   roundTrips: number;
   statements: number;
@@ -109,7 +109,7 @@ export function testWorld(roster: object[]) {
   const db = createTestD1();
   db.raw.exec(rosterSql(parseRoster(JSON.stringify(roster)), NOW));
   db.raw.exec(FIRST_KUMITE_SQL);
-  // The live hub (ADR 0072) as the Worker reaches it: one object, behind a namespace that always finds it
+  // The live hub (ADR 0053) as the Worker reaches it: one object, behind a namespace that always finds it
   const live = new LiveHub();
   /** The subrequests and D1 calls of the invocation running, however many run at once (each its own count, ADR 0003). */
   const running = new AsyncLocalStorage<Spent>();
@@ -725,7 +725,7 @@ export function testWorld(roster: object[]) {
     return b;
   }
 
-  /** A phone with a live page open (ADR 0072): the events its stream brings, in order. */
+  /** A phone with a live page open (ADR 0053): the events its stream brings, in order. */
   async function listening(email: string, now = NOW) {
     const b = await signedIn(email);
     const res = await b.open("GET", "/api/live", { now });

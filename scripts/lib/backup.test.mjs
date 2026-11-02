@@ -1,5 +1,5 @@
 // A backup is the club's database, personal data included, kept where the public can list it (a GitHub artifact):
-// only someone with the key can read it back, and a changed byte is noticed, not restored (ADR 0106).
+// only someone with the key can read it back, and a changed byte is noticed, not restored (ADR 0050).
 import { describe, expect, it } from "vitest";
 import { open, seal } from "./backup.mjs";
 

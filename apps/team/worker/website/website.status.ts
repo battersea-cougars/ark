@@ -1,6 +1,6 @@
 // What Settings → Website shows (#107): when the site was last rebuilt from the app, whether one is on its way, when
 // its photos and videos were last refreshed (#109), and
-// where the site and its Studio are for this environment (ADR 0010, ADR 0112).
+// where the site and its Studio are for this environment (ADRs 0010, 0004).
 import { first } from "@cougars/shared/d1";
 import { websiteTime } from "@cougars/shared/website-times";
 import { canRebuild, type WebsiteEnv } from "./website";

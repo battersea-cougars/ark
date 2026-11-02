@@ -26,7 +26,7 @@
     const asked = askedBy(router.path);
     if (asked && db.tournamentTypes.some((t) => t.slug === asked.slug)) untrack(() => wantEdition(asked));
   });
-  // A series' address with one on is that one's own (ADR 0074): replaced before the page shows, and again when the
+  // A series' address with one on is that one's own (apps/team/worker/tournaments/README.md): replaced before the page shows, and again when the
   // one on changes under it (the next one scheduled from No Kumite yet)
   $effect.pre(() => {
     const to = editionAddressOf(router.path);
@@ -90,8 +90,8 @@
     {#if v.Page && ready}<v.Page {...v.params} />{/if}
   {/each}
 </Shell>
-<!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page. Loaded only where the
-     simulator is, so no phone in production downloads it before Home paints (ADR 0120) -->
+<!-- Dev only (ADR 0010): the Kumite simulation's control, while one runs, over whichever page. Loaded only where the
+     simulator is, so no phone in production downloads it before Home paints (ADR 0053) -->
 {#if SIMULATOR}
   {#await import("./lib/SimulationControl.svelte") then { default: SimulationControl }}
     <SimulationControl focus={!!route.focus} />

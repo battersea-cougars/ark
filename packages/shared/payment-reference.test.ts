@@ -1,4 +1,4 @@
-// The name rules behind a bank reference (ADR 0007): fiddly enough to pin down on their own.
+// The name rules behind a bank reference (apps/team/worker/dues/README.md): fiddly enough to pin down on their own.
 import { describe, expect, it } from "vitest";
 import { createTestD1 } from "./testing/d1-sqlite";
 import { REFERENCE_MAX, assignReferenceSql, referenceBase } from "./payment-reference";

@@ -1,4 +1,4 @@
-// The club's branded email frame (ADR 0027, colours from ADR 0084), for the team app's emails and the website's
+// The club's branded email frame (ADR 0027, colours from ADR 0009), for the team app's emails and the website's
 // enquiry email and auto-reply. One quiet card, as a good transactional email is: the club's red bar along the top, the wordmark,
 // then what the email is for, plainly; under it a tall footer that says who it's from. Email HTML is tables and inline
 // styles, and no images, so it looks the same with images blocked. Anything a person typed goes through escapeHtml

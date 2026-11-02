@@ -1,8 +1,8 @@
-// An admin closes a tournament's sign-up now (ADR 0074), before its closing day: when, on its own (signup_closed_at),
+// An admin closes a tournament's sign-up now (apps/team/worker/tournaments/README.md), before its closing day: when, on its own (signup_closed_at),
 // its dates left as they were, so a later save never finds it closing before it opens (lib/signup.ts signupOver).
 // Members can't say they're in any more, and a captains' draft moves on to Draft open, where the order's drawn
 // (lib/tournament-front.ts statusOf). One statement that only does anything while sign-up's open and nothing's drawn
-// or made, so two taps at once close it once (ADR 0121). Back to Sign-up open (step-back.ts) opens it again.
+// or made, so two taps at once close it once (ADR 0003). Back to Sign-up open (step-back.ts) opens it again.
 import { all, first, run, type Param } from "@cougars/shared/d1";
 import { syncTournament } from "@cougars/shared/agenda";
 import { HttpError } from "../api/api.http";
@@ -31,7 +31,7 @@ export async function closeSignup(db: D1Database, tournamentId: number, today: s
   if (agenda) await syncTournament(db, tournamentId);
 }
 
-// Its sign-up opening (ADR 0074, 0108): members hear it once, under Your place (topic `places`), on the day it's set to
+// Its sign-up opening (ADR 0108, apps/team/worker/tournaments/README.md): members hear it once, under Your place (topic `places`), on the day it's set to
 // open (the cron, announceOpenTournaments) or the moment an admin opens it by hand (push.notices.ts tournamentSaved).
 // Whichever comes first marks it told (`signup_told_at`) in the statement that takes it, so it's never said twice, and
 // opened again (Back to Sign-up open) it isn't news. Nor is it to a member who's answered already (said Out, or
@@ -67,7 +67,7 @@ export function signupOpenNotice(t: Opened): Notice {
 
 /**
  * Marks the tournaments matching `where` told, and returns them: only those nobody's told yet, not started (one played
- * early is past, whatever its date, ADR 0074, #182), their sign-up not over.
+ * early is past, whatever its date, apps/team/worker/tournaments/README.md, #182), their sign-up not over.
  */
 export const markTold = (db: D1Database, where: string, args: Param[], now: Date) =>
   all<Opened>(

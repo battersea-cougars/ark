@@ -95,7 +95,7 @@ async function checkDev() {
         ? `Today so far (UTC day): ${today.rowsRead} D1 rows read (${pct(today.rowsRead)} of the free 5M), ${today.rowsWritten} written, ${today.requests} team requests`
         : "Today so far: unknown (no CLOUDFLARE_ANALYTICS_TOKEN)",
       `This run reads about ${cost} rows (${pct(cost)})${minutes ? " a round" : ""}, writes a few thousand; ` +
-        `the free day resets at 00:00 UTC; past 80% dev's hourly check emails its admins (ADR 0059)`,
+        `the free day resets at 00:00 UTC; past 80% dev's hourly check emails its admins (ADR 0003)`,
     ].join("\n"),
   );
   if (!nothingLeft(left)) fail("Clean up first: npm run load -- --cleanup --target dev");

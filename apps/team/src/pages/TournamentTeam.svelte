@@ -3,7 +3,7 @@
   // A team in a tournament: its crest and name, the squad, and its games. Every team has one, reached from wherever
   // the team's shown, with a way back to them all; yours is also My team (no teamId: the one you're on). Its captain
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
-  // initials). A draft's players only show once it's closed, to anyone outside it (ADR 0060).
+  // initials). A draft's players only show once it's closed, to anyone outside it (apps/team/worker/tournaments/README.md).
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import EmptyState from "../lib/EmptyState.svelte";
@@ -52,7 +52,7 @@
   const captain = $derived(byId(team?.captainMemberId ?? null));
   const fallback = $derived(team ? nameOfTeam({ ...team, name: "" }, teams, byId) : "");
   const isCaptain = $derived(!!team && team.captainMemberId === me().id);
-  // An admin edits any team here: its name and logo as its captain does, and who's on it (TeamDrawer, ADR 0060)
+  // An admin edits any team here: its name and logo as its captain does, and who's on it (TeamDrawer, apps/team/worker/tournaments/README.md)
   const admin = $derived(can(granted(), "manage:Tournament"));
   const canEdit = $derived(isCaptain || admin);
   let squadOpen = $state(false);

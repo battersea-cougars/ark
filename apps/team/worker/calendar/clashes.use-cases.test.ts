@@ -1,4 +1,4 @@
-// Something over something else (ADR 0122): an admin putting a tournament, or a one-off, on a day and time when the
+// Something over something else (apps/team/worker/calendar/README.md): an admin putting a tournament, or a one-off, on a day and time when the
 // club already has something on (the Kumite on a Friday night, over Friday Training) is asked whether that should be
 // off. The app asks the Worker what clashes before it saves; what the admin chooses to cancel goes through the
 // session's own cancel (members told, nobody charged), never a second one. Driven through the real Worker handlers.
@@ -79,7 +79,7 @@ describe("scheduling over something already on", () => {
       `/api/sessions/${night.id}/answer`,
       { answer: "in" },
       { now: new Date("2026-10-12T12:00:00Z") },
-    ); // the Monday: sign-up open (ADR 0030)
+    ); // the Monday: sign-up open (apps/team/worker/calendar/README.md)
     const [clash] = (await ask(dana, at(FRIDAY, "18:00"), at(FRIDAY, "23:00"))).body.clashes;
     expect(clash.signedUp).toBe(1);
 

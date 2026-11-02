@@ -1,5 +1,5 @@
 // Once a quarter the club asks its members whether they want to be Quarterly Members or pay as they go for the next
-// quarter (ADR 0007). A member chooses next quarter's plan on their Dues page, and can change their mind until it
+// quarter (apps/team/worker/dues/README.md). A member chooses next quarter's plan on their Dues page, and can change their mind until it
 // starts; this quarter's is fixed. The server checks the date, whatever the app showed: one left open past the
 // quarter's start can't change it. Driven through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

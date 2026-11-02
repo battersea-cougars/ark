@@ -101,7 +101,7 @@ export async function resetSession(db: D1Database, sessionId: number, now: strin
   ]);
 }
 
-/** A session's day and how many said anything: what a reset takes away (the record, ADR 0095). */
+/** A session's day and how many said anything: what a reset takes away (the record, ADR 0024). */
 export const sessionSignups = (db: D1Database, sessionId: number) =>
   first<{ heldOn: string; signups: number }>(
     db,

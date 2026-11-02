@@ -1,4 +1,4 @@
-// The simulator's loop (ADR 0123): a move at a time (a few at Spin kick), paced to watch at Kata, quicker at Sparring
+// The simulator's loop (apps/team/worker/settings/README.md): a move at a time (a few at Spin kick), paced to watch at Kata, quicker at Sparring
 // and Spin kick, paused, resumed and stopped from the control.
 // Fake timers stand in for the clock; the requests are a script of replies.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

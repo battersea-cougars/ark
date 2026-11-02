@@ -1,4 +1,4 @@
-// Scoring a game as it's played (ADR 0130). Each game suggests a team sitting it out to keep score (scorekeepers in
+// Scoring a game as it's played (apps/team/worker/tournaments/README.md). Each game suggests a team sitting it out to keep score (scorekeepers in
 // lib/fixtures.ts), but one person keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can
 // score that game until they let it go, or an admin does (someone had to leave: anyone can take it on from there).
 // The holder starts and pauses the clock, logs each goal as it goes in (who scored, who assisted, when in game
@@ -17,7 +17,7 @@ interface Who {
   actions: ReadonlySet<Action>;
 }
 
-/** The game, and the day's games around it: one read for the whole tap (ADR 0059). */
+/** The game, and the day's games around it: one read for the whole tap (ADR 0003). */
 async function gameOf(db: D1Database, tournamentId: number, gameId: number) {
   const games = await listGames(db, tournamentId);
   const game = games.find((g) => g.id === gameId);
@@ -81,7 +81,7 @@ export async function holdScoresheet(
 /**
  * An admin's say over the scoresheet (#116), from whoever their page saw holding it (`from`, or null for nobody):
  * take it over (theirs from now, from where the game is: their phone dies, they've had to go) or free it (nobody's,
- * for anyone to take on: an admin who isn't at the rink). Decided in its statement (ADR 0121): only while it's still
+ * for anyone to take on: an admin who isn't at the rink). Decided in its statement (ADR 0003): only while it's still
  * `from`'s and the game isn't over, so two admins at once leave one scorekeeper and the other's told who has it. The
  * read before is only for the words.
  */
@@ -124,7 +124,7 @@ export async function overrideScoresheet(
 
 /**
  * A scorekeeper's write that changed nothing: refused for why. The sheet's gone to someone else (an admin took it
- * over, ADR 0130) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
+ * over, apps/team/worker/tournaments/README.md) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
  */
 async function refusal(db: D1Database, gameId: number, who: Who, moved: HttpError | null) {
   const g = await first<{ keeper: number | null }>(
@@ -157,7 +157,7 @@ export async function clockGame(
   const { game, games } = await scorable(db, tournamentId, gameId, who);
   const t = await tournamentOf(db, tournamentId);
   // Each write goes only while this member still holds the sheet: an admin taking it over between the read and the
-  // write leaves their phone's tap refused, never landed (ADR 0121)
+  // write leaves their phone's tap refused, never landed (ADR 0003)
   const held = `AND keeper_member_id = ${Number(who.memberId)}`;
   const landed = async (res: D1Result, moved: HttpError | null = null) => {
     if (res.meta.changes) return;
@@ -178,7 +178,7 @@ export async function clockGame(
       await landed(
         await run(
           db,
-          // Kick-off: when it actually started, kept from the first Start on (ADR 0121: set once, in its statement)
+          // Kick-off: when it actually started, kept from the first Start on (ADR 0003: set once, in its statement)
           `UPDATE tournament_games SET status = 'live', home_goals = 0, away_goals = 0, clock_left_ms = ?,
              clock_started_at = ?, started_at = COALESCE(started_at, ?) WHERE id = ? AND status = 'next' ${held}`,
           [t.gameMinutes * 60_000, now.toISOString(), now.toISOString(), gameId],
@@ -326,7 +326,7 @@ export async function addGoal(
     : t.gameMinutes * 60_000 - leftNow(game, now);
   const tapId = tapOf(o);
   // A goal missed on a finished playoff never leaves it level (#159, as taking one off can't, #123), decided in the
-  // statement that adds it (ADR 0121): two admins adding one each to a 3–1 Final at once can't make it 3–3. Params:
+  // statement that adds it (ADR 0003): two admins adding one each to a 3–1 Final at once can't make it 3–3. Params:
   // the game and this team, then the game and the other
   const playoff = done && game.stage === "playoff";
   const goals = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND team_id = ?)";
@@ -372,7 +372,7 @@ const leavesItLevel = () =>
 /**
  * Any goal off a finished game: it wasn't one, or it was the other side's. Never one that leaves a playoff level (a
  * playoff needs a winner, as full time and a typed-in result say, #123), decided in the statement that takes it off
- * (ADR 0121): two admins taking a goal each off a 2–1 Final at once leave it 1–1 for neither.
+ * (ADR 0003): two admins taking a goal each off a 2–1 Final at once leave it 1–1 for neither.
  */
 export async function removeGoal(db: D1Database, tournamentId: number, gameId: number, goalId: number, who: Who) {
   const game = await correctable(db, tournamentId, gameId, who);

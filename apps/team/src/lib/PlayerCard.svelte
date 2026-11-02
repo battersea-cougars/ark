@@ -1,7 +1,7 @@
 <script lang="ts">
   // A player as a physical trading card: printed card stock with a border round the photo, a deep red name plate and
   // the position printed large under it, and a shadow as if it's lying on the table. Flat colour, no sheen.
-  // The photo slot shows their profile photo (ADR 0133), or the club mark until they add one. The corner number is the sign-up order; your own
+  // The photo slot shows their profile photo (apps/team/worker/members/README.md), or the club mark until they add one. The corner number is the sign-up order; your own
   // card carries a "You" sticker in the other corner and a ring round it. Ratings
   // only show for admins (read:Rating). With `onopen` it's a button: the page flips it over (PlayerCardZoom), and
   // hides this one meanwhile, as if it's been picked up.
@@ -24,7 +24,7 @@
     player: Player;
     n?: number;
     you?: boolean;
-    /** A Quarterly skater signed up: they come first (ADR 0131), tagged so the list's order reads */
+    /** A Quarterly skater signed up: they come first (apps/team/worker/training/README.md), tagged so the list's order reads */
     quarterly?: boolean;
     showRating?: boolean;
     /** Tapped: given the card, so the zoom can start where it lies. */

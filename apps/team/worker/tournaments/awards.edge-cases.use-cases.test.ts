@@ -1,4 +1,4 @@
-// Who won, at the edges (ADR 0044): a tie, clearing the list, an award given to a team and a player at once, a team
+// Who won, at the edges (apps/team/worker/tournaments/README.md): a tie, clearing the list, an award given to a team and a player at once, a team
 // that leaves the tournament, and a tournament that isn't there. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";

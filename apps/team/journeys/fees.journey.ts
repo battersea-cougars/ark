@@ -1,4 +1,4 @@
-// Fees: what a Friday costs as its fee changes (ADR 0007; #154). A training's fee runs from its date until the next one
+// Fees: what a Friday costs as its fee changes (apps/team/worker/dues/README.md; #154). A training's fee runs from its date until the next one
 // starts: an admin schedules a new one, changes one back in time, and makes nights free; members come on Fridays and
 // see on their tab what each night charged. Ada sets the fees in the training's editor (Settings → Training → the
 // training → Fee per session, Fee from); Sam and Dee pay as they go; Bo is a Quarterly Member, whom no night charges.
@@ -14,7 +14,7 @@
 //   £15 from Thu 19 Nov, £16 from Fri 20 Nov, a day apart   (Fri 20 Nov: £16)
 //   £0 from Fri 27 Nov                                      (Fri 27 Nov: free, nothing owed)
 //
-// A night's own fee, beating the training's on that night only, isn't built (ADR 0007): a known bug, checked once.
+// A night's own fee, beating the training's on that night only, isn't built (apps/team/worker/dues/README.md): a known bug, checked once.
 //
 // Like every journey that moves the clocks, it keeps to one going forward (journey.ts `at`): the server works out
 // what's owed again on each day's first open, so an earlier moment would take back what a later one charged.
@@ -422,7 +422,7 @@ test("Fees: what a Friday costs as its fee changes", async ({ browser }) => {
     await knownBug(
       ada,
       "finds a fee for Fri 27 Nov alone in its Manage",
-      "not built yet: one night's own fee (ADR 0007)",
+      "not built yet: one night's own fee (apps/team/worker/dues/README.md)",
       async () => {
         await open(ada, `${path}/2026-11-27`);
         await ada.page.getByRole("button", { name: `Manage ${SHORT}` }).click();

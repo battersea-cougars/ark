@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Dev only (ADR 0123): the Kumite simulation's control while it runs, floating over whatever page you're on (its
+  // Dev only (apps/team/worker/settings/README.md): the Kumite simulation's control while it runs, floating over whatever page you're on (its
   // views, the draft room), so you can follow it along: what it just did, its speed (Kata, Sparring, Spin kick), Pause/Resume and Stop. The
   // run is a store (app/backend.svelte.ts simulating), so the control comes and goes with it, not with a page. Bottom
   // right on a desktop; on a phone, a bar above the tabs, the save note lifted over it. Its size never changes with

@@ -1,4 +1,4 @@
-// The club's agenda (ADR 0042): one list of what's on and when. Each part of the club pushes its own rows when it
+// The club's agenda (ADR 0016): one list of what's on and when. Each part of the club pushes its own rows when it
 // changes: a training's sessions (syncSeries), a tournament's day, draft night and sign-up deadline (syncTournament),
 // a one-off event (syncClubEvent). The website's What's on and the app's calendar read it, so they can't disagree.
 // The rules for each kind of row live here, once: where it is (its own place, else its series'), TBC and seasons,
@@ -26,7 +26,7 @@ export interface AgendaItem {
   day: string;
   allDay: boolean;
   dateTbc: boolean;
-  /** "Summer 2027" for a tournament that's only a season so far (ADR 0030). */
+  /** "Summer 2027" for a tournament that's only a season so far (apps/team/worker/calendar/README.md). */
   season: string | null;
   venue: string;
   mapUrl: string;
@@ -40,7 +40,7 @@ type SeriesPlace = { seriesVenueId: number | null; seriesName: string; seriesMap
 
 const VENUES = "SELECT id, name, address, map_url mapUrl, active FROM venues";
 
-/** Its own place wins, else its series' (ADR 0030). */
+/** Its own place wins, else its series' (apps/team/worker/calendar/README.md). */
 function where(own: OwnPlace, venues: Venue[], series?: SeriesPlace) {
   const usual = series
     ? placeOf({ venueId: series.seriesVenueId, name: series.seriesName, mapUrl: series.seriesMapUrl }, venues)
@@ -154,7 +154,7 @@ function tournamentItems(rows: TournamentRow[], venues: Venue[]) {
       description: "",
       cancelled: false,
     };
-    // Where everyone goes afterwards (ADR 0074): its own, else its series', said on the day's entry
+    // Where everyone goes afterwards (apps/team/worker/tournaments/README.md): its own, else its series', said on the day's entry
     const after = afterOf(
       t.afterMode,
       { venueId: t.afterVenueId, time: t.afterTime, note: t.afterNote },
@@ -295,7 +295,7 @@ const COLUMNS = [
 
 /**
  * Replace these sources' rows with what they are now: two statements, to send in one batch, each taking the whole
- * list (JSON), however many rows (ADR 0059).
+ * list (JSON), however many rows (ADR 0003).
  */
 function writes(db: D1Database, source: Source, ids: number[], items: AgendaItem[]) {
   const rows = items.map((i) => [
@@ -460,7 +460,7 @@ export const fromRow = (r: AgendaRow): AgendaItem =>
 
 /**
  * What's on from a London day, soonest first: not a tournament that's been played, whatever its date (one played
- * early, ADR 0074, #182). Who sees what is up to the reader (captains' rows, the website).
+ * early, apps/team/worker/tournaments/README.md, #182). Who sees what is up to the reader (captains' rows, the website).
  */
 export async function readAgenda(db: D1Database, from: string) {
   await ensureAgenda(db);

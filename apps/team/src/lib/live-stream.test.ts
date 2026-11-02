@@ -1,4 +1,4 @@
-// A live page's stream (ADR 0072) against a fake hub, with fake timers: the hub's ping keeps "Live" on, and a stream
+// A live page's stream (ADR 0053) against a fake hub, with fake timers: the hub's ping keeps "Live" on, and a stream
 // that's gone quiet for a beat and a half (a phone that changed networks, a proxy holding the socket) is closed and
 // reconnected, reading what it missed, instead of saying "Live" for minutes after updates stopped.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

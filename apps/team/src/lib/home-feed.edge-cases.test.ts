@@ -230,7 +230,7 @@ describe("when the hero's heading says it is", () => {
   });
 });
 
-// The Kumite is invitation-only, as in Bloodsport (ADR 0074): Home asks you to accept the invitation, not "Are you in?".
+// The Kumite is invitation-only, as in Bloodsport (apps/team/worker/tournaments/README.md): Home asks you to accept the invitation, not "Are you in?".
 // Only the Kumite: any other tournament, and every training, asks plainly
 describe("the Kumite's sign-up is an invitation", () => {
   const cup = { id: 2, slug: "summer-cup", name: "The Summer Cup", shortName: "Cup" } as TournamentType;

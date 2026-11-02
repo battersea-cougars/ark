@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The draft room (ADR 0060): the draft, the whole screen, for its captains and whoever runs it while it's open. A
+  // The draft room (apps/team/worker/tournaments/README.md): the draft, the whole screen, for its captains and whoever runs it while it's open. A
   // focus page, so the app's rail, dock and tabs go (Shell); no header or track either, just a slim bar: the mark,
   // Draft room, whose turn, Manage the draft for whoever runs it, full screen on and off, and the way out. Out by ✕
   // or Back (Escape only leaves full screen); shown out to the page once the draft closes (the teams set slide

@@ -1,4 +1,4 @@
-// Dues' pure sums at their edges (ADR 0007): quarters at the turn of the year, the day a fee starts, Unpaid fees'
+// Dues' pure sums at their edges (apps/team/worker/dues/README.md): quarters at the turn of the year, the day a fee starts, Unpaid fees'
 // buckets on the exact day, leap years, and charges paid in part or past what they cost.
 import { describe, expect, it } from "vitest";
 import {

@@ -1,6 +1,6 @@
 # Security headers for everything the asset layer serves without the Worker (the app's page and files). The same set
 # as SECURITY_HEADERS in worker/index.ts, which covers /api/* and the app's other paths; security.test.ts keeps them
-# the same. Decision: docs/adr/0036-api-security.md.
+# the same. Decision: docs/adr/0024-action-based-authorization.md.
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' https://challenges.cloudflare.com 'sha256-C5G3NqX0uMVW33PZsPgX8GpIvrA94mxoDWbKvRdrTII='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src https://challenges.cloudflare.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -11,6 +11,6 @@
 
 # The built files are named by their content (/assets/<name>-<hash>.js), so a name never changes what it holds: kept a
 # year, never asked about again. The page itself (index.html) keeps the asset layer's own "max-age=0,
-# must-revalidate", so a deploy shows at once (docs/adr/0120-team-app-first-paint.md).
+# must-revalidate", so a deploy shows at once (docs/adr/0053-how-the-team-app-gets-its-data.md).
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

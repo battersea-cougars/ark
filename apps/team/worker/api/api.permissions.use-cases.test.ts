@@ -168,7 +168,7 @@ describe("routes that aren't there", () => {
 });
 
 describe("the club always has someone who can do everything", () => {
-  // The last-admin rule is decided inside the statements that write the roles (ADR 0121), so two admins demoting each
+  // The last-admin rule is decided inside the statements that write the roles (ADR 0003), so two admins demoting each
   // other at once can't both see the other still there (#135; seeds 2-5 found it)
   it.each(seeds(5))(
     "two admins taking Admin off each other at the same moment leave at least one admin, the other told (seed %i)",
@@ -305,7 +305,7 @@ describe("the club always has someone who can do everything", () => {
     expect((await reg.club()).body.actions).not.toContain("manage:all");
   });
 
-  // Two at once, each check decided in its statements (ADR 0121): whatever order their round trips interleave in, one
+  // Two at once, each check decided in its statements (ADR 0003): whatever order their round trips interleave in, one
   // goes and the other's told
   it.each(seeds(5))(
     "the last two who can do everything, one through Admin and one through a role of its own, stepping down at once leave one (seed %i)",

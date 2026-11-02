@@ -238,7 +238,7 @@ describe("what a member chooses to hear", () => {
     expect((await put({})).status).toBe(400);
     expect((await put({ teams: "no" })).status).toBe(400);
     expect((await put({ gossip: false })).status).toBe(400);
-    // The draft's open is sent to its captains (ADR 0060), so it's a topic to turn off
+    // The draft's open is sent to its captains (apps/team/worker/tournaments/README.md), so it's a topic to turn off
     expect((await put({ draft: false })).status).toBe(200);
     expect(await prefs(reg)).toMatchObject({ teams: true });
   });
@@ -265,7 +265,7 @@ describe("what a member chooses to hear", () => {
   });
 });
 
-// #97: a training's list is one order, Quarterly Members first (ADR 0131). One signing up for a full Friday takes the
+// #97: a training's list is one order, Quarterly Members first (apps/team/worker/training/README.md). One signing up for a full Friday takes the
 // place of the last one in paying as they go, who should know before they turn up.
 describe("a place taken by a Quarterly Member", () => {
   async function fullFriday() {

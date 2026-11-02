@@ -13,12 +13,12 @@
   "d1_databases": [{ "binding": "DB", "database_name": "cougars" }],
   // This deploy's id, part of the bootstrap's ETag (worker/api/api.version.ts, ADR 0053). Free; no storage.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
-  // The live hub (ADR 0072): one object holding every live page's stream; it stores nothing. Declared SQLite-backed
+  // The live hub (ADR 0053): one object holding every live page's stream; it stores nothing. Declared SQLite-backed
   // because that is what the free plan allows; the migration makes the class on the first deploy.
   "durable_objects": { "bindings": [{ "name": "LIVE", "class_name": "LiveHub" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveHub"] }],
-  // Hourly: the usage check emails the admins once a day if the free allowance passes 80% (ADR 0059). Every five
-  // minutes: a wanted website rebuild, once it's quiet (worker/website/website.ts, ADR 0100). Every minute between
+  // Hourly: the usage check emails the admins once a day if the free allowance passes 80% (ADR 0003). Every five
+  // minutes: a wanted website rebuild, once it's quiet (worker/website/website.ts, ADR 0016). Every minute between
   // those: the push drain alone, so what quiet hours or the debounce held goes on time (ADR 0108). All free (cron
   // triggers: 5 per account; the website has 1).
   "triggers": { "crons": ["7 * * * *", "*/5 * * * *", "* * * * *"] },

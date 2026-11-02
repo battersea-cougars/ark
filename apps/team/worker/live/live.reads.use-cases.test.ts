@@ -1,4 +1,4 @@
-// What a live page reads when the hub says something changed (ADR 0072, #112): D1's rows read are the free day's
+// What a live page reads when the hub says something changed (ADR 0053, #112): D1's rows read are the free day's
 // limit a busy evening passes, so a burst of changes is one read on each phone, and a read is only the parts the
 // changes named, not the whole club. Phones here hold the app's own copy of the club (src/app/catch-up.ts), reading
 // through the real Worker, their streams from the real hub.

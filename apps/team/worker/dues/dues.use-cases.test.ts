@@ -1,4 +1,4 @@
-// Dues (ADR 0007): who came is charged that night's fee, Quarterly Members are charged the quarterly rate instead,
+// Dues (apps/team/worker/dues/README.md): who came is charged that night's fee, Quarterly Members are charged the quarterly rate instead,
 // and an admin marks what's been paid. Unpaid fees is whatever isn't. Driven through the real Worker handlers in the
 // fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.
 import { beforeEach, describe, expect, it, vi } from "vitest";

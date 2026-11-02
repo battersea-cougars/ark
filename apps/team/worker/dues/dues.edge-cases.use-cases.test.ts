@@ -1,4 +1,4 @@
-// Dues at the edges (ADR 0007): money to the penny (a payment that just covers a charge, a penny, a lump sum split over
+// Dues at the edges (apps/team/worker/dues/README.md): money to the penny (a payment that just covers a charge, a penny, a lump sum split over
 // odd pence, credit nobody else can spend), what an admin can't get wrong (amounts, days, quarters, fees), the quarter
 // turning over in London time, and who may touch money at all (ADR 0024). Driven through the real Worker handlers in
 // the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, called as the Worker's scheduled handler calls it.

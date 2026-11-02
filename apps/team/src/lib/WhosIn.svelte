@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Who's in, for a tournament's Sign-up open view (ADR 0074), as Friday's Who's coming says it: one line a player,
+  // Who's in, for a tournament's Sign-up open view (apps/team/worker/tournaments/README.md), as Friday's Who's coming says it: one line a player,
   // their initials, name and position, numbered in the order they said they're in, the captains marked once they're
   // named; then whoever's waiting, then (for whoever sees it) who said they're out. Nobody in yet: a quip about
   // slackers (Settings → Quips, "Nobody in"), as Friday's says it. The Kumite's is by invitation (lib/motif.ts

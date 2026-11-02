@@ -1,4 +1,4 @@
-// Fridays: a training night and what it costs (ADR 0007, 0030, 0031; #154). An admin sets up a small training of her
+// Fridays: a training night and what it costs (ADR 0031, apps/team/worker/dues/README.md, apps/team/worker/training/README.md; #154). An admin sets up a small training of her
 // own; members say they're in or out as its sign-up opens; it fills, the waiting list moves up, the keepers keep their
 // own place; the register on the night; a member's own answer refused once it's started; the fees charged (on the night
 // by the register, the next day by the hourly run); Unpaid fees, a payment, an adjustment, reminders sent by hand; a
@@ -290,7 +290,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
     });
 
     await moveTo("2026-10-25T19:45");
-    // Locked once it starts, not only once it's over (ADR 0030, decided with #11; #167)
+    // Locked once it starts, not only once it's over (apps/team/worker/training/README.md, decided with #11; #167)
     await checks(pia, "at 7:45pm, training's started: no In or Out, the night says it's started", async () => {
       await open(pia);
       const night = pia.page.getByRole("article").filter({ hasText: "Sun 25 Oct" });

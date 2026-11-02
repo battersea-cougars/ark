@@ -1,5 +1,5 @@
 <script lang="ts">
-  // One team in a tournament's editor (ADR 0030, 0065), opened from its row: its captain, and a team that entered its
+  // One team in a tournament's editor (ADR 0065, apps/team/worker/training/README.md), opened from its row: its captain, and a team that entered its
   // players, members or names from outside (a draft's come from the draft: Edit the squad, on the team's page). Its
   // name and logo are the team's own page's (Edit the team, its captain or an admin, saving at once): here they read
   // as text, with the way there. A team that enters, new here, is registered with its name (and logo) in this sheet,

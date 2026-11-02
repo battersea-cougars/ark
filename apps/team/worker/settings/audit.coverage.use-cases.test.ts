@@ -1,4 +1,4 @@
-// Everything an admin, a team maker, a scorer or a treasurer does is on the record (ADR 0095, #80), not just roles,
+// Everything an admin, a team maker, a scorer or a treasurer does is on the record (apps/team/worker/settings/README.md, #80), not just roles,
 // members and money: a venue, a training's fee, the register on the night. A member's own changes stay off it, and
 // say why in the route table (api.security.test.ts). Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

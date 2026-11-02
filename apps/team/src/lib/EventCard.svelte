@@ -163,7 +163,7 @@
     if (locked) return;
     // Tapping In when you're in changes nothing: no call to the server, no new quip on Home
     if (going && (inIt || waiting)) return;
-    // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0131, 0108)
+    // Out again, when you're out, takes it back: not answered, so you hear when sign-up opens (ADR 0108, apps/team/worker/training/README.md)
     if (!going && out) {
       void answerFor(event.key, "clear");
       entries.out = (entries.out ?? []).filter((x) => x !== id);
@@ -195,7 +195,7 @@
       onanswer?.("out");
       return;
     }
-    // A training's list is one order, Quarterly skaters first (ADR 0131): the card places you as the server will
+    // A training's list is one order, Quarterly skaters first (apps/team/worker/training/README.md): the card places you as the server will
     const ahead = entries.quarterly ?? [];
     const skater = (pid: number) => PLAYERS.find((p) => p.id === pid)?.position !== "G";
     const quarterly =
@@ -348,12 +348,12 @@
       {/if}
       <div class="reply">
         {#if canSignUp && event.started}
-          <!-- A tournament that's started (ADR 0074), or a training night (ADR 0030): who's in is an admin's or the
+          <!-- A tournament that's started (apps/team/worker/tournaments/README.md), or a training night (apps/team/worker/training/README.md): who's in is an admin's or the
                register's to change, so a line where In and Out were, the same height, so nothing moves as it starts -->
           <p class="answer settled">{event.startedWords ?? "Ask an admin to change it"}</p>
         {:else if canSignUp}
           <div class="answer" role="group" aria-label="Are you in?">
-            <!-- A night whose sign-up isn't open yet says when, in In's place (ADR 0030); an admin's put in still shows -->
+            <!-- A night whose sign-up isn't open yet says when, in In's place (apps/team/worker/training/README.md); an admin's put in still shows -->
             {#if event.opens && !inIt && !waiting}
               <button class="yes opens" disabled>Sign-up opens {event.opens}</button>
             {:else}

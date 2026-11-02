@@ -1,4 +1,4 @@
-// Tournaments (ADR 0030, ADR 0060, ADR 0074): types and editions, their teams, fixtures and winners.
+// Tournaments (apps/team/worker/tournaments/README.md): types and editions, their teams, fixtures and winners.
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
 import { castVotes, nextAward, revealAward, revealedSubject, setWinners } from "./awards";
@@ -105,7 +105,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
-    // { winners: [{ award, teamId | memberId, title? }] }: confirming the awards (ADR 0044), voting closed with it; a
+    // { winners: [{ award, teamId | memberId, title? }] }: confirming the awards (apps/team/worker/tournaments/README.md), voting closed with it; a
     // vote level after its tie-break comes back as `tied`, nothing saved, for the admin to choose
     handle: async (c) => json({ ok: true, ...(await setWinners(c.env.DB, id(c), await body(c.request), c.now)) }),
   },
@@ -118,11 +118,11 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: (c) => revealedSubject(c.env.DB, id(c)),
     },
     action: "manage:Tournament",
-    // Everyone watching the after-party sees it turn over (ADR 0072)
+    // Everyone watching the after-party sees it turn over (ADR 0053)
     changes: ["tournaments"],
     calendar: false,
     // { next }: the award it reveals, by its place in the reveal (a judges' call left out isn't one), the one the tap
-    // saw face down (ADR 0074)
+    // saw face down (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await revealAward(c.env.DB, id(c), await body(c.request)), ok()),
   },
   {
@@ -134,20 +134,20 @@ export const TOURNAMENTS_ROUTES: Route[] = [
       subject: rowOf("SELECT id, name, awards_revealed revealed, awards_next next FROM tournaments WHERE id = ?"),
     },
     action: "manage:Tournament",
-    // Everyone watching sees the drum roll on (ADR 0072)
+    // Everyone watching sees the drum roll on (ADR 0053)
     changes: ["tournaments"],
     calendar: false,
-    // { at }: how many were out when the tap saw it, so a double tap rolls it once (ADR 0074)
+    // { at }: how many were out when the tap saw it, so a double tap rolls it once (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await nextAward(c.env.DB, id(c), await body(c.request)), ok()),
   },
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/votes$/,
-    // A secret ballot: the record says a vote was cast, never for whom (ADR 0044)
+    // A secret ballot: the record says a vote was cast, never for whom (apps/team/worker/tournaments/README.md)
     audit: { none: "a member's own vote, secret" },
     // Whoever played (worker/tournaments/awards.ts castVotes decides)
     action: "authenticated",
-    // The admin's count of votes in moves for everyone watching (ADR 0072)
+    // The admin's count of votes in moves for everyone watching (ADR 0053)
     changes: ["tournaments"],
     calendar: false,
     // { votes: [{ award, memberId }] }: one an award, never for yourself, till the awards are confirmed
@@ -164,7 +164,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
-    // The round robin and its playoffs, once the teams are set (ADR 0061)
+    // The round robin and its playoffs, once the teams are set (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await makeFixtures(c.env.DB, id(c)), ok()),
   },
   {
@@ -179,7 +179,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
-    // Sign-up closed now, not on its closing day: a draft moves on to Draft open (ADR 0074)
+    // Sign-up closed now, not on its closing day: a draft moves on to Draft open (apps/team/worker/tournaments/README.md)
     handle: async (c) => (await closeSignup(c.env.DB, id(c), c.today, c.now), ok()),
   },
   {
@@ -195,7 +195,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     changes: ["tournaments"],
     // A draft that was open and isn't: its captains hear it's paused
     notify: draftPaused,
-    // { from }: the step it's leaving (lib/step-back.ts), refused if it's moved on (ADR 0074)
+    // { from }: the step it's leaving (lib/step-back.ts), refused if it's moved on (apps/team/worker/tournaments/README.md)
     handle: async (c) => {
       await stepBack(c.env.DB, id(c), backFromIn(await body(c.request)), c, c.now);
       return ok();
@@ -230,7 +230,7 @@ export const TOURNAMENTS_ROUTES: Route[] = [
     },
     action: "manage:Tournament",
     changes: ["tournaments"],
-    // The fixtures, results and all, cleared to be made again (ADR 0061); the draft stays as it is
+    // The fixtures, results and all, cleared to be made again (apps/team/worker/tournaments/README.md); the draft stays as it is
     handle: async (c) => (await clearFixtures(c.env.DB, id(c)), ok()),
   },
   {

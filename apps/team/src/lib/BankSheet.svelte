@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The club's bank details (ADR 0007): where members pay by transfer. On every member's Dues page and in every
+  // The club's bank details (apps/team/worker/dues/README.md): where members pay by transfer. On every member's Dues page and in every
   // reminder, so no reminder goes without them. For whoever sets fees. A short form that never grows: a sheet.
   import Sheet from "./Sheet.svelte";
   import { saveBank } from "../app/backend.svelte";

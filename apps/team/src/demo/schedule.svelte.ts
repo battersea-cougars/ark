@@ -22,17 +22,17 @@ export const whenOf = (t: Tournament) =>
     ? seasonLabel(t.season, t.heldOn)
     : `${formatDayDate(londonISO(t.heldOn, t.startTime))} · ${clockRange(t.startTime, t.endTime)}`;
 
-// Where each thing really is (ADR 0030): its saved venue, else its own name and map link, else its series' place
+// Where each thing really is (apps/team/worker/training/README.md): its saved venue, else its own name and map link, else its series' place
 export const seriesPlace = (s: TrainingSeries) =>
   placeOf({ venueId: s.venueId, name: s.venue, mapUrl: s.mapUrl }, db.venues);
 export const typePlace = (t: TournamentType | undefined) =>
   t ? placeOf({ venueId: t.venueId, name: t.location, mapUrl: t.mapUrl }, db.venues) : null;
 export const tournamentPlace = (t: Tournament) =>
   placeOf({ venueId: t.venueId, name: t.location, mapUrl: t.mapUrl }, db.venues, typePlace(typeById(t.typeId)));
-/** A series' afterwards (ADR 0074): where everyone goes after each of its dates, unless one says otherwise. */
+/** A series' afterwards (apps/team/worker/tournaments/README.md): where everyone goes after each of its dates, unless one says otherwise. */
 export const typeAfter = (t: TournamentType | undefined) =>
   t ? afterOf("own", { venueId: t.afterVenueId, time: t.afterTime, note: t.afterNote }, null, db.venues) : null;
-/** Where everyone goes after this one (ADR 0074): its own, its series', or none this time. */
+/** Where everyone goes after this one (apps/team/worker/tournaments/README.md): its own, its series', or none this time. */
 export const tournamentAfter = (t: Tournament) => {
   const type = typeById(t.typeId);
   return afterOf(
@@ -68,12 +68,12 @@ export function resolve(session: TrainingSession, series = seriesById(session.se
 
 export function sessionBookable(session: TrainingSession): Bookable {
   const r = resolve(session);
-  // Not open yet (ADR 0030): when it opens, where In would be
+  // Not open yet (apps/team/worker/training/README.md): when it opens, where In would be
   const today = londonToday();
   const opensOn = nightOpensOn(r.heldOn, r.series.signupOpensDays);
   const opens =
     opensOn && !nightOpen(r.heldOn, r.series.signupOpensDays, today) ? opensWords(opensOn, today, true) : undefined;
-  // Once it's started, who's in is the register's (ADR 0131, #167): the server refuses a member's own In or Out
+  // Once it's started, who's in is the register's (apps/team/worker/training/README.md, #167): the server refuses a member's own In or Out
   const startsAt = londonISO(r.heldOn, r.startTime);
   const endsAt = londonISO(r.heldOn, r.endTime);
   const started = !r.cancelled && Date.now() >= Date.parse(startsAt);
@@ -220,7 +220,7 @@ function reminderBookable(row: AgendaRow, t: Tournament): Bookable {
 }
 
 /**
- * Everything not past, in date order, as the club's agenda has it (ADR 0042): the server sends what's on (and a draft
+ * Everything not past, in date order, as the club's agenda has it (ADR 0016): the server sends what's on (and a draft
  * night only for its captains); each one's sign-up and whether it's past comes from its session, tournament or event,
  * by its status, never its date (lib/phase.ts, #182): a Kumite played early isn't on it, one whose day went by unplayed
  * still is, and so is last night's training till its register closes.

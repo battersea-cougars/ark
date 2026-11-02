@@ -1,6 +1,6 @@
 # Load and concurrency testing
 
-Why and what we decided: [ADR 0121](adr/0121-load-and-concurrency.md). This page is how to run it and what D1 does
+Why and what we decided: [ADR 0003](adr/0003-free-tiers-only.md). This page is how to run it and what D1 does
 with requests at once. It runs on your own machine, or on dev once
 the user's been told ([Against dev](#against-dev)): **never send load to production**.
 
@@ -48,7 +48,7 @@ The fake world counts an invocation's **subrequests** (fetches, emails, live hub
 (`fcm.invocations`), each invocation on its own however many run at once, and `w.scheduled(trigger, now)` runs a Cron
 Trigger whole, as Cloudflare does.
 
-Each race these found, and how it's decided now, is in [ADR 0121](adr/0121-load-and-concurrency.md); its seed or
+Each race these found, and how it's decided now, is in [ADR 0003](adr/0003-free-tiers-only.md); its seed or
 case stays in the test as the proof.
 
 ## Load runs
@@ -133,7 +133,7 @@ requests). `live-draft` is the dearest scenario and `all` runs every one. Adding
 about 2k of the rows written, each scenario (each starts afresh). The dry run says what dev has used today and what
 the run would cost, and refuses a run that would pass 90% of the day's rows (`--anyway` overrides); a soak starts nothing new once the
 day passes `--budget` (Cloudflare's figures lag a few minutes, so leave room). Past 80%, or after a request
-stopped at the CPU limit, dev's hourly usage check emails its admins (ADR 0059): the user, and Load Admin's undeliverable `admin@load.test` if the run's still on.
+stopped at the CPU limit, dev's hourly usage check emails its admins (ADR 0003): the user, and Load Admin's undeliverable `admin@load.test` if the run's still on.
 Everything else on dev counts against the same day.
 
 **What it measures.** The phones' own latency (p50/p95/p99) and status codes as before; then, two minutes after the

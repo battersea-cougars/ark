@@ -1,8 +1,8 @@
 <script lang="ts">
-  // A tournament's teams in its editor (ADR 0030): a row each, read as text, which opens the team's sheet
+  // A tournament's teams in its editor (apps/team/worker/training/README.md): a row each, read as text, which opens the team's sheet
   // (lib/TeamSheet): its captain, and a team that entered its players; its name and logo are its own page's. A draft's
   // row is its captain: their crest, their name, what their team's called (or will be: its own name, the team they
-  // bring, else "Team Dan"), its place in the pick order once the draft's drawn it (ADR 0060), and who they've picked.
+  // bring, else "Team Dan"), its place in the pick order once the draft's drawn it (apps/team/worker/tournaments/README.md), and who they've picked.
   // Add a captain finds a member and they're one. A team that entered reads as its name, captain and players; + Team
   // opens a new one's sheet. Which team is open is `open`, one value its editor can hold (and a URL drive).
   import Icon from "../app/shell/Icon.svelte";
@@ -42,7 +42,7 @@
   const draft = $derived(kind === "draft");
   const person = (id: number | null) => db.members.find((m) => m.player.id === id)?.player;
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
-  // Members already on a team: nobody's on two (ADR 0030)
+  // Members already on a team: nobody's on two (apps/team/worker/training/README.md)
   const taken = $derived(
     new Set(teams.flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)]).filter((m) => m !== null)),
   );

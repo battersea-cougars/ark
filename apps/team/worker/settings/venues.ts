@@ -1,4 +1,4 @@
-// Venues (ADR 0030): places the club goes, picked once, and where something is (a venue, or a name and a map link).
+// Venues (apps/team/worker/training/README.md): places the club goes, picked once, and where something is (a venue, or a name and a map link).
 import { syncAll } from "@cougars/shared/agenda";
 import { first, run, type Param } from "@cougars/shared/d1";
 import { cleanMapUrl } from "@cougars/shared/places";
@@ -55,7 +55,7 @@ export async function updateVenue(db: D1Database, id: number, o: Record<string, 
     id,
   ]);
   if (!res.meta.changes) throw new HttpError(404, "No such venue.");
-  // It's the place of everything held there: the agenda's rows say where (ADR 0042)
+  // It's the place of everything held there: the agenda's rows say where (ADR 0016)
   await syncAll(db);
 }
 
@@ -71,7 +71,7 @@ export async function placeFields(db: D1Database, o: Record<string, unknown>, na
 }
 
 /**
- * Where everyone goes afterwards (ADR 0074): `afterVenueId`, a saved venue (none: nowhere), `afterTime` (HH:MM,
+ * Where everyone goes afterwards (apps/team/worker/tournaments/README.md): `afterVenueId`, a saved venue (none: nowhere), `afterTime` (HH:MM,
  * optional) and `afterNote`, what for. As [after_venue_id, after_time, after_note].
  */
 export async function afterFields(db: D1Database, o: Record<string, unknown>): Promise<Param[]> {

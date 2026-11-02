@@ -3,7 +3,7 @@
 // whole roster, the weeks just held, each series' last one played, everyone's dues.
 //
 // A change says which parts it changed by their family's name (`members`, `sessions`, ...: worker/api routes'
-// `changes`), and the live hub passes those names on (ADR 0072). Each family is a core part and the pages' parts that
+// `changes`), and the live hub passes those names on (ADR 0053). Each family is a core part and the pages' parts that
 // come from the same rows: a change to members is a change to Home's people and to the roster. This is where that's
 // said, on both sides: the Worker sends back, with a change, the family's parts a phone holds; a phone hearing of a
 // change knows which of the parts it holds are out of date.

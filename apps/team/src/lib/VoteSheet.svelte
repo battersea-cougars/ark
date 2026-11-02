@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The ballot (ADR 0044): one sheet, each voted award, its line, and who you can vote for, a row each; a vote cast
+  // The ballot (apps/team/worker/tournaments/README.md): one sheet, each voted award, its line, and who you can vote for, a row each; a vote cast
   // is yours to see, and only yours. Cast, you're taken on to the awards' own page, to wait for the reveal there.
   // Opened from the awards' card at the after-party and from the awards' page.
   import { castVotes } from "../app/backend.svelte";

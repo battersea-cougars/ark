@@ -76,7 +76,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
 
   // A person, says Turnstile? Only they can get an auto-reply; everyone else's enquiry still counts.
   // Rendered for the enquiry form only: a token from the team app's sign-in or Ask to join widgets (the same account's)
-  // isn't one (ADR 0028)
+  // isn't one (ADR 0027)
   const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress, {
     action: ENQUIRY_ACTION,
   });

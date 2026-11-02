@@ -1,4 +1,4 @@
-// The draft's edges (ADR 0060, 0121): every step out of order, the first and last picks, a pick's turn, three captains'
+// The draft's edges (ADR 0003, apps/team/worker/tournaments/README.md): every step out of order, the first and last picks, a pick's turn, three captains'
 // snake, who may run which step, people leaving mid-draft, and deleting what the draft made. Driven through the real
 // Worker handlers in the fake world, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -533,7 +533,7 @@ describe("deleting what the draft made", () => {
   });
 });
 
-describe("taps at once on a reset (ADR 0121)", () => {
+describe("taps at once on a reset (ADR 0003)", () => {
   // A reset takes the picks off, then sets the draft back to not open, then takes the order away: three statements.
   // A pick that read the draft open before the reset and lands between them would outlive the reset
   const leftOnTeams = (id: number) =>

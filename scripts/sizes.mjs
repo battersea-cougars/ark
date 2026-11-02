@@ -1,4 +1,4 @@
-// The files past the size prompts (ADR 0125): a report, never a failure.
+// The files past the size prompts (ADR 0105): a report, never a failure.
 //
 //   npm run sizes            code past ~400 lines, and a Svelte component's <style> past ~500
 //   npm run sizes -- --tests the test files too

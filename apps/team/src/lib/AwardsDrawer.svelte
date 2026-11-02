@@ -7,7 +7,7 @@
 </script>
 
 <script lang="ts">
-  // Confirming a tournament's awards (ADR 0044), the after-party's first step, before the reveal: usually on a phone
+  // Confirming a tournament's awards (apps/team/worker/tournaments/README.md), the after-party's first step, before the reveal: usually on a phone
   // straight after the final. Each is decided as it says (lib/awards.ts): a stat's from the results (the champions,
   // the top scorer), a draw at random (Draw again for another), for the admin to check (or choose someone else); a
   // vote's counted by the Worker as they confirm (how many have voted shows here, never who for), and where it's

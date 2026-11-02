@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Back up a D1 database (ADR 0106): export it, seal it with the environment's BACKUP_KEY (scripts/lib/backup.mjs), and
+// Back up a D1 database (ADR 0050): export it, seal it with the environment's BACKUP_KEY (scripts/lib/backup.mjs), and
 // note when in the database itself, for the team app's Usage page. CI runs it nightly (.github/workflows/backup.yml)
 // and before anything changes the schema (deploy.yml's `database` job), and keeps the file as an artifact.
 //   node scripts/db-backup.mjs --remote -c dist/d1/wrangler.json --why nightly --out backups   (CI)

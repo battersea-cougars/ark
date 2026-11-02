@@ -1,4 +1,4 @@
-// Cloudflare Turnstile in front of the two routes anyone can call without signing in (#13, ADR 0028): asking for a
+// Cloudflare Turnstile in front of the two routes anyone can call without signing in (#13, ADR 0027): asking for a
 // sign-in code and asking to join. The sign-in page's widget (src/lib/turnstile.ts, managed and shown only when
 // Cloudflare wants a tap) puts its token in the body as `turnstile`; it's checked here once with Cloudflare, and a
 // missing or failed check is refused. Free, no cookies.

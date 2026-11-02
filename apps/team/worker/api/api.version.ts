@@ -4,7 +4,7 @@
 // not the whole club read out of D1.
 //
 // The tag is the club's data version (data_version, one more on every change), who's asking (each member sees their
-// own view, ADR 0036), the day (a view depends on it: what's upcoming, who's a Quarterly Member) and the deploy (a new
+// own view, ADR 0024), the day (a view depends on it: what's upcoming, who's a Quarterly Member) and the deploy (a new
 // build may send a different shape).
 import { first, run } from "@cougars/shared/d1";
 import { londonEvening } from "@cougars/shared/london";
@@ -60,7 +60,7 @@ export async function sessionsMade(db: D1Database, today: string): Promise<void>
 
 /**
  * After a change through the app: every member's bootstrap is out of date. The new version, which names this change
- * (ADR 0072), and is now the version of each family it `told` it changed (#178), with the rest of the row. Anything
+ * (ADR 0053), and is now the version of each family it `told` it changed (#178), with the rest of the row. Anything
  * else that moves the version on (a script, the hourly run, `told` left out) makes every part new (the schema's
  * data_version_untold), as the reply says too.
  */
@@ -98,7 +98,7 @@ export function tagged(res: Response, tag: string, version: number): Response {
   res.headers.set("etag", tag);
   res.headers.set(VERSION_HEADER, String(version));
   res.headers.set("cache-control", NOT_KEPT);
-  // Which build answered: an app left open sees a newer one is out and offers to reload (ADR 0104)
+  // Which build answered: an app left open sees a newer one is out and offers to reload (ADR 0022)
   res.headers.set(BUILD_HEADER, APP_BUILD);
   return res;
 }

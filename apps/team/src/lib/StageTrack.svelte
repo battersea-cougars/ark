@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Where a tournament is on its way (ADR 0074): its statuses along one line, like a progress bar, the line filled
+  // Where a tournament is on its way (apps/team/worker/tournaments/README.md): its statuses along one line, like a progress bar, the line filled
   // from the start to the status it's at and faint after it. Each status a node on it (done: a tick; where it is: lit,
   // pulsing while the Kumite runs; ahead: hollow) with its name under it as a badge (done quiet, ahead faint). Fill,
   // tick and size say it without the colour. Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, then the

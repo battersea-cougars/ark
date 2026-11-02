@@ -1,4 +1,4 @@
-// A tournament's awards and how each is decided (ADR 0044). Every award says how (`decidedBy`), chosen by an admin
+// A tournament's awards and how each is decided (apps/team/worker/tournaments/README.md). Every award says how (`decidedBy`), chosen by an admin
 // in the series' editor or the tournament's own:
 //   A stat we track, from the results: the champions (a team: the final's winner, else the top of the table); most goals (then most assists);
 //     most assists (then most goals); most points, goals and assists (then most goals); fewest goals against a game
@@ -13,13 +13,13 @@
 import { champion, table, type Result } from "@cougars/shared/results";
 import { plural } from "./dates";
 
-/** The stats we track that decide an award (ADR 0044). */
+/** The stats we track that decide an award (apps/team/worker/tournaments/README.md). */
 export const STATS = ["table", "goals", "assists", "points", "goalsAgainst", "penaltyMinutes"] as const;
 export type Stat = (typeof STATS)[number];
 /** A player's stat (any but the table's, which is a team's): what a vote's tie can be broken by. */
 export type PlayerStat = Exclude<Stat, "table">;
 
-/** How an award is decided (ADR 0044). */
+/** How an award is decided (apps/team/worker/tournaments/README.md). */
 export type DecidedBy =
   | { kind: "stat"; stat: Stat }
   | { kind: "vote"; voters: "players" | "skaters"; tieBreak?: PlayerStat }
@@ -61,7 +61,7 @@ export function decidedByOf(a: { name: string; decidedBy?: DecidedBy | null }): 
 }
 
 /**
- * The awards revealed at the after-party, in the admin's order (ADR 0044, 0074): every one but a judges' call left
+ * The awards revealed at the after-party, in the admin's order (apps/team/worker/tournaments/README.md): every one but a judges' call left
  * out (a live award nobody was given as they confirmed). `given`: the awards that have a winner. The Worker's reveal
  * and the page count the same list, so how many are out (`awards_revealed`) means the same to both.
  */
@@ -242,7 +242,7 @@ export function candidatesOf(award: Award, t: Pick<AwardsData, "teams">, { posit
 }
 
 /**
- * A vote counted (ADR 0044): the most votes wins. Level (none cast, everyone's level at nought), the award's
+ * A vote counted (apps/team/worker/tournaments/README.md): the most votes wins. Level (none cast, everyone's level at nought), the award's
  * tie-break stat among the level ones; still level, or no tie-break, `tied` says who the admin chooses among.
  */
 export function countVotes(

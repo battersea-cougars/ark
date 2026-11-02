@@ -1,4 +1,4 @@
-// A member's dues ledger, read a page at a time (#177, ADR 0007; worker/dues/dues.ledger.ts): every charge and
+// A member's dues ledger, read a page at a time (#177, apps/team/worker/dues/README.md; worker/dues/dues.ledger.ts): every charge and
 // payment, newest first, each line with what they owed after it, worked out by the server. Opening the app sends only
 // your unpaid charges and what each owes; the ledger is read when the Dues tab or the member sheet shows it, more as
 // it scrolls. Kept while the app's open; after any change to dues (the store's `dues` comes back) a ledger shown is

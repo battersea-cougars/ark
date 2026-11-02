@@ -1,4 +1,4 @@
-// A captain brings their team to the next edition of a series (ADR 0060): in a draft, the team they're named captain
+// A captain brings their team to the next edition of a series (apps/team/worker/tournaments/README.md): in a draft, the team they're named captain
 // of starts with the name and logo of the team they last captained in an earlier edition of the same series, unless
 // it's given its own. Nothing about it lives on the member (another club may have no Kumite): it's worked out from
 // the editions, each keeping its own team's name and logo, so a rename changes only that edition's team, which is

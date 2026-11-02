@@ -1,7 +1,7 @@
-// The club's live hub (ADR 0072): one Durable Object per environment that holds every open live page's stream and
+// The club's live hub (ADR 0053): one Durable Object per environment that holds every open live page's stream and
 // tells them all at once when something changed. It stores nothing (declared SQLite-backed because the free plan
 // asks for it; the streams live in memory, D1 is the source of truth), so if it restarts the phones just reconnect.
-// An event is the names of the club's parts that changed (ADR 0057) and the data versions that changed them: what a
+// An event is the names of the club's parts that changed (ADR 0053) and the data versions that changed them: what a
 // member sees comes from their own read, except a part the Worker built once for an audience (a live match, for every
 // member: live.parts.ts, #161), which goes with the event down those members' streams only, held a second at most. A
 // burst of changes (a Friday's taps) goes out as one event a second at most, naming every part and version in it, so

@@ -1,4 +1,4 @@
-// Keeping under the free plan's 10 ms of CPU a request (ADR 0059): every round trip to D1 costs the Worker CPU time,
+// Keeping under the free plan's 10 ms of CPU a request (ADR 0003): every round trip to D1 costs the Worker CPU time,
 // so a tap costs a few, however many members, quarters and Fridays the club's dues cover. Driven through the real
 // handlers in the fake world (ADR 0031), which counts the round trips.
 import { beforeEach, describe, expect, it, vi } from "vitest";

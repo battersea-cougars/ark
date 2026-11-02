@@ -14,7 +14,7 @@
   // The app's privacy notice is readable before signing in too (#30): at /privacy, or from the link at the foot
   type Step = "email" | "code" | "join" | "asked" | "privacy";
   let step = $state<Step>(location.pathname === "/privacy" ? "privacy" : "email");
-  // The link in a new member's welcome email fills in their address (ADR 0069)
+  // The link in a new member's welcome email fills in their address (apps/team/worker/members/README.md)
   let email = $state(new URLSearchParams(location.search).get("email") ?? "");
   let code = $state("");
   let busy = $state(false);

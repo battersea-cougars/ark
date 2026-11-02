@@ -67,7 +67,7 @@ together. Why a piece of code is the way it is stays in a comment beside it.
 - Every change made with more than being signed in goes on the record: anything an admin, a team maker, a scorer or a
   treasurer does. Only a member's own sign-ups (and the email's reconnect and test, recorded by their handlers) stay
   off it, each saying why.
-  [api.security.test.ts › "puts every change made with more than being signed in on the record, but for the few that say why (ADR 0095)"](../api/api.security.test.ts),
+  [api.security.test.ts › "puts every change made with more than being signed in on the record, but for the few that say why"](../api/api.security.test.ts),
   [audit.coverage.use-cases.test.ts › "the register on the night: who was there, which makes the charges"](audit.coverage.use-cases.test.ts),
   [audit.coverage.use-cases.test.ts › "a member's own sign-up stays off it"](audit.coverage.use-cases.test.ts)
 - Each entry says who did it, and what it was before and after. A change refused, failed or that changes nothing

@@ -1,4 +1,4 @@
-// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0072, #112), at the least cost
+// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0053, #112), at the least cost
 // in D1's rows read: the free day's limit a busy evening passes when every phone reads the whole club for every change.
 //
 // The club's data version goes up by one with every change, and each of the hub's events names the parts that changed

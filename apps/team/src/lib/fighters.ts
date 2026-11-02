@@ -1,4 +1,4 @@
-// The Kumite's fighters (ADR 0074): its sign-up is an invitation (lib/motif.ts invitationOnly), and whoever accepts is
+// The Kumite's fighters (apps/team/worker/tournaments/README.md): its sign-up is an invitation (lib/motif.ts invitationOnly), and whoever accepts is
 // a fighter with a number, their place in the sign-up order (the number Who's in has always counted). The waitlist
 // are the reserves, numbered in theirs. Said out: you declined. Shown on the fighter's pass (lib/KumiteInvite), The
 // fighters (lib/WhosIn) and the header's answer (lib/TournamentHead).

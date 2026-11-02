@@ -1,4 +1,4 @@
-// When a save is worth asking about (ADR 0122, lib/ClashSheet): a new time, as London instants, or a training's rule.
+// When a save is worth asking about (apps/team/worker/calendar/README.md, lib/ClashSheet): a new time, as London instants, or a training's rule.
 // Only a day and hours that are new or moved are asked about, so saving a name change over a night already kept
 // doesn't ask again.
 import { londonISO } from "./dates";
@@ -111,7 +111,7 @@ export interface Skip {
 /**
  * The training's own nights to call off: those over something kept on that the admin chose to skip, each once for
  * each thing it's over, by day. Over a tournament, it's off for that tournament, so it comes back when the tournament
- * goes or moves (ADR 0122).
+ * goes or moves (apps/team/worker/calendar/README.md).
  */
 export function nightsToSkip(rows: Row[], picks: Record<string, Answer>): Skip[] {
   const skips = rows

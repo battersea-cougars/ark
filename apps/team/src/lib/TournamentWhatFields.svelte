@@ -1,5 +1,5 @@
 <script lang="ts">
-  // What a tournament is (ADR 0030): its name and its type (teams enter, or captains draft), and in the editor its
+  // What a tournament is (apps/team/worker/tournaments/README.md): its name and its type (teams enter, or captains draft), and in the editor its
   // series (`series`, the editor's own picker, which copies the series' defaults in). In the wizard's Details step
   // (Advanced) and the editor's Details tab alike.
   import type { Snippet } from "svelte";
@@ -18,7 +18,7 @@
     /** The fields' ids start with it ("quick", "date") */
     id: string;
     placeholder?: string;
-    /** It has teams, so its type stays (ADR 0030) */
+    /** It has teams, so its type stays (apps/team/worker/tournaments/README.md) */
     kindFixed?: boolean;
     /** The series picker, first, where it can change */
     series?: Snippet;

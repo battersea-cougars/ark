@@ -48,7 +48,7 @@ export function londonISO(date: string, time: string): string {
 }
 
 /**
- * The evening a moment belongs to, as London's date (ADR 0074): from 06:00 it's that day's; before 06:00 it's still
+ * The evening a moment belongs to, as London's date (apps/team/worker/tournaments/README.md): from 06:00 it's that day's; before 06:00 it's still
  * the night before's, so a Kumite's after-party runs past midnight till the morning.
  */
 export function londonEvening(now = new Date()): string {

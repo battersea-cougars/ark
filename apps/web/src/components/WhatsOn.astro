@@ -1,6 +1,6 @@
 ---
 // What's on: the next trainings, tournaments (each by its own name) and events, from the club calendar the team app
-// keeps (ADR 0042). The home page is prerendered, so it holds a placeholder that its script fills from /whats-on/,
+// keeps (ADR 0016). The home page is prerendered, so it holds a placeholder that its script fills from /whats-on/,
 // which renders this same component live. No data-reveal in here: swapped-in elements would never be revealed.
 import Empty from "./Empty.astro";
 import { formatDayDate, formatShortDay, formatTime, formatWeekday } from "../lib/dates";
@@ -25,7 +25,7 @@ const about = (i: WhatsOnItem) => (i.dateTbc ? i.title : `${i.title}, ${formatDa
 const rows = items && weeklyRows(items);
 const skipped = (i: WhatsOnItem) =>
   i.weekly?.skipped.length ? `No session ${i.weekly.skipped.map(formatShortDay).join(", ")}` : "";
-// The venue opens in a map (its own link, or a search for it: ADR 0030). It sits above the row's own link.
+// The venue opens in a map (its own link, or a search for it: apps/team/worker/training/README.md). It sits above the row's own link.
 ---
 
 <div data-whats-on>

@@ -1,4 +1,4 @@
-// How a person is named on the public website (ADR 0043, ADR 0100): the name they chose on their profile, else their
+// How a person is named on the public website (ADR 0016): the name they chose on their profile, else their
 // first name and initial. Never a full name they didn't choose. The roster and the results both use it.
 
 /** "Adrian Kowalski" → "Adrian K." A single name stays as it is. */

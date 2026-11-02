@@ -1,4 +1,4 @@
-// A captains' draft's turn order (ADR 0030), shared by the Draft page and the Worker: snake order, so the teams
+// A captains' draft's turn order (apps/team/worker/tournaments/README.md), shared by the Draft page and the Worker: snake order, so the teams
 // pick 1, 2, … n, then n, … 2, 1, and round again.
 import { ordinal } from "./dates";
 
@@ -27,7 +27,7 @@ export function nextSlots(taken: Iterable<number>, count: number): number[] {
   return out;
 }
 
-/** Whether a draft's pick order is drawn (ADR 0060): every captain has their number. */
+/** Whether a draft's pick order is drawn (apps/team/worker/tournaments/README.md): every captain has their number. */
 export const orderDrawn = (teams: { pick?: number | null }[]) =>
   teams.length > 0 && teams.every((t) => typeof t.pick === "number");
 

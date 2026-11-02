@@ -56,7 +56,7 @@ describe("Home's feed", () => {
       ],
     });
     const rows = feed(t, { club: { total: 9000, people: 3, worst: 0 } });
-    // Straight into the draft room (ADR 0060), the whole screen for the pick
+    // Straight into the draft room (apps/team/worker/tournaments/README.md), the whole screen for the pick
     expect(rows.lead).toMatchObject({
       kind: "draft",
       item: { text: "It's your pick", hot: true, href: "/tournaments/kumite/draft/room" },
@@ -155,7 +155,7 @@ describe("Home's feed", () => {
     expect(feed(kumite(), { emailStopped: false }).admin).toEqual([]);
   });
 
-  // Someone asking to join waits for an admin (ADR 0069): Home says so, for whoever lets members in (manage:Member),
+  // Someone asking to join waits for an admin (apps/team/worker/members/README.md): Home says so, for whoever lets members in (manage:Member),
   // as The club does, opening it where Approve is (decided 2026-10-23)
   it("someone asking to join is an admin's line, naming them, opening The club", () => {
     const rows = feed(kumite(), { club: { total: 9000, people: 3, worst: 0 }, asking: ["Jo Bloggs"] });
@@ -173,7 +173,7 @@ describe("Home's feed", () => {
     expect(feed(kumite(), { asking: [] }).admin).toEqual([]);
   });
 
-  // The hourly check keeps the free limits at 70% or more (ADR 0059, #148); Home asks for them only for whoever sees
+  // The hourly check keeps the free limits at 70% or more (ADR 0003, #148); Home asks for them only for whoever sees
   // Usage, and says the nearest in one line, last, opening the Usage page
   const level = (id: string, label: string, percent: number, period: "day" | "month" = "day") => ({
     id,

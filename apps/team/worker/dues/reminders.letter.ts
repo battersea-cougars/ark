@@ -1,4 +1,4 @@
-// A reminder of what someone owes (ADR 0007), as the member reads it: plain text first, in the club's voice, the same in
+// A reminder of what someone owes (apps/team/worker/dues/README.md), as the member reads it: plain text first, in the club's voice, the same in
 // the club's HTML frame (packages/shared/email-html.ts); and the line their phone shows. What they owe, charge by
 // charge, the total, their own reference and where to pay. Firmer the longer it's been.
 import { EMAIL, EMAIL_TYPE, emailPage, escapeHtml } from "@cougars/shared/email-html";

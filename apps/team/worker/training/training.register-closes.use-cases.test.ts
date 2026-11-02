@@ -1,4 +1,4 @@
-// A night's register closes the next morning, at 06:00 London (decided 2026-10-23, #11; ADR 0030, ADR 0007): until
+// A night's register closes the next morning, at 06:00 London (decided 2026-10-23, #11; apps/team/worker/training/README.md, apps/team/worker/dues/README.md): until
 // then whoever takes the register ticks who came and the charges follow; from then it's the record. Every way of
 // changing who was there is refused (the register, an admin putting someone in or taking them off, Let in, a reset,
 // calling the night off, a member's attendance), and the hourly run charges from it as it stands. Driven through the

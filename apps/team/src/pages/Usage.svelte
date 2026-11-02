@@ -1,9 +1,9 @@
 <script lang="ts">
-  // The club's free Cloudflare allowance today (ADR 0059): one account runs the website, this app and their
+  // The club's free Cloudflare allowance today (apps/team/worker/settings/README.md): one account runs the website, this app and their
   // database, and its daily limits reset at midnight UTC. If one runs out, this app stops until then; the hourly
   // check emails the admins at 80%. Each Worker's CPU time per request is shown against the free plan's 10 ms, past
-  // which Cloudflare stops the request (ADR 0059). Below them, this month's Sanity requests as we count them, since
-  // Sanity has no usage API (ADR 0059). Read when the page opens, and again on Refresh.
+  // which Cloudflare stops the request (apps/team/worker/settings/README.md). Below them, this month's Sanity requests as we count them, since
+  // Sanity has no usage API (apps/team/worker/settings/README.md). Read when the page opens, and again on Refresh.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
@@ -55,7 +55,7 @@
     requests: "Every time this app talks to the server. The website's pages are free and don't count.",
     rowsRead: "Rows the app and the website's live pages read from the club's database.",
     rowsWritten: "Sign-ups, picks, saves: every change made.",
-    liveRequests: "Phones opening a live page's stream, and changes sent down them (ADR 0072).",
+    liveRequests: "Phones opening a live page's stream, and changes sent down them (ADR 0053).",
     liveTime: "How long the live hub was up today, at 128 MB a second. A 2-hour draft night is about 900.",
   };
 
@@ -77,7 +77,7 @@
     load();
   });
 
-  // How often live pages check for updates when their stream is down (ADR 0072): a game being scored, the
+  // How often live pages check for updates when their stream is down (ADR 0053): a game being scored, the
   // tournament's home on the day, the draft room. Each check is a request, so it's set here, beside what's left of
   // the day
   const CHOICES = [5, 10, 15, 30, 60];
@@ -96,7 +96,7 @@
   const cpuPct = (w: WorkerCpu, limit: number) => Math.min(100, Math.round((w.p99Ms / limit) * 100));
   const cpuLevel = (w: WorkerCpu, limit: number) =>
     w.stopped || w.p99Ms >= limit * 0.8 ? "high" : w.p99Ms >= limit * 0.5 ? "mid" : "low";
-  // Nightly, so a day and a half without one means the backup job has stopped (ADR 0106)
+  // Nightly, so a day and a half without one means the backup job has stopped (ADR 0050)
   const STALE_MS = 36 * 3600_000;
   const backedUp = $derived(usage?.backup ? formatStamp(usage.backup.takenAt) : "");
   // When Sanity's quotas reset: midnight UTC on the 1st
@@ -190,7 +190,7 @@
   {/if}
 
   {#if usage?.sanity}
-    <!-- Sanity's monthly quotas (ADR 0059): our own count, as Sanity has no usage API -->
+    <!-- Sanity's monthly quotas (apps/team/worker/settings/README.md): our own count, as Sanity has no usage API -->
     <section class="live">
       <h2 class="section">Sanity this month</h2>
       <p class="hint small">
@@ -232,7 +232,7 @@
   {/if}
 
   {#if usage}
-    <!-- The database's backups (ADR 0106): nightly, kept for 90 days as GitHub artifacts -->
+    <!-- The database's backups (ADR 0050): nightly, kept for 90 days as GitHub artifacts -->
     <section class="live">
       <h2 class="section">Backups</h2>
       {#if usage.backup}

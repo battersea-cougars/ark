@@ -1,4 +1,4 @@
-// How near the club is to each free limit (ADR 0059, #148): each hourly check keeps, in usage_levels, every limit it
+// How near the club is to each free limit (apps/team/worker/settings/README.md, #148): each hourly check keeps, in usage_levels, every limit it
 // read that's at 70% or more, and only those. They go out with the club (the bootstrap's forAdmins, api.slices.ts) to
 // whoever sees Usage, so Home's For admins has its line on first paint; a change to them is a new data version, so
 // the next open reads them afresh (ADR 0053). Today's Cloudflare limits are the UTC day's, Sanity's the month's; a row
@@ -36,7 +36,7 @@ function levelsOf(usage: Usage): Kept[] {
   const day = cloudflare
     ? usage.metrics.map((m) => ({ id: m.id, period: usage.day, label: m.label, percent: percentOf(m.used, m.limit) }))
     : [];
-  // A request stopped for its CPU time went past the free plan's 10 ms: that limit is spent (ADR 0059)
+  // A request stopped for its CPU time went past the free plan's 10 ms: that limit is spent (apps/team/worker/settings/README.md)
   const stopped = (usage.cpu?.workers ?? []).some((w) => w.stopped);
   const cpu = cloudflare
     ? [{ id: "cpu", period: usage.day, label: "Requests stopped for CPU time", percent: stopped ? 100 : 0 }]

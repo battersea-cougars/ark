@@ -1,4 +1,4 @@
-// The club's Sanity requests this month (ADR 0059). Sanity has no usage API, so the website and this app count their
+// The club's Sanity requests this month (apps/team/worker/settings/README.md). Sanity has no usage API, so the website and this app count their
 // own (packages/shared/sanity-requests.ts) into sanity_requests: one row per UTC day, project and quota. The Usage
 // page shows this environment's project against the free plan, with where the month's pace ends up; the hourly check
 // (usage.alerts.ts) emails the admins at 50%, 70% and 90%, and when the pace would run out before the 1st.
@@ -30,7 +30,7 @@ const DAY = 86_400_000;
 export const PACE_AFTER_DAYS = 3;
 
 /**
- * This month's count for the environment's project: the statement, to send in the page's one round trip (ADR 0059),
+ * This month's count for the environment's project: the statement, to send in the page's one round trip (apps/team/worker/settings/README.md),
  * and what to make of its rows.
  */
 export function sanityUsageQuery(db: D1Database, siteEnv: string | undefined, now: Date) {
