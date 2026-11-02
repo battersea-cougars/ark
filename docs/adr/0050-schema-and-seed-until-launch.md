@@ -30,7 +30,9 @@ settings, entered in the app, which will become production.
   rebuilds like dev, keeping its rows, until the `production` environment's variable `LAUNCHED` is `true`.
 - **After launch, migrations only**, additive (the rule before this ADR): `deploy.yml` runs
   `wrangler d1 migrations apply` once `db/migrations/` has any, and refuses to rebuild production once launched;
-  `db-rebuild.mjs` refuses once it has; the tests build their database from the migrations.
+  `db-rebuild.mjs` refuses once it has. Everything that builds a database of its own picks the migrations by itself
+  once there are any (`scripts/lib/database.mjs`, as the tests' `d1-sqlite.ts` does): the journeys, the load runs, the
+  dev container's start and `scripts/deploy-dev.sh`. A branch that adds a migration runs with `--own-db`.
 - **Backups are GitHub Actions artifacts, sealed.** D1's Time Travel goes back 7 days and lives in the account it
   would protect, and R2 needs a payment method. `scripts/db-backup.mjs` exports the database, compresses it and
   encrypts it with the environment's `BACKUP_KEY` (AES-256-GCM, scrypt with a fresh salt; `scripts/lib/backup.mjs`),

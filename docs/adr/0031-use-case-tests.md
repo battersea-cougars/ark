@@ -79,6 +79,8 @@ test` and VS Code's Testing panel; it never touches 4500/4510/4520 or anyone's a
   stage and role, expected and what happened) and, in CI or with `--file-issue`, opens **one issue for the run**
   (label `regression`) to review: fix the code, or change what the journey expects. `npm run journeys` locally prints
   it and files nothing unless asked.
+- **A journey can't break the next one.** A person's `page.goto` waits for an overlay just closed to take its history
+  entry off (`lib/back.ts`), and a journey that makes a training pauses it in `test.afterEach` however it ended.
 - **Two runs: core and full.** The core run (`npm run journeys -- --core`) is every journey but the Kumite on the
   clock, about 6 minutes; the full run adds it (its three played-out Kumites), 10½ to 13½.
 - **CI** (`.github/workflows/journeys.yml`): the core run nightly on `main` (some time after 02:41 UTC), so a broken
