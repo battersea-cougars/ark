@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-// Launch day for the database (ADR 0050): the schema and the club's seed become migration 0001, and from then on
-// every change is a new migration, additive only. Run once, by hand, in the change that goes live:
+// Launch day for the database (ADR 0050): the schema and the club's seed become migration 0001, and every change after
+// is a new migration, additive only. Run once, by hand, in the change that goes live; databases built before launch
+// move across with `npm run db:migrate:local` (scripts/db-migrate.mjs).
 //   node scripts/db-launch.mjs            then commit db/ and push `release` (deploy.yml applies the migrations)
-// After this, db/migrations/ is the database: deploy.yml applies it instead of rebuilding (and production never
-// rebuilds), the tests build theirs from it, and scripts/db-rebuild.mjs refuses. Databases built before launch move
-// across by themselves (scripts/db-migrate.mjs marks 0001 as theirs already); yours with `npm run db:migrate:local`.
 //   --dir <path>   a copy of db/ to work on instead (for trying it)
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

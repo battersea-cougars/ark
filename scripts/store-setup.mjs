@@ -1,14 +1,9 @@
 #!/usr/bin/env node
-// Set up the team app in the App Store through Apple's App Store Connect API (docs/adr/0108-store-apps.md): its bundle
-// id with the capabilities it uses (notifications; links to the team app opening the app), and it checks the Apple
-// team's id (APPLE_TEAM_ID, not secret: the Worker serves it to phones and store.yml signs with it) against the one
-// committed in scripts/lib/settings.mjs, saying what to put there if it differs. Safe to run again: it changes nothing
-// that's already right.
+// Set up the team app in the App Store through Apple's App Store Connect API (ADR 0108): its bundle id with the
+// capabilities it uses, and a check of the Apple team id against scripts/lib/settings.mjs. Safe to run again.
 //   node scripts/env-pull.mjs -- node scripts/store-setup.mjs
-// Needs APP_STORE_CONNECT_KEY (the secret) and APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID (settings), which
-// env-pull hands it (docs/secrets.md#apple).
+// Needs APP_STORE_CONNECT_KEY, APP_STORE_CONNECT_KEY_ID and APP_STORE_CONNECT_ISSUER_ID (docs/secrets.md#apple).
 // The app's record (name, description, screenshots) is made in App Store Connect by hand: Apple's API can't.
-// The Play Store's setup joins this when the Android app comes (the ADR lists what it needs).
 import { createPrivateKey, sign } from "node:crypto";
 
 const APP_ID = "com.batterseacougars.team";

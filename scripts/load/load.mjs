@@ -80,9 +80,8 @@ const minutes = Number(value("--minutes", asked === "soak" ? 30 : 0));
 if (asked === "soak" && !minutes) fail("soak takes --minutes");
 
 /**
- * D1 rows read a run of each reads (docs/load-testing.md, after #112; register, reveals and club-send from the
- * 2026-11-02 review; 120 members, a fresh database), for a club of `size`: rows read grow about with the members
- * (each read lists them, their answers and places).
+ * D1 rows read a run of each reads (docs/load-testing.md; measured with 120 members on a fresh database), for a club
+ * of `size`: rows read grow about with the members (each read lists them, their answers and places).
  */
 const ROWS = {
   baseline: 50_000,

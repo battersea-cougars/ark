@@ -1,8 +1,6 @@
-// The dev deployment as a load run's target (docs/load-testing.md, "Against dev"): the team Worker at its one
-// workers.dev address and its D1, `cougars-dev`, reached through Cloudflare's API with the dev account's token
-// (scripts/env-pull.mjs). Nothing else is ever a target: the address and the database are fixed here, the database
-// must be found by that name in the account the token reaches (production's account has no `cougars-dev`), and
-// anything that looks like production is refused before a request is sent.
+// The dev deployment as a load run's target (docs/load-testing.md, "Against dev"): the team Worker at its workers.dev
+// address and its D1, `cougars-dev`, through Cloudflare's API with the dev account's token (scripts/env-pull.mjs).
+// Nothing else is ever a target: both are fixed here, and anything that looks like production is refused first.
 export const DEV = {
   url: "https://team.cougars-dev.workers.dev",
   database: "cougars-dev",

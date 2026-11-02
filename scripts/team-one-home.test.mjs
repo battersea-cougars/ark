@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// One home for each look and word in the team app (#153, ADR 0065): a thing that's written once in lib/ isn't written
+// One home for each look and word in the team app (ADR 0065): a thing that's written once in lib/ isn't written
 // again by hand in a page, or the copies drift (a "21th", a confirm with no red, a picker opening behind a sheet).
 // Each rule is a cheap grep over the app's source; a hit names the file and where the one copy lives.
 const src = new URL("../apps/team/src/", import.meta.url).pathname;

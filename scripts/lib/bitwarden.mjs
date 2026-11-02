@@ -1,11 +1,7 @@
-// Bitwarden Secrets Manager is the single source of truth for secrets
-// (docs/adr/0002-secrets-in-bitwarden.md). Every secret is documented in
-// docs/secrets.md.
-//
-// Naming rule (from gwenda-hackney/ark): NAME applies to both environments;
-// NAME__PRODUCTION / NAME__DEV override it for that one. Code only ever reads NAME.
-// Production values live in the `cougars` project, dev and shared values in
-// `cougars-dev`; the dev CI token can't read `cougars` at all.
+// Reading and writing secrets in Bitwarden Secrets Manager, the one place they live (ADR 0002, docs/secrets.md).
+// NAME applies to both environments; NAME__PRODUCTION / NAME__DEV override it for that one, and code only reads NAME.
+// Production values live in the `cougars` project, dev and shared ones in `cougars-dev`; the dev CI token can't read
+// `cougars` at all.
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -120,7 +116,7 @@ export function setSecret(key, value) {
 
 /**
  * Every secret this token can see, with its project's name and when it last changed. The values are for the caller
- * to fingerprint (the Secrets page, #149): never print them.
+ * to fingerprint (the Secrets page): never print them.
  */
 export function listSecrets() {
   const projects = new Map(bws(["project", "list"]).map((p) => [p.id, p.name.trim()]));

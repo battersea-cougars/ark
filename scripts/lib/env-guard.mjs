@@ -1,5 +1,5 @@
-// `.env` is for your own non-secret settings only (ADR 0002 point 5): this finds the lines in it that look like a
-// secret, by name or by value (#149). It answers with line numbers and names, never a value. `npm run lint` and
+// `.env` is for your own non-secret settings only (ADR 0002): this finds the lines in it that look like a
+// secret, by name or by value. It answers with line numbers and names, never a value. `npm run lint` and
 // `npm run app` refuse to go on while there is one (scripts/env-check.mjs).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

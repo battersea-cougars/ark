@@ -1,10 +1,8 @@
 #!/usr/bin/env node
-// The club's VAPID key pair for Web Push (docs/adr/0108-store-apps.md, #24): what a browser's push service knows the
-// team Worker by. The private key goes straight into Secrets Manager (VAPID_PRIVATE_KEY, docs/secrets.md#web-push), never
-// printed or written to a file; the public key is no secret, and goes in apps/team/wrangler.jsonc's vars, where the
-// Worker and the app's build both read it. One pair serves dev and production: a subscription belongs to the origin
-// that made it, so the two never share one.
-// Safe to run again: with both in place it only checks they're a pair; it makes a new pair only when Bitwarden has none.
+// The club's VAPID key pair for Web Push (ADR 0108): the private key goes straight into Secrets Manager
+// (VAPID_PRIVATE_KEY, docs/secrets.md#web-push), never printed; the public key goes in apps/team/wrangler.jsonc's vars.
+// One pair serves dev and production: a subscription belongs to the origin that made it. Safe to run again: it makes a
+// new pair only when Bitwarden has none.
 //   node scripts/webpush-setup.mjs
 // Then commit apps/team/wrangler.jsonc if it changed (and run `npx wrangler types` in apps/team).
 import { createECDH } from "node:crypto";

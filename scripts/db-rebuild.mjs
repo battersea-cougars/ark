@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-// Rebuild a D1 database from db/schema.sql, keeping its data (ADR 0050). Not live yet, so there are no migrations:
-// change the schema, then run this on local and dev. Every row is read out, the tables are made again from the
-// schema, the rows go back (a new column takes its default; a column that's gone is dropped, and said so), and the
-// club's seed (db/seed/club.sql) fills in anything missing. The roster is separate: scripts/seed-roster.mjs.
+// Rebuild a D1 database from db/schema.sql, keeping its data (ADR 0050): every row is read out, the tables are made
+// again from the schema, the rows go back (a new column takes its default; a column that's gone is dropped, and said
+// so), and the club's seed (db/seed/club.sql) fills in anything missing. The roster is scripts/seed-roster.mjs's.
 //   node scripts/db-rebuild.mjs --local                                (local D1, apps/web/.wrangler)
 //   node scripts/db-rebuild.mjs --remote -c dist/server/wrangler.json  (CI: the built config names the database)
 //   node scripts/env-pull.mjs -- node scripts/db-rebuild.mjs --remote --name cougars-dev   (dev, by hand)
-// The rows are personal data: the backup goes in a private temp folder, never the repo, and its path is printed.
 import Database from "better-sqlite3";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -83,11 +81,12 @@ const rows = Object.fromEntries(
   ours.length ? query(ours.map((t) => `SELECT * FROM "${t}"`).join("; ")).map((r, i) => [ours[i], r.results]) : [],
 );
 
+// The rows are personal data: the backup goes in a private temp folder, never the repo
 const dir = mkdtempSync(join(tmpdir(), "db-rebuild-"));
 writeFileSync(join(dir, "backup.json"), JSON.stringify(rows), { mode: 0o600 });
 console.log(`Backed up ${ours.length} tables to ${join(dir, "backup.json")}`);
 
-// Kept by the schema's triggers from the rows that go back (a charge's paid_pence from its allocations, #177): read
+// Kept by the schema's triggers from the rows that go back (a charge's paid_pence from its allocations): read
 // back as they were, the triggers would add them again
 const DERIVED = { charges: ["paid_pence"], payments: ["spent_pence"] };
 const literal = (v) => (v === null ? "NULL" : typeof v === "number" ? String(v) : `'${String(v).replace(/'/g, "''")}'`);

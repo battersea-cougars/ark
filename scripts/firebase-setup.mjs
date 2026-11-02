@@ -1,12 +1,10 @@
 #!/usr/bin/env node
-// Set up Firebase for the store app's notifications (docs/adr/0108-store-apps.md) in the club's Google Cloud project,
-// through Google's APIs: Firebase turned on, the iOS app, and the service account the team Worker sends with. What it
-// makes goes straight into Secrets Manager (FIREBASE_IOS_CONFIG, FIREBASE_SERVICE_ACCOUNT; docs/secrets.md#firebase).
-// Safe to run again: it changes nothing that's already right, and makes a new key only when Bitwarden has none.
+// Firebase for the store app's notifications (ADR 0108) in the club's Google Cloud project, through Google's APIs:
+// Firebase turned on, the iOS app, and the service account the team Worker sends with, stored straight into Secrets
+// Manager (docs/secrets.md#firebase). Safe to run again: it makes a new key only when Bitwarden has none.
 //   gcloud auth login   (an Owner of the project, once; the devcontainer keeps it)
 //   node scripts/firebase-setup.mjs
-// The one step Google's API can't do: uploading the APNs key in the Firebase console, which it prints. The key is
-// kept in the club's Bitwarden vault (Password Manager), not Secrets Manager: no code reads it (docs/secrets.md#apple).
+// Then upload the APNs key in the Firebase console, as it prints: Google's API can't (docs/secrets.md#apple).
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
 import { bws, ensureToken, projectFor, setSecret } from "./lib/bitwarden.mjs";

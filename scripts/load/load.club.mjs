@@ -1,14 +1,13 @@
 // A load run's own people on a database it shares (docs/load-testing.md, "Against dev"): members of its own, signed in
-// with sessions it mints itself (no emailed codes, nothing changed in the app), and afterwards everything it made gone
-// again. Everything it makes carries a mark it can find again, even after a crash (`--cleanup`):
-//   members        an email at load.test (a name that can't be anyone's: .test is reserved)
-//   sign-ins       auth_sessions.method "load", stored as the app stores them (the token's SHA-256, auth.ts)
-//   what it makes  a name ending "(scripts/load)": a training, a tournament type, tournaments
+// with sessions it mints itself, and afterwards everything it made gone again, even after a crash (`--cleanup`).
 // Tokens live only in this process's memory. `db` is { run(sql), rows(sql) }: dev's D1 (load.dev.mjs), a local one
 // (load.server.mjs), or the tests' SQLite.
 import { createHash, randomBytes } from "node:crypto";
 import { parseRoster, rosterSql } from "../lib/roster.mjs";
 
+// The marks that find what a run made again. What it makes: a name ending MARK (a training, a tournament type,
+// tournaments). Members: an email at DOMAIN (.test is reserved, so it can't be anyone's). Sign-ins:
+// auth_sessions.method METHOD, stored as the app stores them (the token's SHA-256, auth.ts).
 export const MARK = "(scripts/load)";
 export const DOMAIN = "load.test";
 const METHOD = "load";

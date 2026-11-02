@@ -101,7 +101,7 @@ async function fridayRush({ target, roster, stats, shared, notes }) {
 async function liveDraft({ target, roster, stats, shared, notes }) {
   const admin = await adminPhone(target, roster, stats, shared);
   await admin.boot("setup");
-  // The roster is the members' page's (#178)
+  // The roster is the members' page's
   const club = await admin.page("setup", ["members"]);
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const type = must(
@@ -175,7 +175,7 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
     return { teams, made, pool, team: teams[onTheClock(teams.length, made)] };
   };
   // Everyone watching: the stream, reloading on each pick
-  // Opening the draft room: the core, then the Kumite's pages' parts (#178), as the app reads them
+  // Opening the draft room: the core, then the Kumite's pages' parts, as the app reads them
   const opened = (p) =>
     p.boot("bootstrap: open the draft").then(() => p.page("page: the draft room", ["members", "lastPlayed"]));
   const stops = watching.map((p) => (opened(p), p.follow(["tournaments"])));
@@ -246,7 +246,7 @@ async function liveDraft({ target, roster, stats, shared, notes }) {
 async function scoring({ target, roster, stats, shared, followers = 80, notes, d1 }) {
   const admin = await adminPhone(target, roster, stats, shared);
   await admin.boot("setup");
-  // The roster is the members' page's (#178)
+  // The roster is the members' page's
   const club = await admin.page("setup", ["members"]);
   const idOf = new Map(club.members.map((m) => [m.name, m.id]));
   const captains = roster.slice(1, 4);

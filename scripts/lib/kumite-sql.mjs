@@ -1,7 +1,6 @@
-// The Kumite as the website shows it (ADR 0016, apps/team/worker/tournaments/README.md), read from the club's D1 at build time (scripts/club-snapshot.mjs):
-// its awards and the next one's date and place. Each Kumite keeps its own awards (apps/team/worker/tournaments/README.md), so the website shows a
-// Kumite's own: the next public one's, else the last public one held's; the series' only before there's been any (they
-// are the defaults a new Kumite copies).
+// The Kumite as the website shows it (ADR 0016), read from the club's D1 at build time (scripts/club-snapshot.mjs): its
+// awards and the next one's date and place. Each Kumite keeps its own awards (apps/team/worker/tournaments/README.md):
+// the next public one's, else the last public one held's; the series' only before there's been any.
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
