@@ -1,11 +1,5 @@
-// Who's in (T2): sign-ups for training sessions, tournaments and club events, and the register on the night. One
-// row per person per event (db/schema.sql). The rules live here, not in the app: a full
-// event puts you on the waitlist, and when someone who was in drops out (or is taken off) the first on the
-// waitlist moves up. A training's places are the skaters'; keepers have their own, if the series sets any, else no
-// limit (apps/team/worker/training/README.md), so a keeper never takes a skater's place, nor a skater a keeper's. A training's list is in one order, Quarterly Members first (apps/team/worker/training/README.md): one signing up for a full
-// session takes the place of the last one in who pays as they go. Adding someone to a training keeps to
-// its places too; only the team maker lets someone in past them (apps/team/worker/training/README.md). Admins can put someone in a tournament or
-// club event past its limit.
+// Who's in: sign-ups for training sessions, tournaments and club events, and the register on the night, one row per
+// person per event. The rules live here, not in the app (apps/team/worker/training/README.md).
 import { all, batch, first, run, statement, type Param } from "@cougars/shared/d1";
 import { doneSql } from "@cougars/shared/results";
 import { londonTime, londonToday } from "@cougars/shared/london";
@@ -272,7 +266,7 @@ export function fillingUp(
       [today, ...scope.params],
     );
   }
-  // A tournament until it's played, whatever its date (apps/team/worker/tournaments/README.md, #182); a club event, by its time: it has no status
+  // A tournament until it's played, whatever its date (apps/team/worker/tournaments/README.md); a club event, by its time: it has no status
   const live = kind === "tournament" ? `NOT ${doneSql("t")}` : "t.cancelled_at IS NULL AND t.starts_at >= ?";
   return statement(
     db,
@@ -295,7 +289,7 @@ export function fillingUp(
 /**
  * Whether an answer to this event can change what anyone owes: only once its day has come, since a night or a
  * tournament is charged from its day (dues.ts SESSIONS_DUE, TOURNAMENTS_DUE). A sign-up for Friday on Monday can't, so
- * it doesn't work out the club's charges again (#148: with a year of history that's ~50k rows read a tap).
+ * it doesn't work out the club's charges again (with a year of history that's ~50k rows read a tap).
  */
 export async function chargedFromToday(db: D1Database, kind: EntryKind, id: number, today: string) {
   if (kind === "event") return false;
@@ -305,7 +299,7 @@ export async function chargedFromToday(db: D1Database, kind: EntryKind, id: numb
 
 /**
  * A member's own In, Out or taking back their Out. Whether they're new to the event's answers (they hadn't answered,
- * and now have): Home's people, everyone's next things, have one more in them (#178).
+ * and now have): Home's people, everyone's next things, have one more in them.
  */
 export async function answer(
   db: D1Database,
@@ -316,8 +310,8 @@ export async function answer(
   now: string,
 ): Promise<boolean> {
   const places = await capacity(db, kind, id, memberId);
-  // Once training's started, who's in is the register's (apps/team/worker/dues/README.md, apps/team/worker/training/README.md, #167): who's there, and what it charges, is
-  // the register's and the admins' to change, not a member's own In or Out; once it's over, it's the record (#128)
+  // Once training's started, who's in is the register's (apps/team/worker/dues/README.md, apps/team/worker/training/README.md): who's there, and what it charges, is
+  // the register's and the admins' to change, not a member's own In or Out; once it's over, it's the record
   if (places.night && nightPast(places.night, places.night.endTime, now))
     throw new HttpError(409, "That night's over: the register says who came.");
   if (places.night && nightPast(places.night, places.night.startTime, now))
@@ -368,7 +362,7 @@ export async function answer(
     const today = londonToday(new Date(now));
     if (t && !signupOpen(t, today)) {
       if (t.status === "planned" && !signupOver(t, today))
-        // In words, as the app says it, London's day (lib/signup.ts opensWords): "Monday", "Monday 19 October" (#170)
+        // In words, as the app says it, London's day (lib/signup.ts opensWords): "Monday", "Monday 19 October"
         throw new HttpError(
           409,
           t.signupOpensOn ? `Sign-up opens ${opensWords(t.signupOpensOn, today)}.` : "Sign-up isn't open yet.",
@@ -574,7 +568,7 @@ export async function markAll(db: D1Database, memberId: number, marks: Mark[], b
 
 /**
  * The register on the night: one member, here or not (markAll). Says where they are now (`signup`: in, waiting, or
- * null), and the night's day (#223: whether the mark changed what they've played).
+ * null), and the night's day (whether the mark changed what they've played).
  */
 export async function mark(
   db: D1Database,

@@ -1,6 +1,6 @@
-// Friday's sign-ups at their edges (apps/team/worker/training/README.md, apps/team/worker/dues/README.md): the first and the last place, a limit changed with people
-// waiting, answers that make no sense, nights that are over or called off, and who may do what (ADR 0024). Driven
-// through the real Worker handlers, each person signed in as themselves (ADR 0031).
+// Friday's sign-ups at their edges (apps/team/worker/training/README.md): first and last places, limits changed,
+// answers that make no sense, nights over or called off, and who may do what (ADR 0024). Driven through the real
+// Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
@@ -139,7 +139,7 @@ describe("the first and the last place", () => {
 
 describe("a limit changed while people wait", () => {
   // Raising the limit moved nobody up: the waiting stayed waiting, and the next to say in took the new place ahead of
-  // them (#127). A limit raised is a place coming free (apps/team/worker/training/README.md)
+  // them. A limit raised is a place coming free (apps/team/worker/training/README.md)
   it("an admin makes room for one more: the first waiting is in, not the next to sign up (#127)", async () => {
     const f = await friday({ capacity: 2 });
     for (const p of ["Reg", "Paul", "Walt"]) await f.say(p, "in");
@@ -232,7 +232,7 @@ describe("answers that make no sense", () => {
     expect((await f.seen()).going).toEqual([]);
   });
 
-  // The id went straight into the insert, whose foreign key refused it as a server error (#130)
+  // The id went straight into the insert, whose foreign key refused it as a server error
   it("an admin putting in a member who doesn't exist is told so, not a server error (#130)", async () => {
     const f = await friday({ capacity: 5 });
     const res = await f.dana.call("POST", `/api/sessions/${f.night.id}/players`, { memberId: 987654, in: true });
@@ -280,7 +280,7 @@ describe("a night that's called off", () => {
     const f = await friday({ capacity: 5 });
     for (const p of ["Reg", "Paul"]) await f.say(p, "in");
     expect(await f.charged()).toEqual([f.id.Reg, f.id.Paul].sort((a, b) => a - b));
-    // The rink called it off, put on the record late that night, before its register closes at 6am (#11)
+    // The rink called it off, put on the record late that night, before its register closes at 6am
     const after = { now: new Date(`${NEXT_FRIDAY}T22:30:00Z`) };
     await f.dana.call("POST", `/api/sessions/${f.night.id}/cancelled`, { cancelled: true }, after);
     expect(await f.charged()).toEqual([]);
@@ -297,7 +297,7 @@ describe("a night that's called off", () => {
 
 describe("a night that's over", () => {
   // The register is the record of who came, and its charge stands (apps/team/worker/dues/README.md): after the night, a member's own Out
-  // took them off it and their unpaid charge went (#128)
+  // took them off it and their unpaid charge went
   it("a member who came can't say they're out of last Friday afterwards: they're still in, and still charged (#128)", async () => {
     const f = await friday({ capacity: 5, day: LAST_FRIDAY });
     // Signed up before the night (the Monday before), and came
@@ -316,7 +316,7 @@ describe("a night that's over", () => {
   });
 });
 
-// Once training's started, who's in is the register's (decided 2026-10-23, #11, #167): a member's own In or Out is
+// Once training's started, who's in is the register's: a member's own In or Out is
 // refused, in plain words; an admin still changes who's in. Friday Training is 7:30 to 9:30pm (BST: 18:30Z)
 describe("a night that's started", () => {
   const BEFORE = new Date("2026-10-09T18:29:00Z");
@@ -409,7 +409,7 @@ describe("Quarterly Members and walk-ins", () => {
     expect((await f.dana.call("POST", `/api/members/${f.id.Quinn}/quarterly`, { quarterly: true })).status).toBe(200);
     await f.say("Reg", "in");
     // Walt walks in on the night (room for him): the last place. Quinn says in just before it starts, when a member's
-    // own answer still counts (from 7:30pm it's the register's, #167)
+    // own answer still counts (from 7:30pm it's the register's)
     const tess = await as("tess@example.com");
     const onTheNight = new Date(`${NEXT_FRIDAY}T18:25:00Z`);
     const walkIn = await tess.call(

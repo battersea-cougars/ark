@@ -1,6 +1,5 @@
-// Signing up, and what people owe (the dues notes): a night or a tournament is charged from its day, so a sign-up days
-// before charges nothing and works nothing out; on the day itself it's charged at once. Driven through the real Worker
-// handlers in the fake world (ADR 0031).
+// Signing up, and what people owe (apps/team/worker/dues/README.md): a night or a tournament is charged from its
+// day. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { chargesOf } from "../dues/dues.testing";
