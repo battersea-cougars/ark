@@ -2,6 +2,7 @@
 // itself. They sign in with that email as anyone does. Driven through the real handlers in the fake world (ADR 0031);
 // with no Gmail in tests, the email is logged.
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetBreakers } from "@cougars/shared/breaker";
 import { testWorld } from "../testing";
 
 const ROSTER = [
@@ -78,6 +79,20 @@ describe("an admin adds a member without emailing them (#164)", () => {
     expect(r.body.emailed).toBe(true);
     expect(w.mails).toHaveLength(1);
     expect(w.mails[0].text).toContain("https://team.test/?email=nina%40example.com");
+  });
+
+  it("the email failing doesn't undo the add: they're in, and the admin hears it wasn't sent", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    // Gmail on, as deployed, and then Google cancels its token: every email fails
+    resetBreakers();
+    w.gmail().cancel();
+    w.env.TEAM_ENV = undefined;
+    const r = await dana.call("POST", "/api/members", { ...NEWBIE, email: "dana+nina@example.com" });
+    resetBreakers();
+    expect(r.status).toBe(201);
+    expect(r.body.emailed).toBe(false);
+    const nina = (await dana.club()).body.members.find((m: { name: string }) => m.name === "Nina New");
+    expect(nina).toMatchObject({ status: "active" });
   });
 
   it("the record says whether the add emailed them", async () => {

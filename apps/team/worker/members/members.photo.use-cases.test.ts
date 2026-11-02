@@ -40,6 +40,14 @@ describe("a member puts up a profile photo", () => {
     expect(new Uint8Array(await img.arrayBuffer()).slice(1, 4)).toEqual(new TextEncoder().encode("PNG"));
   });
 
+  it("the club's read carries only when it was set, never the picture itself", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    await reg.call("PUT", "/api/me/photo", { photo: PNG });
+    const club = JSON.stringify((await reg.club()).body);
+    expect(club).not.toContain("data:image");
+    expect((await memberNamed(reg, "Reg Player")).photoAt).toBeTruthy();
+  });
+
   it("taking it down puts their initials back", async () => {
     const reg = await w.signedIn("reg@example.com");
     await reg.call("PUT", "/api/me/photo", { photo: PNG });
